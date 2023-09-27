@@ -4,7 +4,14 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { currentURL, find, findAll, visit, click } from '@ember/test-helpers';
+import {
+  currentURL,
+  find,
+  findAll,
+  visit,
+  click,
+  fillIn,
+} from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -14,6 +21,7 @@ import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
+import AccessControl from 'nomad-ui/tests/pages/access-control';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
@@ -28,6 +36,7 @@ let job;
 let node;
 let managementToken;
 let clientToken;
+
 module('Acceptance | tokens', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
@@ -61,7 +70,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.ok(document.title.includes('Authorization'));
+    assert.ok(document.title.includes('Sign In'));
 
     await Tokens.secret(secretId).submit();
     assert.equal(
@@ -567,7 +576,6 @@ module('Acceptance | tokens', function (hooks) {
     assert.dom('.dropdown-options').exists('Dropdown options are shown');
 
     await selectChoose('[data-test-select-jwt]', 'JWT-Regional');
-    console.log(currentURL());
     assert.equal(
       currentURL(),
       '/settings/tokens?jwtAuthMethod=JWT-Regional',
@@ -586,21 +594,24 @@ module('Acceptance | tokens', function (hooks) {
     );
   });
 
-  test('Tokens are shown on the policies index page', async function (assert) {
+  test('Tokens are shown on the Access Control Policies index page', async function (assert) {
     allScenarios.policiesTestCluster(server);
+    let firstPolicy = server.db.policies.sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    })[0];
     // Create an expired token
     server.create('token', {
       name: 'Expired Token',
       id: 'just-expired',
-      policyIds: [server.db.policies[0].name],
+      policyIds: [firstPolicy.name],
       expirationTime: new Date(new Date().getTime() - 10 * 60 * 1000), // 10 minutes ago
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
-    assert.dom('[data-test-policy-token-count]').exists();
+    await visit('/access-control/policies');
+    assert.dom('[data-test-policy-total-tokens]').exists();
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
-      return token.policyIds.includes(server.db.policies[0].name);
+      return token.policyIds.includes(firstPolicy.name);
     });
     assert
       .dom('[data-test-policy-total-tokens]')
@@ -611,22 +622,25 @@ module('Acceptance | tokens', function (hooks) {
 
   test('Tokens are shown on a policy page', async function (assert) {
     allScenarios.policiesTestCluster(server);
+    let firstPolicy = server.db.policies.sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    })[0];
+
     // Create an expired token
     server.create('token', {
       name: 'Expired Token',
       id: 'just-expired',
-      policyIds: [server.db.policies[0].name],
+      policyIds: [firstPolicy.name],
       expirationTime: new Date(new Date().getTime() - 10 * 60 * 1000), // 10 minutes ago
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
-
-    await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
+    await visit('/access-control/policies');
+    await click('[data-test-policy-name]');
+    assert.equal(currentURL(), `/access-control/policies/${firstPolicy.name}`);
 
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
-      return token.policyIds.includes(server.db.policies[0].name);
+      return token.policyIds.includes(firstPolicy.name);
     });
 
     assert
@@ -635,14 +649,25 @@ module('Acceptance | tokens', function (hooks) {
         { count: expectedFirstPolicyTokens.length },
         'Expected number of tokens are shown'
       );
-    assert.dom('[data-test-token-expiration-time]').hasText('10 minutes ago');
+
+    const expiredTokenRow = [...findAll('[data-test-policy-token-row]')].find(
+      (a) => a.textContent.includes('Expired Token')
+    );
+
+    assert.dom(expiredTokenRow).exists();
+    assert
+      .dom(expiredTokenRow.querySelector('[data-test-token-expiration-time]'))
+      .hasText('10 minutes ago');
 
     window.localStorage.nomadTokenSecret = null;
   });
 
-  test('Tokens Deletion', async function (assert) {
+  test('Tokens Deletion from Policy page', async function (assert) {
     allScenarios.policiesTestCluster(server);
-    const testPolicy = server.db.policies[0];
+    let testPolicy = server.db.policies.sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    })[0];
+
     const existingTokens = server.db.tokens.filter((t) =>
       t.policyIds.includes(testPolicy.name)
     );
@@ -654,28 +679,22 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
 
-    await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${testPolicy.name}`);
+    await click('[data-test-policy-name]:first-child');
+    assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
     assert
       .dom('[data-test-policy-token-row]')
       .exists(
         { count: existingTokens.length + 1 },
         'Expected number of tokens are shown'
       );
-
     const doomedTokenRow = [...findAll('[data-test-policy-token-row]')].find(
       (a) => a.textContent.includes('Doomed Token')
     );
-
     assert.dom(doomedTokenRow).exists();
 
     await click(doomedTokenRow.querySelector('button'));
-    assert
-      .dom(doomedTokenRow.querySelector('[data-test-confirm-button]'))
-      .exists();
-    await click(doomedTokenRow.querySelector('[data-test-confirm-button]'));
     assert.dom('.flash-message.alert-success').exists();
     assert
       .dom('[data-test-policy-token-row]')
@@ -687,18 +706,21 @@ module('Acceptance | tokens', function (hooks) {
     window.localStorage.nomadTokenSecret = null;
   });
 
-  test('Test Token Creation', async function (assert) {
+  test('Test Token Creation from Policy Page', async function (assert) {
     allScenarios.policiesTestCluster(server);
-    const testPolicy = server.db.policies[0];
+    let testPolicy = server.db.policies.sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    })[0];
+
     const existingTokens = server.db.tokens.filter((t) =>
       t.policyIds.includes(testPolicy.name)
     );
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
 
-    await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${testPolicy.name}`);
+    await click('[data-test-policy-name]');
+    assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
 
     assert
       .dom('[data-test-policy-token-row]')
@@ -730,4 +752,534 @@ module('Acceptance | tokens', function (hooks) {
       requestHeaders[name.toUpperCase()]
     );
   }
+
+  module('Roles', function (hooks) {
+    // Set up a token with a role
+    hooks.beforeEach(function () {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      faker.seed(1);
+      allScenarios.rolesTestCluster(server);
+    });
+
+    test('Policies are derived from role', async function (assert) {
+      assert.expect(19);
+
+      await Tokens.visit();
+
+      let token;
+
+      // User with 1 role, containing 1 policy, and no direct policies
+      token = server.db.tokens.findBy(
+        (t) => t.name === 'High Level Role Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      assert.dom('[data-test-token-role]').exists({ count: 1 });
+      assert.dom('[data-test-role-name]').hasText('high-level');
+      assert.dom('[data-test-role-policies] li').exists({ count: 1 });
+      assert.dom('[data-test-role-policies] li').hasText('job-writer');
+
+      assert.dom('[data-test-token-policy]').exists({ count: 1 });
+      assert.dom('[data-test-policy-name]').hasText('job-writer');
+
+      await Tokens.clear();
+
+      // User with 1 role, containing 2 policies, and a direct policy
+      token = server.db.tokens.findBy(
+        (t) => t.name === 'Policy And Role Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      assert.dom('[data-test-token-role]').exists({ count: 1 });
+      assert.dom('[data-test-role-name]').hasText('reader');
+      assert.dom('[data-test-role-policies] li').exists({ count: 2 });
+      let policyLinks = findAll('[data-test-role-policies] li');
+      assert.dom(policyLinks[0]).hasText('client-reader');
+      assert.dom(policyLinks[1]).hasText('job-reader');
+
+      assert.dom('[data-test-token-policy]').exists({ count: 3 });
+      let policyBlocks = findAll('[data-test-policy-name]');
+      assert.dom(policyBlocks[0]).hasText('operator');
+      assert.dom(policyBlocks[1]).hasText('client-reader');
+      assert.dom(policyBlocks[2]).hasText('job-reader');
+
+      await percySnapshot(assert);
+
+      await Tokens.clear();
+
+      // User with 2 roles, each containing 1 policy, and one of the policies is also directly on their token
+      token = server.db.tokens.findBy(
+        (t) => t.name === 'Multi Role And Policy Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      assert.equal(token.roleIds.length, 2);
+      assert.equal(token.policyIds.length, 1);
+
+      assert.dom('[data-test-token-role]').exists({ count: 2 });
+      assert.dom('[data-test-token-policy]').exists({ count: 2 });
+    });
+
+    test('Token priveleges are derived from role', async function (assert) {
+      // First, check that a node reader can read nodes if the policy to do so only exists at their role level
+      await visit('/clients');
+      // Expect to see some nodes
+      let nodes = server.db.nodes;
+      assert.dom('[data-test-client-node-row]').exists({ count: nodes.length });
+
+      // Head back and sign in as Clientless Role Token
+      await Tokens.visit();
+      let token = server.db.tokens.findBy(
+        (t) => t.name === 'Clientless Role Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      await visit('/clients');
+      // Expect no rows, and a denied message
+      assert.dom('[data-test-client-node-row]').doesNotExist();
+      assert.dom('[data-test-error]').exists();
+
+      // Pop over to the jobs page and make sure the Run button is disabled
+      await visit('/jobs');
+      assert.dom('[data-test-run-job]').hasTagName('button');
+      assert.dom('[data-test-run-job]').isDisabled();
+
+      // Sign out, and sign back in as a high-level role token
+      await Tokens.visit();
+      await Tokens.clear();
+      token = server.db.tokens.findBy(
+        (t) => t.name === 'High Level Role Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      await visit('/jobs');
+      // Expect the Run button/link to work now
+      assert.dom('[data-test-run-job]').hasTagName('a');
+      assert.dom('[data-test-run-job]').hasAttribute('href', '/ui/jobs/run');
+    });
+  });
+
+  module('Access Control Tokens section', function (hooks) {
+    hooks.beforeEach(async function () {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      faker.seed(1);
+      allScenarios.rolesTestCluster(server);
+      await Tokens.visit();
+      const managementToken = server.db.tokens.findBy(
+        (t) => t.type === 'management'
+      );
+      const { secretId } = managementToken;
+      await Tokens.secret(secretId).submit();
+      await AccessControl.visitTokens();
+    });
+
+    hooks.afterEach(async function () {
+      await Tokens.visit();
+      await Tokens.clear();
+    });
+
+    test('Tokens index, general', async function (assert) {
+      assert.equal(currentURL(), '/access-control/tokens');
+      // Number of token rows equivalent to number in db
+      assert
+        .dom('[data-test-token-row]')
+        .exists({ count: server.db.tokens.length });
+
+      await percySnapshot(assert);
+    });
+
+    test('Tokens index, management token handling', async function (assert) {
+      // two management tokens, one of which is yours; yours cannot be deleted or clicked into.
+      assert.dom('[data-test-token-type="management"]').exists({ count: 2 });
+      const managementToken = server.db.tokens.findBy(
+        (t) => t.type === 'management'
+      );
+      const managementTokenRow = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes(managementToken.name)
+      );
+      const otherManagerRow = [...findAll('[data-test-token-row]')].find(
+        (row) =>
+          row.textContent.includes('management') &&
+          !row.textContent.includes(managementToken.name)
+      );
+      assert
+        .dom(managementTokenRow.querySelector('[data-test-token-name] a'))
+        .doesNotExist('Cannot click into and edit your own token');
+      assert
+        .dom(otherManagerRow.querySelector('[data-test-token-name] a'))
+        .exists('Can click into and edit another manager token');
+      assert
+        .dom(
+          managementTokenRow.querySelector('[data-test-delete-token] button')
+        )
+        .isDisabled('Cannot delete your own token');
+      assert
+        .dom(otherManagerRow.querySelector('[data-test-delete-token] button'))
+        .isNotDisabled('Can delete another manager token');
+    });
+
+    test('Tokens index, table sorting', async function (assert) {
+      const nameCells = findAll('[data-test-token-name]');
+      const nameCellText = nameCells.map((cell) => cell.textContent.trim());
+      const sortedNameCellText = nameCellText.slice().sort();
+      assert.deepEqual(
+        nameCellText,
+        sortedNameCellText,
+        'Names are sorted alphabetically'
+      );
+
+      // Click on the first thead tr th to reverse
+      assert
+        .dom('table.acl-table thead tr th')
+        .hasAttribute('aria-sort', 'ascending');
+      await click('table.acl-table thead tr th button');
+      assert
+        .dom('table.acl-table thead tr th')
+        .hasAttribute('aria-sort', 'descending');
+
+      const reversedNameCells = findAll('[data-test-token-name]');
+      const reversedNameCellText = reversedNameCells.map((cell) =>
+        cell.textContent.trim()
+      );
+      const reversedSortedNameCellText = nameCellText.slice().sort().reverse();
+
+      assert.deepEqual(
+        reversedNameCellText,
+        reversedSortedNameCellText,
+        'Names are reversed alphabetically'
+      );
+    });
+
+    test('Tokens index, deletion', async function (assert) {
+      const numberOfTokens = server.db.tokens.length;
+      assert
+        .dom('[data-test-token-row]')
+        .exists(
+          { count: numberOfTokens },
+          'Number of tokens matches number in db'
+        );
+      const tokenToDelete = server.db.tokens.findBy((t) => t.type === 'client');
+      const tokenRowToDelete = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes(tokenToDelete.name)
+      );
+      await click(
+        tokenRowToDelete.querySelector('[data-test-delete-token] button')
+      );
+      assert.dom('.flash-message.alert-success').exists();
+      assert
+        .dom('[data-test-token-row]')
+        .exists(
+          { count: numberOfTokens - 1 },
+          'Number of token rows decreased after deletion'
+        );
+
+      const nameCells = findAll('[data-test-token-name]');
+      const nameCellText = nameCells.map((cell) => cell.textContent.trim());
+      assert.notOk(
+        nameCellText.includes(tokenToDelete.name),
+        'Deleted token name not found among name cells'
+      );
+    });
+
+    test('Tokens index, clicking into a token page', async function (assert) {
+      const tokenToClick = server.db.tokens.findBy((t) => t.type === 'client');
+      const tokenRowToClick = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes(tokenToClick.name)
+      );
+      await click(tokenRowToClick.querySelector('[data-test-token-name] a'));
+      assert.equal(currentURL(), `/access-control/tokens/${tokenToClick.id}`);
+      assert.dom('[data-test-token-name-input]').hasValue(tokenToClick.name);
+    });
+
+    test('Tokens index, roles and policies attached to a token show up as links', async function (assert) {
+      // Staying on the index page, Rows should have a Roles column with either "No Roles" or a bunch of links to roles. Ditto policies.
+      const tokenWithRolesAndPolicies = server.db.tokens.findBy(
+        (t) => t.name === 'Multi Role And Policy Token'
+      );
+      const tokenRowWithRolesAndPolicies = [
+        ...findAll('[data-test-token-row]'),
+      ].find((row) => row.textContent.includes(tokenWithRolesAndPolicies.name));
+      const rolesCell = tokenRowWithRolesAndPolicies.querySelector(
+        '[data-test-token-roles]'
+      );
+      const policiesCell = tokenRowWithRolesAndPolicies.querySelector(
+        '[data-test-token-policies]'
+      );
+      assert.dom(rolesCell).exists();
+      assert.dom(policiesCell).exists();
+
+      const rolesCellTags = rolesCell
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      const policiesCellTags = policiesCell
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      assert.equal(rolesCellTags.length, 2);
+      assert.equal(policiesCellTags.length, 1);
+
+      const policyLessToken = server.db.tokens.findBy(
+        (t) => t.name === 'High Level Role Token'
+      );
+      const policyLessTokenRow = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes(policyLessToken.name)
+      );
+      const rolesCell2 = policyLessTokenRow.querySelector(
+        '[data-test-token-roles]'
+      );
+      const policiesCell2 = policyLessTokenRow.querySelector(
+        '[data-test-token-policies]'
+      );
+      assert.dom(rolesCell2).exists();
+      assert.dom(policiesCell2).exists();
+
+      const rolesCellTags2 = rolesCell2
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      const policiesCellTags2 = policiesCell2
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      assert.equal(rolesCellTags2.length, 1);
+      assert.equal(policiesCellTags2.length, 0);
+    });
+
+    test('Token page, general', async function (assert) {
+      const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
+      await visit(`/access-control/tokens/${token.id}`);
+      assert.dom('[data-test-token-name-input]').hasValue(token.name);
+      assert.dom('[data-test-token-accessor]').hasValue(token.accessorId);
+      assert.dom('[data-test-token-secret]').hasValue(token.secretId);
+      assert.dom('[data-test-token-type="client"]').isChecked();
+      assert.dom('[data-test-token-type="management"]').isNotChecked();
+
+      assert.dom('.expiration-time').hasText('Token expires in an hour');
+
+      assert.dom('[data-test-token-roles]').exists();
+      assert.dom('[data-test-token-policies]').exists();
+
+      // All possible policies are shown
+      const allPolicies = server.db.policies;
+      const allPolicyRows = findAll('[data-test-token-policies] tbody tr');
+      assert.equal(
+        allPolicyRows.length,
+        allPolicies.length,
+        'All policies are shown'
+      );
+
+      // The policies/roles belonging to this token are checked
+      const tokenPolicies = token.policyIds;
+
+      const checkedPolicyRows = findAll(
+        '[data-test-token-policies] tbody tr input:checked'
+      );
+
+      assert.equal(
+        checkedPolicyRows.length,
+        tokenPolicies.length,
+        'All policies belonging to this token are checked'
+      );
+
+      const checkedPolicyNames = checkedPolicyRows.map((row) =>
+        row
+          .closest('tr')
+          .querySelector('[data-test-policy-name]')
+          .textContent.trim()
+      );
+      assert.deepEqual(
+        checkedPolicyNames.sort(),
+        tokenPolicies.sort(),
+        'All policies belonging to this token are checked'
+      );
+
+      const allRoles = server.db.roles;
+      const allRoleRows = findAll('[data-test-token-roles] tbody tr');
+      assert.equal(allRoleRows.length, allRoles.length, 'All roles are shown');
+
+      const tokenRoles = token.roleIds;
+
+      const checkedRoleRows = findAll(
+        '[data-test-token-roles] tbody tr input:checked'
+      );
+
+      assert.equal(
+        checkedRoleRows.length,
+        tokenRoles.length,
+        'All roles belonging to this token are checked'
+      );
+
+      const checkedRoleNames = checkedRoleRows.map((row) =>
+        row
+          .closest('tr')
+          .querySelector('[data-test-role-name]')
+          .textContent.trim()
+      );
+
+      assert.deepEqual(
+        checkedRoleNames.sort(),
+        tokenRoles.sort(),
+        'All roles belonging to this token are checked'
+      );
+    });
+    test('Token name can be edited', async function (assert) {
+      const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
+      await visit(`/access-control/tokens/${token.id}`);
+      assert.dom('[data-test-token-name-input]').hasValue(token.name);
+      await fillIn('[data-test-token-name-input]', 'Mud-Token');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert.dom('[data-test-token-name="Mud-Token"]').exists({ count: 1 });
+    });
+
+    test('Token policies and roles can be edited', async function (assert) {
+      const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
+      await visit(`/access-control/tokens/${token.id}`);
+
+      // The policies/roles belonging to this token are checked
+      const tokenPolicies = token.policyIds;
+
+      const checkedPolicyRows = findAll(
+        '[data-test-token-policies] tbody tr input:checked'
+      );
+
+      assert.equal(
+        checkedPolicyRows.length,
+        tokenPolicies.length,
+        'All policies belonging to this token are checked'
+      );
+
+      const checkedPolicyNames = checkedPolicyRows.map((row) =>
+        row
+          .closest('tr')
+          .querySelector('[data-test-policy-name]')
+          .textContent.trim()
+      );
+      assert.deepEqual(
+        checkedPolicyNames.sort(),
+        tokenPolicies.sort(),
+        'All policies belonging to this token are checked'
+      );
+
+      // Try unchecking ALL checked roles and policies and saving
+      // First, find all checked ones
+      const checkedPolicies = findAll(
+        '[data-test-token-policies] tbody tr input:checked'
+      );
+      const checkedRoles = findAll(
+        '[data-test-token-roles] tbody tr input:checked'
+      );
+      // Then uncheck them
+      checkedPolicies.forEach((policy) => {
+        policy.click();
+      });
+      checkedRoles.forEach((role) => {
+        role.click();
+      });
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-critical').exists();
+
+      // Try selecting a single role
+      await click('[data-test-token-roles] tbody tr input');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+
+      await percySnapshot(assert);
+
+      await AccessControl.visitTokens();
+      // Policies cell for our clay token should read "No Policies"
+      const clayToken = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
+      const clayTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
+        row.textContent.includes(clayToken.name)
+      );
+      const policiesCell = clayTokenRow.querySelector(
+        '[data-test-token-policies]'
+      );
+      assert.dom(policiesCell).exists();
+      assert.dom(policiesCell).hasText('No Policies');
+
+      // Roles cell should have 1 tag
+      const rolesCell = clayTokenRow.querySelector('[data-test-token-roles]');
+      const rolesCellTags = rolesCell
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      assert.equal(rolesCellTags.length, 1);
+    });
+    test('Token can be deleted', async function (assert) {
+      const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
+      await visit(`/access-control/tokens/${token.id}`);
+      await click('[data-test-delete-token]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert.dom('[data-test-token-name="cl4y-t0k3n"]').doesNotExist();
+    });
+    test('New Token creation', async function (assert) {
+      await click('[data-test-create-token]');
+      assert.equal(currentURL(), '/access-control/tokens/new');
+      await fillIn('[data-test-token-name-input]', 'Timeless Token');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert
+        .dom('[data-test-token-name="Timeless Token"]')
+        .exists({ count: 1 });
+      const newTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
+        row.textContent.includes('Timeless Token')
+      );
+      const newTokenExpirationCell = newTokenRow.querySelector(
+        '[data-test-token-expiration-time]'
+      );
+      assert.dom(newTokenExpirationCell).hasText('Never');
+
+      // Now create one with a TTL
+      await click('[data-test-create-token]');
+      assert.equal(currentURL(), '/access-control/tokens/new');
+      await fillIn('[data-test-token-name-input]', 'TTL Token');
+      // Select the "8 hours" radio within the .expiration-time div
+      await click('.expiration-time input[value="8h"]');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert.dom('[data-test-token-name="TTL Token"]').exists({ count: 1 });
+      const ttlTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
+        row.textContent.includes('TTL Token')
+      );
+      const ttlTokenExpirationCell = ttlTokenRow.querySelector(
+        '[data-test-token-expiration-time]'
+      );
+      assert.dom(ttlTokenExpirationCell).hasText('in 8 hours');
+
+      // Now create one with an expiration time
+      await click('[data-test-create-token]');
+      assert.equal(currentURL(), '/access-control/tokens/new');
+      await fillIn('[data-test-token-name-input]', 'Expiring Token');
+      // select the Custom radio button
+      await click('.expiration-time input[value="custom"]');
+      assert
+        .dom('[data-test-token-expiration-time-input]')
+        .exists('HTML datetime-local picker exists');
+      await percySnapshot(assert);
+      // select a date/time for 100 minutes into the future in GMT
+      const soon = new Date();
+      soon.setMinutes(soon.getMinutes() + 100);
+      var tzoffset = new Date().getTimezoneOffset() * 60000; //offset in milliseconds
+      var soonString = new Date(soon - tzoffset).toISOString().slice(0, -1);
+      await fillIn('[data-test-token-expiration-time-input]', soonString);
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert
+        .dom('[data-test-token-name="Expiring Token"]')
+        .exists({ count: 1 });
+      const expiringTokenRow = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes('Expiring Token')
+      );
+      const expiringTokenExpirationCell = expiringTokenRow.querySelector(
+        '[data-test-token-expiration-time]'
+      );
+      assert
+        .dom(expiringTokenExpirationCell)
+        .hasText('in 2 hours', 'Expiration time is relativized and rounded');
+    });
+  });
 });

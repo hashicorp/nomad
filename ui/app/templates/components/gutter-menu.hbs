@@ -135,16 +135,16 @@
           <li
             {{keyboard-shortcut
               menuLevel=true
-              pattern=(array "g" "l")
-              action=(action this.transitionTo 'policies')
+              pattern=(array "g" "a")
+              action=(action this.transitionTo 'access-control')
             }}
           >
             <LinkTo
-              @route="policies"
+              @route="access-control"
               @activeClass="is-active"
-              data-test-gutter-link="policies"
+              data-test-gutter-link="access-control"
             >
-              Policies
+              Access Control
             </LinkTo>
           </li>
         {{/if}}

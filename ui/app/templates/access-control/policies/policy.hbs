@@ -3,7 +3,7 @@
   SPDX-License-Identifier: MPL-2.0
 ~}}
 
-<Breadcrumb @crumb={{hash label=this.policy.name args=(array "policies.policy" this.policy.name)}} />
+<Breadcrumb @crumb={{hash label=this.policy.name args=(array "access-control.policies.policy" this.policy.name)}} />
 {{page-title "Policy"}}
 <section class="section">
 	<h1 class="title with-flex" data-test-title>
@@ -12,17 +12,10 @@
 		</div>
 		{{#if (can "destroy policy")}}
 			<div>
-				<TwoStepButton
-					data-test-delete-button
-					@idleText="Delete policy"
-					@cancelText="Cancel"
-					@confirmText="Yes, delete"
-					@confirmationMessage="Are you sure?"
-					@awaitingConfirmation={{this.deletePolicy.isRunning}}
-					@onConfirm={{perform this.deletePolicy}}
-					@onPrompt={{this.onDeletePrompt}}
-					@onCancel={{this.onDeleteCancel}}
-				/>
+        <Hds::Button @text="Delete Policy" @color="critical"
+          data-test-delete-policy
+          {{on "click" (perform this.deletePolicy)}}
+        />
 			</div>
 		{{/if}}
 	</h1>
@@ -90,7 +83,7 @@
         </t.head>
         <t.body as |row|>
           <tr data-test-policy-token-row>
-            <td data-test-token-name>
+            <td data-test-token-name={{row.model.name}}>
               <Tooltip @text={{row.model.id}}>
                 {{row.model.name}}
               </Tooltip>
@@ -104,24 +97,14 @@
                   <span data-test-token-expiration-time class="{{if row.model.isExpired "has-text-danger"}}">{{moment-from-now row.model.expirationTime interval=1000}}</span>
                 </Tooltip>
               {{else}}
-                <span class="has-text-grey">Never</span>
+                <span>Never</span>
               {{/if}}
             </td>
             {{#if (can "destroy token")}}
               <td class="is-200px">
-                <TwoStepButton
+                <Hds::Button @text="Delete Token" @color="critical"
                   data-test-delete-token-button
-                  @idleText="Delete"
-                  @cancelText="Cancel"
-                  @confirmText="Yes, delete"
-                  @confirmationMessage="Are you sure?"
-                  @awaitingConfirmation={{row.model.isPendingDeletion}}
-                  @onConfirm={{perform this.deleteToken row.model}}
-                  @inlineText={{true}}
-                  @classes={{hash
-                    idleButton="is-danger is-outlined"
-                    confirmButton="is-danger"
-                  }}
+                  {{on "click" (perform this.deleteToken row.model)}}
                 />
               </td>
             {{/if}}
@@ -141,5 +124,3 @@
   {{/if}}
 
 </section>
-
-{{outlet}}

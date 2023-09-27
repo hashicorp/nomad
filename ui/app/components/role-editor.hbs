@@ -1,0 +1,78 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
+	<label>
+		<span>
+			Role Name
+		</span>
+		<Input
+			data-test-role-name-input
+			@type="text"
+			@value={{@role.name}}
+			class="input"
+			{{autofocus ignore=(not @role.isNew)}}
+		/>
+	</label>
+
+	<div>
+		<label>
+			<span>
+				Description (optional)
+			</span>
+			<Input
+				data-test-role-description-input
+				@value={{@role.description}}
+				class="input"
+			/>
+		</label>
+	</div>
+
+  <div>
+		<label>
+			Policies
+		</label>
+    <Hds::Table @caption="A list of policies available to this role" class="acl-table"
+      @model={{@policies}}
+      @columns={{array
+				(hash key="selected" width="80px")
+        (hash key="name" label="Name" isSortable=true)
+        (hash key="description" label="Description")
+				(hash key="definition" label="View Policy Definition")
+      }}
+      @sortBy="name"
+			data-test-role-policies
+    >
+      <:body as |B|>
+        <B.Tr>
+					<B.Td class="selection-checkbox">
+						<label>
+							<input type="checkbox"
+								checked={{find-by "name" B.data.name @role.policies}}
+								{{on "change" (action this.updateRolePolicies B.data)}}
+							/>
+						</label>
+					</B.Td>
+          <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
+          <B.Td>{{B.data.description}}</B.Td>
+					<B.Td>
+						<LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>
+							View Policy Definition
+						</LinkTo>
+					</B.Td>
+				</B.Tr>
+			</:body>
+		</Hds::Table>
+  </div>
+
+	<footer>
+		{{#if (can "update role")}}
+      <Hds::Button @text="Save Role" @color="primary"
+        {{on "click" this.save}}
+				data-test-save-role
+      />
+		{{/if}}
+	</footer>
+</form>

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-@import './components/accordion';
+@import './components/accordion-internal';
 @import './components/badge-nomad-internal';
 @import './components/boxed-section';
 @import './components/codemirror';
@@ -59,3 +59,4 @@
 @import './components/policies';
 @import './components/metadata-editor';
 @import './components/job-status-panel';
+@import './components/access-control';
