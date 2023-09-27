@@ -5,8 +5,6 @@ package allocrunner
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -19,15 +17,6 @@ import (
 )
 
 const (
-	// consulTokenFilePrefix is the begging of the name of the file holding the
-	// Consul SI token inside the task's secret directory. Full name of the file is
-	// always consulTokenFilePrefix_identityName
-	consulTokenFilePrefix = "nomad_consul"
-
-	// consulTokenFilePerms is the level of file permissions granted on the file in
-	// the secrets directory for the task
-	consulTokenFilePerms = 0440
-
 	// consulServicesAuthMethodName is the JWT auth method name that has to be
 	// configured in Consul in order to authenticate Nomad services.
 	consulServicesAuthMethodName = "nomad-workloads"
@@ -79,7 +68,10 @@ func (h *consulHook) Prerun() error {
 	}
 
 	mErr := multierror.Error{}
-	tokens := map[string]string{}
+
+	// tokens are a map of Consul cluster to service/identity name to Consul
+	// ACL token
+	tokens := map[string]map[string]string{}
 
 	// get consul clients
 	clients, err := getConsulClients(h.consulConfigs, h.logger)
@@ -89,17 +81,21 @@ func (h *consulHook) Prerun() error {
 
 	for _, tg := range job.TaskGroups {
 		for _, service := range tg.Services {
-			if err := h.prepareConsulTokens(service, clients); err != nil {
+			t, err := h.prepareConsulTokens(service, clients)
+			if err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
+			tokens[service.Cluster] = t
 		}
 		for _, task := range tg.Tasks {
 			for _, service := range task.Services {
-				if err := h.prepareConsulTokens(service, clients); err != nil {
+				t, err := h.prepareConsulTokens(service, clients)
+				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 					continue
 				}
+				tokens[service.Cluster] = t
 			}
 		}
 	}
@@ -110,39 +106,29 @@ func (h *consulHook) Prerun() error {
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokens(service *structs.Service, clients map[string]consul.Client) error {
+func (h *consulHook) prepareConsulTokens(service *structs.Service, clients map[string]consul.Client) (map[string]string, error) {
 	req, err := h.prepareConsulClientReq(service)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// in case no service needs a consul token
 	if len(req) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	mErr := multierror.Error{}
+	if len(clients) == 0 {
+		return nil, fmt.Errorf("no consul clients available")
+	}
 
 	// Consul auth
-	for consulName, client := range clients {
-		tokens, err := client.DeriveSITokenWithJWT(req)
-		if err != nil {
-			h.logger.Error("error authenticating with Consul", "error", err)
-			return err
-		}
-
-		// Write tokens to tasks' secret dirs
-		secretsDir := h.allocdir.TaskDirs[service.TaskName].SecretsDir
-		for identity, token := range tokens {
-			filename := fmt.Sprintf("%s_%s_%s", consulTokenFilePrefix, consulName, identity)
-			tokenPath := filepath.Join(secretsDir, filename)
-			if err := os.WriteFile(tokenPath, []byte(token), consulTokenFilePerms); err != nil {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
-			}
-		}
+	var client consul.Client
+	var ok bool
+	if client, ok = clients[service.Cluster]; !ok {
+		return nil, fmt.Errorf("unable to find client for consul cluster %v", service.Cluster)
 	}
 
-	return mErr.ErrorOrNil()
+	return client.DeriveSITokenWithJWT(req)
 }
 
 func (h *consulHook) prepareConsulClientReq(service *structs.Service) (map[string]consul.JWTLoginRequest, error) {

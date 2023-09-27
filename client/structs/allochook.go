@@ -16,7 +16,7 @@ import (
 // lock.
 type AllocHookResources struct {
 	csiMounts    map[string]*csimanager.MountInfo
-	consulTokens map[string]string
+	consulTokens map[string]map[string]string // Consul cluster -> service identity -> token
 
 	mu sync.RWMutex
 }
@@ -24,7 +24,7 @@ type AllocHookResources struct {
 func NewAllocHookResources() *AllocHookResources {
 	return &AllocHookResources{
 		csiMounts:    map[string]*csimanager.MountInfo{},
-		consulTokens: map[string]string{},
+		consulTokens: map[string]map[string]string{},
 	}
 }
 
@@ -46,18 +46,19 @@ func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 	a.csiMounts = m
 }
 
-// GetConsulTokens returns a map of task identities to Consul tokens previously
-// written by the consul allocrunner hook
-func (a *AllocHookResources) GetConsulTokens() map[string]string {
+// GetConsulTokens returns all the Consul tokens previously written by the
+// consul allocrunner hook
+func (a *AllocHookResources) GetConsulTokens() map[string]map[string]string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.consulTokens
 }
 
-// SetConsulTokens merges a given map of task identities to Consul tokens with
-// previously written data. This method is called by the allocrunner consul hook.
-func (a *AllocHookResources) SetConsulTokens(m map[string]string) {
+// SetConsulTokens merges a given map of Consul cluster names to task
+// identities to Consul tokens with previously written data. This method is
+// called by the allocrunner consul hook.
+func (a *AllocHookResources) SetConsulTokens(m map[string]map[string]string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
