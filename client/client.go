@@ -2339,7 +2339,7 @@ OUTER:
 		//
 		// For full context, please see https://github.com/hashicorp/nomad/issues/18267
 		if resp.Index <= req.MinQueryIndex {
-			c.logger.Debug("Received stale allocation information. Retrying.",
+			c.logger.Debug("received stale allocation information; retrying",
 				"index", resp.Index, "min_index", req.MinQueryIndex)
 			continue OUTER
 		}
@@ -2392,6 +2392,24 @@ OUTER:
 				select {
 				case <-c.rpcRetryWatcher():
 					continue
+				case <-time.After(retry):
+					continue
+				case <-c.shutdownCh:
+					return
+				}
+			}
+
+			// It is possible that Alloc.GetAllocs hits a different server than
+			// Node.GetClientAllocs which returns older results.
+			if allocsResp.Index <= allocsReq.MinQueryIndex {
+				retry := c.retryIntv(getAllocRetryIntv)
+				c.logger.Warn("failed to retrieve updated allocs; retrying",
+					"req_index", allocsReq.MinQueryIndex,
+					"resp_index", allocsResp.Index,
+					"num_allocs", len(pull),
+					"wait", retry,
+				)
+				select {
 				case <-time.After(retry):
 					continue
 				case <-c.shutdownCh:
