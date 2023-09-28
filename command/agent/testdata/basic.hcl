@@ -271,7 +271,7 @@ vault {
   tls_server_name       = "foobar"
   tls_skip_verify       = true
   create_from_role      = "test_role"
-  jwt_backend_path      = "nomad_jwt"
+  jwt_auth_backend_path = "nomad_jwt"
 
   default_identity {
     aud  = ["vault.io", "nomad.io"]

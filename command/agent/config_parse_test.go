@@ -294,7 +294,7 @@ var basicConfig = &Config{
 	Vault: &config.VaultConfig{
 		Name:                 structs.VaultDefaultCluster,
 		Addr:                 "127.0.0.1:9500",
-		JWTBackendPath:       "nomad_jwt",
+		JWTAuthBackendPath:   "nomad_jwt",
 		AllowUnauthenticated: &trueValue,
 		ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
 		Enabled:              &falseValue,
@@ -319,7 +319,7 @@ var basicConfig = &Config{
 		structs.VaultDefaultCluster: {
 			Name:                 structs.VaultDefaultCluster,
 			Addr:                 "127.0.0.1:9500",
-			JWTBackendPath:       "nomad_jwt",
+			JWTAuthBackendPath:   "nomad_jwt",
 			AllowUnauthenticated: &trueValue,
 			ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
 			Enabled:              &falseValue,
@@ -1066,6 +1066,7 @@ func TestConfig_MultipleVault(t *testing.T) {
 	must.Nil(t, cfg.Vault.Enabled) // unset
 	must.Eq(t, "https://vault.service.consul:8200", cfg.Vault.Addr)
 	must.Eq(t, "", cfg.Vault.Token)
+	must.Eq(t, "jwt", cfg.Vault.JWTAuthBackendPath)
 
 	must.MapLen(t, 1, cfg.Vaults)
 	must.Equal(t, cfg.Vault, cfg.Vaults[structs.VaultDefaultCluster])
@@ -1080,6 +1081,7 @@ func TestConfig_MultipleVault(t *testing.T) {
 	must.NotNil(t, cfg.Vault.Enabled, must.Sprint("override should set to non-nil"))
 	must.False(t, *cfg.Vault.Enabled)
 	must.Eq(t, "127.0.0.1:9500", cfg.Vault.Addr)
+	must.Eq(t, "nomad_jwt", cfg.Vault.JWTAuthBackendPath)
 	must.Eq(t, "12345", cfg.Vault.Token)
 
 	must.MapLen(t, 1, cfg.Vaults)
