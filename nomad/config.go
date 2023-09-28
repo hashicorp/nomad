@@ -429,6 +429,8 @@ type Config struct {
 
 	// JobTrackedVersions is the number of historic Job versions that are kept.
 	JobTrackedVersions int
+
+	Reporting *config.ReportingConfig
 }
 
 func (c *Config) Copy() *Config {

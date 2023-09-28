@@ -601,6 +601,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	}
 	conf.JobMaxSourceSize = int(jobMaxSourceBytes)
 
+	conf.Reporting = agentConfig.Reporting
+
 	return conf, nil
 }
 
