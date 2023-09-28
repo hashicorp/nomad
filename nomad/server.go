@@ -42,11 +42,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/lock"
+	"github.com/hashicorp/nomad/nomad/reporting"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
-	"github.com/hashicorp/nomad/reporting"
 	"github.com/hashicorp/nomad/scheduler"
 )
 
