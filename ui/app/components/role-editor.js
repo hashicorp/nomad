@@ -26,6 +26,10 @@ export default class RoleEditorComponent extends Component {
     this.rolePolicies = this.role.policies.toArray() || [];
   }
 
+  @action updateRoleName({ target: { value } }) {
+    this.role.set('name', value);
+  }
+
   @action updateRolePolicies(policy, event) {
     let { checked } = event.target;
     if (checked) {
@@ -51,6 +55,11 @@ export default class RoleEditorComponent extends Component {
 
       if (this.role.isNew && this.store.peekRecord('role', this.role.name)) {
         throw new Error(`A role with name ${this.role.name} already exists.`);
+      }
+
+      // If no policies are selected, throw an error
+      if (this.rolePolicies.length === 0) {
+        throw new Error(`You must select at least one policy.`);
       }
 
       this.role.policies = this.rolePolicies;
