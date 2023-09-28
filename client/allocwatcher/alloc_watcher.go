@@ -384,7 +384,8 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 			}
 		}
 
-		if req.AllowStale && resp.Index <= req.MinQueryIndex {
+		// Ensure that we didn't receive a stale response
+		if req.AllowStale && resp.Index < req.MinQueryIndex {
 			retry := getRemoteRetryIntv + helper.RandomStagger(getRemoteRetryIntv)
 			p.logger.Warn("received stale alloc; retrying",
 				"req_index", req.MinQueryIndex,
