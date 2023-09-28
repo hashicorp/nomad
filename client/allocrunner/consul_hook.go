@@ -95,12 +95,6 @@ func (h *consulHook) Prerun() error {
 }
 
 func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tokens map[string]map[string]string) error {
-	// Consul auth
-	consulConf, ok := h.consulConfigs["default"] // FIXME: Fetch from new job.Consul.Cluster field
-	if !ok {
-		return fmt.Errorf("unable to find configuration for default consul cluster")
-	}
-
 	// default identity
 	ti := widmgr.TaskIdentity{
 		TaskName:     task.Name,
