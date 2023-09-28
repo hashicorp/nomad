@@ -1559,4 +1559,54 @@ func Test_evaluatePlanAllocIndexes(t *testing.T) {
 			evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan),
 			duplicateAllocIndexErrorString)
 	})
+
+	// All allocations within a job of type system have zero index. Therefore,
+	// this check is not run.
+	t.Run("system job", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   0,
+				Type:      structs.JobTypeSystem,
+			},
+			NodeUpdate: nil,
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: "example.cache[0]", ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: "example.cache[0]", ID: "2a8243d9-c54b-ec78-8b51-e99ff3579d72"},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+	})
+
+	// Allocation indexes are unique across each set of node allocations. They
+	// are not unique across a version of a job, therefore this will require
+	// new functionality and testing. Once the additional functionality is
+	// added, this test should be removed/updated.
+	t.Run("sysbatch job", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   0,
+				Type:      structs.JobTypeSysBatch,
+			},
+			NodeUpdate: nil,
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: "example.cache[0]", ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+					{Name: "example.cache[1]", ID: "1097ce2b-f131-4065-9ed1-86795b738e7a"},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: "example.cache[0]", ID: "2a8243d9-c54b-ec78-8b51-e99ff3579d72"},
+					{Name: "example.cache[1]", ID: "cc7460e0-a02d-47ef-9041-7b0e681f37fd"},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+	})
 }

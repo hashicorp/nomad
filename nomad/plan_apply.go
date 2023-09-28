@@ -808,22 +808,33 @@ func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
 // ensure this, and will return an error when a duplicate is found.
 func evaluatePlanAllocIndexes(stateSnap *state.StateSnapshot, plan *structs.Plan) error {
 
+	switch plan.Job.Type {
+	case structs.JobTypeSystem, structs.JobTypeSysBatch:
+		// system: all allocation indexes are zero, so we cannot perform this
+		// check.
+		//
+		// sysbatch: allocation indexes are unique across each set of node
+		// allocations. They are not unique across a version of a job,
+		// therefore this will require new functionality and testing.
+		// TODO(jrasell): add this.
+		return nil
+	default:
+	}
+
+	// In the case there are no node allocations, the plan will only be
+	// destructive actions which will not result in new alloc indexes being
+	// generated. Therefore, exit early.
+	if len(plan.NodeAllocation) == 0 {
+		return nil
+	}
+
 	// This map will be used to track what allocation names we have. The
 	// allocation name is formed using the jobID, taskgroup name, and alloc
 	// index. We can therefore use this to identify alloc index duplicates and
 	// save the computational overhead of extracting the index from the name.
-	var allocIndexMap map[string]string
+	allocIndexMap := make(map[string]string)
 
-	// If the plan includes node allocations, instantiate the set. In the case
-	// there are no node allocations, the plan will only be destructive actions
-	// which will not result in new alloc indexes being generated.
-	if len(plan.NodeAllocation) > 0 {
-		allocIndexMap = make(map[string]string)
-	} else {
-		return nil
-	}
-
-	stateAllocs, err := stateSnap.AllocsByJob(nil, plan.Job.Namespace, plan.Job.ID, false)
+	stateAllocs, err := stateSnap.AllocsByJob(nil, plan.Job.Namespace, plan.Job.ID, true)
 	if err != nil {
 		return err
 	}
