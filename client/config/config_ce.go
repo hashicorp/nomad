@@ -37,5 +37,5 @@ func (c *Config) GetConsulConfigs(logger hclog.Logger) map[string]*structsc.Cons
 		logger.Warn("multiple Consul configurations are only supported in Nomad Enterprise")
 	}
 
-	return map[string]*config.ConsulConfig{"default": c.ConsulConfig}
+	return map[string]*config.ConsulConfig{structs.ConsulDefaultCluster: c.ConsulConfig}
 }

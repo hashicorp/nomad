@@ -456,7 +456,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	node := &structs.Node{Attributes: make(map[string]string)}
 
 	// consul not available before first run
-	must.Nil(t, cf.states["default"])
+	must.Nil(t, cf.states[structs.ConsulDefaultCluster])
 
 	// execute first query with good response
 	var resp FingerprintResponse
@@ -477,7 +477,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	must.True(t, resp.Detected)
 
 	// consul now available
-	must.True(t, cf.states["default"].isAvailable)
+	must.True(t, cf.states[structs.ConsulDefaultCluster].isAvailable)
 
 	var resp2 FingerprintResponse
 
@@ -494,7 +494,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 
 	// Reset the nextCheck time for testing purposes, or we won't pick up the
 	// change until the next period, up to 2min from now
-	cf.states["default"].nextCheck = time.Now()
+	cf.states[structs.ConsulDefaultCluster].nextCheck = time.Now()
 
 	// execute second query with error
 	err2 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp2)
@@ -503,7 +503,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	must.True(t, resp.Detected)   // never downgrade
 
 	// consul no longer available
-	must.False(t, cf.states["default"].isAvailable)
+	must.False(t, cf.states[structs.ConsulDefaultCluster].isAvailable)
 
 	// execute third query no error
 	var resp3 FingerprintResponse
@@ -523,7 +523,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	}, resp3.Attributes)
 
 	// consul now available again
-	must.True(t, cf.states["default"].isAvailable)
+	must.True(t, cf.states[structs.ConsulDefaultCluster].isAvailable)
 	must.True(t, resp.Detected)
 }
 
@@ -538,7 +538,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 	node := &structs.Node{Attributes: make(map[string]string)}
 
 	// consul not available before first run
-	must.Nil(t, cf.states["default"])
+	must.Nil(t, cf.states[structs.ConsulDefaultCluster])
 
 	// execute first query with good response
 	var resp FingerprintResponse
@@ -559,7 +559,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 	must.True(t, resp.Detected)
 
 	// consul now available
-	must.True(t, cf.states["default"].isAvailable)
+	must.True(t, cf.states[structs.ConsulDefaultCluster].isAvailable)
 
 	var resp2 FingerprintResponse
 
@@ -577,7 +577,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 
 	// Reset the nextCheck time for testing purposes, or we won't pick up the
 	// change until the next period, up to 2min from now
-	cf.states["default"].nextCheck = time.Now()
+	cf.states[structs.ConsulDefaultCluster].nextCheck = time.Now()
 
 	// execute second query with error
 	err2 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp2)
@@ -586,7 +586,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 	must.True(t, resp.Detected)   // never downgrade
 
 	// consul no longer available
-	must.False(t, cf.states["default"].isAvailable)
+	must.False(t, cf.states[structs.ConsulDefaultCluster].isAvailable)
 
 	// execute third query no error
 	var resp3 FingerprintResponse
@@ -606,6 +606,6 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 	}, resp3.Attributes)
 
 	// consul now available again
-	must.True(t, cf.states["default"].isAvailable)
+	must.True(t, cf.states[structs.ConsulDefaultCluster].isAvailable)
 	must.True(t, resp.Detected)
 }

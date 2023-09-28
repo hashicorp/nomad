@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-version"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
@@ -151,7 +152,7 @@ func (cfs *consulFingerprintState) initialize(cfg *config.ConsulConfig, logger h
 		return fmt.Errorf("failed to initialize Consul client: %v", err)
 	}
 
-	if cfg.Name == "default" {
+	if cfg.Name == structs.ConsulDefaultCluster {
 		cfs.extractors = map[string]consulExtractor{
 			"consul.server":        cfs.server,
 			"consul.version":       cfs.version,

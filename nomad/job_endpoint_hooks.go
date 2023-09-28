@@ -254,7 +254,7 @@ func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
 // well before we get here, so no need to split out the behavior to ENT-specific
 // code.
 func consulConstraintFn(service *structs.Service) *structs.Constraint {
-	if service.Cluster != "default" && service.Cluster != "" {
+	if service.Cluster != structs.ConsulDefaultCluster && service.Cluster != "" {
 		return &structs.Constraint{
 			LTarget: fmt.Sprintf("${attr.consul.%s.version}", service.Cluster),
 			RTarget: ">= 1.7.0",

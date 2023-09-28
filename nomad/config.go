@@ -617,7 +617,7 @@ func DefaultConfig() *Config {
 		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 	}
 
-	c.ConsulConfigs = map[string]*config.ConsulConfig{"default": c.ConsulConfig}
+	c.ConsulConfigs = map[string]*config.ConsulConfig{structs.ConsulDefaultCluster: c.ConsulConfig}
 	c.VaultConfigs = map[string]*config.VaultConfig{structs.VaultDefaultCluster: c.VaultConfig}
 
 	// Enable all known schedulers by default
