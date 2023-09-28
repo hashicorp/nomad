@@ -97,6 +97,10 @@ agents with [`client.enabled`] set to `true`.
   given in the format `protocol://host:port`. If your Vault installation is
   behind a load balancer, this should be the address of the load balancer.
 
+- `jwt_backend_path` - `(string: "jwt")` - Specifies the mount
+  [path][vault_auth_enable_path] of the JWT authentication method to be used to
+  login with workload identity JWTs.
+
 - `ca_file` `(string: "")` - Specifies an optional path to the CA
   certificate used for Vault communication. If unspecified, this will fallback
   to the default system CA bundle, which varies by OS and version.
@@ -309,4 +313,5 @@ can be accomplished by sending the process a `SIGHUP` signal.
 [taskuser]: /nomad/docs/job-specification/task#user "Nomad task Block"
 [vault]: https://www.vaultproject.io/ 'Vault by HashiCorp'
 [vault_bound_aud]: /vault/api-docs/auth/jwt#bound_audiences
+[vault_auth_enable_path]: /vault/docs/commands/auth/enable#path
 [workload_id]: /nomad/docs/concepts/workload-identity

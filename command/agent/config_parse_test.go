@@ -294,6 +294,7 @@ var basicConfig = &Config{
 	Vault: &config.VaultConfig{
 		Name:                 structs.VaultDefaultCluster,
 		Addr:                 "127.0.0.1:9500",
+		JWTBackendPath:       "nomad_jwt",
 		AllowUnauthenticated: &trueValue,
 		ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
 		Enabled:              &falseValue,
@@ -318,6 +319,7 @@ var basicConfig = &Config{
 		structs.VaultDefaultCluster: {
 			Name:                 structs.VaultDefaultCluster,
 			Addr:                 "127.0.0.1:9500",
+			JWTBackendPath:       "nomad_jwt",
 			AllowUnauthenticated: &trueValue,
 			ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
 			Enabled:              &falseValue,
