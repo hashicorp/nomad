@@ -61,6 +61,9 @@ type VaultConfig struct {
 	// URL such as "http://vault.example.com"
 	Addr string `mapstructure:"address"`
 
+	// JWTAuthBackendPath is the path used to access the JWT auth method.
+	JWTAuthBackendPath string `mapstructure:"jwt_auth_backend_path"`
+
 	// ConnectionRetryIntv is the interval to wait before re-attempting to
 	// connect to Vault.
 	ConnectionRetryIntv time.Duration
@@ -126,6 +129,7 @@ func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
 		Name:                 "default",
 		Addr:                 "https://vault.service.consul:8200",
+		JWTAuthBackendPath:   "jwt",
 		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
 		AllowUnauthenticated: pointer.Of(true),
 	}
@@ -161,6 +165,9 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
+	}
+	if b.JWTAuthBackendPath != "" {
+		result.JWTAuthBackendPath = b.JWTAuthBackendPath
 	}
 	if b.ConnectionRetryIntv.Nanoseconds() != 0 {
 		result.ConnectionRetryIntv = b.ConnectionRetryIntv
@@ -264,6 +271,9 @@ func (c *VaultConfig) Equal(b *VaultConfig) bool {
 		return false
 	}
 	if c.Addr != b.Addr {
+		return false
+	}
+	if c.JWTAuthBackendPath != b.JWTAuthBackendPath {
 		return false
 	}
 	if c.ConnectionRetryIntv.Nanoseconds() != b.ConnectionRetryIntv.Nanoseconds() {

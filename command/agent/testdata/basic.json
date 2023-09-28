@@ -396,6 +396,7 @@
         "ttl": "3h"
       },
       "enabled": false,
+      "jwt_auth_backend_path": "nomad_jwt",
       "key_file": "/path/to/key/file",
       "task_token_ttl": "1s",
       "tls_server_name": "foobar",
@@ -409,4 +410,3 @@
     }
   }
 }
-
