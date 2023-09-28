@@ -237,6 +237,14 @@ export default class IndexController extends Controller.extend(
         return false;
       }
 
+      // Our state dropdown here is an amalgamation of "Status", "Eligibility",
+      // and "Drain Status" in order to simplify filtering options.
+      // While technically an ineligible node may have a state of "ready",
+      // the user's intent when selecting "ready" is probably to see nodes
+      // that are eligible to run jobs. As such, we filter out ineligible nodes
+      // when the user selects "ready".
+      if (statuses?.includes('ready') && !node.get('isEligible')) return false;
+
       if (onlyIneligible && node.get('isEligible')) return false;
       if (onlyDraining && !node.get('isDraining')) return false;
 
