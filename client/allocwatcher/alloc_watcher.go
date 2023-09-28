@@ -353,9 +353,11 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 	req := structs.AllocSpecificRequest{
 		AllocID: p.prevAllocID,
 		QueryOptions: structs.QueryOptions{
-			Region:     p.config.Region,
-			AllowStale: true,
-			AuthToken:  p.config.Node.SecretID,
+			Region:    p.config.Region,
+			AuthToken: p.config.Node.SecretID,
+
+			// Initially get response from leader, then switch to stale
+			AllowStale: false,
 		},
 	}
 
@@ -381,6 +383,22 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 				return ctx.Err()
 			}
 		}
+
+		if req.AllowStale && resp.Index <= req.MinQueryIndex {
+			retry := getRemoteRetryIntv + helper.RandomStagger(getRemoteRetryIntv)
+			p.logger.Warn("received stale alloc; retrying",
+				"req_index", req.MinQueryIndex,
+				"resp_index", resp.Index,
+				"wait", retry,
+			)
+			select {
+			case <-time.After(retry):
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+
 		if resp.Alloc == nil {
 			p.logger.Debug("blocking alloc was GC'd")
 			return nil
@@ -392,6 +410,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 
 		// Update the query index and requery.
 		if resp.Index > req.MinQueryIndex {
+			req.AllowStale = true
 			req.MinQueryIndex = resp.Index
 		}
 	}
