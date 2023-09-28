@@ -46,6 +46,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
+	"github.com/hashicorp/nomad/reporting"
 	"github.com/hashicorp/nomad/scheduler"
 )
 
@@ -289,6 +290,10 @@ type Server struct {
 	// statsFetcher is used by autopilot to check the status of the other
 	// Nomad router.
 	statsFetcher *StatsFetcher
+
+	// reportingManager is used to configure and handle all the license reporting
+	// dependencies.
+	reportingManager *reporting.Manager
 
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
