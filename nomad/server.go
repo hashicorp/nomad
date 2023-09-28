@@ -47,7 +47,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
-	"github.com/hashicorp/nomad/reporting"
 	"github.com/hashicorp/nomad/scheduler"
 )
 
