@@ -21,9 +21,10 @@ const (
 	// configured in Consul in order to authenticate Nomad services.
 	consulServicesAuthMethodName = "nomad-workloads"
 
-	// consulTemplatesAuthMethodName the JWT auth method name that has to be
-	// configured in Consul in order to authenticate Nomad templates.
-	consulTemplatesAuthMethodName = "nomad-templates"
+	// consulTasksAuthMethodName the JWT auth method name that has to be
+	// configured in Consul in order to authenticate Nomad tasks (used by
+	// templates).
+	consulTasksAuthMethodName = "nomad-tasks"
 )
 
 type consulHook struct {
@@ -74,11 +75,14 @@ func (h *consulHook) Prerun() error {
 	tokens := map[string]map[string]string{}
 
 	for _, tg := range job.TaskGroups {
-		if err := h.prepareConsulTokens(tg.Services, tokens); err != nil {
+		if err := h.prepareConsulTokensForServices(tg.Services, tokens); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 		for _, task := range tg.Tasks {
-			if err := h.prepareConsulTokens(task.Services, tokens); err != nil {
+			if err := h.prepareConsulTokensForServices(task.Services, tokens); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+			if err := h.prepareConsulTokensForTask(job, task, tokens); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
@@ -90,14 +94,96 @@ func (h *consulHook) Prerun() error {
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokens(services []*structs.Service, tokens map[string]map[string]string) error {
+func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tokens map[string]map[string]string) error {
+	// Consul auth
+	consulConf, ok := h.consulConfigs["default"] // FIXME: Fetch from new job.Consul.Cluster field
+	if !ok {
+		return fmt.Errorf("unable to find configuration for default consul cluster")
+	}
+
+	// default identity
+	ti := widmgr.TaskIdentity{
+		TaskName:     task.Name,
+		IdentityName: task.Identity.Name,
+	}
+
+	req, err := h.prepareConsulClientReq(ti, consulTasksAuthMethodName)
+	if err != nil {
+		return err
+	}
+
+	jwt, err := h.widmgr.Get(ti)
+	if err != nil {
+		h.logger.Error("error getting signed identity", "error", err)
+		return err
+	}
+
+	req[task.Identity.Name] = consul.JWTLoginRequest{
+		JWT:            jwt.JWT,
+		AuthMethodName: consulTasksAuthMethodName,
+	}
+
+	// FIXME: Fetch from new job.Consul.Cluster field
+	if err := h.getConsulTokens("default", task.Identity.Name, tokens, req); err != nil {
+		return err
+	}
+
+	// alt identities
+	mErr := multierror.Error{}
+	for _, i := range task.Identities {
+		ti := widmgr.TaskIdentity{
+			TaskName:     task.Name,
+			IdentityName: i.Name,
+		}
+
+		req, err := h.prepareConsulClientReq(ti, consulTasksAuthMethodName)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+			continue
+		}
+
+		jwt, err := h.widmgr.Get(ti)
+		if err != nil {
+			h.logger.Error("error getting signed identity", "error", err)
+			mErr.Errors = append(mErr.Errors, err)
+			continue
+		}
+
+		req[task.Identity.Name] = consul.JWTLoginRequest{
+			JWT:            jwt.JWT,
+			AuthMethodName: consulTasksAuthMethodName,
+		}
+
+		// FIXME: Fetch from new job.Consul.Cluster field
+		if err := h.getConsulTokens("default", ti.IdentityName, tokens, req); err != nil {
+			return err
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tokens map[string]map[string]string) error {
 	if len(services) == 0 {
 		return nil
 	}
 
 	mErr := multierror.Error{}
 	for _, service := range services {
-		req, err := h.prepareConsulClientReq(service)
+		// see if maybe we can quit early
+		if service == nil || !service.IsConsul() {
+			continue
+		}
+		if service.Identity == nil {
+			continue
+		}
+
+		ti := widmgr.TaskIdentity{
+			TaskName:     service.TaskName,
+			IdentityName: service.Identity.Name,
+		}
+
+		req, err := h.prepareConsulClientReq(ti, consulServicesAuthMethodName)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
@@ -108,57 +194,52 @@ func (h *consulHook) prepareConsulTokens(services []*structs.Service, tokens map
 			continue
 		}
 
-		// Consul auth
-		consulConf, ok := h.consulConfigs[service.Cluster]
-		if !ok {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to find configuration for consul cluster %v", service.Cluster))
-			continue
-		}
-
-		client, err := consul.NewConsulClient(consulConf, h.logger)
-		if err != nil {
+		if err := h.getConsulTokens(service.Cluster, service.Identity.Name, tokens, req); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
 		}
-
-		// get consul acl tokens
-		t, err := client.DeriveSITokenWithJWT(req)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-			continue
-		}
-		tokens[service.Cluster][service.Identity.Name] = t[service.Identity.Name]
 	}
 
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulClientReq(service *structs.Service) (map[string]consul.JWTLoginRequest, error) {
+func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[string]map[string]string, req map[string]consul.JWTLoginRequest) error {
+	// Consul auth
+	consulConf, ok := h.consulConfigs[cluster]
+	if !ok {
+		return fmt.Errorf("unable to find configuration for consul cluster %v", cluster)
+	}
+
+	client, err := consul.NewConsulClient(consulConf, h.logger)
+	if err != nil {
+		return err
+	}
+
+	// get consul acl tokens
+	t, err := client.DeriveSITokenWithJWT(req)
+	if err != nil {
+		return err
+	}
+	if tokens[cluster] == nil {
+		tokens[cluster] = map[string]string{}
+	}
+	tokens[cluster][identityName] = t[identityName]
+
+	return nil
+}
+
+func (h *consulHook) prepareConsulClientReq(identity widmgr.TaskIdentity, authMethodName string) (map[string]consul.JWTLoginRequest, error) {
 	req := map[string]consul.JWTLoginRequest{}
 
-	// see if maybe we can quit early
-	if service == nil || !service.IsConsul() {
-		return req, nil
-	}
-
-	if service.Identity == nil {
-		return req, nil
-	}
-
-	ti := widmgr.TaskIdentity{
-		TaskName:     service.TaskName,
-		IdentityName: service.Identity.Name,
-	}
-
-	jwt, err := h.widmgr.Get(ti)
+	jwt, err := h.widmgr.Get(identity)
 	if err != nil {
 		h.logger.Error("error getting signed identity", "error", err)
 		return req, err
 	}
 
-	req[service.Identity.Name] = consul.JWTLoginRequest{
+	req[identity.IdentityName] = consul.JWTLoginRequest{
 		JWT:            jwt.JWT,
-		AuthMethodName: consulServicesAuthMethodName,
+		AuthMethodName: authMethodName,
 	}
 
 	return req, nil
