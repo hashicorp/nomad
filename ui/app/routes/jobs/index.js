@@ -22,12 +22,24 @@ export default class IndexRoute extends Route.extend(
     qpNamespace: {
       refreshModel: true,
     },
+    pageSize: {
+      refreshModel: true,
+    },
+    nextToken: {
+      refreshModel: true,
+    },
   };
 
   model(params) {
+    let { pageSize, nextToken } = params;
     return RSVP.hash({
       jobs: this.store
-        .query('job', { namespace: params.qpNamespace, meta: true })
+        .query('job', {
+          namespace: params.qpNamespace,
+          meta: true,
+          per_page: pageSize,
+          next_token: nextToken,
+        })
         .catch(notifyForbidden(this)),
       namespaces: this.store.findAll('namespace'),
       nodePools: this.store.findAll('node-pool'),

@@ -349,4 +349,72 @@ export default class IndexController extends Controller.extend(
   goToRun() {
     this.router.transitionTo('jobs.run');
   }
+
+  get columns() {
+    const defaultColumns = [
+      {
+        key: 'name',
+        label: 'Name',
+        isSortable: true,
+      },
+      this.system.shouldShowNamespaces
+        ? {
+            key: 'namespace.name',
+            label: 'Namespace',
+            isSortable: true,
+          }
+        : null,
+      {
+        key: 'status',
+        label: 'Status',
+        isSortable: true,
+      },
+      {
+        key: 'type',
+        label: 'Type',
+        isSortable: true,
+      },
+      {
+        key: 'nodePool',
+        label: 'Node Pool',
+        isSortable: true,
+      },
+      {
+        key: 'priority',
+        label: 'Priority',
+        isSortable: true,
+      },
+      {
+        key: 'groups',
+        label: 'Groups',
+      },
+      {
+        key: 'summary',
+        label: 'Summary',
+      },
+    ].compact();
+
+    // const policiesColumn = {
+    //   key: 'policies',
+    //   label: 'Policies',
+    // };
+
+    // const tokensColumn = {
+    //   key: 'tokens',
+    //   label: 'Tokens',
+    //   isSortable: true,
+    // };
+
+    // const deleteColumn = {
+    //   key: 'delete',
+    //   label: 'Delete',
+    // };
+
+    return [
+      ...defaultColumns,
+      // ...(this.can.can('list token') ? [tokensColumn] : []),
+      // ...(this.can.can('list policy') ? [policiesColumn] : []),
+      // ...(this.can.can('destroy role') ? [deleteColumn] : []),
+    ];
+  }
 }

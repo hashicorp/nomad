@@ -121,6 +121,32 @@
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else if this.sortedJobs}}
+
+{{!-- #region new --}}
+  <Hds::Table
+    @model={{this.sortedJobs}}
+    @columns={{this.columns}}
+    @sortBy="name"
+    {{!-- @sortBy={{this.demoCurrentSortBy}}
+    @sortOrder={{this.demoCurrentSortOrder}}
+    @onSort={{this.demoOnTableSort}}
+    @density={{if (eq this.demoCurrentPageSize 30) "short" "medium"}} --}}
+  >
+    <:body as |B|>
+      <JobRowHds @context={{B}} @job={{B.data}} />
+    </:body>
+  </Hds::Table>
+
+  <Hds::Pagination::Numbered
+    @totalItems={{this.sortedJobs.length}}
+    @currentPage={{this.currentPage}}
+    @pageSizes={{array 10 15 25 50}}
+    @currentPageSize={{this.pageSize}}
+    {{!-- @route={{this.demoRouteName}}
+    @queryFunction={{this.demoQueryFunctionNumbered}} --}}
+  />
+{{!-- #endregion new --}}
+
     <ListPagination
       @source={{this.sortedJobs}}
       @size={{this.pageSize}}

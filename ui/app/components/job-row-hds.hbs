@@ -1,0 +1,77 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<@context.Tr class="job-row">
+  <@context.Td
+    data-test-job-name
+    {{keyboard-shortcut
+      enumerated=true
+      action=(action "gotoJob" @job)
+    }}
+  >
+    <Hds::Link::Inline @route="jobs.job.index" @model={{@job.idWithNamespace}}>{{@job.name}}</Hds::Link::Inline>
+    {{#if @job.meta.structured.pack}}
+      <span data-test-pack-tag class="tag is-pack">
+        {{x-icon "box" class= "test"}}
+        <span>Pack</span>
+      </span>
+    {{/if}}
+  </@context.Td>
+  
+    {{#if (not (eq this.jobLineage "child"))}}
+      {{#if this.system.shouldShowNamespaces}}
+        <@context.Td data-test-job-namespace>{{@job.namespace.name}}</@context.Td>
+      {{/if}}
+    {{/if}}
+  
+    {{#if (eq this.jobLineage "child")}}
+      <@context.Td data-test-job-submit-time>
+        {{format-month-ts @job.submitTime}}
+      </@context.Td>
+    {{/if}}
+
+  <@context.Td data-test-job-status>
+    <span class="tag {{@job.statusClass}}">{{@job.status}}</span>
+  </@context.Td>
+
+    {{#if (not (eq this.jobLineage "child"))}}
+      <@context.Td data-test-job-type>{{@job.displayType.type}}</@context.Td>
+      <@context.Td data-test-job-node-pool>
+        {{#if @job.nodePool}}{{@job.nodePool}}{{else}}--{{/if}}
+      </@context.Td>
+      <@context.Td data-test-job-priority>{{@job.priority}}</@context.Td>
+    {{/if}}
+
+  <@context.Td data-test-job-task-groups>
+    {{#if @job.taskGroupCount}}
+      {{@job.taskGroupCount}}
+    {{else}}
+      --
+    {{/if}}
+  </@context.Td>
+
+  {{!-- <@context.Td data-test-job-actions>
+    <@context.JobActions @job={{@job}} />
+  </@context.Td> --}}
+
+  <@context.Td data-test-job-allocations>
+    <div class="inline-chart">
+      {{#if @job.hasChildren}}
+        {{#if (gt @job.totalChildren 0)}}
+          <ChildrenStatusBar @job={{this.job}} @isNarrow={{true}} />
+        {{else}}
+          <em class="is-faded">
+            No Children
+          </em>
+        {{/if}}
+      {{else}}
+        <AllocationStatusBar
+          @allocationContainer={{@job}}
+          @isNarrow={{true}}
+        />
+      {{/if}}
+    </div>
+  </@context.Td>
+</@context.Tr>
