@@ -254,7 +254,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 				reply.Allocs = allocs
 				reply.Index = maxIndex
 			} else {
-				// Use the last index that affected the nodes table
+				// Use the last index that affected the allocs table
 				index, err := state.Index("allocs")
 				if err != nil {
 					return err
