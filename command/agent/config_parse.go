@@ -462,7 +462,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			return err
 		}
 		if cc.Name == "" {
-			cc.Name = "default"
+			cc.Name = structs.ConsulDefaultCluster
 		}
 		if cc.TimeoutHCL != "" {
 			d, err := time.ParseDuration(cc.TimeoutHCL)
@@ -515,6 +515,6 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 		}
 	}
 
-	c.Consul = c.Consuls["default"]
+	c.Consul = c.Consuls[structs.ConsulDefaultCluster]
 	return nil
 }

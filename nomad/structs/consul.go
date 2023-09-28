@@ -8,6 +8,12 @@ import (
 	"regexp"
 )
 
+const (
+	// ConsulDefaultCluster is the name used for the Consul cluster that doesn't
+	// have a name.
+	ConsulDefaultCluster = "default"
+)
+
 // Consul represents optional per-group consul configuration.
 type Consul struct {
 	// Namespace in which to operate in Consul.

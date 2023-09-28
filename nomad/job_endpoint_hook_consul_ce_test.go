@@ -44,7 +44,7 @@ func TestJobEndpointHook_ConsulCE(t *testing.T) {
 	_, _, err := hook.Mutate(job)
 
 	must.NoError(t, err)
-	test.Eq(t, "default", job.TaskGroups[0].Services[0].Cluster)
+	test.Eq(t, structs.ConsulDefaultCluster, job.TaskGroups[0].Services[0].Cluster)
 	test.Eq(t, "infra", job.TaskGroups[0].Services[1].Cluster)
 	test.Eq(t, "nondefault", job.TaskGroups[0].Tasks[0].Services[0].Cluster)
 

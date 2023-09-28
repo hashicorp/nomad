@@ -233,7 +233,7 @@ func TestConfig_Merge(t *testing.T) {
 			ChecksUseAdvertise:   &falseValue,
 		},
 		Consuls: map[string]*config.ConsulConfig{
-			"default": {
+			structs.ConsulDefaultCluster: {
 				ServerServiceName:    "1",
 				ClientServiceName:    "1",
 				AutoAdvertise:        &falseValue,
@@ -481,7 +481,7 @@ func TestConfig_Merge(t *testing.T) {
 			ChecksUseAdvertise:   &trueValue,
 		},
 		Consuls: map[string]*config.ConsulConfig{
-			"default": {
+			structs.ConsulDefaultCluster: {
 				ServerServiceName:    "2",
 				ClientServiceName:    "2",
 				AutoAdvertise:        &trueValue,
