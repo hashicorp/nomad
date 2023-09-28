@@ -36,6 +36,7 @@
     "lib/...",
     "nomad/deploymentwatcher/...",
     "nomad/drainer/...",
+    "nomad/reporting/...",
     "nomad/lock/...",
     "nomad/state/...",
     "nomad/stream/...",
