@@ -4,6 +4,8 @@
 package vaultclient
 
 import (
+	"context"
+	"errors"
 	"sync"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -39,6 +41,10 @@ type MockVaultClient struct {
 
 // NewMockVaultClient returns a MockVaultClient for testing
 func NewMockVaultClient(_ string) (VaultClient, error) { return &MockVaultClient{}, nil }
+
+func (vc *MockVaultClient) DeriveTokenWithJWT(_ context.Context, _ JWTLoginRequest) (string, error) {
+	return "", errors.New("not implemented")
+}
 
 func (vc *MockVaultClient) DeriveToken(a *structs.Allocation, tasks []string) (map[string]string, error) {
 	vc.mu.Lock()
