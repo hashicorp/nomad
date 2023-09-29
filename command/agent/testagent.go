@@ -363,6 +363,7 @@ func (a *TestAgent) config() *Config {
 	conf.BindAddr = "127.0.0.1"
 
 	conf.Consul = sconfig.DefaultConsulConfig()
+	conf.Consuls[structs.ConsulDefaultCluster] = conf.Consul
 	conf.Vault.Enabled = new(bool)
 
 	// Tighten the Serf timing
