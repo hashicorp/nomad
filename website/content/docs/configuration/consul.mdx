@@ -131,6 +131,11 @@ value for the [`name`](#name) field.
   Consul service name defined in the `server_service_name` option. This search
   only happens if the server does not have a leader.
 
+- `service_identity` <code>([Identity][identity_block]: nil)</code> - Specifies
+  a default Workload Identity to use when obtaining Service Identity tokens from
+  Consul to register services. Refer to [Workload Identity](#workload-identity)
+  for a recommended configuration.
+
 - `share_ssl` `(bool: true)` - Specifies whether the Nomad client should share
   its Consul SSL configuration with Connect Native applications. Includes values
   of `ca_file`, `cert_file`, `key_file`, `ssl`, and `verify_ssl`. Does not include
@@ -143,6 +148,11 @@ value for the [`name`](#name) field.
 
 - `tags` `(array<string>: [])` - Specifies optional Consul tags to be
   registered with the Nomad server and agent services.
+
+- `task_identity` <code>([Identity][identity_block]: nil)</code> - Specifies a
+  default Workload Identity to use when obtaining Consul tokens from Consul to
+  support [`template`][] blocks. Refer to [Workload
+  Identity](#workload-identity) for a recommended configuration.
 
 - `timeout` `(string: "5s")` - Specifies a time limit for requests made against
   Consul. This is specified using a label suffix like "10s".
@@ -239,6 +249,30 @@ namespace "nomad-ns" {
 }
 ```
 
+### Workload Identity
+
+The `service_identity` and `task_identity` blocks accept all the same values as
+the job specification's [`identity`][identity_block]. By ensuring these blocks
+are set on the Nomad servers, you can automatically migrate your existing jobs
+to use Workload Identity without modifying the job specification and
+resubmitting them.
+
+The recommended configuration for `service_identity` and `task_identity` is as
+follows. See [Migrating to Using Workload Identity with Consul][] for details on
+how to configure Consul to accept these identities.
+
+```hcl
+consul {
+  service_identity {
+    aud = ["consul.io"]
+  }
+
+  task_identity {
+    aud = ["consul.io"]
+  }
+}
+```
+
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
 [bootstrap]: /nomad/tutorials/manage-clusters/clustering 'Automatic Bootstrapping'
 [go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
@@ -246,3 +280,6 @@ namespace "nomad-ns" {
 [grpctls_port]: /consul/docs/agent/config/config-files#grpc_tls_port
 [`consul.cluster`]: /nomad/docs/job-specification/group#cluster
 [`service.cluster`]: /nomad/docs/job-specification/service#cluster
+[identity_block]: /nomad/docs/job-specification/identity
+[`template`]: /nomad/docs/job-specification/template
+[Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul

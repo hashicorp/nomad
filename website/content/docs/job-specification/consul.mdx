@@ -1,0 +1,236 @@
+---
+layout: docs
+page_title: consul Block - Job Specification
+description: |-
+  The "consul" block allows the group or task to specify that it requires a token
+  from a HashiCorp Consul server. Nomad will automatically retrieve a Consul token
+  for the group or task.
+---
+
+# `consul` Block
+
+<Placement
+  groups={[
+    ['job', 'group', 'consul'],
+    ['job', 'group', 'task', 'consul'],
+  ]}
+/>
+
+The `consul` block specifies [Consul][] configuration options specific to a
+task. If specified at the `group` level, the configuration will apply to all
+tasks and services within the group unless a task has its own `consul` block.
+
+```hcl
+job "docs" {
+  group "example" {
+    task "server" {
+      consul {
+        cluster   = "default"
+        namespace = "default"
+      }
+    }
+  }
+}
+```
+
+## Workload Identity
+
+Starting in Nomad 1.7, Nomad clients will use a task or service's [Workload
+Identity][] to authenticate to Consul and obtain a Consul token specific to the
+service or task when the following conditions are met:
+
+* For services, if either the [`consul.service_identity`][] is configured on the
+  Nomad servers or the service includes an `identity` block.
+* For tasks, if the [`consul.task_identity`][] is configured on the Nomad
+  servers, or the task includes an [`identity`][] block with the `name` field
+  set to `consul_default` (or `consul_$clusterName` for non-default Consul
+  clusters in Nomad Enterprise).
+
+As a fallback if none of these conditions are met, the Nomad client will instead
+use, in order of preference:
+
+* The token provided by the [`-consul-token`][flag_consul_token][] flag for the
+  `nomad job run` command.
+* The Consul token as configured in the agent's [`consul.token`][] configuration.
+* The Consul token as configured by the agent's `CONSUL_HTTP_TOKEN` environment variable.
+
+To avoid failed deployments, you should first set up an authentication method
+and binding rules in Consul before configuring the Nomad servers with
+`consul.task_identity` and `consul.service_identity`. Refer to [Configuring Consul
+Authentication][] for more details.
+
+<Warning>
+Starting in Nomad 1.9, the fallback options to use the -consul-token flag when
+submitting a job, the agent's consul.token configuration, or the
+CONSUL_HTTP_TOKEN environment variable, will be removed.  This means service and
+template blocks will not be able to use the agent's Consul token or one provided
+by the job submitter. You should be prepared to migrate to the Workload Identity
+workflow for Consul and Vault before upgrading to Nomad 1.9. Refer to <a
+href="/nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul">Migrating
+to Using Workload Identity with Consul</a>
+</Warning>
+
+### Access to Token
+
+The Nomad client will make the Consul token available to the task by writing it
+to the secret directory at `secrets/consul_token` and by injecting a
+`CONSUL_TOKEN` environment variable in the task. If the Nomad cluster is
+[configured][config_consul_namespace] to use [Consul Namespaces][], a
+`CONSUL_NAMESPACE` environment variable will be injected whenever `CONSUL_TOKEN`
+is set.
+
+The [`template`][template] block can use the Consul token as well.
+
+### `consul` Parameters
+
+- `cluster` `(string: "default")` <EnterpriseAlert inline/> - Specifies the
+  Consul cluster to use. The Nomad client will retrieve a Consul token from the
+  cluster configured in the agent configuration with the same
+  [`consul.name`][]. In Nomad Community Edition, this field is ignored.
+
+- `namespace` `(string: "")` <EnterpriseAlert inline/> - The Consul namespace in
+  which group and task-level services within the group will be registered. Use
+  of `template` to access Consul KV will read from the specified Consul
+  namespace.  Specifying `namespace` takes precedence over the
+  [`-consul-namespace`][flag_consul_namespace] command line argument in `job run`.
+
+## `consul` Examples
+
+The following examples only show the `consul` blocks or other relevant
+blocks. Remember that the `consul` block is only valid in the placements listed
+above.
+
+### Consul Token for Templates
+
+This example tells the Nomad client to obtain a Consul token using the task's
+Workload Identity. The token is available to the task via the canonical
+environment variable `CONSUL_TOKEN` and written to disk at
+`secrets/consul_token`. The `template` block will use the same Consul token.
+
+```hcl
+job "example" {
+  group "app" {
+    task "web" {
+      identity {
+        name = "consul_default"
+      }
+
+      template {
+        data        = "APP_NAME={{key \"app/name\"}}"
+        destination = "local/config.txt"
+      }
+    }
+  }
+}
+```
+
+The following example has the same behavior as the example above, but assumes
+that the server has a `consul.task_identity` block configured. Note that both
+the `consul` and `identity` blocks can be omitted in this case.
+
+```hcl
+job "example" {
+  group "app" {
+    task "web" {
+      template {
+        data        = "APP_NAME={{key \"app/name\"}}"
+        destination = "local/config.txt"
+      }
+    }
+  }
+}
+```
+
+### Consul Token for Group Services
+
+This example tells the Nomad client to obtain a Consul Service Identity token
+using the service's Workload Identity. The Consul token will be used to register
+the service with Consul and configure any [Connect][] sidecar tasks for that
+service.
+
+```hcl
+job "example" {
+  group "web" {
+    service {
+      port = "www"
+      identity {}
+    }
+  }
+}
+```
+
+The following example has the same behavior as the example above, but assumes
+that the server has a `consul.service_identity` block configured. Note that both
+the `consul` and `identity` blocks can be omitted for the service in this case.
+
+```hcl
+job "example" {
+  group "web" {
+    service {
+      port = "www"
+    }
+  }
+}
+```
+
+### Consul Namespace
+
+This example shows specifying a particular Consul namespace or Consul cluster
+for different tasks within a group.
+
+<EnterpriseAlert />
+
+The `template` block in the `web` task will use the default Consul cluster, and
+will obtain a token that allows it access to the `engineering/frontend` Consul
+namespace. The `template` block in the `app` task will use the Consul cluster
+named `prod-apps`, and will obtain a token that allows it access to the
+`engineering/apps` Consul namespace.
+
+```hcl
+job "docs" {
+  group "example" {
+
+    task "web" {
+
+      consul {
+        namespace = "engineering/frontend"
+      }
+
+      template {
+        data        = "FRONTEND_NAME={{key \"fe/name\"}}"
+        destination = "local/config.txt"
+      }
+    }
+
+    task "app" {
+
+      consul {
+        namespace = "engineering/apps"
+        cluster   = "prod-apps"
+      }
+
+      template {
+        data        = "APP_NAME={{key \"app/name\"}}"
+        destination = "local/config.txt"
+      }
+    }
+
+  }
+}
+```
+
+[Consul]: https://www.consul.io/ "Consul by HashiCorp"
+[Workload Identity]: /nomad/docs/concepts/workload-identity
+[`consul.task_identity`]: /nomad/docs/configuration/consul#task_identity
+[`identity`]: /nomad/docs/job-specification/identity
+[`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
+[flag_consul_token]: /nomad/docs/commands/job/run#consul-token
+[`consul.token`]: /nomad/docs/configuration/consul#token
+[Configuring Consul Authentication][]: /nomad/docs/integrations/consul-integration#TODO
+[Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul
+[config_consul_namespace]: /nomad/docs/configuration/consul#namespace
+[Consul Namespaces]: /consul/docs/enterprise/namespaces
+[template]: /nomad/docs/job-specification/template "Nomad template Job Specification"
+[`consul.name`]: /nomad/docs/configuration/consul#name
+[flag_consul_namespace]: /nomad/docs/commands/job/run#consul-namespace
+[Connect][]: /nomad/docs/job-specification/connect

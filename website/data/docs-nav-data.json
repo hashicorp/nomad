@@ -1612,6 +1612,10 @@
         "path": "job-specification/connect"
       },
       {
+        "title": "consul",
+        "path": "job-specification/consul"
+      },
+      {
         "title": "constraint",
         "path": "job-specification/constraint"
       },

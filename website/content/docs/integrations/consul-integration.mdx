@@ -15,20 +15,19 @@ below describe the integration in more detail.
 
 ## Configuration
 
-In order to use Consul with Nomad, you will need to configure and
-install Consul on your nodes alongside Nomad, or schedule it as a system job.
-Nomad does not currently run Consul for you.
+In order to use Consul with Nomad, you will need to configure and install Consul
+on your nodes alongside Nomad, or schedule it as a system job. Nomad does not
+run Consul for you.
 
-To enable Consul integration, please see the
-[Nomad agent Consul integration](/nomad/docs/configuration/consul)
-configuration.
+To enable Consul integration, please refer to the [Nomad agent Consul
+configuration][] documentation.
 
 ## Automatic Clustering with Consul
 
 Nomad servers and clients will be automatically informed of each other's
 existence when a running Consul cluster already exists and the Consul agent is
-installed and configured on each host. Please see the [Automatic Clustering with
-Consul](/nomad/tutorials/manage-clusters/clustering) guide for more information.
+installed and configured on each host. Please refer to the [Automatic Clustering
+with Consul][] guide for more information.
 
 ## Service Discovery
 
@@ -38,58 +37,143 @@ service discovery to connect tasks to other services deployed across your
 cluster. Nomad integrates with Consul to provide service discovery and
 monitoring.
 
-To configure a job to register with service discovery, please see the
+To configure a job to register with service discovery, please refer to the
 [`service` job specification documentation][service].
 
 ## Dynamic Configuration
 
-Nomad's job specification includes a [`template` block](/nomad/docs/job-specification/template)
-that utilizes a Consul ecosystem tool called [Consul Template](https://github.com/hashicorp/consul-template). This mechanism creates a convenient way to ship configuration files
-that are populated from environment variables, Consul data, Vault secrets, or just
-general configurations within a Nomad task.
+Nomad's job specification includes a [`template` block][] that uses a Consul
+ecosystem tool called [Consul Template][]. This mechanism creates a convenient
+way to ship configuration files that are populated from environment variables,
+Consul data, Vault secrets, or just general configurations within a Nomad task.
 
-For more information on Nomad's template block and how it leverages Consul Template,
-please see the [`template` job specification documentation](/nomad/docs/job-specification/template).
+For more information on Nomad's template block and how it leverages Consul
+Template, please see the [`template` job specification documentation][].
 
-## Consul Namespaces
+## Using Nomad Workload Identity with Consul
 
-Nomad provides integration with [Consul Namespaces][consul_namespaces] for service
-registrations specified in `service` blocks and Consul KV reads in `template`
-blocks.
+Starting in Nomad 1.7, Nomad clients will use a task or service's [Workload
+Identity][] to authenticate to Consul and obtain a Consul token specific to the
+service or task.
 
-By default, Nomad will not specify a Consul namespace on service registrations or
-KV store reads, which Consul then implicitly resolves to the `"default"` namespace.
-This default namespace behavior can be modified by setting the [`namespace`][consul_agent_namespace] field
-in the Nomad agent Consul configuration block.
+### Configuring Consul Authentication
 
-For more control over Consul namespaces, Nomad Enterprise supports configuring the
-Consul namespace at the [group level][consul_group_namespace] in the Nomad job spec
-as well as the [`-consul-namespace`][consul_run_namespace] command line argument for `job run`.
+Create a configuration file for a Consul [JWT Auth Method][]. The `JWKSURL`
+field should point to the Nomad servers. The remaining fields are required to
+match those shown here.
 
-The Consul namespace used for a set of group or task service registrations within
-a group, as well as `template` KV store access is determined from the following
-hierarchy from lowest to highest precedence:
+```json
+{
+  "JWKSURL": "https://nomad.example.com:4646/.well-known/jwks.json",
+  "JWTSupportedAlgs": ["RS256"],
+  "BoundAudiences": "consul.io",
+  "ClaimMappings": {
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task",
+    "nomad_service": "nomad_service"
+  }
+}
+```
 
-- Consul default: If no Consul namespace options are configured, Consul will automatically
-  make use of the `"default"` namespace.
+Using that configuration file, you'll create two different Consul Auth Methods:
 
-- agent configuration: If the [`namespace`][consul_agent_namespace] Nomad agent
-  Consul configuration parameter is set, this namespace will be used instead of
-  the Consul default.
+* The first, named `nomad-workloads`, controls authentication for Service
+  Identity tokens used to register services and configure Consul Connect. You'll
+  create a binding rule for this method that maps Nomad `service` blocks to
+  Consul services.
 
-- job run command: <EnterpriseAlert inline/> If the [`-consul-namespace`][consul_run_namespace]
-  command line argument is specified on job submission, this namespace will take
-  precedence over the namespace set in Nomad agent configuration.
+* The second, named `nomad-tasks`, controls access to reading service data and
+  Consul KV for your jobs' `template` blocks. You'll create a binding rule for
+  this method that maps Nomad namespaces or job IDs to Consul Roles.
 
-- group configuration: <EnterpriseAlert inline/> If the [group level][consul_group_namespace]
-  Consul namespace is configured, this namespace will take precedence over all other
-  options.
+#### Auth Method and Binding Rules for Services
 
-If [Consul ACLs][consul_acls] are enabled, the [`allow_unauthenticated`] configuration parameter
-will control whether a Consul token will be required when submitting a job with
-Consul namespace configured. The provided Consul token must belong to the correct
-namespace, and must be backed by a Consul ACL Policy with sufficient `service:write`
-`kv:read` permissions. An example policy might look like,
+Using the configuration file shown above, create a Consul Auth Method to support
+services. Note that you should not set the `-max-token-ttl` flag for Consul Auth
+Methods used for Nomad.
+
+```shell-session
+$ consul acl auth-method create \
+         -name 'nomad-workloads' \
+         -type jwt \
+         -description 'login method for Nomad services' \
+         -format json \
+         -namespace-rule-selector='' \
+         -namespace-rule-bind-namespace='${value.nomad_namespace}' \
+         -config "@consul-auth-method-config.json"
+```
+
+Create a [Consul Binding Rule][] that maps the Nomad Workload Identity to the
+Consul Service Identity.
+
+```shell-session
+$ consul acl binding-rule create \
+         -method 'nomad-workloads' \
+         -description 'binding rule for Nomad workload identities (WI)' \
+         -bind-type service \
+         -bind-name '${value.nomad_namespace}-${value.nomad_service}'
+```
+
+#### Auth Method and Binding Rules for Templates
+
+For each Nomad namespace that you want to grant access to Consul, create a
+[Consul role][] with a name like `nomad-$nomadNamespace`. For example, for the Nomad
+namespace named `prod` you'll create the following Consul role.
+
+```shell-session
+$ consul acl role create \
+       -name "nomad-prod" \
+       -description "role for Nomad production workloads with templates" \
+       -policy-name "example-policy"
+```
+
+The policy you assign to the role should have sufficient `service:read` and
+`kv:read` permissions. An example policy might look like the following.
+
+```hcl
+key_prefix "" {
+  policy = "read"
+}
+
+service_prefix "" {
+  policy = "read"
+}
+```
+
+Using the same configuration file shown above, create the Consul Auth Method to
+support templates. Note that you should not set the `-max-token-ttl` flag for
+Consul Auth Methods used for Nomad.
+
+```shell-session
+$ consul acl auth-method create \
+       -name 'nomad-tasks'
+       -type jwt \
+       -description 'login method for Nomad tasks and templates' \
+       -format json \
+       -namespace-rule-selector='' \
+       -namespace-rule-bind-namespace='${value.nomad_namespace}' \
+       -config "@consul-auth-method-config.json"
+```
+
+Next, create a Consul Binding Rule that maps Nomad namespaces to Consul Roles:
+
+```shell-session
+$ consul acl binding-rule create \
+       -method 'nomad-tasks' \
+       -description 'binding rule for Nomad template workload identities (WI)' \
+       -bind-type role \
+       -bind-name 'nomad-${value.nomad_namespace}'
+```
+
+## Authenticating Without Workload Identity (Legacy)
+
+If [Consul ACLs][consul_acls] are enabled, the [`allow_unauthenticated`][]
+configuration parameter will control whether a Consul token will be required
+when submitting a job with Consul namespace configured. The provided Consul
+token must belong to the correct namespace, and must be backed by a Consul ACL
+Policy with sufficient `service:write` and `kv:read` permissions. An example
+policy might look like the following.
 
 ```hcl
 key_prefix "" {
@@ -101,18 +185,70 @@ service_prefix "" {
 }
 ```
 
+This legacy workflow will be removed in Nomad 1.9. Before upgrading to Nomad 1.9
+you will need to have configured authentication with Consul as described in
+[Configuring Consul Authentication](#configuring-consul-authentication).
+
+## Migrating to Using Workload Identity with Consul
+
+Migrating from the legacy (pre-1.7) workflow where workload use the agent's
+Consul token requires configuation on your Consul cluster and your Nomad server
+agents. It does not require updating your running Nomad jobs. To migrate:
+
+* Create the Consul auth method and binding rules on your Consul cluster.
+* Enable [`consul.service_identity`][] blocks in your Nomad server agent configurations.
+* Enable [`consul.task_identity`][] blocks in your Nomad server agent configurations.
+* (Optionally) add [`identity`][] blocks to your jobs if you want to use a
+  different identity because of how your auth method and binding rules are
+  configured.
+
+## Consul Namespaces
+
+Nomad provides integration with [Consul Namespaces][consul_namespaces] for
+service registrations specified in `service` blocks and Consul KV reads in
+`template` blocks.
+
+By default, Nomad will not specify a Consul namespace on service registrations
+or KV store reads, which Consul then implicitly resolves to the `"default"`
+namespace.  This default namespace behavior can be modified by setting the
+[`namespace`][consul_agent_namespace] field in the Nomad agent Consul
+configuration block.
+
+For more control over Consul namespaces, Nomad Enterprise supports configuring
+the Consul namespace at the [group level][consul_group_namespace] in the Nomad
+job spec as well as the [`-consul-namespace`][consul_run_namespace] command line
+argument for `job run`.
+
+The Consul namespace used for a set of group or task service registrations
+within a group, as well as `template` KV store access is determined from the
+following hierarchy from lowest to highest precedence:
+
+* Consul default: If no Consul namespace options are configured, Consul will
+  automatically make use of the `"default"` namespace.
+
+* agent configuration: If the [`namespace`][consul_agent_namespace] Nomad agent
+  Consul configuration parameter is set, this namespace will be used instead of
+  the Consul default.
+
+* job run command: <EnterpriseAlert inline/> If the [`-consul-namespace`][consul_run_namespace]
+  command line argument is specified on job submission, this namespace will take
+  precedence over the namespace set in Nomad agent configuration.
+
+* group configuration: <EnterpriseAlert inline/> If the [group level][consul_group_namespace]
+  Consul namespace is configured, this namespace will take precedence over all other
+  options.
+
 ## Assumptions
 
-- Consul 0.7.2 or later is needed for `tls_skip_verify` in HTTP checks.
+* Each Nomad client should have a local Consul agent running on the same host,
+  reachable by Nomad. Nomad clients should never share a Consul agent or talk
+  directly to the Consul servers. Nomad is not compatible with Consul Data
+  Plane.
 
-- Consul 0.6.4 or later is needed for using the Script checks.
-
-- Consul 0.6.0 or later is needed for using the TCP checks.
-
-- The service discovery feature in Nomad depends on operators making sure that
+* The service discovery feature in Nomad depends on operators making sure that
   the Nomad client can reach the Consul agent.
 
-- Tasks running inside Nomad also need to reach out to the Consul agent if
+* Tasks running inside Nomad also need to reach out to the Consul agent if
   they want to use any of the Consul APIs. Ex: A task running inside a docker
   container in the bridge mode won't be able to talk to a Consul Agent running
   on the loopback interface of the host since the container in the bridge mode
@@ -121,18 +257,44 @@ service_prefix "" {
   way is to run the container in the host networking mode, or make the Consul
   agent listen on an interface in the network namespace of the container.
 
-[`allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
+* The `consul` binary must be present in Nomad's `$PATH` to run the Envoy
+  proxy sidecar on client nodes.
 
-[consul]: https://www.consul.io/ "Consul by HashiCorp"
+* Consul service mesh using network namespaces is only supported on Linux.
 
-[consul_acls]: /consul/docs/security/acl
+## Compatibility
 
-[consul_namespaces]: /consul/docs/enterprise/namespaces
+* Nomad versions 1.4.4 and above are compatible with any currently supported
+  version of Consul except 1.13.8.
+* Nomad versions 1.4.0 through 1.4.3 are compatible with Consul versions 1.13.0
+  through 1.13.7, and 1.13.9. Changes to Consul service mesh in version 1.14 are
+  incompatible with Nomad 1.4.3 and earlier.
+* Nomad is not compatible with Consul Data Plane.
 
-[consul_agent_namespace]: /nomad/docs/configuration/consul#namespace
+|                   | Consul 1.13.0 - 1.13.7 | Consul 1.13.8 | Consul 1.13.9 | Consul 1.14.0+ |
+|-------------------|------------------------|---------------|---------------|----------------|
+| Nomad 1.4.4+      | ✅                     | ❌            | ✅            | ✅             |
+| Nomad 1.4.0-1.4.3 | ✅                     | ❌            | ✅            | ❌             |
 
-[consul_group_namespace]: /nomad/docs/job-specification/group#namespace
 
-[consul_run_namespace]: /nomad/docs/commands/job/run#consul-namespace
 
+[Consul]: https://www.consul.io/ "Consul by HashiCorp"
+[Workload Identity]: /nomad/docs/concepts/workload-identity
+[Nomad agent Consul configuration]: /nomad/docs/configuration/consul
+[Automatic Clustering with Consul]: /nomad/tutorials/manage-clusters/clustering
 [service]: /nomad/docs/job-specification/service "Nomad service Job Specification"
+[`template` block]: /nomad/docs/job-specification/template
+[Consul Template]: https://github.com/hashicorp/consul-template
+[`template` job specification documentation]: /nomad/docs/job-specification/template
+[consul_namespaces]: /consul/docs/enterprise/namespaces
+[consul_agent_namespace]: /nomad/docs/configuration/consul#namespace
+[consul_group_namespace]: /nomad/docs/job-specification/group#namespace
+[consul_run_namespace]: /nomad/docs/commands/job/run#consul-namespace
+[`allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
+[consul_acls]: /consul/docs/security/acl
+[JWT Auth Method]: /consul/docs/security/acl/auth-methods/jwt
+[Consul Binding Rule]: /consul/api-docs/acl/binding-rules
+[Consul role]: /consul/docs/security/acl/acl-roles
+[`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
+[`consul.task_identity`]: /nomad/docs/configuration/consul#task_identity
+[`identity`]: /nomad/docs/job-specification/identity
