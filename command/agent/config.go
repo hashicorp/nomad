@@ -1612,7 +1612,8 @@ func mergeVaultConfigs(left, right map[string]*config.VaultConfig) map[string]*c
 		if lConfig, ok := left[name]; ok {
 			merged[name] = lConfig.Merge(rConfig)
 		} else {
-			merged[name] = rConfig.Copy()
+			merged[name] = config.DefaultVaultConfig().Merge(rConfig)
+			merged[name].Name = name
 		}
 	}
 	return merged
@@ -1627,7 +1628,8 @@ func mergeConsulConfigs(left, right map[string]*config.ConsulConfig) map[string]
 		if lConfig, ok := left[name]; ok {
 			merged[name] = lConfig.Merge(rConfig)
 		} else {
-			merged[name] = rConfig.Copy()
+			merged[name] = config.DefaultConsulConfig().Merge(rConfig)
+			merged[name].Name = name
 		}
 	}
 	return merged

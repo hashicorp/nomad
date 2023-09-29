@@ -1110,6 +1110,10 @@ func TestConfig_MultipleVault(t *testing.T) {
 	must.Nil(t, cfg.Vaults["other"].Enabled)
 	must.Eq(t, "127.0.0.1:9502", cfg.Vaults["other"].Addr)
 	must.Eq(t, pointer.Of(4*time.Hour), cfg.Vaults["other"].DefaultIdentity.TTL)
+
+	// check that extra Vault clusters have the defaults applied when not
+	// overridden
+	must.Eq(t, "jwt", cfg.Vaults["other"].JWTAuthBackendPath)
 }
 
 func TestConfig_MultipleConsul(t *testing.T) {
@@ -1161,4 +1165,8 @@ func TestConfig_MultipleConsul(t *testing.T) {
 	must.Eq(t, "other", cfg.Consuls["other"].Name)
 	must.Eq(t, pointer.Of(3*time.Hour), cfg.Consuls["other"].ServiceIdentity.TTL)
 	must.Eq(t, pointer.Of(5*time.Hour), cfg.Consuls["other"].TaskIdentity.TTL)
+
+	// check that extra Consul clusters have the defaults applied when not
+	// overridden
+	must.Eq(t, "nomad-client", cfg.Consuls["other"].ClientServiceName)
 }
