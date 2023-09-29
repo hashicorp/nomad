@@ -41,13 +41,12 @@ type SupportedProxiesAPI interface {
 // JWTLoginRequest is an object representing a login request with JWT
 type JWTLoginRequest struct {
 	JWT            string
-	Role           string
 	AuthMethodName string
 }
 
-// ConsulClient is the interface that the nomad client uses to interact with
+// Client is the interface that the nomad client uses to interact with
 // Consul.
-type ConsulClient interface {
+type Client interface {
 	// DeriveSITokenWithJWT logs into Consul using JWT and retrieves a Consul
 	// SI ACL token.
 	DeriveSITokenWithJWT(map[string]JWTLoginRequest) (map[string]string, error)
@@ -70,11 +69,6 @@ func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (*consulC
 	}
 
 	logger = logger.Named("consul")
-
-	// if UseIdentity is unset of set to false, return an empty client
-	if config.UseIdentity == nil || !*config.UseIdentity {
-		return nil, nil
-	}
 
 	c := &consulClient{
 		config: config,
@@ -102,7 +96,7 @@ func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (*consulC
 }
 
 // DeriveSITokenWithJWT takes a JWT from request and returns a consul token for
-// each workload in the request
+// each identity in the request
 func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]string, error) {
 	tokens := make(map[string]string, len(reqs))
 	var mErr *multierror.Error

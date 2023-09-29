@@ -8,7 +8,6 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -120,6 +119,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
+		newConsulHook(hookLogger, ar.alloc, ar.allocDir, ar.widmgr, ar.clientConfig.GetConsulConfigs(hookLogger), ar.hookResources),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newCPUPartsHook(hookLogger, ar.partitions, alloc),
