@@ -232,6 +232,11 @@ func (m *WIDMgr) getIdentities() error {
 		return err
 	}
 
+	// Store default identity tokens
+	for id, token := range defaultTokens {
+		m.lastToken[id] = token
+	}
+
 	// Index initial workload identities by name
 	for _, swid := range signedWIDs {
 		id := cstructs.TaskIdentity{
@@ -240,10 +245,6 @@ func (m *WIDMgr) getIdentities() error {
 		}
 
 		m.lastToken[id] = swid
-	}
-	// Store default identity tokens
-	for id, token := range defaultTokens {
-		m.lastToken[id] = token
 	}
 
 	// TODO: Persist signed identity token to client state
