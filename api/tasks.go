@@ -714,6 +714,7 @@ type Task struct {
 	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
 	Artifacts       []*TaskArtifact        `hcl:"artifact,block"`
 	Vault           *Vault                 `hcl:"vault,block"`
+	Consul          *Consul                `hcl:"consul,block"`
 	Templates       []*Template            `hcl:"template,block"`
 	DispatchPayload *DispatchPayloadConfig `hcl:"dispatch_payload,block"`
 	VolumeMounts    []*VolumeMount         `hcl:"volume_mount,block"`
@@ -751,6 +752,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	if t.Vault != nil {
 		t.Vault.Canonicalize()
+	}
+	if t.Consul != nil {
+		t.Consul.Canonicalize()
 	}
 	for _, tmpl := range t.Templates {
 		tmpl.Canonicalize()

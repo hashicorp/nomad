@@ -7547,6 +7547,10 @@ type Task struct {
 	// have access to.
 	Vault *Vault
 
+	// Consul configuration specific to this task. If uset, falls back to the
+	// group's Consul field.
+	Consul *Consul
+
 	// Templates are the set of templates to be rendered for the task.
 	Templates []*Template
 
@@ -7684,6 +7688,7 @@ func (t *Task) Copy() *Task {
 	nt.CSIPluginConfig = nt.CSIPluginConfig.Copy()
 
 	nt.Vault = nt.Vault.Copy()
+	nt.Consul = nt.Consul.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.LogConfig = nt.LogConfig.Copy()
 	nt.Meta = maps.Clone(nt.Meta)
@@ -10719,6 +10724,16 @@ func (a *Allocation) ReservedCores() *idset.Set[hw.CoreID] {
 // with this allocation.
 func (a *Allocation) ConsulNamespace() string {
 	return a.Job.LookupTaskGroup(a.TaskGroup).Consul.GetNamespace()
+}
+
+func (a *Allocation) ConsulNamespaceForTask(taskName string) string {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	task := tg.LookupTask(taskName)
+	if task.Consul != nil {
+		return task.Consul.GetNamespace()
+	}
+
+	return tg.Consul.GetNamespace()
 }
 
 func (a *Allocation) JobNamespacedID() NamespacedID {

@@ -243,7 +243,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 	}
 
 	// Check consul updated
-	if c := consulUpdated(a, b); c.modified {
+	if c := consulUpdated(a.Consul, b.Consul); c.modified {
 		return c
 	}
 
@@ -288,6 +288,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		}
 		if !at.Vault.Equal(bt.Vault) {
 			return difference("task vault", at.Vault, bt.Vault)
+		}
+		if c := consulUpdated(a.Consul, b.Consul); c.modified {
+			return c
 		}
 		if !slices.EqualFunc(at.Templates, bt.Templates, func(a, b *structs.Template) bool { return a.Equal(b) }) {
 			return difference("task templates", at.Templates, bt.Templates)
@@ -368,15 +371,15 @@ func nonNetworkResourcesUpdated(a, b *structs.Resources) comparison {
 // configuration because Namespaces and Cluster directly impact networking
 // validity among Consul intentions.  Forcing the task through a reschedule is a
 // sure way of breaking no-longer valid network connections.
-func consulUpdated(tgA, tgB *structs.TaskGroup) comparison {
+func consulUpdated(consulA, consulB *structs.Consul) comparison {
 	// job.ConsulNamespace is pushed down to the TGs, just check those
-	if a, b := tgA.Consul.GetNamespace(), tgB.Consul.GetNamespace(); a != b {
+	if a, b := consulA.GetNamespace(), consulB.GetNamespace(); a != b {
 		return difference("consul namespace", a, b)
 	}
 
 	// if either are nil, we can treat this as a non-destructive update
-	if tgA.Consul != nil && tgB.Consul != nil {
-		if a, b := tgA.Consul.Cluster, tgB.Consul.Cluster; a != b {
+	if consulA != nil && consulB != nil {
+		if a, b := consulA.Cluster, consulB.Cluster; a != b {
 			return difference("consul cluster", a, b)
 		}
 	}
