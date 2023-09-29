@@ -56,6 +56,7 @@
 
 .acl-form {
   display: grid;
+  max-width: 100%;
   gap: 2rem;
 
   .selection-checkbox {
@@ -74,6 +75,16 @@
   .expiration-time fieldset {
     margin-bottom: 1rem;
   }
+
+  .boxed-section {
+    overflow: auto;
+    width: 100%;
+  }
+
+  .policy-editor {
+    max-height: 600px;
+    overflow: auto;
+  }
 }
 
 .acl-explainer {
@@ -81,4 +92,45 @@
   grid-template-columns: 1fr auto;
   gap: 2rem;
   margin-bottom: 2rem;
+}
+
+.token-operations {
+  margin-bottom: 3rem;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(auto-fit, 50%);
+  grid-auto-rows: minmax(100px, auto);
+  gap: 1rem;
+
+  .boxed-section {
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+
+    .external-link svg {
+      position: relative;
+      top: 3px;
+    }
+
+    button.create-test-token,
+    pre {
+      margin-top: 1rem;
+    }
+
+    pre {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-content: flex-start;
+      white-space: normal;
+      overflow: visible;
+    }
+  }
+}
+
+@media #{$mq-hidden-gutter} {
+  .token-operations {
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+  }
 }
