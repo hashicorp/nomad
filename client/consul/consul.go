@@ -70,11 +70,6 @@ func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (*consulC
 
 	logger = logger.Named("consul")
 
-	// if UseIdentity is unset of set to false, return an empty client
-	if config.UseIdentity == nil || !*config.UseIdentity {
-		return nil, nil
-	}
-
 	c := &consulClient{
 		config: config,
 		logger: logger,
