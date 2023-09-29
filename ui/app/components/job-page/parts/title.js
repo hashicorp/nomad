@@ -71,8 +71,17 @@ export default class Title extends Component {
    */
   @task(function* (withNotifications = false) {
     const job = this.job;
-    const specification = yield job.fetchRawSpecification();
-    job.set('_newDefinition', specification.Source);
+
+    // Try to get the submission/hcl sourced specification first.
+    // In the event that this fails, fall back to the raw definition.
+    try {
+      const specification = yield job.fetchRawSpecification();
+      job.set('_newDefinition', specification.Source);
+    } catch {
+      const definition = yield job.fetchRawDefinition();
+      delete definition.Stop;
+      job.set('_newDefinition', JSON.stringify(definition));
+    }
 
     try {
       yield job.parse();
