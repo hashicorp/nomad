@@ -1651,10 +1651,10 @@ func (c *Config) Copy() *Config {
 	nc.ACL = c.ACL.Copy()
 	nc.Telemetry = c.Telemetry.Copy()
 	nc.DisableUpdateCheck = pointer.Copy(c.DisableUpdateCheck)
-	nc.Consul = c.Consul.Copy()
 	nc.Consuls = helper.DeepCopyMap(c.Consuls)
-	nc.Vault = c.Vault.Copy()
+	nc.Consul = nc.Consuls[structs.ConsulDefaultCluster]
 	nc.Vaults = helper.DeepCopyMap(c.Vaults)
+	nc.Vault = nc.Vaults[structs.VaultDefaultCluster]
 	nc.UI = c.UI.Copy()
 
 	nc.NomadConfig = c.NomadConfig.Copy()
