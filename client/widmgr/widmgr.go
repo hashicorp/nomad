@@ -79,8 +79,8 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 		widSpecs:                widspecs,
 		signer:                  signer,
 		minWait:                 10 * time.Second,
-		lastToken:               map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity{},
-		watchers:                map[cstructs.TaskIdentity][]chan *structs.SignedWorkloadIdentity{},
+		lastToken:               map[TaskIdentity]*structs.SignedWorkloadIdentity{},
+		watchers:                map[TaskIdentity][]chan *structs.SignedWorkloadIdentity{},
 		stopCtx:                 stopCtx,
 		stop:                    stop,
 		logger:                  logger.Named("widmgr"),
@@ -196,9 +196,9 @@ func (m *WIDMgr) Shutdown() {
 // getIdentities fetches all signed identities or returns an error.
 func (m *WIDMgr) getIdentities() error {
 	// get the default identity signed by the plan applier
-	defaultTokens := map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity{}
+	defaultTokens := map[TaskIdentity]*structs.SignedWorkloadIdentity{}
 	for taskName, signature := range m.defaultSignedIdentities {
-		id := cstructs.TaskIdentity{
+		id := TaskIdentity{
 			TaskName:     taskName,
 			IdentityName: "default",
 		}
