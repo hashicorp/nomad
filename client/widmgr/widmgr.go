@@ -189,13 +189,8 @@ func (m *WIDMgr) Shutdown() {
 
 // getIdentities fetches all signed identities or returns an error.
 func (m *WIDMgr) getIdentities() error {
-	m.lastTokenLock.Lock()
-	defer m.lastTokenLock.Unlock()
-
-	// initialize the map
-	m.lastToken = map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity{}
-
-	// get the default identity signed by the plan applier and store it
+	// get the default identity signed by the plan applier
+	defaultTokens := map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity{}
 	for taskName, signature := range m.defaultSignedIdentities {
 		id := cstructs.TaskIdentity{
 			TaskName:     taskName,
@@ -206,7 +201,7 @@ func (m *WIDMgr) getIdentities() error {
 			TaskName:     taskName,
 			IdentityName: "default",
 		}
-		m.lastToken[id] = &structs.SignedWorkloadIdentity{
+		defaultTokens[id] = &structs.SignedWorkloadIdentity{
 			WorkloadIdentityRequest: widReq,
 			JWT:                     signature,
 			Expiration:              time.Time{},
@@ -216,6 +211,9 @@ func (m *WIDMgr) getIdentities() error {
 	if len(m.widSpecs) == 0 {
 		return nil
 	}
+
+	m.lastTokenLock.Lock()
+	defer m.lastTokenLock.Unlock()
 
 	reqs := make([]*structs.WorkloadIdentityRequest, 0, len(m.widSpecs))
 	for taskName, widspecs := range m.widSpecs {
@@ -235,6 +233,7 @@ func (m *WIDMgr) getIdentities() error {
 	}
 
 	// Index initial workload identities by name
+	m.lastToken = make(map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity, len(signedWIDs))
 	for _, swid := range signedWIDs {
 		id := cstructs.TaskIdentity{
 			TaskName:     swid.TaskName,
@@ -243,6 +242,11 @@ func (m *WIDMgr) getIdentities() error {
 
 		m.lastToken[id] = swid
 	}
+	// Store default identity tokens
+	for id, token := range defaultTokens {
+		m.lastToken[id] = token
+	}
+
 	// TODO: Persist signed identity token to client state
 	return nil
 }
