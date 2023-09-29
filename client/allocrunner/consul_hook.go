@@ -95,6 +95,12 @@ func (h *consulHook) Prerun() error {
 }
 
 func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tokens map[string]map[string]string) error {
+	// if UseIdentity is unset of set to false, quit
+	consulConfig := h.consulConfigs[structs.ConsulDefaultCluster]
+	if consulConfig.UseIdentity == nil || !*consulConfig.UseIdentity {
+		return nil
+	}
+
 	// default identity
 	ti := widmgr.TaskIdentity{
 		TaskName:     task.Name,
@@ -118,7 +124,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 	}
 
 	// FIXME: Fetch from new job.Consul.Cluster field
-	if err := h.getConsulTokens("default", task.Identity.Name, tokens, req); err != nil {
+	if err := h.getConsulTokens(structs.ConsulDefaultCluster, task.Identity.Name, tokens, req); err != nil {
 		return err
 	}
 
@@ -149,7 +155,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 		}
 
 		// FIXME: Fetch from new job.Consul.Cluster field
-		if err := h.getConsulTokens("default", ti.IdentityName, tokens, req); err != nil {
+		if err := h.getConsulTokens(structs.ConsulDefaultCluster, ti.IdentityName, tokens, req); err != nil {
 			return err
 		}
 	}
