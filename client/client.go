@@ -2423,6 +2423,7 @@ OUTER:
 			// Node.GetClientAllocs which returns older results.
 			if allocsResp.Index <= allocsReq.MinQueryIndex {
 				retry := c.retryIntv(getAllocRetryIntv)
+				timer, stop := helper.NewSafeTimer(retry)
 				c.logger.Warn("failed to retrieve updated allocs; retrying",
 					"req_index", allocsReq.MinQueryIndex,
 					"resp_index", allocsResp.Index,
@@ -2430,9 +2431,10 @@ OUTER:
 					"wait", retry,
 				)
 				select {
-				case <-time.After(retry):
+				case <-timer.C:
 					continue
 				case <-c.shutdownCh:
+					stop()
 					return
 				}
 			}
