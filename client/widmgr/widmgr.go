@@ -233,7 +233,6 @@ func (m *WIDMgr) getIdentities() error {
 	}
 
 	// Index initial workload identities by name
-	m.lastToken = make(map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity, len(signedWIDs))
 	for _, swid := range signedWIDs {
 		id := cstructs.TaskIdentity{
 			TaskName:     swid.TaskName,
