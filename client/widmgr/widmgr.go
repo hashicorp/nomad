@@ -98,7 +98,7 @@ func (m *WIDMgr) SetMinWait(t time.Duration) {
 // If an error is returned the identities could not be fetched and the renewal
 // goroutine was not started.
 func (m *WIDMgr) Run() error {
-	if len(m.widSpecs) == 0 {
+	if len(m.widSpecs) == 0 && len(m.defaultSignedIdentities) == 0 {
 		m.logger.Debug("no workload identities to retrieve or renew")
 		return nil
 	}
@@ -214,7 +214,7 @@ func (m *WIDMgr) getIdentities() error {
 		}
 	}
 
-	if len(m.widSpecs) == 0 {
+	if len(m.widSpecs) == 0 && len(defaultTokens) == 0 {
 		return nil
 	}
 
@@ -233,9 +233,13 @@ func (m *WIDMgr) getIdentities() error {
 	}
 
 	// Get signed workload identities
-	signedWIDs, err := m.signer.SignIdentities(m.minIndex, reqs)
-	if err != nil {
-		return err
+	signedWIDs := []*structs.SignedWorkloadIdentity{}
+	if len(m.widSpecs) != 0 {
+		var err error
+		signedWIDs, err = m.signer.SignIdentities(m.minIndex, reqs)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Store default identity tokens
