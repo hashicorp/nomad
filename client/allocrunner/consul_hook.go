@@ -96,6 +96,7 @@ func (h *consulHook) Prerun() error {
 
 func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tokens map[string]map[string]string) error {
 	// if UseIdentity is unset of set to false, quit
+	// FIXME Fetch from Task.Consul.Cluster once #18557 is in
 	consulConfig := h.consulConfigs[structs.ConsulDefaultCluster]
 	if consulConfig.UseIdentity == nil || !*consulConfig.UseIdentity {
 		return nil
@@ -123,7 +124,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 		AuthMethodName: consulTasksAuthMethodName,
 	}
 
-	// FIXME: Fetch from new job.Consul.Cluster field
+	// FIXME Fetch from Task.Consul.Cluster once #18557 is in
 	if err := h.getConsulTokens(structs.ConsulDefaultCluster, task.Identity.Name, tokens, req); err != nil {
 		return err
 	}
@@ -154,7 +155,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 			AuthMethodName: consulTasksAuthMethodName,
 		}
 
-		// FIXME: Fetch from new job.Consul.Cluster field
+		// FIXME Fetch from Task.Consul.Cluster once #18557 is in
 		if err := h.getConsulTokens(structs.ConsulDefaultCluster, ti.IdentityName, tokens, req); err != nil {
 			return err
 		}
