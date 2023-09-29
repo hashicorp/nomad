@@ -1609,4 +1609,104 @@ func Test_evaluatePlanAllocIndexes(t *testing.T) {
 		}
 		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
 	})
+
+	// Perform a test where duplicates already exist within state. This is
+	// possible on all but fresh clusters.
+	t.Run("duplicate exist in state", func(t *testing.T) {
+
+		// Generate and insert 2 test allocations into state. These have
+		// duplicate alloc indexes, to mimic Nomad upgrading on a cluster where
+		// these are already persisted to state.
+		testAllocs := []*structs.Allocation{mock.Alloc(), mock.Alloc()}
+
+		for _, testAlloc := range testAllocs {
+			testAlloc.Job = testAllocs[0].Job
+			testAlloc.JobID = testAllocs[0].Job.ID
+			testAlloc.ClientStatus = structs.AllocClientStatusRunning
+			testAlloc.Name = fmt.Sprintf("%s.%s[%v]", testAlloc.JobID, testAlloc.TaskGroup, 0)
+		}
+
+		must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 70, testAllocs))
+
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+				Type:      structs.JobTypeService,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testAllocs[0].Name, ID: testAllocs[0].ID},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: testAllocs[1].Name, ID: testAllocs[1].ID},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: fmt.Sprintf("%s.%s[%v]",
+						testAllocs[0].JobID, testAllocs[0].TaskGroup, 0),
+						ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: fmt.Sprintf("%s.%s[%v]",
+						testAllocs[1].JobID, testAllocs[1].TaskGroup, 1),
+						ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+
+		// Delete the alloc state entry, so it doesn't impact any subsequent
+		// tests.
+		must.NoError(t, testState.DeleteEval(
+			80, []string{}, []string{testAllocs[0].ID, testAllocs[1].ID}, false))
+	})
+
+	t.Run("duplicate exist in state conflict", func(t *testing.T) {
+
+		// Generate and insert 2 test allocations into state. These have
+		// duplicate alloc indexes, to mimic Nomad upgrading on a cluster where
+		// these are already persisted to state.
+		testAllocs := []*structs.Allocation{mock.Alloc(), mock.Alloc()}
+
+		for _, testAlloc := range testAllocs {
+			testAlloc.Job = testAllocs[0].Job
+			testAlloc.JobID = testAllocs[0].Job.ID
+			testAlloc.ClientStatus = structs.AllocClientStatusRunning
+			testAlloc.Name = fmt.Sprintf("%s.%s[%v]", testAlloc.JobID, testAlloc.TaskGroup, 0)
+		}
+
+		must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 90, testAllocs))
+
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   0,
+				Type:      structs.JobTypeService,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testAllocs[0].Name, ID: testAllocs[0].ID},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: fmt.Sprintf("%s.%s[%v]",
+						testAllocs[0].JobID, testAllocs[0].TaskGroup, 0),
+						ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+				},
+			},
+		}
+		must.ErrorContains(t,
+			evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan),
+			duplicateAllocIndexErrorString)
+
+		// Delete the alloc state entry, so it doesn't impact any subsequent
+		// tests.
+		must.NoError(t, testState.DeleteEval(
+			100, []string{}, []string{testAllocs[0].ID, testAllocs[1].ID}, false))
+	})
 }

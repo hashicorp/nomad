@@ -832,7 +832,7 @@ func evaluatePlanAllocIndexes(stateSnap *state.StateSnapshot, plan *structs.Plan
 	// allocation name is formed using the jobID, taskgroup name, and alloc
 	// index. We can therefore use this to identify alloc index duplicates and
 	// save the computational overhead of extracting the index from the name.
-	allocIndexMap := make(map[string]string)
+	allocIndexMap := make(map[string]*set.Set[string])
 
 	stateAllocs, err := stateSnap.AllocsByJob(nil, plan.Job.Namespace, plan.Job.ID, true)
 	if err != nil {
@@ -846,7 +846,10 @@ func evaluatePlanAllocIndexes(stateSnap *state.StateSnapshot, plan *structs.Plan
 		switch alloc.Job.Version {
 		case plan.Job.Version:
 			if !alloc.TerminalStatus() && alloc.ClientStatus != structs.AllocClientStatusUnknown {
-				allocIndexMap[alloc.GetName()] = alloc.GetID()
+				if _, ok := allocIndexMap[alloc.GetName()]; !ok {
+					allocIndexMap[alloc.GetName()] = set.New[string](0)
+				}
+				allocIndexMap[alloc.GetName()].Insert(alloc.GetID())
 			}
 		default:
 		}
@@ -858,8 +861,10 @@ func evaluatePlanAllocIndexes(stateSnap *state.StateSnapshot, plan *structs.Plan
 	// and a plan is generated to replace the failed allocations.
 	for _, nodeUpdate := range plan.NodeUpdate {
 		for _, allocUpdate := range nodeUpdate {
-			if allocID, ok := allocIndexMap[allocUpdate.GetName()]; ok && allocID == allocUpdate.GetID() {
-				delete(allocIndexMap, allocUpdate.GetName())
+			if allocIDSet, ok := allocIndexMap[allocUpdate.GetName()]; ok {
+				if allocIDSet.Remove(allocUpdate.GetID()) && allocIDSet.Size() == 0 {
+					delete(allocIndexMap, allocUpdate.GetName())
+				}
 			}
 		}
 	}
@@ -888,8 +893,10 @@ func evaluatePlanAllocIndexes(stateSnap *state.StateSnapshot, plan *structs.Plan
 			// plan.
 			switch nodeAlloc.ClientStatus {
 			case structs.AllocClientStatusUnknown:
-				if allocID, ok := allocIndexMap[nodeAlloc.GetName()]; ok && allocID == nodeAlloc.GetID() {
-					delete(allocIndexMap, nodeAlloc.GetName())
+				if allocIDSet, ok := allocIndexMap[nodeAlloc.GetName()]; ok {
+					if allocIDSet.Remove(nodeAlloc.GetID()) && allocIDSet.Size() == 0 {
+						delete(allocIndexMap, nodeAlloc.GetName())
+					}
 				}
 			default:
 				if !nodeAllocSet.Insert(nodeAlloc.Name) {
