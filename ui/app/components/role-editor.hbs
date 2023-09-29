@@ -4,18 +4,15 @@
 ~}}
 
 <form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
-	<label>
-		<span>
-			Role Name
-		</span>
-		<Input
+		<Hds::Form::TextInput::Field
+			@isRequired={{true}}
 			data-test-role-name-input
-			@type="text"
 			@value={{@role.name}}
-			class="input"
+			{{on "input" this.updateRoleName}}
 			{{autofocus ignore=(not @role.isNew)}}
-		/>
-	</label>
+		as |F|>
+			<F.Label>Role Name</F.Label>
+		</Hds::Form::TextInput::Field>
 
 	<div>
 		<label>
