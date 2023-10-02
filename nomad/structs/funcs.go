@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/acl"
 	"golang.org/x/crypto/blake2b"
 )
@@ -346,11 +346,11 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 	for _, tgp := range policies {
 		for _, tp := range tgp {
 			if tp != nil {
-				s.InsertAll(tp.Policies)
+				s.InsertSlice(tp.Policies)
 			}
 		}
 	}
-	return s.List()
+	return s.Slice()
 }
 
 // VaultNamespaceSet takes the structure returned by VaultPolicies and
@@ -364,7 +364,7 @@ func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
 			}
 		}
 	}
-	return s.List()
+	return s.Slice()
 }
 
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are

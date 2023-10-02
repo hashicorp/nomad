@@ -6,7 +6,7 @@ package acl
 import (
 	"testing"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/api"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"

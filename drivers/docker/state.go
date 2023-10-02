@@ -6,7 +6,7 @@ package docker
 import (
 	"sync"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 )
 
 type taskStore struct {

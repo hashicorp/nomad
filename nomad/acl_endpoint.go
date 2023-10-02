@@ -17,7 +17,7 @@ import (
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -208,7 +208,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 		}
 
 		// Add the token policies which are directly referenced into the set.
-		tokenPolicyNames.InsertAll(token.Policies)
+		tokenPolicyNames.InsertSlice(token.Policies)
 	}
 
 	// Setup the blocking query
@@ -302,7 +302,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 		}
 
 		// Add the token policies which are directly referenced into the set.
-		tokenPolicyNames.InsertAll(token.Policies)
+		tokenPolicyNames.InsertSlice(token.Policies)
 
 		if !tokenPolicyNames.Contains(args.Name) {
 			return structs.ErrPermissionDenied
@@ -387,10 +387,10 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	}
 
 	// Add the token policies which are directly referenced into the set.
-	tokenPolicyNames.InsertAll(token.Policies)
+	tokenPolicyNames.InsertSlice(token.Policies)
 
 	// Ensure the token has enough permissions to query the named policies.
-	if token.Type != structs.ACLManagementToken && !tokenPolicyNames.ContainsAll(args.Names) {
+	if token.Type != structs.ACLManagementToken && !tokenPolicyNames.ContainsSlice(args.Names) {
 		return structs.ErrPermissionDenied
 	}
 

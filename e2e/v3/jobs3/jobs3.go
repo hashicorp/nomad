@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/v3/util3"
 	"github.com/hashicorp/nomad/helper/pointer"

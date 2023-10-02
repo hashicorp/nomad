@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"golang.org/x/sys/unix"
 )
 

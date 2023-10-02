@@ -7,7 +7,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/helper/pointer"
 )
 

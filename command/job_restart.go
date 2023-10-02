@@ -18,7 +18,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
