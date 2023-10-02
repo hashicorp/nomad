@@ -30,7 +30,7 @@ type JobStatusCommand struct {
 
 func (c *JobStatusCommand) Help() string {
 	helpText := `
-Usage: nomad status [options] <job>
+Usage: nomad job status [options] <job>
 
   Display status information about a job. If no job ID is given, a list of all
   known jobs will be displayed.
