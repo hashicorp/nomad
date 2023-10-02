@@ -61,7 +61,7 @@ func (h *consulHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, 
 			// identities
 			if !slices.ContainsFunc(
 				h.task.Identities,
-				func(id *structs.WorkloadIdentity) bool { return id.Name == identity }) ||
+				func(id *structs.WorkloadIdentity) bool { return id.Name == identity }) &&
 				identity != h.task.Identity.Name {
 				continue
 			}
