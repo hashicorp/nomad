@@ -27,8 +27,8 @@ Usage: nomad status [options] <identifier>
   detect the type of resource being queried and display the appropriate
   status output.
 
-	If no arguments are provided, the command will fallback to "nomad job status",
-	which will list all jobs.
+  If no arguments are provided, the command will fallback to "nomad job status",
+  which will list all jobs.
 
 General Options:
 
