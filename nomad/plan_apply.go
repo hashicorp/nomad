@@ -899,6 +899,12 @@ func evaluatePlanAllocIndexes(stateSnap *state.StateSnapshot, plan *structs.Plan
 					}
 				}
 			default:
+				// If the allocation name and ID match, then this is an update
+				// and checking can be ignored.
+				if allocIDSet, ok := allocIndexMap[nodeAlloc.GetName()]; ok && allocIDSet.Contains(nodeAlloc.GetID()) {
+					continue
+				}
+
 				if !nodeAllocSet.Insert(nodeAlloc.Name) {
 					return errors.New(duplicateAllocIndexErrorString)
 				}
