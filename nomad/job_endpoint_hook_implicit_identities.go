@@ -74,7 +74,7 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 	}
 
 	// Set the expected identity name and service name.
-	name := fmt.Sprintf("_nomad-service-%v-%v-%v", s.TaskName, s.Name, s.PortLabel)
+	name := s.MakeUniqueIdentityName()
 	serviceWID.Name = fmt.Sprintf("%s/%s", consulServiceIdentityNamePrefix, name)
 	serviceWID.ServiceName = s.Name
 
@@ -86,7 +86,7 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, taskGroup 
 		return
 	}
 
-	name := fmt.Sprintf("_nomad-task-%v-%v", taskGroup, t.Name)
+	name := t.MakeUniqueIdentityName(taskGroup)
 	widName := fmt.Sprintf("%s/%s", consulTaskIdentityNamePrefix, name)
 
 	// Use the Consul identity specified in the task if present

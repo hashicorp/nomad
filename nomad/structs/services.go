@@ -772,6 +772,12 @@ func (s *Service) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// MakeUniqueIdentityName returns a service identity name consisting of: task
+// name, service name and service port label.
+func (s *Service) MakeUniqueIdentityName() string {
+	return fmt.Sprintf("%v-%v-%v", s.TaskName, s.Name, s.PortLabel)
+}
+
 func (s *Service) validateCheckPort(c *ServiceCheck) error {
 	if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
 		return fmt.Errorf("Check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name)
