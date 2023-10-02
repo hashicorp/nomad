@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -56,6 +57,15 @@ func (h *consulHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, 
 	// Write tokens to tasks' secret dirs
 	for cluster, t := range tokens {
 		for identity, token := range t {
+			// do not write tokens that do not belong to any of this task's
+			// identities
+			if !slices.ContainsFunc(
+				h.task.Identities,
+				func(id *structs.WorkloadIdentity) bool { return id.Name == identity }) &&
+				identity != h.task.Identity.Name {
+				continue
+			}
+
 			filename := fmt.Sprintf("%s_%s_%s", consulTokenFilePrefix, cluster, identity)
 			tokenPath := filepath.Join(h.tokenDir, filename)
 			if err := os.WriteFile(tokenPath, []byte(token), consulTokenFilePerms); err != nil {
