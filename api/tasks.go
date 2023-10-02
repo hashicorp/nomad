@@ -731,6 +731,8 @@ type Task struct {
 
 	// Workload Identities
 	Identities []*WorkloadIdentity `hcl:"identity,block"`
+
+	Actions []*Action `hcl:"action,block"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
@@ -1166,4 +1168,11 @@ type WorkloadIdentity struct {
 	File        bool          `hcl:"file,optional"`
 	ServiceName string        `hcl:"service_name,optional"`
 	TTL         time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
+}
+
+type Action struct {
+	Name    string   `hcl:"name,label"`
+	Command *string  `mapstructure:"command" hcl:"command"`
+	Args    []string `mapstructure:"args" hcl:"args,optional"`
+	// Type    *string  `mapstructure:"type" hcl:"type,optional"`
 }

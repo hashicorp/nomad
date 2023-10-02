@@ -7620,6 +7620,9 @@ type Task struct {
 	// Identities are the alternate workload identities for use with 3rd party
 	// endpoints.
 	Identities []*WorkloadIdentity
+
+	// Alloc-exec-like runnable commands
+	Actions []*Action
 }
 
 func (t *Task) UsesCores() bool {
@@ -13281,4 +13284,11 @@ func NewRpcError(err error, code *int64) *RpcError {
 
 func (r *RpcError) Error() string {
 	return r.Message
+}
+
+type Action struct {
+	Name    string
+	Command *string
+	Args    []string
+	// Type    *string
 }
