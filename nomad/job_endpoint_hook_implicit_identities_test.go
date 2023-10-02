@@ -97,8 +97,10 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				TaskGroups: []*structs.TaskGroup{{
 					Services: []*structs.Service{
 						{
-							Provider: "consul",
-							Name:     "web",
+							Provider:  "consul",
+							Name:      "web",
+							TaskName:  "task",
+							PortLabel: "80",
 							Identity: &structs.WorkloadIdentity{
 								Audience: []string{"consul.io", "nomad.dev"},
 								File:     true,
@@ -106,7 +108,9 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 							},
 						},
 						{
-							Name: "web",
+							Name:      "web",
+							TaskName:  "task",
+							PortLabel: "80",
 							Identity: &structs.WorkloadIdentity{
 								Audience: []string{"consul.io", "nomad.dev"},
 								File:     true,
@@ -116,8 +120,10 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 					},
 					Tasks: []*structs.Task{{
 						Services: []*structs.Service{{
-							Provider: "consul",
-							Name:     "web-task",
+							Provider:  "consul",
+							Name:      "web-task",
+							TaskName:  "task",
+							PortLabel: "80",
 							Identity: &structs.WorkloadIdentity{
 								Audience: []string{"consul.io", "nomad.dev"},
 								File:     true,
@@ -139,10 +145,12 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				TaskGroups: []*structs.TaskGroup{{
 					Services: []*structs.Service{
 						{
-							Provider: "consul",
-							Name:     "web",
+							Provider:  "consul",
+							Name:      "web",
+							TaskName:  "task",
+							PortLabel: "80",
 							Identity: &structs.WorkloadIdentity{
-								Name:        "consul-service/web",
+								Name:        "consul-service/task-web-80",
 								Audience:    []string{"consul.io", "nomad.dev"},
 								File:        true,
 								Env:         false,
@@ -150,9 +158,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 							},
 						},
 						{
-							Name: "web",
+							Name:      "web",
+							TaskName:  "task",
+							PortLabel: "80",
 							Identity: &structs.WorkloadIdentity{
-								Name:        "consul-service/web",
+								Name:        "consul-service/task-web-80",
 								Audience:    []string{"consul.io", "nomad.dev"},
 								File:        true,
 								Env:         false,
@@ -162,10 +172,12 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 					},
 					Tasks: []*structs.Task{{
 						Services: []*structs.Service{{
-							Provider: "consul",
-							Name:     "web-task",
+							Provider:  "consul",
+							Name:      "web-task",
+							TaskName:  "task",
+							PortLabel: "80",
 							Identity: &structs.WorkloadIdentity{
-								Name:        "consul-service/web-task",
+								Name:        "consul-service/task-web-task-80",
 								Audience:    []string{"consul.io", "nomad.dev"},
 								File:        true,
 								Env:         false,
@@ -181,13 +193,17 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Services: []*structs.Service{{
-						Provider: "consul",
-						Name:     "web",
+						Provider:  "consul",
+						TaskName:  "task",
+						Name:      "web",
+						PortLabel: "80",
 					}},
 					Tasks: []*structs.Task{{
 						Services: []*structs.Service{{
-							Provider: "consul",
-							Name:     "web-task",
+							Provider:  "consul",
+							TaskName:  "task",
+							Name:      "web-task",
+							PortLabel: "80",
 						}},
 					}},
 				}},
@@ -203,20 +219,24 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Services: []*structs.Service{{
-						Provider: "consul",
-						Name:     "web",
+						Provider:  "consul",
+						PortLabel: "80",
+						Name:      "web",
+						TaskName:  "task",
 						Identity: &structs.WorkloadIdentity{
-							Name:        "consul-service/web",
+							Name:        "consul-service/task-web-80",
 							Audience:    []string{"consul.io"},
 							ServiceName: "web",
 						},
 					}},
 					Tasks: []*structs.Task{{
 						Services: []*structs.Service{{
-							Provider: "consul",
-							Name:     "web-task",
+							Provider:  "consul",
+							PortLabel: "80",
+							Name:      "web-task",
+							TaskName:  "task",
 							Identity: &structs.WorkloadIdentity{
-								Name:        "consul-service/web-task",
+								Name:        "consul-service/task-web-task-80",
 								Audience:    []string{"consul.io"},
 								ServiceName: "web-task",
 							},
@@ -229,6 +249,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			name: "mutate task to inject identity for templates",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
+					Name: "group",
 					Tasks: []*structs.Task{{
 						Name:      "web-task",
 						Templates: []*structs.Template{{}},
@@ -245,11 +266,12 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
+					Name: "group",
 					Tasks: []*structs.Task{{
 						Name:      "web-task",
 						Templates: []*structs.Template{{}},
 						Identities: []*structs.WorkloadIdentity{{
-							Name:     "consul/web-task",
+							Name:     "consul/group-web-task",
 							Audience: []string{"consul.io"},
 						}},
 					}},
