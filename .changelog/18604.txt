@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Use same offset when following single or multiple alloc logs
+```
