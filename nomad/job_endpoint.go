@@ -2216,8 +2216,13 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				return err
 			}
 			if job == nil {
+				// HTTPServer.jobScaleStatus() will 404 if this is nil
 				reply.JobScaleStatus = nil
-				return nil
+
+				// reply with latest index, since if the job does get created,
+				// it must necessarily be later than current latest.
+				reply.Index, err = state.LatestIndex()
+				return err
 			}
 
 			events, eventsIndex, err := state.ScalingEventsByJob(ws, args.RequestNamespace(), args.JobID)
