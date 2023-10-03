@@ -28,6 +28,7 @@ import (
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/client/widmgr"
@@ -146,6 +147,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		Getter:                getter.TestSandbox(t),
 		Wranglers:             proclib.MockWranglers(t),
 		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, logger),
+		AllocHookResources:    cstructs.NewAllocHookResources(),
 	}
 
 	return conf, trCleanup
