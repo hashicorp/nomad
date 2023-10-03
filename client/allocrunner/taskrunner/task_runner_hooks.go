@@ -142,12 +142,12 @@ func (tr *TaskRunner) initHooks() {
 		// with a consul token, indicating that Consul ACLs are enabled
 		if tr.clientConfig.ConsulConfig.Token != "" {
 			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
-				alloc:      tr.Alloc(),
-				task:       tr.Task(),
-				sidsClient: tr.siClient,
-				lifecycle:  tr,
-				logger:     hookLogger,
-				runner:     tr,
+				alloc:              tr.Alloc(),
+				task:               tr.Task(),
+				sidsClient:         tr.siClient,
+				lifecycle:          tr,
+				logger:             hookLogger,
+				allocHookResources: tr.allocHookResources,
 			}))
 		}
 

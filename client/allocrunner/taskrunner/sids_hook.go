@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -46,12 +47,12 @@ const (
 )
 
 type sidsHookConfig struct {
-	alloc      *structs.Allocation
-	task       *structs.Task
-	sidsClient consul.ServiceIdentityAPI
-	lifecycle  ti.TaskLifecycle
-	logger     hclog.Logger
-	runner     *TaskRunner
+	alloc              *structs.Allocation
+	task               *structs.Task
+	sidsClient         consul.ServiceIdentityAPI
+	lifecycle          ti.TaskLifecycle
+	logger             hclog.Logger
+	allocHookResources *cstructs.AllocHookResources
 }
 
 // Service Identities hook for managing SI tokens of connect enabled tasks.
@@ -82,20 +83,21 @@ type sidsHook struct {
 	// time (for this task) during the lifespan of the Nomad Client process.
 	firstRun bool
 
-	// runner is a pointer back to the task runner so we can get hook resources
-	runner *TaskRunner
+	// allocHookResources gives us access to Consul tokens that may have been
+	// set by the consul_hook
+	allocHookResources *cstructs.AllocHookResources
 }
 
 func newSIDSHook(c sidsHookConfig) *sidsHook {
 	return &sidsHook{
-		alloc:             c.alloc,
-		task:              c.task,
-		sidsClient:        c.sidsClient,
-		lifecycle:         c.lifecycle,
-		derivationTimeout: sidsDerivationTimeout,
-		logger:            c.logger.Named(sidsHookName),
-		firstRun:          true,
-		runner:            c.runner,
+		alloc:              c.alloc,
+		task:               c.task,
+		sidsClient:         c.sidsClient,
+		lifecycle:          c.lifecycle,
+		derivationTimeout:  sidsDerivationTimeout,
+		logger:             c.logger.Named(sidsHookName),
+		firstRun:           true,
+		allocHookResources: c.allocHookResources,
 	}
 }
 
@@ -125,7 +127,7 @@ func (h *sidsHook) Prestart(
 
 	// if we're using Workload Identities then this Connect task should already
 	// have a token stored under the cluster + service ID.
-	tokens := h.runner.allocHookResources.GetConsulTokens()
+	tokens := h.allocHookResources.GetConsulTokens()
 
 	// Find the group-level service that this task belongs to
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
