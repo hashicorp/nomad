@@ -389,12 +389,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.ServerRPCAdvertise = serverAddr
 
 	// OIDC Issuer address
-	//FIXME(schmichael) seems like a bad way to configure http for servers. will upgrades break?
-	if agentConfig.OIDCIssuer == "" {
-		conf.OIDCIssuer = agentConfig.HTTPAddr()
-	} else {
-		conf.OIDCIssuer = agentConfig.OIDCIssuer
-	}
+	conf.OIDCIssuer = agentConfig.OIDCIssuer
 
 	// Set up gc threshold and heartbeat grace period
 	if gcThreshold := agentConfig.Server.NodeGCThreshold; gcThreshold != "" {

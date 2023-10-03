@@ -503,7 +503,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.VariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
 
 	// OIDC Handlers
-	s.mux.HandleFunc("/.well-known/jwks.json", s.wrap(s.JWKSRequest))
+	s.mux.HandleFunc(structs.JWKSPath, s.wrap(s.JWKSRequest))
 	s.mux.HandleFunc("/.well-known/openid-configuration", s.wrap(s.OIDCDiscoveryRequest))
 
 	agentConfig := s.agent.GetConfig()
