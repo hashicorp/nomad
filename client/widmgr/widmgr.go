@@ -54,10 +54,23 @@ type WIDMgr struct {
 func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger) *WIDMgr {
 	widspecs := map[string][]*structs.WorkloadIdentity{}
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	for _, service := range tg.Services {
+		if service.Identity != nil {
+			widspecs[service.Identity.Name] = []*structs.WorkloadIdentity{service.Identity}
+		}
+	}
+
 	for _, task := range tg.Tasks {
 		// Omit default identity as it does not expire
 		if len(task.Identities) > 0 {
 			widspecs[task.Name] = helper.CopySlice(task.Identities)
+		}
+
+		for _, service := range task.Services {
+			if service.Identity != nil {
+				widspecs[service.Identity.Name] = []*structs.WorkloadIdentity{service.Identity}
+			}
 		}
 	}
 
