@@ -78,12 +78,8 @@ type RaftPeerByIDRequest struct {
 // operation on a specific Raft peer by its peer ID or address in the form of
 // "IP:port".
 type RaftPeerRequest struct {
-	// ID is the peer ID to remove
-	ID raft.ServerID
-
-	// Address is the peer to target, in the form "IP:port".
-	Address raft.ServerAddress
-
+	// RaftIDAddress contains an ID and Address field to identify the target
+	RaftIDAddress
 	// WriteRequest holds the Region for this request.
 	WriteRequest
 }
@@ -113,12 +109,21 @@ func (r *RaftPeerRequest) validateAddress() error {
 }
 
 type LeadershipTransferResponse struct {
-	From RaftServer // Server yielding leadership
-	To   RaftServer // Server obtaining leadership
-	Noop bool       // Was the transfer a non-operation
-	Err  error      // Non-nil if there was an error while transferring leadership
+	From RaftIDAddress // Server yielding leadership
+	To   RaftIDAddress // Server obtaining leadership
+	Noop bool          // Was the transfer a non-operation
+	Err  error         // Non-nil if there was an error while transferring leadership
+}
 
-	WriteMeta
+type RaftIDAddress struct {
+	Address raft.ServerAddress
+	ID      raft.ServerID
+}
+
+// NewRaftIDAddress takes parameters in the order provided by raft's
+// LeaderWithID func and returns a RaftIDAddress
+func NewRaftIDAddress(a raft.ServerAddress, id raft.ServerID) RaftIDAddress {
+	return RaftIDAddress{ID: id, Address: a}
 }
 
 // AutopilotSetConfigRequest is used by the Operator endpoint to update the

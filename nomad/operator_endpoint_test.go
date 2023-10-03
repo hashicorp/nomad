@@ -488,8 +488,8 @@ func TestOperator_TransferLeadershipToServerAddress_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
 
 	arg := structs.RaftPeerRequest{
-		Address:      addr,
-		WriteRequest: structs.WriteRequest{Region: s1.config.Region},
+		RaftIDAddress: structs.RaftIDAddress{Address: addr},
+		WriteRequest:  structs.WriteRequest{Region: s1.config.Region},
 	}
 
 	var reply struct{}
@@ -544,7 +544,9 @@ func TestOperator_TransferLeadershipToServerID_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
 
 	arg := structs.RaftPeerRequest{
-		ID:           tgtID,
+		RaftIDAddress: structs.RaftIDAddress{
+			ID: tgtID,
+		},
 		WriteRequest: structs.WriteRequest{Region: s1.config.Region},
 	}
 

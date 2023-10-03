@@ -234,8 +234,10 @@ REMOVE:
 // flapping during a rolling upgrade by allowing the cluster operator to target
 // an already upgraded node before upgrading the remainder of the cluster.
 func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply *structs.LeadershipTransferResponse) error {
-	reply.To.Address, reply.To.ID = raft.ServerAddress(req.Address), raft.ServerID(req.ID)
-	tgtAddr, tgtID := req.Address, req.ID
+	// Populate the reply's `To` with the arguments. Only one of them is likely
+	// to be filled. We don't get any additional information until after auth
+	// to prevent leaking cluster details vis the error response.
+	reply.To = structs.NewRaftIDAddress(req.Address, req.ID)
 
 	authErr := op.srv.Authenticate(op.ctx, req)
 
@@ -261,12 +263,12 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 	// forwarding, but a leadership change could happen at any moment while we're
 	// running. We need the leader's raft info to populate the response struct
 	// anyway, so we have a chance to check again here
-	lAddr, lID := op.srv.raft.LeaderWithID()
-	reply.From.Address, reply.From.ID = lAddr, lID
+
+	reply.From = structs.NewRaftIDAddress(op.srv.raft.LeaderWithID())
 
 	// If the leader information comes back empty, that signals that there is
 	// currently no leader.
-	if lAddr == "" || lID == "" {
+	if reply.From.Address == "" || reply.From.ID == "" {
 		reply.Err = structs.ErrNoLeader
 		return structs.NewErrRPCCoded(http.StatusServiceUnavailable, structs.ErrNoLeader.Error())
 	}
@@ -277,7 +279,7 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 	minRaftProtocol, err := op.srv.MinRaftProtocol()
 	if err != nil {
 		reply.Err = err
-		return err
+		return structs.NewErrRPCCoded(http.StatusInternalServerError, err.Error())
 	}
 
 	// TransferLeadership is not supported until Raft protocol v3 or greater.
@@ -302,23 +304,6 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 		return structs.NewErrRPCCoded(http.StatusBadRequest, reply.Err.Error())
 	}
 
-	// Fetching lAddr and lID again close to use so we can
-	if lAddr, lID := op.srv.raft.LeaderWithID(); lAddr == "" || lID == "" ||
-		(tgtID == lID && tgtAddr == lAddr) {
-
-		// If the leader info is empty, return a ErrNoLeader
-		if lAddr == "" || lID == "" {
-			reply.Err = structs.ErrNoLeader
-			return structs.NewErrRPCCoded(http.StatusServiceUnavailable, structs.ErrNoLeader.Error())
-		}
-
-		// Otherwise, this is a no-op, respond accordingly.
-		reply.From.Address, reply.From.ID = lAddr, lID
-		op.logger.Debug("leadership transfer to current leader is a no-op")
-		reply.Noop = true
-		return nil
-	}
-
 	// Get the raft configuration
 	future := op.srv.raft.GetConfiguration()
 	if err := future.Error(); err != nil {
@@ -332,9 +317,9 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 	var found bool
 	for _, s := range future.Configuration().Servers {
 		if s.ID == req.ID || s.Address == req.Address {
-			tgtID = s.ID
-			tgtAddr = s.Address
+			reply.To = structs.NewRaftIDAddress(s.Address, s.ID)
 			found = true
+			break
 		}
 	}
 
@@ -344,8 +329,18 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 		return structs.NewErrRPCCoded(http.StatusBadRequest, reply.Err.Error())
 	}
 
-	log := op.logger.With("to_peer_id", tgtID, "to_peer_addr", tgtAddr, "from_peer_id", lID, "from_peer_addr", lAddr)
-	if err = op.srv.leadershipTransferToServer(tgtID, tgtAddr); err != nil {
+	// Otherwise, this is a no-op, respond accordingly.
+	if reply.From == reply.To {
+		op.logger.Debug("leadership transfer to current leader is a no-op")
+		reply.Noop = true
+		return nil
+	}
+
+	log := op.logger.With(
+		"to_peer_id", reply.To.ID, "to_peer_addr", reply.To.Address,
+		"from_peer_id", reply.From.ID, "from_peer_addr", reply.From.Address,
+	)
+	if err = op.srv.leadershipTransferToServer(reply.To); err != nil {
 		reply.Err = err
 		log.Error("failed transferring leadership", "error", reply.Err.Error())
 		return err
