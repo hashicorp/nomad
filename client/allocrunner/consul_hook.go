@@ -102,36 +102,12 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 		return nil
 	}
 
-	// default identity
-	ti := widmgr.TaskIdentity{
-		TaskName:     task.Name,
-		IdentityName: task.Identity.Name,
-	}
-
-	req, err := h.prepareConsulClientReq(ti, consulTasksAuthMethodName)
-	if err != nil {
-		return err
-	}
-
-	jwt, err := h.widmgr.Get(ti)
-	if err != nil {
-		h.logger.Error("error getting signed identity", "error", err)
-		return err
-	}
-
-	req[task.Identity.Name] = consul.JWTLoginRequest{
-		JWT:            jwt.JWT,
-		AuthMethodName: consulTasksAuthMethodName,
-	}
-
-	// FIXME Fetch from Task.Consul.Cluster once #18557 is in
-	if err := h.getConsulTokens(structs.ConsulDefaultCluster, task.Identity.Name, tokens, req); err != nil {
-		return err
-	}
-
-	// alt identities
+	// get tokens for alt identities for Consul
 	mErr := multierror.Error{}
 	for _, i := range task.Identities {
+		if i.Name != fmt.Sprintf("consul_%s", consulConfig.Name) {
+			continue
+		}
 		ti := widmgr.TaskIdentity{
 			TaskName:     task.Name,
 			IdentityName: i.Name,
