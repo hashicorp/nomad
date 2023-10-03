@@ -146,7 +146,6 @@ func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, re
 		return nil, err
 	}
 
-	setIndex(resp, out.Index)
 	return out, nil
 }
 
