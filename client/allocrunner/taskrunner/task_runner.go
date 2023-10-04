@@ -599,6 +599,12 @@ MAIN:
 			goto RESTART
 		}
 
+		// Check for a terminal allocation once more before proceeding as the
+		// prestart hooks may have been skipped.
+		if tr.shouldShutdown() {
+			break MAIN
+		}
+
 		select {
 		case <-tr.killCtx.Done():
 			break MAIN
