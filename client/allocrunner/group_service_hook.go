@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -41,6 +42,8 @@ type groupServiceHook struct {
 	// serviceRegWrapper is the handler wrapper that is used to perform service
 	// and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
+
+	hookResources *cstructs.AllocHookResources
 
 	logger hclog.Logger
 
@@ -72,6 +75,8 @@ type groupServiceHookConfig struct {
 	// serviceRegWrapper is the handler wrapper that is used to perform service
 	// and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
+
+	hookResources *cstructs.AllocHookResources
 }
 
 func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
@@ -95,6 +100,7 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		logger:            cfg.logger.Named(groupServiceHookName),
 		serviceRegWrapper: cfg.serviceRegWrapper,
 		services:          tg.Services,
+		hookResources:     cfg.hookResources,
 		shutdownDelayCtx:  cfg.shutdownDelayCtx,
 	}
 
@@ -257,6 +263,15 @@ func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.Work
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
 
+	allocTokens := h.hookResources.GetConsulTokens()
+
+	tokens := map[string]string{}
+	for _, service := range h.services {
+		if token, ok := allocTokens[service.Cluster][service.MakeUniqueIdentityName()]; ok {
+			tokens[service.Name] = token
+		}
+	}
+
 	var netStatus *structs.AllocNetworkStatus
 	if h.networkStatus != nil {
 		netStatus = h.networkStatus.NetworkStatus()
@@ -279,5 +294,6 @@ func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.Work
 		NetworkStatus:     netStatus,
 		Ports:             h.ports,
 		Canary:            h.canary,
+		Tokens:            tokens,
 	}
 }
