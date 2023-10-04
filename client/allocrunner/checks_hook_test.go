@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -166,7 +167,9 @@ func TestCheckHook_Checks_ResultsSet(t *testing.T) {
 
 		alloc := allocWithNomadChecks(addr, port, tc.onGroup)
 
-		h := newChecksHook(logger, alloc, checkStore, network)
+		envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+		h := newChecksHook(logger, alloc, checkStore, network, envBuilder.Build())
 
 		// initialize is called; observers are created but not started yet
 		must.MapEmpty(t, h.observers)
@@ -231,7 +234,9 @@ func TestCheckHook_Checks_UpdateSet(t *testing.T) {
 
 	alloc := allocWithNomadChecks(addr, port, true)
 
-	h := newChecksHook(logger, alloc, shim, network)
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	h := newChecksHook(logger, alloc, shim, network, envBuilder.Build())
 
 	// calling pre-run starts the observers
 	err := h.Prerun()
