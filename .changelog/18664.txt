@@ -1,0 +1,3 @@
+```release-note:bug
+client: ensure null dynamic node metadata values are removed from memory
+```
