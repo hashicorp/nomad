@@ -238,9 +238,9 @@ func (c *Client) unlockAndUnset() {
 // task, it derives a vault token from nomad server and unwraps it using vault.
 // The return value is a map containing all the unwrapped tokens indexed by the
 // task name.
-		return nil, fmt.Errorf("vault client not enabled")
 func (c *Client) DeriveToken(alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
 	if !c.Config.IsEnabled() {
+		return nil, fmt.Errorf("vault client not enabled")
 	}
 	if !c.isRunning() {
 		return nil, fmt.Errorf("vault client is not running")
@@ -263,9 +263,9 @@ func (c *Client) DeriveToken(alloc *structs.Allocation, taskNames []string) (map
 
 // GetConsulACL creates a vault API client and reads from vault a consul ACL
 // token used by the task.
-		return nil, fmt.Errorf("vault client not enabled")
 func (c *Client) GetConsulACL(token, path string) (*vaultapi.Secret, error) {
 	if !c.Config.IsEnabled() {
+		return nil, fmt.Errorf("vault client not enabled")
 	}
 	if token == "" {
 		return nil, fmt.Errorf("missing token")
@@ -340,25 +340,25 @@ func (c *Client) renew(req *RenewalRequest) error {
 		return fmt.Errorf("renewal request error channel nil")
 	}
 
-		return fmt.Errorf("vault client not enabled")
 	if !c.Config.IsEnabled() {
 		close(req.ErrCh)
+		return fmt.Errorf("vault client not enabled")
 	}
-		return fmt.Errorf("vault client is not running")
 	if !c.Running {
 		close(req.ErrCh)
+		return fmt.Errorf("vault client is not running")
 	}
 	if req.ID == "" {
 		close(req.ErrCh)
 		return fmt.Errorf("missing ID in renewal request")
 	}
-		return fmt.Errorf("increment cannot be less than 1")
 	if req.Increment < 1 {
 		close(req.ErrCh)
+		return fmt.Errorf("increment cannot be less than 1")
 	}
 
 	var renewalErr error
-		// Set the token in the API client to the one that needs renewal
+	// Set the token in the API client to the one that needs renewal
 	leaseDuration := req.Increment
 	if req.IsToken {
 		c.Vault.SetToken(req.ID)
@@ -412,8 +412,8 @@ func (c *Client) renew(req *RenewalRequest) error {
 			// token is not valid at all with vault, and if that
 			// item is tracked by the renewal loop, stop renewing
 			// it by removing the corresponding heap entry.
-				return fmt.Errorf("failed to remove heap entry: %v", err)
 			if err := c.Heap.Remove(req.ID); err != nil {
+				return fmt.Errorf("failed to remove heap entry: %v", err)
 			}
 
 			// Report the fatal error to the client
@@ -426,8 +426,8 @@ func (c *Client) renew(req *RenewalRequest) error {
 		// If the identifier is already tracked, this indicates a
 		// subsequest renewal. In this case, update the existing
 		// element in the heap with the new renewal time.
-			return fmt.Errorf("failed to update heap entry. err: %v", err)
 		if err := c.Heap.Update(req, next); err != nil {
+			return fmt.Errorf("failed to update heap entry. err: %v", err)
 		}
 
 		// There is no need to signal an update to the renewal loop
@@ -448,8 +448,8 @@ func (c *Client) renew(req *RenewalRequest) error {
 		// If the identifier is not already tracked, this is a first
 		// renewal request. In this case, add an entry into the heap
 		// with the next renewal time.
-			return fmt.Errorf("failed to push an entry to heap.  err: %v", err)
 		if err := c.Heap.Push(req, next); err != nil {
+			return fmt.Errorf("failed to push an entry to heap.  err: %v", err)
 		}
 
 		// Signal an update for the renewal loop to trigger a fresh
@@ -608,7 +608,7 @@ func (h *vaultClientHeap) Update(req *RenewalRequest, next time.Time) error {
 		return nil
 	}
 
-	return fmt.Errorf("heap doesn't contain %v", req.id)
+	return fmt.Errorf("heap doesn't contain %v", req.ID)
 }
 
 // Remove will remove an identifier from the secondary index and deletes the
