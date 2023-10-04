@@ -82,7 +82,7 @@ func (h *consulHook) Prerun() error {
 			if err := h.prepareConsulTokensForServices(task.Services, tokens); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			if err := h.prepareConsulTokensForTask(job, task, tokens); err != nil {
+			if err := h.prepareConsulTokensForTask(job, task, tg.Name, tokens); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
@@ -94,7 +94,7 @@ func (h *consulHook) Prerun() error {
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tokens map[string]map[string]string) error {
+func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tgName string, tokens map[string]map[string]string) error {
 	// if UseIdentity is unset of set to false, quit
 	// FIXME Fetch from Task.Consul.Cluster once #18557 is in
 	consulConfig := h.consulConfigs[structs.ConsulDefaultCluster]
@@ -102,10 +102,12 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 		return nil
 	}
 
+	expectedIdentity := task.MakeUniqueIdentityName(tgName)
+
 	// get tokens for alt identities for Consul
 	mErr := multierror.Error{}
 	for _, i := range task.Identities {
-		if i.Name != fmt.Sprintf("consul_%s", consulConfig.Name) {
+		if i.Name != expectedIdentity {
 			continue
 		}
 		ti := widmgr.TaskIdentity{
