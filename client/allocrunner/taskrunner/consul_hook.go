@@ -46,7 +46,7 @@ func newConsulHook(logger log.Logger, tr *TaskRunner, hookResources *cstructs.Al
 }
 
 func (*consulHook) Name() string {
-	return "consul"
+	return "consul_task"
 }
 
 func (h *consulHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, *interfaces.TaskPrestartResponse) error {
