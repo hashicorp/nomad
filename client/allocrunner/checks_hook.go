@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -79,6 +80,7 @@ type checksHook struct {
 	shim    checkstore.Shim
 	checker checks.Checker
 	allocID string
+	taskEnv *taskenv.TaskEnv
 
 	// fields that get re-initialized on allocation update
 	lock      sync.RWMutex
@@ -93,6 +95,7 @@ func newChecksHook(
 	alloc *structs.Allocation,
 	shim checkstore.Shim,
 	network structs.NetworkStatus,
+	taskEnv *taskenv.TaskEnv,
 ) *checksHook {
 	h := &checksHook{
 		logger:  logger.Named(checksHookName),
@@ -101,6 +104,7 @@ func newChecksHook(
 		shim:    shim,
 		network: network,
 		checker: checks.New(logger),
+		taskEnv: taskEnv,
 	}
 	h.initialize(alloc)
 	return h
@@ -205,8 +209,10 @@ func (h *checksHook) Prerun() error {
 		return nil
 	}
 
+	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, group.NomadServices())
+
 	// create and start observers of nomad service checks in alloc
-	h.observe(h.alloc, group.NomadServices())
+	h.observe(h.alloc, interpolatedServices)
 
 	return nil
 }
