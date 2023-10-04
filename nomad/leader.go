@@ -149,6 +149,50 @@ func (s *Server) monitorLeadership() {
 	}
 }
 
+func (s *Server) leadershipTransferToServer(to structs.RaftIDAddress) error {
+	if l := structs.NewRaftIDAddress(s.raft.LeaderWithID()); l == to {
+		s.logger.Debug("leadership transfer to current leader is a no-op")
+		return nil
+	}
+	retryCount := 3
+	var lastError error
+	for i := 0; i < retryCount; i++ {
+		err := s.raft.LeadershipTransferToServer(to.ID, to.Address).Error()
+		if err == nil {
+			s.logger.Info("successfully transferred leadership")
+			return nil
+		}
+
+		// "cannot transfer leadership to itself"
+		// Handled at top of function, but reapplied here to prevent retrying if
+		// it occurs while we are retrying
+		if err.Error() == "cannot transfer leadership to itself" {
+			s.logger.Debug("leadership transfer to current leader is a no-op")
+			return nil
+		}
+
+		// ErrRaftShutdown: Don't retry if raft is shut down.
+		if err == raft.ErrRaftShutdown {
+			return err
+		}
+
+		// ErrUnsupportedProtocol: Don't retry if the Raft version doesn't
+		// support leadership transfer since this will never succeed.
+		if err == raft.ErrUnsupportedProtocol {
+			return fmt.Errorf("leadership transfer not supported with Raft version lower than 3")
+		}
+
+		// ErrEnqueueTimeout: This seems to be the valid time to retry.
+		s.logger.Error("failed to transfer leadership attempt, will retry",
+			"attempt", i,
+			"retry_limit", retryCount,
+			"error", err,
+		)
+		lastError = err
+	}
+	return fmt.Errorf("failed to transfer leadership in %d attempts. last error: %w", retryCount, lastError)
+}
+
 func (s *Server) leadershipTransfer() error {
 	retryCount := 3
 	for i := 0; i < retryCount; i++ {

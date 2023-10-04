@@ -4,9 +4,12 @@
 package structs
 
 import (
+	"errors"
 	"fmt"
+	"net/netip"
 	"time"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/raft"
 )
 
@@ -49,6 +52,8 @@ type RaftConfigurationResponse struct {
 
 // RaftPeerByAddressRequest is used by the Operator endpoint to apply a Raft
 // operation on a specific Raft peer by address in the form of "IP:port".
+//
+// Deprecated: Use RaftPeerRequest with an Address instead.
 type RaftPeerByAddressRequest struct {
 	// Address is the peer to remove, in the form "IP:port".
 	Address raft.ServerAddress
@@ -59,12 +64,66 @@ type RaftPeerByAddressRequest struct {
 
 // RaftPeerByIDRequest is used by the Operator endpoint to apply a Raft
 // operation on a specific Raft peer by ID.
+//
+// Deprecated: Use RaftPeerRequest with an ID instead.
 type RaftPeerByIDRequest struct {
 	// ID is the peer ID to remove.
 	ID raft.ServerID
 
 	// WriteRequest holds the Region for this request.
 	WriteRequest
+}
+
+// RaftPeerRequest is used by the Operator endpoint to apply a Raft
+// operation on a specific Raft peer by its peer ID or address in the form of
+// "IP:port".
+type RaftPeerRequest struct {
+	// RaftIDAddress contains an ID and Address field to identify the target
+	RaftIDAddress
+	// WriteRequest holds the Region for this request.
+	WriteRequest
+}
+
+func (r *RaftPeerRequest) Validate() error {
+	if (r.ID == "" && r.Address == "") || (r.ID != "" && r.Address != "") {
+		return errors.New("either ID or Address must be set")
+	}
+	if r.ID != "" {
+		return r.validateID()
+	}
+	return r.validateAddress()
+}
+
+func (r *RaftPeerRequest) validateID() error {
+	if _, err := uuid.ParseUUID(string(r.ID)); err != nil {
+		return fmt.Errorf("id must be a uuid: %w", err)
+	}
+	return nil
+}
+
+func (r *RaftPeerRequest) validateAddress() error {
+	if _, err := netip.ParseAddrPort(string(r.Address)); err != nil {
+		return fmt.Errorf("address must be in IP:port format: %w", err)
+	}
+	return nil
+}
+
+type LeadershipTransferResponse struct {
+	From RaftIDAddress // Server yielding leadership
+	To   RaftIDAddress // Server obtaining leadership
+	Noop bool          // Was the transfer a non-operation
+	Err  error         // Non-nil if there was an error while transferring leadership
+}
+
+type RaftIDAddress struct {
+	Address raft.ServerAddress
+	ID      raft.ServerID
+}
+
+// NewRaftIDAddress takes parameters in the order provided by raft's
+// LeaderWithID func and returns a RaftIDAddress
+func NewRaftIDAddress(a raft.ServerAddress, id raft.ServerID) RaftIDAddress {
+	return RaftIDAddress{ID: id, Address: a}
 }
 
 // AutopilotSetConfigRequest is used by the Operator endpoint to update the

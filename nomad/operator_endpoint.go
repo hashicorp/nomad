@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -124,7 +125,7 @@ func (op *Operator) RaftRemovePeerByAddress(args *structs.RaftPeerByAddressReque
 
 	// Since this is an operation designed for humans to use, we will return
 	// an error if the supplied address isn't among the peers since it's
-	// likely they screwed up.
+	// likely a mistake.
 	{
 		future := op.srv.raft.GetConfiguration()
 		if err := future.Error(); err != nil {
@@ -182,7 +183,7 @@ func (op *Operator) RaftRemovePeerByID(args *structs.RaftPeerByIDRequest, reply 
 
 	// Since this is an operation designed for humans to use, we will return
 	// an error if the supplied id isn't among the peers since it's
-	// likely they screwed up.
+	// likely a mistake.
 	var address raft.ServerAddress
 	{
 		future := op.srv.raft.GetConfiguration()
@@ -225,6 +226,127 @@ REMOVE:
 	}
 
 	op.logger.Warn("removed Raft peer", "peer_id", args.ID)
+	return nil
+}
+
+// TransferLeadershipToPeer is used to transfer leadership away from the
+// current leader to a specific target peer. This can help prevent leadership
+// flapping during a rolling upgrade by allowing the cluster operator to target
+// an already upgraded node before upgrading the remainder of the cluster.
+func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply *structs.LeadershipTransferResponse) error {
+	// Populate the reply's `To` with the arguments. Only one of them is likely
+	// to be filled. We don't get any additional information until after auth
+	// to prevent leaking cluster details via the error response.
+	reply.To = structs.NewRaftIDAddress(req.Address, req.ID)
+
+	authErr := op.srv.Authenticate(op.ctx, req)
+
+	if done, err := op.srv.forward("Operator.TransferLeadershipToPeer", req, req, reply); done {
+		reply.Err = err
+		return reply.Err
+	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, req)
+	if authErr != nil {
+		reply.Err = structs.ErrPermissionDenied
+		return structs.ErrPermissionDenied
+	}
+
+	// Check ACL permissions
+	if aclObj, err := op.srv.ResolveACL(req); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		reply.Err = structs.ErrPermissionDenied
+		return structs.ErrPermissionDenied
+	}
+
+	// Technically, this code will be running on the leader because of the RPC
+	// forwarding, but a leadership change could happen at any moment while we're
+	// running. We need the leader's raft info to populate the response struct
+	// anyway, so we have a chance to check again here
+
+	reply.From = structs.NewRaftIDAddress(op.srv.raft.LeaderWithID())
+
+	// If the leader information comes back empty, that signals that there is
+	// currently no leader.
+	if reply.From.Address == "" || reply.From.ID == "" {
+		reply.Err = structs.ErrNoLeader
+		return structs.NewErrRPCCoded(http.StatusServiceUnavailable, structs.ErrNoLeader.Error())
+	}
+
+	// while this is a somewhat more expensive test than later ones, if this
+	// test fails, they will _never_ be able to do a transfer. We do this after
+	// ACL checks though, so as to not leak cluster info to non-validated users.
+	minRaftProtocol, err := op.srv.MinRaftProtocol()
+	if err != nil {
+		reply.Err = err
+		return structs.NewErrRPCCoded(http.StatusInternalServerError, err.Error())
+	}
+
+	// TransferLeadership is not supported until Raft protocol v3 or greater.
+	if minRaftProtocol < 3 {
+		op.logger.Warn("unsupported minimum common raft protocol version", "required", "3", "current", minRaftProtocol)
+		reply.Err = errors.New("unsupported minimum common raft protocol version")
+		return structs.NewErrRPCCoded(http.StatusBadRequest, reply.Err.Error())
+	}
+
+	var kind, testedVal string
+
+	// The request must provide either an ID or an Address, this lets us validate
+	// the request
+	req.Validate()
+	switch {
+	case req.ID != "":
+		kind, testedVal = "id", string(req.ID)
+	case req.Address != "":
+		kind, testedVal = "address", string(req.Address)
+	default:
+		reply.Err = errors.New("must provide peer id or address")
+		return structs.NewErrRPCCoded(http.StatusBadRequest, reply.Err.Error())
+	}
+
+	// Get the raft configuration
+	future := op.srv.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
+		reply.Err = err
+		return err
+	}
+
+	// Since this is an operation designed for humans to use, we will return
+	// an error if the supplied ID or address isn't among the peers since it's
+	// likely a mistake.
+	var found bool
+	for _, s := range future.Configuration().Servers {
+		if s.ID == req.ID || s.Address == req.Address {
+			reply.To = structs.NewRaftIDAddress(s.Address, s.ID)
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		reply.Err = fmt.Errorf("%s %q was not found in the Raft configuration",
+			kind, testedVal)
+		return structs.NewErrRPCCoded(http.StatusBadRequest, reply.Err.Error())
+	}
+
+	// Otherwise, this is a no-op, respond accordingly.
+	if reply.From == reply.To {
+		op.logger.Debug("leadership transfer to current leader is a no-op")
+		reply.Noop = true
+		return nil
+	}
+
+	log := op.logger.With(
+		"to_peer_id", reply.To.ID, "to_peer_addr", reply.To.Address,
+		"from_peer_id", reply.From.ID, "from_peer_addr", reply.From.Address,
+	)
+	if err = op.srv.leadershipTransferToServer(reply.To); err != nil {
+		reply.Err = err
+		log.Error("failed transferring leadership", "error", reply.Err.Error())
+		return err
+	}
+
+	log.Info("transferred leadership")
 	return nil
 }
 
@@ -284,7 +406,7 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 		return structs.ErrPermissionDenied
 	}
 
-	// All servers should be at or above 0.8.0 to apply this operatation
+	// All servers should be at or above 0.8.0 to apply this operation
 	if !ServersMeetMinimumVersion(op.srv.Members(), op.srv.Region(), minAutopilotVersion, false) {
 		return fmt.Errorf("All servers should be running version %v to update autopilot config", minAutopilotVersion)
 	}

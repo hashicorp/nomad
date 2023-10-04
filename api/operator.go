@@ -120,6 +120,46 @@ func (op *Operator) RaftRemovePeerByID(id string, q *WriteOptions) error {
 	return nil
 }
 
+// RaftTransferLeadershipByAddress is used to transfer leadership to a
+// different peer using its address in the form of "IP:port".
+func (op *Operator) RaftTransferLeadershipByAddress(address string, q *WriteOptions) error {
+	r, err := op.c.newRequest("PUT", "/v1/operator/raft/transfer-leadership")
+	if err != nil {
+		return err
+	}
+	r.setWriteOptions(q)
+
+	r.params.Set("address", address)
+
+	_, resp, err := requireOK(op.c.doRequest(r))
+	if err != nil {
+		return err
+	}
+
+	resp.Body.Close()
+	return nil
+}
+
+// RaftTransferLeadershipByID is used to transfer leadership to a
+// different peer using its Raft ID.
+func (op *Operator) RaftTransferLeadershipByID(id string, q *WriteOptions) error {
+	r, err := op.c.newRequest("PUT", "/v1/operator/raft/transfer-leadership")
+	if err != nil {
+		return err
+	}
+	r.setWriteOptions(q)
+
+	r.params.Set("id", id)
+
+	_, resp, err := requireOK(op.c.doRequest(r))
+	if err != nil {
+		return err
+	}
+
+	resp.Body.Close()
+	return nil
+}
+
 // SchedulerConfiguration is the config for controlling scheduler behavior
 type SchedulerConfiguration struct {
 	// SchedulerAlgorithm lets you select between available scheduling algorithms.
@@ -362,4 +402,13 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	qm.RequestTime = rtt
 
 	return &reply, qm, nil
+}
+
+type LeadershipTransferResponse struct {
+	From RaftServer
+	To   RaftServer
+	Noop bool
+	Err  error
+
+	WriteMeta
 }
