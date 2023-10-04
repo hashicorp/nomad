@@ -2058,7 +2058,8 @@ func (s *Server) ReplicationToken() string {
 	return s.config.ReplicationToken
 }
 
-// ClusterID returns the unique ID for this cluster.
+// ClusterMetaData returns the unique ID for this cluster composed of a
+// uuid and a timestamp.
 //
 // Any Nomad server agent may call this method to get at the ID.
 // If we are the leader and the ID has not yet been created, it will
@@ -2066,7 +2067,7 @@ func (s *Server) ReplicationToken() string {
 //
 // The ID will not be created until all participating servers have reached
 // a minimum version (0.10.4).
-func (s *Server) ClusterID() (string, error) {
+func (s *Server) ClusterMetaData() (structs.ClusterMetadata, error) {
 	s.clusterIDLock.Lock()
 	defer s.clusterIDLock.Unlock()
 
@@ -2075,30 +2076,53 @@ func (s *Server) ClusterID() (string, error) {
 	existingMeta, err := fsmState.ClusterMetadata(nil)
 	if err != nil {
 		s.logger.Named("core").Error("failed to get cluster ID", "error", err)
-		return "", err
+		return structs.ClusterMetadata{}, err
 	}
 
 	// got the cluster ID from state store, cache that and return it
 	if existingMeta != nil && existingMeta.ClusterID != "" {
-		return existingMeta.ClusterID, nil
+		return *existingMeta, nil
 	}
 
 	// if we are not the leader, nothing more we can do
 	if !s.IsLeader() {
-		return "", errors.New("cluster ID not ready yet")
+		return structs.ClusterMetadata{}, errors.New("cluster ID not ready {}yet")
 	}
 
 	// we are the leader, try to generate the ID now
-	generatedID, err := s.generateClusterID()
+	generatedMD, err := s.generateClusterMetadata()
 	if err != nil {
-		return "", err
+		return structs.ClusterMetadata{}, err
 	}
 
-	return generatedID, nil
+	return generatedMD, nil
 }
 
 func (s *Server) isSingleServerCluster() bool {
 	return s.config.BootstrapExpect == 1
+}
+
+func (s *Server) GetClientNodesCount() (int, error) {
+	stateSnapshot, err := s.State().Snapshot()
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	iter, err := stateSnapshot.Nodes(nil)
+	if err != nil {
+		return 0, err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+	}
+
+	return count, nil
 }
 
 // peersInfoContent is used to help operators understand what happened to the

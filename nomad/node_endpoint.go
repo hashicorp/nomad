@@ -2042,11 +2042,13 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	}
 
 	// Get the ClusterID
-	clusterID, err := n.srv.ClusterID()
+	clusterMD, err := n.srv.ClusterMetaData()
 	if err != nil {
 		setError(err, false)
 		return nil
 	}
+
+	clusterID := clusterMD.ClusterID
 
 	// Verify the following:
 	// * The Node exists and has the correct SecretID.

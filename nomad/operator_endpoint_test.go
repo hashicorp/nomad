@@ -584,7 +584,7 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.Build = "0.9.0+unittest"
+		c.Build = "1.3.0+unittest"
 	})
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -608,7 +608,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.Build = "0.9.0+unittest"
+		c.Build = "1.3.0+unittest"
 	})
 	defer cleanupS1()
 	rpcCodec := rpcClient(t, s1)
@@ -654,7 +654,7 @@ func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
-		c.Build = "0.9.0+unittest"
+		c.Build = "1.3.0+unittest"
 	})
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -701,7 +701,7 @@ func TestOperator_SchedulerSetConfiguration_ACL(t *testing.T) {
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
-		c.Build = "0.9.0+unittest"
+		c.Build = "1.3.0+unittest"
 	})
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
