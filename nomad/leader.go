@@ -368,7 +368,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	schedulerConfig := s.getOrCreateSchedulerConfig()
 
 	// Initialize the Cluster metadata
-	clusterMetadata, err := s.ClusterMetadata()
+	clusterMetadata, err := s.ClusterMetaData()
 	if err != nil {
 		return err
 	}
