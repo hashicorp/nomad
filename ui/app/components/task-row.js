@@ -25,6 +25,7 @@ import classic from 'ember-classic-decorator';
 export default class TaskRow extends Component {
   @service store;
   @service token;
+  @service system;
   @service('stats-trackers-registry') statsTrackersRegistry;
 
   task = null;
@@ -34,7 +35,10 @@ export default class TaskRow extends Component {
 
   @computed
   get enablePolling() {
-    return !Ember.testing;
+    return (
+      !Ember.testing &&
+      !(this.system.agent.get('config')?.UI?.PollStats.Enabled === false)
+    );
   }
 
   // Since all tasks for an allocation share the same tracker, use the registry

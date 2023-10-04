@@ -42,13 +42,21 @@ const memoryUsed = (frame) =>
   0;
 
 @classic
-class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
+class AllocationStatsTracker extends AbstractStatsTracker {
+  constructor({ fetch, allocation }) {
+    super();
+    this.fetch = fetch;
+    this.allocation = allocation;
+    // this.url = `/v1/client/allocation/${this.allocation.id}/stats`;
+  }
+
   // Set via the stats computed property macro
   allocation = null;
 
   @computed('allocation.id')
   get url() {
-    return `/v1/client/allocation/${this.get('allocation.id')}/stats`;
+    console.log('earl', this.allocation);
+    return `/v1/client/allocation/${this.allocation.id}/stats`;
   }
 
   append(frame) {
@@ -139,7 +147,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   @computed('allocation.taskGroup.tasks', 'bufferSize')
   get tasks() {
     const bufferSize = this.bufferSize;
-    const tasks = this.get('allocation.taskGroup.tasks') || [];
+    const tasks = this.allocation.taskGroup.tasks || [];
     return tasks
       .slice()
       .sort(taskPrioritySort)
@@ -161,8 +169,14 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 export default AllocationStatsTracker;
 
 export function stats(allocationProp, fetch) {
+  // return computed(allocationProp, function () {
+  //   return AllocationStatsTracker.create({
+  //     fetch: fetch.call(this),
+  //     allocation: this.get(allocationProp),
+  //   });
+  // });
   return computed(allocationProp, function () {
-    return AllocationStatsTracker.create({
+    return new AllocationStatsTracker({
       fetch: fetch.call(this),
       allocation: this.get(allocationProp),
     });

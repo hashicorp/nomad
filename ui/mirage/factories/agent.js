@@ -30,6 +30,10 @@ export default Factory.extend({
         BackgroundColor: 'hotpink',
         Text: `Mirage - ${scenario}`,
       },
+      PollStats: {
+        Enabled: true,
+        Interval: 10,
+      },
     },
     ACL: {
       Enabled: true,

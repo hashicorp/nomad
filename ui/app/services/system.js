@@ -52,6 +52,9 @@ export default class SystemService extends Service {
             if (VersionMetadata)
               agent.version = `${agent.version}+${VersionMetadata}`;
           }
+
+          // Pseudo UI block if not present
+          console.log('agent UI?', agent, agent.config.UI);
           return agent;
         }),
     });
