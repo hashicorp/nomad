@@ -61,6 +61,14 @@ func (n NoopDB) PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opt
 
 func (n NoopDB) GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error) { return nil, nil }
 
+func (n NoopDB) PutAllocIdentities(_ string, _ []*structs.SignedWorkloadIdentity, _ ...WriteOption) error {
+	return nil
+}
+
+func (n NoopDB) GetAllocIdentities(_ string) ([]*structs.SignedWorkloadIdentity, error) {
+	return nil, nil
+}
+
 func (n NoopDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
 	return nil, nil, nil
 }

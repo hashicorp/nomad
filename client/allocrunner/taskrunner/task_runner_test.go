@@ -120,6 +120,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 
 	task := alloc.LookupTask(taskName)
 	widsigner := widmgr.NewMockWIDSigner(task.Identities)
+	db := cstate.NewMemDB(logger)
 
 	var vaultFunc vaultclient.VaultClientFunc
 	if vault != nil {
@@ -146,7 +147,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
 		Wranglers:             proclib.MockWranglers(t),
-		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, logger),
+		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger),
 		AllocHookResources:    cstructs.NewAllocHookResources(),
 	}
 
