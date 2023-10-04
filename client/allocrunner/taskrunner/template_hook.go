@@ -13,6 +13,7 @@ import (
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/template"
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -48,6 +49,9 @@ type templateHookConfig struct {
 
 	// renderOnTaskRestart is flag to explicitly render templates on task restart
 	renderOnTaskRestart bool
+
+	// hookResources are used to fetch Consul tokens
+	hookResources *cstructs.AllocHookResources
 }
 
 type templateHook struct {
@@ -80,12 +84,16 @@ type templateHook struct {
 
 	// taskDir is the task directory
 	taskDir string
+
+	// hookResources are used to fetch Consul tokens
+	hookResources *cstructs.AllocHookResources
 }
 
 func newTemplateHook(config *templateHookConfig) *templateHook {
 	return &templateHook{
 		config:          config,
 		consulNamespace: config.consulNamespace,
+		hookResources:   config.hookResources,
 		logger:          config.logger.Named(templateHookName),
 	}
 }
