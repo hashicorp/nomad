@@ -229,14 +229,14 @@ REMOVE:
 	return nil
 }
 
-// TransferLeadershipToServerID is used to transfer leadership away from the
+// TransferLeadershipToPeer is used to transfer leadership away from the
 // current leader to a specific target peer. This can help prevent leadership
 // flapping during a rolling upgrade by allowing the cluster operator to target
 // an already upgraded node before upgrading the remainder of the cluster.
 func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply *structs.LeadershipTransferResponse) error {
 	// Populate the reply's `To` with the arguments. Only one of them is likely
 	// to be filled. We don't get any additional information until after auth
-	// to prevent leaking cluster details vis the error response.
+	// to prevent leaking cluster details via the error response.
 	reply.To = structs.NewRaftIDAddress(req.Address, req.ID)
 
 	authErr := op.srv.Authenticate(op.ctx, req)
