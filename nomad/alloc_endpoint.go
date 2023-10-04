@@ -595,6 +595,26 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			break
 		}
 
+		for _, taskService := range task.Services {
+			wid := taskService.Identity
+		
+			if wid.Name != idReq.IdentityName {
+				continue
+			}
+
+			widFound = true
+			claims := structs.NewIdentityClaims(out.Job, out, idReq.TaskName, wid, now)
+			token, _, err := a.srv.encrypter.SignClaims(claims)
+			if err != nil {
+				return err
+			}
+			reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
+				WorkloadIdentityRequest: *idReq,
+				JWT:                     token,
+				Expiration:              claims.Expiry.Time(),
+			})
+		}
+
 		if !widFound {
 			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
 				WorkloadIdentityRequest: *idReq,
