@@ -505,7 +505,8 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
 	// conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
-	// MASSIVE TODO: this is an open checkOrigin here that allows :4200 to make requests to :4646, freeing local ember up from not having to proxy.
+	// MASSIVE TODO: this is an open checkOrigin here that allows :4200 to make requests to :4646,
+	// freeing local ember up from not having to proxy.
 	// This is like three workarounds in a trenchcoat and I dno't feel good about it but it unblocks me
 
 	var upgrader = websocket.Upgrader{
@@ -518,10 +519,12 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 	conn, err := upgrader.Upgrade(resp, req, nil)
 
 	if err != nil {
+		s.logger.Error("++++WebSocket upgrade failed", "error", err)
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}
 
-	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+	if err := readWsHandshake(s, conn.ReadJSON, req, &args.QueryOptions); err != nil {
+		s.logger.Debug("++++failed to read ws handshake", "error", err)
 		conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
 		return nil, err
@@ -532,12 +535,15 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 
 // readWsHandshake reads the websocket handshake message and sets
 // query authentication token, if request requires a handshake
-func readWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
+func readWsHandshake(s *HTTPServer, readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
+	// Log out the request
+	s.logger.Debug("++++Attempting to read WebSocket handshake")
 
 	// Avoid handshake if request doesn't require one
 	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {
 		return nil
 	} else if h, err := strconv.ParseBool(hv); err != nil {
+		s.logger.Error("++++Failed to parse ws_handshake value", "error", err)
 		return fmt.Errorf("ws_handshake value is not a boolean: %v", err)
 	} else if !h {
 		return nil
@@ -546,15 +552,18 @@ func readWsHandshake(readFn func(interface{}) error, req *http.Request, q *struc
 	var h wsHandshakeMessage
 	err := readFn(&h)
 	if err != nil {
+		s.logger.Error("++++Failed to read handshake message", "error", err)
 		return err
 	}
 
 	supportedWSHandshakeVersion := 1
 	if h.Version != supportedWSHandshakeVersion {
+		s.logger.Error("++++Handshake version mismatch", "received_version", h.Version, "expected_version", supportedWSHandshakeVersion)
 		return fmt.Errorf("unexpected handshake value: %v", h.Version)
 	}
 
 	q.AuthToken = h.AuthToken
+	s.logger.Debug("++++WebSocket handshake successful", "auth_token", h.AuthToken)
 	return nil
 }
 
@@ -616,12 +625,14 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 			var res cstructs.StreamErrWrapper
 			err := decoder.Decode(&res)
 			if isClosedError(err) {
+				s.logger.Debug("++++1alloc exec channel closed with error", "error", err)
 				ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				errCh <- nil
 				return
 			}
 
 			if err != nil {
+				s.logger.Debug("++++2alloc exec channel closed with error", "error", err)
 				errCh <- CodedError(500, err.Error())
 				return
 			}
@@ -637,6 +648,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 			}
 
 			if err := ws.WriteMessage(websocket.TextMessage, res.Payload); err != nil {
+				s.logger.Debug("++++3alloc exec channel closed with error", "error", err)
 				errCh <- CodedError(500, err.Error())
 				return
 			}
@@ -663,6 +675,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 		ws.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(toWsCode(codedErr.Code()), codedErr.Error()))
 	}
+	s.logger.Debug("++++about to close ws from execStreamImpl")
 	ws.Close()
 
 	return nil, codedErr
