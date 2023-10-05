@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	structsconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/shoenig/test/must"
@@ -114,6 +115,8 @@ func TestConfigForServer(t testing.T) *Config {
 
 	// Default to having concurrent schedulers
 	config.NumSchedulers = 2
+
+	config.Reporting = structsconfig.DefaultReporting()
 
 	return config
 }

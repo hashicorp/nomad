@@ -367,8 +367,11 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Initialize scheduler configuration.
 	schedulerConfig := s.getOrCreateSchedulerConfig()
 
-	// Initialize the ClusterID
-	_, _ = s.ClusterID()
+	// Initialize the Cluster metadata
+	clusterMetadata, err := s.ClusterMetaData()
+	if err != nil {
+		return err
+	}
 	// todo: use cluster ID for stuff, later!
 
 	// Enable the plan queue, since we are now the leader
@@ -489,7 +492,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	}
 
 	// Setup any enterprise systems required.
-	if err := s.establishEnterpriseLeadership(stopCh); err != nil {
+	if err := s.establishEnterpriseLeadership(stopCh, clusterMetadata); err != nil {
 		return err
 	}
 
@@ -2776,20 +2779,20 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 	logger.Info("initialized keyring", "id", rootKey.Meta.KeyID)
 }
 
-func (s *Server) generateClusterID() (string, error) {
+func (s *Server) generateClusterMetadata() (structs.ClusterMetadata, error) {
 	if !ServersMeetMinimumVersion(s.Members(), AllRegions, minClusterIDVersion, false) {
 		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
-		return "", fmt.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
+		return structs.ClusterMetadata{}, fmt.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
 	}
 
 	newMeta := structs.ClusterMetadata{ClusterID: uuid.Generate(), CreateTime: time.Now().UnixNano()}
 	if _, _, err := s.raftApply(structs.ClusterMetadataRequestType, newMeta); err != nil {
 		s.logger.Named("core").Error("failed to create cluster ID", "error", err)
-		return "", fmt.Errorf("failed to create cluster ID: %w", err)
+		return structs.ClusterMetadata{}, fmt.Errorf("failed to create cluster ID: %w", err)
 	}
 
 	s.logger.Named("core").Info("established cluster id", "cluster_id", newMeta.ClusterID, "create_time", newMeta.CreateTime)
-	return newMeta.ClusterID, nil
+	return newMeta, nil
 }
 
 // handleEvalBrokerStateChange handles changing the evalBroker and blockedEvals
