@@ -6,7 +6,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -165,7 +164,7 @@ func (a *Allocations) Checks(args *cstructs.AllocChecksRequest, reply *cstructs.
 // exec is used to execute command in a running task
 func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "allocations", "exec"}, time.Now())
-	defer conn.Close()
+	// defer conn.Close()
 
 	execID := uuid.Generate()
 	decoder := codec.NewDecoder(conn, nstructs.MsgpackHandle)
@@ -247,9 +246,11 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	if req.Task == "" {
 		return pointer.Of(int64(400)), taskNotPresentErr
 	}
-	if len(req.Cmd) == 0 {
-		return pointer.Of(int64(400)), errors.New("command is not present")
-	}
+	// if len(req.Cmd) == 0 {
+	// return pointer.Of(int64(400)), errors.New("command is not present")
+	// }
+	// Run a sample/demo command
+	req.Cmd = []string{"sh", "-c", "echo hello world"}
 
 	capabilities, err := ar.GetTaskDriverCapabilities(req.Task)
 	if err != nil {

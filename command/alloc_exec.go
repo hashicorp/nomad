@@ -134,11 +134,11 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(args) < 2 {
-		l.Ui.Error("A command is required")
-		l.Ui.Error(commandErrorText(l))
-		return 1
-	}
+	// if len(args) < 2 {
+	// 	l.Ui.Error("A command is required")
+	// 	l.Ui.Error(commandErrorText(l))
+	// 	return 1
+	// }
 
 	if ttyOpt && !stdinOpt {
 		l.Ui.Error("-i must be enabled if running with tty")

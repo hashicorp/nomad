@@ -28,6 +28,7 @@ module.exports = function (app, options) {
   let proxyAddress = options.proxy;
 
   let server = options.httpServer;
+  console.log('proxy2', proxyAddress);
   let proxy = require('http-proxy').createProxyServer({
     target: proxyAddress,
     ws: true,
@@ -39,6 +40,19 @@ module.exports = function (app, options) {
     console.error(err, req.url);
   });
 
+  proxy.on('proxyRes', function (proxyRes, req, res) {
+    if (req.upgrade) {  // This checks if it's a WebSocket request
+      console.log('Sec-WebSocket-Accept:', proxyRes.headers['sec-websocket-accept']);
+    }
+  });
+
+  proxy.on('proxyReqWs', function (proxyReq, req, res) {
+    console.log('PROXYREQWS', proxyReq, req, res);
+    // if (req.upgrade) {  // This checks if it's a WebSocket request
+    //   console.log('Sec-WebSocket-Accept:', proxyRes.headers['sec-websocket-accept']);
+    // }
+  });
+
   app.use(proxyPath, function (req, res) {
     // include root path in proxied request
     req.url = proxyPath + req.url;
@@ -46,11 +60,14 @@ module.exports = function (app, options) {
   });
 
   server.on('upgrade', function (req, socket, head) {
+    console.log('Sec-WebSocket-Key:', req.headers['sec-websocket-key']);
+
     if (
       req.url.startsWith('/v1/client/allocation') &&
       req.url.includes('exec?')
     ) {
       req.headers.origin = proxyAddress;
+      console.log("yeah!", proxyAddress);
       proxy.ws(req, socket, head, { target: proxyAddress });
     }
   });

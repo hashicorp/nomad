@@ -40,6 +40,8 @@ export default class SocketsService extends Service {
       const prefix = `${
         applicationAdapter.host || window.location.host
       }/${applicationAdapter.urlPrefix()}`;
+      // // TODO: Temporary, local ember implementation. Remove for non-dev use.
+      // const prefix = 'localhost:4646/v1';
       const region = this.system.activeRegion;
 
       return new WebSocket(

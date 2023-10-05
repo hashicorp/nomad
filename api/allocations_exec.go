@@ -122,14 +122,27 @@ func (s *execSession) startTransmit(ctx context.Context, conn *websocket.Conn) <
 	// Connection errors should surface in the receive paths already,
 	// but I'm unsure about one-sided communication errors.
 	var sendLock sync.Mutex
+	// send := func(v *ExecStreamingInput) {
+	// 	sendLock.Lock()
+	// 	defer sendLock.Unlock()
+
+	// 	conn.WriteJSON(v)
+	// }
+
+	errCh := make(chan error, 4)
+
 	send := func(v *ExecStreamingInput) {
 		sendLock.Lock()
 		defer sendLock.Unlock()
+		// Log out the message i'm about to send
+		fmt.Println("===Sending message: ", v)
+		errCh <- fmt.Errorf("BLOOP TEST")
 
-		conn.WriteJSON(v)
+		if err := conn.WriteJSON(v); err != nil {
+			errCh <- fmt.Errorf("BEEP failed to send message: %w", err)
+			errCh <- err
+		}
 	}
-
-	errCh := make(chan error, 4)
 
 	// propagate stdin
 	go func() {
