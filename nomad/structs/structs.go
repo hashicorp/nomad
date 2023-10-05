@@ -7672,12 +7672,12 @@ func (t *Task) MakeUniqueIdentityName(taskGroup string) string {
 	return fmt.Sprintf("%v-%v", taskGroup, t.Name)
 }
 
-// IdentityHandle returns a WorkloadIdentityHandle which is a pair of WI name
-// and task name.
-func (t *Task) IdentityHandle(identity *WorkloadIdentity) *WIHandle {
+// IdentityHandle returns a WorkloadIdentityHandle which is a pair of unique WI
+// name and task name.
+func (t *Task) IdentityHandle(identity *WorkloadIdentity, taskGroup string) *WIHandle {
 	return &WIHandle{
 		IdentityName:       identity.Name,
-		WorkloadIdentifier: t.Name,
+		WorkloadIdentifier: t.MakeUniqueIdentityName(taskGroup),
 	}
 }
 
