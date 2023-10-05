@@ -173,11 +173,6 @@ func (r *reconcileResults) GoString() string {
 	return base
 }
 
-// Changes returns the number of total changes
-func (r *reconcileResults) Changes() int {
-	return len(r.place) + len(r.inplaceUpdate) + len(r.stop)
-}
-
 // NewAllocReconciler creates a new reconciler that should be used to determine
 // the changes required to bring the cluster state inline with the declared jobspec
 func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
