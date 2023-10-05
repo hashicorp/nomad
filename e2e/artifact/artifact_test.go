@@ -41,7 +41,7 @@ func artifactCheckLogContents(t *testing.T, nomad *api.Client, group, task strin
 	t.Run(task, func(t *testing.T) {
 		logs, err := e2eutil.AllocTaskLogs(allocID, task, e2eutil.LogsStdOut)
 		must.NoError(t, err)
-		must.StrContains(t, logs, "module github.com/hashicorp/go-set")
+		must.StrContains(t, logs, "module github.com/hashicorp/go-set/v2")
 	})
 }
 

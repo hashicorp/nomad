@@ -14,7 +14,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -180,7 +180,7 @@ func (s serviceTagSet) add(service string, tags []string) {
 	if _, exists := s[service]; !exists {
 		s[service] = set.From[string](tags)
 	} else {
-		s[service].InsertAll(tags)
+		s[service].InsertSlice(tags)
 	}
 }
 
@@ -250,7 +250,7 @@ func (s *ServiceRegistration) List(
 			for service, tags := range tagSet {
 				serviceList = append(serviceList, &structs.ServiceRegistrationStub{
 					ServiceName: service,
-					Tags:        tags.List(),
+					Tags:        tags.Slice(),
 				})
 			}
 
@@ -346,7 +346,7 @@ func (s *ServiceRegistration) listAllServiceRegistrations(
 				for service, tags := range tagSet {
 					stubs = append(stubs, &structs.ServiceRegistrationStub{
 						ServiceName: service,
-						Tags:        tags.List(),
+						Tags:        tags.Slice(),
 					})
 				}
 				registrations = append(registrations, &structs.ServiceRegistrationListStub{

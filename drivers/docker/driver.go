@@ -23,7 +23,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -102,7 +102,7 @@ func (s *pauseContainerStore) remove(id string) {
 	s.containerIDs.Remove(id)
 }
 
-func (s *pauseContainerStore) union(other *set.Set[string]) *set.Set[string] {
+func (s *pauseContainerStore) union(other *set.Set[string]) set.Collection[string] {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	return other.Union(s.containerIDs)

@@ -18,7 +18,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/hcl/hcl/ast"
 )
 
@@ -85,9 +85,9 @@ func HashUUID(input string) (output string, hashed bool) {
 func UniqueMapSliceValues[K, V comparable](m map[K][]V) []V {
 	s := set.New[V](0)
 	for _, slice := range m {
-		s.InsertAll(slice)
+		s.InsertSlice(slice)
 	}
-	return s.List()
+	return s.Slice()
 }
 
 // IsSubset returns whether the smaller set of items is a subset of
@@ -95,11 +95,11 @@ func UniqueMapSliceValues[K, V comparable](m map[K][]V) []V {
 // returned.
 func IsSubset[T comparable](larger, smaller []T) (bool, []T) {
 	l := set.From(larger)
-	if l.ContainsAll(smaller) {
+	if l.ContainsSlice(smaller) {
 		return true, nil
 	}
 	s := set.From(smaller)
-	return false, s.Difference(l).List()
+	return false, s.Difference(l).Slice()
 }
 
 // StringHasPrefixInSlice returns true if s starts with any prefix in list.
@@ -118,7 +118,7 @@ func IsDisjoint[T comparable](first, second []T) (bool, []T) {
 	f, s := set.From(first), set.From(second)
 	intersection := f.Intersect(s)
 	if intersection.Size() > 0 {
-		return false, intersection.List()
+		return false, intersection.Slice()
 	}
 	return true, nil
 }

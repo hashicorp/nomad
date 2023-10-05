@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 )
 
 // An ID is representative of a non-negative identifier of something like

@@ -4,7 +4,7 @@
 package structs
 
 import (
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 )
 
 const (

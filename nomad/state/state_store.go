@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/lib/lang"
@@ -3772,7 +3772,7 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	}
 
 	// Update the index of when nodes last updated their allocs.
-	for _, nodeID := range nodeIDs.List() {
+	for _, nodeID := range nodeIDs.Slice() {
 		if err := s.updateClientAllocUpdateIndex(txn, index, nodeID); err != nil {
 			return fmt.Errorf("node update failed: %v", err)
 		}

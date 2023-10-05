@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/shirou/gopsutil/v3/process"
 )

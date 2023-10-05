@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/go-version"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -218,7 +218,7 @@ func keep(b build) bool {
 // A tracker keeps track of the set of patch versions for each minor version.
 // The patch versions are stored in a treeset so we can grab the highest  patch
 // version of each minor version at the end.
-type tracker map[int]*set.TreeSet[build, set.Compare[build]]
+type tracker map[int]*set.TreeSet[build]
 
 func (t tracker) add(v *version.Version, b build) {
 	y := v.Segments()[1] // minor version
@@ -226,7 +226,7 @@ func (t tracker) add(v *version.Version, b build) {
 	// create the treeset for this minor version if needed
 	if _, exists := t[y]; !exists {
 		cmp := func(g, h build) int { return g.compare(h) }
-		t[y] = set.NewTreeSet[build, set.Compare[build]](cmp)
+		t[y] = set.NewTreeSet[build](cmp)
 	}
 
 	// insert the patch version into the set of patch versions for this minor version
