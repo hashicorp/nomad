@@ -42,6 +42,16 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 		dyn = maps.Clone(n.c.metaDynamic)
 		maps.Copy(dyn, args.Meta)
 
+		// Delete null values from the dynamic metadata if they are also not
+		// static. Static null values must be kept so their removal is
+		// persisted in client state.
+		for k, v := range args.Meta {
+			_, static := n.c.metaStatic[k]
+			if v == nil && !static {
+				delete(dyn, k)
+			}
+		}
+
 		if stateErr = n.c.stateDB.PutNodeMeta(dyn); stateErr != nil {
 			return
 		}
