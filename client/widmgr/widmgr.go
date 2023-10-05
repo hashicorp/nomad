@@ -118,7 +118,7 @@ func (m *WIDMgr) Get(id structs.WIHandle) (*structs.SignedWorkloadIdentity, erro
 	if token == nil {
 		// This is an error as every identity should have a token by the time Get
 		// is called.
-		return nil, fmt.Errorf("unable to find token for task %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
+		return nil, fmt.Errorf("uble to find token for task %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
 	}
 
 	return token, nil
@@ -192,13 +192,17 @@ func (m *WIDMgr) getIdentities() error {
 	defaultTokens := map[structs.WIHandle]*structs.SignedWorkloadIdentity{}
 	for taskName, signature := range m.defaultSignedIdentities {
 		id := structs.WIHandle{
+			// no need to call MakeUniqueTaskName, because the plan applier
+			// does this for us
 			WorkloadIdentifier: taskName,
 			IdentityName:       "default",
 		}
 		widReq := structs.WorkloadIdentityRequest{
-			AllocID:      m.allocID,
-			TaskName:     taskName,
-			IdentityName: "default",
+			AllocID: m.allocID,
+			WIHandle: structs.WIHandle{
+				WorkloadIdentifier: taskName,
+				IdentityName:       "default",
+			},
 		}
 		defaultTokens[id] = &structs.SignedWorkloadIdentity{
 			WorkloadIdentityRequest: widReq,
@@ -218,9 +222,11 @@ func (m *WIDMgr) getIdentities() error {
 	for taskName, widspecs := range m.widSpecs {
 		for _, widspec := range widspecs {
 			reqs = append(reqs, &structs.WorkloadIdentityRequest{
-				AllocID:      m.allocID,
-				TaskName:     taskName,
-				IdentityName: widspec.Name,
+				AllocID: m.allocID,
+				WIHandle: structs.WIHandle{
+					WorkloadIdentifier: taskName,
+					IdentityName:       widspec.Name,
+				},
 			})
 		}
 	}
@@ -242,12 +248,7 @@ func (m *WIDMgr) getIdentities() error {
 
 	// Index initial workload identities by name
 	for _, swid := range signedWIDs {
-		id := structs.WIHandle{
-			WorkloadIdentifier: swid.TaskName,
-			IdentityName:       swid.IdentityName,
-		}
-
-		m.lastToken[id] = swid
+		m.lastToken[swid.WIHandle] = swid
 	}
 
 	// TODO: Persist signed identity token to client state
@@ -268,9 +269,11 @@ func (m *WIDMgr) renew() {
 				continue
 			}
 			reqs = append(reqs, &structs.WorkloadIdentityRequest{
-				AllocID:      m.allocID,
-				TaskName:     taskName,
-				IdentityName: widspec.Name,
+				AllocID: m.allocID,
+				WIHandle: structs.WIHandle{
+					WorkloadIdentifier: taskName,
+					IdentityName:       widspec.Name,
+				},
 			})
 		}
 	}
@@ -359,19 +362,14 @@ func (m *WIDMgr) renew() {
 		minExp = time.Time{}
 
 		for _, token := range tokens {
-			id := structs.WIHandle{
-				WorkloadIdentifier: token.TaskName,
-				IdentityName:       token.IdentityName,
-			}
-
 			// Set for getters
 			m.lastTokenLock.Lock()
-			m.lastToken[id] = token
+			m.lastToken[token.WIHandle] = token
 			m.lastTokenLock.Unlock()
 
 			// Send to watchers
 			m.watchersLock.Lock()
-			m.send(id, token)
+			m.send(token.WIHandle, token)
 			m.watchersLock.Unlock()
 
 			// Set next expiration time

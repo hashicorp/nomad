@@ -1699,9 +1699,11 @@ func TestAlloc_SignIdentities_Bad(t *testing.T) {
 
 	// Making up an alloc returns a rejection.
 	req.Identities = []*structs.WorkloadIdentityRequest{{
-		AllocID:      uuid.Generate(),
-		TaskName:     "foo",
-		IdentityName: "bar",
+		AllocID: uuid.Generate(),
+		WIHandle: structs.WIHandle{
+			WorkloadIdentifier: "foo",
+			IdentityName:       "bar",
+		},
 	}}
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
 	must.Len(t, 1, resp.Rejections)
@@ -1723,14 +1725,14 @@ func TestAlloc_SignIdentities_Bad(t *testing.T) {
 
 	// A valid alloc and invalid TaskName is an error
 	req.Identities[0].AllocID = alloc.ID
-	req.Identities[0].TaskName = "invalid"
+	req.Identities[0].WorkloadIdentifier = "invalid"
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
 	must.Len(t, 1, resp.Rejections)
 	must.Eq(t, *req.Identities[0], resp.Rejections[0].WorkloadIdentityRequest)
 	must.Eq(t, structs.WIRejectionReasonMissingTask, resp.Rejections[0].Reason)
 
 	// A valid alloc+task name still errors if the identity doesn't exist
-	req.Identities[0].TaskName = "web"
+	req.Identities[0].WorkloadIdentifier = "web"
 	req.Identities[0].IdentityName = "invalid"
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
 	must.Len(t, 1, resp.Rejections)
@@ -1745,9 +1747,11 @@ func TestAlloc_SignIdentities_Bad(t *testing.T) {
 
 	// Looking for a missing alloc should return a rejection and a signed id
 	req.Identities = append(req.Identities, &structs.WorkloadIdentityRequest{
-		AllocID:      uuid.Generate(),
-		TaskName:     "foo",
-		IdentityName: "bar",
+		AllocID: uuid.Generate(),
+		WIHandle: structs.WIHandle{
+			WorkloadIdentifier: "foo",
+			IdentityName:       "bar",
+		},
 	})
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
 	must.Len(t, 1, resp.Rejections)
@@ -1794,9 +1798,11 @@ func TestAlloc_SignIdentities_Blocking(t *testing.T) {
 		req := &structs.AllocIdentitiesRequest{
 			Identities: []*structs.WorkloadIdentityRequest{
 				{
-					AllocID:      alloc.ID,
-					TaskName:     "web",
-					IdentityName: "alt",
+					AllocID: alloc.ID,
+					WIHandle: structs.WIHandle{
+						WorkloadIdentifier: "web",
+						IdentityName:       "alt",
+					},
 				},
 			},
 			QueryOptions: structs.QueryOptions{
@@ -1846,7 +1852,7 @@ func TestAlloc_SignIdentities_Blocking(t *testing.T) {
 		must.Len(t, 1, result.Reply.SignedIdentities)
 		sid := result.Reply.SignedIdentities[0]
 		must.Eq(t, alloc.ID, sid.AllocID)
-		must.Eq(t, "web", sid.TaskName)
+		must.Eq(t, "web", sid.WorkloadIdentifier)
 		must.Eq(t, "alt", sid.IdentityName)
 	case <-time.After(5 * time.Second):
 		t.Fatalf("result not returned when expected")

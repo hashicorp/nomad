@@ -188,9 +188,8 @@ func (wi *WorkloadIdentity) Warnings() error {
 // WorkloadIdentityRequest encapsulates the 3 parameters used to generated a
 // signed workload identity: the alloc, task, and specific identity's name.
 type WorkloadIdentityRequest struct {
-	AllocID      string
-	TaskName     string
-	IdentityName string
+	AllocID string
+	WIHandle
 }
 
 // SignedWorkloadIdentity is the response to a WorkloadIdentityRequest and

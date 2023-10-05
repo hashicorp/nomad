@@ -54,9 +54,11 @@ func TestIdentityHook_Prerun(t *testing.T) {
 	// do the initial signing
 	_, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
 		{
-			AllocID:      alloc.ID,
-			TaskName:     task.Name,
-			IdentityName: task.Identities[0].Name,
+			AllocID: alloc.ID,
+			WIHandle: structs.WIHandle{
+				WorkloadIdentifier: task.Name,
+				IdentityName:       task.Identities[0].Name,
+			},
 		},
 	})
 	must.NoError(t, err)

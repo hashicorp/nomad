@@ -423,7 +423,8 @@ func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.A
 			if err != nil {
 				return err
 			}
-			alloc.SignedIdentities[task.Name] = token
+			// keys for signed identities must be unique
+			alloc.SignedIdentities[task.MakeUniqueIdentityName(tg.Name)] = token
 			alloc.SigningKeyID = keyID
 		}
 	}

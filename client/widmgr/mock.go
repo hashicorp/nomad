@@ -57,7 +57,7 @@ func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadI
 			Namespace:    "default",
 			JobID:        "test",
 			AllocationID: idReq.AllocID,
-			TaskName:     idReq.TaskName,
+			TaskName:     idReq.WorkloadIdentifier,
 		}
 		claims.ID = uuid.Generate()
 		// If test has set workload identities. Lookup claims or reject unknown

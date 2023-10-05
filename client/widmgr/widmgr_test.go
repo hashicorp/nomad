@@ -40,9 +40,11 @@ func TestWIDMgr(t *testing.T) {
 
 	_, err = mgr.SignIdentities(1, []*structs.WorkloadIdentityRequest{
 		{
-			AllocID:      uuid.Generate(),
-			TaskName:     "web",
-			IdentityName: "foo",
+			AllocID: uuid.Generate(),
+			WIHandle: structs.WIHandle{
+				WorkloadIdentifier: "web",
+				IdentityName:       "foo",
+			},
 		},
 	})
 	must.ErrorContains(t, err, "rejected")
@@ -92,14 +94,18 @@ func TestWIDMgr(t *testing.T) {
 	// Get signed identites for alloc
 	widreqs := []*structs.WorkloadIdentityRequest{
 		{
-			AllocID:      allocs[0].ID,
-			TaskName:     job.TaskGroups[0].Tasks[0].Name,
-			IdentityName: "consul",
+			AllocID: allocs[0].ID,
+			WIHandle: structs.WIHandle{
+				WorkloadIdentifier: job.TaskGroups[0].Tasks[0].Name,
+				IdentityName:       "consul",
+			},
 		},
 		{
 			AllocID:      allocs[0].ID,
-			TaskName:     job.TaskGroups[0].Tasks[0].Name,
+			WIHandle: structs.WIHandle{
+			WorkloadIdentifier:     job.TaskGroups[0].Tasks[0].Name,
 			IdentityName: "vault",
+			},
 		},
 	}
 
