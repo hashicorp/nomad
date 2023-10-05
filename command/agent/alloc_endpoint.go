@@ -553,6 +553,8 @@ func readWsHandshake(s *HTTPServer, readFn func(interface{}) error, req *http.Re
 	err := readFn(&h)
 	if err != nil {
 		s.logger.Error("++++Failed to read handshake message", "error", err)
+		s.logger.Error("++++Handshake message", "message", h)
+		s.logger.Error("++++Handshake hv string", "hv", req.URL.Query().Get("ws_handshake"))
 		return err
 	}
 

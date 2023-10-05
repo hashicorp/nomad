@@ -187,7 +187,8 @@
     "lru_map": "^0.4.1",
     "no-case": "^3.0.4",
     "tether": "^2.0.0",
-    "title-case": "^3.0.3"
+    "title-case": "^3.0.3",
+    "ws": "^8.14.2"
   },
   "resolutions": {
     "ember-auto-import": "^2.4.0",
