@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import EmberObject, { get, computed } from '@ember/object';
+import { get, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 import AbstractStatsTracker from 'nomad-ui/utils/classes/abstract-stats-tracker';
@@ -43,11 +43,11 @@ const memoryUsed = (frame) =>
 
 @classic
 class AllocationStatsTracker extends AbstractStatsTracker {
-  constructor({ fetch, allocation }) {
+  constructor({ fetch, allocation, interval }) {
     super();
     this.fetch = fetch;
     this.allocation = allocation;
-    // this.url = `/v1/client/allocation/${this.allocation.id}/stats`;
+    this.interval = interval;
   }
 
   // Set via the stats computed property macro
@@ -55,7 +55,6 @@ class AllocationStatsTracker extends AbstractStatsTracker {
 
   @computed('allocation.id')
   get url() {
-    console.log('earl', this.allocation);
     return `/v1/client/allocation/${this.allocation.id}/stats`;
   }
 

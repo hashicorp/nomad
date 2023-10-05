@@ -48,7 +48,7 @@ export default class AllocationRow extends Component {
       this.system.agent.get('config')?.UI?.PollStats
     );
     return (
-      !Ember.testing && this.system.agent.get('config')?.UI?.PollStats.Enabled
+      !Ember.testing && this.system.agent.get('config')?.UI?.PollStats?.Enabled
     );
   }
 
@@ -59,6 +59,7 @@ export default class AllocationRow extends Component {
     return new AllocationStatsTracker({
       fetch: (url) => this.token.authorizedRequest(url),
       allocation: this.allocation,
+      interval: this.system.agent.get('config')?.UI?.PollStats?.Interval,
     });
   }
 
@@ -88,7 +89,6 @@ export default class AllocationRow extends Component {
 
   @(task(function* () {
     do {
-      console.log('fetchStats');
       console.timeEnd('fetchStats');
       console.time('fetchStats');
       if (this.stats) {
@@ -126,8 +126,6 @@ async function qualifyAllocation() {
     const job = allocation.get('job.content');
     if (job.isPartial) await job.reload();
   }
-
-  console.log('qualAlloc');
 
   this.fetchStats.perform();
 }

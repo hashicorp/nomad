@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import EmberObject from '@ember/object';
 import { task, timeout } from 'ember-concurrency';
 import jsonWithDefault from 'nomad-ui/utils/json-with-default';
 import { assert } from '@ember/debug';
@@ -11,7 +10,15 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class AbstractStatsTracker {
-  url = '';
+  // Get the passed poll_stats interval and convert to ms, or default to 2sec
+  get pollInterval() {
+    console.log('abstract poll interval', this.interval);
+    return this.interval ? this.interval * 1000 : 2000;
+  }
+
+  get url() {
+    assert('Url must be defined in the caller', this.url);
+  }
 
   // The max number of data points tracked. Once the max is reached,
   // data points at the head of the list are removed in favor of new
@@ -64,15 +71,11 @@ export default class AbstractStatsTracker {
   // but also avoiding the issue where different places where the
   // same tracker is used needs to coordinate.
   @task *poll() {
+    console.log('POLLING', this.pollInterval);
     // Interrupt any pause attempt
     this.signalPause.cancelAll();
 
     try {
-      console.log('tryin', this);
-      console.log('abstract poll called');
-      console.log('constructor', this.constructor.name);
-      console.log('prototype chain check', Object.getPrototypeOf(this));
-
       const url = this.url;
       assert('Url must be defined', url);
 
@@ -80,12 +83,9 @@ export default class AbstractStatsTracker {
         .then(jsonWithDefault({ error: true }))
         .then((frame) => this.handleResponse(frame));
     } catch (error) {
-      console.log('caught', error);
       throw new Error(error);
     }
-    console.log('about to timeout');
-
-    yield timeout(Ember.testing ? 0 : 2000);
+    yield timeout(Ember.testing ? 0 : this.pollInterval);
   }
 
   @task *signalPause() {

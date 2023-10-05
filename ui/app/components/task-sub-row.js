@@ -51,7 +51,7 @@ export default class TaskSubRowComponent extends Component {
   get enablePolling() {
     return (
       !Ember.testing &&
-      !(this.system.agent.get('config')?.UI?.PollStats.Enabled === false)
+      !(this.system.agent.get('config')?.UI?.PollStats?.Enabled === false)
     );
   }
 

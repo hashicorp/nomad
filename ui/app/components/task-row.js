@@ -10,6 +10,7 @@ import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { task, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
+import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';
 
 import {
   classNames,
@@ -37,7 +38,7 @@ export default class TaskRow extends Component {
   get enablePolling() {
     return (
       !Ember.testing &&
-      !(this.system.agent.get('config')?.UI?.PollStats.Enabled === false)
+      !(this.system.agent.get('config')?.UI?.PollStats?.Enabled === false)
     );
   }
 
@@ -46,7 +47,12 @@ export default class TaskRow extends Component {
   get stats() {
     if (!this.get('task.isRunning')) return undefined;
 
-    return this.statsTrackersRegistry.getTracker(this.get('task.allocation'));
+    // return this.statsTrackersRegistry.getTracker(this.get('task.allocation'));
+    return new AllocationStatsTracker({
+      fetch: (url) => this.token.authorizedRequest(url),
+      allocation: this.allocation,
+      interval: 9,
+    });
   }
 
   @computed('task.name', 'stats.tasks.[]')

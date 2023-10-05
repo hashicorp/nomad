@@ -8,6 +8,7 @@ import Service, { inject as service } from '@ember/service';
 import { LRUMap } from 'lru_map';
 import NodeStatsTracker from 'nomad-ui/utils/classes/node-stats-tracker';
 import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';
+import { set } from '@ember/object';
 
 // An unbounded number of stat trackers is a great way to gobble up all the memory
 // on a machine. This max number is unscientific, but aims to balance losing
@@ -16,13 +17,19 @@ import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-trac
 const MAX_STAT_TRACKERS = 10;
 let registry;
 
-const exists = (tracker, prop) =>
-  tracker.get(prop) &&
-  !tracker.get(prop).isDestroyed &&
-  !tracker.get(prop).isDestroying;
+const exists = (tracker, prop) => {
+  console.log('trackerexists?', tracker);
+  // return tracker.get(prop) &&
+  // !tracker.get(prop).isDestroyed &&
+  // !tracker.get(prop).isDestroying;
+  return (
+    tracker[prop] && !tracker[prop].isDestroyed && !tracker[prop].isDestroying
+  );
+};
 
 export default class StatsTrackersRegistryService extends Service {
   @service token;
+  @service system;
 
   constructor() {
     super(...arguments);
@@ -41,6 +48,7 @@ export default class StatsTrackersRegistryService extends Service {
   }
 
   getTracker(resource) {
+    console.log('getTracker called');
     if (!resource) return;
 
     const type = resource && resource.constructor.modelName;
@@ -54,13 +62,19 @@ export default class StatsTrackersRegistryService extends Service {
       // It's possible for the resource on a cachedTracker to have been
       // deleted. Rebind it if that's the case.
       if (!exists(cachedTracker, resourceProp))
-        cachedTracker.set(resourceProp, resource);
+        set(cachedTracker, resourceProp, resource);
       return cachedTracker;
     }
 
-    const tracker = Constructor.create({
+    // const tracker = Constructor.create({
+    //   fetch: (url) => this.token.authorizedRequest(url),
+    //   [resourceProp]: resource,
+    // });
+
+    const tracker = new Constructor({
       fetch: (url) => this.token.authorizedRequest(url),
       [resourceProp]: resource,
+      interval: this.system.agent.get('config')?.UI?.PollStats?.Interval,
     });
 
     registry.set(key, tracker);
