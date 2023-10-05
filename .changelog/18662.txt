@@ -1,0 +1,3 @@
+```release-note:bug
+client: prevent tasks from starting without the prestart hooks running
+```
