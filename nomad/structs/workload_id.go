@@ -222,3 +222,11 @@ type AllocIdentitiesResponse struct {
 	Rejections       []*WorkloadIdentityRejection
 	QueryMeta
 }
+
+// WIHandle is used by code that needs to uniquely match a workload identity
+// with the task or service it belongs to.
+type WIHandle struct {
+	IdentityName string
+	// WorkloadIdentifier is either a ServiceName or a TaskName
+	WorkloadIdentifier string
+}

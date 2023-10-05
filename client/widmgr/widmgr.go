@@ -15,19 +15,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// TaskIdentity maps the name of the task to the name of a workload identity. Any
-// task can have multiple identities.
-type TaskIdentity struct {
-	TaskName     string
-	IdentityName string
-}
-
 // IdentityManager defines a manager responsible for signing and renewing
 // signed identities. At runtime it is implemented by *widmgr.WIDMgr.
 type IdentityManager interface {
 	Run() error
-	Get(TaskIdentity) (*structs.SignedWorkloadIdentity, error)
-	Watch(TaskIdentity) (<-chan *structs.SignedWorkloadIdentity, func())
+	Get(structs.WIHandle) (*structs.SignedWorkloadIdentity, error)
+	Watch(structs.WIHandle) (<-chan *structs.SignedWorkloadIdentity, func())
 	Shutdown()
 }
 
@@ -40,12 +33,12 @@ type WIDMgr struct {
 
 	// lastToken are the last retrieved signed workload identifiers keyed by
 	// TaskIdentity
-	lastToken     map[TaskIdentity]*structs.SignedWorkloadIdentity
+	lastToken     map[structs.WIHandle]*structs.SignedWorkloadIdentity
 	lastTokenLock sync.RWMutex
 
 	// watchers is a map of task identities to slices of channels (each identity
 	// can have multiple watchers)
-	watchers     map[TaskIdentity][]chan *structs.SignedWorkloadIdentity
+	watchers     map[structs.WIHandle][]chan *structs.SignedWorkloadIdentity
 	watchersLock sync.Mutex
 
 	// minWait is the minimum amount of time to wait before renewing. Settable to
@@ -79,8 +72,8 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 		widSpecs:                widspecs,
 		signer:                  signer,
 		minWait:                 10 * time.Second,
-		lastToken:               map[TaskIdentity]*structs.SignedWorkloadIdentity{},
-		watchers:                map[TaskIdentity][]chan *structs.SignedWorkloadIdentity{},
+		lastToken:               map[structs.WIHandle]*structs.SignedWorkloadIdentity{},
+		watchers:                map[structs.WIHandle][]chan *structs.SignedWorkloadIdentity{},
 		stopCtx:                 stopCtx,
 		stop:                    stop,
 		logger:                  logger.Named("widmgr"),
@@ -120,18 +113,18 @@ func (m *WIDMgr) Run() error {
 // For retrieving tokens which might be renewed callers should use Watch
 // instead to avoid missing new tokens retrieved by Run between Get and Watch
 // calls.
-func (m *WIDMgr) Get(id TaskIdentity) (*structs.SignedWorkloadIdentity, error) {
+func (m *WIDMgr) Get(id structs.WIHandle) (*structs.SignedWorkloadIdentity, error) {
 	token := m.get(id)
 	if token == nil {
 		// This is an error as every identity should have a token by the time Get
 		// is called.
-		return nil, fmt.Errorf("unable to find token for task %q and identity %q", id.TaskName, id.IdentityName)
+		return nil, fmt.Errorf("unable to find token for task %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
 	}
 
 	return token, nil
 }
 
-func (m *WIDMgr) get(id TaskIdentity) *structs.SignedWorkloadIdentity {
+func (m *WIDMgr) get(id structs.WIHandle) *structs.SignedWorkloadIdentity {
 	m.lastTokenLock.RLock()
 	defer m.lastTokenLock.RUnlock()
 
@@ -143,7 +136,7 @@ func (m *WIDMgr) get(id TaskIdentity) *structs.SignedWorkloadIdentity {
 //
 // The caller must call the returned func to stop watching and ensure the
 // watched id actually exists, otherwise the channel never returns a result.
-func (m *WIDMgr) Watch(id TaskIdentity) (<-chan *structs.SignedWorkloadIdentity, func()) {
+func (m *WIDMgr) Watch(id structs.WIHandle) (<-chan *structs.SignedWorkloadIdentity, func()) {
 	// If Shutdown has been called return a closed chan
 	if m.stopCtx.Err() != nil {
 		c := make(chan *structs.SignedWorkloadIdentity)
@@ -196,11 +189,11 @@ func (m *WIDMgr) Shutdown() {
 // getIdentities fetches all signed identities or returns an error.
 func (m *WIDMgr) getIdentities() error {
 	// get the default identity signed by the plan applier
-	defaultTokens := map[TaskIdentity]*structs.SignedWorkloadIdentity{}
+	defaultTokens := map[structs.WIHandle]*structs.SignedWorkloadIdentity{}
 	for taskName, signature := range m.defaultSignedIdentities {
-		id := TaskIdentity{
-			TaskName:     taskName,
-			IdentityName: "default",
+		id := structs.WIHandle{
+			WorkloadIdentifier: taskName,
+			IdentityName:       "default",
 		}
 		widReq := structs.WorkloadIdentityRequest{
 			AllocID:      m.allocID,
@@ -249,9 +242,9 @@ func (m *WIDMgr) getIdentities() error {
 
 	// Index initial workload identities by name
 	for _, swid := range signedWIDs {
-		id := TaskIdentity{
-			TaskName:     swid.TaskName,
-			IdentityName: swid.IdentityName,
+		id := structs.WIHandle{
+			WorkloadIdentifier: swid.TaskName,
+			IdentityName:       swid.IdentityName,
 		}
 
 		m.lastToken[id] = swid
@@ -298,9 +291,9 @@ func (m *WIDMgr) renew() {
 			}
 
 			//FIXME make this less ugly
-			token := m.get(TaskIdentity{
-				TaskName:     taskName,
-				IdentityName: wid.Name,
+			token := m.get(structs.WIHandle{
+				WorkloadIdentifier: taskName,
+				IdentityName:       wid.Name,
 			})
 			if token == nil {
 				// Missing a signature, treat this case as already expired so
@@ -366,9 +359,9 @@ func (m *WIDMgr) renew() {
 		minExp = time.Time{}
 
 		for _, token := range tokens {
-			id := TaskIdentity{
-				TaskName:     token.TaskName,
-				IdentityName: token.IdentityName,
+			id := structs.WIHandle{
+				WorkloadIdentifier: token.TaskName,
+				IdentityName:       token.IdentityName,
 			}
 
 			// Set for getters
@@ -394,7 +387,7 @@ func (m *WIDMgr) renew() {
 }
 
 // send must be called while holding the m.watchersLock
-func (m *WIDMgr) send(id TaskIdentity, token *structs.SignedWorkloadIdentity) {
+func (m *WIDMgr) send(id structs.WIHandle, token *structs.SignedWorkloadIdentity) {
 	w, ok := m.watchers[id]
 	if !ok {
 		// No watchers
