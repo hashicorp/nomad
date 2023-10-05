@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package vaultclient
+package client
 
 import (
 	"strings"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/useragent"
@@ -17,23 +18,21 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 	vaultconsts "github.com/hashicorp/vault/sdk/helper/consts"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVaultClient_TokenRenewals(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.TaskTokenTTL = "4s"
-	c, err := NewVaultClient(v.Config, logger, nil)
+	c, err := vaultclient.NewVaultClient(v.Config, logger, nil)
 	if err != nil {
-		t.Fatalf("failed to build vault client: %v", err)
+		t.Fatalf("failed to build vault Vault: %v", err)
 	}
 
 	c.Start()
@@ -53,13 +52,13 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 	num := 5
 	tokens := make([]string, num)
 	for i := 0; i < num; i++ {
-		c.client.SetToken(v.Config.Token)
+		c.Vault.SetToken(v.Config.Token)
 
-		if err := c.client.SetAddress(v.Config.Addr); err != nil {
+		if err := c.Vault.SetAddress(v.Config.Addr); err != nil {
 			t.Fatal(err)
 		}
 
-		secret, err := c.client.Auth().Token().Create(tcr)
+		secret, err := c.Vault.Auth().Token().Create(tcr)
 		if err != nil {
 			t.Fatalf("failed to create vault token: %v", err)
 		}
@@ -79,41 +78,40 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 			for {
 				select {
 				case err := <-errCh:
-					require.NoError(err, "unexpected error while renewing vault token")
+					must.NoError(t, err, must.Sprintf("unexpected error while renewing vault token"))
 				}
 			}
 		}(errCh)
 	}
 
-	c.lock.Lock()
-	length := c.heap.Length()
-	c.lock.Unlock()
+	c.Lock.Lock()
+	length := c.Heap.Length()
+	c.Lock.Unlock()
 	if length != num {
-		t.Fatalf("bad: heap length: expected: %d, actual: %d", num, length)
+		t.Fatalf("bad: Heap length: expected: %d, actual: %d", num, length)
 	}
 
 	time.Sleep(time.Duration(testutil.TestMultiplier()) * time.Second)
 
 	for i := 0; i < num; i++ {
 		if err := c.StopRenewToken(tokens[i]); err != nil {
-			require.NoError(err)
+			must.NoError(t, err)
 		}
 	}
 
-	c.lock.Lock()
-	length = c.heap.Length()
-	c.lock.Unlock()
+	c.Lock.Lock()
+	length = c.Heap.Length()
+	c.Lock.Unlock()
 	if length != 0 {
-		t.Fatalf("bad: heap length: expected: 0, actual: %d", length)
+		t.Fatalf("bad: Heap length: expected: 0, actual: %d", length)
 	}
 }
 
-// TestVaultClient_NamespaceSupport tests that the Vault namespace config, if present, will result in the
-// namespace header being set on the created Vault client.
+// TestVaultClient_NamespaceSupport tests that the Vault namespace Config, if present, will result in the
+// namespace header being set on the created Vault Vault.
 func TestVaultClient_NamespaceSupport(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	tr := true
 	testNs := "test-namespace"
 
@@ -123,9 +121,9 @@ func TestVaultClient_NamespaceSupport(t *testing.T) {
 	conf.VaultConfig.Enabled = &tr
 	conf.VaultConfig.Token = "testvaulttoken"
 	conf.VaultConfig.Namespace = testNs
-	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
-	require.NoError(err)
-	require.Equal(testNs, c.client.Headers().Get(vaultconsts.NamespaceHeaderName))
+	c, err := vaultclient.NewVaultClient(conf.VaultConfig, logger, nil)
+	must.NoError(t, err)
+	must.Eq(t, testNs, c.Vault.Headers().Get(vaultconsts.NamespaceHeaderName))
 }
 
 func TestVaultClient_Heap(t *testing.T) {
@@ -138,74 +136,74 @@ func TestVaultClient_Heap(t *testing.T) {
 	conf.VaultConfig.TaskTokenTTL = "10s"
 
 	logger := testlog.HCLogger(t)
-	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
+	c, err := vaultclient.NewVaultClient(conf.VaultConfig, logger, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if c == nil {
-		t.Fatal("failed to create vault client")
+		t.Fatal("failed to create vault Vault")
 	}
 
 	now := time.Now()
 
-	renewalReq1 := &vaultClientRenewalRequest{
-		errCh:     make(chan error, 1),
-		id:        "id1",
-		increment: 10,
+	renewalReq1 := &vaultclient.RenewalRequest{
+		ErrCh:     make(chan error, 1),
+		ID:        "id1",
+		Increment: 10,
 	}
-	if err := c.heap.Push(renewalReq1, now.Add(50*time.Second)); err != nil {
+	if err := c.Heap.Push(renewalReq1, now.Add(50*time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	if !c.isTracked("id1") {
+	if !c.IsTracked("id1") {
 		t.Fatalf("id1 should have been tracked")
 	}
 
-	renewalReq2 := &vaultClientRenewalRequest{
-		errCh:     make(chan error, 1),
-		id:        "id2",
-		increment: 10,
+	renewalReq2 := &vaultclient.RenewalRequest{
+		ErrCh:     make(chan error, 1),
+		ID:        "id2",
+		Increment: 10,
 	}
-	if err := c.heap.Push(renewalReq2, now.Add(40*time.Second)); err != nil {
+	if err := c.Heap.Push(renewalReq2, now.Add(40*time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	if !c.isTracked("id2") {
+	if !c.IsTracked("id2") {
 		t.Fatalf("id2 should have been tracked")
 	}
 
-	renewalReq3 := &vaultClientRenewalRequest{
-		errCh:     make(chan error, 1),
-		id:        "id3",
-		increment: 10,
+	renewalReq3 := &vaultclient.RenewalRequest{
+		ErrCh:     make(chan error, 1),
+		ID:        "id3",
+		Increment: 10,
 	}
-	if err := c.heap.Push(renewalReq3, now.Add(60*time.Second)); err != nil {
+	if err := c.Heap.Push(renewalReq3, now.Add(60*time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	if !c.isTracked("id3") {
+	if !c.IsTracked("id3") {
 		t.Fatalf("id3 should have been tracked")
 	}
 
 	// Reading elements should yield id2, id1 and id3 in order
-	req, _ := c.nextRenewal()
+	req, _ := c.NextRenewal()
 	if req != renewalReq2 {
 		t.Fatalf("bad: expected: %#v, actual: %#v", renewalReq2, req)
 	}
-	if err := c.heap.Update(req, now.Add(70*time.Second)); err != nil {
+	if err := c.Heap.Update(req, now.Add(70*time.Second)); err != nil {
 		t.Fatal(err)
 	}
 
-	req, _ = c.nextRenewal()
+	req, _ = c.NextRenewal()
 	if req != renewalReq1 {
 		t.Fatalf("bad: expected: %#v, actual: %#v", renewalReq1, req)
 	}
-	if err := c.heap.Update(req, now.Add(80*time.Second)); err != nil {
+	if err := c.Heap.Update(req, now.Add(80*time.Second)); err != nil {
 		t.Fatal(err)
 	}
 
-	req, _ = c.nextRenewal()
+	req, _ = c.NextRenewal()
 	if req != renewalReq3 {
 		t.Fatalf("bad: expected: %#v, actual: %#v", renewalReq3, req)
 	}
-	if err := c.heap.Update(req, now.Add(90*time.Second)); err != nil {
+	if err := c.Heap.Update(req, now.Add(90*time.Second)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -221,15 +219,15 @@ func TestVaultClient_Heap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if c.isTracked("id1") {
+	if c.IsTracked("id1") {
 		t.Fatalf("id1 should not have been tracked")
 	}
 
-	if c.isTracked("id1") {
+	if c.IsTracked("id1") {
 		t.Fatalf("id1 should not have been tracked")
 	}
 
-	if c.isTracked("id1") {
+	if c.IsTracked("id1") {
 		t.Fatalf("id1 should not have been tracked")
 	}
 
@@ -244,9 +242,9 @@ func TestVaultClient_RenewNonRenewableLease(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.TaskTokenTTL = "4s"
-	c, err := NewVaultClient(v.Config, logger, nil)
+	c, err := vaultclient.NewVaultClient(v.Config, logger, nil)
 	if err != nil {
-		t.Fatalf("failed to build vault client: %v", err)
+		t.Fatalf("failed to build vault Vault: %v", err)
 	}
 
 	c.Start()
@@ -262,13 +260,13 @@ func TestVaultClient_RenewNonRenewableLease(t *testing.T) {
 		Renewable:   new(bool),
 	}
 
-	c.client.SetToken(v.Config.Token)
+	c.Vault.SetToken(v.Config.Token)
 
-	if err := c.client.SetAddress(v.Config.Addr); err != nil {
+	if err := c.Vault.SetAddress(v.Config.Addr); err != nil {
 		t.Fatal(err)
 	}
 
-	secret, err := c.client.Auth().Token().Create(tcr)
+	secret, err := c.Vault.Auth().Token().Create(tcr)
 	if err != nil {
 		t.Fatalf("failed to create vault token: %v", err)
 	}
@@ -294,9 +292,9 @@ func TestVaultClient_RenewNonexistentLease(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.TaskTokenTTL = "4s"
-	c, err := NewVaultClient(v.Config, logger, nil)
+	c, err := vaultclient.NewVaultClient(v.Config, logger, nil)
 	if err != nil {
-		t.Fatalf("failed to build vault client: %v", err)
+		t.Fatalf("failed to build vault Vault: %v", err)
 	}
 
 	c.Start()
@@ -305,13 +303,13 @@ func TestVaultClient_RenewNonexistentLease(t *testing.T) {
 	// Sleep a little while to ensure that the renewal loop is active
 	time.Sleep(time.Duration(testutil.TestMultiplier()) * time.Second)
 
-	c.client.SetToken(v.Config.Token)
+	c.Vault.SetToken(v.Config.Token)
 
-	if err := c.client.SetAddress(v.Config.Addr); err != nil {
+	if err := c.Vault.SetAddress(v.Config.Addr); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = c.RenewToken(c.client.Token(), 10)
+	_, err = c.RenewToken(c.Vault.Token(), 10)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 		// The Vault error message changed between 0.10.2 and 1.0.1
@@ -335,15 +333,15 @@ func TestVaultClient_RenewalTime_Long(t *testing.T) {
 		return 0
 	}
 
-	assert.Equal(t, 39*time.Second, renewalTime(highRoller, 60))
-	assert.Equal(t, 20*time.Second, renewalTime(lowRoller, 60))
+	must.Eq(t, 39*time.Second, vaultclient.RenewalTime(highRoller, 60))
+	must.Eq(t, 20*time.Second, vaultclient.RenewalTime(lowRoller, 60))
 
-	assert.Equal(t, 309*time.Second, renewalTime(highRoller, 600))
-	assert.Equal(t, 290*time.Second, renewalTime(lowRoller, 600))
+	must.Eq(t, 309*time.Second, vaultclient.RenewalTime(highRoller, 600))
+	must.Eq(t, 290*time.Second, vaultclient.RenewalTime(lowRoller, 600))
 
 	const days3 = 60 * 60 * 24 * 3
-	assert.Equal(t, (days3/2+9)*time.Second, renewalTime(highRoller, days3))
-	assert.Equal(t, (days3/2-10)*time.Second, renewalTime(lowRoller, days3))
+	must.Eq(t, (days3/2+9)*time.Second, vaultclient.RenewalTime(highRoller, days3))
+	must.Eq(t, (days3/2-10)*time.Second, vaultclient.RenewalTime(lowRoller, days3))
 }
 
 // TestVaultClient_RenewalTime_Short asserts that for leases under 1m the renewal
@@ -356,9 +354,9 @@ func TestVaultClient_RenewalTime_Short(t *testing.T) {
 		panic("unreachable")
 	}
 
-	assert.Equal(t, 29*time.Second, renewalTime(dice, 58))
-	assert.Equal(t, 15*time.Second, renewalTime(dice, 30))
-	assert.Equal(t, 1*time.Second, renewalTime(dice, 2))
+	must.Eq(t, 29*time.Second, vaultclient.RenewalTime(dice, 58))
+	must.Eq(t, 15*time.Second, vaultclient.RenewalTime(dice, 30))
+	must.Eq(t, 1*time.Second, vaultclient.RenewalTime(dice, 2))
 }
 
 func TestVaultClient_SetUserAgent(t *testing.T) {
@@ -367,9 +365,9 @@ func TestVaultClient_SetUserAgent(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.VaultConfig.Enabled = pointer.Of(true)
 	logger := testlog.HCLogger(t)
-	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
+	c, err := vaultclient.NewVaultClient(conf.VaultConfig, logger, nil)
 	must.NoError(t, err)
 
-	ua := c.client.Headers().Get("User-Agent")
+	ua := c.Vault.Headers().Get("User-Agent")
 	must.Eq(t, useragent.String(), ua)
 }
