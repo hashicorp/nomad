@@ -12,10 +12,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/escapingfs"
-	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/zclconf/go-cty/cty"
@@ -773,7 +773,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		// Populate task resources
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
 			b.cpuLimit = tr.Cpu.CpuShares
-			b.cpuCores = cpuset.New(tr.Cpu.ReservedCores...).String()
+			b.cpuCores = idset.From[uint16](tr.Cpu.ReservedCores).String()
 			b.memLimit = tr.Memory.MemoryMB
 			b.memMaxLimit = tr.Memory.MemoryMaxMB
 

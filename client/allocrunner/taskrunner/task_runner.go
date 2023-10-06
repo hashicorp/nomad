@@ -1163,7 +1163,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 				MemoryLimitBytes: memoryLimit * 1024 * 1024,
 				CPUShares:        taskResources.Cpu.CpuShares,
 				CpusetCpus:       strings.Join(cpusetCpus, ","),
-				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
+				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Processors.Topology.UsableCompute()),
 			},
 			Ports: &ports,
 		},

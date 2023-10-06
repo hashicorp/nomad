@@ -10,7 +10,9 @@ package hw
 type (
 	// A NodeID represents a NUMA node. There could be more than
 	// one NUMA node per socket.
-	NodeID uint8
+	//
+	// Must be an alias because go-msgpack cannot handle the real type.
+	NodeID = uint8
 
 	// A SocketID represents a physicsl CPU socket.
 	SocketID uint8

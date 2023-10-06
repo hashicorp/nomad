@@ -1422,6 +1422,12 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		}
 	}
 
+	if in.NUMA != nil {
+		out.NUMA = &structs.NUMA{
+			Affinity: in.NUMA.Affinity,
+		}
+	}
+
 	return out
 }
 

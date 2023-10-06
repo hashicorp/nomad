@@ -1673,16 +1673,19 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 
 	h := NewHarness(t)
 
-	// Create a node
+	// Create a node of limited resources
+	legacyCpuResources4000, processorResources4000 := cpuResources(4000)
 	node := mock.Node()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	node.NodeResources.Processors = processorResources4000
+	node.NodeResources.Cpu = legacyCpuResources4000
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create a job with a high resource ask so that all the allocations can't
 	// be placed on a single node.
 	job := mock.Job()
 	job.TaskGroups[0].Count = 3
 	job.TaskGroups[0].Tasks[0].Resources.CPU = 3600
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -1694,33 +1697,24 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
+	must.SliceLen(t, 1, h.Plans)
 	plan := h.Plans[0]
 
 	// Ensure the plan doesn't have annotations.
-	if plan.Annotations != nil {
-		t.Fatalf("expected no annotations")
-	}
+	must.Nil(t, plan.Annotations)
 
 	// Ensure the plan allocated
 	var planned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 1 {
-		t.Fatalf("bad: %#v", plan)
-	}
+	must.SliceLen(t, 1, planned)
 
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
@@ -1728,14 +1722,11 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 	require.NoError(t, err)
 
 	// Ensure only one allocations placed
-	if len(out) != 1 {
-		t.Fatalf("bad: %#v", out)
-	}
+	must.SliceLen(t, 1, out)
 
+	// Ensure 2 queued
 	queued := h.Evals[0].QueuedAllocations["web"]
-	if queued != 2 {
-		t.Fatalf("expected: %v, actual: %v", 2, queued)
-	}
+	must.Eq(t, 2, queued, must.Sprintf("exp: 2, got: %#v", h.Evals[0].QueuedAllocations))
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
@@ -5249,7 +5240,7 @@ func TestGenericSched_AllocFit_Lifecycle(t *testing.T) {
 
 	testCases := []struct {
 		Name             string
-		NodeCpu          int64
+		NodeCpu          int
 		TaskResources    structs.Resources
 		MainTaskCount    int
 		InitTaskCount    int
@@ -5320,8 +5311,11 @@ func TestGenericSched_AllocFit_Lifecycle(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			h := NewHarness(t)
+
+			legacyCpuResources, processorResources := cpuResources(testCase.NodeCpu)
 			node := mock.Node()
-			node.NodeResources.Cpu.CpuShares = testCase.NodeCpu
+			node.NodeResources.Processors = processorResources
+			node.NodeResources.Cpu = legacyCpuResources
 			require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 			// Create a job with sidecar & init tasks
@@ -5956,14 +5950,15 @@ func TestServiceSched_Preemption(t *testing.T) {
 	require := require.New(t)
 	h := NewHarness(t)
 
+	legacyCpuResources, processorResources := cpuResources(1000)
+
 	// Create a node
 	node := mock.Node()
 	node.Resources = nil
 	node.ReservedResources = nil
 	node.NodeResources = &structs.NodeResources{
-		Cpu: structs.NodeCpuResources{
-			CpuShares: 1000,
-		},
+		Processors: processorResources,
+		Cpu:        legacyCpuResources,
 		Memory: structs.NodeMemoryResources{
 			MemoryMB: 2048,
 		},

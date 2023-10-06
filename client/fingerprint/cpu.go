@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/klauspost/cpuid/v2"
 )
@@ -21,10 +20,11 @@ import (
 type CPUFingerprint struct {
 	StaticFingerprinter
 	logger hclog.Logger
-	top    *numalib.Topology
 
-	// accumulates result in these resource structs
-	resources     *structs.Resources
+	// builds this topology
+	top *numalib.Topology
+
+	// sets the built topology for this resources response
 	nodeResources *structs.NodeResources
 }
 
@@ -32,7 +32,6 @@ type CPUFingerprint struct {
 func NewCPUFingerprint(logger hclog.Logger) Fingerprint {
 	return &CPUFingerprint{
 		logger:        logger.Named("cpu"),
-		resources:     new(structs.Resources), // COMPAT (to be removed after 0.10)
 		nodeResources: new(structs.NodeResources),
 	}
 }
@@ -148,7 +147,6 @@ func (f *CPUFingerprint) setCoreCount(response *FingerprintResponse) {
 		response.AddAttribute("cpu.numcores", f.cores(total))
 		f.logger.Debug("detected CPU core count", "cores", total)
 	}
-	f.nodeResources.Cpu.TotalCpuCores = uint16(total)
 }
 
 func (f *CPUFingerprint) setReservableCores(response *FingerprintResponse) {
@@ -157,10 +155,6 @@ func (f *CPUFingerprint) setReservableCores(response *FingerprintResponse) {
 		// topology has already reduced to the intersection of usable cores
 		usable := f.top.UsableCores()
 		response.AddAttribute("cpu.reservablecores", f.cores(usable.Size()))
-		f.nodeResources.Cpu.ReservableCpuCores = helper.ConvertSlice(
-			usable.Slice(), func(id hw.CoreID) uint16 {
-				return uint16(id)
-			})
 	default:
 		response.AddAttribute("cpu.reservablecores", "0")
 	}
@@ -172,14 +166,6 @@ func (f *CPUFingerprint) setTotalCompute(response *FingerprintResponse) {
 
 	response.AddAttribute("cpu.totalcompute", f.frequency(totalCompute))
 	response.AddAttribute("cpu.usablecompute", f.frequency(usableCompute))
-
-	f.resources.CPU = int(totalCompute)
-	f.nodeResources.Cpu.CpuShares = int64(totalCompute)
-}
-
-func (f *CPUFingerprint) setResponseResources(response *FingerprintResponse) {
-	response.Resources = f.resources
-	response.NodeResources = f.nodeResources
 }
 
 func (f *CPUFingerprint) setNUMA(response *FingerprintResponse) {
@@ -196,4 +182,10 @@ func (f *CPUFingerprint) setNUMA(response *FingerprintResponse) {
 		response.AddAttribute(key, cores.String())
 		return nil
 	})
+}
+
+func (f *CPUFingerprint) setResponseResources(response *FingerprintResponse) {
+	f.nodeResources.Processors = structs.NewNodeProcessorResources(f.top)
+	f.nodeResources.Compatibility()
+	response.NodeResources = f.nodeResources
 }

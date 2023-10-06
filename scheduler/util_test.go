@@ -914,7 +914,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	// Create a new task group that requires too much resources.
 	tg := &structs.TaskGroup{}
 	*tg = *job.TaskGroups[0]
-	resource := &structs.Resources{CPU: 9999}
+	resource := &structs.Resources{CPU: 99999}
 	tg.Tasks[0].Resources = resource
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
@@ -1186,6 +1186,25 @@ func TestTasksUpdated_Identity(t *testing.T) {
 
 	// Set identity on j1 and assert update
 	j1.TaskGroups[0].Tasks[0].Identity = &structs.WorkloadIdentity{}
+
+	must.True(t, tasksUpdated(j1, j2, name).modified)
+}
+
+func TestTasksUpdated_NUMA(t *testing.T) {
+	ci.Parallel(t)
+
+	j1 := mock.Job()
+	name := j1.TaskGroups[0].Name
+
+	j1.TaskGroups[0].Tasks[0].Resources.NUMA = &structs.NUMA{
+		Affinity: "none",
+	}
+
+	j2 := j1.Copy()
+
+	must.False(t, tasksUpdated(j1, j2, name).modified)
+
+	j2.TaskGroups[0].Tasks[0].Resources.NUMA.Affinity = "require"
 
 	must.True(t, tasksUpdated(j1, j2, name).modified)
 }

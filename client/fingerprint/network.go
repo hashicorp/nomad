@@ -105,11 +105,6 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 		return err
 	}
 
-	// COMPAT(0.10): Remove in 0.10
-	resp.Resources = &structs.Resources{
-		Networks: nwResources,
-	}
-
 	resp.NodeResources = &structs.NodeResources{
 		Networks: nwResources,
 	}
