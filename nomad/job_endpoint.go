@@ -1723,6 +1723,58 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
+// jobActions is used to parse through a job's taskgroups' tasks and aggregate their actions, flattened
+func (j *Job) GetActions(args *structs.JobSpecificRequest, reply *structs.ActionListResponse) error {
+	// authenticate, measure, and forward
+	authErr := j.srv.Authenticate(j.ctx, args)
+	if done, err := j.srv.forward("Job.GetActions", args, args, reply); done {
+		return err
+	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "get_actions"}, time.Now())
+
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveACL(args); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate the arguments
+	if args.JobID == "" {
+		return fmt.Errorf("JobID required for actions")
+	}
+
+	// Grab the job
+	job, err := j.srv.fsm.State().JobByID(nil, args.RequestNamespace(), args.JobID)
+	if err != nil {
+		return err
+	}
+	if job == nil {
+		return structs.NewErrUnknownJob(args.JobID)
+	}
+
+	// Get its task groups' tasks' actions
+	actions := make([]*structs.Action, 0)
+	for _, tg := range job.TaskGroups {
+		for _, task := range tg.Tasks {
+			actions = append(actions, task.Actions...)
+		}
+	}
+	// set it on reply
+	reply.Actions = actions
+
+	// set meta
+	j.srv.setQueryMeta(&reply.QueryMeta)
+	// log out the reply here for debugging purposes
+	j.logger.Debug("job actions", "job", job.ID, "actions", reply)
+
+	return nil
+}
+
 // Plan is used to cause a dry-run evaluation of the Job and return the results
 // with a potential diff containing annotations.
 func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse) error {

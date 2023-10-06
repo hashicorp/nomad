@@ -326,6 +326,17 @@ func (j *Jobs) LatestDeployment(jobID string, q *QueryOptions) (*Deployment, *Qu
 	return resp, qm, nil
 }
 
+// What...?
+// // Actions
+// func (j *Jobs) Actions(jobID string, q *QueryOptions) ([]*Action, *QueryMeta, error) {
+// 	var resp []*Action
+// 	qm, err := j.client.query("/v1/job/"+url.PathEscape(jobID)+"/actions", &resp, q)
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+// 	return resp, qm, nil
+// }
+
 // Evaluations is used to query the evaluations associated with the given job
 // ID.
 func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *QueryMeta, error) {

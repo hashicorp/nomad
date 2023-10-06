@@ -15,6 +15,18 @@ type Action struct {
 	Args    []string
 }
 
+type JobAction struct {
+	Action        Action
+	TaskName      string
+	TaskGroupName string
+}
+
+// DeploymentListResponse is used for a list request
+type ActionListResponse struct {
+	Actions []*Action
+	QueryMeta
+}
+
 func (a *Action) Copy() *Action {
 	if a == nil {
 		return nil

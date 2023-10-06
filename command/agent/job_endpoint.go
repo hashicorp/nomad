@@ -110,6 +110,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/submission"):
 		jobID := strings.TrimSuffix(path, "/submission")
 		return s.jobSubmissionCRUD(resp, req, jobID)
+	case strings.HasSuffix(path, "/actions"):
+		jobID := strings.TrimSuffix(path, "/actions")
+		return s.jobActions(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -331,6 +334,25 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 
 	setMeta(resp, &out.QueryMeta)
 	return out.Deployment, nil
+}
+
+// Job Actions
+func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+	args := structs.JobSpecificRequest{
+		JobID: jobID,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.ActionListResponse
+	if err := s.agent.RPC("Job.GetActions", &args, &out); err != nil {
+		return nil, fmt.Errorf("Oh dang: %w", err)
+	}
+
+	setMeta(resp, &structs.QueryMeta{})
+
+	return out.Actions, nil
 }
 
 func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
