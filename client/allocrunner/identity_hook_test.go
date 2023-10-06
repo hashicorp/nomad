@@ -54,9 +54,11 @@ func TestIdentityHook_Prerun(t *testing.T) {
 	// do the initial signing
 	_, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
 		{
-			AllocID:      alloc.ID,
-			TaskName:     task.Name,
-			IdentityName: task.Identities[0].Name,
+			AllocID: alloc.ID,
+			WIHandle: structs.WIHandle{
+				WorkloadIdentifier: task.Name,
+				IdentityName:       task.Identities[0].Name,
+			},
 		},
 	})
 	must.NoError(t, err)
@@ -67,9 +69,9 @@ func TestIdentityHook_Prerun(t *testing.T) {
 	must.NoError(t, hook.Prerun())
 
 	time.Sleep(time.Second) // give goroutines a moment to run
-	sid, err := hook.widmgr.Get(widmgr.TaskIdentity{
-		TaskName:     task.Name,
-		IdentityName: task.Identities[0].Name},
+	sid, err := hook.widmgr.Get(structs.WIHandle{
+		WorkloadIdentifier: task.Name,
+		IdentityName:       task.Identities[0].Name},
 	)
 	must.Nil(t, err)
 	must.Eq(t, sid.IdentityName, task.Identity.Name)

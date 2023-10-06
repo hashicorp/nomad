@@ -82,7 +82,7 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 }
 
 func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity) {
-	id := widmgr.TaskIdentity{TaskName: h.task.Name, IdentityName: wid.Name}
+	id := structs.WIHandle{WorkloadIdentifier: h.task.Name, IdentityName: wid.Name}
 	signedIdentitiesChan, stopWatching := h.widmgr.Watch(id)
 	defer stopWatching()
 

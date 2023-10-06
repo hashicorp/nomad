@@ -110,9 +110,9 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 		if i.Name != expectedIdentity {
 			continue
 		}
-		ti := widmgr.TaskIdentity{
-			TaskName:     task.Name,
-			IdentityName: i.Name,
+		ti := structs.WIHandle{
+			WorkloadIdentifier: task.Name,
+			IdentityName:       i.Name,
 		}
 
 		req, err := h.prepareConsulClientReq(ti, consulTasksAuthMethodName)
@@ -157,9 +157,9 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			continue
 		}
 
-		ti := widmgr.TaskIdentity{
-			TaskName:     service.TaskName,
-			IdentityName: service.Identity.Name,
+		ti := structs.WIHandle{
+			WorkloadIdentifier: service.TaskName,
+			IdentityName:       service.Identity.Name,
 		}
 
 		req, err := h.prepareConsulClientReq(ti, consulServicesAuthMethodName)
@@ -207,7 +207,7 @@ func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[st
 	return nil
 }
 
-func (h *consulHook) prepareConsulClientReq(identity widmgr.TaskIdentity, authMethodName string) (map[string]consul.JWTLoginRequest, error) {
+func (h *consulHook) prepareConsulClientReq(identity structs.WIHandle, authMethodName string) (map[string]consul.JWTLoginRequest, error) {
 	req := map[string]consul.JWTLoginRequest{}
 
 	jwt, err := h.widmgr.Get(identity)

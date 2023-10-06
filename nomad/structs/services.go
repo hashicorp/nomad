@@ -781,6 +781,18 @@ func (s *Service) MakeUniqueIdentityName() string {
 	return fmt.Sprintf("%v-%v", s.Name, s.PortLabel)
 }
 
+// IdentityHandle returns a WorkloadIdentityHandle which is a pair of service
+// identity name and service name.
+func (s *Service) IdentityHandle() *WIHandle {
+	if s.Identity != nil {
+		return &WIHandle{
+			IdentityName:       s.Identity.Name,
+			WorkloadIdentifier: s.Name,
+		}
+	}
+	return nil
+}
+
 func (s *Service) validateCheckPort(c *ServiceCheck) error {
 	if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
 		return fmt.Errorf("Check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name)

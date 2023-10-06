@@ -81,9 +81,11 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	for _, i := range task.Identities {
 		_, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
 			{
-				AllocID:      alloc.ID,
-				TaskName:     task.Name,
-				IdentityName: i.Name,
+				AllocID: alloc.ID,
+				WIHandle: structs.WIHandle{
+					WorkloadIdentifier: task.Name,
+					IdentityName:       i.Name,
+				},
 			},
 		})
 		must.NoError(t, err)
@@ -183,9 +185,11 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 	for _, i := range task.Identities {
 		_, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
 			{
-				AllocID:      alloc.ID,
-				TaskName:     task.Name,
-				IdentityName: i.Name,
+				AllocID: alloc.ID,
+				WIHandle: structs.WIHandle{
+					WorkloadIdentifier: task.Name,
+					IdentityName:       i.Name,
+				},
 			},
 		})
 		must.NoError(t, err)

@@ -565,7 +565,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			continue
 		}
 
-		task := out.LookupTask(idReq.TaskName)
+		task := out.LookupTask(idReq.WorkloadIdentifier)
 		if task == nil {
 			// Job has likely been updated to remove this task
 			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
@@ -582,7 +582,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			}
 
 			widFound = true
-			claims := structs.NewIdentityClaims(out.Job, out, idReq.TaskName, wid, now)
+			claims := structs.NewIdentityClaims(out.Job, out, idReq.WorkloadIdentifier, wid, now)
 			token, _, err := a.srv.encrypter.SignClaims(claims)
 			if err != nil {
 				return err
