@@ -578,6 +578,7 @@ func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
 		return api.Upstream{
 			Datacenter:       "sfo",
 			DestinationName:  "billing",
+			DestinationType:  "service",
 			LocalBindAddress: "127.0.0.1",
 			LocalBindPort:    5050,
 			MeshGateway: api.MeshGatewayConfig{
@@ -716,7 +717,7 @@ func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
 
 	try(t, "different destination type", func(p proxy) {
 		diff := upstream1()
-		diff.DestinationType = "service"
+		diff.DestinationType = "prepared_query"
 		p.Upstreams = []api.Upstream{
 			diff,
 			upstream2(),
