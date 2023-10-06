@@ -782,12 +782,12 @@ func (s *Service) MakeUniqueIdentityName() string {
 }
 
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of service
-// identity name and unique service name.
+// identity name and service name.
 func (s *Service) IdentityHandle() *WIHandle {
 	if s.Identity != nil {
 		return &WIHandle{
 			IdentityName:       s.Identity.Name,
-			WorkloadIdentifier: s.MakeUniqueIdentityName(),
+			WorkloadIdentifier: s.Name,
 		}
 	}
 	return nil

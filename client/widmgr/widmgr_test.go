@@ -101,10 +101,10 @@ func TestWIDMgr(t *testing.T) {
 			},
 		},
 		{
-			AllocID:      allocs[0].ID,
+			AllocID: allocs[0].ID,
 			WIHandle: structs.WIHandle{
-			WorkloadIdentifier:     job.TaskGroups[0].Tasks[0].Name,
-			IdentityName: "vault",
+				WorkloadIdentifier: job.TaskGroups[0].Tasks[0].Name,
+				IdentityName:       "vault",
 			},
 		},
 	}
