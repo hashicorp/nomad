@@ -7678,6 +7678,7 @@ func (t *Task) IdentityHandle(identity *WorkloadIdentity) *WIHandle {
 	return &WIHandle{
 		IdentityName:       identity.Name,
 		WorkloadIdentifier: t.Name,
+		WorkloadType:       TaskWorkload,
 	}
 }
 

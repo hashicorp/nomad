@@ -788,6 +788,7 @@ func (s *Service) IdentityHandle() *WIHandle {
 		return &WIHandle{
 			IdentityName:       s.Identity.Name,
 			WorkloadIdentifier: s.Name,
+			WorkloadType:       ServiceWorkload,
 		}
 	}
 	return nil
