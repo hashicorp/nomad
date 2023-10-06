@@ -6,6 +6,7 @@ package nomad
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -565,11 +566,11 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			continue
 		}
 
-		task := out.LookupTask(idReq.WorkloadIdentifier)
 		job := out.Job
-		switch idReq.WorkloadType {
 
+		switch idReq.WorkloadType {
 		case structs.TaskWorkload:
+			task := out.LookupTask(idReq.WorkloadIdentifier)
 			if task == nil {
 				// Job has likely been updated to remove this task
 				reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
@@ -579,24 +580,9 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 				continue
 			}
 
-			widFound := false
-			for _, wid := range task.Identities {
-				if wid.Name != idReq.IdentityName {
-					continue
-				}
-
-				widFound = true
-				claims := structs.NewIdentityClaims(job, out, idReq.WorkloadIdentifier, wid, now)
-				token, _, err := a.srv.encrypter.SignClaims(claims)
-				if err != nil {
-					return err
-				}
-				reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
-					WorkloadIdentityRequest: *idReq,
-					JWT:                     token,
-					Expiration:              claims.Expiry.Time(),
-				})
-				break
+			widFound, err := a.signTasks(task, out, idReq, reply, now)
+			if err != nil {
+				return err
 			}
 
 			if !widFound {
@@ -608,73 +594,113 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			}
 
 		case structs.ServiceWorkload:
-			widFound := false
-
-			// services can be on the level of task groups or tasks
-
-			for _, tg := range job.TaskGroups {
-				for _, s := range tg.Services {
-					if s.Identity == nil {
-						continue
-					}
-
-					wid := s.Identity
-					if wid.Name != idReq.IdentityName {
-						continue
-					}
-
-					widFound = true
-					claims := structs.NewIdentityClaims(job, out, idReq.WorkloadIdentifier, wid, now)
-					token, _, err := a.srv.encrypter.SignClaims(claims)
-					if err != nil {
-						return err
-					}
-					reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
-						WorkloadIdentityRequest: *idReq,
-						JWT:                     token,
-						Expiration:              claims.Expiry.Time(),
-					})
-
-				}
-				if !widFound {
-					reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
-						WorkloadIdentityRequest: *idReq,
-						Reason:                  structs.WIRejectionReasonMissingIdentity,
-					})
-					continue
-				}
+			widFound, err := a.signServices(job, out, idReq, reply, now)
+			if err != nil {
+				return err
 			}
 
-			if task != nil {
-				for _, taskService := range task.Services {
-					wid := taskService.Identity
-
-					if wid.Name != idReq.IdentityName {
-						continue
-					}
-
-					widFound = true
-					claims := structs.NewIdentityClaims(out.Job, out, idReq.WorkloadIdentifier, wid, now)
-					token, _, err := a.srv.encrypter.SignClaims(claims)
-					if err != nil {
-						return err
-					}
-					reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
-						WorkloadIdentityRequest: *idReq,
-						JWT:                     token,
-						Expiration:              claims.Expiry.Time(),
-					})
-				}
-				if !widFound {
-					reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
-						WorkloadIdentityRequest: *idReq,
-						Reason:                  structs.WIRejectionReasonMissingIdentity,
-					})
-					continue
-				}
+			if !widFound {
+				reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
+					WorkloadIdentityRequest: *idReq,
+					Reason:                  structs.WIRejectionReasonMissingIdentity,
+				})
+				continue
 			}
 		}
-
 	}
 	return nil
+}
+
+func (a *Alloc) signTasks(
+	task *structs.Task,
+	alloc *structs.Allocation,
+	idReq *structs.WorkloadIdentityRequest,
+	reply *structs.AllocIdentitiesResponse,
+	now time.Time,
+) (widFound bool, err error) {
+	for _, wid := range task.Identities {
+		if wid.Name != idReq.IdentityName {
+			continue
+		}
+
+		widFound, err = a.foundAndSignedIdentities(alloc, wid, idReq, reply, now)
+		if err != nil {
+			return
+		}
+		if widFound {
+			return
+		}
+	}
+	return
+}
+
+func (a *Alloc) signServices(
+	job *structs.Job,
+	alloc *structs.Allocation,
+	idReq *structs.WorkloadIdentityRequest,
+	reply *structs.AllocIdentitiesResponse,
+	now time.Time,
+) (widFound bool, err error) {
+	// if it's a task service, we need to figure out what is the task it belongs to
+	// FIXME find a way to do this properly
+	_, id, _ := strings.Cut(idReq.IdentityName, "/")
+	taskName, _, _ := strings.Cut(id, "-")
+
+	task := alloc.LookupTask(taskName)
+	if task != nil {
+		for _, taskService := range task.Services {
+			wid := taskService.Identity
+			widFound, err = a.foundAndSignedIdentities(alloc, wid, idReq, reply, now)
+			if err != nil {
+				return
+			}
+			if widFound {
+				return
+			}
+		}
+	}
+
+	// services can be on the level of task groups or tasks
+	for _, tg := range job.TaskGroups {
+		for _, s := range tg.Services {
+			if s.Identity == nil {
+				continue
+			}
+
+			wid := s.Identity
+			widFound, err = a.foundAndSignedIdentities(alloc, wid, idReq, reply, now)
+			if err != nil {
+				return
+			}
+			if widFound {
+				return
+			}
+		}
+	}
+	return
+}
+
+func (a *Alloc) foundAndSignedIdentities(
+	alloc *structs.Allocation,
+	wid *structs.WorkloadIdentity,
+	idReq *structs.WorkloadIdentityRequest,
+	reply *structs.AllocIdentitiesResponse,
+	now time.Time,
+) (bool, error) {
+	if wid.Name != idReq.IdentityName {
+		return false, nil
+	}
+
+	claims := structs.NewIdentityClaims(alloc.Job, alloc, idReq.WorkloadIdentifier, wid, now)
+	token, _, err := a.srv.encrypter.SignClaims(claims)
+	if err != nil {
+		return true, err
+	}
+	reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
+		WorkloadIdentityRequest: *idReq,
+		JWT:                     token,
+		Expiration:              claims.Expiry.Time(),
+	})
+
+	return true, nil
 }
