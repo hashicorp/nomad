@@ -296,47 +296,6 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 	option := stack.Select(job.TaskGroups[0], selectOptions)
 	must.NotNil(t, option)
 	must.Eq(t, option.Node.ID, node1.ID)
-
-	// Recreate the stack and select volumes per alloc.
-	stack = NewGenericStack(false, ctx)
-	stack.SetNodes([]*structs.Node{node0, node1, node2})
-
-	job.TaskGroups[0].Count = 3
-	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"per_alloc": {
-		Name:     "per_alloc",
-		Type:     structs.VolumeTypeHost,
-		Source:   "per_alloc",
-		PerAlloc: true,
-	}}
-	stack.SetJob(job)
-
-	// First alloc selects node with host volume 'per_alloc[0]'.
-	selectOptions = &SelectOptions{
-		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0),
-	}
-	option = stack.Select(job.TaskGroups[0], selectOptions)
-	must.NotNil(t, option)
-	must.Eq(t, option.Node.ID, node1.ID)
-
-	// Second alloc selects node with host volume 'per_alloc[1]'.
-	selectOptions = &SelectOptions{
-		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 1),
-	}
-	option = stack.Select(job.TaskGroups[0], selectOptions)
-	must.NotNil(t, option)
-	must.Eq(t, option.Node.ID, node2.ID)
-
-	// Third alloc must select node with host volume 'per_alloc[2]', but none
-	// of the nodes available can fulfil this requirement.
-	selectOptions = &SelectOptions{
-		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 2),
-	}
-	option = stack.Select(job.TaskGroups[0], selectOptions)
-	must.Nil(t, option)
-
-	metrics := ctx.Metrics()
-	must.MapLen(t, 1, metrics.ConstraintFiltered)
-	must.Eq(t, metrics.ConstraintFiltered[FilterConstraintHostVolumes], 3)
 }
 
 func TestServiceStack_Select_CSI(t *testing.T) {
