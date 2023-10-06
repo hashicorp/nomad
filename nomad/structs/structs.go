@@ -13290,5 +13290,4 @@ type Action struct {
 	Name    string
 	Command *string
 	Args    []string
-	// Type    *string
 }

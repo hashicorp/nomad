@@ -1174,5 +1174,4 @@ type Action struct {
 	Name    string   `hcl:"name,label"`
 	Command *string  `mapstructure:"command" hcl:"command"`
 	Args    []string `mapstructure:"args" hcl:"args,optional"`
-	// Type    *string  `mapstructure:"type" hcl:"type,optional"`
 }
