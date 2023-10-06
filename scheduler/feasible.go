@@ -1224,7 +1224,8 @@ OUTER:
 }
 
 // available checks transient feasibility checkers which depend on changing conditions,
-// e.g. the health status of a plugin or driver
+// e.g. the health status of a plugin or driver, or that are not considered in node
+// computed class, e.g. host volumes.
 func (w *FeasibilityWrapper) available(option *structs.Node) bool {
 	// If we don't have any availability checks, we're available
 	if len(w.tgAvailable) == 0 {

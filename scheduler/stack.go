@@ -249,11 +249,13 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 	tgs := []FeasibilityChecker{
 		s.taskGroupDrivers,
 		s.taskGroupConstraint,
-		s.taskGroupHostVolumes,
 		s.taskGroupDevices,
 		s.taskGroupNetwork,
 	}
-	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
+	avail := []FeasibilityChecker{
+		s.taskGroupHostVolumes,
+		s.taskGroupCSIVolumes,
+	}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 
 	// Filter on distinct property constraints.
@@ -384,11 +386,13 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	tgs := []FeasibilityChecker{
 		s.taskGroupDrivers,
 		s.taskGroupConstraint,
-		s.taskGroupHostVolumes,
 		s.taskGroupDevices,
 		s.taskGroupNetwork,
 	}
-	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
+	avail := []FeasibilityChecker{
+		s.taskGroupHostVolumes,
+		s.taskGroupCSIVolumes,
+	}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 
 	// Filter on distinct host constraints.
