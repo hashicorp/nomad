@@ -192,8 +192,6 @@ func (m *WIDMgr) getIdentities() error {
 	defaultTokens := map[structs.WIHandle]*structs.SignedWorkloadIdentity{}
 	for taskName, signature := range m.defaultSignedIdentities {
 		id := structs.WIHandle{
-			// no need to call MakeUniqueTaskName, because the plan applier
-			// does this for us
 			WorkloadIdentifier: taskName,
 			IdentityName:       "default",
 		}
