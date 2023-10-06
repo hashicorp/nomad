@@ -57,19 +57,19 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 
 	for _, service := range tg.Services {
 		if service.Identity != nil {
-			widspecs[service.Identity.Name] = []*structs.WorkloadIdentity{service.Identity}
+			widspecs[service.IdentityHandle().WorkloadIdentifier] = []*structs.WorkloadIdentity{service.Identity}
 		}
 	}
 
 	for _, task := range tg.Tasks {
 		// Omit default identity as it does not expire
-		if len(task.Identities) > 0 {
-			widspecs[task.Name] = helper.CopySlice(task.Identities)
+		for _, i := range task.Identities {
+			widspecs[task.IdentityHandle(i).WorkloadIdentifier] = helper.CopySlice(task.Identities)
 		}
 
 		for _, service := range task.Services {
 			if service.Identity != nil {
-				widspecs[service.Identity.Name] = []*structs.WorkloadIdentity{service.Identity}
+				widspecs[service.IdentityHandle().WorkloadIdentifier] = []*structs.WorkloadIdentity{service.Identity}
 			}
 		}
 	}
@@ -131,7 +131,7 @@ func (m *WIDMgr) Get(id structs.WIHandle) (*structs.SignedWorkloadIdentity, erro
 	if token == nil {
 		// This is an error as every identity should have a token by the time Get
 		// is called.
-		return nil, fmt.Errorf("uble to find token for task %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
+		return nil, fmt.Errorf("unable to find token for workload %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
 	}
 
 	return token, nil
