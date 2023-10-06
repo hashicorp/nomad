@@ -253,7 +253,9 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 
 	_, ctx := testContext(t)
 
-	// Create nodes with host volumes.
+	// Create nodes with host volumes and one without.
+	node0 := mock.Node()
+
 	node1 := mock.Node()
 	node1.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
 		"unique": {
@@ -278,7 +280,7 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 
 	// Create stack with nodes.
 	stack := NewGenericStack(false, ctx)
-	stack.SetNodes([]*structs.Node{node1, node2})
+	stack.SetNodes([]*structs.Node{node0, node1, node2})
 
 	job := mock.Job()
 	job.TaskGroups[0].Count = 1
@@ -290,19 +292,19 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 	}}
 	stack.SetJob(job)
 
+	// Alloc selects node with host volume 'unique'.
 	selectOptions := &SelectOptions{
 		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0),
 	}
-
 	option := stack.Select(job.TaskGroups[0], selectOptions)
 	must.NotNil(t, option)
 	must.Eq(t, option.Node.ID, node1.ID)
 
 	// Recreate the stack and select volumes per alloc.
 	stack = NewGenericStack(false, ctx)
-	stack.SetNodes([]*structs.Node{node1, node2})
+	stack.SetNodes([]*structs.Node{node0, node1, node2})
 
-	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].Count = 3
 	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"per_alloc": {
 		Name:     "per_alloc",
 		Type:     structs.VolumeTypeHost,
@@ -311,7 +313,7 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 	}}
 	stack.SetJob(job)
 
-	// First alloc selects node with volume per_alloc[0].
+	// First alloc selects node with host volume 'per_alloc[0]'.
 	selectOptions = &SelectOptions{
 		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0),
 	}
@@ -319,13 +321,25 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 	must.NotNil(t, option)
 	must.Eq(t, option.Node.ID, node1.ID)
 
-	// Second alloc selects node with volume per_alloc[1].
+	// Second alloc selects node with host volume 'per_alloc[1]'.
 	selectOptions = &SelectOptions{
 		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 1),
 	}
 	option = stack.Select(job.TaskGroups[0], selectOptions)
 	must.NotNil(t, option)
 	must.Eq(t, option.Node.ID, node2.ID)
+
+	// Third alloc must select node with host volume 'per_alloc[2]', but none
+	// of the nodes available can fulfil this requirement.
+	selectOptions = &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 2),
+	}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
+	must.Nil(t, option)
+
+	metrics := ctx.Metrics()
+	must.MapLen(t, 1, metrics.ConstraintFiltered)
+	must.Eq(t, metrics.ConstraintFiltered[FilterConstraintHostVolumes], 3)
 }
 
 func TestServiceStack_Select_CSI(t *testing.T) {
