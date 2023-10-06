@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -245,6 +246,86 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	if node.Node != zero {
 		t.Fatalf("bad")
 	}
+}
+
+func TestServiceStack_Select_HostVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := testContext(t)
+
+	// Create nodes with host volumes.
+	node1 := mock.Node()
+	node1.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"unique": {
+			Name: "unique",
+			Path: "/tmp/unique",
+		},
+		"per_alloc[0]": {
+			Name: "per_alloc[0]",
+			Path: "/tmp/per_alloc_0",
+		},
+	}
+	node1.ComputeClass()
+
+	node2 := mock.Node()
+	node2.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"per_alloc[1]": {
+			Name: "per_alloc[1]",
+			Path: "/tmp/per_alloc_1",
+		},
+	}
+	node2.ComputeClass()
+
+	// Create stack with nodes.
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes([]*structs.Node{node1, node2})
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"unique": {
+		Name:     "unique",
+		Type:     structs.VolumeTypeHost,
+		Source:   "unique",
+		PerAlloc: false,
+	}}
+	stack.SetJob(job)
+
+	selectOptions := &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0),
+	}
+
+	option := stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, option)
+	must.Eq(t, option.Node.ID, node1.ID)
+
+	// Recreate the stack and select volumes per alloc.
+	stack = NewGenericStack(false, ctx)
+	stack.SetNodes([]*structs.Node{node1, node2})
+
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"per_alloc": {
+		Name:     "per_alloc",
+		Type:     structs.VolumeTypeHost,
+		Source:   "per_alloc",
+		PerAlloc: true,
+	}}
+	stack.SetJob(job)
+
+	// First alloc selects node with volume per_alloc[0].
+	selectOptions = &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0),
+	}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, option)
+	must.Eq(t, option.Node.ID, node1.ID)
+
+	// Second alloc selects node with volume per_alloc[1].
+	selectOptions = &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 1),
+	}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, option)
+	must.Eq(t, option.Node.ID, node2.ID)
 }
 
 func TestServiceStack_Select_CSI(t *testing.T) {
