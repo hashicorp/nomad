@@ -1396,7 +1396,7 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 
 func ApiActionToStructsAction(job *structs.Job, action *api.Action, act *structs.Action) {
 	act.Name = action.Name
-	act.Args = action.Args
+	act.Args = slices.Clone(action.Args)
 	act.Command = action.Command
 }
 
