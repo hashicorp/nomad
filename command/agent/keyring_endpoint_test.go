@@ -6,8 +6,13 @@ package agent
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/go-jose/go-jose/v3"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
@@ -75,5 +80,52 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		require.Equal(t, newID1, listResp[0].KeyID)
 		require.True(t, listResp[0].Active())
 		require.Len(t, listResp, 1)
+	})
+}
+
+func TestHTTP_Keyring_JWKS(t *testing.T) {
+	ci.Parallel(t)
+
+	threshold := 3 * 24 * time.Hour
+	cb := func(c *Config) {
+		c.Server.RootKeyRotationThreshold = threshold.String()
+	}
+
+	httpTest(t, cb, func(s *TestAgent) {
+		respW := httptest.NewRecorder()
+
+		req, err := http.NewRequest(http.MethodGet, structs.JWKSPath, nil)
+		must.NoError(t, err)
+
+		obj, err := s.Server.JWKSRequest(respW, req)
+		must.NoError(t, err)
+
+		jwks := obj.(*jose.JSONWebKeySet)
+		must.SliceLen(t, 1, jwks.Keys)
+
+		// Assert that caching headers are set to < the rotation threshold
+		cacheHeaders := respW.Header().Values("Cache-Control")
+		must.SliceLen(t, 1, cacheHeaders)
+		must.StrHasPrefix(t, "max-age=", cacheHeaders[0])
+		parts := strings.Split(cacheHeaders[0], "=")
+		ttl, err := strconv.Atoi(parts[1])
+		must.NoError(t, err)
+		must.Less(t, int(threshold.Seconds()), ttl)
+	})
+}
+
+func TestHTTP_Keyring_OIDCDisco_Disabled(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		t.Fatal("TODO")
+	})
+}
+
+func TestHTTP_Keyring_OIDCDisco_Enabled(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		t.Fatal("TODO")
 	})
 }

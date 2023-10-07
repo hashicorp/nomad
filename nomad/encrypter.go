@@ -44,6 +44,9 @@ type Encrypter struct {
 	srv          *Server
 	keystorePath string
 
+	// issuer is the OIDC Issuer to use for workload identities if configured
+	issuer string
+
 	keyring map[string]*keyset
 	lock    sync.RWMutex
 }
@@ -62,6 +65,7 @@ func NewEncrypter(srv *Server, keystorePath string) (*Encrypter, error) {
 		srv:          srv,
 		keystorePath: keystorePath,
 		keyring:      make(map[string]*keyset),
+		issuer:       srv.GetConfig().OIDCIssuer,
 	}
 
 	err := encrypter.loadKeystore()
@@ -162,9 +166,11 @@ func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
 const keyIDHeader = "kid"
 
 // SignClaims signs the identity claim for the task and returns an encoded JWT
-// (including both the claim and its signature), the key ID of the key used to
-// sign it, and any error.
-func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, string, error) {
+// (including both the claim and its signature) and the key ID of the key used
+// to sign it, or an error.
+//
+// SignClaims adds the Issuer claim prior to signing.
+func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, error) {
 
 	// If a key is rotated immediately following a leader election, plans that
 	// are in-flight may get signed before the new leader has the key. Allow for
@@ -187,12 +193,18 @@ func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, string, e
 		}
 	}
 
+	// Add Issuer claim from server configuration
+	if e.issuer != "" {
+		claims.Issuer = e.issuer
+	}
+
 	opts := (&jose.SignerOptions{}).WithHeader("kid", keyset.rootKey.Meta.KeyID).WithType("JWT")
 	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: keyset.privateKey}, opts)
 	if err != nil {
 		return "", "", err
 	}
-	raw, err := jwt.Signed(sig).Claims(claim).CompactSerialize()
+
+	raw, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
 	if err != nil {
 		return "", "", err
 	}
