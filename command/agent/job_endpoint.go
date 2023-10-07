@@ -347,7 +347,7 @@ func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, job
 
 	var out structs.ActionListResponse
 	if err := s.agent.RPC("Job.GetActions", &args, &out); err != nil {
-		return nil, fmt.Errorf("Oh dang: %w", err)
+		return nil, err
 	}
 
 	setMeta(resp, &structs.QueryMeta{})

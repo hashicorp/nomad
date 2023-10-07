@@ -1758,14 +1758,21 @@ func (j *Job) GetActions(args *structs.JobSpecificRequest, reply *structs.Action
 	}
 
 	// Get its task groups' tasks' actions
-	actions := make([]*structs.Action, 0)
+	jobActions := make([]*structs.JobAction, 0)
 	for _, tg := range job.TaskGroups {
 		for _, task := range tg.Tasks {
-			actions = append(actions, task.Actions...)
+			for _, action := range task.Actions {
+				jobAction := &structs.JobAction{
+					Action:        *action,
+					TaskName:      task.Name,
+					TaskGroupName: tg.Name,
+				}
+				jobActions = append(jobActions, jobAction)
+			}
 		}
 	}
-	// set it on reply
-	reply.Actions = actions
+
+	reply.Actions = jobActions
 
 	// set meta
 	j.srv.setQueryMeta(&reply.QueryMeta)
