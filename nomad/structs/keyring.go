@@ -5,10 +5,14 @@ package structs
 
 import (
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"fmt"
 	"net/url"
 	"time"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -17,7 +21,11 @@ import (
 const (
 	// PubKeyAlgEdDSA is the JWA (JSON Web Algorithm) for ed25519 public keys
 	// used for signatures.
-	PubKeyAlgEdDSA = "EdDSA"
+	PubKeyAlgEdDSA = string(jose.EdDSA)
+
+	// PubKeyAlgRS256 is the JWA for RSA public keys used for signatures. Support
+	// is required by AWS OIDC IAM Provider.
+	PubKeyAlgRS256 = string(jose.RS256)
 
 	// PubKeyUseSig is the JWK (JSON Web Key) "use" parameter value for
 	// signatures.
@@ -31,6 +39,11 @@ const (
 type RootKey struct {
 	Meta *RootKeyMeta
 	Key  []byte // serialized to keystore as base64 blob
+
+	// RSAKey is the private key used to sign workload identity JWTs with the
+	// RS256 algorithm. It is stored in its PKCS #1, ASN.1 DER form. See
+	// x509.MarshalPKCS1PrivateKey for details.
+	RSAKey []byte
 }
 
 // NewRootKey returns a new root key and its metadata.
@@ -46,10 +59,18 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 	case EncryptionAlgorithmAES256GCM:
 		key, err := crypto.Bytes(32)
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate key: %v", err)
+			return nil, fmt.Errorf("failed to generate root key: %w", err)
 		}
 		rootKey.Key = key
 	}
+
+	// Generate RSA key for signing workload identity JWTs with RS256.
+	rsaPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate rsa key: %w", err)
+	}
+
+	rootKey.RSAKey = x509.MarshalPKCS1PrivateKey(rsaPrivateKey)
 
 	return rootKey, nil
 }
@@ -176,6 +197,7 @@ func (rkm *RootKeyMeta) Validate() error {
 type KeyEncryptionKeyWrapper struct {
 	Meta                       *RootKeyMeta
 	EncryptedDataEncryptionKey []byte `json:"DEK"`
+	EncryptedRSAKey            []byte `json:"RSAKey"`
 	KeyEncryptionKey           []byte `json:"KEK"`
 }
 
@@ -303,9 +325,19 @@ type KeyringPublicKey struct {
 // claims) inspect pubKey's concrete type.
 func (pubKey *KeyringPublicKey) GetPublicKey() (any, error) {
 	switch alg := pubKey.Algorithm; alg {
+
 	case PubKeyAlgEdDSA:
 		// Convert public key bytes to an ed25519 public key
 		return ed25519.PublicKey(pubKey.PublicKey), nil
+
+	case PubKeyAlgRS256:
+		// PEM -> rsa.PublickKey
+		rsaPubKey, err := x509.ParsePKCS1PublicKey(pubKey.PublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing %s public key: %w", alg, err)
+		}
+		return rsaPubKey, nil
+
 	default:
 		return nil, fmt.Errorf("unknown algorithm: %q", alg)
 	}
@@ -345,9 +377,14 @@ func NewOIDCDiscoveryConfig(issuer string) (*OIDCDiscoveryConfig, error) {
 	}
 
 	disc := &OIDCDiscoveryConfig{
-		Issuer:        issuer,
-		JWKS:          jwksURL,
-		IDTokenAlgs:   []string{PubKeyAlgEdDSA},
+		Issuer: issuer,
+		JWKS:   jwksURL,
+
+		// RS256 is required by the OIDC spec and some third parties such as AWS's
+		// IAM OIDC Identity Provider. Prior to v1.7 Nomad default to EdDSA so
+		// advertise support for backward compatibility.
+		IDTokenAlgs: []string{PubKeyAlgRS256, PubKeyAlgEdDSA},
+
 		ResponseTypes: []string{"code"},
 		Subjects:      []string{"public"},
 	}
