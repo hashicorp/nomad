@@ -38,11 +38,13 @@ job "test" {
   group "test" {
     task "test" {
       driver = "docker"
-      image  = "test/image:latest"
+      config {
+        image  = "test/image:latest"
 
-      volumes = [
-        "local/file.txt:/path/to/file/on/container/file.txt"
-      ]
+        volumes = [
+          "local/file.txt:/path/to/file/on/container/file.txt"
+        ]
+      }
 
       template {
         data        = file("/path/to/example/file.txt")
