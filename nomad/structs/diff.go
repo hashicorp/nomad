@@ -4,6 +4,8 @@
 package structs
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
 	"reflect"
@@ -571,7 +573,150 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, altIDDiffs...)
 	}
 
+	// Actions diff
+	if aDiffs := actionDiffs(t.Actions, other.Actions, contextual); aDiffs != nil {
+		diff.Objects = append(diff.Objects, aDiffs...)
+	}
+
 	return diff, nil
+}
+
+func findActionMatch(action *Action, newActions []*Action, newActionMatches []int) int {
+	indexMatch := -1
+
+	for i, newAction := range newActions {
+		if newActionMatches[i] >= 0 {
+			continue
+		}
+
+		if action.Name == newAction.Name {
+			indexMatch = i
+			break
+		}
+	}
+
+	return indexMatch
+}
+
+func actionDiff(old, new *Action, contextual bool) *ObjectDiff {
+	// Initialize a new ObjectDiff for this pair of actions
+	diff := &ObjectDiff{
+		Type:   "Action",
+		Name:   "", // populate based on your field
+		Fields: make([]*FieldDiff, 0),
+	}
+
+	// Assigning safe default values to compare
+	oldName := ""
+	newName := ""
+	oldCommand := ""
+	newCommand := ""
+	var oldArgsJSON, newArgsJSON []byte
+
+	// Populate values if old is not nil
+	if old != nil {
+		oldName = old.Name
+		oldCommand = old.Command
+		oldArgsJSON, _ = json.Marshal(old.Args)
+	}
+
+	// Populate values if new is not nil
+	if new != nil {
+		newName = new.Name
+		newCommand = new.Command
+		newArgsJSON, _ = json.Marshal(new.Args)
+	}
+
+	// Detect the type of difference: Added, Edited, Deleted
+	if old == nil && new != nil {
+		diff.Type = DiffTypeAdded
+		diff.Name = newName
+	} else if old != nil && new == nil {
+		diff.Type = DiffTypeDeleted
+		diff.Name = oldName
+	} else {
+		diff.Type = DiffTypeEdited
+		diff.Name = oldName // assuming names are constant
+	}
+
+	// Compare Command field
+	if oldCommand != newCommand || contextual {
+		field := &FieldDiff{
+			Type: "string",
+			Name: "Command",
+			Old:  oldCommand,
+			New:  newCommand,
+		}
+		diff.Fields = append(diff.Fields, field)
+	}
+
+	// Compare Args field
+	if !bytes.Equal(oldArgsJSON, newArgsJSON) || contextual {
+		field := &FieldDiff{
+			Type: "[]string",
+			Name: "Args",
+			Old:  string(oldArgsJSON),
+			New:  string(newArgsJSON),
+		}
+		diff.Fields = append(diff.Fields, field)
+	}
+	return diff
+}
+
+// actionDiffs diffs a set of actions. If contextual diff is enabled, unchanged
+// fields within objects nested in the actions will be returned.
+func actionDiffs(old, new []*Action, contextual bool) []*ObjectDiff {
+	// Handle trivial case.
+	if len(old) == 1 && len(new) == 1 {
+		if diff := actionDiff(old[0], new[0], contextual); diff != nil {
+			return []*ObjectDiff{diff}
+		}
+		return nil
+	}
+
+	// Initialize matching arrays with -1 to indicate unmatched Actions.
+	oldMatches := make([]int, len(old))
+	newMatches := make([]int, len(new))
+	for i := range oldMatches {
+		oldMatches[i] = -1
+	}
+	for i := range newMatches {
+		newMatches[i] = -1
+	}
+
+	// Compute diffs and find matches for each old Action.
+	var diffs []*ObjectDiff
+	for oldIndex, oldAction := range old {
+		newIndex := findActionMatch(oldAction, new, newMatches)
+
+		// Old actions that don't have a match were deleted.
+		if newIndex < 0 {
+			diff := actionDiff(oldAction, nil, contextual)
+			diffs = append(diffs, diff)
+			continue
+		}
+
+		// Mark as matched.
+		oldMatches[oldIndex] = newIndex
+		newMatches[newIndex] = oldIndex
+
+		newAction := new[newIndex]
+		if diff := actionDiff(oldAction, newAction, contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	// New Actions without a match were added.
+	for i, m := range newMatches {
+		if m == -1 {
+			diff := actionDiff(nil, new[i], contextual)
+			diffs = append(diffs, diff)
+		}
+	}
+
+	// Sort the diffs if necessary, this step is optional.
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
 }
 
 func (t *TaskDiff) GoString() string {
