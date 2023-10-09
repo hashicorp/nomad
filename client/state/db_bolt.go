@@ -36,6 +36,7 @@ allocations/
 	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
 	 |--> acknowledged_state -> acknowledgedStateEntry{*arstate.State}
 	 |--> alloc_volumes -> allocVolumeStatesEntry{arstate.AllocVolumes}
+     |--> identities -> allocIdentitiesEntry{}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Syncs to servers
@@ -94,6 +95,10 @@ var (
 	acknowledgedStateKey = []byte("acknowledged_state")
 
 	allocVolumeKey = []byte("alloc_volume")
+
+	// allocIdentityKey is the key []*structs.SignedWorkloadIdentities is stored
+	// under
+	allocIdentityKey = []byte("alloc_identities")
 
 	// checkResultsBucket is the bucket name in which check query results are stored
 	checkResultsBucket = []byte("check_results")
@@ -509,6 +514,58 @@ func (s *BoltStateDB) GetAllocVolumes(allocID string) (*arstate.AllocVolumes, er
 	}
 
 	return entry.State, nil
+}
+
+// allocIdentitiesEntry wraps the signed identities so we can safely add more
+// state in the future without needing a new entry type
+type allocIdentitiesEntry struct {
+	Identities []*structs.SignedWorkloadIdentity
+}
+
+// PutAllocIdentities stores signed workload identities for an allocation. They
+// will be cleared when the allocation bucket is deleted.
+func (s *BoltStateDB) PutAllocIdentities(allocID string, identities []*structs.SignedWorkloadIdentity, opts ...WriteOption) error {
+
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
+		allocBkt, err := getAllocationBucket(tx, allocID)
+		if err != nil {
+			return err
+		}
+
+		entry := allocIdentitiesEntry{
+			Identities: identities,
+		}
+		return allocBkt.Put(allocIdentityKey, &entry)
+	})
+}
+
+// GetAllocIdentities returns the previously-signed workload identities for an
+// allocation, if any. It's up to the caller to ensure these are still valid.
+func (s *BoltStateDB) GetAllocIdentities(allocID string) ([]*structs.SignedWorkloadIdentity, error) {
+	var entry allocIdentitiesEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			return nil // No previous state at all
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			return nil // No previous state for this alloc
+		}
+
+		return allocBkt.Get(allocIdentityKey, &entry)
+	})
+
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil // There may not be any previously signed identities
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.Identities, nil
 }
 
 // GetTaskRunnerState returns the LocalState and TaskState for a

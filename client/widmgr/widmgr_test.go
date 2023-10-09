@@ -1,119 +1,63 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package widmgr_test
+package widmgr
 
 import (
-	"fmt"
 	"testing"
+	"time"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/widmgr"
-	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/helper/uuid"
+	cstate "github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 )
 
-func TestWIDMgr(t *testing.T) {
-	ci.Parallel(t)
+func TestWIDMgr_Restore(t *testing.T) {
 
-	// Create a mixed ta
-	ta := agent.NewTestAgent(t, "widtest", func(c *agent.Config) {
-		c.Server.Enabled = true
-		c.Server.NumSchedulers = pointer.Of(1)
-		c.Client.Enabled = true
-	})
-	t.Cleanup(ta.Shutdown)
+	logger := testlog.HCLogger(t)
 
-	mgr := widmgr.NewSigner(widmgr.SignerConfig{
-		NodeSecret: uuid.Generate(), // not checked when ACLs disabled
-		Region:     "global",
-		RPC:        ta,
-	})
+	db := cstate.NewMemDB(logger)
 
-	_, err := mgr.SignIdentities(1, nil)
-	must.ErrorContains(t, err, "no identities to sign")
-
-	_, err = mgr.SignIdentities(1, []*structs.WorkloadIdentityRequest{
-		{
-			AllocID: uuid.Generate(),
-			WIHandle: structs.WIHandle{
-				WorkloadIdentifier: "web",
-				IdentityName:       "foo",
-			},
-		},
-	})
-	must.ErrorContains(t, err, "rejected")
-
-	// Register a job with 3 identities (but only 2 that need signing)
-	job := mock.MinJob()
-	job.TaskGroups[0].Tasks[0].Identity = &structs.WorkloadIdentity{
-		Env: true,
+	alloc := mock.Alloc()
+	serviceID := alloc.Job.TaskGroups[0].Tasks[0].Services[0].MakeUniqueIdentityName()
+	widSpecs := []*structs.WorkloadIdentity{
+		{ServiceName: serviceID},
+		{Name: "default"},
+		{Name: "extra", TTL: time.Hour},
 	}
-	job.TaskGroups[0].Tasks[0].Identities = []*structs.WorkloadIdentity{
-		{
-			Name:     "consul",
-			Audience: []string{"a", "b"},
-			Env:      true,
-		},
-		{
-			Name: "vault",
-			File: true,
-		},
-	}
-	job.Canonicalize()
+	alloc.Job.TaskGroups[0].Tasks[0].Services[0].Identity = widSpecs[0]
+	alloc.Job.TaskGroups[0].Tasks[0].Identities = widSpecs[1:]
 
-	testutil.RegisterJob(t, ta.RPC, job)
+	signer := NewMockWIDSigner(widSpecs)
+	mgr := NewWIDMgr(signer, alloc, db, logger)
 
-	var allocs []*structs.AllocListStub
-	testutil.WaitForResult(func() (bool, error) {
-		args := &structs.JobSpecificRequest{}
-		args.JobID = job.ID
-		args.QueryOptions.Region = job.Region
-		args.Namespace = job.Namespace
-		var resp structs.JobAllocationsResponse
-		err := ta.RPC("Job.Allocations", args, &resp)
-		if err != nil {
-			return false, fmt.Errorf("Job.Allocations error: %v", err)
-		}
-
-		if len(resp.Allocations) == 0 {
-			return false, fmt.Errorf("no allocs")
-		}
-		allocs = resp.Allocations
-		return len(allocs) == 1, fmt.Errorf("unexpected number of allocs: %d", len(allocs))
-	}, func(err error) {
-		must.NoError(t, err)
-	})
-	must.Len(t, 1, allocs)
-
-	// Get signed identites for alloc
-	widreqs := []*structs.WorkloadIdentityRequest{
-		{
-			AllocID: allocs[0].ID,
-			WIHandle: structs.WIHandle{
-				WorkloadIdentifier: job.TaskGroups[0].Tasks[0].Name,
-				IdentityName:       "consul",
-			},
-		},
-		{
-			AllocID: allocs[0].ID,
-			WIHandle: structs.WIHandle{
-				WorkloadIdentifier: job.TaskGroups[0].Tasks[0].Name,
-				IdentityName:       "vault",
-			},
-		},
-	}
-
-	swids, err := mgr.SignIdentities(allocs[0].CreateIndex, widreqs)
+	// restore, but we haven't previously saved to the db
+	hasExpired, err := mgr.restoreStoredIdentities()
 	must.NoError(t, err)
-	must.Len(t, 2, swids)
-	must.Eq(t, *widreqs[0], swids[0].WorkloadIdentityRequest)
-	must.StrContains(t, swids[0].JWT, ".")
-	must.Eq(t, *widreqs[1], swids[1].WorkloadIdentityRequest)
-	must.StrContains(t, swids[1].JWT, ".")
+	must.True(t, hasExpired)
+
+	// populate the lastToken and save to the db
+	must.NoError(t, mgr.getInitialIdentities())
+
+	// restore, and no identities are expired
+	hasExpired, err = mgr.restoreStoredIdentities()
+	must.NoError(t, err)
+	must.False(t, hasExpired)
+
+	// set the signer's clock back and set a low TTL to make the "extra" WI
+	// expired when we force a re-sign
+	signer.mockNow = time.Now().Add(-1 * time.Minute)
+	widSpecs[2].TTL = time.Second
+	signer.setWIDs(widSpecs)
+	mgr.widSpecs["web"][1].TTL = time.Second
+
+	// force a re-sign to re-populate the lastToken and save to the db
+	must.NoError(t, mgr.getInitialIdentities())
+
+	// restore, and at least one identity is expired
+	hasExpired, err = mgr.restoreStoredIdentities()
+	must.NoError(t, err)
+	must.True(t, hasExpired)
 }

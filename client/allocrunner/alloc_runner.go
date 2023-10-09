@@ -273,7 +273,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	ar.shutdownDelayCancelFn = shutdownDelayCancel
 
 	// initialize the workload identity manager
-	widmgr := widmgr.NewWIDMgr(ar.widsigner, alloc, ar.logger)
+	widmgr := widmgr.NewWIDMgr(ar.widsigner, alloc, ar.stateDB, ar.logger)
 	ar.widmgr = widmgr
 
 	// Initialize the runners hooks.

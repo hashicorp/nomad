@@ -70,6 +70,14 @@ func (m *ErrDB) GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error) {
 	return nil, fmt.Errorf("Error!")
 }
 
+func (m *ErrDB) PutAllocIdentities(_ string, _ []*structs.SignedWorkloadIdentity, _ ...WriteOption) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) GetAllocIdentities(_ string) ([]*structs.SignedWorkloadIdentity, error) {
+	return nil, fmt.Errorf("Error!")
+}
+
 func (m *ErrDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
 	return nil, nil, fmt.Errorf("Error!")
 }

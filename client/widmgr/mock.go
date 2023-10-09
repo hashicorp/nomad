@@ -21,9 +21,10 @@ type MockWIDSigner struct {
 	// wids maps identity names to workload identities. If wids is non-nil then
 	// SignIdentities will use it to find expirations or reject invalid identity
 	// names
-	wids  map[string]*structs.WorkloadIdentity
-	key   ed25519.PrivateKey
-	keyID string
+	wids    map[string]*structs.WorkloadIdentity
+	key     ed25519.PrivateKey
+	keyID   string
+	mockNow time.Time // allows moving the clock
 }
 
 func NewMockWIDSigner(wids []*structs.WorkloadIdentity) *MockWIDSigner {
@@ -49,6 +50,15 @@ func (m *MockWIDSigner) setWIDs(wids []*structs.WorkloadIdentity) {
 		m.wids[wid.Name] = wid
 	}
 }
+
+// now returns the mocked time or falls back to the clock
+func (m *MockWIDSigner) now() time.Time {
+	if m.mockNow.IsZero() {
+		return time.Now()
+	}
+	return m.mockNow
+}
+
 func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
 	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
 	for _, idReq := range req {
@@ -69,7 +79,7 @@ func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadI
 			}
 			claims.Audience = slices.Clone(wid.Audience)
 			if wid.TTL > 0 {
-				claims.Expiry = jwt.NewNumericDate(time.Now().Add(wid.TTL))
+				claims.Expiry = jwt.NewNumericDate(m.now().Add(wid.TTL))
 			}
 		}
 		opts := (&jose.SignerOptions{}).WithHeader("kid", m.keyID).WithType("JWT")
