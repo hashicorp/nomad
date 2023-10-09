@@ -3,9 +3,7 @@ layout: docs
 page_title: Vault Integration
 description: >-
   Learn how to integrate Nomad with HashiCorp Vault and retrieve Vault tokens
-  for
-
-  tasks.
+  for tasks.
 ---
 
 # Vault Integration
@@ -24,21 +22,148 @@ install Vault separately from Nomad. Nomad does not run Vault for you.
 
 -> **Note:** Vault integration requires Vault version 0.6.2 or higher.
 
-## Vault Configuration
+## Agent Configuration
 
-To use the Vault integration, Nomad servers must be provided a Vault token. This
-token can either be a root token or a periodic token with permissions to create
-from a token role. The root token is the easiest way to get started, but we
-recommend a token role based token for production installations. Nomad servers
-will renew the token automatically. **Note that the Nomad clients do not need to
-be provided with a Vault token.**
+To enable Vault integration, please see the [Nomad agent Vault
+integration][config] configuration.
+
+## Vault Definition Syntax
+
+To configure a job to retrieve Vault tokens, please see the [`vault` job
+specification documentation][vault-spec].
+
+## Using Nomad Workload Identity with Vault
+
+Starting in Nomad 1.7, Nomad clients will use a task's [Workload Identity][] to
+authenticate to Vault and obtain a Vault token specific to the task.
+
+### Configuring Vault Authentication
+
+To configure Vault for use with Nomad workload identity, you'll enable the Vault
+JWT backend, create a Vault role and auth method, and finally create Vault
+policies to that map Nomad workload claims to secrets in Vault.
+
+<EnterpriseAlert>Nomad Enterprise users who are using Vault Namespaces should
+note that you will need to pass the -namespace flag for each of the commands
+below. Each Vault namespace needs its own auth method, role, and
+policies.</EnterpriseAlert>
+
+First enable the JWT authentication backend.
+
+```shell-session
+$ vault auth enable jwt
+```
+
+Create a configuration file for a default Vault [Role][]. This configuration
+maps each Nomad job to its own Vault user claim. You can set the `token_ttl` and
+`token_policies` to whatever value is suitable for your environment. A
+recommended policy is shown later.
+
+```json
+{
+  "role_type": "jwt",
+  "bound_audiences": "vault.io",
+  "user_claim": "/nomad_job_id",
+  "user_claim_json_pointer": true,
+  "claim_mappings": {
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id"
+  },
+  "token_ttl": "30m",
+  "token_type": "service",
+  "token_policies": ["nomad-workloads"]
+}
+```
+
+Using that configuration file, create the Vault role.
+
+```shell-session
+$ vault write auth/jwt/role/nomad-workloads @vault-role.json
+```
+
+Create a configuration file for a Vault [JWT Auth Method][]. The `jwks_url`
+field should point to the Nomad servers and the `default_role` should match the
+name of the role you created above.
+
+```json
+{
+  "jwks_url": "https://nomad.example.com:4646/.well-known/jwks.json",
+  "jwt_supported_algs": ["RS256"],
+  "default_role": "nomad-workloads"
+}
+```
+
+Using that configuration file, create the Vault auth method.
+
+```shell-session
+$ vault write auth/jwt/config @vault-auth-method.json
+```
+
+Next you'll write Vault policies for the role. A recommended approach is to use
+the mapping of Nomad workload claims to Vault entities you configured above to
+grant access to paths that match the claims. For example, for a Nomad job "web"
+in namespace "prod", you can grant the job automatic access to secrets at the
+Vault path `secret/data/prod/web`.
+
+To write a policy like this, first you'll need the unique Accessor of the JWT auth
+backend you created earlier.
+
+```shell-session
+$ vault auth list
+Path      Type     Accessor               Description                Version
+----      ----     --------               -----------                -------
+jwt/      jwt      auth_jwt_3a9350fe      n/a                        n/a
+```
+
+Next, write a Vault policy file using that accessor. Note that here
+`auth_jwt_3a9350fe` is the accessor shown above and you should replace it with
+the results from your own Vault cluster.
+
+```json
+path "secret/data/{{identity.entity.aliases.auth_jwt_3a9350fe.metadata.nomad_namespace}}/{{identity.entity.aliases.auth_jwt_3a9350fe.metadata.nomad_job_id}}/*" {
+  capabilities = ["read"]
+}
+
+path "secret/data/{{identity.entity.aliases.auth_jwt_3a9350fe.metadata.nomad_namespace}}/{{identity.entity.aliases.auth_jwt_3a9350fe.metadata.nomad_job_id}}" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/{{identity.entity.aliases.auth_jwt_3a9350fe.metadata.nomad_namespace}}/*" {
+  capabilities = ["list"]
+}
+
+path "secret/metadata/*" {
+  capabilities = ["list"]
+}
+```
+
+Using that policy configuration file, create the Vault policy.
+
+```shell-session
+$ vault policy write nomad-workloads @vault-policy.json
+```
+
+You can write additional Vault policies that give Nomad workloads using the
+default role access to other secrets.
+
+## Authentication Without Workload Identity (Legacy)
+
+To use the legacy Vault integration, Nomad servers must be provided a Vault
+token. This token can either be a root token or a periodic token with
+permissions to create from a token role. The root token is the easiest way to
+get started, but we recommend a token role based token for production
+installations. Nomad servers will renew the token automatically. **Note that the
+Nomad clients do not need to be provided with a Vault token.**
+
+This legacy workflow will be removed in Nomad 1.9. Before upgrading to Nomad 1.9
+you will need to have configured authentication with Vault as described in
+[Configuring Vault Authentication](#configuring-vault-authentication).
 
 -> **Note:** See the [Enterprise specific section][ent] for configuring Vault Enterprise
 
 ### Root Token Integration
 
-If Nomad is given a [root
-token](/vault/docs/concepts/tokens#root-tokens), no
+If Nomad is given a [root token](/vault/docs/concepts/tokens#root-tokens), no
 further configuration is needed as Nomad can derive a token for jobs using any
 Vault policies. Best practices recommend using a periodic token with the minimal
 permissions necessary instead of providing Nomad the root vault token.
@@ -297,44 +422,16 @@ vault {
 }
 ```
 
-## Agent Configuration
+### Troubleshooting Legacy Authentication
 
-To enable Vault integration, please see the [Nomad agent Vault
-integration][config] configuration.
-
-## Vault Definition Syntax
-
-To configure a job to retrieve Vault tokens, please see the [`vault` job
-specification documentation][vault-spec].
-
-## Troubleshooting
-
-### Invalid Vault token
+#### Invalid Vault token
 
 Upon startup, Nomad will attempt to connect to the specified Vault server. Nomad
 will lookup the passed token and if the token is from a token role, the token
 role will be validated. Nomad will not shutdown if given an invalid Vault token,
 but will log the reasons the token is invalid and disable Vault integration.
 
-### Permission Denied errors
-
-If you are using a Vault version less than 0.7.1 with a Nomad version greater than or equal to 0.6.1, you will need to update your task's policy (listed in [the `vault` block of the job specification][vault-spec]) to add the following:
-
-```hcl
-path "sys/leases/renew" {
-    capabilities = ["update"]
-}
-```
-
-This is included in Vault's "default" policy beginning with Vault 0.7.1 and is relied upon by Nomad's Vault integration beginning with Nomad 0.6.1. If you're using a newer Nomad version with an older Vault version, your default policy may not automatically include this and you will see "permission denied" errors in your Nomad logs similar to the following:
-
-```plaintext
-Code: 403. Errors:
-URL: PUT https://vault:8200/v1/sys/leases/renew
-* permission denied
-```
-
-### No Secret Exists
+#### No Secret Exists
 
 Vault has two APIs for secrets, [`v1` and `v2`][vault-secrets-version]. Each version
 has different paths, and Nomad does not abstract this for you. As such you will
@@ -348,8 +445,8 @@ You can see examples of `v1` and `v2` syntax in the
 
 <EnterpriseAlert />
 
-Nomad Enterprise 0.12.2 introduced the ability for jobs to use multiple Vault Namespaces.
-There are a few configuration settings to consider when using this functionality.
+Nomad Enterprise allows jobs to use multiple [Vault Namespaces][]. There are a
+few configuration settings to consider when using this functionality.
 
 ### Example Configuration
 
@@ -365,7 +462,8 @@ $ vault namespace create -namespace=engineering frontend
 
 ### Required Vault Policies
 
-Policies are configured per Vault namespace. We will apply the policy in the example above to each namespace—engineering and engineering/frontend.
+Policies are configured per Vault namespace. We will apply the policy in the
+example above to each namespace—engineering and engineering/frontend.
 
 ```shell-session
 # Create the "nomad-server" policy in the "engineering" namespace
@@ -375,18 +473,21 @@ $ vault policy write -namespace=engineering nomad-server nomad-server-policy.hcl
 $ vault policy write -namespace=engineering/frontend nomad-server nomad-server-policy.hcl
 ```
 
-We will also configure the previously configured `nomad-cluster` role with each Namespace
+We will also configure the previously configured `nomad-workloads` role with each
+Namespace
 
 ```shell-session
 # Create the "nomad-cluster" token role in the "engineering" namespace
-$ vault write -namespace=engineering /auth/token/roles/nomad-cluster @nomad-cluster-role.json
+$ vault write -namespace=engineering /auth/token/roles/nomad-workloads @nomad-workloads-role.json
 
 # Create the "nomad-cluster" token role in the "engineering/frontend" namespace
-$ vault write -namespace=engineering/frontend /auth/token/roles/nomad-cluster @nomad-cluster-role.json
+$ vault write -namespace=engineering/frontend /auth/token/roles/nomad-workloads @nomad-workloads-role.json
 ```
 
-The [Nomad agent Vault integration][config] configuration supports specifying a Vault Namespace, but since
-we will be using multiple it can be left blank. By default Nomad will interact with Vault's root Namespace, but individual jobs may specify other Vault Namespaces to use.
+The [Nomad agent Vault integration][config] configuration supports specifying a
+Vault Namespace, but since we will be using multiple it can be left blank. By
+default Nomad will interact with Vault's root Namespace, but individual jobs may
+specify other Vault Namespaces to use.
 
 ```hcl
 vault {
@@ -395,30 +496,32 @@ vault {
   cert_file             = "/var/certs/vault.crt"
   key_file              = "/var/certs/vault.key"
   address               = "https://vault.service.consul:8200"
-  create_from_role      = "nomad-cluster"
-  allow_unauthenticated = false # Disabling allow_unauthenticated is a best practice for securing your cluster
+
+  default_identity {
+    aud = ["vault.io"]
+  }
 }
 ```
 
-The same steps can be taken to inject a Vault token from the [Retrieving the Token Role based Token](#retrieving-the-token-role-based-token) steps.
+For legacy authentication, the same steps can be taken to inject a Vault token
+from the [Retrieving the Token Role based
+Token](#retrieving-the-token-role-based-token) steps.
 
 ### Submitting a job with a Vault Namespace
 
-Since [`allow_unauthenticated`][allow_unauth] is set to `false` job submitters will need to provide a sufficiently privileged token when submitting a job.
-
-[allow_unauth]: /nomad/docs/configuration/vault#allow_unauthenticated
-
-The example job file below specifies to use the `engineering` Namespace in Vault. It will then read the value at secret/foo and fetch the value for key `bar`
+The example job file below specifies to use the `engineering` Namespace in
+Vault. It will authenticate to Vault using its workload identity with the
+`nomad-workloads` Vault role, then read the value at secret/foo and fetch the
+value for key `bar`.
 
 ```hcl
 job "vault" {
-  datacenters = ["dc1"]
 
   group "demo" {
     task "task" {
       vault {
         namespace = "engineering"
-        policies  = ["access-kv"]
+        role      = "nomad-workloads"
       }
 
       driver = "raw_exec"
@@ -438,10 +541,14 @@ EOF
     }
   }
 }
-
 ```
 
-To submit this job, a token that has the `access-kv` policy in the `engineering` namespace is needed:
+### Submitting a job with a Vault Namespace with Legacy Authentication
+
+For the legacy authentication, because [`allow_unauthenticated`][allow_unauth]
+is set to `false` job submitters will need to provide a sufficiently privileged
+token when submitting a job. A token that has access to an appropriate policy in
+`engineering` namespace is needed:
 
 ```shell-session
 $ vault token create -policy access-kv -namespace=engineering -period 72h -orphan
@@ -463,13 +570,47 @@ The token can then be submitted with our job
 $ VAULT_TOKEN=s.H39hfS7eHSbb1GpkdzOQLTmz.fvuLy nomad job run vault.nomad
 ```
 
-[auth]: /vault/docs/auth/token 'Vault Authentication Backend'
-[config]: /nomad/docs/configuration/vault 'Nomad Vault Configuration Block'
-[createfromrole]: /nomad/docs/configuration/vault#create_from_role 'Nomad vault create_from_role Configuration Flag'
+## Migrating to Using Workload Identity with Vault
+
+Migrating from the legacy (pre-1.7) workflow where workload use the agent's
+Vault token requires configuation on your Vault cluster and your Nomad server
+agents. It does not require updating your running Nomad jobs unless you wish to
+specify a non-default role. To migrate:
+
+* Create the Vault auth method, default role, and policies on your Vault
+  cluster.
+* Enable [`vault.default_identity`][] blocks in your Nomad server agent
+  configurations.
+* (Optionally) Add [`vault.role`][] fields to any Nomad jobs that will not use
+  the default role.
+* (Optionally) add [`identity`][] blocks to your jobs if you want to use a
+  different identity because of how your auth method and roles are configured.
+
+## Compatibility
+
+* Nomad versions 1.4.0 and above are compatible with any currently supported
+  version of Vault.
+
+|              | Vault 1.13.0+ |
+|--------------|---------------|
+| Nomad 1.4.0+ | ✅            |
+
+
+[Vault]:  https://www.vaultproject.io/ 'Vault by HashiCorp'
 [template]: /nomad/docs/job-specification/template 'Nomad template Job Specification'
-[vault]: https://www.vaultproject.io/ 'Vault by HashiCorp'
+[config]: /nomad/docs/configuration/vault 'Nomad Vault Configuration Block'
 [vault-spec]: /nomad/docs/job-specification/vault 'Nomad Vault Job Specification'
+[Workload Identity]: /nomad/docs/concepts/workload-identity
+[Vault Namespaces]: /vault/docs/enterprise/namespaces
+[Role]: /vault/api-docs/auth/jwt#create-update-role
+[JWT Auth Method]: /vault/api-docs/auth/jwt#configure
+[auth]: /vault/docs/auth/token 'Vault Authentication Backend'
+[createfromrole]: /nomad/docs/configuration/vault#create_from_role 'Nomad vault create_from_role Configuration Flag'
 [tokenhierarchy]: /vault/docs/concepts/tokens#token-hierarchies-and-orphan-tokens 'Vault Tokens - Token Hierarchies and Orphan Tokens'
 [vault-secrets-version]: /vault/docs/secrets/kv 'KV Secrets Engine'
 [vault-kv-templates]: /nomad/docs/job-specification/template#vault-kv-api-v1 'Vault KV API v1'
 [ent]: /nomad/docs/integrations/vault-integration#enterprise-configuration
+[allow_unauth]: /nomad/docs/configuration/vault#allow_unauthenticated
+[`vault.default_identity`]: /nomad/docs/configuration/consul#default_identity
+[`vault.role`]: /nomad/docs/configuration/consul#role
+[`identity`]: /nomad/docs/job-specification/identity
