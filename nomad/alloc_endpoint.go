@@ -691,7 +691,7 @@ func (a *Alloc) foundAndSignedIdentities(
 		return false, nil
 	}
 
-	claims := structs.NewIdentityClaims(alloc.Job, alloc, idReq.WorkloadIdentifier, wid, now)
+	claims := structs.NewIdentityClaims(alloc.Job, alloc, &idReq.WIHandle, wid, now)
 	token, _, err := a.srv.encrypter.SignClaims(claims)
 	if err != nil {
 		return true, err

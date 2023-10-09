@@ -11360,7 +11360,8 @@ type IdentityClaims struct {
 	Namespace    string `json:"nomad_namespace"`
 	JobID        string `json:"nomad_job_id"`
 	AllocationID string `json:"nomad_allocation_id"`
-	TaskName     string `json:"nomad_task"`
+	TaskName     string `json:"nomad_task,omitempty"`
+	ServiceName  string `json:"nomad_service,omitempty"`
 
 	jwt.Claims
 }
@@ -11370,7 +11371,7 @@ type IdentityClaims struct {
 //
 // ID claim is random (nondeterministic) so multiple calls with the same values
 // will not return equal claims by design. JWT IDs should never collide.
-func NewIdentityClaims(job *Job, alloc *Allocation, taskName string, wid *WorkloadIdentity, now time.Time) *IdentityClaims {
+func NewIdentityClaims(job *Job, alloc *Allocation, wihandle *WIHandle, wid *WorkloadIdentity, now time.Time) *IdentityClaims {
 
 	tg := job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
@@ -11397,9 +11398,18 @@ func NewIdentityClaims(job *Job, alloc *Allocation, taskName string, wid *Worklo
 		claims.JobID = job.ParentID
 	}
 
-	claims.TaskName = taskName
+	switch wihandle.WorkloadType {
+	case ServiceWorkload:
+		claims.ServiceName = wihandle.WorkloadIdentifier
+	case TaskWorkload:
+		claims.TaskName = wihandle.WorkloadIdentifier
+	default:
+		// in case of an unknown workload type we quit
+		return nil
+	}
+
 	claims.Audience = slices.Clone(wid.Audience)
-	claims.setSubject(job, alloc.TaskGroup, taskName, wid.Name)
+	claims.setSubject(job, alloc.TaskGroup, wihandle.WorkloadIdentifier, wid.Name)
 	claims.setExp(now, wid)
 
 	claims.ID = uuid.Generate()
@@ -11408,13 +11418,13 @@ func NewIdentityClaims(job *Job, alloc *Allocation, taskName string, wid *Worklo
 }
 
 // setSubject creates the standard subject claim for workload identities.
-func (claims *IdentityClaims) setSubject(job *Job, group, task, id string) {
+func (claims *IdentityClaims) setSubject(job *Job, group, widentifier, id string) {
 	claims.Subject = strings.Join([]string{
 		job.Region,
 		job.Namespace,
 		job.ID,
 		group,
-		task,
+		widentifier,
 		id,
 	}, ":")
 }

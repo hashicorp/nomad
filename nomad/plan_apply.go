@@ -418,7 +418,8 @@ func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.A
 		alloc.SignedIdentities = map[string]string{}
 		tg := job.LookupTaskGroup(alloc.TaskGroup)
 		for _, task := range tg.Tasks {
-			claims := structs.NewIdentityClaims(job, alloc, task.Name, task.Identity, now)
+			defaultWI := &structs.WorkloadIdentity{Name: "default"}
+			claims := structs.NewIdentityClaims(job, alloc, task.IdentityHandle(defaultWI), task.Identity, now)
 			token, keyID, err := encrypter.SignClaims(claims)
 			if err != nil {
 				return err
