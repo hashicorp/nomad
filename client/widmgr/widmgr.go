@@ -28,7 +28,7 @@ type WIDMgr struct {
 	allocID                 string
 	defaultSignedIdentities map[string]string // signed by the plan applier
 	minIndex                uint64
-	widSpecs                map[structs.WIHandle][]*structs.WorkloadIdentity // workload handle -> WI
+	widSpecs                map[structs.WIHandle]*structs.WorkloadIdentity // workload handle -> WI
 	signer                  IdentitySigner
 
 	// lastToken are the last retrieved signed workload identifiers keyed by
@@ -52,24 +52,24 @@ type WIDMgr struct {
 }
 
 func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger) *WIDMgr {
-	widspecs := map[structs.WIHandle][]*structs.WorkloadIdentity{}
+	widspecs := map[structs.WIHandle]*structs.WorkloadIdentity{}
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
 	for _, service := range tg.Services {
 		if service.Identity != nil {
-			widspecs[*service.IdentityHandle()] = []*structs.WorkloadIdentity{service.Identity}
+			widspecs[*service.IdentityHandle()] = service.Identity
 		}
 	}
 
 	for _, task := range tg.Tasks {
 		// Omit default identity as it does not expire
 		for _, i := range task.Identities {
-			widspecs[*task.IdentityHandle(i)] = helper.CopySlice(task.Identities)
+			widspecs[*task.IdentityHandle(i)] = i
 		}
 
 		for _, service := range task.Services {
 			if service.Identity != nil {
-				widspecs[*service.IdentityHandle()] = []*structs.WorkloadIdentity{service.Identity}
+				widspecs[*service.IdentityHandle()] = service.Identity
 			}
 		}
 	}
@@ -230,10 +230,10 @@ func (m *WIDMgr) getIdentities() error {
 	defer m.lastTokenLock.Unlock()
 
 	reqs := make([]*structs.WorkloadIdentityRequest, 0, len(m.widSpecs))
-	for workloadHandle := range m.widSpecs {
+	for wih := range m.widSpecs {
 		reqs = append(reqs, &structs.WorkloadIdentityRequest{
 			AllocID:  m.allocID,
-			WIHandle: workloadHandle,
+			WIHandle: wih,
 		})
 	}
 
@@ -269,16 +269,14 @@ func (m *WIDMgr) renew() {
 	}
 
 	reqs := make([]*structs.WorkloadIdentityRequest, 0, len(m.widSpecs))
-	for workloadHandle, widspecs := range m.widSpecs {
-		for _, widspec := range widspecs {
-			if widspec.TTL == 0 {
-				continue
-			}
-			reqs = append(reqs, &structs.WorkloadIdentityRequest{
-				AllocID:  m.allocID,
-				WIHandle: workloadHandle,
-			})
+	for workloadHandle, widspec := range m.widSpecs {
+		if widspec.TTL == 0 {
+			continue
 		}
+		reqs = append(reqs, &structs.WorkloadIdentityRequest{
+			AllocID:  m.allocID,
+			WIHandle: workloadHandle,
+		})
 	}
 
 	if len(reqs) == 0 {
@@ -289,25 +287,23 @@ func (m *WIDMgr) renew() {
 	renewNow := false
 	minExp := time.Time{}
 
-	for workloadHandle, wids := range m.widSpecs {
-		for _, wid := range wids {
-			if wid.TTL == 0 {
-				// No ttl, so no need to renew it
-				continue
-			}
+	for workloadHandle, wid := range m.widSpecs {
+		if wid.TTL == 0 {
+			// No ttl, so no need to renew it
+			continue
+		}
 
-			token := m.get(workloadHandle)
-			if token == nil {
-				// Missing a signature, treat this case as already expired so
-				// we get a token ASAP
-				m.logger.Debug("missing token for identity", "identity", wid.Name)
-				renewNow = true
-				continue
-			}
+		token := m.get(workloadHandle)
+		if token == nil {
+			// Missing a signature, treat this case as already expired so
+			// we get a token ASAP
+			m.logger.Debug("missing token for identity", "identity", wid.Name)
+			renewNow = true
+			continue
+		}
 
-			if minExp.IsZero() || token.Expiration.Before(minExp) {
-				minExp = token.Expiration
-			}
+		if minExp.IsZero() || token.Expiration.Before(minExp) {
+			minExp = token.Expiration
 		}
 	}
 
