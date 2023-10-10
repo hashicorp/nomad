@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -30,6 +31,7 @@ type WIDMgr struct {
 	minIndex                uint64
 	widSpecs                map[structs.WIHandle]*structs.WorkloadIdentity // workload handle -> WI
 	signer                  IdentitySigner
+	db                      cstate.StateDB
 
 	// lastToken are the last retrieved signed workload identifiers keyed by
 	// TaskIdentity
@@ -51,7 +53,7 @@ type WIDMgr struct {
 	logger hclog.Logger
 }
 
-func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger) *WIDMgr {
+func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, logger hclog.Logger) *WIDMgr {
 	widspecs := map[structs.WIHandle]*structs.WorkloadIdentity{}
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
@@ -84,6 +86,7 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 		minIndex:                a.CreateIndex,
 		widSpecs:                widspecs,
 		signer:                  signer,
+		db:                      db,
 		minWait:                 10 * time.Second,
 		lastToken:               map[structs.WIHandle]*structs.SignedWorkloadIdentity{},
 		watchers:                map[structs.WIHandle][]chan *structs.SignedWorkloadIdentity{},
@@ -111,8 +114,14 @@ func (m *WIDMgr) Run() error {
 
 	m.logger.Debug("retrieving and renewing workload identities", "num_identities", len(m.widSpecs))
 
-	if err := m.getIdentities(); err != nil {
-		return fmt.Errorf("failed to fetch signed identities: %w", err)
+	hasExpired, err := m.restoreStoredIdentities()
+	if err != nil {
+		m.logger.Warn("failed to get signed identities from state DB, refreshing from server: %w", err)
+	}
+	if hasExpired {
+		if err := m.getInitialIdentities(); err != nil {
+			return fmt.Errorf("failed to fetch signed identities: %w", err)
+		}
 	}
 
 	go m.renew()
@@ -199,8 +208,37 @@ func (m *WIDMgr) Shutdown() {
 	}
 }
 
-// getIdentities fetches all signed identities or returns an error.
-func (m *WIDMgr) getIdentities() error {
+// restoreStoredIdentities recreates the state of the WIDMgr from a previously
+// saved state, so that we can avoid asking for all identities again after a
+// client agent restart. It returns true if the caller should immediately call
+// getIdentities because one or more of the identities is expired.
+func (m *WIDMgr) restoreStoredIdentities() (bool, error) {
+	storedIdentities, err := m.db.GetAllocIdentities(m.allocID)
+	if err != nil {
+		return true, err
+	}
+	if len(storedIdentities) == 0 {
+		return true, nil
+	}
+
+	m.lastTokenLock.Lock()
+	defer m.lastTokenLock.Unlock()
+
+	var hasExpired bool
+
+	for _, identity := range storedIdentities {
+		if !identity.Expiration.IsZero() && identity.Expiration.Before(time.Now()) {
+			hasExpired = true
+		}
+		m.lastToken[identity.WIHandle] = identity
+	}
+
+	return hasExpired, nil
+}
+
+// getInitialIdentities fetches all signed identities or returns an error. It
+// should be run once when the WIDMgr first runs.
+func (m *WIDMgr) getInitialIdentities() error {
 	// get the default identity signed by the plan applier
 	defaultTokens := map[structs.WIHandle]*structs.SignedWorkloadIdentity{}
 	for taskName, signature := range m.defaultSignedIdentities {
@@ -230,10 +268,10 @@ func (m *WIDMgr) getIdentities() error {
 	defer m.lastTokenLock.Unlock()
 
 	reqs := make([]*structs.WorkloadIdentityRequest, 0, len(m.widSpecs))
-	for wih := range m.widSpecs {
+	for wiHandle := range m.widSpecs {
 		reqs = append(reqs, &structs.WorkloadIdentityRequest{
 			AllocID:  m.allocID,
-			WIHandle: wih,
+			WIHandle: wiHandle,
 		})
 	}
 
@@ -257,8 +295,7 @@ func (m *WIDMgr) getIdentities() error {
 		m.lastToken[swid.WIHandle] = swid
 	}
 
-	// TODO: Persist signed identity token to client state
-	return nil
+	return m.db.PutAllocIdentities(m.allocID, signedWIDs)
 }
 
 // renew fetches new signed workload identity tokens before the existing tokens
