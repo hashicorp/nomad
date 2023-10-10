@@ -458,8 +458,9 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
 
 	// Determine what set of disconnecting allocations need to be rescheduled
-	_, rescheduleDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
+	untaintedDisconnecting, rescheduleDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 	rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
+	untainted = untainted.union(untaintedDisconnecting)
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLater := lost.delayByStopAfterClientDisconnect()
@@ -486,6 +487,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// include stopped allocations.
 	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, isCanarying, lostLaterEvals)
+
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
