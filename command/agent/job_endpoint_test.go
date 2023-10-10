@@ -1565,6 +1565,12 @@ func TestHTTP_JobVersions(t *testing.T) {
 		job2.ID = job.ID
 		job2.Priority = 100
 
+		job2.TaskGroups[0].Tasks[0].Actions[0] = &structs.Action{
+			Name:    "updated date test",
+			Command: "/bin/date",
+			Args:    []string{"--utc"},
+		}
+
 		args2 := structs.JobRegisterRequest{
 			Job: job2,
 			WriteRequest: structs.WriteRequest{
@@ -1599,6 +1605,43 @@ func TestHTTP_JobVersions(t *testing.T) {
 
 		if v := versions[0]; v.Version != 1 || v.Priority != 100 {
 			t.Fatalf("bad %v", v)
+		}
+
+		if len(vResp.Diffs) != 1 {
+			t.Fatalf("bad %v", vResp)
+		} else {
+			for _, jobDiff := range vResp.Diffs {
+				for _, taskGroupDiff := range jobDiff.TaskGroups {
+					for _, taskDiff := range taskGroupDiff.Tasks {
+						if len(taskDiff.Objects) == 0 {
+							continue
+						}
+						firstObject := taskDiff.Objects[0]
+						if firstObject.Type != "Added" {
+							t.Errorf("Expected first object type to be 'Added', got '%s'", firstObject.Type)
+							return
+						}
+						for _, field := range firstObject.Fields {
+							if field.Name == "Name" {
+								if field.New != "updated date test" {
+									t.Errorf("Expected new 'Name' to be 'updated date test', got '%s'", field.New)
+								}
+							}
+						}
+						for _, argObject := range firstObject.Objects {
+							if argObject.Name == "Args" {
+								for _, argField := range argObject.Fields {
+									if argField.Name == "Args" {
+										if argField.New != "--utc" {
+											t.Errorf("Expected new 'Args' to be '--utc', got '%s'", argField.New)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 
 		if v := versions[1]; v.Version != 0 {
