@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"encoding/json" // TEMP
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -1244,6 +1245,76 @@ func TestHTTP_Job_ScaleStatus(t *testing.T) {
 
 		// Check for the index
 		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
+	})
+}
+
+func TestHTTP_JobActions(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		job := mock.Job()
+		// Add taskgroup and task information here as per your requirement
+
+		regReq := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var regResp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request to get job actions
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/actions", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the output
+		actionsResp := obj.([]*structs.JobAction)
+		// Output actions to fmt
+		actionsJson, err := json.MarshalIndent(actionsResp, "", "  ")
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		t.Logf("actions: %s", actionsJson)
+		if len(actionsResp) == 0 {
+			t.Fatalf("no actions received")
+		}
+
+		// Two actions by default, both in Task web and Group web
+		if len(actionsResp) != 2 {
+			t.Fatalf("expected 2 actions, got %d", len(actionsResp))
+		}
+
+		if actionsResp[0].Name != "date test" {
+			t.Fatalf("expected action name 'date test', got %s", actionsResp[0].Name)
+		}
+
+		if actionsResp[1].Name != "echo test" {
+			t.Fatalf("expected action name 'echo test', got %s", actionsResp[1].Name)
+		}
+
+		// Both have Args lists length of 1
+		if len(actionsResp[0].Args) != 1 {
+			t.Fatalf("expected 1 arg, got %d", len(actionsResp[0].Args))
+		}
+		if len(actionsResp[1].Args) != 1 {
+			t.Fatalf("expected 1 arg, got %d", len(actionsResp[1].Args))
+		}
+
+		// Both pull the name of their task/group up with them
+		if actionsResp[0].TaskName != "web" || actionsResp[1].TaskName != "web" || actionsResp[0].TaskGroupName != "web" || actionsResp[1].TaskGroupName != "web" {
+			t.Fatalf("expected both actions to have task and task group name 'web'")
+		}
 	})
 }
 
