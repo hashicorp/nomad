@@ -11780,8 +11780,9 @@ type DesiredUpdates struct {
 }
 
 func (d *DesiredUpdates) GoString() string {
-	return fmt.Sprintf("(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d)",
-		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary)
+	return fmt.Sprintf(
+		"(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d) (preempt %d)",
+		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary, d.Preemptions)
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
