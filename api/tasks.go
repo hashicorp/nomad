@@ -1172,6 +1172,6 @@ type WorkloadIdentity struct {
 
 type Action struct {
 	Name    string   `hcl:"name,label"`
-	Command string  `mapstructure:"command" hcl:"command"`
+	Command string   `mapstructure:"command" hcl:"command"`
 	Args    []string `mapstructure:"args" hcl:"args,optional"`
 }

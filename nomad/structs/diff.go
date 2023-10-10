@@ -630,56 +630,36 @@ func actionDiff(old, new *Action, contextual bool) *ObjectDiff {
 // actionDiffs diffs a set of actions. If contextual diff is enabled, unchanged
 // fields within objects nested in the actions will be returned.
 func actionDiffs(old, new []*Action, contextual bool) []*ObjectDiff {
-	// Handle trivial case.
-	if len(old) == 1 && len(new) == 1 {
-		if diff := actionDiff(old[0], new[0], contextual); diff != nil {
-			return []*ObjectDiff{diff}
-		}
-		return nil
-	}
-
-	// Initialize matching arrays with -1 to indicate unmatched Actions.
-	oldMatches := make([]int, len(old))
-	newMatches := make([]int, len(new))
-	for i := range oldMatches {
-		oldMatches[i] = -1
-	}
-	for i := range newMatches {
-		newMatches[i] = -1
-	}
-
-	// Compute diffs and find matches for each old Action.
+	// Initialize diffs array
 	var diffs []*ObjectDiff
-	for oldIndex, oldAction := range old {
-		newIndex := findActionMatch(oldAction, new, newMatches)
 
-		// Old actions that don't have a match were deleted.
-		if newIndex < 0 {
-			diff := actionDiff(oldAction, nil, contextual)
-			diffs = append(diffs, diff)
-			continue
-		}
+	// Start by matching actions by their index
+	for i := 0; i < len(old) && i < len(new); i++ {
+		oldAction := old[i]
+		newAction := new[i]
 
-		// Mark as matched.
-		oldMatches[oldIndex] = newIndex
-		newMatches[newIndex] = oldIndex
-
-		newAction := new[newIndex]
 		if diff := actionDiff(oldAction, newAction, contextual); diff != nil {
 			diffs = append(diffs, diff)
 		}
 	}
 
-	// New Actions without a match were added.
-	for i, m := range newMatches {
-		if m == -1 {
-			diff := actionDiff(nil, new[i], contextual)
+	// Handle remaining old actions (which have been deleted)
+	for i := len(new); i < len(old); i++ {
+		if diff := actionDiff(old[i], nil, contextual); diff != nil {
 			diffs = append(diffs, diff)
 		}
 	}
 
-	// Sort the diffs if necessary, this step is optional.
+	// Handle remaining new actions (which have been added)
+	for i := len(old); i < len(new); i++ {
+		if diff := actionDiff(nil, new[i], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	// Optionally, sort the diffs for more predictable output
 	sort.Sort(ObjectDiffs(diffs))
+
 	return diffs
 }
 
