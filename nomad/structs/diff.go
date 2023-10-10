@@ -4,8 +4,6 @@
 package structs
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net"
 	"reflect"
@@ -599,67 +597,33 @@ func findActionMatch(action *Action, newActions []*Action, newActionMatches []in
 }
 
 func actionDiff(old, new *Action, contextual bool) *ObjectDiff {
-	// Initialize a new ObjectDiff for this pair of actions
-	diff := &ObjectDiff{
-		Type:   "Action",
-		Name:   "", // populate based on your field
-		Fields: make([]*FieldDiff, 0),
-	}
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Action"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 
-	// Assigning safe default values to compare
-	oldName := ""
-	newName := ""
-	oldCommand := ""
-	newCommand := ""
-	var oldArgsJSON, newArgsJSON []byte
-
-	// Populate values if old is not nil
-	if old != nil {
-		oldName = old.Name
-		oldCommand = old.Command
-		oldArgsJSON, _ = json.Marshal(old.Args)
-	}
-
-	// Populate values if new is not nil
-	if new != nil {
-		newName = new.Name
-		newCommand = new.Command
-		newArgsJSON, _ = json.Marshal(new.Args)
-	}
-
-	// Detect the type of difference: Added, Edited, Deleted
-	if old == nil && new != nil {
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &Action{}
 		diff.Type = DiffTypeAdded
-		diff.Name = newName
-	} else if old != nil && new == nil {
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &Action{}
 		diff.Type = DiffTypeDeleted
-		diff.Name = oldName
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
 	} else {
 		diff.Type = DiffTypeEdited
-		diff.Name = oldName // assuming names are constant
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
 	}
 
-	// Compare Command field
-	if oldCommand != newCommand || contextual {
-		field := &FieldDiff{
-			Type: "string",
-			Name: "Command",
-			Old:  oldCommand,
-			New:  newCommand,
-		}
-		diff.Fields = append(diff.Fields, field)
+	// Diff the primitive fields
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the Args field using stringSetDiff
+	if setDiff := stringSetDiff(old.Args, new.Args, "Args", contextual); setDiff != nil {
+		diff.Objects = append(diff.Objects, setDiff)
 	}
 
-	// Compare Args field
-	if !bytes.Equal(oldArgsJSON, newArgsJSON) || contextual {
-		field := &FieldDiff{
-			Type: "[]string",
-			Name: "Args",
-			Old:  string(oldArgsJSON),
-			New:  string(newArgsJSON),
-		}
-		diff.Fields = append(diff.Fields, field)
-	}
 	return diff
 }
 

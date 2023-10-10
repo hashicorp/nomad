@@ -13286,30 +13286,3 @@ func NewRpcError(err error, code *int64) *RpcError {
 func (r *RpcError) Error() string {
 	return r.Message
 }
-
-type Action struct {
-	Name    string
-	Command string
-	Args    []string
-}
-
-func (a *Action) Copy() *Action {
-	if a == nil {
-		return nil
-	}
-	na := new(Action)
-	*na = *a
-	return na
-}
-
-func (a *Action) Equal(o *Action) bool {
-	if a == o {
-		return true
-	}
-	if a == nil || o == nil {
-		return false
-	}
-	return a.Name == o.Name &&
-		a.Command == o.Command &&
-		strings.Join(a.Args, ",") == strings.Join(o.Args, ",")
-}
