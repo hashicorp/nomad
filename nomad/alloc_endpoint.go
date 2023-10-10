@@ -6,7 +6,6 @@ package nomad
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -623,13 +622,8 @@ func (a *Alloc) signTasks(
 			continue
 		}
 
-		widFound, err = a.foundAndSignedIdentities(alloc, wid, idReq, reply, now)
-		if err != nil {
-			return
-		}
-		if widFound {
-			return
-		}
+		widFound = true
+		err = a.signIdentities(alloc, wid, idReq, reply, now)
 	}
 	return
 }
@@ -641,60 +635,37 @@ func (a *Alloc) signServices(
 	reply *structs.AllocIdentitiesResponse,
 	now time.Time,
 ) (widFound bool, err error) {
-	// if it's a task service, we need to figure out what is the task it belongs to
-	// FIXME find a way to do this properly
-	_, id, _ := strings.Cut(idReq.IdentityName, "/")
-	taskName, _, _ := strings.Cut(id, "-")
-
-	task := alloc.LookupTask(taskName)
-	if task != nil {
-		for _, taskService := range task.Services {
-			wid := taskService.Identity
-			widFound, err = a.foundAndSignedIdentities(alloc, wid, idReq, reply, now)
-			if err != nil {
-				return
-			}
-			if widFound {
-				return
-			}
-		}
-	}
+	wid := idReq.WIHandle
 
 	// services can be on the level of task groups or tasks
 	for _, tg := range job.TaskGroups {
-		for _, s := range tg.Services {
-			if s.Identity == nil {
-				continue
+		for _, service := range tg.Services {
+			if service.IdentityHandle().Equal(wid) {
+				return true, a.signIdentities(alloc, service.Identity, idReq, reply, now)
 			}
-
-			wid := s.Identity
-			widFound, err = a.foundAndSignedIdentities(alloc, wid, idReq, reply, now)
-			if err != nil {
-				return
-			}
-			if widFound {
-				return
+		}
+		for _, task := range tg.Tasks {
+			for _, service := range task.Services {
+				if service.IdentityHandle().Equal(wid) {
+					return true, a.signIdentities(alloc, service.Identity, idReq, reply, now)
+				}
 			}
 		}
 	}
 	return
 }
 
-func (a *Alloc) foundAndSignedIdentities(
+func (a *Alloc) signIdentities(
 	alloc *structs.Allocation,
 	wid *structs.WorkloadIdentity,
 	idReq *structs.WorkloadIdentityRequest,
 	reply *structs.AllocIdentitiesResponse,
 	now time.Time,
-) (bool, error) {
-	if wid.Name != idReq.IdentityName {
-		return false, nil
-	}
-
+) error {
 	claims := structs.NewIdentityClaims(alloc.Job, alloc, &idReq.WIHandle, wid, now)
 	token, _, err := a.srv.encrypter.SignClaims(claims)
 	if err != nil {
-		return true, err
+		return err
 	}
 	reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
 		WorkloadIdentityRequest: *idReq,
@@ -702,5 +673,5 @@ func (a *Alloc) foundAndSignedIdentities(
 		Expiration:              claims.Expiry.Time(),
 	})
 
-	return true, nil
+	return nil
 }

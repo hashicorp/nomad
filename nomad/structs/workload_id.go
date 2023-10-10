@@ -237,3 +237,9 @@ type WIHandle struct {
 	WorkloadIdentifier string
 	WorkloadType       WorkloadType
 }
+
+func (w WIHandle) Equal(o WIHandle) bool {
+	return w.IdentityName == o.IdentityName &&
+		w.WorkloadIdentifier == o.WorkloadIdentifier &&
+		w.WorkloadType == o.WorkloadType
+}
