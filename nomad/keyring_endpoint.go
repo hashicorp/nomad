@@ -112,16 +112,10 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "list"}, time.Now())
 
-	// we need to allow both humans with management tokens and
-	// non-leader servers to list keys, in order to support
-	// replication
-	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
-	if err != nil {
-		if aclObj, err := k.srv.ResolveACL(args); err != nil {
-			return err
-		} else if aclObj != nil && !aclObj.IsManagement() {
-			return structs.ErrPermissionDenied
-		}
+	if aclObj, err := k.srv.ResolveACL(args); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
 	}
 
 	// Setup the blocking query
@@ -239,19 +233,16 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 // key material and metadata. It is used only for replication.
 func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.KeyringGetRootKeyResponse) error {
 
-	authErr := k.srv.Authenticate(k.ctx, args)
+	// TODO(tgross): this should use the replication token, not cert check
+	aclObj, err := k.srv.AuthenticateServerOnly(k.ctx, args)
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricRead, args)
 
-	// ensure that only another server can make this request
-	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
-	if err != nil {
-		return err
+	if err != nil || !aclObj.AllowServerOp() {
+		return structs.ErrPermissionDenied
 	}
+
 	if done, err := k.srv.forward("Keyring.Get", args, args, reply); done {
 		return err
-	}
-	k.srv.MeasureRPCRate("keyring", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "get"}, time.Now())
 

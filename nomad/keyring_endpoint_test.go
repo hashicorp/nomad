@@ -49,7 +49,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, uint64(0), updateResp.Index)
 
-	// Get and List don't need a token here because they rely on mTLS role verification
+	// Get doesn't need a token here because it uses mTLS role verification
 	getReq := &structs.KeyringGetRootKeyRequest{
 		KeyID:        id,
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -62,7 +62,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.Equal(t, structs.EncryptionAlgorithmAES256GCM, getResp.Key.Meta.Algorithm)
 
 	// Make a blocking query for List and wait for an Update. Note
-	// that List/Get queries don't need ACL tokens in the test server
+	// that Get queries don't need ACL tokens in the test server
 	// because they always pass the mTLS check
 
 	var wg sync.WaitGroup
@@ -76,6 +76,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:        "global",
 				MinQueryIndex: getResp.Index,
+				AuthToken:     rootToken.SecretID,
 			},
 		}
 		err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
@@ -117,7 +118,10 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.Greater(t, delResp.Index, getResp.Index)
 
 	listReq := &structs.KeyringListRootKeyMetaRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: rootToken.SecretID,
+		},
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
 	require.NoError(t, err)
@@ -265,7 +269,8 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 
 	listReq := &structs.KeyringListRootKeyMetaRequest{
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			AuthToken: rootToken.SecretID,
 		},
 	}
 	var listResp structs.KeyringListRootKeyMetaResponse

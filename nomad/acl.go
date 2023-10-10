@@ -12,6 +12,10 @@ func (srv *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentit
 	return srv.auth.Authenticate(ctx, args)
 }
 
+func (srv *Server) AuthenticateServerOnly(ctx *RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
+	return srv.auth.AuthenticateServerOnly(ctx, args)
+}
+
 func (srv *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
 	return srv.auth.ResolveACL(args)
 }

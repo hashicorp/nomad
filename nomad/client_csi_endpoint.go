@@ -175,12 +175,11 @@ func (a *ClientCSI) sendCSIControllerRPC(pluginID, method, fwdMethod, op string,
 	// client requests aren't RequestWithIdentity, so we use a placeholder here
 	// to populate the identity data for metrics
 	identityReq := &structs.GenericRequest{}
-	authErr := a.srv.Authenticate(a.ctx, identityReq)
+
+	aclObj, err := a.srv.AuthenticateServerOnly(a.ctx, identityReq)
 	a.srv.MeasureRPCRate("client_csi", op, identityReq)
 
-	// only servers can send these client RPCs
-	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelServer)
-	if authErr != nil || err != nil {
+	if err != nil || !aclObj.AllowServerOp() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -250,12 +249,10 @@ func (a *ClientCSI) sendCSINodeRPC(nodeID, method, fwdMethod, op string, args an
 	// client requests aren't RequestWithIdentity, so we use a placeholder here
 	// to populate the identity data for metrics
 	identityReq := &structs.GenericRequest{}
-	authErr := a.srv.Authenticate(a.ctx, identityReq)
+	aclObj, err := a.srv.AuthenticateServerOnly(a.ctx, identityReq)
 	a.srv.MeasureRPCRate("client_csi", op, identityReq)
 
-	// only servers can send these client RPCs
-	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelServer)
-	if authErr != nil || err != nil {
+	if err != nil || !aclObj.AllowServerOp() {
 		return structs.ErrPermissionDenied
 	}
 

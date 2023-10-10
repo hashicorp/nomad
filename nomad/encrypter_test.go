@@ -74,7 +74,8 @@ func TestEncrypter_Restore(t *testing.T) {
 
 	listReq := &structs.KeyringListRootKeyMetaRequest{
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			AuthToken: rootToken.SecretID,
 		},
 	}
 	var listResp structs.KeyringListRootKeyMetaResponse
@@ -112,6 +113,7 @@ func TestEncrypter_Restore(t *testing.T) {
 	codec = rpcClient(t, srv2)
 
 	// Verify we've restored all the keys from the old keystore
+	listReq.AuthToken = rootToken.SecretID
 
 	require.Eventually(t, func() bool {
 		msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
@@ -123,7 +125,8 @@ func TestEncrypter_Restore(t *testing.T) {
 		getReq := &structs.KeyringGetRootKeyRequest{
 			KeyID: keyMeta.KeyID,
 			QueryOptions: structs.QueryOptions{
-				Region: "global",
+				Region:    "global",
+				AuthToken: rootToken.SecretID,
 			},
 		}
 		var getResp structs.KeyringGetRootKeyResponse

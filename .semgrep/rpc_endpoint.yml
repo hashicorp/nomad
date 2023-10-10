@@ -22,6 +22,24 @@ rules:
           ...
           ... := $A.$B.ResolveACL(...)
           ...
+
+      # Pattern used by endpoints that are used only for server-to-server. The
+      # authentication and authorization check must be done together before
+      # forwarding to prevent the risk of confused deputy when RPCs are
+      # forwarded.
+      - pattern-not-inside: |
+
+          aclObj, err := $A.srv.AuthenticateServerOnly($A.ctx, args)
+          ...
+          if err != nil || !aclObj.AllowServerOp() {
+            return structs.ErrPermissionDenied
+          }
+
+          if done, err := $A.srv.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+
       # Pattern used by endpoints that are used by both ACLs and Clients.
       # These endpoints will always have a ctx passed to Authenticate
       - pattern-not-inside: |
