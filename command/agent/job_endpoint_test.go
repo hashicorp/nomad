@@ -1315,6 +1315,40 @@ func TestHTTP_JobActions(t *testing.T) {
 		if actionsResp[0].TaskName != "web" || actionsResp[1].TaskName != "web" || actionsResp[0].TaskGroupName != "web" || actionsResp[1].TaskGroupName != "web" {
 			t.Fatalf("expected both actions to have task and task group name 'web'")
 		}
+
+		// A job with no actions
+		job2 := mock.Job()
+		job2.TaskGroups[0].Tasks[0].Actions = nil
+		regReq2 := structs.JobRegisterRequest{
+			Job: job2,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var regResp2 structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &regReq2, &regResp2); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request to get job actions
+		req2, err := http.NewRequest("GET", "/v1/job/"+job2.ID+"/actions", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW2 := httptest.NewRecorder()
+
+		obj2, err := s.Server.JobSpecificRequest(respW2, req2)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the output
+		actionsResp2 := obj2.([]*structs.JobAction)
+		if len(actionsResp2) != 0 {
+			t.Fatalf("received actions when none were expected")
+		}
+
 	})
 }
 
