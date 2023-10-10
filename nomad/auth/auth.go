@@ -10,7 +10,7 @@ import (
 	"net"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
