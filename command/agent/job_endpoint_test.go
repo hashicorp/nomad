@@ -4,7 +4,6 @@
 package agent
 
 import (
-	"encoding/json" // TEMP
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -1280,12 +1279,6 @@ func TestHTTP_JobActions(t *testing.T) {
 
 		// Check the output
 		actionsResp := obj.([]*structs.JobAction)
-		// Output actions to fmt
-		actionsJson, err := json.MarshalIndent(actionsResp, "", "  ")
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		t.Logf("actions: %s", actionsJson)
 		if len(actionsResp) == 0 {
 			t.Fatalf("no actions received")
 		}
@@ -1350,41 +1343,7 @@ func TestHTTP_JobActions(t *testing.T) {
 		}
 
 		// Construct a new job with 2 taskgroups
-		job3 := &structs.Job{
-			ID: "job3",
-			TaskGroups: []*structs.TaskGroup{
-				{
-					Name: "web",
-					Tasks: []*structs.Task{
-						{
-							Name: "web",
-							Actions: []*structs.Action{
-								{
-									Name:    "date test",
-									Command: "date",
-									Args:    []string{"-u"},
-								},
-							},
-						},
-					},
-				},
-				{
-					Name: "db",
-					Tasks: []*structs.Task{
-						{
-							Name: "db",
-							Actions: []*structs.Action{
-								{
-									Name:    "date test",
-									Command: "date",
-									Args:    []string{"-u"},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
+		job3 := mock.ActionsJob()
 
 		regReq3 := structs.JobRegisterRequest{
 			Job: job3,
@@ -1411,15 +1370,44 @@ func TestHTTP_JobActions(t *testing.T) {
 		}
 
 		// Check the output
+		// 3 task groups: g, g1, g2
+		// g has 3 tasks: t, t1, t2
+		// g1 has 1 task: t
+		// g2 has 1 task: t
+		// All tasks have 2 actions: date test, echo test
+		// Total actions: 2 * (3 + 1 + 1) = 10
 		actionsResp3 := obj3.([]*structs.JobAction)
-		// Output actions to fmt
-		actionsJson3, err := json.MarshalIndent(actionsResp3, "", "  ")
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		t.Logf("actions: %s", actionsJson3)
+
 		if len(actionsResp3) == 0 {
 			t.Fatalf("no actions received")
+		}
+		if len(actionsResp3) != 10 {
+			t.Fatalf("expected 10 actions, got %d", len(actionsResp3))
+		}
+
+		// Five of the actions have a Name of date test, 5 have a Name of echo test
+		dateTestCount := 0
+		echoTestCount := 0
+		for _, action := range actionsResp3 {
+			if action.Name == "date test" {
+				dateTestCount++
+			} else if action.Name == "echo test" {
+				echoTestCount++
+			}
+		}
+		if dateTestCount != 5 || echoTestCount != 5 {
+			t.Fatalf("expected 5 actions of each type, got %d and %d", dateTestCount, echoTestCount)
+		}
+
+		// 3 actions have a TaskGroupName of g
+		groupCount := 0
+		for _, action := range actionsResp3 {
+			if action.TaskGroupName == "g" {
+				groupCount++
+			}
+		}
+		if groupCount != 6 {
+			t.Fatalf("expected 6 actions with TaskGroupName of g, got %d", groupCount)
 		}
 
 	})
