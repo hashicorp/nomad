@@ -428,3 +428,14 @@ test: ## Use this target as a smoke test
 		-count=1 \
 		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS)
+
+.PHONY: copywrite-validate
+copywrite-validate:
+	copywrite headers
+	# Special case for MPL headers in /api , /sdk , and /shamir
+	#cd api && find . -type f -name '*.go' -exec sed -i '1,3d' {} + &&  copywrite headers
+	#cd drivers/shared && find . -type f -name '*.go' -exec sed -i '1,3d' {} + &&  copywrite headers
+	#cd plugins && find . -type f -name '*.go' -exec sed -i '1,3d' {} + &&  copywrite headers
+	#cd jobspec && find . -type f -name '*.go' -exec sed -i '1,3d' {} + &&  copywrite headers
+	#cd jobspec2 && find . -type f -name '*.go' -exec sed -i '1,3d' {} + &&  copywrite headers
+	#cd demo && find . -type f -name '*.go' -exec sed -i '1,3d' {} + &&  copywrite headers
