@@ -1349,6 +1349,79 @@ func TestHTTP_JobActions(t *testing.T) {
 			t.Fatalf("received actions when none were expected")
 		}
 
+		// Construct a new job with 2 taskgroups
+		job3 := &structs.Job{
+			ID: "job3",
+			TaskGroups: []*structs.TaskGroup{
+				{
+					Name: "web",
+					Tasks: []*structs.Task{
+						{
+							Name: "web",
+							Actions: []*structs.Action{
+								{
+									Name:    "date test",
+									Command: "date",
+									Args:    []string{"-u"},
+								},
+							},
+						},
+					},
+				},
+				{
+					Name: "db",
+					Tasks: []*structs.Task{
+						{
+							Name: "db",
+							Actions: []*structs.Action{
+								{
+									Name:    "date test",
+									Command: "date",
+									Args:    []string{"-u"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		regReq3 := structs.JobRegisterRequest{
+			Job: job3,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var regResp3 structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &regReq3, &regResp3); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request to get job actions
+		req3, err := http.NewRequest("GET", "/v1/job/"+job3.ID+"/actions", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW3 := httptest.NewRecorder()
+
+		obj3, err := s.Server.JobSpecificRequest(respW3, req3)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the output
+		actionsResp3 := obj3.([]*structs.JobAction)
+		// Output actions to fmt
+		actionsJson3, err := json.MarshalIndent(actionsResp3, "", "  ")
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		t.Logf("actions: %s", actionsJson3)
+		if len(actionsResp3) == 0 {
+			t.Fatalf("no actions received")
+		}
+
 	})
 }
 
