@@ -793,7 +793,7 @@ func TestResolveClaims(t *testing.T) {
 	must.NotNil(t, aclObj)
 	must.Eq(t, aclObj, aclObj2, must.Sprintf("expected cached value"))
 
-	policies, err := srv.resolvePoliciesForClaims(claims)
+	policies, err := srv.ResolvePoliciesForClaims(claims)
 	must.NoError(t, err)
 	must.Len(t, 3, policies)
 	must.SliceContainsAll(t, policies, []*structs.ACLPolicy{policy1, policy2, policy3})

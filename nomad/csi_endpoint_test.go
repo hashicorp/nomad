@@ -79,7 +79,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 
 func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 	ci.Parallel(t)
-	srv, shutdown := TestServer(t, func(c *Config) {
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
@@ -88,8 +88,6 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 	ns := structs.DefaultNamespace
 
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
-	srv.config.ACLEnabled = true
 	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIReadVolume})
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "csi-access", policy)
 
@@ -467,8 +465,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 // when a controller is required.
 func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	ci.Parallel(t)
-	srv, shutdown := TestServer(t, func(c *Config) {
-		c.ACLEnabled = true
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
@@ -476,7 +473,6 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 
 	ns := structs.DefaultNamespace
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
 
 	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
 		mock.PluginPolicy("read")
@@ -553,7 +549,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 
 func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 	ci.Parallel(t)
-	srv, shutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	srv, _, shutdown := TestACLServer(t, func(c *Config) { c.NumSchedulers = 0 })
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 
@@ -561,7 +557,6 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 	index := uint64(1000)
 	ns := structs.DefaultNamespace
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
 
 	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
 		mock.PluginPolicy("read")
@@ -743,15 +738,13 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 func TestCSIVolumeEndpoint_List(t *testing.T) {
 	ci.Parallel(t)
-	srv, shutdown := TestServer(t, func(c *Config) {
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
-	srv.config.ACLEnabled = true
 	codec := rpcClient(t, srv)
 
 	nsPolicy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIReadVolume}) +
@@ -1995,7 +1988,7 @@ func TestCSIVolume_nodeExpandVolume(t *testing.T) {
 
 func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	ci.Parallel(t)
-	srv, shutdown := TestServer(t, func(c *Config) {
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
@@ -2005,8 +1998,6 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	defer deleteNodes()
 
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
-	srv.config.ACLEnabled = true
 	codec := rpcClient(t, srv)
 
 	// Get the plugin back out
@@ -2144,7 +2135,7 @@ func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
 
 func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 	ci.Parallel(t)
-	srv, shutdown := TestServer(t, func(c *Config) {
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
@@ -2154,8 +2145,6 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 	defer deleteNodes()
 
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
-	srv.config.ACLEnabled = true
 	codec := rpcClient(t, srv)
 
 	// Get the plugin back out

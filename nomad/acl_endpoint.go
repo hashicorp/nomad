@@ -447,7 +447,7 @@ func (a *ACL) GetClaimPolicies(args *structs.GenericRequest, reply *structs.ACLP
 		return structs.ErrPermissionDenied
 	}
 
-	policies, err := a.srv.resolvePoliciesForClaims(claims)
+	policies, err := a.srv.ResolvePoliciesForClaims(claims)
 	if err != nil {
 		// Likely only hit if a job/alloc has been GC'd on the server but the
 		// client hasn't stopped it yet. Return Permission Denied as there's no way

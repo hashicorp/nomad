@@ -25,7 +25,6 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
@@ -39,6 +38,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/lock"
@@ -92,10 +92,6 @@ const (
 	// defaultConsulDiscoveryIntervalRetry is how often to poll Consul for
 	// new servers if there is no leader and the last Consul query failed.
 	defaultConsulDiscoveryIntervalRetry time.Duration = 9 * time.Second
-
-	// aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing and
-	// construction cost, so we keep the hot objects cached to reduce the ACL token resolution time.
-	aclCacheSize = 512
 )
 
 // Server is Nomad server which manages the job queues,
@@ -145,6 +141,8 @@ type Server struct {
 
 	// rpcServer is the static RPC server that is used by the local agent.
 	rpcServer *rpc.Server
+
+	auth *auth.Authenticator
 
 	// clientRpcAdvertise is the advertised RPC address for Nomad clients to connect
 	// to this server
@@ -264,9 +262,6 @@ type Server struct {
 	workerConfigLock sync.RWMutex
 	workersEventCh   chan interface{}
 
-	// aclCache is used to maintain the parsed ACL objects
-	aclCache *structs.ACLCache[*acl.ACL]
-
 	// oidcProviderCache maintains a cache of OIDC providers. This is useful as
 	// the provider performs background HTTP requests. When the Nomad server is
 	// shutting down, the oidcProviderCache.Shutdown() function must be called.
@@ -331,9 +326,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		return nil, err
 	}
 
-	// Create the ACL object cache
-	aclCache := structs.NewACLCache[*acl.ACL](aclCacheSize)
-
 	// Create the logger
 	logger := config.Logger.ResetNamedIntercept("nomad")
 
@@ -363,7 +355,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		reapCancelableEvalsCh:   make(chan struct{}),
 		blockedEvals:            NewBlockedEvals(evalBroker, logger),
 		rpcTLS:                  incomingTLS,
-		aclCache:                aclCache,
 		workersEventCh:          make(chan interface{}, 1),
 		lockTTLTimer:            lock.NewTTLTimer(),
 		lockDelayTimer:          lock.NewDelayTimer(),
@@ -426,6 +417,16 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		s.logger.Error("failed to start RPC layer", "error", err)
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
 	}
+
+	s.auth = auth.NewAuthenticator(&auth.AuthenticatorConfig{
+		StateFn:        s.State,
+		Logger:         s.logger,
+		GetLeaderACLFn: s.getLeaderAcl,
+		AclsEnabled:    s.config.ACLEnabled,
+		TLSEnabled:     s.config.TLSConfig != nil && s.config.TLSConfig.EnableRPC,
+		Region:         s.Region(),
+		Encrypter:      s.encrypter,
+	})
 
 	// Initialize the Raft server
 	if err := s.setupRaft(); err != nil {

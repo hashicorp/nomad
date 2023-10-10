@@ -108,6 +108,13 @@ type RPCContext struct {
 	NodeID string
 }
 
+func (ctx *RPCContext) IsTLS() bool {
+	if ctx == nil {
+		return false
+	}
+	return ctx.TLS
+}
+
 // Certificate returns the first certificate available in the chain.
 func (ctx *RPCContext) Certificate() *x509.Certificate {
 	if ctx == nil || len(ctx.VerifiedChains) == 0 || len(ctx.VerifiedChains[0]) == 0 {
@@ -138,6 +145,34 @@ func (ctx *RPCContext) ValidateCertificateForName(name string) error {
 	}
 
 	return fmt.Errorf("invalid certificate, %s not in %s", name, strings.Join(validNames, ","))
+}
+
+func (ctx *RPCContext) IsStatic() bool {
+	return ctx == nil
+}
+
+func (ctx *RPCContext) GetRemoteIP() (net.IP, error) {
+	if ctx == nil {
+		return nil, nil
+	}
+	var remoteAddr *net.TCPAddr
+	var ok bool
+	if ctx.Session != nil {
+		remoteAddr, ok = ctx.Session.RemoteAddr().(*net.TCPAddr)
+		if !ok {
+			return nil, errors.New("session address was not a TCP address")
+		}
+	}
+	if remoteAddr == nil && ctx.Conn != nil {
+		remoteAddr, ok = ctx.Conn.RemoteAddr().(*net.TCPAddr)
+		if !ok {
+			return nil, errors.New("session address was not a TCP address")
+		}
+	}
+	if remoteAddr != nil {
+		return remoteAddr.IP, nil
+	}
+	return nil, errors.New("could not determine remote IP from context")
 }
 
 // listen is used to listen for incoming RPC connections
