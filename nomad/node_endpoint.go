@@ -2042,7 +2042,7 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	}
 
 	// Get the ClusterID
-	clusterMD, err := n.srv.ClusterMetaData()
+	clusterMD, err := n.srv.ClusterMetadata()
 	if err != nil {
 		setError(err, false)
 		return nil
