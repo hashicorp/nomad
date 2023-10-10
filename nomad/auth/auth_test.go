@@ -35,14 +35,15 @@ func TestAuthenticateDefault(t *testing.T) {
 	testAuthenticator := func(t *testing.T, store *state.StateStore,
 		hasACLs, hasTLS bool) *Authenticator {
 		leaderACL := uuid.Generate()
-		return NewAuthenticator(
-			func() *state.StateStore { return store },
-			testlog.HCLogger(t),
-			func() string { return leaderACL },
-			hasACLs,
-			hasTLS,
-			"global",
-			newTestEncrypter())
+		return NewAuthenticator(&AuthenticatorConfig{
+			StateFn:        func() *state.StateStore { return store },
+			Logger:         testlog.HCLogger(t),
+			GetLeaderACLFn: func() string { return leaderACL },
+			AclsEnabled:    hasACLs,
+			TLSEnabled:     hasTLS,
+			Region:         "global",
+			Encrypter:      newTestEncrypter(),
+		})
 	}
 
 	testCases := []struct {
@@ -825,15 +826,15 @@ func testStateStore(t *testing.T) *state.StateStore {
 func testDefaultAuthenticator(t *testing.T) *Authenticator {
 	leaderACL := uuid.Generate()
 	store := testStateStore(t)
-	return NewAuthenticator(
-		func() *state.StateStore { return store },
-		testlog.HCLogger(t),
-		func() string { return leaderACL },
-		true,
-		true,
-		"global",
-		nil,
-	)
+	return NewAuthenticator(&AuthenticatorConfig{
+		StateFn:        func() *state.StateStore { return store },
+		Logger:         testlog.HCLogger(t),
+		GetLeaderACLFn: func() string { return leaderACL },
+		AclsEnabled:    true,
+		TLSEnabled:     true,
+		Region:         "global",
+		Encrypter:      nil,
+	})
 }
 
 type testContext struct {

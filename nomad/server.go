@@ -418,15 +418,15 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
 	}
 
-	s.auth = auth.NewAuthenticator(
-		s.State,
-		s.logger,
-		s.getLeaderAcl,
-		s.config.ACLEnabled,
-		s.config.TLSConfig != nil && s.config.TLSConfig.EnableRPC,
-		s.Region(),
-		s.encrypter,
-	)
+	s.auth = auth.NewAuthenticator(&auth.AuthenticatorConfig{
+		StateFn:        s.State,
+		Logger:         s.logger,
+		GetLeaderACLFn: s.getLeaderAcl,
+		AclsEnabled:    s.config.ACLEnabled,
+		TLSEnabled:     s.config.TLSConfig != nil && s.config.TLSConfig.EnableRPC,
+		Region:         s.Region(),
+		Encrypter:      s.encrypter,
+	})
 
 	// Initialize the Raft server
 	if err := s.setupRaft(); err != nil {

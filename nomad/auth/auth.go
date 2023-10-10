@@ -53,17 +53,26 @@ type Authenticator struct {
 	encrypter Encrypter
 }
 
-func NewAuthenticator(stateFn StateGetter, logger hclog.Logger, getLeaderACLFn LeaderACLGetter, aclsEnabled, tlsEnabled bool, region string, encrypter Encrypter,
-) *Authenticator {
+type AuthenticatorConfig struct {
+	StateFn        StateGetter
+	Logger         hclog.Logger
+	GetLeaderACLFn LeaderACLGetter
+	AclsEnabled    bool
+	TLSEnabled     bool
+	Region         string
+	Encrypter      Encrypter
+}
+
+func NewAuthenticator(cfg *AuthenticatorConfig) *Authenticator {
 	return &Authenticator{
-		aclsEnabled:  aclsEnabled,
-		tlsEnabled:   tlsEnabled,
-		logger:       logger.With("auth"),
-		getState:     stateFn,
-		getLeaderACL: getLeaderACLFn,
-		region:       region,
+		aclsEnabled:  cfg.AclsEnabled,
+		tlsEnabled:   cfg.TLSEnabled,
+		logger:       cfg.Logger.With("auth"),
+		getState:     cfg.StateFn,
+		getLeaderACL: cfg.GetLeaderACLFn,
+		region:       cfg.Region,
 		aclCache:     structs.NewACLCache[*acl.ACL](aclCacheSize),
-		encrypter:    encrypter,
+		encrypter:    cfg.Encrypter,
 	}
 }
 
