@@ -152,11 +152,11 @@ func (ctx *RPCContext) IsStatic() bool {
 }
 
 func (ctx *RPCContext) GetRemoteIP() (net.IP, error) {
-	var remoteAddr *net.TCPAddr
-	var ok bool
 	if ctx == nil {
 		return nil, nil
 	}
+	var remoteAddr *net.TCPAddr
+	var ok bool
 	if ctx.Session != nil {
 		remoteAddr, ok = ctx.Session.RemoteAddr().(*net.TCPAddr)
 		if !ok {
