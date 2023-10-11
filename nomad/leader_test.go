@@ -860,7 +860,7 @@ func TestLeader_ClusterID(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	clusterMD, err := s1.ClusterMetaData()
+	clusterMD, err := s1.ClusterMetadata()
 
 	require.NoError(t, err)
 	require.True(t, helper.IsUUID(clusterMD.ClusterID))
@@ -915,15 +915,15 @@ func agreeClusterID(t *testing.T, servers []*Server) {
 	must.Len(t, 3, servers)
 
 	f := func() error {
-		id1, err1 := servers[0].ClusterMetaData()
+		id1, err1 := servers[0].ClusterMetadata()
 		if err1 != nil {
 			return err1
 		}
-		id2, err2 := servers[1].ClusterMetaData()
+		id2, err2 := servers[1].ClusterMetadata()
 		if err2 != nil {
 			return err2
 		}
-		id3, err3 := servers[2].ClusterMetaData()
+		id3, err3 := servers[2].ClusterMetadata()
 		if err3 != nil {
 			return err3
 		}

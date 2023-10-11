@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/goruntime"
+	"github.com/hashicorp/nomad/helper/iterator"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
@@ -2059,8 +2060,8 @@ func (s *Server) ReplicationToken() string {
 	return s.config.ReplicationToken
 }
 
-// ClusterMetaData returns the unique ID for this cluster composed of a
-// uuid and a timestamp.
+// ClusterMetadata returns the metadata for this cluster composed of a
+// UUID and a timestamp.
 //
 // Any Nomad server agent may call this method to get at the ID.
 // If we are the leader and the ID has not yet been created, it will
@@ -2068,7 +2069,7 @@ func (s *Server) ReplicationToken() string {
 //
 // The ID will not be created until all participating servers have reached
 // a minimum version (0.10.4).
-func (s *Server) ClusterMetaData() (structs.ClusterMetadata, error) {
+func (s *Server) ClusterMetadata() (structs.ClusterMetadata, error) {
 	s.clusterIDLock.Lock()
 	defer s.clusterIDLock.Unlock()
 
@@ -2109,21 +2110,12 @@ func (s *Server) GetClientNodesCount() (int, error) {
 		return 0, err
 	}
 
-	var count int
 	iter, err := stateSnapshot.Nodes(nil)
 	if err != nil {
 		return 0, err
 	}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		count++
-	}
-
-	return count, nil
+	return iterator.Len(iter), nil
 }
 
 // peersInfoContent is used to help operators understand what happened to the
