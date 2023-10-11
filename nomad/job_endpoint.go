@@ -1774,10 +1774,7 @@ func (j *Job) GetActions(args *structs.JobSpecificRequest, reply *structs.Action
 
 	reply.Actions = jobActions
 
-	// set meta
 	j.srv.setQueryMeta(&reply.QueryMeta)
-	// log out the reply here for debugging purposes
-	j.logger.Debug("job actions", "job", job.ID, "actions", reply)
 
 	return nil
 }

@@ -711,15 +711,15 @@ func ActionsJob() *structs.Job {
 	job := MinJob()
 
 	for i := 0; i < 2; i++ {
-		tg := *job.TaskGroups[0]
+		tg := job.TaskGroups[0].Copy()
 		tg.Name = fmt.Sprintf("g%d", i+1)
-		job.TaskGroups = append(job.TaskGroups, &tg)
+		job.TaskGroups = append(job.TaskGroups, tg)
 	}
 
 	for i := 0; i < 2; i++ {
-		task := *job.TaskGroups[0].Tasks[0]
+		task := job.TaskGroups[0].Tasks[0].Copy()
 		task.Name = fmt.Sprintf("t%d", i+1)
-		job.TaskGroups[0].Tasks = append(job.TaskGroups[0].Tasks, &task)
+		job.TaskGroups[0].Tasks = append(job.TaskGroups[0].Tasks, task)
 	}
 
 	for _, tg := range job.TaskGroups {

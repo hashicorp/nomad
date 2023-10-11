@@ -337,7 +337,12 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 }
 
 // Job Actions
-func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
+	// Since this only accepts GET, enforce HTTP method
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
 	args := structs.JobSpecificRequest{
 		JobID: jobID,
 	}

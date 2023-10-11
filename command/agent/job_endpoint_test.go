@@ -1251,7 +1251,6 @@ func TestHTTP_JobActions(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		job := mock.Job()
-		// Add taskgroup and task information here as per your requirement
 
 		regReq := structs.JobRegisterRequest{
 			Job: job,
@@ -1261,53 +1260,33 @@ func TestHTTP_JobActions(t *testing.T) {
 			},
 		}
 		var regResp structs.JobRegisterResponse
-		if err := s.Agent.RPC("Job.Register", &regReq, &regResp); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, s.Agent.RPC("Job.Register", &regReq, &regResp))
 
 		// Make the HTTP request to get job actions
 		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/actions", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 		respW := httptest.NewRecorder()
 
 		obj, err := s.Server.JobSpecificRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 
 		// Check the output
 		actionsResp := obj.([]*structs.JobAction)
-		if len(actionsResp) == 0 {
-			t.Fatalf("no actions received")
-		}
 
 		// Two actions by default, both in Task web and Group web
-		if len(actionsResp) != 2 {
-			t.Fatalf("expected 2 actions, got %d", len(actionsResp))
-		}
+		must.Len(t, 2, actionsResp, must.Sprint("expected 2 actions"))
 
-		if actionsResp[0].Name != "date test" {
-			t.Fatalf("expected action name 'date test', got %s", actionsResp[0].Name)
-		}
+		must.Eq(t, "date test", actionsResp[0].Name)
 
-		if actionsResp[1].Name != "echo test" {
-			t.Fatalf("expected action name 'echo test', got %s", actionsResp[1].Name)
-		}
+		must.Eq(t, "echo test", actionsResp[1].Name)
 
 		// Both have Args lists length of 1
-		if len(actionsResp[0].Args) != 1 {
-			t.Fatalf("expected 1 arg, got %d", len(actionsResp[0].Args))
-		}
-		if len(actionsResp[1].Args) != 1 {
-			t.Fatalf("expected 1 arg, got %d", len(actionsResp[1].Args))
-		}
+		must.Len(t, 1, actionsResp[0].Args, must.Sprint("expected 1 arg"))
+		must.Len(t, 1, actionsResp[1].Args, must.Sprint("expected 1 arg"))
 
 		// Both pull the name of their task/group up with them
-		if actionsResp[0].TaskName != "web" || actionsResp[1].TaskName != "web" || actionsResp[0].TaskGroupName != "web" || actionsResp[1].TaskGroupName != "web" {
-			t.Fatalf("expected both actions to have task and task group name 'web'")
-		}
+		must.Eq(t, "web", actionsResp[0].TaskName)
+		must.Eq(t, "web", actionsResp[1].TaskName)
 
 		// A job with no actions
 		job2 := mock.Job()
@@ -1320,27 +1299,20 @@ func TestHTTP_JobActions(t *testing.T) {
 			},
 		}
 		var regResp2 structs.JobRegisterResponse
-		if err := s.Agent.RPC("Job.Register", &regReq2, &regResp2); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, s.Agent.RPC("Job.Register", &regReq2, &regResp2))
 
 		// Make the HTTP request to get job actions
 		req2, err := http.NewRequest("GET", "/v1/job/"+job2.ID+"/actions", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
+
 		respW2 := httptest.NewRecorder()
 
 		obj2, err := s.Server.JobSpecificRequest(respW2, req2)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 
 		// Check the output
 		actionsResp2 := obj2.([]*structs.JobAction)
-		if len(actionsResp2) != 0 {
-			t.Fatalf("received actions when none were expected")
-		}
+		must.Len(t, 0, actionsResp2, must.Sprint("no actions received"))
 
 		// Construct a new job with 2 taskgroups
 		job3 := mock.ActionsJob()
@@ -1353,21 +1325,16 @@ func TestHTTP_JobActions(t *testing.T) {
 			},
 		}
 		var regResp3 structs.JobRegisterResponse
-		if err := s.Agent.RPC("Job.Register", &regReq3, &regResp3); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, s.Agent.RPC("Job.Register", &regReq3, &regResp3))
 
 		// Make the HTTP request to get job actions
 		req3, err := http.NewRequest("GET", "/v1/job/"+job3.ID+"/actions", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
+
 		respW3 := httptest.NewRecorder()
 
 		obj3, err := s.Server.JobSpecificRequest(respW3, req3)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 
 		// Check the output
 		// 3 task groups: g, g1, g2
@@ -1378,12 +1345,7 @@ func TestHTTP_JobActions(t *testing.T) {
 		// Total actions: 2 * (3 + 1 + 1) = 10
 		actionsResp3 := obj3.([]*structs.JobAction)
 
-		if len(actionsResp3) == 0 {
-			t.Fatalf("no actions received")
-		}
-		if len(actionsResp3) != 10 {
-			t.Fatalf("expected 10 actions, got %d", len(actionsResp3))
-		}
+		must.Len(t, 10, actionsResp3, must.Sprint("expected 10 actions"))
 
 		// Five of the actions have a Name of date test, 5 have a Name of echo test
 		dateTestCount := 0
@@ -1395,9 +1357,8 @@ func TestHTTP_JobActions(t *testing.T) {
 				echoTestCount++
 			}
 		}
-		if dateTestCount != 5 || echoTestCount != 5 {
-			t.Fatalf("expected 5 actions of each type, got %d and %d", dateTestCount, echoTestCount)
-		}
+		must.Eq(t, 5, dateTestCount)
+		must.Eq(t, 5, echoTestCount)
 
 		// 3 actions have a TaskGroupName of g
 		groupCount := 0
@@ -1406,9 +1367,7 @@ func TestHTTP_JobActions(t *testing.T) {
 				groupCount++
 			}
 		}
-		if groupCount != 6 {
-			t.Fatalf("expected 6 actions with TaskGroupName of g, got %d", groupCount)
-		}
+		must.Eq(t, 6, groupCount)
 
 	})
 }
