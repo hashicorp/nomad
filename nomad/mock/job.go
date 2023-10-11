@@ -76,6 +76,18 @@ func Job() *structs.Job {
 						Env: map[string]string{
 							"FOO": "bar",
 						},
+						Actions: []*structs.Action{
+							{
+								Name:    "date test",
+								Command: "/bin/date",
+								Args:    []string{"-u"},
+							},
+							{
+								Name:    "echo test",
+								Command: "/bin/echo",
+								Args:    []string{"hello world"},
+							},
+						},
 						Services: []*structs.Service{
 							{
 								Name:      "${TASK}-frontend",

@@ -8673,6 +8673,195 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "Actions added",
+			Old:  &Task{},
+			New: &Task{
+				Actions: []*Action{
+					{
+						Name:    "foo",
+						Command: "echo",
+						Args:    []string{"bar"},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Action",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Command",
+								Old:  "",
+								New:  "echo",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Name",
+								Old:  "",
+								New:  "foo",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Args",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Args",
+										Old:  "",
+										New:  "bar",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Actions removed",
+			Old: &Task{
+				Actions: []*Action{
+					{
+						Name:    "foo",
+						Command: "echo",
+						Args:    []string{"bar"},
+					},
+				},
+			},
+			New: &Task{},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Action",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Command",
+								Old:  "echo",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Name",
+								Old:  "foo",
+								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Args",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Args",
+										Old:  "bar",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Actions edited",
+			Old: &Task{
+				Actions: []*Action{
+					{
+						Name:    "foo",
+						Command: "bar",
+						Args:    []string{"hello world"},
+					},
+				},
+			},
+			New: &Task{
+				Actions: []*Action{
+					{
+						Name:    "foo",
+						Command: "baz",
+						Args:    []string{"hello world"},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Action",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Command",
+								Old:  "bar",
+								New:  "baz",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Action Args edited",
+			Old: &Task{
+				Actions: []*Action{
+					{
+						Name:    "foo",
+						Command: "echo",
+						// Multiple strings of "foo" and "bar"
+						Args: []string{"bar"},
+					},
+				},
+			},
+			New: &Task{
+				Actions: []*Action{
+					{
+						Name:    "foo",
+						Command: "echo",
+						Args:    []string{"baz"},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Action",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Args",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Args",
+										Old:  "",
+										New:  "baz",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Args",
+										Old:  "bar",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

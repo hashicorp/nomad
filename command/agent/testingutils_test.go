@@ -78,6 +78,19 @@ func MockJob() *api.Job {
 								PortLabel: "admin",
 							},
 						},
+						// actions
+						Actions: []*api.Action{
+							{
+								Name:    "date test",
+								Command: "/bin/date",
+								Args:    []string{"-u"},
+							},
+							{
+								Name:    "echo test",
+								Command: "/bin/echo",
+								Args:    []string{"hello world"},
+							},
+						},
 						LogConfig: api.DefaultLogConfig(),
 						Resources: &api.Resources{
 							CPU:      pointer.Of(500),
