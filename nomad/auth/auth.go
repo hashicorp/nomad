@@ -210,7 +210,7 @@ func (s *Authenticator) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, 
 // endpoints or accept ACL tokens to avoid confused deputy attacks by making a
 // request to a follower that's forwarded.
 //
-// The returned ACL object is always a acl.ServerACL but in the future this
+// The returned ACL object is always an acl.ServerACL but in the future this
 // could be extended to allow servers to have jurisdiction over specific pools,
 // etc.
 func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
@@ -233,7 +233,7 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 		// can capture it for metrics
 		identity.TLSName = tlsCert.Subject.CommonName
 
-		expected := fmt.Sprintf("server.%s.nomad", s.region)
+		expected := "server." + s.region + ".nomad"
 		_, err := validateCertificateForName(tlsCert, expected)
 		if err != nil {
 			return nil, err
@@ -256,8 +256,7 @@ func validateCertificateForName(cert *x509.Certificate, expectedName string) (bo
 		return false, nil
 	}
 
-	validNames := []string{cert.Subject.CommonName}
-	validNames = append(validNames, cert.DNSNames...)
+	validNames := append(cert.DNSNames, cert.Subject.CommonName)
 	for _, valid := range validNames {
 		if expectedName == valid {
 			return true, nil

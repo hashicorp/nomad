@@ -76,8 +76,8 @@ type ACL struct {
 	quota    string
 	plugin   string
 
-	// The attribute below is avirtual policy that we never expose directly to
-	// the end user
+	// The attributes below detail a virtual policy that we never expose
+	// directly to the end user.
 	server   string
 	isLeader bool
 }
