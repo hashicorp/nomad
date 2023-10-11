@@ -52,8 +52,7 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 				var serviceRegResp structs.ServiceRegistrationUpsertResponse
 				err := msgpackrpc.CallWithCodec(
 					codec, structs.ServiceRegistrationUpsertRPCMethod, serviceRegReq, &serviceRegResp)
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "node lookup by SecretID failed")
+				must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 				// Generate a node and retry the upsert.
 				node := mock.Node()
@@ -135,8 +134,7 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 				var serviceRegResp structs.ServiceRegistrationUpsertResponse
 				err := msgpackrpc.CallWithCodec(
 					codec, structs.ServiceRegistrationUpsertRPCMethod, serviceRegReq, &serviceRegResp)
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "node lookup by SecretID failed")
+				must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 				// Generate a node and retry the upsert.
 				node := mock.Node()

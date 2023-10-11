@@ -40,17 +40,38 @@ rules:
           }
           ...
 
-      # Pattern used by endpoints that are used by both ACLs and Clients.
-      # These endpoints will always have a ctx passed to Authenticate
+
+      # Pattern used by endpoints that are used only for client-to-server.
+      # Authorization can be done after forwarding, but must check the
+      # AllowClientOp policy
       - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
           ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := $A.$B.ResolveClientOrACL(...)
+          if !aclObj.AllowClientOp() {
+            return structs.ErrPermissionDenied
+          }
           ...
+
+
+      # Pattern used by endpoints that are used only for client-to-server.
+      # Authorization can be done after forwarding, but must check the
+      # AllowClientOp policy. This should not be added to any new endpoints.
+      - pattern-not-inside: |
+          aclObj, err := $A.$B.AuthenticateClientOnlyLegacy($A.ctx, args)
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if !aclObj.AllowClientOp() {
+            return structs.ErrPermissionDenied
+          }
+          ...
+
       # Pattern used by ACL endpoints that need to interact with the token directly
       - pattern-not-inside: |
           authErr := $A.$B.Authenticate($A.ctx, args)

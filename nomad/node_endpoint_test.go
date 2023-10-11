@@ -4514,8 +4514,11 @@ func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
 			}
 
 			updateReq := &structs.AllocUpdateRequest{
-				Alloc:        []*structs.Allocation{clientAlloc},
-				WriteRequest: structs.WriteRequest{Region: "global"},
+				Alloc: []*structs.Allocation{clientAlloc},
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					AuthToken: node.SecretID,
+				},
 			}
 
 			var nodeAllocResp structs.NodeAllocsResponse

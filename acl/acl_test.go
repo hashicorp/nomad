@@ -100,6 +100,7 @@ func TestACLManagement(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.True(t, acl.AllowQuotaWrite())
 	must.True(t, acl.AllowServerOp())
+	must.True(t, acl.AllowClientOp())
 }
 
 func TestACLMerge(t *testing.T) {
@@ -143,6 +144,7 @@ func TestACLMerge(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.True(t, acl.AllowQuotaWrite())
 	must.False(t, acl.AllowServerOp())
+	must.False(t, acl.AllowClientOp())
 
 	// Merge read + blank
 	p3, err := Parse("")
@@ -178,6 +180,7 @@ func TestACLMerge(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.False(t, acl.AllowQuotaWrite())
 	must.False(t, acl.AllowServerOp())
+	must.False(t, acl.AllowClientOp())
 
 	// Merge read + deny
 	p4, err := Parse(denyAll)

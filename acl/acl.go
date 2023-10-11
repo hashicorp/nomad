@@ -78,6 +78,7 @@ type ACL struct {
 
 	// The attributes below detail a virtual policy that we never expose
 	// directly to the end user.
+	client   string
 	server   string
 	isLeader bool
 }
@@ -301,6 +302,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	acl.variables = svTxn.Commit()
 	acl.wildcardVariables = wsvTxn.Commit()
 
+	acl.client = PolicyDeny
 	acl.server = PolicyDeny
 	acl.isLeader = false
 
@@ -329,6 +331,11 @@ func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 
 	// Hot path management tokens
 	if a.management {
+		return true
+	}
+
+	// Clients need to be able to read their namespaced objects
+	if a.client != PolicyDeny {
 		return true
 	}
 
@@ -731,6 +738,9 @@ func (a *ACL) AllowNodeRead() bool {
 		return true
 	case a.node == PolicyRead:
 		return true
+	case a.client == PolicyRead,
+		a.client == PolicyWrite:
+		return true
 	case a.server == PolicyRead,
 		a.server == PolicyWrite:
 		return true
@@ -813,6 +823,9 @@ func (a *ACL) AllowPluginRead() bool {
 		return true
 	case a.management:
 		return true
+	case a.client == PolicyRead,
+		a.client == PolicyWrite:
+		return true
 	case a.plugin == PolicyRead:
 		return true
 	default:
@@ -828,6 +841,9 @@ func (a *ACL) AllowPluginList() bool {
 		return true
 	case a.management:
 		return true
+	case a.client == PolicyRead,
+		a.client == PolicyWrite:
+		return true
 	case a.plugin == PolicyList:
 		return true
 	case a.plugin == PolicyRead:
@@ -835,6 +851,15 @@ func (a *ACL) AllowPluginList() bool {
 	default:
 		return false
 	}
+}
+
+func (a *ACL) AllowServiceRegistrationReadList(ns string, isWorkload bool) bool {
+	if a == nil {
+		// ACL is nil only if ACLs are disabled
+		// TODO(tgross): return false when there are no nil ACLs
+		return true
+	}
+	return isWorkload || a.AllowNsOp(ns, NamespaceCapabilityReadJob)
 }
 
 // AllowServerOp checks if server-only operations are allowed
@@ -847,6 +872,15 @@ func (a *ACL) AllowServerOp() bool {
 	return a.server != PolicyDeny || a.isLeader
 }
 
+func (a *ACL) AllowClientOp() bool {
+	if a == nil {
+		// ACL is nil only if ACLs are disabled
+		// TODO(tgross): return false when there are no nil ACLs
+		return true
+	}
+	return a.client != PolicyDeny
+}
+
 // IsManagement checks if this represents a management token
 func (a *ACL) IsManagement() bool {
 	return a.management
@@ -856,14 +890,18 @@ func (a *ACL) IsManagement() bool {
 // a list of operations. Returns true (allowed) if acls are disabled or if
 // *any* capabilities match.
 func NamespaceValidator(ops ...string) func(*ACL, string) bool {
-	return func(acl *ACL, ns string) bool {
+	return func(a *ACL, ns string) bool {
 		// Always allow if ACLs are disabled.
-		if acl == nil {
+		if a == nil {
+			return true
+		}
+		// Clients need to be able to read namespaced objects
+		if a.client != PolicyDeny {
 			return true
 		}
 
 		for _, op := range ops {
-			if acl.AllowNamespaceOperation(ns, op) {
+			if a.AllowNamespaceOperation(ns, op) {
 				// An operation is allowed, return true
 				return true
 			}

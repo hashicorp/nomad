@@ -948,11 +948,15 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	node := mock.Node()
+	state.UpsertNode(structs.MsgTypeTestSetup, 1001, node)
+
 	// Lookup the allocs
 	get := &structs.AllocsGetRequest{
 		AllocIDs: []string{alloc.ID, alloc2.ID},
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			AuthToken: node.SecretID,
 		},
 	}
 	var resp structs.AllocsGetResponse
@@ -986,6 +990,9 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
+	node := mock.Node()
+	state.UpsertNode(structs.MsgTypeTestSetup, 50, node)
+
 	// Create the allocs
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
@@ -1014,6 +1021,7 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
+			AuthToken:     node.SecretID,
 		},
 	}
 	var resp structs.AllocsGetResponse

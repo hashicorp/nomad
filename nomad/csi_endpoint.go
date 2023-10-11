@@ -189,7 +189,7 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIReadVolume,
 		acl.NamespaceCapabilityCSIMountVolume,
 		acl.NamespaceCapabilityReadJob)
-	aclObj, err := v.srv.ResolveClientOrACL(args)
+	aclObj, err := v.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -452,14 +452,13 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return structs.ErrPermissionDenied
 	}
 
+	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, time.Now())
+
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
-	aclObj, err := v.srv.ResolveClientOrACL(args)
+	aclObj, err := v.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-
-	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, time.Now())
-
 	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
@@ -694,7 +693,7 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	defer metrics.MeasureSince([]string{"nomad", "volume", "unpublish"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
-	aclObj, err := v.srv.ResolveClientOrACL(args)
+	aclObj, err := v.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
