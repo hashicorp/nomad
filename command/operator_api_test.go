@@ -5,10 +5,13 @@ package command
 
 import (
 	"bytes"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -218,5 +221,76 @@ func TestOperatorAPICommand_ContentLength(t *testing.T) {
 		require.Equal(t, len(input), l)
 	case <-time.After(10 * time.Second):
 		t.Fatalf("timed out waiting for request")
+	}
+}
+
+func makeSocketListener(t *testing.T) (net.Listener, string) {
+	td := os.TempDir() // testing.TempDir() on macOS makes paths that are too long
+	sPath := path.Join(td, t.Name()+".sock")
+	os.Remove(sPath) // git rid of stale ones now.
+
+	t.Cleanup(func() { os.Remove(sPath) })
+
+	// Create a Unix domain socket and listen for incoming connections.
+	socket, err := net.Listen("unix", sPath)
+	must.NoError(t, err)
+	return socket, sPath
+}
+
+// TestOperatorAPICommand_Socket tests that requests can be routed over a unix
+// domain socket
+//
+// Can not be run in parallel as it modifies the environment.
+func TestOperatorAPICommand_Socket(t *testing.T) {
+
+	ping := make(chan struct{}, 1)
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ping <- struct{}{}
+	}))
+	sock, sockPath := makeSocketListener(t)
+	ts.Listener = sock
+	ts.Start()
+	defer ts.Close()
+
+	// Setup command.
+	ui := cli.NewMockUi()
+	cmd := &OperatorAPICommand{Meta: Meta{Ui: ui}}
+
+	tcs := []struct {
+		name     string
+		env      map[string]string
+		args     []string
+		exitCode int
+	}{
+		{
+			name:     "nomad_addr",
+			env:      map[string]string{"NOMAD_ADDR": "unix://" + sockPath},
+			args:     []string{"/v1/jobs"},
+			exitCode: 0,
+		},
+		{
+			name:     "nomad_addr opaques host",
+			env:      map[string]string{"NOMAD_ADDR": "unix://" + sockPath},
+			args:     []string{"http://example.com/v1/jobs"},
+			exitCode: 0,
+		},
+	}
+	for i, tc := range tcs {
+		t.Run(fmt.Sprintf("%v_%s", i+1, t.Name()), func(t *testing.T) {
+			tc := tc
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+
+			exitCode := cmd.Run(tc.args)
+			must.Eq(t, tc.exitCode, exitCode, must.Sprint(ui.ErrorWriter.String()))
+
+			select {
+			case l := <-ping:
+				must.Eq(t, struct{}{}, l)
+			case <-time.After(5 * time.Second):
+				t.Fatalf("timed out waiting for request")
+			}
+		})
 	}
 }
