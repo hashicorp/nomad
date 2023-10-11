@@ -3,7 +3,10 @@
 
 package api
 
-import "io"
+import (
+	"io"
+	"net/http"
+)
 
 // Raw can be used to do raw queries against custom endpoints
 type Raw struct {
@@ -38,4 +41,9 @@ func (raw *Raw) Write(endpoint string, in, out interface{}, q *WriteOptions) (*W
 // and serialize/deserialized using the standard Nomad conventions.
 func (raw *Raw) Delete(endpoint string, out interface{}, q *WriteOptions) (*WriteMeta, error) {
 	return raw.c.delete(endpoint, nil, out, q)
+}
+
+// Do uses the raw client's internal httpClient to process the request
+func (raw *Raw) Do(req *http.Request) (*http.Response, error) {
+	return raw.c.httpClient.Do(req)
 }
