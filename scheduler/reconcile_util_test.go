@@ -1167,3 +1167,202 @@ func Test_allocNameIndex_Next(t *testing.T) {
 		})
 	}
 }
+
+func TestAllocSet_filterByRescheduleable(t *testing.T) {
+	ci.Parallel(t)
+
+	noRescheduleJob := mock.Job()
+	noRescheduleTG := &structs.TaskGroup{
+		Name: "noRescheduleTG",
+		ReschedulePolicy: &structs.ReschedulePolicy{
+			Attempts:  0,
+			Unlimited: false,
+		},
+	}
+
+	noRescheduleJob.TaskGroups[0] = noRescheduleTG
+
+	testJob := mock.Job()
+	rescheduleTG := &structs.TaskGroup{
+		Name: "rescheduleTG",
+		ReschedulePolicy: &structs.ReschedulePolicy{
+			Attempts:  1,
+			Unlimited: false,
+		},
+	}
+	testJob.TaskGroups[0] = rescheduleTG
+
+	now := time.Now()
+
+	type testCase struct {
+		name                        string
+		all                         allocSet
+		isBatch                     bool
+		supportsDisconnectedClients bool
+		isDisconnecting             bool
+		deployment                  *structs.Deployment
+
+		// expected results
+		untainted allocSet
+		resNow    allocSet
+		resLater  []*delayedRescheduleInfo
+	}
+
+	testCases := []testCase{
+		{
+			name:            "batch disconnecting allocation no reschedule",
+			isDisconnecting: true,
+			isBatch:         true,
+			all: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			untainted: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			resNow:   allocSet{},
+			resLater: []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "batch ignore unknown disconnecting allocs",
+			isDisconnecting: true,
+			isBatch:         true,
+			all: allocSet{
+				"disconnecting1": {
+					ID:           "disconnection1",
+					ClientStatus: structs.AllocClientStatusUnknown,
+					Job:          testJob,
+				},
+			},
+			untainted: allocSet{},
+			resNow:    allocSet{},
+			resLater:  []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "batch disconnecting allocation reschedule",
+			isDisconnecting: true,
+			isBatch:         true,
+			all: allocSet{
+				"rescheduleNow1": {
+					ID:           "rescheduleNow1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+				},
+			},
+			untainted: allocSet{},
+			resNow: allocSet{
+				"rescheduleNow1": {
+					ID:           "rescheduleNow1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+				},
+			},
+			resLater: []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service disconnecting allocation no reschedule",
+			isDisconnecting: true,
+			isBatch:         false,
+			all: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			untainted: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			resNow:   allocSet{},
+			resLater: []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service disconnecting allocation reschedule",
+			isDisconnecting: true,
+			isBatch:         false,
+			all: allocSet{
+				"rescheduleNow1": {
+					ID:           "rescheduleNow1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+				},
+			},
+			untainted: allocSet{},
+			resNow: allocSet{
+				"rescheduleNow1": {
+					ID:           "rescheduleNow1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+				},
+			},
+			resLater: []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service ignore unknown disconnecting allocs",
+			isDisconnecting: true,
+			isBatch:         false,
+			all: allocSet{
+				"disconnecting1": {
+					ID:           "disconnection1",
+					ClientStatus: structs.AllocClientStatusUnknown,
+					Job:          testJob,
+				},
+			},
+			untainted: allocSet{},
+			resNow:    allocSet{},
+			resLater:  []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service running allocation no reschedule",
+			isDisconnecting: false,
+			isBatch:         true,
+			all: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			untainted: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			resNow:   allocSet{},
+			resLater: []*delayedRescheduleInfo{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			untainted, resNow, resLater := tc.all.filterByRescheduleable(tc.isBatch,
+				tc.isDisconnecting, now, "evailID", tc.deployment)
+			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
+			must.Eq(t, tc.resNow, resNow, must.Sprintf("with-nodes: reschedule-now"))
+			must.Eq(t, tc.resLater, resLater, must.Sprintf("with-nodes: rescheduleLater"))
+		})
+	}
+}

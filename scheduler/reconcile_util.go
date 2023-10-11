@@ -400,14 +400,13 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 			continue
 		}
 
-		// Only failed allocs with desired state run get to this point
 		// If the failed alloc is not eligible for rescheduling now we
 		// add it to the untainted set. Disconnecting delay evals are
 		// handled by allocReconciler.createTimeoutLaterEvals
 		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID, deployment, isDisconnecting)
 		if !eligibleNow {
 			untainted[alloc.ID] = alloc
-			if eligibleLater {
+			if eligibleLater && !isDisconnecting {
 				rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
 			}
 		} else {
