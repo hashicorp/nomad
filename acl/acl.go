@@ -75,6 +75,11 @@ type ACL struct {
 	operator string
 	quota    string
 	plugin   string
+
+	// The attributes below detail a virtual policy that we never expose
+	// directly to the end user.
+	server   string
+	isLeader bool
 }
 
 // maxPrivilege returns the policy which grants the most privilege
@@ -295,6 +300,9 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 
 	acl.variables = svTxn.Commit()
 	acl.wildcardVariables = wsvTxn.Commit()
+
+	acl.server = PolicyDeny
+	acl.isLeader = false
 
 	return acl, nil
 }
@@ -723,6 +731,11 @@ func (a *ACL) AllowNodeRead() bool {
 		return true
 	case a.node == PolicyRead:
 		return true
+	case a.server == PolicyRead,
+		a.server == PolicyWrite:
+		return true
+	case a.isLeader:
+		return true
 	default:
 		return false
 	}
@@ -822,6 +835,16 @@ func (a *ACL) AllowPluginList() bool {
 	default:
 		return false
 	}
+}
+
+// AllowServerOp checks if server-only operations are allowed
+func (a *ACL) AllowServerOp() bool {
+	if a == nil {
+		// ACL is nil only if ACLs are disabled
+		// TODO(tgross): return false when there are no nil ACLs
+		return true
+	}
+	return a.server != PolicyDeny || a.isLeader
 }
 
 // IsManagement checks if this represents a management token

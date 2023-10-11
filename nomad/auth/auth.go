@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -202,6 +203,69 @@ func (s *Authenticator) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, 
 		return s.ResolveClaims(claims)
 	}
 	return nil, nil
+}
+
+// AuthenticateServerOnly returns an ACL object for use *only* with internal
+// server-to-server RPCs. This should never be used for RPCs that serve HTTP
+// endpoints or accept ACL tokens to avoid confused deputy attacks by making a
+// request to a follower that's forwarded.
+//
+// The returned ACL object is always an acl.ServerACL but in the future this
+// could be extended to allow servers to have jurisdiction over specific pools,
+// etc.
+func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
+
+	remoteIP, err := ctx.GetRemoteIP() // capture for metrics
+	if err != nil {
+		s.logger.Error("could not determine remote address", "error", err)
+	}
+
+	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
+	defer args.SetIdentity(identity) // always set the identity, even on errors
+
+	if s.tlsEnabled && !ctx.IsStatic() {
+		tlsCert := ctx.Certificate()
+		if tlsCert == nil {
+			return nil, errors.New("missing certificate information")
+		}
+
+		// set on the identity whether or not its valid for server RPC, so we
+		// can capture it for metrics
+		identity.TLSName = tlsCert.Subject.CommonName
+
+		expected := "server." + s.region + ".nomad"
+		_, err := validateCertificateForName(tlsCert, expected)
+		if err != nil {
+			return nil, err
+		}
+		return acl.ServerACL, nil
+	}
+
+	// Note: if servers had auth tokens like clients do, we would be able to
+	// verify them here and only return the server ACL for actual servers even
+	// if mTLS was disabled. Without mTLS, any request can spoof server RPCs.
+	// This is known and documented in the Security Model:
+	// https://developer.hashicorp.com/nomad/docs/concepts/security#requirements
+	return acl.ServerACL, nil
+}
+
+// validateCertificateForName returns true if the certificate is valid
+// for the given domain name.
+func validateCertificateForName(cert *x509.Certificate, expectedName string) (bool, error) {
+	if cert == nil {
+		return false, nil
+	}
+
+	validNames := []string{cert.Subject.CommonName}
+	validNames = append(validNames, cert.DNSNames...)
+	for _, valid := range validNames {
+		if expectedName == valid {
+			return true, nil
+		}
+	}
+
+	return false, fmt.Errorf("invalid certificate, %s not in %s",
+		expectedName, strings.Join(validNames, ","))
 }
 
 // ResolveACLForToken resolves an ACL from a token only. It should be used only
