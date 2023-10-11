@@ -231,8 +231,11 @@ func TestAuthenticateDefault(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.ClientStatus = structs.AllocClientStatusRunning
 
+				identity := alloc.LookupTask("web").Identity
+				wih := alloc.LookupTask("web").IdentityHandle(identity)
+
 				claims := structs.NewIdentityClaims(
-					alloc.Job, alloc, "web", alloc.LookupTask("web").Identity, time.Now())
+					alloc.Job, alloc, wih, identity, time.Now())
 
 				auth := testAuthenticator(t, store, true, true)
 				token, err := auth.encrypter.(*testEncrypter).signClaim(claims)
@@ -282,9 +285,10 @@ func TestAuthenticateDefault(t *testing.T) {
 			name: "mTLS and ACLs with invalid WI token",
 			testFn: func(t *testing.T, store *state.StateStore) {
 				alloc := mock.Alloc()
+				identity := alloc.LookupTask("web").Identity
+				wih := alloc.LookupTask("web").IdentityHandle(identity)
 				alloc.ClientStatus = structs.AllocClientStatusRunning
-				claims := structs.NewIdentityClaims(
-					alloc.Job, alloc, "web", alloc.LookupTask("web").Identity, time.Now())
+				claims := structs.NewIdentityClaims(alloc.Job, alloc, wih, identity, time.Now())
 
 				auth := testAuthenticator(t, store, true, true)
 				token, err := auth.encrypter.(*testEncrypter).signClaim(claims)
