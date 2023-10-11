@@ -74,17 +74,20 @@ func (h *consulHook) Prerun() error {
 	// ACL token
 	tokens := map[string]map[string]string{}
 
-	for _, tg := range job.TaskGroups {
-		if err := h.prepareConsulTokensForServices(tg.Services, tokens); err != nil {
+	tg := job.LookupTaskGroup(h.alloc.TaskGroup)
+	if tg == nil { // this is always a programming error
+		return fmt.Errorf("alloc %v does not have a valid task group", h.alloc.Name)
+	}
+
+	if err := h.prepareConsulTokensForServices(tg.Services, tokens); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	for _, task := range tg.Tasks {
+		if err := h.prepareConsulTokensForServices(task.Services, tokens); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		for _, task := range tg.Tasks {
-			if err := h.prepareConsulTokensForServices(task.Services, tokens); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-			}
-			if err := h.prepareConsulTokensForTask(job, task, tg.Name, tokens); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-			}
+		if err := h.prepareConsulTokensForTask(job, task, tg.Name, tokens); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
 
