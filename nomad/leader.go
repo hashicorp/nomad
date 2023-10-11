@@ -372,7 +372,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	if err != nil {
 		return err
 	}
-	// todo: use cluster ID for stuff, later!
 
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)

@@ -2060,8 +2060,8 @@ func (s *Server) ReplicationToken() string {
 	return s.config.ReplicationToken
 }
 
-// ClusterMetadata returns the unique ID for this cluster composed of a
-// uuid and a timestamp.
+// ClusterMetadata returns the metadata for this cluster composed of a
+// UUID and a timestamp.
 //
 // Any Nomad server agent may call this method to get at the ID.
 // If we are the leader and the ID has not yet been created, it will
