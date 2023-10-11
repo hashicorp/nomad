@@ -225,8 +225,8 @@ type AllocIdentitiesResponse struct {
 type WorkloadType int
 
 const (
-	TaskWorkload WorkloadType = iota
-	ServiceWorkload
+	WorkloadTypeTask WorkloadType = iota
+	WorkloadTypeService
 )
 
 // WIHandle is used by code that needs to uniquely match a workload identity

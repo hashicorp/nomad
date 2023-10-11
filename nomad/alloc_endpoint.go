@@ -568,7 +568,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 		job := out.Job
 
 		switch idReq.WorkloadType {
-		case structs.TaskWorkload:
+		case structs.WorkloadTypeTask:
 			task := out.LookupTask(idReq.WorkloadIdentifier)
 			if task == nil {
 				// Job has likely been updated to remove this task
@@ -592,7 +592,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 				continue
 			}
 
-		case structs.ServiceWorkload:
+		case structs.WorkloadTypeService:
 			widFound, err := a.signServices(job, out, idReq, reply, now)
 			if err != nil {
 				return err
@@ -624,6 +624,7 @@ func (a *Alloc) signTasks(
 
 		widFound = true
 		err = a.signIdentities(alloc, wid, idReq, reply, now)
+		break
 	}
 	return
 }

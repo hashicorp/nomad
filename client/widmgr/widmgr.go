@@ -65,8 +65,8 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, 
 
 	for _, task := range tg.Tasks {
 		// Omit default identity as it does not expire
-		for _, i := range task.Identities {
-			widspecs[*task.IdentityHandle(i)] = i
+		for _, id := range task.Identities {
+			widspecs[*task.IdentityHandle(id)] = id
 		}
 
 		for _, service := range task.Services {

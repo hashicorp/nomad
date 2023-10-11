@@ -131,7 +131,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 
 	wiHandle := &structs.WIHandle{
 		WorkloadIdentifier: "web",
-		WorkloadType:       structs.TaskWorkload,
+		WorkloadType:       structs.WorkloadTypeTask,
 	}
 
 	claims1 := structs.NewIdentityClaims(job, alloc1, wiHandle, alloc1.LookupTask("web").Identity, time.Now())

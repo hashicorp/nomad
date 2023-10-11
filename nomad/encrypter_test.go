@@ -27,7 +27,7 @@ import (
 var (
 	wiHandle = &structs.WIHandle{
 		WorkloadIdentifier: "web",
-		WorkloadType:       structs.TaskWorkload,
+		WorkloadType:       structs.WorkloadTypeTask,
 	}
 )
 

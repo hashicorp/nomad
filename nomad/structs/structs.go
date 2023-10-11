@@ -7678,7 +7678,7 @@ func (t *Task) IdentityHandle(identity *WorkloadIdentity) *WIHandle {
 	return &WIHandle{
 		IdentityName:       identity.Name,
 		WorkloadIdentifier: t.Name,
-		WorkloadType:       TaskWorkload,
+		WorkloadType:       WorkloadTypeTask,
 	}
 }
 
@@ -11399,9 +11399,9 @@ func NewIdentityClaims(job *Job, alloc *Allocation, wihandle *WIHandle, wid *Wor
 	}
 
 	switch wihandle.WorkloadType {
-	case ServiceWorkload:
+	case WorkloadTypeService:
 		claims.ServiceName = wihandle.WorkloadIdentifier
-	case TaskWorkload:
+	case WorkloadTypeTask:
 		claims.TaskName = wihandle.WorkloadIdentifier
 	default:
 		// in case of an unknown workload type we quit

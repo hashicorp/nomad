@@ -491,7 +491,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 
 	wiHandle := &structs.WIHandle{
 		WorkloadIdentifier: "web",
-		WorkloadType:       structs.TaskWorkload,
+		WorkloadType:       structs.WorkloadTypeTask,
 	}
 
 	claims1 := structs.NewIdentityClaims(alloc1.Job, alloc1, wiHandle, alloc1.LookupTask("web").Identity, time.Now())
@@ -855,7 +855,7 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 
 	wiHandle := &structs.WIHandle{
 		WorkloadIdentifier: "web",
-		WorkloadType:       structs.TaskWorkload,
+		WorkloadType:       structs.WorkloadTypeTask,
 	}
 
 	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
