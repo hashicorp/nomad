@@ -1345,7 +1345,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	}
 
 	for _, action := range apiTask.Actions {
-		act := ApiActionToStructsAction(job, action, &structs.Action{})
+		act := ApiActionToStructsAction(job, action)
 		structsTask.Actions = append(structsTask.Actions, act)
 	}
 }
@@ -1390,7 +1390,7 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 	return sc
 }
 
-func ApiActionToStructsAction(job *structs.Job, action *api.Action, act *structs.Action) *structs.Action {
+func ApiActionToStructsAction(job *structs.Job, action *api.Action) *structs.Action {
 	return &structs.Action{
 		Name:    action.Name,
 		Args:    slices.Clone(action.Args),
