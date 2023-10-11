@@ -19,6 +19,8 @@ export default class Task extends Fragment {
   @attr('string') driver;
   @attr('string') kind;
 
+  @fragmentArray('action') actions;
+
   @attr() meta;
 
   @computed('taskGroup.mergedMeta', 'meta')
