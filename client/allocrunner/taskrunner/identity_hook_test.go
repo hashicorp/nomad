@@ -149,7 +149,6 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 			Name:     "consul",
 			Audience: []string{"consul"},
 			Env:      true,
-			TTL:      0,
 		},
 		{
 			Name:     "vault",
