@@ -256,7 +256,8 @@ func validateCertificateForName(cert *x509.Certificate, expectedName string) (bo
 		return false, nil
 	}
 
-	validNames := append(cert.DNSNames, cert.Subject.CommonName)
+	validNames := []string{cert.Subject.CommonName}
+	validNames = append(validNames, cert.DNSNames...)
 	for _, valid := range validNames {
 		if expectedName == valid {
 			return true, nil
