@@ -579,23 +579,6 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 	return diff, nil
 }
 
-func findActionMatch(action *Action, newActions []*Action, newActionMatches []int) int {
-	indexMatch := -1
-
-	for i, newAction := range newActions {
-		if newActionMatches[i] >= 0 {
-			continue
-		}
-
-		if action.Name == newAction.Name {
-			indexMatch = i
-			break
-		}
-	}
-
-	return indexMatch
-}
-
 func actionDiff(old, new *Action, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Action"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
@@ -630,10 +613,8 @@ func actionDiff(old, new *Action, contextual bool) *ObjectDiff {
 // actionDiffs diffs a set of actions. If contextual diff is enabled, unchanged
 // fields within objects nested in the actions will be returned.
 func actionDiffs(old, new []*Action, contextual bool) []*ObjectDiff {
-	// Initialize diffs array
 	var diffs []*ObjectDiff
 
-	// Start by matching actions by their index
 	for i := 0; i < len(old) && i < len(new); i++ {
 		oldAction := old[i]
 		newAction := new[i]
@@ -643,21 +624,18 @@ func actionDiffs(old, new []*Action, contextual bool) []*ObjectDiff {
 		}
 	}
 
-	// Handle remaining old actions (which have been deleted)
 	for i := len(new); i < len(old); i++ {
 		if diff := actionDiff(old[i], nil, contextual); diff != nil {
 			diffs = append(diffs, diff)
 		}
 	}
 
-	// Handle remaining new actions (which have been added)
 	for i := len(old); i < len(new); i++ {
 		if diff := actionDiff(nil, new[i], contextual); diff != nil {
 			diffs = append(diffs, diff)
 		}
 	}
 
-	// Optionally, sort the diffs for more predictable output
 	sort.Sort(ObjectDiffs(diffs))
 
 	return diffs

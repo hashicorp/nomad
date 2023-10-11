@@ -1,6 +1,10 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
+// Actions are executable commands that can be run on an allocation within
+// the context of a task. They are left open-ended enough to be applied to
+// other Nomad concepts like Nodes in the future.
+
 package structs
 
 import "slices"
