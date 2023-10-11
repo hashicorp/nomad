@@ -29,7 +29,7 @@ type WIDMgr struct {
 	allocID                 string
 	defaultSignedIdentities map[string]string // signed by the plan applier
 	minIndex                uint64
-	widSpecs                map[string][]*structs.WorkloadIdentity // task -> WI
+	widSpecs                map[structs.WIHandle]*structs.WorkloadIdentity // workload handle -> WI
 	signer                  IdentitySigner
 	db                      cstate.StateDB
 
@@ -54,12 +54,25 @@ type WIDMgr struct {
 }
 
 func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, logger hclog.Logger) *WIDMgr {
-	widspecs := map[string][]*structs.WorkloadIdentity{}
+	widspecs := map[structs.WIHandle]*structs.WorkloadIdentity{}
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	for _, service := range tg.Services {
+		if service.Identity != nil {
+			widspecs[*service.IdentityHandle()] = service.Identity
+		}
+	}
+
 	for _, task := range tg.Tasks {
 		// Omit default identity as it does not expire
-		if len(task.Identities) > 0 {
-			widspecs[task.Name] = helper.CopySlice(task.Identities)
+		for _, id := range task.Identities {
+			widspecs[*task.IdentityHandle(id)] = id
+		}
+
+		for _, service := range task.Services {
+			if service.Identity != nil {
+				widspecs[*service.IdentityHandle()] = service.Identity
+			}
 		}
 	}
 
@@ -127,7 +140,7 @@ func (m *WIDMgr) Get(id structs.WIHandle) (*structs.SignedWorkloadIdentity, erro
 	if token == nil {
 		// This is an error as every identity should have a token by the time Get
 		// is called.
-		return nil, fmt.Errorf("uble to find token for task %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
+		return nil, fmt.Errorf("unable to find token for workload %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
 	}
 
 	return token, nil
@@ -255,16 +268,11 @@ func (m *WIDMgr) getInitialIdentities() error {
 	defer m.lastTokenLock.Unlock()
 
 	reqs := make([]*structs.WorkloadIdentityRequest, 0, len(m.widSpecs))
-	for taskName, widspecs := range m.widSpecs {
-		for _, widspec := range widspecs {
-			reqs = append(reqs, &structs.WorkloadIdentityRequest{
-				AllocID: m.allocID,
-				WIHandle: structs.WIHandle{
-					WorkloadIdentifier: taskName,
-					IdentityName:       widspec.Name,
-				},
-			})
-		}
+	for wiHandle := range m.widSpecs {
+		reqs = append(reqs, &structs.WorkloadIdentityRequest{
+			AllocID:  m.allocID,
+			WIHandle: wiHandle,
+		})
 	}
 
 	// Get signed workload identities
@@ -298,19 +306,14 @@ func (m *WIDMgr) renew() {
 	}
 
 	reqs := make([]*structs.WorkloadIdentityRequest, 0, len(m.widSpecs))
-	for taskName, widspecs := range m.widSpecs {
-		for _, widspec := range widspecs {
-			if widspec.TTL == 0 {
-				continue
-			}
-			reqs = append(reqs, &structs.WorkloadIdentityRequest{
-				AllocID: m.allocID,
-				WIHandle: structs.WIHandle{
-					WorkloadIdentifier: taskName,
-					IdentityName:       widspec.Name,
-				},
-			})
+	for workloadHandle, widspec := range m.widSpecs {
+		if widspec.TTL == 0 {
+			continue
 		}
+		reqs = append(reqs, &structs.WorkloadIdentityRequest{
+			AllocID:  m.allocID,
+			WIHandle: workloadHandle,
+		})
 	}
 
 	if len(reqs) == 0 {
@@ -321,29 +324,23 @@ func (m *WIDMgr) renew() {
 	renewNow := false
 	minExp := time.Time{}
 
-	for taskName, wids := range m.widSpecs {
-		for _, wid := range wids {
-			if wid.TTL == 0 {
-				// No ttl, so no need to renew it
-				continue
-			}
+	for workloadHandle, wid := range m.widSpecs {
+		if wid.TTL == 0 {
+			// No ttl, so no need to renew it
+			continue
+		}
 
-			//FIXME make this less ugly
-			token := m.get(structs.WIHandle{
-				WorkloadIdentifier: taskName,
-				IdentityName:       wid.Name,
-			})
-			if token == nil {
-				// Missing a signature, treat this case as already expired so
-				// we get a token ASAP
-				m.logger.Debug("missing token for identity", "identity", wid.Name)
-				renewNow = true
-				continue
-			}
+		token := m.get(workloadHandle)
+		if token == nil {
+			// Missing a signature, treat this case as already expired so
+			// we get a token ASAP
+			m.logger.Debug("missing token for identity", "identity", wid.Name)
+			renewNow = true
+			continue
+		}
 
-			if minExp.IsZero() || token.Expiration.Before(minExp) {
-				minExp = token.Expiration
-			}
+		if minExp.IsZero() || token.Expiration.Before(minExp) {
+			minExp = token.Expiration
 		}
 	}
 

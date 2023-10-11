@@ -110,10 +110,8 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 		if i.Name != expectedIdentity {
 			continue
 		}
-		ti := structs.WIHandle{
-			WorkloadIdentifier: task.Name,
-			IdentityName:       i.Name,
-		}
+
+		ti := *task.IdentityHandle(i)
 
 		req, err := h.prepareConsulClientReq(ti, consulTasksAuthMethodName)
 		if err != nil {
@@ -157,12 +155,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			continue
 		}
 
-		ti := structs.WIHandle{
-			WorkloadIdentifier: service.TaskName,
-			IdentityName:       service.Identity.Name,
-		}
-
-		req, err := h.prepareConsulClientReq(ti, consulServicesAuthMethodName)
+		req, err := h.prepareConsulClientReq(*service.IdentityHandle(), consulServicesAuthMethodName)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue

@@ -21,9 +21,9 @@ func TestWIDMgr_Restore(t *testing.T) {
 	db := cstate.NewMemDB(logger)
 
 	alloc := mock.Alloc()
-	serviceID := alloc.Job.TaskGroups[0].Tasks[0].Services[0].MakeUniqueIdentityName()
+	service := alloc.Job.TaskGroups[0].Tasks[0].Services[0]
 	widSpecs := []*structs.WorkloadIdentity{
-		{ServiceName: serviceID},
+		{ServiceName: service.MakeUniqueIdentityName()},
 		{Name: "default"},
 		{Name: "extra", TTL: time.Hour},
 	}
@@ -51,7 +51,8 @@ func TestWIDMgr_Restore(t *testing.T) {
 	signer.mockNow = time.Now().Add(-1 * time.Minute)
 	widSpecs[2].TTL = time.Second
 	signer.setWIDs(widSpecs)
-	mgr.widSpecs["web"][1].TTL = time.Second
+	wiHandle := service.IdentityHandle()
+	mgr.widSpecs[*wiHandle].TTL = time.Second
 
 	// force a re-sign to re-populate the lastToken and save to the db
 	must.NoError(t, mgr.getInitialIdentities())

@@ -565,43 +565,114 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			continue
 		}
 
-		task := out.LookupTask(idReq.WorkloadIdentifier)
-		if task == nil {
-			// Job has likely been updated to remove this task
-			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
-				WorkloadIdentityRequest: *idReq,
-				Reason:                  structs.WIRejectionReasonMissingTask,
-			})
-			continue
-		}
+		job := out.Job
 
-		widFound := false
-		for _, wid := range task.Identities {
-			if wid.Name != idReq.IdentityName {
+		switch idReq.WorkloadType {
+		case structs.WorkloadTypeTask:
+			task := out.LookupTask(idReq.WorkloadIdentifier)
+			if task == nil {
+				// Job has likely been updated to remove this task
+				reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
+					WorkloadIdentityRequest: *idReq,
+					Reason:                  structs.WIRejectionReasonMissingTask,
+				})
 				continue
 			}
 
-			widFound = true
-			claims := structs.NewIdentityClaims(out.Job, out, idReq.WorkloadIdentifier, wid, now)
-			token, _, err := a.srv.encrypter.SignClaims(claims)
+			widFound, err := a.signTasks(task, out, idReq, reply, now)
 			if err != nil {
 				return err
 			}
-			reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
-				WorkloadIdentityRequest: *idReq,
-				JWT:                     token,
-				Expiration:              claims.Expiry.Time(),
-			})
-			break
-		}
 
-		if !widFound {
-			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
-				WorkloadIdentityRequest: *idReq,
-				Reason:                  structs.WIRejectionReasonMissingIdentity,
-			})
-			continue
+			if !widFound {
+				reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
+					WorkloadIdentityRequest: *idReq,
+					Reason:                  structs.WIRejectionReasonMissingIdentity,
+				})
+				continue
+			}
+
+		case structs.WorkloadTypeService:
+			widFound, err := a.signServices(job, out, idReq, reply, now)
+			if err != nil {
+				return err
+			}
+
+			if !widFound {
+				reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
+					WorkloadIdentityRequest: *idReq,
+					Reason:                  structs.WIRejectionReasonMissingIdentity,
+				})
+				continue
+			}
 		}
 	}
+	return nil
+}
+
+func (a *Alloc) signTasks(
+	task *structs.Task,
+	alloc *structs.Allocation,
+	idReq *structs.WorkloadIdentityRequest,
+	reply *structs.AllocIdentitiesResponse,
+	now time.Time,
+) (widFound bool, err error) {
+	for _, wid := range task.Identities {
+		if wid.Name != idReq.IdentityName {
+			continue
+		}
+
+		widFound = true
+		err = a.signIdentities(alloc, wid, idReq, reply, now)
+		break
+	}
+	return
+}
+
+func (a *Alloc) signServices(
+	job *structs.Job,
+	alloc *structs.Allocation,
+	idReq *structs.WorkloadIdentityRequest,
+	reply *structs.AllocIdentitiesResponse,
+	now time.Time,
+) (widFound bool, err error) {
+	wid := idReq.WIHandle
+
+	// services can be on the level of task groups or tasks
+	for _, tg := range job.TaskGroups {
+		for _, service := range tg.Services {
+			if service.IdentityHandle().Equal(wid) {
+				return true, a.signIdentities(alloc, service.Identity, idReq, reply, now)
+			}
+		}
+		for _, task := range tg.Tasks {
+			for _, service := range task.Services {
+				if service.IdentityHandle().Equal(wid) {
+					return true, a.signIdentities(alloc, service.Identity, idReq, reply, now)
+				}
+			}
+		}
+	}
+	return
+}
+
+func (a *Alloc) signIdentities(
+	alloc *structs.Allocation,
+	wid *structs.WorkloadIdentity,
+	idReq *structs.WorkloadIdentityRequest,
+	reply *structs.AllocIdentitiesResponse,
+	now time.Time,
+) error {
+	claims := structs.NewIdentityClaims(alloc.Job, alloc, &idReq.WIHandle, wid, now)
+	token, _, err := a.srv.encrypter.SignClaims(claims)
+	if err != nil {
+		return err
+	}
+	reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
+		WorkloadIdentityRequest: *idReq,
+		JWT:                     token,
+		Expiration:              claims.Expiry.Time(),
+	})
+
 	return nil
 }

@@ -80,20 +80,6 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger)
 	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
 
-	// do the initial signing
-	for _, i := range task.Identities {
-		_, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
-			{
-				AllocID: alloc.ID,
-				WIHandle: structs.WIHandle{
-					WorkloadIdentifier: task.Name,
-					IdentityName:       i.Name,
-				},
-			},
-		})
-		must.NoError(t, err)
-	}
-
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
@@ -185,20 +171,6 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
 	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger)
 	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
-
-	// do the initial signing
-	for _, i := range task.Identities {
-		_, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
-			{
-				AllocID: alloc.ID,
-				WIHandle: structs.WIHandle{
-					WorkloadIdentifier: task.Name,
-					IdentityName:       i.Name,
-				},
-			},
-		})
-		must.NoError(t, err)
-	}
 
 	h := &identityHook{
 		alloc:      alloc,

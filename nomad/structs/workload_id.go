@@ -222,10 +222,24 @@ type AllocIdentitiesResponse struct {
 	QueryMeta
 }
 
+type WorkloadType int
+
+const (
+	WorkloadTypeTask WorkloadType = iota
+	WorkloadTypeService
+)
+
 // WIHandle is used by code that needs to uniquely match a workload identity
 // with the task or service it belongs to.
 type WIHandle struct {
 	IdentityName string
 	// WorkloadIdentifier is either a ServiceName or a TaskName
 	WorkloadIdentifier string
+	WorkloadType       WorkloadType
+}
+
+func (w WIHandle) Equal(o WIHandle) bool {
+	return w.IdentityName == o.IdentityName &&
+		w.WorkloadIdentifier == o.WorkloadIdentifier &&
+		w.WorkloadType == o.WorkloadType
 }
