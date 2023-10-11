@@ -43,18 +43,15 @@ func Test_RetryPut_multiple_calls(t *testing.T) {
 		}
 
 		server := httptest.NewServer(http.HandlerFunc(mh.Handle))
-
-		cm := &Client{
-			httpClient: server.Client(),
-			config: Config{
-				Address: server.URL,
-				retryOptions: &retryOptions{
-					delayBase:       10 * time.Millisecond,
-					maxRetries:      10,
-					maxBackoffDelay: 100 * time.Millisecond,
-				},
+		cm, err := NewClient(&Config{
+			Address: server.URL,
+			retryOptions: &retryOptions{
+				delayBase:       10 * time.Millisecond,
+				maxRetries:      10,
+				maxBackoffDelay: 100 * time.Millisecond,
 			},
-		}
+		})
+		must.NoError(t, err)
 
 		md, err := cm.retryPut(context.TODO(), "/endpoint", nil, nil, &WriteOptions{})
 		must.NoError(t, err)
@@ -78,17 +75,14 @@ func Test_RetryPut_one_call(t *testing.T) {
 		}
 
 		server := httptest.NewServer(http.HandlerFunc(mh.Handle))
-
-		cm := &Client{
-			httpClient: server.Client(),
-			config: Config{
-				Address: server.URL,
-				retryOptions: &retryOptions{
-					delayBase:  10 * time.Millisecond,
-					maxRetries: 1,
-				},
+		cm, err := NewClient(&Config{
+			Address: server.URL,
+			retryOptions: &retryOptions{
+				delayBase:  10 * time.Millisecond,
+				maxRetries: 1,
 			},
-		}
+		})
+		must.NoError(t, err)
 
 		md, err := cm.retryPut(context.TODO(), "/endpoint/", nil, nil, &WriteOptions{})
 		must.Error(t, err)
@@ -105,17 +99,15 @@ func Test_RetryPut_capped_base_too_big(t *testing.T) {
 		}
 
 		server := httptest.NewServer(http.HandlerFunc(mh.Handle))
-		cm := &Client{
-			httpClient: server.Client(),
-			config: Config{
-				Address: server.URL,
-				retryOptions: &retryOptions{
-					delayBase:       math.MaxInt64 * time.Nanosecond,
-					maxRetries:      3,
-					maxBackoffDelay: 200 * time.Millisecond,
-				},
+		cm, err := NewClient(&Config{
+			Address: server.URL,
+			retryOptions: &retryOptions{
+				delayBase:       math.MaxInt64 * time.Nanosecond,
+				maxRetries:      3,
+				maxBackoffDelay: 200 * time.Millisecond,
 			},
-		}
+		})
+		must.NoError(t, err)
 
 		md, err := cm.retryPut(context.TODO(), "/endpoint", nil, nil, &WriteOptions{})
 		must.Error(t, err)
