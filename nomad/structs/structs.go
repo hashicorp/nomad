@@ -7620,6 +7620,9 @@ type Task struct {
 	// Identities are the alternate workload identities for use with 3rd party
 	// endpoints.
 	Identities []*WorkloadIdentity
+
+	// Alloc-exec-like runnable commands
+	Actions []*Action
 }
 
 func (t *Task) UsesCores() bool {
@@ -7696,6 +7699,7 @@ func (t *Task) Copy() *Task {
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
 	nt.Identities = helper.CopySlice(nt.Identities)
+	nt.Actions = CopySliceActions(nt.Actions)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))

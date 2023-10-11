@@ -1343,6 +1343,11 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Sidecar: apiTask.Lifecycle.Sidecar,
 		}
 	}
+
+	for _, action := range apiTask.Actions {
+		act := ApiActionToStructsAction(job, action)
+		structsTask.Actions = append(structsTask.Actions, act)
+	}
 }
 
 // apiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
@@ -1383,6 +1388,14 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 	sc.StagePublishBaseDir = apiConfig.StagePublishBaseDir
 	sc.HealthTimeout = apiConfig.HealthTimeout
 	return sc
+}
+
+func ApiActionToStructsAction(job *structs.Job, action *api.Action) *structs.Action {
+	return &structs.Action{
+		Name:    action.Name,
+		Args:    slices.Clone(action.Args),
+		Command: action.Command,
+	}
 }
 
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
