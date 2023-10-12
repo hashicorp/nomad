@@ -539,10 +539,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					NodeID:        "disconnected",
 					TaskGroup:     "web",
 				},
-				// Unknown allocs on disconnected nodes are ignored
-				"ignore-unknown": {
-					ID:            "ignore-unknown",
-					Name:          "ignore-unknown",
+				// Unknown allocs on disconnected nodes are acknowledge, so they wont be rescheduled again
+				"untainted-unknown": {
+					ID:            "untainted-unknown",
+					Name:          "untainted-unknown",
 					ClientStatus:  structs.AllocClientStatusUnknown,
 					DesiredStatus: structs.AllocDesiredStatusRun,
 					Job:           testJob,
@@ -595,8 +595,20 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			untainted: allocSet{},
-			migrate:   allocSet{},
+			untainted: allocSet{
+				// Unknown allocs on disconnected nodes are acknowledge, so they wont be rescheduled again
+				"untainted-unknown": {
+					ID:            "untainted-unknown",
+					Name:          "untainted-unknown",
+					ClientStatus:  structs.AllocClientStatusUnknown,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+					Job:           testJob,
+					NodeID:        "disconnected",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+				},
+			},
+			migrate: allocSet{},
 			disconnecting: allocSet{
 				"disconnect-running": {
 					ID:            "disconnect-running",
@@ -610,17 +622,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			},
 			reconnecting: allocSet{},
 			ignore: allocSet{
-				// Unknown allocs on disconnected nodes are ignored
-				"ignore-unknown": {
-					ID:            "ignore-unknown",
-					Name:          "ignore-unknown",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
 				"ignore-reconnected-failed-stopped": {
 					ID:            "ignore-reconnected-failed-stopped",
 					Name:          "ignore-reconnected-failed-stopped",
