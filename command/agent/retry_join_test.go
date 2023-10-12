@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-discover"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
@@ -168,6 +169,44 @@ func TestRetryJoin_Server_MixedProvider(t *testing.T) {
 	require.Equal(2, len(output))
 	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedAddrs)
 	require.Equal(stubAddress, output[0])
+}
+
+func TestRetryJoin_AutoDiscover(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	var output []string
+
+	mockJoin := func(s []string) (int, error) {
+		output = s
+		return 0, nil
+	}
+
+	// 'exec=*'' tests go-netaddr
+	// 'localhost' also tests get-netaddr by ensuring it resolves to "::1" and "127.0.0.1"
+	// '100.100.100.100' ensures that bare IPs are used as-is
+	serverJoin := &ServerJoin{
+		RetryMaxAttempts: 1,
+		RetryJoin:        []string{"exec=echo 192.168.1.1 192.168.1.2", "localhost", "100.100.100.100", "provider=aws, tag_value=foo"},
+	}
+
+	joiner := retryJoiner{
+		discover:      discoverProxy{goDiscover: &discover.Discover{}},
+		serverJoin:    mockJoin,
+		serverEnabled: true,
+		logger:        testlog.HCLogger(t),
+		errCh:         make(chan struct{}),
+	}
+
+	joiner.RetryJoin(serverJoin)
+
+	require.Equal(6, len(output))
+	require.Equal("192.168.1.1", output[0])
+	require.Equal("192.168.1.2", output[1])
+	require.Equal("::1", output[2])
+	require.Equal("127.0.0.1", output[3])
+	require.Equal("100.100.100.100", output[4])
+	require.Equal("provider=aws, tag_value=foo", output[5])
 }
 
 func TestRetryJoin_Client(t *testing.T) {

@@ -4,12 +4,17 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	golog "log"
+	"net"
 	"strings"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-netaddrs"
+
+	discover "github.com/hashicorp/go-discover"
 )
 
 // DiscoverInterface is an interface for the Discover type in the go-discover
@@ -28,6 +33,57 @@ type DiscoverInterface interface {
 
 	// Names returns the names of the configured providers.
 	Names() []string
+}
+
+// discoverProxy proxies retryJoiner discovery requests to either go-netaddrs or go-discover
+//
+// Addresses are first discovered using go-netaddrs, but if no addresses are able to be disocovered,
+// fall back to go-autodiscover
+type discoverProxy struct {
+	goDiscover *discover.Discover
+}
+
+// Addrs looks up and returns IP addresses using the method described by cfg.
+//
+// If cfg is a DNS name, IP addresses are looked up by querying the default
+// DNS resolver for A and AAAA records associated with the DNS name.
+//
+// If cfg has an exec= prefix, IP addresses are looked up by executing the command
+// after exec=. The command may include optional arguments. Command arguments
+// must be space separated (spaces in argument values can not be escaped).
+// The command may output IPv4 or IPv6 addresses, and IPv6 addresses can
+// optionally include a zone index.
+// The executable must follow these rules:
+//
+//	on success - exit 0 and print whitespace delimited IP addresses to stdout.
+//	on failure - exits with a non-zero code, and should print an error message
+//	             of up to 1024 bytes to stderr.
+//
+// if addresses cannot be looked up using DNS or an exec command, fall back to
+// discovering addresses with go-discover
+func (d discoverProxy) Addrs(cfg string, logger *golog.Logger) (addrs []string, err error) {
+	var ipAddrs []net.IPAddr
+	ipAddrs, err = netaddrs.IPAddrs(context.Background(),
+		cfg,
+		log.FromStandardLogger(logger, &log.LoggerOptions{Name: "joiner"}))
+	if err != nil {
+		logger.Print("falling back to go-discover for auto-join config: ", cfg, "due to:", err)
+		return d.goDiscover.Addrs(cfg, logger)
+	}
+
+	for _, addr := range ipAddrs {
+		addrs = append(addrs, addr.String())
+	}
+
+	return addrs, nil
+}
+
+func (d discoverProxy) Help() string {
+	return "TBD"
+}
+
+func (d discoverProxy) Names() []string {
+	return []string{"TBD"}
 }
 
 // retryJoiner is used to handle retrying a join until it succeeds or all of
@@ -61,7 +117,6 @@ type retryJoiner struct {
 // retry_join block. If the configuration is not valid, returns an error that
 // will be displayed to the operator, otherwise nil.
 func (r *retryJoiner) Validate(config *Config) error {
-
 	// If retry_join is defined for the server, ensure that deprecated
 	// fields and the server_join block are not both set
 	if config.Server != nil && config.Server.ServerJoin != nil && len(config.Server.ServerJoin.RetryJoin) != 0 {
@@ -114,17 +169,14 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 		var err error
 
 		for _, addr := range serverJoin.RetryJoin {
-			switch {
-			case strings.HasPrefix(addr, "provider="):
-				servers, err := r.discover.Addrs(addr, standardLogger)
-				if err != nil {
-					r.logger.Error("determining join addresses failed", "error", err)
-				} else {
-					addrs = append(addrs, servers...)
-				}
-			default:
+			servers, err := r.discover.Addrs(addr, standardLogger)
+			if err != nil {
+				r.logger.Warn("discovering join addresses failed", "join_config", addr, "error", err)
 				addrs = append(addrs, addr)
+				continue
 			}
+
+			addrs = append(addrs, servers...)
 		}
 
 		if len(addrs) > 0 {
