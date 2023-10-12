@@ -15,6 +15,11 @@ const (
 	// VaultDefaultCluster is the name used for the Vault cluster that doesn't
 	// have a name.
 	VaultDefaultCluster = "default"
+
+	// VaultNamespaceHeaderName is the header set to specify which namespace
+	// the request is indented for. This is defined within Nomad, so we do not
+	// need to import the entire Vault SDK package.
+	VaultNamespaceHeaderName = "X-Vault-Namespace"
 )
 
 // VaultTokenData represents some of the fields returned in the Data map of the
