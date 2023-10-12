@@ -848,8 +848,6 @@ func TestIdentityToACLClaim(t *testing.T) {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	task := tg.Tasks[0]
 
-	//	claims := alloc.ToTaskIdentityClaims(alloc.Job, "web")
-
 	defaultWI := &structs.WorkloadIdentity{Name: "default"}
 	claims := structs.NewIdentityClaims(alloc.Job, alloc,
 		task.IdentityHandle(defaultWI), task.Identity, time.Now())
