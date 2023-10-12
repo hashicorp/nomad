@@ -116,7 +116,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 	// get tokens for alt identities for Consul
 	mErr := multierror.Error{}
 	for _, i := range task.Identities {
-		if i.Name != fmt.Sprintf("%s/%s", structs.ConsulTaskIdentityNamePrefix, task.GetConsulTaskName()) {
+		if i.Name != fmt.Sprintf("%s_%s", structs.ConsulTaskIdentityNamePrefix, task.GetConsulTaskName()) {
 			continue
 		}
 

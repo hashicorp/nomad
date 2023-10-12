@@ -70,7 +70,7 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 
 	// Set the expected identity name and service name.
 	name := s.MakeUniqueIdentityName()
-	serviceWID.Name = fmt.Sprintf("%s/%s", structs.ConsulServiceIdentityNamePrefix, name)
+	serviceWID.Name = fmt.Sprintf("%s_%s", structs.ConsulServiceIdentityNamePrefix, name)
 	serviceWID.ServiceName = s.Name
 
 	s.Identity = serviceWID
@@ -81,7 +81,7 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task) {
 		return
 	}
 
-	widName := fmt.Sprintf("%s/%s", structs.ConsulTaskIdentityNamePrefix, t.GetConsulTaskName())
+	widName := fmt.Sprintf("%s_%s", structs.ConsulTaskIdentityNamePrefix, t.GetConsulTaskName())
 
 	// Use the Consul identity specified in the task if present
 	for _, wid := range t.Identities {
