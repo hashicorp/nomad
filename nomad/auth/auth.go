@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing
@@ -46,6 +47,9 @@ type Authenticator struct {
 	getLeaderACL LeaderACLGetter
 	region       string
 
+	validServerCertNames []string
+	validClientCertNames []string
+
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *structs.ACLCache[*acl.ACL]
 
@@ -66,14 +70,19 @@ type AuthenticatorConfig struct {
 
 func NewAuthenticator(cfg *AuthenticatorConfig) *Authenticator {
 	return &Authenticator{
-		aclsEnabled:  cfg.AclsEnabled,
-		tlsEnabled:   cfg.TLSEnabled,
-		logger:       cfg.Logger.With("auth"),
-		getState:     cfg.StateFn,
-		getLeaderACL: cfg.GetLeaderACLFn,
-		region:       cfg.Region,
-		aclCache:     structs.NewACLCache[*acl.ACL](aclCacheSize),
-		encrypter:    cfg.Encrypter,
+		aclsEnabled:          cfg.AclsEnabled,
+		tlsEnabled:           cfg.TLSEnabled,
+		logger:               cfg.Logger.With("auth"),
+		getState:             cfg.StateFn,
+		getLeaderACL:         cfg.GetLeaderACLFn,
+		region:               cfg.Region,
+		aclCache:             structs.NewACLCache[*acl.ACL](aclCacheSize),
+		encrypter:            cfg.Encrypter,
+		validServerCertNames: []string{"server." + cfg.Region + ".nomad"},
+		validClientCertNames: []string{
+			"client." + cfg.Region + ".nomad",
+			"server." + cfg.Region + ".nomad",
+		},
 	}
 }
 
@@ -232,9 +241,7 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 		// set on the identity whether or not its valid for server RPC, so we
 		// can capture it for metrics
 		identity.TLSName = tlsCert.Subject.CommonName
-
-		expected := "server." + s.region + ".nomad"
-		_, err := validateCertificateForName(tlsCert, expected)
+		_, err := validateCertificateForNames(tlsCert, s.validServerCertNames)
 		if err != nil {
 			return nil, err
 		}
@@ -277,15 +284,9 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 		// set on the identity whether or not its valid for server RPC, so we
 		// can capture it for metrics
 		identity.TLSName = tlsCert.Subject.CommonName
-
-		expected := fmt.Sprintf("client.%s.nomad", s.region)
-		_, err := validateCertificateForName(tlsCert, expected)
+		_, err := validateCertificateForNames(tlsCert, s.validClientCertNames)
 		if err != nil {
-			expected := fmt.Sprintf("server.%s.nomad", s.region)
-			_, err := validateCertificateForName(tlsCert, expected)
-			if err != nil {
-				return nil, err
-			}
+			return nil, err
 		}
 	}
 
@@ -331,38 +332,35 @@ func (s *Authenticator) AuthenticateClientOnlyLegacy(ctx RPCContext, args struct
 		// set on the identity whether or not its valid for server RPC, so we
 		// can capture it for metrics
 		identity.TLSName = tlsCert.Subject.CommonName
-
-		expected := fmt.Sprintf("client.%s.nomad", s.region)
-		_, err := validateCertificateForName(tlsCert, expected)
+		_, err := validateCertificateForNames(tlsCert, s.validClientCertNames)
 		if err != nil {
-			expected := fmt.Sprintf("server.%s.nomad", s.region)
-			_, err := validateCertificateForName(tlsCert, expected)
-			if err != nil {
-				return nil, err
-			}
+			return nil, err
 		}
 	}
 
 	return acl.ClientACL, nil
 }
 
-// validateCertificateForName returns true if the certificate is valid
-// for the given domain name.
-func validateCertificateForName(cert *x509.Certificate, expectedName string) (bool, error) {
+// validateCertificateForNames returns true if the certificate is valid for any
+// of the given domain names.
+func validateCertificateForNames(cert *x509.Certificate, expectedNames []string) (bool, error) {
 	if cert == nil {
 		return false, nil
 	}
 
 	validNames := []string{cert.Subject.CommonName}
 	validNames = append(validNames, cert.DNSNames...)
-	for _, valid := range validNames {
-		if expectedName == valid {
+
+	for _, expectedName := range expectedNames {
+		if slices.Contains(validNames, expectedName) {
 			return true, nil
 		}
 	}
 
-	return false, fmt.Errorf("invalid certificate, %s not in %s",
-		expectedName, strings.Join(validNames, ","))
+	return false, fmt.Errorf("invalid certificate: %s not in expected %s",
+		strings.Join(validNames, ", "),
+		strings.Join(expectedNames, ", "))
+
 }
 
 // ResolveACLForToken resolves an ACL from a token only. It should be used only

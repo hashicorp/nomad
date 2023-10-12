@@ -451,21 +451,20 @@ func (a *Alloc) GetServiceRegistrations(
 // This is an internal-only RPC and not exposed via the HTTP API.
 func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *structs.AllocIdentitiesResponse) error {
 
-	authErr := a.srv.Authenticate(a.ctx, args)
-
-	// Ensure the connection was initiated by a client if TLS is used.
-	if err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient); err != nil {
-		return err
-	}
-	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
-		return err
-	}
+	aclObj, err := a.srv.AuthenticateClientOnly(a.ctx, args)
 	a.srv.MeasureRPCRate("alloc", structs.RateMetricRead, args)
-	if authErr != nil {
+	if err != nil {
 		return structs.ErrPermissionDenied
 	}
 
+	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
+
+	if !aclObj.AllowClientOp() {
+		return structs.ErrPermissionDenied
+	}
 
 	if len(args.Identities) == 0 {
 		// Client bug. Fail loudly instead of letting clients waste time with

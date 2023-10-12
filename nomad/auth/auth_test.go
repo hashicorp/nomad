@@ -383,7 +383,7 @@ func TestAuthenticateServerOnly(t *testing.T) {
 
 				aclObj, err := auth.AuthenticateServerOnly(ctx, args)
 				must.EqError(t, err,
-					"invalid certificate, server.global.nomad not in client.global.nomad")
+					"invalid certificate: client.global.nomad not in expected server.global.nomad")
 				must.Eq(t, "client.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
 			},
@@ -507,7 +507,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 
 				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
 				must.EqError(t, err,
-					"invalid certificate, server.global.nomad not in cli.global.nomad")
+					"invalid certificate: cli.global.nomad not in expected client.global.nomad, server.global.nomad")
 				must.Eq(t, "cli.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
 			},
