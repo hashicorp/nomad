@@ -208,13 +208,6 @@ const (
 	RateMetricRead  = "read"
 	RateMetricList  = "list"
 	RateMetricWrite = "write"
-
-	// ConsulServiceIdentityNamePrefix is used in naming identities of consul
-	// services
-	ConsulServiceIdentityNamePrefix = "consul-service"
-
-	// ConsulTaskIdentityNamePrefix is used in naming identities of consul tasks
-	ConsulTaskIdentityNamePrefix = "consul"
 )
 
 var (

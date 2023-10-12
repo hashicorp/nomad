@@ -81,14 +81,7 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task) {
 		return
 	}
 
-	var clusterName string
-	if t.Consul != nil && t.Consul.Cluster != "" {
-		clusterName = t.Consul.Cluster
-	} else {
-		clusterName = structs.ConsulDefaultCluster
-	}
-
-	widName := fmt.Sprintf("%s_%s", structs.ConsulTaskIdentityNamePrefix, clusterName)
+	widName := t.Consul.IdentityName()
 
 	// Use the Consul identity specified in the task if present
 	for _, wid := range t.Identities {
