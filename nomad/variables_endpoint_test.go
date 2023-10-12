@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -542,16 +543,21 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	err = store.UpsertACLTokens(structs.MsgTypeTestSetup, 1150, []*structs.ACLToken{aclToken})
 	must.NoError(t, err)
 
-	variablesRPC := NewVariablesEndpoint(srv, nil, srv.encrypter)
-
 	testFn := func(args *structs.QueryOptions, cap, path string) error {
 		err := srv.Authenticate(nil, args)
 		if err != nil {
 			return structs.ErrPermissionDenied
 		}
-		_, err = variablesRPC.handleMixedAuthEndpoint(
-			*args, cap, path)
-		return err
+		aclObj, err := srv.ResolveACL(args)
+		if err != nil {
+			return err
+		}
+		if !aclObj.AllowVariableOperation(args.Namespace, path, cap,
+			auth.IdentityToACLClaim(args.GetIdentity(), srv.State())) {
+			return structs.ErrPermissionDenied
+		}
+
+		return nil
 	}
 
 	t.Run("terminal alloc should be denied", func(t *testing.T) {

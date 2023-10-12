@@ -194,24 +194,37 @@ func (s *Authenticator) Authenticate(ctx RPCContext, args structs.RequestWithIde
 	return nil
 }
 
-// ResolveACL is an authentication wrapper which handles resolving both ACL
-// tokens and Workload Identities. If both are provided the ACL token is
-// preferred, but it is best for the RPC caller to only include the credentials
-// for the identity they intend the operation to be performed with.
+// ResolveACL is an authentication wrapper which handles resolving ACL tokens,
+// Workload Identities, or client secrets into acl.ACL objects. Exclusively
+// server-to-server or client-to-server requests should be using
+// AuthenticateServerOnly or AuthenticateClientOnly and never use this method.
 func (s *Authenticator) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
 	identity := args.GetIdentity()
-	if !s.aclsEnabled || identity == nil {
+	if identity == nil {
+		// should never happen
+		return nil, structs.ErrPermissionDenied
+	}
+
+	if !s.aclsEnabled {
 		return nil, nil
 	}
-	aclToken := identity.GetACLToken()
-	if aclToken != nil {
-		return s.ResolveACLForToken(aclToken)
+
+	if identity.ClientID != "" {
+		return acl.ClientACL, nil
 	}
 	claims := identity.GetClaims()
 	if claims != nil {
-		return s.ResolveClaims(claims)
+		return s.resolveClaims(claims)
 	}
-	return nil, nil
+
+	// this will include any anonymous token, so this is the last chance to
+	// avoid an error
+	aclToken := identity.GetACLToken()
+	if aclToken != nil {
+		return s.resolveACLForToken(aclToken)
+	}
+
+	return nil, structs.ErrPermissionDenied
 }
 
 // AuthenticateServerOnly returns an ACL object for use *only* with internal
@@ -363,16 +376,35 @@ func validateCertificateForNames(cert *x509.Certificate, expectedNames []string)
 
 }
 
-// ResolveACLForToken resolves an ACL from a token only. It should be used only
+// IdentityToACLClaim returns an ACLClaim suitable for checking permissions
+func IdentityToACLClaim(ai *structs.AuthenticatedIdentity, store *state.StateStore) *acl.ACLClaim {
+	if ai == nil || ai.Claims == nil {
+		return nil
+	}
+
+	var group string
+	alloc, err := store.AllocByID(nil, ai.Claims.AllocationID)
+	if err != nil {
+		// we should never hit this error, but if we did the caller would get a
+		// nil claim and auth will fail
+		return nil
+	}
+	if alloc != nil {
+		group = alloc.TaskGroup
+	}
+
+	return &acl.ACLClaim{
+		Namespace: ai.Claims.Namespace,
+		Job:       ai.Claims.JobID,
+		Group:     group,
+		Task:      ai.Claims.TaskName,
+	}
+}
+
+// resolveACLForToken resolves an ACL from a token only. It should be used only
 // by Variables endpoints, which have additional implicit policies for their
 // claims so we can't wrap them up in ResolveACL.
-//
-// TODO: figure out a way to the Variables endpoint implicit policies baked into
-// their acl.ACL object so that we can avoid using this method.
-func (s *Authenticator) ResolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL, error) {
-	if !s.aclsEnabled {
-		return nil, nil
-	}
+func (s *Authenticator) resolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL, error) {
 	snap, err := s.getState().Snapshot()
 	if err != nil {
 		return nil, err
@@ -433,7 +465,7 @@ func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, erro
 	return claims, nil
 }
 
-func (s *Authenticator) ResolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error) {
+func (s *Authenticator) resolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error) {
 
 	policies, err := s.ResolvePoliciesForClaims(claims)
 	if err != nil {

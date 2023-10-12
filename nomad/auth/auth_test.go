@@ -124,7 +124,8 @@ func TestAuthenticateDefault(t *testing.T) {
 
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
-				must.Nil(t, aclObj)
+				must.NotNil(t, aclObj)
+				must.True(t, aclObj.AllowClientOp())
 			},
 		},
 		{
@@ -840,6 +841,55 @@ func TestResolveACLToken(t *testing.T) {
 	}
 }
 
+func TestIdentityToACLClaim(t *testing.T) {
+
+	alloc := mock.Alloc()
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	task := tg.Tasks[0]
+
+	defaultWI := &structs.WorkloadIdentity{Name: "default"}
+	claims := structs.NewIdentityClaims(alloc.Job, alloc,
+		task.IdentityHandle(defaultWI), task.Identity, time.Now())
+
+	store := testStateStore(t)
+
+	leaderACL := uuid.Generate()
+
+	auth := NewAuthenticator(&AuthenticatorConfig{
+		StateFn:        func() *state.StateStore { return store },
+		Logger:         testlog.HCLogger(t),
+		GetLeaderACLFn: func() string { return leaderACL },
+		AclsEnabled:    true,
+		TLSEnabled:     true,
+		Region:         "global",
+		Encrypter:      newTestEncrypter(),
+	})
+
+	store.UpsertAllocs(structs.MsgTypeTestSetup, 100,
+		[]*structs.Allocation{alloc})
+
+	token, err := auth.encrypter.(*testEncrypter).signClaim(claims)
+	must.NoError(t, err)
+
+	ctx := newTestContext(t, "client.nomad.global", "192.168.1.1")
+	args := &structs.GenericRequest{}
+	args.AuthToken = token
+
+	err = auth.Authenticate(ctx, args)
+	must.NoError(t, err)
+
+	claim := IdentityToACLClaim(args.GetIdentity(), auth.getState())
+	must.Eq(t, &acl.ACLClaim{
+		Namespace: alloc.Job.Namespace,
+		Job:       alloc.Job.ID,
+		Group:     alloc.TaskGroup,
+		Task:      alloc.Job.TaskGroups[0].Tasks[0].Name,
+	}, claim)
+
+	must.Nil(t, IdentityToACLClaim(nil, auth.getState()))
+}
+
 func TestResolveSecretToken(t *testing.T) {
 	ci.Parallel(t)
 	auth := testDefaultAuthenticator(t)
@@ -1001,7 +1051,7 @@ func TestResolveClaims(t *testing.T) {
 		JobID:     claims.JobID,
 	}
 
-	aclObj, err := auth.ResolveClaims(claims)
+	aclObj, err := auth.resolveClaims(claims)
 	must.Nil(t, aclObj)
 	must.EqError(t, err, "allocation does not exist")
 
@@ -1011,7 +1061,7 @@ func TestResolveClaims(t *testing.T) {
 	must.NoError(t, err)
 
 	// Resolve claims and check we that the ACL object without policies provides no access
-	aclObj, err = auth.ResolveClaims(claims)
+	aclObj, err = auth.resolveClaims(claims)
 	must.NoError(t, err)
 	must.NotNil(t, aclObj)
 	must.False(t, aclObj.AllowNamespaceOperation("default", acl.NamespaceCapabilityListJobs))
@@ -1023,7 +1073,7 @@ func TestResolveClaims(t *testing.T) {
 	must.NoError(t, err)
 
 	// Re-resolve and check that the resulting ACL looks reasonable
-	aclObj, err = auth.ResolveClaims(claims)
+	aclObj, err = auth.resolveClaims(claims)
 	must.NoError(t, err)
 	must.NotNil(t, aclObj)
 	must.False(t, aclObj.IsManagement())
@@ -1031,7 +1081,7 @@ func TestResolveClaims(t *testing.T) {
 	must.False(t, aclObj.AllowNamespaceOperation("other", acl.NamespaceCapabilityListJobs))
 
 	// Resolve the same claim again, should get cache value
-	aclObj2, err := auth.ResolveClaims(claims)
+	aclObj2, err := auth.resolveClaims(claims)
 	must.NoError(t, err)
 	must.NotNil(t, aclObj)
 	must.Eq(t, aclObj, aclObj2, must.Sprintf("expected cached value"))
@@ -1042,7 +1092,7 @@ func TestResolveClaims(t *testing.T) {
 	must.SliceContainsAll(t, policies, []*structs.ACLPolicy{policy1, policy2, policy3})
 
 	// Check the dispatch claims
-	aclObj3, err := auth.ResolveClaims(dispatchClaims)
+	aclObj3, err := auth.resolveClaims(dispatchClaims)
 	must.NoError(t, err)
 	must.NotNil(t, aclObj)
 	must.Eq(t, aclObj, aclObj3, must.Sprintf("expected cached value"))
