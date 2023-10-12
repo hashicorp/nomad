@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/widmgr"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -108,7 +107,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 	// get tokens for alt identities for Consul
 	mErr := multierror.Error{}
 	for _, i := range task.Identities {
-		if i.Name != fmt.Sprintf("%s/%s", nomad.ConsulTaskIdentityNamePrefix, task.GetConsulTaskName()) {
+		if i.Name != fmt.Sprintf("%s/%s", structs.ConsulTaskIdentityNamePrefix, task.GetConsulTaskName()) {
 			continue
 		}
 

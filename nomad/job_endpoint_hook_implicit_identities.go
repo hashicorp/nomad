@@ -9,11 +9,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	ConsulServiceIdentityNamePrefix = "consul-service"
-	ConsulTaskIdentityNamePrefix    = "consul"
-)
-
 // jobImplicitIdentitiesHook adds implicit `identity` blocks for external
 // services, like Consul and Vault.
 type jobImplicitIdentitiesHook struct {
@@ -75,7 +70,7 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 
 	// Set the expected identity name and service name.
 	name := s.MakeUniqueIdentityName()
-	serviceWID.Name = fmt.Sprintf("%s/%s", ConsulServiceIdentityNamePrefix, name)
+	serviceWID.Name = fmt.Sprintf("%s/%s", structs.ConsulServiceIdentityNamePrefix, name)
 	serviceWID.ServiceName = s.Name
 
 	s.Identity = serviceWID
@@ -86,7 +81,7 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task) {
 		return
 	}
 
-	widName := fmt.Sprintf("%s/%s", ConsulTaskIdentityNamePrefix, t.GetConsulTaskName())
+	widName := fmt.Sprintf("%s/%s", structs.ConsulTaskIdentityNamePrefix, t.GetConsulTaskName())
 
 	// Use the Consul identity specified in the task if present
 	for _, wid := range t.Identities {

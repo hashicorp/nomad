@@ -103,7 +103,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				Provider: "consul",
 				Name:     "web",
 				Identity: &structs.WorkloadIdentity{
-					Name:     fmt.Sprintf("%s/web", consulServiceIdentityNamePrefix),
+					Name:     fmt.Sprintf("%s/web", structs.ConsulServiceIdentityNamePrefix),
 					Audience: []string{"consul.io"},
 					File:     true,
 					Env:      false,
