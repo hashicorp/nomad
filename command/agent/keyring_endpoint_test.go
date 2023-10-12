@@ -83,6 +83,8 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 	})
 }
 
+// TestHTTP_Keyring_JWKS asserts the JWKS endpoint is enabled by default and
+// caches relative to the key rotation threshold.
 func TestHTTP_Keyring_JWKS(t *testing.T) {
 	ci.Parallel(t)
 
@@ -114,18 +116,47 @@ func TestHTTP_Keyring_JWKS(t *testing.T) {
 	})
 }
 
+// TestHTTP_Keyring_OIDCDisco_Disabled asserts that the OIDC Discovery endpoint
+// is disabled by default.
 func TestHTTP_Keyring_OIDCDisco_Disabled(t *testing.T) {
 	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
-		t.Fatal("TODO")
+		respW := httptest.NewRecorder()
+
+		req, err := http.NewRequest(http.MethodGet, structs.JWKSPath, nil)
+		must.NoError(t, err)
+
+		_, err = s.Server.OIDCDiscoveryRequest(respW, req)
+		must.ErrorContains(t, err, "OIDC Discovery endpoint disabled")
+		codedErr := err.(HTTPCodedError)
+		must.Eq(t, http.StatusNotFound, codedErr.Code())
 	})
 }
 
+// TestHTTP_Keyring_OIDCDisco_Disabled asserts that the OIDC Discovery endpoint
+// is enabled when OIDCIssuer is set.
 func TestHTTP_Keyring_OIDCDisco_Enabled(t *testing.T) {
 	ci.Parallel(t)
 
-	httpTest(t, nil, func(s *TestAgent) {
-		t.Fatal("TODO")
+	// Set OIDCIssuer to a valid looking (but fake) issuer
+	const testIssuer = "https://oidc.test.nomadproject.io/"
+
+	cb := func(c *Config) {
+		c.Server.OIDCIssuer = testIssuer
+	}
+
+	httpTest(t, cb, func(s *TestAgent) {
+		respW := httptest.NewRecorder()
+
+		req, err := http.NewRequest(http.MethodGet, structs.JWKSPath, nil)
+		must.NoError(t, err)
+
+		obj, err := s.Server.OIDCDiscoveryRequest(respW, req)
+		must.NoError(t, err)
+
+		oidcConf := obj.(*structs.OIDCDiscoveryConfig)
+		must.Eq(t, testIssuer, oidcConf.Issuer)
+		must.StrHasPrefix(t, testIssuer, oidcConf.JWKS)
 	})
 }
