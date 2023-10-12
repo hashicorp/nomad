@@ -1692,11 +1692,15 @@ func TestAlloc_SignIdentities_Bad(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
+	node := mock.Node()
+	must.NoError(t, s1.fsm.State().UpsertNode(structs.MsgTypeTestSetup, 100, node))
+
 	req := &structs.AllocIdentitiesRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:     "global",
 			Namespace:  structs.DefaultNamespace,
 			AllowStale: true,
+			AuthToken:  node.SecretID,
 		},
 	}
 	var resp structs.AllocIdentitiesResponse
@@ -1779,6 +1783,9 @@ func TestAlloc_SignIdentities_Blocking(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
 
+	node := mock.Node()
+	must.NoError(t, s1.fsm.State().UpsertNode(structs.MsgTypeTestSetup, 100, node))
+
 	// Create the alloc we're going to query for, but don't insert it yet. This
 	// simulates querying a slow follower or a restoring server.
 	alloc := mock.Alloc()
@@ -1819,6 +1826,7 @@ func TestAlloc_SignIdentities_Blocking(t *testing.T) {
 				AllowStale:    true,
 				MinQueryIndex: 1999,
 				MaxQueryTime:  10 * time.Second,
+				AuthToken:     node.SecretID,
 			},
 		}
 		var resp structs.AllocIdentitiesResponse

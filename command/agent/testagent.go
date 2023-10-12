@@ -309,7 +309,7 @@ func (a *TestAgent) HTTPAddr() string {
 	return proto + a.Server.Addr
 }
 
-func (a *TestAgent) Client() *api.Client {
+func (a *TestAgent) APIClient() *api.Client {
 	conf := api.DefaultConfig()
 	conf.Address = a.HTTPAddr()
 	c, err := api.NewClient(conf)
