@@ -96,13 +96,9 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	if err != nil {
 		return err
 	}
-
-	// IF ACL is being used,
-	if aclObj != nil {
-		err := hasOperationPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
-		if err != nil {
-			return err
-		}
+	err = hasOperationPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
+	if err != nil {
+		return err
 	}
 
 	err = canonicalizeAndValidate(args)
@@ -270,12 +266,8 @@ func (sv *Variables) makeVariablesApplyResponse(
 
 	// The read permission modify the way the response is populated. If ACL is not
 	// used, read permission is granted by default and every call is treated as management.
-	var canRead bool = true
-	var isManagement = true
-	if aclObj != nil {
-		canRead = hasReadPermission(aclObj, req.Var.Namespace, req.Var.Path)
-		isManagement = aclObj.IsManagement()
-	}
+	canRead := hasReadPermission(aclObj, req.Var.Namespace, req.Var.Path)
+	isManagement := aclObj.IsManagement()
 
 	if eResp.IsOk() {
 		if eResp.WrittenSVMeta != nil {
@@ -376,7 +368,7 @@ func (sv *Variables) Read(args *structs.VariablesReadRequest, reply *structs.Var
 				}
 
 				ov := dv.Copy()
-				if !(aclObj != nil && aclObj.IsManagement()) {
+				if !aclObj.IsManagement() {
 					ov.Lock = nil
 				}
 
@@ -465,7 +457,7 @@ func (sv *Variables) List(
 					sv := raw.(*structs.VariableEncrypted)
 					svStub := sv.VariableMetadata
 
-					if !(aclObj != nil && aclObj.IsManagement()) {
+					if !aclObj.IsManagement() {
 						svStub.Lock = nil
 					}
 
@@ -551,7 +543,7 @@ func (sv *Variables) listAllVariables(
 					v := raw.(*structs.VariableEncrypted)
 					svStub := v.VariableMetadata
 
-					if !(aclObj != nil && aclObj.IsManagement()) {
+					if !aclObj.IsManagement() {
 						svStub.Lock = nil
 					}
 
@@ -633,13 +625,9 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 	if err != nil {
 		return err
 	}
-
-	// ACLs are enabled, check for the correct permissions
-	if aclObj != nil {
-		if !aclObj.AllowVariableOperation(args.WriteRequest.Namespace, args.Path,
-			acl.VariablesCapabilityWrite, nil) {
-			return structs.ErrPermissionDenied
-		}
+	if !aclObj.AllowVariableOperation(args.WriteRequest.Namespace, args.Path,
+		acl.VariablesCapabilityWrite, nil) {
+		return structs.ErrPermissionDenied
 	}
 
 	if err := args.Validate(); err != nil {

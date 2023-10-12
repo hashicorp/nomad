@@ -354,7 +354,7 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	// Check that it is a management token.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -392,15 +392,13 @@ func (a *Alloc) GetServiceRegistrations(
 
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_service_registrations"}, time.Now())
 
-	// If ACLs are enabled, ensure the caller has the read-job namespace
-	// capability.
+	// Ensure the caller has the read-job namespace capability.
 	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if aclObj != nil {
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-			return structs.ErrPermissionDenied
-		}
+	}
+	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Set up the blocking query.

@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1013,5 +1014,5 @@ func TestAgentHost_ACLDebugRequired(t *testing.T) {
 	var resp structs.HostDataResponse
 
 	err := s.RPC("Agent.Host", &req, &resp)
-	require.Equal(t, "Permission denied", err.Error())
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 }

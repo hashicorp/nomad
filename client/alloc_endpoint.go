@@ -39,7 +39,7 @@ func (a *Allocations) GarbageCollectAll(args *nstructs.NodeSpecificRequest, repl
 	// Check node write permissions
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return nstructs.ErrPermissionDenied
 	}
 
@@ -59,7 +59,7 @@ func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply 
 	// Check namespace submit job permission.
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
 		return nstructs.ErrPermissionDenied
 	}
 
@@ -82,7 +82,7 @@ func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.
 	// Check namespace alloc-lifecycle permission.
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
 		return nstructs.ErrPermissionDenied
 	}
 
@@ -101,7 +101,7 @@ func (a *Allocations) Restart(args *nstructs.AllocRestartRequest, reply *nstruct
 	// Check namespace alloc-lifecycle permission.
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
 		return nstructs.ErrPermissionDenied
 	}
 
@@ -120,7 +120,7 @@ func (a *Allocations) Stats(args *cstructs.AllocStatsRequest, reply *cstructs.Al
 	// Check read-job permission.
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
 		return nstructs.ErrPermissionDenied
 	}
 
@@ -152,7 +152,7 @@ func (a *Allocations) Checks(args *cstructs.AllocChecksRequest, reply *cstructs.
 	// Check read-job permission
 	if aclObj, aclErr := a.c.ResolveToken(args.AuthToken); aclErr != nil {
 		return aclErr
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
 		return nstructs.ErrPermissionDenied
 	}
 
@@ -239,7 +239,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	// Check alloc-exec permission.
 	if err != nil {
 		return nil, err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
 		return nil, nstructs.ErrPermissionDenied
 	}
 
@@ -262,7 +262,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	}
 
 	// check node access
-	if aclObj != nil && capabilities.FSIsolation == drivers.FSIsolationNone {
+	if capabilities.FSIsolation == drivers.FSIsolationNone {
 		exec := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocNodeExec)
 		if !exec {
 			return nil, nstructs.ErrPermissionDenied

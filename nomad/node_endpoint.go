@@ -383,6 +383,12 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
 
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+		return structs.ErrPermissionDenied
+	} else if !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for client deregistration")
 	}
@@ -410,6 +416,12 @@ func (n *Node) BatchDeregister(args *structs.NodeBatchDeregisterRequest, reply *
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "batch_deregister"}, time.Now())
 
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+		return structs.ErrPermissionDenied
+	} else if !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	if len(args.NodeIDs) == 0 {
 		return fmt.Errorf("missing node IDs for client deregistration")
 	}
@@ -419,18 +431,12 @@ func (n *Node) BatchDeregister(args *structs.NodeBatchDeregisterRequest, reply *
 	})
 }
 
-// deregister takes a raftMessage closure, to support both Deregister and BatchDeregister
+// deregister takes a raftMessage closure, to support both Deregister and
+// BatchDeregister. The caller should have already authorized the request.
 func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 	reply *structs.NodeUpdateResponse,
 	raftApplyFn func() (interface{}, uint64, error),
 ) error {
-	// Check request permissions
-	if aclObj, err := n.srv.ResolveACL(args); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
-		return structs.ErrPermissionDenied
-	}
-
 	// Look for the node
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
@@ -759,7 +765,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -859,7 +865,7 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -962,7 +968,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1025,7 +1031,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	if err != nil {
 		return err
 	}
-	if aclObj != nil && !aclObj.AllowNodeRead() {
+	if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1086,7 +1092,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	if err != nil {
 		return err
 	}
-	if aclObj != nil && !aclObj.AllowNodeRead() {
+	if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1095,11 +1101,6 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 
 	// readNS is a caching namespace read-job helper
 	readNS := func(ns string) bool {
-		if aclObj == nil {
-			// ACLs are disabled; everything is readable
-			return true
-		}
-
 		if readable, ok := readableNamespaces[ns]; ok {
 			// cache hit
 			return readable
@@ -1598,7 +1599,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 	// Check node read permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	} else if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 

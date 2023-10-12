@@ -57,7 +57,7 @@ func (a *ClientAllocations) GarbageCollectAll(args *structs.NodeSpecificRequest,
 	// Check node read permissions
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -125,7 +125,7 @@ func (a *ClientAllocations) Signal(args *structs.AllocSignalRequest, reply *stru
 	// Check namespace alloc-lifecycle permission.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -183,7 +183,7 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 	// Check namespace submit-job permission.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -236,7 +236,7 @@ func (a *ClientAllocations) Restart(args *structs.AllocRestartRequest, reply *st
 	// Check for namespace alloc-lifecycle permissions.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -289,7 +289,7 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 	// Check for namespace read-job permissions.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -349,7 +349,7 @@ func (a *ClientAllocations) Checks(args *cstructs.AllocChecksRequest, reply *cst
 	// Check for namespace read-job permissions.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -424,7 +424,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	if aclObj, err := a.srv.ResolveACL(&args); err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
 		// client ultimately checks if AllocNodeExec is required
 		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return

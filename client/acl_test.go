@@ -190,10 +190,11 @@ func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
 	})
 	defer cleanup()
 
-	// Should always get nil when disabled
+	// Should never get nil, even when disabled
 	aclObj, err := c1.ResolveToken("blah")
 	must.NoError(t, err)
-	must.Nil(t, aclObj)
+	must.NotNil(t, aclObj)
+	must.Eq(t, acl.ACLsDisabledACL, aclObj)
 }
 
 func TestClient_ACL_ResolveToken(t *testing.T) {

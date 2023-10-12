@@ -48,7 +48,10 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+	} else if !aclObj.AllowAgentWrite() {
+		// we're not checking AllowAgentDebug here because the target might not
+		// be this server, and the server doesn't know if enable_debug has been
+		// set on the target
 		return structs.ErrPermissionDenied
 	}
 
@@ -83,8 +86,8 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 		}
 	}
 
-	// If ACLs are disabled, EnableDebug must be enabled
-	if aclObj == nil && !a.srv.config.EnableDebug {
+	// This server is the target, so now we can check for AllowAgentDebug
+	if !aclObj.AllowAgentDebug(a.srv.config.EnableDebug) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -148,7 +151,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	if aclObj, err := a.srv.ResolveACL(&args); err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+	} else if !aclObj.AllowAgentRead() {
 		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
 		return
 	}
@@ -422,8 +425,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	if err != nil {
 		return err
 	}
-	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
-		(aclObj == nil && !a.srv.config.EnableDebug) {
+	if !aclObj.AllowAgentDebug(a.srv.GetConfig().EnableDebug) {
 		return structs.ErrPermissionDenied
 	}
 

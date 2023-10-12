@@ -357,7 +357,7 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 		l, _, err := nsv.List(nil)
 		must.NoError(t, err)
 		must.Len(t, 1, l)
-		must.Nil(t, l[0].Lock)
+		must.NotNil(t, l[0].Lock) // acls are disabled
 	})
 
 	t.Run("5 release lock on sv1", func(t *testing.T) {

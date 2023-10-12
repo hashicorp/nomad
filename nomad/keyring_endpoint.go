@@ -43,7 +43,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -114,7 +114,7 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -167,7 +167,7 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -232,8 +232,6 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 // Get retrieves an existing key from the keyring, including both the
 // key material and metadata. It is used only for replication.
 func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.KeyringGetRootKeyResponse) error {
-
-	// TODO(tgross): this should use the replication token, not cert check
 	aclObj, err := k.srv.AuthenticateServerOnly(k.ctx, args)
 	k.srv.MeasureRPCRate("keyring", structs.RateMetricRead, args)
 
@@ -314,7 +312,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 

@@ -45,7 +45,7 @@ func (p *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest, reply *st
 
 	if aclObj, err := p.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil {
+	} else {
 		hasListScalingPolicies := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListScalingPolicies)
 		hasListAndReadJobs := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) &&
 			aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
@@ -114,7 +114,7 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 	// Check for list-job permissions
 	if aclObj, err := p.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil {
+	} else {
 		hasReadScalingPolicy := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadScalingPolicy)
 		hasListAndReadJobs := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) &&
 			aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)

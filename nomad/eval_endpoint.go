@@ -461,7 +461,7 @@ func (e *Eval) Delete(
 	// meaning only those with management tokens can call it.
 	if aclObj, err := e.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 

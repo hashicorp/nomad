@@ -92,7 +92,7 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 	// Check node read permissions
 	if aclObj, err := s.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	} else if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 

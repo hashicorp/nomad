@@ -27,7 +27,7 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 	// Check node write permissions
 	if aclObj, err := n.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -93,7 +93,7 @@ func (n *NodeMeta) Read(args *structs.NodeSpecificRequest, reply *structs.NodeMe
 	// Check node read permissions
 	if aclObj, err := n.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	} else if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
