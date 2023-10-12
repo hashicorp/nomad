@@ -98,19 +98,25 @@ func (h *consulHook) Prerun() error {
 }
 
 func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tgName string, tokens map[string]map[string]string) error {
+	var consulClusterName string
+	if task.Consul != nil && task.Consul.Cluster != "" {
+		consulClusterName = task.Consul.Cluster
+	} else {
+		consulClusterName = structs.ConsulDefaultCluster
+	}
+
+	// get consul config
+	consulConfig := h.consulConfigs[consulClusterName]
+
 	// if UseIdentity is unset of set to false, quit
-	// FIXME Fetch from Task.Consul.Cluster once #18557 is in
-	consulConfig := h.consulConfigs[structs.ConsulDefaultCluster]
 	if consulConfig.UseIdentity == nil || !*consulConfig.UseIdentity {
 		return nil
 	}
 
-	expectedIdentity := task.MakeUniqueIdentityName(tgName)
-
 	// get tokens for alt identities for Consul
 	mErr := multierror.Error{}
 	for _, i := range task.Identities {
-		if i.Name != expectedIdentity {
+		if i.Name != fmt.Sprintf("%s_%s", structs.ConsulTaskIdentityNamePrefix, consulClusterName) {
 			continue
 		}
 
@@ -134,8 +140,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 			AuthMethodName: consulTasksAuthMethodName,
 		}
 
-		// FIXME Fetch from Task.Consul.Cluster once #18557 is in
-		if err := h.getConsulTokens(structs.ConsulDefaultCluster, ti.IdentityName, tokens, req); err != nil {
+		if err := h.getConsulTokens(consulClusterName, ti.IdentityName, tokens, req); err != nil {
 			return err
 		}
 	}

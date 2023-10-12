@@ -12,6 +12,13 @@ const (
 	// ConsulDefaultCluster is the name used for the Consul cluster that doesn't
 	// have a name.
 	ConsulDefaultCluster = "default"
+
+	// ConsulServiceIdentityNamePrefix is used in naming identities of consul
+	// services
+	ConsulServiceIdentityNamePrefix = "consul-service"
+
+	// ConsulTaskIdentityNamePrefix is used in naming identities of consul tasks
+	ConsulTaskIdentityNamePrefix = "consul"
 )
 
 // Consul represents optional per-group consul configuration.
@@ -53,6 +60,19 @@ func (c *Consul) Equal(o *Consul) bool {
 func (c *Consul) Validate() error {
 	// nothing to do here
 	return nil
+}
+
+// IdentityName returns the name of the workload identity to be used to access
+// this Consul cluster.
+func (c *Consul) IdentityName() string {
+	var clusterName string
+	if c != nil && c.Cluster != "" {
+		clusterName = c.Cluster
+	} else {
+		clusterName = ConsulDefaultCluster
+	}
+
+	return fmt.Sprintf("%s_%s", ConsulTaskIdentityNamePrefix, clusterName)
 }
 
 var (

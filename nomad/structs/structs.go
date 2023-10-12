@@ -7666,12 +7666,6 @@ func (t *Task) GetIdentity(name string) *WorkloadIdentity {
 	return nil
 }
 
-// MakeUniqueIdentityName returns a task identity name consisting of: task
-// group name and task name.
-func (t *Task) MakeUniqueIdentityName(taskGroup string) string {
-	return fmt.Sprintf("%v-%v", taskGroup, t.Name)
-}
-
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of unique WI
 // name and task name.
 func (t *Task) IdentityHandle(identity *WorkloadIdentity) *WIHandle {
