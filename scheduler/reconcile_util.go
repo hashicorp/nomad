@@ -269,6 +269,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			switch taintedNode.Status {
 			case structs.NodeStatusDisconnected:
 				if supportsDisconnectedClients {
+
 					// Filter running allocs on a node that is disconnected to be marked as unknown.
 					if alloc.ClientStatus == structs.AllocClientStatusRunning {
 						disconnecting[alloc.ID] = alloc
@@ -316,11 +317,11 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			continue
 		}
 
-		// Ignore unknown allocs that we want to reconnect eventually.
+		// Acknowledge unknown allocs that we want to reconnect eventually.
 		if supportsDisconnectedClients &&
 			alloc.ClientStatus == structs.AllocClientStatusUnknown &&
 			alloc.DesiredStatus == structs.AllocDesiredStatusRun {
-			ignore[alloc.ID] = alloc
+			untainted[alloc.ID] = alloc
 			continue
 		}
 
@@ -491,7 +492,7 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		return
 	}
 
-	if eligible && (alloc.FollowupEvalID == "" && !isDisconnecting) {
+	if eligible && (alloc.FollowupEvalID == "") {
 		rescheduleLater = true
 	}
 

@@ -1074,7 +1074,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 //   - If the reconnecting allocation is to be stopped, its replacements may
 //     not be present in any of the returned sets. The rest of the reconciler
 //     logic will handle them.
-func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others allocSet) (allocSet, allocSet) {
+func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, allAllocs allocSet) (allocSet, allocSet) {
 	stop := make(allocSet)
 	reconnect := make(allocSet)
 
@@ -1113,7 +1113,7 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 
 		// Find replacement allocations and decide which one to stop. A
 		// reconnecting allocation may have multiple replacements.
-		for _, replacementAlloc := range others {
+		for _, replacementAlloc := range allAllocs {
 
 			// Skip allocations that are not a replacement of the one
 			// reconnecting. Replacement allocations have the same name but a
