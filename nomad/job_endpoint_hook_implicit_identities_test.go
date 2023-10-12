@@ -271,7 +271,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 						Name:      "web-task",
 						Templates: []*structs.Template{{}},
 						Identities: []*structs.WorkloadIdentity{{
-							Name:     "consul_group-web-task",
+							Name:     "consul_default",
 							Audience: []string{"consul.io"},
 						}},
 					}},
