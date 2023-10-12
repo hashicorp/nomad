@@ -98,8 +98,17 @@ func (h *consulHook) Prerun() error {
 }
 
 func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tgName string, tokens map[string]map[string]string) error {
+	var consulClusterName string
+	if task.Consul != nil && task.Consul.Cluster != "" {
+		consulClusterName = task.Consul.Cluster
+	} else {
+		consulClusterName = structs.ConsulDefaultCluster
+	}
+
+	// get consul config
+	consulConfig := h.consulConfigs[consulClusterName]
+
 	// if UseIdentity is unset of set to false, quit
-	consulConfig := h.consulConfigs[task.Consul.Cluster]
 	if consulConfig.UseIdentity == nil || !*consulConfig.UseIdentity {
 		return nil
 	}
@@ -131,7 +140,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 			AuthMethodName: consulTasksAuthMethodName,
 		}
 
-		if err := h.getConsulTokens(task.Consul.Cluster, ti.IdentityName, tokens, req); err != nil {
+		if err := h.getConsulTokens(consulClusterName, ti.IdentityName, tokens, req); err != nil {
 			return err
 		}
 	}
