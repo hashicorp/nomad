@@ -35,7 +35,7 @@ func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []err
 				h.handleConsulService(s)
 			}
 			if len(t.Templates) > 0 {
-				h.handleConsulTasks(t, tg.Name)
+				h.handleConsulTasks(t)
 			}
 			h.handleVault(t)
 		}
@@ -81,13 +81,12 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 	s.Identity = serviceWID
 }
 
-func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, taskGroup string) {
+func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task) {
 	if !h.srv.config.UseConsulIdentity() {
 		return
 	}
 
-	name := t.MakeUniqueIdentityName(taskGroup)
-	widName := fmt.Sprintf("%s/%s", ConsulTaskIdentityNamePrefix, name)
+	widName := fmt.Sprintf("%s/%s", ConsulTaskIdentityNamePrefix, t.GetConsulTaskName())
 
 	// Use the Consul identity specified in the task if present
 	for _, wid := range t.Identities {

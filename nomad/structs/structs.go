@@ -7666,12 +7666,6 @@ func (t *Task) GetIdentity(name string) *WorkloadIdentity {
 	return nil
 }
 
-// MakeUniqueIdentityName returns a task identity name consisting of: task
-// group name and task name.
-func (t *Task) MakeUniqueIdentityName(taskGroup string) string {
-	return fmt.Sprintf("%v-%v", taskGroup, t.Name)
-}
-
 // GetConsulTaskName returns the consulClusterName_TaskName string.
 func (t *Task) GetConsulTaskName() string {
 	return fmt.Sprintf("%s_%s", t.Consul.Cluster, t.Name)
