@@ -15,6 +15,17 @@ type Action struct {
 	Args    []string
 }
 
+type JobAction struct {
+	Action
+	TaskName      string
+	TaskGroupName string
+}
+
+type ActionListResponse struct {
+	Actions []*JobAction
+	QueryMeta
+}
+
 func (a *Action) Copy() *Action {
 	if a == nil {
 		return nil
