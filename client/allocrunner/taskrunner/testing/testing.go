@@ -30,23 +30,24 @@ func (m *MockEmitter) Events() []*structs.TaskEvent {
 
 // MockTaskHooks is a mock of the TaskHooks interface useful for testing
 type MockTaskHooks struct {
-	Restarts  int
-	RestartCh chan struct{}
+	lock sync.Mutex
 
-	SignalCh   chan struct{}
-	signals    []string
-	signalLock sync.Mutex
+	RestartCh chan struct{}
+	restarts  int
+
+	SignalCh chan struct{}
+	signals  []string
 
 	// SignalError is returned when Signal is called on the mock hook
 	SignalError error
 
 	UnblockCh chan struct{}
 
-	KillEvent *structs.TaskEvent
 	KillCh    chan *structs.TaskEvent
+	killEvent *structs.TaskEvent
 
-	Events      []*structs.TaskEvent
 	EmitEventCh chan *structs.TaskEvent
+	events      []*structs.TaskEvent
 
 	// HasHandle can be set to simulate restoring a task after client restart
 	HasHandle bool
@@ -62,7 +63,10 @@ func NewMockTaskHooks() *MockTaskHooks {
 	}
 }
 func (m *MockTaskHooks) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	m.Restarts++
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.restarts++
 	select {
 	case m.RestartCh <- struct{}{}:
 	default:
@@ -71,9 +75,10 @@ func (m *MockTaskHooks) Restart(ctx context.Context, event *structs.TaskEvent, f
 }
 
 func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s string) error {
-	m.signalLock.Lock()
+	m.lock.Lock()
 	m.signals = append(m.signals, s)
-	m.signalLock.Unlock()
+	m.lock.Unlock()
+
 	select {
 	case m.SignalCh <- struct{}{}:
 	default:
@@ -83,13 +88,16 @@ func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s string) error {
 }
 
 func (m *MockTaskHooks) Signals() []string {
-	m.signalLock.Lock()
-	defer m.signalLock.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	return m.signals
 }
 
 func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) error {
-	m.KillEvent = event
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.killEvent = event
 	select {
 	case m.KillCh <- event:
 	default:
@@ -102,7 +110,10 @@ func (m *MockTaskHooks) IsRunning() bool {
 }
 
 func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
-	m.Events = append(m.Events, event)
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.events = append(m.events, event)
 	select {
 	case m.EmitEventCh <- event:
 	case <-m.EmitEventCh:
@@ -111,3 +122,21 @@ func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
 }
 
 func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
+
+func (m *MockTaskHooks) KillEvent() *structs.TaskEvent {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.killEvent
+}
+
+func (m *MockTaskHooks) Events() []*structs.TaskEvent {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.events
+}
+
+func (m *MockTaskHooks) Restarts() int {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.restarts
+}

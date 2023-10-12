@@ -416,9 +416,9 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 		Role: h.vaultBlock.Role,
 	})
 	if err != nil {
-		return "", structs.NewRecoverableError(
-			fmt.Errorf("failed to derive Vault token for identity %s: %w", h.widName, err),
-			true,
+		return "", structs.WrapRecoverable(
+			fmt.Sprintf("failed to derive Vault token for identity %s: %v", h.widName, err),
+			err,
 		)
 	}
 

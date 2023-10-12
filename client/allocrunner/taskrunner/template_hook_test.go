@@ -48,7 +48,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	conf := &templateHookConfig{
 		logger:        logger,
 		lifecycle:     taskHooks,
-		events:        &mockEmitter{},
+		events:        &trtesting.MockEmitter{},
 		clientConfig:  clientConfig,
 		envBuilder:    envBuilder,
 		hookResources: hr,
