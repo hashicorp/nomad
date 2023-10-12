@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	consulServiceIdentityNamePrefix = "consul-service"
-	consulTaskIdentityNamePrefix    = "consul"
+	ConsulServiceIdentityNamePrefix = "consul-service"
+	ConsulTaskIdentityNamePrefix    = "consul"
 )
 
 // jobImplicitIdentitiesHook adds implicit `identity` blocks for external
@@ -75,7 +75,7 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 
 	// Set the expected identity name and service name.
 	name := s.MakeUniqueIdentityName()
-	serviceWID.Name = fmt.Sprintf("%s/%s", consulServiceIdentityNamePrefix, name)
+	serviceWID.Name = fmt.Sprintf("%s/%s", ConsulServiceIdentityNamePrefix, name)
 	serviceWID.ServiceName = s.Name
 
 	s.Identity = serviceWID
@@ -87,7 +87,7 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, taskGroup 
 	}
 
 	name := t.MakeUniqueIdentityName(taskGroup)
-	widName := fmt.Sprintf("%s/%s", consulTaskIdentityNamePrefix, name)
+	widName := fmt.Sprintf("%s/%s", ConsulTaskIdentityNamePrefix, name)
 
 	// Use the Consul identity specified in the task if present
 	for _, wid := range t.Identities {

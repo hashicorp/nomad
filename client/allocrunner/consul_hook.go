@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/widmgr"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -99,18 +100,15 @@ func (h *consulHook) Prerun() error {
 
 func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tgName string, tokens map[string]map[string]string) error {
 	// if UseIdentity is unset of set to false, quit
-	// FIXME Fetch from Task.Consul.Cluster once #18557 is in
-	consulConfig := h.consulConfigs[structs.ConsulDefaultCluster]
+	consulConfig := h.consulConfigs[task.Consul.Cluster]
 	if consulConfig.UseIdentity == nil || !*consulConfig.UseIdentity {
 		return nil
 	}
 
-	expectedIdentity := task.MakeUniqueIdentityName(tgName)
-
 	// get tokens for alt identities for Consul
 	mErr := multierror.Error{}
 	for _, i := range task.Identities {
-		if i.Name != expectedIdentity {
+		if i.Name != fmt.Sprintf("%s/%s", nomad.ConsulTaskIdentityNamePrefix, task.GetConsulTaskName()) {
 			continue
 		}
 
@@ -134,8 +132,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 			AuthMethodName: consulTasksAuthMethodName,
 		}
 
-		// FIXME Fetch from Task.Consul.Cluster once #18557 is in
-		if err := h.getConsulTokens(structs.ConsulDefaultCluster, ti.IdentityName, tokens, req); err != nil {
+		if err := h.getConsulTokens(task.Consul.Cluster, ti.IdentityName, tokens, req); err != nil {
 			return err
 		}
 	}

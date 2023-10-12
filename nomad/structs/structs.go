@@ -7672,6 +7672,11 @@ func (t *Task) MakeUniqueIdentityName(taskGroup string) string {
 	return fmt.Sprintf("%v-%v", taskGroup, t.Name)
 }
 
+// GetConsulTaskName returns the consulClusterName_TaskName string.
+func (t *Task) GetConsulTaskName() string {
+	return fmt.Sprintf("%s_%s", t.Consul.Cluster, t.Name)
+}
+
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of unique WI
 // name and task name.
 func (t *Task) IdentityHandle(identity *WorkloadIdentity) *WIHandle {
