@@ -7675,7 +7675,10 @@ func (t *Task) GetIdentity(name string) *WorkloadIdentity {
 
 // GetConsulTaskName returns the consulClusterName_TaskName string.
 func (t *Task) GetConsulTaskName() string {
-	return fmt.Sprintf("%s_%s", t.Consul.Cluster, t.Name)
+	if t.Consul != nil && t.Consul.Cluster != "" {
+		return fmt.Sprintf("%s_%s", t.Consul.Cluster, t.Name)
+	}
+	return fmt.Sprintf("%s_%s", ConsulDefaultCluster, t.Name)
 }
 
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of unique WI
