@@ -40,14 +40,6 @@ func (srv *Server) ResolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*
 	return srv.auth.ResolvePoliciesForClaims(claims)
 }
 
-func (srv *Server) ResolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL, error) {
-	return srv.auth.ResolveACLForToken(aclToken)
-}
-
 func (srv *Server) ResolveSecretToken(secretID string) (*structs.ACLToken, error) {
 	return srv.auth.ResolveSecretToken(secretID)
-}
-
-func (srv *Server) ResolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error) {
-	return srv.auth.ResolveClaims(claims)
 }

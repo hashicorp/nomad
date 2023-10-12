@@ -493,6 +493,11 @@ func (a *ACL) AllowHostVolume(ns string) bool {
 }
 
 func (a *ACL) AllowVariableOperation(ns, path, op string, claim *ACLClaim) bool {
+	if a == nil {
+		// ACL is nil only if ACLs are disabled
+		// TODO(tgross): return false when there are no nil ACLs
+		return true
+	}
 	if a.management {
 		return true
 	}
@@ -517,6 +522,11 @@ type ACLClaim struct {
 // a variables path for the namespace, with an expectation that the actual
 // search result will be filtered by specific paths
 func (a *ACL) AllowVariableSearch(ns string) bool {
+	if a == nil {
+		// ACL is nil only if ACLs are disabled
+		// TODO(tgross): return false when there are no nil ACLs
+		return true
+	}
 	if a.management {
 		return true
 	}
