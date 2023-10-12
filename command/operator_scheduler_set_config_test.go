@@ -22,7 +22,7 @@ func TestOperatorSchedulerSetConfig_Run(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &OperatorSchedulerSetConfig{Meta: Meta{Ui: ui}}
 
-	bootstrappedConfig, _, err := srv.Client().Operator().SchedulerGetConfiguration(nil)
+	bootstrappedConfig, _, err := srv.APIClient().Operator().SchedulerGetConfiguration(nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, bootstrappedConfig.SchedulerConfig)
 
@@ -34,7 +34,7 @@ func TestOperatorSchedulerSetConfig_Run(t *testing.T) {
 
 	// Read the configuration again and test that nothing has changed which
 	// ensures our empty flags are working correctly.
-	nonModifiedConfig, _, err := srv.Client().Operator().SchedulerGetConfiguration(nil)
+	nonModifiedConfig, _, err := srv.APIClient().Operator().SchedulerGetConfiguration(nil)
 	require.NoError(t, err)
 	schedulerConfigEquals(t, bootstrappedConfig.SchedulerConfig, nonModifiedConfig.SchedulerConfig)
 
@@ -56,7 +56,7 @@ func TestOperatorSchedulerSetConfig_Run(t *testing.T) {
 	s := ui.OutputWriter.String()
 	require.Contains(t, s, "Scheduler configuration updated!")
 
-	modifiedConfig, _, err := srv.Client().Operator().SchedulerGetConfiguration(nil)
+	modifiedConfig, _, err := srv.APIClient().Operator().SchedulerGetConfiguration(nil)
 	require.NoError(t, err)
 	schedulerConfigEquals(t, &api.SchedulerConfiguration{
 		SchedulerAlgorithm: "spread",

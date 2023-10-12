@@ -487,7 +487,7 @@ func TestOperator_TransferLeadershipToServerAddress_ACL(t *testing.T) {
 	// Create ACL token
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
 
-	arg := structs.RaftPeerRequest{
+	arg := &structs.RaftPeerRequest{
 		RaftIDAddress: structs.RaftIDAddress{Address: addr},
 		WriteRequest:  structs.WriteRequest{Region: s1.config.Region},
 	}
@@ -496,7 +496,7 @@ func TestOperator_TransferLeadershipToServerAddress_ACL(t *testing.T) {
 
 	t.Run("no-token", func(t *testing.T) {
 		// Try with no token and expect permission denied
-		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", &arg, &reply)
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", arg, &reply)
 		must.Error(t, err)
 		must.ErrorIs(t, err, rpcPermDeniedErr)
 	})
@@ -504,7 +504,7 @@ func TestOperator_TransferLeadershipToServerAddress_ACL(t *testing.T) {
 	t.Run("invalid-token", func(t *testing.T) {
 		// Try with an invalid token and expect permission denied
 		arg.AuthToken = invalidToken.SecretID
-		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", &arg, &reply)
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", arg, &reply)
 		must.Error(t, err)
 		must.ErrorIs(t, err, rpcPermDeniedErr)
 	})
@@ -512,7 +512,7 @@ func TestOperator_TransferLeadershipToServerAddress_ACL(t *testing.T) {
 	t.Run("good-token", func(t *testing.T) {
 		// Try with a management token
 		arg.AuthToken = tc.token.SecretID
-		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", &arg, &reply)
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", arg, &reply)
 		must.NoError(t, err)
 
 		// Is the expected leader the new one?
@@ -543,7 +543,7 @@ func TestOperator_TransferLeadershipToServerID_ACL(t *testing.T) {
 	// Create ACL token
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
 
-	arg := structs.RaftPeerRequest{
+	arg := &structs.RaftPeerRequest{
 		RaftIDAddress: structs.RaftIDAddress{
 			ID: tgtID,
 		},
@@ -554,7 +554,7 @@ func TestOperator_TransferLeadershipToServerID_ACL(t *testing.T) {
 
 	t.Run("no-token", func(t *testing.T) {
 		// Try with no token and expect permission denied
-		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", &arg, &reply)
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", arg, &reply)
 		must.Error(t, err)
 		must.ErrorIs(t, err, rpcPermDeniedErr)
 	})
@@ -562,7 +562,7 @@ func TestOperator_TransferLeadershipToServerID_ACL(t *testing.T) {
 	t.Run("invalid-token", func(t *testing.T) {
 		// Try with an invalid token and expect permission denied
 		arg.AuthToken = invalidToken.SecretID
-		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", &arg, &reply)
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", arg, &reply)
 		must.Error(t, err)
 		must.ErrorIs(t, err, rpcPermDeniedErr)
 	})
@@ -570,7 +570,7 @@ func TestOperator_TransferLeadershipToServerID_ACL(t *testing.T) {
 	t.Run("good-token", func(t *testing.T) {
 		// Try with a management token
 		arg.AuthToken = tc.token.SecretID
-		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", &arg, &reply)
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToPeer", arg, &reply)
 		must.NoError(t, err)
 
 		// Is the expected leader the new one?

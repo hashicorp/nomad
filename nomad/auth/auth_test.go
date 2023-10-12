@@ -383,7 +383,7 @@ func TestAuthenticateServerOnly(t *testing.T) {
 
 				aclObj, err := auth.AuthenticateServerOnly(ctx, args)
 				must.EqError(t, err,
-					"invalid certificate, server.global.nomad not in client.global.nomad")
+					"invalid certificate: client.global.nomad not in expected server.global.nomad")
 				must.Eq(t, "client.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
 			},
@@ -409,6 +409,165 @@ func TestAuthenticateServerOnly(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.testFn(t)
+		})
+	}
+
+}
+
+func TestAuthenticateClientOnly(t *testing.T) {
+	ci.Parallel(t)
+
+	testAuthenticator := func(t *testing.T, store *state.StateStore,
+		hasACLs, hasTLS bool) *Authenticator {
+		leaderACL := uuid.Generate()
+
+		return NewAuthenticator(&AuthenticatorConfig{
+			StateFn:        func() *state.StateStore { return store },
+			Logger:         testlog.HCLogger(t),
+			GetLeaderACLFn: func() string { return leaderACL },
+			AclsEnabled:    hasACLs,
+			TLSEnabled:     hasTLS,
+			Region:         "global",
+			Encrypter:      nil,
+		})
+	}
+
+	testCases := []struct {
+		name   string
+		testFn func(*testing.T, *state.StateStore, *structs.Node)
+	}{
+		{
+			name: "no mTLS or ACLs but no node secret",
+			testFn: func(t *testing.T, store *state.StateStore, node *structs.Node) {
+				ctx := newTestContext(t, noTLSCtx, "192.168.1.1")
+				args := &structs.GenericRequest{}
+				args.AuthToken = ""
+
+				auth := testAuthenticator(t, store, false, false)
+
+				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
+				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
+				must.Nil(t, aclObj)
+			},
+		},
+		{
+			name: "no mTLS or ACLs but with node secret",
+			testFn: func(t *testing.T, store *state.StateStore, node *structs.Node) {
+				ctx := newTestContext(t, noTLSCtx, "192.168.1.1")
+				args := &structs.GenericRequest{}
+				args.AuthToken = node.SecretID
+
+				auth := testAuthenticator(t, store, false, false)
+
+				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
+				must.NoError(t, err)
+				must.NotNil(t, aclObj)
+				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
+			},
+		},
+		{
+			name: "no mTLS but with ACLs",
+			testFn: func(t *testing.T, store *state.StateStore, node *structs.Node) {
+				ctx := newTestContext(t, noTLSCtx, "192.168.1.1")
+				args := &structs.GenericRequest{}
+				args.AuthToken = node.SecretID
+
+				auth := testAuthenticator(t, store, true, false)
+
+				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
+				must.NoError(t, err)
+				must.NotNil(t, aclObj)
+				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
+				must.True(t, aclObj.AllowClientOp())
+			},
+		},
+		{
+			name: "no mTLS but with ACLs and bad secret",
+			testFn: func(t *testing.T, store *state.StateStore, node *structs.Node) {
+				ctx := newTestContext(t, noTLSCtx, "192.168.1.1")
+				args := &structs.GenericRequest{}
+				args.AuthToken = uuid.Generate()
+
+				auth := testAuthenticator(t, store, true, false)
+
+				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
+				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
+				must.Nil(t, aclObj)
+			},
+		},
+		{
+			name: "with mTLS and ACLs but CLI cert",
+			testFn: func(t *testing.T, store *state.StateStore, node *structs.Node) {
+				ctx := newTestContext(t, "cli.global.nomad", "192.168.1.1")
+				args := &structs.GenericRequest{}
+
+				auth := testAuthenticator(t, store, true, true)
+
+				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
+				must.EqError(t, err,
+					"invalid certificate: cli.global.nomad not in expected client.global.nomad, server.global.nomad")
+				must.Eq(t, "cli.global.nomad:192.168.1.1", args.GetIdentity().String())
+				must.Nil(t, aclObj)
+			},
+		},
+		{
+			name: "with mTLS and ACLs with server cert but bad token",
+			testFn: func(t *testing.T, store *state.StateStore, node *structs.Node) {
+				ctx := newTestContext(t, "server.global.nomad", "192.168.1.1")
+				args := &structs.GenericRequest{}
+				args.AuthToken = uuid.Generate()
+
+				auth := testAuthenticator(t, store, true, true)
+
+				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
+				must.Eq(t, "server.global.nomad:192.168.1.1", args.GetIdentity().String())
+				must.Nil(t, aclObj)
+			},
+		},
+		{
+			name: "with mTLS and ACLs with server cert and valid token",
+			testFn: func(t *testing.T, store *state.StateStore, node *structs.Node) {
+				ctx := newTestContext(t, "server.global.nomad", "192.168.1.1")
+				args := &structs.GenericRequest{}
+				args.AuthToken = node.SecretID
+
+				auth := testAuthenticator(t, store, true, true)
+
+				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
+				must.NoError(t, err)
+
+				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
+				must.NotNil(t, aclObj)
+				must.True(t, aclObj.AllowClientOp())
+			},
+		},
+		{
+			name: "with mTLS and ACLs with client cert",
+			testFn: func(t *testing.T, store *state.StateStore, node *structs.Node) {
+				ctx := newTestContext(t, "client.global.nomad", "192.168.1.1")
+				args := &structs.GenericRequest{}
+				args.AuthToken = node.SecretID
+
+				auth := testAuthenticator(t, store, true, true)
+
+				aclObj, err := auth.AuthenticateClientOnly(ctx, args)
+				must.NoError(t, err)
+				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
+				must.NotNil(t, aclObj)
+				must.True(t, aclObj.AllowClientOp())
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := mock.Node()
+			store := testStateStore(t)
+			store.UpsertNode(structs.MsgTypeTestSetup, 100, node)
+			tc.testFn(t, store, node)
 		})
 	}
 

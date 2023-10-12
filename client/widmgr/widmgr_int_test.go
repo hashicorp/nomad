@@ -30,7 +30,7 @@ func TestWIDMgr(t *testing.T) {
 	t.Cleanup(ta.Shutdown)
 
 	mgr := widmgr.NewSigner(widmgr.SignerConfig{
-		NodeSecret: uuid.Generate(), // not checked when ACLs disabled
+		NodeSecret: ta.Client().Node().SecretID,
 		Region:     "global",
 		RPC:        ta,
 	})

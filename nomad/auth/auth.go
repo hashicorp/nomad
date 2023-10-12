@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing
@@ -46,6 +47,9 @@ type Authenticator struct {
 	getLeaderACL LeaderACLGetter
 	region       string
 
+	validServerCertNames []string
+	validClientCertNames []string
+
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *structs.ACLCache[*acl.ACL]
 
@@ -66,14 +70,19 @@ type AuthenticatorConfig struct {
 
 func NewAuthenticator(cfg *AuthenticatorConfig) *Authenticator {
 	return &Authenticator{
-		aclsEnabled:  cfg.AclsEnabled,
-		tlsEnabled:   cfg.TLSEnabled,
-		logger:       cfg.Logger.With("auth"),
-		getState:     cfg.StateFn,
-		getLeaderACL: cfg.GetLeaderACLFn,
-		region:       cfg.Region,
-		aclCache:     structs.NewACLCache[*acl.ACL](aclCacheSize),
-		encrypter:    cfg.Encrypter,
+		aclsEnabled:          cfg.AclsEnabled,
+		tlsEnabled:           cfg.TLSEnabled,
+		logger:               cfg.Logger.With("auth"),
+		getState:             cfg.StateFn,
+		getLeaderACL:         cfg.GetLeaderACLFn,
+		region:               cfg.Region,
+		aclCache:             structs.NewACLCache[*acl.ACL](aclCacheSize),
+		encrypter:            cfg.Encrypter,
+		validServerCertNames: []string{"server." + cfg.Region + ".nomad"},
+		validClientCertNames: []string{
+			"client." + cfg.Region + ".nomad",
+			"server." + cfg.Region + ".nomad",
+		},
 	}
 }
 
@@ -232,9 +241,7 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 		// set on the identity whether or not its valid for server RPC, so we
 		// can capture it for metrics
 		identity.TLSName = tlsCert.Subject.CommonName
-
-		expected := "server." + s.region + ".nomad"
-		_, err := validateCertificateForName(tlsCert, expected)
+		_, err := validateCertificateForNames(tlsCert, s.validServerCertNames)
 		if err != nil {
 			return nil, err
 		}
@@ -249,23 +256,111 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 	return acl.ServerACL, nil
 }
 
-// validateCertificateForName returns true if the certificate is valid
-// for the given domain name.
-func validateCertificateForName(cert *x509.Certificate, expectedName string) (bool, error) {
+// AuthenticateClientOnly returns an ACL object for use *only* with internal
+// RPCs originating from clients (including those forwarded). This should never
+// be used for RPCs that serve HTTP endpoints to avoid confused deputy attacks
+// by making a request to a client that's forwarded. It should also not be used
+// with Node.Register, which should use AuthenticateClientTOFU
+//
+// The returned ACL object is always a acl.ClientACL but in the future this
+// could be extended to allow clients access only to their own pool and
+// associated namespaces, etc.
+func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
+
+	remoteIP, err := ctx.GetRemoteIP() // capture for metrics
+	if err != nil {
+		s.logger.Error("could not determine remote address", "error", err)
+	}
+
+	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
+	defer args.SetIdentity(identity) // always set the identity, even on errors
+
+	if s.tlsEnabled && !ctx.IsStatic() {
+		tlsCert := ctx.Certificate()
+		if tlsCert == nil {
+			return nil, errors.New("missing certificate information")
+		}
+
+		// set on the identity whether or not its valid for server RPC, so we
+		// can capture it for metrics
+		identity.TLSName = tlsCert.Subject.CommonName
+		_, err := validateCertificateForNames(tlsCert, s.validClientCertNames)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	secretID := args.GetAuthToken()
+	if secretID == "" {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	// Otherwise, see if the secret ID belongs to a node. We should
+	// reach this point only on first connection.
+	node, err := s.getState().NodeBySecretID(nil, secretID)
+	if err != nil {
+		// this is a go-memdb error; shouldn't happen
+		return nil, fmt.Errorf("could not resolve node secret: %w", err)
+	}
+	if node == nil {
+		return nil, structs.ErrPermissionDenied
+	}
+	identity.ClientID = node.ID
+	return acl.ClientACL, nil
+}
+
+// AuthenticateClientOnlyLegacy is a version of AuthenticateClientOnly that's
+// used by a few older RPCs that did not properly enforce node secrets.
+// COMPAT(1.8.0): In Nomad 1.6.0 we starting sending those node secrets, so we
+// can remove this in Nomad 1.8.0.
+func (s *Authenticator) AuthenticateClientOnlyLegacy(ctx RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
+
+	remoteIP, err := ctx.GetRemoteIP() // capture for metrics
+	if err != nil {
+		s.logger.Error("could not determine remote address", "error", err)
+	}
+
+	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
+	defer args.SetIdentity(identity) // always set the identity, even on errors
+
+	if s.tlsEnabled && !ctx.IsStatic() {
+		tlsCert := ctx.Certificate()
+		if tlsCert == nil {
+			return nil, errors.New("missing certificate information")
+		}
+
+		// set on the identity whether or not its valid for server RPC, so we
+		// can capture it for metrics
+		identity.TLSName = tlsCert.Subject.CommonName
+		_, err := validateCertificateForNames(tlsCert, s.validClientCertNames)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return acl.ClientACL, nil
+}
+
+// validateCertificateForNames returns true if the certificate is valid for any
+// of the given domain names.
+func validateCertificateForNames(cert *x509.Certificate, expectedNames []string) (bool, error) {
 	if cert == nil {
 		return false, nil
 	}
 
 	validNames := []string{cert.Subject.CommonName}
 	validNames = append(validNames, cert.DNSNames...)
-	for _, valid := range validNames {
-		if expectedName == valid {
+
+	for _, expectedName := range expectedNames {
+		if slices.Contains(validNames, expectedName) {
 			return true, nil
 		}
 	}
 
-	return false, fmt.Errorf("invalid certificate, %s not in %s",
-		expectedName, strings.Join(validNames, ","))
+	return false, fmt.Errorf("invalid certificate: %s not in expected %s",
+		strings.Join(validNames, ", "),
+		strings.Join(expectedNames, ", "))
+
 }
 
 // ResolveACLForToken resolves an ACL from a token only. It should be used only
@@ -283,22 +378,6 @@ func (s *Authenticator) ResolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL
 		return nil, err
 	}
 	return resolveACLFromToken(snap, s.aclCache, aclToken)
-}
-
-// ResolveClientOrACL resolves an ACL if the identity has a token or claim, and
-// falls back to verifying the client ID if one has been set
-func (s *Authenticator) ResolveClientOrACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
-	identity := args.GetIdentity()
-	if !s.aclsEnabled || identity == nil || identity.ClientID != "" {
-		return nil, nil
-	}
-	aclObj, err := s.ResolveACL(args)
-	if err != nil {
-		return nil, err
-	}
-
-	// Returns either the users aclObj, or nil if ACLs are disabled.
-	return aclObj, nil
 }
 
 // ResolveToken is used to translate an ACL Token Secret ID into

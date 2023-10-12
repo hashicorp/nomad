@@ -1021,7 +1021,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
 	// Check node read permissions
-	aclObj, err := n.srv.ResolveClientOrACL(args)
+	aclObj, err := n.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -1317,23 +1317,21 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 //   - The node status is down or disconnected. Clients must call the
 //     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
-
-	// Ensure the connection was initiated by another client if TLS is used.
-	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
-	if err != nil {
-		return err
-	}
-	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
-		return err
-	}
+	// COMPAT(1.9.0): move to AuthenticateClientOnly
+	aclObj, err := n.srv.AuthenticateClientOnlyLegacy(n.ctx, args)
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
-	if authErr != nil {
+	if err != nil {
 		return structs.ErrPermissionDenied
 	}
 
+	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
+		return err
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
+	if !aclObj.AllowClientOp() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Ensure at least a single alloc
 	if len(args.Alloc) == 0 {
@@ -2253,22 +2251,21 @@ func taskUsesConnect(task *structs.Task) bool {
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
-
-	// Ensure the connection was initiated by another client if TLS is used.
-	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
+	// COMPAT(1.9.0): move to AuthenticateClientOnly
+	aclObj, err := n.srv.AuthenticateClientOnlyLegacy(n.ctx, args)
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
-		return err
+		return structs.ErrPermissionDenied
 	}
+
 	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
 		return err
 	}
-	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
-	if authErr != nil {
+	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
+
+	if !aclObj.AllowClientOp() {
 		return structs.ErrPermissionDenied
 	}
-	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 
 	if len(args.NodeEvents) == 0 {
 		return fmt.Errorf("no node events given")
