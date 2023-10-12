@@ -178,7 +178,7 @@ func (s *ServiceRegistration) List(
 	if err != nil {
 		return err
 	}
-	if aclObj != nil && !aclObj.AllowServiceRegistrationReadList(args.RequestNamespace(),
+	if !aclObj.AllowServiceRegistrationReadList(args.RequestNamespace(),
 		args.GetIdentity().Claims != nil) {
 		return structs.ErrPermissionDenied
 	}
@@ -343,7 +343,7 @@ func (s *ServiceRegistration) GetService(
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-	if aclObj != nil && !aclObj.AllowServiceRegistrationReadList(args.RequestNamespace(),
+	if !aclObj.AllowServiceRegistrationReadList(args.RequestNamespace(),
 		args.GetIdentity().Claims != nil) {
 		return structs.ErrPermissionDenied
 	}
