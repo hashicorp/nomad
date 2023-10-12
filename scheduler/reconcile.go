@@ -457,7 +457,8 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
 
-	// Determine what set of disconnecting allocations need to be rescheduled
+	// Determine what set of disconnecting allocations need to be rescheduled now
+	// and which ones can't be rescheduled at all.
 	untaintedDisconnecting, rescheduleDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 	rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
 	untainted = untainted.union(untaintedDisconnecting)

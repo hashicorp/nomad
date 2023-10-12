@@ -265,7 +265,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 
 		taintedNode, nodeIsTainted := taintedNodes[alloc.NodeID]
 		if taintedNode != nil {
-			// Group disconnecting/reconnecting
+			// Group disconnecting
 			switch taintedNode.Status {
 			case structs.NodeStatusDisconnected:
 				if supportsDisconnectedClients {
@@ -401,17 +401,19 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 			continue
 		}
 
-		// If the failed alloc is not eligible for rescheduling now we
-		// add it to the untainted set. Disconnecting delay evals are
-		// handled by allocReconciler.createTimeoutLaterEvals
 		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID, deployment, isDisconnecting)
-		if !eligibleNow {
-			untainted[alloc.ID] = alloc
-			if eligibleLater && !isDisconnecting {
-				rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
-			}
-		} else {
+		if eligibleNow {
 			rescheduleNow[alloc.ID] = alloc
+			continue
+		}
+
+		// If the failed alloc is not eligible for rescheduling now we
+		// add it to the untainted set.
+		untainted[alloc.ID] = alloc
+
+		//Disconnecting delay evals are handled by allocReconciler.createTimeoutLaterEvals
+		if eligibleLater && !isDisconnecting {
+			rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
 		}
 	}
 	return untainted, rescheduleNow, rescheduleLater
@@ -761,39 +763,4 @@ func (a *allocNameIndex) Next(n uint) []string {
 	}
 
 	return next
-}
-
-// filterByRescheduleableDisconnecting
-func (a allocSet) filterByDisconnectingRescheduleable(isBatch bool, now time.Time,
-	evalID string, deployment *structs.Deployment) (allocSet, allocSet) {
-	untainted := make(map[string]*structs.Allocation)
-	reschedule := make(map[string]*structs.Allocation)
-
-	for _, alloc := range a {
-		// Ignore disconnecting allocs that are already unknown. This can happen
-		// in the case of canaries that are interrupted by a disconnect.
-		if alloc.ClientStatus == structs.AllocClientStatusUnknown {
-			continue
-		}
-
-		// Ignore failing allocs that have already been rescheduled.
-		// Only failed or disconnecting allocs should be rescheduled.
-		// Protects against a bug allowing rescheduling running allocs.
-		if alloc.NextAllocation != "" && alloc.TerminalStatus() {
-			continue
-		}
-
-		_, ignore := shouldFilter(alloc, isBatch)
-		if ignore {
-			continue
-		}
-
-		eligible, _, _ := updateByReschedulable(alloc, now, evalID, deployment, true)
-		if eligible {
-			reschedule[alloc.ID] = alloc
-		} else {
-			untainted[alloc.ID] = alloc
-		}
-	}
-	return untainted, reschedule
 }
