@@ -5,7 +5,6 @@ package template
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -16,7 +15,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -25,6 +23,7 @@ import (
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	trtesting "github.com/hashicorp/nomad/client/allocrunner/taskrunner/testing"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
@@ -48,84 +47,6 @@ const (
 	TestTaskName = "test-task"
 )
 
-// MockTaskHooks is a mock of the TaskHooks interface useful for testing
-type MockTaskHooks struct {
-	Restarts  int
-	RestartCh chan struct{}
-
-	Signals    []string
-	SignalCh   chan struct{}
-	signalLock sync.Mutex
-
-	// SignalError is returned when Signal is called on the mock hook
-	SignalError error
-
-	UnblockCh chan struct{}
-
-	KillEvent *structs.TaskEvent
-	KillCh    chan *structs.TaskEvent
-
-	Events      []*structs.TaskEvent
-	EmitEventCh chan *structs.TaskEvent
-
-	// hasHandle can be set to simulate restoring a task after client restart
-	hasHandle bool
-}
-
-func NewMockTaskHooks() *MockTaskHooks {
-	return &MockTaskHooks{
-		UnblockCh:   make(chan struct{}, 1),
-		RestartCh:   make(chan struct{}, 1),
-		SignalCh:    make(chan struct{}, 1),
-		KillCh:      make(chan *structs.TaskEvent, 1),
-		EmitEventCh: make(chan *structs.TaskEvent, 1),
-	}
-}
-func (m *MockTaskHooks) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	m.Restarts++
-	select {
-	case m.RestartCh <- struct{}{}:
-	default:
-	}
-	return nil
-}
-
-func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s string) error {
-	m.signalLock.Lock()
-	m.Signals = append(m.Signals, s)
-	m.signalLock.Unlock()
-	select {
-	case m.SignalCh <- struct{}{}:
-	default:
-	}
-
-	return m.SignalError
-}
-
-func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) error {
-	m.KillEvent = event
-	select {
-	case m.KillCh <- event:
-	default:
-	}
-	return nil
-}
-
-func (m *MockTaskHooks) IsRunning() bool {
-	return m.hasHandle
-}
-
-func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
-	m.Events = append(m.Events, event)
-	select {
-	case m.EmitEventCh <- event:
-	case <-m.EmitEventCh:
-		m.EmitEventCh <- event
-	}
-}
-
-func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
-
 // mockExecutor implements script executor interface
 type mockExecutor struct {
 	DesiredExit int
@@ -140,7 +61,7 @@ func (m *mockExecutor) Exec(timeout time.Duration, cmd string, args []string) ([
 // Consul/Vault as needed
 type testHarness struct {
 	manager        *TaskTemplateManager
-	mockHooks      *MockTaskHooks
+	mockHooks      *trtesting.MockTaskHooks
 	templates      []*structs.Template
 	envBuilder     *taskenv.Builder
 	node           *structs.Node
@@ -160,7 +81,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	mockNode := mock.Node()
 
 	harness := &testHarness{
-		mockHooks: NewMockTaskHooks(),
+		mockHooks: trtesting.NewMockTaskHooks(),
 		templates: templates,
 		node:      mockNode,
 		config: &config.Config{
@@ -251,7 +172,148 @@ func (h *testHarness) stop() {
 
 func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 	ci.Parallel(t)
-	hooks := NewMockTaskHooks()
+	hooks := trtesting.NewMockTaskHooks()
+	clientConfig := &config.Config{Region: "global"}
+	taskDir := "foo"
+	a := mock.Alloc()
+	envBuilder := taskenv.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], clientConfig.Region)
+
+	cases := []struct {
+		name        string
+		config      *TaskTemplateManagerConfig
+		expectedErr string
+	}{
+		{
+			name:        "nil config",
+			config:      nil,
+			expectedErr: "Nil config passed",
+		},
+		{
+			name: "bad lifecycle hooks",
+			config: &TaskTemplateManagerConfig{
+				UnblockCh:            hooks.UnblockCh,
+				Events:               hooks,
+				ClientConfig:         clientConfig,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "lifecycle hooks",
+		},
+		{
+			name: "bad event hooks",
+			config: &TaskTemplateManagerConfig{
+				UnblockCh:            hooks.UnblockCh,
+				Lifecycle:            hooks,
+				ClientConfig:         clientConfig,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "event hook",
+		},
+		{
+			name: "bad client config",
+			config: &TaskTemplateManagerConfig{
+				UnblockCh:            hooks.UnblockCh,
+				Lifecycle:            hooks,
+				Events:               hooks,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "client config",
+		},
+		{
+			name: "bad task dir",
+			config: &TaskTemplateManagerConfig{
+				UnblockCh:            hooks.UnblockCh,
+				ClientConfig:         clientConfig,
+				Lifecycle:            hooks,
+				Events:               hooks,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "task directory",
+		},
+		{
+			name: "bad env builder",
+			config: &TaskTemplateManagerConfig{
+				UnblockCh:            hooks.UnblockCh,
+				ClientConfig:         clientConfig,
+				Lifecycle:            hooks,
+				Events:               hooks,
+				TaskDir:              taskDir,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "task environment",
+		},
+		{
+			name: "bad max event rate",
+			config: &TaskTemplateManagerConfig{
+				UnblockCh:    hooks.UnblockCh,
+				ClientConfig: clientConfig,
+				Lifecycle:    hooks,
+				Events:       hooks,
+				TaskDir:      taskDir,
+				EnvBuilder:   envBuilder,
+			},
+			expectedErr: "template event rate",
+		},
+		{
+			name: "valid",
+			config: &TaskTemplateManagerConfig{
+				UnblockCh:            hooks.UnblockCh,
+				ClientConfig:         clientConfig,
+				Lifecycle:            hooks,
+				Events:               hooks,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+		},
+		{
+			name: "invalid signal",
+			config: &TaskTemplateManagerConfig{
+				UnblockCh: hooks.UnblockCh,
+				Templates: []*structs.Template{
+					{
+						DestPath:     "foo",
+						EmbeddedTmpl: "hello, world",
+						ChangeMode:   structs.TemplateChangeModeSignal,
+						ChangeSignal: "foobarbaz",
+					},
+				},
+				ClientConfig:         clientConfig,
+				Lifecycle:            hooks,
+				Events:               hooks,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "parse signal",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := NewTaskTemplateManager(c.config)
+			if err != nil {
+				if c.expectedErr == "" {
+					t.Fatalf("unexpected error: %v", err)
+				} else if !strings.Contains(err.Error(), c.expectedErr) {
+					t.Fatalf("expected error to contain %q; got %q", c.expectedErr, err.Error())
+				}
+			} else if c.expectedErr != "" {
+				t.Fatalf("expected an error to contain %q", c.expectedErr)
+			}
+		})
+	}
+}
+
+func TestTaskTemplateManager_WIConsulTokens(t *testing.T) {
+	ci.Parallel(t)
+	hooks := trtesting.NewMockTaskHooks()
 	clientConfig := &config.Config{Region: "global"}
 	taskDir := "foo"
 	a := mock.Alloc()
@@ -846,7 +908,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	require.Equal(content, string(raw), "Unexpected template data; got %s, want %q", raw, content)
 
 	// task is now running
-	harness.mockHooks.hasHandle = true
+	harness.mockHooks.HasHandle = true
 
 	// simulate a client restart
 	harness.manager.Stop()
@@ -1017,7 +1079,7 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 		t.Fatalf("Task unblock should have been called")
 	}
 
-	if len(harness.mockHooks.Signals) != 0 {
+	if len(harness.mockHooks.Signals()) != 0 {
 		t.Fatalf("Should not have received any signals: %+v", harness.mockHooks)
 	}
 
@@ -1033,9 +1095,7 @@ OUTER:
 		case <-harness.mockHooks.RestartCh:
 			t.Fatalf("Restart with signal policy: %+v", harness.mockHooks)
 		case <-harness.mockHooks.SignalCh:
-			harness.mockHooks.signalLock.Lock()
-			s := harness.mockHooks.Signals
-			harness.mockHooks.signalLock.Unlock()
+			s := harness.mockHooks.Signals()
 			if len(s) != 2 {
 				continue
 			}
