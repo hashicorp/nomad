@@ -95,6 +95,10 @@ type TaskTemplateManagerConfig struct {
 	// ConsulNamespace is the Consul namespace for the task
 	ConsulNamespace string
 
+	// ConsulToken is the Consul ACL token fetched by consul_hook using
+	// workload identity
+	ConsulToken string
+
 	// VaultToken is the Vault token for the task.
 	VaultToken string
 
@@ -812,7 +816,15 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up the Consul config
 	if cc.ConsulConfig != nil {
 		conf.Consul.Address = &cc.ConsulConfig.Addr
-		conf.Consul.Token = &cc.ConsulConfig.Token
+
+		// if we're using WI, use the token from consul_hook
+		// NOTE: from Nomad 1.9 on, WI will be the only supported way of
+		// getting Consul tokens
+		if config.ConsulToken != "" {
+			conf.Consul.Token = &config.ConsulToken
+		} else {
+			conf.Consul.Token = &cc.ConsulConfig.Token
+		}
 
 		// Get the Consul namespace from agent config. This is the lower level
 		// of precedence (beyond default).

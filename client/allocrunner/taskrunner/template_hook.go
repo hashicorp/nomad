@@ -88,16 +88,12 @@ type templateHook struct {
 
 	// taskDir is the task directory
 	taskDir string
-
-	// hookResources are used to fetch Consul tokens
-	hookResources *cstructs.AllocHookResources
 }
 
 func newTemplateHook(config *templateHookConfig) *templateHook {
 	return &templateHook{
 		config:          config,
 		consulNamespace: config.consulNamespace,
-		hookResources:   config.hookResources,
 		logger:          config.logger.Named(templateHookName),
 	}
 }
@@ -127,7 +123,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 
 	// Set the consul token if the task uses WI
 	if req.Task.Consul != nil {
-		consulTokens := h.hookResources.GetConsulTokens()
+		consulTokens := h.config.hookResources.GetConsulTokens()
 		h.consulToken = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.Cluster]
 	}
 
@@ -180,6 +176,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		Templates:            h.config.templates,
 		ClientConfig:         h.config.clientConfig,
 		ConsulNamespace:      h.config.consulNamespace,
+		ConsulToken:          h.consulToken,
 		VaultToken:           h.vaultToken,
 		VaultNamespace:       h.vaultNamespace,
 		TaskDir:              h.taskDir,
