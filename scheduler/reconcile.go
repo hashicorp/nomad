@@ -1359,7 +1359,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 
 	timeoutDelays, err := disconnecting.delayByMaxClientDisconnect(a.now)
 	if err != nil {
-		a.logger.Error("error computing disconnecting timeouts for task_group",
+		a.logger.Error("error for task_group",
 			"task_group", tgName, "error", err)
 		return map[string]string{}
 	}
