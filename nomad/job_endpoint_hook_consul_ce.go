@@ -44,7 +44,7 @@ func (h jobConsulHook) Validate(job *structs.Job) ([]error, error) {
 }
 
 func (h jobConsulHook) validateCluster(name string) error {
-	if name != "default" {
+	if name != structs.ConsulDefaultCluster {
 		return errors.New("non-default Consul cluster requires Nomad Enterprise")
 	}
 	return nil
@@ -55,19 +55,19 @@ func (h jobConsulHook) validateCluster(name string) error {
 func (j jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	for _, group := range job.TaskGroups {
 		if group.Consul != nil && group.Consul.Cluster == "" {
-			group.Consul.Cluster = "default"
+			group.Consul.Cluster = structs.ConsulDefaultCluster
 		}
 
 		for _, service := range group.Services {
 			if service.IsConsul() && service.Cluster == "" {
-				service.Cluster = "default"
+				service.Cluster = structs.ConsulDefaultCluster
 			}
 		}
 
 		for _, task := range group.Tasks {
 			for _, service := range task.Services {
 				if service.IsConsul() && service.Cluster == "" {
-					service.Cluster = "default"
+					service.Cluster = structs.ConsulDefaultCluster
 				}
 			}
 		}
