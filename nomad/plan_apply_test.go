@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -388,6 +390,78 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(evalOut)
 	assert.Equal(index, evalOut.ModifyIndex)
+}
+
+func TestPlanApply_signAllocIdentities(t *testing.T) {
+	// note: this is mutated by the method under test
+	alloc := mockAlloc()
+	job := alloc.Job
+	taskName := job.TaskGroups[0].Tasks[0].Name // "web"
+	allocs := []*structs.Allocation{alloc}
+
+	signErr := errors.New("could not sign the thing")
+
+	cases := []struct {
+		name      string
+		signer    *mockSigner
+		expectErr error
+		callNum   int
+	}{
+		{
+			name: "signer error",
+			signer: &mockSigner{
+				nextErr: signErr,
+			},
+			expectErr: signErr,
+			callNum:   1,
+		},
+		{
+			name: "first signing",
+			signer: &mockSigner{
+				nextToken: "first-token",
+				nextKeyID: "first-key",
+			},
+			callNum: 1,
+		},
+		{
+			name: "second signing",
+			signer: &mockSigner{
+				nextToken: "dont-sign-token",
+				nextKeyID: "dont-sign-key",
+			},
+			callNum: 0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			err := signAllocIdentities(tc.signer, job, allocs)
+
+			if tc.expectErr != nil {
+				must.Error(t, err)
+				must.ErrorIs(t, err, tc.expectErr)
+			} else {
+				must.NoError(t, err)
+				// assert mutations happened
+				must.MapLen(t, 1, allocs[0].SignedIdentities)
+				// we should always keep the first signing
+				must.Eq(t, "first-token", allocs[0].SignedIdentities[taskName])
+				must.Eq(t, "first-key", allocs[0].SigningKeyID)
+			}
+
+			must.Len(t, tc.callNum, tc.signer.calls, must.Sprint("unexpected call count"))
+			if tc.callNum > 0 {
+				call := tc.signer.calls[tc.callNum-1]
+				must.NotNil(t, call)
+				must.Eq(t, call.AllocationID, alloc.ID)
+				must.Eq(t, call.Namespace, alloc.Namespace)
+				must.Eq(t, call.JobID, job.ID)
+				must.Eq(t, call.TaskName, taskName)
+			}
+
+		})
+	}
 }
 
 func TestPlanApply_EvalPlan_Simple(t *testing.T) {
