@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package taskrunner
 
 import (
@@ -20,7 +23,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func Test_templateHook_Prestart(t *testing.T) {
+func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
@@ -52,10 +55,11 @@ func Test_templateHook_Prestart(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		req        *interfaces.TaskPrestartRequest
-		wantErr    bool
-		wantErrMsg string
+		name        string
+		req         *interfaces.TaskPrestartRequest
+		wantErr     bool
+		wantErrMsg  string
+		consulToken string
 	}{
 		{
 			"task with no Consul WI",
@@ -65,8 +69,34 @@ func Test_templateHook_Prestart(t *testing.T) {
 			},
 			false,
 			"",
+			"",
 		},
-		// TODO: Add tests for Vault
+		{
+			"task with Consul WI but no corresponding identity",
+			&interfaces.TaskPrestartRequest{
+				Task: &structs.Task{
+					Name:   "foo",
+					Consul: &structs.Consul{Cluster: "bar"},
+				},
+				TaskDir: &allocdir.TaskDir{Dir: "foo"},
+			},
+			true,
+			"consul task foo uses workload identity, but unable to find a consul token for that task",
+			"",
+		},
+		{
+			"task with Consul WI",
+			&interfaces.TaskPrestartRequest{
+				Task: &structs.Task{
+					Name:   "foo",
+					Consul: &structs.Consul{Cluster: "default"},
+				},
+				TaskDir: &allocdir.TaskDir{Dir: "foo"},
+			},
+			false,
+			"",
+			hr.GetConsulTokens()[structs.ConsulDefaultCluster]["consul_default"],
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -76,6 +106,7 @@ func Test_templateHook_Prestart(t *testing.T) {
 				managerLock:  sync.Mutex{},
 				driverHandle: nil,
 			}
+
 			err := h.Prestart(context.Background(), tt.req, nil)
 			if tt.wantErr {
 				must.NotNil(t, err)
@@ -83,6 +114,8 @@ func Test_templateHook_Prestart(t *testing.T) {
 			} else {
 				must.Nil(t, err)
 			}
+
+			must.Eq(t, tt.consulToken, h.consulToken)
 		})
 	}
 }
