@@ -41,14 +41,3 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	}
 	return nil
 }
-
-func (h *identityHook) Update(_ context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
-	h.lock.Lock()
-	defer h.lock.Unlock()
-
-	token := h.tr.alloc.SignedIdentities[h.taskName]
-	if token != "" {
-		h.tr.setNomadToken(token)
-	}
-	return nil
-}
