@@ -8,6 +8,13 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+const (
+	// VaultNamespaceHeaderName is the header set to specify which namespace
+	// the request is indented for. This is defined within Nomad, so we do not
+	// need to import the entire Vault SDK package.
+	VaultNamespaceHeaderName = "X-Vault-Namespace"
+)
+
 // VaultTokenData represents some of the fields returned in the Data map of the
 // sercret returned by the Vault API when doing a token lookup request.
 type VaultTokenData struct {
