@@ -124,7 +124,15 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	// Set the consul token if the task uses WI
 	if req.Task.Consul != nil {
 		consulTokens := h.config.hookResources.GetConsulTokens()
-		h.consulToken = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.IdentityName()]
+
+		var found bool
+		h.consulToken, found = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.IdentityName()]
+		if !found {
+			return fmt.Errorf(
+				"consul task %s uses workload identity, but unable to find a consul token for that task",
+				req.Task.Name,
+			)
+		}
 	}
 
 	// Set vault namespace if specified
