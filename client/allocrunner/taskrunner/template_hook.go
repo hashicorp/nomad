@@ -124,7 +124,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	// Set the consul token if the task uses WI
 	if req.Task.Consul != nil {
 		consulTokens := h.config.hookResources.GetConsulTokens()
-		h.consulToken = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.Cluster]
+		h.consulToken = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.IdentityName()]
 	}
 
 	// Set vault namespace if specified
