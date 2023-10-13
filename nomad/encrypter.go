@@ -32,6 +32,12 @@ import (
 
 const nomadKeystoreExtension = ".nks.json"
 
+type claimSigner interface {
+	SignClaims(*structs.IdentityClaims) (string, string, error)
+}
+
+var _ claimSigner = &Encrypter{}
+
 // Encrypter is the keyring for encrypting variables and signing workload
 // identities.
 type Encrypter struct {
