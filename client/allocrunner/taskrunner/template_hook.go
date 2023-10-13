@@ -82,6 +82,10 @@ type templateHook struct {
 	// nomadToken is the current Nomad token
 	nomadToken string
 
+	// consulToken is the Consul ACL token obtained from consul_hook via
+	// workload identity
+	consulToken string
+
 	// taskDir is the task directory
 	taskDir string
 
@@ -120,6 +124,12 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
 	h.nomadToken = req.NomadToken
+
+	// Set the consul token if the task uses WI
+	if req.Task.Consul != nil {
+		consulTokens := h.hookResources.GetConsulTokens()
+		h.consulToken = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.Cluster]
+	}
 
 	// Set vault namespace if specified
 	if req.Task.Vault != nil {
