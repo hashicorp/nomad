@@ -98,12 +98,11 @@ func (h *consulHook) Prerun() error {
 }
 
 func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tgName string, tokens map[string]map[string]string) error {
-	var consulClusterName string
-	if task.Consul != nil && task.Consul.Cluster != "" {
-		consulClusterName = task.Consul.Cluster
-	} else {
-		consulClusterName = structs.ConsulDefaultCluster
+	if task.Consul == nil {
+		return nil
 	}
+
+	consulClusterName := task.Consul.Cluster
 
 	// get consul config
 	consulConfig := h.consulConfigs[consulClusterName]
