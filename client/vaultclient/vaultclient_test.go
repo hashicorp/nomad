@@ -8,13 +8,12 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-const vaultNamespaceHeaderName = "X-Vault-Namespace"
 
 func TestVaultClient_TokenRenewals(t *testing.T) {
 	ci.Parallel(t)
@@ -120,7 +119,7 @@ func TestVaultClient_NamespaceSupport(t *testing.T) {
 	conf.VaultConfig.Namespace = testNs
 	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
 	require.NoError(err)
-	require.Equal(testNs, c.client.Headers().Get(vaultNamespaceHeaderName))
+	require.Equal(testNs, c.client.Headers().Get(structs.VaultNamespaceHeaderName))
 }
 
 func TestVaultClient_Heap(t *testing.T) {

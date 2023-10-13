@@ -68,8 +68,6 @@ path "secret/*" {
 	capabilities = ["create", "read", "update", "delete", "list"]
 }
 `
-
-	vaultNamespaceHeaderName = "X-Vault-Namespace"
 )
 
 // defaultTestVaultAllowlistRoleAndToken creates a test Vault role and returns a token
@@ -199,8 +197,8 @@ func TestVaultClient_WithNamespaceSupport(t *testing.T) {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
 
-	require.Equal(testNs, c.client.Headers().Get(vaultNamespaceHeaderName))
-	require.Equal("", c.clientSys.Headers().Get(vaultNamespaceHeaderName))
+	require.Equal(testNs, c.client.Headers().Get(structs.VaultNamespaceHeaderName))
+	require.Equal("", c.clientSys.Headers().Get(structs.VaultNamespaceHeaderName))
 	require.NotEqual(c.clientSys, c.client)
 }
 
@@ -224,8 +222,8 @@ func TestVaultClient_WithoutNamespaceSupport(t *testing.T) {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
 
-	require.Equal("", c.client.Headers().Get(vaultNamespaceHeaderName))
-	require.Equal("", c.clientSys.Headers().Get(vaultNamespaceHeaderName))
+	require.Equal("", c.client.Headers().Get(structs.VaultNamespaceHeaderName))
+	require.Equal("", c.clientSys.Headers().Get(structs.VaultNamespaceHeaderName))
 	require.Equal(c.clientSys, c.client)
 }
 
