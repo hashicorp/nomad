@@ -14,13 +14,12 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/useragent"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
-
-const vaultNamespaceHeaderName = "X-Vault-Namespace"
 
 func TestVaultClient_TokenRenewals(t *testing.T) {
 	ci.Parallel(t)
@@ -124,7 +123,7 @@ func TestVaultClient_NamespaceSupport(t *testing.T) {
 	conf.VaultConfig.Namespace = testNs
 	c, err := vaultclient.NewVaultClient(conf.VaultConfig, logger, nil)
 	must.NoError(t, err)
-	must.Eq(t, testNs, c.Vault.Headers().Get(vaultNamespaceHeaderName))
+	must.Eq(t, testNs, c.Vault.Headers().Get(structs.VaultNamespaceHeaderName))
 }
 
 func TestVaultClient_Heap(t *testing.T) {
