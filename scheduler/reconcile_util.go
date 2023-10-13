@@ -9,6 +9,7 @@ package scheduler
 // all scheduler types before moving it into util.go
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -547,12 +548,13 @@ func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedReschedule
 
 // delayByMaxClientDisconnect returns a delay for any unknown allocation
 // that's got a max_client_reconnect configured
-func (a allocSet) delayByMaxClientDisconnect(now time.Time) (later []*delayedRescheduleInfo, err error) {
+func (a allocSet) delayByMaxClientDisconnect(now time.Time) ([]*delayedRescheduleInfo, error) {
+	var later []*delayedRescheduleInfo
+
 	for _, alloc := range a {
 		timeout := alloc.DisconnectTimeout(now)
-
 		if !timeout.After(now) {
-			continue
+			return nil, errors.New("unable to computing disconnecting timeouts")
 		}
 
 		later = append(later, &delayedRescheduleInfo{
@@ -562,7 +564,7 @@ func (a allocSet) delayByMaxClientDisconnect(now time.Time) (later []*delayedRes
 		})
 	}
 
-	return
+	return later, nil
 }
 
 // filterByClientStatus returns allocs from the set with the specified client status.
