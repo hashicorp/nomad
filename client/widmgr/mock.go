@@ -59,6 +59,18 @@ func (m *MockWIDSigner) now() time.Time {
 	return m.mockNow
 }
 
+func (m *MockWIDSigner) JSONWebKeySet() *jose.JSONWebKeySet {
+	jwk := jose.JSONWebKey{
+		Key:       m.key.Public(),
+		KeyID:     m.keyID,
+		Algorithm: "EdDSA",
+		Use:       "sig",
+	}
+	return &jose.JSONWebKeySet{
+		Keys: []jose.JSONWebKey{jwk},
+	}
+}
+
 func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
 	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
 	for _, idReq := range req {
