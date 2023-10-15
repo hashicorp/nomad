@@ -21,7 +21,7 @@ require (
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.44.184
 	github.com/brianvoe/gofakeit/v6 v6.20.1
-	github.com/container-storage-interface/spec v1.7.0
+	github.com/container-storage-interface/spec v1.8.0
 	github.com/containerd/go-cni v1.1.9
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.2.0
