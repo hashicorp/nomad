@@ -14,6 +14,6 @@ jobs:
           version: v0.16.4
           archive-checksum: c299f830e6eef7e126a3c6ef99ac6f43a3c132d830c769e0d36fa347fa1af254
       - name: Check Header Compliance
-        run: copywrite headers --plan
+        run: make copywriteheaders
 permissions:
   contents: read
