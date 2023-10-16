@@ -406,7 +406,7 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 	if signed == nil {
 		return "", structs.NewRecoverableError(
 			errors.New("no signed workload identity available"),
-			true,
+			false,
 		)
 	}
 
