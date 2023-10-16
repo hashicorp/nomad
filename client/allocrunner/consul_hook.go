@@ -16,17 +16,6 @@ import (
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
-const (
-	// consulServicesAuthMethodName is the JWT auth method name that has to be
-	// configured in Consul in order to authenticate Nomad services.
-	consulServicesAuthMethodName = "nomad-workloads"
-
-	// consulTasksAuthMethodName the JWT auth method name that has to be
-	// configured in Consul in order to authenticate Nomad tasks (used by
-	// templates).
-	consulTasksAuthMethodName = "nomad-tasks"
-)
-
 type consulHook struct {
 	alloc         *structs.Allocation
 	allocdir      *allocdir.AllocDir
@@ -79,14 +68,14 @@ func (h *consulHook) Prerun() error {
 		return fmt.Errorf("alloc %v does not have a valid task group", h.alloc.Name)
 	}
 
-	if err := h.prepareConsulTokensForServices(tg.Services, tokens); err != nil {
+	if err := h.prepareConsulTokensForServices(tg.Services, tokens, tg); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	for _, task := range tg.Tasks {
-		if err := h.prepareConsulTokensForServices(task.Services, tokens); err != nil {
+		if err := h.prepareConsulTokensForServices(task.Services, tokens, tg); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		if err := h.prepareConsulTokensForTask(job, task, tg.Name, tokens); err != nil {
+		if err := h.prepareConsulTokensForTask(job, task, tg, tokens); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -97,23 +86,24 @@ func (h *consulHook) Prerun() error {
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tgName string, tokens map[string]map[string]string) error {
-	if task.Consul == nil {
-		return nil
-	}
+func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
 
-	consulClusterName := task.Consul.Cluster
+	clusterName := task.GetConsulClusterName(tg)
+	consulConfig, ok := h.consulConfigs[clusterName]
+	if !ok {
+		return fmt.Errorf("no such consul cluster: %s", clusterName)
+	}
 
 	// get tokens for alt identities for Consul
 	mErr := multierror.Error{}
 	for _, i := range task.Identities {
-		if i.Name != fmt.Sprintf("%s_%s", structs.ConsulTaskIdentityNamePrefix, consulClusterName) {
+		if i.Name != fmt.Sprintf("%s_%s", structs.ConsulTaskIdentityNamePrefix, consulConfig.Name) {
 			continue
 		}
 
 		ti := *task.IdentityHandle(i)
 
-		req, err := h.prepareConsulClientReq(ti, consulTasksAuthMethodName)
+		req, err := h.prepareConsulClientReq(ti, consulConfig.TaskIdentityAuthMethod)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
@@ -128,10 +118,10 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 
 		req[task.Identity.Name] = consul.JWTLoginRequest{
 			JWT:            jwt.JWT,
-			AuthMethodName: consulTasksAuthMethodName,
+			AuthMethodName: consulConfig.TaskIdentityAuthMethod,
 		}
 
-		if err := h.getConsulTokens(consulClusterName, ti.IdentityName, tokens, req); err != nil {
+		if err := h.getConsulTokens(consulConfig.Name, ti.IdentityName, tokens, req); err != nil {
 			return err
 		}
 	}
@@ -139,7 +129,7 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tokens map[string]map[string]string) error {
+func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tokens map[string]map[string]string, tg *structs.TaskGroup) error {
 	if len(services) == 0 {
 		return nil
 	}
@@ -154,7 +144,14 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			continue
 		}
 
-		req, err := h.prepareConsulClientReq(*service.IdentityHandle(), consulServicesAuthMethodName)
+		clusterName := service.GetConsulClusterName(tg)
+		consulConfig, ok := h.consulConfigs[clusterName]
+		if !ok {
+			return fmt.Errorf("no such consul cluster: %s", clusterName)
+		}
+
+		req, err := h.prepareConsulClientReq(
+			*service.IdentityHandle(), consulConfig.ServiceIdentityAuthMethod)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue

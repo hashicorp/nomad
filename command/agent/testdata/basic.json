@@ -167,6 +167,9 @@
       "server_rpc_check_name": "nomad-server-rpc-health-check",
       "server_serf_check_name": "nomad-server-serf-health-check",
       "server_service_name": "nomad",
+      "service_auth_method": "nomad-workloads",
+      "task_auth_method": "nomad-tasks",
+
       "service_identity": {
         "aud": [
           "consul.io",

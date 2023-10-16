@@ -1072,7 +1072,25 @@ func (s *Service) Equal(o *Service) bool {
 
 func (s *Service) IsConsul() bool {
 	return s.Provider == ServiceProviderConsul || s.Provider == ""
+}
 
+func (s *Service) GetConsulClusterName(tg *TaskGroup) string {
+	if !s.IsConsul() {
+		return ""
+	}
+	if s.Cluster != "" {
+		return s.Cluster
+	}
+	if s.TaskName != "" {
+		task := tg.LookupTask(s.TaskName)
+		if task != nil && task.Consul != nil && task.Consul.Cluster != "" {
+			return task.Consul.Cluster
+		}
+	}
+	if tg != nil && tg.Consul != nil && tg.Consul.Cluster != "" {
+		return tg.Consul.Cluster
+	}
+	return ConsulDefaultCluster
 }
 
 // ConsulConnect represents a Consul Connect jobspec block.
