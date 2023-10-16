@@ -81,7 +81,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 				TaskDir: &allocdir.TaskDir{Dir: "foo"},
 			},
 			true,
-			"consul task foo uses workload identity, but unable to find a consul token for that task",
+			"consul tokens for cluster bar requested by task foo not found",
 			"",
 		},
 		{
