@@ -126,11 +126,18 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		consulTokens := h.config.hookResources.GetConsulTokens()
 
 		var found bool
+		if _, found = consulTokens[req.Task.Consul.Cluster]; !found {
+			return fmt.Errorf(
+				"consul tokens for cluster %s requested by task %s not found",
+				req.Task.Consul.Cluster, req.Task.Name,
+			)
+		}
+
 		h.consulToken, found = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.IdentityName()]
 		if !found {
 			return fmt.Errorf(
-				"consul task %s uses workload identity, but unable to find a consul token for that task",
-				req.Task.Name,
+				"consul tokens for cluster %s and identity %s requested by task %s not found",
+				req.Task.Consul.Cluster, req.Task.Consul.IdentityName(), req.Task.Name,
 			)
 		}
 	}
