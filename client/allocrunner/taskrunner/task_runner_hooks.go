@@ -98,7 +98,8 @@ func (tr *TaskRunner) initHooks() {
 			updater:    tr,
 			logger:     hookLogger,
 			alloc:      tr.Alloc(),
-			task:       tr.taskName,
+			task:       tr.Task(),
+			widmgr:     tr.widmgr,
 		}))
 	}
 

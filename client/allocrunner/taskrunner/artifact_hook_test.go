@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
+	trtesting "github.com/hashicorp/nomad/client/allocrunner/taskrunner/testing"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -28,20 +29,12 @@ import (
 // Statically assert the artifact hook implements the expected interface
 var _ interfaces.TaskPrestartHook = (*artifactHook)(nil)
 
-type mockEmitter struct {
-	events []*structs.TaskEvent
-}
-
-func (m *mockEmitter) EmitEvent(ev *structs.TaskEvent) {
-	m.events = append(m.events, ev)
-}
-
 // TestTaskRunner_ArtifactHook_Recoverable asserts that failures to download
 // artifacts are a recoverable error.
 func TestTaskRunner_ArtifactHook_Recoverable(t *testing.T) {
 	ci.Parallel(t)
 
-	me := &mockEmitter{}
+	me := &trtesting.MockEmitter{}
 	sbox := getter.TestSandbox(t)
 	artifactHook := newArtifactHook(me, sbox, testlog.HCLogger(t))
 
@@ -65,8 +58,8 @@ func TestTaskRunner_ArtifactHook_Recoverable(t *testing.T) {
 	require.False(t, resp.Done)
 	require.NotNil(t, err)
 	require.True(t, structs.IsRecoverable(err))
-	require.Len(t, me.events, 1)
-	require.Equal(t, structs.TaskDownloadingArtifacts, me.events[0].Type)
+	require.Len(t, me.Events(), 1)
+	require.Equal(t, structs.TaskDownloadingArtifacts, me.Events()[0].Type)
 }
 
 // TestTaskRunnerArtifactHook_PartialDone asserts that the artifact hook skips
@@ -76,7 +69,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	testutil.RequireRoot(t)
 	ci.Parallel(t)
 
-	me := &mockEmitter{}
+	me := &trtesting.MockEmitter{}
 	sbox := getter.TestSandbox(t)
 	artifactHook := newArtifactHook(me, sbox, testlog.HCLogger(t))
 
@@ -121,8 +114,8 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	require.True(t, structs.IsRecoverable(err))
 	require.Len(t, resp.State, 1)
 	require.False(t, resp.Done)
-	require.Len(t, me.events, 1)
-	require.Equal(t, structs.TaskDownloadingArtifacts, me.events[0].Type)
+	require.Len(t, me.Events(), 1)
+	require.Equal(t, structs.TaskDownloadingArtifacts, me.Events()[0].Type)
 
 	// Remove file1 from the server so it errors if its downloaded again.
 	require.NoError(t, os.Remove(file1))
@@ -166,7 +159,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	ci.SkipTestWithoutRootAccess(t)
 	ci.Parallel(t)
 
-	me := &mockEmitter{}
+	me := &trtesting.MockEmitter{}
 	sbox := getter.TestSandbox(t)
 	artifactHook := newArtifactHook(me, sbox, testlog.HCLogger(t))
 
@@ -231,8 +224,8 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, resp.Done)
 	require.Len(t, resp.State, 7)
-	require.Len(t, me.events, 1)
-	require.Equal(t, structs.TaskDownloadingArtifacts, me.events[0].Type)
+	require.Len(t, me.Events(), 1)
+	require.Equal(t, structs.TaskDownloadingArtifacts, me.Events()[0].Type)
 
 	// Assert all files downloaded properly
 	files, err := filepath.Glob(filepath.Join(destdir, "*.txt"))
@@ -254,7 +247,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	ci.Parallel(t)
 
-	me := &mockEmitter{}
+	me := &trtesting.MockEmitter{}
 	sbox := getter.TestSandbox(t)
 	artifactHook := newArtifactHook(me, sbox, testlog.HCLogger(t))
 
@@ -311,8 +304,8 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	require.True(t, structs.IsRecoverable(err))
 	require.Len(t, resp.State, 3)
 	require.False(t, resp.Done)
-	require.Len(t, me.events, 1)
-	require.Equal(t, structs.TaskDownloadingArtifacts, me.events[0].Type)
+	require.Len(t, me.Events(), 1)
+	require.Equal(t, structs.TaskDownloadingArtifacts, me.Events()[0].Type)
 
 	// delete the downloaded files so that it'll error if it's downloaded again
 	require.NoError(t, os.Remove(file1))

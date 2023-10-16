@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -40,6 +42,9 @@ type vaultTokenUpdateHandler interface {
 	updatedVaultToken(token string)
 }
 
+// deriveTokenFunc is the signature of a function used to derive Vault tokens.
+type deriveTokenFunc func() (string, error)
+
 func (tr *TaskRunner) updatedVaultToken(token string) {
 	// Update the task runner and environment
 	tr.setVaultToken(token)
@@ -56,7 +61,8 @@ type vaultHookConfig struct {
 	updater    vaultTokenUpdateHandler
 	logger     log.Logger
 	alloc      *structs.Allocation
-	task       string
+	task       *structs.Task
+	widmgr     widmgr.IdentityManager
 }
 
 type vaultHook struct {
@@ -95,11 +101,20 @@ type vaultHook struct {
 	// alloc is the allocation
 	alloc *structs.Allocation
 
-	// taskName is the name of the task
-	taskName string
+	// task is the task to run.
+	task *structs.Task
 
 	// firstRun stores whether it is the first run for the hook
 	firstRun bool
+
+	// widmgr is used to access signed tokens for workload identities.
+	widmgr widmgr.IdentityManager
+
+	// widName is the workload identity name to use to retrieve signed JWTs.
+	widName string
+
+	// deriveTokenFunc is the function used to derive Vault tokens.
+	deriveTokenFunc deriveTokenFunc
 
 	// future is used to wait on retrieving a Vault token
 	future *tokenFuture
@@ -107,7 +122,6 @@ type vaultHook struct {
 
 func newVaultHook(config *vaultHookConfig) *vaultHook {
 	ctx, cancel := context.WithCancel(context.Background())
-
 	h := &vaultHook{
 		vaultBlock:   config.vaultBlock,
 		clientFunc:   config.clientFunc,
@@ -115,13 +129,24 @@ func newVaultHook(config *vaultHookConfig) *vaultHook {
 		lifecycle:    config.lifecycle,
 		updater:      config.updater,
 		alloc:        config.alloc,
-		taskName:     config.task,
+		task:         config.task,
 		firstRun:     true,
 		ctx:          ctx,
 		cancel:       cancel,
 		future:       newTokenFuture(),
+		widmgr:       config.widmgr,
 	}
 	h.logger = config.logger.Named(h.Name())
+
+	h.widName = config.task.Vault.IdentityName()
+	wid := config.task.GetIdentity(h.widName)
+	switch {
+	case wid != nil:
+		h.deriveTokenFunc = h.deriveVaultTokenJWT
+	default:
+		h.deriveTokenFunc = h.deriveVaultTokenLegacy
+	}
+
 	return h
 }
 
@@ -320,13 +345,13 @@ OUTER:
 
 // deriveVaultToken derives the Vault token using exponential backoffs. It
 // returns the Vault token and whether the manager should exit.
-func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
+func (h *vaultHook) deriveVaultToken() (string, bool) {
 	var attempts uint64
 	var backoff time.Duration
 	for {
-		tokens, err := h.client.DeriveToken(h.alloc, []string{h.taskName})
+		token, err := h.deriveTokenFunc()
 		if err == nil {
-			return tokens[h.taskName], false
+			return token, false
 		}
 
 		// Check if this is a server side error
@@ -362,6 +387,55 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 		case <-time.After(backoff):
 		}
 	}
+}
+
+// deriveVaultTokenJWT returns a Vault ACL token using JWT auth login.
+func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
+	// Retrieve signed identity.
+	signed, err := h.widmgr.Get(structs.WIHandle{
+		IdentityName:       h.widName,
+		WorkloadIdentifier: h.task.Name,
+		WorkloadType:       structs.WorkloadTypeTask,
+	})
+	if err != nil {
+		return "", structs.NewRecoverableError(
+			fmt.Errorf("failed to retrieve signed workload identity: %w", err),
+			true,
+		)
+	}
+	if signed == nil {
+		return "", structs.NewRecoverableError(
+			errors.New("no signed workload identity available"),
+			false,
+		)
+	}
+
+	// Derive Vault token with signed identity.
+	token, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
+		JWT:  signed.JWT,
+		Role: h.vaultBlock.Role,
+	})
+	if err != nil {
+		return "", structs.WrapRecoverable(
+			fmt.Sprintf("failed to derive Vault token for identity %s: %v", h.widName, err),
+			err,
+		)
+	}
+
+	return token, nil
+}
+
+// deriveVaultTokenLegacy returns a Vault ACL token using the legacy flow where
+// Nomad clients request Vault tokens from Nomad servers.
+//
+// Deprecated: This authentication flow will be removed Nomad 1.9.
+func (h *vaultHook) deriveVaultTokenLegacy() (string, error) {
+	tokens, err := h.client.DeriveToken(h.alloc, []string{h.task.Name})
+	if err != nil {
+		return "", err
+	}
+
+	return tokens[h.task.Name], nil
 }
 
 // writeToken writes the given token to disk

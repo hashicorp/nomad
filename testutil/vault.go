@@ -42,6 +42,12 @@ type TestVault struct {
 }
 
 func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
+	t.Helper()
+
+	if _, err := exec.LookPath(binary); err != nil {
+		t.Skipf("Skipping test %s, Vault binary %q not found in path.", t.Name(), binary)
+	}
+
 	port := ci.PortAllocator.Grab(1)[0]
 	token := uuid.Generate()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
@@ -112,6 +118,8 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 
 // NewTestVault returns a new TestVault instance that is ready for API calls
 func NewTestVault(t testing.T) *TestVault {
+	t.Helper()
+
 	// Lookup vault from the path
 	return NewTestVaultFromPath(t, "vault")
 }

@@ -1130,7 +1130,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	}
 
 	require.NotNil(harness.mockHooks.KillEvent)
-	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to send signals")
+	require.Contains(harness.mockHooks.KillEvent().DisplayMessage, "failed to send signals")
 }
 
 func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
@@ -1292,7 +1292,7 @@ BAR={{key "bar"}}
 	}
 
 	require.NotNil(harness.mockHooks.KillEvent)
-	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "task is being killed")
+	require.Contains(harness.mockHooks.KillEvent().DisplayMessage, "task is being killed")
 }
 
 func TestTaskTemplateManager_ChangeModeMixed(t *testing.T) {
@@ -2098,11 +2098,11 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 
 	// Check to see we got a correct message
 	// assert that all 0-4 keys are missing
-	require.Len(harness.mockHooks.Events, 1)
-	t.Logf("first message: %v", harness.mockHooks.Events[0])
-	missing, more := missingKeys(harness.mockHooks.Events[0])
+	require.Len(harness.mockHooks.Events(), 1)
+	t.Logf("first message: %v", harness.mockHooks.Events()[0])
+	missing, more := missingKeys(harness.mockHooks.Events()[0])
 	require.Equal(5, len(missing)+more)
-	require.Contains(harness.mockHooks.Events[0].DisplayMessage, "and 2 more")
+	require.Contains(harness.mockHooks.Events()[0].DisplayMessage, "and 2 more")
 
 	// Write 0-2 keys to Consul
 	for i := 0; i < 3; i++ {
@@ -2131,7 +2131,7 @@ WAIT_LOOP:
 	}
 
 	// Check to see we got a correct message
-	event := harness.mockHooks.Events[len(harness.mockHooks.Events)-1]
+	event := harness.mockHooks.Events()[len(harness.mockHooks.Events())-1]
 	if !isExpectedFinalEvent(event) {
 		t.Logf("received all events: %v", pretty.Sprint(harness.mockHooks.Events))
 
