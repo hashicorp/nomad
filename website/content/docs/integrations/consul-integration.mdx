@@ -94,6 +94,27 @@ Using the configuration file shown above, create a Consul Auth Method to support
 services. Note that you should not set the `-max-token-ttl` flag for Consul Auth
 Methods used for Nomad.
 
+<Tabs>
+<Tab heading="Consul Community Edition">
+
+In Consul Community Edition, you'll always bind to the default Consul namespace.
+
+```shell-session
+$ consul acl auth-method create \
+         -name 'nomad-workloads' \
+         -type jwt \
+         -description 'login method for Nomad services' \
+         -format json \
+         -namespace-rule-selector='' \
+         -namespace-rule-bind-namespace='default' \
+         -config "@consul-auth-method-config.json"
+```
+
+</Tab>
+<Tab heading="Consul Enterprise">
+
+In Consul Enterprise, you'll map a Nomad namespace to a Consul namespace.
+
 ```shell-session
 $ consul acl auth-method create \
          -name 'nomad-workloads' \
@@ -104,6 +125,9 @@ $ consul acl auth-method create \
          -namespace-rule-bind-namespace='${value.nomad_namespace}' \
          -config "@consul-auth-method-config.json"
 ```
+
+</Tab>
+</Tabs>
 
 Create a [Consul Binding Rule][] that maps the Nomad Workload Identity to the
 Consul Service Identity.
@@ -146,16 +170,40 @@ Using the same configuration file shown above, create the Consul Auth Method to
 support templates. Note that you should not set the `-max-token-ttl` flag for
 Consul Auth Methods used for Nomad.
 
+<Tabs>
+<Tab heading="Consul Community Edition">
+
+In Consul Community Edition, you'll always bind to the default Consul namespace.
+
 ```shell-session
 $ consul acl auth-method create \
-       -name 'nomad-tasks'
-       -type jwt \
-       -description 'login method for Nomad tasks and templates' \
-       -format json \
-       -namespace-rule-selector='' \
-       -namespace-rule-bind-namespace='${value.nomad_namespace}' \
-       -config "@consul-auth-method-config.json"
+         -name 'nomad-tasks \
+         -type jwt \
+         -description 'login method for Nomad tasks and templates' \
+         -format json \
+         -namespace-rule-selector='' \
+         -namespace-rule-bind-namespace='default' \
+         -config "@consul-auth-method-config.json"
 ```
+
+</Tab>
+<Tab heading="Consul Enterprise">
+
+In Consul Enterprise, you'll map a Nomad namespace to a Consul namespace.
+
+```shell-session
+$ consul acl auth-method create \
+         -name 'nomad-tasks \
+         -type jwt \
+         -description 'login method for Nomad tasks and templates \
+         -format json \
+         -namespace-rule-selector='' \
+         -namespace-rule-bind-namespace='${value.nomad_namespace}' \
+         -config "@consul-auth-method-config.json"
+```
+
+</Tab>
+</Tabs>
 
 Next, create a Consul Binding Rule that maps Nomad namespaces to Consul Roles:
 

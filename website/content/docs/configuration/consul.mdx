@@ -199,16 +199,19 @@ resubmitting them.
 
 The recommended configuration for `service_identity` and `task_identity` is as
 follows. See [Migrating to Using Workload Identity with Consul][] for details on
-how to configure Consul to accept these identities.
+how to configure Consul to accept these identities. Note that the `ttl` field
+here refers to the TTL of the Nomad identity and not the Consul token.
 
 ```hcl
 consul {
   service_identity {
     aud = ["consul.io"]
+    ttl = "1h"
   }
 
   task_identity {
     aud = ["consul.io"]
+    ttl = "1h"
   }
 }
 ```
@@ -251,7 +254,7 @@ as a `namespace` block with the other relevant permissions for running Nomad
 in the intended namespace. The Consul policy below shows an example policy
 configuration for a Nomad server:
 
-```
+```hcl
 agent_prefix "" {
   policy = "read"
 }
