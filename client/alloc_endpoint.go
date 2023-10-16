@@ -6,6 +6,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -164,6 +165,7 @@ func (a *Allocations) Checks(args *cstructs.AllocChecksRequest, reply *cstructs.
 
 // exec is used to execute command in a running task
 func (a *Allocations) exec(conn io.ReadWriteCloser) {
+	a.c.logger.Debug("task exec session started")
 	defer metrics.MeasureSince([]string{"client", "allocations", "exec"}, time.Now())
 	defer conn.Close()
 
@@ -182,6 +184,7 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 }
 
 func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, execID string) (code *int64, err error) {
+	a.c.logger.Debug("task execImpl session started")
 
 	// Decode the arguments
 	var req cstructs.AllocExecRequest
@@ -207,6 +210,13 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	}
 	alloc := ar.Alloc()
 
+	jsonString, err := json.MarshalIndent(req, "", "  ")
+	if err != nil {
+		a.c.logger.Error("Error converting req to JSON", "error", err)
+	} else {
+		a.c.logger.Info("Request Arguments", "req", string(jsonString))
+	}
+
 	aclObj, ident, err := a.c.resolveTokenAndACL(req.QueryOptions.AuthToken)
 	{
 		// log access
@@ -216,6 +226,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 			"task", req.Task,
 			"command", req.Cmd,
 			"tty", req.Tty,
+			"action", req.Action,
 		}
 		if ident != nil {
 			if ident.ACLToken != nil {
@@ -247,6 +258,27 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	if req.Task == "" {
 		return pointer.Of(int64(400)), taskNotPresentErr
 	}
+
+	// If an action is present, go find the command and args
+	if req.Action != "" {
+		alloc, _ := a.c.GetAlloc(req.AllocID)
+		jobAction, err := validateActionExists(req.Action, req.Task, req.TaskGroup, alloc)
+		if err != nil {
+			return nil, err
+		}
+		if jobAction != nil {
+			a.c.logger.Info("Action found", "action", jobAction.Name, "command", jobAction.Command, "args", jobAction.Args)
+			// req.Cmd = append(req.Cmd, jobAction.Command)
+			// append both Command and Args
+			req.Cmd = append([]string{jobAction.Command}, jobAction.Args...)
+		}
+		a.c.logger.Info("So full command is", "command", req.Cmd)
+	}
+
+	// // TODO: TEMP
+	// // Create an arbitrary command example here
+	// req.Cmd = []string{"bash", "-c", "echo hello world"}
+
 	if len(req.Cmd) == 0 {
 		return pointer.Of(int64(400)), errors.New("command is not present")
 	}
@@ -342,4 +374,50 @@ func (s *execStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
 	req := drivers.ExecTaskStreamingRequestMsg{}
 	err := s.decoder.Decode(&req)
 	return &req, err
+}
+
+func validateActionExists(action, task, taskGroup string, alloc *nstructs.Allocation) (*nstructs.Action, error) {
+	if taskGroup == "" {
+		return nil, fmt.Errorf("Must supply a task group")
+	}
+
+	if task == "" {
+		return nil, fmt.Errorf("Must supply a task")
+	}
+
+	var tg *nstructs.TaskGroup
+	for _, group := range alloc.Job.TaskGroups {
+		if group.Name == taskGroup {
+			tg = group
+			break
+		}
+	}
+	if tg == nil {
+		return nil, fmt.Errorf("task group %s not found", taskGroup)
+	}
+
+	var t *nstructs.Task
+	for _, taskStruct := range tg.Tasks {
+		if taskStruct.Name == task {
+			t = taskStruct
+			break
+		}
+	}
+	if t == nil {
+		return nil, fmt.Errorf("task %s not found in task group %s", task, taskGroup)
+	}
+
+	var jobAction *nstructs.Action
+	for _, act := range t.Actions {
+		if act.Name == action {
+			jobAction = act
+			break
+		}
+	}
+
+	if jobAction == nil {
+		return nil, fmt.Errorf("action %s not found", action)
+	}
+
+	return jobAction, nil
 }
