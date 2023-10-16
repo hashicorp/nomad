@@ -13,6 +13,7 @@ import (
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/template"
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -48,6 +49,9 @@ type templateHookConfig struct {
 
 	// renderOnTaskRestart is flag to explicitly render templates on task restart
 	renderOnTaskRestart bool
+
+	// hookResources are used to fetch Consul tokens
+	hookResources *cstructs.AllocHookResources
 }
 
 type templateHook struct {
@@ -77,6 +81,10 @@ type templateHook struct {
 
 	// nomadToken is the current Nomad token
 	nomadToken string
+
+	// consulToken is the Consul ACL token obtained from consul_hook via
+	// workload identity
+	consulToken string
 
 	// taskDir is the task directory
 	taskDir string
@@ -112,6 +120,27 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
 	h.nomadToken = req.NomadToken
+
+	// Set the consul token if the task uses WI
+	if req.Task.Consul != nil {
+		consulTokens := h.config.hookResources.GetConsulTokens()
+
+		var found bool
+		if _, found = consulTokens[req.Task.Consul.Cluster]; !found {
+			return fmt.Errorf(
+				"consul tokens for cluster %s requested by task %s not found",
+				req.Task.Consul.Cluster, req.Task.Name,
+			)
+		}
+
+		h.consulToken, found = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.IdentityName()]
+		if !found {
+			return fmt.Errorf(
+				"consul tokens for cluster %s and identity %s requested by task %s not found",
+				req.Task.Consul.Cluster, req.Task.Consul.IdentityName(), req.Task.Name,
+			)
+		}
+	}
 
 	// Set vault namespace if specified
 	if req.Task.Vault != nil {
@@ -162,6 +191,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		Templates:            h.config.templates,
 		ClientConfig:         h.config.clientConfig,
 		ConsulNamespace:      h.config.consulNamespace,
+		ConsulToken:          h.consulToken,
 		VaultToken:           h.vaultToken,
 		VaultNamespace:       h.vaultNamespace,
 		TaskDir:              h.taskDir,
