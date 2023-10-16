@@ -1859,7 +1859,7 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 	// Check that it is a management token.
 	if aclObj, err := v.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 

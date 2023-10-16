@@ -15,14 +15,22 @@ Prefer adding a new message to changing any existing RPC messages.
 * [ ] State method for modifying objects in a `Txn` in the `state` package, located in
       `nomad/state/`. Every new resource should have its own file and test file, named using the convention
       `nomad/state/state_store_[resource].go` and `nomad/state/state_store_[resource]_test.go`
-  
 
 * [ ] Handler for the request in `nomad/foo_endpoint.go`
   * RPCs are resolved by matching the method name for bound structs
 	[net/rpc](https://golang.org/pkg/net/rpc/)
-  * Check ACLs for security, list endpoints filter by ACL
-  * Register new RPC struct in `nomad/server.go`
-  * Check ACLs to enforce security
+  * Register any new RPC structs in `nomad/server.go`
+  * Authentication:
+    * For RPCs that support HTTP APIs, call `Authenticate` before forwarding. Return any error after frowarding, and call `ResolveACL` to get an ACL to check.
+    * For RPCs that support client-to-server RPCs _only_, use `AuthenticateClientOnly` before forwarding. Check the `AllowClientOp` ACL after forwarding.
+    * For RPCs that support server-to-server RPCs _only_, use `AuthenticateServerOnly` before forwarding. Check the `AllowServerOp` ACL _before_ forwarding.
+  * Authorization:
+    * Use `ResolveACL` to turn the authenticated request into an ACL to check.
+    * For Update/Get/Delete RPCs, check ACLs before hitting the state store.
+    * For List RPCs, use ACLs as a filter on the query.
+    * _Never_ check that the ACL object is `nil` to bypass authorization. The
+      authorization methods in `acl/acl.go` should already handle `nil` ACL
+      objects correctly (by rejecting them).
 
 * [ ] Wrapper for the HTTP request in `command/agent/foo_endpoint.go`
   * Backwards compatibility requires a new endpoint, an upgraded

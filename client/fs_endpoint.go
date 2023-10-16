@@ -111,7 +111,7 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 	// Check namespace read-fs permission.
 	if aclObj, err := f.c.ResolveToken(args.QueryOptions.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -140,7 +140,7 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	// Check namespace read-fs permission.
 	if aclObj, err := f.c.ResolveToken(args.QueryOptions.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -197,7 +197,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
 		handleStreamResultError(err, pointer.Of(int64(http.StatusForbidden)), encoder)
 		return
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
 		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(http.StatusForbidden)), encoder)
 		return
 	}
@@ -379,16 +379,17 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	alloc := ar.Alloc()
 
 	// Check read permissions
-	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
+	aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken)
+	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
-	} else if aclObj != nil {
-		readfs := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS)
-		logs := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadLogs)
-		if !readfs && !logs {
-			handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
-			return
-		}
+	}
+
+	readfs := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS)
+	logs := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadLogs)
+	if !readfs && !logs {
+		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+		return
 	}
 
 	// Validate the arguments

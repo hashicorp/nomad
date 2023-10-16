@@ -493,15 +493,24 @@ func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
 // ACLToken makes the original of the credential clear to RPC handlers, who may
 // have different behavior for internal vs external origins.
 type AuthenticatedIdentity struct {
-	// ACLToken authenticated. Claims will be nil if this is set.
+	// ACLToken authenticated. Claims and ClientID will be unset if this is set.
 	ACLToken *ACLToken
 
-	// Claims authenticated by workload identity. ACLToken will be nil if this is
-	// set.
+	// Claims authenticated by workload identity. ACLToken and ClientID will be
+	// unset if this is set.
 	Claims *IdentityClaims
 
+	// ClientID is the Nomad client node ID. ACLToken and Claims will be nil if
+	// this is set.
 	ClientID string
-	TLSName  string
+
+	// TLSName is the name of the TLS certificate, if any. Outside of the
+	// AuthenticateServerOnly and AuthenticateClientOnly methods, this should be
+	// used only to identify the request for metrics, not authorization
+	TLSName string
+
+	// RemoteIP is the name of the connection's IP address; this should be used
+	// only to identify the request for metrics, not authorization
 	RemoteIP net.IP
 }
 
@@ -523,7 +532,7 @@ func (ai *AuthenticatedIdentity) String() string {
 	if ai == nil {
 		return "unauthenticated"
 	}
-	if ai.ACLToken != nil {
+	if ai.ACLToken != nil && ai.ACLToken != AnonymousACLToken {
 		return "token:" + ai.ACLToken.AccessorID
 	}
 	if ai.Claims != nil {
@@ -13079,8 +13088,8 @@ func (a *ACLToken) Copy() *ACLToken {
 }
 
 var (
-	// AnonymousACLToken is used no SecretID is provided, and the
-	// request is made anonymously.
+	// AnonymousACLToken is used when no SecretID is provided, and the request
+	// is made anonymously.
 	AnonymousACLToken = &ACLToken{
 		AccessorID: "anonymous",
 		Name:       "Anonymous Token",
@@ -13095,6 +13104,14 @@ var (
 		AccessorID: "leader",
 		Name:       "Leader Token",
 		Type:       ACLManagementToken,
+	}
+
+	// ACLsDisabledToken is used when ACLs are disabled.
+	ACLsDisabledToken = &ACLToken{
+		AccessorID: "acls-disabled",
+		Name:       "ACLs disabled token",
+		Type:       ACLClientToken,
+		Global:     false,
 	}
 )
 

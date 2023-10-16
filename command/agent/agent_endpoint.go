@@ -67,9 +67,7 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 	if err != nil {
 		return nil, err
 	}
-
-	// Check agent read permissions
-	if aclObj != nil && !aclObj.AllowAgentRead() {
+	if !aclObj.AllowAgentRead() {
 		return nil, structs.ErrPermissionDenied
 	}
 
@@ -322,7 +320,7 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	// Check agent write permissions
 	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
 		return nil, err
-	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+	} else if !aclObj.AllowAgentWrite() {
 		return nil, structs.ErrPermissionDenied
 	}
 
@@ -458,7 +456,7 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 	// Check agent read permissions
 	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
 		return nil, err
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+	} else if !aclObj.AllowAgentRead() {
 		return nil, structs.ErrPermissionDenied
 	}
 
@@ -485,7 +483,7 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 	// Check agent write permissions
 	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
 		return nil, err
-	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+	} else if !aclObj.AllowAgentWrite() {
 		return nil, structs.ErrPermissionDenied
 	}
 
@@ -512,7 +510,7 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 	// Check agent write permissions
 	if aclObj, err := srv.ResolveToken(secret); err != nil {
 		return nil, err
-	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+	} else if !aclObj.AllowAgentWrite() {
 		return nil, structs.ErrPermissionDenied
 	}
 
@@ -690,8 +688,7 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 		enableDebug = s.agent.Client().GetConfig().EnableDebug
 	}
 
-	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
-		(aclObj == nil && !enableDebug) {
+	if !aclObj.AllowAgentDebug(enableDebug) {
 		return nil, structs.ErrPermissionDenied
 	}
 
@@ -763,7 +760,7 @@ func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, r
 	// Check agent read permissions
 	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
 		return nil, CodedError(http.StatusInternalServerError, err.Error())
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+	} else if !aclObj.AllowAgentRead() {
 		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
 	}
 
@@ -817,7 +814,7 @@ func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 	// Check agent read permissions
 	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
 		return nil, CodedError(http.StatusInternalServerError, err.Error())
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+	} else if !aclObj.AllowAgentRead() {
 		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
 	}
 
@@ -843,7 +840,7 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	// Check agent write permissions
 	if aclObj, err := srv.ResolveToken(secret); err != nil {
 		return nil, CodedError(http.StatusInternalServerError, err.Error())
-	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+	} else if !aclObj.AllowAgentWrite() {
 		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
 	}
 

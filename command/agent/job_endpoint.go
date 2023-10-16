@@ -763,14 +763,12 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Check job parse permissions
-	if aclObj != nil {
-		hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
-		hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
+	hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
+	hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
 
-		allowed := hasParseJob || hasSubmitJob
-		if !allowed {
-			return nil, structs.ErrPermissionDenied
-		}
+	allowed := hasParseJob || hasSubmitJob
+	if !allowed {
+		return nil, structs.ErrPermissionDenied
 	}
 
 	args := &api.JobsParseRequest{}

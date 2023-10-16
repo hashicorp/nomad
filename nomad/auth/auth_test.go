@@ -61,7 +61,7 @@ func TestAuthenticateDefault(t *testing.T) {
 
 				err := auth.Authenticate(ctx, args)
 				must.NoError(t, err)
-				must.Eq(t, "token:anonymous", args.GetIdentity().String())
+				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
 
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
@@ -80,11 +80,13 @@ func TestAuthenticateDefault(t *testing.T) {
 
 				err := auth.Authenticate(ctx, args)
 				must.NoError(t, err)
-				must.NotNil(t, args.GetIdentity())
+				must.Eq(t, "token:acls-disabled", args.GetIdentity().String())
 
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
-				must.Nil(t, aclObj)
+				must.NotNil(t, aclObj)
+				must.Eq(t, acl.ACLsDisabledACL, aclObj)
+				must.True(t, aclObj.AllowAgentRead())
 			},
 		},
 		{
@@ -98,7 +100,7 @@ func TestAuthenticateDefault(t *testing.T) {
 
 				err := auth.Authenticate(ctx, args)
 				must.NoError(t, err)
-				must.Eq(t, "token:anonymous", args.GetIdentity().String())
+				must.Eq(t, "cli.global.nomad:192.168.1.1", args.GetIdentity().String())
 
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
@@ -140,6 +142,11 @@ func TestAuthenticateDefault(t *testing.T) {
 				err := auth.Authenticate(ctx, args)
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
+
+				aclObj, err := auth.ResolveACL(args)
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
+				must.Nil(t, aclObj)
+				must.False(t, aclObj.AllowAgentRead())
 			},
 		},
 		{
@@ -154,6 +161,11 @@ func TestAuthenticateDefault(t *testing.T) {
 				err := auth.Authenticate(ctx, args)
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
+
+				aclObj, err := auth.ResolveACL(args)
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
+				must.Nil(t, aclObj)
+				must.False(t, aclObj.AllowAgentRead())
 			},
 		},
 		{
@@ -200,6 +212,11 @@ func TestAuthenticateDefault(t *testing.T) {
 				err := auth.Authenticate(ctx, args)
 				must.ErrorIs(t, err, structs.ErrTokenExpired)
 				must.Eq(t, "unauthenticated", args.GetIdentity().String())
+
+				aclObj, err := auth.ResolveACL(args)
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
+				must.Nil(t, aclObj)
+				must.False(t, aclObj.AllowAgentRead())
 			},
 		},
 		{
@@ -219,11 +236,13 @@ func TestAuthenticateDefault(t *testing.T) {
 
 				err := auth.Authenticate(ctx, args)
 				must.NoError(t, err)
-				must.Nil(t, args.GetIdentity().ACLToken)
+				must.Eq(t, "token:acls-disabled", args.GetIdentity().String())
 
 				aclObj, err := auth.ResolveACL(args)
 				must.NoError(t, err)
-				must.Nil(t, aclObj)
+				must.NotNil(t, aclObj)
+				must.Eq(t, acl.ACLsDisabledACL, aclObj)
+				must.True(t, aclObj.AllowAgentRead())
 			},
 		},
 		{
@@ -231,12 +250,11 @@ func TestAuthenticateDefault(t *testing.T) {
 			testFn: func(t *testing.T, store *state.StateStore) {
 				alloc := mock.Alloc()
 				alloc.ClientStatus = structs.AllocClientStatusRunning
-
-				identity := alloc.LookupTask("web").Identity
-				wih := alloc.LookupTask("web").IdentityHandle(identity)
-
-				claims := structs.NewIdentityClaims(
-					alloc.Job, alloc, wih, identity, time.Now())
+				task := alloc.LookupTask("web")
+				identity := task.Identity
+				wih := task.IdentityHandle(identity)
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+				claims := structs.NewIdentityClaims(alloc.Job, alloc, wih, identity, time.Now())
 
 				auth := testAuthenticator(t, store, true, true)
 				token, err := auth.encrypter.(*testEncrypter).signClaim(claims)
@@ -262,8 +280,8 @@ func TestAuthenticateDefault(t *testing.T) {
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
 				must.False(t, aclObj.AllowAgentRead())
-
-				must.NotNil(t, args.GetIdentity().GetClaims())
+				must.True(t,
+					aclObj.AllowServiceRegistrationReadList(alloc.Job.Namespace, true))
 				must.Eq(t, "alloc:"+alloc.ID, args.GetIdentity().String())
 
 				// alloc becomes terminal
@@ -278,16 +296,20 @@ func TestAuthenticateDefault(t *testing.T) {
 				must.Eq(t, "unauthenticated", args.GetIdentity().String())
 
 				aclObj, err = auth.ResolveACL(args)
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Nil(t, aclObj)
-				must.Nil(t, args.GetIdentity().GetClaims())
+				must.False(t,
+					aclObj.AllowServiceRegistrationReadList(alloc.Job.Namespace, true))
+
 			},
 		},
 		{
 			name: "mTLS and ACLs with invalid WI token",
 			testFn: func(t *testing.T, store *state.StateStore) {
 				alloc := mock.Alloc()
-				identity := alloc.LookupTask("web").Identity
-				wih := alloc.LookupTask("web").IdentityHandle(identity)
+				task := alloc.LookupTask("web")
+				identity := task.Identity
+				wih := task.IdentityHandle(identity)
 				alloc.ClientStatus = structs.AllocClientStatusRunning
 				claims := structs.NewIdentityClaims(alloc.Job, alloc, wih, identity, time.Now())
 
@@ -303,6 +325,12 @@ func TestAuthenticateDefault(t *testing.T) {
 
 				err = auth.Authenticate(ctx, args)
 				must.ErrorContains(t, err, "invalid signature")
+
+				aclObj, err := auth.ResolveACL(args)
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
+				must.Nil(t, aclObj)
+				must.False(t,
+					aclObj.AllowServiceRegistrationReadList(alloc.Job.Namespace, true))
 			},
 		},
 		{
@@ -333,7 +361,6 @@ func TestAuthenticateDefault(t *testing.T) {
 			tc.testFn(t, store)
 		})
 	}
-
 }
 
 func TestAuthenticateServerOnly(t *testing.T) {
@@ -387,6 +414,7 @@ func TestAuthenticateServerOnly(t *testing.T) {
 					"invalid certificate: client.global.nomad not in expected server.global.nomad")
 				must.Eq(t, "client.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
+				must.False(t, aclObj.AllowServerOp())
 			},
 		},
 		{
@@ -412,7 +440,6 @@ func TestAuthenticateServerOnly(t *testing.T) {
 			tc.testFn(t)
 		})
 	}
-
 }
 
 func TestAuthenticateClientOnly(t *testing.T) {
@@ -450,6 +477,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
+				must.False(t, aclObj.AllowClientOp())
 			},
 		},
 		{
@@ -465,6 +493,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.NoError(t, err)
 				must.NotNil(t, aclObj)
 				must.Eq(t, "client:"+node.ID, args.GetIdentity().String())
+				must.True(t, aclObj.AllowClientOp())
 			},
 		},
 		{
@@ -496,6 +525,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
+				must.False(t, aclObj.AllowClientOp())
 			},
 		},
 		{
@@ -511,6 +541,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 					"invalid certificate: cli.global.nomad not in expected client.global.nomad, server.global.nomad")
 				must.Eq(t, "cli.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
+				must.False(t, aclObj.AllowClientOp())
 			},
 		},
 		{
@@ -526,6 +557,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 				must.Eq(t, "server.global.nomad:192.168.1.1", args.GetIdentity().String())
 				must.Nil(t, aclObj)
+				must.False(t, aclObj.AllowClientOp())
 			},
 		},
 		{
@@ -571,7 +603,6 @@ func TestAuthenticateClientOnly(t *testing.T) {
 			tc.testFn(t, store, node)
 		})
 	}
-
 }
 
 func TestResolveACLToken(t *testing.T) {
@@ -615,7 +646,9 @@ func TestResolveACLToken(t *testing.T) {
 
 				aclResp, err := auth.ResolveToken("")
 				must.NoError(t, err)
-				must.Nil(t, aclResp)
+				must.NotNil(t, aclResp)
+				must.Eq(t, acl.ACLsDisabledACL, aclResp)
+				must.True(t, aclResp.IsManagement())
 			},
 		},
 		{
@@ -909,7 +942,7 @@ func TestResolveSecretToken(t *testing.T) {
 				must.NoError(t, err)
 
 				// Attempt to look up the token and perform checks.
-				tokenResp, err := auth.ResolveSecretToken(token.SecretID)
+				tokenResp, err := auth.resolveSecretToken(token.SecretID)
 				must.NoError(t, err)
 				must.NotNil(t, tokenResp)
 				must.Eq(t, token, tokenResp)
@@ -922,7 +955,7 @@ func TestResolveSecretToken(t *testing.T) {
 				// Call the function with an empty input secret ID which is
 				// classed as representing anonymous access in clusters with
 				// ACLs enabled.
-				tokenResp, err := auth.ResolveSecretToken("")
+				tokenResp, err := auth.resolveSecretToken("")
 				must.NoError(t, err)
 				must.NotNil(t, tokenResp)
 				must.Eq(t, structs.AnonymousACLToken, tokenResp)
@@ -934,7 +967,7 @@ func TestResolveSecretToken(t *testing.T) {
 
 				// Call the function with randomly generated secret ID which
 				// does not exist within state.
-				tokenResp, err := auth.ResolveSecretToken(uuid.Generate())
+				tokenResp, err := auth.resolveSecretToken(uuid.Generate())
 				must.ErrorIs(t, err, structs.ErrTokenNotFound)
 				must.Nil(t, tokenResp)
 			},
@@ -955,7 +988,7 @@ func TestResolveSecretToken(t *testing.T) {
 
 				// Perform the function call which should result in finding the
 				// token has expired.
-				tokenResp, err := auth.ResolveSecretToken(uuid.Generate())
+				tokenResp, err := auth.resolveSecretToken(uuid.Generate())
 				must.ErrorIs(t, err, structs.ErrTokenNotFound)
 				must.Nil(t, tokenResp)
 			},

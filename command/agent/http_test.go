@@ -1453,8 +1453,8 @@ func TestHTTPServer_ResolveToken(t *testing.T) {
 	t.Run("acl disabled", func(t *testing.T) {
 		req := &http.Request{Body: http.NoBody}
 		got, err := noACLServer.Server.ResolveToken(req)
-		require.NoError(t, err)
-		require.Nil(t, got)
+		must.NoError(t, err)
+		must.Eq(t, got, acl.ACLsDisabledACL)
 	})
 
 	t.Run("token not found", func(t *testing.T) {

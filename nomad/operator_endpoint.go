@@ -52,7 +52,7 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 	// Check management permissions
 	if aclObj, err := op.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -119,7 +119,7 @@ func (op *Operator) RaftRemovePeerByAddress(args *structs.RaftPeerByAddressReque
 	// Check management permissions
 	if aclObj, err := op.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -177,7 +177,7 @@ func (op *Operator) RaftRemovePeerByID(args *structs.RaftPeerByIDRequest, reply 
 	// Check management permissions
 	if aclObj, err := op.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -254,7 +254,7 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 	// Check ACL permissions
 	if aclObj, err := op.srv.ResolveACL(req); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		reply.Err = structs.ErrPermissionDenied
 		return structs.ErrPermissionDenied
 	}
@@ -639,7 +639,7 @@ func (op *Operator) snapshotSave(conn io.ReadWriteCloser) {
 		}
 		handleFailure(code, err)
 		return
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		handleFailure(403, structs.ErrPermissionDenied)
 		return
 	}
@@ -726,7 +726,7 @@ func (op *Operator) snapshotRestore(conn io.ReadWriteCloser) {
 		}
 		handleFailure(code, err)
 		return
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		handleFailure(403, structs.ErrPermissionDenied)
 		return
 	}

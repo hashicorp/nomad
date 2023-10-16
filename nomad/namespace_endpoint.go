@@ -44,7 +44,7 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	// Check management permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -90,7 +90,7 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	// Check management permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -306,7 +306,7 @@ func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *
 	// Check capabilities for the given namespace permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNamespace(args.Name) {
+	} else if !aclObj.AllowNamespace(args.Name) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -360,7 +360,7 @@ func (n *Namespace) GetNamespaces(args *structs.NamespaceSetRequest, reply *stru
 	// Check management permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
