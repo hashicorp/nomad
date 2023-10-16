@@ -243,8 +243,8 @@ following hierarchy from lowest to highest precedence:
 
 * Each Nomad client should have a local Consul agent running on the same host,
   reachable by Nomad. Nomad clients should never share a Consul agent or talk
-  directly to the Consul servers. Nomad is not compatible with Consul Data
-  Plane.
+  directly to the Consul servers. Nomad is not compatible with [Consul Data
+  Plane][CDP].
 
 * The service discovery feature in Nomad depends on operators making sure that
   the Nomad client can reach the Consul agent.
@@ -265,18 +265,26 @@ following hierarchy from lowest to highest precedence:
 
 ## Compatibility
 
-* Nomad versions 1.4.4 and above are compatible with any currently supported
-  version of Consul except 1.13.8.
+Most supported versions of Nomad are compatible with most recent versions of
+Consul, with some exceptions.
+
+* Nomad versions 1.6.0+, 1.5.6+, and 1.4.11+ are compatible with any currently
+  supported version of Consul.
+* Nomad versions 1.4.4 to 1.4.11 and 1.5.0 to 1.5.6 are compatible with any
+  currently supported version of Consul except 1.13.8.
 * Nomad versions 1.4.0 through 1.4.3 are compatible with Consul versions 1.13.0
   through 1.13.7, and 1.13.9. Changes to Consul service mesh in version 1.14 are
   incompatible with Nomad 1.4.3 and earlier.
 * Nomad is not compatible with Consul Data Plane.
 
-|                   | Consul 1.13.0 - 1.13.7 | Consul 1.13.8 | Consul 1.13.9 | Consul 1.14.0+ |
-|-------------------|------------------------|---------------|---------------|----------------|
-| Nomad 1.4.4+      | ✅                     | ❌            | ✅            | ✅             |
-| Nomad 1.4.0-1.4.3 | ✅                     | ❌            | ✅            | ❌             |
-
+|                     | Consul 1.13.0 - 1.13.7 | Consul 1.13.8 | Consul 1.13.9 | Consul 1.14.0+ |
+|---------------------|------------------------|---------------|---------------|----------------|
+| Nomad 1.6.0+        | ✅                     | ✅            | ✅            | ✅             |
+| Nomad 1.5.6+        | ✅                     | ✅            | ✅            | ✅             |
+| Nomad 1.5.0-1.5.5   | ✅                     | ❌            | ✅            | ✅             |
+| Nomad 1.4.11-1.4.13 | ✅                     | ✅            | ✅            | ✅             |
+| Nomad 1.4.4-1.4.10  | ✅                     | ❌            | ✅            | ✅             |
+| Nomad 1.4.0-1.4.3   | ✅                     | ❌            | ✅            | ❌             |
 
 
 [Consul]: https://www.consul.io/ "Consul by HashiCorp"
@@ -299,3 +307,4 @@ following hierarchy from lowest to highest precedence:
 [`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
 [`consul.task_identity`]: /nomad/docs/configuration/consul#task_identity
 [`identity`]: /nomad/docs/job-specification/identity
+[CDP]: /consul/docs/connect/dataplane
