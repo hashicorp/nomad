@@ -41,7 +41,7 @@ func (v *vaultTokenUpdaterMock) updatedVaultToken(token string) {
 	v.currentToken = token
 }
 
-func setupTestHook(t *testing.T, config *vaultHookConfig) *vaultHook {
+func setupTestVaultHook(t *testing.T, config *vaultHookConfig) *vaultHook {
 	t.Helper()
 
 	if config == nil {
@@ -146,7 +146,7 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 			alloc := mock.MinAlloc()
 			alloc.Job.TaskGroups[0].Tasks[0] = tc.task
 
-			hook := setupTestHook(t, &vaultHookConfig{
+			hook := setupTestVaultHook(t, &vaultHookConfig{
 				task:  tc.task,
 				alloc: alloc,
 			})
@@ -291,7 +291,7 @@ func TestTaskRunner_VaultHook_recover(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			hook := setupTestHook(t, nil)
+			hook := setupTestVaultHook(t, nil)
 
 			req, err := tc.setupReq()
 			must.NoError(t, err)
@@ -321,7 +321,7 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 		vaultClient, _ := vaultclient.NewMockVaultClient("")
 		mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
 
-		hook := setupTestHook(t, &vaultHookConfig{
+		hook := setupTestVaultHook(t, &vaultHookConfig{
 			clientFunc: func(string) (vaultclient.VaultClient, error) {
 				return mockVaultClient, nil
 			},
@@ -369,7 +369,7 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 		vaultClient, _ := vaultclient.NewMockVaultClient("")
 		mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
 
-		hook := setupTestHook(t, &vaultHookConfig{
+		hook := setupTestVaultHook(t, &vaultHookConfig{
 			clientFunc: func(string) (vaultclient.VaultClient, error) {
 				return mockVaultClient, nil
 			},
@@ -413,7 +413,7 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 		vaultClient, _ := vaultclient.NewMockVaultClient("")
 		mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
 
-		hook := setupTestHook(t, &vaultHookConfig{
+		hook := setupTestVaultHook(t, &vaultHookConfig{
 			clientFunc: func(string) (vaultclient.VaultClient, error) {
 				return mockVaultClient, nil
 			},
@@ -520,7 +520,7 @@ func TestTaskRunner_VaultHook_tokenRenewalFail(t *testing.T) {
 			vaultClient, _ := vaultclient.NewMockVaultClient("")
 			mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
 
-			hook := setupTestHook(t, &vaultHookConfig{
+			hook := setupTestVaultHook(t, &vaultHookConfig{
 				vaultBlock: tc.vaultBlock,
 				clientFunc: func(string) (vaultclient.VaultClient, error) {
 					return mockVaultClient, nil
