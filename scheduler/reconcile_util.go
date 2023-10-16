@@ -484,12 +484,12 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
 	var eligible bool
 	if isDisconnecting {
-		rescheduleTime, eligible = alloc.NextRescheduleTimeByFailTime(now)
+		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(alloc.LastEventTime())
 	} else {
 		rescheduleTime, eligible = alloc.NextRescheduleTime()
 	}
 
-	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize || isDisconnecting) {
+	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
 		rescheduleNow = true
 		return
 	}

@@ -457,6 +457,13 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
 
+	timeoutLaterEvals := map[string]string{}
+
+	if len(disconnecting) > 0 {
+		// Find delays for any disconnecting allocs that have max_client_disconnect,
+		// create followup evals, and update the ClientStatus to unknown.
+		timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
+	}
 	// Determine what set of disconnecting allocations need to be rescheduled now
 	// and which ones can't be rescheduled at all.
 	untaintedDisconnecting, rescheduleDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
@@ -466,10 +473,6 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLater := lost.delayByStopAfterClientDisconnect()
 	lostLaterEvals := a.createLostLaterEvals(lostLater, tg.Name)
-
-	// Find delays for any disconnecting allocs that have max_client_disconnect,
-	// create followup evals, and update the ClientStatus to unknown.
-	timeoutLaterEvals := a.createTimeoutLaterEvals(disconnecting, tg.Name)
 
 	// Merge disconnecting with the stop_after_client_disconnect set into the
 	// lostLaterEvals so that computeStop can add them to the stop set.
