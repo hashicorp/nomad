@@ -88,11 +88,7 @@ func (h *consulHook) Prerun() error {
 
 func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
 
-	clusterName := task.GetConsulClusterName(tg)
-	consulConfig, ok := h.consulConfigs[clusterName]
-	if !ok {
-		return fmt.Errorf("no such consul cluster: %s", clusterName)
-	}
+	consulClusterName := task.Consul.Cluster
 
 	// get tokens for alt identities for Consul
 	mErr := multierror.Error{}
