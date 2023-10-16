@@ -377,27 +377,11 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 }
 
 func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string) error {
-	var mErr *multierror.Error
-
-	if s.Identity != nil {
-		if !v.srv.config.UseConsulIdentity() {
-			mErr = multierror.Append(mErr, fmt.Errorf(
-				"Service %s in %s defines an identity but server is not configured to use Consul identities, set use_identity to true in the Consul server configuration",
-				s.Name, parent,
-			))
-		}
-
-		if s.Identity.Name == "" {
-			mErr = multierror.Append(mErr, fmt.Errorf("Service %s in %s has an identity with an empty name", s.Name, parent))
-		}
-	} else if v.srv.config.UseConsulIdentity() && v.srv.config.ConsulServiceIdentity() == nil {
-		mErr = multierror.Append(mErr, fmt.Errorf(
-			"Service %s in %s expected to have an identity, add an identity block to the service or provide a default using the service_identity block in the server Consul configuration",
-			s.Name, parent,
-		))
+	if s.Identity != nil && s.Identity.Name == "" {
+		return fmt.Errorf("Service %s in %s has an identity with an empty name", s.Name, parent)
 	}
 
-	return mErr.ErrorOrNil()
+	return nil
 }
 
 func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {

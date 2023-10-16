@@ -787,16 +787,16 @@ func TestHTTP_JobUpdate_EvalPriority(t *testing.T) {
 
 				// Make the HTTP request
 				req, err := http.NewRequest(http.MethodPut, "/v1/job/"+*job.ID, buf)
-				assert.Nil(t, err)
+				must.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				// Make the request
 				obj, err := s.Server.JobSpecificRequest(respW, req)
 				if tc.expectedError {
-					assert.NotNil(t, err)
+					must.Error(t, err)
 					return
 				} else {
-					assert.Nil(t, err)
+					must.NoError(t, err)
 				}
 
 				// Check the response
@@ -813,7 +813,7 @@ func TestHTTP_JobUpdate_EvalPriority(t *testing.T) {
 					},
 				}
 				var getResp structs.SingleJobResponse
-				assert.Nil(t, s.Agent.RPC("Job.GetJob", &getReq, &getResp))
+				must.NoError(t, s.Agent.RPC("Job.GetJob", &getReq, &getResp))
 				assert.NotNil(t, getResp.Job)
 
 				// Check the evaluation that resulted from the job register.

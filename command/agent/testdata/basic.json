@@ -187,7 +187,6 @@
       },
       "timeout": "5s",
       "token": "token1",
-      "use_identity": true,
       "verify_ssl": true
     }
   ],

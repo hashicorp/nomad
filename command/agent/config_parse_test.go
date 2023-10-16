@@ -235,7 +235,6 @@ var basicConfig = &Config{
 		ChecksUseAdvertise:   &trueValue,
 		Timeout:              5 * time.Second,
 		TimeoutHCL:           "5s",
-		UseIdentity:          &trueValue,
 		ServiceIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io", "nomad.dev"},
 			Env:      pointer.Of(false),
@@ -275,7 +274,6 @@ var basicConfig = &Config{
 			ChecksUseAdvertise:   &trueValue,
 			Timeout:              5 * time.Second,
 			TimeoutHCL:           "5s",
-			UseIdentity:          &trueValue,
 			ServiceIdentity: &config.WorkloadIdentityConfig{
 				Audience: []string{"consul.io", "nomad.dev"},
 				Env:      pointer.Of(false),

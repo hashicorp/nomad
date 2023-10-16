@@ -137,15 +137,9 @@ type ConsulConfig struct {
 	// Consul API. If this is unset, then Nomad does not specify a consul namespace.
 	Namespace string `mapstructure:"namespace"`
 
-	// UseIdentity tells the server to sign identities for Consul. In Nomad 1.9+ this
-	// field will be ignored (and treated as though it were set to true).
-	//
-	// UseIdentity is set on the server.
-	UseIdentity *bool `mapstructure:"use_identity"`
-
 	// ServiceIdentity is intended to reduce overhead for jobspec authors and make
 	// for graceful upgrades without forcing rewrite of all jobspecs. If set, when a
-	// job has a service block with the “consul” provider, the Nomad server will sign
+	// job has a service block with the "consul" provider, the Nomad server will sign
 	// a Workload Identity for that service and add it to the service block. The
 	// client will use this identity rather than the client's Consul token for the
 	// group_service and envoy_bootstrap_hook.
@@ -190,7 +184,6 @@ func DefaultConsulConfig() *ConsulConfig {
 		ClientAutoJoin:       pointer.Of(true),
 		AllowUnauthenticated: pointer.Of(true),
 		Timeout:              5 * time.Second,
-		UseIdentity:          pointer.Of(false),
 
 		// From Consul api package defaults
 		Addr:      def.Address,
@@ -292,9 +285,6 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	if b.Namespace != "" {
 		result.Namespace = b.Namespace
-	}
-	if b.UseIdentity != nil {
-		result.UseIdentity = pointer.Of(*b.UseIdentity)
 	}
 
 	if result.ServiceIdentity == nil && b.ServiceIdentity != nil {
@@ -410,7 +400,6 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 		ServerAutoJoin:       c.ServerAutoJoin,
 		ClientAutoJoin:       c.ClientAutoJoin,
 		Namespace:            c.Namespace,
-		UseIdentity:          c.UseIdentity,
 		ServiceIdentity:      c.ServiceIdentity.Copy(),
 		TaskIdentity:         c.TaskIdentity.Copy(),
 		ExtraKeysHCL:         slices.Clone(c.ExtraKeysHCL),

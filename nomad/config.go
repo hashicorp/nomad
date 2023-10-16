@@ -495,13 +495,6 @@ func (c *Config) VaultDefaultIdentity() *structs.WorkloadIdentity {
 	return workloadIdentityFromConfig(c.VaultConfig.DefaultIdentity)
 }
 
-// UseConsulIdentity returns true when Consul workload identity is enabled.
-func (c *Config) UseConsulIdentity() bool {
-	return c.ConsulConfig != nil &&
-		c.ConsulConfig.UseIdentity != nil &&
-		*c.ConsulConfig.UseIdentity
-}
-
 // workloadIdentityFromConfig returns a structs.WorkloadIdentity to be used in
 // a job from a config.WorkloadIdentityConfig parsed from an agent config file.
 func workloadIdentityFromConfig(widConfig *config.WorkloadIdentityConfig) *structs.WorkloadIdentity {

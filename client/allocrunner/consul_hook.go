@@ -104,14 +104,6 @@ func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.
 
 	consulClusterName := task.Consul.Cluster
 
-	// get consul config
-	consulConfig := h.consulConfigs[consulClusterName]
-
-	// if UseIdentity is unset of set to false, quit
-	if consulConfig.UseIdentity == nil || !*consulConfig.UseIdentity {
-		return nil
-	}
-
 	// get tokens for alt identities for Consul
 	mErr := multierror.Error{}
 	for _, i := range task.Identities {

@@ -7,13 +7,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 )
 
-func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
+func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
@@ -23,7 +22,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 		expectedOutputJob *structs.Job
 	}{
 		{
-			name: "no mutation when identity is disabled",
+			name: "no mutation when no service identity is configured",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Services: []*structs.Service{{
@@ -32,31 +31,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(false),
-				},
-			},
-			expectedOutputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Services: []*structs.Service{{
-						Provider: "consul",
-					}},
-				}},
-			},
-		},
-		{
-			name: "no mutation when identity is enabled but no service identity is configured",
-			inputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Services: []*structs.Service{{
-						Provider: "consul",
-					}},
-				}},
-			},
-			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
+				ConsulConfig: &config.ConsulConfig{},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
@@ -77,7 +52,6 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			},
 			inputConfig: &Config{
 				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
 					ServiceIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"consul.io"},
 					},
@@ -135,7 +109,6 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			},
 			inputConfig: &Config{
 				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
 					ServiceIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"consul.io"},
 					},
@@ -210,7 +183,6 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			},
 			inputConfig: &Config{
 				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
 					ServiceIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"consul.io"},
 					},
@@ -258,7 +230,6 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			},
 			inputConfig: &Config{
 				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
 					TaskIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"consul.io"},
 					},
@@ -279,7 +250,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			},
 		},
 		{
-			name: "no mutation for templates when identity is enabled but no task identity is configured",
+			name: "no mutation for templates when no task identity is configured",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
@@ -289,36 +260,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
-			},
-			expectedOutputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
-					}},
-				}},
-			},
-		},
-		{
-			name: "no task mutation for templates when identity is disabled",
-			inputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
-					}},
-				}},
-			},
-			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(false),
-					TaskIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
-					},
-				},
+				ConsulConfig: &config.ConsulConfig{},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
