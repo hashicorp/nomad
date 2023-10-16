@@ -18,6 +18,8 @@ log_json = true
 
 log_file = "/var/log/nomad.log"
 
+log_include_location = true
+
 bind_addr = "192.168.0.1"
 
 enable_debug = true
