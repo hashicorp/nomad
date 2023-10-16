@@ -10914,16 +10914,16 @@ func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *Re
 	return nextRescheduleTime, rescheduleEligible
 }
 
-// NextRescheduleTimeByFailTime works like NextRescheduleTime but allows callers
+// NextRescheduleTimeByTime works like NextRescheduleTime but allows callers
 // specify a failure time. Useful for things like determining whether to reschedule
 // an alloc on a disconnected node.
-func (a *Allocation) NextRescheduleTimeByFailTime(failTime time.Time) (time.Time, bool) {
+func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	reschedulePolicy := a.ReschedulePolicy()
 	if reschedulePolicy == nil {
 		return time.Time{}, false
 	}
 
-	return a.nextRescheduleTime(failTime, reschedulePolicy)
+	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
 // ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
