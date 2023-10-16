@@ -54,7 +54,8 @@ Template, please see the [`template` job specification documentation][].
 
 Starting in Nomad 1.7, Nomad clients will use a task or service's [Workload
 Identity][] to authenticate to Consul and obtain a Consul token specific to the
-service or task.
+service or task. When using Workload Identity you will no longer need to pass in
+a Consul token to submit a job.
 
 ### Configuring Consul Authentication
 
@@ -201,6 +202,9 @@ agents. It does not require updating your running Nomad jobs. To migrate:
 * (Optionally) add [`identity`][] blocks to your jobs if you want to use a
   different identity because of how your auth method and binding rules are
   configured.
+
+Note that when using Workload Identity you will no longer need to pass in a
+Consul token to submit a job.
 
 ## Consul Namespaces
 

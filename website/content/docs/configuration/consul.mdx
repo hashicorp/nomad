@@ -189,6 +189,30 @@ consul {
 }
 ```
 
+### Workload Identity
+
+The `service_identity` and `task_identity` blocks accept all the same values as
+the job specification's [`identity`][identity_block]. By ensuring these blocks
+are set on the Nomad servers, you can automatically migrate your existing jobs
+to use Workload Identity without modifying the job specification and
+resubmitting them.
+
+The recommended configuration for `service_identity` and `task_identity` is as
+follows. See [Migrating to Using Workload Identity with Consul][] for details on
+how to configure Consul to accept these identities.
+
+```hcl
+consul {
+  service_identity {
+    aud = ["consul.io"]
+  }
+
+  task_identity {
+    aud = ["consul.io"]
+  }
+}
+```
+
 ### Custom Address and Port
 
 This example shows pointing the Nomad agent at a different Consul address. Note
@@ -249,29 +273,6 @@ namespace "nomad-ns" {
 }
 ```
 
-### Workload Identity
-
-The `service_identity` and `task_identity` blocks accept all the same values as
-the job specification's [`identity`][identity_block]. By ensuring these blocks
-are set on the Nomad servers, you can automatically migrate your existing jobs
-to use Workload Identity without modifying the job specification and
-resubmitting them.
-
-The recommended configuration for `service_identity` and `task_identity` is as
-follows. See [Migrating to Using Workload Identity with Consul][] for details on
-how to configure Consul to accept these identities.
-
-```hcl
-consul {
-  service_identity {
-    aud = ["consul.io"]
-  }
-
-  task_identity {
-    aud = ["consul.io"]
-  }
-}
-```
 
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
 [bootstrap]: /nomad/tutorials/manage-clusters/clustering 'Automatic Bootstrapping'

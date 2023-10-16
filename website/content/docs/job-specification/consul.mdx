@@ -50,7 +50,7 @@ service or task when the following conditions are met:
 As a fallback if none of these conditions are met, the Nomad client will instead
 use, in order of preference:
 
-* The token provided by the [`-consul-token`][flag_consul_token][] flag for the
+* The token provided by the [`-consul-token`][flag_consul_token] flag for the
   `nomad job run` command.
 * The Consul token as configured in the agent's [`consul.token`][] configuration.
 * The Consul token as configured by the agent's `CONSUL_HTTP_TOKEN` environment variable.
@@ -230,11 +230,11 @@ job "docs" {
 [`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
 [flag_consul_token]: /nomad/docs/commands/job/run#consul-token
 [`consul.token`]: /nomad/docs/configuration/consul#token
-[Configuring Consul Authentication][]: /nomad/docs/integrations/consul-integration#TODO
+[Configuring Consul Authentication]: /nomad/docs/integrations/consul-integration#TODO
 [Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul
 [config_consul_namespace]: /nomad/docs/configuration/consul#namespace
 [Consul Namespaces]: /consul/docs/enterprise/namespaces
 [template]: /nomad/docs/job-specification/template "Nomad template Job Specification"
 [`consul.name`]: /nomad/docs/configuration/consul#name
 [flag_consul_namespace]: /nomad/docs/commands/job/run#consul-namespace
-[Connect][]: /nomad/docs/job-specification/connect
+[Connect]: /nomad/docs/job-specification/connect
