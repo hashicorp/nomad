@@ -18,7 +18,8 @@ description: |-
 
 The `consul` block specifies [Consul][] configuration options specific to a
 task. If specified at the `group` level, the configuration will apply to all
-tasks and services within the group unless a task has its own `consul` block.
+tasks and services within the group unless a task has its own `consul` block. A
+task-level `consul` block will entirely override a group-level `consul` block.
 
 ```hcl
 job "docs" {
@@ -105,7 +106,10 @@ above.
 This example tells the Nomad client to obtain a Consul token using the task's
 Workload Identity. The token is available to the task via the canonical
 environment variable `CONSUL_TOKEN` and written to disk at
-`secrets/consul_token`. The `template` block will use the same Consul token.
+`secrets/consul_token`. The `template` block will use the same Consul
+token. Note that the `identity.name` is set to `"consul_default"`, which tells
+the Nomad client to use this identity when making requests to the default Consul
+cluster.
 
 ```hcl
 job "example" {

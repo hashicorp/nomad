@@ -215,9 +215,9 @@ namespace.  This default namespace behavior can be modified by setting the
 configuration block.
 
 For more control over Consul namespaces, Nomad Enterprise supports configuring
-the Consul namespace at the [group level][consul_group_namespace] in the Nomad
-job spec as well as the [`-consul-namespace`][consul_run_namespace] command line
-argument for `job run`.
+the Consul [namespace][consul_jobspec_namespace] at the group or task level in
+the Nomad job spec as well as the [`-consul-namespace`][consul_run_namespace]
+command line argument for `job run`.
 
 The Consul namespace used for a set of group or task service registrations
 within a group, as well as `template` KV store access is determined from the
@@ -230,13 +230,14 @@ following hierarchy from lowest to highest precedence:
   Consul configuration parameter is set, this namespace will be used instead of
   the Consul default.
 
-* job run command: <EnterpriseAlert inline/> If the [`-consul-namespace`][consul_run_namespace]
-  command line argument is specified on job submission, this namespace will take
-  precedence over the namespace set in Nomad agent configuration.
+* job run command: <EnterpriseAlert inline/> If the
+  [`-consul-namespace`][consul_run_namespace] command line argument is specified
+  on job submission, this namespace will take precedence over the namespace set
+  in Nomad agent configuration.
 
-* group configuration: <EnterpriseAlert inline/> If the [group level][consul_group_namespace]
-  Consul namespace is configured, this namespace will take precedence over all other
-  options.
+* group and task configuration: <EnterpriseAlert inline/> If the group level or
+  task level Consul [namespace field][consul_jobspec_namespace] is configured,
+  this namespace will take precedence over all other options.
 
 ## Assumptions
 
@@ -288,7 +289,7 @@ following hierarchy from lowest to highest precedence:
 [`template` job specification documentation]: /nomad/docs/job-specification/template
 [consul_namespaces]: /consul/docs/enterprise/namespaces
 [consul_agent_namespace]: /nomad/docs/configuration/consul#namespace
-[consul_group_namespace]: /nomad/docs/job-specification/group#namespace
+[consul_jobspec_namespace]: /nomad/docs/job-specification/consul#namespace
 [consul_run_namespace]: /nomad/docs/commands/job/run#consul-namespace
 [`allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
 [consul_acls]: /consul/docs/security/acl
