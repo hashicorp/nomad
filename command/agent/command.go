@@ -124,6 +124,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
+	flags.BoolVar(&cmdConfig.LogIncludeLocation, "log-include-location", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Consul options
@@ -748,10 +749,11 @@ func (c *Command) Run(args []string) int {
 
 	// Create logger
 	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
-		Name:       "agent",
-		Level:      hclog.LevelFromString(config.LogLevel),
-		Output:     logOutput,
-		JSONFormat: config.LogJson,
+		Name:            "agent",
+		Level:           hclog.LevelFromString(config.LogLevel),
+		Output:          logOutput,
+		JSONFormat:      config.LogJson,
+		IncludeLocation: config.LogIncludeLocation,
 	})
 
 	// Wrap log messages emitted with the 'log' package.
@@ -1359,6 +1361,9 @@ General Options (clients and servers):
 
   -log-json
     Output logs in a JSON format. The default is false.
+
+  -log-include-location
+    Include file and line information in each log line. The default is false.
 
   -node=<name>
     The name of the local agent. This name is used to identify the node

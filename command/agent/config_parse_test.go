@@ -18,16 +18,17 @@ import (
 )
 
 var basicConfig = &Config{
-	Region:      "foobar",
-	Datacenter:  "dc2",
-	NodeName:    "my-web",
-	DataDir:     "/tmp/nomad",
-	PluginDir:   "/tmp/nomad-plugins",
-	LogFile:     "/var/log/nomad.log",
-	LogLevel:    "ERR",
-	LogJson:     true,
-	BindAddr:    "192.168.0.1",
-	EnableDebug: true,
+	Region:             "foobar",
+	Datacenter:         "dc2",
+	NodeName:           "my-web",
+	DataDir:            "/tmp/nomad",
+	PluginDir:          "/tmp/nomad-plugins",
+	LogFile:            "/var/log/nomad.log",
+	LogLevel:           "ERR",
+	LogIncludeLocation: true,
+	LogJson:            true,
+	BindAddr:           "192.168.0.1",
+	EnableDebug:        true,
 	Ports: &Ports{
 		HTTP: 1234,
 		RPC:  2345,
