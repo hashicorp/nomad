@@ -205,6 +205,7 @@
   "leave_on_interrupt": true,
   "leave_on_terminate": true,
   "log_file": "/var/log/nomad.log",
+  "log_include_location": true,
   "log_json": true,
   "log_level": "ERR",
   "name": "my-web",
