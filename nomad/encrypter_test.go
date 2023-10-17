@@ -31,6 +31,18 @@ var (
 	}
 )
 
+type mockSigner struct {
+	calls []*structs.IdentityClaims
+
+	nextToken, nextKeyID string
+	nextErr              error
+}
+
+func (s *mockSigner) SignClaims(c *structs.IdentityClaims) (token, keyID string, err error) {
+	s.calls = append(s.calls, c)
+	return s.nextToken, s.nextKeyID, s.nextErr
+}
+
 // TestEncrypter_LoadSave exercises round-tripping keys to disk
 func TestEncrypter_LoadSave(t *testing.T) {
 	ci.Parallel(t)
