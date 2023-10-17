@@ -1072,7 +1072,6 @@ func (s *Service) Equal(o *Service) bool {
 
 func (s *Service) IsConsul() bool {
 	return s.Provider == ServiceProviderConsul || s.Provider == ""
-
 }
 
 // ConsulConnect represents a Consul Connect jobspec block.

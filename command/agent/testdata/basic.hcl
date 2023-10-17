@@ -245,13 +245,16 @@ consul {
   auto_advertise         = true
   checks_use_advertise   = true
   timeout                = "5s"
-  use_identity           = true
+  service_auth_method    = "nomad-workloads"
+  task_auth_method       = "nomad-tasks"
+
   service_identity {
     aud  = ["consul.io", "nomad.dev"]
     env  = false
     file = true
     ttl  = "1h"
   }
+
   task_identity {
     aud  = ["consul.io"]
     env  = true

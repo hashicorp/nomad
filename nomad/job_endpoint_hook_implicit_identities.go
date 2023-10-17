@@ -40,17 +40,12 @@ func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []err
 }
 
 // handleConsulService injects a workload identity to the service if:
-//  1. The service uses the Consul provider.
-//  2. The server is configured with `consul.use_identity = true` and a
-//     `consul.service_identity` is provided.
+//  1. The service uses the Consul provider, and
+//  2. The server is configured with `consul.service_identity`
 //
-// If the service already has an identity it sets the identity name and service
-// name values.
+// If the service already has an identity the server sets the identity name and
+// service name values.
 func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
-	if !h.srv.config.UseConsulIdentity() {
-		return
-	}
-
 	if s.Provider != "" && s.Provider != "consul" {
 		return
 	}
@@ -77,10 +72,6 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 }
 
 func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task) {
-	if !h.srv.config.UseConsulIdentity() {
-		return
-	}
-
 	widName := t.Consul.IdentityName()
 
 	// Use the Consul identity specified in the task if present

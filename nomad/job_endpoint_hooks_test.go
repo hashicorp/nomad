@@ -4,7 +4,6 @@
 package nomad
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -34,9 +33,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				Name:     "web",
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(false),
-				},
+				ConsulConfig: &config.ConsulConfig{},
 			},
 		},
 		{
@@ -47,7 +44,6 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 			},
 			inputConfig: &Config{
 				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
 					ServiceIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"consul.io"},
 						TTL:      pointer.Of(time.Hour),
@@ -56,7 +52,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 			},
 		},
 		{
-			name: "no error when consul identity is enabled and identity is provided via service",
+			name: "no error when consul identity is missing and identity is provided via service",
 			inputService: &structs.Service{
 				Provider: "consul",
 				Name:     "web",
@@ -70,9 +66,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
+				ConsulConfig: &config.ConsulConfig{},
 			},
 		},
 		{
@@ -89,46 +83,11 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
+				ConsulConfig: &config.ConsulConfig{},
 			},
 			expectedWarns: []string{
 				"identities without an expiration are insecure",
 			},
-		},
-		{
-			name: "error when consul identity is disabled and service has identity",
-			inputService: &structs.Service{
-				Provider: "consul",
-				Name:     "web",
-				Identity: &structs.WorkloadIdentity{
-					Name:     fmt.Sprintf("%s_web", structs.ConsulServiceIdentityNamePrefix),
-					Audience: []string{"consul.io"},
-					File:     true,
-					Env:      false,
-					TTL:      time.Hour,
-				},
-			},
-			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(false),
-				},
-			},
-			expectedErr: "defines an identity but server is not configured to use Consul identities",
-		},
-		{
-			name: "error when consul identity is enabled but no service identity is provided",
-			inputService: &structs.Service{
-				Provider: "consul",
-				Name:     "web",
-			},
-			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
-			},
-			expectedErr: "expected to have an identity",
 		},
 	}
 

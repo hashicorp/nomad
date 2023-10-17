@@ -65,6 +65,9 @@ func (j jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 		}
 
 		for _, task := range group.Tasks {
+			if task.Consul != nil && task.Consul.Cluster == "" {
+				task.Consul.Cluster = structs.ConsulDefaultCluster
+			}
 			for _, service := range task.Services {
 				if service.IsConsul() && service.Cluster == "" {
 					service.Cluster = structs.ConsulDefaultCluster
