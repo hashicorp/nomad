@@ -41,7 +41,7 @@ const (
 )
 
 type rpcHandler struct {
-	*Server
+	srv *Server
 
 	// connLimiter is used to limit the number of RPC connections per
 	// remote address. It is distinct from the HTTP connection limit.
@@ -65,7 +65,7 @@ func newRpcHandler(s *Server) *rpcHandler {
 	logger := s.logger.NamedIntercept("rpc")
 
 	r := rpcHandler{
-		Server:    s,
+		srv:       s,
 		connLimit: s.config.RPCMaxConnsPerClient,
 		logger:    logger,
 		gologger:  logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true}),
@@ -139,7 +139,7 @@ func (ctx *RPCContext) ValidateCertificateForName(name string) error {
 
 // listen is used to listen for incoming RPC connections
 func (r *rpcHandler) listen(ctx context.Context) {
-	defer close(r.listenerCh)
+	defer close(r.srv.listenerCh)
 
 	var acceptLoopDelay time.Duration
 	for {
@@ -151,9 +151,9 @@ func (r *rpcHandler) listen(ctx context.Context) {
 		}
 
 		// Accept a connection
-		conn, err := r.rpcListener.Accept()
+		conn, err := r.srv.rpcListener.Accept()
 		if err != nil {
-			if r.shutdown {
+			if r.srv.shutdown {
 				return
 			}
 			r.handleAcceptErr(ctx, err, &acceptLoopDelay)
@@ -225,8 +225,8 @@ func (r *rpcHandler) handleAcceptErr(ctx context.Context, err error, loopDelay *
 func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCContext) {
 	// Limit how long an unauthenticated client can hold the connection
 	// open before they send the magic byte.
-	if !rpcCtx.TLS && r.config.RPCHandshakeTimeout > 0 {
-		conn.SetDeadline(time.Now().Add(r.config.RPCHandshakeTimeout))
+	if !rpcCtx.TLS && r.srv.config.RPCHandshakeTimeout > 0 {
+		conn.SetDeadline(time.Now().Add(r.srv.config.RPCHandshakeTimeout))
 	}
 
 	// Read a single byte
@@ -241,13 +241,13 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 
 	// Reset the deadline as we aren't sure what is expected next - it depends on
 	// the protocol.
-	if !rpcCtx.TLS && r.config.RPCHandshakeTimeout > 0 {
+	if !rpcCtx.TLS && r.srv.config.RPCHandshakeTimeout > 0 {
 		conn.SetDeadline(time.Time{})
 	}
 
 	// Enforce TLS if EnableRPC is set
-	if r.config.TLSConfig.EnableRPC && !rpcCtx.TLS && pool.RPCType(buf[0]) != pool.RpcTLS {
-		if !r.config.TLSConfig.RPCUpgradeMode {
+	if r.srv.config.TLSConfig.EnableRPC && !rpcCtx.TLS && pool.RPCType(buf[0]) != pool.RpcTLS {
+		if !r.srv.config.TLSConfig.RPCUpgradeMode {
 			r.logger.Warn("non-TLS connection attempted with RequireTLS set", "remote_addr", conn.RemoteAddr())
 			conn.Close()
 			return
@@ -259,12 +259,12 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 	case pool.RpcNomad:
 		// Create an RPC Server and handle the request
 		server := rpc.NewServer()
-		r.setupRpcServer(server, rpcCtx)
+		r.srv.setupRpcServer(server, rpcCtx)
 		r.handleNomadConn(ctx, conn, server)
 
 		// Remove any potential mapping between a NodeID to this connection and
 		// close the underlying connection.
-		r.removeNodeConn(rpcCtx)
+		r.srv.removeNodeConn(rpcCtx)
 
 	case pool.RpcRaft:
 		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
@@ -273,13 +273,13 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 			conn.Close()
 			return
 		}
-		r.raftLayer.Handoff(ctx, conn)
+		r.srv.raftLayer.Handoff(ctx, conn)
 
 	case pool.RpcMultiplex:
 		r.handleMultiplex(ctx, conn, rpcCtx)
 
 	case pool.RpcTLS:
-		if r.rpcTLS == nil {
+		if r.srv.rpcTLS == nil {
 			r.logger.Warn("TLS connection attempted, server not configured for TLS")
 			conn.Close()
 			return
@@ -292,7 +292,7 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 			return
 		}
 
-		conn = tls.Server(conn, r.rpcTLS)
+		conn = tls.Server(conn, r.srv.rpcTLS)
 
 		// Force a handshake so we can get information about the TLS connection
 		// state.
@@ -306,8 +306,8 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 		// Enforce handshake timeout during TLS handshake to prevent
 		// unauthenticated users from holding connections open
 		// indefinitely.
-		if r.config.RPCHandshakeTimeout > 0 {
-			tlsConn.SetDeadline(time.Now().Add(r.config.RPCHandshakeTimeout))
+		if r.srv.config.RPCHandshakeTimeout > 0 {
+			tlsConn.SetDeadline(time.Now().Add(r.srv.config.RPCHandshakeTimeout))
 		}
 
 		if err := tlsConn.Handshake(); err != nil {
@@ -317,7 +317,7 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 		}
 
 		// Reset the deadline as unauthenticated users have now been rejected.
-		if r.config.RPCHandshakeTimeout > 0 {
+		if r.srv.config.RPCHandshakeTimeout > 0 {
 			tlsConn.SetDeadline(time.Time{})
 		}
 
@@ -364,7 +364,7 @@ func (r *rpcHandler) handleMultiplex(ctx context.Context, conn net.Conn, rpcCtx 
 	defer func() {
 		// Remove any potential mapping between a NodeID to this connection and
 		// close the underlying connection.
-		r.removeNodeConn(rpcCtx)
+		r.srv.removeNodeConn(rpcCtx)
 		conn.Close()
 	}()
 
@@ -382,7 +382,7 @@ func (r *rpcHandler) handleMultiplex(ctx context.Context, conn net.Conn, rpcCtx 
 
 	// Create the RPC server for this connection
 	rpcServer := rpc.NewServer()
-	r.setupRpcServer(rpcServer, rpcCtx)
+	r.srv.setupRpcServer(rpcServer, rpcCtx)
 
 	for {
 		// stop handling connections if context was cancelled
@@ -410,7 +410,7 @@ func (r *rpcHandler) handleNomadConn(ctx context.Context, conn net.Conn, server 
 		case <-ctx.Done():
 			r.logger.Info("closing server RPC connection")
 			return
-		case <-r.shutdownCh:
+		case <-r.srv.shutdownCh:
 			return
 		default:
 		}
@@ -443,7 +443,7 @@ func (r *rpcHandler) handleStreamingConn(conn net.Conn) {
 	}
 
 	ack := structs.StreamingRpcAck{}
-	handler, err := r.streamingRpcs.GetHandler(header.Method)
+	handler, err := r.srv.streamingRpcs.GetHandler(header.Method)
 	if err != nil {
 		r.logger.Error("streaming RPC error", "error", err, "connection", conn)
 		metrics.IncrCounter([]string{"nomad", "streaming_rpc", "request_error"}, 1)
@@ -473,7 +473,7 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 	defer func() {
 		// Remove any potential mapping between a NodeID to this connection and
 		// close the underlying connection.
-		r.removeNodeConn(rpcCtx)
+		r.srv.removeNodeConn(rpcCtx)
 		conn.Close()
 	}()
 
@@ -491,7 +491,7 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 
 	// Create the RPC server for this connection
 	rpcServer := rpc.NewServer()
-	r.setupRpcServer(rpcServer, rpcCtx)
+	r.srv.setupRpcServer(rpcServer, rpcCtx)
 
 	for {
 		// stop handling connections if context was cancelled
@@ -541,7 +541,7 @@ func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface
 	}
 
 	// Handle region forwarding
-	if region != r.config.Region {
+	if region != r.srv.config.Region {
 		// Mark that we are forwarding the RPC
 		info.SetForwarded()
 		err := r.forwardRegion(region, method, args, reply)
@@ -578,10 +578,10 @@ func (r *rpcHandler) getLeaderForRPC() (*serverParts, error) {
 
 CHECK_LEADER:
 	// Find the leader
-	isLeader, remoteServer := r.getLeader()
+	isLeader, remoteServer := r.srv.getLeader()
 
 	// Handle the case we are the leader
-	if isLeader && r.Server.isReadyForConsistentReads() {
+	if isLeader && r.srv.isReadyForConsistentReads() {
 		return nil, nil
 	}
 
@@ -594,12 +594,12 @@ CHECK_LEADER:
 	if firstCheck.IsZero() {
 		firstCheck = time.Now()
 	}
-	if time.Since(firstCheck) < r.config.RPCHoldTimeout {
-		jitter := helper.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
+	if time.Since(firstCheck) < r.srv.config.RPCHoldTimeout {
+		jitter := helper.RandomStagger(r.srv.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
 			goto CHECK_LEADER
-		case <-r.shutdownCh:
+		case <-r.srv.shutdownCh:
 		}
 	}
 
@@ -642,7 +642,7 @@ func (r *rpcHandler) forwardLeader(server *serverParts, method string, args inte
 	if server == nil {
 		return structs.ErrNoLeader
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
+	return r.srv.connPool.RPC(r.srv.config.Region, server.Addr, method, args, reply)
 }
 
 // forwardServer is used to forward an RPC call to a particular server
@@ -651,14 +651,14 @@ func (r *rpcHandler) forwardServer(server *serverParts, method string, args inte
 	if server == nil {
 		return errors.New("must be given a valid server address")
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
+	return r.srv.connPool.RPC(r.srv.config.Region, server.Addr, method, args, reply)
 }
 
 func (r *rpcHandler) findRegionServer(region string) (*serverParts, error) {
-	r.peerLock.RLock()
-	defer r.peerLock.RUnlock()
+	r.srv.peerLock.RLock()
+	defer r.srv.peerLock.RUnlock()
 
-	servers := r.peers[region]
+	servers := r.srv.peers[region]
 	if len(servers) == 0 {
 		r.logger.Warn("no path found to region", "region", region)
 		return nil, structs.ErrNoRegionPath
@@ -678,15 +678,15 @@ func (r *rpcHandler) forwardRegion(region, method string, args interface{}, repl
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
-	return r.connPool.RPC(region, server.Addr, method, args, reply)
+	return r.srv.connPool.RPC(region, server.Addr, method, args, reply)
 }
 
 func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
 	// Bail if we can't find any servers
-	r.peerLock.RLock()
-	defer r.peerLock.RUnlock()
+	r.srv.peerLock.RLock()
+	defer r.srv.peerLock.RUnlock()
 
-	servers := r.peers[region]
+	servers := r.srv.peers[region]
 	if len(servers) == 0 {
 		r.logger.Warn("no path found to region", "region", region)
 		return nil, structs.ErrNoRegionPath
@@ -706,7 +706,7 @@ func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
 func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
-	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr)
+	c, err := r.srv.connPool.StreamingRPC(r.srv.config.Region, server.Addr)
 	if err != nil {
 		return nil, err
 	}
@@ -785,12 +785,12 @@ func (s *Server) raftApply(t structs.MessageType, msg any) (any, uint64, error) 
 
 // setQueryMeta is used to populate the QueryMeta data for an RPC call
 func (r *rpcHandler) setQueryMeta(m *structs.QueryMeta) {
-	if r.IsLeader() {
+	if r.srv.IsLeader() {
 		m.LastContact = 0
 		m.KnownLeader = true
 	} else {
-		m.LastContact = time.Since(r.raft.LastContact())
-		leaderAddr, _ := r.raft.LeaderWithID()
+		m.LastContact = time.Since(r.srv.raft.LastContact())
+		leaderAddr, _ := r.srv.raft.LeaderWithID()
 		m.KnownLeader = (leaderAddr != "")
 	}
 }
@@ -840,7 +840,7 @@ RUN_QUERY:
 	// We capture the state store and its abandon channel but pass a snapshot to
 	// the blocking query function. We operate on the snapshot to allow separate
 	// calls to the state store not all wrapped within the same transaction.
-	state = r.fsm.State()
+	state = r.srv.fsm.State()
 	abandonCh := state.AbandonCh()
 	snap, _ := state.Snapshot()
 	stateSnap := &snap.StateStore
@@ -869,13 +869,13 @@ RUN_QUERY:
 
 func (r *rpcHandler) validateRaftTLS(rpcCtx *RPCContext) error {
 	// TLS is not configured or not to be enforced
-	tlsConf := r.config.TLSConfig
+	tlsConf := r.srv.config.TLSConfig
 	if !tlsConf.EnableRPC || !tlsConf.VerifyServerHostname || tlsConf.RPCUpgradeMode {
 		return nil
 	}
 
 	// check that `server.<region>.nomad` is present in cert
-	expected := "server." + r.Region() + ".nomad"
+	expected := "server." + r.srv.Region() + ".nomad"
 	err := rpcCtx.ValidateCertificateForName(expected)
 	if err != nil {
 		cert := rpcCtx.Certificate()
