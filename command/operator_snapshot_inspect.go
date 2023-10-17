@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/nomad"
@@ -143,7 +144,7 @@ func (c *OperatorSnapshotInspectCommand) Run(args []string) int {
 	c.Ui.Output(formatListWithSpaces([]string{
 		fmt.Sprintf("Created|%s", extractTimeFromName(meta.ID)),
 		fmt.Sprintf("ID|%s", meta.ID),
-		fmt.Sprintf("Size|%s", ByteToHumanString(uint64(meta.Size))),
+		fmt.Sprintf("Size|%s", humanize.IBytes(uint64(meta.Size))),
 		fmt.Sprintf("Index|%d", meta.Index),
 		fmt.Sprintf("Term|%d", meta.Term),
 		fmt.Sprintf("Version|%d", meta.Version),
@@ -156,10 +157,10 @@ func (c *OperatorSnapshotInspectCommand) Run(args []string) int {
 	}
 
 	for _, stat := range stats {
-		output = append(output, fmt.Sprintf("%s|%d|%s", stat.Name, stat.Count, ByteToHumanString(uint64(stat.Sum))))
+		output = append(output, fmt.Sprintf("%s|%d|%s", stat.Name, stat.Count, humanize.IBytes(uint64(stat.Sum))))
 	}
 	output = append(output, "----|-----|----")
-	output = append(output, fmt.Sprintf("Total|-|%s", ByteToHumanString(uint64(info.TotalSize))))
+	output = append(output, fmt.Sprintf("Total|-|%s", humanize.IBytes(uint64(info.TotalSize))))
 
 	c.Ui.Output(formatList(output))
 	return 0
