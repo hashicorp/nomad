@@ -133,7 +133,7 @@ func (m MockWIDMgr) Run() error { return nil }
 func (m MockWIDMgr) Get(identity structs.WIHandle) (*structs.SignedWorkloadIdentity, error) {
 	sid, ok := m.swids[identity]
 	if !ok {
-		return nil, fmt.Errorf("identity not found")
+		return nil, fmt.Errorf("identity name %s for workload %s not found", identity.IdentityName, identity.WorkloadIdentifier)
 	}
 	return sid, nil
 }

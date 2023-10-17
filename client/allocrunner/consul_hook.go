@@ -82,11 +82,11 @@ func (h *consulHook) Prerun() error {
 		return fmt.Errorf("alloc %v does not have a valid task group", h.alloc.Name)
 	}
 
-	if err := h.prepareConsulTokensForServices(tg.Services, tokens, tg); err != nil {
+	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	for _, task := range tg.Tasks {
-		if err := h.prepareConsulTokensForServices(task.Services, tokens, tg); err != nil {
+		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 		if err := h.prepareConsulTokensForTask(task, tg, tokens); err != nil {
@@ -146,7 +146,7 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tokens map[string]map[string]string, tg *structs.TaskGroup) error {
+func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
 	if len(services) == 0 {
 		return nil
 	}

@@ -22,24 +22,47 @@ import (
 // statically assert network hook implements the expected interfaces
 var _ interfaces.RunnerPrerunHook = (*consulHook)(nil)
 
-func testHarness(t *testing.T) (*consulHook, *structs.Task) {
+func testHarness(t *testing.T) *consulHook {
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.Alloc()
 	task := alloc.LookupTask("web")
-
+	task.Consul = &structs.Consul{
+		Cluster: "default",
+	}
 	task.Identities = []*structs.WorkloadIdentity{
 		{Name: fmt.Sprintf("%s_default", structs.ConsulTaskIdentityNamePrefix)},
 	}
+	task.Services = []*structs.Service{
+		{
+			Provider: structs.ServiceProviderConsul,
+			Identity: &structs.WorkloadIdentity{Name: "consul-service", Audience: []string{"consul.io"}},
+			Cluster:  "foo",
+			TaskName: "web",
+		},
+	}
+
+	identitiesToSign := []*structs.WorkloadIdentity{}
+	identitiesToSign = append(identitiesToSign, task.Identities...)
+	for _, service := range task.Services {
+		identitiesToSign = append(identitiesToSign, service.Identity)
+	}
 
 	// setup mock signer and sign the identities
-	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
+	mockSigner := widmgr.NewMockWIDSigner(identitiesToSign)
 	signedIDs, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
 		{
 			AllocID: alloc.ID,
 			WIHandle: structs.WIHandle{
 				WorkloadIdentifier: task.Name,
 				IdentityName:       task.Identities[0].Name,
+			},
+		},
+		{
+			AllocID: alloc.ID,
+			WIHandle: structs.WIHandle{
+				WorkloadIdentifier: task.Services[0].Name,
+				IdentityName:       task.Services[0].Identity.Name,
 			},
 		},
 	})
@@ -63,15 +86,14 @@ func testHarness(t *testing.T) (*consulHook, *structs.Task) {
 		hookResources:           hookResources,
 		logger:                  logger,
 	}
-	return newConsulHook(consulHookCfg), task
+	return newConsulHook(consulHookCfg)
 }
 
 func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 	ci.Parallel(t)
 
-	hook, task := testHarness(t)
-	must.Eq(t, hook.Name(), "consul")
-	must.NoError(t, hook.Prerun())
+	hook := testHarness(t)
+	task := hook.alloc.LookupTask("web")
 
 	tests := []struct {
 		name        string
@@ -115,6 +137,57 @@ func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := hook.prepareConsulTokensForTask(tt.task, tt.tg, tt.tokens)
+			if tt.wantErr {
+				must.Error(t, err)
+				must.Eq(t, tt.errMsg, err.Error())
+			} else {
+				must.NoError(t, err)
+			}
+			if !tt.emptyTokens {
+				must.MapNotEmpty(t, tt.tokens)
+			}
+		})
+	}
+}
+
+func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
+	ci.Parallel(t)
+
+	hook := testHarness(t)
+	task := hook.alloc.LookupTask("web")
+	services := task.Services
+
+	tests := []struct {
+		name        string
+		services    []*structs.Service
+		tg          *structs.TaskGroup
+		tokens      map[string]map[string]string
+		wantErr     bool
+		errMsg      string
+		emptyTokens bool
+	}{
+		{
+			name:        "empty services and tg",
+			services:    nil,
+			tg:          nil,
+			tokens:      map[string]map[string]string{},
+			wantErr:     false,
+			errMsg:      "",
+			emptyTokens: true,
+		},
+		{
+			name:        "services and no tg",
+			services:    services,
+			tg:          nil,
+			tokens:      map[string]map[string]string{},
+			wantErr:     false,
+			errMsg:      "",
+			emptyTokens: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := hook.prepareConsulTokensForServices(tt.services, tt.tg, tt.tokens)
 			if tt.wantErr {
 				must.Error(t, err)
 				must.Eq(t, tt.errMsg, err.Error())
