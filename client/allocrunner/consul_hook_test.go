@@ -7,74 +7,123 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
-func testHarness(t *testing.T) *consulHook {
+// statically assert network hook implements the expected interfaces
+var _ interfaces.RunnerPrerunHook = (*consulHook)(nil)
+
+func testHarness(t *testing.T) (*consulHook, *structs.Task) {
+	logger := testlog.HCLogger(t)
+
 	alloc := mock.Alloc()
 	task := alloc.LookupTask("web")
 
-	widTask := &structs.WorkloadIdentity{
-		Name:     task.Consul.IdentityName(),
-		Audience: []string{"consul.io"},
+	task.Identities = []*structs.WorkloadIdentity{
+		{Name: fmt.Sprintf("%s_default", structs.ConsulTaskIdentityNamePrefix)},
 	}
 
-	widService := &structs.WorkloadIdentity{
-		Name:     task.Services[0].Name,
-		Audience: []string{"consul.io"},
+	// setup mock signer and sign the identities
+	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
+	signedIDs, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
+		{
+			AllocID: alloc.ID,
+			WIHandle: structs.WIHandle{
+				WorkloadIdentifier: task.Name,
+				IdentityName:       task.Identities[0].Name,
+			},
+		},
+	})
+	must.NoError(t, err)
+
+	mockWIDMgr := widmgr.NewMockWIDMgr(signedIDs)
+
+	consulConfigs := map[string]*structsc.ConsulConfig{
+		"default": structsc.DefaultConsulConfig(),
+		"foo":     {Name: "foo"},
 	}
 
-	return newConsulHook(
-		testlog.HCLogger(t),
-		alloc,
-		&allocdir.AllocDir{Dir: "foo"},
-		widmgr,
-		consulConfigs,
-		hookResources,
-	)
+	hookResources := cstructs.NewAllocHookResources()
+
+	consulHookCfg := consulHookConfig{
+		alloc:                   alloc,
+		allocdir:                nil,
+		widmgr:                  mockWIDMgr,
+		consulConfigs:           consulConfigs,
+		consulClientConstructor: consul.NewMockConsulClient,
+		hookResources:           hookResources,
+		logger:                  logger,
+	}
+	return newConsulHook(consulHookCfg), task
 }
 
 func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
-	type fields struct {
-		alloc         *structs.Allocation
-		allocdir      *allocdir.AllocDir
-		widmgr        widmgr.IdentityManager
-		consulConfigs map[string]*structsc.ConsulConfig
-		hookResources *cstructs.AllocHookResources
-		logger        hclog.Logger
-	}
-	type args struct {
-		task   *structs.Task
-		tokens map[string]map[string]string
-	}
-	hook := testHarness(t)
+	ci.Parallel(t)
+
+	hook, task := testHarness(t)
+	must.Eq(t, hook.Name(), "consul")
+	must.NoError(t, hook.Prerun())
+
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
+		name        string
+		task        *structs.Task
+		tg          *structs.TaskGroup
+		tokens      map[string]map[string]string
+		wantErr     bool
+		errMsg      string
+		emptyTokens bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:        "empty task and tg",
+			task:        nil,
+			tg:          nil,
+			tokens:      map[string]map[string]string{},
+			wantErr:     false,
+			errMsg:      "",
+			emptyTokens: true,
+		},
+		{
+			name: "task with no corresponding cluster",
+			task: &structs.Task{
+				Consul: &structs.Consul{Cluster: "bar"},
+			},
+			tg:          nil,
+			tokens:      map[string]map[string]string{},
+			wantErr:     true,
+			errMsg:      "no such consul cluster: bar",
+			emptyTokens: true,
+		},
+		{
+			name:        "task with tg and corresponding cluster",
+			task:        task,
+			tg:          &structs.TaskGroup{Consul: &structs.Consul{Cluster: "default"}},
+			tokens:      map[string]map[string]string{},
+			wantErr:     false,
+			errMsg:      "",
+			emptyTokens: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := &consulHook{
-				alloc:         tt.fields.alloc,
-				allocdir:      tt.fields.allocdir,
-				widmgr:        tt.fields.widmgr,
-				consulConfigs: tt.fields.consulConfigs,
-				hookResources: tt.fields.hookResources,
-				logger:        tt.fields.logger,
+			err := hook.prepareConsulTokensForTask(tt.task, tt.tg, tt.tokens)
+			if tt.wantErr {
+				must.Error(t, err)
+				must.Eq(t, tt.errMsg, err.Error())
+			} else {
+				must.NoError(t, err)
 			}
-			tt.wantErr(t, h.prepareConsulTokensForTask(tt.args.task, tt.args.tokens), fmt.Sprintf("prepareConsulTokensForTask(%v, %v)", tt.args.task, tt.args.tokens))
+			if !tt.emptyTokens {
+				must.MapNotEmpty(t, tt.tokens)
+			}
 		})
 	}
 }
