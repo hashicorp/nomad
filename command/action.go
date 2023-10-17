@@ -92,9 +92,7 @@ func (l *ActionCommand) Name() string { return "action" }
 func (l *ActionCommand) Run(args []string) int {
 
 	// Log running
-	l.Ui.Output(fmt.Sprintf("Running command: %s", l.Name()))
-
-	// Log to server
+	// l.Ui.Output(fmt.Sprintf("Running command: %s", l.Name()))
 
 	var stdinOpt, ttyOpt bool
 	var task, allocation, job, escapeChar string
@@ -105,10 +103,10 @@ func (l *ActionCommand) Run(args []string) int {
 	flags.StringVar(&allocation, "allocation", "", "")
 	flags.StringVar(&job, "job", "", "")
 	// TODO: add namespace flag
-	l.Ui.Output(fmt.Sprintf("Parsed Flags: Allocation=%s, Task=%s, Job=%s", allocation, task, job))
+	// l.Ui.Output(fmt.Sprintf("Parsed Flags: Allocation=%s, Task=%s, Job=%s", allocation, task, job))
 
 	// Log out flags back to me
-	l.Ui.Output(fmt.Sprintf("Flags: %s", flags))
+	// l.Ui.Output(fmt.Sprintf("Flags: %s", flags))
 
 	// flags.BoolVar(&stdinOpt, "i", true, "")
 	// flags.BoolVar(&ttyOpt, "t", isTty(), "")
@@ -173,16 +171,16 @@ func (l *ActionCommand) Run(args []string) int {
 
 		ns := "default" // TODO: TEMP
 
-		l.Ui.Output(fmt.Sprintf("job passed: %s", job))
-		l.Ui.Output(fmt.Sprintf("Namespace: %s", ns))
-		l.Ui.Output(fmt.Sprintf("action name: %s", args[0]))
+		// l.Ui.Output(fmt.Sprintf("job passed: %s", job))
+		// l.Ui.Output(fmt.Sprintf("Namespace: %s", ns))
+		// l.Ui.Output(fmt.Sprintf("action name: %s", args[0]))
 
 		allocStub, err = getRandomJobAlloc(client, job, ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
 		}
-		l.Ui.Output(fmt.Sprintf("allocStub: %s", allocStub))
+		// l.Ui.Output(fmt.Sprintf("allocStub: %s", allocStub))
 	} else {
 		// I think irrelevant?
 		// allocID := args[0]
@@ -222,7 +220,7 @@ func (l *ActionCommand) Run(args []string) int {
 		l.Ui.Error(err.Error())
 		return 1
 	}
-	l.Ui.Output(fmt.Sprintf("Task set: %s", task))
+	// l.Ui.Output(fmt.Sprintf("Task set: %s", task))
 
 	if !stdinOpt {
 		l.Stdin = bytes.NewReader(nil)
@@ -261,7 +259,7 @@ func (l *ActionCommand) Run(args []string) int {
 func (l *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, job string, action string, tty bool,
 	escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
 
-	l.Ui.Output(fmt.Sprintf("Impl command: %s", l.Name()))
+	// l.Ui.Output(fmt.Sprintf("Impl command: %s", l.Name()))
 
 	sizeCh := make(chan api.TerminalSize, 1)
 
