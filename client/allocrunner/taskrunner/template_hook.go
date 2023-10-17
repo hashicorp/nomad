@@ -86,6 +86,9 @@ type templateHook struct {
 	// workload identity
 	consulToken string
 
+	// task is the task that defines these templates
+	task *structs.Task
+
 	// taskDir is the task directory
 	taskDir string
 }
@@ -116,7 +119,8 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		h.templateManager = nil
 	}
 
-	// Store the current Vault token and the task directory
+	// Store request information so they can be used in other hooks.
+	h.task = req.Task
 	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
 	h.nomadToken = req.NomadToken
@@ -184,6 +188,12 @@ func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPostst
 
 func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	unblock = make(chan struct{})
+
+	var vaultCluster string
+	if h.task.Vault != nil {
+		vaultCluster = h.task.Vault.Cluster
+	}
+
 	m, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
 		UnblockCh:            unblock,
 		Lifecycle:            h.config.lifecycle,
@@ -193,6 +203,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		ConsulNamespace:      h.config.consulNamespace,
 		ConsulToken:          h.consulToken,
 		VaultToken:           h.vaultToken,
+		VaultCluster:         vaultCluster,
 		VaultNamespace:       h.vaultNamespace,
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.config.envBuilder,

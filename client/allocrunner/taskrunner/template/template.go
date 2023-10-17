@@ -102,6 +102,10 @@ type TaskTemplateManagerConfig struct {
 	// VaultToken is the Vault token for the task.
 	VaultToken string
 
+	// VaultCluster is the Vault cluster to use for this template. It may be
+	// empty if the task does not use Vault.
+	VaultCluster string
+
 	// VaultNamespace is the Vault namespace for the task
 	VaultNamespace string
 
@@ -881,30 +885,32 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	emptyStr := ""
 	conf.Vault.RenewToken = pointer.Of(false)
 	conf.Vault.Token = &emptyStr
-	if cc.VaultConfig != nil && cc.VaultConfig.IsEnabled() {
-		conf.Vault.Address = &cc.VaultConfig.Addr
+
+	vaultConfig := cc.GetVaultConfigs(nil)[config.VaultCluster]
+	if vaultConfig != nil && vaultConfig.IsEnabled() {
+		conf.Vault.Address = &vaultConfig.Addr
 		conf.Vault.Token = &config.VaultToken
 
 		// Set the Vault Namespace. Passed in Task config has
 		// highest precedence.
-		if config.ClientConfig.VaultConfig.Namespace != "" {
-			conf.Vault.Namespace = &config.ClientConfig.VaultConfig.Namespace
+		if vaultConfig.Namespace != "" {
+			conf.Vault.Namespace = &vaultConfig.Namespace
 		}
 		if config.VaultNamespace != "" {
 			conf.Vault.Namespace = &config.VaultNamespace
 		}
 
-		if strings.HasPrefix(cc.VaultConfig.Addr, "https") || cc.VaultConfig.TLSCertFile != "" {
-			skipVerify := cc.VaultConfig.TLSSkipVerify != nil && *cc.VaultConfig.TLSSkipVerify
+		if strings.HasPrefix(vaultConfig.Addr, "https") || vaultConfig.TLSCertFile != "" {
+			skipVerify := vaultConfig.TLSSkipVerify != nil && *vaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
 				Enabled:    pointer.Of(true),
 				Verify:     &verify,
-				Cert:       &cc.VaultConfig.TLSCertFile,
-				Key:        &cc.VaultConfig.TLSKeyFile,
-				CaCert:     &cc.VaultConfig.TLSCaFile,
-				CaPath:     &cc.VaultConfig.TLSCaPath,
-				ServerName: &cc.VaultConfig.TLSServerName,
+				Cert:       &vaultConfig.TLSCertFile,
+				Key:        &vaultConfig.TLSKeyFile,
+				CaCert:     &vaultConfig.TLSCaFile,
+				CaPath:     &vaultConfig.TLSCaPath,
+				ServerName: &vaultConfig.TLSServerName,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{

@@ -19,7 +19,7 @@ func (c *Config) GetVaultConfigs(logger hclog.Logger) map[string]*structsc.Vault
 		return nil
 	}
 
-	if len(c.VaultConfigs) > 1 {
+	if len(c.VaultConfigs) > 1 && logger != nil {
 		logger.Warn("multiple Vault configurations are only supported in Nomad Enterprise")
 	}
 

@@ -121,7 +121,10 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 
 	if vault {
 		harness.vault = testutil.NewTestVault(t)
-		harness.config.VaultConfig = harness.vault.Config
+		harness.config.VaultConfigs = map[string]*sconfig.VaultConfig{
+			structs.VaultDefaultCluster: harness.vault.Config,
+		}
+		harness.config.VaultConfig = harness.config.VaultConfigs[structs.VaultDefaultCluster]
 		harness.vaultToken = harness.vault.RootToken
 	}
 
@@ -143,6 +146,7 @@ func (h *testHarness) startWithErr() error {
 		Templates:            h.templates,
 		ClientConfig:         h.config,
 		VaultToken:           h.vaultToken,
+		VaultCluster:         structs.VaultDefaultCluster,
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.envBuilder,
 		MaxTemplateEventRate: h.emitRate,
@@ -1705,14 +1709,19 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	ci.Parallel(t)
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       pointer.Of(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
+	c.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:       pointer.Of(true),
+			Addr:          "https://localhost/",
+			TLSServerName: "notlocalhost",
+		},
 	}
+	c.VaultConfig = c.VaultConfigs[structs.VaultDefaultCluster]
+
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
+		VaultCluster: structs.VaultDefaultCluster,
 	}
 	ctconf, err := newRunnerConfig(config, nil)
 	if err != nil {
@@ -1733,17 +1742,21 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 	testNS := "test-namespace"
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       pointer.Of(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
-		Namespace:     testNS,
+	c.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:       pointer.Of(true),
+			Addr:          "https://localhost/",
+			TLSServerName: "notlocalhost",
+			Namespace:     testNS,
+		},
 	}
+	c.VaultConfig = c.VaultConfigs[structs.VaultDefaultCluster]
 
 	alloc := mock.Alloc()
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
+		VaultCluster: structs.VaultDefaultCluster,
 		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 	}
 
@@ -1764,12 +1777,15 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 	testNS := "test-namespace"
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       pointer.Of(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
-		Namespace:     testNS,
+	c.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:       pointer.Of(true),
+			Addr:          "https://localhost/",
+			TLSServerName: "notlocalhost",
+			Namespace:     testNS,
+		},
 	}
+	c.VaultConfig = c.VaultConfigs[structs.VaultDefaultCluster]
 
 	alloc := mock.Alloc()
 	overriddenNS := "new-namespace"
@@ -1778,6 +1794,7 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 	config := &TaskTemplateManagerConfig{
 		ClientConfig:   c,
 		VaultToken:     "token",
+		VaultCluster:   structs.VaultDefaultCluster,
 		VaultNamespace: overriddenNS,
 		EnvBuilder:     taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 	}
@@ -2150,10 +2167,13 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 	clientConfig := config.DefaultConfig()
 	clientConfig.Node = mock.Node()
 
-	clientConfig.VaultConfig = &sconfig.VaultConfig{
-		Enabled:   pointer.Of(true),
-		Namespace: testNS,
+	clientConfig.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:   pointer.Of(true),
+			Namespace: testNS,
+		},
 	}
+	clientConfig.VaultConfig = clientConfig.VaultConfigs[structs.VaultDefaultCluster]
 
 	clientConfig.ConsulConfig = &sconfig.ConsulConfig{
 		Namespace: testNS,
@@ -2209,6 +2229,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
 				VaultToken:   "token",
+				VaultCluster: structs.VaultDefaultCluster,
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 			},
 			&config.Config{
@@ -2242,6 +2263,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
 				VaultToken:   "token",
+				VaultCluster: structs.VaultDefaultCluster,
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 			},
 			&config.Config{
@@ -2279,6 +2301,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
 				VaultToken:   "token",
+				VaultCluster: structs.VaultDefaultCluster,
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 				Templates: []*structs.Template{
 					{
