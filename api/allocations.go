@@ -91,6 +91,7 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 // long pauses on this API call.
 func (a *Allocations) Exec(ctx context.Context,
 	alloc *Allocation, task string, tty bool, command []string,
+	action string,
 	stdin io.Reader, stdout, stderr io.Writer,
 	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
 
@@ -100,6 +101,7 @@ func (a *Allocations) Exec(ctx context.Context,
 		task:    task,
 		tty:     tty,
 		command: command,
+		action:  action,
 
 		stdin:  stdin,
 		stdout: stdout,
