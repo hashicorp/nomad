@@ -4,8 +4,10 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"sort"
 	"strconv"
@@ -1513,4 +1515,47 @@ type JobEvaluateRequest struct {
 // EvalOptions is used to encapsulate options when forcing a job evaluation
 type EvalOptions struct {
 	ForceReschedule bool
+}
+
+// TODO: REWRITE Exec is used to execute a command inside a running task.  The command is to run inside
+// the task environment.
+//
+// The parameters are:
+//   - ctx: context to set deadlines or timeout
+//   - allocation: the allocation to execute command inside
+//   - task: the task's name to execute command in
+//   - tty: indicates whether to start a pseudo-tty for the command
+//   - stdin, stdout, stderr: the std io to pass to command.
+//     If tty is true, then streams need to point to a tty that's alive for the whole process
+//   - terminalSizeCh: A channel to send new tty terminal sizes
+//
+// The call blocks until command terminates (or an error occurs), and returns the exit code.
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
+func (j *Jobs) ActionExec(ctx context.Context,
+	alloc *Allocation, task string, tty bool, command []string,
+	action string,
+	stdin io.Reader, stdout, stderr io.Writer,
+	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
+
+	s := &execSession{
+		client:  j.client,
+		alloc:   alloc,
+		task:    task,
+		tty:     tty,
+		command: command,
+		action:  action,
+		// TODO: NEW FIELD HERE FOR PATH FOR ALLOCATIONS_EXEC's reqPath
+
+		stdin:  stdin,
+		stdout: stdout,
+		stderr: stderr,
+
+		terminalSizeCh: terminalSizeCh,
+		q:              q,
+	}
+
+	return s.run(ctx)
 }

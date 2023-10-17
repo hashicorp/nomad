@@ -50,8 +50,8 @@ Action Specific Options:
   -task <task-name>
 	  Specifies the task in which the Action is defined
 
-	-job <job-id>
-		Specifies the job in which the Action is defined
+  -job <job-id>
+    Specifies the job in which the Action is defined
 
   -allocation <allocation-id>
     Specifies the allocation in which the Action is defined
@@ -322,7 +322,9 @@ func (l *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task
 	}()
 
 	// TODO: is make([]string, 0) the right thing to pass an empty command here?
-	return client.Allocations().Exec(ctx,
+	// return client.Allocations().Exec(ctx,
+	// 	alloc, task, tty, make([]string, 0), action, stdin, stdout, stderr, sizeCh, nil)
+	return client.Jobs().ActionExec(ctx,
 		alloc, task, tty, make([]string, 0), action, stdin, stdout, stderr, sizeCh, nil)
 }
 
