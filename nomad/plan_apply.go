@@ -22,8 +22,7 @@ import (
 // planner is used to manage the submitted allocation plans that are waiting
 // to be accessed by the leader
 type planner struct {
-	*Server
-	log log.Logger
+	srv *Server
 
 	// planQueue is used to manage the submitted allocation
 	// plans that are waiting to be assessed by the leader
@@ -63,8 +62,7 @@ func newPlanner(s *Server) (*planner, error) {
 	}
 
 	return &planner{
-		Server:         s,
-		log:            log,
+		srv:            s,
 		planQueue:      planQueue,
 		badNodeTracker: badNodeTracker,
 	}, nil
@@ -157,16 +155,16 @@ func (p *planner) planApply() {
 		if planIndexCh == nil || snap == nil {
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
-				p.logger.Error("failed to snapshot state", "error", err)
+				p.srv.logger.Error("failed to snapshot state", "error", err)
 				pending.respond(nil, err)
 				continue
 			}
 		}
 
 		// Evaluate the plan
-		result, err := evaluatePlan(pool, snap, pending.plan, p.logger)
+		result, err := evaluatePlan(pool, snap, pending.plan, p.srv.logger)
 		if err != nil {
-			p.logger.Error("failed to evaluate plan", "error", err)
+			p.srv.logger.Error("failed to evaluate plan", "error", err)
 			pending.respond(nil, err)
 			continue
 		}
@@ -192,7 +190,7 @@ func (p *planner) planApply() {
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
-				p.logger.Error("failed to update snapshot state", "error", err)
+				p.srv.logger.Error("failed to update snapshot state", "error", err)
 				pending.respond(nil, err)
 				continue
 			}
@@ -201,7 +199,7 @@ func (p *planner) planApply() {
 		// Dispatch the Raft transaction for the plan
 		future, err := p.applyPlan(pending.plan, result, snap)
 		if err != nil {
-			p.logger.Error("failed to submit plan", "error", err)
+			p.srv.logger.Error("failed to submit plan", "error", err)
 			pending.respond(nil, err)
 			continue
 		}
@@ -229,7 +227,7 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 	// because schedulers won't dequeue more work while waiting.
 	const timeout = 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	snap, err := p.fsm.State().SnapshotMinIndex(ctx, minIndex)
+	snap, err := p.srv.fsm.State().SnapshotMinIndex(ctx, minIndex)
 	cancel()
 	if err == context.DeadlineExceeded {
 		return nil, fmt.Errorf("timed out after %s waiting for index=%d (previous plan result index=%d; plan snapshot index=%d)",
@@ -257,7 +255,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
 
-	if ServersMeetMinimumVersion(p.Members(), p.Region(), MinVersionPlanNormalization, true) {
+	if ServersMeetMinimumVersion(p.srv.Members(), p.srv.Region(), MinVersionPlanNormalization, true) {
 		// Initialize the allocs request using the new optimized log entry format.
 		// Determine the minimum number of updates, could be more if there
 		// are multiple updates per node
@@ -279,7 +277,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		// to approximate the scheduling time.
 		updateAllocTimestamps(req.AllocsUpdated, now)
 
-		err := signAllocIdentities(p.Server.encrypter, plan.Job, req.AllocsUpdated)
+		err := signAllocIdentities(p.srv.encrypter, plan.Job, req.AllocsUpdated)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +328,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 	var evals []*structs.Evaluation
 	for preemptedJobID := range preemptedJobIDs {
-		job, _ := p.State().JobByID(nil, preemptedJobID.Namespace, preemptedJobID.ID)
+		job, _ := p.srv.State().JobByID(nil, preemptedJobID.Namespace, preemptedJobID.ID)
 		if job != nil {
 			eval := &structs.Evaluation{
 				ID:          uuid.Generate(),
@@ -349,14 +347,14 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	req.PreemptionEvals = evals
 
 	// Dispatch the Raft transaction
-	future, err := p.raftApplyFuture(structs.ApplyPlanResultsRequestType, &req)
+	future, err := p.srv.raftApplyFuture(structs.ApplyPlanResultsRequestType, &req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Optimistically apply to our state view
 	if snap != nil {
-		nextIdx := p.raft.AppliedIndex() + 1
+		nextIdx := p.srv.raft.AppliedIndex() + 1
 		if err := snap.UpsertPlanResults(structs.ApplyPlanResultsRequestType, nextIdx, &req); err != nil {
 			return future, err
 		}
@@ -442,7 +440,7 @@ func (p *planner) asyncPlanWait(indexCh chan<- uint64, future raft.ApplyFuture,
 
 	// Wait for the plan to apply
 	if err := future.Error(); err != nil {
-		p.logger.Error("failed to apply plan", "error", err)
+		p.srv.logger.Error("failed to apply plan", "error", err)
 		pending.respond(nil, err)
 		return
 	}
