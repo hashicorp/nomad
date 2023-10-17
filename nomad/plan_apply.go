@@ -276,7 +276,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		// to approximate the scheduling time.
 		updateAllocTimestamps(req.AllocsUpdated, now)
 
-		err := p.signAllocIdentities(plan.Job, req.AllocsUpdated)
+		err := signAllocIdentities(p.Server.encrypter, plan.Job, req.AllocsUpdated)
 		if err != nil {
 			return nil, err
 		}
@@ -406,16 +406,19 @@ func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
 	}
 }
 
-func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.Allocation) error {
-
-	encrypter := p.Server.encrypter
-
+func signAllocIdentities(signer claimSigner, job *structs.Job, allocations []*structs.Allocation) error {
 	for _, alloc := range allocations {
-		alloc.SignedIdentities = map[string]string{}
+		if alloc.SignedIdentities == nil {
+			alloc.SignedIdentities = map[string]string{}
+		}
 		tg := job.LookupTaskGroup(alloc.TaskGroup)
 		for _, task := range tg.Tasks {
+			// skip tasks that already have an identity
+			if _, ok := alloc.SignedIdentities[task.Name]; ok {
+				continue
+			}
 			claims := alloc.ToTaskIdentityClaims(job, task.Name)
-			token, keyID, err := encrypter.SignClaims(claims)
+			token, keyID, err := signer.SignClaims(claims)
 			if err != nil {
 				return err
 			}
