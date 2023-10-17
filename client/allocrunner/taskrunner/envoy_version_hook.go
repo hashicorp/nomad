@@ -84,7 +84,7 @@ func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestart
 	//
 	// TODO: how do we select the right cluster here if we have multiple
 	// services which could have their own cluster field value?
-	proxies, err := h.proxiesClientFunc("default").Proxies()
+	proxies, err := h.proxiesClientFunc(structs.ConsulDefaultCluster).Proxies()
 	if err != nil {
 		return fmt.Errorf("error retrieving supported Envoy versions from Consul: %w", err)
 	}
