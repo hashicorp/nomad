@@ -119,8 +119,12 @@ type MockWIDMgr struct {
 	swids map[structs.WIHandle]*structs.SignedWorkloadIdentity
 }
 
-func NewMockWIDMgr(swids map[structs.WIHandle]*structs.SignedWorkloadIdentity) *MockWIDMgr {
-	return &MockWIDMgr{swids: swids}
+func NewMockWIDMgr(swids []*structs.SignedWorkloadIdentity) *MockWIDMgr {
+	swidmap := map[structs.WIHandle]*structs.SignedWorkloadIdentity{}
+	for _, id := range swids {
+		swidmap[id.WIHandle] = id
+	}
+	return &MockWIDMgr{swids: swidmap}
 }
 
 // Run does not run a renewal loop in this mock
