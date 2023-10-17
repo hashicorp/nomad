@@ -52,13 +52,6 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	return h.setToken()
 }
 
-func (h *identityHook) Update(_ context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
-	h.lock.Lock()
-	defer h.lock.Unlock()
-
-	return h.setToken()
-}
-
 // setToken adds the Nomad token to the task's environment and writes it to a
 // file if requested by the jobsepc.
 func (h *identityHook) setToken() error {
