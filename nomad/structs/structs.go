@@ -8190,16 +8190,6 @@ func (t *Task) Warnings() error {
 	return mErr.ErrorOrNil()
 }
 
-func (t *Task) GetConsulClusterName(tg *TaskGroup) string {
-	if t.Consul != nil && t.Consul.Cluster != "" {
-		return t.Consul.Cluster
-	}
-	if tg != nil && tg.Consul != nil && tg.Consul.Cluster != "" {
-		return tg.Consul.Cluster
-	}
-	return ConsulDefaultCluster
-}
-
 // TaskKind identifies the special kinds of tasks using the following format:
 // '<kind_name>(:<identifier>)`. The TaskKind can optionally include an identifier that
 // is opaque to the Task. This identifier can be used to relate the task to some

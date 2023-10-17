@@ -75,7 +75,7 @@ func (h *consulHook) Prerun() error {
 		if err := h.prepareConsulTokensForServices(task.Services, tokens, tg); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		if err := h.prepareConsulTokensForTask(job, task, tg, tokens); err != nil {
+		if err := h.prepareConsulTokensForTask(task, tg, tokens); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -86,7 +86,7 @@ func (h *consulHook) Prerun() error {
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokensForTask(job *structs.Job, task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
+func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
 
 	clusterName := task.GetConsulClusterName(tg)
 	consulConfig, ok := h.consulConfigs[clusterName]
