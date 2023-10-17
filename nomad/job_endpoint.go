@@ -279,12 +279,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	for ns, entries := range args.Job.ConfigEntries() {
 		for service, entry := range entries.Ingress {
-			if errCE := j.srv.consulConfigEntries.SetIngressCE(ctx, ns, service, entry); errCE != nil {
+			if errCE := j.srv.consulConfigEntries.SetIngressCE(ctx, ns, service, entries.Cluster, entry); errCE != nil {
 				return errCE
 			}
 		}
 		for service, entry := range entries.Terminating {
-			if errCE := j.srv.consulConfigEntries.SetTerminatingCE(ctx, ns, service, entry); errCE != nil {
+			if errCE := j.srv.consulConfigEntries.SetTerminatingCE(ctx, ns, service, entries.Cluster, entry); errCE != nil {
 				return errCE
 			}
 		}

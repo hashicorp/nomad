@@ -18,7 +18,7 @@ import (
 type HandlerWrapper struct {
 	log hclog.Logger
 
-	// consulServiceProvider is the handler for services where Consul is the
+	// consulServiceProvider gets the handler for services where Consul is the
 	// provider. This provider is always created and available.
 	consulServiceProvider serviceregistration.Handler
 
@@ -33,7 +33,7 @@ type HandlerWrapper struct {
 // implementation to allow future flexibility and is initially only intended
 // for use with the alloc and task runner service hooks.
 func NewHandlerWrapper(
-	log hclog.Logger, consulProvider, nomadProvider serviceregistration.Handler) *HandlerWrapper {
+	log hclog.Logger, consulProvider serviceregistration.Handler, nomadProvider serviceregistration.Handler) *HandlerWrapper {
 	return &HandlerWrapper{
 		log:                   log,
 		nomadServiceProvider:  nomadProvider,

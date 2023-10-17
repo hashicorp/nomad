@@ -14,6 +14,14 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
+type MockClient struct {
+	MockCatalog
+	MockNamespaces
+}
+
+var _ NamespaceAPI = (*MockClient)(nil)
+var _ CatalogAPI = (*MockClient)(nil)
+
 // MockNamespaces is a mock implementation of NamespaceAPI.
 type MockNamespaces struct {
 	namespaces []*api.Namespace

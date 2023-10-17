@@ -31,8 +31,9 @@ func TestConsulConfigsAPI_SetCE(t *testing.T) {
 		logger := testlog.HCLogger(t)
 		configsAPI := consul.NewMockConfigsAPI(logger)
 		configsAPI.SetError(expect)
+		configsAPIFunc := func(_ string) consul.ConfigAPI { return configsAPI }
 
-		c := NewConsulConfigsAPI(configsAPI, logger)
+		c := NewConsulConfigsAPI(configsAPIFunc, logger)
 		err := f(c) // set the config entry
 
 		switch expect {
@@ -51,26 +52,30 @@ func TestConsulConfigsAPI_SetCE(t *testing.T) {
 	ingressCE := new(structs.ConsulIngressConfigEntry)
 	t.Run("ingress ok", func(t *testing.T) {
 		try(t, nil, func(c ConsulConfigsAPI) error {
-			return c.SetIngressCE(ctx, consulNamespace, "ig", ingressCE)
+			return c.SetIngressCE(
+				ctx, consulNamespace, "ig", structs.ConsulDefaultCluster, ingressCE)
 		})
 	})
 
 	t.Run("ingress fail", func(t *testing.T) {
 		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
-			return c.SetIngressCE(ctx, consulNamespace, "ig", ingressCE)
+			return c.SetIngressCE(
+				ctx, consulNamespace, "ig", structs.ConsulDefaultCluster, ingressCE)
 		})
 	})
 
 	terminatingCE := new(structs.ConsulTerminatingConfigEntry)
 	t.Run("terminating ok", func(t *testing.T) {
 		try(t, nil, func(c ConsulConfigsAPI) error {
-			return c.SetTerminatingCE(ctx, consulNamespace, "tg", terminatingCE)
+			return c.SetTerminatingCE(
+				ctx, consulNamespace, "tg", structs.ConsulDefaultCluster, terminatingCE)
 		})
 	})
 
 	t.Run("terminating fail", func(t *testing.T) {
 		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
-			return c.SetTerminatingCE(ctx, consulNamespace, "tg", terminatingCE)
+			return c.SetTerminatingCE(
+				ctx, consulNamespace, "tg", structs.ConsulDefaultCluster, terminatingCE)
 		})
 	})
 

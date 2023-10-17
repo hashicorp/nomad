@@ -220,9 +220,9 @@ type Client struct {
 	// pendingUpdates stores allocations that need to be synced to the server.
 	pendingUpdates *pendingClientUpdates
 
-	// consulService is the Consul handler implementation for managing services
-	// and checks.
-	consulService serviceregistration.Handler
+	// consulServices gets a Consul handler implementation for managing
+	// services and checks.
+	consulServices serviceregistration.Handler
 
 	// nomadService is the Nomad handler implementation for managing service
 	// registrations.
@@ -237,11 +237,12 @@ type Client struct {
 	// this without needing to identify which backend provider should be used.
 	serviceRegWrapper *wrapper.HandlerWrapper
 
-	// consulProxies is Nomad's custom Consul client for looking up supported
-	// envoy versions
-	consulProxies consulApi.SupportedProxiesAPI
+	// consulProxiesFunc gets an interface to Nomad's custom Consul client for
+	// looking up supported envoy versions
+	consulProxiesFunc consulApi.SupportedProxiesAPIFunc
 
-	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
+	// consulCatalog is the subset of Consul's Catalog API Nomad uses for self
+	// service discovery
 	consulCatalog consul.CatalogAPI
 
 	// HostStatsCollector collects host resource usage stats
@@ -351,7 +352,7 @@ var (
 // registered via https://golang.org/pkg/net/rpc/#Server.RegisterName in place
 // of the client's normal RPC handlers. This allows server tests to override
 // the behavior of the client.
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxiesFunc consulApi.SupportedProxiesAPIFunc, consulServices serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -376,8 +377,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c := &Client{
 		config:               cfg,
 		consulCatalog:        consulCatalog,
-		consulProxies:        consulProxies,
-		consulService:        consulService,
+		consulProxiesFunc:    consulProxiesFunc,
+		consulServices:       consulServices,
 		start:                time.Now(),
 		connPool:             pool.NewPool(logger, clientRPCCache, clientMaxStreams, tlsWrap),
 		tlsWrap:              tlsWrap,
@@ -529,7 +530,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// implementations. The Nomad implementation is only ever used on the
 	// client, so we do that here rather than within the agent.
 	c.setupNomadServiceRegistrationHandler()
-	c.serviceRegWrapper = wrapper.NewHandlerWrapper(c.logger, c.consulService, c.nomadService)
+	c.serviceRegWrapper = wrapper.NewHandlerWrapper(c.logger, c.consulServices, c.nomadService)
 
 	// Batching of initial fingerprints is done to reduce the number of node
 	// updates sent to the server on startup.
@@ -2766,8 +2767,8 @@ func (c *Client) newAllocRunnerConfig(
 		CSIManager:          c.csimanager,
 		CheckStore:          c.checkStore,
 		ClientConfig:        c.GetConfig(),
-		Consul:              c.consulService,
-		ConsulProxies:       c.consulProxies,
+		Consul:              c.consulServices,
+		ConsulProxiesFunc:   c.consulProxiesFunc,
 		ConsulSI:            c.tokensClient,
 		DeviceManager:       c.devicemanager,
 		DeviceStatsReporter: c,
@@ -2790,6 +2791,7 @@ func (c *Client) newAllocRunnerConfig(
 
 // setupConsulTokenClient configures a tokenClient for managing consul service
 // identity tokens.
+// DEPRECATED: remove in 1.9.0
 func (c *Client) setupConsulTokenClient() error {
 	tc := consulApi.NewIdentitiesClient(c.logger, c.deriveSIToken)
 	c.tokensClient = tc

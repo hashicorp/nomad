@@ -155,7 +155,7 @@ func (tr *TaskRunner) initHooks() {
 
 		if task.UsesConnectSidecar() {
 			tr.runnerHooks = append(tr.runnerHooks,
-				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClient, hookLogger)),
+				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClientFunc, hookLogger)),
 				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, consulNamespace, hookLogger)),
 			)
 		} else if task.Kind.IsConnectNative() {

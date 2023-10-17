@@ -130,6 +130,7 @@ func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 
 	cCatalog := consul.NewMockCatalog(config.Logger)
 	cConfigs := consul.NewMockConfigsAPI(config.Logger)
+	cConfigFunc := func(_ string) consul.ConfigAPI { return cConfigs }
 	cACLs := consul.NewMockACLsAPI(config.Logger)
 
 	var server *Server
@@ -137,7 +138,7 @@ func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 
 	for i := 10; i >= 0; i-- {
 		// Create server
-		server, err = NewServer(config, cCatalog, cConfigs, cACLs)
+		server, err = NewServer(config, cCatalog, cConfigFunc, cACLs)
 		if err == nil {
 			return server, func() {
 				ch := make(chan error)
