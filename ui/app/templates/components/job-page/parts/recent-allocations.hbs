@@ -57,6 +57,9 @@
           <th>
             Memory
           </th>
+          {{#if this.job.actions.length}}
+            <th>Actions</th>
+          {{/if}}
         </t.head>
         <t.body as |row|>
           <AllocationRow

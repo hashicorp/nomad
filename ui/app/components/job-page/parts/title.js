@@ -115,11 +115,6 @@ export default class Title extends Component {
     try {
       const job = this.job;
       yield job.runAction(action, allocID);
-      // this.notifications.add({
-      //   title: `Action ${action.name} Started`,
-      //   // message: `${job.name} action has started`,
-      //   color: 'success',
-      // });
     } catch (err) {
       console.log('errr', err);
       this.notifications.add({
@@ -127,10 +122,6 @@ export default class Title extends Component {
         message: err,
         color: 'critical',
       });
-      // this.handleError({
-      //   title: 'Could Not Run Action',
-      //   description: messageFromAdapterError(err, 'run actions'),
-      // });
     }
   })
   runAction;
