@@ -36,8 +36,9 @@ func testHarness(t *testing.T) *consulHook {
 	task.Services = []*structs.Service{
 		{
 			Provider: structs.ServiceProviderConsul,
-			Identity: &structs.WorkloadIdentity{Name: "consul-service", Audience: []string{"consul.io"}},
-			Cluster:  "foo",
+			Identity: &structs.WorkloadIdentity{Name: "consul-service_webservice", Audience: []string{"consul.io"}},
+			Cluster:  "default",
+			Name:     "webservice",
 			TaskName: "web",
 		},
 	}
@@ -63,6 +64,7 @@ func testHarness(t *testing.T) *consulHook {
 			WIHandle: structs.WIHandle{
 				WorkloadIdentifier: task.Services[0].Name,
 				IdentityName:       task.Services[0].Identity.Name,
+				WorkloadType:       structs.WorkloadTypeService,
 			},
 		},
 	})
@@ -72,7 +74,6 @@ func testHarness(t *testing.T) *consulHook {
 
 	consulConfigs := map[string]*structsc.ConsulConfig{
 		"default": structsc.DefaultConsulConfig(),
-		"foo":     {Name: "foo"},
 	}
 
 	hookResources := cstructs.NewAllocHookResources()
@@ -98,48 +99,46 @@ func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 	tests := []struct {
 		name        string
 		task        *structs.Task
-		tg          *structs.TaskGroup
 		tokens      map[string]map[string]string
 		wantErr     bool
 		errMsg      string
 		emptyTokens bool
 	}{
 		{
-			name:        "empty task and tg",
+			name:        "empty task",
 			task:        nil,
-			tg:          nil,
 			tokens:      map[string]map[string]string{},
 			wantErr:     false,
 			errMsg:      "",
 			emptyTokens: true,
 		},
 		{
-			name: "task with no corresponding cluster",
-			task: &structs.Task{
-				Consul: &structs.Consul{Cluster: "bar"},
-			},
-			tg:          nil,
-			tokens:      map[string]map[string]string{},
-			wantErr:     true,
-			errMsg:      "no such consul cluster: bar",
-			emptyTokens: true,
-		},
-		{
-			name:        "task with tg and corresponding cluster",
+			name:        "task with signed identity",
 			task:        task,
-			tg:          &structs.TaskGroup{Consul: &structs.Consul{Cluster: "default"}},
 			tokens:      map[string]map[string]string{},
 			wantErr:     false,
 			errMsg:      "",
 			emptyTokens: false,
 		},
+		{
+			name: "task with unknown identity",
+			task: &structs.Task{
+				Identities: []*structs.WorkloadIdentity{
+					{Name: structs.ConsulTaskIdentityNamePrefix + "_default"}},
+				Name: "foo",
+			},
+			tokens:      map[string]map[string]string{},
+			wantErr:     true,
+			errMsg:      "identity name consul_default for workload foo not found",
+			emptyTokens: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := hook.prepareConsulTokensForTask(tt.task, tt.tg, tt.tokens)
+			err := hook.prepareConsulTokensForTask(tt.task, nil, tt.tokens)
 			if tt.wantErr {
 				must.Error(t, err)
-				must.Eq(t, tt.errMsg, err.Error())
+				must.ErrorContains(t, err, tt.errMsg)
 			} else {
 				must.NoError(t, err)
 			}
@@ -160,37 +159,50 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 	tests := []struct {
 		name        string
 		services    []*structs.Service
-		tg          *structs.TaskGroup
 		tokens      map[string]map[string]string
 		wantErr     bool
 		errMsg      string
 		emptyTokens bool
 	}{
 		{
-			name:        "empty services and tg",
+			name:        "empty services",
 			services:    nil,
-			tg:          nil,
 			tokens:      map[string]map[string]string{},
 			wantErr:     false,
 			errMsg:      "",
 			emptyTokens: true,
 		},
 		{
-			name:        "services and no tg",
+			name:        "services with signed identity",
 			services:    services,
-			tg:          nil,
 			tokens:      map[string]map[string]string{},
 			wantErr:     false,
 			errMsg:      "",
+			emptyTokens: false,
+		},
+		{
+			name: "services with unknown identity",
+			services: []*structs.Service{
+				{
+					Provider: structs.ServiceProviderConsul,
+					Identity: &structs.WorkloadIdentity{Name: "consul-service_webservice", Audience: []string{"consul.io"}},
+					Cluster:  "default",
+					Name:     "foo",
+					TaskName: "web",
+				},
+			},
+			tokens:      map[string]map[string]string{},
+			wantErr:     true,
+			errMsg:      "identity name consul-service_webservice for workload foo not found",
 			emptyTokens: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := hook.prepareConsulTokensForServices(tt.services, tt.tg, tt.tokens)
+			err := hook.prepareConsulTokensForServices(tt.services, nil, tt.tokens)
 			if tt.wantErr {
 				must.Error(t, err)
-				must.Eq(t, tt.errMsg, err.Error())
+				must.ErrorContains(t, err, tt.errMsg)
 			} else {
 				must.NoError(t, err)
 			}
