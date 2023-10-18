@@ -167,6 +167,11 @@ export default class Job extends Model {
     }, []);
   }
 
+  runAction(action, allocID) {
+    console.log('job model runAction', action, allocID);
+    return this.store.adapterFor('job').runAction(this, action, allocID);
+  }
+
   @computed('taskGroups.@each.drivers')
   get drivers() {
     return this.taskGroups

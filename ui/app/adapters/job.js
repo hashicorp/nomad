@@ -7,9 +7,13 @@ import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
+import { inject as service } from '@ember/service';
+import config from 'nomad-ui/config/environment';
 
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
+  @service system;
+
   relationshipFallbackLinks = {
     summary: '/summary',
   };
@@ -158,5 +162,49 @@ export default class JobAdapter extends WatchableNamespaceIDs {
         Meta: meta,
       },
     });
+  }
+
+  runAction(job, action, allocID) {
+    console.log('runAction from job adapter', job, action, allocID);
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const shouldForward = config.APP.deproxyWebsockets;
+    let prefix;
+    const region = this.system.activeRegion; // Assuming you've a system service that provides activeRegion
+    if (!shouldForward) {
+      const applicationAdapter = getOwner(this).lookup('adapter:application');
+      prefix = `${
+        applicationAdapter.host || window.location.host
+      }/${applicationAdapter.urlPrefix()}`;
+    } else {
+      prefix = 'localhost:4646/v1'; // Replace with your server and port
+    }
+
+    const wsUrl =
+      `${protocol}//${prefix}/job/${job.get('id')}/action` +
+      `?namespace=*&action=${action.name}&allocID=${allocID}&task=${action.task.name}&group=${action.task.taskGroup.name}` +
+      (region ? `&region=${region}` : '');
+    const socket = new WebSocket(wsUrl);
+
+    socket.addEventListener('open', function (event) {
+      console.log('WebSocket connection opened:', event);
+      // You can send initial data here if needed
+      // socket.send(JSON.stringify({ type: 'init', payload: { /* ... */ } }));
+    });
+
+    socket.addEventListener('message', function (event) {
+      console.log('WebSocket message received:', event);
+      // Process the incoming message event.data
+    });
+
+    socket.addEventListener('close', function (event) {
+      console.log('WebSocket connection closed:', event);
+    });
+
+    socket.addEventListener('error', function (event) {
+      console.error('WebSocket encountered an error:', event);
+    });
+
+    return socket;
   }
 }
