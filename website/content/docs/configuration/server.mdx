@@ -267,6 +267,10 @@ server {
 - `job_tracked_versions` `(int: 6)` - Specifies the number of historic job versions that
   are kept.
 
+- `oidc_issuer` `(string: "")` - Specifies the Issuer URL for [Workload
+  Identity][wi] JWTs. If set the `/.well-known/openid-configuration` HTTP
+  endpoint is enabled for third parties to discover Nomad's OIDC configuration.
+
 ### Deprecated Parameters
 
 - `retry_join` `(array<string>: [])` - Specifies a list of server addresses to
@@ -502,3 +506,4 @@ work.
 [encryption key]: /nomad/docs/operations/key-management
 [max_client_disconnect]: /nomad/docs/job-specification/group#max-client-disconnect
 [herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem
+[wi]: /nomad/docs/concepts/workload-identity
