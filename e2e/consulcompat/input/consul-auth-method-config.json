@@ -1,0 +1,11 @@
+{
+  "JWKSURL": "http://localhost:4646/.well-known/jwks.json",
+  "JWTSupportedAlgs": ["RS256"],
+  "BoundAudiences": "consul.io",
+  "ClaimMappings": {
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task",
+    "nomad_service": "nomad_service"
+  }
+}

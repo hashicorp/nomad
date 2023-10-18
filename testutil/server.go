@@ -51,9 +51,22 @@ type TestServerConfig struct {
 
 // Consul is used to configure the communication with Consul
 type Consul struct {
-	Address string `json:"address,omitempty"`
-	Auth    string `json:"auth,omitempty"`
-	Token   string `json:"token,omitempty"`
+	Name                      string                  `json:"name,omitempty"`
+	Address                   string                  `json:"address,omitempty"`
+	Auth                      string                  `json:"auth,omitempty"`
+	Token                     string                  `json:"token,omitempty"`
+	ServiceIdentity           *WorkloadIdentityConfig `json:"service_identity,omitempty"`
+	ServiceIdentityAuthMethod string                  `json:"service_auth_method,omitempty"`
+	TaskIdentity              *WorkloadIdentityConfig `json:"task_identity,omitempty"`
+	TaskIdentityAuthMethod    string                  `json:"task_auth_method,omitempty"`
+}
+
+// WorkloadIdentityConfig is the configuration for default workload identities.
+type WorkloadIdentityConfig struct {
+	Audience []string `json:"aud"`
+	Env      bool     `json:"env"`
+	File     bool     `json:"file"`
+	TTL      string   `json:"ttl"`
 }
 
 // Advertise is used to configure the addresses to advertise
@@ -99,14 +112,6 @@ type VaultConfig struct {
 type ACLConfig struct {
 	Enabled        bool   `json:"enabled"`
 	BootstrapToken string `json:"-"` // not in the real config
-}
-
-// WorkloadIdentityConfig is the configuration for default workload identities.
-type WorkloadIdentityConfig struct {
-	Audience []string `json:"aud"`
-	Env      bool     `json:"env"`
-	File     bool     `json:"file"`
-	TTL      string   `json:"ttl"`
 }
 
 // ServerConfigCallback is a function interface which can be

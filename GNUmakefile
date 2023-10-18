@@ -326,6 +326,17 @@ integration-test: dev ## Run Nomad integration tests
 		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/vaultcompat
 
+.PHONY: integration-test-consul
+integration-test-consul: dev ## Run Nomad integration tests
+	@echo "==> Running Nomad integration test suite for Consul:"
+	NOMAD_E2E_CONSULCOMPAT=1 go test \
+		-v \
+		-race \
+		-timeout=900s \
+		-count=1 \
+		-tags "$(GO_TAGS)" \
+		github.com/hashicorp/nomad/e2e/consulcompat
+
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
 clean: ## Remove build artifacts
@@ -439,3 +450,9 @@ copywriteheaders:
 	cd jobspec && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd jobspec2 && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd demo && $(CURDIR)/scripts/copywrite-exceptions.sh
+
+.PHONY: cni
+cni: ## Install CNI plugins. Run this as root.
+	mkdir -p /opt/cni/bin
+	curl --fail -LsO "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz"
+	tar -C /opt/cni/bin -xf cni-plugins-linux-amd64-v1.3.0.tgz

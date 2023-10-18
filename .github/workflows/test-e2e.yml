@@ -35,7 +35,7 @@ on:
       - 'website/**'
 
 jobs:
-  test-e2e:
+  test-e2e-vault:
     runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
@@ -51,6 +51,26 @@ jobs:
       - name: Vault Compatability
         run: make integration-test
       - run: make e2e-test
+
+  test-e2e-consul:
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: ./.github/actions/vault-secrets
+        with:
+          paths: |-
+            kv/data/github/hashicorp/nomad-enterprise/gha ELEVATED_GITHUB_TOKEN ;
+      - name: Git config token
+        if: endsWith(github.repository, '-enterprise')
+        run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
+      - uses: hashicorp/setup-golang@v1
+      - name: Consul Compatability
+        run: |
+          make deps
+          sudo make cni
+          sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
+          sudo -E env "PATH=$PATH" make integration-test-consul
+
 permissions:
   contents: read
   id-token: write
