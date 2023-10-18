@@ -17,29 +17,43 @@ import (
 )
 
 type consulHook struct {
-	alloc         *structs.Allocation
-	allocdir      *allocdir.AllocDir
-	widmgr        widmgr.IdentityManager
+	alloc                   *structs.Allocation
+	allocdir                *allocdir.AllocDir
+	widmgr                  widmgr.IdentityManager
+	consulConfigs           map[string]*structsc.ConsulConfig
+	consulClientConstructor func(*structsc.ConsulConfig, log.Logger) (consul.Client, error)
+	hookResources           *cstructs.AllocHookResources
+
+	logger log.Logger
+}
+
+type consulHookConfig struct {
+	alloc    *structs.Allocation
+	allocdir *allocdir.AllocDir
+	widmgr   widmgr.IdentityManager
+
+	// consulConfigs is a map of cluster names to Consul configs
 	consulConfigs map[string]*structsc.ConsulConfig
+	// consulClientConstructor injects the function that will return a consul
+	// client (eases testing)
+	consulClientConstructor func(*structsc.ConsulConfig, log.Logger) (consul.Client, error)
+
+	// hookResources is used for storing and retrieving Consul tokens
 	hookResources *cstructs.AllocHookResources
 
 	logger log.Logger
 }
 
-func newConsulHook(logger log.Logger, alloc *structs.Allocation,
-	allocdir *allocdir.AllocDir,
-	widmgr widmgr.IdentityManager,
-	consulConfigs map[string]*structsc.ConsulConfig,
-	hookResources *cstructs.AllocHookResources,
-) *consulHook {
+func newConsulHook(cfg consulHookConfig) *consulHook {
 	h := &consulHook{
-		alloc:         alloc,
-		allocdir:      allocdir,
-		widmgr:        widmgr,
-		consulConfigs: consulConfigs,
-		hookResources: hookResources,
+		alloc:                   cfg.alloc,
+		allocdir:                cfg.allocdir,
+		widmgr:                  cfg.widmgr,
+		consulConfigs:           cfg.consulConfigs,
+		consulClientConstructor: cfg.consulClientConstructor,
+		hookResources:           cfg.hookResources,
 	}
-	h.logger = logger.Named(h.Name())
+	h.logger = cfg.logger.Named(h.Name())
 	return h
 }
 
@@ -68,11 +82,11 @@ func (h *consulHook) Prerun() error {
 		return fmt.Errorf("alloc %v does not have a valid task group", h.alloc.Name)
 	}
 
-	if err := h.prepareConsulTokensForServices(tg.Services, tokens, tg); err != nil {
+	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 	for _, task := range tg.Tasks {
-		if err := h.prepareConsulTokensForServices(task.Services, tokens, tg); err != nil {
+		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 		if err := h.prepareConsulTokensForTask(task, tg, tokens); err != nil {
@@ -87,6 +101,10 @@ func (h *consulHook) Prerun() error {
 }
 
 func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
+	if task == nil {
+		// programming error
+		return fmt.Errorf("cannot prepare consul tokens, no task specified")
+	}
 
 	clusterName := task.GetConsulClusterName(tg)
 	consulConfig, ok := h.consulConfigs[clusterName]
@@ -129,7 +147,7 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tokens map[string]map[string]string, tg *structs.TaskGroup) error {
+func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
 	if len(services) == 0 {
 		return nil
 	}
@@ -178,7 +196,7 @@ func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[st
 		return fmt.Errorf("unable to find configuration for consul cluster %v", cluster)
 	}
 
-	client, err := consul.NewConsulClient(consulConf, h.logger)
+	client, err := h.consulClientConstructor(consulConf, h.logger)
 	if err != nil {
 		return err
 	}

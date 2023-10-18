@@ -10,6 +10,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -119,7 +120,15 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
-		newConsulHook(hookLogger, ar.alloc, ar.allocDir, ar.widmgr, ar.clientConfig.GetConsulConfigs(hookLogger), ar.hookResources),
+		newConsulHook(consulHookConfig{
+			alloc:                   ar.alloc,
+			allocdir:                ar.allocDir,
+			widmgr:                  ar.widmgr,
+			consulConfigs:           ar.clientConfig.GetConsulConfigs(hookLogger),
+			consulClientConstructor: consul.NewConsulClient,
+			hookResources:           ar.hookResources,
+			logger:                  hookLogger,
+		}),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newCPUPartsHook(hookLogger, ar.partitions, alloc),

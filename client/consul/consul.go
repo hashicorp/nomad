@@ -67,7 +67,7 @@ type consulClient struct {
 }
 
 // NewConsulClient creates a new Consul client
-func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (*consulClient, error) {
+func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Client, error) {
 	if config == nil {
 		return nil, fmt.Errorf("nil consul config")
 	}
