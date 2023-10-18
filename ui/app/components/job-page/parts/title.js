@@ -115,11 +115,11 @@ export default class Title extends Component {
     try {
       const job = this.job;
       yield job.runAction(action, allocID);
-      this.notifications.add({
-        title: `Action ${action.name} Started`,
-        // message: `${job.name} action has started`,
-        color: 'success',
-      });
+      // this.notifications.add({
+      //   title: `Action ${action.name} Started`,
+      //   // message: `${job.name} action has started`,
+      //   color: 'success',
+      // });
     } catch (err) {
       console.log('errr', err);
       this.notifications.add({
