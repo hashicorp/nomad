@@ -19,7 +19,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-// statically assert network hook implements the expected interfaces
+// statically assert consul hook implements the expected interfaces
 var _ interfaces.RunnerPrerunHook = (*consulHook)(nil)
 
 func testHarness(t *testing.T) *consulHook {
