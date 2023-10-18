@@ -55,10 +55,6 @@ module.exports = function (environment) {
     // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
     // ENV.APP.LOG_VIEW_LOOKUPS = true;
 
-    // FIXME: Temporary, local ember implementation
-    // to get around websocket proxy issues duiring development.
-    ENV.APP.deproxyWebsockets = true;
-
     ENV['ember-cli-mirage'] = {
       enabled: USE_MIRAGE,
       excludeFilesFromBuild: !USE_MIRAGE,

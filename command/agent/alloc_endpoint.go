@@ -504,19 +504,7 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
-	// conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
-	// FIXME: this is an open checkOrigin here that allows :4200 to make requests to :4646,
-	// freeing local ember up from not having to proxy.
-	// This is like three workarounds in a trenchcoat and I dno't feel good about it but it unblocks me
-
-	var upgrader = websocket.Upgrader{
-		// Allow all origins
-		CheckOrigin: func(r *http.Request) bool { return true },
-	}
-
-	// Then when you upgrade the connection:
-	conn, err := upgrader.Upgrade(resp, req, nil)
-
+	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}

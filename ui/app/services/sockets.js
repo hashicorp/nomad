@@ -36,21 +36,12 @@ export default class SocketsService extends Service {
         },
       });
     } else {
-      const shouldForward = config.APP.deproxyWebsockets;
-
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
-      // FIXME: Temporary, local ember implementation to get around websocket proxy issues duiring development.
-      let prefix;
+      const applicationAdapter = getOwner(this).lookup('adapter:application');
+      const prefix = `${
+        applicationAdapter.host || window.location.host
+      }/${applicationAdapter.urlPrefix()}`;
       const region = this.system.activeRegion;
-      if (!shouldForward) {
-        const applicationAdapter = getOwner(this).lookup('adapter:application');
-        prefix = `${
-          applicationAdapter.host || window.location.host
-        }/${applicationAdapter.urlPrefix()}`;
-      } else {
-        prefix = 'localhost:4646/v1';
-      }
 
       return new WebSocket(
         `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
