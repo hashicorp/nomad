@@ -7978,4 +7978,3 @@ func TestTaskIdentity_Canonicalize(t *testing.T) {
 	must.True(t, task.Identities[1].Env)
 	must.False(t, task.Identities[1].File)
 }
-
