@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -102,9 +103,9 @@ type TaskTemplateManagerConfig struct {
 	// VaultToken is the Vault token for the task.
 	VaultToken string
 
-	// VaultCluster is the Vault cluster to use for this template. It may be
-	// empty if the task does not use Vault.
-	VaultCluster string
+	// VaultConfig is the Vault configuration to use for this template. It may
+	// be nil if the task does not use Vault.
+	VaultConfig *structsc.VaultConfig
 
 	// VaultNamespace is the Vault namespace for the task
 	VaultNamespace string
@@ -885,32 +886,30 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	emptyStr := ""
 	conf.Vault.RenewToken = pointer.Of(false)
 	conf.Vault.Token = &emptyStr
-
-	vaultConfig := cc.GetVaultConfigs(nil)[config.VaultCluster]
-	if vaultConfig != nil && vaultConfig.IsEnabled() {
-		conf.Vault.Address = &vaultConfig.Addr
+	if config.VaultConfig != nil && config.VaultConfig.IsEnabled() {
+		conf.Vault.Address = &config.VaultConfig.Addr
 		conf.Vault.Token = &config.VaultToken
 
 		// Set the Vault Namespace. Passed in Task config has
 		// highest precedence.
-		if vaultConfig.Namespace != "" {
-			conf.Vault.Namespace = &vaultConfig.Namespace
+		if config.VaultConfig.Namespace != "" {
+			conf.Vault.Namespace = &config.VaultConfig.Namespace
 		}
 		if config.VaultNamespace != "" {
 			conf.Vault.Namespace = &config.VaultNamespace
 		}
 
-		if strings.HasPrefix(vaultConfig.Addr, "https") || vaultConfig.TLSCertFile != "" {
-			skipVerify := vaultConfig.TLSSkipVerify != nil && *vaultConfig.TLSSkipVerify
+		if strings.HasPrefix(config.VaultConfig.Addr, "https") || config.VaultConfig.TLSCertFile != "" {
+			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
 				Enabled:    pointer.Of(true),
 				Verify:     &verify,
-				Cert:       &vaultConfig.TLSCertFile,
-				Key:        &vaultConfig.TLSKeyFile,
-				CaCert:     &vaultConfig.TLSCaFile,
-				CaPath:     &vaultConfig.TLSCaPath,
-				ServerName: &vaultConfig.TLSServerName,
+				Cert:       &config.VaultConfig.TLSCertFile,
+				Key:        &config.VaultConfig.TLSKeyFile,
+				CaCert:     &config.VaultConfig.TLSCaFile,
+				CaPath:     &config.VaultConfig.TLSCaPath,
+				ServerName: &config.VaultConfig.TLSServerName,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
