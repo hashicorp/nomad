@@ -47,8 +47,13 @@ func (s *mockSigner) SignClaims(c *structs.IdentityClaims) (token, keyID string,
 func TestEncrypter_LoadSave(t *testing.T) {
 	ci.Parallel(t)
 
+	srv, cleanupSrv := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	t.Cleanup(cleanupSrv)
+
 	tmpDir := t.TempDir()
-	encrypter, err := NewEncrypter(&Server{shutdownCtx: context.Background()}, tmpDir)
+	encrypter, err := NewEncrypter(srv, tmpDir)
 	require.NoError(t, err)
 
 	algos := []structs.EncryptionAlgorithm{
