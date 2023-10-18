@@ -332,6 +332,13 @@ type OIDCDiscoveryConfig struct {
 
 // NewOIDCDiscoveryConfig returns a populated OIDCDiscoveryConfig or an error.
 func NewOIDCDiscoveryConfig(issuer string) (*OIDCDiscoveryConfig, error) {
+	if issuer == "" {
+		// url.JoinPath doesn't mind empty strings, so check for it specifically.
+		// Likely a programming error as we shouldn't even be trying to create OIDC
+		// Discovery configurations without an issuer explicitly set.
+		return nil, fmt.Errorf("issuer must not be empty")
+	}
+
 	jwksURL, err := url.JoinPath(issuer, JWKSPath)
 	if err != nil {
 		return nil, fmt.Errorf("error determining jwks path: %w", err)
