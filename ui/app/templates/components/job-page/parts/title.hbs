@@ -25,10 +25,10 @@
             {{#if (gt this.job.allocations.length 1)}}
               <dd.Separator />
               <dd.Title @text={{action.name}} />
-              <dd.Interactive {{on "click" (perform this.runAction action "60a46e43-48d4-7ad8-6553-4cee9ab2f92b")}} @text="Run on a random alloc" />
+              <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 this.job.allocations) "id"))}} @text="Run on a random alloc" />
               <dd.Interactive {{on "click" (perform this.runAction action "random")}} @text="Run on all {{this.job.allocations.length}} allocs" />
             {{else}}
-              <dd.Interactive {{on "click" (perform this.runAction action "60a46e43-48d4-7ad8-6553-4cee9ab2f92b")}} @text="{{action.name}}" />
+              <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 this.job.allocations) "id"))}} @text="{{action.name}}" />
             {{/if}}
           {{/each}}
           {{!-- <dd.ToggleIcon @color="secondary" @icon="user-circle" @text="user menu" @size="small" data-test-header-profile-dropdown />
