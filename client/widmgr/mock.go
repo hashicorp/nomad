@@ -130,10 +130,10 @@ func NewMockWIDMgr(swids []*structs.SignedWorkloadIdentity) *MockWIDMgr {
 // Run does not run a renewal loop in this mock
 func (m MockWIDMgr) Run() error { return nil }
 
-func (m MockWIDMgr) Get(identity structs.WIHandle) (*structs.SignedWorkloadIdentity, error) {
-	sid, ok := m.swids[identity]
+func (m MockWIDMgr) Get(id structs.WIHandle) (*structs.SignedWorkloadIdentity, error) {
+	sid, ok := m.swids[id]
 	if !ok {
-		return nil, fmt.Errorf("identity name %s for workload %s not found", identity.IdentityName, identity.WorkloadIdentifier)
+		return nil, fmt.Errorf("unable to find token for workload %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
 	}
 	return sid, nil
 }

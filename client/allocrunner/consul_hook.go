@@ -102,7 +102,8 @@ func (h *consulHook) Prerun() error {
 
 func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
 	if task == nil {
-		return nil
+		// programming error
+		return fmt.Errorf("cannot prepare consul tokens, no task specified")
 	}
 
 	clusterName := task.GetConsulClusterName(tg)

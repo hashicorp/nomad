@@ -4,8 +4,11 @@
 package consul
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
+
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
@@ -17,10 +20,7 @@ func NewMockConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Clie
 	return &MockConsulClient{}, nil
 }
 
-func (mc *MockConsulClient) SetTokens(tokens map[string]string) {
-	mc.tokens = tokens
-}
-
+// DeriveSITokenWithJWT returns md5 checksums for each of the request IDs
 func (mc *MockConsulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]string, error) {
 	if mc.tokens != nil && len(mc.tokens) > 0 {
 		return mc.tokens, nil
@@ -28,7 +28,9 @@ func (mc *MockConsulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest
 
 	tokens := make(map[string]string, len(reqs))
 	for id := range reqs {
-		tokens[id] = uuid.Generate()
+		fmt.Println(id)
+		hash := md5.Sum([]byte(id))
+		tokens[id] = hex.EncodeToString(hash[:])
 	}
 
 	return tokens, nil
