@@ -146,7 +146,7 @@ func (h *testHarness) startWithErr() error {
 		Templates:            h.templates,
 		ClientConfig:         h.config,
 		VaultToken:           h.vaultToken,
-		VaultCluster:         structs.VaultDefaultCluster,
+		VaultConfig:          h.config.VaultConfigs[structs.VaultDefaultCluster],
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.envBuilder,
 		MaxTemplateEventRate: h.emitRate,
@@ -1721,7 +1721,7 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
-		VaultCluster: structs.VaultDefaultCluster,
+		VaultConfig:  c.VaultConfigs[structs.VaultDefaultCluster],
 	}
 	ctconf, err := newRunnerConfig(config, nil)
 	if err != nil {
@@ -1756,7 +1756,7 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
-		VaultCluster: structs.VaultDefaultCluster,
+		VaultConfig:  c.VaultConfigs[structs.VaultDefaultCluster],
 		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 	}
 
@@ -1794,7 +1794,7 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 	config := &TaskTemplateManagerConfig{
 		ClientConfig:   c,
 		VaultToken:     "token",
-		VaultCluster:   structs.VaultDefaultCluster,
+		VaultConfig:    c.VaultConfigs[structs.VaultDefaultCluster],
 		VaultNamespace: overriddenNS,
 		EnvBuilder:     taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 	}
@@ -2229,7 +2229,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
 				VaultToken:   "token",
-				VaultCluster: structs.VaultDefaultCluster,
+				VaultConfig:  clientConfig.VaultConfigs[structs.VaultDefaultCluster],
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 			},
 			&config.Config{
@@ -2263,7 +2263,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
 				VaultToken:   "token",
-				VaultCluster: structs.VaultDefaultCluster,
+				VaultConfig:  clientConfig.VaultConfigs[structs.VaultDefaultCluster],
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 			},
 			&config.Config{
@@ -2301,7 +2301,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
 				VaultToken:   "token",
-				VaultCluster: structs.VaultDefaultCluster,
+				VaultConfig:  clientConfig.VaultConfigs[structs.VaultDefaultCluster],
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 				Templates: []*structs.Template{
 					{
