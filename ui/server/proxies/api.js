@@ -45,7 +45,7 @@ module.exports = function (app, options) {
     proxy.web(req, res, { target: proxyAddress });
   });
 
-  server.on('upgrade', function (req, socket, head) {
+  server.on('upgrade', function (req) {
     // Set Origin header so Nomad accepts the proxied request.
     // WebSocket proxing is handled by ember-cli.
     // https://github.com/ember-cli/ember-cli/blob/v3.28.5/lib/tasks/server/middleware/proxy-server/index.js#L51
