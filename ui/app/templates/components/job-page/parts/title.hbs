@@ -16,6 +16,30 @@
   </div>
   <div>
     {{#if (not (eq this.job.status "dead"))}}
+      {{!-- ACTIONS --}}
+      {{log "job actions" this.job.actions}}
+      {{#if this.job.actions.length}}
+        <Hds::Dropdown class="actions-dropdown" as |dd|>
+          <dd.ToggleButton @color="secondary" @text="Actions" />
+          {{#each this.job.actions as |action|}}
+            {{#if (gt this.job.allocations.length 1)}}
+              <dd.Separator />
+              <dd.Title @text={{action.name}} />
+              <dd.Interactive {{on "click" (perform this.runAction action "60a46e43-48d4-7ad8-6553-4cee9ab2f92b")}} @text="Run on a random alloc" />
+              <dd.Interactive {{on "click" (perform this.runAction action "random")}} @text="Run on all {{this.job.allocations.length}} allocs" />
+            {{else}}
+              <dd.Interactive {{on "click" (perform this.runAction action "60a46e43-48d4-7ad8-6553-4cee9ab2f92b")}} @text="{{action.name}}" />
+            {{/if}}
+          {{/each}}
+          {{!-- <dd.ToggleIcon @color="secondary" @icon="user-circle" @text="user menu" @size="small" data-test-header-profile-dropdown />
+          <dd.Title @text="Signed In" />
+          <dd.Description @text={{this.token.selfToken.name}} />
+          <dd.Separator />
+          <dd.Interactive @route="settings.tokens" @text="Profile" data-test-profile-dropdown-profile-link />
+          <dd.Interactive {{on "click" this.signOut}} @text="Sign Out" @color="critical" data-test-profile-dropdown-sign-out-link /> --}}
+        </Hds::Dropdown>
+
+      {{/if}}
       <div class="two-step-button">
         <Exec::OpenButton @job={{this.job}} />
       </div>

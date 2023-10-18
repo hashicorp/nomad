@@ -22,4 +22,10 @@
     display: flex;
     justify-content: space-between;
   }
+
+  .actions-dropdown {
+    z-index: 3;
+    display: inline-block;
+    margin-right: 0.5rem;
+  }
 }

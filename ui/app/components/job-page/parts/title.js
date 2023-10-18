@@ -103,4 +103,35 @@ export default class Title extends Component {
     }
   })
   startJob;
+
+  // run action task
+
+  /**
+   * @param {string} action - The action to run
+   * @param {string} allocID - The allocation ID to run the action on
+   * @param {Event} ev - The event that triggered the action
+   */
+  @task(function* (action, allocID, ev) {
+    try {
+      const job = this.job;
+      yield job.runAction(action, allocID);
+      this.notifications.add({
+        title: `Action ${action.name} Started`,
+        // message: `${job.name} action has started`,
+        color: 'success',
+      });
+    } catch (err) {
+      console.log('errr', err);
+      this.notifications.add({
+        title: `Error starting ${action.name}`,
+        message: err,
+        color: 'critical',
+      });
+      // this.handleError({
+      //   title: 'Could Not Run Action',
+      //   description: messageFromAdapterError(err, 'run actions'),
+      // });
+    }
+  })
+  runAction;
 }
