@@ -19,9 +19,14 @@ section.notifications {
     code {
       background-color: black;
       color: white;
-      width: 100%;
       display: block;
       padding: 0.25rem;
+      pre {
+        background: inherit;
+        color: inherit;
+        border: none;
+        white-space: normal;
+      }
     }
   }
 }

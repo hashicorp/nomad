@@ -8,7 +8,7 @@ import addToPath from 'nomad-ui/utils/add-to-path';
 import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
 import { inject as service } from '@ember/service';
-import config from 'nomad-ui/config/environment';
+import { getOwner } from '@ember/application';
 import { base64DecodeString } from '../utils/encode';
 
 @classic
@@ -172,17 +172,11 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     let messageBuffer = '';
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const shouldForward = config.APP.deproxyWebsockets;
-    let prefix;
     const region = this.system.activeRegion;
-    if (!shouldForward) {
-      const applicationAdapter = getOwner(this).lookup('adapter:application');
-      prefix = `${
-        applicationAdapter.host || window.location.host
-      }/${applicationAdapter.urlPrefix()}`;
-    } else {
-      prefix = 'localhost:4646/v1'; // FIXME: TEMP
-    }
+    const applicationAdapter = getOwner(this).lookup('adapter:application');
+    const prefix = `${
+      applicationAdapter.host || window.location.host
+    }/${applicationAdapter.urlPrefix()}`;
 
     const wsUrl =
       `${protocol}//${prefix}/job/${job.get('id')}/action` +
@@ -207,6 +201,17 @@ export default class JobAdapter extends WatchableNamespaceIDs {
           message: messageBuffer,
           color: 'success',
           code: true,
+          sticky: true,
+        });
+      } else if (jsonData.stderr && jsonData.stderr.data) {
+        messageBuffer = base64DecodeString(jsonData.stderr.data);
+        messageBuffer += '\n';
+        this.notifications.add({
+          title: `Error received from ${action.name}`,
+          message: messageBuffer,
+          color: 'critical',
+          code: true,
+          sticky: true,
         });
       }
     });
