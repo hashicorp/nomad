@@ -401,20 +401,8 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	// (Can use the job-level action lookup to do this most effectively, probably!)
 	// or: maybe, should group/task/action lookup all happen in the RPC handler?
 
-	// conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
-	// FIXME: this is an open checkOrigin here that allows :4200 to make requests to :4646,
-	// freeing local ember up from not having to proxy.
-	// This is like three workarounds in a trenchcoat and I dno't feel good about it but it unblocks me
-
-	var upgrader = websocket.Upgrader{
-		// Allow all origins
-		CheckOrigin: func(r *http.Request) bool { return true },
-	}
-
-	s.logger.Info("jobRunAction called with upgrader: %v", upgrader)
-
-	// Then when you upgrade the connection:
-	conn, err := upgrader.Upgrade(resp, req, nil)
+	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
+	s.logger.Info("jobRunAction called with upgrader")
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
