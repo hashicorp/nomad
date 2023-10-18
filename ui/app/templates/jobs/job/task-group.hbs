@@ -214,6 +214,9 @@
               <th>
                 Memory
               </th>
+              {{#if this.model.job.actions.length}}
+                <th>Actions</th>
+              {{/if}}
             </t.head>
             <t.body @key="model.id" as |row|>
               <AllocationRow
