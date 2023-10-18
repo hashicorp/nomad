@@ -291,6 +291,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 						lost[alloc.ID] = alloc
 						continue
 					}
+
 					reconnecting[alloc.ID] = alloc
 					continue
 				}
@@ -482,8 +483,11 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 	}
 
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
-	var eligible bool
+	var eligible bool = false
 	if isDisconnecting {
+		if alloc.FollowupEvalID != "" && alloc.NeedsToReconnect() {
+			return
+		}
 		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(alloc.LastEventTime())
 	} else {
 		rescheduleTime, eligible = alloc.NextRescheduleTime()

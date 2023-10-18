@@ -458,17 +458,17 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
 
 	timeoutLaterEvals := map[string]string{}
-
+	// Determine what set of disconnecting allocations need to be rescheduled now
+	// and which ones can't be rescheduled at all.
 	if len(disconnecting) > 0 {
+		untaintedDisconnecting, rescheduleDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
+		rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
+		untainted = untainted.union(untaintedDisconnecting)
+
 		// Find delays for any disconnecting allocs that have max_client_disconnect,
 		// create followup evals, and update the ClientStatus to unknown.
 		timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
 	}
-	// Determine what set of disconnecting allocations need to be rescheduled now
-	// and which ones can't be rescheduled at all.
-	untaintedDisconnecting, rescheduleDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
-	rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
-	untainted = untainted.union(untaintedDisconnecting)
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLater := lost.delayByStopAfterClientDisconnect()
@@ -1032,11 +1032,13 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	removeNames := nameIndex.Highest(uint(remove))
 	for id, alloc := range untainted {
 		if _, ok := removeNames[alloc.Name]; ok {
-			stop[id] = alloc
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             alloc,
-				statusDescription: allocNotNeeded,
-			})
+			if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+				stop[id] = alloc
+				a.result.stop = append(a.result.stop, allocStopResult{
+					alloc:             alloc,
+					statusDescription: allocNotNeeded,
+				})
+			}
 			delete(untainted, id)
 
 			remove--
