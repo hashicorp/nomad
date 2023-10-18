@@ -27,7 +27,11 @@
         <T.Title>{{flash.title}}</T.Title>
       {{/if}}
       {{#if flash.message}}
-        <T.Description>{{flash.message}}</T.Description>
+        {{#if flash.code}}
+          <T.Description><code><pre>{{flash.message}}</pre></code></T.Description>
+        {{else}}
+          <T.Description>{{flash.message}}</T.Description>
+        {{/if}}
       {{/if}}
       {{#if flash.customAction}}
         <T.Button @text={{flash.customAction.label}} @color="secondary" {{on "click" (action flash.customAction.action)}} />

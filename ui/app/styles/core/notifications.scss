@@ -15,5 +15,13 @@ section.notifications {
     &:not(:last-child) {
       margin-bottom: 1rem;
     }
+
+    code {
+      background-color: black;
+      color: white;
+      width: 100%;
+      display: block;
+      padding: 0.25rem;
+    }
   }
 }

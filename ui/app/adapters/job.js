@@ -9,10 +9,12 @@ import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
 import { inject as service } from '@ember/service';
 import config from 'nomad-ui/config/environment';
+import { base64DecodeString } from '../utils/encode';
 
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
   @service system;
+  @service notifications;
 
   relationshipFallbackLinks = {
     summary: '/summary',
@@ -167,38 +169,58 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   runAction(job, action, allocID) {
     console.log('runAction from job adapter', job, action, allocID);
 
+    let messageBuffer = '';
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const shouldForward = config.APP.deproxyWebsockets;
     let prefix;
-    const region = this.system.activeRegion; // Assuming you've a system service that provides activeRegion
+    const region = this.system.activeRegion;
     if (!shouldForward) {
       const applicationAdapter = getOwner(this).lookup('adapter:application');
       prefix = `${
         applicationAdapter.host || window.location.host
       }/${applicationAdapter.urlPrefix()}`;
     } else {
-      prefix = 'localhost:4646/v1'; // Replace with your server and port
+      prefix = 'localhost:4646/v1'; // FIXME: TEMP
     }
 
     const wsUrl =
       `${protocol}//${prefix}/job/${job.get('id')}/action` +
       `?namespace=*&action=${action.name}&allocID=${allocID}&task=${action.task.name}&group=${action.task.taskGroup.name}` +
       (region ? `&region=${region}` : '');
+
     const socket = new WebSocket(wsUrl);
 
     socket.addEventListener('open', function (event) {
       console.log('WebSocket connection opened:', event);
-      // You can send initial data here if needed
-      // socket.send(JSON.stringify({ type: 'init', payload: { /* ... */ } }));
     });
 
-    socket.addEventListener('message', function (event) {
+    socket.addEventListener('message', (event) => {
       console.log('WebSocket message received:', event);
-      // Process the incoming message event.data
+      let jsonData = JSON.parse(event.data);
+      console.log('jsonData', jsonData);
+      if (jsonData.stdout && jsonData.stdout.data) {
+        messageBuffer = base64DecodeString(jsonData.stdout.data);
+        messageBuffer += '\n';
+        this.notifications.add({
+          title: `Action ${action.name} Message Received`,
+          message: messageBuffer,
+          color: 'success',
+          code: true,
+        });
+      }
     });
 
-    socket.addEventListener('close', function (event) {
+    socket.addEventListener('close', (event) => {
+      // TODO: let's figure out why I never see a close event! Probably go related, as
+      // I see the same behaviour when running operator api on both alloc exec and job action.
       console.log('WebSocket connection closed:', event);
+      this.notifications.add({
+        title: `Action ${action.name} Completed`,
+        message: messageBuffer || event.reason,
+        color: 'success',
+      });
+      messageBuffer = '';
     });
 
     socket.addEventListener('error', function (event) {
