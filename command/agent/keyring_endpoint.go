@@ -83,7 +83,7 @@ func (s *HTTPServer) JWKSRequest(resp http.ResponseWriter, req *http.Request) (a
 // See https://openid.net/specs/openid-connect-discovery-1_0.html for details.
 func (s *HTTPServer) OIDCDiscoveryRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
-		return nil, CodedError(405, ErrInvalidMethod)
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	args := structs.GenericRequest{}
