@@ -29,7 +29,6 @@ type execSession struct {
 	tty     bool
 	command []string
 	action  string
-	// TODO: reqpath here
 
 	stdin  io.Reader
 	stdout io.Writer
@@ -99,7 +98,7 @@ func (s *execSession) startConnection() (*websocket.Conn, error) {
 	reqPath := fmt.Sprintf("/v1/client/allocation/%s/exec", s.alloc.ID)
 
 	if s.action != "" {
-		q.Params["action"] = s.action // TODO: this is the last time I think I see s.action before I DONT see it in "Request Arguments" log in client/alloc_endpoint.go/execImpl()
+		q.Params["action"] = s.action
 		q.Params["allocID"] = s.alloc.ID
 		q.Params["group"] = s.alloc.TaskGroup
 		reqPath = fmt.Sprintf("/v1/job/%s/action", s.alloc.JobID)

@@ -27,7 +27,6 @@ type ActionCommand struct {
 	Stderr io.WriteCloser
 }
 
-// TODO: Verify that I don't need to add Group here afterall
 func (l *ActionCommand) Help() string {
 	helpText := `
 Usage: nomad action [options] <action>
@@ -47,14 +46,34 @@ General Options:
 
 Action Specific Options:
 
-  -task <task-name>
-	  Specifies the task in which the Action is defined
-
   -job <job-id>
     Specifies the job in which the Action is defined
 
   -allocation <allocation-id>
-    Specifies the allocation in which the Action is defined
+    Specifies the allocation in which the Action is defined. If not provided,
+    a group and task name must be provided and a random allocation will be
+    selected from the job.
+
+  -task <task-name>
+	  Specifies the task in which the Action is defined. Required if no
+    allocation is provided.
+
+  -group <group-name>
+    Specifies the group in which the Action is defined. Required if no
+    allocation is provided.
+
+  -i
+    Pass stdin to the container, defaults to true.  Pass -i=false to disable.
+
+  -t
+    Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session.
+    Pass -t=false to disable explicitly.
+
+  -e <escape_char>
+    Sets the escape character for sessions with a pty (default: '~').  The escape
+    character is only recognized at the beginning of a line.  The escape character
+    followed by a dot ('.') closes the connection.  Setting the character to
+    'none' disables any escapes and makes the session fully transparent.
   `
 	return strings.TrimSpace(helpText)
 }
@@ -91,52 +110,33 @@ func (l *ActionCommand) Name() string { return "action" }
 
 func (l *ActionCommand) Run(args []string) int {
 
-	// Log running
-	// l.Ui.Output(fmt.Sprintf("Running command: %s", l.Name()))
-
 	var stdinOpt, ttyOpt bool
-	var task, allocation, job, escapeChar string
+	var task, allocation, job, group, escapeChar string
 
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.StringVar(&task, "task", "", "")
+	flags.StringVar(&group, "group", "", "")
 	flags.StringVar(&allocation, "allocation", "", "")
 	flags.StringVar(&job, "job", "", "")
-	// TODO: add namespace flag
-	// l.Ui.Output(fmt.Sprintf("Parsed Flags: Allocation=%s, Task=%s, Job=%s", allocation, task, job))
-
-	// Log out flags back to me
-	// l.Ui.Output(fmt.Sprintf("Flags: %s", flags))
-
-	// flags.BoolVar(&stdinOpt, "i", true, "")
-	// flags.BoolVar(&ttyOpt, "t", isTty(), "")
-	// flags.StringVar(&escapeChar, "e", "~", "")
+	flags.BoolVar(&stdinOpt, "i", true, "")
+	flags.BoolVar(&ttyOpt, "t", isTty(), "")
+	flags.StringVar(&escapeChar, "e", "~", "")
 
 	if err := flags.Parse(args); err != nil {
-		// log err
-		l.Ui.Output(fmt.Sprintf("Error parsing flags: %s", err))
+		l.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
 		return 1
 	}
 
 	args = flags.Args()
 
 	if len(args) < 1 {
-		l.Ui.Error(fmt.Sprintf("An action name is required"))
-		return 1
-	}
-
-	if allocation == "" {
-		l.Ui.Error("An allocation ID is required")
+		l.Ui.Error("An action name is required")
 		return 1
 	}
 
 	if job == "" {
 		l.Ui.Error("A job ID is required")
-		return 1
-	}
-
-	if task == "" {
-		l.Ui.Error("A task name is required")
 		return 1
 	}
 
@@ -161,47 +161,51 @@ func (l *ActionCommand) Run(args []string) int {
 	}
 
 	var allocStub *api.AllocationListStub
-	if job != "" {
-		// change from bool condition to string
-		// jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
-		// if err != nil {
-		// 	l.Ui.Error(err.Error())
-		// 	return 1
-		// }
+	// If no allocation provided, grab a random one from the job
+	if allocation == "" {
 
-		ns := "default" // TODO: TEMP
+		// Group param cannot be empty if allocation is empty,
+		// since we'll need to get a random allocation from the group
+		if group == "" {
+			l.Ui.Error("A group name is required if no allocation is provided")
+			return 1
+		}
 
-		// l.Ui.Output(fmt.Sprintf("job passed: %s", job))
-		// l.Ui.Output(fmt.Sprintf("Namespace: %s", ns))
-		// l.Ui.Output(fmt.Sprintf("action name: %s", args[0]))
+		if task == "" {
+			l.Ui.Error("A task name is required if no allocation is provided")
+			return 1
+		}
 
-		allocStub, err = getRandomJobAlloc(client, job, ns)
+		jobID, ns, err := l.JobIDByPrefix(client, job, nil)
+		if err != nil {
+			l.Ui.Error(err.Error())
+			return 1
+		}
+
+		allocStub, err = getRandomJobAlloc(client, jobID, group, ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
 		}
-		// l.Ui.Output(fmt.Sprintf("allocStub: %s", allocStub))
 	} else {
-		// I think irrelevant?
-		// allocID := args[0]
-		// allocs, _, err := client.Allocations().PrefixList(sanitizeUUIDPrefix(allocID))
-		// if err != nil {
-		// 	l.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
-		// 	return 1
-		// }
+		allocs, _, err := client.Allocations().PrefixList(sanitizeUUIDPrefix(allocation))
+		if err != nil {
+			l.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
+			return 1
+		}
 
-		// if len(allocs) == 0 {
-		// 	l.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocID))
-		// 	return 1
-		// }
+		if len(allocs) == 0 {
+			l.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocation))
+			return 1
+		}
 
-		// if len(allocs) > 1 {
-		// 	out := formatAllocListStubs(allocs, false, shortId)
-		// 	l.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
-		// 	return 1
-		// }
+		if len(allocs) > 1 {
+			out := formatAllocListStubs(allocs, false, shortId)
+			l.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
+			return 1
+		}
 
-		// allocStub = allocs[0]
+		allocStub = allocs[0]
 	}
 
 	q := &api.QueryOptions{Namespace: allocStub.Namespace}
@@ -220,7 +224,6 @@ func (l *ActionCommand) Run(args []string) int {
 		l.Ui.Error(err.Error())
 		return 1
 	}
-	// l.Ui.Output(fmt.Sprintf("Task set: %s", task))
 
 	if !stdinOpt {
 		l.Stdin = bytes.NewReader(nil)
@@ -239,12 +242,6 @@ func (l *ActionCommand) Run(args []string) int {
 	}
 
 	action := args[0]
-	// Convert action to command here.
-	// TODO: Noting that this is also being (redundantly) done in client/alloc_endpoint.go's execImpl.
-	// I could pass the action name all the way down, but that would be maybe polluting the param space of
-	// api/allocations.go, api/allocations_exec.go, etc., since alloc exec normally would never use an Action
-	// except by via this command.
-	// TODO: update: I think I'll try that anyway.
 
 	code, err := l.execImpl(client, alloc, task, job, action, ttyOpt, escapeChar, l.Stdin, l.Stdout, l.Stderr)
 	if err != nil {
@@ -258,8 +255,6 @@ func (l *ActionCommand) Run(args []string) int {
 // execImpl invokes the Alloc Exec api call, it also prepares and restores terminal states as necessary.
 func (l *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, job string, action string, tty bool,
 	escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
-
-	// l.Ui.Output(fmt.Sprintf("Impl command: %s", l.Name()))
 
 	sizeCh := make(chan api.TerminalSize, 1)
 
@@ -309,8 +304,6 @@ func (l *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task
 		}
 	}
 
-	// TODO: establish command here from action.
-
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -319,94 +312,6 @@ func (l *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task
 		}
 	}()
 
-	// TODO: is make([]string, 0) the right thing to pass an empty command here?
-	// return client.Allocations().Exec(ctx,
-	// 	alloc, task, tty, make([]string, 0), action, stdin, stdout, stderr, sizeCh, nil)
 	return client.Jobs().ActionExec(ctx,
 		alloc, task, tty, make([]string, 0), action, stdin, stdout, stderr, sizeCh, nil)
 }
-
-// isTty returns true if both stdin and stdout are a TTY
-// TODO: why does this matter?
-// func isTty() bool {
-// 	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
-// 	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
-// 	return isStdinTerminal && isStdoutTerminal
-// }
-
-// TODO: do we want this? Commands should be one-shot, but still ctrl-c-able?
-// setRawTerminal sets the stream terminal in raw mode, so process captures
-// Ctrl+C and other commands to forward to remote process.
-// It returns a cleanup function that restores terminal to original mode.
-// func setRawTerminal(stream interface{}) (cleanup func(), err error) {
-// 	fd, isTerminal := term.GetFdInfo(stream)
-// 	if !isTerminal {
-// 		return nil, errors.New("not a terminal")
-// 	}
-
-// 	state, err := term.SetRawTerminal(fd)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return func() { term.RestoreTerminal(fd, state) }, nil
-// }
-
-// setRawTerminalOutput sets the output stream in Windows to raw mode,
-// so it disables LF -> CRLF translation.
-// It's basically a no-op on unix.
-// func setRawTerminalOutput(stream interface{}) (cleanup func(), err error) {
-// 	fd, isTerminal := term.GetFdInfo(stream)
-// 	if !isTerminal {
-// 		return nil, errors.New("not a terminal")
-// 	}
-
-// 	state, err := term.SetRawTerminalOutput(fd)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return func() { term.RestoreTerminal(fd, state) }, nil
-// }
-
-// // watchTerminalSize watches terminal size changes to propagate to remote tty.
-// func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), error) {
-// 	fd, isTerminal := term.GetFdInfo(out)
-// 	if !isTerminal {
-// 		return nil, errors.New("not a terminal")
-// 	}
-
-// 	ctx, cancel := context.WithCancel(context.Background())
-
-// 	signalCh := make(chan os.Signal, 1)
-// 	setupWindowNotification(signalCh)
-
-// 	sendTerminalSize := func() {
-// 		s, err := term.GetWinsize(fd)
-// 		if err != nil {
-// 			return
-// 		}
-
-// 		resize <- api.TerminalSize{
-// 			Height: int(s.Height),
-// 			Width:  int(s.Width),
-// 		}
-// 	}
-// 	go func() {
-// 		for {
-// 			select {
-// 			case <-ctx.Done():
-// 				return
-// 			case <-signalCh:
-// 				sendTerminalSize()
-// 			}
-// 		}
-// 	}()
-
-// 	go func() {
-// 		// send initial size
-// 		sendTerminalSize()
-// 	}()
-
-// 	return cancel, nil
-// }
