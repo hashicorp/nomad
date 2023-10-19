@@ -2238,6 +2238,13 @@ func (n *Node) Canonicalize() {
 		n.SchedulingEligibility = NodeSchedulingEligible
 	}
 
+	// COMPAT remove in 1.9+
+	// In v1.7 we introduce Topology into the NodeResources struct which the client
+	// will fingerprint. Since the upgrade path must cover servers that get upgraded
+	// before clients which will send the old struct, we synthesize a psuedo topology
+	// given the old struct data.
+	n.NodeResources.Compatibility()
+
 	// COMPAT remove in 1.0
 	// In v0.12.0 we introduced a separate node specific network resource struct
 	// so we need to covert any pre 0.12 clients to the correct struct
@@ -3123,6 +3130,11 @@ type NodeResources struct {
 // Compatibility will translate the LegacyNodeCpuResources into NodeProcessor
 // Resources, or the other way around as needed.
 func (n *NodeResources) Compatibility() {
+	// If resources are not set there is nothing to do.
+	if n == nil {
+		return
+	}
+
 	// Copy values from n.Processors to n.Cpu for compatibility
 	//
 	// COMPAT: added in Nomad 1.7; can be removed in 1.9+
@@ -3170,7 +3182,8 @@ func (n *NodeResources) Copy() *NodeResources {
 		}
 	}
 
-	// apply compatibility fixups
+	// COMPAT remove in 1.9+
+	// apply compatibility fixups covering node topology
 	n.Compatibility()
 
 	return newN
@@ -3233,7 +3246,8 @@ func (n *NodeResources) Merge(o *NodeResources) {
 		}
 	}
 
-	// apply compatibility fixups
+	// COMPAT remove in 1.9+
+	// apply compatibility fixups covering node topology
 	n.Compatibility()
 }
 
