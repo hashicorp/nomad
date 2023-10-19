@@ -6,7 +6,6 @@ package consul
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs/config"
