@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 )
 
 // placementResult is an allocation that must be placed. It potentially has a
@@ -136,6 +137,16 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 // allocSet is a set of allocations with a series of helper functions defined
 // that help reconcile state.
 type allocSet map[string]*structs.Allocation
+
+func (a allocSet) FilterByClientStatus(status string) allocSet {
+	newAllocSet := make(map[string]*structs.Allocation)
+	maps.Copy(newAllocSet, a)
+
+	maps.DeleteFunc(newAllocSet, func(k string, v *structs.Allocation) bool {
+		return v.ClientStatus == status
+	})
+	return newAllocSet
+}
 
 // GoString provides a human readable view of the set
 func (a allocSet) GoString() string {
@@ -483,7 +494,7 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 	}
 
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
-	var eligible bool = false
+	var eligible bool
 	if isDisconnecting {
 		if alloc.FollowupEvalID != "" && alloc.NeedsToReconnect() {
 			return

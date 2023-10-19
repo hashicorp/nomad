@@ -15,7 +15,6 @@ import (
 
 	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	"golang.org/x/exp/maps"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -975,12 +974,11 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 		untainted = untainted.difference(canaries)
 	}
 
-	maps.DeleteFunc(untainted, func(k string, v *structs.Allocation) bool {
-		return v.ClientStatus == structs.AllocClientStatusUnknown
-	})
+	// Remove disconnected allocations so they won't be stopped
+	knownUntainted := untainted.FilterByClientStatus(structs.AllocClientStatusUnknown)
 
 	// Hot path the nothing to do case
-	remove := len(untainted) + len(migrate) - group.Count
+	remove := len(knownUntainted) + len(migrate) - group.Count
 	if remove <= 0 {
 		return stop
 	}
@@ -1036,21 +1034,18 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	// Select the allocs with the highest count to remove
 	removeNames := nameIndex.Highest(uint(remove))
 	for id, alloc := range untainted {
-		if alloc.ClientStatus == structs.AllocClientStatusUnknown {
-			if _, ok := removeNames[alloc.Name]; ok {
-
-				stop[id] = alloc
-				a.result.stop = append(a.result.stop, allocStopResult{
-					alloc:             alloc,
-					statusDescription: allocNotNeeded,
-				})
-			}
+		if _, ok := removeNames[alloc.Name]; ok {
+			stop[id] = alloc
+			a.result.stop = append(a.result.stop, allocStopResult{
+				alloc:             alloc,
+				statusDescription: allocNotNeeded,
+			})
 			delete(untainted, id)
-		}
 
-		remove--
-		if remove == 0 {
-			return stop
+			remove--
+			if remove == 0 {
+				return stop
+			}
 		}
 	}
 
