@@ -187,6 +187,7 @@ type AllocExecRequest struct {
 	// The name of a predefined command to be executed (optional)
 	Action    string
 	TaskGroup string
+	JobID     string
 }
 
 // AllocChecksRequest is used to request the latest nomad service discovery

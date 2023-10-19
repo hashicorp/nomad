@@ -26,19 +26,6 @@ type ActionListResponse struct {
 	QueryMeta
 }
 
-type JobRunActionRequest struct {
-	JobID     string
-	TaskGroup string
-	Task      string
-	Action    string
-	AllocID   string
-	WriteRequest
-	QueryOptions
-}
-
-type JobRunActionResponse struct {
-}
-
 func (a *Action) Copy() *Action {
 	if a == nil {
 		return nil
