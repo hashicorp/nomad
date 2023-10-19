@@ -6,7 +6,6 @@ package consul
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -28,7 +27,6 @@ func (mc *MockConsulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest
 
 	tokens := make(map[string]string, len(reqs))
 	for id := range reqs {
-		fmt.Println(id)
 		hash := md5.Sum([]byte(id))
 		tokens[id] = hex.EncodeToString(hash[:])
 	}
