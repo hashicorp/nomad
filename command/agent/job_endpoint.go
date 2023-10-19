@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	// TODO: TEMP TIME IMPORT
 	"github.com/golang/snappy"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/nomad/acl"
@@ -369,8 +368,12 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	s.logger.Info("jobRunAction called")
 
 	// Build the request and parse the ACL token
+	// TODO: determine if we still need to watch for Task and Group, if we're accepting AllocID.
+	// Example of why we might: "Run ActionX on all allocs" only matters for those allocs within the task context that
+	// has ActionX (2 actions across different tasks can share a name)
+	// I suspect in this case, I'd want to do task/alloc lookup here, and then loop over the allocs and call the RPC
 	task := req.URL.Query().Get("task")
-	group := req.URL.Query().Get("group")
+	// group := req.URL.Query().Get("group")
 	action := req.URL.Query().Get("action")
 	allocID := req.URL.Query().Get("allocID")
 	ttyB := false
@@ -381,41 +384,32 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 			return nil, fmt.Errorf("tty value is not a boolean: %v", err)
 		}
 	}
-	s.logger.Info("jobRunAction called with task: %s, group: %s, action: %s, allocID: %s", task, group, action, allocID)
 
 	args := cstructs.AllocExecRequest{
-		JobID:     jobID,
-		TaskGroup: group,
-		Task:      task,
-		Action:    action,
-		AllocID:   allocID,
-		Tty:       ttyB,
+		JobID:   jobID,
+		Task:    task,
+		Action:  action,
+		AllocID: allocID,
+		Tty:     ttyB,
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
-
-	s.logger.Info("jobRunAction called with args: %v", args)
 
 	// TODO: Validate: 1. alloc_exec permission, 2. Job ID, Group Name, Task Name, and Action Name are valid
 	// (Can use the job-level action lookup to do this most effectively, probably!)
 	// or: maybe, should group/task/action lookup all happen in the RPC handler?
 
 	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
-	s.logger.Info("jobRunAction called with upgrader")
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}
-
-	s.logger.Info("jobRunAction thru upgrade")
 
 	if err := s.readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
 		conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
 		return nil, err
 	}
-
-	s.logger.Info("jobRunAction thru handshake")
 
 	return s.execStreamImpl(conn, &args)
 }

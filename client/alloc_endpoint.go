@@ -177,9 +177,11 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		handleStreamResultError(err, code, encoder)
 		return
 	}
+	a.c.logger.Info("task exec session ended", "exec_id", execID)
 }
 
 func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, execID string) (code *int64, err error) {
+
 	// Decode the arguments
 	var req cstructs.AllocExecRequest
 	if err := decoder.Decode(&req); err != nil {
@@ -249,7 +251,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	// If an action is present, go find the command and args
 	if req.Action != "" {
 		alloc, _ := a.c.GetAlloc(req.AllocID)
-		jobAction, err := validateActionExists(req.Action, req.Task, req.TaskGroup, alloc)
+		jobAction, err := validateActionExists(req.Action, req.Task, alloc)
 		if err != nil {
 			return nil, err
 		}
@@ -356,48 +358,20 @@ func (s *execStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
 	return &req, err
 }
 
-func validateActionExists(action, task, taskGroup string, alloc *nstructs.Allocation) (*nstructs.Action, error) {
-	if taskGroup == "" {
-		return nil, fmt.Errorf("Must supply a task group")
-	}
+func validateActionExists(actionName string, taskName string, alloc *nstructs.Allocation) (*nstructs.Action, error) {
+	t := alloc.LookupTask(taskName)
 
-	if task == "" {
-		return nil, fmt.Errorf("Must supply a task")
-	}
-
-	var tg *nstructs.TaskGroup
-	for _, group := range alloc.Job.TaskGroups {
-		if group.Name == taskGroup {
-			tg = group
-			break
-		}
-	}
-	if tg == nil {
-		return nil, fmt.Errorf("task group %s not found", taskGroup)
-	}
-
-	var t *nstructs.Task
-	for _, taskStruct := range tg.Tasks {
-		if taskStruct.Name == task {
-			t = taskStruct
-			break
-		}
-	}
-	if t == nil {
-		return nil, fmt.Errorf("task %s not found in task group %s", task, taskGroup)
-	}
-
-	var jobAction *nstructs.Action
+	var action *nstructs.Action
 	for _, act := range t.Actions {
-		if act.Name == action {
-			jobAction = act
+		if act.Name == actionName {
+			action = act
 			break
 		}
 	}
 
-	if jobAction == nil {
+	if action == nil {
 		return nil, fmt.Errorf("action %s not found", action)
 	}
 
-	return jobAction, nil
+	return action, nil
 }
