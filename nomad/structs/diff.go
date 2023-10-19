@@ -2201,6 +2201,11 @@ func (r *Resources) Diff(other *Resources, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, nDiffs...)
 	}
 
+	// NUMA resources diff
+	if nDiff := r.NUMA.Diff(other.NUMA, contextual); nDiff != nil {
+		diff.Objects = append(diff.Objects, nDiff)
+	}
+
 	return diff
 }
 
@@ -2378,6 +2383,30 @@ func portDiffs(old, new []Port, dynamic bool, contextual bool) []*ObjectDiff {
 	sort.Sort(ObjectDiffs(diffs))
 	return diffs
 
+}
+
+func (r *NUMA) Diff(other *NUMA, contextual bool) *ObjectDiff {
+	if r.Equal(other) {
+		return nil
+	}
+
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "NUMA"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if r == nil {
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(other, nil, true)
+	} else if other == nil {
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(r, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(r, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(other, nil, true)
+	}
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	return diff
 }
 
 // Diff returns a diff of two requested devices. If contextual diff is enabled,

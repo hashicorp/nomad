@@ -17,6 +17,7 @@ type Resources struct {
 	DiskMB      *int               `mapstructure:"disk" hcl:"disk,optional"`
 	Networks    []*NetworkResource `hcl:"network,block"`
 	Devices     []*RequestedDevice `hcl:"device,block"`
+	NUMA        *NUMAResource      `hcl:"numa,block"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
@@ -50,6 +51,8 @@ func (r *Resources) Canonicalize() {
 	for _, d := range r.Devices {
 		d.Canonicalize()
 	}
+
+	r.NUMA.Canonicalize()
 }
 
 // DefaultResources is a small resources object that contains the
@@ -96,6 +99,35 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if len(other.Devices) != 0 {
 		r.Devices = other.Devices
+	}
+	if other.NUMA != nil {
+		r.NUMA = other.NUMA.Copy()
+	}
+}
+
+// NUMAResource contains the NUMA affinity request for scheduling purposes.
+//
+// Applies only to Nomad Enterprise.
+type NUMAResource struct {
+	// Affinity must be one of "none", "prefer", "require".
+	Affinity string `hcl:"affinity,optional"`
+}
+
+func (n *NUMAResource) Copy() *NUMAResource {
+	if n == nil {
+		return nil
+	}
+	return &NUMAResource{
+		Affinity: n.Affinity,
+	}
+}
+
+func (n *NUMAResource) Canonicalize() {
+	if n == nil {
+		return
+	}
+	if n.Affinity == "" {
+		n.Affinity = "none"
 	}
 }
 

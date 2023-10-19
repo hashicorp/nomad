@@ -1506,7 +1506,7 @@ func (c *Client) setupNode() error {
 		node.NodeResources = &structs.NodeResources{}
 		node.NodeResources.MinDynamicPort = newConfig.MinDynamicPort
 		node.NodeResources.MaxDynamicPort = newConfig.MaxDynamicPort
-		node.NodeResources.Cpu = newConfig.Node.NodeResources.Cpu
+		node.NodeResources.Processors = newConfig.Node.NodeResources.Processors
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
@@ -1643,19 +1643,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		}
 	}
 
-	// COMPAT(0.10): Remove in 0.10
-	// update the response networks with the config
-	// if we still have node changes, merge them
-	if response.Resources != nil {
-		response.Resources.Networks = updateNetworks(
-			response.Resources.Networks,
-			newConfig)
-		if !newConfig.Node.Resources.Equal(response.Resources) {
-			newConfig.Node.Resources.Merge(response.Resources)
-			nodeHasChanged = true
-		}
-	}
-
 	// update the response networks with the config
 	// if we still have node changes, merge them
 	if response.NodeResources != nil {
@@ -1673,7 +1660,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		}
 
 		// update config with total cpu compute if it was detected
-		if cpu := int(response.NodeResources.Cpu.CpuShares); cpu > 0 {
+		if cpu := response.NodeResources.Processors.TotalCompute(); cpu > 0 {
 			newConfig.CpuCompute = cpu
 		}
 	}
@@ -3250,7 +3237,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 	// Emit unallocated
 	unallocatedMem := total.Memory.MemoryMB - res.Memory.MemoryMB - allocated.Flattened.Memory.MemoryMB
 	unallocatedDisk := total.Disk.DiskMB - res.Disk.DiskMB - allocated.Shared.DiskMB
-	unallocatedCpu := total.Cpu.CpuShares - res.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
+	unallocatedCpu := int64(total.Processors.Topology.UsableCompute()) - res.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
 
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), baseLabels)
@@ -3357,8 +3344,7 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 		}
 
 		// Add the resources
-		// COMPAT(0.11): Just use the allocated resources
-		allocated.Add(alloc.ComparableResources())
+		allocated.Add(alloc.AllocatedResources.Comparable())
 
 		// Add the used network
 		if alloc.AllocatedResources != nil {

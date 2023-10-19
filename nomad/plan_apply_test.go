@@ -516,8 +516,10 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	node.NodeResources = &structs.NodeResources{
-		Cpu: structs.NodeCpuResources{
-			CpuShares: 2000,
+		Cpu: structs.LegacyNodeCpuResources{
+			CpuShares:          2000,
+			TotalCpuCores:      2,
+			ReservableCpuCores: []uint16{0, 1},
 		},
 		Memory: structs.NodeMemoryResources{
 			MemoryMB: 4192,
@@ -533,6 +535,8 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 			},
 		},
 	}
+	node.NodeResources.Compatibility()
+
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 
 	preemptedAlloc := mock.Alloc()

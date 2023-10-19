@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -23,7 +26,7 @@ func NodeResourcesToAllocatedResources(n *NodeResources) *AllocatedResources {
 		Tasks: map[string]*AllocatedTaskResources{
 			"web": {
 				Cpu: AllocatedCpuResources{
-					CpuShares: n.Cpu.CpuShares,
+					CpuShares: int64(n.Processors.Topology.UsableCompute()),
 				},
 				Memory: AllocatedMemoryResources{
 					MemoryMB: n.Memory.MemoryMB,
@@ -33,6 +36,31 @@ func NodeResourcesToAllocatedResources(n *NodeResources) *AllocatedResources {
 		Shared: AllocatedSharedResources{
 			DiskMB: n.Disk.DiskMB,
 		},
+	}
+}
+
+// MockBasicTopology returns a numalib.Topology that looks likes a simple VM;
+// - 1 socket, 1 NUMA node
+// - 4 cores @ 3500 MHz (14,000 MHz total)
+// - no client config overrides
+func MockBasicTopology() *numalib.Topology {
+	cores := make([]numalib.Core, 4)
+	for i := 0; i < 4; i++ {
+		cores[i] = numalib.Core{
+			SocketID:  0,
+			NodeID:    0,
+			ID:        hw.CoreID(i),
+			Grade:     numalib.Performance,
+			Disable:   false,
+			BaseSpeed: 3500,
+		}
+	}
+	return &numalib.Topology{
+		NodeIDs:                idset.From[hw.NodeID]([]hw.NodeID{0}),
+		Distances:              numalib.SLIT{[]numalib.Cost{10}},
+		Cores:                  cores,
+		OverrideTotalCompute:   0,
+		OverrideWitholdCompute: 0,
 	}
 }
 
@@ -50,8 +78,8 @@ func MockNode() *Node {
 			"driver.mock_driver": "1",
 		},
 		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares: 4000,
+			Processors: NodeProcessorResources{
+				Topology: MockBasicTopology(),
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,

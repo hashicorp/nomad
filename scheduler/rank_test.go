@@ -7,6 +7,9 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -34,16 +37,22 @@ func TestFeasibleRankIterator(t *testing.T) {
 	}
 }
 
+var (
+	legacyCpuResources1024, processorResources1024 = cpuResources(1024)
+	legacyCpuResources2048, processorResources2048 = cpuResources(2048)
+	legacyCpuResources4096, processorResources4096 = cpuResources(4096)
+)
+
 func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	_, ctx := testContext(t)
+
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
 				// Perfect fit
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -62,9 +71,8 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// Overloaded
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 1024,
-					},
+					Processors: processorResources1024,
+					Cpu:        legacyCpuResources1024,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 1024,
 					},
@@ -83,9 +91,8 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// 50% fit
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 4096,
-					},
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 4096,
 					},
@@ -142,15 +149,19 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 // resources.
 func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
 	_, ctx := testContext(t)
+
+	legacyCpuResources900, processorResources900 := cpuResources(900)
+	legacyCpuResources1100, processorResources1100 := cpuResources(1100)
+	legacyCpuResources2000, processorResources2000 := cpuResources(2000)
+
 	nodes := []*RankedNode{
 		{
 			// Best fit
 			Node: &structs.Node{
 				Name: "no-reserved",
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 1100,
-					},
+					Processors: processorResources1100,
+					Cpu:        legacyCpuResources1100,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 1100,
 					},
@@ -162,9 +173,8 @@ func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
 			Node: &structs.Node{
 				Name: "reserved",
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2000,
-					},
+					Processors: processorResources2000,
+					Cpu:        legacyCpuResources2000,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2000,
 					},
@@ -184,9 +194,8 @@ func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
 			Node: &structs.Node{
 				Name: "reserved2",
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2000,
-					},
+					Processors: processorResources2000,
+					Cpu:        legacyCpuResources2000,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2000,
 					},
@@ -205,9 +214,8 @@ func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
 			Node: &structs.Node{
 				Name: "overloaded",
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 900,
-					},
+					Processors: processorResources900,
+					Cpu:        legacyCpuResources900,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 900,
 					},
@@ -263,9 +271,8 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -295,9 +302,8 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 			Node: &structs.Node{
 				// 50% fit
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 4096,
-					},
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 4096,
 					},
@@ -392,9 +398,8 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 			Node: &structs.Node{
 				// 50% fit
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 4096,
-					},
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 4096,
 					},
@@ -520,9 +525,8 @@ func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 					},
 				},
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 4096,
-					},
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 4096,
 					},
@@ -615,9 +619,8 @@ func TestBinPackIterator_Network_NodeError(t *testing.T) {
 					},
 				},
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 4096,
-					},
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 4096,
 					},
@@ -703,9 +706,8 @@ func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 			Node: &structs.Node{
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -830,9 +832,8 @@ func TestBinPackIterator_Network_Interpolation_Success(t *testing.T) {
 					"some_network": "public",
 				},
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -877,9 +878,8 @@ func TestBinPackIterator_Network_Interpolation_Success(t *testing.T) {
 					"some_network": "second",
 				},
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 4096,
-					},
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 4096,
 					},
@@ -984,9 +984,8 @@ func TestBinPackIterator_Host_Network_Interpolation_Absent_Value(t *testing.T) {
 					"some_network": "public",
 				},
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 4096,
-					},
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 4096,
 					},
@@ -1086,9 +1085,8 @@ func TestBinPackIterator_Host_Network_Interpolation_Interface_Not_Exists(t *test
 					"some_network": "absent",
 				},
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 4096,
-					},
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 4096,
 					},
@@ -1184,9 +1182,8 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -1198,9 +1195,8 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -1281,17 +1277,30 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 
 func TestBinPackIterator_ReservedCores(t *testing.T) {
 	state, ctx := testContext(t)
+
+	topology := &numalib.Topology{
+		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
+		Distances: numalib.SLIT{[]numalib.Cost{10}},
+		Cores: []numalib.Core{{
+			ID:        0,
+			Grade:     numalib.Performance,
+			BaseSpeed: 1024,
+		}, {
+			ID:        1,
+			Grade:     numalib.Performance,
+			BaseSpeed: 1024,
+		}},
+	}
+	legacyCpuResources, processorResources := cpuResourcesFrom(topology)
+
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares:          2048,
-						TotalCpuCores:      2,
-						ReservableCpuCores: []uint16{0, 1},
-					},
+					Processors: processorResources,
+					Cpu:        legacyCpuResources,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -1303,11 +1312,8 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares:          2048,
-						TotalCpuCores:      2,
-						ReservableCpuCores: []uint16{0, 1},
-					},
+					Processors: processorResources,
+					Cpu:        legacyCpuResources,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -1404,9 +1410,8 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -1418,9 +1423,8 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -1520,9 +1524,8 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -1534,9 +1537,8 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},

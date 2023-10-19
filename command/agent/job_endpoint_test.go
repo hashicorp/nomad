@@ -3732,6 +3732,23 @@ func TestConversion_apiResourcesToStructs(t *testing.T) {
 				MemoryMaxMB: 300,
 			},
 		},
+		{
+			"with numa",
+			&api.Resources{
+				CPU:      pointer.Of(100),
+				MemoryMB: pointer.Of(200),
+				NUMA: &api.NUMAResource{
+					Affinity: "prefer",
+				},
+			},
+			&structs.Resources{
+				CPU:      100,
+				MemoryMB: 200,
+				NUMA: &structs.NUMA{
+					Affinity: "prefer",
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

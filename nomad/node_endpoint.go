@@ -1013,8 +1013,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 }
 
 // GetNode is used to request information about a specific node
-func (n *Node) GetNode(args *structs.NodeSpecificRequest,
-	reply *structs.SingleNodeResponse) error {
+func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleNodeResponse) error {
 
 	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.GetNode", args, args, reply); done {

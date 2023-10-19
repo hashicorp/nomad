@@ -106,6 +106,11 @@ func From[T, U ID](slice []U) *Set[T] {
 	return result
 }
 
+func (s *Set[T]) Difference(other *Set[T]) *Set[T] {
+	diff := s.items.Difference(other.items)
+	return &Set[T]{items: diff.(*set.Set[T])}
+}
+
 // Contains returns whether the Set contains item.
 func (s *Set[T]) Contains(item T) bool {
 	return s.items.Contains(item)
@@ -191,4 +196,17 @@ func (s *Set[T]) Empty() bool {
 		return true
 	}
 	return s.items.Empty()
+}
+
+// InsertSlice is used to bludgen a slice of integers into s.
+func InsertSlice[T ID, X ~uint16](s *Set[T], items ...X) {
+	for _, item := range items {
+		s.Insert(T(item))
+	}
+}
+
+// Superset returns true of s is a superset of other.
+func (s *Set[T]) Superset(other *Set[T]) bool {
+	// todo(shoenig) optimize
+	return s.items.ContainsSlice(other.items.Slice())
 }

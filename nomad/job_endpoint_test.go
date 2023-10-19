@@ -15,6 +15,9 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -128,8 +131,18 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 
 	// Create a mock node with easy to check resources
 	node := mock.Node()
-	node.Resources = nil // Deprecated in 0.9
-	node.NodeResources.Cpu.CpuShares = 700
+	node.NodeResources.Processors = structs.NodeProcessorResources{
+		Topology: &numalib.Topology{
+			NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
+			Distances: numalib.SLIT{[]numalib.Cost{10}},
+			Cores: []numalib.Core{{
+				ID:        0,
+				Grade:     numalib.Performance,
+				BaseSpeed: 700,
+			}},
+		},
+	}
+	node.NodeResources.Compatibility()
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 	codec := rpcClient(t, s1)
