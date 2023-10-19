@@ -134,7 +134,7 @@ func TestHTTP_Keyring_OIDCDisco_Disabled(t *testing.T) {
 	})
 }
 
-// TestHTTP_Keyring_OIDCDisco_Disabled asserts that the OIDC Discovery endpoint
+// TestHTTP_Keyring_OIDCDisco_Enabled asserts that the OIDC Discovery endpoint
 // is enabled when OIDCIssuer is set.
 func TestHTTP_Keyring_OIDCDisco_Enabled(t *testing.T) {
 	ci.Parallel(t)
