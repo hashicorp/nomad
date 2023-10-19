@@ -15,6 +15,7 @@ import { base64DecodeString } from '../utils/encode';
 export default class JobAdapter extends WatchableNamespaceIDs {
   @service system;
   @service notifications;
+  @service token;
 
   relationshipFallbackLinks = {
     summary: '/summary',
@@ -180,13 +181,21 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     const wsUrl =
       `${protocol}//${prefix}/job/${job.get('id')}/action` +
-      `?namespace=*&action=${action.name}&allocID=${allocID}&task=${action.task.name}&group=${action.task.taskGroup.name}` +
+      `?namespace=*&action=${action.name}&allocID=${allocID}&task=${action.task.name}&group=${action.task.taskGroup.name}&tty=true&ws_handshake=true` +
       (region ? `&region=${region}` : '');
 
     const socket = new WebSocket(wsUrl);
 
     socket.addEventListener('open', function (event) {
       console.log('WebSocket connection opened:', event);
+      socket.send(
+        JSON.stringify({ version: 1, auth_token: this.token?.secret || '' })
+      );
+      socket.send(
+        JSON.stringify({
+          tty_size: { width: 250, height: 100 }, // TODO: verify that these are good defaults
+        })
+      );
     });
 
     socket.addEventListener('message', (event) => {
@@ -217,8 +226,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
 
     socket.addEventListener('close', (event) => {
-      // TODO: let's figure out why I never see a close event! Probably go related, as
-      // I see the same behaviour when running operator api on both alloc exec and job action.
       console.log('WebSocket connection closed:', event);
       this.notifications.add({
         title: `Action ${action.name} Completed`,
