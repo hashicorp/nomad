@@ -93,7 +93,8 @@ type VaultConfig struct {
 
 // ACLConfig is used to configure ACLs
 type ACLConfig struct {
-	Enabled bool `json:"enabled"`
+	Enabled        bool   `json:"enabled"`
+	BootstrapToken string `json:"-"` // not in the real config
 }
 
 // ServerConfigCallback is a function interface which can be
@@ -195,6 +196,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	if nomadConfig.Stderr != nil {
 		stderr = nomadConfig.Stderr
 	}
+	t.Logf("CONFIG JSON: %s", string(configContent))
 
 	args := []string{"agent", "-config", configFile.Name()}
 	if nomadConfig.DevMode {
@@ -226,6 +228,10 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 		server.waitForLeader()
 	} else {
 		server.waitForAPI()
+	}
+
+	if nomadConfig.ACL.Enabled && nomadConfig.ACL.BootstrapToken != "" {
+		server.bootstrapSelf()
 	}
 
 	// Wait for the client to be ready
@@ -270,6 +276,28 @@ func (s *TestServer) Stop() {
 		s.t.Logf("timed out waiting for process to be killed")
 	}
 
+}
+
+// bootstrapSelf bootstraps the ACL system from the provided token.
+func (s *TestServer) bootstrapSelf() {
+
+	contentType := "application/json"
+
+	rootToken := s.Config.ACL.BootstrapToken
+	body := struct{ BootstrapSecret string }{rootToken}
+	buf, err := json.Marshal(body)
+	if err != nil {
+		s.t.Fatalf("err: %s", err)
+	}
+
+	resp, err := s.HTTPClient.Post(s.url("/v1/acl/bootstrap"), contentType, bytes.NewBuffer(buf))
+	if err != nil {
+		s.t.Fatalf("err: %s", err)
+	}
+	defer resp.Body.Close()
+	if err := s.requireOK(resp); err != nil {
+		s.t.Fatalf("err: %s", err)
+	}
 }
 
 // waitForAPI waits for only the agent HTTP endpoint to start
@@ -324,7 +352,14 @@ func (s *TestServer) waitForClient() {
 	}
 
 	WaitForResult(func() (bool, error) {
-		resp, err := s.HTTPClient.Get(s.url("/v1/nodes"))
+		req, err := http.NewRequest(http.MethodGet, s.url("/v1/nodes"), nil)
+		if err != nil {
+			return false, err
+		}
+		if s.Config.ACL.BootstrapToken != "" {
+			req.Header.Set("X-Nomad-Token", s.Config.ACL.BootstrapToken)
+		}
+		resp, err := s.HTTPClient.Do(req)
 		if err != nil {
 			return false, err
 		}
