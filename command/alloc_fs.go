@@ -173,7 +173,7 @@ func (f *AllocFSCommand) Run(args []string) int {
 			return 1
 		}
 
-		allocID, err = getRandomJobAllocID(client, jobID, ns)
+		allocID, err = getRandomJobAllocID(client, jobID, "", ns)
 		if err != nil {
 			f.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -387,7 +387,7 @@ func (f *AllocFSCommand) followFile(client *api.Client, alloc *api.Allocation,
 
 // Get Random Allocation from a known jobID. Prefer to use a running allocation,
 // but use a dead allocation if no running allocations are found
-func getRandomJobAlloc(client *api.Client, jobID, namespace string) (*api.AllocationListStub, error) {
+func getRandomJobAlloc(client *api.Client, jobID, tasakGroupName, namespace string) (*api.AllocationListStub, error) {
 	var runningAllocs []*api.AllocationListStub
 	q := &api.QueryOptions{
 		Namespace: namespace,
@@ -401,6 +401,19 @@ func getRandomJobAlloc(client *api.Client, jobID, namespace string) (*api.Alloca
 	// Check that the job actually has allocations
 	if len(allocs) == 0 {
 		return nil, fmt.Errorf("job %q doesn't exist or it has no allocations", jobID)
+	}
+
+	if tasakGroupName != "" {
+		var filteredAllocs []*api.AllocationListStub
+		for _, alloc := range allocs {
+			if alloc.TaskGroup == tasakGroupName {
+				filteredAllocs = append(filteredAllocs, alloc)
+			}
+		}
+		allocs = filteredAllocs
+		if len(allocs) == 0 {
+			return nil, fmt.Errorf("task group %q doesn't exist or it has no allocations", tasakGroupName)
+		}
 	}
 
 	for _, v := range allocs {
@@ -419,8 +432,8 @@ func getRandomJobAlloc(client *api.Client, jobID, namespace string) (*api.Alloca
 	return alloc, err
 }
 
-func getRandomJobAllocID(client *api.Client, jobID, namespace string) (string, error) {
-	alloc, err := getRandomJobAlloc(client, jobID, namespace)
+func getRandomJobAllocID(client *api.Client, jobID, group, namespace string) (string, error) {
+	alloc, err := getRandomJobAlloc(client, jobID, group, namespace)
 	if err != nil {
 		return "", err
 	}

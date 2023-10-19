@@ -168,7 +168,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 			return 1
 		}
 
-		allocStub, err = getRandomJobAlloc(client, jobID, ns)
+		allocStub, err = getRandomJobAlloc(client, jobID, "", ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -297,8 +297,6 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 		}
 	}()
 
-	// TODO: determine if passing an empty action string here is really
-	// what I want to do, vs handle the converstion-to-command upstream.
 	return client.Allocations().Exec(ctx,
 		alloc, task, tty, command, "", stdin, stdout, stderr, sizeCh, nil)
 }
