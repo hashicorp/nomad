@@ -153,8 +153,26 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 			},
 		},
 		{
-			name:           "no error when vault identity is provided via task",
-			inputTaskVault: &structs.Vault{},
+			name: "no error when vault identity is provided via config from non-default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster: "other",
+			},
+			inputTaskIdentities: nil,
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {},
+				"other": {
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+						TTL:      pointer.Of(time.Hour),
+					},
+				},
+			},
+		},
+		{
+			name: "no error when vault identity is provided via task",
+			inputTaskVault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
 			inputTaskIdentities: []*structs.WorkloadIdentity{{
 				Name:     "vault_default",
 				Audience: []string{"vault.io"},
@@ -162,10 +180,42 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 			}},
 		},
 		{
-			name:                "error when not using vault identity and vault block is missing policies",
-			inputTaskVault:      &structs.Vault{},
+			name: "no error when vault identity is provided via task for non-default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster: "other",
+			},
+			inputTaskIdentities: []*structs.WorkloadIdentity{{
+				Name:     "vault_other",
+				Audience: []string{"vault.io"},
+				TTL:      time.Hour,
+			}},
+		},
+		{
+			name: "no error when task uses legacy flow with default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster:  structs.VaultDefaultCluster,
+				Policies: []string{"nomad-workload"},
+			},
+		},
+		{
+			name: "error when not using vault identity and vault block is missing policies",
+			inputTaskVault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
 			inputTaskIdentities: nil,
 			expectedErr:         "Vault block with an empty list of policies",
+		},
+		{
+			name: "error when no identity is available for non-default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster: "other",
+			},
+			inputTaskIdentities: nil,
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {},
+				"other":                     {},
+			},
+			expectedErr: "does not have an identity named vault_other",
 		},
 		{
 			name: "warn when using default vault identity but task has vault policies",
@@ -187,6 +237,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 		{
 			name: "warn when using task vault identity but task has vault policies",
 			inputTaskVault: &structs.Vault{
+				Cluster:  structs.VaultDefaultCluster,
 				Policies: []string{"nomad-workload"},
 			},
 			inputTaskIdentities: []*structs.WorkloadIdentity{{

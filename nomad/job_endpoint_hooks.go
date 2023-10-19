@@ -388,10 +388,16 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 	var mErr *multierror.Error
 	var warnings []error
 
+	var vaultWID *structs.WorkloadIdentity
 	vaultWIDs := make([]string, 0, len(t.Identities))
+
 	for _, wid := range t.Identities {
 		if strings.HasPrefix(wid.Name, structs.WorkloadIdentityVaultPrefix) {
 			vaultWIDs = append(vaultWIDs, wid.Name)
+
+			if t.Vault != nil && wid.Name == t.Vault.IdentityName() {
+				vaultWID = wid
+			}
 		}
 	}
 
@@ -402,7 +408,7 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 		return warnings, nil
 	}
 
-	hasTaskWID := len(vaultWIDs) > 0
+	hasTaskWID := vaultWID != nil
 	hasDefaultWID := v.srv.config.VaultIdentityConfig(t.Vault.Cluster) != nil
 
 	if hasTaskWID || hasDefaultWID {
@@ -413,6 +419,17 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 			))
 		}
 		return warnings, nil
+	}
+
+	// Only the default cluster is allowed to use the legacy flow. Using a
+	// non-default cluster requires an identity to be provided either in the
+	// task or as a default in the agent config.
+	if t.Vault.Cluster != structs.VaultDefaultCluster {
+		mErr = multierror.Append(mErr, fmt.Errorf(
+			"Task %s uses Vault cluster %s but does not have an identity named %s and no default identity is provided in agent configuration",
+			t.Name, t.Vault.Cluster, t.Vault.IdentityName(),
+		))
+		return warnings, mErr.ErrorOrNil()
 	}
 
 	// At this point Nomad will use the legacy token-based flow, so keep the
