@@ -131,6 +131,10 @@ value for the [`name`](#name) field.
   Consul service name defined in the `server_service_name` option. This search
   only happens if the server does not have a leader.
 
+- `service_auth_method` `(string: "nomad-workloads")` - Specifies the name of the
+  Consul [authentication method][auth-method] that will be used to login with a
+  Nomad JWT for services.
+
 - `service_identity` <code>([Identity][identity_block]: nil)</code> - Specifies
   a default Workload Identity to use when obtaining Service Identity tokens from
   Consul to register services. Refer to [Workload Identity](#workload-identity)
@@ -148,6 +152,10 @@ value for the [`name`](#name) field.
 
 - `tags` `(array<string>: [])` - Specifies optional Consul tags to be
   registered with the Nomad server and agent services.
+
+- `task_auth_method` `(string: "nomad-tasks")` - Specifies the name of the
+  Consul [authentication method][auth-method] that will be used to login with a
+  Nomad JWT for tasks.
 
 - `task_identity` <code>([Identity][identity_block]: nil)</code> - Specifies a
   default Workload Identity to use when obtaining Consul tokens from Consul to
@@ -287,3 +295,4 @@ namespace "nomad-ns" {
 [identity_block]: /nomad/docs/job-specification/identity
 [`template`]: /nomad/docs/job-specification/template
 [Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul
+[auth-method]: /consul/docs/security/acl/auth-methods/jwt
