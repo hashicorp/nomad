@@ -532,7 +532,7 @@ func (s *HTTPServer) readWsHandshake(readFn func(interface{}) error, req *http.R
 	}
 
 	var h wsHandshakeMessage
-	s.logger.Info("readActionWsHandshake called with h: %v", h)
+	s.logger.Info("readWsHandshake called with h: %v", h)
 	err := readFn(&h)
 	if err != nil {
 		return err

@@ -15,6 +15,7 @@ import { base64DecodeString } from '../utils/encode';
 export default class JobAdapter extends WatchableNamespaceIDs {
   @service system;
   @service notifications;
+  @service token;
 
   relationshipFallbackLinks = {
     summary: '/summary',
@@ -178,15 +179,38 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       applicationAdapter.host || window.location.host
     }/${applicationAdapter.urlPrefix()}`;
 
-    const wsUrl =
+    // const actionWsURL =
+    //   `${protocol}//${prefix}/job/${job.get('id')}/action` +
+    //   `?namespace=*&action=${action.name}&allocID=${allocID}&task=${action.task.name}&group=${action.task.taskGroup.name}` +
+    //   `&tty=true&ws_handshake=true` +
+    //   `&command=${encodeURIComponent(`["curl"]`)}` +
+    //   (region ? `&region=${region}` : '');
+    const actionWsURL =
       `${protocol}//${prefix}/job/${job.get('id')}/action` +
       `?namespace=*&action=${action.name}&allocID=${allocID}&task=${action.task.name}&group=${action.task.taskGroup.name}` +
+      `&tty=true&ws_handshake=true` +
       (region ? `&region=${region}` : '');
+    const execWsUrl =
+      `${protocol}//${prefix}/client/allocation/${allocID}` +
+      `/exec?task=${action.task.name}&tty=true&ws_handshake=true` +
+      (region ? `&region=${region}` : '') +
+      `&group=${action.task.taskGroup.name}&action="weather"` +
+      `&command=${encodeURIComponent(`["curl"]`)}`;
 
-    const socket = new WebSocket(wsUrl);
+    const socket = new WebSocket(actionWsURL);
+    // const socket = new WebSocket(execWsUrl);
 
     socket.addEventListener('open', function (event) {
       console.log('WebSocket connection opened:', event);
+
+      socket.send(
+        JSON.stringify({ version: 1, auth_token: this.token?.secret || '' }) // TODO: MAKE SURE TOKEN SERVICE
+      );
+      socket.send(
+        JSON.stringify({
+          tty_size: { width: 217, height: 74 }, // TODO: TEMP
+        })
+      );
     });
 
     socket.addEventListener('message', (event) => {

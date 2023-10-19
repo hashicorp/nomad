@@ -4,19 +4,15 @@
 package agent
 
 import (
-	"context"
 	"fmt"
 	"maps"
-	"net"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
 
-	// TODO: TEMP TIME IMPORT
 	"github.com/golang/snappy"
 	"github.com/gorilla/websocket"
-	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -382,15 +378,24 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	group := req.URL.Query().Get("group")
 	action := req.URL.Query().Get("action")
 	allocID := req.URL.Query().Get("allocID")
+	ttyB := false
+	err := error(nil)
+	if tty := req.URL.Query().Get("tty"); tty != "" {
+		ttyB, err = strconv.ParseBool(tty)
+		if err != nil {
+			return nil, fmt.Errorf("tty value is not a boolean: %v", err)
+		}
+	}
 
 	s.logger.Info("jobRunAction called with task: %s, group: %s, action: %s, allocID: %s", task, group, action, allocID)
 
-	args := structs.JobRunActionRequest{
+	args := cstructs.AllocExecRequest{
 		JobID:     jobID,
 		TaskGroup: group,
 		Task:      task,
 		Action:    action,
 		AllocID:   allocID,
+		Tty:       ttyB,
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
@@ -410,7 +415,13 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 
 	s.logger.Info("jobRunAction thru upgrade")
 
-	if err := s.readActionWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+	// if err := s.readActionWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+	// 	conn.WriteMessage(websocket.CloseMessage,
+	// 		websocket.FormatCloseMessage(toWsCode(400), err.Error()))
+	// 	return nil, err
+	// }
+
+	if err := s.readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
 		conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
 		return nil, err
@@ -418,146 +429,148 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 
 	s.logger.Info("jobRunAction thru handshake")
 
-	return s.runActionStreamImpl(conn, &args)
+	// return s.runActionStreamImpl(conn, &args)
+	// Instead, run execStreamImpl here
+	return s.execStreamImpl(conn, &args)
 }
 
-func (s *HTTPServer) readActionWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
-	s.logger.Info("readActionWsHandshake called")
+// func (s *HTTPServer) readActionWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
+// 	s.logger.Info("readActionWsHandshake called")
 
-	// Avoid handshake if request doesn't require one
-	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {
-		return nil
-	} else if h, err := strconv.ParseBool(hv); err != nil {
-		return fmt.Errorf("ws_handshake value is not a boolean: %v", err)
-	} else if !h {
-		return nil
-	}
+// 	// Avoid handshake if request doesn't require one
+// 	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {
+// 		return nil
+// 	} else if h, err := strconv.ParseBool(hv); err != nil {
+// 		return fmt.Errorf("ws_handshake value is not a boolean: %v", err)
+// 	} else if !h {
+// 		return nil
+// 	}
 
-	var h wsHandshakeMessage
-	s.logger.Info("readActionWsHandshake called with h: %v", h)
-	if err := readFn(&h); err != nil {
-		s.logger.Info("readActionWsHandshake failed to read handshake: %v", err)
-		return err
-	}
+// 	var h wsHandshakeMessage
+// 	s.logger.Info("readActionWsHandshake called with h: %v", h)
+// 	if err := readFn(&h); err != nil {
+// 		s.logger.Info("readActionWsHandshake failed to read handshake: %v", err)
+// 		return err
+// 	}
 
-	if h.Version != 1 {
-		s.logger.Info("readActionWsHandshake unexpected handshake version: %v", h.Version)
-		return fmt.Errorf("unexpected handshake version: %v", h.Version)
-	}
+// 	if h.Version != 1 {
+// 		s.logger.Info("readActionWsHandshake unexpected handshake version: %v", h.Version)
+// 		return fmt.Errorf("unexpected handshake version: %v", h.Version)
+// 	}
 
-	q.AuthToken = h.AuthToken
+// 	q.AuthToken = h.AuthToken
 
-	s.logger.Info("readActionWsHandshake succeeded")
-	return nil
-}
+// 	s.logger.Info("readActionWsHandshake succeeded")
+// 	return nil
+// }
 
-func (s *HTTPServer) runActionStreamImpl(ws *websocket.Conn, args *structs.JobRunActionRequest) (interface{}, error) {
-	s.logger.Info("runActionStreamImpl called")
-	allocID := args.AllocID
-	method := "Allocations.Exec" // TODO: Should I make a new RPC method for this, for the near future where alloc-exec is too broad-scope a permission for running an action?
+// func (s *HTTPServer) runActionStreamImpl(ws *websocket.Conn, args *structs.JobRunActionRequest) (interface{}, error) {
+// 	s.logger.Info("runActionStreamImpl called")
+// 	allocID := args.AllocID
+// 	method := "Allocations.Exec" // TODO: Should I make a new RPC method for this, for the near future where alloc-exec is too broad-scope a permission for running an action?
 
-	// Get the correct handler
-	localClient, remoteClient, localServer := s.rpcHandlerForAlloc(allocID)
-	var handler structs.StreamingRpcHandler
-	var handlerErr error
-	if localClient {
-		handler, handlerErr = s.agent.Client().StreamingRpcHandler(method)
-	} else if remoteClient {
-		handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler(method)
-	} else if localServer {
-		handler, handlerErr = s.agent.Server().StreamingRpcHandler(method)
-	}
-	if handlerErr != nil {
-		return nil, CodedError(500, handlerErr.Error())
-	}
+// 	// Get the correct handler
+// 	localClient, remoteClient, localServer := s.rpcHandlerForAlloc(allocID)
+// 	var handler structs.StreamingRpcHandler
+// 	var handlerErr error
+// 	if localClient {
+// 		handler, handlerErr = s.agent.Client().StreamingRpcHandler(method)
+// 	} else if remoteClient {
+// 		handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler(method)
+// 	} else if localServer {
+// 		handler, handlerErr = s.agent.Server().StreamingRpcHandler(method)
+// 	}
+// 	if handlerErr != nil {
+// 		return nil, CodedError(500, handlerErr.Error())
+// 	}
 
-	s.logger.Info("runActionStreamImpl handler: %v", handler)
+// 	s.logger.Info("runActionStreamImpl handler: %v", handler)
 
-	httpPipe, handlerPipe := net.Pipe()
-	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
-	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
+// 	httpPipe, handlerPipe := net.Pipe()
+// 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
+// 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
 
-	// Create a goroutine that closes the pipe if the connection closes.
-	// TODO: does the connection ever close for alloc exec? I don't think so. Is this a good reason to have a non-alloc-exec action RPC?
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-ctx.Done()
-		httpPipe.Close()
+// 	// Create a goroutine that closes the pipe if the connection closes.
+// 	// TODO: does the connection ever close for alloc exec? I don't think so. Is this a good reason to have a non-alloc-exec action RPC?
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	go func() {
+// 		<-ctx.Done()
+// 		httpPipe.Close()
 
-		// don't close ws - wait to drain messages
-	}()
+// 		// don't close ws - wait to drain messages
+// 	}()
 
-	errCh := make(chan HTTPCodedError, 2)
+// 	errCh := make(chan HTTPCodedError, 2)
 
-	// stream response
-	go func() {
-		defer cancel()
-		s.logger.Info("runActionStreamImpl handlerPipe within gofunc: %v", handlerPipe)
+// 	// stream response
+// 	go func() {
+// 		defer cancel()
+// 		s.logger.Info("runActionStreamImpl handlerPipe within gofunc: %v", handlerPipe)
 
-		// Send the request
-		if err := encoder.Encode(args); err != nil {
-			errCh <- CodedError(500, err.Error())
-			return
-		}
+// 		// Send the request
+// 		if err := encoder.Encode(args); err != nil {
+// 			errCh <- CodedError(500, err.Error())
+// 			return
+// 		}
 
-		go forwardExecInput(encoder, ws, errCh)
+// 		go forwardExecInput(encoder, ws, errCh)
 
-		for {
-			var res cstructs.StreamErrWrapper
-			err := decoder.Decode(&res)
-			if isClosedError(err) {
-				ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-				errCh <- nil
-				return
-			}
+// 		for {
+// 			var res cstructs.StreamErrWrapper
+// 			err := decoder.Decode(&res)
+// 			if isClosedError(err) {
+// 				ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+// 				errCh <- nil
+// 				return
+// 			}
 
-			if err != nil {
-				errCh <- CodedError(500, err.Error())
-				return
-			}
-			decoder.Reset(httpPipe)
+// 			if err != nil {
+// 				errCh <- CodedError(500, err.Error())
+// 				return
+// 			}
+// 			decoder.Reset(httpPipe)
 
-			if err := res.Error; err != nil {
-				code := 500
-				if err.Code != nil {
-					code = int(*err.Code)
-				}
-				errCh <- CodedError(code, err.Error())
-				return
-			}
+// 			if err := res.Error; err != nil {
+// 				code := 500
+// 				if err.Code != nil {
+// 					code = int(*err.Code)
+// 				}
+// 				errCh <- CodedError(code, err.Error())
+// 				return
+// 			}
 
-			if err := ws.WriteMessage(websocket.TextMessage, res.Payload); err != nil {
-				errCh <- CodedError(500, err.Error())
-				return
-			}
-		}
-	}()
+// 			if err := ws.WriteMessage(websocket.TextMessage, res.Payload); err != nil {
+// 				errCh <- CodedError(500, err.Error())
+// 				return
+// 			}
+// 		}
+// 	}()
 
-	// start streaming request to streaming RPC - returns when streaming completes or errors
-	handler(handlerPipe)
-	// stop streaming background goroutines for streaming - but not websocket activity
-	cancel()
-	// retrieve any error and/or wait until goroutine stop and close errCh connection before
-	// closing websocket connection
-	codedErr := <-errCh
+// 	// start streaming request to streaming RPC - returns when streaming completes or errors
+// 	handler(handlerPipe)
+// 	// stop streaming background goroutines for streaming - but not websocket activity
+// 	cancel()
+// 	// retrieve any error and/or wait until goroutine stop and close errCh connection before
+// 	// closing websocket connection
+// 	codedErr := <-errCh
 
-	// we won't return an error on ws close, but at least make it available in
-	// the logs so we can trace spurious disconnects
-	if codedErr != nil {
-		s.logger.Debug("alloc exec channel closed with error", "error", codedErr)
-	}
+// 	// we won't return an error on ws close, but at least make it available in
+// 	// the logs so we can trace spurious disconnects
+// 	if codedErr != nil {
+// 		s.logger.Debug("alloc exec channel closed with error", "error", codedErr)
+// 	}
 
-	if isClosedError(codedErr) {
-		codedErr = nil
-	} else if codedErr != nil {
-		ws.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(toWsCode(codedErr.Code()), codedErr.Error()))
-	}
-	ws.Close()
+// 	if isClosedError(codedErr) {
+// 		codedErr = nil
+// 	} else if codedErr != nil {
+// 		ws.WriteMessage(websocket.CloseMessage,
+// 			websocket.FormatCloseMessage(toWsCode(codedErr.Code()), codedErr.Error()))
+// 	}
+// 	ws.Close()
 
-	return nil, codedErr
+// 	return nil, codedErr
 
-}
+// }
 
 func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
 	version, err := strconv.ParseUint(req.URL.Query().Get("version"), 10, 64)
