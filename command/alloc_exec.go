@@ -298,7 +298,7 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 	}()
 
 	return client.Allocations().Exec(ctx,
-		alloc, task, tty, command, "", stdin, stdout, stderr, sizeCh, nil)
+		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
 }
 
 // isTty returns true if both stdin and stdout are a TTY
