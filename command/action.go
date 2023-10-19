@@ -55,7 +55,7 @@ Action Specific Options:
     selected from the job.
 
   -task <task-name>
-	  Specifies the task in which the Action is defined. Required if no
+    Specifies the task in which the Action is defined. Required if no
     allocation is provided.
 
   -group <group-name>

@@ -1517,8 +1517,7 @@ type EvalOptions struct {
 	ForceReschedule bool
 }
 
-// nomad action is used to run a pre-defined command inside a running task.
-//
+// ActionExec is used to run a pre-defined command inside a running task.
 // The call blocks until command terminates (or an error occurs), and returns the exit code.
 func (j *Jobs) ActionExec(ctx context.Context,
 	alloc *Allocation, task string, tty bool, command []string,
