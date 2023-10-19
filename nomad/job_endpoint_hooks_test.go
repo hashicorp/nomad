@@ -263,12 +263,14 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			impl := jobValidate{srv: &Server{
+			srv := &Server{
 				config: &Config{
 					JobMaxPriority: 100,
 					VaultConfigs:   tc.inputConfig,
 				},
-			}}
+			}
+			implicitIdentities := jobImplicitIdentitiesHook{srv: srv}
+			impl := jobValidate{srv: srv}
 
 			job := mock.Job()
 			task := job.TaskGroups[0].Tasks[0]
@@ -279,7 +281,11 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				task.Vault.ChangeMode = structs.VaultChangeModeRestart
 			}
 
-			warns, err := impl.Validate(job)
+			mutatedJob, warn, err := implicitIdentities.Mutate(job)
+			must.NoError(t, err)
+			must.SliceEmpty(t, warn)
+
+			warns, err := impl.Validate(mutatedJob)
 
 			if len(tc.expectedErr) == 0 {
 				must.NoError(t, err)
