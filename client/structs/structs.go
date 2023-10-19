@@ -182,11 +182,10 @@ type AllocExecRequest struct {
 	// Cmd is the command to be executed
 	Cmd []string
 
-	structs.QueryOptions
-
 	// The name of a predefined command to be executed (optional)
 	Action string
-	JobID  string
+
+	structs.QueryOptions
 }
 
 // AllocChecksRequest is used to request the latest nomad service discovery

@@ -116,8 +116,7 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 		jobID := strings.TrimSuffix(path, "/actions")
 		return s.jobActions(resp, req, jobID)
 	case strings.HasSuffix(path, "/action"):
-		jobID := strings.TrimSuffix(path, "/action")
-		return s.jobRunAction(resp, req, jobID)
+		return s.jobRunAction(resp, req)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -363,7 +362,7 @@ func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, job
 	return out.Actions, nil
 }
 
-func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 
 	s.logger.Info("jobRunAction called")
 
@@ -386,7 +385,6 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	}
 
 	args := cstructs.AllocExecRequest{
-		JobID:   jobID,
 		Task:    task,
 		Action:  action,
 		AllocID: allocID,
@@ -405,7 +403,7 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}
 
-	if err := s.readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
 		conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
 		return nil, err

@@ -509,7 +509,7 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}
 
-	if err := s.readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
 		conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
 		return nil, err
@@ -520,7 +520,7 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 
 // readWsHandshake reads the websocket handshake message and sets
 // query authentication token, if request requires a handshake
-func (s *HTTPServer) readWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
+func readWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
 
 	// Avoid handshake if request doesn't require one
 	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {

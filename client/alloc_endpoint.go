@@ -238,7 +238,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 
 	// Check alloc-exec permission.
 	if err != nil {
-		return nil, err
+		return pointer.Of(int64(400)), err
 	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
 		return nil, nstructs.ErrPermissionDenied
 	}
@@ -253,7 +253,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		alloc, _ := a.c.GetAlloc(req.AllocID)
 		jobAction, err := validateActionExists(req.Action, req.Task, alloc)
 		if err != nil {
-			return nil, err
+			return pointer.Of(int64(400)), err
 		}
 		if jobAction != nil {
 			// append both Command and Args
@@ -361,17 +361,10 @@ func (s *execStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
 func validateActionExists(actionName string, taskName string, alloc *nstructs.Allocation) (*nstructs.Action, error) {
 	t := alloc.LookupTask(taskName)
 
-	var action *nstructs.Action
-	for _, act := range t.Actions {
-		if act.Name == actionName {
-			action = act
-			break
+	for _, action := range t.Actions {
+		if action.Name == actionName {
+			return action, nil
 		}
 	}
-
-	if action == nil {
-		return nil, fmt.Errorf("action %s not found", action)
-	}
-
-	return action, nil
+	return nil, fmt.Errorf("action %s not found", actionName)
 }
