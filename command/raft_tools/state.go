@@ -10,7 +10,10 @@ import (
 )
 
 func RaftState(p string) (store *raftboltdb.BoltStore, firstIdx uint64, lastIdx uint64, err error) {
-	s, err := raftboltdb.NewBoltStore(p)
+	s, err := raftboltdb.New(raftboltdb.Options{
+		Path:                    p,
+		MsgpackUseNewTimeFormat: true,
+	})
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("failed to open raft logs: %v", err)
 	}

@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

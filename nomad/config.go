@@ -637,6 +637,9 @@ func DefaultConfig() *Config {
 	c.SerfConfig.MemberlistConfig = memberlist.DefaultWANConfig()
 	c.SerfConfig.MemberlistConfig.BindPort = DefaultSerfPort
 
+	c.SerfConfig.MsgpackUseNewTimeFormat = true
+	c.SerfConfig.MemberlistConfig.MsgpackUseNewTimeFormat = true
+
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 

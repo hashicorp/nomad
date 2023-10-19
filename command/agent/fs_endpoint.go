@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
