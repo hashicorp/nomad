@@ -2241,7 +2241,7 @@ func (n *Node) Canonicalize() {
 	// COMPAT remove in 1.9+
 	// In v1.7 we introduce Topology into the NodeResources struct which the client
 	// will fingerprint. Since the upgrade path must cover servers that get upgraded
-	// before clients which will send the old struct, we synthesize a psuedo topology
+	// before clients which will send the old struct, we synthesize a pseudo topology
 	// given the old struct data.
 	n.NodeResources.Compatibility()
 
