@@ -388,14 +388,12 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 	var mErr *multierror.Error
 	var warnings []error
 
-	vaultWIDs := []string{}
+	vaultWIDs := make([]string, 0, len(t.Identities))
 	for _, wid := range t.Identities {
 		if strings.HasPrefix(wid.Name, structs.WorkloadIdentityVaultPrefix) {
 			vaultWIDs = append(vaultWIDs, wid.Name)
 		}
 	}
-	hasTaskWID := len(vaultWIDs) > 0
-	hasDefaultWID := v.srv.config.VaultDefaultIdentity() != nil
 
 	if t.Vault == nil {
 		for _, wid := range vaultWIDs {
@@ -403,6 +401,9 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 		}
 		return warnings, nil
 	}
+
+	hasTaskWID := len(vaultWIDs) > 0
+	hasDefaultWID := v.srv.config.VaultIdentityConfig(t.Vault.Cluster) != nil
 
 	if hasTaskWID || hasDefaultWID {
 		if len(t.Vault.Policies) > 0 {

@@ -485,14 +485,15 @@ func (c *Config) ConsulTaskIdentity() *structs.WorkloadIdentity {
 	return workloadIdentityFromConfig(c.ConsulConfig.TaskIdentity)
 }
 
-// VaultDefaultIdentity returns the workload identity to be used for accessing
-// the Vault API.
-func (c *Config) VaultDefaultIdentity() *structs.WorkloadIdentity {
-	if c.VaultConfig == nil {
+// VaultIdentityConfig returns the workload identity to be used for accessing
+// the API of a given Vault cluster.
+func (c *Config) VaultIdentityConfig(cluster string) *structs.WorkloadIdentity {
+	conf := c.VaultConfigs[cluster]
+	if conf == nil {
 		return nil
 	}
 
-	return workloadIdentityFromConfig(c.VaultConfig.DefaultIdentity)
+	return workloadIdentityFromConfig(conf.DefaultIdentity)
 }
 
 // workloadIdentityFromConfig returns a structs.WorkloadIdentity to be used in

@@ -118,9 +118,12 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	nomadRegMock := regMock.NewServiceRegistrationHandler(logger)
 	wrapperMock := wrapper.NewHandlerWrapper(logger, consulRegMock, nomadRegMock)
 
-	task := alloc.LookupTask(taskName)
-	widsigner := widmgr.NewMockWIDSigner(task.Identities)
+	widsigner := widmgr.NewMockWIDSigner(thisTask.Identities)
 	db := cstate.NewMemDB(logger)
+
+	if thisTask.Vault != nil {
+		clientConf.VaultConfigs[structs.VaultDefaultCluster].Enabled = pointer.Of(true)
+	}
 
 	var vaultFunc vaultclient.VaultClientFunc
 	if vault != nil {
@@ -2294,7 +2297,10 @@ func TestTaskRunner_Template_BlockingPreStart(t *testing.T) {
 		},
 	}
 
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()

@@ -302,9 +302,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				VaultConfig: &config.VaultConfig{
-					DefaultIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"vault.io"},
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault.io"},
+						},
 					},
 				},
 			},
@@ -324,7 +326,9 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				VaultConfig: &config.VaultConfig{},
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {},
+				},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
@@ -350,9 +354,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				VaultConfig: &config.VaultConfig{
-					DefaultIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"vault-from-config.io"},
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault-from-config.io"},
+						},
 					},
 				},
 			},
@@ -382,9 +388,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				VaultConfig: &config.VaultConfig{
-					DefaultIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"vault.io"},
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault.io"},
+						},
 					},
 				},
 			},
