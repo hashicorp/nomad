@@ -6,6 +6,8 @@
 package scheduler
 
 import (
+	"math/rand"
+
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
@@ -16,6 +18,7 @@ import (
 type coreSelector struct {
 	topology       *numalib.Topology
 	availableCores *idset.Set[hw.CoreID]
+	shuffle        func([]numalib.Core)
 }
 
 // Select returns a set of CoreIDs that satisfy the requested core reservations,
@@ -30,4 +33,11 @@ func (cs *coreSelector) Select(ask *structs.Resources) ([]uint16, hw.MHz) {
 	}
 	ids := helper.ConvertSlice(cores, func(id hw.CoreID) uint16 { return uint16(id) })
 	return ids, mhz
+}
+
+// randomize the cores so we can at least try to mitigate PFNR problems
+func randomizeCores(cores []numalib.Core) {
+	rand.Shuffle(len(cores), func(x, y int) {
+		cores[x], cores[y] = cores[y], cores[x]
+	})
 }

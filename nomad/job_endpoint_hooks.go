@@ -62,6 +62,22 @@ var (
 		RTarget: ">= 1.4.0",
 		Operand: structs.ConstraintSemver,
 	}
+
+	// numaVersionConstraint is the constraint injected into task groups that
+	// utilize Nomad's NUMA aware scheduling which requires Nomad 1.7 or later.
+	numaVersionConstraint = &structs.Constraint{
+		LTarget: "${attr.nomad.version}",
+		RTarget: ">= 1.6.3-dev",
+		Operand: structs.ConstraintSemver,
+	}
+
+	// numaKernelConstraint is the constraint injected into task groups that utilize
+	// Nomad's NUMA aware scheduling which requires running on Linux.
+	numaKernelConstraint = &structs.Constraint{
+		LTarget: "${attr.kernel.name}",
+		RTarget: "linux",
+		Operand: "=",
+	}
 )
 
 type admissionController interface {
@@ -173,9 +189,15 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// Identify which task groups are utilising Consul service discovery.
 	consulServiceDisco := j.RequiredConsulServiceDiscovery()
 
-	// Hot path
+	// Identify which task groups are utilizing NUMA resources.
+	numaTaskGroups := j.RequiredNUMA()
+
+	// Hot path where none of our things require constraints.
+	//
+	// [UPDATE THIS] if you are adding a new constraint thing!
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
-		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 {
+		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
+		numaTaskGroups.Empty() {
 		return j, nil, nil
 	}
 
@@ -183,13 +205,18 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// constraints. When adding new implicit constraints, they should go inside
 	// this single loop, with a new constraintMatcher if needed.
 	for _, tg := range j.TaskGroups {
-
 		// If the task group utilises Vault, run the mutator.
 		vaultTasks := maps.Keys(vaultBlocks[tg.Name])
 		sort.Strings(vaultTasks)
 		for _, vaultTask := range vaultTasks {
 			vaultBlock := vaultBlocks[tg.Name][vaultTask]
 			mutateConstraint(constraintMatcherLeft, tg, vaultConstraintFn(vaultBlock))
+		}
+
+		// If the task group utilizes NUMA resources, run the mutator.
+		if numaTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherFull, tg, numaVersionConstraint)
+			mutateConstraint(constraintMatcherFull, tg, numaKernelConstraint)
 		}
 
 		// Check whether the task group is using signals. In the case that it
@@ -227,7 +254,6 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 				}
 			}
 		}
-
 	}
 
 	return j, nil, nil
