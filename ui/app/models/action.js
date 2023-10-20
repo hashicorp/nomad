@@ -12,4 +12,10 @@ export default class ActionModel extends Fragment {
   @attr('string') command;
   @attr() args;
   @fragmentOwner() task;
+
+  get allocations() {
+    return this.task.taskGroup.allocations.filter((a) => {
+      return a.clientStatus === 'running';
+    });
+  }
 }

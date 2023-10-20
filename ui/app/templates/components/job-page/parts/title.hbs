@@ -17,18 +17,17 @@
   <div>
     {{#if (not (eq this.job.status "dead"))}}
       {{!-- ACTIONS --}}
-      {{log "job actions" this.job.actions}}
       {{#if this.job.actions.length}}
         <Hds::Dropdown class="actions-dropdown" as |dd|>
           <dd.ToggleButton @color="secondary" @text="Actions" />
           {{#each this.job.actions as |action|}}
-            {{#if (gt this.job.allocations.length 1)}}
+            {{#if (gt action.allocations.length 1)}}
               <dd.Separator />
               <dd.Title @text={{action.name}} />
-              <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 this.job.allocations) "id"))}} @text="Run on a random alloc" />
-              <dd.Interactive {{on "click" (perform this.runAction action "random")}} @text="Run on all {{this.job.allocations.length}} allocs" />
+              <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 action.allocations) "id"))}} @text="Run on a random alloc" />
+              <dd.Interactive {{on "click" (perform this.runAction action "random")}} @text="Run on all {{action.allocations.length}} allocs" />
             {{else}}
-              <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 this.job.allocations) "id"))}} @text="{{action.name}}" />
+              <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 action.allocations) "id"))}} @text="{{action.name}}" />
             {{/if}}
           {{/each}}
           {{!-- <dd.ToggleIcon @color="secondary" @icon="user-circle" @text="user menu" @size="small" data-test-header-profile-dropdown />
