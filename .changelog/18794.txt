@@ -1,0 +1,3 @@
+```release-note:improvement
+actions: introduces the action concept to jobspecs, the web UI, CLI and API
+```
