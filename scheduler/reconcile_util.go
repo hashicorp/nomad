@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 // placementResult is an allocation that must be placed. It potentially has a
@@ -137,16 +137,6 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 // allocSet is a set of allocations with a series of helper functions defined
 // that help reconcile state.
 type allocSet map[string]*structs.Allocation
-
-func (a allocSet) FilterByClientStatus(status string) allocSet {
-	newAllocSet := make(map[string]*structs.Allocation)
-	maps.Copy(newAllocSet, a)
-
-	maps.DeleteFunc(newAllocSet, func(k string, v *structs.Allocation) bool {
-		return v.ClientStatus == status
-	})
-	return newAllocSet
-}
 
 // GoString provides a human readable view of the set
 func (a allocSet) GoString() string {
@@ -405,9 +395,9 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		}
 
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
-		if isUntainted && !isDisconnecting {
+		/* if isUntainted && !isDisconnecting {
 			untainted[alloc.ID] = alloc
-		}
+		} */
 
 		if ignore {
 			continue
@@ -421,11 +411,13 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 
 		// If the failed alloc is not eligible for rescheduling now we
 		// add it to the untainted set.
-		untainted[alloc.ID] = alloc
+		if isUntainted {
+			untainted[alloc.ID] = alloc
 
-		//Disconnecting delay evals are handled by allocReconciler.createTimeoutLaterEvals
-		if eligibleLater && !isDisconnecting {
-			rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
+			//Disconnecting delay evals are handled by allocReconciler.createTimeoutLaterEvals
+			if eligibleLater {
+				rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
+			}
 		}
 	}
 	return untainted, rescheduleNow, rescheduleLater
@@ -479,6 +471,17 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	return false, false
 }
 
+func getTimeOfLatestAllocEvent(event string, as []*structs.AllocState) time.Time {
+	slices.Reverse(as)
+	for i := len(as) - 1; i >= 0; i-- {
+		if as[i].Value == event {
+			return as[i].Time
+		}
+	}
+
+	return time.Time{}
+}
+
 // updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
 // should be rescheduled now, later or left in the untainted set
 func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment, isDisconnecting bool) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
@@ -495,12 +498,13 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
 	var eligible bool
-	if isDisconnecting {
-		if alloc.FollowupEvalID != "" && alloc.NeedsToReconnect() {
-			return
-		}
-		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(alloc.LastEventTime())
-	} else {
+	switch {
+	case isDisconnecting:
+		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(now)
+	case alloc.ClientStatus == structs.AllocClientStatusUnknown:
+		lastDisconnectTime := getTimeOfLatestAllocEvent(structs.AllocClientStatusUnknown, alloc.AllocStates)
+		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(lastDisconnectTime)
+	default:
 		rescheduleTime, eligible = alloc.NextRescheduleTime()
 	}
 
@@ -583,6 +587,18 @@ func (a allocSet) delayByMaxClientDisconnect(now time.Time) ([]*delayedReschedul
 	}
 
 	return later, nil
+}
+
+// filterOutByClientStatus returns all allocs from the set without the specified client status.
+func (a allocSet) filterOutByClientStatus(clientStatus string) allocSet {
+	allocs := make(allocSet)
+	for _, alloc := range a {
+		if alloc.ClientStatus != clientStatus {
+			allocs[alloc.ID] = alloc
+		}
+	}
+
+	return allocs
 }
 
 // filterByClientStatus returns allocs from the set with the specified client status.

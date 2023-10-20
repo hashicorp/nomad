@@ -975,7 +975,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	}
 
 	// Remove disconnected allocations so they won't be stopped
-	knownUntainted := untainted.FilterByClientStatus(structs.AllocClientStatusUnknown)
+	knownUntainted := untainted.filterOutByClientStatus(structs.AllocClientStatusUnknown)
 
 	// Hot path the nothing to do case
 	remove := len(knownUntainted) + len(migrate) - group.Count
