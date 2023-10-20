@@ -72,7 +72,7 @@ func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Client, 
 		return nil, fmt.Errorf("nil consul config")
 	}
 
-	logger = logger.Named("consul")
+	logger = logger.Named("consul").With("name", config.Name)
 
 	c := &consulClient{
 		config: config,
