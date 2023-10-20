@@ -6,7 +6,6 @@ package command
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,11 +16,10 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper/escapingio"
-	"github.com/moby/term"
 	"github.com/posener/complete"
 )
 
-type AllocExecCommand struct {
+type ActionCommand struct {
 	Meta
 
 	Stdin  io.Reader
@@ -29,29 +27,40 @@ type AllocExecCommand struct {
 	Stderr io.WriteCloser
 }
 
-func (l *AllocExecCommand) Help() string {
+func (l *ActionCommand) Help() string {
 	helpText := `
-Usage: nomad alloc exec [options] <allocation> <command>
+Usage: nomad action [options] <action>
 
-  Run command inside the environment of the given allocation and task.
+  Perform a predefined command inside the environment of the given allocation
+  and task.
 
   When ACLs are enabled, this command requires a token with the 'alloc-exec',
-  'read-job', and 'list-jobs' capabilities for the allocation's namespace. If
+  'read-job', and 'list-jobs' capabilities for a task's namespace. If
   the task driver does not have file system isolation (as with 'raw_exec'),
   this command requires the 'alloc-node-exec', 'read-job', and 'list-jobs'
-  capabilities for the allocation's namespace.
+  capabilities for the task's namespace.
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault) + `
+  ` + generalOptionsUsage(usageOptsNoNamespace) + `
 
-Exec Specific Options:
+Action Specific Options:
+
+  -job <job-id>
+    Specifies the job in which the Action is defined
+
+  -allocation <allocation-id>
+    Specifies the allocation in which the Action is defined. If not provided,
+    a group and task name must be provided and a random allocation will be
+    selected from the job.
 
   -task <task-name>
-    Sets the task to exec command in
+    Specifies the task in which the Action is defined. Required if no
+    allocation is provided.
 
-  -job
-    Use a random allocation from the specified job ID or prefix.
+  -group <group-name>
+    Specifies the group in which the Action is defined. Required if no
+    allocation is provided.
 
   -i
     Pass stdin to the container, defaults to true.  Pass -i=false to disable.
@@ -69,22 +78,20 @@ Exec Specific Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (l *AllocExecCommand) Synopsis() string {
-	return "Execute commands in task"
+func (l *ActionCommand) Synopsis() string {
+	return "Run a pre-defined action from a Nomad task"
 }
 
-func (l *AllocExecCommand) AutocompleteFlags() complete.Flags {
+func (l *ActionCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(l.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"--task": complete.PredictAnything,
-			"-job":   complete.PredictAnything,
-			"-i":     complete.PredictNothing,
-			"-t":     complete.PredictNothing,
-			"-e":     complete.PredictSet("none", "~"),
+			"-task":       complete.PredictAnything,
+			"-job":        complete.PredictAnything,
+			"-allocation": complete.PredictAnything,
 		})
 }
 
-func (l *AllocExecCommand) AutocompleteArgs() complete.Predictor {
+func (l *ActionCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := l.Meta.Client()
 		if err != nil {
@@ -99,44 +106,37 @@ func (l *AllocExecCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (l *AllocExecCommand) Name() string { return "alloc exec" }
+func (l *ActionCommand) Name() string { return "action" }
 
-func (l *AllocExecCommand) Run(args []string) int {
-	var job, stdinOpt, ttyOpt bool
-	var task, escapeChar string
+func (l *ActionCommand) Run(args []string) int {
+
+	var stdinOpt, ttyOpt bool
+	var task, allocation, job, group, escapeChar string
 
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
-	flags.BoolVar(&job, "job", false, "")
+	flags.StringVar(&task, "task", "", "")
+	flags.StringVar(&group, "group", "", "")
+	flags.StringVar(&allocation, "allocation", "", "")
+	flags.StringVar(&job, "job", "", "")
 	flags.BoolVar(&stdinOpt, "i", true, "")
 	flags.BoolVar(&ttyOpt, "t", isTty(), "")
 	flags.StringVar(&escapeChar, "e", "~", "")
-	flags.StringVar(&task, "task", "", "")
 
 	if err := flags.Parse(args); err != nil {
+		l.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
 		return 1
 	}
 
 	args = flags.Args()
 
 	if len(args) < 1 {
-		if job {
-			l.Ui.Error("A job ID is required")
-		} else {
-			l.Ui.Error("An allocation ID is required")
-		}
-		l.Ui.Error(commandErrorText(l))
+		l.Ui.Error("An action name is required")
 		return 1
 	}
 
-	if !job && len(args[0]) == 1 {
-		l.Ui.Error("Alloc ID must contain at least two characters")
-		return 1
-	}
-
-	if len(args) < 2 {
-		l.Ui.Error("A command is required")
-		l.Ui.Error(commandErrorText(l))
+	if job == "" {
+		l.Ui.Error("A job ID is required")
 		return 1
 	}
 
@@ -161,28 +161,41 @@ func (l *AllocExecCommand) Run(args []string) int {
 	}
 
 	var allocStub *api.AllocationListStub
-	if job {
-		jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
+	// If no allocation provided, grab a random one from the job
+	if allocation == "" {
+
+		// Group param cannot be empty if allocation is empty,
+		// since we'll need to get a random allocation from the group
+		if group == "" {
+			l.Ui.Error("A group name is required if no allocation is provided")
+			return 1
+		}
+
+		if task == "" {
+			l.Ui.Error("A task name is required if no allocation is provided")
+			return 1
+		}
+
+		jobID, ns, err := l.JobIDByPrefix(client, job, nil)
 		if err != nil {
 			l.Ui.Error(err.Error())
 			return 1
 		}
 
-		allocStub, err = getRandomJobAlloc(client, jobID, "", ns)
+		allocStub, err = getRandomJobAlloc(client, jobID, group, ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
 		}
 	} else {
-		allocID := args[0]
-		allocs, _, err := client.Allocations().PrefixList(sanitizeUUIDPrefix(allocID))
+		allocs, _, err := client.Allocations().PrefixList(sanitizeUUIDPrefix(allocation))
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
 			return 1
 		}
 
 		if len(allocs) == 0 {
-			l.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocID))
+			l.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocation))
 			return 1
 		}
 
@@ -228,7 +241,9 @@ func (l *AllocExecCommand) Run(args []string) int {
 		l.Stderr = os.Stderr
 	}
 
-	code, err := l.execImpl(client, alloc, task, ttyOpt, args[1:], escapeChar, l.Stdin, l.Stdout, l.Stderr)
+	action := args[0]
+
+	code, err := l.execImpl(client, alloc, task, job, action, ttyOpt, escapeChar, l.Stdin, l.Stdout, l.Stderr)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
@@ -238,8 +253,8 @@ func (l *AllocExecCommand) Run(args []string) int {
 }
 
 // execImpl invokes the Alloc Exec api call, it also prepares and restores terminal states as necessary.
-func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool,
-	command []string, escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
+func (l *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, job string, action string, tty bool,
+	escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
 
 	sizeCh := make(chan api.TerminalSize, 1)
 
@@ -297,89 +312,6 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 		}
 	}()
 
-	return client.Allocations().Exec(ctx,
-		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
-}
-
-// isTty returns true if both stdin and stdout are a TTY
-func isTty() bool {
-	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
-	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
-	return isStdinTerminal && isStdoutTerminal
-}
-
-// setRawTerminal sets the stream terminal in raw mode, so process captures
-// Ctrl+C and other commands to forward to remote process.
-// It returns a cleanup function that restores terminal to original mode.
-func setRawTerminal(stream interface{}) (cleanup func(), err error) {
-	fd, isTerminal := term.GetFdInfo(stream)
-	if !isTerminal {
-		return nil, errors.New("not a terminal")
-	}
-
-	state, err := term.SetRawTerminal(fd)
-	if err != nil {
-		return nil, err
-	}
-
-	return func() { term.RestoreTerminal(fd, state) }, nil
-}
-
-// setRawTerminalOutput sets the output stream in Windows to raw mode,
-// so it disables LF -> CRLF translation.
-// It's basically a no-op on unix.
-func setRawTerminalOutput(stream interface{}) (cleanup func(), err error) {
-	fd, isTerminal := term.GetFdInfo(stream)
-	if !isTerminal {
-		return nil, errors.New("not a terminal")
-	}
-
-	state, err := term.SetRawTerminalOutput(fd)
-	if err != nil {
-		return nil, err
-	}
-
-	return func() { term.RestoreTerminal(fd, state) }, nil
-}
-
-// watchTerminalSize watches terminal size changes to propagate to remote tty.
-func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), error) {
-	fd, isTerminal := term.GetFdInfo(out)
-	if !isTerminal {
-		return nil, errors.New("not a terminal")
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	signalCh := make(chan os.Signal, 1)
-	setupWindowNotification(signalCh)
-
-	sendTerminalSize := func() {
-		s, err := term.GetWinsize(fd)
-		if err != nil {
-			return
-		}
-
-		resize <- api.TerminalSize{
-			Height: int(s.Height),
-			Width:  int(s.Width),
-		}
-	}
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-signalCh:
-				sendTerminalSize()
-			}
-		}
-	}()
-
-	go func() {
-		// send initial size
-		sendTerminalSize()
-	}()
-
-	return cancel, nil
+	return client.Jobs().ActionExec(ctx,
+		alloc, task, tty, make([]string, 0), action, stdin, stdout, stderr, sizeCh, nil)
 }
