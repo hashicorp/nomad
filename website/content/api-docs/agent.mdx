@@ -441,8 +441,8 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `node` `(string: <required>)` - Specifies the name of the node to force leave.
-- `prune` `(boolean: <optional>)` -  Removes failed or left server from the Serf 
-  member list immediately. If member is actually still alive, it will eventually rejoin 
+- `prune` `(boolean: <optional>)` -  Removes failed or left server from the Serf
+  member list immediately. If member is actually still alive, it will eventually rejoin
   the cluster again.
 
 
@@ -604,6 +604,9 @@ The table below shows this endpoint's support for
 
 - `log_json` `(bool: false)` - Specifies if the log format for streamed logs
   should be JSON.
+
+- `log_include_location` `(bool: false)` - Specifies if the logs streamed should
+  include file and line information.
 
 - `node_id` `(string: "a57b2adb-1a30-2dda-8df0-25abb0881952")` - Specifies a text
   string containing a node-id to target for streaming.
