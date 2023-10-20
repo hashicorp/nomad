@@ -140,7 +140,7 @@ func TestHTTP_Keyring_OIDCDisco_Enabled(t *testing.T) {
 	ci.Parallel(t)
 
 	// Set OIDCIssuer to a valid looking (but fake) issuer
-	const testIssuer = "https://oidc.test.nomadproject.io/"
+	const testIssuer = "https://oidc.test.nomadproject.io"
 
 	cb := func(c *Config) {
 		c.Server.OIDCIssuer = testIssuer

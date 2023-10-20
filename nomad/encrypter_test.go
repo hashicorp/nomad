@@ -413,7 +413,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 // is configured.
 func TestEncrypter_SignVerify_Issuer(t *testing.T) {
 	// Set OIDCIssuer to a valid looking (but fake) issuer
-	const testIssuer = "https://oidc.test.nomadproject.io/"
+	const testIssuer = "https://oidc.test.nomadproject.io"
 
 	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
