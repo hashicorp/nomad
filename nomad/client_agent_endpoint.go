@@ -201,8 +201,9 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	defer cancel()
 
 	monitor := monitor.New(512, a.srv.logger, &log.LoggerOptions{
-		Level:      logLevel,
-		JSONFormat: args.LogJSON,
+		Level:           logLevel,
+		JSONFormat:      args.LogJSON,
+		IncludeLocation: args.LogIncludeLocation,
 	})
 
 	frames := make(chan *sframer.StreamFrame, 32)
