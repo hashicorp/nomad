@@ -275,9 +275,6 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		return code, err
 	}
 
-	// log progress
-	a.c.logger.Info("about to check node access", "capabilities", capabilities.FSIsolation)
-
 	// check node access
 	if capabilities.FSIsolation == drivers.FSIsolationNone {
 		exec := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocNodeExec)
@@ -296,8 +293,6 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		return code, err
 	}
 
-	a.c.logger.Info("about to check task access", "capabilities", capabilities.FSIsolation)
-
 	// Check that the task is there
 	taskState := allocState.TaskStates[req.Task]
 	if taskState == nil {
@@ -311,14 +306,10 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	a.c.logger.Info("about to check task exec access", "capabilities", capabilities.FSIsolation)
-
 	h := ar.GetTaskExecHandler(req.Task)
 	if h == nil {
 		return pointer.Of(int64(404)), fmt.Errorf("task %q is not running.", req.Task)
 	}
-
-	a.c.logger.Info("about to check task exec access222", "capabilities", capabilities.FSIsolation)
 
 	err = h(ctx, req.Cmd, req.Tty, newExecStream(decoder, encoder))
 	if err != nil {
@@ -326,8 +317,6 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		code := pointer.Of(int64(500))
 		return code, err
 	}
-
-	a.c.logger.Info("thru to the end")
 
 	return nil, nil
 }
