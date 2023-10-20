@@ -46,6 +46,7 @@ var (
 		"kind",
 		"volume_mount",
 		"csi_plugin",
+		"actions",
 	)
 
 	sidecarTaskKeys = append(commonTaskKeys,

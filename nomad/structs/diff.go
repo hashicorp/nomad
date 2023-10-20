@@ -571,7 +571,74 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, altIDDiffs...)
 	}
 
+	// Actions diff
+	if aDiffs := actionDiffs(t.Actions, other.Actions, contextual); aDiffs != nil {
+		diff.Objects = append(diff.Objects, aDiffs...)
+	}
+
 	return diff, nil
+}
+
+func actionDiff(old, new *Action, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Action"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &Action{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &Action{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the Args field using stringSetDiff
+	if setDiff := stringSetDiff(old.Args, new.Args, "Args", contextual); setDiff != nil {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	return diff
+}
+
+// actionDiffs diffs a set of actions. If contextual diff is enabled, unchanged
+// fields within objects nested in the actions will be returned.
+func actionDiffs(old, new []*Action, contextual bool) []*ObjectDiff {
+	var diffs []*ObjectDiff
+
+	for i := 0; i < len(old) && i < len(new); i++ {
+		oldAction := old[i]
+		newAction := new[i]
+
+		if diff := actionDiff(oldAction, newAction, contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for i := len(new); i < len(old); i++ {
+		if diff := actionDiff(old[i], nil, contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for i := len(old); i < len(new); i++ {
+		if diff := actionDiff(nil, new[i], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+
+	return diffs
 }
 
 func (t *TaskDiff) GoString() string {

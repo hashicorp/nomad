@@ -12,8 +12,10 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+	"github.com/gorilla/websocket"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -110,6 +112,11 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/submission"):
 		jobID := strings.TrimSuffix(path, "/submission")
 		return s.jobSubmissionCRUD(resp, req, jobID)
+	case strings.HasSuffix(path, "/actions"):
+		jobID := strings.TrimSuffix(path, "/actions")
+		return s.jobActions(resp, req, jobID)
+	case strings.HasSuffix(path, "/action"):
+		return s.jobRunAction(resp, req)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -331,6 +338,69 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 
 	setMeta(resp, &out.QueryMeta)
 	return out.Deployment, nil
+}
+
+func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.JobSpecificRequest{
+		JobID: jobID,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.ActionListResponse
+	if err := s.agent.RPC("Job.GetActions", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &structs.QueryMeta{})
+
+	return out.Actions, nil
+}
+
+func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	s.logger.Info("jobRunAction called")
+
+	// Build the request and parse the ACL token
+	task := req.URL.Query().Get("task")
+	action := req.URL.Query().Get("action")
+	allocID := req.URL.Query().Get("allocID")
+	isTTY := false
+	err := error(nil)
+	if tty := req.URL.Query().Get("tty"); tty != "" {
+		isTTY, err = strconv.ParseBool(tty)
+		if err != nil {
+			return nil, fmt.Errorf("tty value is not a boolean: %v", err)
+		}
+	}
+
+	args := cstructs.AllocExecRequest{
+		Task:    task,
+		Action:  action,
+		AllocID: allocID,
+		Tty:     isTTY,
+	}
+
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
+	}
+
+	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
+		return nil, err
+	}
+
+	return s.execStreamImpl(conn, &args)
 }
 
 func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
@@ -1341,6 +1411,11 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Sidecar: apiTask.Lifecycle.Sidecar,
 		}
 	}
+
+	for _, action := range apiTask.Actions {
+		act := ApiActionToStructsAction(job, action)
+		structsTask.Actions = append(structsTask.Actions, act)
+	}
 }
 
 // apiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
@@ -1381,6 +1456,14 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 	sc.StagePublishBaseDir = apiConfig.StagePublishBaseDir
 	sc.HealthTimeout = apiConfig.HealthTimeout
 	return sc
+}
+
+func ApiActionToStructsAction(job *structs.Job, action *api.Action) *structs.Action {
+	return &structs.Action{
+		Name:    action.Name,
+		Args:    slices.Clone(action.Args),
+		Command: action.Command,
+	}
 }
 
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {

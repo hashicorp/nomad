@@ -338,6 +338,19 @@ func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
 	return c
 }
 
+func CopySliceActions(s []*Action) []*Action {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*Action, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
 func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
