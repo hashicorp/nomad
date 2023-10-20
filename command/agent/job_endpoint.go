@@ -370,10 +370,10 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request) (
 	task := req.URL.Query().Get("task")
 	action := req.URL.Query().Get("action")
 	allocID := req.URL.Query().Get("allocID")
-	ttyB := false
+	isTTY := false
 	err := error(nil)
 	if tty := req.URL.Query().Get("tty"); tty != "" {
-		ttyB, err = strconv.ParseBool(tty)
+		isTTY, err = strconv.ParseBool(tty)
 		if err != nil {
 			return nil, fmt.Errorf("tty value is not a boolean: %v", err)
 		}
@@ -383,7 +383,7 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request) (
 		Task:    task,
 		Action:  action,
 		AllocID: allocID,
-		Tty:     ttyB,
+		Tty:     isTTY,
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
