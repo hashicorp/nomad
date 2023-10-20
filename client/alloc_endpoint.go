@@ -177,7 +177,6 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		handleStreamResultError(err, code, encoder)
 		return
 	}
-
 	a.c.logger.Info("task exec session ended", "exec_id", execID)
 }
 
@@ -216,6 +215,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 			"task", req.Task,
 			"command", req.Cmd,
 			"tty", req.Tty,
+			"action", req.Action,
 		}
 		if ident != nil {
 			if ident.ACLToken != nil {
@@ -238,7 +238,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 
 	// Check alloc-exec permission.
 	if err != nil {
-		return nil, err
+		return pointer.Of(int64(400)), err
 	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
 		return nil, nstructs.ErrPermissionDenied
 	}
@@ -247,6 +247,20 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	if req.Task == "" {
 		return pointer.Of(int64(400)), taskNotPresentErr
 	}
+
+	// If an action is present, go find the command and args
+	if req.Action != "" {
+		alloc, _ := a.c.GetAlloc(req.AllocID)
+		jobAction, err := validateActionExists(req.Action, req.Task, alloc)
+		if err != nil {
+			return pointer.Of(int64(400)), err
+		}
+		if jobAction != nil {
+			// append both Command and Args
+			req.Cmd = append([]string{jobAction.Command}, jobAction.Args...)
+		}
+	}
+
 	if len(req.Cmd) == 0 {
 		return pointer.Of(int64(400)), errors.New("command is not present")
 	}
@@ -342,4 +356,15 @@ func (s *execStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
 	req := drivers.ExecTaskStreamingRequestMsg{}
 	err := s.decoder.Decode(&req)
 	return &req, err
+}
+
+func validateActionExists(actionName string, taskName string, alloc *nstructs.Allocation) (*nstructs.Action, error) {
+	t := alloc.LookupTask(taskName)
+
+	for _, action := range t.Actions {
+		if action.Name == actionName {
+			return action, nil
+		}
+	}
+	return nil, fmt.Errorf("action %s not found", actionName)
 }
