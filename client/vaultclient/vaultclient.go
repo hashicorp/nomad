@@ -147,7 +147,7 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDerive
 		return nil, fmt.Errorf("nil vault Config")
 	}
 
-	logger = logger.Named("vault")
+	logger = logger.Named("vault").With("name", config.Name)
 
 	c := &Client{
 		Config: config,
