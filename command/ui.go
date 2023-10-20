@@ -5,9 +5,9 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/hashicorp/cap/util"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
-	"github.com/skratchdot/open-golang/open"
 )
 
 var (
@@ -209,7 +209,7 @@ func (c *UiCommand) Run(args []string) int {
 	}
 
 	c.Ui.Output(output)
-	if err := open.Start(url.String()); err != nil {
+	if err := util.OpenURL(url.String()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error opening URL: %s", err))
 		return 1
 	}
