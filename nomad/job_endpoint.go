@@ -1734,7 +1734,7 @@ func (j *Job) GetActions(args *structs.JobSpecificRequest, reply *structs.Action
 	// Check for read-job permissions
 	if aclObj, err := j.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
