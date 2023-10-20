@@ -79,7 +79,7 @@
 			{{/if}}
 		{{/if}}
 	</td>
-	{{#if this.task.task.taskGroup.job.actions.length}}
+	{{#if @jobHasActions}}
 	  <td data-test-actions>
 			{{#if this.task.task.actions.length}}
 				<Hds::Dropdown class="actions-dropdown" as |dd|>

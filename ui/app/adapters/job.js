@@ -168,8 +168,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   runAction(job, action, allocID) {
-    console.log('runAction from job adapter', job, action, allocID);
-
     let messageBuffer = '';
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -186,7 +184,24 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     const socket = new WebSocket(wsUrl);
 
-    socket.addEventListener('open', function (event) {
+    let notification;
+
+    socket.addEventListener('open', (event) => {
+      notification = this.notifications
+        .add({
+          title: `Action ${action.name} Message Received`,
+          color: 'success',
+          code: true,
+          sticky: true,
+          customAction: {
+            label: 'Stop Action',
+            action: () => {
+              socket.close();
+            },
+          },
+        })
+        .getFlashObject();
+
       console.log('WebSocket connection opened:', event);
       socket.send(
         JSON.stringify({ version: 1, auth_token: this.token?.secret || '' })
@@ -199,19 +214,20 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
 
     socket.addEventListener('message', (event) => {
+      if (!this.notifications.queue.includes(notification)) {
+        // User has manually closed the notification;
+        // explicitly close the socket and return;
+        socket.close();
+        return;
+      }
+
       console.log('WebSocket message received:', event);
       let jsonData = JSON.parse(event.data);
-      console.log('jsonData', jsonData);
       if (jsonData.stdout && jsonData.stdout.data) {
-        messageBuffer = base64DecodeString(jsonData.stdout.data);
+        messageBuffer += base64DecodeString(jsonData.stdout.data);
+        console.log('msgbuf', messageBuffer);
         messageBuffer += '\n';
-        this.notifications.add({
-          title: `Action ${action.name} Message Received`,
-          message: messageBuffer,
-          color: 'success',
-          code: true,
-          sticky: true,
-        });
+        notification.set('message', messageBuffer);
       } else if (jsonData.stderr && jsonData.stderr.data) {
         messageBuffer = base64DecodeString(jsonData.stderr.data);
         messageBuffer += '\n';
@@ -227,16 +243,16 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     socket.addEventListener('close', (event) => {
       console.log('WebSocket connection closed:', event);
-      this.notifications.add({
-        title: `Action ${action.name} Completed`,
-        message: messageBuffer || event.reason,
-        color: 'success',
-      });
-      messageBuffer = '';
     });
 
     socket.addEventListener('error', function (event) {
       console.error('WebSocket encountered an error:', event);
+      this.notifications.add({
+        title: `Error received from ${action.name}`,
+        message: event,
+        color: 'critical',
+        sticky: true,
+      });
     });
 
     return socket;

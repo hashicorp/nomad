@@ -313,7 +313,6 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 
 	err = h(ctx, req.Cmd, req.Tty, newExecStream(decoder, encoder))
 	if err != nil {
-		a.c.logger.Info("task exec session ended with an error in newStreamExec call", "error", err)
 		code := pointer.Of(int64(500))
 		return code, err
 	}

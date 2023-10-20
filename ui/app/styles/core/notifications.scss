@@ -21,11 +21,14 @@ section.notifications {
       color: white;
       display: block;
       padding: 0.25rem;
+      max-height: 400px;
+      overflow: auto;
       pre {
+        display: inline-block;
         background: inherit;
         color: inherit;
         border: none;
-        white-space: normal;
+        white-space: pre-wrap;
       }
     }
   }
