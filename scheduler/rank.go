@@ -500,6 +500,7 @@ OUTER:
 				cores, bandwidth := (&coreSelector{
 					topology:       option.Node.NodeResources.Processors.Topology,
 					availableCores: availableCores,
+					shuffle:        randomizeCores,
 				}).Select(task.Resources)
 
 				// mark the node as exhausted if not enough cores available given

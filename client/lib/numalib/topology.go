@@ -94,11 +94,32 @@ func (c Core) MHz() hw.MHz {
 }
 
 // SLIT (system locality information table) describes the relative cost for
-// accessing memory across each combination of NUMA boundary.
+// accessing memory across each combination of NUMA node boundary.
 type SLIT [][]Cost
 
 func (d SLIT) cost(a, b hw.NodeID) Cost {
 	return d[a][b]
+}
+
+func (st *Topology) NodeDistance(node hw.NodeID, core Core) Cost {
+	// todo(shoenig) we should memoize these values - they never change but
+	// they get used a lot in numa scheduling
+
+	// fast path, core is on node
+	if core.NodeID == node {
+		// return the distance to itself (100%)
+		return st.Distances.cost(node, node)
+	}
+
+	// find a core on node to compare with
+	for _, target := range st.Cores {
+		if target.NodeID == node {
+			return st.Distances.cost(target.NodeID, core.NodeID)
+		}
+	}
+
+	// should not be possible
+	panic("topology: no node distance")
 }
 
 // SupportsNUMA returns whether Nomad supports NUMA detection on the client's

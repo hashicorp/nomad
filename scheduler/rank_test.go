@@ -1385,6 +1385,9 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 				Resources: &structs.Resources{
 					Cores:    1,
 					MemoryMB: 1024,
+					NUMA: &structs.NUMA{
+						Affinity: "none",
+					},
 				},
 			},
 		},

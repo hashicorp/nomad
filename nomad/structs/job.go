@@ -117,3 +117,18 @@ func requiresConsulServiceDiscovery(services []*Service) bool {
 	}
 	return false
 }
+
+// RequiredNUMA identifies which task groups, if any, within the job contain
+// tasks requesting NUMA resources.
+func (j *Job) RequiredNUMA() set.Collection[string] {
+	result := set.New[string](10)
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.Resources != nil && task.Resources.NUMA.Requested() {
+				result.Insert(tg.Name)
+				break
+			}
+		}
+	}
+	return result
+}

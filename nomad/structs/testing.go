@@ -64,6 +64,82 @@ func MockBasicTopology() *numalib.Topology {
 	}
 }
 
+// MockWorkstationTopology returns a numalib.Topology that looks like a typical
+// workstation;
+// - 2 socket, 2 NUMA node (200% penalty)
+// - 16 cores / 32 threads @ 3000 MHz (96,000 MHz total)
+// - node0: odd cores, node1: even cores
+// - no client config overrides
+func MockWorkstationTopology() *numalib.Topology {
+	cores := make([]numalib.Core, 32)
+	for i := 0; i < 32; i++ {
+		cores[i] = numalib.Core{
+			SocketID:  hw.SocketID(i % 2),
+			NodeID:    hw.NodeID(i % 2),
+			ID:        hw.CoreID(i),
+			Grade:     numalib.Performance,
+			Disable:   false,
+			BaseSpeed: 3_000,
+		}
+	}
+	return &numalib.Topology{
+		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1}),
+		Distances: numalib.SLIT{[]numalib.Cost{10, 20}, {20, 10}},
+		Cores:     cores,
+	}
+}
+
+// MockR6aTopology returns a numalib.Topology that looks like an EC2 r6a.metal
+// instance type:
+// - 2 socket, 4 NUMA node
+// - 120% penalty for intra socket, 320% penalty for cross socket
+// - 192 logical cores @ 3731 MHz (716362)
+// - node0: 0-23, 96-119   (socket 0)
+// - node1: 24-47, 120-143 (socket 0)
+// - node2: 48-71, 144-167 (socket 1)
+// - node3: 72-95, 168-191 (socket 1)
+func MockR6aTopology() *numalib.Topology {
+	cores := make([]numalib.Core, 192)
+	makeCore := func(socketID hw.SocketID, nodeID hw.NodeID, id int) numalib.Core {
+		return numalib.Core{
+			SocketID:  socketID,
+			NodeID:    nodeID,
+			ID:        hw.CoreID(id),
+			Grade:     numalib.Performance,
+			BaseSpeed: 3731,
+		}
+	}
+	for i := 0; i <= 23; i++ {
+		cores[i] = makeCore(0, 0, i)
+		cores[i+96] = makeCore(0, 0, i+96)
+	}
+	for i := 24; i <= 47; i++ {
+		cores[i] = makeCore(0, 1, i)
+		cores[i+96] = makeCore(0, 1, i+96)
+	}
+	for i := 48; i <= 71; i++ {
+		cores[i] = makeCore(1, 2, i)
+		cores[i+96] = makeCore(1, 2, i+96)
+	}
+	for i := 72; i <= 95; i++ {
+		cores[i] = makeCore(1, 3, i)
+		cores[i+96] = makeCore(1, 3, i+96)
+	}
+
+	distances := numalib.SLIT{
+		[]numalib.Cost{10, 12, 32, 32},
+		[]numalib.Cost{12, 10, 32, 32},
+		[]numalib.Cost{32, 32, 10, 12},
+		[]numalib.Cost{32, 32, 12, 10},
+	}
+
+	return &numalib.Topology{
+		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2, 3}),
+		Distances: distances,
+		Cores:     cores,
+	}
+}
+
 func MockNode() *Node {
 	node := &Node{
 		ID:         uuid.Generate(),

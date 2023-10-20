@@ -1058,6 +1058,49 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
 		},
+		{
+			name: "task group with numa block",
+			inputJob: &structs.Job{
+				Name: "numa",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*structs.Task{
+							{
+								Resources: &structs.Resources{
+									NUMA: &structs.NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "numa",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Constraints: []*structs.Constraint{
+							numaVersionConstraint,
+							numaKernelConstraint,
+						},
+						Tasks: []*structs.Task{
+							{
+								Resources: &structs.Resources{
+									NUMA: &structs.NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
 	}
 
 	for _, tc := range testCases {
