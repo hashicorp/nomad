@@ -53,8 +53,9 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
 	http := fmt.Sprintf("http://127.0.0.1:%d", port)
 	root := fmt.Sprintf("-dev-root-token-id=%s", token)
+	log := fmt.Sprintf("-log-level=%s", testlog.HCLoggerTestLevel().String())
 
-	cmd := exec.Command(binary, "server", "-dev", bind, root)
+	cmd := exec.Command(binary, "server", "-dev", bind, root, log)
 	cmd.Stdout = testlog.NewWriter(t)
 	cmd.Stderr = testlog.NewWriter(t)
 
