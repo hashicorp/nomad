@@ -189,8 +189,8 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     socket.addEventListener('open', (event) => {
       notification = this.notifications
         .add({
-          title: `Action ${action.name} Message Received`,
-          color: 'success',
+          title: `Action ${action.name} Started`,
+          color: 'neutral',
           code: true,
           sticky: true,
           customAction: {
@@ -225,9 +225,10 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       let jsonData = JSON.parse(event.data);
       if (jsonData.stdout && jsonData.stdout.data) {
         messageBuffer += base64DecodeString(jsonData.stdout.data);
-        console.log('msgbuf', messageBuffer);
         messageBuffer += '\n';
+        messageBuffer = messageBuffer.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
         notification.set('message', messageBuffer);
+        notification.set('title', `Action ${action.name} Running`);
       } else if (jsonData.stderr && jsonData.stderr.data) {
         messageBuffer = base64DecodeString(jsonData.stderr.data);
         messageBuffer += '\n';
@@ -243,6 +244,8 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     socket.addEventListener('close', (event) => {
       console.log('WebSocket connection closed:', event);
+      notification.set('title', `Action ${action.name} Finished`);
+      notification.set('customAction', null);
     });
 
     socket.addEventListener('error', function (event) {
