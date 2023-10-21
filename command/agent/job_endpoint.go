@@ -248,10 +248,14 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	allAllocs, _ := strconv.ParseBool(req.URL.Query().Get("all"))
+	reverse, _ := strconv.ParseBool(req.URL.Query().Get("reverse"))
 
 	args := structs.JobSpecificRequest{
 		JobID: jobID,
 		All:   allAllocs,
+		QueryOptions: structs.QueryOptions {
+			Reverse: reverse,
+		},
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil

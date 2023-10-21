@@ -1551,6 +1551,13 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 				return err
 			}
 
+			sort.Slice(allocs,  func(i,j int) bool {
+				if (args.QueryOptions.Reverse) {
+					return allocs[i].ID > allocs[j].ID
+				}
+				return allocs[i].ID < allocs[j].ID
+			})
+
 			// Convert to stubs
 			if len(allocs) > 0 {
 				reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
