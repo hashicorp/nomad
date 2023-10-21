@@ -120,7 +120,13 @@ export default class Title extends Component {
     }
     try {
       const job = this.job;
-      yield job.runAction(action, allocID);
+      if (allocID === 'all') {
+        yield action.allocations.map((alloc) => {
+          return job.runAction(action, alloc.id);
+        });
+      } else {
+        yield job.runAction(action, allocID);
+      }
     } catch (err) {
       console.log('errr', err);
       this.notifications.add({

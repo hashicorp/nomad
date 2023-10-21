@@ -16,7 +16,6 @@
   </div>
   <div>
     {{#if (not (eq this.job.status "dead"))}}
-      {{!-- ACTIONS --}}
       {{#if this.job.actions.length}}
         <Hds::Dropdown class="actions-dropdown" as |dd|>
           <dd.ToggleButton @color="secondary" @text="Actions" />
@@ -25,17 +24,11 @@
               <dd.Separator />
               <dd.Title @text={{action.name}} />
               <dd.Interactive {{on "click" (perform this.runAction action null)}} @text="Run on a random alloc" />
-              <dd.Interactive {{on "click" (perform this.runAction action "random")}} @text="Run on all {{action.allocations.length}} allocs" />
+              <dd.Interactive {{on "click" (perform this.runAction action "all")}} @text="Run on all {{action.allocations.length}} allocs" />
             {{else}}
               <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 action.allocations) "id"))}} @text="{{action.name}}" />
             {{/if}}
           {{/each}}
-          {{!-- <dd.ToggleIcon @color="secondary" @icon="user-circle" @text="user menu" @size="small" data-test-header-profile-dropdown />
-          <dd.Title @text="Signed In" />
-          <dd.Description @text={{this.token.selfToken.name}} />
-          <dd.Separator />
-          <dd.Interactive @route="settings.tokens" @text="Profile" data-test-profile-dropdown-profile-link />
-          <dd.Interactive {{on "click" this.signOut}} @text="Sign Out" @color="critical" data-test-profile-dropdown-sign-out-link /> --}}
         </Hds::Dropdown>
 
       {{/if}}
