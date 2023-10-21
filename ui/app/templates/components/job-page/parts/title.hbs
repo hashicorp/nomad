@@ -24,7 +24,7 @@
             {{#if (gt action.allocations.length 1)}}
               <dd.Separator />
               <dd.Title @text={{action.name}} />
-              <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 action.allocations) "id"))}} @text="Run on a random alloc" />
+              <dd.Interactive {{on "click" (perform this.runAction action null)}} @text="Run on a random alloc" />
               <dd.Interactive {{on "click" (perform this.runAction action "random")}} @text="Run on all {{action.allocations.length}} allocs" />
             {{else}}
               <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 action.allocations) "id"))}} @text="{{action.name}}" />

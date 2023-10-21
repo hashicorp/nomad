@@ -112,6 +112,12 @@ export default class Title extends Component {
    * @param {Event} ev - The event that triggered the action
    */
   @task(function* (action, allocID, ev) {
+    if (!allocID) {
+      allocID =
+        action.allocations[
+          Math.floor(Math.random() * action.allocations.length)
+        ].id;
+    }
     try {
       const job = this.job;
       yield job.runAction(action, allocID);
