@@ -6,6 +6,7 @@ package structs
 import (
 	"crypto/ed25519"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
@@ -21,6 +22,9 @@ const (
 	// PubKeyUseSig is the JWK (JSON Web Key) "use" parameter value for
 	// signatures.
 	PubKeyUseSig = "sig"
+
+	// JWKSPath is the path component of the URL to Nomad's JWKS endpoint.
+	JWKSPath = "/.well-known/jwks.json"
 )
 
 // RootKey is used to encrypt and decrypt variables. It is never stored in raft.
@@ -305,4 +309,48 @@ func (pubKey *KeyringPublicKey) GetPublicKey() (any, error) {
 	default:
 		return nil, fmt.Errorf("unknown algorithm: %q", alg)
 	}
+}
+
+// KeyringGetConfigResponse is the response for Keyring.GetConfig RPCs.
+type KeyringGetConfigResponse struct {
+	OIDCDiscovery *OIDCDiscoveryConfig
+}
+
+// OIDCDiscoveryConfig represents the response to OIDC Discovery requests
+// usually at: /.well-known/openid-configuration
+//
+// Only the fields Nomad uses are implemented since many fields in the
+// specification are not relevant to Nomad's use case:
+// https://openid.net/specs/openid-connect-discovery-1_0.html
+type OIDCDiscoveryConfig struct {
+	Issuer        string   `json:"issuer"`
+	JWKS          string   `json:"jwks_uri"`
+	IDTokenAlgs   []string `json:"id_token_signing_alg_values_supported"`
+	ResponseTypes []string `json:"response_types_supported"`
+	Subjects      []string `json:"subject_types_supported"`
+}
+
+// NewOIDCDiscoveryConfig returns a populated OIDCDiscoveryConfig or an error.
+func NewOIDCDiscoveryConfig(issuer string) (*OIDCDiscoveryConfig, error) {
+	if issuer == "" {
+		// url.JoinPath doesn't mind empty strings, so check for it specifically.
+		// Likely a programming error as we shouldn't even be trying to create OIDC
+		// Discovery configurations without an issuer explicitly set.
+		return nil, fmt.Errorf("issuer must not be empty")
+	}
+
+	jwksURL, err := url.JoinPath(issuer, JWKSPath)
+	if err != nil {
+		return nil, fmt.Errorf("error determining jwks path: %w", err)
+	}
+
+	disc := &OIDCDiscoveryConfig{
+		Issuer:        issuer,
+		JWKS:          jwksURL,
+		IDTokenAlgs:   []string{PubKeyAlgEdDSA},
+		ResponseTypes: []string{"code"},
+		Subjects:      []string{"public"},
+	}
+
+	return disc, nil
 }

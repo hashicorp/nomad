@@ -358,6 +358,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.JobTrackedVersions = *agentConfig.Server.JobTrackedVersions
 	}
 
+	conf.OIDCIssuer = agentConfig.Server.OIDCIssuer
+
 	// Set up the bind addresses
 	rpcAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.RPC)
 	if err != nil {

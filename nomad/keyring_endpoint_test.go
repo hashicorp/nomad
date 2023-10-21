@@ -357,3 +357,56 @@ func TestKeyringEndpoint_ListPublic(t *testing.T) {
 	}
 	must.True(t, found, must.Sprint("original public key missing after rotation"))
 }
+
+// TestKeyringEndpoint_GetConfig_Issuer asserts that GetConfig returns OIDC
+// Discovery Configuration if an issuer is configured.
+func TestKeyringEndpoint_GetConfig_Issuer(t *testing.T) {
+	ci.Parallel(t)
+
+	// Set OIDCIssuer to a valid looking (but fake) issuer
+	const testIssuer = "https://oidc.test.nomadproject.io/"
+
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+
+		c.OIDCIssuer = testIssuer
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+	codec := rpcClient(t, srv)
+
+	req := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: "ignored!",
+		},
+	}
+	var resp structs.KeyringGetConfigResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.GetConfig", &req, &resp))
+	must.NotNil(t, resp.OIDCDiscovery)
+	must.Eq(t, testIssuer, resp.OIDCDiscovery.Issuer)
+	must.StrHasPrefix(t, testIssuer, resp.OIDCDiscovery.JWKS)
+}
+
+// TestKeyringEndpoint_GetConfig_Disabled asserts that GetConfig returns
+// nothing if an issuer is NOT configured. OIDC Discovery cannot work without
+// an issuer set, and there's no sensible default for Nomad to choose.
+func TestKeyringEndpoint_GetConfig_Disabled(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+	codec := rpcClient(t, srv)
+
+	req := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: "ignored!",
+		},
+	}
+	var resp structs.KeyringGetConfigResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.GetConfig", &req, &resp))
+	must.Nil(t, resp.OIDCDiscovery)
+}

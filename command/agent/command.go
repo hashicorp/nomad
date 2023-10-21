@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -482,6 +483,19 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		}
 		if config.Server.Enabled && config.Server.BootstrapExpect%2 == 0 {
 			c.Ui.Error("WARNING: Number of bootstrap servers should ideally be set to an odd number.")
+		}
+
+		// Check OIDC Issuer if set
+		if config.Server.Enabled && config.Server.OIDCIssuer != "" {
+			issuerURL, err := url.Parse(config.Server.OIDCIssuer)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf(`Error using server.oidc_issuer = "%s" as a base URL: %s`, config.Server.OIDCIssuer, err))
+				return false
+			}
+
+			if issuerURL.Scheme != "https" {
+				c.Ui.Warn(fmt.Sprintf(`server.oidc_issuer = "%s" is not using https. Many OIDC implementations require https.`, config.Server.OIDCIssuer))
+			}
 		}
 	}
 

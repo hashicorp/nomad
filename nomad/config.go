@@ -431,6 +431,11 @@ type Config struct {
 	JobTrackedVersions int
 
 	Reporting *config.ReportingConfig
+
+	// OIDCIssuer is the URL for the OIDC Issuer field in Workload Identity JWTs.
+	// If this is not configured the /.well-known/openid-configuration endpoint
+	// will not be available.
+	OIDCIssuer string
 }
 
 func (c *Config) Copy() *Config {

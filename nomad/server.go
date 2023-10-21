@@ -291,6 +291,15 @@ type Server struct {
 	// dependencies.
 	reportingManager *reporting.Manager
 
+	// oidcDisco is the OIDC Discovery configuration to be returned by the
+	// Keyring.GetConfig RPC and /.well-known/openid-configuration HTTP API.
+	//
+	// The issuer and jwks url are user configurable and therefore the struct is
+	// initialized when NewServer is setup.
+	//
+	// MAY BE nil! Issuer must be explicitly configured by the end user.
+	oidcDisco *structs.OIDCDiscoveryConfig
+
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
 
@@ -407,9 +416,22 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	}
 	s.encrypter = encrypter
 
-	// Set up the OIDC provider cache. This is needed by the setupRPC, but must
-	// be done separately so that the server can stop all background processes
-	// when it shuts down itself.
+	// Set up the OIDC discovery configuration required by third parties, such as
+	// AWS's IAM OIDC Provider, to authenticate workload identity JWTs.
+	if iss := config.OIDCIssuer; iss != "" {
+		oidcDisco, err := structs.NewOIDCDiscoveryConfig(iss)
+		if err != nil {
+			return nil, err
+		}
+		s.oidcDisco = oidcDisco
+		s.logger.Info("issuer set; OIDC Discovery endpoint for workload identities enabled", "issuer", iss)
+	} else {
+		s.logger.Debug("issuer not set; OIDC Discovery endpoint for workload identities disabled")
+	}
+
+	// Set up the SSO OIDC provider cache. This is needed by the setupRPC, but
+	// must be done separately so that the server can stop all background
+	// processes when it shuts down itself.
 	s.oidcProviderCache = oidc.NewProviderCache()
 
 	// Initialize the RPC layer

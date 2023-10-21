@@ -77,6 +77,31 @@ func (s *HTTPServer) JWKSRequest(resp http.ResponseWriter, req *http.Request) (a
 	return out, nil
 }
 
+// OIDCDiscoveryRequest implements the OIDC Discovery protocol for using
+// workload identity JWTs with external services.
+//
+// See https://openid.net/specs/openid-connect-discovery-1_0.html for details.
+func (s *HTTPServer) OIDCDiscoveryRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	args := structs.GenericRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+	var rpcReply structs.KeyringGetConfigResponse
+	if err := s.agent.RPC("Keyring.GetConfig", &args, &rpcReply); err != nil {
+		return nil, err
+	}
+
+	if rpcReply.OIDCDiscovery == nil {
+		return nil, CodedError(http.StatusNotFound, "OIDC Discovery endpoint disabled")
+	}
+
+	return rpcReply.OIDCDiscovery, nil
+}
+
 // KeyringRequest is used route operator/raft API requests to the implementing
 // functions.
 func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

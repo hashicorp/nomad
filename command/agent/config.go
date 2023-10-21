@@ -701,6 +701,11 @@ type ServerConfig struct {
 
 	// JobTrackedVersions is the number of historic job versions that are kept.
 	JobTrackedVersions *int `hcl:"job_tracked_versions"`
+
+	// OIDCIssuer if set enables OIDC Discovery and uses this value as the
+	// issuer. Third parties such as AWS IAM OIDC Provider expect the issuer to
+	// be a publically accessible HTTPS URL signed by a trusted well-known CA.
+	OIDCIssuer string `hcl:"oidc_issuer"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -2119,6 +2124,10 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 	if b.JobTrackedVersions != nil {
 		result.JobTrackedVersions = b.JobTrackedVersions
+	}
+
+	if b.OIDCIssuer != "" {
+		result.OIDCIssuer = b.OIDCIssuer
 	}
 
 	// Add the schedulers

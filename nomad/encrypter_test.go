@@ -47,8 +47,13 @@ func (s *mockSigner) SignClaims(c *structs.IdentityClaims) (token, keyID string,
 func TestEncrypter_LoadSave(t *testing.T) {
 	ci.Parallel(t)
 
+	srv, cleanupSrv := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	t.Cleanup(cleanupSrv)
+
 	tmpDir := t.TempDir()
-	encrypter, err := NewEncrypter(&Server{shutdownCtx: context.Background()}, tmpDir)
+	encrypter, err := NewEncrypter(srv, tmpDir)
 	require.NoError(t, err)
 
 	algos := []structs.EncryptionAlgorithm{
@@ -394,11 +399,45 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	require.NoError(t, err)
 
 	got, err := e.VerifyClaim(out)
+	must.NoError(t, err)
+	must.NotNil(t, got)
+	must.Eq(t, alloc.ID, got.AllocationID)
+	must.Eq(t, alloc.JobID, got.JobID)
+	must.Eq(t, "web", got.TaskName)
+
+	// By default an issuer should not be set. See _Issuer test.
+	must.Eq(t, "", got.Issuer)
+}
+
+// TestEncrypter_SignVerify_Issuer asserts that the signer adds an issuer if it
+// is configured.
+func TestEncrypter_SignVerify_Issuer(t *testing.T) {
+	// Set OIDCIssuer to a valid looking (but fake) issuer
+	const testIssuer = "https://oidc.test.nomadproject.io"
+
+	ci.Parallel(t)
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+
+		c.OIDCIssuer = testIssuer
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	alloc := mock.Alloc()
+	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
+	e := srv.encrypter
+
+	out, _, err := e.SignClaims(claims)
 	require.NoError(t, err)
-	require.NotNil(t, got)
-	require.Equal(t, alloc.ID, got.AllocationID)
-	require.Equal(t, alloc.JobID, got.JobID)
-	require.Equal(t, "web", got.TaskName)
+
+	got, err := e.VerifyClaim(out)
+	must.NoError(t, err)
+	must.NotNil(t, got)
+	must.Eq(t, alloc.ID, got.AllocationID)
+	must.Eq(t, alloc.JobID, got.JobID)
+	must.Eq(t, "web", got.TaskName)
+	must.Eq(t, testIssuer, got.Issuer)
 }
 
 func TestEncrypter_SignVerify_AlgNone(t *testing.T) {

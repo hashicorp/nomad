@@ -412,3 +412,24 @@ func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.Keyrin
 	}
 	return k.srv.blockingRPC(&opts)
 }
+
+// GetConfig for workload identities. This RPC is used to back an OIDC
+// Discovery endpoint.
+//
+// Unauthenticated because OIDC Discovery endpoints must be publically
+// available.
+func (k *Keyring) GetConfig(args *structs.GenericRequest, reply *structs.KeyringGetConfigResponse) error {
+
+	// JWKS is a public endpoint: intentionally ignore auth errors and only
+	// authenticate to measure rate metrics.
+	k.srv.Authenticate(k.ctx, args)
+	if done, err := k.srv.forward("Keyring.GetConfig", args, args, reply); done {
+		return err
+	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricList, args)
+
+	defer metrics.MeasureSince([]string{"nomad", "keyring", "get_config"}, time.Now())
+
+	reply.OIDCDiscovery = k.srv.oidcDisco
+	return nil
+}
