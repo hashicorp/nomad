@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 // placementResult is an allocation that must be placed. It potentially has a
@@ -303,7 +302,8 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		// Terminal allocs, if not reconnect, are always untainted as they
 		// should never be migrated.
 		if alloc.TerminalStatus() && !reconnect {
-			untainted[alloc.ID] = alloc
+			//untainted[alloc.ID] = alloc
+			ignore[alloc.ID] = alloc
 			continue
 		}
 
@@ -375,8 +375,6 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 	rescheduleNow := make(map[string]*structs.Allocation)
 	rescheduleLater := []*delayedRescheduleInfo{}
 
-	// When filtering disconnected sets, the untainted set is never populated.
-	// It has no purpose in that context.
 	for _, alloc := range a {
 		// Ignore disconnecting allocs that are already unknown. This can happen
 		// in the case of canaries that are interrupted by a disconnect.
@@ -395,9 +393,9 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		}
 
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
-		/* if isUntainted && !isDisconnecting {
+		if isUntainted && !isDisconnecting {
 			untainted[alloc.ID] = alloc
-		} */
+		}
 
 		if ignore {
 			continue
@@ -411,14 +409,12 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 
 		// If the failed alloc is not eligible for rescheduling now we
 		// add it to the untainted set.
-		if isUntainted {
-			untainted[alloc.ID] = alloc
+		untainted[alloc.ID] = alloc
 
-			//Disconnecting delay evals are handled by allocReconciler.createTimeoutLaterEvals
-			if eligibleLater {
-				rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
-			}
+		if eligibleLater {
+			rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
 		}
+
 	}
 	return untainted, rescheduleNow, rescheduleLater
 }
@@ -445,6 +441,7 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 			if alloc.RanSuccessfully() {
 				return true, false
 			}
+
 			return false, true
 		case structs.AllocDesiredStatusEvict:
 			return false, true
@@ -468,18 +465,8 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	case structs.AllocClientStatusComplete, structs.AllocClientStatusLost:
 		return false, true
 	}
+
 	return false, false
-}
-
-func getTimeOfLatestAllocEvent(event string, as []*structs.AllocState) time.Time {
-	slices.Reverse(as)
-	for i := len(as) - 1; i >= 0; i-- {
-		if as[i].Value == event {
-			return as[i].Time
-		}
-	}
-
-	return time.Time{}
 }
 
 // updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
@@ -501,9 +488,11 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 	switch {
 	case isDisconnecting:
 		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(now)
-	case alloc.ClientStatus == structs.AllocClientStatusUnknown:
-		lastDisconnectTime := getTimeOfLatestAllocEvent(structs.AllocClientStatusUnknown, alloc.AllocStates)
+
+	case alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.FollowupEvalID == evalID:
+		lastDisconnectTime := alloc.LastUnknown()
 		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(lastDisconnectTime)
+
 	default:
 		rescheduleTime, eligible = alloc.NextRescheduleTime()
 	}
