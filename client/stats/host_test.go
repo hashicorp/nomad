@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shoenig/test/must"
 )
 
 func TestHostCpuStatsCalculator_Nan(t *testing.T) {
@@ -20,16 +21,34 @@ func TestHostCpuStatsCalculator_Nan(t *testing.T) {
 	calculator.Calculate(times)
 	idle, user, system, total := calculator.Calculate(times)
 
-	if idle != 100.0 {
-		t.Errorf("idle: Expected: %f, Got %f", 100.0, idle)
+	must.Eq(t, 100.0, idle, must.Sprint("unexpected idle stats"))
+	must.Eq(t, 0.0, user, must.Sprint("unexpected user stats"))
+	must.Eq(t, 0.0, system, must.Sprint("unexpected system stats"))
+	must.Eq(t, 0.0, total, must.Sprint("unexpected total stats"))
+}
+
+func TestHostCpuStatsCalculator_DecreasedIOWait(t *testing.T) {
+	times := cpu.TimesStat{
+		CPU:    "cpu0",
+		User:   20000,
+		Nice:   100,
+		System: 9000,
+		Idle:   370000,
+		Iowait: 700,
 	}
-	if user != 0.0 {
-		t.Errorf("user: Expected: %f, Got %f", 0.0, user)
+
+	calculator := NewHostCpuStatsCalculator()
+	calculator.Calculate(times)
+
+	times = cpu.TimesStat{
+		CPU:    "cpu0",
+		User:   20000,
+		Nice:   100,
+		System: 9000,
+		Idle:   380000,
+		Iowait: 600,
 	}
-	if system != 0.0 {
-		t.Errorf("system: Expected: %f, Got %f", 0.0, system)
-	}
-	if total != 0.0 {
-		t.Errorf("total: Expected: %f, Got %f", 0.0, total)
-	}
+
+	_, _, _, total := calculator.Calculate(times)
+	must.GreaterEq(t, 0.0, total, must.Sprint("total must never be negative"))
 }
