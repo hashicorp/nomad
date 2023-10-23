@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
@@ -188,7 +189,7 @@ func TestPlanCommand_From_Files(t *testing.T) {
 	s := testutil.NewTestServer(t, func(c *testutil.TestServerConfig) {
 		c.Vault.Address = v.HTTPAddr
 		c.Vault.Enabled = true
-		c.Vault.AllowUnauthenticated = false
+		c.Vault.AllowUnauthenticated = pointer.Of(false)
 		c.Vault.Token = v.RootToken
 	})
 	defer s.Stop()
