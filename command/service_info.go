@@ -114,14 +114,44 @@ func (s *ServiceInfoCommand) Run(args []string) int {
 		return 1
 	}
 
+	ns := s.Meta.namespace
+	serviceID := args[0]
+
 	// Set up the options to capture any filter passed.
 	opts := api.QueryOptions{
 		Filter:    filter,
-		PerPage:   int32(perPage),
-		NextToken: pageToken,
+		Prefix:    serviceID,
+		Namespace: ns,
+	}
+	services, _, err := client.Services().List(&opts)
+	if err != nil {
+		s.Ui.Error(fmt.Sprintf("Error listing service registrations: %s", err))
+		return 1
+	}
+	switch len(services) {
+	case 0:
+		s.Ui.Error(fmt.Sprintf("No service registrations with prefix %q found", serviceID))
+		return 1
+	case 1:
+		ns = services[0].Namespace
+		if len(services[0].Services) > 0 { // should always be valid
+			serviceID = services[0].Services[0].ServiceName
+		}
+	default:
+		s.Ui.Error(fmt.Sprintf("Prefix matched multiple services\n\n%s",
+			formatServiceListOutput(s.Meta.namespace, services)))
+		return 1
 	}
 
-	serviceInfo, qm, err := client.Services().Get(args[0], &opts)
+	// Set up the options to capture any filter passed.
+	opts = api.QueryOptions{
+		Filter:    filter,
+		PerPage:   int32(perPage),
+		NextToken: pageToken,
+		Namespace: ns,
+	}
+
+	serviceInfo, qm, err := client.Services().Get(serviceID, &opts)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error listing service registrations: %s", err))
 		return 1
