@@ -135,6 +135,7 @@ const (
 )
 
 const (
+
 	// SystemInitializationType is used for messages that initialize parts of
 	// the system, such as the state store. These messages are not included in
 	// the event stream.
@@ -10895,6 +10896,11 @@ func (a *Allocation) MigrateStrategy() *MigrateStrategy {
 func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	failTime := a.LastEventTime()
 	reschedulePolicy := a.ReschedulePolicy()
+
+	if reschedulePolicy.Attempts == 0 && reschedulePolicy.Unlimited {
+		return time.Time{}, false
+	}
+
 	if a.DesiredStatus == AllocDesiredStatusStop || a.ClientStatus != AllocClientStatusFailed || failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false
 	}
@@ -11223,7 +11229,7 @@ func (a *Allocation) Expired(now time.Time) bool {
 	}
 
 	expiry := lastUnknown.Add(*tg.MaxClientDisconnect)
-	return now.UTC().After(expiry) || now.UTC().Equal(expiry)
+	return expiry.Sub(now) <= 0
 }
 
 // LastUnknown returns the timestamp for the last time the allocation
