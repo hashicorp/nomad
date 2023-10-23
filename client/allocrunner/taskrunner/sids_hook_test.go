@@ -11,19 +11,23 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	consulapi "github.com/hashicorp/nomad/client/consul"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
@@ -311,4 +315,42 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 	token, err := os.ReadFile(tokenPath)
 	r.NoError(err)
 	r.Empty(token)
+}
+
+// TestSIDSHook_WIBypass exercises the code path where we skip deriving SI
+// tokens if we already have Consul tokens in the alloc hook resources (from WI)
+func TestSIDSHook_WIBypass(t *testing.T) {
+	ci.Parallel(t)
+
+	resources := cstructs.NewAllocHookResources()
+	resources.SetConsulTokens(map[string]map[string]string{
+		"default": {
+			"consul_service_": uuid.Generate(),
+		},
+	})
+
+	alloc := mock.ConnectAlloc()
+	taskName, taskKind := sidecar("web")
+	task := &structs.Task{Name: taskName, Kind: taskKind}
+
+	sidsClient := consulapi.NewMockServiceIdentitiesClient()
+	sidsClient.SetDeriveTokenError(alloc.ID, []string{"web"}, errors.New("should never call"))
+
+	h := newSIDSHook(sidsHookConfig{
+		alloc:              alloc,
+		task:               task,
+		sidsClient:         sidsClient,
+		lifecycle:          nil,
+		logger:             testlog.HCLogger(t),
+		allocHookResources: resources,
+	})
+
+	ctx := context.Background()
+	req := &interfaces.TaskPrestartRequest{
+		Task:    task,
+		TaskDir: &allocdir.TaskDir{SecretsDir: t.TempDir()},
+	}
+	resp := &interfaces.TaskPrestartResponse{}
+	must.NoError(t, h.Prestart(ctx, req, resp))
+	must.True(t, resp.Done)
 }
