@@ -56,6 +56,10 @@ job "docs" {
             ignore_warnings = false
           }
         }
+
+        identity {
+          aud = ["consul.io"]
+        }
       }
     }
   }
@@ -91,6 +95,12 @@ Connect][connect] integration.
 
 - `connect` - Configures the [Consul Connect][connect] integration. Only
   available on group services and where `provider = "consul"`.
+
+- `identity` <code>([Identity][identity_block]: nil)</code> - Specifies a
+  Workload Identity to use when obtaining Service Identity tokens from Consul to
+  register the service. Only available where `provider = "consul"`. Typically
+  this can be omitted so that Nomad will fall back to the server's
+  [`consul.service_identity`][] block.
 
 - `name` `(string: "<job>-<taskgroup>-<task>")` - Specifies the name this service
   will be advertised as in Consul. If not supplied, this will default to the
@@ -524,3 +534,5 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [on_update]: /nomad/docs/job-specification/service#on_update
 [tagged_addresses]: /consul/docs/discovery/services#tagged-addresses
 [`consul.name`]: /nomad/docs/configuration/consul#name
+[`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
+[identity_block]: /nomad/docs/job-specification/identity
