@@ -3127,35 +3127,6 @@ type NodeResources struct {
 	MaxDynamicPort int
 }
 
-// Compatibility will translate the LegacyNodeCpuResources into NodeProcessor
-// Resources, or the other way around as needed.
-func (n *NodeResources) Compatibility() {
-	// If resources are not set there is nothing to do.
-	if n == nil {
-		return
-	}
-
-	// Copy values from n.Processors to n.Cpu for compatibility
-	//
-	// COMPAT: added in Nomad 1.7; can be removed in 1.9+
-	if n.Processors.Topology == nil && !n.Cpu.empty() {
-		// When we receive a node update from a pre-1.7 client it contains only
-		// the LegacyNodeCpuResources field, and so we synthesize a pseudo
-		// NodeProcessorResources field
-		n.Processors.Topology = topologyFromLegacy(n.Cpu)
-	} else if !n.Processors.empty() {
-		// When we receive a node update from a 1.7+ client it contains a
-		// NodeProcessorResources field, and we populate the LegacyNodeCpuResources
-		// field using that information.
-		n.Cpu.CpuShares = int64(n.Processors.TotalCompute())
-		n.Cpu.TotalCpuCores = uint16(n.Processors.Topology.UsableCores().Size())
-		cores := n.Processors.Topology.UsableCores().Slice()
-		n.Cpu.ReservableCpuCores = helper.ConvertSlice(cores, func(coreID hw.CoreID) uint16 {
-			return uint16(coreID)
-		})
-	}
-}
-
 func (n *NodeResources) Copy() *NodeResources {
 	if n == nil {
 		return nil
