@@ -6,11 +6,17 @@ description: The rsadecrypt function decrypts an RSA-encrypted message.
 
 # `rsadecrypt` Function
 
--> **Deprecated:** This function is deprecated and may be removed in the
-future. While it is possible to use safely, it encourages use of cryptographic
-primitives with [known weaknesses][attacks]. [Nomad Variables][nvars] and
-[HashiCorp Vault][vault] are the recommended ways to provide secrets to
-workloads.
+<Note title="Deprecated">
+This function is deprecated and may be removed in the future.
+</Note>
+
+<Warning>
+While it is possible to use safely, it encourages use of cryptographic
+primitives with <a href="https://en.wikipedia.org/wiki/PKCS_1#Attacks">known
+weaknesses</a>. <a href="/nomad/docs/concepts/variables">Nomad Variables</a>
+and <a href="/nomad/docs/integrations/vault-integration">HashiCorp Vault</a> are
+the recommended ways to provide secrets to workloads.
+</Warning>
 
 `rsadecrypt` decrypts an RSA-encrypted ciphertext, returning the corresponding
 cleartext.
@@ -36,7 +42,3 @@ negotiated out-of-band.
 > rsadecrypt(base64(file("${path.folder}/ciphertext")), file("privatekey.pem"))
 Hello, world!
 ```
-
-[attacks]: https://en.wikipedia.org/wiki/PKCS_1#Attacks
-[nvars]: /nomad/docs/concepts/variables
-[vault]: /nomad/docs/integrations/vault-integration
