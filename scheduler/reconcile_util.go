@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -583,24 +584,36 @@ type allocNameIndex struct {
 	job, taskGroup string
 	count          int
 	b              structs.Bitmap
+
+	// duplicates is used to store duplicate allocation indexes which are
+	// currently present within the index tracking. The map key is the index,
+	// and the current count of duplicates. While the map is only accessed
+	// within a single routine, lock is used for access to provide future-proof
+	// safety at a very small overhead.
+	duplicates map[uint]int
+	lock       sync.RWMutex
 }
 
 // newAllocNameIndex returns an allocNameIndex for use in selecting names of
 // allocations to create or stop. It takes the job and task group name, desired
 // count and any existing allocations as input.
 func newAllocNameIndex(job, taskGroup string, count int, in allocSet) *allocNameIndex {
+
+	bitMap, duplicates := bitmapFrom(in, uint(count))
+
 	return &allocNameIndex{
-		count:     count,
-		b:         bitmapFrom(in, uint(count)),
-		job:       job,
-		taskGroup: taskGroup,
+		count:      count,
+		b:          bitMap,
+		job:        job,
+		taskGroup:  taskGroup,
+		duplicates: duplicates,
 	}
 }
 
 // bitmapFrom creates a bitmap from the given allocation set and a minimum size
 // maybe given. The size of the bitmap is as the larger of the passed minimum
 // and the maximum alloc index of the passed input (byte aligned).
-func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
+func bitmapFrom(input allocSet, minSize uint) (structs.Bitmap, map[uint]int) {
 	var max uint
 	for _, a := range input {
 		if num := a.Index(); num > max {
@@ -635,11 +648,25 @@ func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 		panic(err)
 	}
 
+	// Initialize our duplicates mapping, allowing us to store a non-nil map
+	// at the cost of 48 bytes.
+	duplicates := make(map[uint]int)
+
+	// Iterate through the allocSet input and hydrate the bitmap. We check that
+	// the bitmap does not contain the index first, so we can track duplicate
+	// entries.
 	for _, a := range input {
-		bitmap.Set(a.Index())
+
+		allocIndex := a.Index()
+
+		if bitmap.Check(allocIndex) {
+			duplicates[allocIndex]++
+		} else {
+			bitmap.Set(allocIndex)
+		}
 	}
 
-	return bitmap
+	return bitmap, duplicates
 }
 
 // Highest removes and returns the highest n used names. The returned set
@@ -658,9 +685,45 @@ func (a *allocNameIndex) Highest(n uint) map[string]struct{} {
 	return h
 }
 
+// IsDuplicate
+func (a *allocNameIndex) IsDuplicate(idx uint) bool {
+	a.lock.RLock()
+	defer a.lock.RUnlock()
+
+	_, ok := a.duplicates[idx]
+	return ok
+}
+
+// Set sets the indexes from the passed alloc set as used
+func (a *allocNameIndex) Set(set allocSet) {
+	for _, alloc := range set {
+
+		idx := alloc.Index()
+
+		if !a.b.Check(idx) {
+			a.lock.Lock()
+			a.duplicates[idx]++
+			a.lock.Unlock()
+		} else {
+			a.b.Set(idx)
+		}
+	}
+}
+
 // UnsetIndex unsets the index as having its name used
 func (a *allocNameIndex) UnsetIndex(idx uint) {
-	a.b.Unset(idx)
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
+	// If this index is a duplicate, remove the duplicate entry. Otherwise, we
+	// can remove it from the bitmap tracking.
+	if num, ok := a.duplicates[idx]; ok {
+		if num--; num == 0 {
+			delete(a.duplicates, idx)
+		}
+	} else {
+		a.b.Unset(idx)
+	}
 }
 
 // NextCanaries returns the next n names for use as canaries and sets them as
@@ -673,7 +736,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 
 	// First select indexes from the allocations that are undergoing destructive
 	// updates. This way we avoid duplicate names as they will get replaced.
-	dmap := bitmapFrom(destructive, uint(a.count))
+	dmap, _ := bitmapFrom(destructive, uint(a.count))
 	remainder := n
 	for _, idx := range dmap.IndexesInRange(true, uint(0), uint(a.count)-1) {
 		name := structs.AllocName(a.job, a.taskGroup, uint(idx))

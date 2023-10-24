@@ -141,6 +141,9 @@ type reconcileResults struct {
 	// desiredFollowupEvals is the map of follow up evaluations to create per task group
 	// This is used to create a delayed evaluation for rescheduling failed allocations.
 	desiredFollowupEvals map[string][]*structs.Evaluation
+
+	// taskGroupAllocNameIndexes
+	taskGroupAllocNameIndexes map[string]*allocNameIndex
 }
 
 // delayedRescheduleInfo contains the allocation id and a time when its eligible to be rescheduled.
@@ -193,11 +196,12 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 		supportsDisconnectedClients: supportsDisconnectedClients,
 		now:                         time.Now(),
 		result: &reconcileResults{
-			attributeUpdates:     make(map[string]*structs.Allocation),
-			disconnectUpdates:    make(map[string]*structs.Allocation),
-			reconnectUpdates:     make(map[string]*structs.Allocation),
-			desiredTGUpdates:     make(map[string]*structs.DesiredUpdates),
-			desiredFollowupEvals: make(map[string][]*structs.Evaluation),
+			attributeUpdates:          make(map[string]*structs.Allocation),
+			disconnectUpdates:         make(map[string]*structs.Allocation),
+			reconnectUpdates:          make(map[string]*structs.Allocation),
+			desiredTGUpdates:          make(map[string]*structs.DesiredUpdates),
+			desiredFollowupEvals:      make(map[string][]*structs.Evaluation),
+			taskGroupAllocNameIndexes: make(map[string]*allocNameIndex),
 		},
 	}
 }
@@ -481,6 +485,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// which is the union of untainted, rescheduled, allocs on migrating
 	// nodes, and allocs on down nodes (includes canaries)
 	nameIndex := newAllocNameIndex(a.jobID, groupName, tg.Count, untainted.union(migrate, rescheduleNow, lost))
+	a.result.taskGroupAllocNameIndexes[groupName] = nameIndex
 
 	// Stop any unneeded allocations and update the untainted set to not
 	// include stopped allocations.
@@ -969,6 +974,9 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	}
 
 	// Hot path the nothing to do case
+	//
+	// NonBuggy: Untainted = "?" and GroupCount = "?"
+	// YesBuggy: Untainted = "?" and GroupCount = "?"
 	remove := len(untainted) + len(migrate) - group.Count
 	if remove <= 0 {
 		return stop
