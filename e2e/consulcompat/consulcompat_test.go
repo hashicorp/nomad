@@ -7,6 +7,8 @@ import (
 	"os"
 	"syscall"
 	"testing"
+
+	"github.com/hashicorp/nomad/client/testutil"
 )
 
 const (
@@ -21,6 +23,7 @@ func TestConsulCompat(t *testing.T) {
 	if syscall.Geteuid() != 0 {
 		t.Skip("must be run as root so that clients can run Docker tasks")
 	}
+	testutil.RequireLinux(t)
 
 	t.Run("testConsulVersions", func(t *testing.T) {
 		baseDir := os.Getenv(envTempDir)
