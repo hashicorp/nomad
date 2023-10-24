@@ -564,10 +564,13 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 	// never saw a node with the given computed class and thus needs to be
 	// unblocked for correctness.
 	for id, wrapped := range b.captured {
-		if quota != "" && wrapped.eval.QuotaLimitReached != quota {
+		if quota != "" &&
+			wrapped.eval.QuotaLimitReached != "" &&
+			wrapped.eval.QuotaLimitReached != quota {
 			// We are unblocking based on quota and this eval doesn't match
 			continue
-		} else if elig, ok := wrapped.eval.ClassEligibility[computedClass]; ok && !elig {
+		}
+		if elig, ok := wrapped.eval.ClassEligibility[computedClass]; ok && !elig {
 			// Can skip because the eval has explicitly marked the node class
 			// as ineligible.
 			continue
