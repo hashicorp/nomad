@@ -17,8 +17,7 @@ import (
 
 func testConsulBuildLegacy(t *testing.T, b build, baseDir string) {
 	t.Run("consul-legacy("+b.Version+")", func(t *testing.T) {
-		cStop, consulHTTPAddr, consulAPI := startConsul(t, b, baseDir, "")
-		t.Cleanup(func() { cStop() })
+		consulHTTPAddr, consulAPI := startConsul(t, b, baseDir, "")
 
 		// smoke test before we continue
 		verifyConsulVersion(t, consulAPI, b.Version)
@@ -41,21 +40,16 @@ func testConsulBuildLegacy(t *testing.T, b build, baseDir string) {
 			Token:   consulToken,
 		}
 
-		nStop, nc := startNomad(t, consulCfg)
-		t.Cleanup(nStop)
+		nc := startNomad(t, consulCfg)
 
 		verifyConsulFingerprint(t, nc, b.Version, "default")
 		runConnectJob(t, nc)
-
-		// give nomad and consul time to stop
-		t.Cleanup(func() { time.Sleep(5 * time.Second) })
 	})
 }
 
 func testConsulBuild(t *testing.T, b build, baseDir string) {
 	t.Run("consul("+b.Version+")", func(t *testing.T) {
-		cStop, consulHTTPAddr, consulAPI := startConsul(t, b, baseDir, "")
-		t.Cleanup(func() { cStop() })
+		consulHTTPAddr, consulAPI := startConsul(t, b, baseDir, "")
 
 		// smoke test before we continue
 		verifyConsulVersion(t, consulAPI, b.Version)
@@ -91,8 +85,7 @@ func testConsulBuild(t *testing.T, b build, baseDir string) {
 			},
 		}
 
-		nStop, nc := startNomad(t, consulCfg)
-		t.Cleanup(nStop)
+		nc := startNomad(t, consulCfg)
 
 		// configure authentication for WI to Consul
 		setupConsulJWTAuthForServices(t, consulAPI, nc.Address())
@@ -100,9 +93,6 @@ func testConsulBuild(t *testing.T, b build, baseDir string) {
 
 		verifyConsulFingerprint(t, nc, b.Version, "default")
 		runConnectJob(t, nc)
-
-		// give nomad and consul time to stop
-		t.Cleanup(func() { time.Sleep(5 * time.Second) })
 	})
 }
 

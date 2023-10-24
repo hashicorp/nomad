@@ -24,14 +24,18 @@ const (
 
 // startConsul runs a Consul agent with bootstrapped ACLs and returns a stop
 // function, the HTTP address, and a HTTP API client
-func startConsul(t *testing.T, b build, baseDir, ns string) (func() error, string, *consulapi.Client) {
+func startConsul(t *testing.T, b build, baseDir, ns string) (string, *consulapi.Client) {
 
 	path := filepath.Join(baseDir, binDir, b.Version)
 	cwd, _ := os.Getwd()
 	os.Chdir(path)      // so that we can launch Consul from the current directory
 	defer os.Chdir(cwd) // return to the test dir so we can find job files
 
-	os.Setenv("PATH", path+":"+os.Getenv("PATH"))
+	oldpath := os.Getenv("PATH")
+	os.Setenv("PATH", path+":"+oldpath)
+	t.Cleanup(func() {
+		os.Setenv("PATH", oldpath)
+	})
 
 	consulDC1 := "dc1"
 	rootToken := uuid.Generate()
@@ -57,6 +61,7 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (func() error, strin
 	must.NoError(t, err, must.Sprint("error starting test consul server"))
 
 	t.Cleanup(func() {
+		testconsul.Stop()
 		os.RemoveAll(filepath.Join(baseDir, binDir, b.Version, consulDataDir))
 	})
 
@@ -75,13 +80,11 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (func() error, strin
 	})
 	must.NoError(t, err)
 
-	return testconsul.Stop, testconsul.HTTPAddr, consulClient
+	return testconsul.HTTPAddr, consulClient
 }
 
 // startNomad runs a Nomad agent in dev mode with bootstrapped ACLs
-func startNomad(t *testing.T,
-	consulConfig *testutil.Consul,
-) (func(), *nomadapi.Client) {
+func startNomad(t *testing.T, consulConfig *testutil.Consul) *nomadapi.Client {
 
 	rootToken := uuid.Generate()
 
@@ -100,6 +103,8 @@ func startNomad(t *testing.T,
 		}
 	})
 
+	t.Cleanup(ts.Stop)
+
 	// TODO: we should run this entire test suite with mTLS everywhere
 	nc, err := nomadapi.NewClient(&nomadapi.Config{
 		Address:   "http://" + ts.HTTPAddr,
@@ -108,5 +113,5 @@ func startNomad(t *testing.T,
 	must.NoError(t, err, must.Sprint("unable to create nomad api client"))
 
 	nc.SetSecretID(rootToken)
-	return ts.Stop, nc
+	return nc
 }
