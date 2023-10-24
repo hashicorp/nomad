@@ -61,7 +61,7 @@ const (
 	// the same node may indicate an underlying issue not detected by Nomad.
 	// The plan applier keeps track of plan rejection history and will mark
 	// nodes as ineligible if they cross a given threshold.
-	NodeEligibilityEventPlanRejectThreshold = "Node marked as ineligible for scheduling due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information"
+	NodeEligibilityEventPlanRejectThreshold = "Node marked as ineligible for scheduling due to multiple plan rejections, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information"
 
 	// NodeRegisterEventRegistered is the message used when the node becomes
 	// registered.
@@ -406,7 +406,7 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	// Mark nodes as ineligible.
 	for _, nodeID := range results.IneligibleNodes {
-		s.logger.Warn("marking node as ineligible due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information", "node_id", nodeID)
+		s.logger.Warn("marking node as ineligible due to multiple plan rejections, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information", "node_id", nodeID)
 
 		nodeEvent := structs.NewNodeEvent().
 			SetSubsystem(structs.NodeEventSubsystemScheduler).

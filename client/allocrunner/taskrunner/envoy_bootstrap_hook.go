@@ -379,7 +379,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		// Wrap the last error from Consul and set that as our status.
 		_, recoverable := cmdErr.(*exec.ExitError)
 		return structs.NewRecoverableError(
-			fmt.Errorf("%w: %v; see: <https://www.nomadproject.io/s/envoy-bootstrap-error>",
+			fmt.Errorf("%w: %v; see: <https://developer.hashicorp.com/nomad/s/envoy-bootstrap-error>",
 				errEnvoyBootstrapError,
 				cmdErr,
 			),

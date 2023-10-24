@@ -1862,7 +1862,7 @@ func (s *Server) listenWorkerEvents() {
 				if err != nil {
 					s.logger.Debug("failed to encode event to JSON", "error", err)
 				}
-				s.logger.Warn("unexpected node port collision, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
+				s.logger.Warn("unexpected node port collision, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information",
 					"node_id", event.Node.ID, "reason", event.Reason, "event", string(eventJson))
 				loggedAt[event.Node.ID] = time.Now()
 			}

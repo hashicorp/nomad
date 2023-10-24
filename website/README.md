@@ -1,6 +1,6 @@
 # Nomad Documentation Website
 
-This subdirectory contains the content for the [Nomad Website](https://nomadproject.io/).
+This subdirectory contains the content for the [Nomad Website](https://developer.hashicorp.com/nomad/).
 
 <!--
   This readme file contains several blocks of generated text, to make it easier to share common information

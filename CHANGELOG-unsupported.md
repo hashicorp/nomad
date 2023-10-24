@@ -355,7 +355,7 @@ datacenter requests will need to ensure their Consul agents are configured with 
 of sufficient node and service read permissions. [[GH-8068](https://github.com/hashicorp/nomad/issues/8068)]
 * connect: The minimum Consul version supported by Nomad's Connect integration is now Consul v1.8.0. [[GH-8068](https://github.com/hashicorp/nomad/issues/8068)]
 * csi: The client filesystem layout for CSI plugins has been updated to correctly handle the lifecycle of multiple allocations serving the same plugin. Running plugin tasks will not be updated after upgrading the client, but it is recommended to redeploy CSI plugin jobs after upgrading the cluster. [[GH-12078](https://github.com/hashicorp/nomad/issues/12078)]
-* raft: The default raft protocol version is now 3 so you must follow the [Upgrading to Raft Protocol 3](https://www.nomadproject.io/docs/upgrade#upgrading-to-raft-protocol-3) guide when upgrading an existing cluster to Nomad 1.3.0. Downgrading the raft protocol version is not supported. [[GH-11572](https://github.com/hashicorp/nomad/issues/11572)]
+* raft: The default raft protocol version is now 3 so you must follow the [Upgrading to Raft Protocol 3](https://developer.hashicorp.com/nomad/docs/upgrade#upgrading-to-raft-protocol-3) guide when upgrading an existing cluster to Nomad 1.3.0. Downgrading the raft protocol version is not supported. [[GH-11572](https://github.com/hashicorp/nomad/issues/11572)]
 
 SECURITY:
 
@@ -1929,7 +1929,7 @@ IMPROVEMENTS:
  * core: Optimized streaming RPCs made between Nomad agents [[GH-7044](https://github.com/hashicorp/nomad/issues/7044)]
  * build: Updated to Go 1.14.1 [[GH-7431](https://github.com/hashicorp/nomad/issues/7431)]
  * consul: Added support for configuring `enable_tag_override` on service stanzas. [[GH-2057](https://github.com/hashicorp/nomad/issues/2057)]
- * client: Updated consul-template library to v0.24.1 - added support for working with consul connect. [Deprecated vault_grace](https://nomadproject.io/guides/upgrade/upgrade-specific/#nomad-0110) [[GH-7170](https://github.com/hashicorp/nomad/pull/7170)]
+ * client: Updated consul-template library to v0.24.1 - added support for working with consul connect. [Deprecated vault_grace](https://developer.hashicorp.com/nomad/guides/upgrade/upgrade-specific/#nomad-0110) [[GH-7170](https://github.com/hashicorp/nomad/pull/7170)]
  * driver/exec: Added `no_pivot_root` option for ramdisk use [[GH-7149](https://github.com/hashicorp/nomad/issues/7149)]
  * jobspec: Added task environment interpolation to `volume_mount` [[GH-7364](https://github.com/hashicorp/nomad/issues/7364)]
  * jobspec: Added support for a per-task restart policy [[GH-7288](https://github.com/hashicorp/nomad/pull/7288)]
@@ -2060,7 +2060,7 @@ FEATURES:
 
  * **Nomad Monitor**: New `nomad monitor` command allows remotely following
    the logs of any Nomad Agent (clients or servers). See
-   https://nomadproject.io/docs/commands/monitor.html
+   https://developer.hashicorp.com/nomad/docs/commands/monitor.html
  * **Docker Container Cleanup**: Nomad will now automatically remove Docker
    containers for tasks leaked due to Nomad or Docker crashes or bugs.
 
@@ -2274,7 +2274,7 @@ __BACKWARDS INCOMPATIBILITIES:__
 
  * api: The `api` package removed `Config.SetTimeout` and `Config.ConfigureTLS` functions, intended
    to be used internally only. [[GH-5275](https://github.com/hashicorp/nomad/pull/5275)]
- * api: The [job deployments](https://www.nomadproject.io/api/jobs.html#list-job-deployments) endpoint
+ * api: The [job deployments](https://developer.hashicorp.com/nomad/api/jobs.html#list-job-deployments) endpoint
    now filters out deployments associated with older instances of the job. This can happen if jobs are
    purged and recreated with the same id. To get all deployments irrespective of creation time, add
    `all=true`. The `nomad job deployment`CLI also defaults to doing this filtering. [[GH-5702](https://github.com/hashicorp/nomad/issues/5702)]
@@ -2421,7 +2421,7 @@ IMPROVEMENTS:
  * core: Added advertise address to client node meta data [[GH-4390](https://github.com/hashicorp/nomad/issues/4390)]
  * core: Added support for specifying node affinities. Affinities allow job operators to specify weighted placement preferences according to different node attributes [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
  * core: Added support for spreading allocations across a specific attribute. Operators can specify spread target percentages across failure domains such as datacenter or rack [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
- * core: Added preemption support for system jobs. System jobs can now preempt other jobs of lower priority. See [preemption](https://www.nomadproject.io/docs/internals/scheduling/preemption.html) for more details. [[GH-4794](https://github.com/hashicorp/nomad/pull/4794)]
+ * core: Added preemption support for system jobs. System jobs can now preempt other jobs of lower priority. See [preemption](https://developer.hashicorp.com/nomad/docs/internals/scheduling/preemption.html) for more details. [[GH-4794](https://github.com/hashicorp/nomad/pull/4794)]
  * acls: Allow support for using globs in namespace definitions [[GH-4982](https://github.com/hashicorp/nomad/pull/4982)]
  * agent: Support JSON log output [[GH-5173](https://github.com/hashicorp/nomad/issues/5173)]
  * api: Reduced api package dependencies [[GH-5213](https://github.com/hashicorp/nomad/pull/5213)]
@@ -2559,10 +2559,10 @@ IMPROVEMENTS:
  * core: Added TLS configuration option to prefer server's ciphersuites over clients[[GH-4338](https://github.com/hashicorp/nomad/issues/4338)]
  * core: Add the option for operators to configure TLS versions and allowed
    cipher suites. Default is a subset of safe ciphers and TLS 1.2 [[GH-4269](https://github.com/hashicorp/nomad/pull/4269)]
- * core: Add a new [progress_deadline](https://www.nomadproject.io/docs/job-specification/update.html#progress_deadline) parameter to
+ * core: Add a new [progress_deadline](https://developer.hashicorp.com/nomad/docs/job-specification/update.html#progress_deadline) parameter to
    support rescheduling failed allocations during a deployment. This allows operators to specify a configurable deadline before which
    a deployment should see healthy allocations [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
- * core: Add a new [job eval](https://www.nomadproject.io/docs/commands/job/eval.html) CLI and API
+ * core: Add a new [job eval](https://developer.hashicorp.com/nomad/docs/commands/job/eval.html) CLI and API
    for forcing an evaluation of a job, given the job ID. The new CLI also includes an option to force
    reschedule failed allocations [[GH-4274](https://github.com/hashicorp/nomad/issues/4274)]
  * core: Canary allocations are tagged in Consul to enable using service tags to
@@ -2674,13 +2674,13 @@ __BACKWARDS INCOMPATIBILITIES:__
    that absolute URLs are not allowed, but it was not enforced. Absolute URLs
    in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
  * drain: Draining a node no longer stops all allocations immediately: a new
-   [migrate stanza](https://www.nomadproject.io/docs/job-specification/migrate.html)
+   [migrate stanza](https://developer.hashicorp.com/nomad/docs/job-specification/migrate.html)
    allows jobs to specify how quickly task groups can be drained. A `-force`
    option can be used to emulate the old drain behavior.
  * jobspec: The default values for restart policy have changed. Restart policy
    mode defaults to "fail" and the attempts/time interval values have been
    changed to enable faster server side rescheduling. See [restart
-   stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for
+   stanza](https://developer.hashicorp.com/nomad/docs/job-specification/restart.html) for
    more information.
  * jobspec: Removed compatibility code that migrated pre Nomad 0.6.0 Update
    stanza syntax. All job spec files should be using update stanza fields
@@ -2693,8 +2693,8 @@ IMPROVEMENTS:
  * core: Allow upgrading/downgrading TLS via SIGHUP on both servers and clients [[GH-3492](https://github.com/hashicorp/nomad/issues/3492)]
  * core: Node events are emitted for events such as node registration and
    heartbeating [[GH-3945](https://github.com/hashicorp/nomad/issues/3945)]
- * core: A set of features (Autopilot) has been added to allow for automatic operator-friendly management of Nomad servers. For more information about Autopilot, see the [Autopilot Guide](https://www.nomadproject.io/guides/cluster/autopilot.html). [[GH-3670](https://github.com/hashicorp/nomad/pull/3670)]
- * core: Failed tasks are automatically rescheduled according to user specified criteria. For more information on configuration, see the [Reshedule Stanza](https://www.nomadproject.io/docs/job-specification/reschedule.html) [[GH-3981](https://github.com/hashicorp/nomad/issues/3981)]
+ * core: A set of features (Autopilot) has been added to allow for automatic operator-friendly management of Nomad servers. For more information about Autopilot, see the [Autopilot Guide](https://developer.hashicorp.com/nomad/guides/cluster/autopilot.html). [[GH-3670](https://github.com/hashicorp/nomad/pull/3670)]
+ * core: Failed tasks are automatically rescheduled according to user specified criteria. For more information on configuration, see the [Reshedule Stanza](https://developer.hashicorp.com/nomad/docs/job-specification/reschedule.html) [[GH-3981](https://github.com/hashicorp/nomad/issues/3981)]
  * core: Servers can now service client HTTP endpoints [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
  * core: Servers can now retry connecting to Vault to verify tokens without requiring a SIGHUP to do so [[GH-3957](https://github.com/hashicorp/nomad/issues/3957)]
  * core: Updated yamux library to pick up memory and CPU performance improvements [[GH-3980](https://github.com/hashicorp/nomad/issues/3980)]

@@ -4,7 +4,7 @@ Nomad
 ===
 
 <p align="center" style="text-align:center;">
-  <a href="https://nomadproject.io">
+  <a href="https://developer.hashicorp.com/nomad">
     <img alt="HashiCorp Nomad logo" src="website/public/img/logo-hashicorp.svg" width="500" />
   </a>
 </p>
@@ -13,7 +13,7 @@ Nomad is a simple and flexible workload orchestrator to deploy and manage contai
 
 Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, [Nomad Enterprise](https://developer.hashicorp.com/nomad/docs/enterprise), is also available.
 
-* Website: https://nomadproject.io
+* Website: https://developer.hashicorp.com/nomad
 * Tutorials: [HashiCorp Developer](https://developer.hashicorp.com/nomad/tutorials)
 * Forum: [Discuss](https://discuss.hashicorp.com/c/nomad)
 
@@ -44,7 +44,7 @@ See [Developer: Nomad Reference Architecture](https://developer.hashicorp.com/no
 
 Documentation
 ---
-Full, comprehensive documentation is available on the Nomad website: https://www.nomadproject.io/docs
+Full, comprehensive documentation is available on the Nomad website: https://developer.hashicorp.com/nomad/docs
 
 Guides are available on [HashiCorp Developer](https://developer.hashicorp.com/nomad/tutorials).
 
