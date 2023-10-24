@@ -1862,7 +1862,7 @@ func (s *Server) listenWorkerEvents() {
 				if err != nil {
 					s.logger.Debug("failed to encode event to JSON", "error", err)
 				}
-				s.logger.Warn("unexpected node port collision, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
+				s.logger.Warn("unexpected node port collision, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information",
 					"node_id", event.Node.ID, "reason", event.Reason, "event", string(eventJson))
 				loggedAt[event.Node.ID] = time.Now()
 			}
@@ -2153,7 +2153,7 @@ const peersInfoContent = `
 As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. The format of this file depends on what the server has
 configured for its Raft protocol version. Please see the server configuration
-page at https://www.nomadproject.io/docs/configuration/server#raft_protocol for more
+page at https://developer.hashicorp.com/nomad/docs/configuration/server#raft_protocol for more
 details about this parameter.
 For Raft protocol version 2 and earlier, this should be formatted as a JSON
 array containing the address and port of each Nomad server in the cluster, like
@@ -2189,7 +2189,7 @@ directory.
 The "address" field is the address and port of the server.
 The "non_voter" field controls whether the server is a non-voter, which is used
 in some advanced Autopilot configurations, please see
-https://www.nomadproject.io/guides/operations/outage.html for more information. If
+https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery for more information. If
 "non_voter" is omitted it will default to false, which is typical for most
 clusters.
 
@@ -2206,5 +2206,5 @@ creating the peers.json file, and that all servers receive the same
 configuration. Once the peers.json file is successfully ingested and applied, it
 will be deleted.
 
-Please see https://www.nomadproject.io/guides/outage.html for more information.
+Please see https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery for more information.
 `

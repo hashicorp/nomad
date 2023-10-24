@@ -554,7 +554,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 				//is resolved this log line is the only way to
 				//monitor the disagreement between workers and
 				//the plan applier.
-				logger.Info("plan for node rejected, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
+				logger.Info("plan for node rejected, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information",
 					"node_id", nodeID, "reason", reason, "eval_id", plan.EvalID,
 					"namespace", plan.Job.Namespace)
 			}

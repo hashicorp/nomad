@@ -114,12 +114,12 @@ path "auth/token/renew-self" {
 }
 ```
 
-The above [`nomad-server` policy](https://nomadproject.io/data/vault/nomad-server-policy.hcl) is
+The above [`nomad-server` policy](https://developer.hashicorp.com/nomad/data/vault/nomad-server-policy.hcl) is
 available for download. Below is an example of writing this policy to Vault:
 
 ```shell-session
 # Download the policy
-$ curl https://nomadproject.io/data/vault/nomad-server-policy.hcl -O -s -L
+$ curl https://developer.hashicorp.com/nomad/data/vault/nomad-server-policy.hcl -O -s -L
 
 # Write the policy to Vault
 $ vault policy write nomad-server nomad-server-policy.hcl
@@ -208,12 +208,12 @@ documentation for all possible fields and more complete documentation.
 - `renewable` - Specifies whether created tokens are renewable. **Must be set to
   `true`**. This allows Nomad to renew tokens for tasks.
 
-The above [`nomad-cluster` token role](https://nomadproject.io/data/vault/nomad-cluster-role.json) is
+The above [`nomad-cluster` token role](https://developer.hashicorp.com/nomad/data/vault/nomad-cluster-role.json) is
 available for download. Below is an example of writing this role to Vault:
 
 ```shell-session
 # Download the token role
-$ curl https://nomadproject.io/data/vault/nomad-cluster-role.json -O -s -L
+$ curl https://developer.hashicorp.com/nomad/data/vault/nomad-cluster-role.json -O -s -L
 
 # Create the token role with Vault
 $ vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
@@ -222,8 +222,8 @@ $ vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
 #### Example Configuration
 
 To make getting started easy, the basic [`nomad-server`
-policy](https://nomadproject.io/data/vault/nomad-server-policy.hcl) and
-[`nomad-cluster` role](https://nomadproject.io/data/vault/nomad-cluster-role.json) described above are
+policy](https://developer.hashicorp.com/nomad/data/vault/nomad-server-policy.hcl) and
+[`nomad-cluster` role](https://developer.hashicorp.com/nomad/data/vault/nomad-cluster-role.json) described above are
 available for download.
 
 The below example assumes Vault is accessible, unsealed and the operator has
@@ -231,8 +231,8 @@ appropriate permissions.
 
 ```shell-session
 # Download the policy and token role
-$ curl https://nomadproject.io/data/vault/nomad-server-policy.hcl -O -s -L
-$ curl https://nomadproject.io/data/vault/nomad-cluster-role.json -O -s -L
+$ curl https://developer.hashicorp.com/nomad/data/vault/nomad-server-policy.hcl -O -s -L
+$ curl https://developer.hashicorp.com/nomad/data/vault/nomad-cluster-role.json -O -s -L
 
 # Write the policy to Vault
 $ vault policy write nomad-server nomad-server-policy.hcl

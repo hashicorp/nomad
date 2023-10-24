@@ -5,7 +5,7 @@ This directory contains some documentation about the Nomad codebase,
 aimed at readers who are interested in making code contributions.
 
 If you're looking for information on _using_ Nomad, please instead refer
-to the [Nomad website](https://nomadproject.io).
+to the [Nomad website](https://developer.hashicorp.com/nomad).
 
 Developing with Vagrant
 ---
