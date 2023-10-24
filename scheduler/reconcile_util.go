@@ -299,11 +299,17 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			}
 		}
 
-		// Terminal allocs, if not reconnect, are always untainted as they
-		// should never be migrated.
 		if alloc.TerminalStatus() && !reconnect {
-			//untainted[alloc.ID] = alloc
-			ignore[alloc.ID] = alloc
+			// Terminal allocs, if supportsDisconnectedClient and not reconnect,
+			// are probably stopped replacements and should be ignored
+			if supportsDisconnectedClients {
+				ignore[alloc.ID] = alloc
+				continue
+			}
+
+			// Terminal allocs, if not reconnect, are always untainted as they
+			// should never be migrated.
+			untainted[alloc.ID] = alloc
 			continue
 		}
 
