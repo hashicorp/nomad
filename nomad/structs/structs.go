@@ -10897,7 +10897,8 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	failTime := a.LastEventTime()
 	reschedulePolicy := a.ReschedulePolicy()
 
-	if reschedulePolicy.Attempts == 0 && reschedulePolicy.Unlimited {
+	//If reschedule is disabled, return early
+	if reschedulePolicy.Attempts == 0 && !reschedulePolicy.Unlimited {
 		return time.Time{}, false
 	}
 
