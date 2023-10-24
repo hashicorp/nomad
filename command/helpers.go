@@ -642,7 +642,7 @@ func extractJobSpecEnvVars(envVars []string) map[string]string {
 		// therefore the var is not valid.
 		if eq := strings.Index(raw, "="); eq == -1 {
 			continue
-		} else {
+		} else if raw[:eq] != "" {
 			m[raw[:eq]] = raw[eq+1:]
 		}
 	}
