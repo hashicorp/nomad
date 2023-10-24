@@ -1308,7 +1308,12 @@
                   },
                   {
                     "title": "rsadecrypt",
-                    "path": "job-specification/hcl2/functions/crypto/rsadecrypt"
+                    "path": "job-specification/hcl2/functions/crypto/rsadecrypt",
+                    "badge": {
+                      "text": "Deprecated",
+                      "type": "outlined",
+                      "color": "neutral"
+                    }
                   },
                   {
                     "title": "sha1",
