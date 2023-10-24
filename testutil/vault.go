@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/useragent"
@@ -26,6 +27,10 @@ import (
 // and backends mounted. The test Vault instances can be used to run a unit test
 // and offers and easy API to tear itself down on test end. The only
 // prerequisite is that the Vault binary is on the $PATH.
+
+const (
+	envVaultLogLevel = "NOMAD_TEST_VAULT_LOG_LEVEL"
+)
 
 // TestVault wraps a test Vault server launched in dev mode, suitable for
 // testing.
@@ -48,13 +53,25 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 		t.Skipf("Skipping test %s, Vault binary %q not found in path.", t.Name(), binary)
 	}
 
+	// Define which log level to use. Default to the same as Nomad but allow a
+	// custom value for Vault. Since Vault doesn't support "off", cap it to
+	// "error".
+	logLevel := testlog.HCLoggerTestLevel().String()
+	if vaultLogLevel := os.Getenv(envVaultLogLevel); vaultLogLevel != "" {
+		logLevel = vaultLogLevel
+	}
+	if logLevel == hclog.Off.String() {
+		logLevel = hclog.Error.String()
+	}
+
 	port := ci.PortAllocator.Grab(1)[0]
 	token := uuid.Generate()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
 	http := fmt.Sprintf("http://127.0.0.1:%d", port)
 	root := fmt.Sprintf("-dev-root-token-id=%s", token)
+	log := fmt.Sprintf("-log-level=%s", logLevel)
 
-	cmd := exec.Command(binary, "server", "-dev", bind, root)
+	cmd := exec.Command(binary, "server", "-dev", bind, root, log)
 	cmd.Stdout = testlog.NewWriter(t)
 	cmd.Stderr = testlog.NewWriter(t)
 

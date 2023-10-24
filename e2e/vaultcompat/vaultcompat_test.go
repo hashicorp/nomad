@@ -11,14 +11,18 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/go-version"
+	goversion "github.com/hashicorp/go-version"
 	nomadapi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shoenig/test/must"
@@ -26,8 +30,18 @@ import (
 )
 
 const (
-	binDir  = "vault-bins"
-	envGate = "NOMAD_E2E_VAULTCOMPAT"
+	binDir     = "vault-bins"
+	envGate    = "NOMAD_E2E_VAULTCOMPAT"
+	envBaseDir = "NOMAD_E2E_VAULTCOMPAT_BASEDIR"
+)
+
+var (
+	// minJWTVersion is the first version where the Nomad workload identity
+	// auth flow is supported.
+	//
+	// 1.11.0 is when Vault added support for `user_claim_json_pointer`.
+	// https://github.com/hashicorp/vault/pull/15593
+	minJWTVersion = goversion.Must(goversion.NewVersion("1.11.0"))
 )
 
 func TestVaultCompat(t *testing.T) {
@@ -47,22 +61,120 @@ func testVaultVersions(t *testing.T) {
 }
 
 func testVaultBuild(t *testing.T, b build) {
-	t.Run("vault("+b.Version+")", func(t *testing.T) {
-		vStop, vc := startVault(t, b)
-		defer vStop()
-		setupVault(t, vc)
+	version, err := goversion.NewVersion(b.Version)
+	must.NoError(t, err)
 
-		nStop, nc := startNomad(t, vc)
-		defer nStop()
-		runCatJob(t, nc)
+	t.Run("vault("+b.Version+")", func(t *testing.T) {
+		t.Run("legacy", func(t *testing.T) {
+			testVaultLegacy(t, b)
+		})
+
+		if version.GreaterThanOrEqual(minJWTVersion) {
+			t.Run("jwt", func(t *testing.T) {
+				testVaultJWT(t, b)
+			})
+		}
 
 		// give nomad and vault time to stop
 		defer func() { time.Sleep(5 * time.Second) }()
 	})
 }
 
-func runCatJob(t *testing.T, nc *nomadapi.Client) {
-	b, err := os.ReadFile("input/cat.hcl")
+func testVaultLegacy(t *testing.T, b build) {
+	vStop, vc := startVault(t, b)
+	defer vStop()
+	setupVaultLegacy(t, vc)
+
+	nStop, nc := startNomad(t, configureNomadVaultLegacy(vc))
+	defer nStop()
+	runJob(t, nc, "input/cat.hcl", func(allocs []*nomadapi.AllocationListStub) error {
+		if n := len(allocs); n != 1 {
+			return fmt.Errorf("expected 1 alloc, got %d", n)
+		}
+		if s := allocs[0].ClientStatus; s != "complete" {
+			return fmt.Errorf("expected alloc status complete, got %s", s)
+		}
+		return nil
+	})
+}
+
+func testVaultJWT(t *testing.T, b build) {
+	vStop, vc := startVault(t, b)
+	defer vStop()
+
+	// Start Nomad without access to the Vault token.
+	vaultToken := vc.Token()
+	vc.SetToken("")
+	nStop, nc := startNomad(t, configureNomadVaultJWT(vc))
+	defer nStop()
+
+	// Restore token and configure Vault for JWT login.
+	vc.SetToken(vaultToken)
+	setupVaultJWT(t, vc, nc.Address()+"/.well-known/jwks.json")
+
+	// Write secrets for test job.
+	_, err := vc.KVv2("secret").Put(context.Background(), "default/cat_jwt", map[string]any{
+		"secret": "workload",
+	})
+	must.NoError(t, err)
+
+	_, err = vc.KVv2("secret").Put(context.Background(), "restricted", map[string]any{
+		"secret": "restricted",
+	})
+	must.NoError(t, err)
+
+	// Run test job.
+	runJob(t, nc, "input/cat_jwt.hcl", func(allocs []*nomadapi.AllocationListStub) error {
+		if n := len(allocs); n != 2 {
+			return fmt.Errorf("expected 2 allocs, got %d", n)
+		}
+
+		for _, alloc := range allocs {
+			switch alloc.TaskGroup {
+
+			// Verify all tasks in "success" group complete.
+			case "success":
+				if s := alloc.ClientStatus; s != "complete" {
+					return fmt.Errorf("expected alloc status complete, got %s", s)
+				}
+
+			// Verify all tasks in "fail" group fail for the expected reasons.
+			case "fail":
+				for task, state := range alloc.TaskStates {
+					switch task {
+
+					// Verify "unauthorized" task can't access Vault secret.
+					case "unauthorized":
+						hasEvent := false
+						for _, ev := range state.Events {
+							if strings.Contains(ev.DisplayMessage, "Missing: vault.read") {
+								hasEvent = true
+								break
+							}
+						}
+						if !hasEvent {
+							got := make([]string, 0, len(state.Events))
+							for _, ev := range state.Events {
+								got = append(got, ev.DisplayMessage)
+							}
+							return fmt.Errorf("missing expected event, got [%v]", strings.Join(got, ", "))
+						}
+
+					// Verify "missing_vault" task fails.
+					case "missing_vault":
+						if !state.Failed {
+							return fmt.Errorf("expected task to fail")
+						}
+					}
+				}
+			}
+		}
+		return nil
+	})
+}
+
+func runJob(t *testing.T, nc *nomadapi.Client, jobPath string, validateAllocs func([]*nomadapi.AllocationListStub) error) {
+	b, err := os.ReadFile(jobPath)
 	must.NoError(t, err)
 
 	jobs := nc.Jobs()
@@ -78,39 +190,37 @@ func runCatJob(t *testing.T, nc *nomadapi.Client) {
 			if err != nil {
 				return err
 			}
-			if n := len(allocs); n != 1 {
-				return fmt.Errorf("expected 1 alloc, got %d", n)
-			}
-			if s := allocs[0].ClientStatus; s != "complete" {
-				return fmt.Errorf("expected alloc status complete, got %s", s)
-			}
-			return nil
+			return validateAllocs(allocs)
 		}),
 		wait.Timeout(20*time.Second),
 		wait.Gap(1*time.Second),
 	))
 
-	t.Log("success running cat job")
+	t.Logf("success running job %s", *job.ID)
 
 	_, _, err = jobs.Deregister(*job.Name, true, nil)
 	must.NoError(t, err, must.Sprint("faild to deregister job"))
 }
 
 func startVault(t *testing.T, b build) (func(), *vaultapi.Client) {
-	path := filepath.Join(os.TempDir(), binDir, b.Version, "vault")
+	baseDir := os.Getenv(envBaseDir)
+	if baseDir == "" {
+		baseDir = os.TempDir()
+	}
+	path := filepath.Join(baseDir, binDir, b.Version, "vault")
 	vlt := testutil.NewTestVaultFromPath(t, path)
 	return vlt.Stop, vlt.Client
 }
 
-func setupVault(t *testing.T, vc *vaultapi.Client) {
-	policy, err := os.ReadFile("input/policy.hcl")
+func setupVaultLegacy(t *testing.T, vc *vaultapi.Client) {
+	policy, err := os.ReadFile("input/policy_legacy.hcl")
 	must.NoError(t, err)
 
 	sys := vc.Sys()
 	must.NoError(t, sys.PutPolicy("nomad-server", string(policy)))
 
 	log := vc.Logical()
-	log.Write("auth/token/roles/nomad-cluster", role)
+	log.Write("auth/token/roles/nomad-cluster", roleLegacy)
 
 	token := vc.Auth().Token()
 	secret, err := token.Create(&vaultapi.TokenCreateRequest{
@@ -123,31 +233,103 @@ func setupVault(t *testing.T, vc *vaultapi.Client) {
 	must.NotNil(t, secret.Auth)
 }
 
-func startNomad(t *testing.T, vc *vaultapi.Client) (func(), *nomadapi.Client) {
+func setupVaultJWT(t *testing.T, vc *vaultapi.Client, jwksURL string) {
+	logical := vc.Logical()
+	sys := vc.Sys()
+
+	// Enable JWT auth method and read back its accessor ID.
+	err := sys.EnableAuthWithOptions(jwtPath, &vaultapi.MountInput{
+		Type: "jwt",
+	})
+	must.NoError(t, err)
+
+	secret, err := logical.Read(fmt.Sprintf("sys/auth/%s", jwtPath))
+	must.NoError(t, err)
+	must.NotNil(t, secret)
+
+	jwtAuthAccessor := secret.Data["accessor"].(string)
+	must.NotEq(t, "", jwtAuthAccessor)
+
+	// Write JWT auth method config.
+	_, err = logical.Write(fmt.Sprintf("auth/%s/config", jwtPath), authConfigJWT(jwksURL))
+	must.NoError(t, err)
+
+	// Write policies for general Nomad workloads and for restricted secrets.
+	err = sys.PutPolicy("nomad-workloads", policyWID(jwtAuthAccessor))
+	must.NoError(t, err)
+
+	err = sys.PutPolicy("nomad-restricted", policyRestricted)
+	must.NoError(t, err)
+
+	// Write roles for each of the policies.
+	rolePath := fmt.Sprintf("auth/%s/role/nomad-workloads", jwtPath)
+	_, err = logical.Write(rolePath, roleWID([]string{"nomad-workloads"}))
+	must.NoError(t, err)
+
+	rolePath = fmt.Sprintf("auth/%s/role/nomad-restricted", jwtPath)
+	_, err = logical.Write(rolePath, roleWID([]string{"nomad-restricted"}))
+	must.NoError(t, err)
+}
+
+func startNomad(t *testing.T, cb func(*testutil.TestServerConfig)) (func(), *nomadapi.Client) {
+	bootstrapToken := uuid.Generate()
 	ts := testutil.NewTestServer(t, func(c *testutil.TestServerConfig) {
-		c.Vault = &testutil.VaultConfig{
-			Enabled:              true,
-			Address:              vc.Address(),
-			Token:                vc.Token(),
-			Role:                 "nomad-cluster",
-			AllowUnauthenticated: true,
-		}
+		c.ACL.Enabled = true
+		c.ACL.BootstrapToken = bootstrapToken
 		c.DevMode = true
 		c.Client = &testutil.ClientConfig{
 			Enabled:      true,
 			TotalCompute: 1000,
 		}
 		c.LogLevel = testlog.HCLoggerTestLevel().String()
+
+		if cb != nil {
+			cb(c)
+		}
 	})
 	nc, err := nomadapi.NewClient(&nomadapi.Config{
 		Address: "http://" + ts.HTTPAddr,
 	})
 	must.NoError(t, err, must.Sprint("unable to create nomad api client"))
+	nc.SetSecretID(bootstrapToken)
 	return ts.Stop, nc
 }
 
+func configureNomadVaultLegacy(vc *vaultapi.Client) func(*testutil.TestServerConfig) {
+	return func(c *testutil.TestServerConfig) {
+		c.Vault = &testutil.VaultConfig{
+			Enabled:              true,
+			Address:              vc.Address(),
+			Token:                vc.Token(),
+			Role:                 "nomad-cluster",
+			AllowUnauthenticated: pointer.Of(true),
+		}
+	}
+}
+
+func configureNomadVaultJWT(vc *vaultapi.Client) func(*testutil.TestServerConfig) {
+	return func(c *testutil.TestServerConfig) {
+		c.Vault = &testutil.VaultConfig{
+			Enabled: true,
+			// Server configs.
+			DefaultIdentity: &testutil.WorkloadIdentityConfig{
+				Audience: []string{"vault.io"},
+				TTL:      "10m",
+			},
+
+			// Client configs.
+			Address:            vc.Address(),
+			JWTAuthBackendPath: jwtPath,
+		}
+	}
+}
+
 func downloadVaultBuild(t *testing.T, b build) {
-	path := filepath.Join(os.TempDir(), binDir, b.Version)
+	baseDir := os.Getenv(envBaseDir)
+	if baseDir == "" {
+		baseDir = os.TempDir()
+	}
+	path := filepath.Join(baseDir, binDir, b.Version)
 	must.NoError(t, os.MkdirAll(path, 0755))
 
 	if _, err := os.Stat(filepath.Join(path, "vault")); !os.IsNotExist(err) {

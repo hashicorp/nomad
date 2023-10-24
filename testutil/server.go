@@ -27,6 +27,7 @@ import (
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/helper/pointer"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
@@ -84,17 +85,28 @@ type ClientConfig struct {
 
 // VaultConfig is used to configure Vault
 type VaultConfig struct {
-	Enabled              bool   `json:"enabled"`
-	Address              string `json:"address"`
-	AllowUnauthenticated bool   `json:"allow_unauthenticated"`
-	Token                string `json:"token"`
-	Role                 string `json:"role"`
+	Name                 string                  `json:"name,omitempty"`
+	Enabled              bool                    `json:"enabled"`
+	Address              string                  `json:"address"`
+	AllowUnauthenticated *bool                   `json:"allow_unauthenticated,omitempty"`
+	Token                string                  `json:"token,omitemtpy"`
+	Role                 string                  `json:"role,omitempty"`
+	JWTAuthBackendPath   string                  `json:"jwt_auth_backend_path,omitempty"`
+	DefaultIdentity      *WorkloadIdentityConfig `json:"default_identity,omitempty"`
 }
 
 // ACLConfig is used to configure ACLs
 type ACLConfig struct {
 	Enabled        bool   `json:"enabled"`
 	BootstrapToken string `json:"-"` // not in the real config
+}
+
+// WorkloadIdentityConfig is the configuration for default workload identities.
+type WorkloadIdentityConfig struct {
+	Audience []string `json:"aud"`
+	Env      bool     `json:"env"`
+	File     bool     `json:"file"`
+	TTL      string   `json:"ttl"`
 }
 
 // ServerConfigCallback is a function interface which can be
@@ -123,7 +135,7 @@ func defaultServerConfig() *TestServerConfig {
 		},
 		Vault: &VaultConfig{
 			Enabled:              false,
-			AllowUnauthenticated: true,
+			AllowUnauthenticated: pointer.Of(true),
 		},
 		ACL: &ACLConfig{
 			Enabled: false,
