@@ -67,7 +67,7 @@ require (
 	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.4
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
 	github.com/hashicorp/go-set v0.1.8
-	github.com/hashicorp/go-set/v2 v2.0.0-alpha.2
+	github.com/hashicorp/go-set/v2 v2.0.0-alpha.3
 	github.com/hashicorp/go-sockaddr v1.0.2
 	github.com/hashicorp/go-syslog v1.0.0
 	github.com/hashicorp/go-uuid v1.0.3
