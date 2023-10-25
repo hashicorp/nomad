@@ -437,7 +437,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	if len(reconnecting) > 0 {
 		// Pass all allocations because the replacements we need to find may be
 		// in any state, including themselves being reconnected.
-		reconnect, stop := a.reconcileReconnecting(reconnecting, all.difference(reconnecting))
+		reconnect, stop := a.reconcileReconnecting(reconnecting, all)
 
 		// Stop the reconciled allocations and remove them from the other sets
 		// since they have been already handled.
@@ -505,9 +505,9 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
-	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
+	ignoreUpdates, inplace, destructive := a.computeUpdates(tg, untainted)
 
-	desiredChanges.Ignore += uint64(len(ignore))
+	desiredChanges.Ignore += uint64(len(ignoreUpdates))
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
 	if !existingDeployment {
 		dstate.DesiredTotal += len(destructive) + len(inplace)
@@ -1091,7 +1091,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 //   - If the reconnecting allocation is to be stopped, its replacements may
 //     not be present in any of the returned sets. The rest of the reconciler
 //     logic will handle them.
-func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others allocSet) (allocSet, allocSet) {
+func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all allocSet) (allocSet, allocSet) {
 	stop := make(allocSet)
 	reconnect := make(allocSet)
 
@@ -1130,7 +1130,7 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 
 		// Find replacement allocations and decide which one to stop. A
 		// reconnecting allocation may have multiple replacements.
-		for _, replacementAlloc := range others {
+		for _, replacementAlloc := range all {
 
 			// Skip allocations that are not a replacement of the one
 			// reconnecting.
@@ -1158,12 +1158,14 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 				}
 			} else {
 				// The reconnecting allocation is preferred, so stop this
-				// replacement.
-				stop[replacementAlloc.ID] = replacementAlloc
-				a.result.stop = append(a.result.stop, allocStopResult{
-					alloc:             replacementAlloc,
-					statusDescription: allocReconnected,
-				})
+				// replacement, but avoid re-stopping stopped allocs
+				if replacementAlloc.ClientStatus != structs.AllocClientStatusFailed {
+					stop[replacementAlloc.ID] = replacementAlloc
+					a.result.stop = append(a.result.stop, allocStopResult{
+						alloc:             replacementAlloc,
+						statusDescription: allocReconnected,
+					})
+				}
 			}
 		}
 	}
