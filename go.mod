@@ -13,8 +13,6 @@ replace (
 // Nomad is built using the current source of the API module.
 replace github.com/hashicorp/nomad/api => ./api
 
-replace github.com/hashicorp/nomad/client => ./client
-
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Masterminds/sprig/v3 v3.2.3
