@@ -15,11 +15,15 @@ Workloads that are sensitive to memory latency can perform significantly better
 when pinned to CPU cores on the same NUMA node.
 
 <EnterpriseAlert>
-  This functionality only exists in Nomad Enterprise. This is not
-  present in the source available version of Nomad.
+
+This functionality only exists in Nomad Enterprise. This is not
+present in the source available version of Nomad.
 </EnterpriseAlert>
 
-~> NUMA aware scheduling is currently limited to Linux.
+<Note>
+
+NUMA aware scheduling is currently limited to Linux.
+</Note>
 
 ```hcl
 job "example" {
@@ -53,17 +57,20 @@ the [`cores`][cores] parameter.
   this freedom to allocate cores in such a way that minimizes the amount of
   fragmentation of core availability per NUMA node.
   - `prefer` - Nomad will select the set of CPU cores on a node that minimizes
-  the total distance between those cores, but does not limit those cpu core
+  the total distance between those cores, but does not limit those CPU core
   selections to come from a single NUMA node.
   - `require` - Nomad will select a set of CPU cores that are strictly colocated
   on the same hardware NUMA node. If there are no Nomad nodes with a sufficient
   number of available cores in a compatible configuration, task placement will
   fail due to exhausted resources.
 
-  ~> **note:** The `require` affinity option should be used sparingly due to
-  the implied fragmentation caused by reserving CPU cores based on the NUMA node
-  they are associated with. Use it for workloads known to be highly sensitive
-  to memory latencies.
+<Note>
+
+The `require` affinity option should be used sparingly due to
+the implied fragmentation caused by reserving CPU cores based on the NUMA node
+they are associated with. Use it for workloads known to be highly sensitive
+to memory latencies.
+</Note>
 
 [numa_wiki]: https://en.wikipedia.org/wiki/Non-uniform_memory_access
 [cores]: /nomad/docs/job-specification/resources#cores
