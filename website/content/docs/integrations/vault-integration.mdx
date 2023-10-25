@@ -20,8 +20,6 @@ infrastructure.
 Note that in order to use Vault with Nomad, you will need to configure and
 install Vault separately from Nomad. Nomad does not run Vault for you.
 
--> **Note:** Vault integration requires Vault version 0.6.2 or higher.
-
 ## Agent Configuration
 
 To enable Vault integration, please see the [Nomad agent Vault
@@ -43,10 +41,14 @@ To configure Vault for use with Nomad workload identity, you'll need to enable t
 JWT backend, create a Vault role and auth method, and finally create Vault
 policies to that map Nomad workload claims to secrets in Vault.
 
-<EnterpriseAlert>Nomad Enterprise users who are using Vault Namespaces should
-note that you will need to pass the -namespace flag for each of the commands
+<EnterpriseAlert>
+
+Nomad Enterprise users who are using Vault Namespaces should
+note that you will need to pass the `-namespace` flag for each of the commands
 below. Each Vault namespace needs its own auth method, role, and
-policies.</EnterpriseAlert>
+policies.
+
+</EnterpriseAlert>
 
 First enable the JWT authentication backend.
 
@@ -82,8 +84,9 @@ $ vault write auth/jwt/role/nomad-workloads @vault-role.json
 ```
 
 Create a configuration file for a Vault [JWT Auth Method][]. The `jwks_url`
-field should point to the Nomad servers and the `default_role` should match the
-name of the role you created above.
+field should point to all the Nomad servers; you should use a proxy or DNS A
+Record to ensure that requests can go to any server in the cluster. The
+`default_role` should match the name of the role you created above.
 
 ```json
 {
@@ -155,11 +158,15 @@ get started, but we recommend a token role based token for production
 installations. Nomad servers will renew the token automatically. **Note that the
 Nomad clients do not need to be provided with a Vault token.**
 
+<Note>
+
 This legacy workflow will be removed in Nomad 1.9. Before upgrading to Nomad 1.9
 you will need to have configured authentication with Vault as described in
 [Configuring Vault Authentication](#configuring-vault-authentication).
 
--> **Note:** See the [Enterprise specific section][ent] for configuring Vault Enterprise
+</Note>
+
+See the [Enterprise specific section][ent] for configuring Vault Enterprise.
 
 ### Root Token Integration
 
