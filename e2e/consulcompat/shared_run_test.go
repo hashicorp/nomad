@@ -5,6 +5,8 @@ package consulcompat
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -99,4 +101,18 @@ func runConnectJob(t *testing.T, nc *nomadapi.Client) {
 		wait.Timeout(30*time.Second),
 		wait.Gap(1*time.Second),
 	))
+
+	// Ensure that the dashboard is reachable and can connect to the API
+	allocs, _, err := jobs.Allocations(*job.ID, false, nil)
+	must.NoError(t, err)
+	for _, alloc := range allocs {
+		if alloc.TaskGroup == "dashboard" {
+			resp, err := http.Get("http://127.0.0.1:9002")
+			must.NoError(t, err)
+			defer resp.Body.Close()
+			body, _ := io.ReadAll(resp.Body)
+			t.Logf(string(body))
+		}
+	}
+
 }

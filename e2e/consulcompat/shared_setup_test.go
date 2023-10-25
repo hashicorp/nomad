@@ -49,7 +49,7 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (string, *consulapi.
 			}
 			c.Datacenter = consulDC1
 			c.DataDir = filepath.Join(baseDir, binDir, b.Version, consulDataDir)
-			c.LogLevel = "info"
+			c.LogLevel = "debug"
 			c.Connect = map[string]any{"enabled": true}
 			c.Server = true
 
