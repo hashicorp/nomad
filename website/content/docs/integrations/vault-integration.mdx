@@ -39,7 +39,7 @@ authenticate to Vault and obtain a Vault token specific to the task.
 
 ### Configuring Vault Authentication
 
-To configure Vault for use with Nomad workload identity, you'll enable the Vault
+To configure Vault for use with Nomad workload identity, you'll need to enable the Vault
 JWT backend, create a Vault role and auth method, and finally create Vault
 policies to that map Nomad workload claims to secrets in Vault.
 
@@ -54,7 +54,7 @@ First enable the JWT authentication backend.
 $ vault auth enable jwt
 ```
 
-Create a configuration file for a default Vault [Role][]. This configuration
+Create a configuration file for the default Vault [Role][]. This configuration
 maps each Nomad job to its own Vault user claim. You can set the `token_ttl` and
 `token_policies` to whatever value is suitable for your environment. A
 recommended policy is shown later.
@@ -115,8 +115,8 @@ Path      Type     Accessor               Description                Version
 jwt/      jwt      auth_jwt_3a9350fe      n/a                        n/a
 ```
 
-Next, write a Vault policy file using that accessor. Note that here
-`auth_jwt_3a9350fe` is the accessor shown above and you should replace it with
+Next, write a Vault policy file using that accessor. Note that `auth_jwt_3a9350fe` here
+ is the accessor shown above and you should replace it with
 the results from your own Vault cluster.
 
 ```json
@@ -572,7 +572,7 @@ $ VAULT_TOKEN=s.H39hfS7eHSbb1GpkdzOQLTmz.fvuLy nomad job run vault.nomad
 
 ## Migrating to Using Workload Identity with Vault
 
-Migrating from the legacy (pre-1.7) workflow where workload use the agent's
+Migrating from the legacy (pre-1.7) workflow where workloads use the agent's
 Vault token requires configuation on your Vault cluster and your Nomad server
 agents. It does not require updating your running Nomad jobs unless you wish to
 specify a non-default role. To migrate:
