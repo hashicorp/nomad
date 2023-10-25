@@ -237,7 +237,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name:                        "disco-client-disconnect-unset-max-disconnect",
 			supportsDisconnectedClients: true,
@@ -273,7 +272,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 			},
 		},
-
 		// Everything below this line tests the disconnected client mode.
 		{
 			name:                        "disco-client-untainted-reconnect-failed-and-replaced",
@@ -381,10 +379,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			taintedNodes:                nodes,
 			skipNilNodeTest:             false,
 			all: allocSet{
-				// Allocs on reconnected nodes that are complete are untainted
-				"untainted-reconnect-complete": {
-					ID:            "untainted-reconnect-complete",
-					Name:          "untainted-reconnect-complete",
+				// Allocs on reconnected nodes that are complete are ignored
+				"ignored-reconnect-complete": {
+					ID:            "ignored-reconnect-complete",
+					Name:          "ignored-reconnect-complete",
 					ClientStatus:  structs.AllocClientStatusComplete,
 					DesiredStatus: structs.AllocDesiredStatusRun,
 					Job:           testJob,
@@ -405,9 +403,9 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 				// Lost allocs on reconnected nodes don't get restarted
-				"untainted-reconnect-lost": {
-					ID:            "untainted-reconnect-lost",
-					Name:          "untainted-reconnect-lost",
+				"ignored-reconnect-lost": {
+					ID:            "ignored-reconnect-lost",
+					Name:          "ignored-reconnect-lost",
 					ClientStatus:  structs.AllocClientStatusLost,
 					DesiredStatus: structs.AllocDesiredStatusStop,
 					Job:           testJob,
@@ -415,10 +413,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					TaskGroup:     "web",
 					AllocStates:   unknownAllocState,
 				},
-				// Replacement allocs that are complete are untainted
-				"untainted-reconnect-complete-replacement": {
-					ID:                 "untainted-reconnect-complete-replacement",
-					Name:               "untainted-reconnect-complete",
+				// Replacement allocs that are complete are ignored
+				"ignored-reconnect-complete-replacement": {
+					ID:                 "ignored-reconnect-complete-replacement",
+					Name:               "ignored-reconnect-complete",
 					ClientStatus:       structs.AllocClientStatusComplete,
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					Job:                testJob,
@@ -427,10 +425,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:        unknownAllocState,
 					PreviousAllocation: "untainted-reconnect-complete",
 				},
-				// Replacement allocs on reconnected nodes that are failed are untainted
-				"untainted-reconnect-failed-replacement": {
-					ID:                 "untainted-reconnect-failed-replacement",
-					Name:               "untainted-reconnect-failed",
+				// Replacement allocs on reconnected nodes that are failed are ignored
+				"ignored-reconnect-failed-replacement": {
+					ID:                 "ignored-reconnect-failed-replacement",
+					Name:               "ignored-reconnect-failed",
 					ClientStatus:       structs.AllocClientStatusFailed,
 					DesiredStatus:      structs.AllocDesiredStatusStop,
 					Job:                testJob,
@@ -439,9 +437,9 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					PreviousAllocation: "reconnecting-failed",
 				},
 				// Lost replacement allocs on reconnected nodes don't get restarted
-				"untainted-reconnect-lost-replacement": {
-					ID:                 "untainted-reconnect-lost-replacement",
-					Name:               "untainted-reconnect-lost",
+				"ignored-reconnect-lost-replacement": {
+					ID:                 "ignored-reconnect-lost-replacement",
+					Name:               "ignored-reconnect-lost",
 					ClientStatus:       structs.AllocClientStatusLost,
 					DesiredStatus:      structs.AllocDesiredStatusStop,
 					Job:                testJob,
@@ -451,60 +449,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					PreviousAllocation: "untainted-reconnect-lost",
 				},
 			},
-			untainted: allocSet{
-				"untainted-reconnect-complete": {
-					ID:            "untainted-reconnect-complete",
-					Name:          "untainted-reconnect-complete",
-					ClientStatus:  structs.AllocClientStatusComplete,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				"untainted-reconnect-lost": {
-					ID:            "untainted-reconnect-lost",
-					Name:          "untainted-reconnect-lost",
-					ClientStatus:  structs.AllocClientStatusLost,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				"untainted-reconnect-complete-replacement": {
-					ID:                 "untainted-reconnect-complete-replacement",
-					Name:               "untainted-reconnect-complete",
-					ClientStatus:       structs.AllocClientStatusComplete,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					AllocStates:        unknownAllocState,
-					PreviousAllocation: "untainted-reconnect-complete",
-				},
-				"untainted-reconnect-failed-replacement": {
-					ID:                 "untainted-reconnect-failed-replacement",
-					Name:               "untainted-reconnect-failed",
-					ClientStatus:       structs.AllocClientStatusFailed,
-					DesiredStatus:      structs.AllocDesiredStatusStop,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "reconnecting-failed",
-				},
-				"untainted-reconnect-lost-replacement": {
-					ID:                 "untainted-reconnect-lost-replacement",
-					Name:               "untainted-reconnect-lost",
-					ClientStatus:       structs.AllocClientStatusLost,
-					DesiredStatus:      structs.AllocDesiredStatusStop,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					AllocStates:        unknownAllocState,
-					PreviousAllocation: "untainted-reconnect-lost",
-				},
-			},
+			untainted:     allocSet{},
 			migrate:       allocSet{},
 			disconnecting: allocSet{},
 			reconnecting: allocSet{
@@ -519,8 +464,62 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			ignore: allocSet{},
-			lost:   allocSet{},
+			ignore: allocSet{
+
+				"ignored-reconnect-complete": {
+					ID:            "ignored-reconnect-complete",
+					Name:          "ignored-reconnect-complete",
+					ClientStatus:  structs.AllocClientStatusComplete,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+					Job:           testJob,
+					NodeID:        "normal",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+				},
+				"ignored-reconnect-lost": {
+					ID:            "ignored-reconnect-lost",
+					Name:          "ignored-reconnect-lost",
+					ClientStatus:  structs.AllocClientStatusLost,
+					DesiredStatus: structs.AllocDesiredStatusStop,
+					Job:           testJob,
+					NodeID:        "normal",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+				},
+				"ignored-reconnect-complete-replacement": {
+					ID:                 "ignored-reconnect-complete-replacement",
+					Name:               "ignored-reconnect-complete",
+					ClientStatus:       structs.AllocClientStatusComplete,
+					DesiredStatus:      structs.AllocDesiredStatusRun,
+					Job:                testJob,
+					NodeID:             "normal",
+					TaskGroup:          "web",
+					AllocStates:        unknownAllocState,
+					PreviousAllocation: "untainted-reconnect-complete",
+				},
+				"ignored-reconnect-failed-replacement": {
+					ID:                 "ignored-reconnect-failed-replacement",
+					Name:               "ignored-reconnect-failed",
+					ClientStatus:       structs.AllocClientStatusFailed,
+					DesiredStatus:      structs.AllocDesiredStatusStop,
+					Job:                testJob,
+					NodeID:             "normal",
+					TaskGroup:          "web",
+					PreviousAllocation: "reconnecting-failed",
+				},
+				"ignored-reconnect-lost-replacement": {
+					ID:                 "ignored-reconnect-lost-replacement",
+					Name:               "ignored-reconnect-lost",
+					ClientStatus:       structs.AllocClientStatusLost,
+					DesiredStatus:      structs.AllocDesiredStatusStop,
+					Job:                testJob,
+					NodeID:             "normal",
+					TaskGroup:          "web",
+					AllocStates:        unknownAllocState,
+					PreviousAllocation: "untainted-reconnect-lost",
+				},
+			},
+			lost: allocSet{},
 		},
 		{
 			name:                        "disco-client-disconnect",
