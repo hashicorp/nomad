@@ -44,6 +44,9 @@ job "docs" {
   maximum memory the task may use, if the client has excess memory capacity, in MB.
   See [Memory Oversubscription](#memory-oversubscription) for more details.
 
+- `numa` <code>([Numa][]: &lt;optional&gt;)</code> - Specifies the
+  NUMA scheduling preference for the task. Requires the use of `cores`.
+
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
 
@@ -143,3 +146,4 @@ resource utilization and considering the following suggestions:
 [exec_cpu]: /nomad/docs/drivers/exec#cpu
 [np_sched_config]: /nomad/docs/other-specifications/node-pool#memory_oversubscription_enabled
 [tutorial_quota]: /nomad/tutorials/governance-and-policy/quotas
+[numa]: /nomad/docs/job-specification/numa 'Nomad NUMA Job Specification'
