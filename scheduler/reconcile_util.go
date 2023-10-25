@@ -655,20 +655,6 @@ func (a *allocNameIndex) Highest(n uint) map[string]struct{} {
 	return h
 }
 
-// Set sets the indexes from the passed alloc set as used
-func (a *allocNameIndex) Set(set allocSet) {
-	for _, alloc := range set {
-		a.b.Set(alloc.Index())
-	}
-}
-
-// Unset unsets all indexes of the passed alloc set as being used
-func (a *allocNameIndex) Unset(as allocSet) {
-	for _, alloc := range as {
-		a.b.Unset(alloc.Index())
-	}
-}
-
 // UnsetIndex unsets the index as having its name used
 func (a *allocNameIndex) UnsetIndex(idx uint) {
 	a.b.Unset(idx)
