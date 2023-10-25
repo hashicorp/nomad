@@ -82,10 +82,10 @@ require (
 	github.com/hashicorp/memberlist v0.5.1-0.20231024164941-f2362678b85d
 	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.0
 	github.com/hashicorp/nomad/api v0.0.0-20230103221135-ce00d683f9be
-	github.com/hashicorp/raft v1.5.0
+	github.com/hashicorp/raft v1.5.1-0.20231024165115-d79654935a01
 	github.com/hashicorp/raft-autopilot v0.1.6
-	github.com/hashicorp/raft-boltdb/v2 v2.2.2
-	github.com/hashicorp/serf v0.10.1
+	github.com/hashicorp/raft-boltdb/v2 v2.2.3-0.20231024164814-4cd9b96914bd
+	github.com/hashicorp/serf v0.10.2-0.20231025180740-47cf9d6680b5
 	github.com/hashicorp/vault/api v1.9.1
 	github.com/hashicorp/yamux v0.1.1
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
@@ -228,7 +228,7 @@ require (
 	github.com/klauspost/compress v1.15.11 // indirect
 	github.com/linode/linodego v0.7.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -287,11 +287,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	kernel.org/pub/linux/libs/security/libcap/psx v1.2.66 // indirect
 )
-
-replace github.com/hashicorp/raft => /Users/swenson/projects/raft
-
-replace github.com/hashicorp/raft-boltdb/v2 => /Users/swenson/projects/raft-boltdb/v2
-
-replace github.com/hashicorp/memberlist => /Users/swenson/projects/memberlist
-
-replace github.com/hashicorp/serf => /Users/swenson/projects/serf
