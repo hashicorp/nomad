@@ -428,13 +428,16 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	untainted, migrate, lost, disconnecting, reconnecting, ignore := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
 	desiredChanges.Ignore += uint64(len(ignore))
 
+	// Determine what set of terminal allocations need to be rescheduled
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
+
 	// If there are allocations reconnecting we need to reconcile them and
 	// their replacements first because there is specific logic when deciding
 	// which ones to keep that can only be applied when the client reconnects.
 	if len(reconnecting) > 0 {
 		// Pass all allocations because the replacements we need to find may be
 		// in any state, including themselves being reconnected.
-		reconnect, stop := a.reconcileReconnecting(reconnecting, all)
+		reconnect, stop := a.reconcileReconnecting(reconnecting, all.difference(reconnecting))
 
 		// Stop the reconciled allocations and remove them from the other sets
 		// since they have been already handled.
@@ -455,9 +458,6 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		// be further reconciled below.
 		untainted = untainted.union(reconnect)
 	}
-
-	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
 
 	// Determine what set of disconnecting allocations need to be rescheduled now,
 	// which ones later and which ones can't be rescheduled at all.
@@ -506,6 +506,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
 	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
+
 	desiredChanges.Ignore += uint64(len(ignore))
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
 	if !existingDeployment {
@@ -1090,7 +1091,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 //   - If the reconnecting allocation is to be stopped, its replacements may
 //     not be present in any of the returned sets. The rest of the reconciler
 //     logic will handle them.
-func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, allAllocs allocSet) (allocSet, allocSet) {
+func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others allocSet) (allocSet, allocSet) {
 	stop := make(allocSet)
 	reconnect := make(allocSet)
 
@@ -1129,14 +1130,11 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, allAllocs
 
 		// Find replacement allocations and decide which one to stop. A
 		// reconnecting allocation may have multiple replacements.
-		for _, replacementAlloc := range allAllocs {
+		for _, replacementAlloc := range others {
 
 			// Skip allocations that are not a replacement of the one
-			// reconnecting. Replacement allocations have the same name but a
-			// higher CreateIndex and a different ID.
-			isReplacement := replacementAlloc.ID != reconnectingAlloc.ID &&
-				replacementAlloc.Name == reconnectingAlloc.Name &&
-				replacementAlloc.CreateIndex > reconnectingAlloc.CreateIndex
+			// reconnecting.
+			isReplacement := replacementAlloc.ID == reconnectingAlloc.NextAllocation
 
 			// Skip allocations that are server terminal.
 			// We don't want to replace a reconnecting allocation with one that
