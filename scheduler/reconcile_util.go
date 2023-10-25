@@ -508,7 +508,7 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		return
 	}
 
-	if eligible && (alloc.FollowupEvalID == "") {
+	if eligible && (alloc.FollowupEvalID == "" || isDisconnecting) {
 		rescheduleLater = true
 	}
 
