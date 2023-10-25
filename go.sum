@@ -931,20 +931,13 @@ github.com/hashicorp/raft v1.5.1-0.20231024165115-d79654935a01 h1:tVBWxJGIubuWxx
 github.com/hashicorp/raft v1.5.1-0.20231024165115-d79654935a01/go.mod h1:Xil5pDgeGwRWuX4uPUmwa+7Vagg4N804dz6mhNi6S7o=
 github.com/hashicorp/raft-autopilot v0.1.6 h1:C1q3RNF2FfXNZfHWbvVAu0QixaQK8K5pX4O5lh+9z4I=
 github.com/hashicorp/raft-autopilot v0.1.6/go.mod h1:Af4jZBwaNOI+tXfIqIdbcAnh/UyyqIMj/pOISIfhArw=
-<<<<<<< HEAD
-github.com/hashicorp/raft-boltdb v0.0.0-20230125174641-2a8082862702 h1:RLKEcCuKcZ+qp2VlaaZsYZfLOmIiuJNpEi48Rl8u9cQ=
-github.com/hashicorp/raft-boltdb v0.0.0-20230125174641-2a8082862702/go.mod h1:nTakvJ4XYq45UXtn0DbwR4aU9ZdjlnIenpbs6Cd+FM0=
-=======
 github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea/go.mod h1:pNv7Wc3ycL6F5oOWn+tPGo2gWD4a5X+yp/ntwdKLjRk=
 github.com/hashicorp/raft-boltdb v0.0.0-20230125174641-2a8082862702 h1:RLKEcCuKcZ+qp2VlaaZsYZfLOmIiuJNpEi48Rl8u9cQ=
 github.com/hashicorp/raft-boltdb v0.0.0-20230125174641-2a8082862702/go.mod h1:nTakvJ4XYq45UXtn0DbwR4aU9ZdjlnIenpbs6Cd+FM0=
 github.com/hashicorp/raft-boltdb/v2 v2.2.3-0.20231024164814-4cd9b96914bd h1:oDlwkpj9oMENhrdvpMDfQ60zetCFp0F52Jll0YkpG3M=
 github.com/hashicorp/raft-boltdb/v2 v2.2.3-0.20231024164814-4cd9b96914bd/go.mod h1:NBItTzQc6OLdltzc31TibGugcybZWRki30rr4EjRbYs=
-github.com/hashicorp/serf v0.10.2-0.20231024164900-03fed9b19de0 h1:CjFD2nQ4HeI0CCAVPl7GyiDUP9S3ygOypNFfbMp+rqA=
-github.com/hashicorp/serf v0.10.2-0.20231024164900-03fed9b19de0/go.mod h1:tijZjkNIcGxSLI8AWbS1UwpE1+eee4qNLGL31OW668o=
 github.com/hashicorp/serf v0.10.2-0.20231025180740-47cf9d6680b5 h1:x1uyWCbLzoLPEccMqwvN3UTlRs0u7U2Q1tH3B6GIrJg=
 github.com/hashicorp/serf v0.10.2-0.20231025180740-47cf9d6680b5/go.mod h1:eWhOCD8JOS8R9ru1J5gM/51DTUr6AtxCc5P5B4mxfwc=
->>>>>>> d35d8f97e6 (Update packages to temporary values for msgpack fix)
 github.com/hashicorp/vault/api v1.8.0/go.mod h1:uJrw6D3y9Rv7hhmS17JQC50jbPDAZdjZoTtrCCxxs7E=
 github.com/hashicorp/vault/api v1.9.1 h1:LtY/I16+5jVGU8rufyyAkwopgq/HpUnxFBg+QLOAV38=
 github.com/hashicorp/vault/api v1.9.1/go.mod h1:78kktNcQYbBGSrOjQfHjXN32OhhxXnbYl3zxpd2uPUs=
