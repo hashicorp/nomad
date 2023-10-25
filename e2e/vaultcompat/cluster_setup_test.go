@@ -26,7 +26,7 @@ func authConfigJWT(jwksURL string) map[string]any {
 	return map[string]any{
 		"jwks_url":           jwksURL,
 		"jwt_supported_algs": []string{"EdDSA"},
-		"default_role":       "nomad-workloads",
+		"default_role":       "nomad-services",
 	}
 }
 

@@ -245,7 +245,7 @@ consul {
   auto_advertise         = true
   checks_use_advertise   = true
   timeout                = "5s"
-  service_auth_method    = "nomad-workloads"
+  service_auth_method    = "nomad-services"
   task_auth_method       = "nomad-tasks"
 
   service_identity {

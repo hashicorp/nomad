@@ -23,7 +23,7 @@ const (
 	// ConsulServicesDefaultAuthMethodName is the default JWT auth method name
 	// that has to be configured in Consul in order to authenticate Nomad
 	// services.
-	ConsulServicesDefaultAuthMethodName = "nomad-workloads"
+	ConsulServicesDefaultAuthMethodName = "nomad-services"
 
 	// ConsulTasksDefaultAuthMethodName the default JWT auth method name that
 	// has to be configured in Consul in order to authenticate Nomad tasks (used
