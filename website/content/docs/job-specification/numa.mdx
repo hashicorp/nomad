@@ -55,7 +55,8 @@ the [`cores`][cores] parameter.
   `"prefer"`, or `"require"`.
   - `none` - Nomad is free to allocate CPU cores using any strategy. Nomad uses
   this freedom to allocate cores in such a way that minimizes the amount of
-  fragmentation of core availability per NUMA node.
+  fragmentation of core availability per NUMA node. It does so by bin-packing
+  the chosen cores onto the NUMA nodes with the fewest number of cores available.
   - `prefer` - Nomad will select the set of CPU cores on a node that minimizes
   the total distance between those cores, but does not limit those CPU core
   selections to come from a single NUMA node.
@@ -66,10 +67,11 @@ the [`cores`][cores] parameter.
 
 <Note>
 
-The `require` affinity option should be used sparingly due to
-the implied fragmentation caused by reserving CPU cores based on the NUMA node
-they are associated with. Use it for workloads known to be highly sensitive
-to memory latencies.
+  The `require` affinity option causes fragmentation of available CPU cores
+  based on the NUMA node the selected cores are associated with. Use it for
+  workloads known to be highly sensitive to memory latencies. A cluster where
+  all jobs make use of the `require` affinity option will not be able to make
+  efficient use of available resources.
 </Note>
 
 [numa_wiki]: https://en.wikipedia.org/wiki/Non-uniform_memory_access
