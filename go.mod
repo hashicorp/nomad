@@ -66,7 +66,6 @@ require (
 	github.com/hashicorp/go-plugin v1.4.10
 	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.4
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
-	github.com/hashicorp/go-set v0.1.8
 	github.com/hashicorp/go-set/v2 v2.0.0-alpha.3
 	github.com/hashicorp/go-sockaddr v1.0.2
 	github.com/hashicorp/go-syslog v1.0.0
@@ -213,6 +212,7 @@ require (
 	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.7 // indirect
 	github.com/hashicorp/go-secure-stdlib/reloadutil v0.1.1 // indirect
 	github.com/hashicorp/go-secure-stdlib/tlsutil v0.1.2 // indirect
+	github.com/hashicorp/go-set v0.1.8 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/mdns v1.0.4 // indirect
 	github.com/hashicorp/vault/api/auth/kubernetes v0.3.0 // indirect

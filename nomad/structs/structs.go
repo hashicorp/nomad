@@ -33,7 +33,7 @@ import (
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/lib/idset"
