@@ -29,6 +29,7 @@ func TestTaskRunner_DisableFileForVaultToken_UpgradePath(t *testing.T) {
 		"run_for": "0s",
 	}
 	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
 		Policies: []string{"default"},
 	}
 
