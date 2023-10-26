@@ -226,6 +226,13 @@ func (c *JobPlanCommand) Run(args []string) int {
 		vaultToken = os.Getenv("VAULT_TOKEN")
 	}
 
+	if vaultToken != "" {
+		c.Ui.Warn(strings.TrimSpace(`
+Warning: setting a Vault token when submitting a job is deprecated and will be
+removed in Nomad 1.9. Migrate your Vault configuration to use workload identity.`))
+		job.VaultToken = pointer.Of(vaultToken)
+	}
+
 	// Set the vault token.
 	if vaultToken != "" {
 		job.VaultToken = pointer.Of(vaultToken)
