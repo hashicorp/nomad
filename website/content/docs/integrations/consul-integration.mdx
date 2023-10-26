@@ -79,7 +79,7 @@ match those shown here.
 
 Using that configuration file, you'll create two different Consul Auth Methods:
 
-* The first, named `nomad-workloads`, controls authentication for Service
+* The first, named `nomad-services`, controls authentication for Service
   Identity tokens used to register services and configure Consul Connect. You'll
   create a binding rule for this method that maps Nomad `service` blocks to
   Consul services.
@@ -101,7 +101,7 @@ In Consul Community Edition, you'll always bind to the default Consul namespace.
 
 ```shell-session
 $ consul acl auth-method create \
-         -name 'nomad-workloads' \
+         -name 'nomad-services' \
          -type jwt \
          -description 'login method for Nomad services' \
          -format json \
@@ -117,7 +117,7 @@ In Consul Enterprise, you'll map a Nomad namespace to a Consul namespace.
 
 ```shell-session
 $ consul acl auth-method create \
-         -name 'nomad-workloads' \
+         -name 'nomad-services' \
          -type jwt \
          -description 'login method for Nomad services' \
          -format json \
@@ -134,7 +134,7 @@ Consul Service Identity.
 
 ```shell-session
 $ consul acl binding-rule create \
-         -method 'nomad-workloads' \
+         -method 'nomad-services' \
          -description 'binding rule for Nomad workload identities (WI)' \
          -bind-type service \
          -bind-name '${value.nomad_namespace}-${value.nomad_service}'

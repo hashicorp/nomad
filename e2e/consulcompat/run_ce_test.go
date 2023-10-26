@@ -73,7 +73,7 @@ func testConsulBuild(t *testing.T, b build, baseDir string) {
 			Address:                   consulHTTPAddr,
 			Auth:                      "",
 			Token:                     consulToken,
-			ServiceIdentityAuthMethod: "nomad-workloads",
+			ServiceIdentityAuthMethod: "nomad-services",
 			ServiceIdentity: &testutil.WorkloadIdentityConfig{
 				Audience: []string{"consul.io"},
 				TTL:      "1h",
@@ -185,9 +185,9 @@ func setupConsulJWTAuthForServices(t *testing.T, consulAPI *consulapi.Client, ad
 	// note: we can't include NamespaceRules here because Consul CE doesn't
 	// support namespaces
 	_, _, err := consulAPI.ACL().AuthMethodCreate(&consulapi.ACLAuthMethod{
-		Name:          "nomad-workloads",
+		Name:          "nomad-services",
 		Type:          "jwt",
-		DisplayName:   "nomad-workloads",
+		DisplayName:   "nomad-services",
 		Description:   "login method for Nomad workload identities (WI)",
 		MaxTokenTTL:   time.Hour,
 		TokenLocality: "local",
@@ -201,7 +201,7 @@ func setupConsulJWTAuthForServices(t *testing.T, consulAPI *consulapi.Client, ad
 	rule := &consulapi.ACLBindingRule{
 		ID:          "",
 		Description: "binding rule for Nomad workload identities (WI) for services",
-		AuthMethod:  "nomad-workloads",
+		AuthMethod:  "nomad-services",
 		Selector:    "",
 		BindType:    "service",
 		BindName:    "${value.nomad_namespace}-${value.nomad_service}",
