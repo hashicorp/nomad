@@ -410,44 +410,53 @@ func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string)
 	return nil
 }
 
+// validateVaultIdentity validates that a task is properly configured to access
+// a Vault cluster.
+//
+// It assumes the jobImplicitIdentitiesHook mutator hook has been called to
+// inject task identities if necessary.
 func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
-	var mErr *multierror.Error
 	var warnings []error
 
-	vaultWIDs := make([]string, 0, len(t.Identities))
-	for _, wid := range t.Identities {
-		if strings.HasPrefix(wid.Name, structs.WorkloadIdentityVaultPrefix) {
-			vaultWIDs = append(vaultWIDs, wid.Name)
-		}
-	}
-
 	if t.Vault == nil {
-		for _, wid := range vaultWIDs {
-			warnings = append(warnings, fmt.Errorf("Task %s has an identity called %s but no vault block", t.Name, wid))
+		// Warn if task doesn't use Vault but has Vault identities.
+		for _, wid := range t.Identities {
+			if strings.HasPrefix(wid.Name, structs.WorkloadIdentityVaultPrefix) {
+				warnings = append(warnings, fmt.Errorf("Task %s has an identity called %s but no vault block", t.Name, wid.Name))
+			}
 		}
 		return warnings, nil
 	}
 
-	hasTaskWID := len(vaultWIDs) > 0
-	hasDefaultWID := v.srv.config.VaultIdentityConfig(t.Vault.Cluster) != nil
-
-	if hasTaskWID || hasDefaultWID {
-		if len(t.Vault.Policies) > 0 {
-			warnings = append(warnings, fmt.Errorf(
-				"Task %s has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored",
-				t.Name,
-			))
+	vaultWIDName := t.Vault.IdentityName()
+	vaultWID := t.GetIdentity(vaultWIDName)
+	if vaultWID == nil {
+		// Tasks using non-default clusters are required to have an identity.
+		if t.Vault.Cluster != structs.VaultDefaultCluster {
+			return warnings, fmt.Errorf(
+				"Task %s uses Vault cluster %s but does not have an identity named %s and no default identity is provided in agent configuration",
+				t.Name, t.Vault.Cluster, vaultWIDName,
+			)
 		}
+
+		// Tasks using the default cluster but without a Vault identity will
+		// use the legacy flow.
+		if len(t.Vault.Policies) == 0 {
+			return warnings, fmt.Errorf("Task %s has a Vault block with an empty list of policies", t.Name)
+		}
+
 		return warnings, nil
 	}
 
-	// At this point Nomad will use the legacy token-based flow, so keep the
-	// existing validations.
-	if len(t.Vault.Policies) == 0 {
-		mErr = multierror.Append(mErr, fmt.Errorf("Task %s has a Vault block with an empty list of policies", t.Name))
+	// Warn if tasks is using identity-based flow with the deprecated policies
+	// field.
+	if len(t.Vault.Policies) > 0 {
+		warnings = append(warnings, fmt.Errorf(
+			"Task %s has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored",
+			t.Name,
+		))
 	}
-
-	return warnings, mErr.ErrorOrNil()
+	return warnings, nil
 }
 
 type memoryOversubscriptionValidate struct {
