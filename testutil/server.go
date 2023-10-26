@@ -46,6 +46,7 @@ type TestServerConfig struct {
 	Vault             *VaultConfig  `json:"vault,omitempty"`
 	ACL               *ACLConfig    `json:"acl,omitempty"`
 	DevMode           bool          `json:"-"`
+	DevConnectMode    bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
 }
 
@@ -174,6 +175,8 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	if err := vcmd.Run(); err != nil {
 		t.Skipf("nomad version failed: %v", err)
 	}
+	out, _ := vcmd.Output()
+	t.Logf("nomad version: %s", out)
 
 	dataDir, err := os.MkdirTemp("", "nomad")
 	if err != nil {
@@ -218,6 +221,9 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	args := []string{"agent", "-config", configFile.Name()}
 	if nomadConfig.DevMode {
 		args = append(args, "-dev")
+	}
+	if nomadConfig.DevConnectMode {
+		args = append(args, "-dev-connect")
 	}
 
 	// Start the server

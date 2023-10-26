@@ -39,6 +39,7 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (string, *consulapi.
 
 	consulDC1 := "dc1"
 	rootToken := uuid.Generate()
+	t.Logf("CONSUL_HTTP_TOKEN (root): %s", rootToken)
 
 	testconsul, err := consulTestUtil.NewTestServerConfigT(t,
 		func(c *consulTestUtil.TestServerConfig) {
@@ -48,7 +49,7 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (string, *consulapi.
 				InitialManagement: rootToken,
 			}
 			c.Datacenter = consulDC1
-			c.DataDir = filepath.Join(baseDir, binDir, b.Version, consulDataDir)
+			c.DataDir = t.TempDir()
 			c.LogLevel = "debug"
 			c.Connect = map[string]any{"enabled": true}
 			c.Server = true
@@ -62,7 +63,6 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (string, *consulapi.
 
 	t.Cleanup(func() {
 		testconsul.Stop()
-		os.RemoveAll(filepath.Join(baseDir, binDir, b.Version, consulDataDir))
 	})
 
 	testconsul.WaitForLeader(t)
@@ -79,6 +79,7 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (string, *consulapi.
 		TLSConfig:  consulapi.TLSConfig{},
 	})
 	must.NoError(t, err)
+	t.Logf("CONSUL_HTTP_ADDR: %s", testconsul.HTTPAddr)
 
 	return testconsul.HTTPAddr, consulClient
 }
@@ -87,9 +88,11 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (string, *consulapi.
 func startNomad(t *testing.T, consulConfig *testutil.Consul) *nomadapi.Client {
 
 	rootToken := uuid.Generate()
+	t.Logf("NOMAD_TOKEN (root): %s", rootToken)
 
 	ts := testutil.NewTestServer(t, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
+		c.DevConnectMode = true
 		c.LogLevel = testlog.HCLoggerTestLevel().String()
 		c.Consul = consulConfig
 		c.ACL = &testutil.ACLConfig{
@@ -111,6 +114,7 @@ func startNomad(t *testing.T, consulConfig *testutil.Consul) *nomadapi.Client {
 		TLSConfig: &nomadapi.TLSConfig{},
 	})
 	must.NoError(t, err, must.Sprint("unable to create nomad api client"))
+	t.Logf("NOMAD_HTTP_ADDR: %s", nc.Address())
 
 	nc.SetSecretID(rootToken)
 	return nc
