@@ -5,6 +5,7 @@ package vaultclient
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -64,6 +65,9 @@ func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginR
 	}
 
 	token := uuid.Generate()
+	if req.Role != "" {
+		token = fmt.Sprintf("%s-%s", token, req.Role)
+	}
 	vc.jwtTokens[req.JWT] = token
 	return token, nil
 }

@@ -179,6 +179,8 @@ type Config struct {
 	ConsulConfigs map[string]*structsc.ConsulConfig
 
 	// VaultConfig is this Agent's default Vault configuration
+	//
+	// Deprecated: use GetVaultConfigs() instead.
 	VaultConfig *structsc.VaultConfig
 
 	// VaultConfigs is a map of Vault configurations, here to support features

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
+	"github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -22,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -54,20 +56,25 @@ func (tr *TaskRunner) updatedVaultToken(token string) {
 }
 
 type vaultHookConfig struct {
-	vaultBlock *structs.Vault
-	clientFunc vaultclient.VaultClientFunc
-	events     ti.EventEmitter
-	lifecycle  ti.TaskLifecycle
-	updater    vaultTokenUpdateHandler
-	logger     log.Logger
-	alloc      *structs.Allocation
-	task       *structs.Task
-	widmgr     widmgr.IdentityManager
+	vaultBlock       *structs.Vault
+	vaultConfigsFunc func(hclog.Logger) map[string]*sconfig.VaultConfig
+	clientFunc       vaultclient.VaultClientFunc
+	events           ti.EventEmitter
+	lifecycle        ti.TaskLifecycle
+	updater          vaultTokenUpdateHandler
+	logger           log.Logger
+	alloc            *structs.Allocation
+	task             *structs.Task
+	widmgr           widmgr.IdentityManager
 }
 
 type vaultHook struct {
 	// vaultBlock is the vault block for the task
 	vaultBlock *structs.Vault
+
+	// vaultConfig is the Nomad client configuration for Vault.
+	vaultConfig      *sconfig.VaultConfig
+	vaultConfigsFunc func(hclog.Logger) map[string]*sconfig.VaultConfig
 
 	// eventEmitter is used to emit events to the task
 	eventEmitter ti.EventEmitter
@@ -123,18 +130,19 @@ type vaultHook struct {
 func newVaultHook(config *vaultHookConfig) *vaultHook {
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &vaultHook{
-		vaultBlock:   config.vaultBlock,
-		clientFunc:   config.clientFunc,
-		eventEmitter: config.events,
-		lifecycle:    config.lifecycle,
-		updater:      config.updater,
-		alloc:        config.alloc,
-		task:         config.task,
-		firstRun:     true,
-		ctx:          ctx,
-		cancel:       cancel,
-		future:       newTokenFuture(),
-		widmgr:       config.widmgr,
+		vaultBlock:       config.vaultBlock,
+		vaultConfigsFunc: config.vaultConfigsFunc,
+		clientFunc:       config.clientFunc,
+		eventEmitter:     config.events,
+		lifecycle:        config.lifecycle,
+		updater:          config.updater,
+		alloc:            config.alloc,
+		task:             config.task,
+		firstRun:         true,
+		ctx:              ctx,
+		cancel:           cancel,
+		future:           newTokenFuture(),
+		widmgr:           config.widmgr,
 	}
 	h.logger = config.logger.Named(h.Name())
 
@@ -163,11 +171,17 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 		return nil
 	}
 
-	vclient, err := h.clientFunc(h.vaultBlock.Cluster)
+	cluster := h.vaultBlock.Cluster
+	vclient, err := h.clientFunc(cluster)
 	if err != nil {
 		return err
 	}
 	h.client = vclient
+
+	h.vaultConfig = h.vaultConfigsFunc(h.logger)[cluster]
+	if h.vaultConfig == nil {
+		return fmt.Errorf("No client configuration found for Vault cluster %s", cluster)
+	}
 
 	// Try to recover a token if it was previously written in the secrets
 	// directory
@@ -410,10 +424,15 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 		)
 	}
 
+	role := h.vaultConfig.Role
+	if h.vaultBlock.Role != "" {
+		role = h.vaultBlock.Role
+	}
+
 	// Derive Vault token with signed identity.
 	token, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
 		JWT:  signed.JWT,
-		Role: h.vaultBlock.Role,
+		Role: role,
 	})
 	if err != nil {
 		return "", structs.WrapRecoverable(
