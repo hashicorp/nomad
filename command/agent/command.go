@@ -612,6 +612,12 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 	}
 	c.httpServers = httpServers
 
+	for _, vault := range config.Vaults {
+		if vault.Token != "" {
+			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.9. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
+		}
+	}
+
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
 	if config.DisableUpdateCheck != nil && !*config.DisableUpdateCheck {
