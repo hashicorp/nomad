@@ -1689,6 +1689,10 @@
         "path": "job-specification/network"
       },
       {
+        "title": "numa",
+        "path": "job-specification/numa"
+      },
+      {
         "title": "parameterized",
         "path": "job-specification/parameterized"
       },

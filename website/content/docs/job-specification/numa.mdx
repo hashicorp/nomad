@@ -1,0 +1,78 @@
+---
+layout: docs
+page_title: numa Block - Job Specification
+description: |-
+  The "numa" block is used configure NUMA aware scheduling strategy for a task.
+---
+
+# `numa` Block
+
+<Placement groups={['job', 'group', 'task', 'resources', 'numa']} />
+
+The `numa` block is used to configure how Nomad will assign CPU cores for a task
+while taking the [NUMA hardware topology][numa_wiki] of a node into consideration.
+Workloads that are sensitive to memory latency can perform significantly better
+when pinned to CPU cores on the same NUMA node.
+
+<EnterpriseAlert>
+
+This functionality only exists in Nomad Enterprise. This is not
+present in the source available version of Nomad.
+</EnterpriseAlert>
+
+<Note>
+
+NUMA aware scheduling is currently limited to Linux.
+</Note>
+
+```hcl
+job "example" {
+  group "group" {
+    task "task" {
+      resources {
+        cores = 8
+        numa {
+          affinity = "require"
+        }
+      }
+    }
+  }
+}
+```
+
+In the example above, the task is requesting Nomad to reserve 8 CPU cores, all
+of which must be colocated on the same hardware NUMA node. The Nomad scheduler
+will ensure the task is placed on a Nomad node with sufficient unused CPU cores
+in a compatible configuration.
+
+Configuring the `numa` block requires the task specifies CPU resources using
+the [`cores`][cores] parameter.
+
+# `numa` Parameters
+
+- `affinity` `(string: "none")` - Specifies the strategy Nomad will use when
+  selecting CPU cores to assign to a task. Possible values are `"none"`,
+  `"prefer"`, or `"require"`.
+  - `none` - Nomad is free to allocate CPU cores using any strategy. Nomad uses
+  this freedom to allocate cores in such a way that minimizes the amount of
+  fragmentation of core availability per NUMA node. It does so by bin-packing
+  the chosen cores onto the NUMA nodes with the fewest number of cores available.
+  - `prefer` - Nomad will select the set of CPU cores on a node that minimizes
+  the total distance between those cores, but does not limit those CPU core
+  selections to come from a single NUMA node.
+  - `require` - Nomad will select a set of CPU cores that are strictly colocated
+  on the same hardware NUMA node. If there are no Nomad nodes with a sufficient
+  number of available cores in a compatible configuration, task placement will
+  fail due to exhausted resources.
+
+<Note>
+
+  The `require` affinity option causes fragmentation of available CPU cores
+  based on the NUMA node the selected cores are associated with. Use it for
+  workloads known to be highly sensitive to memory latencies. A cluster where
+  all jobs make use of the `require` affinity option will not be able to make
+  efficient use of available resources.
+</Note>
+
+[numa_wiki]: https://en.wikipedia.org/wiki/Non-uniform_memory_access
+[cores]: /nomad/docs/job-specification/resources#cores
