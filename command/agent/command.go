@@ -125,7 +125,10 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
-	flags.BoolVar(&cmdConfig.LogIncludeLocation, "log-include-location", false, "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.LogIncludeLocation = &b
+		return nil
+	}), "log-include-location", "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Consul options
@@ -761,13 +764,18 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	logLocation := false
+	if config.LogIncludeLocation != nil {
+		logLocation = *config.LogIncludeLocation
+	}
+
 	// Create logger
 	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
 		Name:            "agent",
 		Level:           hclog.LevelFromString(config.LogLevel),
 		Output:          logOutput,
 		JSONFormat:      config.LogJson,
-		IncludeLocation: config.LogIncludeLocation,
+		IncludeLocation: logLocation,
 	})
 
 	// Wrap log messages emitted with the 'log' package.
