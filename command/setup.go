@@ -22,7 +22,7 @@ Usage: nomad setup <subcommand> [options] [args]
 
   Setup Consul for Nomad:
 
-      $ nomad setup consul -method-name-services="nomad-workloads"
+      $ nomad setup consul -y
 
   Please see the individual subcommand help for detailed usage information.
 `
