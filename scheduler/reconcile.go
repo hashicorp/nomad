@@ -141,6 +141,13 @@ type reconcileResults struct {
 	// desiredFollowupEvals is the map of follow up evaluations to create per task group
 	// This is used to create a delayed evaluation for rescheduling failed allocations.
 	desiredFollowupEvals map[string][]*structs.Evaluation
+
+	// taskGroupAllocNameIndexes is a tracking of the allocation name index,
+	// keyed by the task group name. This is stored within the results, so the
+	// generic scheduler can use this to perform duplicate alloc index checks
+	// before submitting the plan. This is always non-nil and is handled within
+	// a single routine, so does not require a mutex.
+	taskGroupAllocNameIndexes map[string]*allocNameIndex
 }
 
 // delayedRescheduleInfo contains the allocation id and a time when its eligible to be rescheduled.
@@ -193,11 +200,12 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 		supportsDisconnectedClients: supportsDisconnectedClients,
 		now:                         time.Now(),
 		result: &reconcileResults{
-			attributeUpdates:     make(map[string]*structs.Allocation),
-			disconnectUpdates:    make(map[string]*structs.Allocation),
-			reconnectUpdates:     make(map[string]*structs.Allocation),
-			desiredTGUpdates:     make(map[string]*structs.DesiredUpdates),
-			desiredFollowupEvals: make(map[string][]*structs.Evaluation),
+			attributeUpdates:          make(map[string]*structs.Allocation),
+			disconnectUpdates:         make(map[string]*structs.Allocation),
+			reconnectUpdates:          make(map[string]*structs.Allocation),
+			desiredTGUpdates:          make(map[string]*structs.DesiredUpdates),
+			desiredFollowupEvals:      make(map[string][]*structs.Evaluation),
+			taskGroupAllocNameIndexes: make(map[string]*allocNameIndex),
 		},
 	}
 }
@@ -481,6 +489,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// which is the union of untainted, rescheduled, allocs on migrating
 	// nodes, and allocs on down nodes (includes canaries)
 	nameIndex := newAllocNameIndex(a.jobID, groupName, tg.Count, untainted.union(migrate, rescheduleNow, lost))
+	a.result.taskGroupAllocNameIndexes[groupName] = nameIndex
 
 	// Stop any unneeded allocations and update the untainted set to not
 	// include stopped allocations.
@@ -968,7 +977,16 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 		untainted = untainted.difference(canaries)
 	}
 
-	// Hot path the nothing to do case
+	// Hot path the nothing to do case.
+	//
+	// Duplicate allocation indexes can be caused due to the way this piece of
+	// code works. The reproduction involved canaries, and performing both a
+	// destructive job change (image update) and increasing the group count by
+	// one. In this scenario, once the canary is placed and we compute the next
+	// set of stops, the following maths takes place compared to a canary
+	// deployment that does not generate duplicate indexes.
+	//   NonBuggy: Untainted = "4" and GroupCount = "3" | remove = "1"
+	//   YesBuggy: Untainted = "4" and GroupCount = "4" | remove = "0"
 	remove := len(untainted) + len(migrate) - group.Count
 	if remove <= 0 {
 		return stop
