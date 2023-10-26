@@ -60,8 +60,9 @@ a Consul token to submit a job.
 ### Configuring Consul Authentication
 
 Create a configuration file for a Consul [JWT Auth Method][]. The `JWKSURL`
-field should point to the Nomad servers. The remaining fields are required to
-match those shown here.
+field should point to all the Nomad servers; you should use a proxy or DNS A
+Record to ensure that requests can go to any server in the cluster. The
+remaining fields are required to match those shown here.
 
 ```json
 {
@@ -234,9 +235,13 @@ service_prefix "" {
 }
 ```
 
+<Note>
+
 This legacy workflow will be removed in Nomad 1.9. Before upgrading to Nomad 1.9
 you will need to have configured authentication with Consul as described in
 [Configuring Consul Authentication](#configuring-consul-authentication).
+
+</Note>
 
 ## Migrating to Using Workload Identity with Consul
 
