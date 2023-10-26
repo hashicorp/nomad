@@ -4,7 +4,6 @@
 package command
 
 import (
-	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -31,7 +30,10 @@ var defaultPolicyText []byte
 type SetupConsulCommand struct {
 	Meta
 
-	namespaces           stringSetFlags
+	// client is the Consul API client shared by all functions in the command to
+	// reuse the same connection.
+	client *api.Client
+
 	methodNameServices   string
 	methodNameTasks      string
 	roleTasks            string
@@ -64,7 +66,6 @@ Usage: nomad setup consul [options]
 func (s *SetupConsulCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-namespaces":             complete.PredictAnything,
 			"-method-name-services":   complete.PredictAnything,
 			"-method-name-tasks":      complete.PredictAnything,
 			"-role-tasks":             complete.PredictAnything,
@@ -91,7 +92,6 @@ func (s *SetupConsulCommand) Run(args []string) int {
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
-	flags.Var(&s.namespaces, "namespaces", "")
 	flags.StringVar(&s.methodNameServices, "method-name-services", "nomad-workloads", "")
 	flags.StringVar(&s.methodNameTasks, "method-name-tasks", "nomad-tasks", "")
 	flags.StringVar(&s.roleTasks, "role-tasks", "", "")
@@ -112,34 +112,23 @@ func (s *SetupConsulCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(s.namespaces) == 0 {
-		s.namespaces.Set("prod")
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	var err error
 
 	// Get the Consul client.
 	cfg := api.DefaultConfig()
-	client, err := api.NewClient(cfg)
+	s.client, err = api.NewClient(cfg)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error initializing Consul client: %s", err))
 		os.Exit(1)
 	}
 
-	err = s.createNamespaces(ctx, client)
+	err = s.createAuthMethod(s.methodNameServices)
 	if err != nil {
 		s.Ui.Error(err.Error())
 		os.Exit(1)
 	}
 
-	err = s.createAuthMethod(ctx, client, s.methodNameServices)
-	if err != nil {
-		s.Ui.Error(err.Error())
-		os.Exit(1)
-	}
-
-	err = s.createBindingRules(ctx, client, &api.ACLBindingRule{
+	err = s.createBindingRules(&api.ACLBindingRule{
 		Description: "binding rule for Nomad workload identities (WI)",
 		AuthMethod:  s.methodNameServices,
 		BindType:    "service",
@@ -152,19 +141,17 @@ func (s *SetupConsulCommand) Run(args []string) int {
 		os.Exit(1)
 	}
 
-	err = s.createAuthMethod(ctx, client, s.methodNameTasks)
+	err = s.createAuthMethod(s.methodNameTasks)
 	if err != nil {
 		s.Ui.Error(err.Error())
 		os.Exit(1)
 	}
 
-	err = s.createBindingRules(ctx, client, &api.ACLBindingRule{
+	err = s.createBindingRules(&api.ACLBindingRule{
 		Description: "binding rule for Nomad templates w/ (WI)",
 		AuthMethod:  s.methodNameTasks,
 		BindType:    "role",
 		BindName:    "nomad-${value.nomad_namespace}-templates",
-		Namespace:   "", // TODO
-		Partition:   "", // TOOD
 	})
 	if err != nil {
 		s.Ui.Error(err.Error())
@@ -177,13 +164,13 @@ func (s *SetupConsulCommand) Run(args []string) int {
 		os.Exit(1)
 	}
 
-	err = s.createPolicies(client, policies)
+	err = s.createPolicies(policies)
 	if err != nil {
 		s.Ui.Error(err.Error())
 		os.Exit(1)
 	}
 
-	err = s.createRoleForTemplate(ctx, client, maps.Keys(policies))
+	err = s.createRoleForTemplate(maps.Keys(policies))
 	if err != nil {
 		s.Ui.Error(err.Error())
 		os.Exit(1)
@@ -192,19 +179,7 @@ func (s *SetupConsulCommand) Run(args []string) int {
 	return 0
 }
 
-func (s *SetupConsulCommand) createNamespaces(ctx context.Context, client *api.Client) error {
-	nsClient := client.Namespaces()
-	for _, namespace := range s.namespaces {
-		_, _, err := nsClient.Create(&api.Namespace{Name: namespace}, nil)
-		if err != nil {
-			return fmt.Errorf("could not write namespace %q: %w", namespace, err)
-		}
-		s.Ui.Info(fmt.Sprintf("[✔] Created namespace: %s", namespace))
-	}
-	return nil
-}
-
-func (s *SetupConsulCommand) createAuthMethod(ctx context.Context, client *api.Client, authMethodName string) error {
+func (s *SetupConsulCommand) createAuthMethod(authMethodName string) error {
 
 	authConfig := map[string]any{}
 	err := json.Unmarshal(defaultAuthConfigText, &authConfig)
@@ -221,7 +196,7 @@ func (s *SetupConsulCommand) createAuthMethod(ctx context.Context, client *api.C
 	authConfig["BoundAudiences"] = s.aud
 	authConfig["JWTSupportedAlgs"] = []string{"RS256"}
 
-	_, _, err = client.ACL().AuthMethodCreate(&api.ACLAuthMethod{
+	_, _, err = s.client.ACL().AuthMethodCreate(&api.ACLAuthMethod{
 		Name:          authMethodName,
 		Type:          "jwt",
 		DisplayName:   authMethodName,
@@ -233,8 +208,6 @@ func (s *SetupConsulCommand) createAuthMethod(ctx context.Context, client *api.C
 			Selector:      "",
 			BindNamespace: "${value.nomad_namespace}",
 		}},
-		Namespace: "", // TODO
-		Partition: "", // TODO
 	}, nil)
 
 	if err != nil {
@@ -245,8 +218,8 @@ func (s *SetupConsulCommand) createAuthMethod(ctx context.Context, client *api.C
 	return nil
 }
 
-func (s *SetupConsulCommand) createBindingRules(ctx context.Context, client *api.Client, rule *api.ACLBindingRule) error {
-	_, _, err := client.ACL().BindingRuleCreate(rule, nil)
+func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
+	_, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
 	if err != nil {
 		return fmt.Errorf("could not create Consul binding rule: %w", err)
 	}
@@ -281,14 +254,14 @@ func policyPathToName(policyPath string) string {
 		strings.Split(filepath.Base(policyPath), ".")[0], "_", "-")
 }
 
-func (s *SetupConsulCommand) createRoleForTemplate(ctx context.Context, client *api.Client, policyNames []string) error {
+func (s *SetupConsulCommand) createRoleForTemplate(policyNames []string) error {
 
 	policies := []*api.ACLLink{}
 	for _, policyName := range policyNames {
 		policies = append(policies, &api.ACLLink{Name: policyName})
 	}
 
-	_, _, err := client.ACL().RoleCreate(&api.ACLRole{
+	_, _, err := s.client.ACL().RoleCreate(&api.ACLRole{
 		ID:          "",
 		Name:        s.roleTasks,
 		Description: "role for Nomad templates w/ workload identities (WI)",
@@ -304,15 +277,12 @@ func (s *SetupConsulCommand) createRoleForTemplate(ctx context.Context, client *
 	return nil
 }
 
-func (s *SetupConsulCommand) createPolicies(client *api.Client, policies map[string][]byte) error {
+func (s *SetupConsulCommand) createPolicies(policies map[string][]byte) error {
 
 	for policyName, policyText := range policies {
-		_, _, err := client.ACL().PolicyCreate(&api.ACLPolicy{
-			Name:        policyName,
-			Rules:       string(policyText),
-			Datacenters: []string{}, // ?
-			Namespace:   "",         // TODO
-			Partition:   "",         // TOOD
+		_, _, err := s.client.ACL().PolicyCreate(&api.ACLPolicy{
+			Name:  policyName,
+			Rules: string(policyText),
 		}, nil)
 		if err != nil {
 			return fmt.Errorf("could not create Consul policy: %w", err)
