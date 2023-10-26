@@ -94,7 +94,7 @@ func (s *SetupConsulCommand) Run(args []string) int {
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
 	flags.StringVar(&s.methodNameServices, "method-name-services", "nomad-workloads", "")
 	flags.StringVar(&s.methodNameTasks, "method-name-tasks", "nomad-tasks", "")
-	flags.StringVar(&s.roleTasks, "role-tasks", "", "")
+	flags.StringVar(&s.roleTasks, "role-tasks", "role-tasks", "")
 	flags.Var(&s.policyTemplatesPaths, "template-policy", "Path to a policy file used for the template role (accepts multiple)")
 	flags.Var(&s.aud, "aud", "consul.io")
 	flags.StringVar(&s.jwksURL, "jwks-url", "http://localhost:4646/.well-known/jwks.json", "")
@@ -133,8 +133,6 @@ func (s *SetupConsulCommand) Run(args []string) int {
 		AuthMethod:  s.methodNameServices,
 		BindType:    "service",
 		BindName:    "${value.nomad_namespace}-${value.nomad_service}",
-		Namespace:   "", // TODO
-		Partition:   "", // TOOD
 	})
 	if err != nil {
 		s.Ui.Error(err.Error())
@@ -211,20 +209,20 @@ func (s *SetupConsulCommand) createAuthMethod(authMethodName string) error {
 	}, nil)
 
 	if err != nil {
-		return fmt.Errorf("could not create Consul auth method: %w", err)
+		return fmt.Errorf("[✘] could not create Consul auth method: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created auth method %s\n", authMethodName))
+	s.Ui.Info(fmt.Sprintf("[✔] Created auth method %s", authMethodName))
 	return nil
 }
 
 func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
 	_, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
 	if err != nil {
-		return fmt.Errorf("could not create Consul binding rule: %w", err)
+		return fmt.Errorf("[✘] could not create Consul binding rule: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created binding rule for auth method %s\n", rule.AuthMethod))
+	s.Ui.Info(fmt.Sprintf("[✔] Created binding rule for auth method %s", rule.AuthMethod))
 	return nil
 }
 
@@ -237,7 +235,7 @@ func (s *SetupConsulCommand) readPolicies(policyPaths []string) (map[string][]by
 	for _, policyPath := range policyPaths {
 		policyText, err := os.ReadFile(policyPath)
 		if err != nil {
-			return nil, fmt.Errorf("could not read policy file %q: %w", policyPath, err)
+			return nil, fmt.Errorf("[✘] could not read policy file %q: %w", policyPath, err)
 		}
 
 		policyName := policyPathToName(policyPath)
@@ -262,15 +260,16 @@ func (s *SetupConsulCommand) createRoleForTemplate(policyNames []string) error {
 	}
 
 	_, _, err := s.client.ACL().RoleCreate(&api.ACLRole{
-		ID:          "",
 		Name:        s.roleTasks,
 		Description: "role for Nomad templates w/ workload identities (WI)",
 		Policies:    policies,
-		Namespace:   "", // TODO
-		Partition:   "", // TODO
 	}, nil)
 	if err != nil {
-		return fmt.Errorf("could not create Consul role: %w", err)
+		if strings.Contains(err.Error(), "already exists") {
+			s.Ui.Warn(fmt.Sprintf("[ ] role %s already exists", s.roleTasks))
+			return nil
+		}
+		return fmt.Errorf("[✘] could not create Consul role: %w", err)
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created role %s\n", s.roleTasks))
@@ -285,10 +284,14 @@ func (s *SetupConsulCommand) createPolicies(policies map[string][]byte) error {
 			Rules: string(policyText),
 		}, nil)
 		if err != nil {
-			return fmt.Errorf("could not create Consul policy: %w", err)
+			if strings.Contains(err.Error(), "already exists") {
+				s.Ui.Warn(fmt.Sprintf("[ ] policy %s already exists", policyName))
+				continue
+			}
+			return fmt.Errorf("[✘] could not create Consul policy: %w", err)
 		}
 
-		s.Ui.Info(fmt.Sprintf("[✔] Created policy %s\n", policyName))
+		s.Ui.Info(fmt.Sprintf("[✔] Created policy %s", policyName))
 	}
 
 	return nil
