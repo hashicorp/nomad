@@ -34,7 +34,7 @@ func testConsulBuildLegacy(t *testing.T, b build, baseDir string) {
 		// need it up to serve the JWKS endpoint
 
 		consulCfg := &testutil.Consul{
-			//Name:    "default", // TODO: restore once we're using the new one
+			Name:    "default",
 			Address: consulHTTPAddr,
 			Auth:    "",
 			Token:   consulToken,
