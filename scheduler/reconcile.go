@@ -230,6 +230,7 @@ func (a *allocReconciler) computeDeploymentComplete(m allocMatrix) bool {
 		groupComplete := a.computeGroup(group, as)
 		complete = complete && groupComplete
 	}
+
 	return complete
 }
 
@@ -398,6 +399,7 @@ func (a *allocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescr
 // computeGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete with regards to the task group.
 func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
+
 	// Create the desired update object for the group
 	desiredChanges := new(structs.DesiredUpdates)
 	a.result.desiredTGUpdates[groupName] = desiredChanges
@@ -425,6 +427,9 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost, disconnecting, reconnecting, ignore := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
 	desiredChanges.Ignore += uint64(len(ignore))
+
+	// Determine what set of terminal allocations need to be rescheduled
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
 
 	// If there are allocations reconnecting we need to reconcile them and
 	// their replacements first because there is specific logic when deciding
@@ -454,20 +459,28 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		untainted = untainted.union(reconnect)
 	}
 
-	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
+	// Determine what set of disconnecting allocations need to be rescheduled now,
+	// which ones later and which ones can't be rescheduled at all.
+	timeoutLaterEvals := map[string]string{}
+	if len(disconnecting) > 0 {
+		untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
-	// Determine what set of disconnecting allocations need to be rescheduled
-	_, rescheduleDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
-	rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
+		rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
+		untainted = untainted.union(untaintedDisconnecting)
+		rescheduleLater = append(rescheduleLater, laterDisconnecting...)
+
+		// Find delays for any disconnecting allocs that have max_client_disconnect,
+		// create followup evals, and update the ClientStatus to unknown.
+		timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
+	}
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
-	lostLater := lost.delayByStopAfterClientDisconnect()
-	lostLaterEvals := a.createLostLaterEvals(lostLater, tg.Name)
-
-	// Find delays for any disconnecting allocs that have max_client_disconnect,
-	// create followup evals, and update the ClientStatus to unknown.
-	timeoutLaterEvals := a.createTimeoutLaterEvals(disconnecting, tg.Name)
+	lostLaterEvals := map[string]string{}
+	lostLater := []*delayedRescheduleInfo{}
+	if len(lost) > 0 {
+		lostLater = lost.delayByStopAfterClientDisconnect()
+		lostLaterEvals = a.createLostLaterEvals(lostLater, tg.Name)
+	}
 
 	// Merge disconnecting with the stop_after_client_disconnect set into the
 	// lostLaterEvals so that computeStop can add them to the stop set.
@@ -486,13 +499,15 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// include stopped allocations.
 	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, isCanarying, lostLaterEvals)
+
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
-	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
-	desiredChanges.Ignore += uint64(len(ignore))
+	ignoreUpdates, inplace, destructive := a.computeUpdates(tg, untainted)
+
+	desiredChanges.Ignore += uint64(len(ignoreUpdates))
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
 	if !existingDeployment {
 		dstate.DesiredTotal += len(destructive) + len(inplace)
@@ -796,7 +811,8 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	// replacements based off that.
 	failed := make(allocSet)
 	for id, alloc := range rescheduleNow {
-		if _, ok := a.result.disconnectUpdates[id]; !ok {
+		_, ok := a.result.disconnectUpdates[id]
+		if !ok && alloc.ClientStatus != structs.AllocClientStatusUnknown {
 			failed[id] = alloc
 		}
 	}
@@ -968,8 +984,11 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 		untainted = untainted.difference(canaries)
 	}
 
+	// Remove disconnected allocations so they won't be stopped
+	knownUntainted := untainted.filterOutByClientStatus(structs.AllocClientStatusUnknown)
+
 	// Hot path the nothing to do case
-	remove := len(untainted) + len(migrate) - group.Count
+	remove := len(knownUntainted) + len(migrate) - group.Count
 	if remove <= 0 {
 		return stop
 	}
@@ -1072,7 +1091,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 //   - If the reconnecting allocation is to be stopped, its replacements may
 //     not be present in any of the returned sets. The rest of the reconciler
 //     logic will handle them.
-func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others allocSet) (allocSet, allocSet) {
+func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all allocSet) (allocSet, allocSet) {
 	stop := make(allocSet)
 	reconnect := make(allocSet)
 
@@ -1111,14 +1130,11 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 
 		// Find replacement allocations and decide which one to stop. A
 		// reconnecting allocation may have multiple replacements.
-		for _, replacementAlloc := range others {
+		for _, replacementAlloc := range all {
 
 			// Skip allocations that are not a replacement of the one
-			// reconnecting. Replacement allocations have the same name but a
-			// higher CreateIndex and a different ID.
-			isReplacement := replacementAlloc.ID != reconnectingAlloc.ID &&
-				replacementAlloc.Name == reconnectingAlloc.Name &&
-				replacementAlloc.CreateIndex > reconnectingAlloc.CreateIndex
+			// reconnecting.
+			isReplacement := replacementAlloc.ID == reconnectingAlloc.NextAllocation
 
 			// Skip allocations that are server terminal.
 			// We don't want to replace a reconnecting allocation with one that
@@ -1142,12 +1158,14 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 				}
 			} else {
 				// The reconnecting allocation is preferred, so stop this
-				// replacement.
-				stop[replacementAlloc.ID] = replacementAlloc
-				a.result.stop = append(a.result.stop, allocStopResult{
-					alloc:             replacementAlloc,
-					statusDescription: allocReconnected,
-				})
+				// replacement, but avoid re-stopping stopped allocs
+				if replacementAlloc.ClientStatus != structs.AllocClientStatusFailed {
+					stop[replacementAlloc.ID] = replacementAlloc
+					a.result.stop = append(a.result.stop, allocStopResult{
+						alloc:             replacementAlloc,
+						statusDescription: allocReconnected,
+					})
+				}
 			}
 		}
 	}
@@ -1235,11 +1253,17 @@ func (a *allocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedR
 	allocIDToFollowupEvalID := a.createLostLaterEvals(rescheduleLater, tgName)
 
 	// Create updates that will be applied to the allocs to mark the FollowupEvalID
-	for allocID, evalID := range allocIDToFollowupEvalID {
-		existingAlloc := all[allocID]
+	for _, laterAlloc := range rescheduleLater {
+		existingAlloc := all[laterAlloc.alloc.ID]
 		updatedAlloc := existingAlloc.Copy()
-		updatedAlloc.FollowupEvalID = evalID
-		a.result.attributeUpdates[updatedAlloc.ID] = updatedAlloc
+		updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
+
+		// Can't updated an allocation that is disconnected
+		if _, ok := a.result.disconnectUpdates[laterAlloc.allocID]; !ok {
+			a.result.attributeUpdates[laterAlloc.allocID] = updatedAlloc
+		} else {
+			a.result.disconnectUpdates[laterAlloc.allocID].FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
+		}
 	}
 }
 
@@ -1355,8 +1379,8 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 	}
 
 	timeoutDelays, err := disconnecting.delayByMaxClientDisconnect(a.now)
-	if err != nil || len(timeoutDelays) != len(disconnecting) {
-		a.logger.Error("error computing disconnecting timeouts for task_group",
+	if err != nil {
+		a.logger.Error("error for task_group",
 			"task_group", tgName, "error", err)
 		return map[string]string{}
 	}
