@@ -14,11 +14,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -488,4 +490,124 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 	must.Error(t, err)
 	must.ErrorContains(t, err, "invalid signature")
 	must.Nil(t, got)
+}
+
+// TestEncrypter_Upgrade17 simulates upgrading from 1.6 -> 1.7 does not break
+// old (ed25519) or new (rsa) signing keys.
+func TestEncrypter_Upgrade17(t *testing.T) {
+
+	ci.Parallel(t)
+
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	t.Cleanup(shutdown)
+	testutil.WaitForLeader(t, srv.RPC)
+	codec := rpcClient(t, srv)
+
+	// Fake life as a 1.6 server by writing only ed25519 keys
+	oldRootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+
+	oldRootKey.Meta.SetActive()
+
+	// Remove RSAKey to mimic 1.6
+	oldRootKey.RSAKey = nil
+
+	// Add to keyring
+	must.NoError(t, srv.encrypter.AddKey(oldRootKey))
+
+	// Write metadata to Raft
+	wr := structs.WriteRequest{
+		Namespace: "default",
+		Region:    "global",
+	}
+	req := structs.KeyringUpdateRootKeyMetaRequest{
+		RootKeyMeta:  oldRootKey.Meta,
+		WriteRequest: wr,
+	}
+	_, _, err = srv.raftApply(structs.RootKeyMetaUpsertRequestType, req)
+	must.NoError(t, err)
+
+	// Create a 1.6 style workload identity
+	claims := &structs.IdentityClaims{
+		Namespace:    "default",
+		JobID:        "fakejob",
+		AllocationID: uuid.Generate(),
+		TaskName:     "faketask",
+	}
+
+	// Sign the claims and assert they were signed with EdDSA (the 1.6 signing
+	// algorithm)
+	oldRawJWT, oldKeyID, err := srv.encrypter.SignClaims(claims)
+	must.NoError(t, err)
+	must.Eq(t, oldRootKey.Meta.KeyID, oldKeyID)
+
+	oldJWT, err := jwt.ParseSigned(oldRawJWT)
+	must.NoError(t, err)
+
+	foundKeyID := false
+	foundAlg := false
+	for _, h := range oldJWT.Headers {
+		if h.KeyID != "" {
+			// Should only have one key id header
+			must.False(t, foundKeyID)
+			foundKeyID = true
+			must.Eq(t, oldKeyID, h.KeyID)
+		}
+
+		if h.Algorithm != "" {
+			// Should only have one alg header
+			must.False(t, foundAlg)
+			foundAlg = true
+			must.Eq(t, structs.PubKeyAlgEdDSA, h.Algorithm)
+		}
+	}
+	must.True(t, foundKeyID)
+	must.True(t, foundAlg)
+
+	_, err = srv.encrypter.VerifyClaim(oldRawJWT)
+	must.NoError(t, err)
+
+	// !! Mimic an upgrade by rotating to get a new RSA key !!
+	rotateReq := &structs.KeyringRotateRootKeyRequest{
+		WriteRequest: wr,
+	}
+	var rotateResp structs.KeyringRotateRootKeyResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp))
+
+	newRawJWT, newKeyID, err := srv.encrypter.SignClaims(claims)
+	must.NoError(t, err)
+	must.NotEq(t, oldRootKey.Meta.KeyID, newKeyID)
+	must.Eq(t, rotateResp.Key.KeyID, newKeyID)
+
+	newJWT, err := jwt.ParseSigned(newRawJWT)
+	must.NoError(t, err)
+
+	foundKeyID = false
+	foundAlg = false
+	for _, h := range newJWT.Headers {
+		if h.KeyID != "" {
+			// Should only have one key id header
+			must.False(t, foundKeyID)
+			foundKeyID = true
+			must.Eq(t, newKeyID, h.KeyID)
+		}
+
+		if h.Algorithm != "" {
+			// Should only have one alg header
+			must.False(t, foundAlg)
+			foundAlg = true
+			must.Eq(t, structs.PubKeyAlgRS256, h.Algorithm)
+		}
+	}
+	must.True(t, foundKeyID)
+	must.True(t, foundAlg)
+
+	_, err = srv.encrypter.VerifyClaim(newRawJWT)
+	must.NoError(t, err)
+
+	// Ensure that verifying the old JWT still works
+	_, err = srv.encrypter.VerifyClaim(oldRawJWT)
+	must.NoError(t, err)
 }

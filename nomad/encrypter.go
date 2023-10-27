@@ -206,12 +206,21 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		claims.Issuer = e.issuer
 	}
 
-	// Default to using RS256 for signing as it is the only algorithm OIDC
-	// mandates is supported.
 	opts := (&jose.SignerOptions{}).WithHeader("kid", keyset.rootKey.Meta.KeyID).WithType("JWT")
-	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: keyset.rsaPrivateKey}, opts)
-	if err != nil {
-		return "", "", err
+
+	var sig jose.Signer
+	if keyset.rsaPrivateKey != nil {
+		// If an RSA key has been created prefer it as it is more widely compatible
+		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: keyset.rsaPrivateKey}, opts)
+		if err != nil {
+			return "", "", err
+		}
+	} else {
+		// No RSA key has been created, fallback to ed25519 which always exists
+		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: keyset.eddsaPrivateKey}, opts)
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	raw, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
