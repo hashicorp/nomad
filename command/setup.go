@@ -14,7 +14,7 @@ type SetupCommand struct {
 }
 
 // Help satisfies the cli.Command Help function.
-func (a *SetupCommand) Help() string {
+func (c *SetupCommand) Help() string {
 	helpText := `
 Usage: nomad setup <subcommand> [options] [args]
 
