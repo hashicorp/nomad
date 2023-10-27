@@ -7620,6 +7620,15 @@ func (t *Task) GetIdentity(name string) *WorkloadIdentity {
 	return nil
 }
 
+func (t *Task) GetAction(name string) *Action {
+	for _, a := range t.Actions {
+		if a.Name == name {
+			return a
+		}
+	}
+	return nil
+}
+
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of unique WI
 // name and task name.
 func (t *Task) IdentityHandle(identity *WorkloadIdentity) *WIHandle {
