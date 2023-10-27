@@ -204,7 +204,7 @@ func setupConsulJWTAuthForServices(t *testing.T, consulAPI *consulapi.Client, ad
 		AuthMethod:  "nomad-services",
 		Selector:    "",
 		BindType:    "service",
-		BindName:    "${value.nomad_namespace}-${value.nomad_service}",
+		BindName:    "${value.nomad_service}",
 	}
 	_, _, err = consulAPI.ACL().BindingRuleCreate(rule, nil)
 	must.NoError(t, err, must.Sprint("could not create Consul binding rule"))

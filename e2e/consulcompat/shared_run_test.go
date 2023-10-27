@@ -5,7 +5,10 @@ package consulcompat
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -76,7 +79,29 @@ func runConnectJob(t *testing.T, nc *nomadapi.Client) {
 	t.Cleanup(func() {
 		_, _, err = jobs.Deregister(*job.Name, true, nil)
 		must.NoError(t, err, must.Sprint("failed to deregister job"))
+
+		must.Wait(t, wait.InitialSuccess(
+			wait.ErrorFunc(func() error {
+				allocs, _, err := jobs.Allocations(*job.ID, false, nil)
+				if err != nil {
+					return err
+				}
+				for _, alloc := range allocs {
+					if alloc.ClientStatus == "running" {
+						return fmt.Errorf("expected alloc %s to be stopped", alloc.ID)
+					}
+				}
+				return nil
+			}),
+			wait.Timeout(30*time.Second),
+			wait.Gap(1*time.Second),
+		))
+
+		// give Nomad time to sync Consul before shutdown
+		time.Sleep(3 * time.Second)
 	})
+
+	var dashboardAllocID string
 
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
@@ -88,6 +113,9 @@ func runConnectJob(t *testing.T, nc *nomadapi.Client) {
 				return fmt.Errorf("expected 2 alloc, got %d", n)
 			}
 			for _, alloc := range allocs {
+				if alloc.TaskGroup == "dashboard" {
+					dashboardAllocID = alloc.ID // save for later
+				}
 				if alloc.ClientStatus != "running" {
 					return fmt.Errorf(
 						"expected alloc status running, got %s for %s",
@@ -97,6 +125,34 @@ func runConnectJob(t *testing.T, nc *nomadapi.Client) {
 			return nil
 		}),
 		wait.Timeout(30*time.Second),
+		wait.Gap(1*time.Second),
+	))
+
+	// Ensure that the dashboard is reachable and can connect to the API
+	alloc, _, err := nc.Allocations().Info(dashboardAllocID, nil)
+	must.NoError(t, err)
+
+	network := alloc.AllocatedResources.Shared.Networks[0]
+	dynPort := network.DynamicPorts[0]
+	addr := fmt.Sprintf("http://%s:%d", network.IP, dynPort.Value)
+
+	// the alloc may be running but not yet listening, so give it a few seconds
+	// to start up
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			info, err := http.Get(addr)
+			if err != nil {
+				return err
+			}
+			defer info.Body.Close()
+			body, _ := io.ReadAll(info.Body)
+
+			if !strings.Contains(string(body), "Dashboard") {
+				return fmt.Errorf("expected body to contain \"Dashboard\"")
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
 		wait.Gap(1*time.Second),
 	))
 }
