@@ -979,14 +979,12 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 
 	// Hot path the nothing to do case.
 	//
-	// Duplicate allocation indexes can be caused due to the way this piece of
-	// code works. The reproduction involved canaries, and performing both a
-	// destructive job change (image update) and increasing the group count by
-	// one. In this scenario, once the canary is placed and we compute the next
-	// set of stops, the following maths takes place compared to a canary
-	// deployment that does not generate duplicate indexes.
-	//   NonBuggy: Untainted = "4" and GroupCount = "3" | remove = "1"
-	//   YesBuggy: Untainted = "4" and GroupCount = "4" | remove = "0"
+	// Note that this path can result in duplication allocation indexes in a
+	// scenario with a destructive job change (ex. image update) happens with
+	// an increased group count. Once the canary is replaced, and we compute
+	// the next set of stops, the untainted set equals the new group count,
+	// which results is missing one removal. The duplicate alloc index is
+	// corrected in `computePlacements`
 	remove := len(untainted) + len(migrate) - group.Count
 	if remove <= 0 {
 		return stop

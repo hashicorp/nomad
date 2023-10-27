@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -587,11 +586,10 @@ type allocNameIndex struct {
 
 	// duplicates is used to store duplicate allocation indexes which are
 	// currently present within the index tracking. The map key is the index,
-	// and the current count of duplicates. While the map is only accessed
-	// within a single routine, lock is used for access to provide future-proof
-	// safety at a very small overhead.
+	// and the current count of duplicates. The map is only accessed within a
+	// single routine and multiple times per job scheduler invocation,
+	// therefore no lock is used.
 	duplicates map[uint]int
-	lock       sync.RWMutex
 }
 
 // newAllocNameIndex returns an allocNameIndex for use in selecting names of
@@ -688,17 +686,12 @@ func (a *allocNameIndex) Highest(n uint) map[string]struct{} {
 // IsDuplicate checks whether the passed allocation index is duplicated within
 // the tracking.
 func (a *allocNameIndex) IsDuplicate(idx uint) bool {
-	a.lock.RLock()
-	defer a.lock.RUnlock()
-
 	val, ok := a.duplicates[idx]
 	return ok && val > 0
 }
 
 // UnsetIndex unsets the index as having its name used
 func (a *allocNameIndex) UnsetIndex(idx uint) {
-	a.lock.Lock()
-	defer a.lock.Unlock()
 
 	// If this index is a duplicate, remove the duplicate entry. Otherwise, we
 	// can remove it from the bitmap tracking.
