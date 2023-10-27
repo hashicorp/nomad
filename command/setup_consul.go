@@ -56,7 +56,7 @@ Usage: nomad setup consul [options]
 
   Setup Consul for Nomad:
 
-	$ nomad setup consul -y -jwks="http://nomad.example/.well-known/jwks.json"
+    $ nomad setup consul -y -jwks-url="http://nomad.example/.well-known/jwks.json"
 `
 	return strings.TrimSpace(helpText)
 }
@@ -74,10 +74,10 @@ func (s *SetupConsulCommand) AutocompleteArgs() complete.Predictor {
 }
 
 // Synopsis satisfies the cli.Command Synopsis function.
-func (s *SetupConsulCommand) Synopsis() string { return "Interact with setup helpers" }
+func (s *SetupConsulCommand) Synopsis() string { return "Setup a Consul cluster for Nomad integration" }
 
 // Name returns the name of this command.
-func (s *SetupConsulCommand) Name() string { return "setup" }
+func (s *SetupConsulCommand) Name() string { return "setup consul" }
 
 // Run satisfies the cli.Command Run function.
 func (s *SetupConsulCommand) Run(args []string) int {
@@ -85,7 +85,7 @@ func (s *SetupConsulCommand) Run(args []string) int {
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
 	flags.BoolVar(&s.autoYes, "y", false, "")
-	flags.StringVar(&s.jwksURL, "jwks", "http://localhost:4646/.well-known/jwks.json", "")
+	flags.StringVar(&s.jwksURL, "jwks-url", "http://localhost:4646/.well-known/jwks.json", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -110,10 +110,9 @@ func (s *SetupConsulCommand) Run(args []string) int {
 	s.Ui.Output(`
 This command will walk you through configuring all the components required for 
 Nomad workloads to authenticate themselves against Consul ACL using their 
-respective Workload Identities. 
+respective workload identities. 
 
-First we need to create a JWT auth method for Nomad services. Here is the auth
-method configuration we will create:
+First we need to create a JWT auth method for Nomad services. This auth method will be called %q and this is how it will be configured.
 `)
 
 	authMethodConf, err := s.renderAuthMethodConf(authMethodServices)
@@ -129,7 +128,7 @@ method configuration we will create:
 	if !s.autoYes {
 		createAuthMethod = s.askQuestion(
 			fmt.Sprintf(
-				"Should we create the %s auth method in your Consul cluster? [Y/n]",
+				"Create this auth method in your Consul cluster? [Y/n]",
 				authMethodServices,
 			))
 	} else {
@@ -147,6 +146,7 @@ method configuration we will create:
 	s.Ui.Output(`
 In order to map claims between Nomad's JWTs and Consul ACL, we need to create
 the following binding rule:
+
 {
 	"Description": "binding rule for Nomad workload identities (WI)",
 	"AuthMethod": "nomad-services",
@@ -158,7 +158,7 @@ the following binding rule:
 	var createBindingRule bool
 	if !s.autoYes {
 		createBindingRule = s.askQuestion(
-			"Should we create the above binding rule in your Consul cluster? [Y/n]",
+			"Create this binding rule in your Consul cluster? [Y/n]",
 		)
 	} else {
 		createBindingRule = true
@@ -306,8 +306,6 @@ consul {
   # cert_file = "/etc/ssl/consul.crt"
   # key_file  = "/etc/ssl/consul.key"
 
-  service_auth_method = "nomad-services"
-  task_auth_method    = "nomad-tasks"
 }
 
 and the configuration of your Nomad servers as follows:
@@ -363,7 +361,6 @@ func (s *SetupConsulCommand) createAuthMethod(authMethodName string, authMethodC
 		Type:          "jwt",
 		DisplayName:   authMethodName,
 		Description:   "login method for Nomad workload identities (WI)",
-		MaxTokenTTL:   defaultTTL,
 		TokenLocality: "local",
 		Config:        authMethodConf,
 		NamespaceRules: []*api.ACLAuthMethodNamespaceRule{{
@@ -390,7 +387,7 @@ func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error 
 	return nil
 }
 
-func (s *SetupConsulCommand) createRoleForTemplate() error {
+func (s *SetupConsulCommand) createRoleForTasks() error {
 	_, _, err := s.client.ACL().RoleCreate(&api.ACLRole{
 		Name:        roleTasks,
 		Description: "role for Nomad templates w/ workload identities (WI)",
@@ -432,8 +429,9 @@ func (s *SetupConsulCommand) askQuestion(question string) bool {
 		if err != nil {
 			if err.Error() != "interrupted" {
 				s.Ui.Output(err.Error())
+				os.Exit(1)
 			}
-			return false
+			os.Exit(0)
 		}
 
 		switch strings.TrimSpace(strings.ToLower(answer)) {
@@ -442,7 +440,7 @@ func (s *SetupConsulCommand) askQuestion(question string) bool {
 		case "y", "yes":
 			return true
 		default:
-			s.Ui.Output(fmt.Sprintf("%s is not a valid response, please answer \"yes\" or \"no\".", answer))
+			s.Ui.Output(fmt.Sprintf(`%q is not a valid response, please answer "yes" or "no".`, answer))
 			continue
 		}
 	}

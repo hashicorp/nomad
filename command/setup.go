@@ -18,7 +18,7 @@ func (c *SetupCommand) Help() string {
 	helpText := `
 Usage: nomad setup <subcommand> [options] [args]
 
-  This command groups helper subcommands used for setting up Consul and Vault.
+  This command groups helper subcommands used for setting up external tools.
 
   Setup Consul for Nomad:
 
