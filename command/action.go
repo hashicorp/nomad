@@ -310,6 +310,7 @@ func (c *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task
 		}
 	}()
 
-	return client.Jobs().ActionExec(ctx,
-		alloc, task, tty, make([]string, 0), action, stdin, stdout, stderr, sizeCh, nil)
+	return client.Jobs().ActionExec(ctx, alloc, job, task,
+		tty, make([]string, 0), action,
+		stdin, stdout, stderr, sizeCh, nil)
 }

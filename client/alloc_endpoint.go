@@ -249,15 +249,22 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		return pointer.Of(int64(400)), taskNotPresentErr
 	}
 
+	if req.JobID != "" && req.JobID != alloc.JobID {
+		return pointer.Of(int64(http.StatusBadRequest)),
+			fmt.Errorf("job %s does not have allocation %s", req.JobID, req.AllocID)
+	}
+
 	// If an action is present, go find the command and args
 	if req.Action != "" {
 		task := alloc.LookupTask(req.Task)
 		if task == nil {
-			return pointer.Of(int64(http.StatusBadRequest)), fmt.Errorf("task %s not found in allocation %s", req.Task, alloc.ID)
+			return pointer.Of(int64(http.StatusBadRequest)),
+				fmt.Errorf("task %s not found in allocation %s", req.Task, alloc.ID)
 		}
 		jobAction := task.GetAction(req.Action)
 		if jobAction == nil {
-			return pointer.Of(int64(http.StatusBadRequest)), fmt.Errorf("action %s not found in task %s", req.Action, req.Task)
+			return pointer.Of(int64(http.StatusBadRequest)),
+				fmt.Errorf("action %s not found in task %s", req.Action, req.Task)
 		}
 
 		// append both Command and Args

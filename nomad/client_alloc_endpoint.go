@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -428,6 +429,31 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 		// client ultimately checks if AllocNodeExec is required
 		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
+	}
+
+	// Handle job ID if requested.
+	if args.JobID != "" {
+		// Verify job exists.
+		job, err := snap.JobByID(nil, args.Namespace, args.JobID)
+		if err != nil {
+			handleStreamResultError(err,
+				pointer.Of(int64(http.StatusInternalServerError)), encoder)
+			return
+		}
+		if job == nil {
+			handleStreamResultError(
+				fmt.Errorf("job %s not found in namespace %s", args.JobID, args.Namespace),
+				pointer.Of(int64(http.StatusNotFound)), encoder)
+			return
+		}
+
+		// Verify requested allocation belongs to the job.
+		if args.JobID != alloc.JobID {
+			handleStreamResultError(
+				fmt.Errorf("job %s does not have allocation %s", args.JobID, alloc.ID),
+				pointer.Of(int64(http.StatusBadRequest)), encoder,
+			)
+		}
 	}
 
 	nodeID := alloc.NodeID

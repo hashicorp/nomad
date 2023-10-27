@@ -26,6 +26,7 @@ const (
 type execSession struct {
 	client  *Client
 	alloc   *Allocation
+	job     string
 	task    string
 	tty     bool
 	command []string
@@ -102,7 +103,7 @@ func (s *execSession) startConnection() (*websocket.Conn, error) {
 		q.Params["action"] = s.action
 		q.Params["allocID"] = s.alloc.ID
 		q.Params["group"] = s.alloc.TaskGroup
-		reqPath = fmt.Sprintf("/v1/job/%s/action", url.PathEscape(s.alloc.JobID))
+		reqPath = fmt.Sprintf("/v1/job/%s/action", url.PathEscape(s.job))
 	}
 
 	var conn *websocket.Conn
