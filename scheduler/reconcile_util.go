@@ -611,24 +611,35 @@ type allocNameIndex struct {
 	job, taskGroup string
 	count          int
 	b              structs.Bitmap
+
+	// duplicates is used to store duplicate allocation indexes which are
+	// currently present within the index tracking. The map key is the index,
+	// and the current count of duplicates. The map is only accessed within a
+	// single routine and multiple times per job scheduler invocation,
+	// therefore no lock is used.
+	duplicates map[uint]int
 }
 
 // newAllocNameIndex returns an allocNameIndex for use in selecting names of
 // allocations to create or stop. It takes the job and task group name, desired
 // count and any existing allocations as input.
 func newAllocNameIndex(job, taskGroup string, count int, in allocSet) *allocNameIndex {
+
+	bitMap, duplicates := bitmapFrom(in, uint(count))
+
 	return &allocNameIndex{
-		count:     count,
-		b:         bitmapFrom(in, uint(count)),
-		job:       job,
-		taskGroup: taskGroup,
+		count:      count,
+		b:          bitMap,
+		job:        job,
+		taskGroup:  taskGroup,
+		duplicates: duplicates,
 	}
 }
 
 // bitmapFrom creates a bitmap from the given allocation set and a minimum size
 // maybe given. The size of the bitmap is as the larger of the passed minimum
 // and the maximum alloc index of the passed input (byte aligned).
-func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
+func bitmapFrom(input allocSet, minSize uint) (structs.Bitmap, map[uint]int) {
 	var max uint
 	for _, a := range input {
 		if num := a.Index(); num > max {
@@ -663,11 +674,25 @@ func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 		panic(err)
 	}
 
+	// Initialize our duplicates mapping, allowing us to store a non-nil map
+	// at the cost of 48 bytes.
+	duplicates := make(map[uint]int)
+
+	// Iterate through the allocSet input and hydrate the bitmap. We check that
+	// the bitmap does not contain the index first, so we can track duplicate
+	// entries.
 	for _, a := range input {
-		bitmap.Set(a.Index())
+
+		allocIndex := a.Index()
+
+		if bitmap.Check(allocIndex) {
+			duplicates[allocIndex]++
+		} else {
+			bitmap.Set(allocIndex)
+		}
 	}
 
-	return bitmap
+	return bitmap, duplicates
 }
 
 // Highest removes and returns the highest n used names. The returned set
@@ -686,9 +711,25 @@ func (a *allocNameIndex) Highest(n uint) map[string]struct{} {
 	return h
 }
 
+// IsDuplicate checks whether the passed allocation index is duplicated within
+// the tracking.
+func (a *allocNameIndex) IsDuplicate(idx uint) bool {
+	val, ok := a.duplicates[idx]
+	return ok && val > 0
+}
+
 // UnsetIndex unsets the index as having its name used
 func (a *allocNameIndex) UnsetIndex(idx uint) {
-	a.b.Unset(idx)
+
+	// If this index is a duplicate, remove the duplicate entry. Otherwise, we
+	// can remove it from the bitmap tracking.
+	if num, ok := a.duplicates[idx]; ok {
+		if num--; num == 0 {
+			delete(a.duplicates, idx)
+		}
+	} else {
+		a.b.Unset(idx)
+	}
 }
 
 // NextCanaries returns the next n names for use as canaries and sets them as
@@ -699,9 +740,11 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 	// Create a name index
 	existingNames := existing.nameSet()
 
-	// First select indexes from the allocations that are undergoing destructive
-	// updates. This way we avoid duplicate names as they will get replaced.
-	dmap := bitmapFrom(destructive, uint(a.count))
+	// First select indexes from the allocations that are undergoing
+	// destructive updates. This way we avoid duplicate names as they will get
+	// replaced. As this process already takes into account duplicate checking,
+	// we can discard the duplicate mapping when generating the bitmap.
+	dmap, _ := bitmapFrom(destructive, uint(a.count))
 	remainder := n
 	for _, idx := range dmap.IndexesInRange(true, uint(0), uint(a.count)-1) {
 		name := structs.AllocName(a.job, a.taskGroup, uint(idx))

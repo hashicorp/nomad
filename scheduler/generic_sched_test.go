@@ -1789,6 +1789,305 @@ func TestServiceSched_JobModify(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestServiceSched_JobModify_ExistingDuplicateAllocIndex(t *testing.T) {
+	ci.Parallel(t)
+
+	testHarness := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		must.NoError(t, testHarness.State.UpsertNode(structs.MsgTypeTestSetup, testHarness.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations
+	mockJob := mock.Job()
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob))
+
+	// Generate some allocations which will represent our pre-existing
+	// allocations. These have aggressive duplicate names.
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = mockJob
+		alloc.JobID = mockJob.ID
+		alloc.NodeID = nodes[i].ID
+
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+
+		if i%2 == 0 {
+			alloc.Name = "my-job.web[0]"
+		}
+		allocs = append(allocs, alloc)
+	}
+	must.NoError(t, testHarness.State.UpsertAllocs(structs.MsgTypeTestSetup, testHarness.NextIndex(), allocs))
+
+	// Generate a job modification which will force a destructive update.
+	mockJob2 := mock.Job()
+	mockJob2.ID = mockJob.ID
+	mockJob2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob2))
+
+	// Create a mock evaluation which represents work to reconcile the job
+	// update.
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       mockJob2.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, testHarness.State.UpsertEvals(structs.MsgTypeTestSetup, testHarness.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and ensure we get a single plan as a result.
+	must.NoError(t, testHarness.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, testHarness.Plans)
+
+	// Iterate and track the node allocations to ensure we have the correct
+	// amount, and that there a now no duplicate names.
+	totalNodeAllocations := 0
+	allocIndexNames := make(map[string]int)
+
+	for _, planNodeAlloc := range testHarness.Plans[0].NodeAllocation {
+		for _, nodeAlloc := range planNodeAlloc {
+			totalNodeAllocations++
+			allocIndexNames[nodeAlloc.Name]++
+
+			if val, ok := allocIndexNames[nodeAlloc.Name]; ok && val > 1 {
+				t.Fatalf("found duplicate alloc name %q found", nodeAlloc.Name)
+			}
+		}
+	}
+	must.Eq(t, 10, totalNodeAllocations)
+
+	testHarness.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobModify_ProposedDuplicateAllocIndex(t *testing.T) {
+	ci.Parallel(t)
+
+	testHarness := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		must.NoError(t, testHarness.State.UpsertNode(structs.MsgTypeTestSetup, testHarness.NextIndex(), node))
+	}
+
+	// Generate a job which includes a canary update strategy.
+	mockJob := mock.MinJob()
+	mockJob.TaskGroups[0].Count = 3
+	mockJob.Update = structs.UpdateStrategy{
+		Canary:      1,
+		MaxParallel: 3,
+	}
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob))
+
+	// Generate some allocations which will represent our pre-existing
+	// allocations.
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		alloc := mock.MinAlloc()
+		alloc.Namespace = structs.DefaultNamespace
+		alloc.Job = mockJob
+		alloc.JobID = mockJob.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = structs.AllocName(mockJob.ID, mockJob.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+	must.NoError(t, testHarness.State.UpsertAllocs(structs.MsgTypeTestSetup, testHarness.NextIndex(), allocs))
+
+	// Generate a job modification which will force a destructive update as
+	// well as a scaling.
+	mockJob2 := mockJob.Copy()
+	mockJob2.Version++
+	mockJob2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	mockJob2.TaskGroups[0].Count++
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob2))
+
+	nextRaftIndex := testHarness.NextIndex()
+	deploymentID := uuid.Generate()
+
+	// Upsert a canary into state, this represents the first stage of the
+	// deployment process and jumps us to the point where duplicate allocation
+	// indexes could be produced.
+	canaryAlloc := mock.MinAlloc()
+	canaryAlloc.Namespace = structs.DefaultNamespace
+	canaryAlloc.Job = mockJob2
+	canaryAlloc.JobID = mockJob2.ID
+	canaryAlloc.NodeID = nodes[1].ID
+	canaryAlloc.Name = structs.AllocName(mockJob2.ID, mockJob2.TaskGroups[0].Name, uint(0))
+	canaryAlloc.DeploymentID = deploymentID
+	canaryAlloc.ClientStatus = structs.AllocClientStatusRunning
+	must.NoError(t, testHarness.State.UpsertAllocs(structs.MsgTypeTestSetup, nextRaftIndex, []*structs.Allocation{
+		canaryAlloc,
+	}))
+
+	// Craft our deployment object which represents the post-canary state. This
+	// unblocks the rest of the deployment process, where we replace the old
+	// job version allocations.
+	canaryDeployment := structs.Deployment{
+		ID:         deploymentID,
+		Namespace:  mockJob2.Namespace,
+		JobID:      mockJob2.ID,
+		JobVersion: mockJob2.Version,
+		TaskGroups: map[string]*structs.DeploymentState{
+			mockJob2.TaskGroups[0].Name: {
+				Promoted:       true,
+				DesiredTotal:   4,
+				HealthyAllocs:  1,
+				PlacedAllocs:   1,
+				PlacedCanaries: []string{canaryAlloc.ID},
+			},
+		},
+		Status:            structs.DeploymentStatusRunning,
+		StatusDescription: structs.DeploymentStatusDescriptionRunning,
+		EvalPriority:      50,
+		JobCreateIndex:    mockJob2.CreateIndex,
+	}
+	must.NoError(t, testHarness.State.UpsertDeployment(nextRaftIndex, &canaryDeployment))
+
+	// Create a mock evaluation which represents work to reconcile the job
+	// update.
+	eval := &structs.Evaluation{
+		Namespace:    structs.DefaultNamespace,
+		ID:           uuid.Generate(),
+		Priority:     50,
+		TriggeredBy:  structs.EvalTriggerJobRegister,
+		JobID:        mockJob2.ID,
+		Status:       structs.EvalStatusPending,
+		DeploymentID: deploymentID,
+	}
+	must.NoError(t, testHarness.State.UpsertEvals(structs.MsgTypeTestSetup, testHarness.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and ensure we get a single plan as a result.
+	must.NoError(t, testHarness.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, testHarness.Plans)
+
+	// Iterate and track the node allocations to ensure we have the correct
+	// amount, and that there a now no duplicate names. Before the duplicate
+	// allocation name fix, this section of testing would fail.
+	totalNodeAllocations := 0
+	allocIndexNames := map[string]int{canaryAlloc.Name: 1}
+
+	for _, planNodeAlloc := range testHarness.Plans[0].NodeAllocation {
+		for _, nodeAlloc := range planNodeAlloc {
+			totalNodeAllocations++
+			allocIndexNames[nodeAlloc.Name]++
+
+			if val, ok := allocIndexNames[nodeAlloc.Name]; ok && val > 1 {
+				t.Fatalf("found duplicate alloc name %q found", nodeAlloc.Name)
+			}
+		}
+	}
+	must.Eq(t, 3, totalNodeAllocations)
+
+	// Ensure the correct number of destructive node updates.
+	totalNodeUpdates := 0
+
+	for _, planNodeUpdate := range testHarness.Plans[0].NodeUpdate {
+		totalNodeUpdates += len(planNodeUpdate)
+	}
+	must.Eq(t, 3, totalNodeUpdates)
+
+	testHarness.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobModify_ExistingDuplicateAllocIndexNonDestructive(t *testing.T) {
+	ci.Parallel(t)
+
+	testHarness := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		must.NoError(t, testHarness.State.UpsertNode(structs.MsgTypeTestSetup, testHarness.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations
+	mockJob := mock.MinJob()
+	mockJob.TaskGroups[0].Count = 10
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob))
+
+	// Generate some allocations which will represent our pre-existing
+	// allocations. These have aggressive duplicate names.
+	var (
+		allocs   []*structs.Allocation
+		allocIDs []string
+	)
+	for i := 0; i < 10; i++ {
+		alloc := mock.MinAlloc()
+		alloc.Namespace = structs.DefaultNamespace
+		alloc.Job = mockJob
+		alloc.JobID = mockJob.ID
+		alloc.NodeID = nodes[i].ID
+
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+
+		if i%2 == 0 {
+			alloc.Name = "my-job.web[0]"
+		}
+		allocs = append(allocs, alloc)
+		allocIDs = append(allocIDs, alloc.ID)
+	}
+	must.NoError(t, testHarness.State.UpsertAllocs(structs.MsgTypeTestSetup, testHarness.NextIndex(), allocs))
+
+	// Generate a job modification which will be an in-place update.
+	mockJob2 := mockJob.Copy()
+	mockJob2.ID = mockJob.ID
+	mockJob2.Update.MaxParallel = 2
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob2))
+
+	// Create a mock evaluation which represents work to reconcile the job
+	// update.
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       mockJob2.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, testHarness.State.UpsertEvals(structs.MsgTypeTestSetup, testHarness.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and ensure we get a single plan as a result.
+	must.NoError(t, testHarness.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, testHarness.Plans)
+
+	// Ensure the plan did not want to perform any destructive updates.
+	var nodeUpdateCount int
+
+	for _, nodeUpdateAllocs := range testHarness.Plans[0].NodeUpdate {
+		nodeUpdateCount += len(nodeUpdateAllocs)
+	}
+	must.Zero(t, nodeUpdateCount)
+
+	// Ensure the plan updated the existing allocs by checking the count, the
+	// job object, and the allocation IDs.
+	var (
+		nodeAllocationCount int
+		nodeAllocationIDs   []string
+	)
+
+	for _, nodeAllocs := range testHarness.Plans[0].NodeAllocation {
+		nodeAllocationCount += len(nodeAllocs)
+
+		for _, nodeAlloc := range nodeAllocs {
+			must.Eq(t, mockJob2, nodeAlloc.Job)
+			nodeAllocationIDs = append(nodeAllocationIDs, nodeAlloc.ID)
+		}
+	}
+	must.Eq(t, 10, nodeAllocationCount)
+	must.SliceContainsAll(t, allocIDs, nodeAllocationIDs)
+}
+
 func TestServiceSched_JobModify_Datacenters(t *testing.T) {
 	ci.Parallel(t)
 
