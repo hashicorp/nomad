@@ -1602,7 +1602,10 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "0s",
 	}
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	// Control when we get a Vault token
 	token := "1234"
@@ -1692,6 +1695,7 @@ func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
 		"run_for": "0s",
 	}
 	task.Vault = &structs.Vault{
+		Cluster:     structs.VaultDefaultCluster,
 		Policies:    []string{"default"},
 		DisableFile: true,
 	}
@@ -1741,7 +1745,10 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	ci.Parallel(t)
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	// Fail on the first attempt to derive a vault token
 	token := "1234"
@@ -1821,7 +1828,10 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "0s",
 	}
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	// Error the token derivation
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
@@ -2135,7 +2145,10 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	}
 
 	// Use vault to block the start
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	// Control when we get a Vault token
 	waitCh := make(chan struct{}, 1)
@@ -2361,7 +2374,10 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 			ChangeMode:   structs.TemplateChangeModeNoop,
 		},
 	}
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
@@ -2440,6 +2456,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 		"run_for": "10s",
 	}
 	task.Vault = &structs.Vault{
+		Cluster:    structs.VaultDefaultCluster,
 		Policies:   []string{"default"},
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
@@ -2516,6 +2533,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 		"run_for": "10s",
 	}
 	task.Vault = &structs.Vault{
+		Cluster:      structs.VaultDefaultCluster,
 		Policies:     []string{"default"},
 		ChangeMode:   structs.VaultChangeModeSignal,
 		ChangeSignal: "SIGUSR1",
