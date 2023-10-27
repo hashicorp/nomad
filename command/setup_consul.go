@@ -151,7 +151,7 @@ the following binding rule:
 	"Description": "binding rule for Nomad workload identities (WI)",
 	"AuthMethod": "nomad-services",
 	"BindType": "service",
-	"BindName": "${value.nomad_namespace}-${value.nomad_service}"
+	"BindName": "${value.nomad_service}"
 }
 `)
 
