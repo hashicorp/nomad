@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
@@ -27,8 +26,8 @@ var authConfigBody []byte
 var policyBody []byte
 
 const (
-	authMethodServices = structs.ConsulServicesDefaultAuthMethodName
-	authMethodTasks    = structs.ConsulTasksDefaultAuthMethodName
+	authMethodServices = "nomad-services"
+	authMethodTasks    = "nomad-tasks"
 	roleTasks          = "role-nomad-tasks"
 	policyName         = "policy-nomad-tasks"
 	consulNamespace    = "nomad-prod"
