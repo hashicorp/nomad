@@ -31,7 +31,7 @@ job "docs" {
     task "server" {
       vault {
         cluster  = "default"
-        policies = ["cdn", "frontend"]
+        role     = "prod"
 
         change_mode   = "signal"
         change_signal = "SIGUSR1"
@@ -95,7 +95,9 @@ with Vault as well.
 
 - `policies` `(array<string>: [])` - Specifies the set of Vault policies that
   the task requires. The Nomad client will retrieve a Vault token that is
-  limited to those policies.
+  limited to those policies. This field may only be used with the legacy Vault
+  authentication workflow and not with JWT and workload identity. It is
+  deprecated in favor of the `role` field and will be removed in Nomad 1.9.
 
 - `role` `(string: "")` - Specifies the Vault role used when retrieving a token
   from Vault using JWT and workload identity. If not specified the client's
@@ -111,11 +113,11 @@ The following examples only show the `vault` blocks. Remember that the
 This example tells the Nomad client to retrieve a Vault token. The token is
 available to the task via the canonical environment variable `VAULT_TOKEN` and
 written to disk at `secrets/vault_token`. The resulting token will have the
-"frontend" Vault policy attached.
+Vault policies from the "prod" role attached.
 
 ```hcl
 vault {
-  policies = ["frontend"]
+  role = "prod"
 }
 ```
 
@@ -125,7 +127,7 @@ This example shows signaling the task instead of restarting it.
 
 ```hcl
 vault {
-  policies = ["frontend"]
+  role = "prod"
 
   change_mode   = "signal"
   change_signal = "SIGINT"
@@ -144,7 +146,7 @@ the task itself:
 
 ```hcl
 vault {
-  policies    = ["tls-policy", "nomad-job-policy"]
+  role        = "prod"
   change_mode = "noop"
   env         = false
   file        = false
@@ -192,7 +194,7 @@ This example shows specifying a particular Vault namespace for a given task.
 
 ```hcl
 vault {
-  policies = ["frontend"]
+  role      = "prod"
   namespace = "engineering/frontend"
 
   change_mode   = "signal"

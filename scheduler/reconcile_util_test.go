@@ -237,7 +237,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name:                        "disco-client-disconnect-unset-max-disconnect",
 			supportsDisconnectedClients: true,
@@ -273,7 +272,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				},
 			},
 		},
-
 		// Everything below this line tests the disconnected client mode.
 		{
 			name:                        "disco-client-untainted-reconnect-failed-and-replaced",
@@ -381,10 +379,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			taintedNodes:                nodes,
 			skipNilNodeTest:             false,
 			all: allocSet{
-				// Allocs on reconnected nodes that are complete are untainted
-				"untainted-reconnect-complete": {
-					ID:            "untainted-reconnect-complete",
-					Name:          "untainted-reconnect-complete",
+				// Allocs on reconnected nodes that are complete are ignored
+				"ignored-reconnect-complete": {
+					ID:            "ignored-reconnect-complete",
+					Name:          "ignored-reconnect-complete",
 					ClientStatus:  structs.AllocClientStatusComplete,
 					DesiredStatus: structs.AllocDesiredStatusRun,
 					Job:           testJob,
@@ -405,9 +403,9 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 				// Lost allocs on reconnected nodes don't get restarted
-				"untainted-reconnect-lost": {
-					ID:            "untainted-reconnect-lost",
-					Name:          "untainted-reconnect-lost",
+				"ignored-reconnect-lost": {
+					ID:            "ignored-reconnect-lost",
+					Name:          "ignored-reconnect-lost",
 					ClientStatus:  structs.AllocClientStatusLost,
 					DesiredStatus: structs.AllocDesiredStatusStop,
 					Job:           testJob,
@@ -415,10 +413,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					TaskGroup:     "web",
 					AllocStates:   unknownAllocState,
 				},
-				// Replacement allocs that are complete are untainted
-				"untainted-reconnect-complete-replacement": {
-					ID:                 "untainted-reconnect-complete-replacement",
-					Name:               "untainted-reconnect-complete",
+				// Replacement allocs that are complete are ignored
+				"ignored-reconnect-complete-replacement": {
+					ID:                 "ignored-reconnect-complete-replacement",
+					Name:               "ignored-reconnect-complete",
 					ClientStatus:       structs.AllocClientStatusComplete,
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					Job:                testJob,
@@ -427,10 +425,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:        unknownAllocState,
 					PreviousAllocation: "untainted-reconnect-complete",
 				},
-				// Replacement allocs on reconnected nodes that are failed are untainted
-				"untainted-reconnect-failed-replacement": {
-					ID:                 "untainted-reconnect-failed-replacement",
-					Name:               "untainted-reconnect-failed",
+				// Replacement allocs on reconnected nodes that are failed are ignored
+				"ignored-reconnect-failed-replacement": {
+					ID:                 "ignored-reconnect-failed-replacement",
+					Name:               "ignored-reconnect-failed",
 					ClientStatus:       structs.AllocClientStatusFailed,
 					DesiredStatus:      structs.AllocDesiredStatusStop,
 					Job:                testJob,
@@ -439,9 +437,9 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					PreviousAllocation: "reconnecting-failed",
 				},
 				// Lost replacement allocs on reconnected nodes don't get restarted
-				"untainted-reconnect-lost-replacement": {
-					ID:                 "untainted-reconnect-lost-replacement",
-					Name:               "untainted-reconnect-lost",
+				"ignored-reconnect-lost-replacement": {
+					ID:                 "ignored-reconnect-lost-replacement",
+					Name:               "ignored-reconnect-lost",
 					ClientStatus:       structs.AllocClientStatusLost,
 					DesiredStatus:      structs.AllocDesiredStatusStop,
 					Job:                testJob,
@@ -451,60 +449,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					PreviousAllocation: "untainted-reconnect-lost",
 				},
 			},
-			untainted: allocSet{
-				"untainted-reconnect-complete": {
-					ID:            "untainted-reconnect-complete",
-					Name:          "untainted-reconnect-complete",
-					ClientStatus:  structs.AllocClientStatusComplete,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				"untainted-reconnect-lost": {
-					ID:            "untainted-reconnect-lost",
-					Name:          "untainted-reconnect-lost",
-					ClientStatus:  structs.AllocClientStatusLost,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				"untainted-reconnect-complete-replacement": {
-					ID:                 "untainted-reconnect-complete-replacement",
-					Name:               "untainted-reconnect-complete",
-					ClientStatus:       structs.AllocClientStatusComplete,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					AllocStates:        unknownAllocState,
-					PreviousAllocation: "untainted-reconnect-complete",
-				},
-				"untainted-reconnect-failed-replacement": {
-					ID:                 "untainted-reconnect-failed-replacement",
-					Name:               "untainted-reconnect-failed",
-					ClientStatus:       structs.AllocClientStatusFailed,
-					DesiredStatus:      structs.AllocDesiredStatusStop,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "reconnecting-failed",
-				},
-				"untainted-reconnect-lost-replacement": {
-					ID:                 "untainted-reconnect-lost-replacement",
-					Name:               "untainted-reconnect-lost",
-					ClientStatus:       structs.AllocClientStatusLost,
-					DesiredStatus:      structs.AllocDesiredStatusStop,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					AllocStates:        unknownAllocState,
-					PreviousAllocation: "untainted-reconnect-lost",
-				},
-			},
+			untainted:     allocSet{},
 			migrate:       allocSet{},
 			disconnecting: allocSet{},
 			reconnecting: allocSet{
@@ -519,8 +464,62 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			ignore: allocSet{},
-			lost:   allocSet{},
+			ignore: allocSet{
+
+				"ignored-reconnect-complete": {
+					ID:            "ignored-reconnect-complete",
+					Name:          "ignored-reconnect-complete",
+					ClientStatus:  structs.AllocClientStatusComplete,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+					Job:           testJob,
+					NodeID:        "normal",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+				},
+				"ignored-reconnect-lost": {
+					ID:            "ignored-reconnect-lost",
+					Name:          "ignored-reconnect-lost",
+					ClientStatus:  structs.AllocClientStatusLost,
+					DesiredStatus: structs.AllocDesiredStatusStop,
+					Job:           testJob,
+					NodeID:        "normal",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+				},
+				"ignored-reconnect-complete-replacement": {
+					ID:                 "ignored-reconnect-complete-replacement",
+					Name:               "ignored-reconnect-complete",
+					ClientStatus:       structs.AllocClientStatusComplete,
+					DesiredStatus:      structs.AllocDesiredStatusRun,
+					Job:                testJob,
+					NodeID:             "normal",
+					TaskGroup:          "web",
+					AllocStates:        unknownAllocState,
+					PreviousAllocation: "untainted-reconnect-complete",
+				},
+				"ignored-reconnect-failed-replacement": {
+					ID:                 "ignored-reconnect-failed-replacement",
+					Name:               "ignored-reconnect-failed",
+					ClientStatus:       structs.AllocClientStatusFailed,
+					DesiredStatus:      structs.AllocDesiredStatusStop,
+					Job:                testJob,
+					NodeID:             "normal",
+					TaskGroup:          "web",
+					PreviousAllocation: "reconnecting-failed",
+				},
+				"ignored-reconnect-lost-replacement": {
+					ID:                 "ignored-reconnect-lost-replacement",
+					Name:               "ignored-reconnect-lost",
+					ClientStatus:       structs.AllocClientStatusLost,
+					DesiredStatus:      structs.AllocDesiredStatusStop,
+					Job:                testJob,
+					NodeID:             "normal",
+					TaskGroup:          "web",
+					AllocStates:        unknownAllocState,
+					PreviousAllocation: "untainted-reconnect-lost",
+				},
+			},
+			lost: allocSet{},
 		},
 		{
 			name:                        "disco-client-disconnect",
@@ -539,10 +538,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					NodeID:        "disconnected",
 					TaskGroup:     "web",
 				},
-				// Unknown allocs on disconnected nodes are ignored
-				"ignore-unknown": {
-					ID:            "ignore-unknown",
-					Name:          "ignore-unknown",
+				// Unknown allocs on disconnected nodes are acknowledge, so they wont be rescheduled again
+				"untainted-unknown": {
+					ID:            "untainted-unknown",
+					Name:          "untainted-unknown",
 					ClientStatus:  structs.AllocClientStatusUnknown,
 					DesiredStatus: structs.AllocDesiredStatusRun,
 					Job:           testJob,
@@ -595,8 +594,20 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			untainted: allocSet{},
-			migrate:   allocSet{},
+			untainted: allocSet{
+				// Unknown allocs on disconnected nodes are acknowledge, so they wont be rescheduled again
+				"untainted-unknown": {
+					ID:            "untainted-unknown",
+					Name:          "untainted-unknown",
+					ClientStatus:  structs.AllocClientStatusUnknown,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+					Job:           testJob,
+					NodeID:        "disconnected",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+				},
+			},
+			migrate: allocSet{},
 			disconnecting: allocSet{
 				"disconnect-running": {
 					ID:            "disconnect-running",
@@ -610,17 +621,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			},
 			reconnecting: allocSet{},
 			ignore: allocSet{
-				// Unknown allocs on disconnected nodes are ignored
-				"ignore-unknown": {
-					ID:            "ignore-unknown",
-					Name:          "ignore-unknown",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
 				"ignore-reconnected-failed-stopped": {
 					ID:            "ignore-reconnected-failed-stopped",
 					Name:          "ignore-reconnected-failed-stopped",
@@ -1213,4 +1213,203 @@ func Test_allocNameIndex_Duplicates(t *testing.T) {
 	nextAllocNames := allocNameIndexTracker.Next(1)
 	must.Len(t, 1, nextAllocNames)
 	must.Eq(t, "example.cache[3]", nextAllocNames[0])
+}
+
+func TestAllocSet_filterByRescheduleable(t *testing.T) {
+	ci.Parallel(t)
+
+	noRescheduleJob := mock.Job()
+	noRescheduleTG := &structs.TaskGroup{
+		Name: "noRescheduleTG",
+		ReschedulePolicy: &structs.ReschedulePolicy{
+			Attempts:  0,
+			Unlimited: false,
+		},
+	}
+
+	noRescheduleJob.TaskGroups[0] = noRescheduleTG
+
+	testJob := mock.Job()
+	rescheduleTG := &structs.TaskGroup{
+		Name: "rescheduleTG",
+		ReschedulePolicy: &structs.ReschedulePolicy{
+			Attempts:  1,
+			Unlimited: false,
+		},
+	}
+	testJob.TaskGroups[0] = rescheduleTG
+
+	now := time.Now()
+
+	type testCase struct {
+		name                        string
+		all                         allocSet
+		isBatch                     bool
+		supportsDisconnectedClients bool
+		isDisconnecting             bool
+		deployment                  *structs.Deployment
+
+		// expected results
+		untainted allocSet
+		resNow    allocSet
+		resLater  []*delayedRescheduleInfo
+	}
+
+	testCases := []testCase{
+		{
+			name:            "batch disconnecting allocation no reschedule",
+			isDisconnecting: true,
+			isBatch:         true,
+			all: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			untainted: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			resNow:   allocSet{},
+			resLater: []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "batch ignore unknown disconnecting allocs",
+			isDisconnecting: true,
+			isBatch:         true,
+			all: allocSet{
+				"disconnecting1": {
+					ID:           "disconnection1",
+					ClientStatus: structs.AllocClientStatusUnknown,
+					Job:          testJob,
+				},
+			},
+			untainted: allocSet{},
+			resNow:    allocSet{},
+			resLater:  []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "batch disconnecting allocation reschedule",
+			isDisconnecting: true,
+			isBatch:         true,
+			all: allocSet{
+				"rescheduleNow1": {
+					ID:           "rescheduleNow1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+				},
+			},
+			untainted: allocSet{},
+			resNow: allocSet{
+				"rescheduleNow1": {
+					ID:           "rescheduleNow1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+				},
+			},
+			resLater: []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service disconnecting allocation no reschedule",
+			isDisconnecting: true,
+			isBatch:         false,
+			all: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			untainted: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			resNow:   allocSet{},
+			resLater: []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service disconnecting allocation reschedule",
+			isDisconnecting: true,
+			isBatch:         false,
+			all: allocSet{
+				"rescheduleNow1": {
+					ID:           "rescheduleNow1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+				},
+			},
+			untainted: allocSet{},
+			resNow: allocSet{
+				"rescheduleNow1": {
+					ID:           "rescheduleNow1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJob,
+					TaskGroup:    "rescheduleTG",
+				},
+			},
+			resLater: []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service ignore unknown disconnecting allocs",
+			isDisconnecting: true,
+			isBatch:         false,
+			all: allocSet{
+				"disconnecting1": {
+					ID:           "disconnection1",
+					ClientStatus: structs.AllocClientStatusUnknown,
+					Job:          testJob,
+				},
+			},
+			untainted: allocSet{},
+			resNow:    allocSet{},
+			resLater:  []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service running allocation no reschedule",
+			isDisconnecting: false,
+			isBatch:         true,
+			all: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			untainted: allocSet{
+				"untainted1": {
+					ID:           "untainted1",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          noRescheduleJob,
+					TaskGroup:    "noRescheduleTG",
+				},
+			},
+			resNow:   allocSet{},
+			resLater: []*delayedRescheduleInfo{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			untainted, resNow, resLater := tc.all.filterByRescheduleable(tc.isBatch,
+				tc.isDisconnecting, now, "evailID", tc.deployment)
+			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
+			must.Eq(t, tc.resNow, resNow, must.Sprintf("with-nodes: reschedule-now"))
+			must.Eq(t, tc.resLater, resLater, must.Sprintf("with-nodes: rescheduleLater"))
+		})
+	}
 }

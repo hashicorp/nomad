@@ -132,6 +132,17 @@ func (c *JobRevertCommand) Run(args []string) int {
 		vaultToken = os.Getenv("VAULT_TOKEN")
 	}
 
+	if consulToken != "" {
+		c.Ui.Warn(strings.TrimSpace(`
+Warning: setting a Consul token when submitting a job is deprecated and will be
+removed in Nomad 1.9. Migrate your Consul configuration to use workload identity.`))
+	}
+	if vaultToken != "" {
+		c.Ui.Warn(strings.TrimSpace(`
+Warning: setting a Vault token when submitting a job is deprecated and will be
+removed in Nomad 1.9. Migrate your Vault configuration to use workload identity.`))
+	}
+
 	// Parse the job version
 	revertVersion, ok, err := parseVersion(args[1])
 	if !ok {

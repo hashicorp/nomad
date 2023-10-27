@@ -7238,6 +7238,7 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 		NodeID:      disconnectedNode.ID,
 		Status:      structs.EvalStatusPending,
 	}}
+
 	nodeStatusUpdateEval := evals[0]
 	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), evals))
 
@@ -7247,16 +7248,21 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 	require.Equal(t, structs.EvalStatusComplete, h.Evals[0].Status)
 	require.Len(t, h.Plans, 1, "plan")
 
-	// One followup delayed eval created
-	require.Len(t, h.CreateEvals, 1)
-	followUpEval := h.CreateEvals[0]
-	require.Equal(t, nodeStatusUpdateEval.ID, followUpEval.PreviousEval)
-	require.Equal(t, "pending", followUpEval.Status)
-	require.NotEmpty(t, followUpEval.WaitUntil)
+	// Two followup delayed eval created
+	require.Len(t, h.CreateEvals, 2)
+	followUpEval1 := h.CreateEvals[0]
+	require.Equal(t, nodeStatusUpdateEval.ID, followUpEval1.PreviousEval)
+	require.Equal(t, "pending", followUpEval1.Status)
+	require.NotEmpty(t, followUpEval1.WaitUntil)
 
-	// Insert eval in the state store
+	followUpEval2 := h.CreateEvals[1]
+	require.Equal(t, nodeStatusUpdateEval.ID, followUpEval2.PreviousEval)
+	require.Equal(t, "pending", followUpEval2.Status)
+	require.NotEmpty(t, followUpEval2.WaitUntil)
+
+	// Insert eval1 in the state store
 	testutil.WaitForResult(func() (bool, error) {
-		found, err := h.State.EvalByID(nil, followUpEval.ID)
+		found, err := h.State.EvalByID(nil, followUpEval1.ID)
 		if err != nil {
 			return false, err
 		}
@@ -7270,12 +7276,34 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 
 		return true, nil
 	}, func(err error) {
+
+		require.NoError(t, err)
+	})
+
+	// Insert eval2 in the state store
+	testutil.WaitForResult(func() (bool, error) {
+		found, err := h.State.EvalByID(nil, followUpEval2.ID)
+		if err != nil {
+			return false, err
+		}
+		if found == nil {
+			return false, nil
+		}
+
+		require.Equal(t, nodeStatusUpdateEval.ID, found.PreviousEval)
+		require.Equal(t, "pending", found.Status)
+		require.NotEmpty(t, found.WaitUntil)
+
+		return true, nil
+	}, func(err error) {
+
 		require.NoError(t, err)
 	})
 
 	// Validate that the ClientStatus updates are part of the plan.
 	require.Len(t, h.Plans[0].NodeAllocation[disconnectedNode.ID], count)
 	// Pending update should have unknown status.
+
 	for _, nodeAlloc := range h.Plans[0].NodeAllocation[disconnectedNode.ID] {
 		require.Equal(t, nodeAlloc.ClientStatus, structs.AllocClientStatusUnknown)
 	}
@@ -7285,6 +7313,7 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 	require.NoError(t, err, "plan.NodeUpdate")
 
 	// Validate that the StateStore Upsert applied the ClientStatus we specified.
+
 	for _, alloc := range unknownAllocs {
 		alloc, err = h.State.AllocByID(nil, alloc.ID)
 		require.NoError(t, err)

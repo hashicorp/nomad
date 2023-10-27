@@ -410,6 +410,45 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				}},
 			},
 		},
+		{
+			name: "mutate when task does not have a vault identity for non-default cluster",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Vault: &structs.Vault{
+							Cluster: "other",
+						},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault.io"},
+						},
+					},
+					"other": {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault-other.io"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Identities: []*structs.WorkloadIdentity{{
+							Name:     "vault_other",
+							Audience: []string{"vault-other.io"},
+						}},
+						Vault: &structs.Vault{
+							Cluster: "other",
+						},
+					}},
+				}},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
