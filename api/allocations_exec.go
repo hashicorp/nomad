@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -101,7 +102,7 @@ func (s *execSession) startConnection() (*websocket.Conn, error) {
 		q.Params["action"] = s.action
 		q.Params["allocID"] = s.alloc.ID
 		q.Params["group"] = s.alloc.TaskGroup
-		reqPath = fmt.Sprintf("/v1/job/%s/action", s.alloc.JobID)
+		reqPath = fmt.Sprintf("/v1/job/%s/action", url.PathEscape(s.alloc.JobID))
 	}
 
 	var conn *websocket.Conn
