@@ -737,7 +737,7 @@ SUBMIT:
 		}
 		return err
 	} else {
-		w.logger.Debug("created evaluation", "eval", log.Fmt("%#v", eval))
+		w.logger.Debug("created evaluation", "eval", log.Fmt("%#v", eval), "waitUntil", log.Fmt("%#v", eval.WaitUntil.String()))
 		w.backoffReset()
 	}
 	return nil
