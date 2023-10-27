@@ -122,7 +122,7 @@ First we need to connect to Consul.
 
 	cfg := api.DefaultConfig()
 	if !s.autoYes {
-		if !s.askQuestion(fmt.Sprintf("Is %s the correct address of your Consul cluster? [Y/n]", cfg.Address)) {
+		if !s.askQuestion(fmt.Sprintf("Is %q the correct address of your Consul cluster? [Y/n]", cfg.Address)) {
 			s.Ui.Warn(`
 Please set the CONSUL_HTTP_ADDR variable to your Consul cluster address and re-run the command.`)
 			return 0
@@ -143,9 +143,10 @@ Please set the CONSUL_HTTP_ADDR variable to your Consul cluster address and re-r
 
 	authMethodMsg := `
 We need to create two JWT auth methods: one for Nomad services, and one for
-Nomad tasks. The method for services will be called %v and the
-method for tasks %v, and they will both be of jwt type. They
-will share the following config:`
+Nomad tasks. The method for services will be called %q and
+the method for tasks %q, and they will both be of jwt type.
+
+They will share the following config:`
 	s.Ui.Output(fmt.Sprintf(authMethodMsg, authMethodServices, authMethodTasks))
 
 	authMethodConf, err := s.renderAuthMethodConf()
@@ -375,7 +376,7 @@ func (s *SetupConsulCommand) createAuthMethod(authMethodName string, authMethodC
 		return fmt.Errorf("[✘] could not create Consul auth method: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created auth method %s", authMethodName))
+	s.Ui.Info(fmt.Sprintf("[✔] Created auth method %q", authMethodName))
 	return nil
 }
 
@@ -390,7 +391,7 @@ func (s *SetupConsulCommand) createNamespace() error {
 		if slices.ContainsFunc(
 			existingNamespaces,
 			func(n *api.Namespace) bool { return n.Name == consulNamespace }) {
-			s.Ui.Warn(fmt.Sprintf("[ ] namespace %s already exists", consulNamespace))
+			s.Ui.Warn(fmt.Sprintf("[ ] namespace %q already exists", consulNamespace))
 			return nil
 		}
 	}
@@ -399,7 +400,7 @@ func (s *SetupConsulCommand) createNamespace() error {
 	if err != nil {
 		return fmt.Errorf("[✘] could not write namespace %q: %w", consulNamespace, err)
 	}
-	s.Ui.Info(fmt.Sprintf("[✔] Created namespace %s", consulNamespace))
+	s.Ui.Info(fmt.Sprintf("[✔] Created namespace %q", consulNamespace))
 	return nil
 }
 
@@ -409,7 +410,7 @@ func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error 
 		if slices.ContainsFunc(
 			existingRules,
 			func(r *api.ACLBindingRule) bool { return r.BindName == rule.BindName }) {
-			s.Ui.Warn(fmt.Sprintf("[ ] binding rule with bind name %s already exists", rule.BindName))
+			s.Ui.Warn(fmt.Sprintf("[ ] binding rule with bind name %q already exists", rule.BindName))
 			return nil
 		}
 	}
@@ -419,7 +420,7 @@ func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error 
 		return fmt.Errorf("[✘] could not create Consul binding rule: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created binding rule for auth method %s", rule.AuthMethod))
+	s.Ui.Info(fmt.Sprintf("[✔] Created binding rule for auth method %q", rule.AuthMethod))
 	return nil
 }
 
@@ -431,13 +432,13 @@ func (s *SetupConsulCommand) createRoleForTasks() error {
 	}, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			s.Ui.Warn(fmt.Sprintf("[ ] role %s already exists", roleTasks))
+			s.Ui.Warn(fmt.Sprintf("[ ] role %q already exists", roleTasks))
 			return nil
 		}
 		return fmt.Errorf("[✘] could not create Consul role: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created role %s\n", roleTasks))
+	s.Ui.Info(fmt.Sprintf("[✔] Created role %q", roleTasks))
 	return nil
 }
 
@@ -448,13 +449,13 @@ func (s *SetupConsulCommand) createPolicy() error {
 	}, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			s.Ui.Warn(fmt.Sprintf("[ ] policy %s already exists", policyName))
+			s.Ui.Warn(fmt.Sprintf("[ ] policy %q already exists", policyName))
 			return nil
 		}
 		return fmt.Errorf("[✘] could not create Consul policy: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created policy %s", policyName))
+	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q", policyName))
 
 	return nil
 }
