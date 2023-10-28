@@ -18,7 +18,7 @@
     {{#if (not (eq this.job.status "dead"))}}
       {{#if this.job.actions.length}}
         <Hds::Dropdown class="actions-dropdown" as |dd|>
-          <dd.ToggleButton @color="secondary" @text="Actions" />
+          <dd.ToggleButton @color="secondary" @text="Actions" @size="small" />
           {{#each this.job.actions as |action|}}
             {{#if (gt action.allocations.length 1)}}
               <dd.Separator />

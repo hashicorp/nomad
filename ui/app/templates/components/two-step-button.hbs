@@ -4,37 +4,42 @@
 ~}}
 
 {{#if this.isIdle}}
-  <button
+  <Hds::Button
     data-test-idle-button
-    type="button"
-    class="button {{if this.classes.idleButton this.classes.idleButton "is-danger is-outlined"}} is-important is-small"
-    disabled={{this.disabled}}
-    onclick={{action "promptForConfirmation"}}>
-    {{this.idleText}}
-  </button>
+    @size="small"
+    @text={{@idleText}}
+    @color="critical"
+    disabled={{@disabled}}
+    {{on "click" this.promptForConfirmation}}
+  />
 {{else if this.isPendingConfirmation}}
   <span
     data-test-confirmation-message
     class="confirmation-text {{this.classes.confirmationMessage}} {{if this.alignRight "is-right-aligned"}} {{if this.inlineText "has-text-inline"}}">
     {{this.confirmationMessage}}
   </span>
-  <button
+  <Hds::Button
     data-test-cancel-button
-    type="button"
-    class="button is-outlined is-small {{if this.classes.cancelButton this.classes.cancelButton "is-dark"}}"
+    @size="small"
+    @text={{@cancelText}}
+    @color="secondary"
+    class="is-inline"
     disabled={{this.awaitingConfirmation}}
-    onclick={{action (queue
-      (action "setToIdle")
+    {{on "click" (queue
+      (action this.setToIdle)
       (action this.onCancel)
-    )}}>
-    {{this.cancelText}}
-  </button>
-  <button
+    )}}
+  />
+  <Hds::Button
     data-test-confirm-button
-    class="button is-small {{if this.awaitingConfirmation "is-loading"}} {{if this.classes.confirmButton this.classes.confirmButton "is-danger"}}"
+    @size="small"
+    @text={{@confirmText}}
+    @color="critical"
+    class="is-inline"
     disabled={{this.awaitingConfirmation}}
-    onclick={{action "confirm"}}
-    type="button">
-    {{this.confirmText}}
-  </button>
+    {{on "click" (queue
+      (action this.setToIdle)
+      (action this.onConfirm)
+    )}}
+  />
 {{/if}}
