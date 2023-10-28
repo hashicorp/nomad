@@ -986,28 +986,47 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 	conn, resp, err := dialer.Dial(rhttp.URL.String(), rhttp.Header)
 
 	// check resp status code, as it's more informative than handshake error we get from ws library
-	if resp != nil && resp.StatusCode != http.StatusSwitchingProtocols {
-		var buf bytes.Buffer
+	if resp != nil {
+		switch resp.StatusCode {
+		case http.StatusSwitchingProtocols:
+			// Connection upgrade was successful.
 
-		if resp.Header.Get("Content-Encoding") == "gzip" {
-			greader, err := gzip.NewReader(resp.Body)
-			if err != nil {
-				return nil, nil, newUnexpectedResponseError(
-					fromStatusCode(resp.StatusCode),
-					withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
-					withError(err))
+		case http.StatusPermanentRedirect, http.StatusTemporaryRedirect, http.StatusMovedPermanently:
+			locs := resp.Header["Location"]
+			if len(locs) == 0 {
+				return nil, nil, errors.New("redirect request missing Location header")
 			}
-			io.Copy(&buf, greader)
-		} else {
-			io.Copy(&buf, resp.Body)
-		}
-		resp.Body.Close()
 
-		return nil, nil, newUnexpectedResponseError(
-			fromStatusCode(resp.StatusCode),
-			withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
-			withBody(fmt.Sprint(buf.Bytes())),
-		)
+			loc := locs[0]
+			u, err := url.Parse(loc)
+			if err != nil {
+				return nil, nil, fmt.Errorf("invalid redirect location %s", loc)
+			}
+			return c.websocket(u.Path, q)
+
+		default:
+			var buf bytes.Buffer
+
+			if resp.Header.Get("Content-Encoding") == "gzip" {
+				greader, err := gzip.NewReader(resp.Body)
+				if err != nil {
+					return nil, nil, newUnexpectedResponseError(
+						fromStatusCode(resp.StatusCode),
+						withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
+						withError(err))
+				}
+				io.Copy(&buf, greader)
+			} else {
+				io.Copy(&buf, resp.Body)
+			}
+			resp.Body.Close()
+
+			return nil, nil, newUnexpectedResponseError(
+				fromStatusCode(resp.StatusCode),
+				withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
+				withBody(buf.String()),
+			)
+		}
 	}
 
 	return conn, resp, err
