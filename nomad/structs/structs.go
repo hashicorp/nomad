@@ -7669,7 +7669,7 @@ func (t *Task) Copy() *Task {
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
 	nt.Identities = helper.CopySlice(nt.Identities)
-	nt.Actions = CopySliceActions(nt.Actions)
+	nt.Actions = helper.CopySlice(nt.Actions)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
