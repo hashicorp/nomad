@@ -7881,6 +7881,22 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		}
 	}
 
+	// Validate actions.
+	actions := make(map[string]bool)
+	for _, action := range t.Actions {
+		if err := action.Validate(); err != nil {
+			outer := fmt.Errorf("Action %s validation failed: %s", action.Name, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+
+		if handled, seen := actions[action.Name]; seen && !handled {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Action %s defined multiple times", action.Name))
+			actions[action.Name] = true
+			continue
+		}
+		actions[action.Name] = false
+	}
+
 	// Validate the dispatch payload block if there
 	if t.DispatchPayload != nil {
 		if err := t.DispatchPayload.Validate(); err != nil {

@@ -7,7 +7,12 @@
 
 package structs
 
-import "slices"
+import (
+	"errors"
+	"slices"
+
+	"github.com/hashicorp/go-multierror"
+)
 
 type Action struct {
 	Name    string
@@ -46,4 +51,17 @@ func (a *Action) Equal(o *Action) bool {
 	return a.Name == o.Name &&
 		a.Command == o.Command &&
 		slices.Equal(a.Args, o.Args)
+}
+
+func (a *Action) Validate() error {
+	if a == nil {
+		return nil
+	}
+
+	var mErr *multierror.Error
+	if a.Command == "" {
+		mErr = multierror.Append(mErr, errors.New("Missing command"))
+	}
+
+	return mErr.ErrorOrNil()
 }
