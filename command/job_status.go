@@ -26,6 +26,8 @@ type JobStatusCommand struct {
 	evals     bool
 	allAllocs bool
 	verbose   bool
+	json      bool
+	tmpl      string
 }
 
 func (c *JobStatusCommand) Help() string {
@@ -101,6 +103,8 @@ func (c *JobStatusCommand) Run(args []string) int {
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&c.evals, "evals", false, "")
 	flags.BoolVar(&c.allAllocs, "all-allocs", false, "")
+	flags.BoolVar(&c.json, "json", false, "")
+	flags.StringVar(&c.tmpl, "t", "", "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -143,7 +147,18 @@ func (c *JobStatusCommand) Run(args []string) int {
 			// No output if we have no jobs
 			c.Ui.Output("No running jobs")
 		} else {
-			c.Ui.Output(createStatusListOutput(jobs, allNamespaces))
+			if c.json || len(c.tmpl) > 0 {
+				out, err := Format(true, c.tmpl, jobs)
+
+				if err != nil {
+					c.Ui.Error(err.Error())
+					return 1
+				}
+
+				c.Ui.Output(out)
+			} else {
+				c.Ui.Output(createStatusListOutput(jobs, allNamespaces))
+			}
 		}
 		return 0
 	}
@@ -170,6 +185,19 @@ func (c *JobStatusCommand) Run(args []string) int {
 	nodePool := ""
 	if job.NodePool != nil {
 		nodePool = *job.NodePool
+	}
+
+	if c.json || len(c.tmpl) > 0 {
+		out, err := Format(true, c.tmpl, job)
+
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+
+		return 0
 	}
 
 	// Format the job info
