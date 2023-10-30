@@ -55,15 +55,15 @@ Usage: nomad setup consul [options]
   This command sets up Consul for allowing Nomad workloads to authenticate
   themselves using Workload Identity.
 
-  This command requires acl:write permissions for Consul and will respect
-  CONSUL_HTTP_TOKEN as well as CONSUL_HTTP_ADDR and other Consul-related
+  This command requires acl:write permissions for Consul and respects
+  CONSUL_HTTP_TOKEN, CONSUL_HTTP_ADDR, and other Consul-related
   environment variables as documented in
   https://developer.hashicorp.com/nomad/docs/runtime/environment#summary. 
 
 Setup Consul options:
 
   -jwks-url
-    URL of the JWKS server Consul will contact in order to verify JWT
+    URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
     signatures. Defaults to http://localhost:4646/.well-known/jwks.json. 
 
   -y
@@ -124,7 +124,7 @@ First we need to connect to Consul.
 	if !s.autoYes {
 		if !s.askQuestion(fmt.Sprintf("Is %q the correct address of your Consul cluster? [Y/n]", cfg.Address)) {
 			s.Ui.Warn(`
-Please set the CONSUL_HTTP_ADDR variable to your Consul cluster address and re-run the command.`)
+Please set the CONSUL_HTTP_ADDR environment variable to your Consul cluster address and re-run the command.`)
 			return 0
 		}
 	}
@@ -142,9 +142,9 @@ Please set the CONSUL_HTTP_ADDR variable to your Consul cluster address and re-r
 	}
 
 	authMethodMsg := `
-We need to create two JWT auth methods: one for Nomad services, and one for
-Nomad tasks. The method for services will be called %q and
-the method for tasks %q, and they will both be of jwt type.
+Nomad needs two JWT auth methods: one for Consul services, and one for tasks. 
+The method for services will be called %q and
+the method for tasks %q, and they will both be of JWT type.
 
 They will share the following config:`
 	s.Ui.Output(fmt.Sprintf(authMethodMsg, authMethodServices, authMethodTasks))
@@ -161,7 +161,7 @@ They will share the following config:`
 	if s.consulEnt {
 		namespaceMsg := `
 Since you're running Consul Enterprise, we will additionally create
-a namespace %s and bind the auth methods to that namespace.
+a namespace %q and bind the auth methods to that namespace.
 `
 		s.Ui.Output(fmt.Sprintf(namespaceMsg, consulNamespace))
 	}
@@ -195,26 +195,26 @@ a namespace %s and bind the auth methods to that namespace.
 	}
 
 	servicesBindingRule := &api.ACLBindingRule{
-		Description: "binding rule for Nomad services w/ (WI)",
+		Description: "Binding rule for Nomad services authenticated using a workload identity",
 		AuthMethod:  authMethodServices,
 		BindType:    "service",
-		BindName:    "${value.nomad_namespace}-${value.nomad_service}",
+		BindName:    "${value.nomad_service}",
 	}
 
 	tasksBindingRule := &api.ACLBindingRule{
-		Description: "binding rule for Nomad tasks w/ (WI)",
+		Description: "Binding rule for Nomad tasks authenticated using a workload identity",
 		AuthMethod:  authMethodTasks,
 		BindType:    "role",
 		BindName:    "nomad-${value.nomad_namespace}-templates",
 	}
 
 	s.Ui.Output(`
-In order to map claims between Nomad's JWTs and Consul ACL, we need to create
-the following binding rules:
+Consul uses binding rules to map claims between Nomad's JWTs and Consul service identities and ACL roles, so we need to create the following binding rules:
 `)
 	jsServicesBindingRule, _ := json.MarshalIndent(servicesBindingRule, "", "    ")
 	jsTasksBindingRule, _ := json.MarshalIndent(tasksBindingRule, "", "    ")
 	s.Ui.Output(string(jsServicesBindingRule))
+	s.Ui.Output("\n")
 	s.Ui.Output(string(jsTasksBindingRule))
 
 	var createBindingRules bool
@@ -240,15 +240,14 @@ the following binding rules:
 	}
 
 	s.Ui.Output(`
-Nomad tasks require a Consul ACL policy and Role. Below is the body of the policy
-we need to create:
+The step above bound Nomad tasks to a Consul ACL role. Now we need to create the role and the associated ACL policy that defines what tasks are allowed to access in Consul. Below is the body of the policy we will create:
 `)
 	s.Ui.Output(string(policyBody))
 
 	var createPolicy bool
 	if !s.autoYes {
 		createPolicy = s.askQuestion(
-			"Should we create the above policy in your Consul cluster? [Y/n]",
+			"Create the above policy in your Consul cluster? [Y/n]",
 		)
 	} else {
 		createPolicy = true
@@ -263,13 +262,13 @@ we need to create:
 	}
 
 	s.Ui.Output(`
-Finally, we need to create a role role-nomad-tasks associated with the policy
-above.`)
+And finally, we will create an ACL role called %q associated with the policy
+above.`, roleTasks)
 
 	var createRole bool
 	if !s.autoYes {
 		createRole = s.askQuestion(
-			"Should we create the above role in your Consul cluster? [Y/n]",
+			"Create the above role in your Consul cluster? [Y/n]",
 		)
 	} else {
 		createRole = true
@@ -362,7 +361,7 @@ func (s *SetupConsulCommand) createAuthMethod(authMethodName string, authMethodC
 		if slices.ContainsFunc(
 			existingMethods,
 			func(m *api.ACLAuthMethodListEntry) bool { return m.Name == method.Name }) {
-			s.Ui.Warn(fmt.Sprintf("[ ] auth method with name %s already exists", method.Name))
+			s.Ui.Warn(fmt.Sprintf("[ ] auth method with name %q already exists", method.Name))
 			return nil
 		}
 	}
@@ -370,7 +369,7 @@ func (s *SetupConsulCommand) createAuthMethod(authMethodName string, authMethodC
 	_, _, err := s.client.ACL().AuthMethodCreate(method, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "error checking JWKSURL") {
-			s.Ui.Error("error: Nomad JWKS endpoint unreachable, is your Nomad server running and is the JWKS url set correctly?")
+			s.Ui.Error("error: Nomad JWKS endpoint unreachable, verify that Nomad is running and that the JWKS URL %s is reachable by Consul", s.jwksURL)
 			os.Exit(1)
 		}
 		return fmt.Errorf("[✘] could not create Consul auth method: %w", err)
