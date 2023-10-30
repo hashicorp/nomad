@@ -4,7 +4,8 @@
 package widmgr
 
 import (
-	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"slices"
 	"time"
@@ -22,13 +23,13 @@ type MockWIDSigner struct {
 	// SignIdentities will use it to find expirations or reject invalid identity
 	// names
 	wids    map[string]*structs.WorkloadIdentity
-	key     ed25519.PrivateKey
+	key     *rsa.PrivateKey
 	keyID   string
 	mockNow time.Time // allows moving the clock
 }
 
 func NewMockWIDSigner(wids []*structs.WorkloadIdentity) *MockWIDSigner {
-	_, privKey, err := ed25519.GenerateKey(nil)
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +64,7 @@ func (m *MockWIDSigner) JSONWebKeySet() *jose.JSONWebKeySet {
 	jwk := jose.JSONWebKey{
 		Key:       m.key.Public(),
 		KeyID:     m.keyID,
-		Algorithm: "EdDSA",
+		Algorithm: "RS256",
 		Use:       "sig",
 	}
 	return &jose.JSONWebKeySet{
@@ -95,7 +96,7 @@ func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadI
 			}
 		}
 		opts := (&jose.SignerOptions{}).WithHeader("kid", m.keyID).WithType("JWT")
-		sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: m.key}, opts)
+		sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: m.key}, opts)
 		if err != nil {
 			return nil, fmt.Errorf("error creating signer: %w", err)
 		}

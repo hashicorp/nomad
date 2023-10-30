@@ -4,7 +4,8 @@
 package auth
 
 import (
-	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
@@ -20,7 +21,6 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1217,20 +1217,23 @@ func (ctx *testContext) Certificate() *x509.Certificate {
 }
 
 type testEncrypter struct {
-	key ed25519.PrivateKey
+	key *rsa.PrivateKey
 }
 
 func newTestEncrypter() *testEncrypter {
-	buf, _ := crypto.Bytes(32)
+	k, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		panic(err)
+	}
 	return &testEncrypter{
-		key: ed25519.NewKeyFromSeed(buf),
+		key: k,
 	}
 }
 
 func (te *testEncrypter) signClaim(claims *structs.IdentityClaims) (string, error) {
 
 	opts := (&jose.SignerOptions{}).WithType("JWT")
-	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: te.key}, opts)
+	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: te.key}, opts)
 	if err != nil {
 		return "", err
 	}

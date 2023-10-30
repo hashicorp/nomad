@@ -32,7 +32,7 @@ const (
 	jwtAuthConfigTemplate = `
 {
   "jwks_url": "<<.JWKSURL>>",
-  "jwt_supported_algs": ["EdDSA"],
+  "jwt_supported_algs": ["RS256", "EdDSA"],
   "default_role": "nomad-workloads"
 }
 `

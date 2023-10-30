@@ -25,7 +25,7 @@ var roleLegacy = map[string]interface{}{
 func authConfigJWT(jwksURL string) map[string]any {
 	return map[string]any{
 		"jwks_url":           jwksURL,
-		"jwt_supported_algs": []string{"EdDSA"},
+		"jwt_supported_algs": []string{"RS256", "EdDSA"},
 		"default_role":       "nomad-workloads",
 	}
 }
