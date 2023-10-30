@@ -360,13 +360,11 @@ func (s *SetupConsulCommand) createAuthMethod(authMethodName string, authMethodC
 	}
 
 	existingMethods, _, _ := s.client.ACL().AuthMethodList(nil)
-	if len(existingMethods) > 0 {
-		if slices.ContainsFunc(
-			existingMethods,
-			func(m *api.ACLAuthMethodListEntry) bool { return m.Name == method.Name }) {
-			s.Ui.Warn(fmt.Sprintf("[ ] auth method with name %q already exists", method.Name))
-			return nil
-		}
+	if slices.ContainsFunc(
+		existingMethods,
+		func(m *api.ACLAuthMethodListEntry) bool { return m.Name == method.Name }) {
+		s.Ui.Warn(fmt.Sprintf("[ ] auth method with name %q already exists", method.Name))
+		return nil
 	}
 
 	_, _, err := s.client.ACL().AuthMethodCreate(method, nil)
@@ -391,13 +389,11 @@ func (s *SetupConsulCommand) createNamespace() error {
 
 	// check if namespace already exists
 	existingNamespaces, _, _ := nsClient.List(nil)
-	if len(existingNamespaces) > 0 {
-		if slices.ContainsFunc(
-			existingNamespaces,
-			func(n *api.Namespace) bool { return n.Name == consulNamespace }) {
-			s.Ui.Warn(fmt.Sprintf("[ ] namespace %q already exists", consulNamespace))
-			return nil
-		}
+	if slices.ContainsFunc(
+		existingNamespaces,
+		func(n *api.Namespace) bool { return n.Name == consulNamespace }) {
+		s.Ui.Warn(fmt.Sprintf("[ ] namespace %q already exists", consulNamespace))
+		return nil
 	}
 
 	_, _, err := nsClient.Create(namespace, nil)
@@ -410,13 +406,11 @@ func (s *SetupConsulCommand) createNamespace() error {
 
 func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
 	existingRules, _, _ := s.client.ACL().BindingRuleList("", nil)
-	if len(existingRules) > 0 {
-		if slices.ContainsFunc(
-			existingRules,
-			func(r *api.ACLBindingRule) bool { return r.BindName == rule.BindName }) {
-			s.Ui.Warn(fmt.Sprintf("[ ] binding rule with bind name %q already exists", rule.BindName))
-			return nil
-		}
+	if slices.ContainsFunc(
+		existingRules,
+		func(r *api.ACLBindingRule) bool { return r.BindName == rule.BindName }) {
+		s.Ui.Warn(fmt.Sprintf("[ ] binding rule with bind name %q already exists", rule.BindName))
+		return nil
 	}
 
 	_, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
