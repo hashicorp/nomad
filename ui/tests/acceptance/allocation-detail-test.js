@@ -402,7 +402,7 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.stop.idle();
 
     run.later(() => {
-      assert.ok(Allocation.stop.isRunning, 'Stop is loading');
+      assert.ok(Allocation.stop.isDisabled, 'Stop is disabled');
       assert.ok(Allocation.restart.isDisabled, 'Restart is disabled');
       assert.ok(Allocation.restartAll.isDisabled, 'Restart All is disabled');
       server.pretender.resolve(server.pretender.requestReferences[0].request);

@@ -33,7 +33,7 @@
   <Hds::Button
     data-test-confirm-button
     @size="medium"
-    @text={{@confirmText}}
+    @text={{if this.awaitingConfirmation "Loading..." @confirmText}}
     @color="critical"
     class="is-inline"
     disabled={{this.awaitingConfirmation}}
