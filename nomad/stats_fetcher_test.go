@@ -17,6 +17,7 @@ func TestStatsFetcher(t *testing.T) {
 	ci.Parallel(t)
 
 	conf := func(c *Config) {
+		c.Region = "region-a"
 		c.BootstrapExpect = 3
 	}
 
