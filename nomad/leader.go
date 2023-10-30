@@ -2763,7 +2763,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 
 	err = s.encrypter.AddKey(rootKey)
 	if err != nil {
-		logger.Error("could not add initial key to keyring: %v", err)
+		logger.Error("could not add initial key to keyring", "error", err)
 		return
 	}
 
@@ -2771,7 +2771,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 		structs.KeyringUpdateRootKeyMetaRequest{
 			RootKeyMeta: rootKey.Meta,
 		}); err != nil {
-		logger.Error("could not initialize keyring: %v", err)
+		logger.Error("could not initialize keyring", "error", err)
 		return
 	}
 
