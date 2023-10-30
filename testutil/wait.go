@@ -138,27 +138,10 @@ type rpcFn func(string, interface{}, interface{}) error
 func WaitForLeader(t testing.TB, rpc rpcFn) {
 	t.Helper()
 	WaitForResult(func() (bool, error) {
-		args := &structs.GenericRequest{
-			QueryOptions: structs.QueryOptions{
-				Namespace: "default",
-				Region:    "global",
-			},
-		}
+		args := &structs.GenericRequest{}
 		var leader string
 		err := rpc("Status.Leader", args, &leader)
-		if err != nil {
-			return leader != "", err
-		}
-		if leader == "" {
-			return false, err
-		}
-
-		// As of 1.7 the RSA key generation slows down keyring initialization so
-		// much that tests relying on the keyring being initialized fail unless
-		// they wait until the key was generated
-		var resp structs.KeyringListPublicResponse
-		err = rpc("Keyring.ListPublic", args, &resp)
-		return err == nil, err
+		return leader != "", err
 	}, func(err error) {
 		t.Fatalf("failed to find leader: %v", err)
 	})
@@ -171,27 +154,10 @@ func WaitForLeaders(t testing.TB, rpcs ...rpcFn) string {
 	var leader string
 	for i := 0; i < len(rpcs); i++ {
 		ok := func() (bool, error) {
-			args := &structs.GenericRequest{
-				QueryOptions: structs.QueryOptions{
-					Namespace: "default",
-					Region:    "global",
-				},
-			}
-			var leader string
+			leader = ""
+			args := &structs.GenericRequest{}
 			err := rpcs[i]("Status.Leader", args, &leader)
-			if err != nil {
-				return leader != "", err
-			}
-			if leader == "" {
-				return false, err
-			}
-
-			// As of 1.7 the RSA key generation slows down keyring initialization so
-			// much that tests relying on the keyring being initialized fail unless
-			// they wait until the key was generated
-			var resp structs.KeyringListPublicResponse
-			err = rpcs[i]("Keyring.ListPublic", args, &resp)
-			return err == nil, err
+			return leader != "", err
 		}
 		must.Wait(t, wait.InitialSuccess(
 			wait.TestFunc(ok),
