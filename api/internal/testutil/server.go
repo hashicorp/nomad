@@ -297,19 +297,27 @@ func (s *TestServer) waitForAPI() {
 }
 
 // waitForLeader waits for the Nomad server's HTTP API to become
-// available, and then waits for a known leader and an index of
-// 1 or more to be observed to confirm leader election is done.
+// available, and then waits for the keyring to be intialized. This implies a
+// leader has been elected and Raft writes have occurred.
 func (s *TestServer) waitForLeader() {
 	f := func() error {
-		// Query the API and check the status code
-		// Using this endpoint as it is does not have restricted access
-		resp, err := s.HTTPClient.Get(s.url("/v1/status/leader"))
+		resp, err := s.HTTPClient.Get(s.url("/.well-known/jwks.json"))
 		if err != nil {
-			return fmt.Errorf("failed to get leader: %w", err)
+			return fmt.Errorf("failed to contact leader: %w", err)
 		}
 		defer func() { _ = resp.Body.Close() }()
 		if err = s.requireOK(resp); err != nil {
 			return fmt.Errorf("leader response is not ok: %w", err)
+		}
+
+		jwks := struct {
+			Keys []interface{} `json:"keys"`
+		}{}
+		if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+			return fmt.Errorf("error decoding jwks response: %w", err)
+		}
+		if len(jwks.Keys) == 0 {
+			return fmt.Errorf("no keys found")
 		}
 		return nil
 	}
