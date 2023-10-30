@@ -225,7 +225,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 
 	// Wait for the server to be ready
 	if nomadConfig.Server.Enabled && nomadConfig.Server.BootstrapExpect != 0 {
-		server.waitForLeader()
+		server.waitForServers()
 	} else {
 		server.waitForAPI()
 	}
@@ -296,10 +296,10 @@ func (s *TestServer) waitForAPI() {
 	)
 }
 
-// waitForLeader waits for the Nomad server's HTTP API to become available, and
-// then waits for the keyring to be intialized. This implies a leader has been
-// elected and Raft writes have occurred.
-func (s *TestServer) waitForLeader() {
+// waitForServers waits for the Nomad server's HTTP API to become available,
+// and then waits for the keyring to be intialized. This implies a leader has
+// been elected and Raft writes have occurred.
+func (s *TestServer) waitForServers() {
 	f := func() error {
 		resp, err := s.HTTPClient.Get(s.url("/.well-known/jwks.json"))
 		if err != nil {
