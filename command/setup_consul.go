@@ -143,8 +143,8 @@ Please set the CONSUL_HTTP_ADDR environment variable to your Consul cluster addr
 
 	authMethodMsg := `
 Nomad needs two JWT auth methods: one for Consul services, and one for tasks. 
-The method for services will be called %q and
-the method for tasks %q, and they will both be of JWT type.
+The method for services will be called %q and the method for 
+tasks %q, and they will both be of JWT type.
 
 They will share the following config:`
 	s.Ui.Output(fmt.Sprintf(authMethodMsg, authMethodServices, authMethodTasks))
@@ -209,7 +209,8 @@ a namespace %q and bind the auth methods to that namespace.
 	}
 
 	s.Ui.Output(`
-Consul uses binding rules to map claims between Nomad's JWTs and Consul service identities and ACL roles, so we need to create the following binding rules:
+Consul uses binding rules to map claims between Nomad's JWTs and Consul service identities
+and ACL roles, so we need to create the following binding rules:
 `)
 	jsServicesBindingRule, _ := json.MarshalIndent(servicesBindingRule, "", "    ")
 	jsTasksBindingRule, _ := json.MarshalIndent(tasksBindingRule, "", "    ")
