@@ -5,7 +5,6 @@ package allocrunner
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -268,9 +267,7 @@ func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.Work
 
 	tokens := map[string]string{}
 	for _, service := range h.services {
-		id := fmt.Sprintf("%s_%s",
-			structs.ConsulServiceIdentityNamePrefix, service.MakeUniqueIdentityName())
-		if token, ok := allocTokens[service.Cluster][id]; ok {
+		if token, ok := allocTokens[service.Cluster][service.MakeUniqueIdentityName()]; ok {
 			tokens[service.Name] = token
 		}
 	}

@@ -775,10 +775,14 @@ func (s *Service) Validate() error {
 // MakeUniqueIdentityName returns a service identity name consisting of: task
 // name, service name and service port label.
 func (s *Service) MakeUniqueIdentityName() string {
-	if s.TaskName != "" {
-		return fmt.Sprintf("%v-%v-%v", s.TaskName, s.Name, s.PortLabel)
+	prefix := ConsulServiceIdentityNamePrefix
+	if s.Provider == ServiceProviderNomad {
+		prefix = "nomad-service"
 	}
-	return fmt.Sprintf("%v-%v", s.Name, s.PortLabel)
+	if s.TaskName != "" {
+		return fmt.Sprintf("%s_%v-%v-%v", prefix, s.TaskName, s.Name, s.PortLabel)
+	}
+	return fmt.Sprintf("%s_%v-%v", prefix, s.Name, s.PortLabel)
 }
 
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of service

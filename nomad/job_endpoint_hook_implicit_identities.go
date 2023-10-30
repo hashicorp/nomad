@@ -4,8 +4,6 @@
 package nomad
 
 import (
-	"fmt"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -64,8 +62,7 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 	}
 
 	// Set the expected identity name and service name.
-	name := s.MakeUniqueIdentityName()
-	serviceWID.Name = fmt.Sprintf("%s_%s", structs.ConsulServiceIdentityNamePrefix, name)
+	serviceWID.Name = s.MakeUniqueIdentityName()
 	serviceWID.ServiceName = s.Name
 
 	s.Identity = serviceWID
