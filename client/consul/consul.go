@@ -113,7 +113,7 @@ func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (ma
 		}, &consulapi.WriteOptions{})
 		if err != nil {
 			mErr = multierror.Append(mErr, fmt.Errorf(
-				"failed to authenticate with consul for identity %s: %v", k, err,
+				"failed to authenticate with consul for identity %s: %w", k, err,
 			))
 			continue
 		}

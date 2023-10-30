@@ -331,7 +331,7 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 	if c.Addr != "" {
 		ipStr, err := listenerutil.ParseSingleIPTemplate(c.Addr)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse address template %q: %v", c.Addr, err)
+			return nil, fmt.Errorf("unable to parse address template %q: %w", c.Addr, err)
 		}
 		config.Address = ipStr
 	}

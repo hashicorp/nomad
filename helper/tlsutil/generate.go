@@ -37,12 +37,12 @@ func GeneratePrivateKey() (crypto.Signer, string, error) {
 
 	pk, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
-		return nil, "", fmt.Errorf("error generating ECDSA private key: %s", err)
+		return nil, "", fmt.Errorf("error generating ECDSA private key: %w", err)
 	}
 
 	bs, err := x509.MarshalECPrivateKey(pk)
 	if err != nil {
-		return nil, "", fmt.Errorf("error marshaling ECDSA private key: %s", err)
+		return nil, "", fmt.Errorf("error marshaling ECDSA private key: %w", err)
 	}
 
 	pemBlock, err := pemEncodeKey(bs, "EC PRIVATE KEY")
@@ -57,7 +57,7 @@ func pemEncodeKey(key []byte, blockType string) (string, error) {
 	var buf bytes.Buffer
 
 	if err := pem.Encode(&buf, &pem.Block{Type: blockType, Bytes: key}); err != nil {
-		return "", fmt.Errorf("error encoding private key: %s", err)
+		return "", fmt.Errorf("error encoding private key: %w", err)
 	}
 	return buf.String(), nil
 }
@@ -191,13 +191,13 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 	bs, err := x509.CreateCertificate(
 		rand.Reader, &template, &template, signer.Public(), signer)
 	if err != nil {
-		return "", "", fmt.Errorf("error generating CA certificate: %s", err)
+		return "", "", fmt.Errorf("error generating CA certificate: %w", err)
 	}
 
 	var buf bytes.Buffer
 	err = pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: bs})
 	if err != nil {
-		return "", "", fmt.Errorf("error encoding private key: %s", err)
+		return "", "", fmt.Errorf("error encoding private key: %w", err)
 	}
 
 	return buf.String(), pk, nil
@@ -251,7 +251,7 @@ func GenerateCert(opts CertOpts) (string, string, error) {
 	var buf bytes.Buffer
 	err = pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: bs})
 	if err != nil {
-		return "", "", fmt.Errorf("error encoding private key: %s", err)
+		return "", "", fmt.Errorf("error encoding private key: %w", err)
 	}
 
 	return buf.String(), pk, nil

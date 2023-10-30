@@ -145,7 +145,7 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 	lro, err := logging.NewFileRotator(cfg.LogDir, cfg.StdoutLogFile,
 		cfg.MaxFiles, logFileSize, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdout logfile for %q: %v", cfg.StdoutLogFile, err)
+		return nil, fmt.Errorf("failed to create stdout logfile for %q: %w", cfg.StdoutLogFile, err)
 	}
 
 	wrapperOut, err := newLogRotatorWrapper(cfg.StdoutFifo, logger, lro)
@@ -158,7 +158,7 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 	lre, err := logging.NewFileRotator(cfg.LogDir, cfg.StderrLogFile,
 		cfg.MaxFiles, logFileSize, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stderr logfile for %q: %v", cfg.StderrLogFile, err)
+		return nil, fmt.Errorf("failed to create stderr logfile for %q: %w", cfg.StderrLogFile, err)
 	}
 
 	wrapperErr, err := newLogRotatorWrapper(cfg.StderrFifo, logger, lre)
@@ -214,7 +214,7 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteClos
 
 	if err != nil {
 		logger.Error("failed to create FIFO", "stat_error", serr, "create_err", err)
-		return nil, fmt.Errorf("failed to create fifo for extracting logs: %v", err)
+		return nil, fmt.Errorf("failed to create fifo for extracting logs: %w", err)
 	}
 
 	wrap := &logRotatorWrapper{

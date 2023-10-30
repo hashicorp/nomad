@@ -357,7 +357,7 @@ func Parse(rules string) (*Policy, error) {
 
 	// Attempt to parse
 	if err := hclDecode(p, rules); err != nil {
-		return nil, fmt.Errorf("Failed to parse ACL Policy: %v", err)
+		return nil, fmt.Errorf("Failed to parse ACL Policy: %w", err)
 	}
 
 	// At least one valid policy must be specified, we don't want to store only
@@ -475,7 +475,7 @@ func Parse(rules string) (*Policy, error) {
 func hclDecode(p *Policy, rules string) (err error) {
 	defer func() {
 		if rerr := recover(); rerr != nil {
-			err = fmt.Errorf("invalid acl policy: %v", rerr)
+			err = fmt.Errorf("invalid acl policy: %w", rerr)
 		}
 	}()
 

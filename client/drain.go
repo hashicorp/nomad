@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -63,11 +64,11 @@ func (c *Client) DrainSelf() error {
 
 	logger.Info("monitoring self-drain")
 	err = c.pollServerForDrainStatus(ctx, statusCheckInterval)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		logger.Debug("self-drain complete")
 		return nil
-	case context.DeadlineExceeded, context.Canceled:
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
 		logger.Error("self-drain exceeded deadline")
 		return fmt.Errorf("self-drain exceeded deadline")
 	default:

@@ -133,17 +133,17 @@ func (c *client) ensureConnected(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timeout while connecting to gRPC socket: %v", err)
+			return fmt.Errorf("timeout while connecting to gRPC socket: %w", err)
 		case <-t.C:
 			_, err = os.Stat(c.addr)
 			if err != nil {
-				err = fmt.Errorf("failed to stat socket: %v", err)
+				err = fmt.Errorf("failed to stat socket: %w", err)
 				t.Reset(5 * time.Second)
 				continue
 			}
 			conn, err = newGrpcConn(c.addr, c.logger)
 			if err != nil {
-				err = fmt.Errorf("failed to create gRPC connection: %v", err)
+				err = fmt.Errorf("failed to create gRPC connection: %w", err)
 				t.Reset(time.Second * 5)
 				continue
 			}

@@ -5,6 +5,7 @@ package docklog
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -74,7 +75,7 @@ type dockerLogger struct {
 func (d *dockerLogger) Start(opts *StartOpts) error {
 	client, err := d.getDockerClient(opts)
 	if err != nil {
-		return fmt.Errorf("failed to open docker client: %v", err)
+		return fmt.Errorf("failed to open docker client: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -131,7 +132,8 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 				ID: opts.ContainerID,
 			})
 			if err != nil {
-				_, notFoundOk := err.(*docker.NoSuchContainer)
+				var noSuchContainer *docker.NoSuchContainer
+				notFoundOk := errors.As(err, &noSuchContainer)
 				if !notFoundOk {
 					return
 				}
@@ -246,7 +248,8 @@ func isLoggingTerminalError(err error) bool {
 		return false
 	}
 
-	if apiErr, ok := err.(*docker.Error); ok {
+	var apiErr *docker.Error
+	if errors.As(err, &apiErr) {
 		switch apiErr.Status {
 		case 501:
 			return true

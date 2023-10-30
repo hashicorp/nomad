@@ -385,14 +385,14 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	var taskState TaskState
 	if err := handle.GetDriverState(&taskState); err != nil {
 		d.logger.Error("failed to decode task state from handle", "error", err, "task_id", handle.Config.ID)
-		return fmt.Errorf("failed to decode task state from handle: %v", err)
+		return fmt.Errorf("failed to decode task state from handle: %w", err)
 	}
 
 	// Create client for reattached executor
 	plugRC, err := pstructs.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from task state", "error", err, "task_id", handle.Config.ID)
-		return fmt.Errorf("failed to build ReattachConfig from task state: %v", err)
+		return fmt.Errorf("failed to build ReattachConfig from task state: %w", err)
 	}
 
 	exec, pluginClient, err := executor.ReattachToExecutor(
@@ -402,7 +402,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	)
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
-		return fmt.Errorf("failed to reattach to executor: %v", err)
+		return fmt.Errorf("failed to reattach to executor: %w", err)
 	}
 
 	h := &taskHandle{
@@ -429,11 +429,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	var driverConfig TaskConfig
 	if err := cfg.DecodeDriverConfig(&driverConfig); err != nil {
-		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
+		return nil, nil, fmt.Errorf("failed to decode driver config: %w", err)
 	}
 
 	if err := driverConfig.validate(); err != nil {
-		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
+		return nil, nil, fmt.Errorf("failed driver config validation: %w", err)
 	}
 
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
@@ -452,7 +452,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
 		d.nomadConfig, executorConfig)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
+		return nil, nil, fmt.Errorf("failed to create executor: %w", err)
 	}
 
 	user := cfg.User
@@ -463,7 +463,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	if cfg.DNS != nil {
 		dnsMount, err := resolvconf.GenerateDNSMount(cfg.TaskDir().Dir, cfg.DNS)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to build mount for resolv.conf: %v", err)
+			return nil, nil, fmt.Errorf("failed to build mount for resolv.conf: %w", err)
 		}
 		cfg.Mounts = append(cfg.Mounts, dnsMount)
 	}
@@ -498,7 +498,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	ps, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
-		return nil, nil, fmt.Errorf("failed to launch command with executor: %v", err)
+		return nil, nil, fmt.Errorf("failed to launch command with executor: %w", err)
 	}
 
 	h := &taskHandle{
@@ -522,7 +522,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		d.logger.Error("failed to start task, error setting driver state", "error", err)
 		_ = exec.Shutdown("", 0)
 		pluginClient.Kill()
-		return nil, nil, fmt.Errorf("failed to set driver state: %v", err)
+		return nil, nil, fmt.Errorf("failed to set driver state: %w", err)
 	}
 
 	d.tasks.Set(cfg.ID, h)
@@ -548,7 +548,7 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 	ps, err := handle.exec.Wait(ctx)
 	if err != nil {
 		result = &drivers.ExitResult{
-			Err: fmt.Errorf("executor: error waiting on process: %v", err),
+			Err: fmt.Errorf("executor: error waiting on process: %w", err),
 		}
 	} else {
 		result = &drivers.ExitResult{
@@ -576,7 +576,7 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 		if handle.pluginClient.Exited() {
 			return nil
 		}
-		return fmt.Errorf("executor Shutdown failed: %v", err)
+		return fmt.Errorf("executor Shutdown failed: %w", err)
 	}
 
 	return nil

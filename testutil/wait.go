@@ -221,7 +221,7 @@ func WaitForVotingMembers(t testing.TB, rpc rpcFn, nPeers int) {
 		resp := structs.RaftConfigurationResponse{}
 		err := rpc("Operator.RaftGetConfiguration", args, &resp)
 		if err != nil {
-			return false, fmt.Errorf("failed to query raft: %v", err)
+			return false, fmt.Errorf("failed to query raft: %w", err)
 		}
 
 		if len(resp.Servers) != nPeers {
@@ -230,13 +230,13 @@ func WaitForVotingMembers(t testing.TB, rpc rpcFn, nPeers int) {
 
 		for _, s := range resp.Servers {
 			if !s.Voter {
-				return false, fmt.Errorf("found nonvoting server: %v", s)
+				return false, fmt.Errorf("found nonvoting server: %w", s)
 			}
 		}
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("failed to wait until voting members: %v", err)
+		t.Fatalf("failed to wait until voting members: %w", err)
 	})
 }
 
@@ -251,9 +251,9 @@ func RegisterJobWithToken(t testing.TB, rpc rpcFn, job *structs.Job, token strin
 		args.Namespace = job.Namespace
 		var jobResp structs.JobRegisterResponse
 		err := rpc("Job.Register", args, &jobResp)
-		return err == nil, fmt.Errorf("Job.Register error: %v", err)
+		return err == nil, fmt.Errorf("Job.Register error: %w", err)
 	}, func(err error) {
-		t.Fatalf("error registering job: %v", err)
+		t.Fatalf("error registering job: %w", err)
 	})
 
 	t.Logf("Job %q registered", job.ID)
@@ -278,7 +278,7 @@ func WaitForRunningWithToken(t testing.TB, rpc rpcFn, job *structs.Job, token st
 		args.Namespace = job.Namespace
 		err := rpc("Job.Allocations", args, &resp)
 		if err != nil {
-			return false, fmt.Errorf("Job.Allocations error: %v", err)
+			return false, fmt.Errorf("Job.Allocations error: %w", err)
 		}
 
 		if len(resp.Allocations) == 0 {
@@ -333,7 +333,7 @@ func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, a
 		var resp structs.JobAllocationsResponse
 		err := rpc("Job.Allocations", args, &resp)
 		if err != nil {
-			return false, fmt.Errorf("Job.Allocations error: %v", err)
+			return false, fmt.Errorf("Job.Allocations error: %w", err)
 		}
 
 		if len(resp.Allocations) == 0 {

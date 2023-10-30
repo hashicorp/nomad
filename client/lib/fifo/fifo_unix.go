@@ -22,7 +22,7 @@ import (
 func CreateAndRead(path string) (func() (io.ReadCloser, error), error) {
 	// create first
 	if err := mkfifo(path, 0600); err != nil {
-		return nil, fmt.Errorf("error creating fifo %v: %v", path, err)
+		return nil, fmt.Errorf("error creating fifo %v: %w", path, err)
 	}
 
 	return func() (io.ReadCloser, error) {

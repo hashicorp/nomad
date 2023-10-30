@@ -272,7 +272,7 @@ func waitForAllocSecret(allocID, taskID, path string, test func(string) bool, wc
 		time.Sleep(interval)
 		out, err = e2e.Command("nomad", "alloc", "exec", "-task", taskID, allocID, "cat", path)
 		if err != nil {
-			return false, fmt.Errorf("could not get file %q from allocation %q: %v",
+			return false, fmt.Errorf("could not get file %q from allocation %q: %w",
 				path, allocID, err)
 		}
 		return test(out),

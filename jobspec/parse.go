@@ -36,7 +36,7 @@ func Parse(r io.Reader) (*api.Job, error) {
 	// Parse the buffer
 	root, err := hcl.Parse(buf.String())
 	if err != nil {
-		return nil, fmt.Errorf("error parsing: %s", err)
+		return nil, fmt.Errorf("error parsing: %w", err)
 	}
 	buf.Reset()
 
@@ -62,7 +62,7 @@ func Parse(r io.Reader) (*api.Job, error) {
 		return nil, fmt.Errorf("'job' block not found")
 	}
 	if err := parseJob(&job, matches); err != nil {
-		return nil, fmt.Errorf("error parsing 'job': %s", err)
+		return nil, fmt.Errorf("error parsing 'job': %w", err)
 	}
 
 	return &job, nil

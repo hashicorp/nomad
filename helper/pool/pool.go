@@ -441,7 +441,7 @@ START:
 	// Try to get a conn first
 	conn, err := p.acquire(region, addr)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get conn: %v", err)
+		return nil, nil, fmt.Errorf("failed to get conn: %w", err)
 	}
 
 	// Get a client
@@ -455,7 +455,7 @@ START:
 			retries++
 			goto START
 		}
-		return nil, nil, fmt.Errorf("failed to start stream: %v", err)
+		return nil, nil, fmt.Errorf("failed to start stream: %w", err)
 	}
 	return conn, client, nil
 }
@@ -465,12 +465,12 @@ START:
 func (p *ConnPool) StreamingRPC(region string, addr net.Addr) (net.Conn, error) {
 	conn, err := p.acquire(region, addr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get conn: %v", err)
+		return nil, fmt.Errorf("failed to get conn: %w", err)
 	}
 
 	s, err := conn.session.Open()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open a streaming connection: %v", err)
+		return nil, fmt.Errorf("failed to open a streaming connection: %w", err)
 	}
 
 	if _, err := s.Write([]byte{byte(RpcStreaming)}); err != nil {

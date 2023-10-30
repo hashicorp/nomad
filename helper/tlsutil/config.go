@@ -193,7 +193,7 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 	// Read the file
 	data, err := os.ReadFile(c.CAFile)
 	if err != nil {
-		return fmt.Errorf("Failed to read CA file: %v", err)
+		return fmt.Errorf("Failed to read CA file: %w", err)
 	}
 
 	// Read certificates and return an error if no valid certificates were
@@ -218,7 +218,7 @@ func (c *Config) LoadKeyPair() (*tls.Certificate, error) {
 
 	cert, err := c.KeyLoader.LoadKeyPair(c.CertFile, c.KeyFile)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load cert/key pair: %v", err)
+		return nil, fmt.Errorf("Failed to load cert/key pair: %w", err)
 	}
 	return cert, err
 }

@@ -111,7 +111,7 @@ func (d *DeviceGroup) Validate() error {
 
 	for k, v := range d.Attributes {
 		if err := v.Validate(); err != nil {
-			_ = multierror.Append(&mErr, fmt.Errorf("device attribute %q invalid: %v", k, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("device attribute %q invalid: %w", k, err))
 		}
 	}
 

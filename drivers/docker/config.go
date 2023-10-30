@@ -714,7 +714,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	if len(d.config.GC.ImageDelay) > 0 {
 		dur, err := time.ParseDuration(d.config.GC.ImageDelay)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'image_delay' duration: %v", err)
+			return fmt.Errorf("failed to parse 'image_delay' duration: %w", err)
 		}
 		d.config.GC.imageDelayDuration = dur
 	}
@@ -722,7 +722,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	if len(d.config.GC.DanglingContainers.PeriodStr) > 0 {
 		dur, err := time.ParseDuration(d.config.GC.DanglingContainers.PeriodStr)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'period' duration: %v", err)
+			return fmt.Errorf("failed to parse 'period' duration: %w", err)
 		}
 		d.config.GC.DanglingContainers.period = dur
 	}
@@ -730,7 +730,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	if len(d.config.GC.DanglingContainers.CreationGraceStr) > 0 {
 		dur, err := time.ParseDuration(d.config.GC.DanglingContainers.CreationGraceStr)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'creation_grace' duration: %v", err)
+			return fmt.Errorf("failed to parse 'creation_grace' duration: %w", err)
 		}
 		if dur < danglingContainersCreationGraceMinimum {
 			return fmt.Errorf("creation_grace is less than minimum, %v", danglingContainersCreationGraceMinimum)
@@ -741,7 +741,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	if len(d.config.PullActivityTimeout) > 0 {
 		dur, err := time.ParseDuration(d.config.PullActivityTimeout)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'pull_activity_timeout' duration: %v", err)
+			return fmt.Errorf("failed to parse 'pull_activity_timeout' duration: %w", err)
 		}
 		if dur < pullActivityTimeoutMinimum {
 			return fmt.Errorf("pull_activity_timeout is less than minimum, %v", pullActivityTimeoutMinimum)
@@ -752,7 +752,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	if d.config.InfraImagePullTimeout != "" {
 		dur, err := time.ParseDuration(d.config.InfraImagePullTimeout)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'infra_image_pull_timeout' duration: %v", err)
+			return fmt.Errorf("failed to parse 'infra_image_pull_timeout' duration: %w", err)
 		}
 		d.config.infraImagePullTimeoutDuration = dur
 	}
@@ -768,7 +768,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 
 	dockerClient, err := d.getDockerClient()
 	if err != nil {
-		return fmt.Errorf("failed to get docker client: %v", err)
+		return fmt.Errorf("failed to get docker client: %w", err)
 	}
 	coordinatorConfig := &dockerCoordinatorConfig{
 		ctx:         d.ctx,

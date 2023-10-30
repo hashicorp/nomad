@@ -78,7 +78,7 @@ func (d *devicePluginServer) Stats(req *proto.StatsRequest, stream proto.DeviceP
 	// Retrieve the collection interval
 	interval, err := ptypes.Duration(req.CollectionInterval)
 	if err != nil {
-		return fmt.Errorf("failed to parse collection interval: %v", err)
+		return fmt.Errorf("failed to parse collection interval: %w", err)
 	}
 
 	// Default the duration if we get an invalid duration

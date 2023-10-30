@@ -22,7 +22,7 @@ func init() {
 	var err error
 	ManagementACL, err = NewACL(true, nil)
 	if err != nil {
-		panic(fmt.Errorf("failed to setup management ACL: %v", err))
+		panic(fmt.Errorf("failed to setup management ACL: %w", err))
 	}
 }
 

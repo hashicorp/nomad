@@ -1988,8 +1988,8 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 
 		// Determine if we can recover from the error
 		retry := false
-		switch err {
-		case raft.ErrNotLeader, raft.ErrLeadershipLost, raft.ErrRaftShutdown, raft.ErrEnqueueTimeout:
+		switch {
+		case errors.Is(err, raft.ErrNotLeader), errors.Is(err, raft.ErrLeadershipLost), errors.Is(err, raft.ErrRaftShutdown), errors.Is(err, raft.ErrEnqueueTimeout):
 			retry = true
 		}
 
@@ -2210,8 +2210,8 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 
 		// Determine if we can recover from the error
 		retry := false
-		switch err {
-		case raft.ErrNotLeader, raft.ErrLeadershipLost, raft.ErrRaftShutdown, raft.ErrEnqueueTimeout:
+		switch {
+		case errors.Is(err, raft.ErrNotLeader), errors.Is(err, raft.ErrLeadershipLost), errors.Is(err, raft.ErrRaftShutdown), errors.Is(err, raft.ErrEnqueueTimeout):
 			retry = true
 		}
 		setError(err, retry)

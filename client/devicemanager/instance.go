@@ -5,6 +5,7 @@ package devicemanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -285,7 +286,7 @@ func (i *instanceManager) dispense() (plugin device.DevicePlugin, err error) {
 	pluginInstance, err := i.loader.Dispense(i.id.Name, i.id.PluginType, i.pluginConfig, i.logger)
 	if err != nil {
 		// Retry as the error just indicates the singleton has exited
-		if err == singleton.SingletonPluginExited {
+		if errors.Is(err, singleton.SingletonPluginExited) {
 			pluginInstance, err = i.loader.Dispense(i.id.Name, i.id.PluginType, i.pluginConfig, i.logger)
 		}
 
@@ -340,7 +341,7 @@ START:
 
 	// Start fingerprinting
 	fingerprintCh, err := devicePlugin.Fingerprint(i.ctx)
-	if err == device.ErrPluginDisabled {
+	if errors.Is(err, device.ErrPluginDisabled) {
 		i.logger.Info("fingerprinting failed: plugin is not enabled")
 		i.handleFingerprintError()
 		return

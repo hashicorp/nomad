@@ -49,7 +49,7 @@ func NewPaginator(iter Iterator, tokenizer Tokenizer, filters []Filter,
 	if opts.Filter != "" {
 		evaluator, err = bexpr.CreateEvaluator(opts.Filter)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read filter expression: %v", err)
+			return nil, fmt.Errorf("failed to read filter expression: %w", err)
 		}
 		filters = append(filters, evaluator)
 	}

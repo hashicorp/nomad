@@ -113,7 +113,7 @@ func write(out io.Writer, metadata *raft.SnapshotMeta, snap io.Reader) error {
 	var metaBuffer bytes.Buffer
 	enc := json.NewEncoder(&metaBuffer)
 	if err := enc.Encode(metadata); err != nil {
-		return fmt.Errorf("failed to encode snapshot metadata: %v", err)
+		return fmt.Errorf("failed to encode snapshot metadata: %w", err)
 	}
 	if err := archive.WriteHeader(&tar.Header{
 		Name:    "meta.json",
@@ -121,10 +121,10 @@ func write(out io.Writer, metadata *raft.SnapshotMeta, snap io.Reader) error {
 		Size:    int64(metaBuffer.Len()),
 		ModTime: now,
 	}); err != nil {
-		return fmt.Errorf("failed to write snapshot metadata header: %v", err)
+		return fmt.Errorf("failed to write snapshot metadata header: %w", err)
 	}
 	if _, err := io.Copy(archive, io.TeeReader(&metaBuffer, metaHash)); err != nil {
-		return fmt.Errorf("failed to write snapshot metadata: %v", err)
+		return fmt.Errorf("failed to write snapshot metadata: %w", err)
 	}
 
 	// Copy the snapshot data given the size from the metadata.
@@ -135,16 +135,16 @@ func write(out io.Writer, metadata *raft.SnapshotMeta, snap io.Reader) error {
 		Size:    metadata.Size,
 		ModTime: now,
 	}); err != nil {
-		return fmt.Errorf("failed to write snapshot data header: %v", err)
+		return fmt.Errorf("failed to write snapshot data header: %w", err)
 	}
 	if _, err := io.CopyN(archive, io.TeeReader(snap, snapHash), metadata.Size); err != nil {
-		return fmt.Errorf("failed to write snapshot metadata: %v", err)
+		return fmt.Errorf("failed to write snapshot metadata: %w", err)
 	}
 
 	// Create a SHA256SUMS file that we can use to verify on restore.
 	var shaBuffer bytes.Buffer
 	if err := hl.Encode(&shaBuffer); err != nil {
-		return fmt.Errorf("failed to encode snapshot hashes: %v", err)
+		return fmt.Errorf("failed to encode snapshot hashes: %w", err)
 	}
 	if err := archive.WriteHeader(&tar.Header{
 		Name:    "SHA256SUMS",
@@ -152,15 +152,15 @@ func write(out io.Writer, metadata *raft.SnapshotMeta, snap io.Reader) error {
 		Size:    int64(shaBuffer.Len()),
 		ModTime: now,
 	}); err != nil {
-		return fmt.Errorf("failed to write snapshot hashes header: %v", err)
+		return fmt.Errorf("failed to write snapshot hashes header: %w", err)
 	}
 	if _, err := io.Copy(archive, &shaBuffer); err != nil {
-		return fmt.Errorf("failed to write snapshot metadata: %v", err)
+		return fmt.Errorf("failed to write snapshot metadata: %w", err)
 	}
 
 	// Finalize the archive.
 	if err := archive.Close(); err != nil {
-		return fmt.Errorf("failed to finalize snapshot: %v", err)
+		return fmt.Errorf("failed to finalize snapshot: %w", err)
 	}
 
 	return nil
@@ -191,7 +191,7 @@ func read(in io.Reader, metadata *raft.SnapshotMeta, snap io.Writer) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("failed reading snapshot: %v", err)
+			return fmt.Errorf("failed reading snapshot: %w", err)
 		}
 
 		switch hdr.Name {
@@ -206,20 +206,20 @@ func read(in io.Reader, metadata *raft.SnapshotMeta, snap io.Writer) error {
 			// independent of how json.Decode works internally.
 			buf, err := io.ReadAll(io.TeeReader(archive, metaHash))
 			if err != nil {
-				return fmt.Errorf("failed to read snapshot metadata: %v", err)
+				return fmt.Errorf("failed to read snapshot metadata: %w", err)
 			}
 			if err := json.Unmarshal(buf, &metadata); err != nil {
-				return fmt.Errorf("failed to decode snapshot metadata: %v", err)
+				return fmt.Errorf("failed to decode snapshot metadata: %w", err)
 			}
 
 		case "state.bin":
 			if _, err := io.Copy(io.MultiWriter(snap, snapHash), archive); err != nil {
-				return fmt.Errorf("failed to read or write snapshot data: %v", err)
+				return fmt.Errorf("failed to read or write snapshot data: %w", err)
 			}
 
 		case "SHA256SUMS":
 			if _, err := io.Copy(&shaBuffer, archive); err != nil {
-				return fmt.Errorf("failed to read snapshot hashes: %v", err)
+				return fmt.Errorf("failed to read snapshot hashes: %w", err)
 			}
 
 		default:
@@ -229,7 +229,7 @@ func read(in io.Reader, metadata *raft.SnapshotMeta, snap io.Writer) error {
 
 	// Verify all the hashes.
 	if err := hl.DecodeAndVerify(&shaBuffer); err != nil {
-		return fmt.Errorf("failed checking integrity of snapshot: %v", err)
+		return fmt.Errorf("failed checking integrity of snapshot: %w", err)
 	}
 
 	return nil

@@ -82,7 +82,7 @@ func (b *basePluginServer) SetConfig(ctx context.Context, req *proto.SetConfigRe
 
 	// Set the config
 	if err := b.impl.SetConfig(c); err != nil {
-		return nil, fmt.Errorf("SetConfig failed: %v", err)
+		return nil, fmt.Errorf("SetConfig failed: %w", err)
 	}
 
 	return &proto.SetConfigResponse{}, nil

@@ -93,7 +93,7 @@ linters:
     - dogsled
     - durationcheck
     # - errchkjson (todo)
-    # - errorlint (todo)
+    - errorlint
     - exportloopref
     - usestdlibvars
   fast: false

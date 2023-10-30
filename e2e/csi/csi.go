@@ -63,13 +63,13 @@ func dumpLogs(pluginIDs []string) error {
 	for _, id := range pluginIDs {
 		allocs, err := e2e.AllocsForJob(id, ns)
 		if err != nil {
-			return fmt.Errorf("could not find allocs for plugin: %v", err)
+			return fmt.Errorf("could not find allocs for plugin: %w", err)
 		}
 		for _, alloc := range allocs {
 			allocID := alloc["ID"]
 			out, err := e2e.AllocLogs(allocID, "", e2e.LogsStdErr)
 			if err != nil {
-				return fmt.Errorf("could not get logs for alloc: %v\n%s", err, out)
+				return fmt.Errorf("could not get logs for alloc: %w\n%s", err, out)
 			}
 			_, isCI := os.LookupEnv("CI")
 			if isCI {
@@ -80,7 +80,7 @@ func dumpLogs(pluginIDs []string) error {
 			}
 			f, err := os.Create(allocID + ".log")
 			if err != nil {
-				return fmt.Errorf("could not create log file: %v", err)
+				return fmt.Errorf("could not create log file: %w", err)
 			}
 			defer f.Close()
 			_, err = f.WriteString(out)

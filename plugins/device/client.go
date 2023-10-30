@@ -5,6 +5,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -58,7 +59,7 @@ func (d *devicePluginClient) handleFingerprint(
 	for {
 		resp, err := stream.Recv()
 		if err != nil {
-			if err != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				out <- &FingerprintResponse{
 					Error: grpcutils.HandleReqCtxGrpcErr(err, reqCtx, d.doneCtx),
 				}
@@ -130,7 +131,7 @@ func (d *devicePluginClient) handleStats(
 	for {
 		resp, err := stream.Recv()
 		if err != nil {
-			if err != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				out <- &StatsResponse{
 					Error: grpcutils.HandleReqCtxGrpcErr(err, reqCtx, d.doneCtx),
 				}

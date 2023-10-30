@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -128,11 +129,11 @@ func (t *tasklet) run() *taskletHandle {
 			// Execute check script with timeout
 			t.logger.Trace("tasklet executing")
 			output, code, err := ctxExec.Exec(t.Timeout, t.Command, t.Args)
-			switch err {
-			case context.Canceled:
+			switch {
+			case errors.Is(err, context.Canceled):
 				// check removed during execution; exit
 				return
-			case context.DeadlineExceeded:
+			case errors.Is(err, context.DeadlineExceeded):
 				metrics.IncrCounter([]string{
 					"client", "allocrunner", "taskrunner",
 					"tasklet_timeouts"}, 1)

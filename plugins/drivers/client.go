@@ -106,7 +106,7 @@ func (d *driverPluginClient) handleFingerprint(reqCtx context.Context, ch chan *
 	for {
 		pb, err := stream.Recv()
 		if err != nil {
-			if err != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				ch <- &Fingerprint{
 					Err: grpcutils.HandleReqCtxGrpcErr(err, reqCtx, d.doneCtx),
 				}
@@ -301,7 +301,7 @@ func (d *driverPluginClient) handleStats(ctx context.Context, ch chan<- *cstruct
 		}
 
 		if err != nil {
-			if err != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				d.logger.Error("error receiving stream from TaskStats driver RPC, closing stream", "error", err)
 			}
 
@@ -437,7 +437,7 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 	go func() {
 		for {
 			m, err := execStream.Recv()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return
 			} else if err != nil {
 				errCh <- err
@@ -460,7 +460,7 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 		}
 
 		m, err := stream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			// Once we get to the end of stream successfully, we can ignore errCh:
 			// e.g. input write failures after process terminates shouldn't cause method to fail
 			return nil

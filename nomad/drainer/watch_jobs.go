@@ -5,6 +5,7 @@ package drainer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -154,7 +155,7 @@ func (w *drainingJobWatcher) watch() {
 		jobAllocs, index, err := w.getJobAllocs(w.getQueryCtx(), waitIndex)
 
 		if err != nil {
-			if err == context.Canceled {
+			if errors.Is(err, context.Canceled) {
 				// Determine if it is a cancel or a shutdown
 				select {
 				case <-w.ctx.Done():
@@ -331,7 +332,7 @@ func handleJob(snap *state.StateSnapshot, job *structs.Job, allocs []*structs.Al
 	for name, tg := range taskGroups {
 		allocs := tgAllocs[name]
 		if err := handleTaskGroup(snap, batch, tg, allocs, lastHandledIndex, r); err != nil {
-			return nil, fmt.Errorf("drain for task group %q failed: %v", name, err)
+			return nil, fmt.Errorf("drain for task group %q failed: %w", name, err)
 		}
 	}
 

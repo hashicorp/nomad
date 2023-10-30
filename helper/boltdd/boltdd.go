@@ -312,7 +312,7 @@ func (b *Bucket) Put(key []byte, val interface{}) error {
 
 	// Serialize the object
 	if err := codec.NewEncoder(&buf, structs.MsgpackHandle).Encode(val); err != nil {
-		return fmt.Errorf("failed to encode passed object: %v", err)
+		return fmt.Errorf("failed to encode passed object: %w", err)
 	}
 
 	// Hash for skipping unnecessary writes
@@ -329,7 +329,7 @@ func (b *Bucket) Put(key []byte, val interface{}) error {
 
 	// New value: write it to the underlying boltdb
 	if err := b.boltBucket.Put(key, buf.Bytes()); err != nil {
-		return fmt.Errorf("failed to write data at key %s: %v", key, err)
+		return fmt.Errorf("failed to write data at key %s: %w", key, err)
 	}
 
 	// New value written, store hash (bucket path map was created above)
@@ -350,7 +350,7 @@ func (b *Bucket) Get(key []byte, obj interface{}) error {
 
 	// Deserialize the object
 	if err := codec.NewDecoderBytes(data, structs.MsgpackHandle).Decode(obj); err != nil {
-		return fmt.Errorf("failed to decode data into passed object: %v", err)
+		return fmt.Errorf("failed to decode data into passed object: %w", err)
 	}
 
 	return nil
@@ -366,7 +366,7 @@ func Iterate[T any](b *Bucket, prefix []byte, fn func([]byte, T)) error {
 	for k, data := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, data = c.Next() {
 		var obj T
 		if err := codec.NewDecoderBytes(data, structs.MsgpackHandle).Decode(&obj); err != nil {
-			return fmt.Errorf("failed to decode data into passed object: %v", err)
+			return fmt.Errorf("failed to decode data into passed object: %w", err)
 		}
 		fn(k, obj)
 	}

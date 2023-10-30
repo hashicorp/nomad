@@ -36,7 +36,7 @@ func (s *StateStore) AutopilotConfig() (uint64, *structs.AutopilotConfig, error)
 	// Get the autopilot config
 	c, err := tx.First("autopilot-config", "id")
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed autopilot config lookup: %s", err)
+		return 0, nil, fmt.Errorf("failed autopilot config lookup: %w", err)
 	}
 
 	config, ok := c.(*structs.AutopilotConfig)
@@ -69,7 +69,7 @@ func (s *StateStore) AutopilotCASConfig(index, cidx uint64, config *structs.Auto
 	// Check for an existing config
 	existing, err := tx.First("autopilot-config", "id")
 	if err != nil {
-		return false, fmt.Errorf("failed autopilot config lookup: %s", err)
+		return false, fmt.Errorf("failed autopilot config lookup: %w", err)
 	}
 
 	// If the existing index does not match the provided CAS
@@ -92,7 +92,7 @@ func (s *StateStore) autopilotSetConfigTxn(idx uint64, tx *txn, config *structs.
 	// Check for an existing config
 	existing, err := tx.First("autopilot-config", "id")
 	if err != nil {
-		return fmt.Errorf("failed autopilot config lookup: %s", err)
+		return fmt.Errorf("failed autopilot config lookup: %w", err)
 	}
 
 	// Set the indexes.
@@ -104,7 +104,7 @@ func (s *StateStore) autopilotSetConfigTxn(idx uint64, tx *txn, config *structs.
 	config.ModifyIndex = idx
 
 	if err := tx.Insert("autopilot-config", config); err != nil {
-		return fmt.Errorf("failed updating autopilot config: %s", err)
+		return fmt.Errorf("failed updating autopilot config: %w", err)
 	}
 	return nil
 }

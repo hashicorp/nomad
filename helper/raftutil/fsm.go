@@ -4,6 +4,7 @@
 package raftutil
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -45,7 +46,7 @@ type FSMHelper struct {
 func NewFSM(p string) (*FSMHelper, error) {
 	store, firstIdx, lastIdx, err := RaftStateInfo(filepath.Join(p, "raft.db"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to open raft database %v: %v", p, err)
+		return nil, fmt.Errorf("failed to open raft database %v: %w", p, err)
 	}
 
 	logger := hclog.L()
@@ -53,7 +54,7 @@ func NewFSM(p string) (*FSMHelper, error) {
 	snaps, err := raft.NewFileSnapshotStoreWithLogger(p, 1000, logger)
 	if err != nil {
 		store.Close()
-		return nil, fmt.Errorf("failed to open snapshot dir: %v", err)
+		return nil, fmt.Errorf("failed to open snapshot dir: %w", err)
 	}
 
 	fsm, err := dummyFSM(logger)
@@ -125,7 +126,7 @@ func (f *FSMHelper) ApplyNext() (index uint64, term uint64, err error) {
 	var e raft.Log
 	err = f.store.GetLog(f.nextIdx, &e)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to read log entry at index %d: %v", f.nextIdx, err)
+		return 0, 0, fmt.Errorf("failed to read log entry at index %d: %w", f.nextIdx, err)
 	}
 
 	defer func() {
@@ -154,7 +155,7 @@ func (f *FSMHelper) ApplyUntil(stopIdx uint64) (idx uint64, term uint64, err err
 	var lastIdx, lastTerm uint64
 	for {
 		idx, term, err := f.ApplyNext()
-		if err == ErrNoMoreLogs {
+		if errors.Is(err, ErrNoMoreLogs) {
 			return lastIdx, lastTerm, nil
 		} else if err != nil {
 			return lastIdx, lastTerm, err
@@ -170,7 +171,7 @@ func (f *FSMHelper) ApplyAll() (index uint64, term uint64, err error) {
 	var lastIdx, lastTerm uint64
 	for {
 		idx, term, err := f.ApplyNext()
-		if err == ErrNoMoreLogs {
+		if errors.Is(err, ErrNoMoreLogs) {
 			return lastIdx, lastTerm, nil
 		} else if err != nil {
 			return lastIdx, lastTerm, err

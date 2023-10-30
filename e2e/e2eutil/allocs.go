@@ -45,7 +45,7 @@ func WaitForAllocStatusExpected(jobID, ns string, expected []string) error {
 	)
 	if err != nil {
 		allocs, _ := AllocsForJob(jobID, ns)
-		err = fmt.Errorf("%v\nallocs: %v", err, pretty.Sprint(allocs))
+		err = fmt.Errorf("%w\nallocs: %v", err, pretty.Sprint(allocs))
 	}
 	return err
 }
@@ -315,7 +315,7 @@ func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, err
 		got, err = Command(cmd[0], cmd[1:]...)
 		return err == nil, err
 	}, func(e error) {
-		err = fmt.Errorf("exec failed: '%s': %v\nGot: %v", strings.Join(cmd, " "), e, got)
+		err = fmt.Errorf("exec failed: '%s': %w\nGot: %v", strings.Join(cmd, " "), e, got)
 	})
 	return got, err
 }
@@ -331,12 +331,12 @@ func WaitForAllocFile(allocID, path string, test func(string) bool, wc *WaitConf
 		time.Sleep(interval)
 		out, err = Command("nomad", "alloc", "fs", allocID, path)
 		if err != nil {
-			return false, fmt.Errorf("could not get file %q from allocation %q: %v",
+			return false, fmt.Errorf("could not get file %q from allocation %q: %w",
 				path, allocID, err)
 		}
 		return test(out), nil
 	}, func(e error) {
-		err = fmt.Errorf("test for file content failed: got %#v\nerror: %v", out, e)
+		err = fmt.Errorf("test for file content failed: got %#v\nerror: %w", out, e)
 	})
 	return err
 }

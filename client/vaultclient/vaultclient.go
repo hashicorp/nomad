@@ -302,7 +302,7 @@ func (c *Client) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (s
 		},
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to login with JWT: %v", err)
+		return "", fmt.Errorf("failed to login with JWT: %w", err)
 	}
 	if s == nil {
 		return "", errors.New("JWT login returned an empty secret")
@@ -423,7 +423,7 @@ func (c *Client) renew(req *RenewalRequest) error {
 		// Renew the token
 		renewResp, err := c.Vault.Auth().Token().RenewSelf(req.Increment)
 		if err != nil {
-			renewalErr = fmt.Errorf("failed to renew the vault token: %v", err)
+			renewalErr = fmt.Errorf("failed to renew the vault token: %w", err)
 		} else if renewResp == nil || renewResp.Auth == nil {
 			renewalErr = fmt.Errorf("failed to renew the vault token")
 		} else {
@@ -437,7 +437,7 @@ func (c *Client) renew(req *RenewalRequest) error {
 		// Renew the secret
 		renewResp, err := c.Vault.Sys().Renew(req.ID, req.Increment)
 		if err != nil {
-			renewalErr = fmt.Errorf("failed to renew vault secret: %v", err)
+			renewalErr = fmt.Errorf("failed to renew vault secret: %w", err)
 		} else if renewResp == nil {
 			renewalErr = fmt.Errorf("failed to renew vault secret")
 		} else {
@@ -470,7 +470,7 @@ func (c *Client) renew(req *RenewalRequest) error {
 			// item is tracked by the renewal loop, stop renewing
 			// it by removing the corresponding heap entry.
 			if err := c.Heap.Remove(req.ID); err != nil {
-				return fmt.Errorf("failed to remove heap entry: %v", err)
+				return fmt.Errorf("failed to remove heap entry: %w", err)
 			}
 
 			// Report the fatal error to the client
@@ -484,7 +484,7 @@ func (c *Client) renew(req *RenewalRequest) error {
 		// subsequest renewal. In this case, update the existing
 		// element in the heap with the new renewal time.
 		if err := c.Heap.Update(req, next); err != nil {
-			return fmt.Errorf("failed to update heap entry. err: %v", err)
+			return fmt.Errorf("failed to update heap entry. err: %w", err)
 		}
 
 		// There is no need to signal an update to the renewal loop
@@ -506,7 +506,7 @@ func (c *Client) renew(req *RenewalRequest) error {
 		// renewal request. In this case, add an entry into the heap
 		// with the next renewal time.
 		if err := c.Heap.Push(req, next); err != nil {
-			return fmt.Errorf("failed to push an entry to heap.  err: %v", err)
+			return fmt.Errorf("failed to push an entry to heap.  err: %w", err)
 		}
 
 		// Signal an update for the renewal loop to trigger a fresh
@@ -586,7 +586,7 @@ func (c *Client) stopRenew(id string) error {
 	}
 
 	if err := c.Heap.Remove(id); err != nil {
-		return fmt.Errorf("failed to remove Heap entry: %v", err)
+		return fmt.Errorf("failed to remove Heap entry: %w", err)
 	}
 
 	// Signal an update to the renewal loop.

@@ -5,6 +5,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -412,7 +413,8 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 	cmd.Stderr = buf
 
 	if err := withNetworkIsolation(cmd.Run, netSpec); err != nil {
-		exitErr, ok := err.(*exec.ExitError)
+		var exitErr *exec.ExitError
+		ok := errors.As(err, &exitErr)
 		if !ok {
 			// Non-exit error, return it and let the caller treat
 			// it as a critical failure

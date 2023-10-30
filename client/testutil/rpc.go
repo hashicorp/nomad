@@ -4,6 +4,7 @@
 package testutil
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -54,7 +55,7 @@ func AssertStreamingRPCError(t *testing.T, s StreamingRPC, tc StreamingRPCErrorT
 		for {
 			var msg cstructs.StreamErrWrapper
 			if err := decoder.Decode(&msg); err != nil {
-				if err == io.EOF || strings.Contains(err.Error(), "closed") {
+				if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") {
 					return
 				}
 				errCh <- fmt.Errorf("error decoding: %v", err)

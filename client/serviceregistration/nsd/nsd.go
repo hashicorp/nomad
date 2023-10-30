@@ -320,7 +320,7 @@ func (s *ServiceRegistrationHandler) generateNomadServiceRegistration(
 		serviceSpec.Address, addrMode, serviceSpec.PortLabel, workload.Networks,
 		workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get address for service %q: %v", serviceSpec.Name, err)
+		return nil, fmt.Errorf("unable to get address for service %q: %w", serviceSpec.Name, err)
 	}
 
 	// Build the tags to use for this registration which is a result of whether

@@ -5,6 +5,7 @@ package drainer
 
 import (
 	"context"
+	"errors"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
@@ -155,7 +156,7 @@ func (w *nodeDrainWatcher) watch() {
 		timer.Reset(stateReadErrorDelay)
 		nodes, index, err := w.getNodes(nindex)
 		if err != nil {
-			if err == context.Canceled {
+			if errors.Is(err, context.Canceled) {
 				return
 			}
 

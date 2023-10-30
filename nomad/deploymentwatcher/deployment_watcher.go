@@ -5,6 +5,7 @@ package deploymentwatcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -504,7 +505,7 @@ FAIL:
 
 		case updates = <-allocsCh:
 			if err := updates.err; err != nil {
-				if err == context.Canceled || w.ctx.Err() == context.Canceled {
+				if errors.Is(err, context.Canceled) || errors.Is(w.ctx.Err(), context.Canceled) {
 					return
 				}
 
@@ -517,7 +518,7 @@ FAIL:
 			// steps to take.
 			res, err := w.handleAllocUpdate(updates.allocs)
 			if err != nil {
-				if err == context.Canceled || w.ctx.Err() == context.Canceled {
+				if errors.Is(err, context.Canceled) || errors.Is(w.ctx.Err(), context.Canceled) {
 					return
 				}
 
@@ -601,7 +602,7 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 	// Get the latest evaluation index
 	latestEval, err := w.jobEvalStatus()
 	if err != nil {
-		if err == context.Canceled || w.ctx.Err() == context.Canceled {
+		if errors.Is(err, context.Canceled) || errors.Is(w.ctx.Err(), context.Canceled) {
 			return res, err
 		}
 

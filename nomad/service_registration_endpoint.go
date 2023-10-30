@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -262,11 +263,11 @@ func (s *ServiceRegistration) listAllServiceRegistrations(
 			// not have access to any, send them an empty response. Otherwise,
 			// handle any error in a traditional manner.
 			allowedNSes, err := allowedNSes(aclObj, stateStore, allowFunc)
-			switch err {
-			case structs.ErrPermissionDenied:
+			switch {
+			case errors.Is(err, structs.ErrPermissionDenied):
 				reply.Services = make([]*structs.ServiceRegistrationListStub, 0)
 				return nil
-			case nil:
+			case err == nil:
 				// Fallthrough.
 			default:
 				return err

@@ -5,6 +5,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -48,15 +49,15 @@ func (e *execHelper) run(ctx context.Context, tty bool, stream drivers.ExecTaskS
 func (e *execHelper) runTTY(ctx context.Context, stream drivers.ExecTaskStream) error {
 	ptyF, tty, err := e.newTerminal()
 	if err != nil {
-		return fmt.Errorf("failed to open a tty: %v", err)
+		return fmt.Errorf("failed to open a tty: %w", err)
 	}
 	defer tty.Close()
 
 	if err := e.setTTY(tty); err != nil {
-		return fmt.Errorf("failed to set command tty: %v", err)
+		return fmt.Errorf("failed to set command tty: %w", err)
 	}
 	if err := e.processStart(); err != nil {
-		return fmt.Errorf("failed to start command: %v", err)
+		return fmt.Errorf("failed to start command: %w", err)
 	}
 
 	var wg sync.WaitGroup
@@ -64,7 +65,7 @@ func (e *execHelper) runTTY(ctx context.Context, stream drivers.ExecTaskStream) 
 
 	pty, err := ptyF()
 	if err != nil {
-		return fmt.Errorf("failed to get pty: %v", err)
+		return fmt.Errorf("failed to get pty: %w", err)
 	}
 
 	defer pty.Close()
@@ -109,11 +110,11 @@ func (e *execHelper) runNoTTY(ctx context.Context, stream drivers.ExecTaskStream
 	defer stderrPw.Close()
 
 	if err := e.setIO(stdinPr, stdoutPw, stderrPw); err != nil {
-		return fmt.Errorf("failed to set command io: %v", err)
+		return fmt.Errorf("failed to set command io: %w", err)
 	}
 
 	if err := e.processStart(); err != nil {
-		return fmt.Errorf("failed to start command: %v", err)
+		return fmt.Errorf("failed to start command: %w", err)
 	}
 
 	var wg sync.WaitGroup
@@ -196,7 +197,7 @@ func handleStdin(logger hclog.Logger, stdin io.WriteCloser, stream drivers.ExecT
 		} else if m.TtySize != nil {
 			err := setTTYSize(stdin, m.TtySize.Height, m.TtySize.Width)
 			if err != nil {
-				errCh <- fmt.Errorf("failed to resize tty: %v", err)
+				errCh <- fmt.Errorf("failed to resize tty: %w", err)
 				return
 			}
 		}
@@ -282,7 +283,5 @@ func isClosedError(err error) bool {
 		return false
 	}
 
-	return err == io.EOF ||
-		err == io.ErrClosedPipe ||
-		isUnixEIOErr(err)
+	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || isUnixEIOErr(err)
 }
