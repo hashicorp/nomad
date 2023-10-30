@@ -4,19 +4,22 @@
 ~}}
 
 {{#let (cannot "exec allocation" namespace=this.job.namespace) as |cannotExec|}}
-  <Hds::Button
-    data-test-exec-button
-    @size="small"
-    @text="Exec"
-    @color="secondary"
-    disabled={{cannotExec}}
-    {{on "click" this.open}}
-    {{keyboard-shortcut 
+  <div
+    {{keyboard-shortcut
       label="Exec"
       pattern=(array "e" "x" "e" "c")
       action=this.open
     }}
+  >
+  <Hds::Button
+    data-test-exec-button
+    @size="medium"
+    @text="Exec"
+    @color="secondary"
+    disabled={{cannotExec}}
+    {{on "click" this.open}}
     @icon="terminal-screen"
   />
+</div>
 {{/let}}
 

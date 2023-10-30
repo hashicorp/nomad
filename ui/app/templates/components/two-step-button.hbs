@@ -6,7 +6,7 @@
 {{#if this.isIdle}}
   <Hds::Button
     data-test-idle-button
-    @size="small"
+    @size="medium"
     @text={{@idleText}}
     @color="critical"
     disabled={{@disabled}}
@@ -20,7 +20,7 @@
   </span>
   <Hds::Button
     data-test-cancel-button
-    @size="small"
+    @size="medium"
     @text={{@cancelText}}
     @color="secondary"
     class="is-inline"
@@ -32,7 +32,7 @@
   />
   <Hds::Button
     data-test-confirm-button
-    @size="small"
+    @size="medium"
     @text={{@confirmText}}
     @color="critical"
     class="is-inline"
