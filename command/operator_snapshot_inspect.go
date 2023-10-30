@@ -33,7 +33,7 @@ func (c *OperatorSnapshotInspectCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *OperatorSnapshotInspectCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return complete.PredictFiles("*.snap")
 }
 
 func (c *OperatorSnapshotInspectCommand) Synopsis() string {
