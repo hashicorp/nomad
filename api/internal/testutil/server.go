@@ -296,9 +296,9 @@ func (s *TestServer) waitForAPI() {
 	)
 }
 
-// waitForLeader waits for the Nomad server's HTTP API to become
-// available, and then waits for the keyring to be intialized. This implies a
-// leader has been elected and Raft writes have occurred.
+// waitForLeader waits for the Nomad server's HTTP API to become available, and
+// then waits for the keyring to be intialized. This implies a leader has been
+// elected and Raft writes have occurred.
 func (s *TestServer) waitForLeader() {
 	f := func() error {
 		resp, err := s.HTTPClient.Get(s.url("/.well-known/jwks.json"))
