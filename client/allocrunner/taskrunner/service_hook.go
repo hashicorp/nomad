@@ -234,7 +234,9 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 
 	tokens := map[string]string{}
 	for _, service := range h.services {
-		if token, ok := allocTokens[service.Cluster][service.MakeUniqueIdentityName()]; ok {
+		id := fmt.Sprintf("%s_%s",
+			structs.ConsulServiceIdentityNamePrefix, service.MakeUniqueIdentityName())
+		if token, ok := allocTokens[service.Cluster][id]; ok {
 			tokens[service.Name] = token
 		}
 	}
