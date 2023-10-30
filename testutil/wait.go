@@ -169,6 +169,24 @@ func WaitForLeaders(t testing.TB, rpcs ...rpcFn) string {
 	return leader
 }
 
+// WaitForKeyring blocks until the keyring is initialized.
+func WaitForKeyring(t testing.TB, rpc rpcFn, region string) {
+	t.Helper()
+	args := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Namespace: "default",
+			Region:    region,
+		},
+	}
+	reply := structs.KeyringListPublicResponse{}
+	WaitForResult(func() (bool, error) {
+		err := rpc("Keyring.ListPublic", &args, &reply)
+		return len(reply.PublicKeys) > 0, err
+	}, func(err error) {
+		t.Fatalf("timed out waiting for keyring to initialize: %v", err)
+	})
+}
+
 // WaitForClient blocks until the client can be found
 func WaitForClient(t testing.TB, rpc rpcFn, nodeID string, region string) {
 	t.Helper()

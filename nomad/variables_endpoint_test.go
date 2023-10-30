@@ -31,7 +31,7 @@ func TestVariablesEndpoint_GetVariable_Blocking(t *testing.T) {
 
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, "global")
 
 	// First create an unrelated variable.
 	delay := 100 * time.Millisecond
@@ -175,7 +175,7 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 	state := srv.fsm.State()
 
@@ -455,7 +455,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	})
 
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	const ns = "nondefault-namespace"
 
@@ -838,7 +838,7 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	ns := "nondefault-namespace"
@@ -942,7 +942,7 @@ func TestVariablesEndpoint_ComplexACLPolicies(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	idx := uint64(1000)
@@ -1062,7 +1062,7 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	mockVar := mock.Variable()
@@ -1473,7 +1473,7 @@ func TestVariablesEndpoint_Read_Lock_ACL(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 	state := srv.fsm.State()
 
@@ -1532,6 +1532,7 @@ func TestVariablesEndpoint_Read_Lock_ACL(t *testing.T) {
 
 		readResp := new(structs.VariablesReadResponse)
 		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &readResp))
+		must.NotNil(t, readResp.Data)
 		must.NotNil(t, readResp.Data.VariableMetadata.Lock)
 		must.Eq(t, latest.LockID(), readResp.Data.LockID())
 	})
