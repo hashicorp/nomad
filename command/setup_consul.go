@@ -261,9 +261,9 @@ The step above bound Nomad tasks to a Consul ACL role. Now we need to create the
 		}
 	}
 
-	s.Ui.Output(`
-And finally, we will create an ACL role called %q associated with the policy
-above.`, roleTasks)
+	s.Ui.Output(fmt.Sprintf(
+		"\nAnd finally, we will create an ACL role called %q associated with the policy above.",
+		roleTasks))
 
 	var createRole bool
 	if !s.autoYes {
@@ -369,7 +369,9 @@ func (s *SetupConsulCommand) createAuthMethod(authMethodName string, authMethodC
 	_, _, err := s.client.ACL().AuthMethodCreate(method, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "error checking JWKSURL") {
-			s.Ui.Error("error: Nomad JWKS endpoint unreachable, verify that Nomad is running and that the JWKS URL %s is reachable by Consul", s.jwksURL)
+			s.Ui.Error(fmt.Sprintf(
+				"error: Nomad JWKS endpoint unreachable, verify that Nomad is running and that the JWKS URL %s is reachable by Consul", s.jwksURL,
+			))
 			os.Exit(1)
 		}
 		return fmt.Errorf("[✘] could not create Consul auth method: %w", err)
