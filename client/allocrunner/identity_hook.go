@@ -4,10 +4,7 @@
 package allocrunner
 
 import (
-	"context"
-
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/widmgr"
 )
 
@@ -37,13 +34,19 @@ func (h *identityHook) Prerun() error {
 	return nil
 }
 
-// Stop implements interfaces.TaskStopHook
-func (h *identityHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
+// PreKill implements interfaces.PreKill and is called on allocation stop
+func (h *identityHook) PreKill() {
+	h.widmgr.Shutdown()
+}
+
+// Destroy implements interfaces.Destroy and is called on allocation GC
+func (h *identityHook) Destroy() error {
 	h.widmgr.Shutdown()
 	return nil
 }
 
-// Shutdown implements interfaces.ShutdownHook
+// Shutdown implements interfaces.ShutdownHook and is called when the client
+// gracefully shuts down
 func (h *identityHook) Shutdown() {
 	h.widmgr.Shutdown()
 }

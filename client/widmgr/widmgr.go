@@ -206,6 +206,9 @@ func (m *WIDMgr) Shutdown() {
 			close(c)
 		}
 	}
+
+	// ensure it's safe to call Shutdown multiple times
+	m.watchers = map[structs.WIHandle][]chan *structs.SignedWorkloadIdentity{}
 }
 
 // restoreStoredIdentities recreates the state of the WIDMgr from a previously
