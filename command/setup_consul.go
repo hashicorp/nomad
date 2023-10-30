@@ -209,8 +209,8 @@ a namespace %q and bind the auth methods to that namespace.
 	}
 
 	s.Ui.Output(`
-Consul uses binding rules to map claims between Nomad's JWTs and Consul service identities
-and ACL roles, so we need to create the following binding rules:
+Consul uses binding rules to map claims between Nomad's JWTs and Consul service
+identities and ACL roles, so we need to create the following binding rules:
 `)
 	jsServicesBindingRule, _ := json.MarshalIndent(servicesBindingRule, "", "    ")
 	jsTasksBindingRule, _ := json.MarshalIndent(tasksBindingRule, "", "    ")
@@ -241,7 +241,9 @@ and ACL roles, so we need to create the following binding rules:
 	}
 
 	s.Ui.Output(`
-The step above bound Nomad tasks to a Consul ACL role. Now we need to create the role and the associated ACL policy that defines what tasks are allowed to access in Consul. Below is the body of the policy we will create:
+The step above bound Nomad tasks to a Consul ACL role. Now we need to create the
+role and the associated ACL policy that defines what tasks are allowed to access
+in Consul. Below is the body of the policy we will create:
 `)
 	s.Ui.Output(string(policyBody))
 
