@@ -431,6 +431,12 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 		return
 	}
 
+	if alloc.ClientTerminalStatus() {
+		handleStreamResultError(fmt.Errorf("exec not possible, client status of allocation %s is %s", alloc.ID, alloc.ClientStatus),
+			pointer.Of(int64(http.StatusBadRequest)), encoder)
+		return
+	}
+
 	// Handle job ID if requested.
 	if args.JobID != "" {
 		// Verify job exists.

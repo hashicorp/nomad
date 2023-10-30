@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1224,6 +1225,87 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAlloc_ExecStreaming_TerminalAlloc(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start a Nomad server and a client.
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
+
+	// Wait for a cluster leader and the client to connect.
+	testutil.WaitForLeader(t, s.RPC)
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+
+	// Create an alloc with terminal status.
+	alloc := mock.BatchAlloc()
+	alloc.ClientStatus = nstructs.AllocClientStatusComplete
+	alloc.Job.TaskGroups[0].Count = 1
+	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+		"exec_command": map[string]interface{}{
+			"run_for":       "1ms",
+			"stdout_string": "expected output",
+			"exit_code":     3,
+		},
+	}
+
+	// Upsert the job and allocation.
+	state := s.State()
+	err := state.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, alloc.Job)
+	must.NoError(t, err)
+	err = state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{alloc})
+	must.NoError(t, err)
+
+	// Make the exec request.
+	req := &cstructs.AllocExecRequest{
+		AllocID:      alloc.ID,
+		Task:         alloc.Job.TaskGroups[0].Tasks[0].Name,
+		Tty:          true,
+		Cmd:          []string{"placeholder command"},
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
+	}
+
+	// Get the handler.
+	handler, err := s.StreamingRpcHandler("Allocations.Exec")
+	must.Nil(t, err)
+
+	// Create a pipe.
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
+
+	errCh := make(chan error)
+	frames := make(chan *drivers.ExecTaskStreamingResponseMsg)
+
+	// Start the handler.
+	go handler(p2)
+	go decodeFrames(t, p1, frames, errCh)
+
+	// Send the request.
+	encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
+	must.Nil(t, encoder.Encode(req))
+
+	timeout := time.NewTimer(3 * time.Second)
+	t.Cleanup(func() { timeout.Stop() })
+
+OUTER:
+	for {
+		select {
+		case <-timeout.C:
+			t.Error("timed out before getting exit code")
+		case err := <-errCh:
+			must.ErrorContains(t, err, "exec not possible")
+			break OUTER
+		case <-frames:
+		}
 	}
 }
 
