@@ -1804,7 +1804,7 @@ func TestServiceSched_JobModify_ExistingDuplicateAllocIndex(t *testing.T) {
 
 	// Generate a fake job with allocations
 	mockJob := mock.Job()
-	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob))
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), mockJob))
 
 	// Generate some allocations which will represent our pre-existing
 	// allocations. These have aggressive duplicate names.
@@ -1828,7 +1828,7 @@ func TestServiceSched_JobModify_ExistingDuplicateAllocIndex(t *testing.T) {
 	mockJob2 := mock.Job()
 	mockJob2.ID = mockJob.ID
 	mockJob2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
-	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob2))
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), mockJob2))
 
 	// Create a mock evaluation which represents work to reconcile the job
 	// update.
@@ -1886,7 +1886,7 @@ func TestServiceSched_JobModify_ProposedDuplicateAllocIndex(t *testing.T) {
 		Canary:      1,
 		MaxParallel: 3,
 	}
-	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob))
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), mockJob))
 
 	// Generate some allocations which will represent our pre-existing
 	// allocations.
@@ -1908,7 +1908,7 @@ func TestServiceSched_JobModify_ProposedDuplicateAllocIndex(t *testing.T) {
 	mockJob2.Version++
 	mockJob2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
 	mockJob2.TaskGroups[0].Count++
-	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob2))
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), mockJob2))
 
 	nextRaftIndex := testHarness.NextIndex()
 	deploymentID := uuid.Generate()
@@ -2014,7 +2014,7 @@ func TestServiceSched_JobModify_ExistingDuplicateAllocIndexNonDestructive(t *tes
 	// Generate a fake job with allocations
 	mockJob := mock.MinJob()
 	mockJob.TaskGroups[0].Count = 10
-	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob))
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), mockJob))
 
 	// Generate some allocations which will represent our pre-existing
 	// allocations. These have aggressive duplicate names.
@@ -2043,7 +2043,7 @@ func TestServiceSched_JobModify_ExistingDuplicateAllocIndexNonDestructive(t *tes
 	mockJob2 := mockJob.Copy()
 	mockJob2.ID = mockJob.ID
 	mockJob2.Update.MaxParallel = 2
-	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob2))
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), mockJob2))
 
 	// Create a mock evaluation which represents work to reconcile the job
 	// update.
