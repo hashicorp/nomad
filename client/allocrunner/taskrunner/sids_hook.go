@@ -136,8 +136,7 @@ func (h *sidsHook) Prestart(
 	var cluster string
 	for _, service := range tg.Services {
 		if service.Name == serviceName {
-			serviceIdentityName = fmt.Sprintf("%s_%s",
-				structs.ConsulServiceIdentityNamePrefix, service.MakeUniqueIdentityName())
+			serviceIdentityName = service.MakeUniqueIdentityName()
 			cluster = service.Cluster
 			break
 		}
