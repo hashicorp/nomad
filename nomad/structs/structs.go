@@ -10204,13 +10204,19 @@ func (a *Allocation) JobNamespacedID() NamespacedID {
 // Index returns the index of the allocation. If the allocation is from a task
 // group with count greater than 1, there will be multiple allocations for it.
 func (a *Allocation) Index() uint {
-	l := len(a.Name)
-	prefix := len(a.JobID) + len(a.TaskGroup) + 2
+	return AllocIndexFromName(a.Name, a.JobID, a.TaskGroup)
+}
+
+// AllocIndexFromName returns the index of an allocation given its name, the
+// jobID and the task group name.
+func AllocIndexFromName(allocName, jobID, taskGroup string) uint {
+	l := len(allocName)
+	prefix := len(jobID) + len(taskGroup) + 2
 	if l <= 3 || l <= prefix {
 		return uint(0)
 	}
 
-	strNum := a.Name[prefix : len(a.Name)-1]
+	strNum := allocName[prefix : len(allocName)-1]
 	num, _ := strconv.Atoi(strNum)
 	return uint(num)
 }

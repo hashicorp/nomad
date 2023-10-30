@@ -945,11 +945,13 @@ func TestBitmapFrom(t *testing.T) {
 			Name:      "foo.bar[8]",
 		},
 	}
-	b := bitmapFrom(input, 1)
+	b, dups := bitmapFrom(input, 1)
 	must.Eq(t, 16, b.Size())
+	must.MapEmpty(t, dups)
 
-	b = bitmapFrom(input, 8)
+	b, dups = bitmapFrom(input, 8)
 	must.Eq(t, 16, b.Size())
+	must.MapEmpty(t, dups)
 }
 
 func Test_allocNameIndex_Highest(t *testing.T) {
@@ -1163,6 +1165,51 @@ func Test_allocNameIndex_Next(t *testing.T) {
 			must.SliceContainsAll(t, tc.expectedOutput, tc.inputAllocNameIndex.Next(tc.inputN))
 		})
 	}
+}
+
+func Test_allocNameIndex_Duplicates(t *testing.T) {
+	ci.Parallel(t)
+
+	inputAllocSet := map[string]*structs.Allocation{
+		"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
+			Name:      "example.cache[0]",
+			JobID:     "example",
+			TaskGroup: "cache",
+		},
+		"e24771e6-8900-5d2d-ec93-e7076284774a": {
+			Name:      "example.cache[1]",
+			JobID:     "example",
+			TaskGroup: "cache",
+		},
+		"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
+			Name:      "example.cache[2]",
+			JobID:     "example",
+			TaskGroup: "cache",
+		},
+		"76a6a487-016b-2fc2-8295-d811473ca93d": {
+			Name:      "example.cache[0]",
+			JobID:     "example",
+			TaskGroup: "cache",
+		},
+	}
+
+	// Build the tracker, and check some key information.
+	allocNameIndexTracker := newAllocNameIndex("example", "cache", 4, inputAllocSet)
+	must.Eq(t, 8, allocNameIndexTracker.b.Size())
+	must.MapLen(t, 1, allocNameIndexTracker.duplicates)
+	must.True(t, allocNameIndexTracker.IsDuplicate(0))
+
+	// Unsetting the index should remove the duplicate entry, but not the entry
+	// from the underlying bitmap.
+	allocNameIndexTracker.UnsetIndex(0)
+	must.MapLen(t, 0, allocNameIndexTracker.duplicates)
+	must.True(t, allocNameIndexTracker.b.Check(0))
+
+	// If we now select a new index, having previously checked for a duplicate,
+	// we should get a non-duplicate.
+	nextAllocNames := allocNameIndexTracker.Next(1)
+	must.Len(t, 1, nextAllocNames)
+	must.Eq(t, "example.cache[3]", nextAllocNames[0])
 }
 
 func TestAllocSet_filterByRescheduleable(t *testing.T) {
