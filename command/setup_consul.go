@@ -20,18 +20,18 @@ import (
 var _ cli.Command = &SetupConsulCommand{}
 
 //go:embed asset/consul-wi-default-auth-method-config.json
-var authConfigBody []byte
+var consulAuthConfigBody []byte
 
 //go:embed asset/consul-wi-default-policy.hcl
-var policyBody []byte
+var consulPolicyBody []byte
 
 const (
-	authMethodServices = "nomad-services"
-	authMethodTasks    = "nomad-tasks"
-	roleTasks          = "role-nomad-tasks"
-	policyName         = "policy-nomad-tasks"
-	consulNamespace    = "nomad-prod"
-	aud                = "consul.io"
+	consulAuthMethodServices = "nomad-services"
+	consulAuthMethodTasks    = "nomad-tasks"
+	consulRoleTasks          = "role-nomad-tasks"
+	consulPolicyName         = "policy-nomad-tasks"
+	consulNamespace          = "nomad-prod"
+	consulAud                = "consul.io"
 )
 
 type SetupConsulCommand struct {
@@ -147,7 +147,7 @@ The method for services will be called %q and the method for
 tasks %q, and they will both be of JWT type.
 
 They will share the following config:`
-	s.Ui.Output(fmt.Sprintf(authMethodMsg, authMethodServices, authMethodTasks))
+	s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodServices, consulAuthMethodTasks))
 
 	authMethodConf, err := s.renderAuthMethodConf()
 	if err != nil {
@@ -182,12 +182,12 @@ a namespace %q and bind the auth methods to that namespace.
 	}
 
 	if createAuthMethods {
-		err = s.createAuthMethod(authMethodServices, authMethodConf)
+		err = s.createAuthMethod(consulAuthMethodServices, authMethodConf)
 		if err != nil {
 			s.Ui.Error(err.Error())
 			return 1
 		}
-		err = s.createAuthMethod(authMethodTasks, authMethodConf)
+		err = s.createAuthMethod(consulAuthMethodTasks, authMethodConf)
 		if err != nil {
 			s.Ui.Error(err.Error())
 			return 1
@@ -196,14 +196,14 @@ a namespace %q and bind the auth methods to that namespace.
 
 	servicesBindingRule := &api.ACLBindingRule{
 		Description: "Binding rule for Nomad services authenticated using a workload identity",
-		AuthMethod:  authMethodServices,
+		AuthMethod:  consulAuthMethodServices,
 		BindType:    "service",
 		BindName:    "${value.nomad_service}",
 	}
 
 	tasksBindingRule := &api.ACLBindingRule{
 		Description: "Binding rule for Nomad tasks authenticated using a workload identity",
-		AuthMethod:  authMethodTasks,
+		AuthMethod:  consulAuthMethodTasks,
 		BindType:    "role",
 		BindName:    "nomad-${value.nomad_namespace}-templates",
 	}
@@ -245,7 +245,7 @@ The step above bound Nomad tasks to a Consul ACL role. Now we need to create the
 role and the associated ACL policy that defines what tasks are allowed to access
 in Consul. Below is the body of the policy we will create:
 `)
-	s.Ui.Output(string(policyBody))
+	s.Ui.Output(string(consulPolicyBody))
 
 	var createPolicy bool
 	if !s.autoYes {
@@ -266,7 +266,7 @@ in Consul. Below is the body of the policy we will create:
 
 	s.Ui.Output(fmt.Sprintf(
 		"\nAnd finally, we will create an ACL role called %q associated with the policy above.",
-		roleTasks))
+		consulRoleTasks))
 
 	var createRole bool
 	if !s.autoYes {
@@ -330,13 +330,13 @@ consul {
 
 func (s *SetupConsulCommand) renderAuthMethodConf() (map[string]any, error) {
 	authConfig := map[string]any{}
-	err := json.Unmarshal(authConfigBody, &authConfig)
+	err := json.Unmarshal(consulAuthConfigBody, &authConfig)
 	if err != nil {
 		return authConfig, fmt.Errorf("default auth config text could not be deserialized: %v", err)
 	}
 
 	authConfig["JWKSURL"] = s.jwksURL
-	authConfig["BoundAudiences"] = []string{aud}
+	authConfig["BoundAudiences"] = []string{consulAud}
 	authConfig["JWTSupportedAlgs"] = []string{"RS256"}
 
 	return authConfig, nil
@@ -424,36 +424,36 @@ func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error 
 
 func (s *SetupConsulCommand) createRoleForTasks() error {
 	_, _, err := s.client.ACL().RoleCreate(&api.ACLRole{
-		Name:        roleTasks,
+		Name:        consulRoleTasks,
 		Description: "role for Nomad templates w/ workload identities (WI)",
-		Policies:    []*api.ACLLink{{Name: policyName}},
+		Policies:    []*api.ACLLink{{Name: consulPolicyName}},
 	}, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			s.Ui.Warn(fmt.Sprintf("[ ] role %q already exists", roleTasks))
+			s.Ui.Warn(fmt.Sprintf("[ ] role %q already exists", consulRoleTasks))
 			return nil
 		}
 		return fmt.Errorf("[✘] could not create Consul role: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created role %q", roleTasks))
+	s.Ui.Info(fmt.Sprintf("[✔] Created role %q", consulRoleTasks))
 	return nil
 }
 
 func (s *SetupConsulCommand) createPolicy() error {
 	_, _, err := s.client.ACL().PolicyCreate(&api.ACLPolicy{
-		Name:  policyName,
-		Rules: string(policyBody),
+		Name:  consulPolicyName,
+		Rules: string(consulPolicyBody),
 	}, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			s.Ui.Warn(fmt.Sprintf("[ ] policy %q already exists", policyName))
+			s.Ui.Warn(fmt.Sprintf("[ ] policy %q already exists", consulPolicyName))
 			return nil
 		}
 		return fmt.Errorf("[✘] could not create Consul policy: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q", policyName))
+	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q", consulPolicyName))
 
 	return nil
 }
