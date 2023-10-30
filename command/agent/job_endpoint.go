@@ -368,9 +368,6 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	action := req.URL.Query().Get("action")
 	allocID := req.URL.Query().Get("allocID")
 
-	s.logger.Info("job action called",
-		"action", action, "job", jobID, "task", task, "alloc", allocID)
-
 	// Build the request and parse the ACL token
 	var err error
 	isTTY := false
