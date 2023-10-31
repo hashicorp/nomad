@@ -533,12 +533,14 @@ func TestOperator_TransferLeadershipToServerID_ACL(t *testing.T) {
 
 	var tgtID raft.ServerID
 	// Find the first non-leader server in the list.
+	s1.peerLock.Lock()
 	for _, sp := range s1.localPeers {
 		tgtID = raft.ServerID(sp.ID)
 		if tgtID != ldrID {
 			break
 		}
 	}
+	s1.peerLock.Unlock()
 
 	// Create ACL token
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
