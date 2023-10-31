@@ -468,9 +468,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 							},
 						},
 						Constraints: []*structs.Constraint{
-							&structs.Constraint{
+							{
 								LTarget: "${attr.vault.infra.version}",
-								RTarget: ">= 0.6.1",
+								RTarget: ">= 1.11.0",
 								Operand: structs.ConstraintSemver,
 							},
 							vaultConstraint,
