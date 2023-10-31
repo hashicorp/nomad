@@ -37,14 +37,18 @@ const (
 type SetupConsulCommand struct {
 	Meta
 
-	// client is the Consul API client shared by all functions in the command to
-	// reuse the same connection.
+	// client is the Consul API client shared by all functions in the command
+	// to reuse the same connection.
 	client *api.Client
 
 	jwksURL string
 
 	consulEnt bool
 	autoYes   bool
+
+	// store IDs of objects we may need to cleanup
+	policyID       string
+	bindingRuleIDs []string
 }
 
 // Help satisfies the cli.Command Help function.
@@ -290,6 +294,9 @@ identities and ACL roles, so we need to create the following binding rules:
 			createServicesBindingRule = s.askQuestion(
 				"Create this binding rule in your Consul cluster? [Y/n]",
 			)
+			if !createServicesBindingRule {
+				s.handleNo()
+			}
 		} else {
 			createServicesBindingRule = true
 		}
@@ -315,6 +322,9 @@ identities and ACL roles, so we need to create the following binding rules:
 			createTasksBindingRule = s.askQuestion(
 				"Create this binding rule in your Consul cluster? [Y/n]",
 			)
+			if !createTasksBindingRule {
+				s.handleNo()
+			}
 		} else {
 			createTasksBindingRule = true
 		}
@@ -327,6 +337,10 @@ identities and ACL roles, so we need to create the following binding rules:
 			}
 		}
 	}
+
+	/*
+		Policy & role creation
+	*/
 
 	if s.policyExists() {
 		s.Ui.Info(fmt.Sprintf("[ ] policy %q already exists", consulPolicyName))
@@ -343,6 +357,10 @@ in Consul. Below is the body of the policy we will create:
 			createPolicy = s.askQuestion(
 				"Create the above policy in your Consul cluster? [Y/n]",
 			)
+			if !createPolicy {
+				s.handleNo()
+			}
+
 		} else {
 			createPolicy = true
 		}
@@ -368,6 +386,9 @@ in Consul. Below is the body of the policy we will create:
 			createRole = s.askQuestion(
 				"Create the above role in your Consul cluster? [Y/n]",
 			)
+			if !createRole {
+				s.handleNo()
+			}
 		} else {
 			createRole = true
 		}
@@ -505,12 +526,14 @@ func (s *SetupConsulCommand) bindingRuleExists(rule *api.ACLBindingRule) bool {
 }
 
 func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
-	_, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
+	bindingRule, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
 	if err != nil {
 		return fmt.Errorf("[✘] could not create Consul binding rule: %w", err)
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created binding rule for auth method %q", rule.AuthMethod))
+	s.bindingRuleIDs = append(s.bindingRuleIDs, bindingRule.ID)
+
 	return nil
 }
 
@@ -543,7 +566,7 @@ func (s *SetupConsulCommand) policyExists() bool {
 }
 
 func (s *SetupConsulCommand) createPolicy() error {
-	_, _, err := s.client.ACL().PolicyCreate(&api.ACLPolicy{
+	policy, _, err := s.client.ACL().PolicyCreate(&api.ACLPolicy{
 		Name:  consulPolicyName,
 		Rules: string(consulPolicyBody),
 	}, nil)
@@ -552,6 +575,7 @@ func (s *SetupConsulCommand) createPolicy() error {
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q", consulPolicyName))
+	s.policyID = policy.ID
 
 	return nil
 }
@@ -581,4 +605,50 @@ func (s *SetupConsulCommand) askQuestion(question string) bool {
 }
 
 func (s *SetupConsulCommand) handleNo() {
+	s.Ui.Warn(`
+By answering "no" to any of these questions, you are risking an incorrect Consul
+cluster configuration. Nomad workloads with Workload Identity will not be able
+to authenticate unless you create missing configuration yourself.
+`)
+
+	if !s.autoYes && s.askQuestion("Remove everything we created?") {
+		if s.consulEnt {
+			_, err := s.client.Namespaces().Delete(consulNamespace, nil)
+			if err != nil {
+				s.Ui.Error(err.Error())
+			} else {
+				s.Ui.Info(fmt.Sprintf("deleted namespace %q", consulNamespace))
+			}
+		}
+		_, err := s.client.ACL().PolicyDelete(s.policyID, nil)
+		if err != nil {
+			s.Ui.Error(err.Error())
+		} else {
+			s.Ui.Info(fmt.Sprintf("deleted policy %q", s.policyID))
+		}
+
+		for _, bindingRuleID := range s.bindingRuleIDs {
+			_, err = s.client.ACL().BindingRuleDelete(bindingRuleID, nil)
+			if err != nil {
+				s.Ui.Error(err.Error())
+			} else {
+				s.Ui.Info(fmt.Sprintf("deleted binding rule %q", bindingRuleID))
+			}
+		}
+
+		for _, authMethod := range []string{consulAuthMethodServices, consulAuthMethodTasks} {
+			_, err = s.client.ACL().AuthMethodDelete(authMethod, nil)
+			if err != nil {
+				s.Ui.Error(err.Error())
+			} else {
+				s.Ui.Info(fmt.Sprintf("deleted auth method %q", authMethod))
+			}
+		}
+	}
+
+	s.Ui.Output(`
+This script will quit now. Consul cluster has *not* been configured for 
+authenticating Nomad workload identity enabled workloads. 
+`)
+	os.Exit(0)
 }
