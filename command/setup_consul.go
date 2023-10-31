@@ -120,7 +120,10 @@ func (s *SetupConsulCommand) Run(args []string) int {
 		return 1
 	}
 
-	var err error
+	if !isTty() && !s.autoYes {
+		s.Ui.Error("This command requires -y option when running in non-interactive mode")
+		return 1
+	}
 
 	s.Ui.Output(`
 This command will walk you through configuring all the components required for
@@ -140,6 +143,7 @@ Please set the CONSUL_HTTP_ADDR environment variable to your Consul cluster addr
 	}
 
 	// Get the Consul client.
+	var err error
 	s.client, err = api.NewClient(s.clientCfg)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error initializing Consul client: %s", err))
