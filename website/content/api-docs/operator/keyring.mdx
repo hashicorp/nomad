@@ -16,6 +16,106 @@ are used. For instructions on how to use the CLI to perform these operations
 manually, please see the documentation for the [`nomad operator root keyring`]
 commands.
 
+## List Active Public Keys
+
+This endpoint retrieves a list of active public keys used to sign [workload
+identities][wi]. The response is in the [JWKS][rfc7517] format as is commonly
+used by JWT auth methods.
+
+| Method | Path                        | Produces           |
+|--------|-----------------------------|--------------------|
+| `GET`  | `/.well-known/jwks.json`    | `application/json` |
+
+The table below shows this endpoint's support for [blocking queries] and
+[required ACLs].
+
+| Blocking Queries | ACL Required |
+|------------------|--------------|
+| `YES`            | `none`       |
+
+### Sample Request
+
+```shell-session
+$ nomad operator api '/.well-known/jwks.json'
+```
+
+### Sample Response
+
+```json
+{
+  "keys": [
+    {
+      "use": "sig",
+      "kty": "RSA",
+      "kid": "15a95f48-001a-8be5-5da9-d94901d022c9",
+      "alg": "RS256",
+      "n": "6sImUQR6A...FB7bKn02dKw",
+      "e": "AQAB"
+    },
+    {
+      "use": "sig",
+      "kty": "RSA",
+      "kid": "b7f6a3a7-14f9-4ac5-f713-32c9bce1fa93",
+      "alg": "RS256",
+      "n": "zEdiUB3DFuM...ii3kQvOf_eDApBDWJhfQw",
+      "e": "AQAB"
+    }
+  ]
+}
+```
+
+## OIDC Discovery
+
+This endpoint retrieves [OIDC configuration metadata][oidc-disco] for using
+[workload identities][wi] with third party services. Nomad will act as an
+identity provider (IDP) to allow third parties to authenticate workload
+identity JWTs based on the OIDC configurationa and JWKS.
+
+Most third parties will require this endpoint be accessible through a
+publically resolvable domain name and HTTPS signed by a trusted certificate
+authority.
+
+You must set the [`oidc_issuer`][oidc_issuer] Server agent configuration
+parameter before this endpoint is enabled. In most situations you will also
+need to run a proxy or load balancer for in front of this endpoint to serve the
+contents with HTTPS using a trusted certificate.
+
+| Method | Path                                | Produces           |
+|--------|-------------------------------------|--------------------|
+| `GET`  | `/.well-known/openid-configuration` | `application/json` |
+
+The table below shows this endpoint's support for [blocking queries] and
+[required ACLs].
+
+| Blocking Queries | ACL Required |
+|------------------|--------------|
+| `NO`             | `none` |
+
+### Sample Request
+
+```shell-session
+$ nomad operator api '/.well-known/openid-configuration'
+```
+
+### Sample Response
+
+```json
+{
+  "id_token_signing_alg_values_supported": [
+    "RS256",
+    "EdDSA"
+  ],
+  "issuer": "http://example.com",
+  "jwks_uri": "http://example.com/.well-known/jwks.json",
+  "response_types_supported": [
+    "code"
+  ],
+  "subject_types_supported": [
+    "public"
+  ]
+}
+```
+
 ## List Keys
 
 This endpoint retrieves a list of root keys known to the cluster. Note that only
@@ -154,4 +254,8 @@ $ curl \
 [Key Management]: /nomad/docs/operations/key-management
 [`nomad operator root keyring`]: /nomad/docs/commands/operator/root/keyring-rotate
 [blocking queries]: /nomad/api-docs#blocking-queries
+[oidc-disco]: https://openid.net/specs/openid-connect-discovery-1_0.html
+[oidc_issuer]: /nomad/docs/configuration/server#oidc_issuer
 [required ACLs]: /nomad/api-docs#acls
+[rfc7517]: https://datatracker.ietf.org/doc/html/rfc7517
+[wi]: /nomad/docs/concepts/workload-identity
