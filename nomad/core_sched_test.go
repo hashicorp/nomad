@@ -2559,7 +2559,7 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 
 	srv, cleanup := TestServer(t, nil)
 	defer cleanup()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	store := srv.fsm.State()
 	key0, err := store.GetActiveRootKeyMeta(nil)
