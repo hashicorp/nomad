@@ -156,13 +156,20 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 	servers := []*Server{s1, s2}
 	var nonLeader *Server
 	var leader *Server
-	for _, s := range servers {
-		if !s.IsLeader() {
-			nonLeader = s
-		} else {
-			leader = s
+	testutil.WaitForResult(func() (bool, error) {
+		for _, s := range servers {
+			if !s.IsLeader() {
+				nonLeader = s
+			} else {
+				leader = s
+			}
 		}
-	}
+
+		return nonLeader != nil && leader != nil && nonLeader != leader, fmt.Errorf(
+			"leader=%p follower=%p", nonLeader, leader)
+	}, func(err error) {
+		t.Fatalf("timed out trying to find a leader: %v", err)
+	})
 
 	cases := []struct {
 		desc        string
