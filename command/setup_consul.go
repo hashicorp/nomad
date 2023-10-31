@@ -389,16 +389,18 @@ in Consul.
 	}
 
 	if s.roleExists() {
-		s.Ui.Info(fmt.Sprintf("[ ] role %q already exists", consulRoleTasks))
+		s.Ui.Info(fmt.Sprintf("[✔] Role %q already exists", consulRoleTasks))
 	} else {
-		s.Ui.Output(fmt.Sprintf(
-			"\nAnd finally, we will create an ACL role called %q associated with the policy above.",
+		s.Ui.Output(fmt.Sprintf(`
+And finally, we will create an ACL role called %q associated
+with the policy above.
+`,
 			consulRoleTasks))
 
 		var createRole bool
 		if !s.autoYes {
 			createRole = s.askQuestion(
-				"Create the above role in your Consul cluster? [Y/n]",
+				"Create role in your Consul cluster? [Y/n]",
 			)
 			if !createRole {
 				s.handleNo()
@@ -645,6 +647,20 @@ to authenticate unless you create missing configuration yourself.
 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", p.ID, err.Error()))
 				} else {
 					s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q", p.ID))
+				}
+			}
+		}
+
+		if s.roleExists() {
+			r, _, err := s.client.ACL().RoleReadByName(consulRoleTasks, nil)
+			if err != nil {
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch role %q: %v", consulRoleTasks, err.Error()))
+			} else if r != nil {
+				_, err := s.client.ACL().RoleDelete(r.ID, nil)
+				if err != nil {
+					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete role %q: %v", r.ID, err.Error()))
+				} else {
+					s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q", r.ID))
 				}
 			}
 		}
