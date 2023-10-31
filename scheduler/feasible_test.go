@@ -1316,6 +1316,16 @@ func TestCheckSemverConstraint(t *testing.T) {
 			result: true,
 		},
 		{
+			name: "Prereleases of same version handled according to semver",
+			lVal: "1.7.0-beta", rVal: ">= 1.7.0",
+			result: false,
+		},
+		{
+			name: "Prereleases constraints allow GA version according to semver",
+			lVal: "1.7.0", rVal: ">= 1.7.0-dev",
+			result: true,
+		},
+		{
 			name: "Meta is ignored according to semver",
 			lVal: "1.3.0-beta1+ent", rVal: "= 1.3.0-beta1",
 			result: true,
