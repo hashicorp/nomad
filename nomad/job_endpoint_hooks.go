@@ -381,19 +381,26 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 		multierror.Append(validationErrors, fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, v.srv.config.JobMaxPriority))
 	}
 
+	okForIdentity := v.isEligibleForMultiIdentity()
+
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
-			serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task group %s", tg.Name))
+			serviceErrs := v.validateServiceIdentity(
+				s, fmt.Sprintf("task group %s", tg.Name), okForIdentity)
 			multierror.Append(validationErrors, serviceErrs)
 		}
 
 		for _, t := range tg.Tasks {
+			if len(t.Identities) > 1 && !okForIdentity {
+				multierror.Append(validationErrors, fmt.Errorf("tasks can only have 1 identity block until all servers are upgraded to %s", minVersionMultiIdentities))
+			}
 			for _, s := range t.Services {
-				serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task %s", t.Name))
+				serviceErrs := v.validateServiceIdentity(
+					s, fmt.Sprintf("task %s", t.Name), okForIdentity)
 				multierror.Append(validationErrors, serviceErrs)
 			}
 
-			vaultWarns, vaultErrs := v.validateVaultIdentity(t)
+			vaultWarns, vaultErrs := v.validateVaultIdentity(t, okForIdentity)
 			multierror.Append(validationErrors, vaultErrs)
 			warnings = append(warnings, vaultWarns...)
 		}
@@ -402,7 +409,19 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	return warnings, validationErrors.ErrorOrNil()
 }
 
-func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string) error {
+func (v *jobValidate) isEligibleForMultiIdentity() bool {
+	if v.srv == nil || v.srv.serf == nil {
+		return true // handle tests w/o real servers safely
+	}
+	return ServersMeetMinimumVersion(
+		v.srv.Members(), v.srv.Region(), minVersionMultiIdentities, true)
+}
+
+func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string, okForIdentity bool) error {
+	if s.Identity != nil && !okForIdentity {
+		return fmt.Errorf("Service %s in %s cannot have an identity until all servers are upgraded to %s",
+			s.Name, parent, minVersionMultiIdentities)
+	}
 	if s.Identity != nil && s.Identity.Name == "" {
 		return fmt.Errorf("Service %s in %s has an identity with an empty name", s.Name, parent)
 	}
@@ -415,7 +434,7 @@ func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string)
 //
 // It assumes the jobImplicitIdentitiesHook mutator hook has been called to
 // inject task identities if necessary.
-func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
+func (v *jobValidate) validateVaultIdentity(t *structs.Task, okForIdentity bool) ([]error, error) {
 	var warnings []error
 
 	if t.Vault == nil {
@@ -430,6 +449,11 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 
 	vaultWIDName := t.Vault.IdentityName()
 	vaultWID := t.GetIdentity(vaultWIDName)
+
+	if vaultWID != nil && !okForIdentity {
+		return warnings, fmt.Errorf("Task %s cannot have an identity for Vault until all servers are upgraded to %s", t.Name, minVersionMultiIdentities)
+	}
+
 	if vaultWID == nil {
 		// Tasks using non-default clusters are required to have an identity.
 		if t.Vault.Cluster != structs.VaultDefaultCluster {

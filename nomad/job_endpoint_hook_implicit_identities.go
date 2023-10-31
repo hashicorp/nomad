@@ -18,6 +18,7 @@ func (jobImplicitIdentitiesHook) Name() string {
 }
 
 func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
 			h.handleConsulService(s)
