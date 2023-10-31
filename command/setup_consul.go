@@ -505,7 +505,7 @@ func (s *SetupConsulCommand) renderAuthMethod(name string, desc string) (*api.AC
 
 	authConfig["JWKSURL"] = s.jwksURL
 	authConfig["BoundAudiences"] = []string{consulAud}
-	authConfig["JWTSupportedAlgs"] = []string{"RS256"}
+	authConfig["JWTSupportedAlgs"] = []string{"RS256", "EdDSA"}
 
 	method := &api.ACLAuthMethod{
 		Name:          name,
