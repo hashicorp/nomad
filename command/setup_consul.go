@@ -65,16 +65,16 @@ Usage: nomad setup consul [options]
   This command requires acl:write permissions for Consul and respects
   CONSUL_HTTP_TOKEN, CONSUL_HTTP_ADDR, and other Consul-related
   environment variables as documented in
-  https://developer.hashicorp.com/nomad/docs/runtime/environment#summary. 
+  https://developer.hashicorp.com/nomad/docs/runtime/environment#summary.
 
   WARNING: This command is an experimental feature and may change its behavior
   in future versions of Nomad.
 
 Setup Consul options:
 
-  -jwks-url
+  -jwks-url <url>
     URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
-    signatures. Defaults to http://localhost:4646/.well-known/jwks.json. 
+    signatures. Defaults to http://localhost:4646/.well-known/jwks.json.
 
   -y
     Automatically answers "yes" to all the questions, making the setup
@@ -123,11 +123,11 @@ func (s *SetupConsulCommand) Run(args []string) int {
 	var err error
 
 	s.Ui.Output(`
-This command will walk you through configuring all the components required for 
-Nomad workloads to authenticate themselves against Consul ACL using their 
-respective workload identities. 
+This command will walk you through configuring all the components required for
+Nomad workloads to authenticate themselves against Consul ACL using their
+respective workload identities.
 
-First we need to connect to Consul. 
+First we need to connect to Consul.
 `)
 
 	s.clientCfg = api.DefaultConfig()
@@ -460,7 +460,7 @@ consul {
   # configuration file.
 }
 
-and the configuration of your Nomad servers as follows:
+And the configuration of your Nomad servers as follows:
 
 consul {
   enabled = true
@@ -480,9 +480,7 @@ consul {
     aud = ["consul.io"]
     ttl = "1h"
   }
-}
-
-`)
+}`)
 
 	return 0
 }
@@ -658,7 +656,7 @@ cluster configuration. Nomad workloads with Workload Identity will not be able
 to authenticate unless you create missing configuration yourself.
 `)
 
-	if !s.autoYes && s.askQuestion("Remove everything we created?") {
+	if !s.autoYes && s.askQuestion("Remove everything this command creates? [Y/n]") {
 		if s.consulEnt && s.namespaceExists(s.clientCfg.Namespace) {
 			ns, _, err := s.client.Namespaces().Read(s.clientCfg.Namespace, nil)
 			if err != nil {
@@ -725,9 +723,10 @@ to authenticate unless you create missing configuration yourself.
 		}
 	}
 
-	s.Ui.Output(`
-This script will quit now. Consul cluster has *not* been configured for 
-authenticating Nomad workload identity enabled workloads. 
-`)
+	s.Ui.Output(s.Colorize().Color(`
+Consul cluster has [bold][underline]not[reset] been configured for authenticating Nomad tasks and
+services using workload identitiies.
+
+Run the command again to finish the configuration process.`))
 	os.Exit(0)
 }
