@@ -141,58 +141,124 @@ Please set the CONSUL_HTTP_ADDR environment variable to your Consul cluster addr
 		s.consulEnt = true
 	}
 
-	authMethodMsg := `
+	/*
+		Auth method creation
+	*/
+
+	if s.authMethodExists(consulAuthMethodServices) {
+		s.Ui.Info(fmt.Sprintf("[ ] auth method with name %q already exists", consulAuthMethodServices))
+	} else {
+
+		authMethodMsg := `
 Nomad needs two JWT auth methods: one for Consul services, and one for tasks. 
-The method for services will be called %q and the method for 
-tasks %q, and they will both be of JWT type.
+The method for services will be called %[1]q and the method for 
+tasks %[2]q, and they will both be of JWT type.
 
-They will share the following config:`
-	s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodServices, consulAuthMethodTasks))
+This is the %[1]q method configuration:
+`
+		s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodServices, consulAuthMethodTasks))
 
-	authMethodConf, err := s.renderAuthMethodConf()
-	if err != nil {
-		s.Ui.Error(err.Error())
-		return 1
+		servicesAuthMethod, err := s.renderAuthMethod(consulAuthMethodServices)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
+		}
+		jsConf, _ := json.MarshalIndent(servicesAuthMethod, "", "    ")
+
+		s.Ui.Output(string(jsConf))
+
+		var createServicesAuthMethod bool
+		if !s.autoYes {
+			createServicesAuthMethod = s.askQuestion(
+				fmt.Sprintf("Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodServices))
+			if !createServicesAuthMethod {
+				s.handleNo()
+			}
+		} else {
+			createServicesAuthMethod = true
+		}
+
+		if createServicesAuthMethod {
+			err = s.createAuthMethod(servicesAuthMethod)
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
+			}
+		}
 	}
 
-	jsConf, _ := json.MarshalIndent(authMethodConf, "", "    ")
-	s.Ui.Output(string(jsConf))
+	if s.authMethodExists(consulAuthMethodTasks) {
+		s.Ui.Info(fmt.Sprintf("[ ] auth method with name %q already exists", consulAuthMethodTasks))
+	} else {
+
+		authMethodMsg := `
+This is the %q method configuration:
+`
+		s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodTasks))
+
+		tasksAuthMethod, err := s.renderAuthMethod(consulAuthMethodTasks)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
+		}
+		jsConf, _ := json.MarshalIndent(tasksAuthMethod, "", "    ")
+
+		s.Ui.Output(string(jsConf))
+
+		var createTasksAuthMethod bool
+		if !s.autoYes {
+			createTasksAuthMethod = s.askQuestion(
+				fmt.Sprintf("Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodTasks))
+			if !createTasksAuthMethod {
+				s.handleNo()
+			}
+		} else {
+			createTasksAuthMethod = true
+		}
+
+		if createTasksAuthMethod {
+			err = s.createAuthMethod(tasksAuthMethod)
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
+			}
+		}
+	}
 
 	if s.consulEnt {
-		namespaceMsg := `
+		if s.namespaceExists() {
+			s.Ui.Info(fmt.Sprintf("[ ] namespace %q already exists", consulNamespace))
+		} else {
+			namespaceMsg := `
 Since you're running Consul Enterprise, we will additionally create
 a namespace %q and bind the auth methods to that namespace.
-`
-		s.Ui.Output(fmt.Sprintf(namespaceMsg, consulNamespace))
-	}
+	 `
+			s.Ui.Output(fmt.Sprintf(namespaceMsg, consulNamespace))
 
-	var createAuthMethods bool
-	if !s.autoYes {
-		createAuthMethods = s.askQuestion("Create these auth methods in your Consul cluster? [Y/n]")
-	} else {
-		createAuthMethods = true
-	}
+			var createNamespace bool
+			if !s.autoYes {
+				createNamespace = s.askQuestion(
+					fmt.Sprintf("Create the namespace %q in your Consul cluster? [Y/n]", consulNamespace))
+				if !createNamespace {
+					s.handleNo()
+				}
+			} else {
+				createNamespace = true
+			}
 
-	if s.consulEnt {
-		err = s.createNamespace()
-		if err != nil {
-			s.Ui.Error(err.Error())
-			return 1
+			if createNamespace {
+				err = s.createNamespace()
+				if err != nil {
+					s.Ui.Error(err.Error())
+					return 1
+				}
+			}
 		}
 	}
 
-	if createAuthMethods {
-		err = s.createAuthMethod(consulAuthMethodServices, authMethodConf)
-		if err != nil {
-			s.Ui.Error(err.Error())
-			return 1
-		}
-		err = s.createAuthMethod(consulAuthMethodTasks, authMethodConf)
-		if err != nil {
-			s.Ui.Error(err.Error())
-			return 1
-		}
-	}
+	/*
+		Binding rules creation
+	*/
 
 	servicesBindingRule := &api.ACLBindingRule{
 		Description: "Binding rule for Nomad services authenticated using a workload identity",
@@ -208,80 +274,110 @@ a namespace %q and bind the auth methods to that namespace.
 		BindName:    "nomad-${value.nomad_namespace}-templates",
 	}
 
-	s.Ui.Output(`
+	if s.bindingRuleExists(servicesBindingRule) {
+		s.Ui.Info(fmt.Sprintf("[ ] binding rule for auth method %q already exists", servicesBindingRule.AuthMethod))
+	} else {
+
+		s.Ui.Output(`
 Consul uses binding rules to map claims between Nomad's JWTs and Consul service
 identities and ACL roles, so we need to create the following binding rules:
 `)
-	jsServicesBindingRule, _ := json.MarshalIndent(servicesBindingRule, "", "    ")
-	jsTasksBindingRule, _ := json.MarshalIndent(tasksBindingRule, "", "    ")
-	s.Ui.Output(string(jsServicesBindingRule))
-	s.Ui.Output("\n")
-	s.Ui.Output(string(jsTasksBindingRule))
+		jsServicesBindingRule, _ := json.MarshalIndent(servicesBindingRule, "", "    ")
+		s.Ui.Output(string(jsServicesBindingRule))
 
-	var createBindingRules bool
-	if !s.autoYes {
-		createBindingRules = s.askQuestion(
-			"Create these binding rules in your Consul cluster? [Y/n]",
-		)
+		var createServicesBindingRule bool
+		if !s.autoYes {
+			createServicesBindingRule = s.askQuestion(
+				"Create this binding rule in your Consul cluster? [Y/n]",
+			)
+		} else {
+			createServicesBindingRule = true
+		}
+
+		if createServicesBindingRule {
+			err = s.createBindingRules(servicesBindingRule)
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
+			}
+		}
+	}
+
+	if s.bindingRuleExists(tasksBindingRule) {
+		s.Ui.Info(fmt.Sprintf("[ ] binding rule for auth method %q already exists", tasksBindingRule.AuthMethod))
 	} else {
-		createBindingRules = true
+
+		jsTasksBindingRule, _ := json.MarshalIndent(tasksBindingRule, "", "    ")
+		s.Ui.Output(string(jsTasksBindingRule))
+
+		var createTasksBindingRule bool
+		if !s.autoYes {
+			createTasksBindingRule = s.askQuestion(
+				"Create this binding rule in your Consul cluster? [Y/n]",
+			)
+		} else {
+			createTasksBindingRule = true
+		}
+
+		if createTasksBindingRule {
+			err = s.createBindingRules(tasksBindingRule)
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
+			}
+		}
 	}
 
-	if createBindingRules {
-		err = s.createBindingRules(servicesBindingRule)
-		if err != nil {
-			s.Ui.Error(err.Error())
-			return 1
-		}
-		err = s.createBindingRules(tasksBindingRule)
-		if err != nil {
-			s.Ui.Error(err.Error())
-			return 1
-		}
-	}
-
-	s.Ui.Output(`
+	if s.policyExists() {
+		s.Ui.Info(fmt.Sprintf("[ ] policy %q already exists", consulPolicyName))
+	} else {
+		s.Ui.Output(`
 The step above bound Nomad tasks to a Consul ACL role. Now we need to create the
 role and the associated ACL policy that defines what tasks are allowed to access
 in Consul. Below is the body of the policy we will create:
 `)
-	s.Ui.Output(string(consulPolicyBody))
+		s.Ui.Output(string(consulPolicyBody))
 
-	var createPolicy bool
-	if !s.autoYes {
-		createPolicy = s.askQuestion(
-			"Create the above policy in your Consul cluster? [Y/n]",
-		)
-	} else {
-		createPolicy = true
-	}
+		var createPolicy bool
+		if !s.autoYes {
+			createPolicy = s.askQuestion(
+				"Create the above policy in your Consul cluster? [Y/n]",
+			)
+		} else {
+			createPolicy = true
+		}
 
-	if createPolicy {
-		err = s.createPolicy()
-		if err != nil {
-			s.Ui.Error(err.Error())
-			return 1
+		if createPolicy {
+			err = s.createPolicy()
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
+			}
 		}
 	}
 
-	s.Ui.Output(fmt.Sprintf(
-		"\nAnd finally, we will create an ACL role called %q associated with the policy above.",
-		consulRoleTasks))
-
-	var createRole bool
-	if !s.autoYes {
-		createRole = s.askQuestion(
-			"Create the above role in your Consul cluster? [Y/n]",
-		)
+	if s.roleExists() {
+		s.Ui.Info(fmt.Sprintf("[ ] role %q already exists", consulRoleTasks))
 	} else {
-		createRole = true
-	}
+		s.Ui.Output(fmt.Sprintf(
+			"\nAnd finally, we will create an ACL role called %q associated with the policy above.",
+			consulRoleTasks))
 
-	if createRole {
-		err = s.createRoleForTasks()
-		if err != nil {
-			s.Ui.Error(err.Error())
-			return 1
+		var createRole bool
+		if !s.autoYes {
+			createRole = s.askQuestion(
+				"Create the above role in your Consul cluster? [Y/n]",
+			)
+		} else {
+			createRole = true
+		}
+
+		if createRole {
+			err = s.createRoleForTasks()
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
+			}
 		}
 	}
 
@@ -328,30 +424,32 @@ consul {
 	return 0
 }
 
-func (s *SetupConsulCommand) renderAuthMethodConf() (map[string]any, error) {
+func (s *SetupConsulCommand) authMethodExists(authMethodName string) bool {
+	existingMethods, _, _ := s.client.ACL().AuthMethodList(nil)
+	return slices.ContainsFunc(
+		existingMethods,
+		func(m *api.ACLAuthMethodListEntry) bool { return m.Name == authMethodName })
+}
+
+func (s *SetupConsulCommand) renderAuthMethod(authMethodName string) (*api.ACLAuthMethod, error) {
 	authConfig := map[string]any{}
 	err := json.Unmarshal(consulAuthConfigBody, &authConfig)
 	if err != nil {
-		return authConfig, fmt.Errorf("default auth config text could not be deserialized: %v", err)
+		return nil, fmt.Errorf("default auth config text could not be deserialized: %v", err)
 	}
 
 	authConfig["JWKSURL"] = s.jwksURL
 	authConfig["BoundAudiences"] = []string{consulAud}
 	authConfig["JWTSupportedAlgs"] = []string{"RS256"}
 
-	return authConfig, nil
-}
-
-func (s *SetupConsulCommand) createAuthMethod(authMethodName string, authMethodConf map[string]any) error {
 	method := &api.ACLAuthMethod{
 		Name:          authMethodName,
 		Type:          "jwt",
 		DisplayName:   authMethodName,
 		Description:   "login method for Nomad workload identities (WI)",
 		TokenLocality: "local",
-		Config:        authMethodConf,
+		Config:        authConfig,
 	}
-
 	if s.consulEnt {
 		method.NamespaceRules = []*api.ACLAuthMethodNamespaceRule{{
 			Selector:      "",
@@ -359,15 +457,11 @@ func (s *SetupConsulCommand) createAuthMethod(authMethodName string, authMethodC
 		}}
 	}
 
-	existingMethods, _, _ := s.client.ACL().AuthMethodList(nil)
-	if slices.ContainsFunc(
-		existingMethods,
-		func(m *api.ACLAuthMethodListEntry) bool { return m.Name == method.Name }) {
-		s.Ui.Warn(fmt.Sprintf("[ ] auth method with name %q already exists", method.Name))
-		return nil
-	}
+	return method, nil
+}
 
-	_, _, err := s.client.ACL().AuthMethodCreate(method, nil)
+func (s *SetupConsulCommand) createAuthMethod(authMethod *api.ACLAuthMethod) error {
+	_, _, err := s.client.ACL().AuthMethodCreate(authMethod, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "error checking JWKSURL") {
 			s.Ui.Error(fmt.Sprintf(
@@ -378,23 +472,22 @@ func (s *SetupConsulCommand) createAuthMethod(authMethodName string, authMethodC
 		return fmt.Errorf("[✘] could not create Consul auth method: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created auth method %q", authMethodName))
+	s.Ui.Info(fmt.Sprintf("[✔] Created auth method %q", authMethod.Name))
 	return nil
+}
+
+func (s *SetupConsulCommand) namespaceExists() bool {
+	nsClient := s.client.Namespaces()
+
+	existingNamespaces, _, _ := nsClient.List(nil)
+	return slices.ContainsFunc(
+		existingNamespaces,
+		func(n *api.Namespace) bool { return n.Name == consulNamespace })
 }
 
 func (s *SetupConsulCommand) createNamespace() error {
 	nsClient := s.client.Namespaces()
-
 	namespace := &api.Namespace{Name: consulNamespace}
-
-	// check if namespace already exists
-	existingNamespaces, _, _ := nsClient.List(nil)
-	if slices.ContainsFunc(
-		existingNamespaces,
-		func(n *api.Namespace) bool { return n.Name == consulNamespace }) {
-		s.Ui.Warn(fmt.Sprintf("[ ] namespace %q already exists", consulNamespace))
-		return nil
-	}
 
 	_, _, err := nsClient.Create(namespace, nil)
 	if err != nil {
@@ -404,15 +497,14 @@ func (s *SetupConsulCommand) createNamespace() error {
 	return nil
 }
 
-func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
+func (s *SetupConsulCommand) bindingRuleExists(rule *api.ACLBindingRule) bool {
 	existingRules, _, _ := s.client.ACL().BindingRuleList("", nil)
-	if slices.ContainsFunc(
+	return slices.ContainsFunc(
 		existingRules,
-		func(r *api.ACLBindingRule) bool { return r.BindName == rule.BindName }) {
-		s.Ui.Warn(fmt.Sprintf("[ ] binding rule with bind name %q already exists", rule.BindName))
-		return nil
-	}
+		func(r *api.ACLBindingRule) bool { return r.AuthMethod == rule.AuthMethod })
+}
 
+func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
 	_, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
 	if err != nil {
 		return fmt.Errorf("[✘] could not create Consul binding rule: %w", err)
@@ -422,6 +514,13 @@ func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error 
 	return nil
 }
 
+func (s *SetupConsulCommand) roleExists() bool {
+	existingRoles, _, _ := s.client.ACL().RoleList(nil)
+	return slices.ContainsFunc(
+		existingRoles,
+		func(r *api.ACLRole) bool { return r.Name == consulRoleTasks })
+}
+
 func (s *SetupConsulCommand) createRoleForTasks() error {
 	_, _, err := s.client.ACL().RoleCreate(&api.ACLRole{
 		Name:        consulRoleTasks,
@@ -429,15 +528,18 @@ func (s *SetupConsulCommand) createRoleForTasks() error {
 		Policies:    []*api.ACLLink{{Name: consulPolicyName}},
 	}, nil)
 	if err != nil {
-		if strings.Contains(err.Error(), "already exists") {
-			s.Ui.Warn(fmt.Sprintf("[ ] role %q already exists", consulRoleTasks))
-			return nil
-		}
 		return fmt.Errorf("[✘] could not create Consul role: %w", err)
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created role %q", consulRoleTasks))
 	return nil
+}
+
+func (s *SetupConsulCommand) policyExists() bool {
+	existingPolicies, _, _ := s.client.ACL().PolicyList(nil)
+	return slices.ContainsFunc(
+		existingPolicies,
+		func(p *api.ACLPolicyListEntry) bool { return p.Name == consulPolicyName })
 }
 
 func (s *SetupConsulCommand) createPolicy() error {
@@ -446,10 +548,6 @@ func (s *SetupConsulCommand) createPolicy() error {
 		Rules: string(consulPolicyBody),
 	}, nil)
 	if err != nil {
-		if strings.Contains(err.Error(), "already exists") {
-			s.Ui.Warn(fmt.Sprintf("[ ] policy %q already exists", consulPolicyName))
-			return nil
-		}
 		return fmt.Errorf("[✘] could not create Consul policy: %w", err)
 	}
 
@@ -480,4 +578,7 @@ func (s *SetupConsulCommand) askQuestion(question string) bool {
 			continue
 		}
 	}
+}
+
+func (s *SetupConsulCommand) handleNo() {
 }
