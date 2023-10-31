@@ -135,7 +135,7 @@ func TestEncrypter_Restore(t *testing.T) {
 		c.DataDir = tmpDir
 	})
 	defer shutdown2()
-	testutil.WaitForKeyring(t, srv.RPC, "global")
+	testutil.WaitForKeyring(t, srv2.RPC, "global")
 	codec = rpcClient(t, srv2)
 
 	// Verify we've restored all the keys from the old keystore
