@@ -111,7 +111,7 @@ export default class Title extends Component {
    * @param {string} allocID - The allocation ID to run the action on
    * @param {Event} ev - The event that triggered the action
    */
-  @task(function* (action, allocID, ev) {
+  @task(function* (action, allocID) {
     if (!allocID) {
       allocID =
         action.allocations[
