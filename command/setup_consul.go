@@ -26,12 +26,14 @@ var consulAuthConfigBody []byte
 var consulPolicyBody []byte
 
 const (
-	consulAuthMethodServices = "nomad-services"
-	consulAuthMethodTasks    = "nomad-tasks"
-	consulRoleTasks          = "role-nomad-tasks"
-	consulPolicyName         = "policy-nomad-tasks"
-	consulNamespace          = "nomad-prod"
-	consulAud                = "consul.io"
+	consulAuthMethodServicesName = "nomad-services"
+	consulAuthMethodServicesDesc = "Login method for Nomad services using workload identities"
+	consulAuthMethodTasksName    = "nomad-tasks"
+	consulAuthMethodTaskDesc     = "Login method for Nomad tasks using workload identities"
+	consulRoleTasks              = "role-nomad-tasks"
+	consulPolicyName             = "policy-nomad-tasks"
+	consulNamespace              = "nomad-prod"
+	consulAud                    = "consul.io"
 )
 
 type SetupConsulCommand struct {
@@ -151,21 +153,21 @@ Please set the CONSUL_HTTP_ADDR environment variable to your Consul cluster addr
 	/*
 		Auth method creation
 	*/
+	authMethodMsg := `
+Nomad needs two JWT auth methods: one for Consul services, and one for tasks.
+The method for services will be called %q and the method for
+tasks %q.
+`
+	s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodServicesName, consulAuthMethodTasksName))
 
-	if s.authMethodExists(consulAuthMethodServices) {
-		s.Ui.Info(fmt.Sprintf("[ ] auth method with name %q already exists", consulAuthMethodServices))
+	if s.authMethodExists(consulAuthMethodServicesName) {
+		s.Ui.Info(fmt.Sprintf("[✔] Auth method %q already exists", consulAuthMethodServicesName))
 	} else {
 
-		authMethodMsg := `
-Nomad needs two JWT auth methods: one for Consul services, and one for tasks. 
-The method for services will be called %[1]q and the method for 
-tasks %[2]q, and they will both be of JWT type.
+		authMethodMsg := "This is the %q method configuration:\n"
+		s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodServicesName))
 
-This is the %[1]q method configuration:
-`
-		s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodServices, consulAuthMethodTasks))
-
-		servicesAuthMethod, err := s.renderAuthMethod(consulAuthMethodServices)
+		servicesAuthMethod, err := s.renderAuthMethod(consulAuthMethodServicesName, consulAuthMethodServicesDesc)
 		if err != nil {
 			s.Ui.Error(err.Error())
 			return 1
@@ -177,7 +179,7 @@ This is the %[1]q method configuration:
 		var createServicesAuthMethod bool
 		if !s.autoYes {
 			createServicesAuthMethod = s.askQuestion(
-				fmt.Sprintf("Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodServices))
+				fmt.Sprintf("Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodServicesName))
 			if !createServicesAuthMethod {
 				s.handleNo()
 			}
@@ -194,16 +196,16 @@ This is the %[1]q method configuration:
 		}
 	}
 
-	if s.authMethodExists(consulAuthMethodTasks) {
-		s.Ui.Info(fmt.Sprintf("[ ] auth method with name %q already exists", consulAuthMethodTasks))
+	if s.authMethodExists(consulAuthMethodTasksName) {
+		s.Ui.Info(fmt.Sprintf("[✔] Auth method %q already exists", consulAuthMethodTasksName))
 	} else {
 
 		authMethodMsg := `
 This is the %q method configuration:
 `
-		s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodTasks))
+		s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodTasksName))
 
-		tasksAuthMethod, err := s.renderAuthMethod(consulAuthMethodTasks)
+		tasksAuthMethod, err := s.renderAuthMethod(consulAuthMethodTasksName, consulAuthMethodTaskDesc)
 		if err != nil {
 			s.Ui.Error(err.Error())
 			return 1
@@ -215,7 +217,7 @@ This is the %q method configuration:
 		var createTasksAuthMethod bool
 		if !s.autoYes {
 			createTasksAuthMethod = s.askQuestion(
-				fmt.Sprintf("Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodTasks))
+				fmt.Sprintf("Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodTasksName))
 			if !createTasksAuthMethod {
 				s.handleNo()
 			}
@@ -269,14 +271,14 @@ a namespace %q and bind the auth methods to that namespace.
 
 	servicesBindingRule := &api.ACLBindingRule{
 		Description: "Binding rule for Nomad services authenticated using a workload identity",
-		AuthMethod:  consulAuthMethodServices,
+		AuthMethod:  consulAuthMethodServicesName,
 		BindType:    "service",
 		BindName:    "${value.nomad_service}",
 	}
 
 	tasksBindingRule := &api.ACLBindingRule{
 		Description: "Binding rule for Nomad tasks authenticated using a workload identity",
-		AuthMethod:  consulAuthMethodTasks,
+		AuthMethod:  consulAuthMethodTasksName,
 		BindType:    "role",
 		BindName:    "nomad-${value.nomad_namespace}-templates",
 	}
@@ -455,7 +457,7 @@ func (s *SetupConsulCommand) authMethodExists(authMethodName string) bool {
 		func(m *api.ACLAuthMethodListEntry) bool { return m.Name == authMethodName })
 }
 
-func (s *SetupConsulCommand) renderAuthMethod(authMethodName string) (*api.ACLAuthMethod, error) {
+func (s *SetupConsulCommand) renderAuthMethod(name string, desc string) (*api.ACLAuthMethod, error) {
 	authConfig := map[string]any{}
 	err := json.Unmarshal(consulAuthConfigBody, &authConfig)
 	if err != nil {
@@ -467,10 +469,10 @@ func (s *SetupConsulCommand) renderAuthMethod(authMethodName string) (*api.ACLAu
 	authConfig["JWTSupportedAlgs"] = []string{"RS256"}
 
 	method := &api.ACLAuthMethod{
-		Name:          authMethodName,
+		Name:          name,
 		Type:          "jwt",
-		DisplayName:   authMethodName,
-		Description:   "login method for Nomad workload identities (WI)",
+		DisplayName:   name,
+		Description:   desc,
 		TokenLocality: "local",
 		Config:        authConfig,
 	}
@@ -493,7 +495,7 @@ func (s *SetupConsulCommand) createAuthMethod(authMethod *api.ACLAuthMethod) err
 			))
 			os.Exit(1)
 		}
-		return fmt.Errorf("[✘] could not create Consul auth method: %w", err)
+		return fmt.Errorf("[✘] Could not create Consul auth method: %w", err)
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created auth method %q", authMethod.Name))
@@ -642,15 +644,15 @@ to authenticate unless you create missing configuration yourself.
 			}
 		}
 
-		for _, authMethod := range []string{consulAuthMethodServices, consulAuthMethodTasks} {
+		for _, authMethod := range []string{consulAuthMethodServicesName, consulAuthMethodTasksName} {
 			if !s.authMethodExists(authMethod) {
 				continue
 			}
 			_, err := s.client.ACL().AuthMethodDelete(authMethod, nil)
 			if err != nil {
-				s.Ui.Error(err.Error())
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete auth method %q: %v", authMethod, err.Error()))
 			} else {
-				s.Ui.Info(fmt.Sprintf("deleted auth method %q", authMethod))
+				s.Ui.Info(fmt.Sprintf("[✔] Deleted auth method %q", authMethod))
 			}
 		}
 	}
