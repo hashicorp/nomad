@@ -193,6 +193,9 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	var vaultConfig *structsc.VaultConfig
 	if h.task.Vault != nil {
 		vaultCluster := h.task.Vault.Cluster
+		if vaultCluster == "" {
+			vaultCluster = structs.VaultDefaultCluster
+		}
 		vaultConfig = h.config.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
 
 		if vaultConfig == nil {
