@@ -283,14 +283,18 @@ a namespace %q and bind the auth methods to that namespace.
 		BindName:    "nomad-${value.nomad_namespace}-templates",
 	}
 
+	s.Ui.Output(`
+Consul uses binding rules to map claims between Nomad's JWTs to Consul service
+identities and ACL roles, so we need to create a binding rule for each of the
+auth methods above.
+`)
+
 	if s.bindingRuleExists(servicesBindingRule) {
-		s.Ui.Info(fmt.Sprintf("[ ] binding rule for auth method %q already exists", servicesBindingRule.AuthMethod))
+		s.Ui.Info(fmt.Sprintf("[✔] Binding rule for auth method %q already exists", servicesBindingRule.AuthMethod))
 	} else {
 
-		s.Ui.Output(`
-Consul uses binding rules to map claims between Nomad's JWTs and Consul service
-identities and ACL roles, so we need to create the following binding rules:
-`)
+		s.Ui.Output(fmt.Sprintf("This is the binding rule for the %q auth method:\n", consulAuthMethodServicesName))
+
 		jsServicesBindingRule, _ := json.MarshalIndent(servicesBindingRule, "", "    ")
 		s.Ui.Output(string(jsServicesBindingRule))
 
@@ -316,8 +320,12 @@ identities and ACL roles, so we need to create the following binding rules:
 	}
 
 	if s.bindingRuleExists(tasksBindingRule) {
-		s.Ui.Info(fmt.Sprintf("[ ] binding rule for auth method %q already exists", tasksBindingRule.AuthMethod))
+		s.Ui.Info(fmt.Sprintf("[✔] Binding rule for auth method %q already exists", tasksBindingRule.AuthMethod))
 	} else {
+
+		s.Ui.Output(fmt.Sprintf(`
+This is the binding rule for the %q auth method:
+`, consulAuthMethodTasksName))
 
 		jsTasksBindingRule, _ := json.MarshalIndent(tasksBindingRule, "", "    ")
 		s.Ui.Output(string(jsTasksBindingRule))
@@ -533,7 +541,7 @@ func (s *SetupConsulCommand) bindingRuleExists(rule *api.ACLBindingRule) bool {
 func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
 	bindingRule, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
 	if err != nil {
-		return fmt.Errorf("[✘] could not create Consul binding rule: %w", err)
+		return fmt.Errorf("[✘] Could not create Consul binding rule: %w", err)
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created binding rule for auth method %q", rule.AuthMethod))
@@ -638,9 +646,9 @@ to authenticate unless you create missing configuration yourself.
 		for _, bindingRuleID := range s.bindingRuleIDs {
 			_, err := s.client.ACL().BindingRuleDelete(bindingRuleID, nil)
 			if err != nil {
-				s.Ui.Error(err.Error())
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete binding rule %q: %v", bindingRuleID, err.Error()))
 			} else {
-				s.Ui.Info(fmt.Sprintf("deleted binding rule %q", bindingRuleID))
+				s.Ui.Info(fmt.Sprintf("[✔] Deleted binding rule %q", bindingRuleID))
 			}
 		}
 
