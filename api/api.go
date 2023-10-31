@@ -992,15 +992,10 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 			// Connection upgrade was successful.
 
 		case http.StatusPermanentRedirect, http.StatusTemporaryRedirect, http.StatusMovedPermanently:
-			locs := resp.Header["Location"]
-			if len(locs) == 0 {
-				return nil, nil, errors.New("redirect request missing Location header")
-			}
-
-			loc := locs[0]
+			loc := resp.Header.Get("Location")
 			u, err := url.Parse(loc)
 			if err != nil {
-				return nil, nil, fmt.Errorf("invalid redirect location %s", loc)
+				return nil, nil, fmt.Errorf("invalid redirect location %q: %w", loc, err)
 			}
 			return c.websocket(u.Path, q)
 
@@ -1015,11 +1010,11 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 						withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
 						withError(err))
 				}
-				io.Copy(&buf, greader)
+				_, _ = io.Copy(&buf, greader)
 			} else {
-				io.Copy(&buf, resp.Body)
+				_, _ = io.Copy(&buf, resp.Body)
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 
 			return nil, nil, newUnexpectedResponseError(
 				fromStatusCode(resp.StatusCode),
