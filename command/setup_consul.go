@@ -64,6 +64,9 @@ Usage: nomad setup consul [options]
   environment variables as documented in
   https://developer.hashicorp.com/nomad/docs/runtime/environment#summary. 
 
+  WARNING: This command is an experimental feature and may change its behavior
+  in future versions of Nomad.
+
 Setup Consul options:
 
   -jwks-url
