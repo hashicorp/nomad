@@ -64,8 +64,9 @@ job "docs" {
 - `change_mode` `(string: "noop")` - Specifies the behavior Nomad should take when the token changes.
 
   - `"noop"` - take no action. The default since tasks may choose to reload
-    tokens when their current token gets rejected.
-  - `"restart"` - restart the task
+      tokens only when their current token gets rejected or implement their own
+      change detection.
+  - `"restart"` - restart the task.
   - `"signal"` - send a configurable signal to the task. Must set `change_signal`.
 
 - `change_signal` `(string: "")` - Specifies the signal to send to the task as a
