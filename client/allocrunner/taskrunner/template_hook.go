@@ -131,18 +131,22 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		consulTokens := h.config.hookResources.GetConsulTokens()
 
 		var found bool
-		if _, found = consulTokens[req.Task.Consul.Cluster]; !found {
+		cluster := req.Task.Consul.Cluster
+		if cluster == "" {
+			cluster = structs.ConsulDefaultCluster
+		}
+		if _, found = consulTokens[cluster]; !found {
 			return fmt.Errorf(
 				"consul tokens for cluster %s requested by task %s not found",
-				req.Task.Consul.Cluster, req.Task.Name,
+				cluster, req.Task.Name,
 			)
 		}
 
-		h.consulToken, found = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.IdentityName()]
+		h.consulToken, found = consulTokens[cluster][req.Task.Consul.IdentityName()]
 		if !found {
 			return fmt.Errorf(
 				"consul tokens for cluster %s and identity %s requested by task %s not found",
-				req.Task.Consul.Cluster, req.Task.Consul.IdentityName(), req.Task.Name,
+				cluster, req.Task.Consul.IdentityName(), req.Task.Name,
 			)
 		}
 	}
@@ -193,6 +197,9 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	var vaultConfig *structsc.VaultConfig
 	if h.task.Vault != nil {
 		vaultCluster := h.task.Vault.Cluster
+		if vaultCluster == "" {
+			vaultCluster = structs.VaultDefaultCluster
+		}
 		vaultConfig = h.config.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
 
 		if vaultConfig == nil {
