@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package alloc
 
 import (
 	"testing"
@@ -14,7 +14,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestAllocSet_filterByTainted(t *testing.T) {
+func TestSet_filterByTainted(t *testing.T) {
 	ci.Parallel(t)
 
 	nodes := map[string]*structs.Node{
@@ -71,18 +71,18 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 
 	type testCase struct {
 		name                        string
-		all                         allocSet
+		all                         Set
 		taintedNodes                map[string]*structs.Node
 		supportsDisconnectedClients bool
 		skipNilNodeTest             bool
 		now                         time.Time
 		// expected results
-		untainted     allocSet
-		migrate       allocSet
-		lost          allocSet
-		disconnecting allocSet
-		reconnecting  allocSet
-		ignore        allocSet
+		untainted     Set
+		migrate       Set
+		lost          Set
+		disconnecting Set
+		reconnecting  Set
+		ignore        Set
 	}
 
 	testCases := []testCase{
@@ -93,7 +93,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			now:                         time.Now(),
 			taintedNodes:                nodes,
 			skipNilNodeTest:             false,
-			all: allocSet{
+			all: Set{
 				"untainted1": {
 					ID:           "untainted1",
 					ClientStatus: structs.AllocClientStatusRunning,
@@ -138,7 +138,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					NodeID:            "nil",
 				},
 			},
-			untainted: allocSet{
+			untainted: Set{
 				"untainted1": {
 					ID:           "untainted1",
 					ClientStatus: structs.AllocClientStatusRunning,
@@ -167,7 +167,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					NodeID:       "lost",
 				},
 			},
-			migrate: allocSet{
+			migrate: Set{
 				// Non-terminal alloc with migrate=true should migrate on a draining node
 				"migrating1": {
 					ID:                "migrating1",
@@ -185,10 +185,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					NodeID:            "nil",
 				},
 			},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost:          allocSet{},
+			disconnecting: Set{},
+			reconnecting:  Set{},
+			ignore:        Set{},
+			lost:          Set{},
 		},
 		{
 			name:                        "lost-client-only-tainted-nodes",
@@ -199,7 +199,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			// is a tainted node. Therefore, testing with a nil node set produces
 			// false failures, so don't perform that test if in this case.
 			skipNilNodeTest: true,
-			all: allocSet{
+			all: Set{
 				// Non-terminal allocs on lost nodes are lost
 				"lost1": {
 					ID:           "lost1",
@@ -215,12 +215,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					NodeID:       "lost",
 				},
 			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost: allocSet{
+			untainted:     Set{},
+			migrate:       Set{},
+			disconnecting: Set{},
+			reconnecting:  Set{},
+			ignore:        Set{},
+			lost: Set{
 				// Non-terminal allocs on lost nodes are lost
 				"lost1": {
 					ID:           "lost1",
@@ -243,7 +243,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			now:                         time.Now(),
 			taintedNodes:                nodes,
 			skipNilNodeTest:             true,
-			all: allocSet{
+			all: Set{
 				// Non-terminal allocs on disconnected nodes w/o max-disconnect are lost
 				"lost-running": {
 					ID:            "lost-running",
@@ -255,12 +255,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					TaskGroup:     "web",
 				},
 			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost: allocSet{
+			untainted:     Set{},
+			migrate:       Set{},
+			disconnecting: Set{},
+			reconnecting:  Set{},
+			ignore:        Set{},
+			lost: Set{
 				"lost-running": {
 					ID:            "lost-running",
 					Name:          "lost-running",
@@ -279,7 +279,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			now:                         time.Now(),
 			taintedNodes:                nodes,
 			skipNilNodeTest:             false,
-			all: allocSet{
+			all: Set{
 				"running-replacement": {
 					ID:                 "running-replacement",
 					Name:               "web",
@@ -304,7 +304,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			untainted: allocSet{
+			untainted: Set{
 				"running-replacement": {
 					ID:                 "running-replacement",
 					Name:               "web",
@@ -316,9 +316,9 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					PreviousAllocation: "failed-original",
 				},
 			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
+			migrate:       Set{},
+			disconnecting: Set{},
+			reconnecting: Set{
 				"failed-original": {
 					ID:            "failed-original",
 					Name:          "web",
@@ -330,8 +330,8 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			ignore: allocSet{},
-			lost:   allocSet{},
+			ignore: Set{},
+			lost:   Set{},
 		},
 		{
 			name:                        "disco-client-reconnecting-running-no-replacement",
@@ -339,7 +339,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			now:                         time.Now(),
 			taintedNodes:                nodes,
 			skipNilNodeTest:             false,
-			all: allocSet{
+			all: Set{
 				// Running allocs on reconnected nodes with no replacement are reconnecting.
 				// Node.UpdateStatus has already handled syncing client state so this
 				// should be a noop.
@@ -354,10 +354,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
+			untainted:     Set{},
+			migrate:       Set{},
+			disconnecting: Set{},
+			reconnecting: Set{
 				"reconnecting-running-no-replacement": {
 					ID:            "reconnecting-running-no-replacement",
 					Name:          "web",
@@ -369,8 +369,8 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			ignore: allocSet{},
-			lost:   allocSet{},
+			ignore: Set{},
+			lost:   Set{},
 		},
 		{
 			name:                        "disco-client-terminal",
@@ -378,7 +378,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			now:                         time.Now(),
 			taintedNodes:                nodes,
 			skipNilNodeTest:             false,
-			all: allocSet{
+			all: Set{
 				// Allocs on reconnected nodes that are complete are ignored
 				"ignored-reconnect-complete": {
 					ID:            "ignored-reconnect-complete",
@@ -449,10 +449,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					PreviousAllocation: "untainted-reconnect-lost",
 				},
 			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
+			untainted:     Set{},
+			migrate:       Set{},
+			disconnecting: Set{},
+			reconnecting: Set{
 				"reconnecting-failed": {
 					ID:            "reconnecting-failed",
 					Name:          "reconnecting-failed",
@@ -464,7 +464,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			ignore: allocSet{
+			ignore: Set{
 
 				"ignored-reconnect-complete": {
 					ID:            "ignored-reconnect-complete",
@@ -519,7 +519,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					PreviousAllocation: "untainted-reconnect-lost",
 				},
 			},
-			lost: allocSet{},
+			lost: Set{},
 		},
 		{
 			name:                        "disco-client-disconnect",
@@ -527,7 +527,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			now:                         time.Now(),
 			taintedNodes:                nodes,
 			skipNilNodeTest:             true,
-			all: allocSet{
+			all: Set{
 				// Non-terminal allocs on disconnected nodes are disconnecting
 				"disconnect-running": {
 					ID:            "disconnect-running",
@@ -594,7 +594,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			untainted: allocSet{
+			untainted: Set{
 				// Unknown allocs on disconnected nodes are acknowledge, so they wont be rescheduled again
 				"untainted-unknown": {
 					ID:            "untainted-unknown",
@@ -607,8 +607,8 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			migrate: allocSet{},
-			disconnecting: allocSet{
+			migrate: Set{},
+			disconnecting: Set{
 				"disconnect-running": {
 					ID:            "disconnect-running",
 					Name:          "disconnect-running",
@@ -619,8 +619,8 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					TaskGroup:     "web",
 				},
 			},
-			reconnecting: allocSet{},
-			ignore: allocSet{
+			reconnecting: Set{},
+			ignore: Set{
 				"ignore-reconnected-failed-stopped": {
 					ID:            "ignore-reconnected-failed-stopped",
 					Name:          "ignore-reconnected-failed-stopped",
@@ -632,7 +632,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			lost: allocSet{
+			lost: Set{
 				"lost-unknown": {
 					ID:            "lost-unknown",
 					Name:          "lost-unknown",
@@ -670,7 +670,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			now:                         time.Now(),
 			taintedNodes:                nodes,
 			skipNilNodeTest:             false,
-			all: allocSet{
+			all: Set{
 				// Expired allocs on reconnected clients are lost
 				"lost-expired-reconnect": {
 					ID:            "lost-expired-reconnect",
@@ -683,12 +683,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   expiredAllocState,
 				},
 			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost: allocSet{
+			untainted:     Set{},
+			migrate:       Set{},
+			disconnecting: Set{},
+			reconnecting:  Set{},
+			ignore:        Set{},
+			lost: Set{
 				"lost-expired-reconnect": {
 					ID:            "lost-expired-reconnect",
 					Name:          "lost-expired-reconnect",
@@ -707,7 +707,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			now:                         time.Now(),
 			taintedNodes:                nodes,
 			skipNilNodeTest:             false,
-			all: allocSet{
+			all: Set{
 				"running-replacement": {
 					ID:                 "running-replacement",
 					Name:               "web",
@@ -730,7 +730,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			untainted: allocSet{
+			untainted: Set{
 				"running-replacement": {
 					ID:                 "running-replacement",
 					Name:               "web",
@@ -742,9 +742,9 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					PreviousAllocation: "running-original",
 				},
 			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
+			migrate:       Set{},
+			disconnecting: Set{},
+			reconnecting: Set{
 				"running-original": {
 					ID:            "running-original",
 					Name:          "web",
@@ -756,8 +756,8 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   unknownAllocState,
 				},
 			},
-			ignore: allocSet{},
-			lost:   allocSet{},
+			ignore: Set{},
+			lost:   Set{},
 		},
 		{
 			// After an alloc is reconnected, it should be considered
@@ -768,7 +768,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			now:                         time.Now(),
 			taintedNodes:                nodes,
 			skipNilNodeTest:             false,
-			all: allocSet{
+			all: Set{
 				"running-reconnected": {
 					ID:            "running-reconnected",
 					Name:          "web",
@@ -780,7 +780,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   reconnectedAllocState,
 				},
 			},
-			untainted: allocSet{
+			untainted: Set{
 				"running-reconnected": {
 					ID:            "running-reconnected",
 					Name:          "web",
@@ -792,18 +792,18 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					AllocStates:   reconnectedAllocState,
 				},
 			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost:          allocSet{},
+			migrate:       Set{},
+			disconnecting: Set{},
+			reconnecting:  Set{},
+			ignore:        Set{},
+			lost:          Set{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// With tainted nodes
-			untainted, migrate, lost, disconnecting, reconnecting, ignore := tc.all.filterByTainted(tc.taintedNodes, tc.supportsDisconnectedClients, tc.now)
+			untainted, migrate, lost, disconnecting, reconnecting, ignore := tc.all.FilterByTainted(tc.taintedNodes, tc.supportsDisconnectedClients, tc.now)
 			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
 			must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
 			must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
@@ -816,7 +816,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			}
 
 			// Now again with nodes nil
-			untainted, migrate, lost, disconnecting, reconnecting, ignore = tc.all.filterByTainted(nil, tc.supportsDisconnectedClients, tc.now)
+			untainted, migrate, lost, disconnecting, reconnecting, ignore = tc.all.FilterByTainted(nil, tc.supportsDisconnectedClients, tc.now)
 			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
 			must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
 			must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
@@ -827,7 +827,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 	}
 }
 
-func TestReconcile_shouldFilter(t *testing.T) {
+func Test_shouldFilter(t *testing.T) {
 	testCases := []struct {
 		description   string
 		batch         bool
@@ -930,486 +930,6 @@ func TestReconcile_shouldFilter(t *testing.T) {
 			untainted, ignore := shouldFilter(alloc, tc.batch)
 			must.Eq(t, tc.untainted, untainted)
 			must.Eq(t, tc.ignore, ignore)
-		})
-	}
-}
-
-// Test that we properly create the bitmap even when the alloc set includes an
-// allocation with a higher count than the current min count and it is byte
-// aligned.
-// Ensure no regression from: https://github.com/hashicorp/nomad/issues/3008
-func TestBitmapFrom(t *testing.T) {
-	ci.Parallel(t)
-
-	input := map[string]*structs.Allocation{
-		"8": {
-			JobID:     "foo",
-			TaskGroup: "bar",
-			Name:      "foo.bar[8]",
-		},
-	}
-	b, dups := bitmapFrom(input, 1)
-	must.Eq(t, 16, b.Size())
-	must.MapEmpty(t, dups)
-
-	b, dups = bitmapFrom(input, 8)
-	must.Eq(t, 16, b.Size())
-	must.MapEmpty(t, dups)
-}
-
-func Test_allocNameIndex_Highest(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		name                string
-		inputAllocNameIndex *allocNameIndex
-		inputN              uint
-		expectedOutput      map[string]struct{}
-	}{
-		{
-			name: "select 1",
-			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
-					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
-						Name:      "example.cache[0]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"e24771e6-8900-5d2d-ec93-e7076284774a": {
-						Name:      "example.cache[1]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
-						Name:      "example.cache[2]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-				}),
-			inputN: 1,
-			expectedOutput: map[string]struct{}{
-				"example.cache[2]": {},
-			},
-		},
-		{
-			name: "select all",
-			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
-					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
-						Name:      "example.cache[0]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"e24771e6-8900-5d2d-ec93-e7076284774a": {
-						Name:      "example.cache[1]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
-						Name:      "example.cache[2]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-				}),
-			inputN: 3,
-			expectedOutput: map[string]struct{}{
-				"example.cache[2]": {},
-				"example.cache[1]": {},
-				"example.cache[0]": {},
-			},
-		},
-		{
-			name: "select too many",
-			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
-					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
-						Name:      "example.cache[0]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"e24771e6-8900-5d2d-ec93-e7076284774a": {
-						Name:      "example.cache[1]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
-						Name:      "example.cache[2]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-				}),
-			inputN: 13,
-			expectedOutput: map[string]struct{}{
-				"example.cache[2]": {},
-				"example.cache[1]": {},
-				"example.cache[0]": {},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			must.Eq(t, tc.expectedOutput, tc.inputAllocNameIndex.Highest(tc.inputN))
-		})
-	}
-}
-
-func Test_allocNameIndex_NextCanaries(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		name                string
-		inputAllocNameIndex *allocNameIndex
-		inputN              uint
-		inputExisting       allocSet
-		inputDestructive    allocSet
-		expectedOutput      []string
-	}{
-		{
-			name: "single canary",
-			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
-					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
-						Name:      "example.cache[0]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"e24771e6-8900-5d2d-ec93-e7076284774a": {
-						Name:      "example.cache[1]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
-						Name:      "example.cache[2]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-				}),
-			inputN:        1,
-			inputExisting: nil,
-			inputDestructive: map[string]*structs.Allocation{
-				"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
-					Name:      "example.cache[0]",
-					JobID:     "example",
-					TaskGroup: "cache",
-				},
-				"e24771e6-8900-5d2d-ec93-e7076284774a": {
-					Name:      "example.cache[1]",
-					JobID:     "example",
-					TaskGroup: "cache",
-				},
-				"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
-					Name:      "example.cache[2]",
-					JobID:     "example",
-					TaskGroup: "cache",
-				},
-			},
-			expectedOutput: []string{
-				"example.cache[0]",
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			must.SliceContainsAll(
-				t, tc.expectedOutput,
-				tc.inputAllocNameIndex.NextCanaries(tc.inputN, tc.inputExisting, tc.inputDestructive))
-		})
-	}
-}
-
-func Test_allocNameIndex_Next(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		name                string
-		inputAllocNameIndex *allocNameIndex
-		inputN              uint
-		expectedOutput      []string
-	}{
-		{
-			name:                "empty existing bitmap",
-			inputAllocNameIndex: newAllocNameIndex("example", "cache", 3, nil),
-			inputN:              3,
-			expectedOutput: []string{
-				"example.cache[0]", "example.cache[1]", "example.cache[2]",
-			},
-		},
-		{
-			name: "non-empty existing bitmap simple",
-			inputAllocNameIndex: newAllocNameIndex(
-				"example", "cache", 3, map[string]*structs.Allocation{
-					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
-						Name:      "example.cache[0]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"e24771e6-8900-5d2d-ec93-e7076284774a": {
-						Name:      "example.cache[1]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
-						Name:      "example.cache[2]",
-						JobID:     "example",
-						TaskGroup: "cache",
-					},
-				}),
-			inputN: 3,
-			expectedOutput: []string{
-				"example.cache[0]", "example.cache[1]", "example.cache[2]",
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			must.SliceContainsAll(t, tc.expectedOutput, tc.inputAllocNameIndex.Next(tc.inputN))
-		})
-	}
-}
-
-func Test_allocNameIndex_Duplicates(t *testing.T) {
-	ci.Parallel(t)
-
-	inputAllocSet := map[string]*structs.Allocation{
-		"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
-			Name:      "example.cache[0]",
-			JobID:     "example",
-			TaskGroup: "cache",
-		},
-		"e24771e6-8900-5d2d-ec93-e7076284774a": {
-			Name:      "example.cache[1]",
-			JobID:     "example",
-			TaskGroup: "cache",
-		},
-		"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
-			Name:      "example.cache[2]",
-			JobID:     "example",
-			TaskGroup: "cache",
-		},
-		"76a6a487-016b-2fc2-8295-d811473ca93d": {
-			Name:      "example.cache[0]",
-			JobID:     "example",
-			TaskGroup: "cache",
-		},
-	}
-
-	// Build the tracker, and check some key information.
-	allocNameIndexTracker := newAllocNameIndex("example", "cache", 4, inputAllocSet)
-	must.Eq(t, 8, allocNameIndexTracker.b.Size())
-	must.MapLen(t, 1, allocNameIndexTracker.duplicates)
-	must.True(t, allocNameIndexTracker.IsDuplicate(0))
-
-	// Unsetting the index should remove the duplicate entry, but not the entry
-	// from the underlying bitmap.
-	allocNameIndexTracker.UnsetIndex(0)
-	must.MapLen(t, 0, allocNameIndexTracker.duplicates)
-	must.True(t, allocNameIndexTracker.b.Check(0))
-
-	// If we now select a new index, having previously checked for a duplicate,
-	// we should get a non-duplicate.
-	nextAllocNames := allocNameIndexTracker.Next(1)
-	must.Len(t, 1, nextAllocNames)
-	must.Eq(t, "example.cache[3]", nextAllocNames[0])
-}
-
-func TestAllocSet_filterByRescheduleable(t *testing.T) {
-	ci.Parallel(t)
-
-	noRescheduleJob := mock.Job()
-	noRescheduleTG := &structs.TaskGroup{
-		Name: "noRescheduleTG",
-		ReschedulePolicy: &structs.ReschedulePolicy{
-			Attempts:  0,
-			Unlimited: false,
-		},
-	}
-
-	noRescheduleJob.TaskGroups[0] = noRescheduleTG
-
-	testJob := mock.Job()
-	rescheduleTG := &structs.TaskGroup{
-		Name: "rescheduleTG",
-		ReschedulePolicy: &structs.ReschedulePolicy{
-			Attempts:  1,
-			Unlimited: false,
-		},
-	}
-	testJob.TaskGroups[0] = rescheduleTG
-
-	now := time.Now()
-
-	type testCase struct {
-		name                        string
-		all                         allocSet
-		isBatch                     bool
-		supportsDisconnectedClients bool
-		isDisconnecting             bool
-		deployment                  *structs.Deployment
-
-		// expected results
-		untainted allocSet
-		resNow    allocSet
-		resLater  []*delayedRescheduleInfo
-	}
-
-	testCases := []testCase{
-		{
-			name:            "batch disconnecting allocation no reschedule",
-			isDisconnecting: true,
-			isBatch:         true,
-			all: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          noRescheduleJob,
-					TaskGroup:    "noRescheduleTG",
-				},
-			},
-			untainted: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          noRescheduleJob,
-					TaskGroup:    "noRescheduleTG",
-				},
-			},
-			resNow:   allocSet{},
-			resLater: []*delayedRescheduleInfo{},
-		},
-		{
-			name:            "batch ignore unknown disconnecting allocs",
-			isDisconnecting: true,
-			isBatch:         true,
-			all: allocSet{
-				"disconnecting1": {
-					ID:           "disconnection1",
-					ClientStatus: structs.AllocClientStatusUnknown,
-					Job:          testJob,
-				},
-			},
-			untainted: allocSet{},
-			resNow:    allocSet{},
-			resLater:  []*delayedRescheduleInfo{},
-		},
-		{
-			name:            "batch disconnecting allocation reschedule",
-			isDisconnecting: true,
-			isBatch:         true,
-			all: allocSet{
-				"rescheduleNow1": {
-					ID:           "rescheduleNow1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					TaskGroup:    "rescheduleTG",
-				},
-			},
-			untainted: allocSet{},
-			resNow: allocSet{
-				"rescheduleNow1": {
-					ID:           "rescheduleNow1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					TaskGroup:    "rescheduleTG",
-				},
-			},
-			resLater: []*delayedRescheduleInfo{},
-		},
-		{
-			name:            "service disconnecting allocation no reschedule",
-			isDisconnecting: true,
-			isBatch:         false,
-			all: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          noRescheduleJob,
-					TaskGroup:    "noRescheduleTG",
-				},
-			},
-			untainted: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          noRescheduleJob,
-					TaskGroup:    "noRescheduleTG",
-				},
-			},
-			resNow:   allocSet{},
-			resLater: []*delayedRescheduleInfo{},
-		},
-		{
-			name:            "service disconnecting allocation reschedule",
-			isDisconnecting: true,
-			isBatch:         false,
-			all: allocSet{
-				"rescheduleNow1": {
-					ID:           "rescheduleNow1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					TaskGroup:    "rescheduleTG",
-				},
-			},
-			untainted: allocSet{},
-			resNow: allocSet{
-				"rescheduleNow1": {
-					ID:           "rescheduleNow1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					TaskGroup:    "rescheduleTG",
-				},
-			},
-			resLater: []*delayedRescheduleInfo{},
-		},
-		{
-			name:            "service ignore unknown disconnecting allocs",
-			isDisconnecting: true,
-			isBatch:         false,
-			all: allocSet{
-				"disconnecting1": {
-					ID:           "disconnection1",
-					ClientStatus: structs.AllocClientStatusUnknown,
-					Job:          testJob,
-				},
-			},
-			untainted: allocSet{},
-			resNow:    allocSet{},
-			resLater:  []*delayedRescheduleInfo{},
-		},
-		{
-			name:            "service running allocation no reschedule",
-			isDisconnecting: false,
-			isBatch:         true,
-			all: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          noRescheduleJob,
-					TaskGroup:    "noRescheduleTG",
-				},
-			},
-			untainted: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          noRescheduleJob,
-					TaskGroup:    "noRescheduleTG",
-				},
-			},
-			resNow:   allocSet{},
-			resLater: []*delayedRescheduleInfo{},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			untainted, resNow, resLater := tc.all.filterByRescheduleable(tc.isBatch,
-				tc.isDisconnecting, now, "evailID", tc.deployment)
-			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
-			must.Eq(t, tc.resNow, resNow, must.Sprintf("with-nodes: reschedule-now"))
-			must.Eq(t, tc.resLater, resLater, must.Sprintf("with-nodes: rescheduleLater"))
 		})
 	}
 }
