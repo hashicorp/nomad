@@ -22,10 +22,17 @@
     display: flex;
     justify-content: space-between;
   }
+}
 
+// Job page header, actions bar
+.job-page-header {
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: $z-modal;
+  .hds-page-header__main {
+    flex-direction: unset;
+  }
   .actions-dropdown {
     z-index: 3;
-    display: inline-block;
-    vertical-align: middle;
   }
 }
