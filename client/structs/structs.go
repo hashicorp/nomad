@@ -175,6 +175,9 @@ type StreamErrWrapper struct {
 
 // AllocExecRequest is the initial request for execing into an Alloc task
 type AllocExecRequest struct {
+	// JobID is the ID of the job requested
+	JobID string
+
 	// AllocID is the allocation to stream logs from
 	AllocID string
 

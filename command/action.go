@@ -14,7 +14,6 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper/escapingio"
 	"github.com/posener/complete"
 )
@@ -27,7 +26,7 @@ type ActionCommand struct {
 	Stderr io.WriteCloser
 }
 
-func (l *ActionCommand) Help() string {
+func (c *ActionCommand) Help() string {
 	helpText := `
 Usage: nomad action [options] <action>
 
@@ -49,7 +48,7 @@ Action Specific Options:
   -job <job-id>
     Specifies the job in which the Action is defined
 
-  -allocation <allocation-id>
+  -alloc <allocation-id>
     Specifies the allocation in which the Action is defined. If not provided,
     a group and task name must be provided and a random allocation will be
     selected from the job.
@@ -58,90 +57,86 @@ Action Specific Options:
     Specifies the task in which the Action is defined. Required if no
     allocation is provided.
 
-  -group <group-name>
+  -group=<group-name>
     Specifies the group in which the Action is defined. Required if no
     allocation is provided.
 
   -i
-    Pass stdin to the container, defaults to true.  Pass -i=false to disable.
+    Pass stdin to the container, defaults to true. Pass -i=false to disable.
 
   -t
     Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session.
     Pass -t=false to disable explicitly.
 
   -e <escape_char>
-    Sets the escape character for sessions with a pty (default: '~').  The escape
-    character is only recognized at the beginning of a line.  The escape character
-    followed by a dot ('.') closes the connection.  Setting the character to
+    Sets the escape character for sessions with a pty (default: '~'). The escape
+    character is only recognized at the beginning of a line. The escape character
+    followed by a dot ('.') closes the connection. Setting the character to
     'none' disables any escapes and makes the session fully transparent.
-  `
+`
 	return strings.TrimSpace(helpText)
 }
 
-func (l *ActionCommand) Synopsis() string {
+func (c *ActionCommand) Synopsis() string {
 	return "Run a pre-defined action from a Nomad task"
 }
 
-func (l *ActionCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(l.Meta.AutocompleteFlags(FlagSetClient),
+func (c *ActionCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-task":       complete.PredictAnything,
-			"-job":        complete.PredictAnything,
-			"-allocation": complete.PredictAnything,
+			"-job":   complete.PredictAnything,
+			"-alloc": complete.PredictAnything,
+			"-task":  complete.PredictAnything,
+			"-group": complete.PredictAnything,
+			"-i":     complete.PredictNothing,
+			"-t":     complete.PredictNothing,
+			"-e":     complete.PredictAnything,
 		})
 }
 
-func (l *ActionCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := l.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Allocs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Allocs]
-	})
+func (c *ActionCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
-func (l *ActionCommand) Name() string { return "action" }
+func (c *ActionCommand) Name() string { return "action" }
 
-func (l *ActionCommand) Run(args []string) int {
+func (c *ActionCommand) Run(args []string) int {
 
 	var stdinOpt, ttyOpt bool
 	var task, allocation, job, group, escapeChar string
 
-	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
-	flags.Usage = func() { l.Ui.Output(l.Help()) }
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&task, "task", "", "")
 	flags.StringVar(&group, "group", "", "")
-	flags.StringVar(&allocation, "allocation", "", "")
+	flags.StringVar(&allocation, "alloc", "", "")
 	flags.StringVar(&job, "job", "", "")
 	flags.BoolVar(&stdinOpt, "i", true, "")
 	flags.BoolVar(&ttyOpt, "t", isTty(), "")
 	flags.StringVar(&escapeChar, "e", "~", "")
 
 	if err := flags.Parse(args); err != nil {
-		l.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
 		return 1
 	}
 
 	args = flags.Args()
 
 	if len(args) < 1 {
-		l.Ui.Error("An action name is required")
+		c.Ui.Error("An action name is required")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
 	if job == "" {
-		l.Ui.Error("A job ID is required")
+		c.Ui.Error("A job ID is required")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
 	if ttyOpt && !stdinOpt {
-		l.Ui.Error("-i must be enabled if running with tty")
+		c.Ui.Error("-i must be enabled if running with tty")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -150,13 +145,14 @@ func (l *ActionCommand) Run(args []string) int {
 	}
 
 	if len(escapeChar) > 1 {
-		l.Ui.Error("-e requires 'none' or a single character")
+		c.Ui.Error("-e requires 'none' or a single character")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
-	client, err := l.Meta.Client()
+	client, err := c.Meta.Client()
 	if err != nil {
-		l.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
@@ -167,41 +163,43 @@ func (l *ActionCommand) Run(args []string) int {
 		// Group param cannot be empty if allocation is empty,
 		// since we'll need to get a random allocation from the group
 		if group == "" {
-			l.Ui.Error("A group name is required if no allocation is provided")
+			c.Ui.Error("A group name is required if no allocation is provided")
+			c.Ui.Error(commandErrorText(c))
 			return 1
 		}
 
 		if task == "" {
-			l.Ui.Error("A task name is required if no allocation is provided")
+			c.Ui.Error("A task name is required if no allocation is provided")
+			c.Ui.Error(commandErrorText(c))
 			return 1
 		}
 
-		jobID, ns, err := l.JobIDByPrefix(client, job, nil)
+		jobID, ns, err := c.JobIDByPrefix(client, job, nil)
 		if err != nil {
-			l.Ui.Error(err.Error())
+			c.Ui.Error(err.Error())
 			return 1
 		}
 
 		allocStub, err = getRandomJobAlloc(client, jobID, group, ns)
 		if err != nil {
-			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
+			c.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
 		}
 	} else {
 		allocs, _, err := client.Allocations().PrefixList(sanitizeUUIDPrefix(allocation))
 		if err != nil {
-			l.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
+			c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
 			return 1
 		}
 
 		if len(allocs) == 0 {
-			l.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocation))
+			c.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocation))
 			return 1
 		}
 
 		if len(allocs) > 1 {
 			out := formatAllocListStubs(allocs, false, shortId)
-			l.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
 			return 1
 		}
 
@@ -211,7 +209,7 @@ func (l *ActionCommand) Run(args []string) int {
 	q := &api.QueryOptions{Namespace: allocStub.Namespace}
 	alloc, _, err := client.Allocations().Info(allocStub.ID, q)
 	if err != nil {
-		l.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1
 	}
 
@@ -221,31 +219,31 @@ func (l *ActionCommand) Run(args []string) int {
 		task, err = lookupAllocTask(alloc)
 	}
 	if err != nil {
-		l.Ui.Error(err.Error())
+		c.Ui.Error(err.Error())
 		return 1
 	}
 
 	if !stdinOpt {
-		l.Stdin = bytes.NewReader(nil)
+		c.Stdin = bytes.NewReader(nil)
 	}
 
-	if l.Stdin == nil {
-		l.Stdin = os.Stdin
+	if c.Stdin == nil {
+		c.Stdin = os.Stdin
 	}
 
-	if l.Stdout == nil {
-		l.Stdout = os.Stdout
+	if c.Stdout == nil {
+		c.Stdout = os.Stdout
 	}
 
-	if l.Stderr == nil {
-		l.Stderr = os.Stderr
+	if c.Stderr == nil {
+		c.Stderr = os.Stderr
 	}
 
 	action := args[0]
 
-	code, err := l.execImpl(client, alloc, task, job, action, ttyOpt, escapeChar, l.Stdin, l.Stdout, l.Stderr)
+	code, err := c.execImpl(client, alloc, task, job, action, ttyOpt, escapeChar, c.Stdin, c.Stdout, c.Stderr)
 	if err != nil {
-		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
+		c.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
 	}
 
@@ -253,7 +251,7 @@ func (l *ActionCommand) Run(args []string) int {
 }
 
 // execImpl invokes the Alloc Exec api call, it also prepares and restores terminal states as necessary.
-func (l *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, job string, action string, tty bool,
+func (c *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, job string, action string, tty bool,
 	escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
 
 	sizeCh := make(chan api.TerminalSize, 1)
@@ -312,6 +310,7 @@ func (l *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task
 		}
 	}()
 
-	return client.Jobs().ActionExec(ctx,
-		alloc, task, tty, make([]string, 0), action, stdin, stdout, stderr, sizeCh, nil)
+	return client.Jobs().ActionExec(ctx, alloc, job, task,
+		tty, make([]string, 0), action,
+		stdin, stdout, stderr, sizeCh, nil)
 }

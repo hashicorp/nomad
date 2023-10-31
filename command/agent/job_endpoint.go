@@ -116,7 +116,8 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 		jobID := strings.TrimSuffix(path, "/actions")
 		return s.jobActions(resp, req, jobID)
 	case strings.HasSuffix(path, "/action"):
-		return s.jobRunAction(resp, req)
+		jobID := strings.TrimSuffix(path, "/action")
+		return s.jobRunAction(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -342,7 +343,7 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 
 func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	if req.Method != http.MethodGet {
-		return nil, CodedError(405, ErrInvalidMethod)
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	args := structs.JobSpecificRequest{
@@ -362,16 +363,14 @@ func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, job
 	return out.Actions, nil
 }
 
-func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-
-	s.logger.Info("jobRunAction called")
-
-	// Build the request and parse the ACL token
+func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	task := req.URL.Query().Get("task")
 	action := req.URL.Query().Get("action")
 	allocID := req.URL.Query().Get("allocID")
+
+	// Build the request and parse the ACL token
+	var err error
 	isTTY := false
-	err := error(nil)
 	if tty := req.URL.Query().Get("tty"); tty != "" {
 		isTTY, err = strconv.ParseBool(tty)
 		if err != nil {
@@ -380,16 +379,15 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	args := cstructs.AllocExecRequest{
+		JobID:   jobID,
 		Task:    task,
 		Action:  action,
 		AllocID: allocID,
 		Tty:     isTTY,
 	}
-
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
 	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}

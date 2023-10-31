@@ -7592,6 +7592,15 @@ func (t *Task) GetIdentity(name string) *WorkloadIdentity {
 	return nil
 }
 
+func (t *Task) GetAction(name string) *Action {
+	for _, a := range t.Actions {
+		if a.Name == name {
+			return a
+		}
+	}
+	return nil
+}
+
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of unique WI
 // name and task name.
 func (t *Task) IdentityHandle(identity *WorkloadIdentity) *WIHandle {
@@ -7632,7 +7641,7 @@ func (t *Task) Copy() *Task {
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
 	nt.Identities = helper.CopySlice(nt.Identities)
-	nt.Actions = CopySliceActions(nt.Actions)
+	nt.Actions = helper.CopySlice(nt.Actions)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -7842,6 +7851,22 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		} else {
 			destinations[tmpl.DestPath] = idx + 1
 		}
+	}
+
+	// Validate actions.
+	actions := make(map[string]bool)
+	for _, action := range t.Actions {
+		if err := action.Validate(); err != nil {
+			outer := fmt.Errorf("Action %s validation failed: %s", action.Name, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+
+		if handled, seen := actions[action.Name]; seen && !handled {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Action %s defined multiple times", action.Name))
+			actions[action.Name] = true
+			continue
+		}
+		actions[action.Name] = false
 	}
 
 	// Validate the dispatch payload block if there
