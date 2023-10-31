@@ -392,7 +392,7 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 		for _, t := range tg.Tasks {
 			if len(t.Identities) > 1 && !okForIdentity {
-				multierror.Append(validationErrors, fmt.Errorf("tasks can only have 1 identity block until all servers are upgraded to %s", minVersionMultiIdentities))
+				multierror.Append(validationErrors, fmt.Errorf("tasks can only have 1 identity block until all servers are upgraded to %s or later", minVersionMultiIdentities))
 			}
 			for _, s := range t.Services {
 				serviceErrs := v.validateServiceIdentity(
@@ -419,7 +419,7 @@ func (v *jobValidate) isEligibleForMultiIdentity() bool {
 
 func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string, okForIdentity bool) error {
 	if s.Identity != nil && !okForIdentity {
-		return fmt.Errorf("Service %s in %s cannot have an identity until all servers are upgraded to %s",
+		return fmt.Errorf("Service %s in %s cannot have an identity until all servers are upgraded to %s or later",
 			s.Name, parent, minVersionMultiIdentities)
 	}
 	if s.Identity != nil && s.Identity.Name == "" {
@@ -451,7 +451,7 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task, okForIdentity bool)
 	vaultWID := t.GetIdentity(vaultWIDName)
 
 	if vaultWID != nil && !okForIdentity {
-		return warnings, fmt.Errorf("Task %s cannot have an identity for Vault until all servers are upgraded to %s", t.Name, minVersionMultiIdentities)
+		return warnings, fmt.Errorf("Task %s cannot have an identity for Vault until all servers are upgraded to %s or later", t.Name, minVersionMultiIdentities)
 	}
 
 	if vaultWID == nil {
