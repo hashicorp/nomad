@@ -2454,7 +2454,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 
 	srv, cleanup := TestServer(t, nil)
 	defer cleanup()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	// reset the time table
 	srv.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
