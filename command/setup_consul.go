@@ -32,7 +32,7 @@ const (
 	consulAuthMethodTaskDesc     = "Login method for Nomad tasks using workload identities"
 	consulRoleTasks              = "role-nomad-tasks"
 	consulPolicyName             = "policy-nomad-tasks"
-	consulNamespace              = "nomad-prod"
+	consulNamespace              = "nomad-workloads"
 	consulAud                    = "consul.io"
 )
 
@@ -41,7 +41,8 @@ type SetupConsulCommand struct {
 
 	// client is the Consul API client shared by all functions in the command
 	// to reuse the same connection.
-	client *api.Client
+	client    *api.Client
+	clientCfg *api.Config
 
 	jwksURL string
 
@@ -129,9 +130,9 @@ respective workload identities.
 First we need to connect to Consul. 
 `)
 
-	cfg := api.DefaultConfig()
+	s.clientCfg = api.DefaultConfig()
 	if !s.autoYes {
-		if !s.askQuestion(fmt.Sprintf("Is %q the correct address of your Consul cluster? [Y/n]", cfg.Address)) {
+		if !s.askQuestion(fmt.Sprintf("Is %q the correct address of your Consul cluster? [Y/n]", s.clientCfg.Address)) {
 			s.Ui.Warn(`
 Please set the CONSUL_HTTP_ADDR environment variable to your Consul cluster address and re-run the command.`)
 			return 0
@@ -139,7 +140,7 @@ Please set the CONSUL_HTTP_ADDR environment variable to your Consul cluster addr
 	}
 
 	// Get the Consul client.
-	s.client, err = api.NewClient(cfg)
+	s.client, err = api.NewClient(s.clientCfg)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error initializing Consul client: %s", err))
 		return 1
@@ -148,6 +149,62 @@ Please set the CONSUL_HTTP_ADDR environment variable to your Consul cluster addr
 	// check if we're connecting to Consul ent
 	if _, err := s.client.Operator().LicenseGet(nil); err == nil {
 		s.consulEnt = true
+	}
+
+	if s.consulEnt {
+		if s.clientCfg.Namespace != "" {
+			// Confirm CONSUL_NAMESPACE will be used.
+			if !s.autoYes {
+				if !s.askQuestion(fmt.Sprintf("Is %q the correct Consul namespace to use? [Y/n]", s.clientCfg.Namespace)) {
+					s.Ui.Warn(`
+Please set the CONSUL_NAMESPACE environment variable to the Consul namespace to use and re-run the command.`)
+					return 0
+				}
+			}
+		} else {
+			// Update client with default namespace if CONSUL_NAMESPACE is not
+			// defined.
+			s.clientCfg.Namespace = consulNamespace
+			s.client, err = api.NewClient(s.clientCfg)
+			if err != nil {
+				s.Ui.Error(fmt.Sprintf("Error initializing Consul client with namespace: %s", err))
+				return 1
+			}
+		}
+
+		/*
+			Namespace creation
+		*/
+		ns := s.clientCfg.Namespace
+		namespaceMsg := `
+Since you're running Consul Enterprise, we will additionally create
+a namespace %q and bind the auth methods to that namespace.
+`
+		s.Ui.Output(fmt.Sprintf(namespaceMsg, ns))
+
+		if s.namespaceExists(s.clientCfg.Namespace) {
+			s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists", ns))
+		} else {
+
+			var createNamespace bool
+			if !s.autoYes {
+				createNamespace = s.askQuestion(
+					fmt.Sprintf("Create the namespace %q in your Consul cluster? [Y/n]", ns))
+				if !createNamespace {
+					s.handleNo()
+				}
+			} else {
+				createNamespace = true
+			}
+
+			if createNamespace {
+				err = s.createNamespace(ns)
+				if err != nil {
+					s.Ui.Error(err.Error())
+					return 1
+				}
+			}
+		}
 	}
 
 	/*
@@ -230,37 +287,6 @@ This is the %q method configuration:
 			if err != nil {
 				s.Ui.Error(err.Error())
 				return 1
-			}
-		}
-	}
-
-	if s.consulEnt {
-		if s.namespaceExists() {
-			s.Ui.Info(fmt.Sprintf("[ ] namespace %q already exists", consulNamespace))
-		} else {
-			namespaceMsg := `
-Since you're running Consul Enterprise, we will additionally create
-a namespace %q and bind the auth methods to that namespace.
-	 `
-			s.Ui.Output(fmt.Sprintf(namespaceMsg, consulNamespace))
-
-			var createNamespace bool
-			if !s.autoYes {
-				createNamespace = s.askQuestion(
-					fmt.Sprintf("Create the namespace %q in your Consul cluster? [Y/n]", consulNamespace))
-				if !createNamespace {
-					s.handleNo()
-				}
-			} else {
-				createNamespace = true
-			}
-
-			if createNamespace {
-				err = s.createNamespace()
-				if err != nil {
-					s.Ui.Error(err.Error())
-					return 1
-				}
 			}
 		}
 	}
@@ -487,7 +513,7 @@ func (s *SetupConsulCommand) renderAuthMethod(name string, desc string) (*api.AC
 		TokenLocality: "local",
 		Config:        authConfig,
 	}
-	if s.consulEnt {
+	if s.consulEnt && (s.clientCfg.Namespace == "" || s.clientCfg.Namespace == "default") {
 		method.NamespaceRules = []*api.ACLAuthMethodNamespaceRule{{
 			Selector:      "",
 			BindNamespace: "${value.nomad_namespace}",
@@ -513,24 +539,29 @@ func (s *SetupConsulCommand) createAuthMethod(authMethod *api.ACLAuthMethod) err
 	return nil
 }
 
-func (s *SetupConsulCommand) namespaceExists() bool {
+func (s *SetupConsulCommand) namespaceExists(ns string) bool {
 	nsClient := s.client.Namespaces()
 
 	existingNamespaces, _, _ := nsClient.List(nil)
 	return slices.ContainsFunc(
 		existingNamespaces,
-		func(n *api.Namespace) bool { return n.Name == consulNamespace })
+		func(n *api.Namespace) bool { return n.Name == ns })
 }
 
-func (s *SetupConsulCommand) createNamespace() error {
+func (s *SetupConsulCommand) createNamespace(ns string) error {
 	nsClient := s.client.Namespaces()
-	namespace := &api.Namespace{Name: consulNamespace}
+	namespace := &api.Namespace{
+		Name: ns,
+		Meta: map[string]string{
+			"created-by": "nomad-setup",
+		},
+	}
 
 	_, _, err := nsClient.Create(namespace, nil)
 	if err != nil {
-		return fmt.Errorf("[✘] could not write namespace %q: %w", consulNamespace, err)
+		return fmt.Errorf("[✘] Could not write namespace %q: %w", ns, err)
 	}
-	s.Ui.Info(fmt.Sprintf("[✔] Created namespace %q", consulNamespace))
+	s.Ui.Info(fmt.Sprintf("[✔] Created namespace %q", ns))
 	return nil
 }
 
@@ -628,12 +659,19 @@ to authenticate unless you create missing configuration yourself.
 `)
 
 	if !s.autoYes && s.askQuestion("Remove everything we created?") {
-		if s.consulEnt && s.namespaceExists() {
-			_, err := s.client.Namespaces().Delete(consulNamespace, nil)
+		if s.consulEnt && s.namespaceExists(s.clientCfg.Namespace) {
+			ns, _, err := s.client.Namespaces().Read(s.clientCfg.Namespace, nil)
 			if err != nil {
-				s.Ui.Error(err.Error())
-			} else {
-				s.Ui.Info(fmt.Sprintf("deleted namespace %q", consulNamespace))
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", s.clientCfg.Namespace, err.Error()))
+			}
+
+			if ns.Meta["created-by"] == "nomad-setup" {
+				_, err := s.client.Namespaces().Delete(ns.Name, nil)
+				if err != nil {
+					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns.Name, err.Error()))
+				} else {
+					s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q", ns.Name))
+				}
 			}
 		}
 
