@@ -92,7 +92,7 @@ func TestEncrypter_Restore(t *testing.T) {
 		c.DataDir = tmpDir
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 	nodeID := srv.GetConfig().NodeID
 
@@ -135,7 +135,7 @@ func TestEncrypter_Restore(t *testing.T) {
 		c.DataDir = tmpDir
 	})
 	defer shutdown2()
-	testutil.WaitForLeader(t, srv2.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec = rpcClient(t, srv2)
 
 	// Verify we've restored all the keys from the old keystore
@@ -191,9 +191,9 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	TestJoin(t, srv1, srv2)
 	TestJoin(t, srv1, srv3)
 
-	testutil.WaitForLeader(t, srv1.RPC)
-	testutil.WaitForLeader(t, srv2.RPC)
-	testutil.WaitForLeader(t, srv3.RPC)
+	testutil.WaitForKeyring(t, srv1.RPC, "global")
+	testutil.WaitForKeyring(t, srv2.RPC, "global")
+	testutil.WaitForKeyring(t, srv3.RPC, "global")
 
 	servers := []*Server{srv1, srv2, srv3}
 	var leader *Server
@@ -371,7 +371,7 @@ func TestEncrypter_EncryptDecrypt(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	e := srv.encrypter
 
@@ -391,7 +391,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	alloc := mock.Alloc()
 	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
@@ -424,7 +424,7 @@ func TestEncrypter_SignVerify_Issuer(t *testing.T) {
 		c.OIDCIssuer = testIssuer
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	alloc := mock.Alloc()
 	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
@@ -449,7 +449,7 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	alloc := mock.Alloc()
 	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
@@ -502,7 +502,7 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 		c.NumSchedulers = 0
 	})
 	t.Cleanup(shutdown)
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	// Fake life as a 1.6 server by writing only ed25519 keys
