@@ -24,7 +24,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	// Upsert a new key
