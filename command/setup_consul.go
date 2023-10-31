@@ -615,7 +615,7 @@ to authenticate unless you create missing configuration yourself.
 `)
 
 	if !s.autoYes && s.askQuestion("Remove everything we created?") {
-		if s.consulEnt {
+		if s.consulEnt && s.namespaceExists() {
 			_, err := s.client.Namespaces().Delete(consulNamespace, nil)
 			if err != nil {
 				s.Ui.Error(err.Error())
@@ -623,15 +623,18 @@ to authenticate unless you create missing configuration yourself.
 				s.Ui.Info(fmt.Sprintf("deleted namespace %q", consulNamespace))
 			}
 		}
-		_, err := s.client.ACL().PolicyDelete(s.policyID, nil)
-		if err != nil {
-			s.Ui.Error(err.Error())
-		} else {
-			s.Ui.Info(fmt.Sprintf("deleted policy %q", s.policyID))
+
+		if s.policyExists() {
+			_, err := s.client.ACL().PolicyDelete(s.policyID, nil)
+			if err != nil {
+				s.Ui.Error(err.Error())
+			} else {
+				s.Ui.Info(fmt.Sprintf("deleted policy %q", s.policyID))
+			}
 		}
 
 		for _, bindingRuleID := range s.bindingRuleIDs {
-			_, err = s.client.ACL().BindingRuleDelete(bindingRuleID, nil)
+			_, err := s.client.ACL().BindingRuleDelete(bindingRuleID, nil)
 			if err != nil {
 				s.Ui.Error(err.Error())
 			} else {
@@ -640,7 +643,10 @@ to authenticate unless you create missing configuration yourself.
 		}
 
 		for _, authMethod := range []string{consulAuthMethodServices, consulAuthMethodTasks} {
-			_, err = s.client.ACL().AuthMethodDelete(authMethod, nil)
+			if !s.authMethodExists(authMethod) {
+				continue
+			}
+			_, err := s.client.ACL().AuthMethodDelete(authMethod, nil)
 			if err != nil {
 				s.Ui.Error(err.Error())
 			} else {
