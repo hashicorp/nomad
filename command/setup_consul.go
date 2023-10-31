@@ -354,15 +354,16 @@ This is the binding rule for the %q auth method:
 	/*
 		Policy & role creation
 	*/
-
-	if s.policyExists() {
-		s.Ui.Info(fmt.Sprintf("[ ] policy %q already exists", consulPolicyName))
-	} else {
-		s.Ui.Output(`
+	s.Ui.Output(`
 The step above bound Nomad tasks to a Consul ACL role. Now we need to create the
 role and the associated ACL policy that defines what tasks are allowed to access
-in Consul. Below is the body of the policy we will create:
+in Consul.
 `)
+
+	if s.policyExists() {
+		s.Ui.Info(fmt.Sprintf("[✔] Policy %q already exists", consulPolicyName))
+	} else {
+		s.Ui.Output(fmt.Sprintf("These are the rules for the policy %q that we will create:\n", consulPolicyName))
 		s.Ui.Output(string(consulPolicyBody))
 
 		var createPolicy bool
@@ -560,11 +561,11 @@ func (s *SetupConsulCommand) roleExists() bool {
 func (s *SetupConsulCommand) createRoleForTasks() error {
 	_, _, err := s.client.ACL().RoleCreate(&api.ACLRole{
 		Name:        consulRoleTasks,
-		Description: "role for Nomad templates w/ workload identities (WI)",
+		Description: "Role for Nomad tasks using workload identities",
 		Policies:    []*api.ACLLink{{Name: consulPolicyName}},
 	}, nil)
 	if err != nil {
-		return fmt.Errorf("[✘] could not create Consul role: %w", err)
+		return fmt.Errorf("[✘] Could not create Consul role: %w", err)
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created role %q", consulRoleTasks))
@@ -584,7 +585,7 @@ func (s *SetupConsulCommand) createPolicy() error {
 		Rules: string(consulPolicyBody),
 	}, nil)
 	if err != nil {
-		return fmt.Errorf("[✘] could not create Consul policy: %w", err)
+		return fmt.Errorf("[✘] Could not create Consul policy: %w", err)
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q", consulPolicyName))
@@ -635,11 +636,16 @@ to authenticate unless you create missing configuration yourself.
 		}
 
 		if s.policyExists() {
-			_, err := s.client.ACL().PolicyDelete(s.policyID, nil)
+			p, _, err := s.client.ACL().PolicyReadByName(consulPolicyName, nil)
 			if err != nil {
-				s.Ui.Error(err.Error())
-			} else {
-				s.Ui.Info(fmt.Sprintf("deleted policy %q", s.policyID))
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch policy %q: %v", consulPolicyName, err.Error()))
+			} else if p != nil {
+				_, err := s.client.ACL().PolicyDelete(p.ID, nil)
+				if err != nil {
+					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", p.ID, err.Error()))
+				} else {
+					s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q", p.ID))
+				}
 			}
 		}
 
