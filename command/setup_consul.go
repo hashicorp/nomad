@@ -187,7 +187,7 @@ a namespace %q and bind the auth methods to that namespace.
 		s.Ui.Output(fmt.Sprintf(namespaceMsg, ns))
 
 		if s.namespaceExists(s.clientCfg.Namespace) {
-			s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists", ns))
+			s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists.", ns))
 		} else {
 
 			var createNamespace bool
@@ -222,7 +222,7 @@ tasks %q.
 	s.Ui.Output(fmt.Sprintf(authMethodMsg, consulAuthMethodServicesName, consulAuthMethodTasksName))
 
 	if s.authMethodExists(consulAuthMethodServicesName) {
-		s.Ui.Info(fmt.Sprintf("[✔] Auth method %q already exists", consulAuthMethodServicesName))
+		s.Ui.Info(fmt.Sprintf("[✔] Auth method %q already exists.", consulAuthMethodServicesName))
 	} else {
 
 		authMethodMsg := "This is the %q method configuration:\n"
@@ -258,7 +258,7 @@ tasks %q.
 	}
 
 	if s.authMethodExists(consulAuthMethodTasksName) {
-		s.Ui.Info(fmt.Sprintf("[✔] Auth method %q already exists", consulAuthMethodTasksName))
+		s.Ui.Info(fmt.Sprintf("[✔] Auth method %q already exists.", consulAuthMethodTasksName))
 	} else {
 
 		authMethodMsg := `
@@ -320,7 +320,7 @@ auth methods above.
 `)
 
 	if s.bindingRuleExists(servicesBindingRule) {
-		s.Ui.Info(fmt.Sprintf("[✔] Binding rule for auth method %q already exists", servicesBindingRule.AuthMethod))
+		s.Ui.Info(fmt.Sprintf("[✔] Binding rule for auth method %q already exists.", servicesBindingRule.AuthMethod))
 	} else {
 
 		s.Ui.Output(fmt.Sprintf("This is the binding rule for the %q auth method:\n", consulAuthMethodServicesName))
@@ -350,7 +350,7 @@ auth methods above.
 	}
 
 	if s.bindingRuleExists(tasksBindingRule) {
-		s.Ui.Info(fmt.Sprintf("[✔] Binding rule for auth method %q already exists", tasksBindingRule.AuthMethod))
+		s.Ui.Info(fmt.Sprintf("[✔] Binding rule for auth method %q already exists.", tasksBindingRule.AuthMethod))
 	} else {
 
 		s.Ui.Output(fmt.Sprintf(`
@@ -391,7 +391,7 @@ in Consul.
 `)
 
 	if s.policyExists() {
-		s.Ui.Info(fmt.Sprintf("[✔] Policy %q already exists", consulPolicyName))
+		s.Ui.Info(fmt.Sprintf("[✔] Policy %q already exists.", consulPolicyName))
 	} else {
 		s.Ui.Output(fmt.Sprintf("These are the rules for the policy %q that we will create:\n", consulPolicyName))
 		s.Ui.Output(string(consulPolicyBody))
@@ -419,7 +419,7 @@ in Consul.
 	}
 
 	if s.roleExists() {
-		s.Ui.Info(fmt.Sprintf("[✔] Role %q already exists", consulRoleTasks))
+		s.Ui.Info(fmt.Sprintf("[✔] Role %q already exists.", consulRoleTasks))
 	} else {
 		s.Ui.Output(fmt.Sprintf(`
 And finally, we will create an ACL role called %q associated
@@ -537,7 +537,7 @@ func (s *SetupConsulCommand) createAuthMethod(authMethod *api.ACLAuthMethod) err
 		return fmt.Errorf("[✘] Could not create Consul auth method: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created auth method %q", authMethod.Name))
+	s.Ui.Info(fmt.Sprintf("[✔] Created auth method %q.", authMethod.Name))
 	return nil
 }
 
@@ -563,7 +563,7 @@ func (s *SetupConsulCommand) createNamespace(ns string) error {
 	if err != nil {
 		return fmt.Errorf("[✘] Could not write namespace %q: %w", ns, err)
 	}
-	s.Ui.Info(fmt.Sprintf("[✔] Created namespace %q", ns))
+	s.Ui.Info(fmt.Sprintf("[✔] Created namespace %q.", ns))
 	return nil
 }
 
@@ -580,7 +580,7 @@ func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error 
 		return fmt.Errorf("[✘] Could not create Consul binding rule: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created binding rule for auth method %q", rule.AuthMethod))
+	s.Ui.Info(fmt.Sprintf("[✔] Created binding rule for auth method %q.", rule.AuthMethod))
 	s.bindingRuleIDs = append(s.bindingRuleIDs, bindingRule.ID)
 
 	return nil
@@ -603,7 +603,7 @@ func (s *SetupConsulCommand) createRoleForTasks() error {
 		return fmt.Errorf("[✘] Could not create Consul role: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created role %q", consulRoleTasks))
+	s.Ui.Info(fmt.Sprintf("[✔] Created role %q.", consulRoleTasks))
 	return nil
 }
 
@@ -623,7 +623,7 @@ func (s *SetupConsulCommand) createPolicy() error {
 		return fmt.Errorf("[✘] Could not create Consul policy: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q", consulPolicyName))
+	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q.", consulPolicyName))
 	s.policyID = policy.ID
 
 	return nil
@@ -672,7 +672,7 @@ to authenticate unless you create missing configuration yourself.
 				if err != nil {
 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns.Name, err.Error()))
 				} else {
-					s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q", ns.Name))
+					s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q.", ns.Name))
 				}
 			}
 		}
@@ -686,7 +686,7 @@ to authenticate unless you create missing configuration yourself.
 				if err != nil {
 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", p.ID, err.Error()))
 				} else {
-					s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q", p.ID))
+					s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q.", p.ID))
 				}
 			}
 		}
@@ -700,7 +700,7 @@ to authenticate unless you create missing configuration yourself.
 				if err != nil {
 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete role %q: %v", r.ID, err.Error()))
 				} else {
-					s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q", r.ID))
+					s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q.", r.ID))
 				}
 			}
 		}
@@ -710,7 +710,7 @@ to authenticate unless you create missing configuration yourself.
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete binding rule %q: %v", bindingRuleID, err.Error()))
 			} else {
-				s.Ui.Info(fmt.Sprintf("[✔] Deleted binding rule %q", bindingRuleID))
+				s.Ui.Info(fmt.Sprintf("[✔] Deleted binding rule %q.", bindingRuleID))
 			}
 		}
 
@@ -722,7 +722,7 @@ to authenticate unless you create missing configuration yourself.
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete auth method %q: %v", authMethod, err.Error()))
 			} else {
-				s.Ui.Info(fmt.Sprintf("[✔] Deleted auth method %q", authMethod))
+				s.Ui.Info(fmt.Sprintf("[✔] Deleted auth method %q.", authMethod))
 			}
 		}
 	}
