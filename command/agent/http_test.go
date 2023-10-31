@@ -1560,7 +1560,7 @@ func benchmarkJsonEncoding(b *testing.B, handle *codec.JsonHandle) {
 func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	s := makeHTTPServer(t, cb)
 	defer s.Shutdown()
-	testutil.WaitForLeader(t, s.Agent.RPC)
+	testutil.WaitForKeyring(t, s.Agent.RPC, s.Config.Region)
 	f(s)
 }
 
@@ -1572,7 +1572,7 @@ func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 		}
 	})
 	defer s.Shutdown()
-	testutil.WaitForLeader(t, s.Agent.RPC)
+	testutil.WaitForKeyring(t, s.Agent.RPC, s.Config.Region)
 	f(s)
 }
 

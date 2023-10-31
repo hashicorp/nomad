@@ -1170,8 +1170,8 @@ func TestNodePoolEndpoint_DeleteNodePools_NonLocal(t *testing.T) {
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
-	testutil.WaitForLeader(t, s1.RPC)
-	testutil.WaitForLeader(t, s2.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
+	testutil.WaitForKeyring(t, s2.RPC, s2.config.Region)
 
 	// Write a node pool to the authoritative region
 	np1 := mock.NodePool()

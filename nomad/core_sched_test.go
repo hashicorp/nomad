@@ -2444,7 +2444,7 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 			}
 		}
 		return true
-	}, time.Second*5, 10*time.Millisecond, "invalid claims should be marked for GC")
+	}, 10*time.Second, 50*time.Millisecond, "invalid claims should be marked for GC")
 
 }
 
@@ -2454,7 +2454,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 
 	srv, cleanup := TestServer(t, nil)
 	defer cleanup()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	// reset the time table
 	srv.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
@@ -2559,7 +2559,7 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 
 	srv, cleanup := TestServer(t, nil)
 	defer cleanup()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	store := srv.fsm.State()
 	key0, err := store.GetActiveRootKeyMeta(nil)

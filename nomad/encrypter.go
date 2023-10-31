@@ -8,6 +8,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ed25519"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -51,10 +53,16 @@ type Encrypter struct {
 	lock    sync.RWMutex
 }
 
+// keyset contains the key material for variable encryption and workload
+// identity signing. As keysets are rotated they are identified by the RootKey
+// KeyID although the public key IDs are published with a type prefix to
+// disambiguate which signing algorithm to use.
 type keyset struct {
-	rootKey    *structs.RootKey
-	cipher     cipher.AEAD
-	privateKey ed25519.PrivateKey
+	rootKey           *structs.RootKey
+	cipher            cipher.AEAD
+	eddsaPrivateKey   ed25519.PrivateKey
+	rsaPrivateKey     *rsa.PrivateKey
+	rsaPKCS1PublicKey []byte // PKCS #1 DER encoded public key for JWKS
 }
 
 // NewEncrypter loads or creates a new local keystore and returns an
@@ -102,7 +110,7 @@ func (e *Encrypter) loadKeystore() error {
 
 		key, err := e.loadKeyFromStore(path)
 		if err != nil {
-			return fmt.Errorf("could not load key file %s from keystore: %v", path, err)
+			return fmt.Errorf("could not load key file %s from keystore: %w", path, err)
 		}
 		if key.Meta.KeyID != id {
 			return fmt.Errorf("root key ID %s must match key file %s", key.Meta.KeyID, path)
@@ -110,7 +118,7 @@ func (e *Encrypter) loadKeystore() error {
 
 		err = e.AddKey(key)
 		if err != nil {
-			return fmt.Errorf("could not add key file %s to keystore: %v", path, err)
+			return fmt.Errorf("could not add key file %s to keystore: %w", path, err)
 		}
 		return nil
 	})
@@ -199,9 +207,20 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 	}
 
 	opts := (&jose.SignerOptions{}).WithHeader("kid", keyset.rootKey.Meta.KeyID).WithType("JWT")
-	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: keyset.privateKey}, opts)
-	if err != nil {
-		return "", "", err
+
+	var sig jose.Signer
+	if keyset.rsaPrivateKey != nil {
+		// If an RSA key has been created prefer it as it is more widely compatible
+		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: keyset.rsaPrivateKey}, opts)
+		if err != nil {
+			return "", "", err
+		}
+	} else {
+		// No RSA key has been created, fallback to ed25519 which always exists
+		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: keyset.eddsaPrivateKey}, opts)
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	raw, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
@@ -292,15 +311,29 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 		return fmt.Errorf("invalid algorithm %s", rootKey.Meta.Algorithm)
 	}
 
-	privateKey := ed25519.NewKeyFromSeed(rootKey.Key)
+	ed25519Key := ed25519.NewKeyFromSeed(rootKey.Key)
+
+	ks := keyset{
+		rootKey:         rootKey,
+		cipher:          aead,
+		eddsaPrivateKey: ed25519Key,
+	}
+
+	// Unmarshal RSAKey for Workload Identity JWT signing if one exists. Prior to
+	// 1.7 only the ed25519 key was used.
+	if len(rootKey.RSAKey) > 0 {
+		rsaKey, err := x509.ParsePKCS1PrivateKey(rootKey.RSAKey)
+		if err != nil {
+			return fmt.Errorf("error parsing rsa key: %w", err)
+		}
+
+		ks.rsaPrivateKey = rsaKey
+		ks.rsaPKCS1PublicKey = x509.MarshalPKCS1PublicKey(&rsaKey.PublicKey)
+	}
 
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	e.keyring[rootKey.Meta.KeyID] = &keyset{
-		rootKey:    rootKey,
-		cipher:     aead,
-		privateKey: privateKey,
-	}
+	e.keyring[rootKey.Meta.KeyID] = &ks
 	return nil
 }
 
@@ -356,21 +389,30 @@ func (e *Encrypter) saveKeyToStore(rootKey *structs.RootKey) error {
 
 	kek, err := crypto.Bytes(32)
 	if err != nil {
-		return fmt.Errorf("failed to generate key wrapper key: %v", err)
+		return fmt.Errorf("failed to generate key wrapper key: %w", err)
 	}
 	wrapper, err := e.newKMSWrapper(rootKey.Meta.KeyID, kek)
 	if err != nil {
-		return fmt.Errorf("failed to create encryption wrapper: %v", err)
+		return fmt.Errorf("failed to create encryption wrapper: %w", err)
 	}
-	blob, err := wrapper.Encrypt(e.srv.shutdownCtx, rootKey.Key)
+	rootBlob, err := wrapper.Encrypt(e.srv.shutdownCtx, rootKey.Key)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt root key: %v", err)
+		return fmt.Errorf("failed to encrypt root key: %w", err)
 	}
 
 	kekWrapper := &structs.KeyEncryptionKeyWrapper{
 		Meta:                       rootKey.Meta,
-		EncryptedDataEncryptionKey: blob.Ciphertext,
+		EncryptedDataEncryptionKey: rootBlob.Ciphertext,
 		KeyEncryptionKey:           kek,
+	}
+
+	// Only keysets created after 1.7.0 will contain an RSA key.
+	if len(rootKey.RSAKey) > 0 {
+		rsaBlob, err := wrapper.Encrypt(e.srv.shutdownCtx, rootKey.RSAKey)
+		if err != nil {
+			return fmt.Errorf("failed to encrypt rsa key: %w", err)
+		}
+		kekWrapper.EncryptedRSAKey = rsaBlob.Ciphertext
 	}
 
 	buf, err := json.Marshal(kekWrapper)
@@ -408,18 +450,32 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 	// sure we wrap them with as much context as possible
 	wrapper, err := e.newKMSWrapper(meta.KeyID, kekWrapper.KeyEncryptionKey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create key wrapper cipher: %v", err)
+		return nil, fmt.Errorf("unable to create key wrapper cipher: %w", err)
 	}
 	key, err := wrapper.Decrypt(e.srv.shutdownCtx, &kms.BlobInfo{
 		Ciphertext: kekWrapper.EncryptedDataEncryptionKey,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unable to decrypt wrapped root key: %v", err)
+		return nil, fmt.Errorf("unable to decrypt wrapped root key: %w", err)
+	}
+
+	// Decrypt RSAKey for Workload Identity JWT signing if one exists. Prior to
+	// 1.7 an ed25519 key derived from the root key was used instead of an RSA
+	// key.
+	var rsaKey []byte
+	if len(kekWrapper.EncryptedRSAKey) > 0 {
+		rsaKey, err = wrapper.Decrypt(e.srv.shutdownCtx, &kms.BlobInfo{
+			Ciphertext: kekWrapper.EncryptedRSAKey,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to decrypt wrapped rsa key: %w", err)
+		}
 	}
 
 	return &structs.RootKey{
-		Meta: meta,
-		Key:  key,
+		Meta:   meta,
+		Key:    key,
+		RSAKey: rsaKey,
 	}, nil
 }
 
@@ -434,13 +490,21 @@ func (e *Encrypter) GetPublicKey(keyID string) (*structs.KeyringPublicKey, error
 		return nil, err
 	}
 
-	return &structs.KeyringPublicKey{
-		KeyID:      ks.rootKey.Meta.KeyID,
-		PublicKey:  ks.privateKey.Public().(ed25519.PublicKey),
-		Algorithm:  structs.PubKeyAlgEdDSA,
+	pubKey := &structs.KeyringPublicKey{
+		KeyID:      keyID,
 		Use:        structs.PubKeyUseSig,
 		CreateTime: ks.rootKey.Meta.CreateTime,
-	}, nil
+	}
+
+	if ks.rsaPrivateKey != nil {
+		pubKey.PublicKey = ks.rsaPKCS1PublicKey
+		pubKey.Algorithm = structs.PubKeyAlgRS256
+	} else {
+		pubKey.PublicKey = ks.eddsaPrivateKey.Public().(ed25519.PublicKey)
+		pubKey.Algorithm = structs.PubKeyAlgEdDSA
+	}
+
+	return pubKey, nil
 }
 
 // newKMSWrapper returns a go-kms-wrapping interface the caller can use to

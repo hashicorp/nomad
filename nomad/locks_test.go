@@ -54,7 +54,7 @@ func TestServer_invalidateVariableLock(t *testing.T) {
 
 	testServer, testServerCleanup := TestServer(t, nil)
 	defer testServerCleanup()
-	testutil.WaitForLeader(t, testServer.RPC)
+	testutil.WaitForKeyring(t, testServer.RPC, "global")
 
 	// Generate a variable that includes a lock entry and upsert this into our
 	// state.
@@ -87,7 +87,7 @@ func TestServer_createVariableLockTimer(t *testing.T) {
 
 	testServer, testServerCleanup := TestServer(t, nil)
 	defer testServerCleanup()
-	testutil.WaitForLeader(t, testServer.RPC)
+	testutil.WaitForKeyring(t, testServer.RPC, "global")
 
 	// Generate a variable that includes a lock entry and upsert this into our
 	// state.
@@ -135,7 +135,7 @@ func TestServer_createAndRenewVariableLockTimer(t *testing.T) {
 
 	testServer, testServerCleanup := TestServer(t, nil)
 	defer testServerCleanup()
-	testutil.WaitForLeader(t, testServer.RPC)
+	testutil.WaitForKeyring(t, testServer.RPC, "global")
 
 	// Generate a variable that includes a lock entry and upsert this into our
 	// state.
