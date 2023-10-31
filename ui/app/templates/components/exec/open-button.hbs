@@ -5,6 +5,7 @@
 
 {{#let (cannot "exec allocation" namespace=this.job.namespace) as |cannotExec|}}
   <div
+    class="exec-open-button"
     {{keyboard-shortcut
       label="Exec"
       pattern=(array "e" "x" "e" "c")

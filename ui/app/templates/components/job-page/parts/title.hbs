@@ -32,9 +32,7 @@
         </Hds::Dropdown>
 
       {{/if}}
-      <div class="two-step-button">
-        <Exec::OpenButton @job={{this.job}} />
-      </div>
+      <Exec::OpenButton @job={{this.job}} />
       <TwoStepButton
         data-test-stop
         @alignRight={{true}}
