@@ -45,15 +45,15 @@ General Options:
 
 Action Specific Options:
 
-  -job=<job-id>
+  -job <job-id>
     Specifies the job in which the Action is defined
 
-  -alloc=<allocation-id>
+  -alloc <allocation-id>
     Specifies the allocation in which the Action is defined. If not provided,
     a group and task name must be provided and a random allocation will be
     selected from the job.
 
-  -task=<task-name>
+  -task <task-name>
     Specifies the task in which the Action is defined. Required if no
     allocation is provided.
 
@@ -68,10 +68,10 @@ Action Specific Options:
     Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session.
     Pass -t=false to disable explicitly.
 
-  -e=<escape_char>
-    Sets the escape character for sessions with a pty (default: '~').  The escape
-    character is only recognized at the beginning of a line.  The escape character
-    followed by a dot ('.') closes the connection.  Setting the character to
+  -e <escape_char>
+    Sets the escape character for sessions with a pty (default: '~'). The escape
+    character is only recognized at the beginning of a line. The escape character
+    followed by a dot ('.') closes the connection. Setting the character to
     'none' disables any escapes and makes the session fully transparent.
 `
 	return strings.TrimSpace(helpText)
