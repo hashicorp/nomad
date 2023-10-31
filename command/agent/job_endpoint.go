@@ -1277,11 +1277,13 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	// the Task.Identity field, so if it is non-nil use it.
 	if id := apiTask.Identity; id != nil {
 		structsTask.Identity = &structs.WorkloadIdentity{
-			Name:     id.Name,
-			Audience: slices.Clone(id.Audience),
-			Env:      id.Env,
-			File:     id.File,
-			TTL:      id.TTL,
+			Name:         id.Name,
+			Audience:     slices.Clone(id.Audience),
+			ChangeMode:   id.ChangeMode,
+			ChangeSignal: id.ChangeSignal,
+			Env:          id.Env,
+			File:         id.File,
+			TTL:          id.TTL,
 		}
 	}
 
@@ -1293,11 +1295,13 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			}
 
 			structsTask.Identities[i] = &structs.WorkloadIdentity{
-				Name:     id.Name,
-				Audience: slices.Clone(id.Audience),
-				Env:      id.Env,
-				File:     id.File,
-				TTL:      id.TTL,
+				Name:         id.Name,
+				Audience:     slices.Clone(id.Audience),
+				ChangeMode:   id.ChangeMode,
+				ChangeSignal: id.ChangeSignal,
+				Env:          id.Env,
+				File:         id.File,
+				TTL:          id.TTL,
 			}
 
 		}
