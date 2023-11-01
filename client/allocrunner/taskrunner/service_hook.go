@@ -234,7 +234,11 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 
 	tokens := map[string]string{}
 	for _, service := range h.services {
-		if token, ok := allocTokens[service.Cluster][service.MakeUniqueIdentityName()]; ok {
+		cluster := service.Cluster
+		if cluster == "" {
+			cluster = structs.ConsulDefaultCluster
+		}
+		if token, ok := allocTokens[cluster][service.MakeUniqueIdentityName()]; ok {
 			tokens[service.Name] = token
 		}
 	}

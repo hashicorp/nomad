@@ -180,7 +180,12 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			continue
 		}
 
-		if err := h.getConsulTokens(service.Cluster, service.Identity.Name, tokens, req); err != nil {
+		cluster := service.Cluster
+		if cluster == "" {
+			cluster = structs.ConsulDefaultCluster
+		}
+
+		if err := h.getConsulTokens(cluster, service.Identity.Name, tokens, req); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
 		}
