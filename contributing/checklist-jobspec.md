@@ -2,12 +2,12 @@
 
 ## Code
 
-* [x] Consider similar features in Consul, Kubernetes, and other tools. Is there prior art we should match? Terminology, structure, etc?
-* [t] Add structs/fields to `api/` package
+* [ ] Consider similar features in Consul, Kubernetes, and other tools. Is there prior art we should match? Terminology, structure, etc?
+* [ ] Add structs/fields to `api/` package
   * `api/` structs usually have Canonicalize and Copy methods
   * New fields should be added to existing Canonicalize, Copy methods
   * Test the structs/fields via methods mentioned above
-* [t] Add structs/fields to `nomad/structs` package
+* [ ] Add structs/fields to `nomad/structs` package
   * `structs/` structs usually have Copy, Equal, and Validate methods
     * `Validate` methods in this package _must_ be implemented
     * `Equal` methods are used when comparing one job to another (e.g. did this thing get updated?)
@@ -16,14 +16,14 @@
   * Note that analogous struct field names should match with `api/` package
   * Test the structs/fields via methods mentioned above
   * Implement and test other logical methods
-* [t] Add conversion between `api/` and `nomad/structs/` in `command/agent/job_endpoint.go`
+* [ ] Add conversion between `api/` and `nomad/structs/` in `command/agent/job_endpoint.go`
   * Add test for conversion
-* [x] Determine JSON encoding strategy for responses from RPC (see "JSON Encoding" below)
-  * [x] Write `nomad/structs/` to `api/` conversions if necessary and write tests
-* [t] Implement diff logic for new structs/fields in `nomad/structs/diff.go`
+* [ ] Determine JSON encoding strategy for responses from RPC (see "JSON Encoding" below)
+  * [ ] Write `nomad/structs/` to `api/` conversions if necessary and write tests
+* [ ] Implement diff logic for new structs/fields in `nomad/structs/diff.go`
   * Note that fields must be listed in alphabetical order in `FieldDiff` slices in `nomad/structs/diff_test.go`
   * Add test for diff of new structs/fields
-* [x] Add change detection for new structs/fields in `scheduler/util.go/tasksUpdated`
+* [ ] Add change detection for new structs/fields in `scheduler/util.go/tasksUpdated`
   * Might be covered by `.Equals` but might not be, check.
   * Should return true if the task must be replaced as a result of the change.
 
@@ -40,8 +40,8 @@ required in the original `jobspec` package.
 ## Docs
 
 * [ ] Changelog
-* [x] Jobspec entry https://developer.hashicorp.com/nomad/docs/job-specification/index.html
-* [x] Jobspec sidebar entry https://github.com/hashicorp/nomad/blob/main/website/data/docs-navigation.js
+* [ ] Jobspec entry https://developer.hashicorp.com/nomad/docs/job-specification/index.html
+* [ ] Jobspec sidebar entry https://github.com/hashicorp/nomad/blob/main/website/data/docs-navigation.js
 * [ ] Job JSON API entry https://developer.hashicorp.com/nomad/api/json-jobs.html
 * [ ] Sample Response output in API https://developer.hashicorp.com/nomad/api/jobs.html
 * [ ] Consider if it needs a guide https://developer.hashicorp.com/nomad/guides/index.html

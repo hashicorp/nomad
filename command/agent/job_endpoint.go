@@ -1641,7 +1641,7 @@ func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIde
 	}
 	return &structs.WorkloadIdentity{
 		Name:         in.Name,
-		Audience:     in.Audience,
+		Audience:     slices.Clone(in.Audience),
 		ChangeMode:   in.ChangeMode,
 		ChangeSignal: in.ChangeSignal,
 		Env:          in.Env,
