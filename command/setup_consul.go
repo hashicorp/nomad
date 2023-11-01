@@ -74,7 +74,7 @@ Setup Consul options:
     signatures. Defaults to http://localhost:4646/.well-known/jwks.json.
 
   -cleanup
-	Removes all configuration components this command created from the
+    Removes all configuration components this command created from the
     Consul cluster.
 
   -y
