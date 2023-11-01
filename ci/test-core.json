@@ -29,7 +29,6 @@
     "client/vaultclient/...",
     "client/widmgr/...",
     "command/agent/...",
-    "command/raft_tools/...",
     "command/ui/...",
     "helper/...",
     "internal/...",
