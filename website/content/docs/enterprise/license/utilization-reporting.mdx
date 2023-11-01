@@ -1,0 +1,139 @@
+---
+layout: docs
+page_title: Automated license utilization reporting
+description: >-
+  Learn what data HashiCorp collects to meter Enterprise license utilization. Enable or disable reporting. Review sample payloads and logs.
+---
+
+# Automated license utilization reporting
+
+Automated license utilization reporting sends license utilization data to HashiCorp without requiring you 
+to manually collect and report them. It also lets you review your license usage with the monitoring 
+solution you already use (for example Splunk, Datadog, or others) so you can optimize and manage your 
+deployments. Use these reports to understand how much more you can deploy under your current contract, 
+protect against overutilization, and budget for predicted consumption.  
+
+Automated reporting shares the minimum data required to validate license utilization as defined in our 
+contracts. They consist of mostly computed metrics and will never contain Personal Identifiable Information 
+(PII) or other sensitive information. Automated reporting shares the data with HashiCorp using a secure, 
+unidirectional HTTPS API and makes an auditable record in the product logs each time it submits a report. 
+The reporting process is GDPR compliant and submits reports roughly once every 24 hours.
+
+## Enable automated reporting
+
+To enable automated reporting, you need to make sure that outbound network traffic is configured correctly 
+and upgrade your enterprise product to a version that supports it. If your installation is air-gapped or 
+network settings are not in place, automated reporting will not work. 
+
+### 1. Allow outbound HTTPS traffic on port 443
+
+Make sure that your network allows HTTPS egress on port 443 from https://reporting.hashicorp.services by 
+allow-listing the following IP addresses:
+
+- 100.20.70.12
+- 35.166.5.222
+- 23.95.85.111
+- 44.215.244.1
+
+### 2. Upgrade
+
+Upgrade to a release that supports license utilization reporting. These releases include:
+- [Nomad v1.7.0](/nomad/downloads) and later
+
+### 3. Check logs
+
+Automatic license utilization reporting will start sending data within roughly 24 hours. Check the product 
+logs for records that the data sent successfully.
+
+Instructions on how to check logs. 
+
+```
+[DEBUG] core.reporting: beginning snapshot export
+[DEBUG] core.reporting: creating payload
+[DEBUG] core.reporting: marshalling payload to json
+[DEBUG] core.reporting: generating authentication headers
+[DEBUG] core.reporting: creating request
+[DEBUG] core.reporting: sending request
+[DEBUG] core.reporting: performing request: method=POST url=https://reporting.hashicorp.services
+[DEBUG] core.reporting: recording audit record
+[INFO]  reporting: Report sent: auditRecord={"payload":{"payload_version":"1","license_id":"d2cdd857-4202-5a45-70a6-e4b531050c34","product":"nomad","product_version":"1.6.0","export_timestamp":"2023-05-26T20:09:13.753921087Z","snapshots":[{"snapshot_version":1,"snapshot_id":"0001J724F90F4XWQDSAA76ZQWA","process_id":"01H1CTJPC1S8H7Q45MKTJ689ZW","timestamp":"2023-05-26T20:09:13.753513962Z","schema_version":"1.0.0","service":"nomad","metrics":{"nomad.billable.nodes":{"key":"nomad.billable.nodes","kind":"counter","mode":"write","value":33}}}]}}
+[DEBUG] completed recording audit record
+[DEBUG] core.reporting: export finished successfully
+```
+
+If your installation is air-gapped or your network doesn’t allow the correct egress, logs will show an 
+error. 
+
+```
+[DEBUG] core.reporting: beginning snapshot export
+[DEBUG] core.reporting: creating payload
+[DEBUG] core.reporting: marshalling payload to json
+[DEBUG] core.reporting: generating authentication headers
+[DEBUG] core.reporting: creating request
+[DEBUG] core.reporting: sending request
+[DEBUG] core.reporting: performing request: method=POST url=https://reporting.hashicorp.services
+[DEBUG] core.reporting: error status code received: statusCode=403
+```
+
+In this case, reconfigure your network to allow egress and check back in 24 hours. 
+
+## Opt out
+
+If your installation is air-gapped or you want to manually collect and report on the same license 
+utilization metrics, you can opt-out of automated reporting. 
+
+Manually reporting these metrics can be time consuming. Opting out of automated reporting does not mean that 
+you also opt out from sending license utilization metrics. Customers who opt out of automated reporting will 
+still be required to manually collect and send license utilization metrics to HashiCorp. 
+
+If you are considering opting out because you’re worried about the data, we strongly recommend that you 
+review the [example payloads](#example-payloads) before opting out. If you have concerns with any of the 
+automatically-reported data please bring them to your account manager. 
+
+You have two options to opt out of automated reporting: HCL configuration (recommended) and Environment 
+variable (requires restart).
+
+Opting out in your product’s configuration file doesn’t require a system restart, and is the method we 
+recommend. Add the following block to your `server.hcl` file.
+
+```hcl
+reporting {
+	license {
+		enabled = false
+    }
+}
+```
+
+If you need to, you can also opt out using an environment variable, which will provide a startup message 
+confirming that you have disabled automated reporting. This option requires a system restart. 
+
+Set the following environment variable.
+
+```
+$ export OPTOUT_LICENSE_REPORTING=true
+```
+
+Now restart your system by following [these instructions](/nomad/docs/operations/nomad-agent). 
+
+Check your product logs roughly 24 hours after opting out to make sure that the system isn’t trying to send 
+reports.
+
+If your configuration file and environment variable differ, the environment variable setting will take 
+precedence.
+
+## Example payloads
+
+HashiCorp collects the following utilization data as JSON payloads:
+
+`billable.nodes` - Number of billable nodes in Nomad
+
+```json
+"metrics": {
+    "nomad.billable.nodes": {
+        "key": "nomad.billable.nodes",
+        "kind": "counter",
+        "mode": "write",
+        "value": 33
+    }
+}
+```
