@@ -59,7 +59,7 @@ export default class AllocationStatusBar extends DistributionBar {
         value: allocs.startingAllocs,
         className: 'starting',
         layers: 2,
-        legendLink: this.generateLegendLink(this.job, 'starting'),
+        legendLink: this.generateLegendLink(this.job, 'pending'),
       },
       {
         label: 'Running',
