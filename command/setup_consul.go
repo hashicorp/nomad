@@ -47,6 +47,7 @@ type SetupConsulCommand struct {
 	jwksURL string
 
 	consulEnt bool
+	cleanup   bool
 	autoYes   bool
 }
 
@@ -72,6 +73,10 @@ Setup Consul options:
     URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
     signatures. Defaults to http://localhost:4646/.well-known/jwks.json.
 
+  -cleanup
+	Removes all configuration components this command created from the
+    Consul cluster.
+
   -y
     Automatically answers "yes" to all the questions, making the setup
     non-interactive. Defaults to "false".
@@ -84,6 +89,7 @@ func (s *SetupConsulCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-jwks-url": complete.PredictAnything,
+			"-cleanup":  complete.PredictSet("true", "false"),
 			"-y":        complete.PredictSet("true", "false"),
 		})
 }
@@ -103,6 +109,7 @@ func (s *SetupConsulCommand) Run(args []string) int {
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
+	flags.BoolVar(&s.cleanup, "cleanup", false, "")
 	flags.BoolVar(&s.autoYes, "y", false, "")
 	flags.StringVar(&s.jwksURL, "jwks-url", "http://localhost:4646/.well-known/jwks.json", "")
 	if err := flags.Parse(args); err != nil {
@@ -121,13 +128,15 @@ func (s *SetupConsulCommand) Run(args []string) int {
 		return 1
 	}
 
-	s.Ui.Output(`
+	if !s.cleanup {
+		s.Ui.Output(`
 This command will walk you through configuring all the components required for
 Nomad workloads to authenticate themselves against Consul ACL using their
 respective workload identities.
 
 First we need to connect to Consul.
 `)
+	}
 
 	s.clientCfg = api.DefaultConfig()
 	if !s.autoYes {
@@ -180,31 +189,37 @@ Please set the CONSUL_NAMESPACE environment variable to the Consul namespace to 
 Since you're running Consul Enterprise, we will additionally create
 a namespace %q and bind the auth methods to that namespace.
 `
-		s.Ui.Output(fmt.Sprintf(namespaceMsg, ns))
-
-		if s.namespaceExists(s.clientCfg.Namespace) {
-			s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists.", ns))
-		} else {
-
-			var createNamespace bool
-			if !s.autoYes {
-				createNamespace = s.askQuestion(
-					fmt.Sprintf("Create the namespace %q in your Consul cluster? [Y/n]", ns))
-				if !createNamespace {
-					s.handleNo()
-				}
+		if !s.cleanup {
+			if s.namespaceExists(s.clientCfg.Namespace) {
+				s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists.", ns))
 			} else {
-				createNamespace = true
-			}
+				s.Ui.Output(fmt.Sprintf(namespaceMsg, ns))
 
-			if createNamespace {
-				err = s.createNamespace(ns)
-				if err != nil {
-					s.Ui.Error(err.Error())
-					return 1
+				var createNamespace bool
+				if !s.autoYes {
+					createNamespace = s.askQuestion(
+						fmt.Sprintf("Create the namespace %q in your Consul cluster? [Y/n]", ns))
+					if !createNamespace {
+						s.handleNo()
+					}
+				} else {
+					createNamespace = true
+				}
+
+				if createNamespace {
+					err = s.createNamespace(ns)
+					if err != nil {
+						s.Ui.Error(err.Error())
+						return 1
+					}
 				}
 			}
 		}
+	}
+
+	if s.cleanup {
+		s.removeConfiguredComponents()
+		return 0
 	}
 
 	/*
@@ -654,42 +669,102 @@ cluster configuration. Nomad workloads with Workload Identity will not be able
 to authenticate unless you create missing configuration yourself.
 `)
 
-	if !s.autoYes && s.askQuestion("Remove everything this command creates? [Y/n]") {
-		if s.policyExists() {
-			p, _, err := s.client.ACL().PolicyReadByName(consulPolicyName, nil)
+	if s.autoYes || s.askQuestion("Remove everything this command creates? [Y/n]") {
+		s.removeConfiguredComponents()
+	}
+
+	s.Ui.Output(s.Colorize().Color(`
+Consul cluster has [bold][underline]not[reset] been configured for authenticating Nomad tasks and
+services using workload identitiies.
+
+Run the command again to finish the configuration process.`))
+	os.Exit(0)
+}
+
+func (s *SetupConsulCommand) removeConfiguredComponents() {
+	componentsToRemove := map[string][]string{}
+
+	authMethods := []string{}
+	for _, authMethod := range []string{consulAuthMethodServicesName, consulAuthMethodTasksName} {
+		if s.authMethodExists(authMethod) {
+			authMethods = append(authMethods, authMethod)
+		}
+	}
+	if len(authMethods) > 0 {
+		componentsToRemove["Auth methods"] = authMethods
+	}
+
+	serviceMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodServicesName, nil)
+	if err != nil {
+		s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch binding rules for method: %q", consulAuthMethodServicesName))
+	}
+	taskMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodTasksName, nil)
+	if err != nil {
+		s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch binding rules for method: %q", consulAuthMethodTasksName))
+	}
+
+	ruleIDs := []string{}
+	for _, b := range serviceMethodRules {
+		ruleIDs = append(ruleIDs, b.ID)
+	}
+	for _, b := range taskMethodRules {
+		ruleIDs = append(ruleIDs, b.ID)
+	}
+	if len(ruleIDs) > 0 {
+		componentsToRemove["Binding rules"] = ruleIDs
+	}
+
+	if s.policyExists() {
+		componentsToRemove["Policy"] = []string{consulPolicyName}
+	}
+
+	if s.roleExists() {
+		componentsToRemove["Role"] = []string{consulRoleTasks}
+	}
+
+	if s.consulEnt && s.namespaceExists(s.clientCfg.Namespace) {
+		componentsToRemove["Namespace"] = []string{s.clientCfg.Namespace}
+	}
+
+	q := `The following items will be deleted:
+%s`
+	if len(componentsToRemove) == 0 {
+		s.Ui.Output("Nothing to delete.")
+		return
+	}
+
+	if !s.autoYes {
+		s.Ui.Warn(fmt.Sprintf(q, printMap(componentsToRemove)))
+	}
+
+	if s.autoYes || s.askQuestion("Remove all the items listed above? [Y/n]") {
+
+		for _, policy := range componentsToRemove["Policy"] {
+			p, _, err := s.client.ACL().PolicyReadByName(policy, nil)
 			if err != nil {
-				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch policy %q: %v", consulPolicyName, err.Error()))
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch policy %q: %v", policy, err.Error()))
 			} else if p != nil {
 				_, err := s.client.ACL().PolicyDelete(p.ID, nil)
 				if err != nil {
-					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", p.ID, err.Error()))
+					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", policy, err.Error()))
 				} else {
 					s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q.", p.ID))
 				}
 			}
 		}
 
-		if s.roleExists() {
-			r, _, err := s.client.ACL().RoleReadByName(consulRoleTasks, nil)
+		for _, role := range componentsToRemove["Role"] {
+			r, _, err := s.client.ACL().RoleReadByName(role, nil)
 			if err != nil {
-				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch role %q: %v", consulRoleTasks, err.Error()))
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch role %q: %v", role, err.Error()))
 			} else if r != nil {
 				_, err := s.client.ACL().RoleDelete(r.ID, nil)
 				if err != nil {
 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete role %q: %v", r.ID, err.Error()))
 				} else {
-					s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q.", r.ID))
+					s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q.", role))
 				}
 			}
-		}
-
-		serviceMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodServicesName, nil)
-		if err != nil {
-			s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch binding rule for method: %q", consulAuthMethodServicesName))
-		}
-		taskMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodTasksName, nil)
-		if err != nil {
-			s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch binding rule for method: %q", consulAuthMethodTasksName))
 		}
 
 		for _, b := range append(serviceMethodRules, taskMethodRules...) {
@@ -701,10 +776,7 @@ to authenticate unless you create missing configuration yourself.
 			}
 		}
 
-		for _, authMethod := range []string{consulAuthMethodServicesName, consulAuthMethodTasksName} {
-			if !s.authMethodExists(authMethod) {
-				continue
-			}
+		for _, authMethod := range componentsToRemove["Auth methods"] {
 			_, err := s.client.ACL().AuthMethodDelete(authMethod, nil)
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete auth method %q: %v", authMethod, err.Error()))
@@ -713,10 +785,10 @@ to authenticate unless you create missing configuration yourself.
 			}
 		}
 
-		if s.consulEnt && s.namespaceExists(s.clientCfg.Namespace) {
-			ns, _, err := s.client.Namespaces().Read(s.clientCfg.Namespace, nil)
+		for _, namespace := range componentsToRemove["Namespace"] {
+			ns, _, err := s.client.Namespaces().Read(namespace, nil)
 			if err != nil {
-				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", s.clientCfg.Namespace, err.Error()))
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", namespace, err.Error()))
 			}
 
 			if ns.Meta["created-by"] == "nomad-setup" {
@@ -729,11 +801,14 @@ to authenticate unless you create missing configuration yourself.
 			}
 		}
 	}
+}
 
-	s.Ui.Output(s.Colorize().Color(`
-Consul cluster has [bold][underline]not[reset] been configured for authenticating Nomad tasks and
-services using workload identitiies.
+func printMap(m map[string][]string) string {
+	var output string
 
-Run the command again to finish the configuration process.`))
-	os.Exit(0)
+	for k, v := range m {
+		output += fmt.Sprintf("  * %s: %s\n", k, strings.Join(v, ", "))
+	}
+
+	return output
 }
