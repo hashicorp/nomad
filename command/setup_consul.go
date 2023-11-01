@@ -661,22 +661,6 @@ to authenticate unless you create missing configuration yourself.
 `)
 
 	if !s.autoYes && s.askQuestion("Remove everything this command creates? [Y/n]") {
-		if s.consulEnt && s.namespaceExists(s.clientCfg.Namespace) {
-			ns, _, err := s.client.Namespaces().Read(s.clientCfg.Namespace, nil)
-			if err != nil {
-				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", s.clientCfg.Namespace, err.Error()))
-			}
-
-			if ns.Meta["created-by"] == "nomad-setup" {
-				_, err := s.client.Namespaces().Delete(ns.Name, nil)
-				if err != nil {
-					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns.Name, err.Error()))
-				} else {
-					s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q.", ns.Name))
-				}
-			}
-		}
-
 		if s.policyExists() {
 			p, _, err := s.client.ACL().PolicyReadByName(consulPolicyName, nil)
 			if err != nil {
@@ -723,6 +707,22 @@ to authenticate unless you create missing configuration yourself.
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete auth method %q: %v", authMethod, err.Error()))
 			} else {
 				s.Ui.Info(fmt.Sprintf("[✔] Deleted auth method %q.", authMethod))
+			}
+		}
+
+		if s.consulEnt && s.namespaceExists(s.clientCfg.Namespace) {
+			ns, _, err := s.client.Namespaces().Read(s.clientCfg.Namespace, nil)
+			if err != nil {
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", s.clientCfg.Namespace, err.Error()))
+			}
+
+			if ns.Meta["created-by"] == "nomad-setup" {
+				_, err := s.client.Namespaces().Delete(ns.Name, nil)
+				if err != nil {
+					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns.Name, err.Error()))
+				} else {
+					s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q.", ns.Name))
+				}
 			}
 		}
 	}
