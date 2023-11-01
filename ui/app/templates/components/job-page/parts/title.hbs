@@ -21,10 +21,12 @@
           <dd.ToggleButton @color="secondary" @text="Actions" @size="medium" />
           {{#each this.job.actions as |action|}}
             {{#if (gt action.allocations.length 1)}}
-              <dd.Separator />
-              <dd.Title @text={{action.name}} />
-              <dd.Interactive {{on "click" (perform this.runAction action null)}} @text="Run on a random alloc" />
-              <dd.Interactive {{on "click" (perform this.runAction action "all")}} @text="Run on all {{action.allocations.length}} allocs" />
+              <dd.Generic>
+                <Hds::Reveal @text={{action.name}}>
+                  <dd.Interactive {{on "click" (perform this.runAction action null)}} @text="Run on a random alloc" />
+                  <dd.Interactive {{on "click" (perform this.runAction action "all")}} @text="Run on all {{action.allocations.length}} allocs" />
+                </Hds::Reveal>
+              </dd.Generic>
             {{else}}
               <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 action.allocations) "id"))}} @text="{{action.name}}" />
             {{/if}}

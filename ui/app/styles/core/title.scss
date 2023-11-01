@@ -37,6 +37,22 @@
   }
   .actions-dropdown {
     z-index: 3;
+    .hds-dropdown__list {
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+    .hds-reveal {
+      width: auto;
+      .hds-reveal__toggle-button {
+        color: black;
+        flex-direction: row-reverse;
+        width: 100%;
+        text-align: left;
+        font-weight: 600;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+      }
+    }
   }
   .exec-open-button,
   .two-step-button {
