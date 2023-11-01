@@ -160,6 +160,7 @@ Please set the CONSUL_HTTP_ADDR environment variable to your Consul cluster addr
 		s.consulEnt = true
 	}
 
+	// Setup Consul client namespace.
 	if s.consulEnt {
 		if s.clientCfg.Namespace != "" {
 			// Confirm CONSUL_NAMESPACE will be used.
@@ -180,46 +181,45 @@ Please set the CONSUL_NAMESPACE environment variable to the Consul namespace to 
 				return 1
 			}
 		}
+	}
 
-		/*
-			Namespace creation
-		*/
+	if s.cleanup {
+		return s.removeConfiguredComponents()
+	}
+
+	/*
+		Namespace creation
+	*/
+	if s.consulEnt {
 		ns := s.clientCfg.Namespace
 		namespaceMsg := `
 Since you're running Consul Enterprise, we will additionally create
 a namespace %q and bind the auth methods to that namespace.
 `
-		if !s.cleanup {
-			if s.namespaceExists(s.clientCfg.Namespace) {
-				s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists.", ns))
-			} else {
-				s.Ui.Output(fmt.Sprintf(namespaceMsg, ns))
+		if s.namespaceExists(s.clientCfg.Namespace) {
+			s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists.", ns))
+		} else {
+			s.Ui.Output(fmt.Sprintf(namespaceMsg, ns))
 
-				var createNamespace bool
-				if !s.autoYes {
-					createNamespace = s.askQuestion(
-						fmt.Sprintf("Create the namespace %q in your Consul cluster? [Y/n]", ns))
-					if !createNamespace {
-						s.handleNo()
-					}
-				} else {
-					createNamespace = true
+			var createNamespace bool
+			if !s.autoYes {
+				createNamespace = s.askQuestion(
+					fmt.Sprintf("Create the namespace %q in your Consul cluster? [Y/n]", ns))
+				if !createNamespace {
+					s.handleNo()
 				}
+			} else {
+				createNamespace = true
+			}
 
-				if createNamespace {
-					err = s.createNamespace(ns)
-					if err != nil {
-						s.Ui.Error(err.Error())
-						return 1
-					}
+			if createNamespace {
+				err = s.createNamespace(ns)
+				if err != nil {
+					s.Ui.Error(err.Error())
+					return 1
 				}
 			}
 		}
-	}
-
-	if s.cleanup {
-		s.removeConfiguredComponents()
-		return 0
 	}
 
 	/*
