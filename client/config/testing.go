@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
@@ -69,8 +68,7 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 	// Helps make sure we are respecting configured parent
 	conf.CgroupParent = "testing.slice"
 
-	conf.VaultConfig.Enabled = pointer.Of(false)
-	conf.VaultConfigs[structs.VaultDefaultCluster].Enabled = pointer.Of(false)
+	conf.GetDefaultVault().Enabled = pointer.Of(false)
 	conf.DevMode = true
 
 	// Loosen GC threshold

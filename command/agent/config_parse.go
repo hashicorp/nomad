@@ -55,16 +55,11 @@ func ParseConfigFile(path string) (*Config, error) {
 			PlanRejectionTracker: &PlanRejectionTracker{},
 			ServerJoin:           &ServerJoin{},
 		},
-		ACL:   &ACLConfig{},
-		Audit: &config.AuditConfig{},
-		Consul: &config.ConsulConfig{
-			ServiceIdentity: &config.WorkloadIdentityConfig{},
-			TaskIdentity:    &config.WorkloadIdentityConfig{},
-		},
+		ACL:       &ACLConfig{},
+		Audit:     &config.AuditConfig{},
 		Consuls:   map[string]*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
-		Vault:     &config.VaultConfig{},
 		Vaults:    map[string]*config.VaultConfig{},
 		Reporting: config.DefaultReporting(),
 	}
@@ -112,7 +107,6 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"server.plan_rejection_tracker.node_window", &c.Server.PlanRejectionTracker.NodeWindow, &c.Server.PlanRejectionTracker.NodeWindowHCL, nil},
 		{"server.retry_interval", &c.Server.RetryInterval, &c.Server.RetryIntervalHCL, nil},
 		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL, nil},
-		{"consul.timeout", &c.Consul.Timeout, &c.Consul.TimeoutHCL, nil},
 		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL, nil},
 		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL, nil},
 		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval, nil},
@@ -435,7 +429,6 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 		}
 	}
 
-	c.Vault = c.Vaults[structs.VaultDefaultCluster]
 	return nil
 }
 
@@ -515,6 +508,5 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 		}
 	}
 
-	c.Consul = c.Consuls[structs.ConsulDefaultCluster]
 	return nil
 }

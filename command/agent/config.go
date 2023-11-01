@@ -136,25 +136,10 @@ type Config struct {
 	// for security bulletins
 	DisableAnonymousSignature bool `hcl:"disable_anonymous_signature"`
 
-	// Consul contains the configuration for the default Consul Agent and
-	// parameters necessary to register services, their checks, and
-	// discover the current Nomad servers.
-	//
-	// TODO(tgross): we'll probably want to remove this field once we've added a
-	// selector so that we don't have to maintain it
-	Consul *config.ConsulConfig `hcl:"-"`
-
 	// Consuls is a map derived from multiple `consul` blocks, here to support
 	// features in Nomad Enterprise. The default Consul config pointer above will
 	// be found in this map under the name "default"
 	Consuls map[string]*config.ConsulConfig `hcl:"-"`
-
-	// Vault contains the configuration for the default Vault Agent and
-	// parameters necessary to derive tokens.
-	//
-	// TODO(tgross): we'll probably want to remove this field once we've added a
-	// selector so that we don't have to maintain it
-	Vault *config.VaultConfig `hcl:"-"`
 
 	// Vaults is a map derived from multiple `vault` blocks, here to support
 	// features in Nomad Enterprise. The default Vault config pointer above will
@@ -1267,7 +1252,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Server.BootstrapExpect = 1
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
-	conf.Consul.AutoAdvertise = pointer.Of(true)
+	conf.Consuls[structs.ConsulDefaultCluster].AutoAdvertise = pointer.Of(true)
 	conf.Client.NetworkInterface = mode.iface
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
@@ -1305,9 +1290,11 @@ func DefaultConfig() *Config {
 		},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Consul:         config.DefaultConsulConfig(),
-		Vault:          config.DefaultVaultConfig(),
-		UI:             config.DefaultUIConfig(),
+		Consuls: map[string]*config.ConsulConfig{
+			structs.ConsulDefaultCluster: config.DefaultConsulConfig()},
+		Vaults: map[string]*config.VaultConfig{
+			structs.VaultDefaultCluster: config.DefaultVaultConfig()},
+		UI: config.DefaultUIConfig(),
 		Client: &ClientConfig{
 			Enabled:               false,
 			NodePool:              structs.NodePoolDefault,
@@ -1386,8 +1373,6 @@ func DefaultConfig() *Config {
 		Reporting:          config.DefaultReporting(),
 	}
 
-	cfg.Consuls = map[string]*config.ConsulConfig{structs.ConsulDefaultCluster: cfg.Consul}
-	cfg.Vaults = map[string]*config.VaultConfig{structs.VaultDefaultCluster: cfg.Vault}
 	return cfg
 }
 
@@ -1559,13 +1544,11 @@ func (c *Config) Merge(b *Config) *Config {
 		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
 	}
 
-	// Apply the Consul Configurations and overwrite the default Consul config
+	// Apply the Consul Configurations
 	result.Consuls = mergeConsulConfigs(result.Consuls, b.Consuls)
-	result.Consul = result.Consuls[structs.ConsulDefaultCluster]
 
-	// Apply the Vault Configurations and overwrite the default Vault config
+	// Apply the Vault Configurations
 	result.Vaults = mergeVaultConfigs(result.Vaults, b.Vaults)
-	result.Vault = result.Vaults[structs.VaultDefaultCluster]
 
 	// Apply the UI Configuration
 	if result.UI == nil && b.UI != nil {
@@ -1665,9 +1648,7 @@ func (c *Config) Copy() *Config {
 	nc.Telemetry = c.Telemetry.Copy()
 	nc.DisableUpdateCheck = pointer.Copy(c.DisableUpdateCheck)
 	nc.Consuls = helper.DeepCopyMap(c.Consuls)
-	nc.Consul = nc.Consuls[structs.ConsulDefaultCluster]
 	nc.Vaults = helper.DeepCopyMap(c.Vaults)
-	nc.Vault = nc.Vaults[structs.VaultDefaultCluster]
 	nc.UI = c.UI.Copy()
 
 	nc.NomadConfig = c.NomadConfig.Copy()

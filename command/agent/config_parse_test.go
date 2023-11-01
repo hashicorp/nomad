@@ -212,46 +212,6 @@ var basicConfig = &Config{
 	SyslogFacility:            "LOCAL1",
 	DisableUpdateCheck:        pointer.Of(true),
 	DisableAnonymousSignature: true,
-	Consul: &config.ConsulConfig{
-		Name:                      structs.ConsulDefaultCluster,
-		ServerServiceName:         "nomad",
-		ServerHTTPCheckName:       "nomad-server-http-health-check",
-		ServerSerfCheckName:       "nomad-server-serf-health-check",
-		ServerRPCCheckName:        "nomad-server-rpc-health-check",
-		ClientServiceName:         "nomad-client",
-		ClientHTTPCheckName:       "nomad-client-http-health-check",
-		Addr:                      "127.0.0.1:9500",
-		AllowUnauthenticated:      &trueValue,
-		Token:                     "token1",
-		Auth:                      "username:pass",
-		EnableSSL:                 &trueValue,
-		VerifySSL:                 &trueValue,
-		CAFile:                    "/path/to/ca/file",
-		CertFile:                  "/path/to/cert/file",
-		KeyFile:                   "/path/to/key/file",
-		ServerAutoJoin:            &trueValue,
-		ClientAutoJoin:            &trueValue,
-		AutoAdvertise:             &trueValue,
-		ChecksUseAdvertise:        &trueValue,
-		Timeout:                   5 * time.Second,
-		TimeoutHCL:                "5s",
-		ServiceIdentityAuthMethod: "nomad-services",
-		ServiceIdentity: &config.WorkloadIdentityConfig{
-			Audience: []string{"consul.io", "nomad.dev"},
-			Env:      pointer.Of(false),
-			File:     pointer.Of(true),
-			TTL:      pointer.Of(1 * time.Hour),
-			TTLHCL:   "1h",
-		},
-		TaskIdentityAuthMethod: "nomad-tasks",
-		TaskIdentity: &config.WorkloadIdentityConfig{
-			Audience: []string{"consul.io"},
-			Env:      pointer.Of(true),
-			File:     pointer.Of(false),
-			TTL:      pointer.Of(2 * time.Hour),
-			TTLHCL:   "2h",
-		},
-	},
 	Consuls: map[string]*config.ConsulConfig{
 		structs.ConsulDefaultCluster: {
 			Name:                      structs.ConsulDefaultCluster,
@@ -292,30 +252,6 @@ var basicConfig = &Config{
 				TTL:      pointer.Of(2 * time.Hour),
 				TTLHCL:   "2h",
 			},
-		},
-	},
-	Vault: &config.VaultConfig{
-		Name:                 structs.VaultDefaultCluster,
-		Addr:                 "127.0.0.1:9500",
-		JWTAuthBackendPath:   "nomad_jwt",
-		AllowUnauthenticated: &trueValue,
-		ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
-		Enabled:              &falseValue,
-		Role:                 "test_role",
-		TLSCaFile:            "/path/to/ca/file",
-		TLSCaPath:            "/path/to/ca",
-		TLSCertFile:          "/path/to/cert/file",
-		TLSKeyFile:           "/path/to/key/file",
-		TLSServerName:        "foobar",
-		TLSSkipVerify:        &trueValue,
-		TaskTokenTTL:         "1s",
-		Token:                "12345",
-		DefaultIdentity: &config.WorkloadIdentityConfig{
-			Audience: []string{"vault.io", "nomad.io"},
-			Env:      pointer.Of(false),
-			File:     pointer.Of(true),
-			TTL:      pointer.Of(3 * time.Hour),
-			TTLHCL:   "3h",
 		},
 	},
 	Vaults: map[string]*config.VaultConfig{
@@ -458,10 +394,6 @@ var pluginConfig = &Config{
 	SyslogFacility:            "",
 	DisableUpdateCheck:        nil,
 	DisableAnonymousSignature: false,
-	Consul:                    nil,
-	Consuls:                   map[string]*config.ConsulConfig{},
-	Vault:                     nil,
-	Vaults:                    map[string]*config.VaultConfig{},
 	TLSConfig:                 nil,
 	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
@@ -529,8 +461,6 @@ var nonoptConfig = &Config{
 	SyslogFacility:            "",
 	DisableUpdateCheck:        nil,
 	DisableAnonymousSignature: false,
-	Consul:                    nil,
-	Vault:                     nil,
 	TLSConfig:                 nil,
 	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
@@ -550,12 +480,10 @@ func TestConfig_ParseMerge(t *testing.T) {
 
 	// The Vault connection retry interval is an internal only configuration
 	// option, and therefore needs to be added here to ensure the test passes.
-	actual.Vault.ConnectionRetryIntv = config.DefaultVaultConnectRetryIntv
+	actual.Vaults[structs.VaultDefaultCluster].ConnectionRetryIntv = config.DefaultVaultConnectRetryIntv
 	must.Eq(t, basicConfig, actual)
 
 	oldDefault := &Config{
-		Consul:    config.DefaultConsulConfig(),
-		Vault:     config.DefaultVaultConfig(),
 		Autopilot: config.DefaultAutopilotConfig(),
 		Client:    &ClientConfig{},
 		Server:    &ServerConfig{},
@@ -607,15 +535,14 @@ func TestConfig_Parse(t *testing.T) {
 			actual, err := ParseConfigFile(path)
 			must.NoError(t, err)
 
-			// ParseConfig used to re-merge defaults for these three objects,
-			// despite them already being merged in LoadConfig. The test structs
-			// expect these defaults to be set, but not the DefaultConfig
-			// defaults, which include additional settings
+			// The test assertion structs expect these defaults to be set, but
+			// not the DefaultConfig defaults, which include a large number of
+			// additional settings.
 			oldDefault := &Config{
-				Consul:    config.DefaultConsulConfig(),
-				Consuls:   map[string]*config.ConsulConfig{structs.ConsulDefaultCluster: config.DefaultConsulConfig()},
-				Vault:     config.DefaultVaultConfig(),
-				Vaults:    map[string]*config.VaultConfig{structs.VaultDefaultCluster: config.DefaultVaultConfig()},
+				Consuls: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: config.DefaultConsulConfig()},
+				Vaults: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: config.DefaultVaultConfig()},
 				Autopilot: config.DefaultAutopilotConfig(),
 				Reporting: config.DefaultReporting(),
 			}
@@ -649,16 +576,16 @@ func (c *Config) addDefaults() {
 	if c.Audit == nil {
 		c.Audit = &config.AuditConfig{}
 	}
-	if c.Consul == nil {
-		c.Consul = config.DefaultConsulConfig()
-		c.Consuls = map[string]*config.ConsulConfig{structs.ConsulDefaultCluster: c.Consul}
+	if c.Consuls == nil {
+		c.Consuls = map[string]*config.ConsulConfig{
+			structs.ConsulDefaultCluster: config.DefaultConsulConfig()}
 	}
 	if c.Autopilot == nil {
 		c.Autopilot = config.DefaultAutopilotConfig()
 	}
-	if c.Vault == nil {
-		c.Vault = config.DefaultVaultConfig()
-		c.Vaults = map[string]*config.VaultConfig{structs.VaultDefaultCluster: c.Vault}
+	if c.Vaults == nil {
+		c.Vaults = map[string]*config.VaultConfig{
+			structs.VaultDefaultCluster: config.DefaultVaultConfig()}
 	}
 	if c.Telemetry == nil {
 		c.Telemetry = &Telemetry{}
@@ -802,12 +729,6 @@ var sample0 = &Config{
 	LeaveOnTerm:    true,
 	EnableSyslog:   true,
 	SyslogFacility: "LOCAL0",
-	Consul: &config.ConsulConfig{
-		Name:           structs.ConsulDefaultCluster,
-		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-		ServerAutoJoin: pointer.Of(false),
-		ClientAutoJoin: pointer.Of(false),
-	},
 	Consuls: map[string]*config.ConsulConfig{
 		structs.ConsulDefaultCluster: {
 			Name:           structs.ConsulDefaultCluster,
@@ -815,12 +736,6 @@ var sample0 = &Config{
 			ServerAutoJoin: pointer.Of(false),
 			ClientAutoJoin: pointer.Of(false),
 		},
-	},
-	Vault: &config.VaultConfig{
-		Name:    structs.VaultDefaultCluster,
-		Enabled: pointer.Of(true),
-		Role:    "nomad-cluster",
-		Addr:    "http://host.example.com:8200",
 	},
 	Vaults: map[string]*config.VaultConfig{
 		structs.VaultDefaultCluster: {
@@ -916,13 +831,6 @@ var sample1 = &Config{
 	LeaveOnTerm:    true,
 	EnableSyslog:   true,
 	SyslogFacility: "LOCAL0",
-	Consul: &config.ConsulConfig{
-		Name:           structs.ConsulDefaultCluster,
-		EnableSSL:      pointer.Of(true),
-		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-		ServerAutoJoin: pointer.Of(false),
-		ClientAutoJoin: pointer.Of(false),
-	},
 	Consuls: map[string]*config.ConsulConfig{
 		structs.ConsulDefaultCluster: {
 			Name:           structs.ConsulDefaultCluster,
@@ -931,12 +839,6 @@ var sample1 = &Config{
 			ServerAutoJoin: pointer.Of(false),
 			ClientAutoJoin: pointer.Of(false),
 		},
-	},
-	Vault: &config.VaultConfig{
-		Name:    structs.VaultDefaultCluster,
-		Enabled: pointer.Of(true),
-		Role:    "nomad-cluster",
-		Addr:    "http://host.example.com:8200",
 	},
 	Vaults: map[string]*config.VaultConfig{
 		structs.VaultDefaultCluster: {
@@ -1064,31 +966,28 @@ func TestConfig_MultipleVault(t *testing.T) {
 
 	// verify the default Vault config is set from the list
 	cfg := DefaultConfig()
-	must.Eq(t, structs.VaultDefaultCluster, cfg.Vault.Name)
-	must.Equal(t, config.DefaultVaultConfig(), cfg.Vault)
-	must.Nil(t, cfg.Vault.Enabled) // unset
-	must.Eq(t, "https://vault.service.consul:8200", cfg.Vault.Addr)
-	must.Eq(t, "", cfg.Vault.Token)
-	must.Eq(t, "jwt", cfg.Vault.JWTAuthBackendPath)
-
 	must.MapLen(t, 1, cfg.Vaults)
-	must.Equal(t, cfg.Vault, cfg.Vaults[structs.VaultDefaultCluster])
-	must.True(t, cfg.Vault == cfg.Vaults[structs.VaultDefaultCluster]) // must be same pointer
+	defaultVault := cfg.Vaults[structs.VaultDefaultCluster]
+	must.Eq(t, structs.VaultDefaultCluster, defaultVault.Name)
+	must.Equal(t, config.DefaultVaultConfig(), defaultVault)
+	must.Nil(t, defaultVault.Enabled) // unset
+	must.Eq(t, "https://vault.service.consul:8200", defaultVault.Addr)
+	must.Eq(t, "", defaultVault.Token)
+	must.Eq(t, "jwt", defaultVault.JWTAuthBackendPath)
 
 	// merge in the user's configuration
 	fc, err := LoadConfig("testdata/basic.hcl")
 	must.NoError(t, err)
 	cfg = cfg.Merge(fc)
 
-	must.Eq(t, structs.VaultDefaultCluster, cfg.Vault.Name)
-	must.NotNil(t, cfg.Vault.Enabled, must.Sprint("override should set to non-nil"))
-	must.False(t, *cfg.Vault.Enabled)
-	must.Eq(t, "127.0.0.1:9500", cfg.Vault.Addr)
-	must.Eq(t, "nomad_jwt", cfg.Vault.JWTAuthBackendPath)
-	must.Eq(t, "12345", cfg.Vault.Token)
-
 	must.MapLen(t, 1, cfg.Vaults)
-	must.Equal(t, cfg.Vault, cfg.Vaults[structs.VaultDefaultCluster])
+	defaultVault = cfg.Vaults[structs.VaultDefaultCluster]
+	must.Eq(t, structs.VaultDefaultCluster, defaultVault.Name)
+	must.NotNil(t, defaultVault.Enabled, must.Sprint("override should set to non-nil"))
+	must.False(t, *defaultVault.Enabled)
+	must.Eq(t, "127.0.0.1:9500", defaultVault.Addr)
+	must.Eq(t, "nomad_jwt", defaultVault.JWTAuthBackendPath)
+	must.Eq(t, "12345", defaultVault.Token)
 
 	// add an extra Vault config and override fields in the default
 	fc, err = LoadConfig("testdata/extra-vault.hcl")
@@ -1096,13 +995,12 @@ func TestConfig_MultipleVault(t *testing.T) {
 
 	cfg = cfg.Merge(fc)
 
-	must.Eq(t, structs.VaultDefaultCluster, cfg.Vault.Name)
-	must.True(t, *cfg.Vault.Enabled)
-	must.Eq(t, "127.0.0.1:9500", cfg.Vault.Addr)
-	must.Eq(t, "abracadabra", cfg.Vault.Token)
-
 	must.MapLen(t, 3, cfg.Vaults)
-	must.Equal(t, cfg.Vault, cfg.Vaults[structs.VaultDefaultCluster])
+	defaultVault = cfg.Vaults[structs.VaultDefaultCluster]
+	must.Eq(t, structs.VaultDefaultCluster, defaultVault.Name)
+	must.True(t, *defaultVault.Enabled)
+	must.Eq(t, "127.0.0.1:9500", defaultVault.Addr)
+	must.Eq(t, "abracadabra", defaultVault.Token)
 
 	must.Eq(t, "alternate", cfg.Vaults["alternate"].Name)
 	must.True(t, *cfg.Vaults["alternate"].Enabled)
@@ -1123,28 +1021,26 @@ func TestConfig_MultipleConsul(t *testing.T) {
 
 	// verify the default Consul config is set from the list
 	cfg := DefaultConfig()
-	must.Eq(t, structs.ConsulDefaultCluster, cfg.Consul.Name)
-	must.Eq(t, config.DefaultConsulConfig(), cfg.Consul)
-	must.True(t, *cfg.Consul.AllowUnauthenticated)
-	must.Eq(t, "127.0.0.1:8500", cfg.Consul.Addr)
-	must.Eq(t, "", cfg.Consul.Token)
 
 	must.MapLen(t, 1, cfg.Consuls)
-	must.Eq(t, cfg.Consul, cfg.Consuls[structs.ConsulDefaultCluster])
-	must.True(t, cfg.Consul == cfg.Consuls[structs.ConsulDefaultCluster]) // must be same pointer
+	defaultConsul := cfg.Consuls[structs.ConsulDefaultCluster]
+	must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
+	must.Eq(t, config.DefaultConsulConfig(), defaultConsul)
+	must.True(t, *defaultConsul.AllowUnauthenticated)
+	must.Eq(t, "127.0.0.1:8500", defaultConsul.Addr)
+	must.Eq(t, "", defaultConsul.Token)
 
 	// merge in the user's configuration
 	fc, err := LoadConfig("testdata/basic.hcl")
 	must.NoError(t, err)
 	cfg = cfg.Merge(fc)
 
-	must.Eq(t, structs.ConsulDefaultCluster, cfg.Consul.Name)
-	must.True(t, *cfg.Consul.AllowUnauthenticated)
-	must.Eq(t, "127.0.0.1:9500", cfg.Consul.Addr)
-	must.Eq(t, "token1", cfg.Consul.Token)
-
 	must.MapLen(t, 1, cfg.Consuls)
-	must.Eq(t, cfg.Consul, cfg.Consuls[structs.ConsulDefaultCluster])
+	defaultConsul = cfg.Consuls[structs.ConsulDefaultCluster]
+	must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
+	must.True(t, *defaultConsul.AllowUnauthenticated)
+	must.Eq(t, "127.0.0.1:9500", defaultConsul.Addr)
+	must.Eq(t, "token1", defaultConsul.Token)
 
 	// add an extra Consul config and override fields in the default
 	fc, err = LoadConfig("testdata/extra-consul.hcl")
@@ -1152,13 +1048,12 @@ func TestConfig_MultipleConsul(t *testing.T) {
 
 	cfg = cfg.Merge(fc)
 
-	must.Eq(t, structs.ConsulDefaultCluster, cfg.Consul.Name)
-	must.False(t, *cfg.Consul.AllowUnauthenticated)
-	must.Eq(t, "127.0.0.1:9501", cfg.Consul.Addr)
-	must.Eq(t, "abracadabra", cfg.Consul.Token)
-
 	must.MapLen(t, 3, cfg.Consuls)
-	must.Eq(t, cfg.Consul, cfg.Consuls[structs.ConsulDefaultCluster])
+	defaultConsul = cfg.Consuls[structs.ConsulDefaultCluster]
+	must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
+	must.False(t, *defaultConsul.AllowUnauthenticated)
+	must.Eq(t, "127.0.0.1:9501", defaultConsul.Addr)
+	must.Eq(t, "abracadabra", defaultConsul.Token)
 
 	must.Eq(t, "alternate", cfg.Consuls["alternate"].Name)
 	must.True(t, *cfg.Consuls["alternate"].AllowUnauthenticated)

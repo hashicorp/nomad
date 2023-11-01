@@ -72,7 +72,7 @@ func (tr *TaskRunner) setVaultToken(token string) {
 	// Update the task's environment
 	taskNamespace := tr.task.Vault.Namespace
 
-	ns := tr.clientConfig.VaultConfig.Namespace
+	ns := tr.clientConfig.VaultConfigs[tr.task.GetVaultClusterName()].Namespace
 	if taskNamespace != "" {
 		ns = taskNamespace
 	}

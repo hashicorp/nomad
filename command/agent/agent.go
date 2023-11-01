@@ -507,7 +507,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.FailoverHeartbeatTTL = failoverTTL
 	}
 
-	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ServerServiceName == "" {
+	consul := agentConfig.Consuls[structs.ConsulDefaultCluster]
+	if *consul.AutoAdvertise && consul.ServerServiceName == "" {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
@@ -517,12 +518,10 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	}
 
 	// Add the Consul and Vault configs
-	conf.ConsulConfig = agentConfig.Consul
 	for _, consulConfig := range agentConfig.Consuls {
 		conf.ConsulConfigs[consulConfig.Name] = consulConfig
 	}
 
-	conf.VaultConfig = agentConfig.Vault
 	for _, vaultConfig := range agentConfig.Vaults {
 		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
 	}
@@ -828,16 +827,14 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	conf.Version = agentConfig.Version
 
-	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ClientServiceName == "" {
+	consul := agentConfig.Consuls[structs.ConsulDefaultCluster]
+	if *consul.AutoAdvertise && consul.ClientServiceName == "" {
 		return nil, fmt.Errorf("client_service_name must be set when auto_advertise is enabled")
 	}
-
-	conf.ConsulConfig = agentConfig.Consul
 	for _, consulConfig := range agentConfig.Consuls {
 		conf.ConsulConfigs[consulConfig.Name] = consulConfig
 	}
 
-	conf.VaultConfig = agentConfig.Vault
 	for _, vaultConfig := range agentConfig.Vaults {
 		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
 	}
@@ -938,29 +935,32 @@ func (a *Agent) setupServer() error {
 	// Consul check addresses default to bind but can be toggled to use advertise
 	rpcCheckAddr := a.config.normalizedAddrs.RPC
 	serfCheckAddr := a.config.normalizedAddrs.Serf
-	if *a.config.Consul.ChecksUseAdvertise {
+
+	defaultConsul := a.config.Consuls[structs.ConsulDefaultCluster]
+
+	if *defaultConsul.ChecksUseAdvertise {
 		rpcCheckAddr = a.config.AdvertiseAddrs.RPC
 		serfCheckAddr = a.config.AdvertiseAddrs.Serf
 	}
 
 	// Create the Nomad Server services for Consul
-	if *a.config.Consul.AutoAdvertise {
+	if *defaultConsul.AutoAdvertise {
 		httpServ := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
+			Name:      defaultConsul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      append([]string{consul.ServiceTagHTTP}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagHTTP}, defaultConsul.Tags...),
 		}
 		const isServer = true
 		if check := a.agentHTTPCheck(isServer); check != nil {
 			httpServ.Checks = []*structs.ServiceCheck{check}
 		}
 		rpcServ := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
+			Name:      defaultConsul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.RPC,
-			Tags:      append([]string{consul.ServiceTagRPC}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagRPC}, defaultConsul.Tags...),
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      a.config.Consul.ServerRPCCheckName,
+					Name:      defaultConsul.ServerRPCCheckName,
 					Type:      "tcp",
 					Interval:  serverRpcCheckInterval,
 					Timeout:   serverRpcCheckTimeout,
@@ -969,12 +969,12 @@ func (a *Agent) setupServer() error {
 			},
 		}
 		serfServ := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
+			Name:      defaultConsul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.Serf,
-			Tags:      append([]string{consul.ServiceTagSerf}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagSerf}, defaultConsul.Tags...),
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      a.config.Consul.ServerSerfCheckName,
+					Name:      defaultConsul.ServerSerfCheckName,
 					Type:      "tcp",
 					Interval:  serverSerfCheckInterval,
 					Timeout:   serverSerfCheckTimeout,
@@ -1132,11 +1132,12 @@ func (a *Agent) setupClient() error {
 	a.client = nomadClient
 
 	// Create the Nomad Client  services for Consul
-	if *a.config.Consul.AutoAdvertise {
+	defaultConsul := a.config.Consuls[structs.ConsulDefaultCluster]
+	if *defaultConsul.AutoAdvertise {
 		httpServ := &structs.Service{
-			Name:      a.config.Consul.ClientServiceName,
+			Name:      defaultConsul.ClientServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      append([]string{consul.ServiceTagHTTP}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagHTTP}, defaultConsul.Tags...),
 		}
 		const isServer = false
 		if check := a.agentHTTPCheck(isServer); check != nil {
@@ -1155,11 +1156,13 @@ func (a *Agent) setupClient() error {
 func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// Resolve the http check address
 	httpCheckAddr := a.config.normalizedAddrs.HTTP[0]
-	if *a.config.Consul.ChecksUseAdvertise {
+
+	defaultConsul := a.config.Consuls[structs.ConsulDefaultCluster]
+	if *defaultConsul.ChecksUseAdvertise {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}
 	check := structs.ServiceCheck{
-		Name:      a.config.Consul.ClientHTTPCheckName,
+		Name:      defaultConsul.ClientHTTPCheckName,
 		Type:      "http",
 		Path:      "/v1/agent/health?type=client",
 		Protocol:  "http",
@@ -1169,7 +1172,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	}
 	// Switch to endpoint that doesn't require a leader for servers
 	if server {
-		check.Name = a.config.Consul.ServerHTTPCheckName
+		check.Name = defaultConsul.ServerHTTPCheckName
 		check.Path = "/v1/agent/health?type=server"
 	}
 	if !a.config.TLSConfig.EnableHTTP {

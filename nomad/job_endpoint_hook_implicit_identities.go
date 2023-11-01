@@ -20,15 +20,15 @@ func (jobImplicitIdentitiesHook) Name() string {
 func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
-			h.handleConsulService(s)
+			h.handleConsulService(s, tg)
 		}
 
 		for _, t := range tg.Tasks {
 			for _, s := range t.Services {
-				h.handleConsulService(s)
+				h.handleConsulService(s, tg)
 			}
 			if len(t.Templates) > 0 {
-				h.handleConsulTasks(t)
+				h.handleConsulTasks(t, tg)
 			}
 			h.handleVault(t)
 		}
@@ -43,7 +43,7 @@ func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []err
 //
 // If the service already has an identity the server sets the identity name and
 // service name values.
-func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
+func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service, tg *structs.TaskGroup) {
 	if s.Provider != "" && s.Provider != "consul" {
 		return
 	}
@@ -53,7 +53,7 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 	if serviceWID == nil {
 		// If the service doesn't specify an identity, fallback to the service
 		// identity defined in the server configuration.
-		serviceWID = h.srv.config.ConsulServiceIdentity()
+		serviceWID = h.srv.config.ConsulServiceIdentity(s.GetConsulClusterName(tg))
 		if serviceWID == nil {
 			// If no identity is found, skip injecting the implicit identity
 			// and fallback to the legacy flow.
@@ -68,7 +68,7 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 	s.Identity = serviceWID
 }
 
-func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task) {
+func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, tg *structs.TaskGroup) {
 	widName := t.Consul.IdentityName()
 
 	// Use the Consul identity specified in the task if present
@@ -80,7 +80,7 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task) {
 
 	// If task doesn't specify an identity for Consul, fallback to the
 	// default identity defined in the server configuration.
-	taskWID := h.srv.config.ConsulTaskIdentity()
+	taskWID := h.srv.config.ConsulTaskIdentity(t.GetConsulClusterName(tg))
 	if taskWID == nil {
 		// If no identity is found skip inject the implicit identity and
 		// fallback to the legacy flow.
@@ -108,7 +108,7 @@ func (h jobImplicitIdentitiesHook) handleVault(t *structs.Task) {
 
 	// If the task doesn't specify an identity for Vault, fallback to the
 	// default identity defined in the server configuration.
-	vaultWID = h.srv.config.VaultIdentityConfig(t.Vault.Cluster)
+	vaultWID = h.srv.config.VaultIdentityConfig(t.GetVaultClusterName())
 	if vaultWID == nil {
 		// If no identity is found skip inject the implicit identity and
 		// fallback to the legacy flow.

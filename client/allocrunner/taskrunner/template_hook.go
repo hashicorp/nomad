@@ -205,6 +205,8 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 			return nil, fmt.Errorf("Vault cluster %q is disabled or not configured", vaultCluster)
 		}
 	}
+	consulCluster := h.task.GetConsulClusterName(nil)
+	consulConfig := h.config.clientConfig.GetConsulConfigs(h.logger)[consulCluster]
 
 	m, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
 		UnblockCh:            unblock,
@@ -214,6 +216,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		ClientConfig:         h.config.clientConfig,
 		ConsulNamespace:      h.config.consulNamespace,
 		ConsulToken:          h.consulToken,
+		ConsulConfig:         consulConfig,
 		VaultToken:           h.vaultToken,
 		VaultConfig:          vaultConfig,
 		VaultNamespace:       h.vaultNamespace,

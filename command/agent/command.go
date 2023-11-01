@@ -69,18 +69,18 @@ func (c *Command) readConfig() *Config {
 	// Make a new, empty config.
 	cmdConfig := &Config{
 		Client: &ClientConfig{},
-		Consul: &config.ConsulConfig{},
-		Ports:  &Ports{},
+		Consuls: map[string]*config.ConsulConfig{
+			structs.ConsulDefaultCluster: &config.ConsulConfig{}},
+		Ports: &Ports{},
 		Server: &ServerConfig{
 			ServerJoin: &ServerJoin{},
 		},
-		Vault:     &config.VaultConfig{},
+		Vaults: map[string]*config.VaultConfig{
+			structs.VaultDefaultCluster: &config.VaultConfig{}},
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
 		Reporting: &config.ReportingConfig{},
 	}
-	cmdConfig.Vaults = map[string]*config.VaultConfig{structs.VaultDefaultCluster: cmdConfig.Vault}
-	cmdConfig.Consuls = map[string]*config.ConsulConfig{structs.ConsulDefaultCluster: cmdConfig.Consul}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -129,69 +129,71 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Consul options
-	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
+	defaultConsul := cmdConfig.Consuls[structs.ConsulDefaultCluster]
+	flags.StringVar(&defaultConsul.Auth, "consul-auth", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.AutoAdvertise = &b
+		defaultConsul.AutoAdvertise = &b
 		return nil
 	}), "consul-auto-advertise", "")
-	flags.StringVar(&cmdConfig.Consul.CAFile, "consul-ca-file", "", "")
-	flags.StringVar(&cmdConfig.Consul.CertFile, "consul-cert-file", "", "")
-	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
+	flags.StringVar(&defaultConsul.CAFile, "consul-ca-file", "", "")
+	flags.StringVar(&defaultConsul.CertFile, "consul-cert-file", "", "")
+	flags.StringVar(&defaultConsul.KeyFile, "consul-key-file", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.ChecksUseAdvertise = &b
+		defaultConsul.ChecksUseAdvertise = &b
 		return nil
 	}), "consul-checks-use-advertise", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.ClientAutoJoin = &b
+		defaultConsul.ClientAutoJoin = &b
 		return nil
 	}), "consul-client-auto-join", "")
-	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
+	flags.StringVar(&defaultConsul.ClientServiceName, "consul-client-service-name", "", "")
+	flags.StringVar(&defaultConsul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
+	flags.StringVar(&defaultConsul.ServerServiceName, "consul-server-service-name", "", "")
+	flags.StringVar(&defaultConsul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
+	flags.StringVar(&defaultConsul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
+	flags.StringVar(&defaultConsul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.ServerAutoJoin = &b
+		defaultConsul.ServerAutoJoin = &b
 		return nil
 	}), "consul-server-auto-join", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.EnableSSL = &b
+		defaultConsul.EnableSSL = &b
 		return nil
 	}), "consul-ssl", "")
-	flags.StringVar(&cmdConfig.Consul.Token, "consul-token", "", "")
+	flags.StringVar(&defaultConsul.Token, "consul-token", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.VerifySSL = &b
+		defaultConsul.VerifySSL = &b
 		return nil
 	}), "consul-verify-ssl", "")
-	flags.StringVar(&cmdConfig.Consul.Addr, "consul-address", "", "")
+	flags.StringVar(&defaultConsul.Addr, "consul-address", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.AllowUnauthenticated = &b
+		defaultConsul.AllowUnauthenticated = &b
 		return nil
 	}), "consul-allow-unauthenticated", "")
 
 	// Vault options
+	defaultVault := cmdConfig.Vaults[structs.VaultDefaultCluster]
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Vault.Enabled = &b
+		defaultVault.Enabled = &b
 		return nil
 	}), "vault-enabled", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Vault.AllowUnauthenticated = &b
+		defaultVault.AllowUnauthenticated = &b
 		return nil
 	}), "vault-allow-unauthenticated", "")
-	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
-	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
-	flags.StringVar(&cmdConfig.Vault.Namespace, "vault-namespace", "", "")
-	flags.StringVar(&cmdConfig.Vault.Role, "vault-create-from-role", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSCaFile, "vault-ca-file", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSCaPath, "vault-ca-path", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSCertFile, "vault-cert-file", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSKeyFile, "vault-key-file", "", "")
+	flags.StringVar(&defaultVault.Token, "vault-token", "", "")
+	flags.StringVar(&defaultVault.Addr, "vault-address", "", "")
+	flags.StringVar(&defaultVault.Namespace, "vault-namespace", "", "")
+	flags.StringVar(&defaultVault.Role, "vault-create-from-role", "", "")
+	flags.StringVar(&defaultVault.TLSCaFile, "vault-ca-file", "", "")
+	flags.StringVar(&defaultVault.TLSCaPath, "vault-ca-path", "", "")
+	flags.StringVar(&defaultVault.TLSCertFile, "vault-cert-file", "", "")
+	flags.StringVar(&defaultVault.TLSKeyFile, "vault-key-file", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Vault.TLSSkipVerify = &b
+		defaultVault.TLSSkipVerify = &b
 		return nil
 	}), "vault-tls-skip-verify", "")
-	flags.StringVar(&cmdConfig.Vault.TLSServerName, "vault-tls-server-name", "", "")
+	flags.StringVar(&defaultVault.TLSServerName, "vault-tls-server-name", "", "")
 
 	// ACL options
 	flags.BoolVar(&cmdConfig.ACL.Enabled, "acl-enabled", false, "")
@@ -279,13 +281,13 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Check to see if we should read the Vault token from the environment
-	if config.Vault.Token == "" {
-		config.Vault.Token = os.Getenv("VAULT_TOKEN")
+	if defaultVault.Token == "" {
+		defaultVault.Token = os.Getenv("VAULT_TOKEN")
 	}
 
 	// Check to see if we should read the Vault namespace from the environment
-	if config.Vault.Namespace == "" {
-		config.Vault.Namespace = os.Getenv("VAULT_NAMESPACE")
+	if defaultVault.Namespace == "" {
+		defaultVault.Namespace = os.Getenv("VAULT_NAMESPACE")
 	}
 
 	// Default the plugin directory to be under that of the data directory if it

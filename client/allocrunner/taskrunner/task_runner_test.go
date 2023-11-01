@@ -122,7 +122,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	db := cstate.NewMemDB(logger)
 
 	if thisTask.Vault != nil {
-		clientConf.VaultConfigs[structs.VaultDefaultCluster].Enabled = pointer.Of(true)
+		clientConf.GetDefaultVault().Enabled = pointer.Of(true)
 	}
 
 	var vaultFunc vaultclient.VaultClientFunc

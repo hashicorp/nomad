@@ -84,7 +84,7 @@ func TestConfigForServer(t testing.T) *Config {
 
 	// Disable Vault
 	f := false
-	config.VaultConfig.Enabled = &f
+	config.GetDefaultVault().Enabled = &f
 
 	// Tighten the autopilot timing
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
@@ -92,7 +92,7 @@ func TestConfigForServer(t testing.T) *Config {
 	config.AutopilotInterval = 100 * time.Millisecond
 
 	// Disable consul autojoining: tests typically join servers directly
-	config.ConsulConfig.ServerAutoJoin = &f
+	config.GetDefaultConsul().ServerAutoJoin = &f
 
 	// Enable fuzzy search API
 	config.SearchConfig = &structs.SearchConfig{

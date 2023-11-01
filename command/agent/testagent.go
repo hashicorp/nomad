@@ -354,9 +354,8 @@ func (a *TestAgent) config() *Config {
 	// Bind and set ports
 	conf.BindAddr = "127.0.0.1"
 
-	conf.Consul = sconfig.DefaultConsulConfig()
-	conf.Consuls[structs.ConsulDefaultCluster] = conf.Consul
-	conf.Vault.Enabled = new(bool)
+	conf.Consuls[structs.ConsulDefaultCluster] = sconfig.DefaultConsulConfig()
+	conf.Vaults[structs.VaultDefaultCluster].Enabled = new(bool)
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
