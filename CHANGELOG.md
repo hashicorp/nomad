@@ -1,3 +1,45 @@
+## 1.7.0 (Unreleased)
+
+FEATURES:
+
+* **NUMA aware scheduling**: Nomad Enterprise now supports optimized scheduling on NUMA hardware [[GH-18681](https://github.com/hashicorp/nomad/issues/18681)]
+* **Multiple Vault and Consul Clusters:** Nomad Enterprise can now use multiple Vault or Consul clusters. Each task or service can be registered with a different Consul cluster and each task can obtain secrets from a different Vault cluster. [[GH-5311](https://github.com/hashicorp/nomad/issues/5311)]
+* **Workload Identity IDP:** Nomad's workload identities may now be used with third parties that support JWT or OIDC IDPs such as the AWS IAM OIDC Provider. [[GH-18691](https://github.com/hashicorp/nomad/issues/18691)]
+* **Workload Identity for Consul:** Jobs can now use workload identity to authenticate to Consul. [[GH-15618](https://github.com/hashicorp/nomad/issues/15618)]
+* **Workload Identity for Vault:** Jobs can now use workload identity to authenticate to Vault. [[GH-15617](https://github.com/hashicorp/nomad/issues/15617)]
+* **Job Actions**: Introduces the action concept to jobspecs, the web UI, CLI and API. Operators can now define actions that Nomad users can execute against running allocations. [[GH-18794](https://github.com/hashicorp/nomad/issues/18794)]
+
+BREAKING CHANGES:
+
+* client/fingerprint: The `cpu.numcores.power` node attribute has been renamed to `cpu.numcores.performance` on Apple Silicon nodes [[GH-18843](https://github.com/hashicorp/nomad/issues/18843)]
+* client: the `unique.cgroup.mountpoint` node attribute has been removed [[GH-18371](https://github.com/hashicorp/nomad/issues/18371)]
+* client: the `unique.cgroup.version` node attribute has been renamed to `os.cgroups.version` [[GH-18371](https://github.com/hashicorp/nomad/issues/18371)]
+
+IMPROVEMENTS:
+
+* api: Add JWKS HTTP API endpoint [[GH-18035](https://github.com/hashicorp/nomad/issues/18035)]
+* api: Added support for Unix domain sockets [[GH-16872](https://github.com/hashicorp/nomad/issues/16872)]
+* build (Enterprise): Support building s390x binaries. [[GH-18069](https://github.com/hashicorp/nomad/issues/18069)]
+* cli: Add file prediction for operator raft/snapshot commands [[GH-18901](https://github.com/hashicorp/nomad/issues/18901)]
+* cli: Added support for prefix ID matching and wildcard namespaces to `service info` command [[GH-18836](https://github.com/hashicorp/nomad/issues/18836)]
+* client: add support for NetBSD clients [[GH-18562](https://github.com/hashicorp/nomad/issues/18562)]
+* client: enable detection of numa topology [[GH-18146](https://github.com/hashicorp/nomad/issues/18146)]
+* deps: bumped `shirou/gopsutil` to v3.23.9 [[GH-18562](https://github.com/hashicorp/nomad/issues/18562)]
+* fingerprint: clients now backoff after successfully fingerprinting Consul [[GH-18426](https://github.com/hashicorp/nomad/issues/18426)]
+* identity: Add support for multiple workload identities [[GH-18123](https://github.com/hashicorp/nomad/issues/18123)]
+* identity: Implement `change_mode` and `change_signal` for workload identities [[GH-18943](https://github.com/hashicorp/nomad/issues/18943)]
+* identity: Support jwt expiration and rotation [[GH-18262](https://github.com/hashicorp/nomad/issues/18262)]
+* identity: default to RS256 for new workload ids [[GH-18882](https://github.com/hashicorp/nomad/issues/18882)]
+* sentinel (Enterprise): Add existing job information to Sentinel when available. [[GH-18553](https://github.com/hashicorp/nomad/issues/18553)]
+* server: Added transfer-leadership API and CLI [[GH-17383](https://github.com/hashicorp/nomad/issues/17383)]
+* ui: color-code node and server status cells [[GH-18318](https://github.com/hashicorp/nomad/issues/18318)]
+* ui: simplify presentation of task event times (10m2.230948s bceomes 10m2s etc.) [[GH-18595](https://github.com/hashicorp/nomad/issues/18595)]
+* vars: Added a locking feature for Nomad Variables [[GH-18520](https://github.com/hashicorp/nomad/issues/18520)]
+
+BUG FIXES:
+
+* ui: fix the job auto-linked variable path name when user lacks variable write permissions [[GH-18598](https://github.com/hashicorp/nomad/issues/18598)]
+
 ## 1.6.3 (October 30, 2023)
 
 SECURITY:
