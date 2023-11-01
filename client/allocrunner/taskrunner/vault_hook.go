@@ -171,10 +171,7 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 		return nil
 	}
 
-	cluster := h.vaultBlock.Cluster
-	if cluster == "" {
-		cluster = structs.VaultDefaultCluster
-	}
+	cluster := h.task.GetVaultClusterName()
 	vclient, err := h.clientFunc(cluster)
 	if err != nil {
 		return err
