@@ -58,45 +58,39 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	tests := []struct {
 		name        string
 		req         *interfaces.TaskPrestartRequest
-		wantErr     bool
 		wantErrMsg  string
 		consulToken string
 	}{
 		{
-			"task with no Consul WI",
-			&interfaces.TaskPrestartRequest{
+			name: "task with no Consul WI",
+			req: &interfaces.TaskPrestartRequest{
 				Task:    &structs.Task{},
 				TaskDir: &allocdir.TaskDir{Dir: "foo"},
 			},
-			false,
-			"",
-			"",
 		},
 		{
-			"task with Consul WI but no corresponding identity",
-			&interfaces.TaskPrestartRequest{
+			name: "task with Consul WI but no corresponding identity",
+			req: &interfaces.TaskPrestartRequest{
 				Task: &structs.Task{
 					Name:   "foo",
 					Consul: &structs.Consul{Cluster: "bar"},
 				},
 				TaskDir: &allocdir.TaskDir{Dir: "foo"},
 			},
-			true,
-			"consul tokens for cluster default and identity consul_bar requested by task foo not found",
-			"",
+			// note: the exact message will vary between CE and ENT because they
+			// have different helpers for Consul cluster name lookup
+			wantErrMsg: "not found",
 		},
 		{
-			"task with Consul WI",
-			&interfaces.TaskPrestartRequest{
+			name: "task with Consul WI",
+			req: &interfaces.TaskPrestartRequest{
 				Task: &structs.Task{
 					Name:   "foo",
 					Consul: &structs.Consul{Cluster: "default"},
 				},
 				TaskDir: &allocdir.TaskDir{Dir: "foo"},
 			},
-			false,
-			"",
-			hr.GetConsulTokens()[structs.ConsulDefaultCluster]["consul_default"],
+			consulToken: hr.GetConsulTokens()[structs.ConsulDefaultCluster]["consul_default"],
 		},
 	}
 	for _, tt := range tests {
@@ -109,9 +103,9 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 			}
 
 			err := h.Prestart(context.Background(), tt.req, nil)
-			if tt.wantErr {
+			if tt.wantErrMsg != "" {
 				must.NotNil(t, err)
-				must.Eq(t, tt.wantErrMsg, err.Error())
+				must.ErrorContains(t, err, tt.wantErrMsg)
 			} else {
 				must.Nil(t, err)
 			}
