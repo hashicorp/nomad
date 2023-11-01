@@ -33,7 +33,7 @@ Usage: nomad acl bootstrap [options] [<path>]
    - If you would like to provide an operator generated token it is possible to
      provide the token using a file located at <path>. The Token can be read
      from stdin by setting <path> to "-". Please make sure you secure this token
-     in an apropriate manner as it could be written to your terminal history.
+     in an appropriate manner as it could be written to your terminal history.
 
 General Options:
 
