@@ -265,9 +265,11 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 // need to split out the behavior to ENT-specific code.
 func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
 	if vault.Cluster != structs.VaultDefaultCluster && vault.Cluster != "" {
+		// Non-default clusters use workload identities to derive tokens, which
+		// require Vault 1.11.0+.
 		return &structs.Constraint{
 			LTarget: fmt.Sprintf("${attr.vault.%s.version}", vault.Cluster),
-			RTarget: ">= 0.6.1",
+			RTarget: ">= 1.11.0",
 			Operand: structs.ConstraintSemver,
 		}
 	}

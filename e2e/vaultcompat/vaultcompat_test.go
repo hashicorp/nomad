@@ -347,7 +347,7 @@ func downloadVaultBuild(t *testing.T, b build) {
 }
 
 func getMinimumVersion(t *testing.T) *version.Version {
-	v, err := version.NewVersion("1.1.0")
+	v, err := version.NewVersion("1.11.0")
 	must.NoError(t, err)
 	return v
 }

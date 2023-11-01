@@ -42,9 +42,8 @@ func roleWID(policies []string) map[string]any {
 			"nomad_namespace": "nomad_namespace",
 			"nomad_job_id":    "nomad_job_id",
 		},
-		"token_ttl":      "30m",
 		"token_type":     "service",
-		"token_period":   "72h",
+		"token_period":   "30m",
 		"token_policies": policies,
 	}
 }
