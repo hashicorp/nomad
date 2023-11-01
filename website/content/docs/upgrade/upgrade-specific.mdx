@@ -55,6 +55,27 @@ Before upgrading to Nomad 1.9 you will need to have configured authentication
 with Consul to work with workload identity. See [Migrating to Using Workload
 Identity with Consul][] for more details.
 
+#### RS256 JWT Signing Algorithm Support
+
+Prior to Nomad 1.7, workload identity JWTs were signed with the `EdDSA`
+algorithm. While `EdDSA` has numerous advantages as a signing algorithm, most
+third parties that accept JWTs expect the `RS256` signing algorithm to be used.
+
+Therefore starting in Nomad 1.7 *new* signing keys will generate an RSA key and
+sign workload identities with the `RS256` signing algorithm.
+
+Before setting up third party authentication methods to use workload
+identities, it is recommended to run [`nomad operator root keyring
+rotate`](/nomad/docs/commands/operator/root/keyring-rotate) to ensure you
+generate a new RSA key.
+
+To verify an RSA key is present you may check the [`/.well-known/jwks.json`
+endpoint](/nomad/api-docs/operator/keyring#list-active-public-keys) on any
+Nomad agent. If you see `"kty": "RSA"`, then an RSA key exists and you do not
+need to rotate keys.
+
+New Nomad clusters will use RSA by default and are not affected.
+
 ## Nomad 1.6.0
 
 #### Enterprise License Validation with BuildDate
