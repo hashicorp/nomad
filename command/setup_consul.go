@@ -48,10 +48,6 @@ type SetupConsulCommand struct {
 
 	consulEnt bool
 	autoYes   bool
-
-	// store IDs of objects we may need to cleanup
-	policyID       string
-	bindingRuleIDs []string
 }
 
 // Help satisfies the cli.Command Help function.
@@ -575,13 +571,12 @@ func (s *SetupConsulCommand) bindingRuleExists(rule *api.ACLBindingRule) bool {
 }
 
 func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
-	bindingRule, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
+	_, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
 	if err != nil {
 		return fmt.Errorf("[✘] Could not create Consul binding rule: %w", err)
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created binding rule for auth method %q.", rule.AuthMethod))
-	s.bindingRuleIDs = append(s.bindingRuleIDs, bindingRule.ID)
 
 	return nil
 }
@@ -615,7 +610,7 @@ func (s *SetupConsulCommand) policyExists() bool {
 }
 
 func (s *SetupConsulCommand) createPolicy() error {
-	policy, _, err := s.client.ACL().PolicyCreate(&api.ACLPolicy{
+	_, _, err := s.client.ACL().PolicyCreate(&api.ACLPolicy{
 		Name:  consulPolicyName,
 		Rules: string(consulPolicyBody),
 	}, nil)
@@ -624,7 +619,6 @@ func (s *SetupConsulCommand) createPolicy() error {
 	}
 
 	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q.", consulPolicyName))
-	s.policyID = policy.ID
 
 	return nil
 }
@@ -689,12 +683,21 @@ to authenticate unless you create missing configuration yourself.
 			}
 		}
 
-		for _, bindingRuleID := range s.bindingRuleIDs {
-			_, err := s.client.ACL().BindingRuleDelete(bindingRuleID, nil)
+		serviceMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodServicesName, nil)
+		if err != nil {
+			s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch binding rule for method: %q", consulAuthMethodServicesName))
+		}
+		taskMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodTasksName, nil)
+		if err != nil {
+			s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch binding rule for method: %q", consulAuthMethodTasksName))
+		}
+
+		for _, b := range append(serviceMethodRules, taskMethodRules...) {
+			_, err := s.client.ACL().BindingRuleDelete(b.ID, nil)
 			if err != nil {
-				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete binding rule %q: %v", bindingRuleID, err.Error()))
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete binding rule %q: %v", b.ID, err.Error()))
 			} else {
-				s.Ui.Info(fmt.Sprintf("[✔] Deleted binding rule %q.", bindingRuleID))
+				s.Ui.Info(fmt.Sprintf("[✔] Deleted binding rule %q.", b.ID))
 			}
 		}
 
