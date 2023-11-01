@@ -2409,6 +2409,9 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 
 }
 
+// TestCoreScheduler_CSIBadState_ClaimGC asserts that volumes that are in an
+// already invalid state when GC'd have their claims immediately marked as
+// unpublishing
 func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2420,32 +2423,27 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 	testutil.WaitForLeader(t, srv.RPC)
 
 	err := state.TestBadCSIState(t, srv.State())
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	snap, err := srv.State().Snapshot()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 
 	index, _ := srv.State().LatestIndex()
 	index++
 	gc := srv.coreJobEval(structs.CoreJobForceGC, index)
 	c := core.(*CoreScheduler)
-	require.NoError(t, c.csiVolumeClaimGC(gc))
+	must.NoError(t, c.csiVolumeClaimGC(gc))
 
-	require.Eventually(t, func() bool {
-		vol, _ := srv.State().CSIVolumeByID(nil,
-			structs.DefaultNamespace, "csi-volume-nfs0")
-		if len(vol.PastClaims) != 2 {
-			return false
-		}
-		for _, claim := range vol.PastClaims {
-			if claim.State != structs.CSIVolumeClaimStateUnpublishing {
-				return false
-			}
-		}
-		return true
-	}, 10*time.Second, 50*time.Millisecond, "invalid claims should be marked for GC")
+	vol, err := srv.State().CSIVolumeByID(nil, structs.DefaultNamespace, "csi-volume-nfs0")
+	must.NoError(t, err)
 
+	must.MapLen(t, 2, vol.PastClaims, must.Sprint("expected 2 past claims"))
+
+	for _, claim := range vol.PastClaims {
+		must.Eq(t, structs.CSIVolumeClaimStateUnpublishing, claim.State,
+			must.Sprintf("expected past claims to be unpublishing"))
+	}
 }
 
 // TestCoreScheduler_RootKeyGC exercises root key GC
