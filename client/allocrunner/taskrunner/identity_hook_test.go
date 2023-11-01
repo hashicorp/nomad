@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	trtesting "github.com/hashicorp/nomad/client/allocrunner/taskrunner/testing"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
@@ -53,16 +54,19 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	task := alloc.LookupTask("web")
 	task.Identities = []*structs.WorkloadIdentity{
 		{
-			Name:     "consul",
-			Audience: []string{"consul"},
-			Env:      true,
-			TTL:      ttl,
+			Name:       "consul",
+			Audience:   []string{"consul"},
+			Env:        true,
+			TTL:        ttl,
+			ChangeMode: "restart",
 		},
 		{
-			Name:     "vault",
-			Audience: []string{"vault"},
-			File:     true,
-			TTL:      ttl,
+			Name:         "vault",
+			Audience:     []string{"vault"},
+			File:         true,
+			TTL:          ttl,
+			ChangeMode:   "signal",
+			ChangeSignal: "SIGHUP",
 		},
 	}
 
@@ -79,6 +83,7 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
 	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger)
 	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
+	mockLifecycle := trtesting.NewMockTaskHooks()
 
 	h := &identityHook{
 		alloc:      alloc,
@@ -86,6 +91,7 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 		tokenDir:   secretsDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
+		lifecycle:  mockLifecycle,
 		widmgr:     mockWIDMgr,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
@@ -97,7 +103,6 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 
 	start := time.Now()
 	must.NoError(t, h.Prestart(context.Background(), nil, nil))
-	time.Sleep(time.Second) // goroutines in the Prestart hook must run first before we Build the EnvMap
 	env := h.envBuilder.Build().EnvMap
 
 	// Assert initial tokens were set in Prestart
@@ -117,7 +122,21 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 
 	// Stop renewal before checking to ensure stopping works
 	must.NoError(t, h.Stop(context.Background(), nil, nil))
-	time.Sleep(time.Second) // Stop is async so give renewal time to exit
+
+	// Ensure change_mode operations occurred
+	select {
+	case <-mockLifecycle.RestartCh:
+		h.logger.Trace("restart happened")
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for restart")
+	}
+
+	select {
+	case <-mockLifecycle.SignalCh:
+		h.logger.Trace("signal happened")
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for restart")
+	}
 
 	newConsul := h.envBuilder.Build().EnvMap["NOMAD_TOKEN_consul"]
 	must.StrContains(t, newConsul, ".") // ensure new token is JWTish

@@ -1274,30 +1274,17 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	// Nomad 1.5 CLIs and JSON jobs may set the default identity parameters in
 	// the Task.Identity field, so if it is non-nil use it.
 	if id := apiTask.Identity; id != nil {
-		structsTask.Identity = &structs.WorkloadIdentity{
-			Name:     id.Name,
-			Audience: slices.Clone(id.Audience),
-			Env:      id.Env,
-			File:     id.File,
-			TTL:      id.TTL,
-		}
+		structsTask.Identity = apiWorkloadIdentityToStructs(id)
 	}
 
 	if ids := apiTask.Identities; len(ids) > 0 {
-		structsTask.Identities = make([]*structs.WorkloadIdentity, len(ids))
-		for i, id := range ids {
+		structsTask.Identities = make([]*structs.WorkloadIdentity, 0, len(ids))
+		for _, id := range ids {
 			if id == nil {
 				continue
 			}
 
-			structsTask.Identities[i] = &structs.WorkloadIdentity{
-				Name:     id.Name,
-				Audience: slices.Clone(id.Audience),
-				Env:      id.Env,
-				File:     id.File,
-				TTL:      id.TTL,
-			}
-
+			structsTask.Identities = append(structsTask.Identities, apiWorkloadIdentityToStructs(id))
 		}
 	}
 
@@ -1651,11 +1638,13 @@ func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIde
 		return nil
 	}
 	return &structs.WorkloadIdentity{
-		Name:        in.Name,
-		Audience:    in.Audience,
-		Env:         in.Env,
-		File:        in.File,
-		ServiceName: in.ServiceName,
+		Name:         in.Name,
+		Audience:     slices.Clone(in.Audience),
+		ChangeMode:   in.ChangeMode,
+		ChangeSignal: in.ChangeSignal,
+		Env:          in.Env,
+		File:         in.File,
+		ServiceName:  in.ServiceName,
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -36,6 +37,15 @@ const (
 	// WIRejectionReasonMissingIdentity is the WorkloadIdentityRejection.Reason
 	// returned when the requested identity does not exist on the allocation.
 	WIRejectionReasonMissingIdentity = "identity not found"
+
+	// WIChangeModeNoop takes no action when a new token is retrieved.
+	WIChangeModeNoop = "noop"
+
+	// WIChangeModeSignal signals the task when a new token is retrieved.
+	WIChangeModeSignal = "signal"
+
+	// WIChangeModeRestart restarts the task when a new token is retrieved.
+	WIChangeModeRestart = "restart"
 )
 
 var (
@@ -56,6 +66,14 @@ type WorkloadIdentity struct {
 	// Audience is the valid recipients for this identity (the "aud" JWT claim)
 	// and defaults to the identity's name.
 	Audience []string
+
+	// ChangeMode is used to configure the task's behavior when the identity
+	// token changes.
+	ChangeMode string
+
+	// ChangeSignal is the signal sent to the task when a new token is
+	// retrieved. This is only valid when using the signal change mode.
+	ChangeSignal string
 
 	// Env injects the Workload Identity into the Task's environment if
 	// set.
@@ -78,12 +96,14 @@ func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
 		return nil
 	}
 	return &WorkloadIdentity{
-		Name:        wi.Name,
-		Audience:    slices.Clone(wi.Audience),
-		Env:         wi.Env,
-		File:        wi.File,
-		ServiceName: wi.ServiceName,
-		TTL:         wi.TTL,
+		Name:         wi.Name,
+		Audience:     slices.Clone(wi.Audience),
+		ChangeMode:   wi.ChangeMode,
+		ChangeSignal: wi.ChangeSignal,
+		Env:          wi.Env,
+		File:         wi.File,
+		ServiceName:  wi.ServiceName,
+		TTL:          wi.TTL,
 	}
 }
 
@@ -97,6 +117,14 @@ func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
 	}
 
 	if !slices.Equal(wi.Audience, other.Audience) {
+		return false
+	}
+
+	if wi.ChangeMode != other.ChangeMode {
+		return false
+	}
+
+	if wi.ChangeSignal != other.ChangeSignal {
 		return false
 	}
 
@@ -132,6 +160,10 @@ func (wi *WorkloadIdentity) Canonicalize() {
 	if wi.Name == WorkloadIdentityDefaultName {
 		wi.Audience = []string{WorkloadIdentityDefaultAud}
 	}
+
+	if wi.ChangeSignal != "" {
+		wi.ChangeSignal = strings.ToUpper(wi.ChangeSignal)
+	}
 }
 
 func (wi *WorkloadIdentity) Validate() error {
@@ -150,6 +182,22 @@ func (wi *WorkloadIdentity) Validate() error {
 		if aud == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("an empty string is an invalid audience (%d)", i+1))
 		}
+	}
+
+	switch wi.ChangeMode {
+	case "", WIChangeModeNoop, WIChangeModeRestart:
+		// Treat "" as noop. Make sure signal isn't set.
+		if wi.ChangeSignal != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("can only use change_signal=%q with change_mode=%q",
+				wi.ChangeSignal, WIChangeModeSignal))
+		}
+	case WIChangeModeSignal:
+		if wi.ChangeSignal == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("change_signal must be specified when using change_mode=%q", WIChangeModeSignal))
+		}
+	default:
+		// Unknown change_mode
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid change_mode: %s", wi.ChangeMode))
 	}
 
 	if wi.TTL > 0 && (wi.Name == "" || wi.Name == WorkloadIdentityDefaultName) {
@@ -180,6 +228,12 @@ func (wi *WorkloadIdentity) Warnings() error {
 		if wi.TTL == 0 {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("identities without an expiration are insecure"))
 		}
+	}
+
+	// Warn users about using env vars without restarts
+	if wi.Env && wi.ChangeMode != WIChangeModeRestart {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("using env=%t without change_mode=%q may result in task not getting updated identity",
+			wi.Env, WIChangeModeRestart))
 	}
 
 	return mErr.ErrorOrNil()

@@ -26,6 +26,18 @@ func TestWorkloadIdentity_Equal(t *testing.T) {
 	newWI = &WorkloadIdentity{}
 	must.Equal(t, orig, newWI)
 
+	orig.ChangeMode = WIChangeModeSignal
+	must.NotEqual(t, orig, newWI)
+
+	orig.ChangeMode = ""
+	must.Equal(t, orig, newWI)
+
+	orig.ChangeSignal = "SIGHUP"
+	must.NotEqual(t, orig, newWI)
+
+	orig.ChangeSignal = ""
+	must.Equal(t, orig, newWI)
+
 	orig.Env = true
 	must.NotEqual(t, orig, newWI)
 
@@ -87,19 +99,79 @@ func TestWorkloadIdentity_Validate(t *testing.T) {
 		{
 			Desc: "Ok",
 			In: WorkloadIdentity{
+				Name:       "foo-id",
+				Audience:   []string{"http://nomadproject.io/"},
+				ChangeMode: WIChangeModeRestart,
+				Env:        true,
+				File:       true,
+				TTL:        time.Hour,
+			},
+			Exp: WorkloadIdentity{
+				Name:       "foo-id",
+				Audience:   []string{"http://nomadproject.io/"},
+				ChangeMode: WIChangeModeRestart,
+				Env:        true,
+				File:       true,
+				TTL:        time.Hour,
+			},
+		},
+		{
+			Desc: "OkSignal",
+			In: WorkloadIdentity{
+				Name:         "foo-id",
+				Audience:     []string{"http://nomadproject.io/"},
+				ChangeMode:   WIChangeModeSignal,
+				ChangeSignal: "sighup",
+				File:         true,
+				TTL:          time.Hour,
+			},
+			Exp: WorkloadIdentity{
+				Name:         "foo-id",
+				Audience:     []string{"http://nomadproject.io/"},
+				ChangeMode:   WIChangeModeSignal,
+				ChangeSignal: "SIGHUP",
+				File:         true,
+				TTL:          time.Hour,
+			},
+		},
+		{
+			Desc: "Warn on env without restart",
+			In: WorkloadIdentity{
 				Name:     "foo-id",
 				Audience: []string{"http://nomadproject.io/"},
 				Env:      true,
-				File:     true,
 				TTL:      time.Hour,
 			},
 			Exp: WorkloadIdentity{
 				Name:     "foo-id",
 				Audience: []string{"http://nomadproject.io/"},
 				Env:      true,
-				File:     true,
 				TTL:      time.Hour,
 			},
+			Warn: `using env=true without change_mode="restart" may result in task not getting updated identity`,
+		},
+		{
+			Desc: "Signal without signal",
+			In: WorkloadIdentity{
+				Name:       "foo-id",
+				Audience:   []string{"http://nomadproject.io/"},
+				ChangeMode: WIChangeModeSignal,
+				Env:        true,
+				TTL:        time.Hour,
+			},
+			Err: `change_signal must be specified`,
+		},
+		{
+			Desc: "Restart with signal",
+			In: WorkloadIdentity{
+				Name:         "foo-id",
+				Audience:     []string{"http://nomadproject.io/"},
+				ChangeMode:   WIChangeModeRestart,
+				ChangeSignal: "SIGHUP",
+				File:         true,
+				TTL:          time.Hour,
+			},
+			Err: `can only use change_signal=`,
 		},
 		{
 			Desc: "Be reasonable",

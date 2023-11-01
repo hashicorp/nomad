@@ -1162,12 +1162,14 @@ func (t *TaskCSIPluginConfig) Canonicalize() {
 // WorkloadIdentity is the jobspec block which determines if and how a workload
 // identity is exposed to tasks.
 type WorkloadIdentity struct {
-	Name        string        `hcl:"name,optional"`
-	Audience    []string      `mapstructure:"aud" hcl:"aud,optional"`
-	Env         bool          `hcl:"env,optional"`
-	File        bool          `hcl:"file,optional"`
-	ServiceName string        `hcl:"service_name,optional"`
-	TTL         time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
+	Name         string        `hcl:"name,optional"`
+	Audience     []string      `mapstructure:"aud" hcl:"aud,optional"`
+	ChangeMode   string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeSignal string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Env          bool          `hcl:"env,optional"`
+	File         bool          `hcl:"file,optional"`
+	ServiceName  string        `hcl:"service_name,optional"`
+	TTL          time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
 }
 
 type Action struct {
