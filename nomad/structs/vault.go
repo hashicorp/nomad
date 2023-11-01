@@ -84,3 +84,14 @@ func ValidateVaultClusterName(cluster string) error {
 
 	return nil
 }
+
+// GetVaultClusterName gets the Vault cluster for this task. Only a single
+// default cluster is supported in Nomad CE, but this function can be safely
+// used for ENT as well because the appropriate Cluster value will be set at the
+// time of job submission.
+func (t *Task) GetVaultClusterName() string {
+	if t.Vault != nil && t.Vault.Cluster != "" {
+		return t.Vault.Cluster
+	}
+	return VaultDefaultCluster
+}

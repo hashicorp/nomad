@@ -57,6 +57,7 @@ type serviceHook struct {
 	namespace string
 	restarter serviceregistration.WorkloadRestarter
 	logger    log.Logger
+	tg        *structs.TaskGroup
 
 	// The following fields may be updated
 	driverExec tinterfaces.ScriptExecutor
@@ -91,11 +92,14 @@ type serviceHook struct {
 }
 
 func newServiceHook(c serviceHookConfig) *serviceHook {
+	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
+
 	h := &serviceHook{
 		allocID:           c.alloc.ID,
 		jobID:             c.alloc.JobID,
 		groupName:         c.alloc.TaskGroup,
 		taskName:          c.task.Name,
+		tg:                tg,
 		namespace:         c.alloc.Namespace,
 		providerNamespace: c.providerNamespace,
 		serviceRegWrapper: c.serviceRegWrapper,
@@ -234,10 +238,7 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 
 	tokens := map[string]string{}
 	for _, service := range h.services {
-		cluster := service.Cluster
-		if cluster == "" {
-			cluster = structs.ConsulDefaultCluster
-		}
+		cluster := service.GetConsulClusterName(h.tg)
 		if token, ok := allocTokens[cluster][service.MakeUniqueIdentityName()]; ok {
 			tokens[service.Name] = token
 		}

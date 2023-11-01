@@ -137,7 +137,7 @@ func (h *sidsHook) Prestart(
 	for _, service := range tg.Services {
 		if service.Name == serviceName {
 			serviceIdentityName = service.MakeUniqueIdentityName()
-			cluster = service.Cluster
+			cluster = service.GetConsulClusterName(tg)
 			break
 		}
 	}

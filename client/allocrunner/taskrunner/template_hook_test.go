@@ -46,6 +46,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	taskHooks := trtesting.NewMockTaskHooks()
 
 	conf := &templateHookConfig{
+		alloc:         a,
 		logger:        logger,
 		lifecycle:     taskHooks,
 		events:        &trtesting.MockEmitter{},
@@ -81,7 +82,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 				TaskDir: &allocdir.TaskDir{Dir: "foo"},
 			},
 			true,
-			"consul tokens for cluster bar requested by task foo not found",
+			"consul tokens for cluster default and identity consul_bar requested by task foo not found",
 			"",
 		},
 		{

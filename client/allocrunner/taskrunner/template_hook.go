@@ -24,6 +24,9 @@ const (
 )
 
 type templateHookConfig struct {
+	// the allocation
+	alloc *structs.Allocation
+
 	// logger is used to log
 	logger log.Logger
 
@@ -131,10 +134,9 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		consulTokens := h.config.hookResources.GetConsulTokens()
 
 		var found bool
-		cluster := req.Task.Consul.Cluster
-		if cluster == "" {
-			cluster = structs.ConsulDefaultCluster
-		}
+		tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
+		cluster := req.Task.GetConsulClusterName(tg)
+
 		if _, found = consulTokens[cluster]; !found {
 			return fmt.Errorf(
 				"consul tokens for cluster %s requested by task %s not found",
@@ -196,10 +198,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 
 	var vaultConfig *structsc.VaultConfig
 	if h.task.Vault != nil {
-		vaultCluster := h.task.Vault.Cluster
-		if vaultCluster == "" {
-			vaultCluster = structs.VaultDefaultCluster
-		}
+		vaultCluster := h.task.GetVaultClusterName()
 		vaultConfig = h.config.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
 
 		if vaultConfig == nil {

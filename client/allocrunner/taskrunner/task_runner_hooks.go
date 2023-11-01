@@ -114,6 +114,7 @@ func (tr *TaskRunner) initHooks() {
 	// If there are templates is enabled, add the hook
 	if len(task.Templates) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
+			alloc:               tr.Alloc(),
 			logger:              hookLogger,
 			lifecycle:           tr,
 			events:              tr,
