@@ -30,10 +30,10 @@ Usage: nomad setup <subcommand> [options] [args]
 }
 
 // Synopsis satisfies the cli.Command Synopsis function.
-func (a *SetupCommand) Synopsis() string { return "Interact with setup helpers" }
+func (c *SetupCommand) Synopsis() string { return "Interact with setup helpers" }
 
 // Name returns the name of this command.
-func (a *SetupCommand) Name() string { return "setup" }
+func (c *SetupCommand) Name() string { return "setup" }
 
 // Run satisfies the cli.Command Run function.
-func (a *SetupCommand) Run(_ []string) int { return cli.RunResultHelp }
+func (c *SetupCommand) Run(_ []string) int { return cli.RunResultHelp }
