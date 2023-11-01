@@ -838,6 +838,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		}
 
 		stopped := current.Copy()
+		stopped.SetSubmitTime()
 		stopped.Stop = true
 
 		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
