@@ -18,13 +18,13 @@ import (
 
 	josejwt "github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/vault/api"
 	vaultapi "github.com/hashicorp/vault/api"
@@ -359,11 +359,11 @@ func TestVaultClient_NamespaceSupport(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	conf := config.DefaultConfig()
-	conf.VaultConfig.Enabled = &tr
-	conf.VaultConfig.Token = "testvaulttoken"
-	conf.VaultConfig.Namespace = testNs
-	c, err := vaultclient.NewVaultClient(conf.VaultConfig, logger, nil)
+	conf := structsc.DefaultVaultConfig()
+	conf.Enabled = &tr
+	conf.Token = "testvaulttoken"
+	conf.Namespace = testNs
+	c, err := NewVaultClient(conf, logger, nil)
 	must.NoError(t, err)
 	must.Eq(t, testNs, c.client.Headers().Get(structs.VaultNamespaceHeaderName))
 }
@@ -372,10 +372,10 @@ func TestVaultClient_Heap(t *testing.T) {
 	ci.Parallel(t)
 
 	tr := true
-	conf := config.DefaultConfig()
-	conf.VaultConfig.Enabled = &tr
-	conf.VaultConfig.Token = "testvaulttoken"
-	conf.VaultConfig.TaskTokenTTL = "10s"
+	conf := structsc.DefaultVaultConfig()
+	conf.Enabled = &tr
+	conf.Token = "testvaulttoken"
+	conf.TaskTokenTTL = "10s"
 
 	logger := testlog.HCLogger(t)
 	c, err := NewVaultClient(conf, logger, nil)
@@ -604,8 +604,8 @@ func TestVaultClient_RenewalTime_Short(t *testing.T) {
 func TestVaultClient_SetUserAgent(t *testing.T) {
 	ci.Parallel(t)
 
-	conf := config.DefaultConfig()
-	conf.VaultConfig.Enabled = pointer.Of(true)
+	conf := structsc.DefaultVaultConfig()
+	conf.Enabled = pointer.Of(true)
 	logger := testlog.HCLogger(t)
 	c, err := NewVaultClient(conf, logger, nil)
 	must.NoError(t, err)
