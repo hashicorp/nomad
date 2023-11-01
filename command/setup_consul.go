@@ -669,8 +669,9 @@ cluster configuration. Nomad workloads with Workload Identity will not be able
 to authenticate unless you create missing configuration yourself.
 `)
 
+	exitCode := 0
 	if s.autoYes || s.askQuestion("Remove everything this command creates? [Y/n]") {
-		s.removeConfiguredComponents()
+		exitCode = s.removeConfiguredComponents()
 	}
 
 	s.Ui.Output(s.Colorize().Color(`
@@ -678,10 +679,11 @@ Consul cluster has [bold][underline]not[reset] been configured for authenticatin
 services using workload identitiies.
 
 Run the command again to finish the configuration process.`))
-	os.Exit(0)
+	os.Exit(exitCode)
 }
 
-func (s *SetupConsulCommand) removeConfiguredComponents() {
+func (s *SetupConsulCommand) removeConfiguredComponents() int {
+	exitCode := 0
 	componentsToRemove := map[string][]string{}
 
 	authMethods := []string{}
@@ -697,10 +699,12 @@ func (s *SetupConsulCommand) removeConfiguredComponents() {
 	serviceMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodServicesName, nil)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch binding rules for method: %q", consulAuthMethodServicesName))
+		exitCode = 1
 	}
 	taskMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodTasksName, nil)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch binding rules for method: %q", consulAuthMethodTasksName))
+		exitCode = 1
 	}
 
 	ruleIDs := []string{}
@@ -730,7 +734,7 @@ func (s *SetupConsulCommand) removeConfiguredComponents() {
 %s`
 	if len(componentsToRemove) == 0 {
 		s.Ui.Output("Nothing to delete.")
-		return
+		return 0
 	}
 
 	if !s.autoYes {
@@ -743,10 +747,12 @@ func (s *SetupConsulCommand) removeConfiguredComponents() {
 			p, _, err := s.client.ACL().PolicyReadByName(policy, nil)
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch policy %q: %v", policy, err.Error()))
+				exitCode = 1
 			} else if p != nil {
 				_, err := s.client.ACL().PolicyDelete(p.ID, nil)
 				if err != nil {
 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", policy, err.Error()))
+					exitCode = 1
 				} else {
 					s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q.", p.ID))
 				}
@@ -757,10 +763,12 @@ func (s *SetupConsulCommand) removeConfiguredComponents() {
 			r, _, err := s.client.ACL().RoleReadByName(role, nil)
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch role %q: %v", role, err.Error()))
+				exitCode = 1
 			} else if r != nil {
 				_, err := s.client.ACL().RoleDelete(r.ID, nil)
 				if err != nil {
 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete role %q: %v", r.ID, err.Error()))
+					exitCode = 1
 				} else {
 					s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q.", role))
 				}
@@ -771,6 +779,7 @@ func (s *SetupConsulCommand) removeConfiguredComponents() {
 			_, err := s.client.ACL().BindingRuleDelete(b.ID, nil)
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete binding rule %q: %v", b.ID, err.Error()))
+				exitCode = 1
 			} else {
 				s.Ui.Info(fmt.Sprintf("[✔] Deleted binding rule %q.", b.ID))
 			}
@@ -780,6 +789,7 @@ func (s *SetupConsulCommand) removeConfiguredComponents() {
 			_, err := s.client.ACL().AuthMethodDelete(authMethod, nil)
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete auth method %q: %v", authMethod, err.Error()))
+				exitCode = 1
 			} else {
 				s.Ui.Info(fmt.Sprintf("[✔] Deleted auth method %q.", authMethod))
 			}
@@ -801,6 +811,8 @@ func (s *SetupConsulCommand) removeConfiguredComponents() {
 			}
 		}
 	}
+
+	return exitCode
 }
 
 func printMap(m map[string][]string) string {
