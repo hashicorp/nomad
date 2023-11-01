@@ -16,6 +16,12 @@ section.notifications {
       margin-bottom: 1rem;
     }
 
+    $toastPadding: 16px;
+    $toastIconSize: 20px;
+    $toastIconPadding: 12px;
+    $codeDeMargin: -($toastPadding + $toastIconSize + $toastIconPadding);
+    $codeBottomMargin: 18px;
+
     code {
       background-color: black;
       color: white;
@@ -23,13 +29,26 @@ section.notifications {
       padding: 0.25rem;
       max-height: 400px;
       overflow: auto;
-      pre {
-        display: inline-block;
-        background: inherit;
-        color: inherit;
-        border: none;
-        white-space: pre-wrap;
-      }
+      position: relative;
+      margin-left: $codeDeMargin;
+      margin-right: $codeDeMargin;
+      width: 500px;
+      margin-top: 1rem;
+      margin-bottom: -$codeBottomMargin;
+    }
+
+    pre {
+      display: inline-block;
+      background: inherit;
+      color: inherit;
+      border: none;
+      // white-space: pre-wrap;
+      white-space: pre;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .follows-code {
+      margin-top: calc(1rem + $codeBottomMargin);
     }
   }
 }

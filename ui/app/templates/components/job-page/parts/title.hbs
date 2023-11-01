@@ -16,7 +16,7 @@
   </PH.Title>
   <PH.Actions>
     {{#if (not (eq this.job.status "dead"))}}
-      {{#if this.job.actions.length}}
+      {{#if (and this.job.actions.length this.job.allocations.length)}}
         <Hds::Dropdown class="actions-dropdown" as |dd|>
           <dd.ToggleButton @color="secondary" @text="Actions" @size="medium" />
           {{#each this.job.actions as |action|}}

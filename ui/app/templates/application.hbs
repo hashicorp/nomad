@@ -34,7 +34,11 @@
         {{/if}}
       {{/if}}
       {{#if flash.customAction}}
-        <T.Button @text={{flash.customAction.label}} @color="secondary" {{on "click" (action flash.customAction.action)}} />
+        <T.Button
+          @text={{flash.customAction.label}}
+          @color="secondary" {{on "click" (action flash.customAction.action)}}
+          class={{if flash.code "follows-code"}}
+        />
       {{/if}}
     </Hds::Toast>
   </FlashMessage>
