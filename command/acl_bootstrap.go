@@ -21,9 +21,19 @@ type ACLBootstrapCommand struct {
 
 func (c *ACLBootstrapCommand) Help() string {
 	helpText := `
-Usage: nomad acl bootstrap [options]
+Usage: nomad acl bootstrap [options] [<path>]
 
   Bootstrap is used to bootstrap the ACL system and get an initial token.
+
+  The acl bootstrap command can be used in two ways:
+
+   - If you provide no arguments it will return a system generated bootstrap
+     token.
+
+   - If you would like to provide an operator generated token it is possible to
+     provide the token using a file located at <path>. The Token can be read
+     from stdin by setting <path> to "-". Please make sure you secure this token
+     in an apropriate manner as it could be written to your terminal history.
 
 General Options:
 
