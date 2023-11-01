@@ -726,8 +726,17 @@ func (s *SetupConsulCommand) removeConfiguredComponents() int {
 		componentsToRemove["Role"] = []string{consulRoleTasks}
 	}
 
-	if s.consulEnt && s.namespaceExists(s.clientCfg.Namespace) {
-		componentsToRemove["Namespace"] = []string{s.clientCfg.Namespace}
+	if s.consulEnt {
+		ns, _, err := s.client.Namespaces().Read(s.clientCfg.Namespace, nil)
+		if err != nil {
+			s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch namespace %q: %v", ns.Name, err.Error()))
+			exitCode = 1
+		} else if ns != nil && ns.Meta["created-by"] == "nomad-setup" {
+			componentsToRemove["Namespace"] = []string{ns.Name}
+		}
+	}
+	if exitCode != 0 {
+		return exitCode
 	}
 
 	q := `The following items will be deleted:
@@ -795,19 +804,13 @@ func (s *SetupConsulCommand) removeConfiguredComponents() int {
 			}
 		}
 
-		for _, namespace := range componentsToRemove["Namespace"] {
-			ns, _, err := s.client.Namespaces().Read(namespace, nil)
+		for _, ns := range componentsToRemove["Namespace"] {
+			_, err := s.client.Namespaces().Delete(ns, nil)
 			if err != nil {
-				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", namespace, err.Error()))
-			}
-
-			if ns.Meta["created-by"] == "nomad-setup" {
-				_, err := s.client.Namespaces().Delete(ns.Name, nil)
-				if err != nil {
-					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns.Name, err.Error()))
-				} else {
-					s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q.", ns.Name))
-				}
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns, err.Error()))
+				exitCode = 1
+			} else {
+				s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q.", ns))
 			}
 		}
 	}
