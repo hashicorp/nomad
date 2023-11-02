@@ -76,6 +76,28 @@ need to rotate keys.
 
 New Nomad clusters will use RSA by default and are not affected.
 
+#### CPU Fingerprinting Changes
+
+Starting in Nomad 1.7, Nomad clients improve the accuracy of detected CPU
+performance metrics. The fingerprinter now takes into account heterogeneous core
+types on applicable processors. In addition, Nomad will attempt to detect and
+use the base frequency of the processor rather than the turbo frequency when
+calculating the total available CPU bandwidth. The net result of these behaviors
+is that the calculated total CPU bandwidth available on a node may change when
+upgrading to Nomad 1.7. Operators are encouraged to ensure planned capacity
+meets expectations before upgrading. The [cpu concepts][cpu] documentation
+contains guidance in understanding how Nomad detects CPU metrics.
+
+#### CPU Core Isolation
+
+Starting in Nomad 1.7, Nomad tasks that specify CPU resources using the `cores`
+attribute will be restricted to using only the CPU cores assigned to them. In
+previous versions of Nomad these tasks could also make use of other non-reserved
+CPU cores. However this feature would cause severe performance problems for
+the Linux kernel as the number of tasks increased. Operators are encouraged
+to ensure tasks making use of the `cores` attribute are given sufficient CPU
+resources before upgrading.
+
 ## Nomad 1.6.0
 
 #### Enterprise License Validation with BuildDate
@@ -1941,3 +1963,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [`vault.token`]: /nomad/docs/configuration/vault#token
 [`vault.task_token_ttl`]: /nomad/docs/configuration/vault#task_token_ttl
 [`consul.allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
+[cpu]: /nomad/docs/concepts/cpu

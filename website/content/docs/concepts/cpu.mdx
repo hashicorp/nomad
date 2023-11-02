@@ -15,7 +15,7 @@ of its CPU. The two metrics associated with each Nomad node with regard to
 CPU performance are its bandwidth (how much it can _compute_) and the number
 of cores.
 
-Modern CPUs may contain hetrogenous core types. Apple introduced the M1 CPU
+Modern CPUs may contain heterogeneous core types. Apple introduced the M1 CPU
 in 2020 which contains both _performance_ (P-Core) and _efficiency_ (E-Core)
 types. Each core type operates at a different base frequency. Intel introduced
 a similar topology in its Raptor Lake chips in 2022. When fingerprinting
@@ -103,8 +103,9 @@ available for scheduling of Nomad tasks.
 ## Allocating CPU Resources
 
 When scheduling jobs, a Task must specify how much CPU resource should be
-allocated on its behalf. This can be done in terms of bandwidth in MHz
-with the `cpu` attribute.
+allocated on its behalf. This can be done in terms of bandwidth in MHz with the
+`cpu` attribute. This MHz value is translated directly into [cpushares][] on
+Linux systems.
 
 ```hcl
 task {
@@ -117,7 +118,7 @@ task {
 Note that the isolation mechansim around CPU resources is dependent on each
 task driver and its configuration. The standard behavior is that Nomad ensures
 a task has access to _at least_ as much of its allocated CPU bandwidth. In which
-case if a node as idle CPU capacity, a task may use additional CPU resources.
+case if a node has idle CPU capacity, a task may use additional CPU resources.
 Some task drivers enable limiting a task to use only the amount of bandwidth
 allocated to the task, described in the CPU Hard Limits section below.
 
@@ -231,7 +232,7 @@ node   0   1   2   3
 These SLIT table "node distance" values are presented as approximate relative
 ratios. The value of 10 represents an optimal situation where a memory access
 is occuring from a CPU that is part of the same NUMA node. A value of 20 would
-indicate a 200% performance degredation, 30 for 300%, etc.
+indicate a 200% performance degradation, 30 for 300%, etc.
 
 ### Node Attributes
 
@@ -320,5 +321,6 @@ resources {
 ```
 
 [cpuset]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/cpusets.html
+[cpushares]: https://www.redhat.com/sysadmin/cgroups-part-two
 [numa_wiki]: https://en.wikipedia.org/wiki/Non-uniform_memory_access
 
