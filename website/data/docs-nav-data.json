@@ -90,6 +90,10 @@
         "path": "concepts/architecture"
       },
       {
+        "title": "CPU",
+        "path": "concepts/cpu"
+      },
+      {
         "title": "Plugins",
         "routes": [
           {
