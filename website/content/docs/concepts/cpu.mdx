@@ -11,14 +11,16 @@ power needed for running operating system processes. Nomad uses the CPU to
 run tasks defined by the Nomad job submitter. For Nomad to know which nodes
 have sufficient capacity for running a given task, each node in the cluster
 is fingerprinted to gather information about the performance characteristics
-of its CPU. The two metrics associated with each Nomad node with regard to CPU
-performance are its bandwidth (a.k.a _compute_) and the number of cores.
+of its CPU. The two metrics associated with each Nomad node with regard to
+CPU performance are its bandwidth (how much it can _compute_) and the number
+of cores.
 
-Modern CPUs may contain hetrogenous core types. Apple introduced the M1 CPU in
-2020 which contains both _performance_ (P-Core) and _efficiency_ (E-Core) types.
-Each core type operates a different base frequency. Intel introduced a similar
-topology in its Raptor Lake chips in 2022. When fingerprinting the characteristics
-of a CPU Nomad is capable of taking these advanced CPU topologies into account.
+Modern CPUs may contain hetrogenous core types. Apple introduced the M1 CPU
+in 2020 which contains both _performance_ (P-Core) and _efficiency_ (E-Core)
+types. Each core type operates at a different base frequency. Intel introduced
+a similar topology in its Raptor Lake chips in 2022. When fingerprinting
+the characteristics of a CPU Nomad is capable of taking these advanced CPU
+topologies into account.
 
 [![PE Cores](/img/nomad-pe-cores.png)](/img/nomad-pe-cores.png)
 
@@ -41,7 +43,7 @@ cores = p_cores + e_cores
 
 Nomad does not distinguish between logical and physical CPU cores. One of the
 defining differences between the P-Core and E-Core types is that the E-Cores
-do not support hyperthreading, wheras P-Cores do. As such a single physical
+do not support hyperthreading, whereas P-Cores do. As such a single physical
 P-Core is presented as 2 logical cores, and a single E-Core is presented as 1
 logical core.
 
@@ -69,11 +71,11 @@ cpu.usablecompute               = 56000
 
 In the fingerprinted node attributes, `cpu.totalcompute` indicates the total
 amount of CPU bandwidth the processor is capable of delivering. In some cases it
-may be beneficial to reserve some amount of a Node's CPU resources for use by
+may be beneficial to reserve some amount of a node's CPU resources for use by
 the operating system and other non-Nomad processes. This can be done in client
 configuration.
 
-The amount of reserved CPU can be specified in bandwidth via `cpu`, e.g.
+The amount of reserved CPU can be specified in bandwidth via `cpu`.
 
 ```hcl
 client {
@@ -83,9 +85,8 @@ client {
 }
 ```
 
-Or the amount of reserved CPU can be specified by specifing a specific set of
-`cores` on which to disallow the scheduling of Nomad tasks. This capability is
-available on Linux systems only.
+Or as a specific set of `cores` on which to disallow the scheduling of Nomad
+tasks. This capability is available on Linux systems only.
 
 ```hcl
 client {
@@ -95,14 +96,14 @@ client {
 }
 ```
 
-Once the CPU is constrained by one of the above configurations, the node 
-attribute `cpu.usablecompute` will indicate the total amount of CPU bandwdith
+When the CPU is constrained by one of the above configurations, the node
+attribute `cpu.usablecompute` indicates the total amount of CPU bandwdith
 available for scheduling of Nomad tasks.
 
 ## Allocating CPU Resources
 
-When scheduling a job a Task must specify how much CPU resource should be
-allocated on behalf of the task. This can be done in terms of bandwidth in MHz
+When scheduling jobs, a Task must specify how much CPU resource should be
+allocated on its behalf. This can be done in terms of bandwidth in MHz
 with the `cpu` attribute.
 
 ```hcl
@@ -112,6 +113,13 @@ task {
   }
 }
 ```
+
+Note that the isolation mechansim around CPU resources is dependent on each
+task driver and its configuration. The standard behavior is that Nomad ensures
+a task has access to _at least_ as much of its allocated CPU bandwidth. In which
+case if a node as idle CPU capacity, a task may use additional CPU resources.
+Some task drivers enable limiting a task to use only the amount of bandwidth
+allocated to the task, described in the CPU Hard Limits section below.
 
 On Linux systems, Nomad supports reserving whole CPU cores specifically for a
 task. No task will be allowed to run on a CPU core reserved for another task.
@@ -130,23 +138,23 @@ more finely control which CPU cores may be reserved for tasks.
 ### CPU Hard Limits
 
 Some task drivers support the configuration option `cpu_hard_limit`. If enabled
-this option will restrict tasks from bursting above their CPU limit even
-when there is idle capacity on the node. The tradeoff is consistency versus
-utilization. A task with too few CPU resources may operate fine until another
-task is placed on the node causing a reduction in available CPU bandwidth, which
-could cause distruption for the underprovisioned task.
+this option restricts tasks from bursting above their CPU limit even when there
+is idle capacity on the node. The tradeoff is consistency versus utilization.
+A task with too few CPU resources may operate fine until another task is placed
+on the node causing a reduction in available CPU bandwidth, which could cause
+distruption for the underprovisioned task.
 
 ### CPU Environment Variables
 
-To help tasks understand the resources available to them, Nomad sets environment
-variables in the runtime environment of each task.
+To help tasks understand the resources available to them, Nomad sets the
+following environment variables in their runtime environment.
 
 
-- `NOMAD_CPU_LIMIT` - The amount of CPU bandwidth allocated on behalf of the
+- <code>NOMAD_CPU_LIMIT</code> - The amount of CPU bandwidth allocated on behalf of the
 task.
 
-- `NOMAD_CPU_CORES` - The set of cores in [cpuset][] notation reserved for the task.
-This value is only set if `resources.cores` is configured.
+- <code>NOMAD_CPU_CORES</code> - The set of cores in [cpuset][] notation reserved for the
+task. This value is only set if `resources.cores` is configured.
 
 ```env
 NOMAD_CPU_CORES=3-5
@@ -158,10 +166,9 @@ NOMAD_CPU_LIMIT=9000
 Nomad clients are commonly provisioned on real hardware in an on-premise
 environment or in the cloud on large `.metal` instance types. In either case it
 is likely the underlying server is designed around a [NUMA topology][numa_wiki].
-Any server that contains multiple CPU sockets or multiple RAM banks per CPU
-socket will be characterized by the non-uniform access times involved in
-accessing system memory.
-
+Servers that contain multiple CPU sockets or multiple RAM banks per CPU socket
+are characterized by the non-uniform access times involved in accessing system
+memory.
 
 [![NUMA](/img/nomad-numa.png)](/img/nomad-numa.png)
 
@@ -172,25 +179,25 @@ The simplified example machine above has the following topology
 - 2 logical cpu cores per physical core
 - 4 PCI devices, 1 per memory bank
 
-### optimizing performance
+### Optimizing performance
 
-Any OS process scheduled on core X where X belongs to  memory node M will take
-longer to access any memory node that is not M.
+Operating system processes take longer to access memory across a NUMA boundary.
 
 Using the example above if a task is scheduled on Core 0, accessing memory in
 Mem 1 might take 20% longer than accessing memory in Mem 0, and accessing memory
-in Mem 2 might take 300% longer. The extreme differences are due to various
-physical hardware limitations. A core accessing memory in its own NUMA node is
-optimal. Programs which perform a high throughput of reads or writes to/from
-system memory will have their performance substantially hindered by not optimizing
-their spatial locality iwth regard to the systems NUMA topology.
+in Mem 2 might take 300% longer.
+
+The extreme differences are due to various physical hardware limitations. A core
+accessing memory in its own NUMA node is optimal. Programs which perform a high
+throughput of reads or writes to/from system memory will have their performance
+substantially hindered by not optimizing their spatial locality iwth regard to
+the systems NUMA topology.
 
 ### SLIT tables
 
-Any modern machine will define System Locality Distance Information (SLIT)
-tables in its firmware. These tables are understood and made referenceable
-by the Linux kernel. There are two key pieces of information provided by SLIT
-tables
+Modern machines will define System Locality Distance Information (SLIT) tables
+in their firmware. These tables are understood and made referenceable by the
+Linux kernel. There are two key pieces of information provided by SLIT tables:
 - Which CPU cores belong to which NUMA nodes
 - The penalty incurred for accessing each NUMA node from a core in every other
 NUMA node
@@ -207,7 +214,7 @@ NUMA node2 CPU(s):      48-71,144-167
 NUMA node3 CPU(s):      72-95,168-191
 ```
 
-And the associated performance degredations are available via `numactl`
+And the associated performance degradations are available via `numactl`:
 
 ```shell-session
 $ numactl -H
@@ -223,12 +230,12 @@ node   0   1   2   3
 
 These SLIT table "node distance" values are presented as approximate relative
 ratios. The value of 10 represents an optimal situation where a memory access
-is occuring from a CPU that is part of the same NUMA node. A value of 20 for
-example would indicate a 200% performance degredation, 30 for 300%, etc.
+is occuring from a CPU that is part of the same NUMA node. A value of 20 would
+indicate a 200% performance degredation, 30 for 300%, etc.
 
-### node attributes
+### Node Attributes
 
-A Nomad client will fingerprint the machine's NUMA topology and export the
+Nomad clients will fingerprint the machine's NUMA topology and export the
 core associativity as node attributes. This data can provide a Nomad operator
 a better understanding of when it might be useful to make use of NUMA aware
 scheduling for certain workloads.
@@ -241,11 +248,11 @@ numa.node2.cores      = 48-71,144-167
 numa.node3.cores      = 72-95,168-191
 ```
 
-## NUMA aware scheduling
+## NUMA aware scheduling <EnterpriseAlert inline />
 
-Starting in Nomad Enterprise 1.7, Nomad is capable of scheduling tasks in a way
-that is optimized for the NUMA topology of a client node. A task may specify
-a `numa` block indicating its NUMA optimization preference.
+Nomad Enterprise is capable of scheduling tasks in a way that is optimized for
+the NUMA topology of a client node. A task may specify a `numa` block indicating
+its NUMA optimization preference.
 
 ```hcl
 task {
@@ -258,12 +265,12 @@ task {
 }
 ```
 
-### affinity options
+### `affinity` Options
 
-Currently there are three supported affinity options: `none`, `prefer`, and
-`require`, each with their own advantages and tradeoffs.
+There are three supported affinity options: `none`, `prefer`, and `require`,
+each with their own advantages and tradeoffs.
 
-#### none
+#### option `none`
 
 In the `none` mode the Nomad scheduler leverages the apathy of jobs without
 preference of NUMA affinity to help reduce core fragmentation within NUMA nodes.
@@ -281,7 +288,7 @@ resources {
 }
 ```
 
-#### prefer
+#### option `prefer`
 
 In the `prefer` mode the Nomad scheduler uses the hardware topology of a node
 to calculate an optimized selection of available cores, but does not limit
@@ -296,10 +303,10 @@ resources {
 }
 ```
 
-#### require
+#### option `require`
 
 In the `require` mode the Nomad scheduler uses the topology of each potential
-Client to find a set of available CPU cores that belong to the same NUMA node.
+client to find a set of available CPU cores that belong to the same NUMA node.
 If no such set of cores can be found, that node is marked exhasusted for the
 resource of `numa-cores`.
 
