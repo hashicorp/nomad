@@ -99,6 +99,7 @@ export default Factory.extend({
           taskGroupID: group.id,
           ...maybeResources,
           withServices: group.withTaskServices,
+          withActions: group.withActions,
           volumeMounts: mounts.map((mount) => ({
             Volume: mount,
             Destination: `/${faker.internet.userName()}/${faker.internet.domainWord()}/${faker.internet.color()}`,
@@ -123,29 +124,29 @@ export default Factory.extend({
           unknown: 0.25,
           lost: 0.1,
         };
-      
+
         const totalAllocations = group.count;
         const allocationsByStatus = {};
-      
+
         Object.entries(statusProbabilities).forEach(([status, prob]) => {
           allocationsByStatus[status] = Math.round(totalAllocations * prob);
         });
-      
+
         let currentStatusIndex = 0;
         const statusKeys = Object.keys(allocationsByStatus);
-      
+
         Array(totalAllocations)
           .fill(null)
           .forEach((_, i) => {
             let clientStatus;
-      
+
             while (allocationsByStatus[statusKeys[currentStatusIndex]] === 0) {
               currentStatusIndex++;
             }
-      
+
             clientStatus = statusKeys[currentStatusIndex];
             allocationsByStatus[clientStatus]--;
-      
+
             const props = {
               jobId: group.job.id,
               namespace: group.job.namespace,
@@ -163,7 +164,7 @@ export default Factory.extend({
                 Healthy: false,
               },
             };
-      
+
             if (group.withRescheduling) {
               server.create('allocation', 'rescheduled', props);
             } else {

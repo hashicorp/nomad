@@ -97,6 +97,25 @@ function smallCluster(server) {
     activeDeployment: true,
   });
 
+  // action-having job
+  server.create('job', {
+    createAllocations: true,
+    resourceSpec: Array(1).fill('M: 257, C: 500'),
+    groupTaskCount: 1,
+    shallow: false,
+    name: 'action-having-job',
+    id: 'action-having-job',
+    namespaceId: 'default',
+    type: 'service',
+    activeDeployment: false,
+    noDeployments: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
+    status: 'running',
+    withActions: true,
+  });
+
   server.create('policy', {
     id: 'client-reader',
     name: 'client-reader',
@@ -268,11 +287,12 @@ function smallCluster(server) {
 
   //#endregion Active Deployment
 
-  server.create('job', {
-    name: 'hcl-definition-job',
-    id: 'display-hcl',
-    namespaceId: 'default',
-  });
+  // TODO: I don't think we use this job in any tests or Mirage?
+  // server.create('job', {
+  //   name: 'hcl-definition-job',
+  //   id: 'display-hcl',
+  //   namespaceId: 'default',
+  // });
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
