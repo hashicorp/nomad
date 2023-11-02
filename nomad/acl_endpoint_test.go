@@ -268,11 +268,11 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	// Create the register request
 	policy := mock.ACLPolicy()
 	policy2 := mock.ACLPolicy()
-	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2})
+	must.NoError(t, s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2}))
 
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
+	must.NoError(t, s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token}))
 
 	// Lookup the policy which is a subset of our tokens
 	get := &structs.ACLPolicySetRequest{
@@ -283,19 +283,15 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 		},
 	}
 	var resp structs.ACLPolicySetResponse
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.Equal(t, uint64(1000), resp.Index)
-	assert.Equal(t, 1, len(resp.Policies))
-	assert.Equal(t, policy, resp.Policies[policy.Name])
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp))
+	must.Eq(t, uint64(1000), resp.Index)
+	must.Eq(t, 1, len(resp.Policies))
+	must.Eq(t, policy, resp.Policies[policy.Name])
 
 	// Lookup non-associated policy
 	get.Names = []string{policy2.Name}
 	resp = structs.ACLPolicySetResponse{}
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err == nil {
-		t.Fatalf("expected error")
-	}
+	must.Error(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp))
 
 	// Generate and upsert an ACL role which links to the previously created
 	// policy.
@@ -349,6 +345,27 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req2, &resp2))
 	must.Eq(t, 1000, resp2.Index)
 	must.Eq(t, 2, len(resp2.Policies))
+
+	// Delete one of the policies, which means the ACL token has a dangling
+	// policy. When a Nomad client perform an ACL lookup, it adds the policies
+	// attached to the token within the request arguments. This test section
+	// mimics the behaviour when a token is being used that contains dangling
+	// policies.
+	must.NoError(t, s1.fsm.State().DeleteACLPolicies(structs.MsgTypeTestSetup, 1040, []string{policy.Name}))
+
+	req3 := &structs.ACLPolicySetRequest{
+		Names: []string{policy.Name, policy2.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: mockTokenWithRolePolicy.SecretID,
+		},
+	}
+
+	var resp3 structs.ACLPolicySetResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req3, &resp3))
+	must.Eq(t, 1040, resp3.Index)
+	must.MapLen(t, 1, resp3.Policies)
+	must.MapContainsKey(t, resp3.Policies, policy2.Name)
 }
 
 func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
