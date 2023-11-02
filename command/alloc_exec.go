@@ -301,13 +301,6 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
 }
 
-// isTty returns true if both stdin and stdout are a TTY
-func isTty() bool {
-	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
-	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
-	return isStdinTerminal && isStdoutTerminal
-}
-
 // setRawTerminal sets the stream terminal in raw mode, so process captures
 // Ctrl+C and other commands to forward to remote process.
 // It returns a cleanup function that restores terminal to original mode.

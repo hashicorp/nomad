@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
+	"github.com/moby/term"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
 )
@@ -756,4 +757,11 @@ func loadFromStdin(testStdin io.Reader) (string, error) {
 		return "", fmt.Errorf("Failed to read stdin: %v", err)
 	}
 	return b.String(), nil
+}
+
+// isTty returns true if both stdin and stdout are a TTY
+func isTty() bool {
+	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
+	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
+	return isStdinTerminal && isStdoutTerminal
 }
