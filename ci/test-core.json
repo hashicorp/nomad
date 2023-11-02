@@ -27,7 +27,6 @@
     "client/structs/...",
     "client/taskenv/...",
     "command/agent/...",
-    "command/raft_tools/...",
     "helper/...",
     "internal/...",
     "jobspec/...",
