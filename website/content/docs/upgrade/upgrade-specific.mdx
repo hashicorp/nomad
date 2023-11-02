@@ -82,7 +82,7 @@ Starting in Nomad 1.7, Nomad clients improve the accuracy of detected CPU
 performance metrics. The fingerprinter now takes into account heterogeneous core
 types on applicable processors. In addition, Nomad will attempt to detect and
 use the base frequency of the processor rather than the turbo frequency when
-calculating the total availble CPU bandwidth. The net result of these behaviors
+calculating the total available CPU bandwidth. The net result of these behaviors
 is that the calculated total CPU bandwidth available on a node may change when
 upgrading to Nomad 1.7. Operators are encouraged to ensure planned capacity
 meets expectations before upgrading. The [cpu concepts][cpu] documentation
