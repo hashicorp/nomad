@@ -67,6 +67,10 @@ func (*Sysfs) discoverOnline(st *Topology) {
 }
 
 func (*Sysfs) discoverCosts(st *Topology) {
+	if st.NodeIDs.Empty() {
+		return
+	}
+
 	dimension := st.NodeIDs.Size()
 	st.Distances = make(SLIT, st.NodeIDs.Size())
 	for i := 0; i < dimension; i++ {
@@ -94,24 +98,39 @@ func (*Sysfs) discoverCores(st *Topology) {
 	}
 	st.Cores = make([]Core, onlineCores.Size())
 
-	_ = st.NodeIDs.ForEach(func(node hw.NodeID) error {
-		s, err := os.ReadFile(fmt.Sprintf(cpulistFile, node))
-		if err != nil {
-			return err
-		}
-
-		cores := idset.Parse[hw.CoreID](string(s))
-		_ = cores.ForEach(func(core hw.CoreID) error {
-			// best effort, zero values are defaults
-			socket, _ := getNumeric[hw.SocketID](cpuSocketFile, core)
+	switch {
+	case st.NodeIDs == nil:
+		// We did not find node data, no node to associate with
+		_ = onlineCores.ForEach(func(core hw.CoreID) error {
+			st.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0})
+			const node = 0
+			const socket = 0
 			max, _ := getNumeric[hw.KHz](cpuMaxFile, core)
 			base, _ := getNumeric[hw.KHz](cpuBaseFile, core)
-			siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, core)
-			st.insert(node, socket, core, gradeOf(siblings), max, base)
+			st.insert(node, socket, core, Performance, max, base)
 			return nil
 		})
-		return nil
-	})
+	default:
+		// We found node data, associate cores to nodes
+		_ = st.NodeIDs.ForEach(func(node hw.NodeID) error {
+			s, err := os.ReadFile(fmt.Sprintf(cpulistFile, node))
+			if err != nil {
+				return err
+			}
+
+			cores := idset.Parse[hw.CoreID](string(s))
+			_ = cores.ForEach(func(core hw.CoreID) error {
+				// best effort, zero values are defaults
+				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, core)
+				max, _ := getNumeric[hw.KHz](cpuMaxFile, core)
+				base, _ := getNumeric[hw.KHz](cpuBaseFile, core)
+				siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, core)
+				st.insert(node, socket, core, gradeOf(siblings), max, base)
+				return nil
+			})
+			return nil
+		})
+	}
 }
 
 func getIDSet[T idset.ID](path string, args ...any) (*idset.Set[T], error) {
