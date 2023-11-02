@@ -10,6 +10,7 @@ import classic from 'ember-classic-decorator';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import { base64DecodeString } from '../utils/encode';
+import config from 'nomad-ui/config/environment';
 
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
@@ -182,10 +183,45 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       `?namespace=*&action=${action.name}&allocID=${allocID}&task=${action.task.name}&group=${action.task.taskGroup.name}&tty=true&ws_handshake=true` +
       (region ? `&region=${region}` : '');
 
-    const socket = new WebSocket(wsUrl);
+    // const socket = new WebSocket(wsUrl);
+    let socket;
+
+    const mirageEnabled =
+      config.environment !== 'production' &&
+      config['ember-cli-mirage'] &&
+      config['ember-cli-mirage'].enabled !== false;
+
+    if (mirageEnabled) {
+      socket = new Object({
+        messageDisplayed: false,
+        addEventListener: function (event, callback) {
+          if (event === 'message') {
+            this.onmessage = callback;
+          }
+          if (event === 'open') {
+            this.onopen = callback;
+          }
+          if (event === 'close') {
+            this.onclose = callback;
+          }
+        },
+
+        send(e) {
+          if (!this.messageDisplayed) {
+            this.messageDisplayed = true;
+            this.onmessage({
+              data: `{"stdout":{"data":"${btoa('Message Received')}"}}`,
+            });
+          } else {
+            this.onmessage({ data: e.replace('stdin', 'stdout') });
+          }
+        },
+      });
+    } else {
+      socket = new WebSocket(wsUrl);
+    }
 
     let notification;
-
     socket.addEventListener('open', (event) => {
       notification = this.notifications
         .add({
@@ -202,7 +238,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
         })
         .getFlashObject();
 
-      console.log('WebSocket connection opened:', event);
       socket.send(
         JSON.stringify({ version: 1, auth_token: this.token?.secret || '' })
       );
@@ -221,7 +256,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
         return;
       }
 
-      console.log('WebSocket message received:', event);
       let jsonData = JSON.parse(event.data);
       if (jsonData.stdout && jsonData.stdout.data) {
         messageBuffer += base64DecodeString(jsonData.stdout.data);
@@ -243,13 +277,11 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
 
     socket.addEventListener('close', (event) => {
-      console.log('WebSocket connection closed:', event);
       notification.set('title', `Action ${action.name} Finished`);
       notification.set('customAction', null);
     });
 
     socket.addEventListener('error', function (event) {
-      console.error('WebSocket encountered an error:', event);
       this.notifications.add({
         title: `Error received from ${action.name}`,
         message: event,
@@ -257,6 +289,11 @@ export default class JobAdapter extends WatchableNamespaceIDs {
         sticky: true,
       });
     });
+
+    if (mirageEnabled) {
+      socket.onopen();
+      socket.onclose();
+    }
 
     return socket;
   }
