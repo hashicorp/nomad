@@ -817,13 +817,3 @@ func (s *SetupConsulCommand) removeConfiguredComponents() int {
 
 	return exitCode
 }
-
-func printMap(m map[string][]string) string {
-	var output string
-
-	for k, v := range m {
-		output += fmt.Sprintf("  * %s: %s\n", k, strings.Join(v, ", "))
-	}
-
-	return output
-}
