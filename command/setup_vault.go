@@ -41,12 +41,12 @@ type SetupVaultCommand struct {
 
 	vClient  *api.Client
 	vLogical *api.Logical
+	ns       string
 
 	jwksURL string
 
-	vaultEnt bool
-	cleanup  bool
-	autoYes  bool
+	cleanup bool
+	autoYes bool
 }
 
 // Help satisfies the cli.Command Help function.
@@ -153,13 +153,19 @@ Please set the VAULT_ADDR environment variable to your Vault cluster address and
 	}
 	s.vLogical = s.vClient.Logical()
 
-	// check if we're connecting to Vault ent
-	if _, err := s.vLogical.Read("/sys/license/status"); err == nil {
-		s.vaultEnt = true
+	// ent check: if we're not in empty namespace or the license check returns
+	// non-nil (license checks will only ever work from default namespace),
+	// we're connected to ent
+	var ent bool
+	license, _ := s.vClient.Logical().Read("/sys/license/status")
+	ent = s.vClient.Namespace() != "" || license != nil
+
+	if !ent && s.cleanup {
+		return s.removeConfiguredComponents()
 	}
 
-	// Setup Vault client namespace.
-	if s.vaultEnt {
+	if ent {
+		// Setup Vault client namespace.
 		if s.vClient.Namespace() != "" {
 			// Confirm VAULT_NAMESPACE will be used.
 			if !s.autoYes {
@@ -169,51 +175,49 @@ Please set the VAULT_NAMESPACE environment variable to the Vault namespace to us
 					return 0
 				}
 			}
+			s.ns = s.vClient.Namespace()
 		} else {
-			// Update client with default namespace if VAULT_NAMESPACE is not
-			// defined.
-			s.vClient.SetNamespace(vaultNamespace)
+			// Set default namespace if VAULT_NAMESPACE is not defined.
+			s.ns = vaultNamespace
+			s.vClient.SetNamespace(s.ns)
+		}
+
+		if s.cleanup {
+			return s.removeConfiguredComponents()
+		}
+
+		/*
+			Namespace creation and setup
+		*/
+		namespaceMsg := `
+Since you're running Vault Enterprise, we will additionally create
+a namespace %q and create all configuration within that namespace.
+`
+		if s.namespaceExists(s.ns) {
+			s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists.", s.ns))
+		} else {
+			s.Ui.Output(fmt.Sprintf(namespaceMsg, s.ns))
+
+			var createNamespace bool
+			if !s.autoYes {
+				createNamespace = s.askQuestion(
+					fmt.Sprintf("Create the namespace %q in your Vault cluster? [Y/n]", s.ns))
+				if !createNamespace {
+					s.handleNo()
+				}
+			} else {
+				createNamespace = true
+			}
+
+			if createNamespace {
+				err = s.createNamespace(s.ns)
+				if err != nil {
+					s.Ui.Error(err.Error())
+					return 1
+				}
+			}
 		}
 	}
-
-	if s.cleanup {
-		return s.removeConfiguredComponents()
-	}
-
-	/*
-		Namespace creation
-	*/
-	// 	if s.vaultEnt {
-	// 		ns := s.vClient.Namespace()
-	// 		namespaceMsg := `
-	// Since you're running Vault Enterprise, we will additionally create
-	// a namespace %q and bind the auth methods to that namespace.
-	// 	`
-	// 		if s.namespaceExists(ns) {
-	// 			s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists.", ns))
-	// 		} else {
-	// 			s.Ui.Output(fmt.Sprintf(namespaceMsg, ns))
-	//
-	// 			var createNamespace bool
-	// 			if !s.autoYes {
-	// 				createNamespace = s.askQuestion(
-	// 					fmt.Sprintf("Create the namespace %q in your Vault cluster? [Y/n]", ns))
-	// 				if !createNamespace {
-	// 					s.handleNo()
-	// 				}
-	// 			} else {
-	// 				createNamespace = true
-	// 			}
-	//
-	// 			if createNamespace {
-	// 				err = s.createNamespace(ns)
-	// 				if err != nil {
-	// 					s.Ui.Error(err.Error())
-	// 					return 1
-	// 				}
-	// 			}
-	// 		}
-	// 	}
 
 	/*
 		JWT Auth
@@ -516,32 +520,23 @@ func (s *SetupVaultCommand) createAuthMethod(authConfig map[string]any) error {
 	return nil
 }
 
-// func (s *SetupVaultCommand) namespaceExists(ns string) bool {
-// 	nsClient := s.client.Namespaces()
-//
-// 	existingNamespaces, _, _ := nsClient.List(nil)
-// 	return slices.ContainsFunc(
-// 		existingNamespaces,
-// 		func(n *api.Namespace) bool { return n.Name == ns })
-// }
-//
-// func (s *SetupVaultCommand) createNamespace(ns string) error {
-// 	nsClient := s.client.Namespaces()
-// 	namespace := &api.Namespace{
-// 		Name: ns,
-// 		Meta: map[string]string{
-// 			"created-by": "nomad-setup",
-// 		},
-// 	}
-//
-// 	_, _, err := nsClient.Create(namespace, nil)
-// 	if err != nil {
-// 		return fmt.Errorf("[✘] Could not write namespace %q: %w", ns, err)
-// 	}
-// 	s.Ui.Info(fmt.Sprintf("[✔] Created namespace %q.", ns))
-// 	return nil
-// }
-//
+func (s *SetupVaultCommand) namespaceExists(ns string) bool {
+	s.vClient.SetNamespace("")
+	existingNamespace, _ := s.vLogical.Read(fmt.Sprintf("/sys/namespaces/%s", ns))
+	s.vClient.SetNamespace(s.ns)
+	return existingNamespace != nil
+}
+
+func (s *SetupVaultCommand) createNamespace(ns string) error {
+	s.vClient.SetNamespace("")
+	_, err := s.vLogical.Write("/sys/namespaces/"+ns, map[string]interface{}{"created-by": "nomad-setup"})
+	if err != nil {
+		return fmt.Errorf("[✘] Could not write namespace %q: %w", ns, err)
+	}
+	s.Ui.Info(fmt.Sprintf("[✔] Created namespace %q.", ns))
+	s.vClient.SetNamespace(s.ns)
+	return nil
+}
 
 // askQuestion asks question to user until they provide a valid response.
 func (s *SetupVaultCommand) askQuestion(question string) bool {
@@ -569,9 +564,9 @@ func (s *SetupVaultCommand) askQuestion(question string) bool {
 
 func (s *SetupVaultCommand) handleNo() {
 	s.Ui.Warn(`
- By answering "no" to any of these questions, you are risking an incorrect Consul
- cluster configuration. Nomad workloads with Workload Identity will not be able
- to authenticate unless you create missing configuration yourself.
+By answering "no" to any of these questions, you are risking an incorrect Consul
+cluster configuration. Nomad workloads with Workload Identity will not be able
+to authenticate unless you create missing configuration yourself.
  `)
 
 	exitCode := 0
@@ -580,14 +575,15 @@ func (s *SetupVaultCommand) handleNo() {
 	}
 
 	s.Ui.Output(s.Colorize().Color(`
- Consul cluster has [bold][underline]not[reset] been configured for authenticating Nomad tasks and
- services using workload identitiies.
+Consul cluster has [bold][underline]not[reset] been configured for authenticating Nomad tasks and
+services using workload identitiies.
 
- Run the command again to finish the configuration process.`))
+Run the command again to finish the configuration process.`))
 	os.Exit(exitCode)
 }
 
 func (s *SetupVaultCommand) removeConfiguredComponents() int {
+	s.vClient.SetNamespace(s.ns)
 	exitCode := 0
 	componentsToRemove := map[string]string{}
 
@@ -600,16 +596,9 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 	if s.jwtEnabled() {
 		componentsToRemove["JWT Credential backend and its configuration"] = ""
 	}
-	//
-	// 	if s.vaultEnt {
-	// 		ns, _, err := s.client.Namespaces().Read(s.clientCfg.Namespace, nil)
-	// 		if err != nil {
-	// 			s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch namespace %q: %v", ns.Name, err.Error()))
-	// 			exitCode = 1
-	// 		} else if ns != nil && ns.Meta["created-by"] == "nomad-setup" {
-	// 			componentsToRemove["Namespace"] = []string{ns.Name}
-	// 		}
-	// 	}
+	if s.namespaceExists(s.ns) {
+		componentsToRemove["Namespace"] = s.ns
+	}
 	if exitCode != 0 {
 		return exitCode
 	}
@@ -656,16 +645,16 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 			}
 		}
 
-		//
-		// 		for _, ns := range componentsToRemove["Namespace"] {
-		// 			_, err := s.client.Namespaces().Delete(ns, nil)
-		// 			if err != nil {
-		// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns, err.Error()))
-		// 				exitCode = 1
-		// 			} else {
-		// 				s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q.", ns))
-		// 			}
-		// 		}
+		if ns, ok := componentsToRemove["Namespace"]; ok {
+			s.vClient.SetNamespace("")
+			_, err := s.vLogical.Delete(fmt.Sprintf("/sys/namespaces/%s", ns))
+			if err != nil {
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns, err.Error()))
+				exitCode = 1
+			} else {
+				s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q.", ns))
+			}
+		}
 	}
 
 	return exitCode
