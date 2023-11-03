@@ -280,9 +280,6 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if consulToken != "" {
-		c.Ui.Warn(strings.TrimSpace(`
-Warning: setting a Consul token when submitting a job is deprecated and will be
-removed in Nomad 1.9. Migrate your Consul configuration to use workload identity.`))
 		job.ConsulToken = pointer.Of(consulToken)
 	}
 
@@ -297,9 +294,6 @@ removed in Nomad 1.9. Migrate your Consul configuration to use workload identity
 	}
 
 	if vaultToken != "" {
-		c.Ui.Warn(strings.TrimSpace(`
-Warning: setting a Vault token when submitting a job is deprecated and will be
-removed in Nomad 1.9. Migrate your Vault configuration to use workload identity.`))
 		job.VaultToken = pointer.Of(vaultToken)
 	}
 

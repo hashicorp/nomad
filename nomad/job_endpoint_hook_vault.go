@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -59,24 +60,27 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 		return nil, fmt.Errorf("Vault used in the job but missing Vault token")
 	}
 
+	warnings := []error{
+		errors.New("Setting a Vault token when submitting a job is deprecated and will be removed in Nomad 1.9. Migrate your Vault configuration to use workload identity")}
+
 	tokenSecret, err := h.srv.vault.LookupToken(context.Background(), job.VaultToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lookup Vault token: %v", err)
+		return warnings, fmt.Errorf("failed to lookup Vault token: %v", err)
 	}
 
 	// Check namespaces.
 	err = h.validateNamespaces(vaultBlocks, tokenSecret)
 	if err != nil {
-		return nil, err
+		return warnings, err
 	}
 
 	// Check policies.
 	err = h.validatePolicies(vaultBlocks, tokenSecret)
 	if err != nil {
-		return nil, err
+		return warnings, err
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // validatePolicies returns an error if the job contains Vault blocks that
