@@ -116,6 +116,25 @@ function smallCluster(server) {
     withActions: true,
   });
 
+  // action-having job
+  server.create('job', {
+    createAllocations: true,
+    resourceSpec: Array(2).fill('M: 257, C: 500'),
+    groupTaskCount: 5,
+    shallow: false,
+    name: 'action-having-complex-job',
+    id: 'action-having-complex-job',
+    namespaceId: 'default',
+    type: 'service',
+    activeDeployment: false,
+    noDeployments: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
+    status: 'running',
+    withActions: true,
+  });
+
   server.create('policy', {
     id: 'client-reader',
     name: 'client-reader',

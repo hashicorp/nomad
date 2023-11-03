@@ -222,7 +222,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     }
 
     let notification;
-    socket.addEventListener('open', (event) => {
+    socket.addEventListener('open', () => {
       notification = this.notifications
         .add({
           title: `Action ${action.name} Started`,
@@ -276,7 +276,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       }
     });
 
-    socket.addEventListener('close', (event) => {
+    socket.addEventListener('close', () => {
       notification.set('title', `Action ${action.name} Finished`);
       notification.set('customAction', null);
     });

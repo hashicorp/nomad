@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
 import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { generateResources } from '../common';
@@ -100,20 +101,19 @@ export default Factory.extend({
       task.update({ services });
     }
 
-    // TODO: Consider doing this at Task Group level so multiple tasks within a group dont all have it.
     if (task.withActions) {
-      task.update({
-        actions: [
-          {
-            Name: 'echo time',
-            Command: '/bin/sh',
-            Args: [
-              '-c',
-              'counter=0; while true; do echo "Running for ${counter} seconds"; counter=$((counter + 1)); sleep 1; done',
-            ],
-          },
-        ],
-      });
+      let actionsData = [
+        {
+          taskName: task.name,
+          Name: faker.hacker.verb(),
+          Command: '/bin/sh',
+          Args: [
+            '-c',
+            'counter=0; while true; do echo "Running for ${counter} seconds"; counter=$((counter + 1)); sleep 1; done',
+          ],
+        },
+      ];
+      task.update({ actions: actionsData });
     }
   },
 });

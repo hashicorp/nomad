@@ -95,11 +95,12 @@ export default Factory.extend({
         if (resources) {
           maybeResources.originalResources = generateResources(resources[idx]);
         }
+
         return server.create('task', {
           taskGroupID: group.id,
           ...maybeResources,
           withServices: group.withTaskServices,
-          withActions: group.withActions,
+          withActions: true,
           volumeMounts: mounts.map((mount) => ({
             Volume: mount,
             Destination: `/${faker.internet.userName()}/${faker.internet.domainWord()}/${faker.internet.color()}`,
