@@ -12,15 +12,4 @@ export default Factory.extend({
   },
   args: () => [],
   command: () => faker.hacker.phrase(),
-
-  afterCreate(action, server) {
-    console.log('action has breen created', action, action.task);
-    // if (!taskGroupScale.shallow) {
-    //   const events = server.createList('scale-event', faker.random.number({ min: 1, max: 10 }));
-
-    //   taskGroupScale.update({
-    //     eventIds: events.mapBy('id'),
-    //   });
-    // }
-  },
 });

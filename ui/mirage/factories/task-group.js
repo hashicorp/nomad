@@ -14,6 +14,7 @@ const DISK_RESERVATIONS = [200, 500, 1000, 2000, 5000, 10000, 100000];
 export default Factory.extend({
   name: (id) => `${dasherize(faker.hacker.noun())}-g-${id}`,
   count: () => faker.random.number({ min: 1, max: 2 }),
+  taskCount: null,
 
   ephemeralDisk: () => ({
     Sticky: faker.random.boolean(),
@@ -83,10 +84,11 @@ export default Factory.extend({
     }
 
     if (!group.shallow) {
+      const numAllocs = group.taskCount || group.count;
       const resources =
         group.resourceSpec &&
-        divide(group.count, parseResourceSpec(group.resourceSpec));
-      const tasks = provide(group.count, (_, idx) => {
+        divide(numAllocs, parseResourceSpec(group.resourceSpec));
+      const tasks = provide(numAllocs, (_, idx) => {
         const mounts = faker.helpers
           .shuffle(volumes)
           .slice(0, faker.random.number({ min: 1, max: 3 }));

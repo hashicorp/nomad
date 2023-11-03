@@ -97,14 +97,11 @@ export default class TaskSubRowComponent extends Component {
 
   //#endregion Logs Sidebar
 
-  @task(function* (action, allocID, ev) {
-    console.log('taskactin', action, allocID, ev);
-    console.log('action task', this.task);
+  @task(function* (action, allocID) {
     try {
       const job = this.task.task.taskGroup.job; // TODO: this feels bad
       yield job.runAction(action, allocID);
     } catch (err) {
-      console.log('errr', err);
       this.notifications.add({
         title: `Error starting ${action.name}`,
         message: err,

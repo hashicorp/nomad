@@ -241,7 +241,11 @@ export default Factory.extend({
     };
 
     if (job.groupTaskCount) {
-      groupProps.count = job.groupTaskCount;
+      groupProps.taskCount = job.groupTaskCount;
+    }
+
+    if (job.groupAllocCount) {
+      groupProps.count = job.groupAllocCount;
     }
 
     let groups;

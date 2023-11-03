@@ -80,7 +80,7 @@ function smallCluster(server) {
   });
   server.create('job', {
     createAllocations: true,
-    groupTaskCount: 150,
+    groupAllocCount: 150,
     shallow: true,
     allocStatusDistribution: {
       running: 0.5,
@@ -101,7 +101,7 @@ function smallCluster(server) {
   server.create('job', {
     createAllocations: true,
     resourceSpec: Array(1).fill('M: 257, C: 500'),
-    groupTaskCount: 1,
+    groupAllocCount: 1,
     shallow: false,
     name: 'action-having-job',
     id: 'action-having-job',
@@ -120,7 +120,8 @@ function smallCluster(server) {
   server.create('job', {
     createAllocations: true,
     resourceSpec: Array(2).fill('M: 257, C: 500'),
-    groupTaskCount: 5,
+    groupAllocCount: 5,
+    groupTaskCount: 1,
     shallow: false,
     name: 'action-having-complex-job',
     id: 'action-having-complex-job',
@@ -238,7 +239,7 @@ function smallCluster(server) {
 
   const activelyDeployingJob = server.create('job', {
     createAllocations: true,
-    groupTaskCount: activelyDeployingTasksPerGroup,
+    groupAllocCount: activelyDeployingTasksPerGroup,
     shallow: true,
     resourceSpec: Array(activelyDeployingJobGroups).fill('M: 257, C: 500'),
     noDeployments: true, // manually created below

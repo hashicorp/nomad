@@ -119,7 +119,7 @@ module('Acceptance | allocation detail', function (hooks) {
   test('/allocation/:id should present task lifecycles', async function (assert) {
     const job = server.create('job', {
       groupsCount: 1,
-      groupTaskCount: 6,
+      groupAllocCount: 6,
       withGroupServices: true,
       createAllocations: false,
     });
@@ -168,7 +168,7 @@ module('Acceptance | allocation detail', function (hooks) {
   test('each task row should list high-level information for the task', async function (assert) {
     const job = server.create('job', {
       groupsCount: 1,
-      groupTaskCount: 3,
+      groupAllocCount: 3,
       withGroupServices: true,
       createAllocations: false,
     });

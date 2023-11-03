@@ -128,7 +128,6 @@ export default class Title extends Component {
         yield job.runAction(action, allocID);
       }
     } catch (err) {
-      console.log('errr', err);
       this.notifications.add({
         title: `Error starting ${action.name}`,
         message: err,

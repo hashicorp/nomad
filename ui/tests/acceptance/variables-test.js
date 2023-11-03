@@ -1094,7 +1094,7 @@ module('Acceptance | variables', function (hooks) {
       let token = server.create('token', { type: 'management' });
       let job = server.create('job', {
         createAllocations: true,
-        groupTaskCount: 10,
+        groupAllocCount: 10,
         resourceSpec: Array(3).fill('M: 257, C: 500'), // 3 groups
         shallow: false,
         name: 'test-job',
@@ -1153,7 +1153,7 @@ module('Acceptance | variables', function (hooks) {
       let token = server.create('token', { type: 'management' });
       let job = server.create('job', {
         createAllocations: true,
-        groupTaskCount: 2,
+        groupAllocCount: 2,
         resourceSpec: Array(1).fill('M: 257, C: 500'), // 1 group
         shallow: false,
         name: 'test-job',
