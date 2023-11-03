@@ -206,6 +206,10 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		}
 	}
 
+	tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
+	consulCluster := h.task.GetConsulClusterName(tg)
+	consulConfig := h.config.clientConfig.GetConsulConfigs(h.logger)[consulCluster]
+
 	m, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
 		UnblockCh:            unblock,
 		Lifecycle:            h.config.lifecycle,
@@ -214,6 +218,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		ClientConfig:         h.config.clientConfig,
 		ConsulNamespace:      h.config.consulNamespace,
 		ConsulToken:          h.consulToken,
+		ConsulConfig:         consulConfig,
 		VaultToken:           h.vaultToken,
 		VaultConfig:          vaultConfig,
 		VaultNamespace:       h.vaultNamespace,

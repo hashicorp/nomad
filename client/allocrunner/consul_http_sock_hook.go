@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -41,10 +42,10 @@ type consulHTTPSockHook struct {
 	proxy *httpSocketProxy
 }
 
-func newConsulHTTPSocketHook(logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir, config *config.ConsulConfig) *consulHTTPSockHook {
+func newConsulHTTPSocketHook(logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir, configs map[string]*config.ConsulConfig) *consulHTTPSockHook {
 	return &consulHTTPSockHook{
 		alloc:  alloc,
-		proxy:  newHTTPSocketProxy(logger, allocDir, config),
+		proxy:  newHTTPSocketProxy(logger, allocDir, configs),
 		logger: logger.Named(consulHTTPSocketHookName),
 	}
 }
@@ -112,7 +113,7 @@ func (h *consulHTTPSockHook) Postrun() error {
 type httpSocketProxy struct {
 	logger   hclog.Logger
 	allocDir *allocdir.AllocDir
-	config   *config.ConsulConfig
+	configs  map[string]*config.ConsulConfig
 
 	ctx     context.Context
 	cancel  func()
@@ -120,12 +121,12 @@ type httpSocketProxy struct {
 	runOnce bool
 }
 
-func newHTTPSocketProxy(logger hclog.Logger, allocDir *allocdir.AllocDir, config *config.ConsulConfig) *httpSocketProxy {
+func newHTTPSocketProxy(logger hclog.Logger, allocDir *allocdir.AllocDir, configs map[string]*config.ConsulConfig) *httpSocketProxy {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &httpSocketProxy{
 		logger:   logger,
 		allocDir: allocDir,
-		config:   config,
+		configs:  configs,
 		ctx:      ctx,
 		cancel:   cancel,
 		doneCh:   make(chan struct{}),
@@ -152,35 +153,57 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 	default:
 	}
 
-	// consul http dest addr
-	destAddr := p.config.Addr
-	if destAddr == "" {
-		return errors.New("consul address must be set on nomad client")
+	clusterNames := set.New[string](0)
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	for _, s := range tg.Services {
+		clusterNames.Insert(s.GetConsulClusterName(tg))
 	}
 
-	hostHTTPSockPath := filepath.Join(p.allocDir.AllocDir, allocdir.AllocHTTPSocket)
-	if err := maybeRemoveOldSocket(hostHTTPSockPath); err != nil {
-		return err
-	}
+	var retErr error
 
-	listener, err := net.Listen("unix", hostHTTPSockPath)
-	if err != nil {
-		return fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
-	}
+	clusterNames.ForEach(func(clusterName string) bool {
+		config := p.configs[clusterName]
 
-	// The Consul HTTP socket should be usable by all users in case a task is
-	// running as a non-privileged user. Unix does not allow setting domain
-	// socket permissions when creating the file, so we must manually call
-	// chmod afterwards.
-	if err := os.Chmod(hostHTTPSockPath, os.ModePerm); err != nil {
-		return fmt.Errorf("unable to set permissions on unix socket: %w", err)
-	}
+		// consul http dest addr
+		destAddr := config.Addr
+		if destAddr == "" {
+			retErr = errors.New("consul address must be set on nomad client")
+			return false
+		}
 
-	go func() {
-		proxy(p.ctx, p.logger, destAddr, listener)
-		p.cancel()
-		close(p.doneCh)
-	}()
+		hostHTTPSockPath := filepath.Join(p.allocDir.AllocDir, allocdir.AllocHTTPSocket)
+		if err := maybeRemoveOldSocket(hostHTTPSockPath); err != nil {
+			retErr = err
+			return false
+		}
+
+		listener, err := net.Listen("unix", hostHTTPSockPath)
+		if err != nil {
+			retErr = fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
+			return false
+		}
+
+		// The Consul HTTP socket should be usable by all users in case a task is
+		// running as a non-privileged user. Unix does not allow setting domain
+		// socket permissions when creating the file, so we must manually call
+		// chmod afterwards.
+		if err := os.Chmod(hostHTTPSockPath, os.ModePerm); err != nil {
+			retErr = fmt.Errorf("unable to set permissions on unix socket: %w", err)
+			return false
+		}
+
+		go func() {
+			proxy(p.ctx, p.logger, destAddr, listener)
+			p.cancel()
+			close(p.doneCh)
+		}()
+
+		return true
+	})
+
+	if retErr != nil {
+		return retErr
+	}
 
 	p.runOnce = true
 	return nil

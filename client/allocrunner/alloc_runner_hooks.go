@@ -117,6 +117,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	alloc := ar.Alloc()
+
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
@@ -145,8 +146,8 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			logger:            hookLogger,
 			shutdownDelayCtx:  ar.shutdownDelayCtx,
 		}),
-		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig, config.Node.Attributes),
-		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfigs, config.Node.Attributes),
+		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfigs),
 		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, ar.hookResources, ar.clientConfig.Node.SecretID),
 		newChecksHook(hookLogger, alloc, ar.checkStore, ar, builtTaskEnv),
 	}

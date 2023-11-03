@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
 )
@@ -24,8 +25,8 @@ func TestConsulSocketHook_PrerunPostrun_Ok(t *testing.T) {
 	require.NoError(t, err)
 	defer fakeConsul.Close()
 
-	consulConfig := &config.ConsulConfig{
-		Addr: fakeConsul.Addr().String(),
+	consulConfigs := map[string]*config.ConsulConfig{
+		structs.ConsulDefaultCluster: {Addr: fakeConsul.Addr().String()},
 	}
 
 	alloc := mock.ConnectNativeAlloc("bridge")
@@ -36,7 +37,7 @@ func TestConsulSocketHook_PrerunPostrun_Ok(t *testing.T) {
 	defer cleanupDir()
 
 	// start unix socket proxy
-	h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfig)
+	h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfigs)
 	require.NoError(t, h.Prerun())
 
 	httpSocket := filepath.Join(allocDir.AllocDir, allocdir.AllocHTTPSocket)
@@ -97,7 +98,9 @@ func TestConsulHTTPSocketHook_Prerun_Error(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	consulConfig := new(config.ConsulConfig)
+	consulConfigs := map[string]*config.ConsulConfig{
+		structs.ConsulDefaultCluster: new(config.ConsulConfig),
+	}
 
 	alloc := mock.Alloc()
 	connectNativeAlloc := mock.ConnectNativeAlloc("bridge")
@@ -107,7 +110,7 @@ func TestConsulHTTPSocketHook_Prerun_Error(t *testing.T) {
 
 	{
 		// an alloc without a connect native task should not return an error
-		h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfig)
+		h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfigs)
 		require.NoError(t, h.Prerun())
 
 		// postrun should be a noop
@@ -117,7 +120,7 @@ func TestConsulHTTPSocketHook_Prerun_Error(t *testing.T) {
 	{
 		// an alloc with a native task should return an error when consul is not
 		// configured
-		h := newConsulHTTPSocketHook(logger, connectNativeAlloc, allocDir, consulConfig)
+		h := newConsulHTTPSocketHook(logger, connectNativeAlloc, allocDir, consulConfigs)
 		require.EqualError(t, h.Prerun(), "consul address must be set on nomad client")
 
 		// Postrun should be a noop

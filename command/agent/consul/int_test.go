@@ -66,9 +66,9 @@ func TestConsul_Integration(t *testing.T) {
 
 	conf := config.DefaultConfig()
 	conf.Node = mock.Node()
-	conf.ConsulConfig.Addr = testconsul.HTTPAddr
+	conf.GetDefaultConsul().Addr = testconsul.HTTPAddr
 	conf.APIListenerRegistrar = config.NoopAPIListenerRegistrar{}
-	consulConfig, err := conf.ConsulConfig.ApiConfig()
+	consulConfig, err := conf.GetDefaultConsul().ApiConfig()
 	if err != nil {
 		t.Fatalf("error generating consul config: %v", err)
 	}

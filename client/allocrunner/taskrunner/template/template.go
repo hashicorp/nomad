@@ -100,6 +100,10 @@ type TaskTemplateManagerConfig struct {
 	// workload identity
 	ConsulToken string
 
+	// ConsulConfig is the Consul configuration to use for this template. It may
+	// be nil if Nomad has no Consul cofiguration
+	ConsulConfig *structsc.ConsulConfig
+
 	// VaultToken is the Vault token for the task.
 	VaultToken string
 
@@ -819,8 +823,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	}
 
 	// Set up the Consul config
-	if cc.ConsulConfig != nil {
-		conf.Consul.Address = &cc.ConsulConfig.Addr
+	if config.ConsulConfig != nil {
+		conf.Consul.Address = &config.ConsulConfig.Addr
 
 		// if we're using WI, use the token from consul_hook
 		// NOTE: from Nomad 1.9 on, WI will be the only supported way of
@@ -828,28 +832,28 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		if config.ConsulToken != "" {
 			conf.Consul.Token = &config.ConsulToken
 		} else {
-			conf.Consul.Token = &cc.ConsulConfig.Token
+			conf.Consul.Token = &config.ConsulConfig.Token
 		}
 
 		// Get the Consul namespace from agent config. This is the lower level
 		// of precedence (beyond default).
-		if cc.ConsulConfig.Namespace != "" {
-			conf.Consul.Namespace = &cc.ConsulConfig.Namespace
+		if config.ConsulConfig.Namespace != "" {
+			conf.Consul.Namespace = &config.ConsulConfig.Namespace
 		}
 
-		if cc.ConsulConfig.EnableSSL != nil && *cc.ConsulConfig.EnableSSL {
-			verify := cc.ConsulConfig.VerifySSL != nil && *cc.ConsulConfig.VerifySSL
+		if config.ConsulConfig.EnableSSL != nil && *config.ConsulConfig.EnableSSL {
+			verify := config.ConsulConfig.VerifySSL != nil && *config.ConsulConfig.VerifySSL
 			conf.Consul.SSL = &ctconf.SSLConfig{
 				Enabled: pointer.Of(true),
 				Verify:  &verify,
-				Cert:    &cc.ConsulConfig.CertFile,
-				Key:     &cc.ConsulConfig.KeyFile,
-				CaCert:  &cc.ConsulConfig.CAFile,
+				Cert:    &config.ConsulConfig.CertFile,
+				Key:     &config.ConsulConfig.KeyFile,
+				CaCert:  &config.ConsulConfig.CAFile,
 			}
 		}
 
-		if cc.ConsulConfig.Auth != "" {
-			parts := strings.SplitN(cc.ConsulConfig.Auth, ":", 2)
+		if config.ConsulConfig.Auth != "" {
+			parts := strings.SplitN(config.ConsulConfig.Auth, ":", 2)
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("Failed to parse Consul Auth config")
 			}

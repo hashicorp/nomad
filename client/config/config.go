@@ -170,18 +170,10 @@ type Config struct {
 	// Version is the version of the Nomad client
 	Version *version.VersionInfo
 
-	// ConsulConfig is this Agent's default Consul configuration
-	ConsulConfig *structsc.ConsulConfig
-
 	// ConsulConfigs is a map of Consul configurations, here to support features
 	// in Nomad Enterprise. The default Consul config pointer above will be
 	// found in this map under the name "default"
 	ConsulConfigs map[string]*structsc.ConsulConfig
-
-	// VaultConfig is this Agent's default Vault configuration
-	//
-	// Deprecated: use GetVaultConfigs() instead.
-	VaultConfig *structsc.VaultConfig
 
 	// VaultConfigs is a map of Vault configurations, here to support features
 	// in Nomad Enterprise. The default Vault config pointer above will be found
@@ -760,9 +752,7 @@ func (c *Config) Copy() *Config {
 	nc.Servers = slices.Clone(nc.Servers)
 	nc.Options = maps.Clone(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
-	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.ConsulConfigs = helper.DeepCopyMap(c.ConsulConfigs)
-	nc.VaultConfig = c.VaultConfig.Copy()
 	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TemplateConfig = c.TemplateConfig.Copy()
 	nc.ReservableCores = slices.Clone(c.ReservableCores)
@@ -773,9 +763,11 @@ func (c *Config) Copy() *Config {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	cfg := &Config{
-		Version:                 version.GetVersion(),
-		VaultConfig:             structsc.DefaultVaultConfig(),
-		ConsulConfig:            structsc.DefaultConsulConfig(),
+		Version: version.GetVersion(),
+		VaultConfigs: map[string]*structsc.VaultConfig{
+			structs.VaultDefaultCluster: structsc.DefaultVaultConfig()},
+		ConsulConfigs: map[string]*structsc.ConsulConfig{
+			structs.ConsulDefaultCluster: structsc.DefaultConsulConfig()},
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &structsc.TLSConfig{},
@@ -814,11 +806,6 @@ func DefaultConfig() *Config {
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}
-
-	cfg.ConsulConfigs = map[string]*structsc.ConsulConfig{
-		structs.ConsulDefaultCluster: cfg.ConsulConfig}
-	cfg.VaultConfigs = map[string]*structsc.VaultConfig{
-		structs.VaultDefaultCluster: cfg.VaultConfig}
 
 	return cfg
 }
@@ -959,4 +946,12 @@ func (c *Config) NomadPluginConfig(topology *numalib.Topology) *base.AgentConfig
 			Topology:      topology,
 		},
 	}
+}
+
+func (c *Config) GetDefaultConsul() *structsc.ConsulConfig {
+	return c.ConsulConfigs[structs.ConsulDefaultCluster]
+}
+
+func (c *Config) GetDefaultVault() *structsc.VaultConfig {
+	return c.VaultConfigs[structs.VaultDefaultCluster]
 }

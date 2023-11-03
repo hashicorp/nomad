@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -55,7 +56,7 @@ type consulGRPCSocketHook struct {
 
 func newConsulGRPCSocketHook(
 	logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir,
-	config *config.ConsulConfig, nodeAttrs map[string]string) *consulGRPCSocketHook {
+	configs map[string]*config.ConsulConfig, nodeAttrs map[string]string) *consulGRPCSocketHook {
 
 	// Attempt to find the gRPC port via the node attributes, otherwise use the
 	// default fallback.
@@ -66,7 +67,7 @@ func newConsulGRPCSocketHook(
 
 	return &consulGRPCSocketHook{
 		alloc:  alloc,
-		proxy:  newGRPCSocketProxy(logger, allocDir, config, consulGRPCPort),
+		proxy:  newGRPCSocketProxy(logger, allocDir, configs, consulGRPCPort),
 		logger: logger.Named(consulGRPCSockHookName),
 	}
 }
@@ -135,7 +136,7 @@ func (h *consulGRPCSocketHook) Postrun() error {
 type grpcSocketProxy struct {
 	logger   hclog.Logger
 	allocDir *allocdir.AllocDir
-	config   *config.ConsulConfig
+	configs  map[string]*config.ConsulConfig
 
 	// consulGRPCFallbackPort is the port to use if the operator did not
 	// specify a gRPC config address.
@@ -148,13 +149,13 @@ type grpcSocketProxy struct {
 }
 
 func newGRPCSocketProxy(
-	logger hclog.Logger, allocDir *allocdir.AllocDir, config *config.ConsulConfig,
+	logger hclog.Logger, allocDir *allocdir.AllocDir, configs map[string]*config.ConsulConfig,
 	consulGRPCFallbackPort string) *grpcSocketProxy {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &grpcSocketProxy{
 		allocDir:               allocDir,
-		config:                 config,
+		configs:                configs,
 		consulGRPCFallbackPort: consulGRPCFallbackPort,
 		ctx:                    ctx,
 		cancel:                 cancel,
@@ -184,55 +185,78 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 	default:
 	}
 
-	// make sure either grpc or http consul address has been configured
-	if p.config.GRPCAddr == "" && p.config.Addr == "" {
-		return errors.New("consul address must be set on nomad client")
+	clusterNames := set.New[string](0)
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	for _, s := range tg.Services {
+		clusterNames.Insert(s.GetConsulClusterName(tg))
 	}
 
-	destAddr := p.config.GRPCAddr
-	if destAddr == "" {
-		// No GRPCAddr defined. Use Addr but replace port with the gRPC
-		// default of 8502.
-		host, _, err := net.SplitHostPort(p.config.Addr)
-		if err != nil {
-			return fmt.Errorf("error parsing Consul address %q: %v",
-				p.config.Addr, err)
+	var retErr error
+
+	clusterNames.ForEach(func(clusterName string) bool {
+		config := p.configs[clusterName]
+
+		// make sure either grpc or http consul address has been configured
+		if config.GRPCAddr == "" && config.Addr == "" {
+			retErr = errors.New("consul address must be set on nomad client")
+			return false
 		}
-		destAddr = net.JoinHostPort(host, p.consulGRPCFallbackPort)
-	}
 
-	hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDir, allocdir.AllocGRPCSocket)
-
-	// if the socket already exists we'll try to remove it, but if not then any
-	// other errors will bubble up to the caller here or when we try to listen
-	_, err := os.Stat(hostGRPCSocketPath)
-	if err == nil {
-		err := os.Remove(hostGRPCSocketPath)
-		if err != nil {
-			return fmt.Errorf(
-				"unable to remove existing unix socket for Consul gRPC endpoint: %v", err)
+		destAddr := config.GRPCAddr
+		if destAddr == "" {
+			// No GRPCAddr defined. Use Addr but replace port with the gRPC
+			// default of 8502.
+			host, _, err := net.SplitHostPort(config.Addr)
+			if err != nil {
+				retErr = fmt.Errorf("error parsing Consul address %q: %v",
+					config.Addr, err)
+				return false
+			}
+			destAddr = net.JoinHostPort(host, p.consulGRPCFallbackPort)
 		}
-	}
 
-	listener, err := net.Listen("unix", hostGRPCSocketPath)
-	if err != nil {
-		return fmt.Errorf("unable to create unix socket for Consul gRPC endpoint: %v", err)
-	}
+		hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDir, allocdir.AllocGRPCSocket)
 
-	// The gRPC socket should be usable by all users in case a task is
-	// running as an unprivileged user.  Unix does not allow setting domain
-	// socket permissions when creating the file, so we must manually call
-	// chmod afterwards.
-	// https://github.com/golang/go/issues/11822
-	if err := os.Chmod(hostGRPCSocketPath, os.ModePerm); err != nil {
-		return fmt.Errorf("unable to set permissions on unix socket for Consul gRPC endpoint: %v", err)
-	}
+		// if the socket already exists we'll try to remove it, but if not then any
+		// other errors will bubble up to the caller here or when we try to listen
+		_, err := os.Stat(hostGRPCSocketPath)
+		if err == nil {
+			err := os.Remove(hostGRPCSocketPath)
+			if err != nil {
+				retErr = fmt.Errorf(
+					"unable to remove existing unix socket for Consul gRPC endpoint: %v", err)
+				return false
+			}
+		}
 
-	go func() {
-		proxy(p.ctx, p.logger, destAddr, listener)
-		p.cancel()
-		close(p.doneCh)
-	}()
+		listener, err := net.Listen("unix", hostGRPCSocketPath)
+		if err != nil {
+			retErr = fmt.Errorf("unable to create unix socket for Consul gRPC endpoint: %v", err)
+			return false
+		}
+
+		// The gRPC socket should be usable by all users in case a task is
+		// running as an unprivileged user.  Unix does not allow setting domain
+		// socket permissions when creating the file, so we must manually call
+		// chmod afterwards.
+		// https://github.com/golang/go/issues/11822
+		if err = os.Chmod(hostGRPCSocketPath, os.ModePerm); err != nil {
+			retErr = fmt.Errorf("unable to set permissions on unix socket for Consul gRPC endpoint: %v", err)
+			return false
+		}
+
+		go func() {
+			proxy(p.ctx, p.logger, destAddr, listener)
+			p.cancel()
+			close(p.doneCh)
+		}()
+
+		return true
+	})
+
+	if retErr != nil {
+		return retErr
+	}
 
 	p.runOnce = true
 	return nil

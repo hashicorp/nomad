@@ -832,15 +832,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		return nil, fmt.Errorf("client_service_name must be set when auto_advertise is enabled")
 	}
 
-	conf.ConsulConfig = agentConfig.Consul
-	for _, consulConfig := range agentConfig.Consuls {
-		conf.ConsulConfigs[consulConfig.Name] = consulConfig
-	}
-
-	conf.VaultConfig = agentConfig.Vault
-	for _, vaultConfig := range agentConfig.Vaults {
-		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
-	}
+	// Set the Vault and Consul configurations
+	conf.ConsulConfigs = agentConfig.Consuls
+	conf.VaultConfigs = agentConfig.Vaults
 
 	// Set up Telemetry configuration
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval

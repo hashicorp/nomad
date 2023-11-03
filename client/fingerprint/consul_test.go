@@ -37,7 +37,7 @@ func fakeConsul(payload string) (*httptest.Server, *config.Config) {
 	}))
 
 	cfg := config.DefaultConfig()
-	cfg.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, `http://`)
+	cfg.GetDefaultConsul().Addr = strings.TrimPrefix(ts.URL, `http://`)
 	return ts, cfg
 }
 

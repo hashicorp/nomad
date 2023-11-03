@@ -142,9 +142,11 @@ func (tr *TaskRunner) initHooks() {
 	// If this is a Connect sidecar proxy (or a Connect Native) service,
 	// add the sidsHook for requesting a Service Identity token (if ACLs).
 	if task.UsesConnect() {
+		tg := tr.Alloc().Job.LookupTaskGroup(tr.Alloc().TaskGroup)
+
 		// Enable the Service Identity hook only if the Nomad client is configured
 		// with a consul token, indicating that Consul ACLs are enabled
-		if tr.clientConfig.ConsulConfig.Token != "" {
+		if tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)].Token != "" {
 			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
 				alloc:              tr.Alloc(),
 				task:               tr.Task(),
@@ -158,11 +160,15 @@ func (tr *TaskRunner) initHooks() {
 		if task.UsesConnectSidecar() {
 			tr.runnerHooks = append(tr.runnerHooks,
 				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClientFunc, hookLogger)),
-				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, consulNamespace, hookLogger)),
+				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc,
+					tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)],
+					consulNamespace,
+					hookLogger)),
 			)
 		} else if task.Kind.IsConnectNative() {
 			tr.runnerHooks = append(tr.runnerHooks, newConnectNativeHook(
-				newConnectNativeHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
+				newConnectNativeHookConfig(alloc,
+					tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)], hookLogger),
 			))
 		}
 	}

@@ -122,7 +122,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	db := cstate.NewMemDB(logger)
 
 	if thisTask.Vault != nil {
-		clientConf.VaultConfigs[structs.VaultDefaultCluster].Enabled = pointer.Of(true)
+		clientConf.GetDefaultVault().Enabled = pointer.Of(true)
 	}
 
 	var vaultFunc vaultclient.VaultClientFunc
@@ -1433,7 +1433,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 
 	// set a consul token on the Nomad client's consul config, because that is
 	// what gates the action of requesting SI token(s)
-	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
 
 	// control when we get a Consul SI token
 	token := uuid.Generate()
@@ -1497,7 +1497,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 
 	// set a consul token on the Nomad client's consul config, because that is
 	// what gates the action of requesting SI token(s)
-	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
 
 	// control when we get a Consul SI token (recoverable failure on first call)
 	token := uuid.Generate()
@@ -1557,7 +1557,7 @@ func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
 
 	// set a consul token on the Nomad client's consul config, because that is
 	// what gates the action of requesting SI token(s)
-	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
 
 	// SI token derivation suffers a non-retryable error
 	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)

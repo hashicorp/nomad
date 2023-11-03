@@ -34,7 +34,7 @@ func TestVaultFingerprint(t *testing.T) {
 	}
 
 	conf := config.DefaultConfig()
-	conf.VaultConfig = tv.Config
+	conf.VaultConfigs[structs.VaultDefaultCluster] = tv.Config
 
 	request := &FingerprintRequest{Config: conf, Node: node}
 	var response FingerprintResponse
