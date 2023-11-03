@@ -175,9 +175,9 @@ Please set the VAULT_NAMESPACE environment variable to the Vault namespace to us
 		}
 	}
 
-	// if s.cleanup {
-	// 	return s.removeConfiguredComponents()
-	// }
+	if s.cleanup {
+		return s.removeConfiguredComponents()
+	}
 
 	/*
 		Namespace creation
@@ -592,7 +592,7 @@ func (s *SetupVaultCommand) handleNo() {
 
 	exitCode := 0
 	if s.autoYes || s.askQuestion("Remove everything this command creates? [Y/n]") {
-		// exitCode = s.removeConfiguredComponents()
+		exitCode = s.removeConfiguredComponents()
 	}
 
 	s.Ui.Output(s.Colorize().Color(`
@@ -603,106 +603,117 @@ func (s *SetupVaultCommand) handleNo() {
 	os.Exit(exitCode)
 }
 
-// func (s *SetupVaultCommand) removeConfiguredComponents() int {
-// 	exitCode := 0
-// 	componentsToRemove := map[string][]string{}
-//
-// 	authMethods := []string{}
-// 	for _, authMethod := range []string{consulAuthMethodServicesName, consulAuthMethodTasksName} {
-// 		if s.authMethodExists(authMethod) {
-// 			authMethods = append(authMethods, authMethod)
-// 		}
-// 	}
-// 	if len(authMethods) > 0 {
-// 		componentsToRemove["Auth methods"] = authMethods
-// 	}
-//
-// 	if s.policyExists() {
-// 		componentsToRemove["Policy"] = []string{consulPolicyName}
-// 	}
-//
-// 	if s.roleExists() {
-// 		componentsToRemove["Role"] = []string{consulRoleTasks}
-// 	}
-//
-// 	if s.vaultEnt {
-// 		ns, _, err := s.client.Namespaces().Read(s.clientCfg.Namespace, nil)
-// 		if err != nil {
-// 			s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch namespace %q: %v", ns.Name, err.Error()))
-// 			exitCode = 1
-// 		} else if ns != nil && ns.Meta["created-by"] == "nomad-setup" {
-// 			componentsToRemove["Namespace"] = []string{ns.Name}
-// 		}
-// 	}
-// 	if exitCode != 0 {
-// 		return exitCode
-// 	}
-//
-// 	q := `The following items will be deleted:
-//  %s`
-// 	if len(componentsToRemove) == 0 {
-// 		s.Ui.Output("Nothing to delete.")
-// 		return 0
-// 	}
-//
-// 	if !s.autoYes {
-// 		s.Ui.Warn(fmt.Sprintf(q, printMap(componentsToRemove)))
-// 	}
-//
-// 	if s.autoYes || s.askQuestion("Remove all the items listed above? [Y/n]") {
-//
-// 		for _, policy := range componentsToRemove["Policy"] {
-// 			p, _, err := s.client.ACL().PolicyReadByName(policy, nil)
-// 			if err != nil {
-// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch policy %q: %v", policy, err.Error()))
-// 				exitCode = 1
-// 			} else if p != nil {
-// 				_, err := s.client.ACL().PolicyDelete(p.ID, nil)
-// 				if err != nil {
-// 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", policy, err.Error()))
-// 					exitCode = 1
-// 				} else {
-// 					s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q.", p.ID))
-// 				}
-// 			}
-// 		}
-//
-// 		for _, role := range componentsToRemove["Role"] {
-// 			r, _, err := s.client.ACL().RoleReadByName(role, nil)
-// 			if err != nil {
-// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch role %q: %v", role, err.Error()))
-// 				exitCode = 1
-// 			} else if r != nil {
-// 				_, err := s.client.ACL().RoleDelete(r.ID, nil)
-// 				if err != nil {
-// 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete role %q: %v", r.ID, err.Error()))
-// 					exitCode = 1
-// 				} else {
-// 					s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q.", role))
-// 				}
-// 			}
-// 		}
-//
-// 		for _, authMethod := range componentsToRemove["Auth methods"] {
-// 			_, err := s.client.ACL().AuthMethodDelete(authMethod, nil)
-// 			if err != nil {
-// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete auth method %q: %v", authMethod, err.Error()))
-// 				exitCode = 1
-// 			} else {
-// 				s.Ui.Info(fmt.Sprintf("[✔] Deleted auth method %q.", authMethod))
-// 			}
-// 		}
-//
-// 		for _, ns := range componentsToRemove["Namespace"] {
-// 			_, err := s.client.Namespaces().Delete(ns, nil)
-// 			if err != nil {
-// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns, err.Error()))
-// 				exitCode = 1
-// 			} else {
-// 				s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q.", ns))
-// 			}
-// 		}
-// 	}
-//
-// 	return exitCode
-// }
+func (s *SetupVaultCommand) removeConfiguredComponents() int {
+	exitCode := 0
+	componentsToRemove := map[string][]string{}
+
+	// 	authMethods := []string{}
+	// 	for _, authMethod := range []string{consulAuthMethodServicesName, consulAuthMethodTasksName} {
+	// 		if s.authMethodExists(authMethod) {
+	// 			authMethods = append(authMethods, authMethod)
+	// 		}
+	// 	}
+	// 	if len(authMethods) > 0 {
+	// 		componentsToRemove["Auth methods"] = authMethods
+	// 	}
+	//
+	// 	if s.policyExists() {
+	// 		componentsToRemove["Policy"] = []string{consulPolicyName}
+	// 	}
+	//
+	// 	if s.roleExists() {
+	// 		componentsToRemove["Role"] = []string{consulRoleTasks}
+	// 	}
+	if s.jwtEnabled() {
+		componentsToRemove["Auth"] = []string{"JWT"}
+	}
+	//
+	// 	if s.vaultEnt {
+	// 		ns, _, err := s.client.Namespaces().Read(s.clientCfg.Namespace, nil)
+	// 		if err != nil {
+	// 			s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch namespace %q: %v", ns.Name, err.Error()))
+	// 			exitCode = 1
+	// 		} else if ns != nil && ns.Meta["created-by"] == "nomad-setup" {
+	// 			componentsToRemove["Namespace"] = []string{ns.Name}
+	// 		}
+	// 	}
+	if exitCode != 0 {
+		return exitCode
+	}
+
+	q := `The following items will be deleted:
+%s`
+	if len(componentsToRemove) == 0 {
+		s.Ui.Output("Nothing to delete.")
+		return 0
+	}
+
+	if !s.autoYes {
+		s.Ui.Warn(fmt.Sprintf(q, printMap(componentsToRemove)))
+	}
+
+	if s.autoYes || s.askQuestion("Remove all the items listed above? [Y/n]") {
+		//
+		// 		for _, policy := range componentsToRemove["Policy"] {
+		// 			p, _, err := s.client.ACL().PolicyReadByName(policy, nil)
+		// 			if err != nil {
+		// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch policy %q: %v", policy, err.Error()))
+		// 				exitCode = 1
+		// 			} else if p != nil {
+		// 				_, err := s.client.ACL().PolicyDelete(p.ID, nil)
+		// 				if err != nil {
+		// 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", policy, err.Error()))
+		// 					exitCode = 1
+		// 				} else {
+		// 					s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q.", p.ID))
+		// 				}
+		// 			}
+		// 		}
+		//
+		// 		for _, role := range componentsToRemove["Role"] {
+		// 			r, _, err := s.client.ACL().RoleReadByName(role, nil)
+		// 			if err != nil {
+		// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch role %q: %v", role, err.Error()))
+		// 				exitCode = 1
+		// 			} else if r != nil {
+		// 				_, err := s.client.ACL().RoleDelete(r.ID, nil)
+		// 				if err != nil {
+		// 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete role %q: %v", r.ID, err.Error()))
+		// 					exitCode = 1
+		// 				} else {
+		// 					s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q.", role))
+		// 				}
+		// 			}
+		// 		}
+		//
+		// 		for _, authMethod := range componentsToRemove["Auth methods"] {
+		// 			_, err := s.client.ACL().AuthMethodDelete(authMethod, nil)
+		// 			if err != nil {
+		// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete auth method %q: %v", authMethod, err.Error()))
+		// 				exitCode = 1
+		// 			} else {
+		// 				s.Ui.Info(fmt.Sprintf("[✔] Deleted auth method %q.", authMethod))
+		// 			}
+		// 		}
+
+		if _, ok := componentsToRemove["Auth"]; ok {
+			if err := s.vClient.Sys().DisableAuth("jwt"); err != nil {
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to disablt JWT auth: %v", err.Error()))
+				exitCode = 1
+			}
+		}
+
+		//
+		// 		for _, ns := range componentsToRemove["Namespace"] {
+		// 			_, err := s.client.Namespaces().Delete(ns, nil)
+		// 			if err != nil {
+		// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete namespace %q: %v", ns, err.Error()))
+		// 				exitCode = 1
+		// 			} else {
+		// 				s.Ui.Info(fmt.Sprintf("[✔] Deleted namespace %q.", ns))
+		// 			}
+		// 		}
+	}
+
+	return exitCode
+}
