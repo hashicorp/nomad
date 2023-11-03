@@ -121,7 +121,7 @@ function smallCluster(server) {
     createAllocations: true,
     resourceSpec: Array(2).fill('M: 257, C: 500'),
     groupAllocCount: 5,
-    groupTaskCount: 1,
+    groupTaskCount: 2,
     shallow: false,
     name: 'action-having-complex-job',
     id: 'action-having-complex-job',
