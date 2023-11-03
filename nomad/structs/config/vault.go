@@ -151,7 +151,7 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	result := *c
 
 	if b.Name != "" {
-		c.Name = b.Name
+		result.Name = b.Name
 	}
 	if b.Enabled != nil {
 		result.Enabled = b.Enabled

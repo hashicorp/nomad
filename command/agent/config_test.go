@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,8 +45,6 @@ func TestConfig_Merge(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &config.VaultConfig{},
-		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
 		Autopilot:      &config.AutopilotConfig{},
 	}
@@ -188,7 +187,7 @@ func TestConfig_Merge(t *testing.T) {
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin": "*",
 		},
-		Vault: &config.VaultConfig{
+		Vaults: []*config.VaultConfig{{
 			Name:                 structs.VaultDefaultCluster,
 			Token:                "1",
 			AllowUnauthenticated: &falseValue,
@@ -200,23 +199,8 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "1",
 			TLSSkipVerify:        &falseValue,
 			TLSServerName:        "1",
-		},
-		Vaults: map[string]*config.VaultConfig{
-			structs.VaultDefaultCluster: {
-				Name:                 structs.VaultDefaultCluster,
-				Token:                "1",
-				AllowUnauthenticated: &falseValue,
-				TaskTokenTTL:         "1",
-				Addr:                 "1",
-				TLSCaFile:            "1",
-				TLSCaPath:            "1",
-				TLSCertFile:          "1",
-				TLSKeyFile:           "1",
-				TLSSkipVerify:        &falseValue,
-				TLSServerName:        "1",
-			},
-		},
-		Consul: &config.ConsulConfig{
+		}},
+		Consuls: []*config.ConsulConfig{{
 			ServerServiceName:    "1",
 			ClientServiceName:    "1",
 			AutoAdvertise:        &falseValue,
@@ -233,27 +217,7 @@ func TestConfig_Merge(t *testing.T) {
 			ServerAutoJoin:       &falseValue,
 			ClientAutoJoin:       &falseValue,
 			ChecksUseAdvertise:   &falseValue,
-		},
-		Consuls: map[string]*config.ConsulConfig{
-			structs.ConsulDefaultCluster: {
-				ServerServiceName:    "1",
-				ClientServiceName:    "1",
-				AutoAdvertise:        &falseValue,
-				Addr:                 "1",
-				AllowUnauthenticated: &falseValue,
-				Timeout:              1 * time.Second,
-				Token:                "1",
-				Auth:                 "1",
-				EnableSSL:            &falseValue,
-				VerifySSL:            &falseValue,
-				CAFile:               "1",
-				CertFile:             "1",
-				KeyFile:              "1",
-				ServerAutoJoin:       &falseValue,
-				ClientAutoJoin:       &falseValue,
-				ChecksUseAdvertise:   &falseValue,
-			},
-		},
+		}},
 		Autopilot: &config.AutopilotConfig{
 			CleanupDeadServers:      &falseValue,
 			ServerStabilizationTime: 1 * time.Second,
@@ -438,7 +402,7 @@ func TestConfig_Merge(t *testing.T) {
 			"Access-Control-Allow-Origin":  "*",
 			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 		},
-		Vault: &config.VaultConfig{
+		Vaults: []*config.VaultConfig{{
 			Name:                 structs.VaultDefaultCluster,
 			Token:                "2",
 			AllowUnauthenticated: &trueValue,
@@ -450,60 +414,34 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "2",
 			TLSSkipVerify:        &trueValue,
 			TLSServerName:        "2",
-		},
-		Vaults: map[string]*config.VaultConfig{
-			structs.VaultDefaultCluster: {
-				Name:                 structs.VaultDefaultCluster,
-				Token:                "2",
-				AllowUnauthenticated: &trueValue,
-				TaskTokenTTL:         "2",
-				Addr:                 "2",
-				TLSCaFile:            "2",
-				TLSCaPath:            "2",
-				TLSCertFile:          "2",
-				TLSKeyFile:           "2",
-				TLSSkipVerify:        &trueValue,
-				TLSServerName:        "2",
-			},
-		},
-		Consul: &config.ConsulConfig{
-			ServerServiceName:    "2",
-			ClientServiceName:    "2",
-			AutoAdvertise:        &trueValue,
-			Addr:                 "2",
-			AllowUnauthenticated: &trueValue,
-			Timeout:              2 * time.Second,
-			Token:                "2",
-			Auth:                 "2",
-			EnableSSL:            &trueValue,
-			VerifySSL:            &trueValue,
-			CAFile:               "2",
-			CertFile:             "2",
-			KeyFile:              "2",
-			ServerAutoJoin:       &trueValue,
-			ClientAutoJoin:       &trueValue,
-			ChecksUseAdvertise:   &trueValue,
-		},
-		Consuls: map[string]*config.ConsulConfig{
-			structs.ConsulDefaultCluster: {
-				ServerServiceName:    "2",
-				ClientServiceName:    "2",
-				AutoAdvertise:        &trueValue,
-				Addr:                 "2",
-				AllowUnauthenticated: &trueValue,
-				Timeout:              2 * time.Second,
-				Token:                "2",
-				Auth:                 "2",
-				EnableSSL:            &trueValue,
-				VerifySSL:            &trueValue,
-				CAFile:               "2",
-				CertFile:             "2",
-				KeyFile:              "2",
-				ServerAutoJoin:       &trueValue,
-				ClientAutoJoin:       &trueValue,
-				ChecksUseAdvertise:   &trueValue,
-			},
-		},
+			ConnectionRetryIntv:  time.Duration(30000000000),
+			JWTAuthBackendPath:   "jwt",
+		}},
+		Consuls: []*config.ConsulConfig{{
+			Name:                      "default",
+			ServerServiceName:         "2",
+			ClientServiceName:         "2",
+			AutoAdvertise:             &trueValue,
+			Addr:                      "2",
+			AllowUnauthenticated:      &trueValue,
+			Timeout:                   2 * time.Second,
+			Token:                     "2",
+			Auth:                      "2",
+			EnableSSL:                 &trueValue,
+			VerifySSL:                 &trueValue,
+			CAFile:                    "2",
+			CertFile:                  "2",
+			KeyFile:                   "2",
+			ServerAutoJoin:            &trueValue,
+			ClientAutoJoin:            &trueValue,
+			ChecksUseAdvertise:        &trueValue,
+			ServerHTTPCheckName:       "Nomad Server HTTP Check",
+			ServerSerfCheckName:       "Nomad Server Serf Check",
+			ServerRPCCheckName:        "Nomad Server RPC Check",
+			ClientHTTPCheckName:       "Nomad Client HTTP Check",
+			ServiceIdentityAuthMethod: structs.ConsulServicesDefaultAuthMethodName,
+			TaskIdentityAuthMethod:    structs.ConsulTasksDefaultAuthMethodName,
+		}},
 		Sentinel: &config.SentinelConfig{
 			Imports: []*config.SentinelImport{
 				{
@@ -549,19 +487,9 @@ func TestConfig_Merge(t *testing.T) {
 	result := c0.Merge(c1)
 	result = result.Merge(c2)
 	result = result.Merge(c3)
-
-	// Apply expected Consuls and Vaults defaults.
-	//
-	// Update pointers so the "default" key also updates expected.Consul and
-	// expected.Vault.
 	expected := c3.Copy()
-	for name, consul := range expected.Consuls {
-		*expected.Consuls[name] = *config.DefaultConsulConfig().Merge(consul)
-	}
-	for name, vault := range expected.Vaults {
-		*expected.Vaults[name] = *config.DefaultVaultConfig().Merge(vault)
-	}
-	require.Equal(t, expected, result)
+
+	must.Eq(t, expected, result)
 }
 
 func TestConfig_ParseConfigFile(t *testing.T) {

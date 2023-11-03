@@ -55,17 +55,12 @@ func ParseConfigFile(path string) (*Config, error) {
 			PlanRejectionTracker: &PlanRejectionTracker{},
 			ServerJoin:           &ServerJoin{},
 		},
-		ACL:   &ACLConfig{},
-		Audit: &config.AuditConfig{},
-		Consul: &config.ConsulConfig{
-			ServiceIdentity: &config.WorkloadIdentityConfig{},
-			TaskIdentity:    &config.WorkloadIdentityConfig{},
-		},
-		Consuls:   map[string]*config.ConsulConfig{},
+		ACL:       &ACLConfig{},
+		Audit:     &config.AuditConfig{},
+		Consuls:   []*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
-		Vault:     &config.VaultConfig{},
-		Vaults:    map[string]*config.VaultConfig{},
+		Vaults:    []*config.VaultConfig{},
 		Reporting: config.DefaultReporting(),
 	}
 
@@ -112,7 +107,6 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"server.plan_rejection_tracker.node_window", &c.Server.PlanRejectionTracker.NodeWindow, &c.Server.PlanRejectionTracker.NodeWindowHCL, nil},
 		{"server.retry_interval", &c.Server.RetryInterval, &c.Server.RetryIntervalHCL, nil},
 		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL, nil},
-		{"consul.timeout", &c.Consul.Timeout, &c.Consul.TimeoutHCL, nil},
 		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL, nil},
 		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL, nil},
 		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval, nil},
@@ -181,14 +175,14 @@ func ParseConfigFile(path string) (*Config, error) {
 	//
 	// Since the map of multiple cluster configuration contains a pointer to
 	// the default block we don't need to parse it directly.
-	for name, consulConfig := range c.Consuls {
+	for _, consulConfig := range c.Consuls {
 		// Capture consulConfig inside the loop so the parse duration function
 		// modifies the right configuration.
 		consulConfig := consulConfig
 
 		if consulConfig.ServiceIdentity != nil {
 			tds = append(tds, durationConversionMap{
-				fmt.Sprintf("consuls.%s.service_identity.ttl", name), nil, &consulConfig.ServiceIdentity.TTLHCL,
+				"consul.service_identity.ttl", nil, &consulConfig.ServiceIdentity.TTLHCL,
 				func(d *time.Duration) {
 					consulConfig.ServiceIdentity.TTL = d
 				},
@@ -197,7 +191,7 @@ func ParseConfigFile(path string) (*Config, error) {
 
 		if consulConfig.TaskIdentity != nil {
 			tds = append(tds, durationConversionMap{
-				fmt.Sprintf("consuls.%s.task_identity.ttl", name), nil, &consulConfig.TaskIdentity.TTLHCL,
+				"consul.task_identity.ttl", nil, &consulConfig.TaskIdentity.TTLHCL,
 				func(d *time.Duration) {
 					consulConfig.TaskIdentity.TTL = d
 				},
@@ -205,14 +199,14 @@ func ParseConfigFile(path string) (*Config, error) {
 		}
 	}
 
-	for name, vaultConfig := range c.Vaults {
+	for _, vaultConfig := range c.Vaults {
 		// Capture vaultConfig inside the loop so the parse duration function
 		// modifies the right configuration.
 		vaultConfig := vaultConfig
 
 		if vaultConfig.DefaultIdentity != nil {
 			tds = append(tds, durationConversionMap{
-				fmt.Sprintf("vaults.%s.default_identity.ttl", name), nil, &vaultConfig.DefaultIdentity.TTLHCL,
+				"vaults.default_identity.ttl", nil, &vaultConfig.DefaultIdentity.TTLHCL,
 				func(d *time.Duration) {
 					vaultConfig.DefaultIdentity.TTL = d
 				},
@@ -406,10 +400,17 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 		if v.Name == "" {
 			v.Name = structs.VaultDefaultCluster
 		}
-		if exist, ok := c.Vaults[v.Name]; ok {
-			c.Vaults[v.Name] = exist.Merge(v)
-		} else {
-			c.Vaults[v.Name] = v
+
+		var vaultFound bool
+		for i, exist := range c.Vaults {
+			if exist.Name == v.Name {
+				c.Vaults[i] = exist.Merge(v)
+				vaultFound = true
+				break
+			}
+		}
+		if !vaultFound {
+			c.Vaults = append(c.Vaults, v)
 		}
 
 		// Decode the default identity.
@@ -431,11 +432,10 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 			if err := mapstructure.WeakDecode(m, &defaultIdentity); err != nil {
 				return err
 			}
-			c.Vaults[v.Name].DefaultIdentity = &defaultIdentity
+			v.DefaultIdentity = &defaultIdentity
 		}
 	}
 
-	c.Vault = c.Vaults[structs.VaultDefaultCluster]
 	return nil
 }
 
@@ -472,10 +472,16 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			cc.Timeout = d
 		}
 
-		if exist, ok := c.Consuls[cc.Name]; ok {
-			c.Consuls[cc.Name] = exist.Merge(cc)
-		} else {
-			c.Consuls[cc.Name] = cc
+		var consulFound bool
+		for i, exist := range c.Consuls {
+			if exist.Name == cc.Name {
+				c.Consuls[i] = exist.Merge(cc)
+				consulFound = true
+				break
+			}
+		}
+		if !consulFound {
+			c.Consuls = append(c.Consuls, cc)
 		}
 
 		// decode service and template identity blocks
@@ -497,7 +503,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			if err := mapstructure.WeakDecode(m, &serviceIdentity); err != nil {
 				return err
 			}
-			c.Consuls[cc.Name].ServiceIdentity = &serviceIdentity
+			cc.ServiceIdentity = &serviceIdentity
 		}
 
 		if o := listVal.Filter("task_identity"); len(o.Items) > 0 {
@@ -511,10 +517,9 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			if err := mapstructure.WeakDecode(m, &taskIdentity); err != nil {
 				return err
 			}
-			c.Consuls[cc.Name].TaskIdentity = &taskIdentity
+			cc.TaskIdentity = &taskIdentity
 		}
 	}
 
-	c.Consul = c.Consuls[structs.ConsulDefaultCluster]
 	return nil
 }

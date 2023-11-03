@@ -187,10 +187,10 @@ func TestPlanCommand_From_Files(t *testing.T) {
 
 	// Create a Nomad server
 	s := testutil.NewTestServer(t, func(c *testutil.TestServerConfig) {
-		c.Vault.Address = v.HTTPAddr
-		c.Vault.Enabled = true
-		c.Vault.AllowUnauthenticated = pointer.Of(false)
-		c.Vault.Token = v.RootToken
+		c.Vaults[0].Address = v.HTTPAddr
+		c.Vaults[0].Enabled = true
+		c.Vaults[0].AllowUnauthenticated = pointer.Of(false)
+		c.Vaults[0].Token = v.RootToken
 	})
 	defer s.Stop()
 
