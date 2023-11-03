@@ -875,7 +875,7 @@ func (s *Server) Reload(newConfig *Config) error {
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
-		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
+		if err := s.vault.SetConfig(newConfig.GetDefaultVault()); err != nil {
 			_ = multierror.Append(&mErr, err)
 		}
 	}
@@ -1018,7 +1018,7 @@ func (s *Server) setupBootstrapHandler() error {
 			dcs = dcs[0:min(len(dcs), datacenterQueryLimit)]
 		}
 
-		nomadServerServiceName := s.config.ConsulConfig.ServerServiceName
+		nomadServerServiceName := s.config.GetDefaultConsul().ServerServiceName
 		var mErr multierror.Error
 		const defaultMaxNumNomadServers = 8
 		nomadServerServices := make([]string, 0, defaultMaxNumNomadServers)
@@ -1106,7 +1106,8 @@ func (s *Server) setupBootstrapHandler() error {
 // setupConsulSyncer creates Server-mode consul.Syncer which periodically
 // executes callbacks on a fixed interval.
 func (s *Server) setupConsulSyncer() error {
-	if s.config.ConsulConfig.ServerAutoJoin != nil && *s.config.ConsulConfig.ServerAutoJoin {
+	conf := s.config.ConsulConfigs[structs.ConsulDefaultCluster]
+	if conf.ServerAutoJoin != nil && *conf.ServerAutoJoin {
 		if err := s.setupBootstrapHandler(); err != nil {
 			return err
 		}
@@ -1172,7 +1173,7 @@ func (s *Server) setupConsul(consulConfigFunc consul.ConfigAPIFunc, consulACLs c
 
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
-	vconfig := s.config.VaultConfig
+	vconfig := s.config.GetDefaultVault()
 	if vconfig != nil && vconfig.DefaultIdentity != nil {
 		s.vault = &NoopVault{}
 		return nil

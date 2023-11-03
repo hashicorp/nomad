@@ -31,7 +31,7 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{},
+				ConsulConfigs: map[string]*config.ConsulConfig{},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
@@ -51,11 +51,12 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					ServiceIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
-					},
-				},
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						ServiceIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
+					}},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
@@ -108,9 +109,11 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					ServiceIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						ServiceIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
 					},
 				},
 			},
@@ -182,9 +185,11 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					ServiceIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						ServiceIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
 					},
 				},
 			},
@@ -229,9 +234,11 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					TaskIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
 					},
 				},
 			},
@@ -260,7 +267,7 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{},
+				ConsulConfigs: map[string]*config.ConsulConfig{},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{

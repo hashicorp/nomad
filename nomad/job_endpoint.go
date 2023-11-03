@@ -246,7 +246,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	//   - reading kv store of each group
 	//   - establishing consul connect services
 	checkConsulToken := func(usages map[string]*structs.ConsulUsage) error {
-		if j.srv.config.ConsulConfig.AllowsUnauthenticated() {
+		if j.srv.config.GetDefaultConsul().AllowsUnauthenticated() {
 			// if consul.allow_unauthenticated is enabled (which is the default)
 			// just let the job through without checking anything
 			return nil
