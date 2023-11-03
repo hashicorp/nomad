@@ -480,10 +480,7 @@ func (s *SetupVaultCommand) createPolicy(policyText string) error {
 
 func (s *SetupVaultCommand) authMethodExists() bool {
 	existingConf, _ := s.vLogical.Read("/auth/jwt/config")
-	if existingConf != nil {
-		return true
-	}
-	return false
+	return existingConf != nil
 }
 
 func (s *SetupVaultCommand) renderAuthMethod() (map[string]any, error) {

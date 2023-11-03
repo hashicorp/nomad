@@ -765,4 +765,3 @@ func isTty() bool {
 	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
 	return isStdinTerminal && isStdoutTerminal
 }
-
