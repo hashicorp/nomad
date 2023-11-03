@@ -5,8 +5,11 @@ package command
 
 import (
 	_ "embed"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
@@ -219,14 +222,14 @@ Please set the VAULT_NAMESPACE environment variable to the Vault namespace to us
 	*/
 	s.Ui.Output(`
 Nomad workloads authenticate using JSON Web Tokens. For that authentication to
-work, your Vault cluster needs to have JWT Auth support enabled.
+work, your Vault cluster needs to have JWT credential backend enabled.
 `)
 	if s.jwtEnabled() {
 		s.Ui.Info("[✔] JWT Auth already enabled.")
 	} else {
 		var enableJWT bool
 		if !s.autoYes {
-			enableJWT = s.askQuestion("Enable JWT auth in your Vault cluster? [Y/n]")
+			enableJWT = s.askQuestion("Enable JWT credential backend in your Vault cluster? [Y/n]")
 			if !enableJWT {
 				s.handleNo()
 			}
@@ -241,7 +244,71 @@ work, your Vault cluster needs to have JWT Auth support enabled.
 				return 1
 			}
 		}
+	}
 
+	/*
+		Policy & role creation
+	*/
+	s.Ui.Output(`
+We need to create a role that Nomad workloads will assume while authenticating,
+and a policy associated with that role.
+	`)
+
+	if s.policyExists() {
+		s.Ui.Info(fmt.Sprintf("[✔] Policy %q already exists.", vaultPolicyName))
+	} else {
+		s.Ui.Output(fmt.Sprintf("These are the rules for the policy %q that we will create:\n", vaultPolicyName))
+		s.Ui.Output(string(vaultPolicyBody))
+
+		var createPolicy bool
+		if !s.autoYes {
+			createPolicy = s.askQuestion(
+				"Create the above policy in your Vault cluster? [Y/n]",
+			)
+			if !createPolicy {
+				s.handleNo()
+			}
+
+		} else {
+			createPolicy = true
+		}
+
+		if createPolicy {
+			err = s.createPolicy()
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
+			}
+		}
+	}
+
+	if s.roleExists() {
+		s.Ui.Info(fmt.Sprintf("[✔] Role %q already exists.", vaultRoleTasks))
+	} else {
+		s.Ui.Output(fmt.Sprintf(`
+We will now create an ACL role called %q associated with the policy above.
+`,
+			vaultRoleTasks))
+
+		var createRole bool
+		if !s.autoYes {
+			createRole = s.askQuestion(
+				"Create role in your Vault cluster? [Y/n]",
+			)
+			if !createRole {
+				s.handleNo()
+			}
+		} else {
+			createRole = true
+		}
+
+		if createRole {
+			err = s.createRoleForTasks()
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
+			}
+		}
 	}
 
 	/*
@@ -328,73 +395,6 @@ tasks %q.
 	// 	}
 	// }
 
-	//	/*
-	//		Policy & role creation
-	//	*/
-	//	s.Ui.Output(`
-	//	The step above bound Nomad tasks to a Consul ACL role. Now we need to create the
-	//	role and the associated ACL policy that defines what tasks are allowed to access
-	//	in Consul.
-	//	`)
-	//
-	//	if s.policyExists() {
-	//		s.Ui.Info(fmt.Sprintf("[✔] Policy %q already exists.", consulPolicyName))
-	//	} else {
-	//		s.Ui.Output(fmt.Sprintf("These are the rules for the policy %q that we will create:\n", consulPolicyName))
-	//		s.Ui.Output(string(consulPolicyBody))
-	//
-	//		var createPolicy bool
-	//		if !s.autoYes {
-	//			createPolicy = s.askQuestion(
-	//				"Create the above policy in your Consul cluster? [Y/n]",
-	//			)
-	//			if !createPolicy {
-	//				s.handleNo()
-	//			}
-	//
-	//		} else {
-	//			createPolicy = true
-	//		}
-	//
-	//		if createPolicy {
-	//			err = s.createPolicy()
-	//			if err != nil {
-	//				s.Ui.Error(err.Error())
-	//				return 1
-	//			}
-	//		}
-	//	}
-	//
-	//	if s.roleExists() {
-	//		s.Ui.Info(fmt.Sprintf("[✔] Role %q already exists.", consulRoleTasks))
-	//	} else {
-	//		s.Ui.Output(fmt.Sprintf(`
-	//	And finally, we will create an ACL role called %q associated
-	//	with the policy above.
-	//	`,
-	//			consulRoleTasks))
-	//
-	//		var createRole bool
-	//		if !s.autoYes {
-	//			createRole = s.askQuestion(
-	//				"Create role in your Consul cluster? [Y/n]",
-	//			)
-	//			if !createRole {
-	//				s.handleNo()
-	//			}
-	//		} else {
-	//			createRole = true
-	//		}
-	//
-	//		if createRole {
-	//			err = s.createRoleForTasks()
-	//			if err != nil {
-	//				s.Ui.Error(err.Error())
-	//				return 1
-	//			}
-	//		}
-	//	}
-
 	s.Ui.Output(`
 Congratulations, your Vault cluster is now setup and ready to accept Nomad
 workloads with Workload Identity!
@@ -408,7 +408,7 @@ vault {
   # Vault Enterprise only.
   # namespace = "<namespace>"
 
-  jwt_auth_backend_path = "${vault_jwt_auth_backend.nomad.path}"
+  jwt_auth_backend_path = "jwt/"
 }
 
 And your Nomad server configuration in the following way:
@@ -433,9 +433,76 @@ func (s *SetupVaultCommand) jwtEnabled() bool {
 func (s *SetupVaultCommand) enableJWT() error {
 	err := s.vClient.Sys().EnableAuthWithOptions("jwt", &api.MountInput{Type: "jwt"})
 	if err != nil {
-		return fmt.Errorf("[✘] Could not enable JWT auth: %w", err)
+		return fmt.Errorf("[✘] Could not enable JWT credential backend: %w", err)
 	}
-	s.Ui.Info("[✔] Enabled JWT auth.")
+	s.Ui.Info("[✔] Enabled JWT credential backend.")
+	return nil
+}
+
+func (s *SetupVaultCommand) roleExists() bool {
+	existingRoles, err := s.vLogical.List("/auth/jwt/role")
+	if err != nil {
+		panic(err)
+	}
+	if existingRoles != nil {
+		return slices.Contains(existingRoles.Data["keys"].([]interface{}), vaultRoleTasks)
+	}
+	return false
+}
+
+func (s *SetupVaultCommand) createRoleForTasks() error {
+	role := map[string]any{}
+	err := json.Unmarshal(vaultRoleBody, &role)
+	if err != nil {
+		return fmt.Errorf("[✘] Default auth config text could not be deserialized: %w", err)
+	}
+
+	role["bound_audiences"] = vaultAud
+	role["token_policies"] = []string{vaultPolicyName}
+
+	buf, err := json.Marshal(role)
+	if err != nil {
+		return fmt.Errorf("[✘] Role could not be interpolated with args: %w", err)
+	}
+
+	path := "auth/jwt/role/" + vaultRoleTasks
+
+	_, err = s.vLogical.WriteBytes(path, buf)
+	if err != nil {
+		return fmt.Errorf("[✘] Could not create Vault role: %w", err)
+	}
+
+	s.Ui.Info(fmt.Sprintf("[✔] Created role %q.", vaultRoleTasks))
+	return nil
+}
+
+func (s *SetupVaultCommand) policyExists() bool {
+	existingPolicies, _ := s.vClient.Sys().ListPolicies()
+	return slices.Contains(existingPolicies, vaultPolicyName)
+}
+
+func (s *SetupVaultCommand) createPolicy() error {
+	secret, err := s.vLogical.Read("sys/auth/jwt")
+	if err != nil {
+		return fmt.Errorf("[✘] Could not retrieve JWT accessor: %w", err)
+	}
+	accessor := secret.Data["accessor"].(string)
+
+	policyTextStr := string(vaultPolicyBody)
+	policyTextStr = strings.ReplaceAll(policyTextStr, "auth_jwt_X", accessor)
+	encoded := base64.StdEncoding.EncodeToString([]byte(policyTextStr))
+
+	finalText := fmt.Sprintf(`{"policy": "%s"}`, encoded)
+	buf := []byte(finalText)
+
+	path := "sys/policies/acl/" + vaultPolicyName
+	_, err = s.vLogical.WriteBytes(path, buf)
+	if err != nil {
+		return fmt.Errorf("[✘] Could not create Vault policy: %w", err)
+	}
+
+	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q.", vaultPolicyName))
+
 	return nil
 }
 
@@ -517,47 +584,6 @@ func (s *SetupVaultCommand) enableJWT() error {
 // 	return nil
 // }
 //
-// func (s *SetupVaultCommand) roleExists() bool {
-// 	existingRoles, _, _ := s.client.ACL().RoleList(nil)
-// 	return slices.ContainsFunc(
-// 		existingRoles,
-// 		func(r *api.ACLRole) bool { return r.Name == consulRoleTasks })
-// }
-//
-// func (s *SetupVaultCommand) createRoleForTasks() error {
-// 	_, _, err := s.client.ACL().RoleCreate(&api.ACLRole{
-// 		Name:        consulRoleTasks,
-// 		Description: "Role for Nomad tasks using workload identities",
-// 		Policies:    []*api.ACLLink{{Name: consulPolicyName}},
-// 	}, nil)
-// 	if err != nil {
-// 		return fmt.Errorf("[✘] Could not create Consul role: %w", err)
-// 	}
-//
-// 	s.Ui.Info(fmt.Sprintf("[✔] Created role %q.", consulRoleTasks))
-// 	return nil
-// }
-//
-// func (s *SetupVaultCommand) policyExists() bool {
-// 	existingPolicies, _, _ := s.client.ACL().PolicyList(nil)
-// 	return slices.ContainsFunc(
-// 		existingPolicies,
-// 		func(p *api.ACLPolicyListEntry) bool { return p.Name == consulPolicyName })
-// }
-//
-// func (s *SetupVaultCommand) createPolicy() error {
-// 	_, _, err := s.client.ACL().PolicyCreate(&api.ACLPolicy{
-// 		Name:  consulPolicyName,
-// 		Rules: string(consulPolicyBody),
-// 	}, nil)
-// 	if err != nil {
-// 		return fmt.Errorf("[✘] Could not create Consul policy: %w", err)
-// 	}
-//
-// 	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q.", consulPolicyName))
-//
-// 	return nil
-// }
 
 // askQuestion asks question to user until they provide a valid response.
 func (s *SetupVaultCommand) askQuestion(question string) bool {
@@ -617,15 +643,15 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 	// 		componentsToRemove["Auth methods"] = authMethods
 	// 	}
 	//
-	// 	if s.policyExists() {
-	// 		componentsToRemove["Policy"] = []string{consulPolicyName}
-	// 	}
-	//
-	// 	if s.roleExists() {
-	// 		componentsToRemove["Role"] = []string{consulRoleTasks}
-	// 	}
+	if s.policyExists() {
+		componentsToRemove["Policy"] = []string{consulPolicyName}
+	}
+
+	if s.roleExists() {
+		componentsToRemove["Role"] = []string{consulRoleTasks}
+	}
 	if s.jwtEnabled() {
-		componentsToRemove["Auth"] = []string{"JWT"}
+		componentsToRemove["Credential backend"] = []string{"JWT"}
 	}
 	//
 	// 	if s.vaultEnt {
@@ -653,38 +679,26 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 	}
 
 	if s.autoYes || s.askQuestion("Remove all the items listed above? [Y/n]") {
-		//
-		// 		for _, policy := range componentsToRemove["Policy"] {
-		// 			p, _, err := s.client.ACL().PolicyReadByName(policy, nil)
-		// 			if err != nil {
-		// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch policy %q: %v", policy, err.Error()))
-		// 				exitCode = 1
-		// 			} else if p != nil {
-		// 				_, err := s.client.ACL().PolicyDelete(p.ID, nil)
-		// 				if err != nil {
-		// 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", policy, err.Error()))
-		// 					exitCode = 1
-		// 				} else {
-		// 					s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q.", p.ID))
-		// 				}
-		// 			}
-		// 		}
-		//
-		// 		for _, role := range componentsToRemove["Role"] {
-		// 			r, _, err := s.client.ACL().RoleReadByName(role, nil)
-		// 			if err != nil {
-		// 				s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch role %q: %v", role, err.Error()))
-		// 				exitCode = 1
-		// 			} else if r != nil {
-		// 				_, err := s.client.ACL().RoleDelete(r.ID, nil)
-		// 				if err != nil {
-		// 					s.Ui.Error(fmt.Sprintf("[✘] Failed to delete role %q: %v", r.ID, err.Error()))
-		// 					exitCode = 1
-		// 				} else {
-		// 					s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q.", role))
-		// 				}
-		// 			}
-		// 		}
+
+		for _, policy := range componentsToRemove["Policy"] {
+			err := s.vClient.Sys().DeletePolicy(policy)
+			if err != nil {
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete policy %q: %v", policy, err.Error()))
+				exitCode = 1
+			} else {
+				s.Ui.Info(fmt.Sprintf("[✔] Deleted policy %q.", policy))
+			}
+		}
+
+		for _, role := range componentsToRemove["Role"] {
+			_, err := s.vLogical.Delete(fmt.Sprintf("/auth/jwt/role/%s", role))
+			if err != nil {
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete role %q: %v", role, err.Error()))
+				exitCode = 1
+			} else {
+				s.Ui.Info(fmt.Sprintf("[✔] Deleted role %q.", role))
+			}
+		}
 		//
 		// 		for _, authMethod := range componentsToRemove["Auth methods"] {
 		// 			_, err := s.client.ACL().AuthMethodDelete(authMethod, nil)
@@ -696,10 +710,12 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 		// 			}
 		// 		}
 
-		if _, ok := componentsToRemove["Auth"]; ok {
+		if _, ok := componentsToRemove["Credential backend"]; ok {
 			if err := s.vClient.Sys().DisableAuth("jwt"); err != nil {
-				s.Ui.Error(fmt.Sprintf("[✘] Failed to disablt JWT auth: %v", err.Error()))
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to disable JWT credential backend: %v", err.Error()))
 				exitCode = 1
+			} else {
+				s.Ui.Info("[✔] Disabled JWT credential backend")
 			}
 		}
 
