@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // placementResult is an allocation that must be placed. It potentially has a
@@ -295,6 +296,12 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 					reconnecting[alloc.ID] = alloc
 					continue
 				}
+
+			case structs.NodeStatusDown:
+				if alloc.ClientStatus == structs.AllocClientStatusLost && !alloc.RescheduleOnLost() {
+					untainted[alloc.ID] = alloc
+					continue
+				}
 			default:
 			}
 		}
@@ -448,12 +455,13 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 				return true, false
 			}
 
-			return false, true
 		case structs.AllocDesiredStatusEvict:
 			return false, true
 		}
 
 		switch alloc.ClientStatus {
+		case structs.AllocClientStatusComplete:
+			return false, true
 		case structs.AllocClientStatusFailed:
 			return false, false
 		}
@@ -463,12 +471,17 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 
 	// Handle service jobs
 	switch alloc.DesiredStatus {
-	case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+	case structs.AllocDesiredStatusEvict:
 		return false, true
 	}
 
 	switch alloc.ClientStatus {
-	case structs.AllocClientStatusComplete, structs.AllocClientStatusLost:
+	case structs.AllocClientStatusComplete:
+		return false, true
+	case structs.AllocClientStatusLost:
+		if alloc.DesiredStatus == structs.AllocDesiredStatusStop {
+			return true, false
+		}
 		return false, true
 	}
 
@@ -585,10 +598,10 @@ func (a allocSet) delayByMaxClientDisconnect(now time.Time) ([]*delayedReschedul
 }
 
 // filterOutByClientStatus returns all allocs from the set without the specified client status.
-func (a allocSet) filterOutByClientStatus(clientStatus string) allocSet {
+func (a allocSet) filterOutByClientStatus(clientStatuses ...string) allocSet {
 	allocs := make(allocSet)
 	for _, alloc := range a {
-		if alloc.ClientStatus != clientStatus {
+		if slices.Contains(clientStatuses, alloc.ClientStatus) {
 			allocs[alloc.ID] = alloc
 		}
 	}

@@ -882,6 +882,14 @@ func TestReconcile_shouldFilter(t *testing.T) {
 			ignore:        false,
 		},
 		{
+			description:   "batch lost",
+			batch:         true,
+			desiredStatus: structs.AllocDesiredStatusStop,
+			clientStatus:  structs.AllocClientStatusLost,
+			untainted:     true,
+			ignore:        false,
+		},
+		{
 			description:   "service running",
 			batch:         false,
 			failed:        false,
@@ -916,6 +924,14 @@ func TestReconcile_shouldFilter(t *testing.T) {
 			clientStatus:  structs.AllocClientStatusComplete,
 			untainted:     false,
 			ignore:        true,
+		},
+		{
+			description:   "service lost",
+			batch:         false,
+			desiredStatus: structs.AllocDesiredStatusStop,
+			clientStatus:  structs.AllocClientStatusLost,
+			untainted:     true,
+			ignore:        false,
 		},
 	}
 

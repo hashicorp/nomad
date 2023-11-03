@@ -485,7 +485,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLaterEvals := map[string]string{}
 	lostLater := []*delayedRescheduleInfo{}
-	if len(lost) > 0 {
+	if len(lost) > 0 && tg.RescheduleOnLost {
 		lostLater = lost.delayByStopAfterClientDisconnect()
 		lostLaterEvals = a.createLostLaterEvals(lostLater, tg.Name)
 	}
@@ -853,7 +853,7 @@ func (a *allocReconciler) computeReplacements(tg *structs.TaskGroup, deploymentP
 	// If allocs have been lost, determine the number of replacements that are needed
 	// and add placements to the result for the lost allocs.
 	if len(lost) != 0 && tg.RescheduleOnLost {
-		allowed := helper.Min(len(lost), len(place))
+		allowed := min(len(lost), len(place))
 		desiredChanges.Place += uint64(allowed)
 		a.result.place = append(a.result.place, place[:allowed]...)
 	}
@@ -1002,8 +1002,8 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 		untainted = untainted.difference(canaries)
 	}
 
-	// Remove disconnected allocations so they won't be stopped
-	knownUntainted := untainted.filterOutByClientStatus(structs.AllocClientStatusUnknown)
+	// Remove disconnected and lost allocations so they won't be stopped
+	knownUntainted := untainted.filterOutByClientStatus(structs.AllocClientStatusUnknown, structs.AllocClientStatusLost)
 
 	// Hot path the nothing to do case
 	//

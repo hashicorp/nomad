@@ -11019,6 +11019,19 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 	return false
 }
 
+// RescheduleOnLost determines if an alloc is configured to restart if
+// the client becomes lost
+func (a *Allocation) RescheduleOnLost() bool {
+	if a.Job != nil {
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+		if tg != nil {
+			return tg.RescheduleOnLost
+		}
+	}
+
+	return false
+}
+
 // NextDelay returns a duration after which the allocation can be rescheduled.
 // It is calculated according to the delay function and previous reschedule attempts.
 func (a *Allocation) NextDelay() time.Duration {
