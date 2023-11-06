@@ -146,8 +146,10 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			logger:            hookLogger,
 			shutdownDelayCtx:  ar.shutdownDelayCtx,
 		}),
-		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfigs, config.Node.Attributes),
-		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfigs),
+		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir,
+			config.GetConsulConfigs(ar.logger), config.Node.Attributes),
+		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir,
+			config.GetConsulConfigs(ar.logger)),
 		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, ar.hookResources, ar.clientConfig.Node.SecretID),
 		newChecksHook(hookLogger, alloc, ar.checkStore, ar, builtTaskEnv),
 	}

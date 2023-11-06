@@ -246,9 +246,7 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 		socketFile = filepath.Join(allocdir.SharedAllocName, allocdir.TmpDirName,
 			"consul_"+p.config.Name+"_grpc.sock")
 	}
-
 	hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDir, socketFile)
-	fmt.Println("SOCKETPATH:", hostGRPCSocketPath)
 
 	// if the socket already exists we'll try to remove it, but if not then any
 	// other errors will bubble up to the caller here or when we try to listen
@@ -271,7 +269,7 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 	// socket permissions when creating the file, so we must manually call
 	// chmod afterwards.
 	// https://github.com/golang/go/issues/11822
-	if err = os.Chmod(hostGRPCSocketPath, os.ModePerm); err != nil {
+	if err := os.Chmod(hostGRPCSocketPath, os.ModePerm); err != nil {
 		return fmt.Errorf("unable to set permissions on unix socket for Consul gRPC endpoint: %v", err)
 	}
 

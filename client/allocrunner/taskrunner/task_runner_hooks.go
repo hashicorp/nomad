@@ -146,7 +146,7 @@ func (tr *TaskRunner) initHooks() {
 
 		// Enable the Service Identity hook only if the Nomad client is configured
 		// with a consul token, indicating that Consul ACLs are enabled
-		if tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)].Token != "" {
+		if tr.clientConfig.GetConsulConfigs(tr.logger)[task.GetConsulClusterName(tg)].Token != "" {
 			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
 				alloc:              tr.Alloc(),
 				task:               tr.Task(),
