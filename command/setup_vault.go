@@ -160,12 +160,8 @@ Please set the VAULT_ADDR environment variable to your Vault cluster address and
 	license, _ := s.vClient.Logical().Read("/sys/license/status")
 	ent = s.vClient.Namespace() != "" || license != nil
 
-	if !ent && s.cleanup {
-		return s.removeConfiguredComponents()
-	}
-
+	// Setup Vault client namespace.
 	if ent {
-		// Setup Vault client namespace.
 		if s.vClient.Namespace() != "" {
 			// Confirm VAULT_NAMESPACE will be used.
 			if !s.autoYes {
@@ -181,14 +177,16 @@ Please set the VAULT_NAMESPACE environment variable to the Vault namespace to us
 			s.ns = vaultNamespace
 			s.vClient.SetNamespace(s.ns)
 		}
+	}
 
-		if s.cleanup {
-			return s.removeConfiguredComponents()
-		}
+	if s.cleanup {
+		return s.removeConfiguredComponents()
+	}
 
-		/*
-			Namespace creation and setup
-		*/
+	/*
+		Namespace creation and setup
+	*/
+	if ent {
 		namespaceMsg := `
 Since you're running Vault Enterprise, we will additionally create
 a namespace %q and create all configuration within that namespace.
@@ -262,7 +260,8 @@ and a policy associated with that role.
 		s.Ui.Output(fmt.Sprintf(`
 These are the rules for the policy %q that we will create. It uses a templated
 policy to allow Nomad tasks to access secrets in the path
-"secrets/data/<job namespace>/<job name>":\n`, vaultPolicyName))
+"secrets/data/<job namespace>/<job name>":
+`, vaultPolicyName))
 
 		policyBody, err := s.renderPolicy()
 		if err != nil {
@@ -431,7 +430,6 @@ func (s *SetupVaultCommand) renderRole() (map[string]any, error) {
 	}
 
 	role["bound_audiences"] = vaultAud
-	role["token_policies"] = []string{vaultPolicyName}
 
 	return role, nil
 }
