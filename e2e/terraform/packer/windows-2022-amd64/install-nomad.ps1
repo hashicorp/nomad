@@ -3,6 +3,7 @@
 
 Set-StrictMode -Version latest
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 
 Set-Location C:\opt
 
@@ -14,17 +15,13 @@ Try {
     New-Item -ItemType Directory -Force -Path C:\opt\nomad
     New-Item -ItemType Directory -Force -Path C:\etc\nomad.d
 
-    Write-Output "Downloading Nomad from: $url"
-
+    # Write-Output "Downloading Nomad from: $url"
 	# Set-Variable ProgressPreference SilentlyContinue
     # Invoke-WebRequest -Uri $url -Outfile nomad.zip
-	# curl -o nomad.zip $url
-	certutil -urlcache -split -f $url nomad.zip
-
-    Expand-Archive .\nomad.zip .\ -ErrorAction Stop
-    Move-Item nomad.exe C:\opt\nomad.exe -Force -ErrorAction Stop
-    C:\opt\nomad.exe version
-    rm nomad.zip
+    # Expand-Archive .\nomad.zip .\ -ErrorAction Stop
+    # Move-Item nomad.exe C:\opt\nomad.exe -Force -ErrorAction Stop
+    # C:\opt\nomad.exe version
+    # rm nomad.zip
 
     New-NetFirewallRule `
       -DisplayName 'Nomad HTTP Inbound' `

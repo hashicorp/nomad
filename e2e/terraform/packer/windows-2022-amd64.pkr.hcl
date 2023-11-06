@@ -42,13 +42,8 @@ build {
   provisioner "powershell" {
     scripts = [
       "windows-2022-amd64/disable-windows-updates.ps1",
-      # "windows-2016-amd64/fix-tls.ps1",
-      # "windows-2016-amd64/install-nuget.ps1",
-      # "windows-2016-amd64/install-consul.ps1",
+      "windows-2022-amd64/install-consul.ps1",
       "windows-2022-amd64/install-nomad.ps1",
     ]
   }
-
-  # 2016 had a restart here for container stuff but
-  # i dunno if we need that
 }
