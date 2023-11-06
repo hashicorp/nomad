@@ -337,7 +337,7 @@ Finally, we need to write a configuration for the JWT auth method.
 `)
 
 	if s.authMethodExists() {
-		s.Ui.Info("[✔] JWT Auth method configuration already exists.")
+		s.Ui.Info("[✔] JWT auth method %q already exists.")
 	} else {
 
 		s.Ui.Output("This is the method configuration:\n")
@@ -352,7 +352,7 @@ Finally, we need to write a configuration for the JWT auth method.
 
 		var createAuthMethodConf bool
 		if !s.autoYes {
-			createAuthMethodConf = s.askQuestion("Create JWT auth method configuration in your Vault cluster? [Y/n]")
+			createAuthMethodConf = s.askQuestion("Create JWT auth method in your Vault cluster? [Y/n]")
 			if !createAuthMethodConf {
 				s.handleNo()
 			}
@@ -425,7 +425,7 @@ func (s *SetupVaultCommand) renderRole() (map[string]any, error) {
 	role := map[string]any{}
 	err := json.Unmarshal(vaultRoleBody, &role)
 	if err != nil {
-		return role, fmt.Errorf("[✘] Default auth config text could not be deserialized: %w", err)
+		return role, fmt.Errorf("[✘] Role data could not be deserialized: %w", err)
 	}
 
 	role["bound_audiences"] = vaultAud
@@ -434,7 +434,7 @@ func (s *SetupVaultCommand) renderRole() (map[string]any, error) {
 	return role, nil
 }
 
-func (s *SetupVaultCommand) createRoleForTasks(role map[string]any) error {
+func (s *SetupVaultCommand) createRole(role map[string]any) error {
 	buf, err := json.Marshal(role)
 	if err != nil {
 		return fmt.Errorf("[✘] Role could not be interpolated with args: %w", err)
