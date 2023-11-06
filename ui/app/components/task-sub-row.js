@@ -97,6 +97,10 @@ export default class TaskSubRowComponent extends Component {
 
   //#endregion Logs Sidebar
 
+  get namespace() {
+    return this.task.task.taskGroup.job.namespace;
+  }
+
   @task(function* (action, allocID) {
     try {
       const job = this.task.task.taskGroup.job; // TODO: this feels bad
