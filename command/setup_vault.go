@@ -157,21 +157,22 @@ Please set the VAULT_ADDR environment variable to your Vault cluster address and
 	// non-nil (license checks will only ever work from default namespace),
 	// we're connected to ent
 	var ent bool
+	clientNamespace := s.vClient.Namespace()
 	license, _ := s.vClient.Logical().Read("/sys/license/status")
-	ent = s.vClient.Namespace() != "" || license != nil
+	ent = clientNamespace != "" || license != nil
 
 	// Setup Vault client namespace.
 	if ent {
-		if s.vClient.Namespace() != "" {
+		if clientNamespace != "" {
 			// Confirm VAULT_NAMESPACE will be used.
 			if !s.autoYes {
-				if !s.askQuestion(fmt.Sprintf("Is %q the correct Vault namespace to use? [Y/n]", s.vClient.Namespace())) {
+				if !s.askQuestion(fmt.Sprintf("Is %q the correct Vault namespace to use? [Y/n]", clientNamespace)) {
 					s.Ui.Warn(`
 Please set the VAULT_NAMESPACE environment variable to the Vault namespace to use and re-run the command.`)
 					return 0
 				}
 			}
-			s.ns = s.vClient.Namespace()
+			s.ns = clientNamespace
 		} else {
 			// Set default namespace if VAULT_NAMESPACE is not defined.
 			s.ns = vaultNamespace
