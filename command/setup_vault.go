@@ -220,27 +220,39 @@ a namespace %q and create all configuration within that namespace.
 	}
 
 	/*
-		JWT Auth
+		Auth method creation
 	*/
 	s.Ui.Output(`
-Nomad workloads authenticate using JSON Web Tokens. For that authentication to
-work, your Vault cluster needs to have JWT credential backend enabled.
+We will now enable the JWT credential backend and create a JWT auth method that
+Nomad workloads will use. 
 `)
-	if s.jwtEnabled() {
-		s.Ui.Info("[✔] JWT Auth already enabled.")
+
+	if s.authMethodExists() {
+		s.Ui.Info(fmt.Sprintf("[✔] JWT auth method %q already exists.", vaultPath))
 	} else {
-		var enableJWT bool
+
+		s.Ui.Output("This is the method configuration:\n")
+		authMethodConf, err := s.renderAuthMethod()
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
+		}
+		jsConf, _ := json.MarshalIndent(authMethodConf, "", "    ")
+
+		s.Ui.Output(string(jsConf))
+
+		var createAuthMethodConf bool
 		if !s.autoYes {
-			enableJWT = s.askQuestion("Enable JWT credential backend in your Vault cluster? [Y/n]")
-			if !enableJWT {
+			createAuthMethodConf = s.askQuestion("Create JWT auth method in your Vault cluster? [Y/n]")
+			if !createAuthMethodConf {
 				s.handleNo()
 			}
 		} else {
-			enableJWT = true
+			createAuthMethodConf = true
 		}
 
-		if enableJWT {
-			err := s.enableJWT()
+		if createAuthMethodConf {
+			err = s.createAuthMethod(authMethodConf)
 			if err != nil {
 				s.Ui.Error(err.Error())
 				return 1
@@ -332,46 +344,6 @@ We will now create an ACL role called %q associated with the policy above.
 		}
 	}
 
-	/*
-		Auth method creation
-	*/
-	s.Ui.Output(`
-Finally, we need to write a configuration for the JWT auth method.
-`)
-
-	if s.authMethodExists() {
-		s.Ui.Info("[✔] JWT auth method %q already exists.")
-	} else {
-
-		s.Ui.Output("This is the method configuration:\n")
-		authMethodConf, err := s.renderAuthMethod()
-		if err != nil {
-			s.Ui.Error(err.Error())
-			return 1
-		}
-		jsConf, _ := json.MarshalIndent(authMethodConf, "", "    ")
-
-		s.Ui.Output(string(jsConf))
-
-		var createAuthMethodConf bool
-		if !s.autoYes {
-			createAuthMethodConf = s.askQuestion("Create JWT auth method in your Vault cluster? [Y/n]")
-			if !createAuthMethodConf {
-				s.handleNo()
-			}
-		} else {
-			createAuthMethodConf = true
-		}
-
-		if createAuthMethodConf {
-			err = s.createAuthMethod(authMethodConf)
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
-		}
-	}
-
 	s.Ui.Output(`
 Congratulations, your Vault cluster is now setup and ready to accept Nomad
 workloads with Workload Identity!
@@ -403,17 +375,8 @@ vault {
 
 func (s *SetupVaultCommand) jwtEnabled() bool {
 	auth, _ := s.vClient.Sys().ListAuth()
-	_, ok := auth["jwt/"]
+	_, ok := auth[fmt.Sprintf("%s/", vaultPath)]
 	return ok
-}
-
-func (s *SetupVaultCommand) enableJWT() error {
-	err := s.vClient.Sys().EnableAuthWithOptions(vaultPath, &api.MountInput{Type: "jwt"})
-	if err != nil {
-		return fmt.Errorf("[✘] Could not enable JWT credential backend: %w", err)
-	}
-	s.Ui.Info("[✔] Enabled JWT credential backend.")
-	return nil
 }
 
 func (s *SetupVaultCommand) roleExists() bool {
@@ -504,6 +467,11 @@ func (s *SetupVaultCommand) renderAuthMethod() (map[string]any, error) {
 }
 
 func (s *SetupVaultCommand) createAuthMethod(authConfig map[string]any) error {
+	err := s.vClient.Sys().EnableAuthWithOptions(vaultPath, &api.MountInput{Type: "jwt"})
+	if err != nil {
+		return fmt.Errorf("[✘] Could not enable JWT credential backend: %w", err)
+	}
+
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return fmt.Errorf("auth method could not be interpolated with args: %w", err)
@@ -531,7 +499,7 @@ func (s *SetupVaultCommand) namespaceExists(ns string, cleanup bool) bool {
 	defer s.vClient.SetNamespace(s.ns)
 
 	existingNamespace, _ := s.vLogical.Read(fmt.Sprintf("/sys/namespaces/%s", ns))
-	if cleanup {
+	if cleanup && existingNamespace != nil {
 		if m, ok := existingNamespace.Data["custom_metadata"]; ok {
 			if mm, ok := m.(map[string]any)["created-by"]; ok {
 				return mm == "nomad-setup"
@@ -618,7 +586,7 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 		componentsToRemove["Role"] = vaultRole
 	}
 	if s.jwtEnabled() {
-		componentsToRemove["JWT Credential backend and its configuration"] = ""
+		componentsToRemove["JWT Credential backend and JWT Auth method configuration"] = vaultPath
 	}
 	if s.namespaceExists(s.ns, true) {
 		componentsToRemove["Namespace"] = s.ns
@@ -660,7 +628,7 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 			}
 		}
 
-		if _, ok := componentsToRemove["JWT Credential backend and its configuration"]; ok {
+		if _, ok := componentsToRemove["JWT Credential backend and JWT Auth method configuration"]; ok {
 			if err := s.vClient.Sys().DisableAuth(vaultPath); err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to disable JWT credential backend: %v", err.Error()))
 				exitCode = 1
