@@ -493,8 +493,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("bar"),
-						Count: pointerOf(1),
+						Name:             pointerOf("bar"),
+						RescheduleOnLost: pointerOf(true),
+						Count:            pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -799,7 +800,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name: "periodic",
 			input: &Job{
@@ -869,7 +869,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name: pointerOf("bar"),
+						Name:             pointerOf("bar"),
+						RescheduleOnLost: pointerOf(true),
 						Consul: &Consul{
 							Namespace: "",
 						},
@@ -889,7 +890,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name: pointerOf("baz"),
+						Name:             pointerOf("baz"),
+						RescheduleOnLost: pointerOf(true),
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -984,8 +986,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name:  pointerOf("baz"),
-						Count: pointerOf(1),
+						Name:             pointerOf("baz"),
+						RescheduleOnLost: pointerOf(true),
+						Count:            pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -1117,8 +1120,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("bar"),
-						Count: pointerOf(1),
+						Name:             pointerOf("bar"),
+						RescheduleOnLost: pointerOf(true),
+						Count:            pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -1172,8 +1176,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name:  pointerOf("baz"),
-						Count: pointerOf(1),
+						Name:             pointerOf("baz"),
+						RescheduleOnLost: pointerOf(true),
+						Count:            pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -1229,7 +1234,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name: "multiregion",
 			input: &Job{
