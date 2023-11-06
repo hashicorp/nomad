@@ -510,14 +510,14 @@ func (s *SetupVaultCommand) createAuthMethod(authConfig map[string]any) error {
 	if err != nil {
 		if strings.Contains(err.Error(), "error checking jwks URL") {
 			s.Ui.Error(fmt.Sprintf(
-				"error: Nomad JWKS endpoint unreachable, verify that Nomad is running and that the JWKS URL %s is reachable by Consul", s.jwksURL,
+				"error: Nomad JWKS endpoint unreachable, verify that Nomad is running and that the JWKS URL %s is reachable by Vault", s.jwksURL,
 			))
 			os.Exit(1)
 		}
-		return fmt.Errorf("[✘] Could not create Consul auth method: %w", err)
+		return fmt.Errorf("[✘] Could not create Vault auth method: %w", err)
 	}
 
-	s.Ui.Info("[✔] Created JWT auth method configuration.")
+	s.Ui.Info("[✔] Created JWT auth method.")
 	return nil
 }
 
