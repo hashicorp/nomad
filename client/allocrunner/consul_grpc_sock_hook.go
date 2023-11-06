@@ -185,7 +185,7 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 	default:
 	}
 
-	clusterNames := set.New[string](0)
+	clusterNames := set.New[string](1)
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	for _, s := range tg.Services {
 		clusterNames.Insert(s.GetConsulClusterName(tg))
@@ -198,7 +198,7 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 
 		// make sure either grpc or http consul address has been configured
 		if config.GRPCAddr == "" && config.Addr == "" {
-			retErr = errors.New("consul address must be set on nomad client")
+			retErr = fmt.Errorf("consul address for cluster %q must be set on nomad client", clusterName)
 			return false
 		}
 
