@@ -31,7 +31,7 @@ var vaultRoleBody []byte
 
 const (
 	vaultRole = "nomad-workloads"
-	vaultPolicyName = "policy-nomad-tasks"
+	vaultPolicyName = "nomad-workloads"
 	vaultNamespace  = "nomad-workloads"
 	vaultAud        = "vault.io"
 )
@@ -58,8 +58,8 @@ Usage: nomad setup vault [options]
   themselves using Workload Identity.
 
   This command requires acl:write permissions for Vault and respects
-  VAULT_TOKEN, VAULT_ADDR, and other Consul-related environment variables
-  as documented in https://developer.hashicorp.com/nomad/docs/runtime/environment#summary.
+  VAULT_TOKEN, VAULT_ADDR, and other Vault-related environment variables
+  as documented in https://developer.hashicorp.com/vault/docs/commands#environment-variables.
 
   WARNING: This command is an experimental feature and may change its behavior
   in future versions of Nomad.
@@ -259,7 +259,8 @@ and a policy associated with that role.
 	if s.policyExists() {
 		s.Ui.Info(fmt.Sprintf("[✔] Policy %q already exists.", vaultPolicyName))
 	} else {
-		s.Ui.Output(fmt.Sprintf("These are the rules for the policy %q that we will create:\n", vaultPolicyName))
+		s.Ui.Output(fmt.Sprintf(`
+These are the rules for the policy %q that we will create. It uses a templated policy to allow Nomad tasks to access secrets in the path "secrets/data/<job namespace>/<job name>":\n`, vaultPolicyName))
 
 		policyBody, err := s.renderPolicy()
 		if err != nil {
