@@ -103,7 +103,7 @@ export default class TaskSubRowComponent extends Component {
 
   @task(function* (action, allocID) {
     try {
-      const job = this.task.task.taskGroup.job; // TODO: this feels bad
+      const job = this.task.task.taskGroup.job;
       yield job.runAction(action, allocID);
     } catch (err) {
       this.notifications.add({

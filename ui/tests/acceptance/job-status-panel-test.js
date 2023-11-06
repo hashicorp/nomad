@@ -39,6 +39,7 @@ module('Acceptance | job status panel', function (hooks) {
       datacenters: ['*'],
       type: 'service',
       createAllocations: true,
+      noDeployments: true,
     });
 
     await visit(`/jobs/${job.id}`);

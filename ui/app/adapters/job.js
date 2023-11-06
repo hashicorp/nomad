@@ -247,7 +247,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       );
       socket.send(
         JSON.stringify({
-          tty_size: { width: 250, height: 100 }, // TODO: verify that these are good defaults
+          tty_size: { width: 250, height: 100 }, // Magic numbers, but they pass the eye test.
         })
       );
     });

@@ -301,12 +301,12 @@ function smallCluster(server) {
 
   //#endregion Active Deployment
 
-  // TODO: I don't think we use this job in any tests or Mirage?
-  // server.create('job', {
-  //   name: 'hcl-definition-job',
-  //   id: 'display-hcl',
-  //   namespaceId: 'default',
-  // });
+  server.create('job', {
+    name: 'hcl-definition-job',
+    id: 'display-hcl',
+    namespaceId: 'default',
+  });
+
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
