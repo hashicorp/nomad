@@ -34,6 +34,7 @@ const (
 	vaultPolicyName = "nomad-workloads"
 	vaultNamespace  = "nomad-workloads"
 	vaultAud        = "vault.io"
+	vaultPath       = "jwt-nomad"
 )
 
 type SetupVaultCommand struct {
@@ -384,7 +385,7 @@ vault {
   # Vault Enterprise only.
   # namespace = "<namespace>"
 
-  jwt_auth_backend_path = "jwt/"
+  jwt_auth_backend_path = "jwt-nomad/"
 }
 
 And your Nomad server configuration in the following way:
@@ -407,7 +408,7 @@ func (s *SetupVaultCommand) jwtEnabled() bool {
 }
 
 func (s *SetupVaultCommand) enableJWT() error {
-	err := s.vClient.Sys().EnableAuthWithOptions("jwt", &api.MountInput{Type: "jwt"})
+	err := s.vClient.Sys().EnableAuthWithOptions(vaultPath, &api.MountInput{Type: "jwt"})
 	if err != nil {
 		return fmt.Errorf("[✘] Could not enable JWT credential backend: %w", err)
 	}
@@ -416,7 +417,7 @@ func (s *SetupVaultCommand) enableJWT() error {
 }
 
 func (s *SetupVaultCommand) roleExists() bool {
-	existingRoles, _ := s.vLogical.List("/auth/jwt/role")
+	existingRoles, _ := s.vLogical.List(fmt.Sprintf("/auth/%s/role", vaultPath))
 	if existingRoles != nil {
 		return slices.Contains(existingRoles.Data["keys"].([]any), vaultRole)
 	}
@@ -441,7 +442,7 @@ func (s *SetupVaultCommand) createRole(role map[string]any) error {
 		return fmt.Errorf("[✘] Role could not be interpolated with args: %w", err)
 	}
 
-	path := "auth/jwt/role/" + vaultRole
+	path := fmt.Sprintf("auth/%s/role/%s", vaultPath, vaultRole)
 
 	_, err = s.vLogical.WriteBytes(path, buf)
 	if err != nil {
@@ -458,7 +459,7 @@ func (s *SetupVaultCommand) policyExists() bool {
 }
 
 func (s *SetupVaultCommand) renderPolicy() (string, error) {
-	secret, err := s.vLogical.Read("sys/auth/jwt")
+	secret, err := s.vLogical.Read("sys/auth/" + vaultPath)
 	if err != nil {
 		return "", fmt.Errorf("[✘] Could not retrieve JWT accessor: %w", err)
 	}
@@ -485,7 +486,7 @@ func (s *SetupVaultCommand) createPolicy(policyText string) error {
 }
 
 func (s *SetupVaultCommand) authMethodExists() bool {
-	existingConf, _ := s.vLogical.Read("/auth/jwt/config")
+	existingConf, _ := s.vLogical.Read(fmt.Sprintf("/auth/%s/config", vaultPath))
 	return existingConf != nil
 }
 
@@ -507,7 +508,7 @@ func (s *SetupVaultCommand) createAuthMethod(authConfig map[string]any) error {
 	if err != nil {
 		return fmt.Errorf("auth method could not be interpolated with args: %w", err)
 	}
-	_, err = s.vLogical.WriteBytes("auth/jwt/config", buf)
+	_, err = s.vLogical.WriteBytes(fmt.Sprintf("auth/%s/config", vaultPath), buf)
 	if err != nil {
 		if strings.Contains(err.Error(), "error checking jwks URL") {
 			s.Ui.Error(fmt.Sprintf(
@@ -650,7 +651,7 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 		}
 
 		if role, ok := componentsToRemove["Role"]; ok {
-			_, err := s.vLogical.Delete(fmt.Sprintf("/auth/jwt/role/%s", role))
+			_, err := s.vLogical.Delete(fmt.Sprintf("/auth/%s/role/%s", vaultPath, role))
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete role %q: %v", role, err.Error()))
 				exitCode = 1
@@ -660,7 +661,7 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 		}
 
 		if _, ok := componentsToRemove["JWT Credential backend and its configuration"]; ok {
-			if err := s.vClient.Sys().DisableAuth("jwt"); err != nil {
+			if err := s.vClient.Sys().DisableAuth(vaultPath); err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to disable JWT credential backend: %v", err.Error()))
 				exitCode = 1
 			} else {
