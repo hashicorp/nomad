@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -124,35 +125,35 @@ func TestConsulGRPCSocketHook_Prerun_Error(t *testing.T) {
 		// An alloc without a Connect proxy sidecar should not return
 		// an error.
 		h := newConsulGRPCSocketHook(logger, alloc, allocDir, consulConfigs, map[string]string{})
-		require.NoError(t, h.Prerun())
+		must.NoError(t, h.Prerun())
 
 		// Postrun should be a noop
-		require.NoError(t, h.Postrun())
+		must.NoError(t, h.Postrun())
 	}
 
 	{
 		// An alloc *with* a Connect proxy sidecar *should* return an error
 		// when Consul is not configured.
 		h := newConsulGRPCSocketHook(logger, connectAlloc, allocDir, consulConfigs, map[string]string{})
-		require.EqualError(t, h.Prerun(), "consul address must be set on nomad client")
+		must.ErrorContains(t, h.Prerun(), `consul address for cluster "" must be set on nomad client`)
 
 		// Postrun should be a noop
-		require.NoError(t, h.Postrun())
+		must.NoError(t, h.Postrun())
 	}
 
 	{
 		// Updating an alloc without a sidecar to have a sidecar should
 		// error when the sidecar is added.
 		h := newConsulGRPCSocketHook(logger, alloc, allocDir, consulConfigs, map[string]string{})
-		require.NoError(t, h.Prerun())
+		must.NoError(t, h.Prerun())
 
 		req := &interfaces.RunnerUpdateRequest{
 			Alloc: connectAlloc,
 		}
-		require.EqualError(t, h.Update(req), "consul address must be set on nomad client")
+		must.EqError(t, h.Update(req), "cannot update alloc to Connect in-place")
 
 		// Postrun should be a noop
-		require.NoError(t, h.Postrun())
+		must.NoError(t, h.Postrun())
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -37,16 +38,31 @@ type consulHTTPSockHook struct {
 
 	// lock synchronizes proxy and alloc which may be mutated and read concurrently
 	// via Prerun, Update, and Postrun.
-	lock  sync.Mutex
-	alloc *structs.Allocation
-	proxy *httpSocketProxy
+	lock    sync.Mutex
+	alloc   *structs.Allocation
+	proxies map[string]*httpSocketProxy
 }
 
 func newConsulHTTPSocketHook(logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir, configs map[string]*config.ConsulConfig) *consulHTTPSockHook {
+
+	// Get the deduplicated set of Consul clusters that are needed by this
+	// alloc. For Nomad CE, this will always be just the default cluster.
+	clusterNames := set.New[string](1)
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	for _, s := range tg.Services {
+		clusterNames.Insert(s.GetConsulClusterName(tg))
+	}
+	proxies := map[string]*httpSocketProxy{}
+
+	clusterNames.ForEach(func(clusterName string) bool {
+		proxies[clusterName] = newHTTPSocketProxy(logger, allocDir, configs[clusterName])
+		return true
+	})
+
 	return &consulHTTPSockHook{
-		alloc:  alloc,
-		proxy:  newHTTPSocketProxy(logger, allocDir, configs),
-		logger: logger.Named(consulHTTPSocketHookName),
+		alloc:   alloc,
+		proxies: proxies,
+		logger:  logger.Named(consulHTTPSocketHookName),
 	}
 }
 
@@ -82,7 +98,13 @@ func (h *consulHTTPSockHook) Prerun() error {
 		return nil
 	}
 
-	return h.proxy.run(h.alloc)
+	var mErr *multierror.Error
+	for _, proxy := range h.proxies {
+		if err := proxy.run(h.alloc); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 func (h *consulHTTPSockHook) Update(req *interfaces.RunnerUpdateRequest) error {
@@ -94,17 +116,29 @@ func (h *consulHTTPSockHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	if !h.shouldRun() {
 		return nil
 	}
+	if len(h.proxies) == 0 {
+		return fmt.Errorf("cannot update alloc to Connect in-place")
+	}
 
-	return h.proxy.run(h.alloc)
+	var mErr *multierror.Error
+	for _, proxy := range h.proxies {
+		if err := proxy.run(h.alloc); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 func (h *consulHTTPSockHook) Postrun() error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	if err := h.proxy.stop(); err != nil {
-		// Only log a failure to stop, worst case is the proxy leaks a goroutine.
-		h.logger.Warn("error stopping Consul HTTP proxy", "error", err)
+	for _, proxy := range h.proxies {
+		if err := proxy.stop(); err != nil {
+			// Only log failures to stop proxies. Worst case scenario is a small
+			// goroutine leak.
+			h.logger.Warn("error stopping Consul HTTP proxy", "error", err)
+		}
 	}
 
 	return nil
@@ -113,7 +147,7 @@ func (h *consulHTTPSockHook) Postrun() error {
 type httpSocketProxy struct {
 	logger   hclog.Logger
 	allocDir *allocdir.AllocDir
-	configs  map[string]*config.ConsulConfig
+	config   *config.ConsulConfig
 
 	ctx     context.Context
 	cancel  func()
@@ -121,12 +155,12 @@ type httpSocketProxy struct {
 	runOnce bool
 }
 
-func newHTTPSocketProxy(logger hclog.Logger, allocDir *allocdir.AllocDir, configs map[string]*config.ConsulConfig) *httpSocketProxy {
+func newHTTPSocketProxy(logger hclog.Logger, allocDir *allocdir.AllocDir, config *config.ConsulConfig) *httpSocketProxy {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &httpSocketProxy{
 		logger:   logger,
 		allocDir: allocDir,
-		configs:  configs,
+		config:   config,
 		ctx:      ctx,
 		cancel:   cancel,
 		doneCh:   make(chan struct{}),
@@ -159,51 +193,40 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 		clusterNames.Insert(s.GetConsulClusterName(tg))
 	}
 
-	var retErr error
-
-	clusterNames.ForEach(func(clusterName string) bool {
-		config := p.configs[clusterName]
-
-		// consul http dest addr
-		destAddr := config.Addr
-		if destAddr == "" {
-			retErr = errors.New("consul address must be set on nomad client")
-			return false
-		}
-
-		hostHTTPSockPath := filepath.Join(p.allocDir.AllocDir, allocdir.AllocHTTPSocket)
-		if err := maybeRemoveOldSocket(hostHTTPSockPath); err != nil {
-			retErr = err
-			return false
-		}
-
-		listener, err := net.Listen("unix", hostHTTPSockPath)
-		if err != nil {
-			retErr = fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
-			return false
-		}
-
-		// The Consul HTTP socket should be usable by all users in case a task is
-		// running as a non-privileged user. Unix does not allow setting domain
-		// socket permissions when creating the file, so we must manually call
-		// chmod afterwards.
-		if err := os.Chmod(hostHTTPSockPath, os.ModePerm); err != nil {
-			retErr = fmt.Errorf("unable to set permissions on unix socket: %w", err)
-			return false
-		}
-
-		go func() {
-			proxy(p.ctx, p.logger, destAddr, listener)
-			p.cancel()
-			close(p.doneCh)
-		}()
-
-		return true
-	})
-
-	if retErr != nil {
-		return retErr
+	// consul http dest addr
+	destAddr := p.config.Addr
+	if destAddr == "" {
+		return errors.New("consul address must be set on nomad client")
 	}
+
+	socketFile := allocdir.AllocHTTPSocket
+	if p.config.Name != structs.ConsulDefaultCluster && p.config.Name != "" {
+		socketFile = filepath.Join(allocdir.SharedAllocName, allocdir.TmpDirName,
+			"consul_"+p.config.Name+"_http.sock")
+	}
+	hostHTTPSockPath := filepath.Join(p.allocDir.AllocDir, socketFile)
+	if err := maybeRemoveOldSocket(hostHTTPSockPath); err != nil {
+		return err
+	}
+
+	listener, err := net.Listen("unix", hostHTTPSockPath)
+	if err != nil {
+		return fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
+	}
+
+	// The Consul HTTP socket should be usable by all users in case a task is
+	// running as a non-privileged user. Unix does not allow setting domain
+	// socket permissions when creating the file, so we must manually call
+	// chmod afterwards.
+	if err := os.Chmod(hostHTTPSockPath, os.ModePerm); err != nil {
+		return fmt.Errorf("unable to set permissions on unix socket: %w", err)
+	}
+
+	go func() {
+		proxy(p.ctx, p.logger, destAddr, listener)
+		p.cancel()
+		close(p.doneCh)
+	}()
 
 	p.runOnce = true
 	return nil

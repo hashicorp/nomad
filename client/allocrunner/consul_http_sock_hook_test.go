@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -111,19 +112,19 @@ func TestConsulHTTPSocketHook_Prerun_Error(t *testing.T) {
 	{
 		// an alloc without a connect native task should not return an error
 		h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfigs)
-		require.NoError(t, h.Prerun())
+		must.NoError(t, h.Prerun())
 
 		// postrun should be a noop
-		require.NoError(t, h.Postrun())
+		must.NoError(t, h.Postrun())
 	}
 
 	{
 		// an alloc with a native task should return an error when consul is not
 		// configured
 		h := newConsulHTTPSocketHook(logger, connectNativeAlloc, allocDir, consulConfigs)
-		require.EqualError(t, h.Prerun(), "consul address must be set on nomad client")
+		must.ErrorContains(t, h.Prerun(), "consul address must be set on nomad client")
 
 		// Postrun should be a noop
-		require.NoError(t, h.Postrun())
+		must.NoError(t, h.Postrun())
 	}
 }
