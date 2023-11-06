@@ -604,13 +604,13 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 		return exitCode
 	}
 
-	q := `The following items will be deleted:
-%s`
 	if len(componentsToRemove) == 0 {
 		s.Ui.Output("Nothing to delete.")
 		return 0
 	}
-
+	
+	q := `The following items will be deleted:
+%s`
 	if !s.autoYes {
 		s.Ui.Warn(fmt.Sprintf(q, printMapOfStrings(componentsToRemove)))
 	}
