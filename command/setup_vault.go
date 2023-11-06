@@ -577,7 +577,7 @@ to authenticate unless you create missing configuration yourself.
 
 	s.Ui.Output(s.Colorize().Color(`
 Consul cluster has [bold][underline]not[reset] been configured for authenticating Nomad tasks and
-services using workload identitiies.
+services using workload identities.
 
 Run the command again to finish the configuration process.`))
 	os.Exit(exitCode)
