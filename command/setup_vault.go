@@ -192,7 +192,7 @@ Please set the VAULT_NAMESPACE environment variable to the Vault namespace to us
 Since you're running Vault Enterprise, we will additionally create
 a namespace %q and create all configuration within that namespace.
 `
-		if s.namespaceExists(s.ns) {
+		if s.namespaceExists(s.ns, false) {
 			s.Ui.Info(fmt.Sprintf("[✔] Namespace %q already exists.", s.ns))
 		} else {
 			s.Ui.Output(fmt.Sprintf(namespaceMsg, s.ns))
@@ -418,7 +418,7 @@ func (s *SetupVaultCommand) enableJWT() error {
 func (s *SetupVaultCommand) roleExists() bool {
 	existingRoles, _ := s.vLogical.List("/auth/jwt/role")
 	if existingRoles != nil {
-		return slices.Contains(existingRoles.Data["keys"].([]interface{}), vaultRole)
+		return slices.Contains(existingRoles.Data["keys"].([]any), vaultRole)
 	}
 	return false
 }
@@ -522,21 +522,42 @@ func (s *SetupVaultCommand) createAuthMethod(authConfig map[string]any) error {
 	return nil
 }
 
-func (s *SetupVaultCommand) namespaceExists(ns string) bool {
+// namespaceExists takes checks if ns exists. if cleanup is true, it will check
+// for custom metadata presence to prevent deleting a namespace we didn't
+// create.
+func (s *SetupVaultCommand) namespaceExists(ns string, cleanup bool) bool {
 	s.vClient.SetNamespace("")
+	defer s.vClient.SetNamespace(s.ns)
+
 	existingNamespace, _ := s.vLogical.Read(fmt.Sprintf("/sys/namespaces/%s", ns))
-	s.vClient.SetNamespace(s.ns)
-	return existingNamespace != nil
+	if cleanup {
+		if m, ok := existingNamespace.Data["custom_metadata"]; ok {
+			if mm, ok := m.(map[string]any)["created-by"]; ok {
+				return mm == "nomad-setup"
+			}
+		}
+	} else {
+		return existingNamespace != nil
+	}
+	return false
 }
 
 func (s *SetupVaultCommand) createNamespace(ns string) error {
 	s.vClient.SetNamespace("")
-	_, err := s.vLogical.Write("/sys/namespaces/"+ns, map[string]interface{}{"created-by": "nomad-setup"})
+	defer s.vClient.SetNamespace(s.ns)
+
+	_, err := s.vLogical.Write(
+		"/sys/namespaces/"+ns,
+		map[string]any{
+			"custom_metadata": map[string]string{
+				"created-by": "nomad-setup",
+			},
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("[✘] Could not write namespace %q: %w", ns, err)
 	}
 	s.Ui.Info(fmt.Sprintf("[✔] Created namespace %q.", ns))
-	s.vClient.SetNamespace(s.ns)
 	return nil
 }
 
@@ -598,7 +619,7 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 	if s.jwtEnabled() {
 		componentsToRemove["JWT Credential backend and its configuration"] = ""
 	}
-	if s.namespaceExists(s.ns) {
+	if s.namespaceExists(s.ns, true) {
 		componentsToRemove["Namespace"] = s.ns
 	}
 	if exitCode != 0 {
@@ -643,7 +664,7 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to disable JWT credential backend: %v", err.Error()))
 				exitCode = 1
 			} else {
-				s.Ui.Info("[✔] Disabled JWT credential backend")
+				s.Ui.Info("[✔] Disabled JWT credential backend.")
 			}
 		}
 
