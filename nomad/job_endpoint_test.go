@@ -1573,7 +1573,7 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "Vault \"default\" not enabled") {
+	if err == nil || !strings.Contains(err.Error(), `Vault "default" not enabled`) {
 		t.Fatalf("expected Vault not enabled error: %v", err)
 	}
 }
