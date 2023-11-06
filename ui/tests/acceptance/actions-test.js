@@ -204,4 +204,40 @@ module('Acceptance | actions', function (hooks) {
 
     await percySnapshot(assert);
   });
+
+  test('Running actions from a task row', async function (assert) {
+    allScenarios.smallCluster(server);
+    let managementToken = server.create('token', {
+      type: 'management',
+      name: 'Management Token',
+    });
+
+    await Tokens.visit();
+    const { secretId } = managementToken;
+    await Tokens.secret(secretId).submit();
+    await visit('/jobs/actionable-job@default/allocations');
+    // Get the number of rows; each of them should have an actions dropdown
+    const job = server.schema.jobs.find('actionable-job');
+    // temp1.allocations.all().models.filter(a => a.jobId === 'actionable-job').length
+    const numberOfTaskRows = server.schema.allocations
+      .all()
+      .models.filter((a) => a.jobId === job.name)
+      .map((a) => a.taskStates.models)
+      .flat().length;
+
+    assert.dom('.task-sub-row').exists({ count: numberOfTaskRows });
+    assert
+      .dom('.task-sub-row .actions-dropdown')
+      .exists({ count: numberOfTaskRows });
+
+    await click('.task-sub-row button[aria-label="Actions"]');
+
+    assert
+      .dom('.task-sub-row .hds-dropdown__list li button')
+      .exists({ count: 1 });
+
+    await click('.task-sub-row .hds-dropdown__list li button');
+    assert.dom('.hds-toast').exists({ count: 1 });
+    assert.dom('.hds-toast .hds-alert__title').containsText('Finished');
+  });
 });

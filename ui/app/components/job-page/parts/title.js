@@ -112,7 +112,6 @@ export default class Title extends Component {
    * @param {Event} ev - The event that triggered the action
    */
   @task(function* (action, allocID) {
-    console.log('allocID', allocID, action.allocations);
     if (!allocID) {
       allocID =
         action.allocations[

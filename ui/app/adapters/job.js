@@ -179,8 +179,12 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     }/${applicationAdapter.urlPrefix()}`;
 
     const wsUrl =
-      `${protocol}//${prefix}/job/${job.get('id')}/action` +
-      `?namespace=*&action=${action.name}&allocID=${allocID}&task=${action.task.name}&group=${action.task.taskGroup.name}&tty=true&ws_handshake=true` +
+      `${protocol}//${prefix}/job/${encodeURIComponent(job.get('id'))}/action` +
+      `?namespace=${job.get('namespace.id')}&action=${
+        action.name
+      }&allocID=${allocID}&task=${action.task.name}&group=${
+        action.task.taskGroup.name
+      }&tty=true&ws_handshake=true` +
       (region ? `&region=${region}` : '');
 
     // const socket = new WebSocket(wsUrl);
