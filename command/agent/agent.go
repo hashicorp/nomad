@@ -517,15 +517,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	}
 
 	// Add the Consul and Vault configs
-	conf.ConsulConfig = agentConfig.Consul
-	for _, consulConfig := range agentConfig.Consuls {
-		conf.ConsulConfigs[consulConfig.Name] = consulConfig
-	}
-
-	conf.VaultConfig = agentConfig.Vault
-	for _, vaultConfig := range agentConfig.Vaults {
-		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
-	}
+	conf.ConsulConfigs = agentConfig.Consuls
+	conf.VaultConfigs = agentConfig.Vaults
 
 	// Set the TLS config
 	conf.TLSConfig = agentConfig.TLSConfig

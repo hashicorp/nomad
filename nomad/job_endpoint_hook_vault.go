@@ -29,9 +29,18 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 		return nil, nil
 	}
 
-	vconf := h.srv.config.VaultConfig
-	if !vconf.IsEnabled() {
-		return nil, fmt.Errorf("Vault not enabled but used in the job")
+	requiresToken := false
+	for _, tg := range vaultBlocks {
+		for _, vaultBlock := range tg {
+			vconf := h.srv.config.VaultConfigs[vaultBlock.Cluster]
+			if !vconf.IsEnabled() {
+				return nil, fmt.Errorf("Vault %q not enabled but used in the job",
+					vaultBlock.Cluster)
+			}
+			if !vconf.AllowsUnauthenticated() {
+				requiresToken = true
+			}
+		}
 	}
 
 	err := h.validateClustersForNamespace(job, vaultBlocks)
@@ -40,7 +49,7 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 	}
 
 	// Return early if Vault configuration doesn't require authentication.
-	if vconf.AllowsUnauthenticated() {
+	if !requiresToken {
 		return nil, nil
 	}
 
