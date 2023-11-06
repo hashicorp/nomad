@@ -307,7 +307,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 						continue
 					}
 				}
-			default:
 			}
 		}
 
