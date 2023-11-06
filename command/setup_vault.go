@@ -30,7 +30,7 @@ var vaultPolicyBody []byte
 var vaultRoleBody []byte
 
 const (
-	vaultRoleTasks  = "role-nomad-tasks"
+	vaultRole = "nomad-workloads"
 	vaultPolicyName = "policy-nomad-tasks"
 	vaultNamespace  = "nomad-workloads"
 	vaultAud        = "vault.io"
