@@ -4,13 +4,16 @@
 package agent
 
 import (
+	"context"
 	"fmt"
-	"log"
+	"net"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-discover"
+	golog "log"
+
+	"github.com/hashicorp/go-netaddrs"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
@@ -18,19 +21,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type MockDiscover struct {
-	ReceivedAddrs string
-}
-
 const stubAddress = "127.0.0.1"
 
-func (m *MockDiscover) Addrs(s string, l *log.Logger) ([]string, error) {
-	m.ReceivedAddrs = s
+type MockDiscover struct {
+	ReceivedConfig string
+}
+
+func (m *MockDiscover) Addrs(s string, l *golog.Logger) ([]string, error) {
+	m.ReceivedConfig = s
 	return []string{stubAddress}, nil
 }
 func (m *MockDiscover) Help() string { return "" }
 func (m *MockDiscover) Names() []string {
 	return []string{""}
+}
+
+type MockNetaddrs struct {
+	ReceivedConfig []string
+}
+
+func (m *MockNetaddrs) IPAddrs(ctx context.Context, cfg string, l netaddrs.Logger) ([]net.IPAddr, error) {
+	m.ReceivedConfig = append(m.ReceivedConfig, cfg)
+
+	ip := net.ParseIP(stubAddress)
+	if ip != nil {
+		return []net.IPAddr{{IP: ip}}, nil
+	}
+
+	return nil, fmt.Errorf("unable to transform the stubAddress into a valid IP")
 }
 
 func TestRetryJoin_Integration(t *testing.T) {
@@ -94,7 +112,7 @@ func TestRetryJoin_Server_NonCloud(t *testing.T) {
 	}
 
 	joiner := retryJoiner{
-		discover:      &MockDiscover{},
+		autoDiscover:  autoDiscover{goDiscover: &MockDiscover{}},
 		serverJoin:    mockJoin,
 		serverEnabled: true,
 		logger:        testlog.HCLogger(t),
@@ -125,7 +143,7 @@ func TestRetryJoin_Server_Cloud(t *testing.T) {
 
 	mockDiscover := &MockDiscover{}
 	joiner := retryJoiner{
-		discover:      mockDiscover,
+		autoDiscover:  autoDiscover{goDiscover: mockDiscover},
 		serverJoin:    mockJoin,
 		serverEnabled: true,
 		logger:        testlog.HCLogger(t),
@@ -135,7 +153,7 @@ func TestRetryJoin_Server_Cloud(t *testing.T) {
 	joiner.RetryJoin(serverJoin)
 
 	require.Equal(1, len(output))
-	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedAddrs)
+	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedConfig)
 	require.Equal(stubAddress, output[0])
 }
 
@@ -157,7 +175,7 @@ func TestRetryJoin_Server_MixedProvider(t *testing.T) {
 
 	mockDiscover := &MockDiscover{}
 	joiner := retryJoiner{
-		discover:      mockDiscover,
+		autoDiscover:  autoDiscover{goDiscover: mockDiscover},
 		serverJoin:    mockJoin,
 		serverEnabled: true,
 		logger:        testlog.HCLogger(t),
@@ -167,7 +185,7 @@ func TestRetryJoin_Server_MixedProvider(t *testing.T) {
 	joiner.RetryJoin(serverJoin)
 
 	require.Equal(2, len(output))
-	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedAddrs)
+	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedConfig)
 	require.Equal(stubAddress, output[0])
 }
 
@@ -176,7 +194,6 @@ func TestRetryJoin_AutoDiscover(t *testing.T) {
 	require := require.New(t)
 
 	var output []string
-
 	mockJoin := func(s []string) (int, error) {
 		output = s
 		return 0, nil
@@ -187,11 +204,13 @@ func TestRetryJoin_AutoDiscover(t *testing.T) {
 	// '100.100.100.100' ensures that bare IPs are used as-is
 	serverJoin := &ServerJoin{
 		RetryMaxAttempts: 1,
-		RetryJoin:        []string{"exec=echo 192.168.1.1 192.168.1.2", "localhost", "100.100.100.100", "provider=aws, tag_value=foo"},
+		RetryJoin:        []string{"exec=echo 127.0.0.1", "dns=localhost", "100.100.100.100", "provider=aws, tag_value=foo"},
 	}
 
+	mockDiscover := &MockDiscover{}
+	mockNetaddrs := &MockNetaddrs{}
 	joiner := retryJoiner{
-		discover:      discoverProxy{goDiscover: &discover.Discover{}},
+		autoDiscover:  autoDiscover{goDiscover: mockDiscover, netAddrs: mockNetaddrs},
 		serverJoin:    mockJoin,
 		serverEnabled: true,
 		logger:        testlog.HCLogger(t),
@@ -200,13 +219,12 @@ func TestRetryJoin_AutoDiscover(t *testing.T) {
 
 	joiner.RetryJoin(serverJoin)
 
-	require.Equal(6, len(output))
-	require.Equal("192.168.1.1", output[0])
-	require.Equal("192.168.1.2", output[1])
-	require.Equal("::1", output[2])
-	require.Equal("127.0.0.1", output[3])
-	require.Equal("100.100.100.100", output[4])
-	require.Equal("provider=aws, tag_value=foo", output[5])
+	require.Equal(4, len(output)) // [127.0.0.1 127.0.0.1 100.100.100.100 127.0.0.1]
+	require.Equal("100.100.100.100", output[2])
+	require.Equal(2, len(mockNetaddrs.ReceivedConfig))
+	require.Equal("exec=echo 127.0.0.1", mockNetaddrs.ReceivedConfig[0])
+	require.Equal("localhost", mockNetaddrs.ReceivedConfig[1])
+	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedConfig)
 }
 
 func TestRetryJoin_Client(t *testing.T) {
@@ -226,7 +244,7 @@ func TestRetryJoin_Client(t *testing.T) {
 	}
 
 	joiner := retryJoiner{
-		discover:      &MockDiscover{},
+		autoDiscover:  autoDiscover{goDiscover: &MockDiscover{}},
 		clientJoin:    mockJoin,
 		clientEnabled: true,
 		logger:        testlog.HCLogger(t),

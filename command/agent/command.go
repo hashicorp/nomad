@@ -864,7 +864,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 
 	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
 		joiner := retryJoiner{
-			discover:      discoverProxy{goDiscover: &discover.Discover{}},
+			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
@@ -897,7 +897,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		len(config.Server.ServerJoin.RetryJoin) != 0 {
 
 		joiner := retryJoiner{
-			discover:      discoverProxy{goDiscover: &discover.Discover{}},
+			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
@@ -915,7 +915,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		config.Client.ServerJoin != nil &&
 		len(config.Client.ServerJoin.RetryJoin) != 0 {
 		joiner := retryJoiner{
-			discover:      discoverProxy{goDiscover: &discover.Discover{}},
+			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			clientJoin:    c.agent.client.SetServers,
