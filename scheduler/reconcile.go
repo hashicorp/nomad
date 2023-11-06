@@ -994,7 +994,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	if group.RescheduleOnLost {
 		a.markDelayed(lost, structs.AllocClientStatusLost, allocLost, followupEvals)
 	} else {
-		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
+		a.markStop(lost, structs.AllocClientStatusUnknown, allocLost)
 	}
 
 	// If we are still deploying or creating canaries, don't stop them
