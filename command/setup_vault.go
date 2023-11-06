@@ -30,7 +30,7 @@ var vaultPolicyBody []byte
 var vaultRoleBody []byte
 
 const (
-	vaultRole = "nomad-workloads"
+	vaultRole       = "nomad-workloads"
 	vaultPolicyName = "nomad-workloads"
 	vaultNamespace  = "nomad-workloads"
 	vaultAud        = "vault.io"
@@ -260,7 +260,9 @@ and a policy associated with that role.
 		s.Ui.Info(fmt.Sprintf("[✔] Policy %q already exists.", vaultPolicyName))
 	} else {
 		s.Ui.Output(fmt.Sprintf(`
-These are the rules for the policy %q that we will create. It uses a templated policy to allow Nomad tasks to access secrets in the path "secrets/data/<job namespace>/<job name>":\n`, vaultPolicyName))
+These are the rules for the policy %q that we will create. It uses a templated
+policy to allow Nomad tasks to access secrets in the path
+"secrets/data/<job namespace>/<job name>":\n`, vaultPolicyName))
 
 		policyBody, err := s.renderPolicy()
 		if err != nil {
@@ -292,12 +294,12 @@ These are the rules for the policy %q that we will create. It uses a templated p
 	}
 
 	if s.roleExists() {
-		s.Ui.Info(fmt.Sprintf("[✔] Role %q already exists.", vaultRoleTasks))
+		s.Ui.Info(fmt.Sprintf("[✔] Role %q already exists.", vaultRole))
 	} else {
 		s.Ui.Output(fmt.Sprintf(`
 We will now create an ACL role called %q associated with the policy above.
 `,
-			vaultRoleTasks))
+			vaultRole))
 
 		roleBody, err := s.renderRole()
 		if err != nil {
@@ -321,7 +323,7 @@ We will now create an ACL role called %q associated with the policy above.
 		}
 
 		if createRole {
-			err = s.createRoleForTasks(roleBody)
+			err = s.createRole(roleBody)
 			if err != nil {
 				s.Ui.Error(err.Error())
 				return 1
@@ -416,7 +418,7 @@ func (s *SetupVaultCommand) enableJWT() error {
 func (s *SetupVaultCommand) roleExists() bool {
 	existingRoles, _ := s.vLogical.List("/auth/jwt/role")
 	if existingRoles != nil {
-		return slices.Contains(existingRoles.Data["keys"].([]interface{}), vaultRoleTasks)
+		return slices.Contains(existingRoles.Data["keys"].([]interface{}), vaultRole)
 	}
 	return false
 }
@@ -440,14 +442,14 @@ func (s *SetupVaultCommand) createRole(role map[string]any) error {
 		return fmt.Errorf("[✘] Role could not be interpolated with args: %w", err)
 	}
 
-	path := "auth/jwt/role/" + vaultRoleTasks
+	path := "auth/jwt/role/" + vaultRole
 
 	_, err = s.vLogical.WriteBytes(path, buf)
 	if err != nil {
 		return fmt.Errorf("[✘] Could not create Vault role: %w", err)
 	}
 
-	s.Ui.Info(fmt.Sprintf("[✔] Created role %q.", vaultRoleTasks))
+	s.Ui.Info(fmt.Sprintf("[✔] Created role %q.", vaultRole))
 	return nil
 }
 
@@ -496,7 +498,7 @@ func (s *SetupVaultCommand) renderAuthMethod() (map[string]any, error) {
 	}
 
 	authConfig["jwks_url"] = s.jwksURL
-	authConfig["default_role"] = vaultRoleTasks
+	authConfig["default_role"] = vaultRole
 
 	return authConfig, nil
 }
@@ -565,7 +567,7 @@ func (s *SetupVaultCommand) askQuestion(question string) bool {
 
 func (s *SetupVaultCommand) handleNo() {
 	s.Ui.Warn(`
-By answering "no" to any of these questions, you are risking an incorrect Consul
+By answering "no" to any of these questions, you are risking an incorrect Vault
 cluster configuration. Nomad workloads with Workload Identity will not be able
 to authenticate unless you create missing configuration yourself.
  `)
@@ -576,7 +578,7 @@ to authenticate unless you create missing configuration yourself.
 	}
 
 	s.Ui.Output(s.Colorize().Color(`
-Consul cluster has [bold][underline]not[reset] been configured for authenticating Nomad tasks and
+Vault cluster has [bold][underline]not[reset] been configured for authenticating Nomad tasks and
 services using workload identities.
 
 Run the command again to finish the configuration process.`))
@@ -589,10 +591,10 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 	componentsToRemove := map[string]string{}
 
 	if s.policyExists() {
-		componentsToRemove["Policy"] = consulPolicyName
+		componentsToRemove["Policy"] = vaultPolicyName
 	}
 	if s.roleExists() {
-		componentsToRemove["Role"] = consulRoleTasks
+		componentsToRemove["Role"] = vaultRole
 	}
 	if s.jwtEnabled() {
 		componentsToRemove["JWT Credential backend and its configuration"] = ""
@@ -608,7 +610,7 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 		s.Ui.Output("Nothing to delete.")
 		return 0
 	}
-	
+
 	q := `The following items will be deleted:
 %s`
 	if !s.autoYes {
