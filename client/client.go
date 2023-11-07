@@ -568,7 +568,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	// Setup Consul discovery if enabled
-	if cfg.ConsulConfig.ClientAutoJoin != nil && *cfg.ConsulConfig.ClientAutoJoin {
+	if cfg.GetDefaultConsul().ClientAutoJoin != nil && *cfg.GetDefaultConsul().ClientAutoJoin {
 		c.shutdownGroup.Go(c.consulDiscovery)
 		if c.servers.NumServers() == 0 {
 			// No configured servers; trigger discovery manually
@@ -3014,7 +3014,7 @@ func taskIsPresent(taskName string, tasks []*structs.Task) bool {
 // triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
 	config := c.GetConfig()
-	if config.ConsulConfig.ClientAutoJoin != nil && *config.ConsulConfig.ClientAutoJoin {
+	if config.GetDefaultConsul() != nil && *config.GetDefaultConsul().ClientAutoJoin {
 		select {
 		case c.triggerDiscoveryCh <- struct{}{}:
 			// Discovery goroutine was released to execute
@@ -3059,7 +3059,7 @@ func (c *Client) consulDiscoveryImpl() error {
 		dcs = dcs[0:min(len(dcs), datacenterQueryLimit)]
 	}
 
-	serviceName := c.GetConfig().ConsulConfig.ServerServiceName
+	serviceName := c.GetConfig().GetDefaultConsul().ServerServiceName
 	var mErr multierror.Error
 	var nomadServers servers.Servers
 	consulLogger.Debug("bootstrap contacting Consul DCs", "consul_dcs", dcs)

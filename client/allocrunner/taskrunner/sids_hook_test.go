@@ -284,7 +284,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 
 	// set a consul token for the nomad client, which is what triggers the
 	// SIDS hook to be applied
-	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
 
 	// derive token works just fine
 	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
