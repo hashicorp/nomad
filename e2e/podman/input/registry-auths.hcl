@@ -56,9 +56,10 @@ job "registry-auths" {
         promises = "stdio rpath wpath cpath"
         unveil   = ["r:${NOMAD_TASK_DIR}/test.sh", "rwc:${var.helper_dir}"]
       }
+
       template {
         destination = "local/test.sh"
-        perms       = "755"
+        perms       = "644"
         data        = <<EOH
 #!/usr/bin/env bash
 
