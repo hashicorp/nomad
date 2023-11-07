@@ -29,11 +29,16 @@ export default class Job extends Model {
   @attr('number') modifyIndex;
   @attr('date') submitTime;
   @attr('string') nodePool; // Jobs are related to Node Pools either directly or via its Namespace, but no relationship.
+  @attr() ui;
 
   @fragment('structured-attributes') meta;
 
   get isPack() {
     return !!this.meta?.structured?.pack;
+  }
+
+  get jobLinks() {
+    return this.meta?.structured?.links ?? [];
   }
 
   // True when the job is the parent periodic or parameterized jobs

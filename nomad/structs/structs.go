@@ -4460,6 +4460,19 @@ type Job struct {
 	CreateIndex    uint64
 	ModifyIndex    uint64
 	JobModifyIndex uint64
+
+	// Links and Description fields for the Web UI
+	Ui *JobUIConfig
+}
+
+type JobUIConfig struct {
+	Description string
+	Links       []JobUILink
+}
+
+type JobUILink struct {
+	Label string
+	Url   string
 }
 
 // NamespacedID returns the namespaced id useful for logging

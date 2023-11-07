@@ -1749,6 +1749,10 @@
         "path": "job-specification/template"
       },
       {
+        "title": "ui",
+        "path": "job-specification/ui"
+      },
+      {
         "title": "update",
         "path": "job-specification/update"
       },

@@ -933,6 +933,16 @@ type JobSubmission struct {
 	Variables string
 }
 
+type JobUIConfig struct {
+	Description string       `hcl:"description,optional"`
+	Links       []*JobUILink `hcl:"link,block"`
+}
+
+type JobUILink struct {
+	Label string `hcl:"label,optional"`
+	URL   string `hcl:"url,optional"`
+}
+
 func (js *JobSubmission) Canonicalize() {
 	if js == nil {
 		return
@@ -982,6 +992,7 @@ type Job struct {
 	Meta             map[string]string       `hcl:"meta,block"`
 	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
 	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
+	Ui               *JobUIConfig            `hcl:"ui,block"`
 
 	/* Fields set by server, not sourced from job config file */
 
