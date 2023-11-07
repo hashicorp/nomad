@@ -108,10 +108,10 @@ type vaultClient struct {
 // vaultClientRenewalRequest is a request object for renewal of both tokens and
 // secret's leases.
 type vaultClientRenewalRequest struct {
-	// renewalCh is used to notify listeners every time the token goes through
-	// the renewal loop. It does not guarantee the renewal was successful, so
-	// listeners should also read from errCh for renewal errors.
-	renewalCh chan struct{}
+	// renewalLoopCh is used to notify listeners every time the token goes
+	// through the renewal loop. It does not guarantee the renewal was
+	// successful, so listeners should also read from errCh for renewal errors.
+	renewalLoopCh chan struct{}
 
 	// errCh is the channel into which any renewal error will be sent to
 	errCh chan error
@@ -354,8 +354,7 @@ func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error)
 // Any error returned during the periodical renewal will be written to a
 // buffered channel and the channel is returned instead of an actual error.
 // This helps the caller be notified of a renewal failure asynchronously for
-// appropriate actions to be taken. The caller of this function need not have
-// to close the error channel.
+// appropriate actions to be taken.
 func (c *vaultClient) RenewToken(token string, increment int) (<-chan error, error) {
 	if token == "" {
 		err := fmt.Errorf("missing token")
@@ -366,34 +365,30 @@ func (c *vaultClient) RenewToken(token string, increment int) (<-chan error, err
 		return nil, err
 	}
 
-	// Create notification channels.
-	renewalCh := make(chan struct{})
-	errCh := make(chan error, 1)
-
 	// Create a renewal request and indicate that the identifier in the
 	// request is a token and not a lease
-	renewalReq := &vaultClientRenewalRequest{
-		renewalCh: renewalCh,
-		errCh:     errCh,
-		id:        token,
-		isToken:   true,
-		increment: increment,
+	req := &vaultClientRenewalRequest{
+		renewalLoopCh: make(chan struct{}),
+		errCh:         make(chan error, 1),
+		id:            token,
+		isToken:       true,
+		increment:     increment,
 	}
 
 	// Push an immediate renewal request to the heap and block until a result
 	// is received.
-	err := c.pushRenewalRequest(renewalReq, time.Now())
+	err := c.pushRenewalRequest(req, time.Now())
 	if err != nil {
 		return nil, err
 	}
 
 	select {
-	case err := <-errCh:
+	case err := <-req.errCh:
 		c.logger.Error("error during renewal of token", "error", err)
 		metrics.IncrCounter([]string{"client", "vault", "renew_token_failure"}, 1)
 		return nil, err
-	case <-renewalCh:
-		return errCh, nil
+	case <-req.renewalLoopCh:
+		return req.errCh, nil
 	}
 }
 
@@ -442,12 +437,9 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	// Always notify listeners that the request has been processed before
 	// exiting.
 	defer func() {
-		for {
-			select {
-			case req.renewalCh <- struct{}{}:
-			default:
-				return
-			}
+		select {
+		case req.renewalLoopCh <- struct{}{}:
+		default:
 		}
 	}()
 
