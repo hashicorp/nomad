@@ -373,12 +373,6 @@ vault {
 	return 0
 }
 
-func (s *SetupVaultCommand) jwtEnabled() bool {
-	auth, _ := s.vClient.Sys().ListAuth()
-	_, ok := auth[fmt.Sprintf("%s/", vaultPath)]
-	return ok
-}
-
 func (s *SetupVaultCommand) roleExists() bool {
 	existingRoles, _ := s.vLogical.List(fmt.Sprintf("/auth/%s/role", vaultPath))
 	if existingRoles != nil {
@@ -585,8 +579,8 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 	if s.roleExists() {
 		componentsToRemove["Role"] = vaultRole
 	}
-	if s.jwtEnabled() {
-		componentsToRemove["JWT Credential backend and JWT Auth method configuration"] = vaultPath
+	if s.authMethodExists() {
+		componentsToRemove["JWT auth method"] = vaultPath
 	}
 	if s.namespaceExists(s.ns, true) {
 		componentsToRemove["Namespace"] = s.ns
