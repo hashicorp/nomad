@@ -201,23 +201,16 @@ a namespace %q and bind the auth methods to that namespace.
 		} else {
 			s.Ui.Output(fmt.Sprintf(namespaceMsg, ns))
 
-			var createNamespace bool
-			if !s.autoYes {
-				createNamespace = s.askQuestion(
-					fmt.Sprintf("Create the namespace %q in your Consul cluster? [Y/n]", ns))
-				if !createNamespace {
-					s.handleNo()
-				}
-			} else {
-				createNamespace = true
+			if !s.autoYes && !s.askQuestion(fmt.Sprintf(
+				"Create the namespace %q in your Consul cluster? [Y/n]", ns,
+			)) {
+				s.handleNo()
 			}
 
-			if createNamespace {
-				err = s.createNamespace(ns)
-				if err != nil {
-					s.Ui.Error(err.Error())
-					return 1
-				}
+			err = s.createNamespace(ns)
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
 			}
 		}
 	}
@@ -248,23 +241,16 @@ tasks %q.
 
 		s.Ui.Output(string(jsConf))
 
-		var createServicesAuthMethod bool
-		if !s.autoYes {
-			createServicesAuthMethod = s.askQuestion(
-				fmt.Sprintf("Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodServicesName))
-			if !createServicesAuthMethod {
-				s.handleNo()
-			}
-		} else {
-			createServicesAuthMethod = true
+		if !s.autoYes && !s.askQuestion(fmt.Sprintf(
+			"Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodServicesName,
+		)) {
+			s.handleNo()
 		}
 
-		if createServicesAuthMethod {
-			err = s.createAuthMethod(servicesAuthMethod)
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
+		err = s.createAuthMethod(servicesAuthMethod)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
 		}
 	}
 
@@ -286,23 +272,16 @@ This is the %q method configuration:
 
 		s.Ui.Output(string(jsConf))
 
-		var createTasksAuthMethod bool
-		if !s.autoYes {
-			createTasksAuthMethod = s.askQuestion(
-				fmt.Sprintf("Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodTasksName))
-			if !createTasksAuthMethod {
-				s.handleNo()
-			}
-		} else {
-			createTasksAuthMethod = true
+		if !s.autoYes && !s.askQuestion(fmt.Sprintf(
+			"Create %q auth method in your Consul cluster? [Y/n]", consulAuthMethodTasksName,
+		)) {
+			s.handleNo()
 		}
 
-		if createTasksAuthMethod {
-			err = s.createAuthMethod(tasksAuthMethod)
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
+		err = s.createAuthMethod(tasksAuthMethod)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
 		}
 	}
 
@@ -339,24 +318,14 @@ auth methods above.
 		jsServicesBindingRule, _ := json.MarshalIndent(servicesBindingRule, "", "    ")
 		s.Ui.Output(string(jsServicesBindingRule))
 
-		var createServicesBindingRule bool
-		if !s.autoYes {
-			createServicesBindingRule = s.askQuestion(
-				"Create this binding rule in your Consul cluster? [Y/n]",
-			)
-			if !createServicesBindingRule {
-				s.handleNo()
-			}
-		} else {
-			createServicesBindingRule = true
+		if !s.autoYes && !s.askQuestion("Create this binding rule in your Consul cluster? [Y/n]") {
+			s.handleNo()
 		}
 
-		if createServicesBindingRule {
-			err = s.createBindingRules(servicesBindingRule)
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
+		err = s.createBindingRules(servicesBindingRule)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
 		}
 	}
 
@@ -371,24 +340,14 @@ This is the binding rule for the %q auth method:
 		jsTasksBindingRule, _ := json.MarshalIndent(tasksBindingRule, "", "    ")
 		s.Ui.Output(string(jsTasksBindingRule))
 
-		var createTasksBindingRule bool
-		if !s.autoYes {
-			createTasksBindingRule = s.askQuestion(
-				"Create this binding rule in your Consul cluster? [Y/n]",
-			)
-			if !createTasksBindingRule {
-				s.handleNo()
-			}
-		} else {
-			createTasksBindingRule = true
+		if !s.autoYes && !s.askQuestion("Create this binding rule in your Consul cluster? [Y/n]") {
+			s.handleNo()
 		}
 
-		if createTasksBindingRule {
-			err = s.createBindingRules(tasksBindingRule)
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
+		err = s.createBindingRules(tasksBindingRule)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
 		}
 	}
 
@@ -407,25 +366,14 @@ in Consul.
 		s.Ui.Output(fmt.Sprintf("These are the rules for the policy %q that we will create:\n", consulPolicyName))
 		s.Ui.Output(string(consulPolicyBody))
 
-		var createPolicy bool
-		if !s.autoYes {
-			createPolicy = s.askQuestion(
-				"Create the above policy in your Consul cluster? [Y/n]",
-			)
-			if !createPolicy {
-				s.handleNo()
-			}
-
-		} else {
-			createPolicy = true
+		if !s.autoYes && !s.askQuestion("Create the above policy in your Consul cluster? [Y/n]") {
+			s.handleNo()
 		}
 
-		if createPolicy {
-			err = s.createPolicy()
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
+		err = s.createPolicy()
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
 		}
 	}
 
@@ -438,24 +386,14 @@ with the policy above.
 `,
 			consulRoleTasks))
 
-		var createRole bool
-		if !s.autoYes {
-			createRole = s.askQuestion(
-				"Create role in your Consul cluster? [Y/n]",
-			)
-			if !createRole {
-				s.handleNo()
-			}
-		} else {
-			createRole = true
+		if !s.autoYes && !s.askQuestion("Create role in your Consul cluster? [Y/n]") {
+			s.handleNo()
 		}
 
-		if createRole {
-			err = s.createRoleForTasks()
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
+		err = s.createRoleForTasks()
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
 		}
 	}
 
