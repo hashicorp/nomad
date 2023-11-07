@@ -487,7 +487,7 @@ func (s *SetupVaultCommand) createAuthMethod(authConfig map[string]any) error {
 		return fmt.Errorf("[✘] Could not create Vault auth method: %w", err)
 	}
 
-	s.Ui.Info("[✔] Created JWT auth method %q.", vaultPath)
+	s.Ui.Info(fmt.Sprintf("[✔] Created JWT auth method %q.", vaultPath))
 	return nil
 }
 
@@ -630,7 +630,7 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to disable JWT auth method %q %v", vaultPath, err.Error()))
 				exitCode = 1
 			} else {
-				s.Ui.Info("[✔] Disabled JWT auth method %q.", vaultPath)
+				s.Ui.Info(fmt.Sprintf("[✔] Disabled JWT auth method %q.", vaultPath))
 			}
 		}
 
