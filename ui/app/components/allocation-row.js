@@ -31,6 +31,7 @@ import {
 export default class AllocationRow extends Component {
   @service store;
   @service token;
+  @service system;
 
   allocation = null;
 
@@ -40,15 +41,25 @@ export default class AllocationRow extends Component {
   // Internal state
   statsError = false;
 
-  @overridable(() => !Ember.testing) enablePolling;
+  @computed
+  get enablePolling() {
+    console.log(
+      'should I enable polling?',
+      this.system.agent.get('config')?.UI?.PollStats
+    );
+    return (
+      !Ember.testing && this.system.agent.get('config')?.UI?.PollStats?.Enabled
+    );
+  }
 
   @computed('allocation', 'allocation.isRunning')
   get stats() {
     if (!this.get('allocation.isRunning')) return undefined;
 
-    return AllocationStatsTracker.create({
+    return new AllocationStatsTracker({
       fetch: (url) => this.token.authorizedRequest(url),
       allocation: this.allocation,
+      interval: this.system.agent.get('config')?.UI?.PollStats?.Interval,
     });
   }
 
@@ -78,6 +89,8 @@ export default class AllocationRow extends Component {
 
   @(task(function* () {
     do {
+      console.timeEnd('fetchStats');
+      console.time('fetchStats');
       if (this.stats) {
         try {
           yield this.get('stats.poll').linked().perform();

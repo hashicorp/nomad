@@ -28,6 +28,9 @@ type UIConfig struct {
 
 	// Label configures UI label styles
 	Label *LabelUIConfig `hcl:"label"`
+
+	// PollStats configures the polling of stats from the server
+	PollStats *PollStatsConfig `hcl:"poll_stats"`
 }
 
 // only covers the elements of
@@ -133,6 +136,14 @@ type LabelUIConfig struct {
 	TextColor       string `hcl:"text_color"`
 }
 
+// PollStatsConfig configures the polling of stats from the server
+type PollStatsConfig struct {
+	// Enabled is used to enable polling of stats from the server
+	Enabled bool `hcl:"enabled"`
+	// Interval is the interval, in seconds, at which to poll stats from the server
+	Interval int `hcl:"interval"`
+}
+
 // DefaultUIConfig returns the canonical defaults for the Nomad
 // `ui` configuration.
 func DefaultUIConfig() *UIConfig {
@@ -142,6 +153,7 @@ func DefaultUIConfig() *UIConfig {
 		Vault:                 &VaultUIConfig{},
 		Label:                 &LabelUIConfig{},
 		ContentSecurityPolicy: DefaultCSPConfig(),
+		PollStats:             &PollStatsConfig{},
 	}
 }
 
@@ -175,6 +187,7 @@ func (old *UIConfig) Merge(other *UIConfig) *UIConfig {
 	result.Consul = result.Consul.Merge(other.Consul)
 	result.Vault = result.Vault.Merge(other.Vault)
 	result.Label = result.Label.Merge(other.Label)
+	result.PollStats = result.PollStats.Merge(other.PollStats)
 	result.ContentSecurityPolicy = result.ContentSecurityPolicy.Merge(other.ContentSecurityPolicy)
 
 	return result
@@ -267,5 +280,32 @@ func (old *LabelUIConfig) Merge(other *LabelUIConfig) *LabelUIConfig {
 	if other.TextColor != "" {
 		result.TextColor = other.TextColor
 	}
+	return result
+}
+
+// Copy returns a copy of this PollStats config.
+func (old *PollStatsConfig) Copy() *PollStatsConfig {
+	if old == nil {
+		return nil
+	}
+
+	nc := new(PollStatsConfig)
+	*nc = *old
+	return nc
+}
+
+// Merge returns a new PollStats configuration by merging another PollStats
+// configuration into this one
+func (old *PollStatsConfig) Merge(other *PollStatsConfig) *PollStatsConfig {
+	result := old.Copy()
+	if result == nil {
+		result = &PollStatsConfig{}
+	}
+	if other == nil {
+		return result
+	}
+
+	result.Enabled = other.Enabled
+	result.Interval = other.Interval
 	return result
 }

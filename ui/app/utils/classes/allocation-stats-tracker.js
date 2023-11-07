@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import EmberObject, { get, computed } from '@ember/object';
+import { get, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 import AbstractStatsTracker from 'nomad-ui/utils/classes/abstract-stats-tracker';
@@ -42,13 +42,20 @@ const memoryUsed = (frame) =>
   0;
 
 @classic
-class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
+class AllocationStatsTracker extends AbstractStatsTracker {
+  constructor({ fetch, allocation, interval }) {
+    super();
+    this.fetch = fetch;
+    this.allocation = allocation;
+    this.interval = interval;
+  }
+
   // Set via the stats computed property macro
   allocation = null;
 
   @computed('allocation.id')
   get url() {
-    return `/v1/client/allocation/${this.get('allocation.id')}/stats`;
+    return `/v1/client/allocation/${this.allocation.id}/stats`;
   }
 
   append(frame) {
@@ -139,7 +146,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   @computed('allocation.taskGroup.tasks', 'bufferSize')
   get tasks() {
     const bufferSize = this.bufferSize;
-    const tasks = this.get('allocation.taskGroup.tasks') || [];
+    const tasks = this.allocation.taskGroup.tasks || [];
     return tasks
       .slice()
       .sort(taskPrioritySort)
@@ -161,8 +168,14 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 export default AllocationStatsTracker;
 
 export function stats(allocationProp, fetch) {
+  // return computed(allocationProp, function () {
+  //   return AllocationStatsTracker.create({
+  //     fetch: fetch.call(this),
+  //     allocation: this.get(allocationProp),
+  //   });
+  // });
   return computed(allocationProp, function () {
-    return AllocationStatsTracker.create({
+    return new AllocationStatsTracker({
       fetch: fetch.call(this),
       allocation: this.get(allocationProp),
     });

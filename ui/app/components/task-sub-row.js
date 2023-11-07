@@ -15,6 +15,7 @@ import { tracked } from '@glimmer/tracking';
 export default class TaskSubRowComponent extends Component {
   @service store;
   @service router;
+  @service system;
   @service('stats-trackers-registry') statsTrackersRegistry;
 
   constructor() {
@@ -48,7 +49,10 @@ export default class TaskSubRowComponent extends Component {
 
   @computed
   get enablePolling() {
-    return !Ember.testing;
+    return (
+      !Ember.testing &&
+      !(this.system.agent.get('config')?.UI?.PollStats?.Enabled === false)
+    );
   }
 
   @computed('task.name', 'stats.tasks.[]')
@@ -72,7 +76,9 @@ export default class TaskSubRowComponent extends Component {
         }
       }
 
-      yield timeout(500);
+      yield timeout(
+        this.system.agent.get('config')?.UI?.PollStats.Interval * 1000 || 500
+      );
     } while (this.enablePolling);
   }).drop())
   fetchStats;
