@@ -187,12 +187,6 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 	default:
 	}
 
-	clusterNames := set.New[string](0)
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	for _, s := range tg.Services {
-		clusterNames.Insert(s.GetConsulClusterName(tg))
-	}
-
 	// consul http dest addr
 	destAddr := p.config.Addr
 	if destAddr == "" {
