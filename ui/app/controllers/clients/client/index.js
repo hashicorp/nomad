@@ -338,13 +338,4 @@ export default class ClientController extends Controller.extend(
     }
   }
   // #endregion metadata
-
-  // Show an additional column in the Allocations table, but only if any of them have actions.
-  get allocationsHaveActions() {
-    return this.sortedAllocations.any((a) => {
-      return a.states.any((s) => {
-        return s.get('task')?.actions.length;
-      });
-    });
-  }
 }
