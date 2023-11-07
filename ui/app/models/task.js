@@ -18,8 +18,8 @@ export default class Task extends Fragment {
   @attr('string') name;
   @attr('string') driver;
   @attr('string') kind;
-
-  @fragmentArray('action') actions;
+  @fragmentArray('action', { defaultValue: () => [] })
+  actions;
 
   @attr() meta;
 

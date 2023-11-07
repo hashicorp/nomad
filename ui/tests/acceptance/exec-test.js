@@ -31,7 +31,7 @@ module('Acceptance | exec', function (hooks) {
 
     this.job = server.create('job', {
       groupsCount: 2,
-      groupTaskCount: 5,
+      groupAllocCount: 5,
       createAllocations: false,
       status: 'running',
     });

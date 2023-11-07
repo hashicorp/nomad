@@ -79,6 +79,20 @@
 			{{/if}}
 		{{/if}}
 	</td>
+	{{#if @jobHasActions}}
+	  <td data-test-actions>
+			{{#if (can "exec allocation" namespace=this.namespace)}}
+				{{#if this.task.task.actions.length}}
+					<Hds::Dropdown class="actions-dropdown" as |dd|>
+						<dd.ToggleIcon @size="small" @icon="more-horizontal" @text="Actions" @hasChevron={{false}} />
+						{{#each this.task.task.actions as |action|}}
+							<dd.Interactive {{on "click" (perform this.runAction action this.task.allocation.id)}} @text="{{action.name}}" />
+						{{/each}}
+					</Hds::Dropdown>
+				{{/if}}
+			{{/if}}
+		</td>
+	{{/if}}
 </tr>
 
 {{yield}}
