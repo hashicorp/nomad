@@ -487,7 +487,7 @@ func (s *SetupVaultCommand) createAuthMethod(authConfig map[string]any) error {
 		return fmt.Errorf("[✘] Could not create Vault auth method: %w", err)
 	}
 
-	s.Ui.Info("[✔] Created JWT auth method.")
+	s.Ui.Info("[✔] Created JWT auth method %q.", vaultPath)
 	return nil
 }
 
@@ -591,9 +591,6 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 	if s.namespaceExists(s.ns, true) {
 		componentsToRemove["Namespace"] = s.ns
 	}
-	if exitCode != 0 {
-		return exitCode
-	}
 
 	if len(componentsToRemove) == 0 {
 		s.Ui.Output("Nothing to delete.")
@@ -628,12 +625,12 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 			}
 		}
 
-		if _, ok := componentsToRemove["JWT Credential backend and JWT Auth method configuration"]; ok {
+		if _, ok := componentsToRemove["JWT auth method"]; ok {
 			if err := s.vClient.Sys().DisableAuth(vaultPath); err != nil {
-				s.Ui.Error(fmt.Sprintf("[✘] Failed to disable JWT credential backend: %v", err.Error()))
+				s.Ui.Error(fmt.Sprintf("[✘] Failed to disable JWT auth method %q %v", vaultPath, err.Error()))
 				exitCode = 1
 			} else {
-				s.Ui.Info("[✔] Disabled JWT credential backend.")
+				s.Ui.Info("[✔] Disabled JWT auth method %q.", vaultPath)
 			}
 		}
 
