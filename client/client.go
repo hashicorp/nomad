@@ -2754,7 +2754,7 @@ func (c *Client) newAllocRunnerConfig(
 		CSIManager:          c.csimanager,
 		CheckStore:          c.checkStore,
 		ClientConfig:        c.GetConfig(),
-		Consul:              c.consulServices,
+		ConsulServices:      c.consulServices,
 		ConsulProxiesFunc:   c.consulProxiesFunc,
 		ConsulSI:            c.tokensClient,
 		DeviceManager:       c.devicemanager,

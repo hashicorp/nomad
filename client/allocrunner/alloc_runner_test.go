@@ -1051,9 +1051,9 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	// Get consul client operations
-	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
-	consulOpts := consulClient.GetOps()
+	// Get consul operations
+	consulServices := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
+	consulOpts := consulServices.GetOps()
 	var groupRemoveOp regMock.Operation
 	for _, op := range consulOpts {
 		// Grab the first deregistration request
@@ -1535,8 +1535,8 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	defer cleanup()
 
 	// Only return the check as healthy after a duration
-	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
-	consulClient.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
+	consulServices := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
+	consulServices.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
 		return &serviceregistration.AllocRegistration{
 			Tasks: map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {
@@ -1862,8 +1862,8 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
 	defer cleanup()
 
-	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
-	consulClient.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
+	consulServices := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
+	consulServices.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
 		return &serviceregistration.AllocRegistration{
 			Tasks: map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {

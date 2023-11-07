@@ -162,7 +162,7 @@ func TestConsul_Integration(t *testing.T) {
 	config := &taskrunner.Config{
 		Alloc:               alloc,
 		ClientConfig:        conf,
-		Consul:              serviceClient,
+		ConsulServices:      serviceClient,
 		Task:                task,
 		TaskDir:             taskDir,
 		Logger:              logger,
