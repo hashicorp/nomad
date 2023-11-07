@@ -187,7 +187,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       }&tty=true&ws_handshake=true` +
       (region ? `&region=${region}` : '');
 
-    // const socket = new WebSocket(wsUrl);
     let socket;
 
     const mirageEnabled =
@@ -262,6 +261,8 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
       let jsonData = JSON.parse(event.data);
       if (jsonData.stdout && jsonData.stdout.data) {
+        // strip ansi escape characters that are common in action responses;
+        // for example, we shouldn't show the newline or color code characters.
         messageBuffer += base64DecodeString(jsonData.stdout.data);
         messageBuffer += '\n';
         messageBuffer = messageBuffer.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');

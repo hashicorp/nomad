@@ -4,13 +4,13 @@
  */
 // @ts-check
 import { module, test } from 'qunit';
-import { visit, click } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import percySnapshot from '@percy/ember';
+import Actions from 'nomad-ui/tests/pages/jobs/job/actions';
 
 module('Acceptance | actions', function (hooks) {
   setupApplicationTest(hooks);
@@ -21,7 +21,7 @@ module('Acceptance | actions', function (hooks) {
   });
 
   test('Actions show up on the Job Index page, permissions allowing', async function (assert) {
-    assert.expect(7);
+    assert.expect(8);
     allScenarios.smallCluster(server);
     let managementToken = server.create('token', {
       type: 'management',
@@ -57,48 +57,54 @@ module('Acceptance | actions', function (hooks) {
       policyIds: [allocExecPolicy.id],
     });
 
-    await visit('/jobs/actionable-job@default');
+    await Actions.visitIndex({ id: 'actionable-job' });
+
     // no actions dropdown by default
-    assert
-      .dom('.actions-dropdown')
-      .doesNotExist('Signed out user does not see an Actions dropdown'); // in neither title nor task sub row
+    assert.notOk(Actions.hasTitleActions, 'No actions dropdown by default');
     await Tokens.visit();
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
-    await visit('/jobs/actionable-job@default');
-    assert
-      .dom('.job-page-header .actions-dropdown')
-      .exists('Management token sees it');
-    assert
-      .dom('td[data-test-actions] .actions-dropdown')
-      .exists('Exists within Task Sub-Row');
+    await Actions.visitIndex({ id: 'actionable-job' });
+    assert.ok(
+      Actions.hasTitleActions,
+      'Management token sees actions dropdown'
+    );
+    assert.ok(Actions.taskRowActions.length, 'Task row has actions dropdowns');
+
     await a11yAudit(assert);
 
     // Sign out and sign back in as a token without alloc exec
     await Tokens.visit();
     await Tokens.clear();
     await Tokens.secret(clientReaderToken.secretId).submit();
-    await visit('/jobs/actionable-job@default');
-    assert
-      .dom('.actions-dropdown')
-      .doesNotExist('Non-management token does not see it');
+    await Actions.visitIndex({ id: 'actionable-job' });
+    assert.notOk(
+      Actions.hasTitleActions,
+      'Basic client token does not see actions dropdown'
+    );
+    assert.notOk(
+      Actions.taskRowActions.length,
+      'Basic client token does not see task row actions dropdowns'
+    );
 
     // Sign out and sign back in as a token with alloc exec
     await Tokens.visit();
     await Tokens.clear();
     await Tokens.secret(allocExecToken.secretId).submit();
-    await visit('/jobs/actionable-job@default');
-    assert
-      .dom('.job-page-header .actions-dropdown')
-      .exists('Alloc exec token sees it');
-    assert
-      .dom('td[data-test-actions] .actions-dropdown')
-      .exists('Exists within Task Sub-Row');
+    await Actions.visitIndex({ id: 'actionable-job' });
+    assert.ok(
+      Actions.hasTitleActions,
+      'Alloc exec token sees actions dropdown'
+    );
+    assert.ok(
+      Actions.taskRowActions.length,
+      'Alloc exec token sees task row actions dropdowns'
+    );
   });
 
   // Running actions test
   test('Running actions and notifications', async function (assert) {
-    assert.expect(14);
+    assert.expect(13);
     allScenarios.smallCluster(server);
     let managementToken = server.create('token', {
       type: 'management',
@@ -108,99 +114,88 @@ module('Acceptance | actions', function (hooks) {
     await Tokens.visit();
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
-    await visit('/jobs/actionable-job@default');
-    assert.dom('.job-page-header .actions-dropdown').exists();
+    await Actions.visitIndex({ id: 'actionable-job' });
+    assert.ok(
+      Actions.hasTitleActions,
+      'Management token sees actions dropdown'
+    );
 
     // Open the dropdown
-    await click('.job-page-header .actions-dropdown button');
-    // 5 actions should show up: 2 from each of the 5-alloc task-groups and one single-alloc action
-    assert
-      .dom('.job-page-header .actions-dropdown .hds-dropdown__list')
-      .exists();
-    assert
-      .dom('.job-page-header .actions-dropdown .hds-dropdown__list li')
-      .exists({ count: 5 });
-
-    // First four should be dropdowns, last one should be a button
-    assert
-      .dom(
-        '.job-page-header .actions-dropdown .hds-dropdown__list li.hds-dropdown-list-item--variant-generic'
-      )
-      .exists({ count: 4 });
-    assert
-      .dom(
-        '.job-page-header .actions-dropdown .hds-dropdown__list li.hds-dropdown-list-item--variant-interactive'
-      )
-      .exists({ count: 1 });
-
-    // Click the first one; should open a further dropdown
-    assert
-      .dom(
-        '.job-page-header .actions-dropdown .hds-dropdown__list li:nth-of-type(1) button'
-      )
-      .hasAttribute('aria-expanded', 'false');
-    assert
-      .dom(
-        '.job-page-header .actions-dropdown .hds-disclosure-primitive__content'
-      )
-      .doesNotExist('Sub-dropdown does not yet exist');
-    await click(
-      '.job-page-header .actions-dropdown .hds-dropdown__list li:nth-of-type(1) button'
+    await Actions.titleActions.click();
+    assert.equal(
+      Actions.titleActions.actions.length,
+      5,
+      '5 actions show up in the dropdown'
     );
-    assert
-      .dom(
-        '.job-page-header .actions-dropdown .hds-dropdown__list li:nth-of-type(1) button'
-      )
-      .hasAttribute('aria-expanded', 'true');
 
-    assert
-      .dom(
-        '.job-page-header .actions-dropdown .hds-disclosure-primitive__content'
-      )
-      .exists('Sub-dropdown exists after clicking parent reveal toggle');
+    assert.equal(
+      Actions.titleActions.multiAllocActions.length,
+      4,
+      '4 actions in the dropdown have multiple allocs to run against'
+    );
+    assert.equal(
+      Actions.titleActions.singleAllocActions.length,
+      1,
+      '1 action in the dropdown has a single alloc to run against'
+    );
+
+    assert.equal(
+      Actions.titleActions.multiAllocActions[0].button[0].expanded,
+      'false',
+      "The first action's dropdown is not expanded"
+    );
+    assert.notOk(
+      Actions.titleActions.multiAllocActions[0].showsDisclosureContent,
+      "The first action's dropdown subcontent does not yet exist"
+    );
+
+    await Actions.titleActions.actions[0].click();
+    assert.equal(
+      Actions.titleActions.multiAllocActions[0].button[0].expanded,
+      'true',
+      "The first action's dropdown is expanded"
+    );
+    assert.ok(
+      Actions.titleActions.multiAllocActions[0].showsDisclosureContent,
+      "The first action's dropdown subcontent exists"
+    );
 
     await percySnapshot(assert);
 
     // run on a random alloc
-    await click(
-      '.job-page-header .actions-dropdown .hds-disclosure-primitive__content li:nth-of-type(1) button'
+    await Actions.titleActions.multiAllocActions[0].subActions[0].click();
+
+    assert.equal(
+      Actions.toast.length,
+      1,
+      'A toast notification pops up upon running an action'
     );
 
-    assert
-      .dom('.hds-toast')
-      .exists(
-        { count: 1 },
-        'A toast notification pops up upon running an action'
-      );
-    assert
-      .dom('.hds-toast code')
-      .containsText(
-        'Message Received',
-        'The notification contains the message from the action'
-      );
-    assert.dom('.hds-toast .hds-alert__title').containsText('Finished');
+    assert.ok(
+      Actions.toast[0].code.includes('Message Received'),
+      'The notification contains the message from the action'
+    );
+    assert.ok(
+      Actions.toast[0].titleBar.includes('Finished'),
+      'The notification contains the message from the action'
+    );
 
     // run on all allocs
-    await click(
-      '.job-page-header .actions-dropdown .hds-disclosure-primitive__content li:nth-of-type(2) button'
+    await Actions.titleActions.multiAllocActions[0].subActions[1].click();
+
+    assert.equal(
+      Actions.toast.length,
+      6,
+      'Running on all allocs in the group (5) results in 6 total toasts'
     );
-    assert
-      .dom('.hds-toast')
-      .exists(
-        { count: 6 },
-        'Running on all allocs in the group (5) results in 6 total toasts'
-      );
 
     // Click the orphan alloc action
-    await click(
-      '.job-page-header .actions-dropdown .hds-dropdown__list li:nth-of-type(5) button'
+    await Actions.titleActions.singleAllocActions[0].button[0].click();
+    assert.equal(
+      Actions.toast.length,
+      7,
+      'Running on an orphan alloc results in 1 further action/toast'
     );
-    assert
-      .dom('.hds-toast')
-      .exists(
-        { count: 7 },
-        'It contains no dropdown, just a button, and should run 1 further action/toast'
-      );
 
     await percySnapshot(assert);
   });
@@ -215,29 +210,38 @@ module('Acceptance | actions', function (hooks) {
     await Tokens.visit();
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
-    await visit('/jobs/actionable-job@default/allocations');
+    await Actions.visitAllocs({ id: 'actionable-job' });
+
     // Get the number of rows; each of them should have an actions dropdown
     const job = server.schema.jobs.find('actionable-job');
-    // temp1.allocations.all().models.filter(a => a.jobId === 'actionable-job').length
     const numberOfTaskRows = server.schema.allocations
       .all()
       .models.filter((a) => a.jobId === job.name)
       .map((a) => a.taskStates.models)
       .flat().length;
 
-    assert.dom('.task-sub-row').exists({ count: numberOfTaskRows });
-    assert
-      .dom('.task-sub-row .actions-dropdown')
-      .exists({ count: numberOfTaskRows });
+    assert.equal(
+      Actions.taskRowActions.length,
+      numberOfTaskRows,
+      'Each task row has an actions dropdown'
+    );
+    await Actions.taskRowActions[0].click();
 
-    await click('.task-sub-row button[aria-label="Actions"]');
+    assert.equal(
+      Actions.taskRowActions[0].actions.length,
+      1,
+      'Actions within a task row actions dropdown are shown'
+    );
 
-    assert
-      .dom('.task-sub-row .hds-dropdown__list li button')
-      .exists({ count: 1 });
-
-    await click('.task-sub-row .hds-dropdown__list li button');
-    assert.dom('.hds-toast').exists({ count: 1 });
-    assert.dom('.hds-toast .hds-alert__title').containsText('Finished');
+    await Actions.taskRowActions[0].actions[0].click();
+    assert.equal(
+      Actions.toast.length,
+      1,
+      'A toast notification pops up upon running an action'
+    );
+    assert.ok(
+      Actions.toast[0].code.includes('Message Received'),
+      'The notification contains the message from the action'
+    );
   });
 });
