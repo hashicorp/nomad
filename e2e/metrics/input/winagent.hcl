@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "winagent" {
   type = "system"
 
@@ -41,7 +44,7 @@ job "winagent" {
       driver = "raw_exec"
 
       artifact {
-        source = "https://github.com/shoenig/nomad-holepunch/releases/download/v0.1.3/nomad-holepunch_0.1.3_windows_amd64.tar.gz"
+        source      = "https://github.com/shoenig/nomad-holepunch/releases/download/v0.1.5/nomad-holepunch_0.1.5_windows_amd64.tar.gz"
         destination = "local/"
       }
 

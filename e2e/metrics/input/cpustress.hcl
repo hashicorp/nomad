@@ -1,4 +1,8 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "cpustress" {
+
   # make sure every node has nonzero cpu usage metrics
   type = "system"
 
@@ -8,13 +12,13 @@ job "cpustress" {
       value     = "linux"
     }
 
-    update {
-      min_healthy_time = "4s"
-    }
-
     restart {
       attempts = 0
       mode     = "fail"
+    }
+
+    update {
+      min_healthy_time = "4s"
     }
 
     service {

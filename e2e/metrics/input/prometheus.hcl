@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "prometheus" {
 
   constraint {
@@ -7,11 +10,11 @@ job "prometheus" {
 
   group "monitoring" {
     update {
-      min_healthy_time = "5s"
+      min_healthy_time = "7s"
     }
 
     reschedule {
-      attempts = 0
+      attempts  = 0
       unlimited = false
     }
 
@@ -46,7 +49,7 @@ job "prometheus" {
       driver = "podman"
       user   = "nobody"
       config {
-        image = "ghcr.io/shoenig/nomad-holepunch:v0.1.4"
+        image = "ghcr.io/shoenig/nomad-holepunch:v0.1.5"
       }
 
       lifecycle {

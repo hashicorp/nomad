@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "nomadagent" {
   type = "system"
 
@@ -8,13 +11,13 @@ job "nomadagent" {
       value     = "linux"
     }
 
-    update {
-      min_healthy_time = "4s"
-    }
-
     restart {
       attempts = 0
       mode     = "fail"
+    }
+
+    update {
+      min_healthy_time = "4s"
     }
 
     network {
@@ -42,7 +45,7 @@ job "nomadagent" {
       user   = "nobody"
 
       config {
-        image = "ghcr.io/shoenig/nomad-holepunch:v0.1.3"
+        image = "ghcr.io/shoenig/nomad-holepunch:v0.1.5"
       }
 
       env {

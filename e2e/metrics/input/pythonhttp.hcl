@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "pythonhttp" {
   type = "service"
 
@@ -7,13 +10,18 @@ job "pythonhttp" {
       value     = "linux"
     }
 
-    update {
-      min_healthy_time = "4s"
-    }
-
     restart {
       attempts = 0
       mode     = "fail"
+    }
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
+    update {
+      min_healthy_time = "4s"
     }
 
     network {

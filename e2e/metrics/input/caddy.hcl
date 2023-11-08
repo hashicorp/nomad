@@ -1,18 +1,27 @@
-job "caddy" {
-  group "linux" {
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
 
+job "caddy" {
+  type = "service"
+
+  group "linux" {
     constraint {
       attribute = "${attr.kernel.name}"
       value     = "linux"
     }
 
-    update {
-      min_healthy_time = "4s"
+    reschedule {
+      attempts  = 0
+      unlimited = false
     }
 
     restart {
       attempts = 0
       mode     = "fail"
+    }
+
+    update {
+      min_healthy_time = "5s"
     }
 
     network {

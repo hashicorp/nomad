@@ -6,51 +6,56 @@ job "setup-podman-auth" {
 
   constraint {
     attribute = "${attr.kernel.name}"
-    value = "linux"
+    value     = "linux"
   }
 
   group "create-files" {
     reschedule {
-      attempts = 0
+      attempts  = 0
       unlimited = false
+    }
+
+    restart {
+      attempts = 0
+      mode     = "fail"
     }
 
     task "create-auth-file" {
       driver = "raw_exec"
-      user = "root"
+      user   = "root"
 
       config {
         command = "cp"
-        args = ["${NOMAD_TASK_DIR}/auth.json", "/etc/auth.json"]
+        args    = ["${NOMAD_TASK_DIR}/auth.json", "/etc/auth.json"]
       }
 
       template {
         destination = "local/auth.json"
-        perms = "644"
-        data = <<EOH
+        perms       = "644"
+        data        = <<EOH
 {}
 EOH
       }
 
       resources {
-        cpu = 100
+        cpu    = 100
         memory = 32
       }
     }
 
     task "create-helper-file" {
       driver = "raw_exec"
-      user = "root"
+      user   = "root"
 
       config {
         command = "cp"
-        args = ["${NOMAD_TASK_DIR}/test.sh", "/usr/local/bin/docker-credential-test.sh"]
+        args    = ["${NOMAD_TASK_DIR}/test.sh", "/usr/local/bin/docker-credential-test.sh"]
       }
 
       template {
         destination = "local/test.sh"
-        perms = "755"
-        data = <<EOH
+        perms       = "755"
+        data        = <<EOH
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -62,7 +67,7 @@ EOH
       }
 
       resources {
-        cpu = 100
+        cpu    = 100
         memory = 32
       }
     }
