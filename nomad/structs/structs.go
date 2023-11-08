@@ -11289,13 +11289,6 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
-// TaskIsReconnecting returns true if the last task event value is
-// "Reconnected".
-func (a *Allocation) TaskIsReconnected() bool {
-	events := len(a.TaskStates[a.TaskGroup].Events)
-	return a.TaskStates[a.TaskGroup].Events[events-1].Type == TaskClientReconnected
-}
-
 // IdentityClaims are the input to a JWT identifying a workload. It
 // should never be serialized to msgpack unsigned.
 type IdentityClaims struct {

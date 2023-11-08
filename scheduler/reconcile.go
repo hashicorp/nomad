@@ -472,15 +472,22 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// which ones later and which ones can't be rescheduled at all.
 	timeoutLaterEvals := map[string]string{}
 	if len(disconnecting) > 0 {
-		untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
+		if tg.RescheduleOnLost {
+			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
-		rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
-		untainted = untainted.union(untaintedDisconnecting)
-		rescheduleLater = append(rescheduleLater, laterDisconnecting...)
+			rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
+			untainted = untainted.union(untaintedDisconnecting)
+			rescheduleLater = append(rescheduleLater, laterDisconnecting...)
 
-		// Find delays for any disconnecting allocs that have max_client_disconnect,
-		// create followup evals, and update the ClientStatus to unknown.
-		timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
+			// Find delays for any disconnecting allocs that have max_client_disconnect,
+			// create followup evals, and update the ClientStatus to unknown.
+			timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
+
+		} else {
+			untainted = untainted.union(disconnecting)
+		}
+
+		a.appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals)
 	}
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
@@ -1000,17 +1007,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	if group.RescheduleOnLost {
 		a.markDelayed(lost, structs.AllocClientStatusLost, allocLost, followupEvals)
 	} else {
-		for _, alloc := range lost {
-			updatedAlloc := alloc.Copy()
-			updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
-			updatedAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
-			updatedAlloc.ClientDescription = allocUnknown
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             updatedAlloc,
-				clientStatus:      structs.AllocClientStatusUnknown,
-				statusDescription: allocUnknown,
-			})
-		}
+		//a.markStop()
 	}
 
 	// If we are still deploying or creating canaries, don't stop them
@@ -1413,8 +1410,7 @@ func (a *allocReconciler) createLostLaterEvals(rescheduleLater []*delayedResched
 
 // createTimeoutLaterEvals creates followup evaluations with the
 // WaitUntil field set for allocations in an unknown state on disconnected nodes.
-// Followup Evals are appended to a.result as a side effect. It returns a map of
-// allocIDs to their associated followUpEvalIDs.
+// It returns a map of allocIDs to their associated followUpEvalIDs.
 func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName string) map[string]string {
 	if len(disconnecting) == 0 {
 		return map[string]string{}
@@ -1478,19 +1474,24 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 
 		emitRescheduleInfo(timeoutInfo.alloc, eval)
 
-		// Create updates that will be applied to the allocs to mark the FollowupEvalID
-		// and the unknown ClientStatus and AllocState.
-		updatedAlloc := timeoutInfo.alloc.Copy()
-		updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
-		updatedAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
-		updatedAlloc.ClientDescription = allocUnknown
-		updatedAlloc.FollowupEvalID = eval.ID
-		a.result.disconnectUpdates[updatedAlloc.ID] = updatedAlloc
 	}
 
 	a.appendFollowupEvals(tgName, evals)
 
 	return allocIDToFollowupEvalID
+}
+
+// Create updates that will be applied to the allocs to mark the FollowupEvalID
+// and the unknown ClientStatus and AllocState.
+func (a *allocReconciler) appendUnknownDisconnectingUpdates(disconnecting allocSet, allocIDToFollowupEvalID map[string]string) {
+	for id, alloc := range disconnecting {
+		updatedAlloc := alloc.Copy()
+		updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
+		updatedAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
+		updatedAlloc.ClientDescription = allocUnknown
+		updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[id]
+		a.result.disconnectUpdates[updatedAlloc.ID] = updatedAlloc
+	}
 }
 
 // appendFollowupEvals appends a set of followup evals for a task group to the
