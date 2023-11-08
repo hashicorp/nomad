@@ -8870,7 +8870,7 @@ const (
 	// TaskPluginHealthy indicates that a plugin managed by Nomad became healthy
 	TaskPluginHealthy = "Plugin became healthy"
 
-	// TaskClientReconnected indicates that the client running the task disconnected.
+	// TaskClientReconnected indicates that the client running the task reconnected.
 	TaskClientReconnected = "Reconnected"
 
 	// TaskWaitingShuttingDownDelay indicates that the task is waiting for
@@ -10993,7 +10993,6 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
 	timeout := tg.MaxClientDisconnect
-
 	if timeout == nil {
 		return now
 	}
@@ -11288,6 +11287,13 @@ func (a *Allocation) NeedsToReconnect() bool {
 	}
 
 	return disconnected
+}
+
+// TaskIsReconnecting returns true if the last task event value is
+// "Reconnected".
+func (a *Allocation) TaskIsReconnected() bool {
+	events := len(a.TaskStates[a.TaskGroup].Events)
+	return a.TaskStates[a.TaskGroup].Events[events-1].Type == TaskClientReconnected
 }
 
 // IdentityClaims are the input to a JWT identifying a workload. It

@@ -460,11 +460,12 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 		// Validate and add reconnecting allocations to the plan so they are
 		// logged.
-		a.computeReconnecting(reconnect)
-
-		// The rest of the reconnecting allocations is now untainted and will
-		// be further reconciled below.
-		untainted = untainted.union(reconnect)
+		if len(reconnect) > 0 {
+			a.computeReconnecting(reconnect)
+			// The rest of the reconnecting allocations is now untainted and will
+			// be further reconciled below.
+			untainted = untainted.union(reconnect)
+		}
 	}
 
 	// Determine what set of disconnecting allocations need to be rescheduled now,
@@ -485,19 +486,23 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLaterEvals := map[string]string{}
 	lostLater := []*delayedRescheduleInfo{}
-	if len(lost) > 0 && tg.RescheduleOnLost {
-		lostLater = lost.delayByStopAfterClientDisconnect()
-		lostLaterEvals = a.createLostLaterEvals(lostLater, tg.Name)
+
+	if len(lost) > 0 {
+		if tg.RescheduleOnLost {
+			lostLater = lost.delayByStopAfterClientDisconnect()
+			lostLaterEvals = a.createLostLaterEvals(lostLater, tg.Name)
+		}
 	}
 
 	// Merge disconnecting with the stop_after_client_disconnect set into the
 	// lostLaterEvals so that computeStop can add them to the stop set.
 	lostLaterEvals = helper.MergeMapStringString(lostLaterEvals, timeoutLaterEvals)
 
-	// Create batched follow-up evaluations for allocations that are
-	// reschedulable later and mark the allocations for in place updating
-	a.createRescheduleLaterEvals(rescheduleLater, all, tg.Name)
-
+	if len(rescheduleLater) > 0 {
+		// Create batched follow-up evaluations for allocations that are
+		// reschedulable later and mark the allocations for in place updating
+		a.createRescheduleLaterEvals(rescheduleLater, all, tg.Name)
+	}
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
 	// nodes, and allocs on down nodes (includes canaries)
@@ -507,6 +512,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Stop any unneeded allocations and update the untainted set to not
 	// include stopped allocations.
 	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
+
 	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, isCanarying, lostLaterEvals)
 
 	desiredChanges.Stop += uint64(len(stop))
@@ -994,7 +1000,17 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	if group.RescheduleOnLost {
 		a.markDelayed(lost, structs.AllocClientStatusLost, allocLost, followupEvals)
 	} else {
-		a.markStop(lost, structs.AllocClientStatusUnknown, allocLost)
+		for _, alloc := range lost {
+			updatedAlloc := alloc.Copy()
+			updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
+			updatedAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
+			updatedAlloc.ClientDescription = allocUnknown
+			a.result.stop = append(a.result.stop, allocStopResult{
+				alloc:             updatedAlloc,
+				clientStatus:      structs.AllocClientStatusUnknown,
+				statusDescription: allocUnknown,
+			})
+		}
 	}
 
 	// If we are still deploying or creating canaries, don't stop them
@@ -1003,7 +1019,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	}
 
 	// Remove disconnected and lost allocations so they won't be stopped
-	knownUntainted := untainted.filterOutByClientStatus(structs.AllocClientStatusUnknown, structs.AllocClientStatusLost)
+	knownUntainted := untainted.filterOutByClientStatus(structs.AllocClientStatusUnknown)
 
 	// Hot path the nothing to do case
 	//
@@ -1121,6 +1137,10 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 	reconnect := make(allocSet)
 
 	for _, reconnectingAlloc := range reconnecting {
+		if !reconnectingAlloc.RescheduleOnLost() {
+			continue
+		}
+
 		// Stop allocations that failed to reconnect.
 		reconnectFailed := !reconnectingAlloc.ServerTerminalStatus() &&
 			reconnectingAlloc.ClientStatus == structs.AllocClientStatusFailed
@@ -1298,9 +1318,6 @@ func (a *allocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedR
 // updates. Clients are responsible for reconciling the DesiredState with the
 // actual state as the node comes back online.
 func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
-	if len(reconnecting) == 0 {
-		return
-	}
 
 	// Create updates that will be appended to the plan.
 	for _, alloc := range reconnecting {

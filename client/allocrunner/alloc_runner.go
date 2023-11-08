@@ -725,8 +725,10 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		wg.Add(1)
 		go func(name string, tr *taskrunner.TaskRunner) {
 			defer wg.Done()
+
 			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
 			taskEvent.SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
+
 			err := tr.Kill(context.TODO(), taskEvent)
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
@@ -999,6 +1001,7 @@ func (ar *allocRunner) handleAllocUpdates() {
 // the latest update.
 func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 	// Detect Stop updates
+
 	stopping := !ar.Alloc().TerminalStatus() && update.TerminalStatus()
 
 	// Update ar.alloc
@@ -1009,7 +1012,6 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 		if err := ar.update(update); err != nil {
 			ar.logger.Error("error running update hooks", "error", err)
 		}
-
 	}
 
 	// Update task runners
@@ -1021,7 +1023,6 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 	if stopping {
 		ar.killTasks()
 	}
-
 }
 
 func (ar *allocRunner) Listener() *cstructs.AllocListener {
