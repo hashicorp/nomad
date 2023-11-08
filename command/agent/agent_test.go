@@ -774,9 +774,10 @@ func TestAgent_HTTPCheck(t *testing.T) {
 			config: &Config{
 				AdvertiseAddrs:  &AdvertiseAddrs{HTTP: "advertise:4646"},
 				normalizedAddrs: &NormalizedAddrs{HTTP: []string{"normalized:4646"}},
-				Consul: &config.ConsulConfig{
+				Consuls: []*config.ConsulConfig{{
+					Name:               "default",
 					ChecksUseAdvertise: pointer.Of(false),
-				},
+				}},
 				TLSConfig: &config.TLSConfig{EnableHTTP: false},
 			},
 		}
@@ -804,7 +805,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 
 	t.Run("Plain HTTP + ChecksUseAdvertise", func(t *testing.T) {
 		a := agent()
-		a.config.Consul.ChecksUseAdvertise = pointer.Of(true)
+		a.config.Consuls[0].ChecksUseAdvertise = pointer.Of(true)
 		check := a.agentHTTPCheck(false)
 		if check == nil {
 			t.Fatalf("expected non-nil check")
@@ -1077,8 +1078,6 @@ func Test_GetConfig(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &config.VaultConfig{},
-		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
 	}
 
@@ -1193,7 +1192,8 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
 		c.Server.NumSchedulers = pointer.Of(0)
-		c.Vault = &config.VaultConfig{
+		c.Vaults[0] = &config.VaultConfig{
+			Name:      "default",
 			Enabled:   pointer.Of(true),
 			Token:     "vault-token",
 			Namespace: "vault-namespace",
@@ -1203,7 +1203,8 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 	defer agent.Shutdown()
 
 	newConfig := agent.GetConfig().Copy()
-	newConfig.Vault = &config.VaultConfig{
+	newConfig.Vaults[0] = &config.VaultConfig{
+		Name:      "default",
 		Enabled:   pointer.Of(true),
 		Token:     "vault-token",
 		Namespace: "another-namespace",

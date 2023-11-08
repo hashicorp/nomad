@@ -94,7 +94,7 @@ func startNomad(t *testing.T, consulConfig *testutil.Consul) *nomadapi.Client {
 		c.DevMode = true
 		c.DevConnectMode = true
 		c.LogLevel = testlog.HCLoggerTestLevel().String()
-		c.Consul = consulConfig
+		c.Consuls = []*testutil.Consul{consulConfig}
 		c.ACL = &testutil.ACLConfig{
 			Enabled:        true,
 			BootstrapToken: rootToken,

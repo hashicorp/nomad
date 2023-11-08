@@ -220,7 +220,7 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	result := c.Copy()
 
 	if b.Name != "" {
-		c.Name = b.Name
+		result.Name = b.Name
 	}
 	if b.ServerServiceName != "" {
 		result.ServerServiceName = b.ServerServiceName

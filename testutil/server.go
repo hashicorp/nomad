@@ -33,21 +33,21 @@ import (
 
 // TestServerConfig is the main server configuration struct.
 type TestServerConfig struct {
-	NodeName          string        `json:"name,omitempty"`
-	DataDir           string        `json:"data_dir,omitempty"`
-	Region            string        `json:"region,omitempty"`
-	DisableCheckpoint bool          `json:"disable_update_check"`
-	LogLevel          string        `json:"log_level,omitempty"`
-	Consul            *Consul       `json:"consul,omitempty"`
-	AdvertiseAddrs    *Advertise    `json:"advertise,omitempty"`
-	Ports             *PortsConfig  `json:"ports,omitempty"`
-	Server            *ServerConfig `json:"server,omitempty"`
-	Client            *ClientConfig `json:"client,omitempty"`
-	Vault             *VaultConfig  `json:"vault,omitempty"`
-	ACL               *ACLConfig    `json:"acl,omitempty"`
-	DevMode           bool          `json:"-"`
-	DevConnectMode    bool          `json:"-"`
-	Stdout, Stderr    io.Writer     `json:"-"`
+	NodeName          string         `json:"name,omitempty"`
+	DataDir           string         `json:"data_dir,omitempty"`
+	Region            string         `json:"region,omitempty"`
+	DisableCheckpoint bool           `json:"disable_update_check"`
+	LogLevel          string         `json:"log_level,omitempty"`
+	Consuls           []*Consul      `json:"consul,omitempty"`
+	AdvertiseAddrs    *Advertise     `json:"advertise,omitempty"`
+	Ports             *PortsConfig   `json:"ports,omitempty"`
+	Server            *ServerConfig  `json:"server,omitempty"`
+	Client            *ClientConfig  `json:"client,omitempty"`
+	Vaults            []*VaultConfig `json:"vault,omitempty"`
+	ACL               *ACLConfig     `json:"acl,omitempty"`
+	DevMode           bool           `json:"-"`
+	DevConnectMode    bool           `json:"-"`
+	Stdout, Stderr    io.Writer      `json:"-"`
 }
 
 // Consul is used to configure the communication with Consul
@@ -139,10 +139,10 @@ func defaultServerConfig() *TestServerConfig {
 		Client: &ClientConfig{
 			Enabled: false,
 		},
-		Vault: &VaultConfig{
+		Vaults: []*VaultConfig{{
 			Enabled:              false,
 			AllowUnauthenticated: pointer.Of(true),
-		},
+		}},
 		ACL: &ACLConfig{
 			Enabled: false,
 		},

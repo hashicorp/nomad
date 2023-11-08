@@ -297,19 +297,19 @@ func startNomad(t *testing.T, cb func(*testutil.TestServerConfig)) (func(), *nom
 
 func configureNomadVaultLegacy(vc *vaultapi.Client) func(*testutil.TestServerConfig) {
 	return func(c *testutil.TestServerConfig) {
-		c.Vault = &testutil.VaultConfig{
+		c.Vaults = []*testutil.VaultConfig{{
 			Enabled:              true,
 			Address:              vc.Address(),
 			Token:                vc.Token(),
 			Role:                 "nomad-cluster",
 			AllowUnauthenticated: pointer.Of(true),
-		}
+		}}
 	}
 }
 
 func configureNomadVaultJWT(vc *vaultapi.Client) func(*testutil.TestServerConfig) {
 	return func(c *testutil.TestServerConfig) {
-		c.Vault = &testutil.VaultConfig{
+		c.Vaults = []*testutil.VaultConfig{{
 			Enabled: true,
 			// Server configs.
 			DefaultIdentity: &testutil.WorkloadIdentityConfig{
@@ -320,7 +320,7 @@ func configureNomadVaultJWT(vc *vaultapi.Client) func(*testutil.TestServerConfig
 			// Client configs.
 			Address:            vc.Address(),
 			JWTAuthBackendPath: jwtPath,
-		}
+		}}
 	}
 }
 
