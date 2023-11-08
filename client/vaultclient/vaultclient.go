@@ -388,6 +388,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	fatal := false
 	if renewalErr != nil &&
 		(strings.Contains(renewalErr.Error(), "lease not found or lease is not renewable") ||
+			strings.Contains(renewalErr.Error(), "invalid lease ID") ||
 			strings.Contains(renewalErr.Error(), "lease is not renewable") ||
 			strings.Contains(renewalErr.Error(), "token not found") ||
 			strings.Contains(renewalErr.Error(), "permission denied")) {
