@@ -101,9 +101,7 @@ func (d autoDiscover) Addrs(cfg string, logger hclog.Logger) (addrs []string, er
 	cfgValue := prefixMatches[2]
 	switch cfgPrefix {
 	case "exec":
-		ipAddrs, err = d.netAddrs.IPAddrs(context.Background(),
-			cfg,
-			logger)
+		ipAddrs, err = d.netAddrs.IPAddrs(context.Background(), cfg, logger)
 
 		for _, addr := range ipAddrs {
 			addrs = append(addrs, addr.String())
