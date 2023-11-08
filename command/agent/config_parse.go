@@ -172,9 +172,6 @@ func ParseConfigFile(path string) (*Config, error) {
 	}
 
 	// Parse durations for Consul and Vault config blocks if provided.
-	//
-	// Since the map of multiple cluster configuration contains a pointer to
-	// the default block we don't need to parse it directly.
 	for _, consulConfig := range c.Consuls {
 		// Capture consulConfig inside the loop so the parse duration function
 		// modifies the right configuration.

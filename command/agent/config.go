@@ -137,13 +137,11 @@ type Config struct {
 	DisableAnonymousSignature bool `hcl:"disable_anonymous_signature"`
 
 	// Consuls is a slice derived from multiple `consul` blocks, here to support
-	// features in Nomad Enterprise. The default Consul config pointer above
-	// will be found in this map under the name "default"
+	// features in Nomad Enterprise.
 	Consuls []*config.ConsulConfig `hcl:"-"`
 
 	// Vaults is a slice derived from multiple `vault` blocks, here to support
-	// features in Nomad Enterprise. The default Vault config pointer above will
-	// be found in this map under the name "default"
+	// features in Nomad Enterprise.
 	Vaults []*config.VaultConfig `hcl:"-"`
 
 	// UI is used to configure the web UI

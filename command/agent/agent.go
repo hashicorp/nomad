@@ -518,15 +518,15 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
-	// handle system scheduler preemption default
-	if agentConfig.Server.DefaultSchedulerConfig != nil {
-		conf.DefaultSchedulerConfig = *agentConfig.Server.DefaultSchedulerConfig
-	}
-
 	conf.VaultConfigs = helper.SliceToMap[map[string]*config.VaultConfig](
 		agentConfig.Vaults,
 		func(cfg *config.VaultConfig) string { return cfg.Name },
 	)
+
+	// handle system scheduler preemption default
+	if agentConfig.Server.DefaultSchedulerConfig != nil {
+		conf.DefaultSchedulerConfig = *agentConfig.Server.DefaultSchedulerConfig
+	}
 
 	// Set the TLS config
 	conf.TLSConfig = agentConfig.TLSConfig
@@ -1164,13 +1164,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// Resolve the http check address
 	httpCheckAddr := a.config.normalizedAddrs.HTTP[0]
 
-	var defaultConsul *config.ConsulConfig
-	for _, consulCfg := range a.config.Consuls {
-		if consulCfg.Name == structs.ConsulDefaultCluster {
-			defaultConsul = consulCfg
-			break
-		}
-	}
+	defaultConsul := a.config.defaultConsul()
 	if defaultConsul == nil {
 		return nil
 	}
