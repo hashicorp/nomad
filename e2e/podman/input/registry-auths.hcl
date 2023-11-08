@@ -59,7 +59,7 @@ job "registry-auths" {
 
       template {
         destination = "local/test.sh"
-        perms       = "644"
+        perms       = "755"
         data        = <<EOH
 #!/usr/bin/env bash
 
