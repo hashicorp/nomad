@@ -17,10 +17,11 @@ import (
 	"testing"
 	"time"
 
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	consulapi "github.com/hashicorp/nomad/client/consul"
+	consulclient "github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -176,7 +177,7 @@ func TestSIDSHook_deriveSIToken(t *testing.T) {
 			Kind: taskKind,
 		},
 		logger:     testlog.HCLogger(t),
-		sidsClient: consulapi.NewMockServiceIdentitiesClient(),
+		sidsClient: consulclient.NewMockServiceIdentitiesClient(),
 	})
 
 	ctx := context.Background()
@@ -189,7 +190,7 @@ func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
 	ci.Parallel(t)
 	r := require.New(t)
 
-	siClient := consulapi.NewMockServiceIdentitiesClient()
+	siClient := consulclient.NewMockServiceIdentitiesClient()
 	siClient.DeriveTokenFn = func(allocation *structs.Allocation, strings []string) (m map[string]string, err error) {
 		select {
 		// block forever, hopefully triggering a timeout in the caller
@@ -290,7 +291,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
 		return map[string]string{task.Name: uuid.Generate()}, nil
 	}
-	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
 	siClient.DeriveTokenFn = deriveFn
 
 	// start the task runner
@@ -323,9 +324,12 @@ func TestSIDSHook_WIBypass(t *testing.T) {
 	ci.Parallel(t)
 
 	resources := cstructs.NewAllocHookResources()
-	resources.SetConsulTokens(map[string]map[string]string{
+	resources.SetConsulTokens(map[string]map[string]*consulapi.ACLToken{
 		"default": {
-			"consul_service_": uuid.Generate(),
+			"consul_service_": &consulapi.ACLToken{
+				AccessorID: uuid.Generate(),
+				SecretID:   uuid.Generate(),
+			},
 		},
 	})
 
@@ -333,7 +337,7 @@ func TestSIDSHook_WIBypass(t *testing.T) {
 	taskName, taskKind := sidecar("web")
 	task := &structs.Task{Name: taskName, Kind: taskKind}
 
-	sidsClient := consulapi.NewMockServiceIdentitiesClient()
+	sidsClient := consulclient.NewMockServiceIdentitiesClient()
 	sidsClient.SetDeriveTokenError(alloc.ID, []string{"web"}, errors.New("should never call"))
 
 	h := newSIDSHook(sidsHookConfig{

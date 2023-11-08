@@ -143,7 +143,7 @@ func (h *sidsHook) Prestart(
 	}
 	if cluster != "" && serviceIdentityName != "" {
 		if token, ok := tokens[cluster][serviceIdentityName]; ok {
-			if err := h.writeToken(req.TaskDir.SecretsDir, token); err != nil {
+			if err := h.writeToken(req.TaskDir.SecretsDir, token.SecretID); err != nil {
 				return err
 			}
 			resp.Done = true

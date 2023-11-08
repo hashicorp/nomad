@@ -6,6 +6,7 @@ package allocrunner
 import (
 	"fmt"
 
+	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -75,7 +76,7 @@ func (h *consulHook) Prerun() error {
 
 	// tokens are a map of Consul cluster to service identity name to Consul
 	// ACL token
-	tokens := map[string]map[string]string{}
+	tokens := map[string]map[string]*consulapi.ACLToken{}
 
 	tg := job.LookupTaskGroup(h.alloc.TaskGroup)
 	if tg == nil { // this is always a programming error
@@ -94,13 +95,19 @@ func (h *consulHook) Prerun() error {
 		}
 	}
 
+	err := mErr.ErrorOrNil()
+	if err != nil {
+		h.revokeTokens(tokens)
+		return err
+	}
+
 	// write the tokens to hookResources
 	h.hookResources.SetConsulTokens(tokens)
 
-	return mErr.ErrorOrNil()
+	return nil
 }
 
-func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
+func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken) error {
 	if task == nil {
 		// programming error
 		return fmt.Errorf("cannot prepare consul tokens, no task specified")
@@ -147,7 +154,7 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]string) error {
+func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken) error {
 	if len(services) == 0 {
 		return nil
 	}
@@ -189,14 +196,8 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[string]map[string]string, req map[string]consul.JWTLoginRequest) error {
-	// Consul auth
-	consulConf, ok := h.consulConfigs[cluster]
-	if !ok {
-		return fmt.Errorf("unable to find configuration for consul cluster %v", cluster)
-	}
-
-	client, err := h.consulClientConstructor(consulConf, h.logger)
+func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[string]map[string]*consulapi.ACLToken, req map[string]consul.JWTLoginRequest) error {
+	client, err := h.clientForCluster(cluster)
 	if err != nil {
 		return err
 	}
@@ -207,11 +208,20 @@ func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[st
 		return err
 	}
 	if tokens[cluster] == nil {
-		tokens[cluster] = map[string]string{}
+		tokens[cluster] = map[string]*consulapi.ACLToken{}
 	}
 	tokens[cluster][identityName] = t[identityName]
 
 	return nil
+}
+
+func (h *consulHook) clientForCluster(cluster string) (consul.Client, error) {
+	consulConf, ok := h.consulConfigs[cluster]
+	if !ok {
+		return nil, fmt.Errorf("unable to find configuration for consul cluster %v", cluster)
+	}
+
+	return h.consulClientConstructor(consulConf, h.logger)
 }
 
 func (h *consulHook) prepareConsulClientReq(identity structs.WIHandle, authMethodName string) (map[string]consul.JWTLoginRequest, error) {
@@ -229,4 +239,39 @@ func (h *consulHook) prepareConsulClientReq(identity structs.WIHandle, authMetho
 	}
 
 	return req, nil
+}
+
+// Postrun cleans up the Consul tokens after the tasks have exited.
+func (h *consulHook) Postrun() error {
+	tokens := h.hookResources.GetConsulTokens()
+	err := h.revokeTokens(tokens)
+	if err != nil {
+		return err
+	}
+	h.hookResources.SetConsulTokens(tokens)
+	return nil
+}
+
+func (h *consulHook) revokeTokens(tokens map[string]map[string]*consulapi.ACLToken) error {
+	mErr := multierror.Error{}
+
+	for cluster, tokensForCluster := range tokens {
+		client, err := h.clientForCluster(cluster)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+			continue
+		}
+		toRevoke := []*consulapi.ACLToken{}
+		for _, token := range tokensForCluster {
+			toRevoke = append(toRevoke, token)
+		}
+		err = client.RevokeTokens(toRevoke)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+			continue
+		}
+		tokens[cluster] = nil
+	}
+
+	return mErr.ErrorOrNil()
 }

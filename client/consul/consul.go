@@ -53,7 +53,9 @@ type JWTLoginRequest struct {
 type Client interface {
 	// DeriveSITokenWithJWT logs into Consul using JWT and retrieves a Consul
 	// SI ACL token.
-	DeriveSITokenWithJWT(map[string]JWTLoginRequest) (map[string]string, error)
+	DeriveSITokenWithJWT(map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error)
+
+	RevokeTokens([]*consulapi.ACLToken) error
 }
 
 type consulClient struct {
@@ -101,8 +103,8 @@ func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Client, 
 
 // DeriveSITokenWithJWT takes a JWT from request and returns a consul token for
 // each identity in the request
-func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]string, error) {
-	tokens := make(map[string]string, len(reqs))
+func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error) {
+	tokens := make(map[string]*consulapi.ACLToken, len(reqs))
 	var mErr *multierror.Error
 
 	for k, req := range reqs {
@@ -118,7 +120,7 @@ func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (ma
 			continue
 		}
 
-		tokens[k] = t.SecretID
+		tokens[k] = t
 	}
 
 	if err := mErr.ErrorOrNil(); err != nil {
@@ -126,4 +128,18 @@ func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (ma
 	}
 
 	return tokens, nil
+}
+
+func (c *consulClient) RevokeTokens(tokens []*consulapi.ACLToken) error {
+	var mErr *multierror.Error
+	for _, token := range tokens {
+		_, err := c.client.ACL().Logout(&consulapi.WriteOptions{
+			Namespace: token.Namespace,
+			Partition: token.Partition,
+			Token:     token.SecretID,
+		})
+		mErr = multierror.Append(mErr, err)
+	}
+
+	return mErr.ErrorOrNil()
 }
