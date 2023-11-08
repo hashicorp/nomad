@@ -136,7 +136,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		Task:                  thisTask,
 		TaskDir:               taskDir,
 		Logger:                clientConf.Logger,
-		Consul:                consulRegMock,
+		ConsulServices:        consulRegMock,
 		ConsulSI:              consulapi.NewMockServiceIdentitiesClient(),
 		VaultFunc:             vaultFunc,
 		StateDB:               cstate.NoopDB{},
@@ -1031,7 +1031,7 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	mockConsul := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	mockConsul := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
 
 	// Wait for the task to start
 	testWaitForTaskToStart(t, tr)
@@ -1119,7 +1119,7 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	mockConsul := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	mockConsul := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
 
 	testWaitForTaskToStart(t, tr)
 
@@ -1343,12 +1343,12 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	})
 	consulAgent.SetStatus("critical")
 	namespacesClient := agentconsul.NewNamespacesClient(agentconsul.NewMockNamespaces(nil), consulAgent)
-	consulClient := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
-	go consulClient.Run()
-	defer consulClient.Shutdown()
+	consulServices := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
+	go consulServices.Run()
+	defer consulServices.Shutdown()
 
-	conf.Consul = consulClient
-	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulClient, nil)
+	conf.ConsulServices = consulServices
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulServices, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -2054,12 +2054,12 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 		Namespaces: false,
 	})
 	namespacesClient := agentconsul.NewNamespacesClient(agentconsul.NewMockNamespaces(nil), consulAgent)
-	consulClient := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
-	defer consulClient.Shutdown()
-	go consulClient.Run()
+	consulServices := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
+	defer consulServices.Shutdown()
+	go consulServices.Run()
 
-	conf.Consul = consulClient
-	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulClient, nil)
+	conf.ConsulServices = consulServices
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulServices, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -2624,8 +2624,8 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
 
-	consul := conf.Consul.(*regMock.ServiceRegistrationHandler)
-	consulOps := consul.GetOps()
+	consulServices := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
+	consulOps := consulServices.GetOps()
 	require.Len(t, consulOps, 4)
 
 	// Initial add

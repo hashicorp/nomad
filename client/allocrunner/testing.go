@@ -84,7 +84,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*config.All
 		Logger:             clientConf.Logger,
 		ClientConfig:       clientConf,
 		StateDB:            stateDB,
-		Consul:             consulRegMock,
+		ConsulServices:     consulRegMock,
 		ConsulSI:           consul.NewMockServiceIdentitiesClient(),
 		VaultFunc:          vaultclient.NewMockVaultClient,
 		StateUpdater:       &MockStateUpdater{},

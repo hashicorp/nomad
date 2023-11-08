@@ -133,7 +133,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newCPUPartsHook(hookLogger, ar.partitions, alloc),
-		newAllocHealthWatcherHook(hookLogger, alloc, newEnvBuilder, hs, ar.Listener(), ar.consulClient, ar.checkStore),
+		newAllocHealthWatcherHook(hookLogger, alloc, newEnvBuilder, hs, ar.Listener(), ar.consulServicesHandler, ar.checkStore),
 		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar, builtTaskEnv),
 		newGroupServiceHook(groupServiceHookConfig{
 			alloc:             alloc,

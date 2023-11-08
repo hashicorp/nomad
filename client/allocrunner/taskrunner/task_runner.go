@@ -279,8 +279,8 @@ type Config struct {
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
 
-	// Consul is the client to use for managing Consul service registrations
-	Consul serviceregistration.Handler
+	// ConsulServices is used for managing Consul service registrations
+	ConsulServices serviceregistration.Handler
 
 	// ConsulProxiesFunc gets a client to use for looking up supported envoy versions
 	// from Consul.
@@ -378,7 +378,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskLeader:              config.Task.Leader,
 		envBuilder:              envBuilder,
 		dynamicRegistry:         config.DynamicRegistry,
-		consulServiceClient:     config.Consul,
+		consulServiceClient:     config.ConsulServices,
 		consulProxiesClientFunc: config.ConsulProxiesFunc,
 		siClient:                config.ConsulSI,
 		vaultClientFunc:         config.VaultFunc,
