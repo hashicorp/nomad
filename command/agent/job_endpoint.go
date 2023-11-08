@@ -1645,6 +1645,7 @@ func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIde
 		Env:          in.Env,
 		File:         in.File,
 		ServiceName:  in.ServiceName,
+		TTL:          in.TTL,
 	}
 }
 

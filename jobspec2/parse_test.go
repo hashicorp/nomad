@@ -1121,7 +1121,14 @@ func TestIdentity(t *testing.T) {
 	must.NotNil(t, job.TaskGroups[0].Tasks[0].Identity)
 	must.True(t, job.TaskGroups[0].Tasks[0].Identity.Env)
 	must.True(t, job.TaskGroups[0].Tasks[0].Identity.File)
+
 	must.Len(t, 1, job.TaskGroups[0].Tasks[0].Identities)
-	must.Eq(t, "foo", job.TaskGroups[0].Tasks[0].Identities[0].Name)
-	must.Eq(t, []string{"bar"}, job.TaskGroups[0].Tasks[0].Identities[0].Audience)
+	altID := job.TaskGroups[0].Tasks[0].Identities[0]
+	must.Eq(t, "foo", altID.Name)
+	must.Eq(t, []string{"bar"}, altID.Audience)
+	must.True(t, altID.File)
+	must.False(t, altID.Env)
+	must.Eq(t, "signal", altID.ChangeMode)
+	must.Eq(t, "sighup", altID.ChangeSignal)
+	must.Eq(t, 2*time.Hour, altID.TTL)
 }
