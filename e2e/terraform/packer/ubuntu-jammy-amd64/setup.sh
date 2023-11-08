@@ -104,7 +104,7 @@ sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.5.0 nomad-driver-
 
 # Pledge
 echo "Installing Pledge Driver"
-curl -k -fsSL -o /tmp/pledge-driver.tar.gz https://github.com/shoenig/nomad-pledge-driver/releases/download/v0.2.3/nomad-pledge-driver_0.2.3_linux_amd64.tar.gz
+curl -k -fsSL -o /tmp/pledge-driver.tar.gz https://github.com/shoenig/nomad-pledge-driver/releases/download/v0.3.0/nomad-pledge-driver_0.3.0_linux_amd64.tar.gz
 curl -k -fsSL -o /tmp/pledge https://github.com/shoenig/nomad-pledge-driver/releases/download/pledge-1.8.com/pledge-1.8.com
 tar -C /tmp -xf /tmp/pledge-driver.tar.gz
 sudo mv /tmp/nomad-pledge-driver ${NOMAD_PLUGIN_DIR}
