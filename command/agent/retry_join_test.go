@@ -219,12 +219,12 @@ func TestRetryJoin_AutoDiscover(t *testing.T) {
 
 	joiner.RetryJoin(serverJoin)
 
-	require.Equal(4, len(output)) // [127.0.0.1 127.0.0.1 100.100.100.100 127.0.0.1]
-	require.Equal("100.100.100.100", output[2])
-	require.Equal(2, len(mockNetaddrs.ReceivedConfig))
-	require.Equal("exec=echo 127.0.0.1", mockNetaddrs.ReceivedConfig[0])
-	require.Equal("localhost", mockNetaddrs.ReceivedConfig[1])
-	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedConfig)
+	must.Len(t, 4, output) // [127.0.0.1 127.0.0.1 100.100.100.100 127.0.0.1]
+	must.Eq(t, "100.100.100.100", output[2])
+	must.Len(t, 2, mockNetaddrs.ReceivedConfig)
+	must.Eq(t, "exec=echo 127.0.0.1", mockNetaddrs.ReceivedConfig[0])
+	must.Eq(t, "localhost", mockNetaddrs.ReceivedConfig[1])
+	must.Eq(t, "provider=aws, tag_value=foo", mockDiscover.ReceivedConfig)
 }
 
 func TestRetryJoin_Client(t *testing.T) {
