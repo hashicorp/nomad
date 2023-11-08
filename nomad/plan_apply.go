@@ -737,6 +737,17 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 			return true, "", nil
 		}
 		return false, "node is disconnected and contains invalid updates", nil
+	} else if node.Status == structs.NodeStatusDown {
+		if isValidForLostNode(plan, node.ID) {
+			return true, "", nil
+		}
+		return false, "node is lost and contains invalid updates", nil
+
+	} else if node.Status == structs.NodeStatusDown {
+		if isValidForDisconnectedNode(plan, node.ID) {
+			return true, "", nil
+		}
+		return false, "node is lost and contains invalid updates", nil
 	} else if node.Status != structs.NodeStatusReady {
 		return false, "node is not ready for placements", nil
 	}
@@ -784,6 +795,18 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
 	for _, alloc := range plan.NodeAllocation[nodeID] {
 		if alloc.ClientStatus != structs.AllocClientStatusUnknown {
+			return false
+		}
+	}
+
+	return true
+}
+
+// The plan is only valid for disconnected nodes if it only contains
+// updates to mark allocations as unknown.
+func isValidForLostNode(plan *structs.Plan, nodeID string) bool {
+	for _, alloc := range plan.NodeAllocation[nodeID] {
+		if alloc.ClientStatus != structs.AllocClientStatusUnknown && !alloc.RescheduleOnLost() {
 			return false
 		}
 	}

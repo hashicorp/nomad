@@ -264,13 +264,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			continue
 		}
 
-		if alloc.TaskIsReconnected() && serverSupportsDisconnectedClients &&
-			alloc.ClientStatus == structs.AllocClientStatusRunning &&
-			alloc.DesiredStatus == structs.AllocDesiredStatusStop {
-			reconnecting[alloc.ID] = alloc
-			continue
-		}
-
 		taintedNode, nodeIsTainted := taintedNodes[alloc.NodeID]
 		if taintedNode != nil {
 			// Group disconnecting
@@ -310,7 +303,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 						untainted[alloc.ID] = alloc
 						continue
 					} else if alloc.ClientStatus == structs.AllocClientStatusRunning {
-						lost[alloc.ID] = alloc
+						disconnecting[alloc.ID] = alloc
 						continue
 					}
 				}
