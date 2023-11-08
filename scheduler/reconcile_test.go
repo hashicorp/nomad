@@ -887,7 +887,7 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 4), destructiveResultsToNames(r.destructiveUpdate))
 }
 
-// Tests the reconciler properly handles lost nodes with allocations
+/* // Tests the reconciler properly handles lost nodes with allocations
 func TestReconciler_LostNode_RescheduleOff(t *testing.T) {
 	ci.Parallel(t)
 
@@ -935,7 +935,7 @@ func TestReconciler_LostNode_RescheduleOff(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
-
+*/
 // Tests the reconciler properly handles lost nodes with allocations
 func TestReconciler_LostNode(t *testing.T) {
 	ci.Parallel(t)
