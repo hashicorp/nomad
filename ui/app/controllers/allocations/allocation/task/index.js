@@ -8,9 +8,11 @@ import { computed as overridable } from 'ember-overridable-computed';
 import { task } from 'ember-concurrency';
 import classic from 'ember-classic-decorator';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
+import { inject as service } from '@ember/service';
 
 @classic
 export default class IndexController extends Controller {
+  @service nomadActions;
   @overridable(() => {
     // { title, description }
     return null;
@@ -32,4 +34,26 @@ export default class IndexController extends Controller {
     }
   })
   restartTask;
+
+  get shouldShowActions() {
+    return (
+      this.model.state === 'running' &&
+      this.model.task.actions?.length &&
+      this.nomadActions.hasActionPermissions
+    );
+  }
+
+  @task(function* (action, allocID) {
+    try {
+      const job = this.model.task.taskGroup.job;
+      yield job.runAction(action, allocID);
+    } catch (err) {
+      this.notifications.add({
+        title: `Error starting ${action.name}`,
+        message: err,
+        color: 'critical',
+      });
+    }
+  })
+  runAction;
 }

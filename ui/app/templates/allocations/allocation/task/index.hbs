@@ -30,8 +30,8 @@
       </div>
     </div>
   {{/if}}
-  <h1 class="title with-flex" data-test-title>
-    <div>
+  <Hds::PageHeader class="job-page-header" as |PH|>
+    <PH.Title data-test-title>
       {{this.model.name}}
       {{#if this.model.isConnectProxy}}
         <ProxyTag @class="bumper-left" />
@@ -44,8 +44,8 @@
       >
         {{this.model.state}}
       </span>
-    </div>
-    <div>
+    </PH.Title>
+    <PH.Actions>
       {{#if this.model.isRunning}}
         <div class="two-step-button">
           <Exec::OpenButton
@@ -55,6 +55,16 @@
             @task={{this.model.task}}
           />
         </div>
+
+        {{#if this.shouldShowActions}}
+          <Hds::Dropdown class="actions-dropdown" as |dd|>
+            <dd.ToggleButton @color="secondary" @text="Actions" @size="medium" />
+            {{#each this.model.task.actions as |action|}}
+              <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 action.allocations) "id"))}} @text="{{action.name}}" />
+            {{/each}}
+          </Hds::Dropdown>
+        {{/if}}
+
         <TwoStepButton
           data-test-restart
           @alignRight={{true}}
@@ -67,8 +77,8 @@
           @onConfirm={{perform this.restartTask}}
         />
       {{/if}}
-    </div>
-  </h1>
+    </PH.Actions>
+  </Hds::PageHeader>
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">
