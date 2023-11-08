@@ -30,7 +30,7 @@ const (
 	consulAuthMethodServicesDesc = "Login method for Nomad services using workload identities"
 	consulAuthMethodTasksName    = "nomad-tasks"
 	consulAuthMethodTaskDesc     = "Login method for Nomad tasks using workload identities"
-	consulRoleTasks              = "role-nomad-tasks"
+	consulRoleTasks              = "nomad-default-tasks"
 	consulPolicyName             = "policy-nomad-tasks"
 	consulNamespace              = "nomad-workloads"
 	consulAud                    = "consul.io"
@@ -321,7 +321,7 @@ This is the %q method configuration:
 		Description: "Binding rule for Nomad tasks authenticated using a workload identity",
 		AuthMethod:  consulAuthMethodTasksName,
 		BindType:    "role",
-		BindName:    "nomad-${value.nomad_namespace}-templates",
+		BindName:    "nomad-${value.nomad_namespace}-tasks",
 	}
 
 	s.Ui.Output(`
@@ -582,7 +582,11 @@ func (s *SetupConsulCommand) bindingRuleExists(rule *api.ACLBindingRule) bool {
 	existingRules, _, _ := s.client.ACL().BindingRuleList("", nil)
 	return slices.ContainsFunc(
 		existingRules,
-		func(r *api.ACLBindingRule) bool { return r.AuthMethod == rule.AuthMethod })
+		func(r *api.ACLBindingRule) bool {
+			return r.AuthMethod == rule.AuthMethod &&
+				r.BindType == rule.BindType &&
+				r.BindName == rule.BindName
+		})
 }
 
 func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
