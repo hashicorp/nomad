@@ -1,7 +1,7 @@
-service "*" {
+service_prefix "" {
   policy = "read"
 }
 
-key_prefix "*" {
+key_prefix "" {
   policy = "read"
 }
