@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"sync"
 
-	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
@@ -130,29 +129,43 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	h.vaultToken = req.VaultToken
 	h.nomadToken = req.NomadToken
 
-	// Set the consul token if the task uses WI
+	// Set the consul token if the task uses WI.
+	tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
+	consulBlock := tg.Consul
 	if req.Task.Consul != nil {
+		consulBlock = req.Task.Consul
+	}
+	consulWIDName := consulBlock.IdentityName()
+
+	// Check if task has an identity for Consul and assume WI flow if it does.
+	// COMPAT simplify this logic and assume WI flow in 1.9+
+	hasConsulIdentity := false
+	for _, wid := range req.Task.Identities {
+		if wid.Name == consulWIDName {
+			hasConsulIdentity = true
+			break
+		}
+	}
+	if hasConsulIdentity {
+		consulCluster := req.Task.GetConsulClusterName(tg)
 		consulTokens := h.config.hookResources.GetConsulTokens()
+		clusterTokens := consulTokens[consulCluster]
 
-		var found bool
-		tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
-		cluster := req.Task.GetConsulClusterName(tg)
-
-		if _, found = consulTokens[cluster]; !found {
+		if clusterTokens == nil {
 			return fmt.Errorf(
 				"consul tokens for cluster %s requested by task %s not found",
-				cluster, req.Task.Name,
+				consulCluster, req.Task.Name,
 			)
 		}
 
-		var consulToken *consulapi.ACLToken
-		consulToken, found = consulTokens[cluster][req.Task.Consul.IdentityName()]
-		if !found {
+		consulToken := clusterTokens[consulWIDName]
+		if consulToken == nil {
 			return fmt.Errorf(
 				"consul tokens for cluster %s and identity %s requested by task %s not found",
-				cluster, req.Task.Consul.IdentityName(), req.Task.Name,
+				consulCluster, consulWIDName, req.Task.Name,
 			)
 		}
+
 		h.consulToken = consulToken.SecretID
 	}
 
