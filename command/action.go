@@ -4,17 +4,10 @@
 package command
 
 import (
-	"bytes"
-	"context"
 	"fmt"
 	"io"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/escapingio"
 	"github.com/posener/complete"
 )
 
@@ -30,8 +23,8 @@ func (c *ActionCommand) Help() string {
 	helpText := `
 Usage: nomad action [options] <action>
 
-  Perform a predefined command inside the environment of the given allocation
-  and task.
+  Perform a predefined command inside the environment of a given context.
+  Currently this acts as a wrapper around the job action command.
 
   When ACLs are enabled, this command requires a token with the 'alloc-exec',
   'read-job', and 'list-jobs' capabilities for a task's namespace. If
@@ -78,7 +71,7 @@ Action Specific Options:
 }
 
 func (c *ActionCommand) Synopsis() string {
-	return "Run a pre-defined action from a Nomad task"
+	return "Run a pre-defined command from a given context"
 }
 
 func (c *ActionCommand) AutocompleteFlags() complete.Flags {
@@ -100,6 +93,8 @@ func (c *ActionCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *ActionCommand) Name() string { return "action" }
 
+const defaultEscapeChar = "~"
+
 func (c *ActionCommand) Run(args []string) int {
 
 	var stdinOpt, ttyOpt bool
@@ -113,7 +108,7 @@ func (c *ActionCommand) Run(args []string) int {
 	flags.StringVar(&job, "job", "", "")
 	flags.BoolVar(&stdinOpt, "i", true, "")
 	flags.BoolVar(&ttyOpt, "t", isTty(), "")
-	flags.StringVar(&escapeChar, "e", "~", "")
+	flags.StringVar(&escapeChar, "e", defaultEscapeChar, "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
@@ -128,189 +123,39 @@ func (c *ActionCommand) Run(args []string) int {
 		return 1
 	}
 
-	if job == "" {
-		c.Ui.Error("A job ID is required")
-		c.Ui.Error(commandErrorText(c))
-		return 1
-	}
-
-	if ttyOpt && !stdinOpt {
-		c.Ui.Error("-i must be enabled if running with tty")
-		c.Ui.Error(commandErrorText(c))
-		return 1
-	}
-
-	if escapeChar == "none" {
-		escapeChar = ""
-	}
-
-	if len(escapeChar) > 1 {
-		c.Ui.Error("-e requires 'none' or a single character")
-		c.Ui.Error(commandErrorText(c))
-		return 1
-	}
-
-	client, err := c.Meta.Client()
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
-		return 1
-	}
-
-	var allocStub *api.AllocationListStub
-	// If no allocation provided, grab a random one from the job
-	if allocation == "" {
-
-		// Group param cannot be empty if allocation is empty,
-		// since we'll need to get a random allocation from the group
-		if group == "" {
-			c.Ui.Error("A group name is required if no allocation is provided")
-			c.Ui.Error(commandErrorText(c))
-			return 1
-		}
-
-		if task == "" {
-			c.Ui.Error("A task name is required if no allocation is provided")
-			c.Ui.Error(commandErrorText(c))
-			return 1
-		}
-
-		jobID, ns, err := c.JobIDByPrefix(client, job, nil)
-		if err != nil {
-			c.Ui.Error(err.Error())
-			return 1
-		}
-
-		allocStub, err = getRandomJobAlloc(client, jobID, group, ns)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
-			return 1
-		}
-	} else {
-		allocs, _, err := client.Allocations().PrefixList(sanitizeUUIDPrefix(allocation))
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
-			return 1
-		}
-
-		if len(allocs) == 0 {
-			c.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocation))
-			return 1
-		}
-
-		if len(allocs) > 1 {
-			out := formatAllocListStubs(allocs, false, shortId)
-			c.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
-			return 1
-		}
-
-		allocStub = allocs[0]
-	}
-
-	q := &api.QueryOptions{Namespace: allocStub.Namespace}
-	alloc, _, err := client.Allocations().Info(allocStub.ID, q)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
-		return 1
-	}
+	var commandWithFlags []string
 
 	if task != "" {
-		err = validateTaskExistsInAllocation(task, alloc)
-	} else {
-		task, err = lookupAllocTask(alloc)
+		commandWithFlags = append(commandWithFlags, "-task="+task)
 	}
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
+	if group != "" {
+		commandWithFlags = append(commandWithFlags, "-group="+group)
+	}
+	if allocation != "" {
+		commandWithFlags = append(commandWithFlags, "-alloc="+allocation)
+	}
+	if job != "" {
+		commandWithFlags = append(commandWithFlags, "-job="+job)
 	}
 
 	if !stdinOpt {
-		c.Stdin = bytes.NewReader(nil)
+		commandWithFlags = append(commandWithFlags, "-i=false")
+	}
+	if !ttyOpt {
+		commandWithFlags = append(commandWithFlags, "-t=false")
+	}
+	if escapeChar != defaultEscapeChar {
+		commandWithFlags = append(commandWithFlags, "-e="+escapeChar)
 	}
 
-	if c.Stdin == nil {
-		c.Stdin = os.Stdin
+	commandWithFlags = append(commandWithFlags, args...)
+
+	cmd := &JobActionCommand{
+		Meta:   c.Meta,
+		Stdin:  c.Stdin,
+		Stdout: c.Stdout,
+		Stderr: c.Stderr,
 	}
 
-	if c.Stdout == nil {
-		c.Stdout = os.Stdout
-	}
-
-	if c.Stderr == nil {
-		c.Stderr = os.Stderr
-	}
-
-	action := args[0]
-
-	code, err := c.execImpl(client, alloc, task, job, action, ttyOpt, escapeChar, c.Stdin, c.Stdout, c.Stderr)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
-		return 1
-	}
-
-	return code
-}
-
-// execImpl invokes the Alloc Exec api call, it also prepares and restores terminal states as necessary.
-func (c *ActionCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, job string, action string, tty bool,
-	escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
-
-	sizeCh := make(chan api.TerminalSize, 1)
-
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
-
-	// When tty, ensures we capture all user input and monitor terminal resizes.
-	if tty {
-		if stdin == nil {
-			return -1, fmt.Errorf("stdin is null")
-		}
-
-		inCleanup, err := setRawTerminal(stdin)
-		if err != nil {
-			return -1, err
-		}
-		defer inCleanup()
-
-		outCleanup, err := setRawTerminalOutput(stdout)
-		if err != nil {
-			return -1, err
-		}
-		defer outCleanup()
-
-		sizeCleanup, err := watchTerminalSize(stdout, sizeCh)
-		if err != nil {
-			return -1, err
-		}
-		defer sizeCleanup()
-
-		if escapeChar != "" {
-			stdin = escapingio.NewReader(stdin, escapeChar[0], func(c byte) bool {
-				switch c {
-				case '.':
-					// need to restore tty state so error reporting here
-					// gets emitted at beginning of line
-					outCleanup()
-					inCleanup()
-
-					stderr.Write([]byte("\nConnection closed\n"))
-					cancelFn()
-					return true
-				default:
-					return false
-				}
-			})
-		}
-	}
-
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		for range signalCh {
-			cancelFn()
-		}
-	}()
-
-	return client.Jobs().ActionExec(ctx, alloc, job, task,
-		tty, make([]string, 0), action,
-		stdin, stdout, stderr, sizeCh, nil)
+	return cmd.Run(commandWithFlags)
 }
