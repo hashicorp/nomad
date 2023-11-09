@@ -198,23 +198,15 @@ a namespace %q and create all configuration within that namespace.
 		} else {
 			s.Ui.Output(fmt.Sprintf(namespaceMsg, s.ns))
 
-			var createNamespace bool
-			if !s.autoYes {
-				createNamespace = s.askQuestion(
-					fmt.Sprintf("Create the namespace %q in your Vault cluster? [Y/n]", s.ns))
-				if !createNamespace {
-					s.handleNo()
-				}
-			} else {
-				createNamespace = true
+			if !s.autoYes && !s.askQuestion(
+				fmt.Sprintf("Create the namespace %q in your Vault cluster? [Y/n]", s.ns)) {
+				s.handleNo()
 			}
 
-			if createNamespace {
-				err = s.createNamespace(s.ns)
-				if err != nil {
-					s.Ui.Error(err.Error())
-					return 1
-				}
+			err = s.createNamespace(s.ns)
+			if err != nil {
+				s.Ui.Error(err.Error())
+				return 1
 			}
 		}
 	}
@@ -241,22 +233,14 @@ Nomad workloads will use.
 
 		s.Ui.Output(string(jsConf))
 
-		var createAuthMethodConf bool
-		if !s.autoYes {
-			createAuthMethodConf = s.askQuestion("Create JWT auth method in your Vault cluster? [Y/n]")
-			if !createAuthMethodConf {
-				s.handleNo()
-			}
-		} else {
-			createAuthMethodConf = true
+		if !s.autoYes && !s.askQuestion("Create JWT auth method in your Vault cluster? [Y/n]") {
+			s.handleNo()
 		}
 
-		if createAuthMethodConf {
-			err = s.createAuthMethod(authMethodConf)
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
+		err = s.createAuthMethod(authMethodConf)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
 		}
 	}
 
@@ -284,25 +268,14 @@ policy to allow Nomad tasks to access secrets in the path
 		}
 		s.Ui.Output(policyBody)
 
-		var createPolicy bool
-		if !s.autoYes {
-			createPolicy = s.askQuestion(
-				"Create the above policy in your Vault cluster? [Y/n]",
-			)
-			if !createPolicy {
-				s.handleNo()
-			}
-
-		} else {
-			createPolicy = true
+		if !s.autoYes && !s.askQuestion("Create the above policy in your Vault cluster? [Y/n]") {
+			s.handleNo()
 		}
 
-		if createPolicy {
-			err = s.createPolicy(policyBody)
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
+		err = s.createPolicy(policyBody)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
 		}
 	}
 
@@ -323,24 +296,14 @@ We will now create an ACL role called %q associated with the policy above.
 		roleJS, _ := json.MarshalIndent(roleBody, "", "    ")
 		s.Ui.Output(string(roleJS))
 
-		var createRole bool
-		if !s.autoYes {
-			createRole = s.askQuestion(
-				"Create role in your Vault cluster? [Y/n]",
-			)
-			if !createRole {
-				s.handleNo()
-			}
-		} else {
-			createRole = true
+		if !s.autoYes && !s.askQuestion("Create role in your Vault cluster? [Y/n]") {
+			s.handleNo()
 		}
 
-		if createRole {
-			err = s.createRole(roleBody)
-			if err != nil {
-				s.Ui.Error(err.Error())
-				return 1
-			}
+		err = s.createRole(roleBody)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
 		}
 	}
 
