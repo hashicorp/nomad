@@ -32,7 +32,7 @@ job "cpustress" {
 
       config {
         command  = "stress"
-        args     = ["--cpu", "1", ]
+        args     = ["--cpu", "1"]
         promises = "stdio rpath proc"
       }
 
