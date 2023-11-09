@@ -4,19 +4,19 @@
  */
 
 /* eslint-disable */
-export default `// Use Nomad Variables to modify this job's output:
-// run "nomad var put nomad/jobs/variables-example name=YOUR_NAME" to get started
+export default `# Use Nomad Variables to modify this job's output:
+# run "nomad var put nomad/jobs/variables-example name=YOUR_NAME" to get started
 
 job "variables-example" {
-  // Specifies the datacenter where this job should be run
-  // This can be omitted and it will default to ["*"]
+  # Specifies the datacenter where this job should be run
+  # This can be omitted and it will default to ["*"]
   datacenters = ["*"]
 
   group "web" {
 
     network {
-      // Task group will have an isolated network namespace with
-      // an interface that is bridged with the host
+      # Task group will have an isolated network namespace with
+      # an interface that is bridged with the host
       port "www" {
         to = 8001
       }
@@ -38,8 +38,8 @@ job "variables-example" {
         ports   = ["www"]
       }
 
-      // Create a template resource that will be used to render the html file
-      // using the Nomad variable at "nomad/jobs/variables-example"
+      # Create a template resource that will be used to render the html file
+      # using the Nomad variable at "nomad/jobs/variables-example"
       template {
         data        = "<html>hello, {{ with nomadVar \\" nomad/jobs/variables-example \\" }}{{ .name }}{{ end }}</html>"
         destination = "local/index.html"
