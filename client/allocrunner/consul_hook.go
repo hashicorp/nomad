@@ -252,10 +252,26 @@ func (h *consulHook) Postrun() error {
 	return nil
 }
 
+// Destroy cleans up any remaining Consul tokens if the alloc is GC'd or fails
+// to restore after a client restart.
+func (h *consulHook) Destroy() error {
+	tokens := h.hookResources.GetConsulTokens()
+	err := h.revokeTokens(tokens)
+	if err != nil {
+		return err
+	}
+	h.hookResources.SetConsulTokens(tokens)
+	return nil
+}
+
 func (h *consulHook) revokeTokens(tokens map[string]map[string]*consulapi.ACLToken) error {
 	mErr := multierror.Error{}
 
 	for cluster, tokensForCluster := range tokens {
+		if tokensForCluster == nil {
+			// if called by Destroy, may have been removed by Postrun
+			continue
+		}
 		client, err := h.clientForCluster(cluster)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
