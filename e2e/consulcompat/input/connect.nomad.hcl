@@ -63,6 +63,20 @@ job "countdash" {
         image          = "hashicorpdev/counter-dashboard:v3"
         auth_soft_fail = true
       }
+
+
+      # this template can't be used for the COUNTING_SERVICE_URL because it
+      # needs the Nomad-assigned upstream address here and not the Consul
+      # service address, but this is handy for testing.
+      template {
+        data = <<EOT
+{{- range service "count-api" }}
+API_ADDR=http://{{ .Address }}:{{ .Port }}{{- end }}
+EOT
+
+        destination = "local/count-api.txt"
+      }
+
     }
   }
 }

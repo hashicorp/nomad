@@ -155,4 +155,8 @@ func runConnectJob(t *testing.T, nc *nomadapi.Client) {
 		wait.Timeout(10*time.Second),
 		wait.Gap(1*time.Second),
 	))
+
+	// Ensure that the template rendered
+	_, _, err = nc.AllocFS().Stat(alloc, "dashboard/local/count-api.txt", nil)
+	must.NoError(t, err)
 }
