@@ -62,7 +62,7 @@ Usage: nomad setup consul [options]
   This command requires acl:write permissions for Consul and respects
   CONSUL_HTTP_TOKEN, CONSUL_HTTP_ADDR, and other Consul-related
   environment variables as documented in
-  https://developer.hashicorp.com/nomad/docs/runtime/environment#summary.
+  https://developer.hashicorp.com/consul/commands#environment-variables
 
   WARNING: This command is an experimental feature and may change its behavior
   in future versions of Nomad.
