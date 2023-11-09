@@ -240,7 +240,7 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 	for _, service := range h.services {
 		cluster := service.GetConsulClusterName(h.tg)
 		if token, ok := allocTokens[cluster][service.MakeUniqueIdentityName()]; ok {
-			tokens[service.Name] = token
+			tokens[service.Name] = token.SecretID
 		}
 	}
 

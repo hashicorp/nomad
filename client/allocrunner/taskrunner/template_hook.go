@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
@@ -144,13 +145,15 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 			)
 		}
 
-		h.consulToken, found = consulTokens[cluster][req.Task.Consul.IdentityName()]
+		var consulToken *consulapi.ACLToken
+		consulToken, found = consulTokens[cluster][req.Task.Consul.IdentityName()]
 		if !found {
 			return fmt.Errorf(
 				"consul tokens for cluster %s and identity %s requested by task %s not found",
 				cluster, req.Task.Consul.IdentityName(), req.Task.Name,
 			)
 		}
+		h.consulToken = consulToken.SecretID
 	}
 
 	// Set vault namespace if specified

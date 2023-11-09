@@ -6,6 +6,7 @@ package structs
 import (
 	"sync"
 
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/helper"
 )
@@ -16,7 +17,7 @@ import (
 // lock.
 type AllocHookResources struct {
 	csiMounts    map[string]*csimanager.MountInfo
-	consulTokens map[string]map[string]string // Consul cluster -> service identity -> token
+	consulTokens map[string]map[string]*consulapi.ACLToken // Consul cluster -> service identity -> token
 
 	mu sync.RWMutex
 }
@@ -24,7 +25,7 @@ type AllocHookResources struct {
 func NewAllocHookResources() *AllocHookResources {
 	return &AllocHookResources{
 		csiMounts:    map[string]*csimanager.MountInfo{},
-		consulTokens: map[string]map[string]string{},
+		consulTokens: map[string]map[string]*consulapi.ACLToken{},
 	}
 }
 
@@ -48,7 +49,7 @@ func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 
 // GetConsulTokens returns all the Consul tokens previously written by the
 // consul allocrunner hook
-func (a *AllocHookResources) GetConsulTokens() map[string]map[string]string {
+func (a *AllocHookResources) GetConsulTokens() map[string]map[string]*consulapi.ACLToken {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
@@ -58,7 +59,7 @@ func (a *AllocHookResources) GetConsulTokens() map[string]map[string]string {
 // SetConsulTokens merges a given map of Consul cluster names to task
 // identities to Consul tokens with previously written data. This method is
 // called by the allocrunner consul hook.
-func (a *AllocHookResources) SetConsulTokens(m map[string]map[string]string) {
+func (a *AllocHookResources) SetConsulTokens(m map[string]map[string]*consulapi.ACLToken) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 

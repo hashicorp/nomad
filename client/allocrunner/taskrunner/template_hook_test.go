@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -30,12 +31,13 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	// mock some consul tokens
 	hr := cstructs.NewAllocHookResources()
 	hr.SetConsulTokens(
-		map[string]map[string]string{
+		map[string]map[string]*consulapi.ACLToken{
 			structs.ConsulDefaultCluster: {
-				fmt.Sprintf("consul_%s", structs.ConsulDefaultCluster): uuid.Generate(),
+				fmt.Sprintf("consul_%s", structs.ConsulDefaultCluster): &consulapi.ACLToken{
+					SecretID: uuid.Generate()},
 			},
 			"test": {
-				"consul_test": uuid.Generate(),
+				"consul_test": &consulapi.ACLToken{SecretID: uuid.Generate()},
 			},
 		},
 	)
@@ -59,7 +61,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 		name        string
 		req         *interfaces.TaskPrestartRequest
 		wantErrMsg  string
-		consulToken string
+		consulToken *consulapi.ACLToken
 	}{
 		{
 			name: "task with no Consul WI",
@@ -110,7 +112,11 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 				must.Nil(t, err)
 			}
 
-			must.Eq(t, tt.consulToken, h.consulToken)
+			if tt.consulToken != nil {
+				must.Eq(t, tt.consulToken.SecretID, h.consulToken)
+			} else {
+				must.Eq(t, "", h.consulToken)
+			}
 		})
 	}
 }
