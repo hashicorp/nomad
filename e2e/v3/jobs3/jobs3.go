@@ -116,6 +116,25 @@ func (sub *Submission) JobID() string {
 	return sub.jobID
 }
 
+// AllocID returns the ID of an alloc of the given task group. If there is more than
+// one allocation for the task group, an ID is chosen at random. If there is no
+// allocation of the given task group the test assertion fails.
+func (sub *Submission) AllocID(group string) string {
+	queryOpts := sub.queryOptions()
+	jobsAPI := sub.nomadClient.Jobs()
+	stubs, _, err := jobsAPI.Allocations(sub.jobID, false, queryOpts)
+	must.NoError(sub.t, err)
+
+	for _, stub := range stubs {
+		if stub.TaskGroup == group {
+			return stub.ID
+		}
+	}
+
+	must.Unreachable(sub.t, must.Sprintf("no alloc id found for group %q", group))
+	panic("bug")
+}
+
 func (sub *Submission) logf(msg string, args ...any) {
 	sub.t.Helper()
 	util3.Log3(sub.t, sub.verbose, msg, args...)
