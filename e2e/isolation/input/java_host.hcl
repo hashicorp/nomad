@@ -47,8 +47,8 @@ EOH
       }
 
       resources {
-        cpu    = 50
-        memory = 64
+        cpu    = 500
+        memory = 256
       }
     }
 
@@ -62,8 +62,8 @@ EOH
       }
 
       resources {
-        cpu    = 50
-        memory = 64
+        cpu    = 500
+        memory = 256
       }
     }
   }
