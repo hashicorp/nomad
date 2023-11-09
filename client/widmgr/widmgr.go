@@ -377,7 +377,6 @@ func (m *WIDMgr) renew() {
 		}
 
 		// Renew all tokens together since its cheap
-		// FIXME this will have to be revisited once we support identity change modes
 		tokens, err := m.signer.SignIdentities(m.minIndex, reqs)
 		if err != nil {
 			retry++
