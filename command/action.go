@@ -125,28 +125,24 @@ func (c *ActionCommand) Run(args []string) int {
 
 	var commandWithFlags []string
 
-	if task != "" {
-		commandWithFlags = append(commandWithFlags, "-task="+task)
-	}
-	if group != "" {
-		commandWithFlags = append(commandWithFlags, "-group="+group)
-	}
-	if allocation != "" {
-		commandWithFlags = append(commandWithFlags, "-alloc="+allocation)
-	}
-	if job != "" {
-		commandWithFlags = append(commandWithFlags, "-job="+job)
-	}
+	commandWithFlags = append(commandWithFlags, "-task="+task)
+	commandWithFlags = append(commandWithFlags, "-group="+group)
+	commandWithFlags = append(commandWithFlags, "-alloc="+allocation)
+	commandWithFlags = append(commandWithFlags, "-job="+job)
 
-	if !stdinOpt {
+	if stdinOpt {
+		commandWithFlags = append(commandWithFlags, "-i=true")
+	} else {
 		commandWithFlags = append(commandWithFlags, "-i=false")
 	}
-	if !ttyOpt {
+
+	if ttyOpt {
+		commandWithFlags = append(commandWithFlags, "-t=true")
+	} else {
 		commandWithFlags = append(commandWithFlags, "-t=false")
 	}
-	if escapeChar != defaultEscapeChar {
-		commandWithFlags = append(commandWithFlags, "-e="+escapeChar)
-	}
+
+	commandWithFlags = append(commandWithFlags, "-e="+escapeChar)
 
 	commandWithFlags = append(commandWithFlags, args...)
 
