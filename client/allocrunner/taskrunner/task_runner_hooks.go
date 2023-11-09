@@ -121,6 +121,7 @@ func (tr *TaskRunner) initHooks() {
 			templates:           task.Templates,
 			clientConfig:        tr.clientConfig,
 			envBuilder:          tr.envBuilder,
+			hookResources:       tr.allocHookResources,
 			consulNamespace:     consulNamespace,
 			nomadNamespace:      tr.alloc.Job.Namespace,
 			renderOnTaskRestart: task.RestartPolicy.RenderTemplates,
