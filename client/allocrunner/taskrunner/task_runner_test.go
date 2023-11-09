@@ -19,12 +19,13 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/config"
-	consulapi "github.com/hashicorp/nomad/client/consul"
+	consulclient "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -143,7 +144,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		TaskDir:               taskDir,
 		Logger:                clientConf.Logger,
 		ConsulServices:        consulRegMock,
-		ConsulSI:              consulapi.NewMockServiceIdentitiesClient(),
+		ConsulSI:              consulclient.NewMockServiceIdentitiesClient(),
 		VaultFunc:             vaultFunc,
 		StateDB:               cstate.NoopDB{},
 		StateUpdater:          NewMockTaskStateUpdater(),
@@ -1455,7 +1456,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 		<-waitCh
 		return map[string]string{task.Name: token}, nil
 	}
-	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
 	siClient.DeriveTokenFn = deriveFn
 
 	// start the task runner
@@ -1523,7 +1524,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 		deriveCount++
 		return nil, structs.NewRecoverableError(errors.New("try again later"), true)
 	}
-	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
 	siClient.DeriveTokenFn = deriveFn
 
 	// start the task runner
@@ -1573,7 +1574,7 @@ func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
 	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
 
 	// SI token derivation suffers a non-retryable error
-	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
 	siClient.SetDeriveTokenError(alloc.ID, []string{task.Name}, errors.New("non-recoverable"))
 
 	tr, err := NewTaskRunner(trConfig)
@@ -2373,7 +2374,7 @@ func TestTaskRunner_Template_BlockingPreStart(t *testing.T) {
 	}
 }
 
-func TestTaskRunner_TemplateWorkloadIdendity(t *testing.T) {
+func TestTaskRunner_TemplateWorkloadIdentity(t *testing.T) {
 	ci.Parallel(t)
 
 	expectedConsulValue := "consul-value"
@@ -2491,9 +2492,9 @@ func TestTaskRunner_TemplateWorkloadIdendity(t *testing.T) {
 			Addr:    vaultServer.URL,
 		},
 	}
-	conf.AllocHookResources.SetConsulTokens(map[string]map[string]string{
+	conf.AllocHookResources.SetConsulTokens(map[string]map[string]*consulapi.ACLToken{
 		structs.ConsulDefaultCluster: {
-			task.Consul.IdentityName(): "consul-task-token",
+			task.Consul.IdentityName(): {SecretID: "consul-task-token"},
 		},
 	})
 	t.Cleanup(cleanup)
