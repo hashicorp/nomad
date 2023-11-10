@@ -13,21 +13,13 @@
 	>
 	{{#if @task}}
 		{{keyboard-commands this.keyCommands}}
-		<header class={{if this.shouldShowActions "has-actions"}}>
+		<header>
 			<h1 class="title">
 				{{@task.name}}
 				<span class="state {{@task.state}}">
 					{{@task.state}}
 				</span>
 			</h1>
-			{{#if this.shouldShowActions}}
-				<Hds::Dropdown class="actions-dropdown" as |dd|>
-					<dd.ToggleButton @color="secondary" @text="Actions" @size="medium" />
-					{{#each @task.task.actions as |action|}}
-						<dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 action.allocations) "id"))}} @text="{{action.name}}" />
-					{{/each}}
-				</Hds::Dropdown>
-			{{/if}}
 			<LinkTo
 				class="link"
 				title={{@task.name}}

@@ -15,6 +15,7 @@
     {{yield}}
   </PH.Title>
   <PH.Actions>
+
       {{#if (not (eq this.job.status "dead"))}}
         {{#if (can "exec allocation" namespace=this.job.namespace)}}
           {{#if (and this.job.actions.length this.job.allocations.length)}}

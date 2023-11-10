@@ -47,14 +47,6 @@
     </PH.Title>
     <PH.Actions>
       {{#if this.model.isRunning}}
-        <div class="two-step-button">
-          <Exec::OpenButton
-            @job={{this.model.task.taskGroup.job}}
-            @taskGroup={{this.model.task.taskGroup}}
-            @allocation={{this.model.allocation}}
-            @task={{this.model.task}}
-          />
-        </div>
 
         {{#if this.shouldShowActions}}
           <Hds::Dropdown class="actions-dropdown" as |dd|>
@@ -64,6 +56,15 @@
             {{/each}}
           </Hds::Dropdown>
         {{/if}}
+
+        <div class="two-step-button">
+          <Exec::OpenButton
+            @job={{this.model.task.taskGroup.job}}
+            @taskGroup={{this.model.task.taskGroup}}
+            @allocation={{this.model.allocation}}
+            @task={{this.model.task}}
+          />
+        </div>
 
         <TwoStepButton
           data-test-restart

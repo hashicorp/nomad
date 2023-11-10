@@ -115,10 +115,6 @@ $subNavOffset: 49px;
     margin-bottom: 24px;
     height: 50px;
 
-    &.has-actions {
-      grid-template-columns: 1fr auto auto auto;
-    }
-
     .title {
       margin-bottom: unset;
     }

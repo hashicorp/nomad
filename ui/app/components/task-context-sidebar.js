@@ -7,13 +7,8 @@
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
-import { inject as service } from '@ember/service';
-import { task } from 'ember-concurrency';
 
 export default class TaskContextSidebarComponent extends Component {
-  @service notifications;
-  @service nomadActions;
-
   get isSideBarOpen() {
     return !!this.args.task;
   }
@@ -42,26 +37,4 @@ export default class TaskContextSidebarComponent extends Component {
   @action toggleWide() {
     this.wide = !this.wide;
   }
-
-  get shouldShowActions() {
-    return (
-      this.args.task.state === 'running' &&
-      this.args.task.task.actions?.length &&
-      this.nomadActions.hasActionPermissions
-    );
-  }
-
-  @task(function* (action, allocID) {
-    try {
-      const job = this.args.task.task.taskGroup.job;
-      yield job.runAction(action, allocID);
-    } catch (err) {
-      this.notifications.add({
-        title: `Error starting ${action.name}`,
-        message: err,
-        color: 'critical',
-      });
-    }
-  })
-  runAction;
 }
