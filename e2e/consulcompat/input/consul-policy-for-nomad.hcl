@@ -27,10 +27,7 @@ service_prefix "" {
 }
 
 # for use with Consul ENT
-namespace_prefix "" {
-  key_prefix "" {
-    policy = "read"
-  }
+namespace_prefix "prod" {
 
   node_prefix "" {
     policy = "read"
@@ -39,4 +36,9 @@ namespace_prefix "" {
   service_prefix "nomad" {
     policy = "write"
   }
+
+  service_prefix "" {
+    policy = "read"
+  }
+
 }

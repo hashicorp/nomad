@@ -50,7 +50,7 @@ func startConsul(t *testing.T, b build, baseDir, ns string) (string, *consulapi.
 			}
 			c.Datacenter = consulDC1
 			c.DataDir = t.TempDir()
-			c.LogLevel = "debug"
+			c.LogLevel = testlog.HCLoggerTestLevel().String()
 			c.Connect = map[string]any{"enabled": true}
 			c.Server = true
 
