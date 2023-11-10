@@ -28,7 +28,7 @@ func TestOversubscription(t *testing.T) {
 	// store the current state of scheduler configuration so we
 	// may restore it after the suite is done
 	captureSchedulerConfiguration(t)
-	defer restoreSchedulerConfiguration(t)
+	t.Cleanup(func() { restoreSchedulerConfiguration(t) })
 
 	// enable memory oversubscription for these tests
 	enableMemoryOversubscription(t)
@@ -40,6 +40,10 @@ func TestOversubscription(t *testing.T) {
 func testDocker(t *testing.T) {
 	job, jobCleanup := jobs3.Submit(t, "./input/docker.hcl")
 	t.Cleanup(jobCleanup)
+
+	// wait for logs
+	// TODO(shoenig) a better way to do this?
+	time.Sleep(10 * time.Second)
 
 	// job will cat /sys/fs/cgroup/memory.max which should be
 	// set to the 30 megabyte memory_max value
