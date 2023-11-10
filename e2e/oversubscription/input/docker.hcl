@@ -2,18 +2,18 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 job "oversubscription-docker" {
-  datacenters = ["dc1"]
+  type = "batch"
 
   constraint {
     attribute = "${attr.kernel.name}"
-    operator  = "set_contains_any"
-    value     = "darwin,linux"
+    operator  = "="
+    value     = "linux"
   }
 
   constraint {
-    attribute = "${attr.unique.cgroup.version}"
+    attribute = "${attr.os.cgroups.version}"
     operator  = "="
-    value     = "v2"
+    value     = "2"
   }
 
   group "group" {
@@ -21,9 +21,9 @@ job "oversubscription-docker" {
       driver = "docker"
 
       config {
-        image   = "busybox:1.29.2"
+        image   = "busybox:1"
         command = "/bin/sh"
-        args    = ["-c", "cat /sys/fs/cgroup/memory.max; sleep 1000"]
+        args    = ["-c", "cat /sys/fs/cgroup/memory.max; sleep infinity"]
       }
 
       resources {
