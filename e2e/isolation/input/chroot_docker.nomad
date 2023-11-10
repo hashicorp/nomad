@@ -21,8 +21,8 @@ job "chroot_docker" {
         ]
       }
       resources {
-        cpu    = 50
-        memory = 50
+        cpu    = 200
+        memory = 128
       }
     }
   }
