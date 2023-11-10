@@ -41,10 +41,6 @@ func testDocker(t *testing.T) {
 	job, jobCleanup := jobs3.Submit(t, "./input/docker.hcl")
 	t.Cleanup(jobCleanup)
 
-	// wait for logs
-	// TODO(shoenig) a better way to do this?
-	time.Sleep(10 * time.Second)
-
 	// job will cat /sys/fs/cgroup/memory.max which should be
 	// set to the 30 megabyte memory_max value
 	logs := job.TaskLogs("group", "task")
