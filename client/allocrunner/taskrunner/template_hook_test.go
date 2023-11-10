@@ -28,95 +28,110 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
-	// mock some consul tokens
-	hr := cstructs.NewAllocHookResources()
-	hr.SetConsulTokens(
+	// Create some alloc hook resources, one with tokens and an empty one.
+	defaultToken := uuid.Generate()
+	hrTokens := cstructs.NewAllocHookResources()
+	hrTokens.SetConsulTokens(
 		map[string]map[string]*consulapi.ACLToken{
 			structs.ConsulDefaultCluster: {
 				fmt.Sprintf("consul_%s", structs.ConsulDefaultCluster): &consulapi.ACLToken{
-					SecretID: uuid.Generate()},
-			},
-			"test": {
-				"consul_test": &consulapi.ACLToken{SecretID: uuid.Generate()},
+					SecretID: defaultToken,
+				},
 			},
 		},
 	)
-
-	a := mock.Alloc()
-	clientConfig := &config.Config{Region: "global"}
-	envBuilder := taskenv.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], clientConfig.Region)
-	taskHooks := trtesting.NewMockTaskHooks()
-
-	conf := &templateHookConfig{
-		alloc:         a,
-		logger:        logger,
-		lifecycle:     taskHooks,
-		events:        &trtesting.MockEmitter{},
-		clientConfig:  clientConfig,
-		envBuilder:    envBuilder,
-		hookResources: hr,
-	}
+	hrEmpty := cstructs.NewAllocHookResources()
 
 	tests := []struct {
-		name        string
-		req         *interfaces.TaskPrestartRequest
-		wantErrMsg  string
-		consulToken *consulapi.ACLToken
+		name            string
+		taskConsul      *structs.Consul
+		groupConsul     *structs.Consul
+		hr              *cstructs.AllocHookResources
+		wantErrMsg      string
+		wantConsulToken string
+		legacyFlow      bool
 	}{
 		{
-			name: "task with no Consul WI",
-			req: &interfaces.TaskPrestartRequest{
-				Task:    &structs.Task{},
-				TaskDir: &allocdir.TaskDir{Dir: "foo"},
-			},
+			// COMPAT remove in 1.9+
+			name:            "legecy flow",
+			hr:              hrEmpty,
+			legacyFlow:      true,
+			wantConsulToken: "",
 		},
 		{
-			name: "task with Consul WI but no corresponding identity",
-			req: &interfaces.TaskPrestartRequest{
-				Task: &structs.Task{
-					Name:   "foo",
-					Consul: &structs.Consul{Cluster: "bar"},
-				},
-				TaskDir: &allocdir.TaskDir{Dir: "foo"},
-			},
-			// note: the exact message will vary between CE and ENT because they
-			// have different helpers for Consul cluster name lookup
+			name:       "task missing Consul token",
+			hr:         hrEmpty,
 			wantErrMsg: "not found",
 		},
 		{
-			name: "task with Consul WI",
-			req: &interfaces.TaskPrestartRequest{
-				Task: &structs.Task{
-					Name:   "foo",
-					Consul: &structs.Consul{Cluster: "default"},
-				},
-				TaskDir: &allocdir.TaskDir{Dir: "foo"},
+			name:            "task without consul blocks uses default cluster",
+			hr:              hrTokens,
+			wantConsulToken: defaultToken,
+		},
+		{
+			name: "task with consul block at task level",
+			hr:   hrTokens,
+			taskConsul: &structs.Consul{
+				Cluster: structs.ConsulDefaultCluster,
 			},
-			consulToken: hr.GetConsulTokens()[structs.ConsulDefaultCluster]["consul_default"],
+			wantConsulToken: defaultToken,
+		},
+		{
+			name: "task with consul block at group level",
+			hr:   hrTokens,
+			groupConsul: &structs.Consul{
+				Cluster: structs.ConsulDefaultCluster,
+			},
+			wantConsulToken: defaultToken,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			a := mock.Alloc()
+
+			task := a.Job.TaskGroups[0].Tasks[0]
+			if !tt.legacyFlow {
+				task.Identities = []*structs.WorkloadIdentity{
+					{Name: fmt.Sprintf("%s_%s",
+						structs.ConsulTaskIdentityNamePrefix,
+						structs.ConsulDefaultCluster,
+					)},
+				}
+			}
+
+			clientConfig := &config.Config{Region: "global"}
+			envBuilder := taskenv.NewBuilder(mock.Node(), a, task, clientConfig.Region)
+			taskHooks := trtesting.NewMockTaskHooks()
+
+			conf := &templateHookConfig{
+				alloc:         a,
+				logger:        logger,
+				lifecycle:     taskHooks,
+				events:        &trtesting.MockEmitter{},
+				clientConfig:  clientConfig,
+				envBuilder:    envBuilder,
+				hookResources: tt.hr,
+			}
 			h := &templateHook{
 				config:       conf,
 				logger:       logger,
 				managerLock:  sync.Mutex{},
 				driverHandle: nil,
 			}
+			req := &interfaces.TaskPrestartRequest{
+				Task:    a.Job.TaskGroups[0].Tasks[0],
+				TaskDir: &allocdir.TaskDir{Dir: "foo"},
+			}
 
-			err := h.Prestart(context.Background(), tt.req, nil)
+			err := h.Prestart(context.Background(), req, nil)
 			if tt.wantErrMsg != "" {
-				must.NotNil(t, err)
+				must.Error(t, err)
 				must.ErrorContains(t, err, tt.wantErrMsg)
 			} else {
-				must.Nil(t, err)
+				must.NoError(t, err)
 			}
 
-			if tt.consulToken != nil {
-				must.Eq(t, tt.consulToken.SecretID, h.consulToken)
-			} else {
-				must.Eq(t, "", h.consulToken)
-			}
+			must.Eq(t, tt.wantConsulToken, h.consulToken)
 		})
 	}
 }
