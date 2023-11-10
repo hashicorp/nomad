@@ -14,16 +14,16 @@ agent_prefix "" {
   policy = "read"
 }
 
-key_prefix "" {
-  policy = "read"
-}
-
 node_prefix "" {
   policy = "read"
 }
 
-service_prefix "" {
+service_prefix "nomad" {
   policy = "write"
+}
+
+service_prefix "" {
+  policy = "read"
 }
 
 # for use with Consul ENT
@@ -36,7 +36,7 @@ namespace_prefix "" {
     policy = "read"
   }
 
-  service_prefix "" {
+  service_prefix "nomad" {
     policy = "write"
   }
 }
