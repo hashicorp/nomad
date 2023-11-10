@@ -13,7 +13,9 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/api"
 	nomadapi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -42,23 +44,170 @@ func verifyConsulFingerprint(t *testing.T, nc *nomadapi.Client, version, cluster
 	}
 }
 
-func runConnectJob(t *testing.T, nc *nomadapi.Client) {
+// setupConsulACLsForServices installs a base set of ACL policies and returns a
+// token that the Nomad agent can use
+func setupConsulACLsForServices(t *testing.T, consulAPI *consulapi.Client, policyFilePath string) string {
 
-	b, err := os.ReadFile("./input/connect.nomad.hcl")
+	policyRules, err := os.ReadFile(policyFilePath)
+	must.NoError(t, err, must.Sprintf("could not open policy file %s", policyFilePath))
+
+	policy := &consulapi.ACLPolicy{
+		Name:        "nomad-cluster-" + uuid.Short(),
+		Description: "policy for nomad agent",
+		Rules:       string(policyRules),
+	}
+
+	policy, _, err = consulAPI.ACL().PolicyCreate(policy, nil)
+	must.NoError(t, err, must.Sprint("could not write policy to Consul"))
+
+	token := &consulapi.ACLToken{
+		Description: "token for Nomad agent",
+		Policies: []*consulapi.ACLLink{{
+			ID:   policy.ID,
+			Name: policy.Name,
+		}},
+	}
+	token, _, err = consulAPI.ACL().TokenCreate(token, nil)
+	must.NoError(t, err, must.Sprint("could not create token in Consul"))
+
+	return token.SecretID
+}
+
+func setupConsulServiceIntentions(t *testing.T, consulAPI *consulapi.Client) {
+	ixn := &consulapi.Intention{
+		SourceName:      "count-dashboard",
+		DestinationName: "count-api",
+		Action:          "allow",
+	}
+	_, err := consulAPI.Connect().IntentionUpsert(ixn, nil)
+	must.NoError(t, err, must.Sprint("could not create intention"))
+}
+
+// setupConsulACLsForTasks installs a base set of ACL policies and returns a
+// token that the Nomad agent can use
+func setupConsulACLsForTasks(t *testing.T, consulAPI *consulapi.Client, roleName, policyFilePath string) {
+
+	policyRules, err := os.ReadFile(policyFilePath)
+	must.NoError(t, err, must.Sprintf("could not open policy file %s", policyFilePath))
+
+	policy := &consulapi.ACLPolicy{
+		Name:        "nomad-tasks-" + uuid.Short(),
+		Description: "policy for nomad tasks",
+		Rules:       string(policyRules),
+	}
+
+	policy, _, err = consulAPI.ACL().PolicyCreate(policy, nil)
+	must.NoError(t, err, must.Sprint("could not write policy to Consul"))
+
+	role := &consulapi.ACLRole{
+		Name:        roleName, // note: must match "prod-${nomad_namespace}"
+		Description: "role for nomad tasks",
+		Policies: []*consulapi.ACLLink{{
+			ID:   policy.ID,
+			Name: policy.Name,
+		}},
+	}
+	_, _, err = consulAPI.ACL().RoleCreate(role, nil)
+	must.NoError(t, err, must.Sprint("could not create token in Consul"))
+}
+
+func setupConsulJWTAuthForTasks(t *testing.T, consulAPI *consulapi.Client, address string) {
+
+	authConfig := map[string]any{
+		"JWKSURL":          fmt.Sprintf("%s/.well-known/jwks.json", address),
+		"JWTSupportedAlgs": []string{"RS256"},
+		"BoundAudiences":   "consul.io",
+		"ClaimMappings": map[string]string{
+			"nomad_namespace": "nomad_namespace",
+			"nomad_job_id":    "nomad_job_id",
+			"nomad_task":      "nomad_task",
+			"nomad_service":   "nomad_service",
+		},
+	}
+
+	_, _, err := consulAPI.ACL().AuthMethodCreate(&consulapi.ACLAuthMethod{
+		Name:          "nomad-tasks",
+		Type:          "jwt",
+		DisplayName:   "nomad-tasks",
+		Description:   "login method for Nomad tasks with workload identity (WI)",
+		MaxTokenTTL:   time.Hour,
+		TokenLocality: "local",
+		Config:        authConfig,
+	}, nil)
+	must.NoError(t, err, must.Sprint("could not create Consul auth method for tasks"))
+
+	rule := &consulapi.ACLBindingRule{
+		ID:          "",
+		Description: "binding rule for Nomad workload identities (WI) for tasks",
+		AuthMethod:  "nomad-tasks",
+		Selector:    "",
+		BindType:    "role",
+		BindName:    "nomad-${value.nomad_namespace}",
+	}
+	_, _, err = consulAPI.ACL().BindingRuleCreate(rule, nil)
+	must.NoError(t, err, must.Sprint("could not create Consul binding rule"))
+}
+
+func setupConsulJWTAuthForServices(t *testing.T, consulAPI *consulapi.Client, address string, namespaceRules []*consulapi.ACLAuthMethodNamespaceRule) {
+
+	authConfig := map[string]any{
+		"JWKSURL":          fmt.Sprintf("%s/.well-known/jwks.json", address),
+		"JWTSupportedAlgs": []string{"RS256"},
+		"BoundAudiences":   "consul.io",
+		"ClaimMappings": map[string]string{
+			"nomad_namespace": "nomad_namespace",
+			"nomad_job_id":    "nomad_job_id",
+			"nomad_task":      "nomad_task",
+			"nomad_service":   "nomad_service",
+		},
+	}
+
+	// create an auth method with namespace rule for Consul ENT
+	_, _, err := consulAPI.ACL().AuthMethodCreate(&consulapi.ACLAuthMethod{
+		Name:           "nomad-services",
+		Type:           "jwt",
+		DisplayName:    "nomad-services",
+		Description:    "login method for Nomad workload identities (WI)",
+		MaxTokenTTL:    time.Hour,
+		TokenLocality:  "local",
+		Config:         authConfig,
+		NamespaceRules: namespaceRules,
+	}, nil)
+
+	must.NoError(t, err, must.Sprint("could not create Consul auth method for services"))
+
+	rule := &consulapi.ACLBindingRule{
+		ID:          "",
+		Description: "binding rule for Nomad workload identities (WI) for services",
+		AuthMethod:  "nomad-services",
+		Selector:    "",
+		BindType:    "service",
+		BindName:    "${value.nomad_service}",
+	}
+	_, _, err = consulAPI.ACL().BindingRuleCreate(rule, nil)
+	must.NoError(t, err, must.Sprint("could not create Consul binding rule"))
+}
+
+func runConnectJob(t *testing.T, nc *nomadapi.Client, ns, filePath string) {
+
+	b, err := os.ReadFile(filePath)
 	must.NoError(t, err)
 
 	jobs := nc.Jobs()
 	job, err := jobs.ParseHCL(string(b), true)
 	must.NoError(t, err, must.Sprint("failed to parse job HCL"))
 
-	resp, _, err := jobs.Register(job, nil)
+	qOpts := &api.QueryOptions{Namespace: ns}
+	wOpts := &api.WriteOptions{Namespace: ns}
+
+	resp, _, err := jobs.Register(job, wOpts)
 	must.NoError(t, err, must.Sprint("failed to register job"))
 	evalID := resp.EvalID
 	t.Logf("eval: %s", evalID)
 
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
-			eval, _, err := nc.Evaluations().Info(evalID, nil)
+			eval, _, err := nc.Evaluations().Info(evalID, qOpts)
 			must.NoError(t, err)
 			if eval.Status == "complete" {
 				// if we have failed allocations it can be difficult to debug in
@@ -77,12 +226,12 @@ func runConnectJob(t *testing.T, nc *nomadapi.Client) {
 	))
 
 	t.Cleanup(func() {
-		_, _, err = jobs.Deregister(*job.Name, true, nil)
+		_, _, err = jobs.Deregister(*job.Name, true, wOpts)
 		must.NoError(t, err, must.Sprint("failed to deregister job"))
 
 		must.Wait(t, wait.InitialSuccess(
 			wait.ErrorFunc(func() error {
-				allocs, _, err := jobs.Allocations(*job.ID, false, nil)
+				allocs, _, err := jobs.Allocations(*job.ID, false, qOpts)
 				if err != nil {
 					return err
 				}
@@ -105,7 +254,7 @@ func runConnectJob(t *testing.T, nc *nomadapi.Client) {
 
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
-			allocs, _, err := jobs.Allocations(*job.ID, false, nil)
+			allocs, _, err := jobs.Allocations(*job.ID, false, qOpts)
 			if err != nil {
 				return err
 			}
@@ -129,7 +278,7 @@ func runConnectJob(t *testing.T, nc *nomadapi.Client) {
 	))
 
 	// Ensure that the dashboard is reachable and can connect to the API
-	alloc, _, err := nc.Allocations().Info(dashboardAllocID, nil)
+	alloc, _, err := nc.Allocations().Info(dashboardAllocID, qOpts)
 	must.NoError(t, err)
 
 	network := alloc.AllocatedResources.Shared.Networks[0]

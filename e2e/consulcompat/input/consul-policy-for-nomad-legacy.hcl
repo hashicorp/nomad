@@ -30,7 +30,7 @@ service_prefix "" {
 }
 
 # for use with Consul ENT
-namespace_prefix "" {
+namespace_prefix "prod" {
 
   acl = "write"
 
