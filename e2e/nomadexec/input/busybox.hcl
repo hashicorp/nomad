@@ -1,9 +1,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-job "nomadexec-docker" {
-  datacenters = ["dc1"]
-
+job "busybox" {
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
@@ -14,15 +12,16 @@ job "nomadexec-docker" {
       driver = "docker"
 
       config {
-        image   = "busybox:1.29.2"
+        image   = "busybox:1"
         command = "/bin/sleep"
-        args    = ["1000"]
+        args    = ["infinity"]
       }
 
       resources {
         cpu    = 500
-        memory = 256
+        memory = 128
       }
     }
   }
 }
+
