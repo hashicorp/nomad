@@ -139,7 +139,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.1.12
-	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.5.0
+	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.6.1
 	go install github.com/shoenig/go-modtool@v0.1.1
 
 .PHONY: lint-deps
