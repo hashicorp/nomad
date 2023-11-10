@@ -179,7 +179,9 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     }/${applicationAdapter.urlPrefix()}`;
 
     const wsUrl =
-      `${protocol}//${prefix}/job/${encodeURIComponent(job.get('id'))}/action` +
+      `${protocol}//${prefix}/job/${encodeURIComponent(
+        job.get('name')
+      )}/action` +
       `?namespace=${job.get('namespace.id')}&action=${
         action.name
       }&allocID=${allocID}&task=${action.task.name}&group=${
