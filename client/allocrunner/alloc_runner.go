@@ -70,13 +70,13 @@ type allocRunner struct {
 	// update.
 	allocUpdatedCh chan *structs.Allocation
 
-	// consulClient is the client used by the consul service hook for
-	// registering services and checks
-	consulClient serviceregistration.Handler
+	// consulServicesHandler is used by the consul service hook for registering
+	// services and checks
+	consulServicesHandler serviceregistration.Handler
 
-	// consulProxiesClient is the client used by the envoy version hook for
+	// consulProxiesClientFunc gets a client used by the envoy version hook for
 	// looking up supported envoy versions of the consul agent.
-	consulProxiesClient consul.SupportedProxiesAPI
+	consulProxiesClientFunc consul.SupportedProxiesAPIFunc
 
 	// sidsClient is the client used by the service identity hook for
 	// managing SI tokens
@@ -225,8 +225,8 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		id:                       alloc.ID,
 		alloc:                    alloc,
 		clientConfig:             config.ClientConfig,
-		consulClient:             config.Consul,
-		consulProxiesClient:      config.ConsulProxies,
+		consulServicesHandler:    config.ConsulServices,
+		consulProxiesClientFunc:  config.ConsulProxiesFunc,
 		sidsClient:               config.ConsulSI,
 		vaultClientFunc:          config.VaultFunc,
 		tasks:                    make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
@@ -301,8 +301,8 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			StateDB:             ar.stateDB,
 			StateUpdater:        ar,
 			DynamicRegistry:     ar.dynamicRegistry,
-			Consul:              ar.consulClient,
-			ConsulProxies:       ar.consulProxiesClient,
+			ConsulServices:      ar.consulServicesHandler,
+			ConsulProxiesFunc:   ar.consulProxiesClientFunc,
 			ConsulSI:            ar.sidsClient,
 			VaultFunc:           ar.vaultClientFunc,
 			DeviceStatsReporter: ar.deviceStatsReporter,

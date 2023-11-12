@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -30,7 +31,7 @@ func TestVariablesEndpoint_GetVariable_Blocking(t *testing.T) {
 
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, "global")
 
 	// First create an unrelated variable.
 	delay := 100 * time.Millisecond
@@ -174,7 +175,7 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 	state := srv.fsm.State()
 
@@ -454,7 +455,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	})
 
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	const ns = "nondefault-namespace"
 
@@ -542,16 +543,21 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	err = store.UpsertACLTokens(structs.MsgTypeTestSetup, 1150, []*structs.ACLToken{aclToken})
 	must.NoError(t, err)
 
-	variablesRPC := NewVariablesEndpoint(srv, nil, srv.encrypter)
-
 	testFn := func(args *structs.QueryOptions, cap, path string) error {
 		err := srv.Authenticate(nil, args)
 		if err != nil {
 			return structs.ErrPermissionDenied
 		}
-		_, err = variablesRPC.handleMixedAuthEndpoint(
-			*args, cap, path)
-		return err
+		aclObj, err := srv.ResolveACL(args)
+		if err != nil {
+			return err
+		}
+		if !aclObj.AllowVariableOperation(args.Namespace, path, cap,
+			auth.IdentityToACLClaim(args.GetIdentity(), srv.State())) {
+			return structs.ErrPermissionDenied
+		}
+
+		return nil
 	}
 
 	t.Run("terminal alloc should be denied", func(t *testing.T) {
@@ -832,7 +838,7 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	ns := "nondefault-namespace"
@@ -936,7 +942,7 @@ func TestVariablesEndpoint_ComplexACLPolicies(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	idx := uint64(1000)
@@ -1056,7 +1062,7 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	mockVar := mock.Variable()
@@ -1467,7 +1473,7 @@ func TestVariablesEndpoint_Read_Lock_ACL(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 	state := srv.fsm.State()
 
@@ -1526,6 +1532,7 @@ func TestVariablesEndpoint_Read_Lock_ACL(t *testing.T) {
 
 		readResp := new(structs.VariablesReadResponse)
 		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &readResp))
+		must.NotNil(t, readResp.Data)
 		must.NotNil(t, readResp.Data.VariableMetadata.Lock)
 		must.Eq(t, latest.LockID(), readResp.Data.LockID())
 	})

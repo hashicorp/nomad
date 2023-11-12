@@ -41,7 +41,8 @@ job "docs" {
   block, if present; otherwise, this defaults to `1`.
 
 - `consul` <code>([Consul][consul]: nil)</code> - Specifies Consul configuration
-  options specific to the group.
+  options specific to the group. These options will be applied to all tasks and
+  services in the group unless a task has its own `consul` block.
 
 - `ephemeral_disk` <code>([EphemeralDisk][]: nil)</code> - Specifies the
   ephemeral disk requirements of the group. Ephemeral disks can be marked as
@@ -114,19 +115,6 @@ job "docs" {
 
 - `volume` <code>([Volume][]: nil)</code> - Specifies the volumes that are
   required by tasks within the group.
-
-### `consul` Parameters
-
-- `cluster` `(string: "default")` <EnterpriseAlert inline/> - Specifies the
-  Consul cluster to use. The Nomad client will retrieve a Consul token from the
-  cluster configured in the agent configuration with the same
-  [`consul.name`][]. In Nomad Community Edition, this field is ignored.
-
-- `namespace` `(string: "")` <EnterpriseAlert inline/> - The Consul namespace in which
-  group and task-level services within the group will be registered. Use of
-  `template` to access Consul KV will read from the specified Consul namespace.
-  Specifying `namespace` takes precedence over the [`-consul-namespace`][consul_namespace]
-  command line argument in `job run`.
 
 ## `group` Examples
 
@@ -344,7 +332,7 @@ flag will be _ignored_. Deploying a job with `max_client_disconnect` to a
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [constraint]: /nomad/docs/job-specification/constraint 'Nomad constraint Job Specification'
-[consul]: /nomad/docs/job-specification/group#consul-parameters
+[consul]: /nomad/docs/job-specification/consul
 [consul_namespace]: /nomad/docs/commands/job/run#consul-namespace
 [spread]: /nomad/docs/job-specification/spread 'Nomad spread Job Specification'
 [affinity]: /nomad/docs/job-specification/affinity 'Nomad affinity Job Specification'

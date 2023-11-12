@@ -4,10 +4,10 @@
 package structs
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 )
 
 func TestBitmap(t *testing.T) {
@@ -15,93 +15,57 @@ func TestBitmap(t *testing.T) {
 
 	// Check invalid sizes
 	_, err := NewBitmap(0)
-	if err == nil {
-		t.Fatalf("bad")
-	}
+	must.Error(t, err)
 	_, err = NewBitmap(7)
-	if err == nil {
-		t.Fatalf("bad")
-	}
+	must.Error(t, err)
 
 	// Create a normal bitmap
 	var s uint = 256
 	b, err := NewBitmap(s)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if b.Size() != s {
-		t.Fatalf("bad size")
-	}
+	must.NoError(t, err)
+	must.Eq(t, s, b.Size())
 
 	// Set a few bits
 	b.Set(0)
 	b.Set(255)
 
 	// Verify the bytes
-	if b[0] == 0 {
-		t.Fatalf("bad")
-	}
-	if !b.Check(0) {
-		t.Fatalf("bad")
-	}
+	must.NotEq(t, 0, b[0])
+	must.True(t, b.Check(0))
 
 	// Verify the bytes
-	if b[len(b)-1] == 0 {
-		t.Fatalf("bad")
-	}
-	if !b.Check(255) {
-		t.Fatalf("bad")
-	}
+	must.NotEq(t, 0, b[len(b)-1])
+	must.True(t, b.Check(255))
 
 	// All other bits should be unset
 	for i := 1; i < 255; i++ {
-		if b.Check(uint(i)) {
-			t.Fatalf("bad")
-		}
+		must.False(t, b.Check(uint(i)))
 	}
 
 	// Check the indexes
 	idxs := b.IndexesInRange(true, 0, 500)
-	expected := []int{0, 255}
-	if !reflect.DeepEqual(idxs, expected) {
-		t.Fatalf("bad: got %#v; want %#v", idxs, expected)
-	}
+	must.Eq(t, []int{0, 255}, idxs)
 
 	idxs = b.IndexesInRange(true, 1, 255)
-	expected = []int{255}
-	if !reflect.DeepEqual(idxs, expected) {
-		t.Fatalf("bad: got %#v; want %#v", idxs, expected)
-	}
+	must.Eq(t, []int{255}, idxs)
 
 	idxs = b.IndexesInRange(false, 0, 256)
-	if len(idxs) != 254 {
-		t.Fatalf("bad")
-	}
+	must.Len(t, 254, idxs)
 
 	idxs = b.IndexesInRange(false, 100, 200)
-	if len(idxs) != 101 {
-		t.Fatalf("bad")
-	}
+	must.Len(t, 101, idxs)
 
 	// Check the copy is correct
 	b2, err := b.Copy()
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-
-	if !reflect.DeepEqual(b, b2) {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.Eq(t, b, b2)
 
 	// Clear
 	b.Clear()
 
 	// All bits should be unset
 	for i := 0; i < 256; i++ {
-		if b.Check(uint(i)) {
-			t.Fatalf("bad")
-		}
+		must.False(t, b.Check(uint(i)))
 	}
 
 	// Set a few bits
@@ -111,18 +75,10 @@ func TestBitmap(t *testing.T) {
 	b.Unset(255)
 
 	// Clear the bits
-	if b[0] != 0 {
-		t.Fatalf("bad")
-	}
-	if b.Check(0) {
-		t.Fatalf("bad")
-	}
+	must.Eq(t, 0, b[0])
+	must.False(t, b.Check(0))
 
 	// Verify the bytes
-	if b[len(b)-1] != 0 {
-		t.Fatalf("bad")
-	}
-	if b.Check(255) {
-		t.Fatalf("bad")
-	}
+	must.Eq(t, 0, b[len(b)-1])
+	must.False(t, b.Check(255))
 }

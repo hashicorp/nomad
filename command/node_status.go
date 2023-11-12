@@ -932,14 +932,12 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 func computeNodeTotalResources(node *api.Node) api.Resources {
 	total := api.Resources{}
 
-	r := node.Resources
-	res := node.Reserved
-	if res == nil {
-		res = &api.Resources{}
-	}
-	total.CPU = pointer.Of(*r.CPU - *res.CPU)
-	total.MemoryMB = pointer.Of(*r.MemoryMB - *res.MemoryMB)
-	total.DiskMB = pointer.Of(*r.DiskMB - *res.DiskMB)
+	r := node.NodeResources
+	res := node.ReservedResources
+
+	total.CPU = pointer.Of[int](int(r.Cpu.CpuShares) - int(res.Cpu.CpuShares))
+	total.MemoryMB = pointer.Of[int](int(r.Memory.MemoryMB) - int(res.Memory.MemoryMB))
+	total.DiskMB = pointer.Of[int](int(r.Disk.DiskMB) - int(res.Disk.DiskMB))
 	return total
 }
 
@@ -1001,7 +999,7 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 	if physical {
 		resources[1] = fmt.Sprintf("%v/%d MHz|%s/%s|%s/%s",
 			math.Floor(hostStats.CPUTicksConsumed),
-			*node.Resources.CPU,
+			node.NodeResources.Cpu.CpuShares,
 			humanize.IBytes(hostStats.Memory.Used),
 			humanize.IBytes(hostStats.Memory.Total),
 			humanize.IBytes(diskUsed),
@@ -1012,7 +1010,7 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 		// since nomad doesn't collect the stats data.
 		resources[1] = fmt.Sprintf("%v/%d MHz|%s/%s|(%s)",
 			math.Floor(hostStats.CPUTicksConsumed),
-			*node.Resources.CPU,
+			node.NodeResources.Cpu.CpuShares,
 			humanize.IBytes(hostStats.Memory.Used),
 			humanize.IBytes(hostStats.Memory.Total),
 			storageDevice,

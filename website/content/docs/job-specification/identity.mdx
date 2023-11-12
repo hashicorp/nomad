@@ -15,11 +15,14 @@ description: |-
 />
 
 The `identity` block allows a task access to its [Workload Identity][] via an
-environment variable or file. By default Nomad will create an identity for all
-workloads, but it is *not* exposed to a task.
+environment variable or file. Nomad will create a _default_ identity for all
+workloads, but it is *not* exposed to a task. You may also set additional
+identities intended for use with external applications such as Vault, Consul, or
+OIDC authentication.
 
-The following will expose the Workload Identity as an environment variable and
-file to the task:
+For example, the following will expose the default Workload Identity as an
+environment variable and file to the task, and a second Workload Identity
+configured for a third-party OIDC provider:
 
 ```hcl
 job "docs" {
@@ -27,8 +30,22 @@ job "docs" {
     task "api" {
 
       identity {
-        env  = true
-        file = true
+        env         = true
+        file        = true
+
+        # Restart on token renewal to get the new env var
+        change_mode = "restart"
+      }
+
+      identity {
+        name        = "example"
+        aud         = ["oidc.example.com"]
+        file        = true
+        ttl         = "1h"
+
+        # Send a HUP signal when the token file is updated
+        change_mode   = "signal"
+        change_signal = "SIGHUP"
       }
 
       # ...
@@ -39,6 +56,22 @@ job "docs" {
 
 ## `identity` Parameters
 
+- `name` `(string: "default")` - The name of the workload identity, which must
+  be unique per task. Only one `identity` block in a task can omit the `name`
+  field.
+- `aud` `([]string: nil)` - The audience field for the workload identity. This
+  should always be set for non-default identities.
+- `change_mode` `(string: "noop")` - Specifies the behavior Nomad should take when the token changes.
+
+  - `"noop"` - take no action. The default since tasks may choose to reload
+      tokens only when their current token gets rejected or implement their own
+      change detection.
+  - `"restart"` - restart the task.
+  - `"signal"` - send a configurable signal to the task. Must set `change_signal`.
+
+- `change_signal` `(string: "")` - Specifies the signal to send to the task as a
+  string like `"SIGHUP"` or `"SIGUSR1"`. This option is required if the
+  `change_mode` is `signal`.
 - `env` `(bool: false)` - If true the workload identity will be available in the
   task's `NOMAD_TOKEN` environment variable.
 - `file` `(bool: false)` - If true the workload identity will be available in
@@ -46,6 +79,10 @@ job "docs" {
   [`task.user`][taskuser] parameter is set, the token file will only be
   readable by that user. Otherwise the file is readable by everyone but is
   protected by parent directory permissions.
+- `ttl` `(string: "")` - The lifetime of the identity before it expires. The
+  client will renew the identity at roughly half the TTL. This is specified
+  using a label suffix like "30s" or "1h". You may not set a TTL on the default
+  identity. You should always set a TTL for non-default identities.
 
 ## Task API
 

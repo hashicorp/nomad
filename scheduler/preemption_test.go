@@ -177,10 +177,11 @@ func TestPreemption(t *testing.T) {
 		deviceIDs = append(deviceIDs, "dev"+strconv.Itoa(i))
 	}
 
+	legacyCpuResources, processorResources := cpuResources(4000)
+
 	defaultNodeResources := &structs.NodeResources{
-		Cpu: structs.NodeCpuResources{
-			CpuShares: 4000,
-		},
+		Processors: processorResources,
+		Cpu:        legacyCpuResources,
 		Memory: structs.NodeMemoryResources{
 			MemoryMB: 8192,
 		},
@@ -459,10 +460,10 @@ func TestPreemption(t *testing.T) {
 			},
 			nodeReservedCapacity: reservedNodeResources,
 			// This test sets up a node with two NICs
+
 			nodeCapacity: &structs.NodeResources{
-				Cpu: structs.NodeCpuResources{
-					CpuShares: 4000,
-				},
+				Processors: processorResources,
+				Cpu:        legacyCpuResources,
 				Memory: structs.NodeMemoryResources{
 					MemoryMB: 8192,
 				},
@@ -1402,12 +1403,13 @@ func TestPreemptionMultiple(t *testing.T) {
 	// All low priority allocs should preempted to accomodate the high priority job
 	h := NewHarness(t)
 
+	legacyCpuResources, processorResources := cpuResources(4000)
+
 	// node with 4 GPUs
 	node := mock.Node()
 	node.NodeResources = &structs.NodeResources{
-		Cpu: structs.NodeCpuResources{
-			CpuShares: 4000,
-		},
+		Processors: processorResources,
+		Cpu:        legacyCpuResources,
 		Memory: structs.NodeMemoryResources{
 			MemoryMB: 8192,
 		},

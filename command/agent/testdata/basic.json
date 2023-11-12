@@ -167,6 +167,9 @@
       "server_rpc_check_name": "nomad-server-rpc-health-check",
       "server_serf_check_name": "nomad-server-serf-health-check",
       "server_service_name": "nomad",
+      "service_auth_method": "nomad-services",
+      "task_auth_method": "nomad-tasks",
+
       "service_identity": {
         "aud": [
           "consul.io",
@@ -187,7 +190,6 @@
       },
       "timeout": "5s",
       "token": "token1",
-      "use_identity": true,
       "verify_ssl": true
     }
   ],
@@ -205,6 +207,7 @@
   "leave_on_interrupt": true,
   "leave_on_terminate": true,
   "log_file": "/var/log/nomad.log",
+  "log_include_location": true,
   "log_json": true,
   "log_level": "ERR",
   "name": "my-web",

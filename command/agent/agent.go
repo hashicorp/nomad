@@ -23,6 +23,7 @@ import (
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	clientconsul "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/state"
@@ -79,20 +80,26 @@ type Agent struct {
 	// EnterpriseAgent holds information and methods for enterprise functionality
 	EnterpriseAgent *EnterpriseAgent
 
-	// consulService is Nomad's custom Consul client for managing services
-	// and checks.
-	consulService *consul.ServiceClient
+	// consulServices is Nomad's custom Consul client for managing services
+	// and checks. Used by both client and server.
+	consulServices *consul.ServiceClientWrapper
 
-	// consulProxies is the subset of Consul's Agent API Nomad uses.
-	consulProxies *consul.ConnectProxies
+	// consulProxiesFunc returns an interface for the subset of Consul's Agent
+	// API Nomad uses. Used by client only to fingerprint supported Envoy
+	// versions.
+	consulProxiesFunc clientconsul.SupportedProxiesAPIFunc
 
-	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
+	// consulCatalog is the subset of Consul's Catalog API Nomad uses for its
+	// own self-service discovery. Only ever uses the default Consul.
 	consulCatalog consul.CatalogAPI
 
-	// consulConfigEntries is the subset of Consul's Configuration Entries API Nomad uses.
-	consulConfigEntries consul.ConfigAPI
+	// consulConfigEntriesFunc returns an interface for the subset of Consul's
+	// Configuration Entries API Nomad uses. Used only by servers, to write
+	// config entries for Connect gateways
+	consulConfigEntriesFunc consul.ConfigAPIFunc
 
-	// consulACLs is Nomad's subset of Consul's ACL API Nomad uses.
+	// consulACLs is Nomad's subset of Consul's ACL API Nomad uses. Used by
+	// server for legacy token workflow only, so only needs default Consul.
 	consulACLs consul.ACLsAPI
 
 	// client is the launched Nomad Client. Can be nil if the agent isn't
@@ -143,7 +150,7 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	// Global logger should match internal logger as much as possible
 	golog.SetFlags(golog.LstdFlags | golog.Lmicroseconds)
 
-	if err := a.setupConsul(config.Consul); err != nil {
+	if err := a.setupConsuls(config.Consuls); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}
 
@@ -351,6 +358,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.JobTrackedVersions = *agentConfig.Server.JobTrackedVersions
 	}
 
+	conf.OIDCIssuer = agentConfig.Server.OIDCIssuer
+
 	// Set up the bind addresses
 	rpcAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.RPC)
 	if err != nil {
@@ -498,24 +507,25 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.FailoverHeartbeatTTL = failoverTTL
 	}
 
-	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ServerServiceName == "" {
+	// Add the Consul and Vault configs
+	conf.ConsulConfigs = helper.SliceToMap[map[string]*config.ConsulConfig](
+		agentConfig.Consuls,
+		func(cfg *config.ConsulConfig) string { return cfg.Name },
+	)
+
+	consul := conf.ConsulConfigs[structs.ConsulDefaultCluster]
+	if *consul.AutoAdvertise && consul.ServerServiceName == "" {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
+
+	conf.VaultConfigs = helper.SliceToMap[map[string]*config.VaultConfig](
+		agentConfig.Vaults,
+		func(cfg *config.VaultConfig) string { return cfg.Name },
+	)
 
 	// handle system scheduler preemption default
 	if agentConfig.Server.DefaultSchedulerConfig != nil {
 		conf.DefaultSchedulerConfig = *agentConfig.Server.DefaultSchedulerConfig
-	}
-
-	// Add the Consul and Vault configs
-	conf.ConsulConfig = agentConfig.Consul
-	for _, consulConfig := range agentConfig.Consuls {
-		conf.ConsulConfigs[consulConfig.Name] = consulConfig
-	}
-
-	conf.VaultConfig = agentConfig.Vault
-	for _, vaultConfig := range agentConfig.Vaults {
-		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
 	}
 
 	// Set the TLS config
@@ -684,7 +694,7 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 	if len(invalidConsulKeys) > 0 {
 		a.logger.Warn("invalid consul keys", "keys", strings.Join(invalidConsulKeys, ","))
 		a.logger.Warn(`Nomad client ignores consul related configuration in client options.
-		Please refer to the guide https://www.nomadproject.io/docs/agent/configuration/consul.html
+		Please refer to the guide https://developer.hashicorp.com/nomad/docs/configuration/consul
 		to configure Nomad to work with Consul.`)
 	}
 
@@ -819,19 +829,22 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	conf.Version = agentConfig.Version
 
-	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ClientServiceName == "" {
+	// Set the Consul configurations
+	conf.ConsulConfigs = helper.SliceToMap[map[string]*config.ConsulConfig](
+		agentConfig.Consuls,
+		func(cfg *config.ConsulConfig) string { return cfg.Name },
+	)
+
+	consul := conf.ConsulConfigs[structs.ConsulDefaultCluster]
+	if *consul.AutoAdvertise && consul.ClientServiceName == "" {
 		return nil, fmt.Errorf("client_service_name must be set when auto_advertise is enabled")
 	}
 
-	conf.ConsulConfig = agentConfig.Consul
-	for _, consulConfig := range agentConfig.Consuls {
-		conf.ConsulConfigs[consulConfig.Name] = consulConfig
-	}
-
-	conf.VaultConfig = agentConfig.Vault
-	for _, vaultConfig := range agentConfig.Vaults {
-		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
-	}
+	// Set the Vault configurations
+	conf.VaultConfigs = helper.SliceToMap[map[string]*config.VaultConfig](
+		agentConfig.Vaults,
+		func(cfg *config.VaultConfig) string { return cfg.Name },
+	)
 
 	// Set up Telemetry configuration
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
@@ -916,7 +929,11 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulCatalog, a.consulConfigEntries, a.consulACLs)
+	server, err := nomad.NewServer(conf,
+		a.consulCatalog,           // self service discovery
+		a.consulConfigEntriesFunc, // writing config entries for gateways
+		a.consulACLs,              // DEPRECATED(1.9): remove in 1.9
+	)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
@@ -925,29 +942,32 @@ func (a *Agent) setupServer() error {
 	// Consul check addresses default to bind but can be toggled to use advertise
 	rpcCheckAddr := a.config.normalizedAddrs.RPC
 	serfCheckAddr := a.config.normalizedAddrs.Serf
-	if *a.config.Consul.ChecksUseAdvertise {
+
+	defaultConsul := conf.ConsulConfigs[structs.ConsulDefaultCluster]
+
+	if *defaultConsul.ChecksUseAdvertise {
 		rpcCheckAddr = a.config.AdvertiseAddrs.RPC
 		serfCheckAddr = a.config.AdvertiseAddrs.Serf
 	}
 
 	// Create the Nomad Server services for Consul
-	if *a.config.Consul.AutoAdvertise {
+	if *defaultConsul.AutoAdvertise {
 		httpServ := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
+			Name:      defaultConsul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      append([]string{consul.ServiceTagHTTP}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagHTTP}, defaultConsul.Tags...),
 		}
 		const isServer = true
 		if check := a.agentHTTPCheck(isServer); check != nil {
 			httpServ.Checks = []*structs.ServiceCheck{check}
 		}
 		rpcServ := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
+			Name:      defaultConsul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.RPC,
-			Tags:      append([]string{consul.ServiceTagRPC}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagRPC}, defaultConsul.Tags...),
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      a.config.Consul.ServerRPCCheckName,
+					Name:      defaultConsul.ServerRPCCheckName,
 					Type:      "tcp",
 					Interval:  serverRpcCheckInterval,
 					Timeout:   serverRpcCheckTimeout,
@@ -956,12 +976,12 @@ func (a *Agent) setupServer() error {
 			},
 		}
 		serfServ := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
+			Name:      defaultConsul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.Serf,
-			Tags:      append([]string{consul.ServiceTagSerf}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagSerf}, defaultConsul.Tags...),
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      a.config.Consul.ServerSerfCheckName,
+					Name:      defaultConsul.ServerSerfCheckName,
 					Type:      "tcp",
 					Interval:  serverSerfCheckInterval,
 					Timeout:   serverSerfCheckTimeout,
@@ -976,7 +996,7 @@ func (a *Agent) setupServer() error {
 			serfServ,
 			httpServ,
 		}
-		if err := a.consulService.RegisterAgent(consulRoleServer, consulServices); err != nil {
+		if err := a.consulServices.RegisterAgent(consulRoleServer, consulServices); err != nil {
 			return err
 		}
 	}
@@ -1108,25 +1128,29 @@ func (a *Agent) setupClient() error {
 	a.taskAPIServer = newBuiltinAPI()
 	conf.APIListenerRegistrar = a.taskAPIServer
 
-	nomadClient, err := client.NewClient(
-		conf, a.consulCatalog, a.consulProxies, a.consulService, nil)
+	nomadClient, err := client.NewClient(conf,
+		a.consulCatalog,     // self service discovery
+		a.consulProxiesFunc, // supported Envoy versions fingerprinting
+		a.consulServices,    // workload service discovery
+		nil)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
 	a.client = nomadClient
 
 	// Create the Nomad Client  services for Consul
-	if *a.config.Consul.AutoAdvertise {
+	defaultConsul := conf.ConsulConfigs[structs.ConsulDefaultCluster]
+	if *defaultConsul.AutoAdvertise {
 		httpServ := &structs.Service{
-			Name:      a.config.Consul.ClientServiceName,
+			Name:      defaultConsul.ClientServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      append([]string{consul.ServiceTagHTTP}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagHTTP}, defaultConsul.Tags...),
 		}
 		const isServer = false
 		if check := a.agentHTTPCheck(isServer); check != nil {
 			httpServ.Checks = []*structs.ServiceCheck{check}
 		}
-		if err := a.consulService.RegisterAgent(consulRoleClient, []*structs.Service{httpServ}); err != nil {
+		if err := a.consulServices.RegisterAgent(consulRoleClient, []*structs.Service{httpServ}); err != nil {
 			return err
 		}
 	}
@@ -1139,11 +1163,16 @@ func (a *Agent) setupClient() error {
 func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// Resolve the http check address
 	httpCheckAddr := a.config.normalizedAddrs.HTTP[0]
-	if *a.config.Consul.ChecksUseAdvertise {
+
+	defaultConsul := a.config.defaultConsul()
+	if defaultConsul == nil {
+		return nil
+	}
+	if *defaultConsul.ChecksUseAdvertise {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}
 	check := structs.ServiceCheck{
-		Name:      a.config.Consul.ClientHTTPCheckName,
+		Name:      defaultConsul.ClientHTTPCheckName,
 		Type:      "http",
 		Path:      "/v1/agent/health?type=client",
 		Protocol:  "http",
@@ -1153,7 +1182,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	}
 	// Switch to endpoint that doesn't require a leader for servers
 	if server {
-		check.Name = a.config.Consul.ServerHTTPCheckName
+		check.Name = defaultConsul.ServerHTTPCheckName
 		check.Path = "/v1/agent/health?type=server"
 	}
 	if !a.config.TLSConfig.EnableHTTP {
@@ -1229,7 +1258,7 @@ func (a *Agent) Shutdown() error {
 		}
 	}
 
-	if err := a.consulService.Shutdown(); err != nil {
+	if err := a.consulServices.Shutdown(); err != nil {
 		a.logger.Error("shutting down Consul client failed", "error", err)
 	}
 
@@ -1397,40 +1426,62 @@ func (a *Agent) GetMetricsSink() *metrics.InmemSink {
 	return a.inmemSink
 }
 
-// setupConsul creates the Consul client and starts its main Run loop.
-func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
-	apiConf, err := consulConfig.ApiConfig()
-	if err != nil {
-		return err
-	}
+func (a *Agent) setupConsuls(cfgs []*config.ConsulConfig) error {
 
-	consulClient, err := consulapi.NewClient(apiConf)
-	if err != nil {
-		return err
-	}
-
-	// Create Consul Catalog client for service discovery.
-	a.consulCatalog = consulClient.Catalog()
-
-	// Create Consul ConfigEntries client for managing Config Entries.
-	a.consulConfigEntries = consulClient.ConfigEntries()
-
-	// Create Consul ACL client for managing tokens.
-	a.consulACLs = consulClient.ACL()
-
-	// Create Consul Service client for service advertisement and checks.
 	isClient := false
 	if a.config.Client != nil && a.config.Client.Enabled {
 		isClient = true
 	}
-	// Create Consul Agent client for looking info about the agent.
-	consulAgentClient := consulClient.Agent()
-	namespacesClient := consul.NewNamespacesClient(consulClient.Namespaces(), consulAgentClient)
-	a.consulService = consul.NewServiceClient(consulAgentClient, namespacesClient, a.logger, isClient)
-	a.consulProxies = consul.NewConnectProxiesClient(consulAgentClient)
 
-	// Run the Consul service client's sync'ing main loop
-	go a.consulService.Run()
+	a.consulServices = consul.NewServiceClientWrapper()
+	consulProxies := map[string]*consul.ConnectProxies{}
+	consulConfigEntries := map[string]consul.ConfigAPI{}
+
+	for _, consulConfig := range cfgs {
+		cluster := consulConfig.Name
+		apiConf, err := consulConfig.ApiConfig()
+		if err != nil {
+			return err
+		}
+
+		consulClient, err := consulapi.NewClient(apiConf)
+		if err != nil {
+			return err
+		}
+
+		// Create Consul ConfigEntries client for managing Config Entries.
+		consulConfigEntries[cluster] = consulClient.ConfigEntries()
+
+		if cluster == structs.ConsulDefaultCluster {
+			// Create Consul ACL client for managing tokens in the legacy
+			// workflow on the server
+			a.consulACLs = consulClient.ACL()
+
+			// Create Consul Catalog client for self service discovery.
+			a.consulCatalog = consulClient.Catalog()
+		}
+
+		// Create Consul Service client for service advertisement and checks.
+		consulAgentClient := consulClient.Agent()
+		namespacesClient := consul.NewNamespacesClient(consulClient.Namespaces(), consulAgentClient)
+
+		a.consulServices.AddClient(cluster,
+			consul.NewServiceClient(consulAgentClient, namespacesClient, a.logger, isClient))
+		consulProxies[cluster] = consul.NewConnectProxiesClient(consulAgentClient)
+	}
+
+	a.consulProxiesFunc = func(cluster string) clientconsul.SupportedProxiesAPI {
+		return consulProxies[cluster]
+	}
+
+	a.consulConfigEntriesFunc = func(cluster string) consul.ConfigAPI {
+		return consulConfigEntries[cluster]
+	}
+
+	// Run the each Consul service client's sync'ing main loop (will spawn a
+	// goroutine for each one)
+	a.consulServices.Run()
+
 	return nil
 }
 

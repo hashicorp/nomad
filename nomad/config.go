@@ -307,16 +307,10 @@ type Config struct {
 	// of all the heartbeats.
 	FailoverHeartbeatTTL time.Duration
 
-	// ConsulConfig is this Agent's Consul configuration
-	ConsulConfig *config.ConsulConfig
-
 	// ConsulConfigs is a map of Consul configurations, here to support features
 	// in Nomad Enterprise. The default Consul config pointer above will be
 	// found in this map under the name "default"
 	ConsulConfigs map[string]*config.ConsulConfig
-
-	// VaultConfig is this Agent's default Vault configuration
-	VaultConfig *config.VaultConfig
 
 	// VaultConfigs is a map of Vault configurations, here to support features
 	// in Nomad Enterprise. The default Vault config pointer above will be found
@@ -431,6 +425,11 @@ type Config struct {
 	JobTrackedVersions int
 
 	Reporting *config.ReportingConfig
+
+	// OIDCIssuer is the URL for the OIDC Issuer field in Workload Identity JWTs.
+	// If this is not configured the /.well-known/openid-configuration endpoint
+	// will not be available.
+	OIDCIssuer string
 }
 
 func (c *Config) Copy() *Config {
@@ -452,9 +451,7 @@ func (c *Config) Copy() *Config {
 	nc.RaftConfig = pointer.Copy(c.RaftConfig)
 	nc.SerfConfig = pointer.Copy(c.SerfConfig)
 	nc.EnabledSchedulers = slices.Clone(c.EnabledSchedulers)
-	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.ConsulConfigs = helper.DeepCopyMap(c.ConsulConfigs)
-	nc.VaultConfig = c.VaultConfig.Copy()
 	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TLSConfig = c.TLSConfig.Copy()
 	nc.SentinelConfig = c.SentinelConfig.Copy()
@@ -467,39 +464,43 @@ func (c *Config) Copy() *Config {
 
 // ConsulServiceIdentity returns the workload identity to be used for accessing
 // the Consul API to register and manage Consul services.
-func (c *Config) ConsulServiceIdentity() *structs.WorkloadIdentity {
-	if c.ConsulConfig == nil {
+func (c *Config) ConsulServiceIdentity(cluster string) *structs.WorkloadIdentity {
+	conf := c.ConsulConfigs[cluster]
+	if conf == nil {
 		return nil
 	}
 
-	return workloadIdentityFromConfig(c.ConsulConfig.ServiceIdentity)
+	return workloadIdentityFromConfig(conf.ServiceIdentity)
 }
 
 // ConsulTaskIdentity returns the workload identity to be used for accessing the
 // Consul API from task hooks not supporting services (ex templates).
-func (c *Config) ConsulTaskIdentity() *structs.WorkloadIdentity {
-	if c.ConsulConfig == nil {
+func (c *Config) ConsulTaskIdentity(cluster string) *structs.WorkloadIdentity {
+	conf := c.ConsulConfigs[cluster]
+	if conf == nil {
 		return nil
 	}
 
-	return workloadIdentityFromConfig(c.ConsulConfig.TaskIdentity)
+	return workloadIdentityFromConfig(conf.TaskIdentity)
 }
 
-// VaultDefaultIdentity returns the workload identity to be used for accessing
-// the Vault API.
-func (c *Config) VaultDefaultIdentity() *structs.WorkloadIdentity {
-	if c.VaultConfig == nil {
+// VaultIdentityConfig returns the workload identity to be used for accessing
+// the API of a given Vault cluster.
+func (c *Config) VaultIdentityConfig(cluster string) *structs.WorkloadIdentity {
+	conf := c.VaultConfigs[cluster]
+	if conf == nil {
 		return nil
 	}
 
-	return workloadIdentityFromConfig(c.VaultConfig.DefaultIdentity)
+	return workloadIdentityFromConfig(conf.DefaultIdentity)
 }
 
-// UseConsulIdentity returns true when Consul workload identity is enabled.
-func (c *Config) UseConsulIdentity() bool {
-	return c.ConsulConfig != nil &&
-		c.ConsulConfig.UseIdentity != nil &&
-		*c.ConsulConfig.UseIdentity
+func (c *Config) GetDefaultConsul() *config.ConsulConfig {
+	return c.ConsulConfigs[structs.ConsulDefaultCluster]
+}
+
+func (c *Config) GetDefaultVault() *config.VaultConfig {
+	return c.VaultConfigs[structs.VaultDefaultCluster]
 }
 
 // workloadIdentityFromConfig returns a structs.WorkloadIdentity to be used in
@@ -582,18 +583,20 @@ func DefaultConfig() *Config {
 		NodePlanRejectionEnabled:         false,
 		NodePlanRejectionThreshold:       15,
 		NodePlanRejectionWindow:          10 * time.Minute,
-		ConsulConfig:                     config.DefaultConsulConfig(),
-		VaultConfig:                      config.DefaultVaultConfig(),
-		RPCHoldTimeout:                   5 * time.Second,
-		StatsCollectionInterval:          1 * time.Minute,
-		TLSConfig:                        &config.TLSConfig{},
-		ReplicationBackoff:               30 * time.Second,
-		SentinelGCInterval:               30 * time.Second,
-		LicenseConfig:                    &LicenseConfig{},
-		EnableEventBroker:                true,
-		EventBufferSize:                  100,
-		ACLTokenMinExpirationTTL:         1 * time.Minute,
-		ACLTokenMaxExpirationTTL:         24 * time.Hour,
+		ConsulConfigs: map[string]*config.ConsulConfig{
+			structs.ConsulDefaultCluster: config.DefaultConsulConfig()},
+		VaultConfigs: map[string]*config.VaultConfig{
+			structs.VaultDefaultCluster: config.DefaultVaultConfig()},
+		RPCHoldTimeout:           5 * time.Second,
+		StatsCollectionInterval:  1 * time.Minute,
+		TLSConfig:                &config.TLSConfig{},
+		ReplicationBackoff:       30 * time.Second,
+		SentinelGCInterval:       30 * time.Second,
+		LicenseConfig:            &LicenseConfig{},
+		EnableEventBroker:        true,
+		EventBufferSize:          100,
+		ACLTokenMinExpirationTTL: 1 * time.Minute,
+		ACLTokenMaxExpirationTTL: 24 * time.Hour,
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,
@@ -616,9 +619,6 @@ func DefaultConfig() *Config {
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
 		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 	}
-
-	c.ConsulConfigs = map[string]*config.ConsulConfig{structs.ConsulDefaultCluster: c.ConsulConfig}
-	c.VaultConfigs = map[string]*config.VaultConfig{structs.VaultDefaultCluster: c.VaultConfig}
 
 	// Enable all known schedulers by default
 	c.EnabledSchedulers = make([]string, 0, len(scheduler.BuiltinSchedulers))

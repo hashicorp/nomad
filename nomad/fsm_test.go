@@ -2426,9 +2426,7 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
 	out, _ := state2.NodeByID(nil, node.ID)
-	if !reflect.DeepEqual(node, out) {
-		t.Fatalf("bad: \n%#v\n%#v", out, node)
-	}
+	must.Eq(t, node, out)
 }
 
 func TestFSM_SnapshotRestore_NodePools(t *testing.T) {

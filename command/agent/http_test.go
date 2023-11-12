@@ -1453,8 +1453,8 @@ func TestHTTPServer_ResolveToken(t *testing.T) {
 	t.Run("acl disabled", func(t *testing.T) {
 		req := &http.Request{Body: http.NoBody}
 		got, err := noACLServer.Server.ResolveToken(req)
-		require.NoError(t, err)
-		require.Nil(t, got)
+		must.NoError(t, err)
+		must.Eq(t, got, acl.ACLsDisabledACL)
 	})
 
 	t.Run("token not found", func(t *testing.T) {
@@ -1560,7 +1560,7 @@ func benchmarkJsonEncoding(b *testing.B, handle *codec.JsonHandle) {
 func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	s := makeHTTPServer(t, cb)
 	defer s.Shutdown()
-	testutil.WaitForLeader(t, s.Agent.RPC)
+	testutil.WaitForKeyring(t, s.Agent.RPC, s.Config.Region)
 	f(s)
 }
 
@@ -1572,7 +1572,7 @@ func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 		}
 	})
 	defer s.Shutdown()
-	testutil.WaitForLeader(t, s.Agent.RPC)
+	testutil.WaitForKeyring(t, s.Agent.RPC, s.Config.Region)
 	f(s)
 }
 

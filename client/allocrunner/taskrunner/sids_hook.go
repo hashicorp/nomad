@@ -137,13 +137,13 @@ func (h *sidsHook) Prestart(
 	for _, service := range tg.Services {
 		if service.Name == serviceName {
 			serviceIdentityName = service.MakeUniqueIdentityName()
-			cluster = service.Cluster
+			cluster = service.GetConsulClusterName(tg)
 			break
 		}
 	}
 	if cluster != "" && serviceIdentityName != "" {
 		if token, ok := tokens[cluster][serviceIdentityName]; ok {
-			if err := h.writeToken(req.TaskDir.SecretsDir, token); err != nil {
+			if err := h.writeToken(req.TaskDir.SecretsDir, token.SecretID); err != nil {
 				return err
 			}
 			resp.Done = true

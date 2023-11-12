@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 type Submission struct {
@@ -94,12 +95,26 @@ func (sub *Submission) getTaskLogs(allocID, task string) Logs {
 
 	fsAPI := sub.nomadClient.AllocFS()
 	read := func(path string) string {
-		rc, err := fsAPI.ReadAt(alloc, path, 0, 0, queryOpts)
-		must.NoError(sub.t, err, must.Sprintf("failed to read alloc logs for %s", allocID))
-		b, err := io.ReadAll(rc)
-		must.NoError(sub.t, err, must.Sprintf("failed to read alloc logs for %s", allocID))
-		must.NoError(sub.t, rc.Close(), must.Sprint("failed to close log stream"))
-		return string(b)
+		var content string
+		f := func() error {
+			rc, err := fsAPI.ReadAt(alloc, path, 0, 0, queryOpts)
+			if err != nil {
+				return fmt.Errorf("failed to read alloc %s logs: %w", allocID, err)
+			}
+			b, err := io.ReadAll(rc)
+			if err != nil {
+				return fmt.Errorf("failed to read alloc %s logs: %w", allocID, err)
+			}
+			content = string(b)
+			return rc.Close()
+		}
+		must.Wait(sub.t, wait.InitialSuccess(
+			wait.ErrorFunc(f),
+			wait.Timeout(15*time.Second),
+			wait.Gap(1*time.Second),
+		))
+
+		return content
 	}
 
 	stdout := fmt.Sprintf("alloc/logs/%s.stdout.0", task)
@@ -114,6 +129,25 @@ func (sub *Submission) getTaskLogs(allocID, task string) Logs {
 // JobID provides the (possibly) randomized jobID associated with this Submission.
 func (sub *Submission) JobID() string {
 	return sub.jobID
+}
+
+// AllocID returns the ID of an alloc of the given task group. If there is more than
+// one allocation for the task group, an ID is chosen at random. If there is no
+// allocation of the given task group the test assertion fails.
+func (sub *Submission) AllocID(group string) string {
+	queryOpts := sub.queryOptions()
+	jobsAPI := sub.nomadClient.Jobs()
+	stubs, _, err := jobsAPI.Allocations(sub.jobID, false, queryOpts)
+	must.NoError(sub.t, err)
+
+	for _, stub := range stubs {
+		if stub.TaskGroup == group {
+			return stub.ID
+		}
+	}
+
+	must.Unreachable(sub.t, must.Sprintf("no alloc id found for group %q", group))
+	panic("bug")
 }
 
 func (sub *Submission) logf(msg string, args ...any) {

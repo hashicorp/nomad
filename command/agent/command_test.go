@@ -472,6 +472,17 @@ func TestIsValidConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "BadOIDCIssuer",
+			conf: Config{
+				DataDir: "/tmp",
+				Server: &ServerConfig{
+					Enabled:    true,
+					OIDCIssuer: ":/example.com",
+				},
+			},
+			err: "missing protocol scheme",
+		},
 	}
 
 	for _, tc := range cases {

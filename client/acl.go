@@ -67,7 +67,7 @@ func (c *Client) ResolveToken(bearerToken string) (*acl.ACL, error) {
 func (c *Client) resolveTokenAndACL(bearerToken string) (*acl.ACL, *structs.AuthenticatedIdentity, error) {
 	// Fast-path if ACLs are disabled
 	if !c.GetConfig().ACLEnabled {
-		return nil, nil, nil
+		return acl.ACLsDisabledACL, nil, nil
 	}
 	defer metrics.MeasureSince([]string{"client", "acl", "resolve_token"}, time.Now())
 

@@ -192,15 +192,7 @@ RETRY:
 
 	failed := false
 	if a.Config.NomadConfig.BootstrapExpect == 1 && a.Config.Server.Enabled {
-		testutil.WaitForResult(func() (bool, error) {
-			args := &structs.GenericRequest{}
-			var leader string
-			err := a.RPC("Status.Leader", args, &leader)
-			return leader != "", err
-		}, func(err error) {
-			a.T.Logf("failed to find leader: %v", err)
-			failed = true
-		})
+		testutil.WaitForKeyring(a.T, a.RPC, a.Config.Region)
 	} else {
 		testutil.WaitForResult(func() (bool, error) {
 			req, _ := http.NewRequest(http.MethodGet, "/v1/agent/self", nil)
@@ -309,7 +301,7 @@ func (a *TestAgent) HTTPAddr() string {
 	return proto + a.Server.Addr
 }
 
-func (a *TestAgent) Client() *api.Client {
+func (a *TestAgent) APIClient() *api.Client {
 	conf := api.DefaultConfig()
 	conf.Address = a.HTTPAddr()
 	c, err := api.NewClient(conf)
@@ -362,9 +354,8 @@ func (a *TestAgent) config() *Config {
 	// Bind and set ports
 	conf.BindAddr = "127.0.0.1"
 
-	conf.Consul = sconfig.DefaultConsulConfig()
-	conf.Consuls[structs.ConsulDefaultCluster] = conf.Consul
-	conf.Vault.Enabled = new(bool)
+	conf.Consuls = []*sconfig.ConsulConfig{sconfig.DefaultConsulConfig()}
+	conf.defaultVault().Enabled = new(bool)
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2

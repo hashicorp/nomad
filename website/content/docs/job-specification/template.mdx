@@ -632,12 +632,6 @@ When generating PKI certificates with Vault, the certificate, private key, and
 any intermediate certs are all returned as part of the same API call. Most
 software requires these files be placed in separate files on the system.
 
-~> **Note**: `generate_lease` must be set to `true` (non-default) on the Vault
-PKI role.<br /><br /> Failure to do so will cause the template to frequently
-render a new certificate, approximately every minute. This creates a significant
-number of certificates to be expired in Vault and could ultimately lead to Vault
-performance impacts and failures.
-
 #### As individual files
 
 For templates, all dependencies are mapped into a single list. This means that

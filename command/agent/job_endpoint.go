@@ -12,8 +12,10 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+	"github.com/gorilla/websocket"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -110,6 +112,12 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/submission"):
 		jobID := strings.TrimSuffix(path, "/submission")
 		return s.jobSubmissionCRUD(resp, req, jobID)
+	case strings.HasSuffix(path, "/actions"):
+		jobID := strings.TrimSuffix(path, "/actions")
+		return s.jobActions(resp, req, jobID)
+	case strings.HasSuffix(path, "/action"):
+		jobID := strings.TrimSuffix(path, "/action")
+		return s.jobRunAction(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -331,6 +339,66 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 
 	setMeta(resp, &out.QueryMeta)
 	return out.Deployment, nil
+}
+
+func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	args := structs.JobSpecificRequest{
+		JobID: jobID,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.ActionListResponse
+	if err := s.agent.RPC("Job.GetActions", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &structs.QueryMeta{})
+
+	return out.Actions, nil
+}
+
+func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+	task := req.URL.Query().Get("task")
+	action := req.URL.Query().Get("action")
+	allocID := req.URL.Query().Get("allocID")
+
+	// Build the request and parse the ACL token
+	var err error
+	isTTY := false
+	if tty := req.URL.Query().Get("tty"); tty != "" {
+		isTTY, err = strconv.ParseBool(tty)
+		if err != nil {
+			return nil, fmt.Errorf("tty value is not a boolean: %v", err)
+		}
+	}
+
+	args := cstructs.AllocExecRequest{
+		JobID:   jobID,
+		Task:    task,
+		Action:  action,
+		AllocID: allocID,
+		Tty:     isTTY,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
+	}
+
+	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
+		return nil, err
+	}
+
+	return s.execStreamImpl(conn, &args)
 }
 
 func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
@@ -763,14 +831,12 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Check job parse permissions
-	if aclObj != nil {
-		hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
-		hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
+	hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
+	hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
 
-		allowed := hasParseJob || hasSubmitJob
-		if !allowed {
-			return nil, structs.ErrPermissionDenied
-		}
+	allowed := hasParseJob || hasSubmitJob
+	if !allowed {
+		return nil, structs.ErrPermissionDenied
 	}
 
 	args := &api.JobsParseRequest{}
@@ -1208,30 +1274,17 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	// Nomad 1.5 CLIs and JSON jobs may set the default identity parameters in
 	// the Task.Identity field, so if it is non-nil use it.
 	if id := apiTask.Identity; id != nil {
-		structsTask.Identity = &structs.WorkloadIdentity{
-			Name:     id.Name,
-			Audience: slices.Clone(id.Audience),
-			Env:      id.Env,
-			File:     id.File,
-			TTL:      id.TTL,
-		}
+		structsTask.Identity = apiWorkloadIdentityToStructs(id)
 	}
 
 	if ids := apiTask.Identities; len(ids) > 0 {
-		structsTask.Identities = make([]*structs.WorkloadIdentity, len(ids))
-		for i, id := range ids {
+		structsTask.Identities = make([]*structs.WorkloadIdentity, 0, len(ids))
+		for _, id := range ids {
 			if id == nil {
 				continue
 			}
 
-			structsTask.Identities[i] = &structs.WorkloadIdentity{
-				Name:     id.Name,
-				Audience: slices.Clone(id.Audience),
-				Env:      id.Env,
-				File:     id.File,
-				TTL:      id.TTL,
-			}
-
+			structsTask.Identities = append(structsTask.Identities, apiWorkloadIdentityToStructs(id))
 		}
 	}
 
@@ -1343,6 +1396,11 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Sidecar: apiTask.Lifecycle.Sidecar,
 		}
 	}
+
+	for _, action := range apiTask.Actions {
+		act := ApiActionToStructsAction(job, action)
+		structsTask.Actions = append(structsTask.Actions, act)
+	}
 }
 
 // apiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
@@ -1385,6 +1443,14 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 	return sc
 }
 
+func ApiActionToStructsAction(job *structs.Job, action *api.Action) *structs.Action {
+	return &structs.Action{
+		Name:    action.Name,
+		Args:    slices.Clone(action.Args),
+		Command: action.Command,
+	}
+}
+
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	if in == nil {
 		return nil
@@ -1421,6 +1487,12 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 				Constraints: ApiConstraintsToStructs(d.Constraints),
 				Affinities:  ApiAffinitiesToStructs(d.Affinities),
 			})
+		}
+	}
+
+	if in.NUMA != nil {
+		out.NUMA = &structs.NUMA{
+			Affinity: in.NUMA.Affinity,
 		}
 	}
 
@@ -1566,11 +1638,14 @@ func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIde
 		return nil
 	}
 	return &structs.WorkloadIdentity{
-		Name:        in.Name,
-		Audience:    in.Audience,
-		Env:         in.Env,
-		File:        in.File,
-		ServiceName: in.ServiceName,
+		Name:         in.Name,
+		Audience:     slices.Clone(in.Audience),
+		ChangeMode:   in.ChangeMode,
+		ChangeSignal: in.ChangeSignal,
+		Env:          in.Env,
+		File:         in.File,
+		ServiceName:  in.ServiceName,
+		TTL:          in.TTL,
 	}
 }
 

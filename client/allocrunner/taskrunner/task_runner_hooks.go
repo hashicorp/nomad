@@ -91,14 +91,16 @@ func (tr *TaskRunner) initHooks() {
 	// If Vault is enabled, add the hook
 	if task.Vault != nil && tr.vaultClientFunc != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
-			vaultBlock: task.Vault,
-			clientFunc: tr.vaultClientFunc,
-			events:     tr,
-			lifecycle:  tr,
-			updater:    tr,
-			logger:     hookLogger,
-			alloc:      tr.Alloc(),
-			task:       tr.taskName,
+			vaultBlock:       task.Vault,
+			vaultConfigsFunc: tr.clientConfig.GetVaultConfigs,
+			clientFunc:       tr.vaultClientFunc,
+			events:           tr,
+			lifecycle:        tr,
+			updater:          tr,
+			logger:           hookLogger,
+			alloc:            tr.Alloc(),
+			task:             tr.Task(),
+			widmgr:           tr.widmgr,
 		}))
 	}
 
@@ -112,12 +114,14 @@ func (tr *TaskRunner) initHooks() {
 	// If there are templates is enabled, add the hook
 	if len(task.Templates) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
+			alloc:               tr.Alloc(),
 			logger:              hookLogger,
 			lifecycle:           tr,
 			events:              tr,
 			templates:           task.Templates,
 			clientConfig:        tr.clientConfig,
 			envBuilder:          tr.envBuilder,
+			hookResources:       tr.allocHookResources,
 			consulNamespace:     consulNamespace,
 			nomadNamespace:      tr.alloc.Job.Namespace,
 			renderOnTaskRestart: task.RestartPolicy.RenderTemplates,
@@ -139,9 +143,11 @@ func (tr *TaskRunner) initHooks() {
 	// If this is a Connect sidecar proxy (or a Connect Native) service,
 	// add the sidsHook for requesting a Service Identity token (if ACLs).
 	if task.UsesConnect() {
+		tg := tr.Alloc().Job.LookupTaskGroup(tr.Alloc().TaskGroup)
+
 		// Enable the Service Identity hook only if the Nomad client is configured
 		// with a consul token, indicating that Consul ACLs are enabled
-		if tr.clientConfig.ConsulConfig.Token != "" {
+		if tr.clientConfig.GetConsulConfigs(tr.logger)[task.GetConsulClusterName(tg)].Token != "" {
 			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
 				alloc:              tr.Alloc(),
 				task:               tr.Task(),
@@ -154,12 +160,16 @@ func (tr *TaskRunner) initHooks() {
 
 		if task.UsesConnectSidecar() {
 			tr.runnerHooks = append(tr.runnerHooks,
-				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClient, hookLogger)),
-				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, consulNamespace, hookLogger)),
+				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClientFunc, hookLogger)),
+				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc,
+					tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)],
+					consulNamespace,
+					hookLogger)),
 			)
 		} else if task.Kind.IsConnectNative() {
 			tr.runnerHooks = append(tr.runnerHooks, newConnectNativeHook(
-				newConnectNativeHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
+				newConnectNativeHookConfig(alloc,
+					tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)], hookLogger),
 			))
 		}
 	}

@@ -4,7 +4,8 @@
 package widmgr
 
 import (
-	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"slices"
 	"time"
@@ -22,13 +23,13 @@ type MockWIDSigner struct {
 	// SignIdentities will use it to find expirations or reject invalid identity
 	// names
 	wids    map[string]*structs.WorkloadIdentity
-	key     ed25519.PrivateKey
+	key     *rsa.PrivateKey
 	keyID   string
 	mockNow time.Time // allows moving the clock
 }
 
 func NewMockWIDSigner(wids []*structs.WorkloadIdentity) *MockWIDSigner {
-	_, privKey, err := ed25519.GenerateKey(nil)
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(err)
 	}
@@ -59,6 +60,18 @@ func (m *MockWIDSigner) now() time.Time {
 	return m.mockNow
 }
 
+func (m *MockWIDSigner) JSONWebKeySet() *jose.JSONWebKeySet {
+	jwk := jose.JSONWebKey{
+		Key:       m.key.Public(),
+		KeyID:     m.keyID,
+		Algorithm: "RS256",
+		Use:       "sig",
+	}
+	return &jose.JSONWebKeySet{
+		Keys: []jose.JSONWebKey{jwk},
+	}
+}
+
 func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
 	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
 	for _, idReq := range req {
@@ -83,7 +96,7 @@ func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadI
 			}
 		}
 		opts := (&jose.SignerOptions{}).WithHeader("kid", m.keyID).WithType("JWT")
-		sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: m.key}, opts)
+		sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: m.key}, opts)
 		if err != nil {
 			return nil, fmt.Errorf("error creating signer: %w", err)
 		}
@@ -107,17 +120,21 @@ type MockWIDMgr struct {
 	swids map[structs.WIHandle]*structs.SignedWorkloadIdentity
 }
 
-func NewMockWIDMgr(swids map[structs.WIHandle]*structs.SignedWorkloadIdentity) *MockWIDMgr {
-	return &MockWIDMgr{swids: swids}
+func NewMockWIDMgr(swids []*structs.SignedWorkloadIdentity) *MockWIDMgr {
+	swidmap := map[structs.WIHandle]*structs.SignedWorkloadIdentity{}
+	for _, id := range swids {
+		swidmap[id.WIHandle] = id
+	}
+	return &MockWIDMgr{swids: swidmap}
 }
 
 // Run does not run a renewal loop in this mock
 func (m MockWIDMgr) Run() error { return nil }
 
-func (m MockWIDMgr) Get(identity structs.WIHandle) (*structs.SignedWorkloadIdentity, error) {
-	sid, ok := m.swids[identity]
+func (m MockWIDMgr) Get(id structs.WIHandle) (*structs.SignedWorkloadIdentity, error) {
+	sid, ok := m.swids[id]
 	if !ok {
-		return nil, fmt.Errorf("identity not found")
+		return nil, fmt.Errorf("unable to find token for workload %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
 	}
 	return sid, nil
 }

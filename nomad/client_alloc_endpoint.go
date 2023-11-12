@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -57,7 +58,7 @@ func (a *ClientAllocations) GarbageCollectAll(args *structs.NodeSpecificRequest,
 	// Check node read permissions
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -125,7 +126,7 @@ func (a *ClientAllocations) Signal(args *structs.AllocSignalRequest, reply *stru
 	// Check namespace alloc-lifecycle permission.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -183,7 +184,7 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 	// Check namespace submit-job permission.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -236,7 +237,7 @@ func (a *ClientAllocations) Restart(args *structs.AllocRestartRequest, reply *st
 	// Check for namespace alloc-lifecycle permissions.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -289,7 +290,7 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 	// Check for namespace read-job permissions.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -349,7 +350,7 @@ func (a *ClientAllocations) Checks(args *cstructs.AllocChecksRequest, reply *cst
 	// Check for namespace read-job permissions.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -424,10 +425,41 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	if aclObj, err := a.srv.ResolveACL(&args); err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
-	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
 		// client ultimately checks if AllocNodeExec is required
 		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
+	}
+
+	if alloc.ClientTerminalStatus() {
+		handleStreamResultError(fmt.Errorf("exec not possible, client status of allocation %s is %s", alloc.ID, alloc.ClientStatus),
+			pointer.Of(int64(http.StatusBadRequest)), encoder)
+		return
+	}
+
+	// Handle job ID if requested.
+	if args.JobID != "" {
+		// Verify job exists.
+		job, err := snap.JobByID(nil, args.Namespace, args.JobID)
+		if err != nil {
+			handleStreamResultError(err,
+				pointer.Of(int64(http.StatusInternalServerError)), encoder)
+			return
+		}
+		if job == nil {
+			handleStreamResultError(
+				fmt.Errorf("job %s not found in namespace %s", args.JobID, args.Namespace),
+				pointer.Of(int64(http.StatusNotFound)), encoder)
+			return
+		}
+
+		// Verify requested allocation belongs to the job.
+		if args.JobID != alloc.JobID {
+			handleStreamResultError(
+				fmt.Errorf("job %s does not have allocation %s", args.JobID, alloc.ID),
+				pointer.Of(int64(http.StatusBadRequest)), encoder,
+			)
+		}
 	}
 
 	nodeID := alloc.NodeID

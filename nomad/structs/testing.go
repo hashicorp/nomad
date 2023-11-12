@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -23,7 +26,7 @@ func NodeResourcesToAllocatedResources(n *NodeResources) *AllocatedResources {
 		Tasks: map[string]*AllocatedTaskResources{
 			"web": {
 				Cpu: AllocatedCpuResources{
-					CpuShares: n.Cpu.CpuShares,
+					CpuShares: int64(n.Processors.Topology.UsableCompute()),
 				},
 				Memory: AllocatedMemoryResources{
 					MemoryMB: n.Memory.MemoryMB,
@@ -33,6 +36,107 @@ func NodeResourcesToAllocatedResources(n *NodeResources) *AllocatedResources {
 		Shared: AllocatedSharedResources{
 			DiskMB: n.Disk.DiskMB,
 		},
+	}
+}
+
+// MockBasicTopology returns a numalib.Topology that looks likes a simple VM;
+// - 1 socket, 1 NUMA node
+// - 4 cores @ 3500 MHz (14,000 MHz total)
+// - no client config overrides
+func MockBasicTopology() *numalib.Topology {
+	cores := make([]numalib.Core, 4)
+	for i := 0; i < 4; i++ {
+		cores[i] = numalib.Core{
+			SocketID:  0,
+			NodeID:    0,
+			ID:        hw.CoreID(i),
+			Grade:     numalib.Performance,
+			Disable:   false,
+			BaseSpeed: 3500,
+		}
+	}
+	return &numalib.Topology{
+		NodeIDs:                idset.From[hw.NodeID]([]hw.NodeID{0}),
+		Distances:              numalib.SLIT{[]numalib.Cost{10}},
+		Cores:                  cores,
+		OverrideTotalCompute:   0,
+		OverrideWitholdCompute: 0,
+	}
+}
+
+// MockWorkstationTopology returns a numalib.Topology that looks like a typical
+// workstation;
+// - 2 socket, 2 NUMA node (200% penalty)
+// - 16 cores / 32 threads @ 3000 MHz (96,000 MHz total)
+// - node0: odd cores, node1: even cores
+// - no client config overrides
+func MockWorkstationTopology() *numalib.Topology {
+	cores := make([]numalib.Core, 32)
+	for i := 0; i < 32; i++ {
+		cores[i] = numalib.Core{
+			SocketID:  hw.SocketID(i % 2),
+			NodeID:    hw.NodeID(i % 2),
+			ID:        hw.CoreID(i),
+			Grade:     numalib.Performance,
+			Disable:   false,
+			BaseSpeed: 3_000,
+		}
+	}
+	return &numalib.Topology{
+		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1}),
+		Distances: numalib.SLIT{[]numalib.Cost{10, 20}, {20, 10}},
+		Cores:     cores,
+	}
+}
+
+// MockR6aTopology returns a numalib.Topology that looks like an EC2 r6a.metal
+// instance type:
+// - 2 socket, 4 NUMA node
+// - 120% penalty for intra socket, 320% penalty for cross socket
+// - 192 logical cores @ 3731 MHz (716362)
+// - node0: 0-23, 96-119   (socket 0)
+// - node1: 24-47, 120-143 (socket 0)
+// - node2: 48-71, 144-167 (socket 1)
+// - node3: 72-95, 168-191 (socket 1)
+func MockR6aTopology() *numalib.Topology {
+	cores := make([]numalib.Core, 192)
+	makeCore := func(socketID hw.SocketID, nodeID hw.NodeID, id int) numalib.Core {
+		return numalib.Core{
+			SocketID:  socketID,
+			NodeID:    nodeID,
+			ID:        hw.CoreID(id),
+			Grade:     numalib.Performance,
+			BaseSpeed: 3731,
+		}
+	}
+	for i := 0; i <= 23; i++ {
+		cores[i] = makeCore(0, 0, i)
+		cores[i+96] = makeCore(0, 0, i+96)
+	}
+	for i := 24; i <= 47; i++ {
+		cores[i] = makeCore(0, 1, i)
+		cores[i+96] = makeCore(0, 1, i+96)
+	}
+	for i := 48; i <= 71; i++ {
+		cores[i] = makeCore(1, 2, i)
+		cores[i+96] = makeCore(1, 2, i+96)
+	}
+	for i := 72; i <= 95; i++ {
+		cores[i] = makeCore(1, 3, i)
+		cores[i+96] = makeCore(1, 3, i+96)
+	}
+
+	distances := numalib.SLIT{
+		[]numalib.Cost{10, 12, 32, 32},
+		[]numalib.Cost{12, 10, 32, 32},
+		[]numalib.Cost{32, 32, 10, 12},
+		[]numalib.Cost{32, 32, 12, 10},
+	}
+
+	return &numalib.Topology{
+		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2, 3}),
+		Distances: distances,
+		Cores:     cores,
 	}
 }
 
@@ -50,8 +154,8 @@ func MockNode() *Node {
 			"driver.mock_driver": "1",
 		},
 		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares: 4000,
+			Processors: NodeProcessorResources{
+				Topology: MockBasicTopology(),
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,

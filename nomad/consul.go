@@ -509,11 +509,11 @@ func (s *Server) purgeSITokenAccessors(accessors []*structs.SITokenAccessor) err
 type ConsulConfigsAPI interface {
 	// SetIngressCE adds the given ConfigEntry to Consul, overwriting
 	// the previous entry if set.
-	SetIngressCE(ctx context.Context, namespace, service string, entry *structs.ConsulIngressConfigEntry) error
+	SetIngressCE(ctx context.Context, namespace, service, cluster string, entry *structs.ConsulIngressConfigEntry) error
 
 	// SetTerminatingCE adds the given ConfigEntry to Consul, overwriting
 	// the previous entry if set.
-	SetTerminatingCE(ctx context.Context, namespace, service string, entry *structs.ConsulTerminatingConfigEntry) error
+	SetTerminatingCE(ctx context.Context, namespace, service, cluster string, entry *structs.ConsulTerminatingConfigEntry) error
 
 	// Stop is used to stop additional creations of Configuration Entries. Intended to
 	// be used on Nomad Server shutdown.
@@ -521,9 +521,9 @@ type ConsulConfigsAPI interface {
 }
 
 type consulConfigsAPI struct {
-	// configsClient is the API subset of the real Consul client we need for
-	// managing Configuration Entries.
-	configsClient consul.ConfigAPI
+	// configsClientFunc returns an interface that is the API subset of the real
+	// Consul client we need for managing Configuration Entries.
+	configsClientFunc consul.ConfigAPIFunc
 
 	// limiter is used to rate limit requests to Consul
 	limiter *rate.Limiter
@@ -537,11 +537,11 @@ type consulConfigsAPI struct {
 	stopped bool
 }
 
-func NewConsulConfigsAPI(configsClient consul.ConfigAPI, logger hclog.Logger) *consulConfigsAPI {
+func NewConsulConfigsAPI(configsClientFunc consul.ConfigAPIFunc, logger hclog.Logger) *consulConfigsAPI {
 	return &consulConfigsAPI{
-		configsClient: configsClient,
-		limiter:       rate.NewLimiter(configEntriesRequestRateLimit, int(configEntriesRequestRateLimit)),
-		logger:        logger,
+		configsClientFunc: configsClientFunc,
+		limiter:           rate.NewLimiter(configEntriesRequestRateLimit, int(configEntriesRequestRateLimit)),
+		logger:            logger,
 	}
 }
 
@@ -551,16 +551,16 @@ func (c *consulConfigsAPI) Stop() {
 	c.stopped = true
 }
 
-func (c *consulConfigsAPI) SetIngressCE(ctx context.Context, namespace, service string, entry *structs.ConsulIngressConfigEntry) error {
-	return c.setCE(ctx, convertIngressCE(namespace, service, entry))
+func (c *consulConfigsAPI) SetIngressCE(ctx context.Context, namespace, service, cluster string, entry *structs.ConsulIngressConfigEntry) error {
+	return c.setCE(ctx, convertIngressCE(namespace, service, entry), cluster)
 }
 
-func (c *consulConfigsAPI) SetTerminatingCE(ctx context.Context, namespace, service string, entry *structs.ConsulTerminatingConfigEntry) error {
-	return c.setCE(ctx, convertTerminatingCE(namespace, service, entry))
+func (c *consulConfigsAPI) SetTerminatingCE(ctx context.Context, namespace, service, cluster string, entry *structs.ConsulTerminatingConfigEntry) error {
+	return c.setCE(ctx, convertTerminatingCE(namespace, service, entry), cluster)
 }
 
 // setCE will set the Configuration Entry of any type Consul supports.
-func (c *consulConfigsAPI) setCE(ctx context.Context, entry api.ConfigEntry) error {
+func (c *consulConfigsAPI) setCE(ctx context.Context, entry api.ConfigEntry, cluster string) error {
 	defer metrics.MeasureSince([]string{"nomad", "consul", "create_config_entry"}, time.Now())
 
 	// make sure the background deletion goroutine has not been stopped
@@ -577,7 +577,8 @@ func (c *consulConfigsAPI) setCE(ctx context.Context, entry api.ConfigEntry) err
 		return err
 	}
 
-	_, _, err := c.configsClient.Set(entry, &api.WriteOptions{Namespace: entry.GetNamespace()})
+	client := c.configsClientFunc(cluster)
+	_, _, err := client.Set(entry, &api.WriteOptions{Namespace: entry.GetNamespace()})
 	return err
 }
 

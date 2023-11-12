@@ -7,13 +7,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 )
 
-func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
+func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
@@ -23,7 +22,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 		expectedOutputJob *structs.Job
 	}{
 		{
-			name: "no mutation when identity is disabled",
+			name: "no mutation when no service identity is configured",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Services: []*structs.Service{{
@@ -32,31 +31,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(false),
-				},
-			},
-			expectedOutputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Services: []*structs.Service{{
-						Provider: "consul",
-					}},
-				}},
-			},
-		},
-		{
-			name: "no mutation when identity is enabled but no service identity is configured",
-			inputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Services: []*structs.Service{{
-						Provider: "consul",
-					}},
-				}},
-			},
-			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
+				ConsulConfigs: map[string]*config.ConsulConfig{},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
@@ -76,12 +51,12 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-					ServiceIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
-					},
-				},
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						ServiceIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
+					}},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
@@ -134,10 +109,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-					ServiceIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						ServiceIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
 					},
 				},
 			},
@@ -150,7 +126,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 							TaskName:  "task",
 							PortLabel: "80",
 							Identity: &structs.WorkloadIdentity{
-								Name:        "consul-service/task-web-80",
+								Name:        "consul-service_task-web-80",
 								Audience:    []string{"consul.io", "nomad.dev"},
 								File:        true,
 								Env:         false,
@@ -162,7 +138,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 							TaskName:  "task",
 							PortLabel: "80",
 							Identity: &structs.WorkloadIdentity{
-								Name:        "consul-service/task-web-80",
+								Name:        "consul-service_task-web-80",
 								Audience:    []string{"consul.io", "nomad.dev"},
 								File:        true,
 								Env:         false,
@@ -177,7 +153,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 							TaskName:  "task",
 							PortLabel: "80",
 							Identity: &structs.WorkloadIdentity{
-								Name:        "consul-service/task-web-task-80",
+								Name:        "consul-service_task-web-task-80",
 								Audience:    []string{"consul.io", "nomad.dev"},
 								File:        true,
 								Env:         false,
@@ -209,10 +185,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-					ServiceIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						ServiceIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
 					},
 				},
 			},
@@ -224,7 +201,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 						Name:      "web",
 						TaskName:  "task",
 						Identity: &structs.WorkloadIdentity{
-							Name:        "consul-service/task-web-80",
+							Name:        "consul-service_task-web-80",
 							Audience:    []string{"consul.io"},
 							ServiceName: "web",
 						},
@@ -236,7 +213,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 							Name:      "web-task",
 							TaskName:  "task",
 							Identity: &structs.WorkloadIdentity{
-								Name:        "consul-service/task-web-task-80",
+								Name:        "consul-service_task-web-task-80",
 								Audience:    []string{"consul.io"},
 								ServiceName: "web-task",
 							},
@@ -257,10 +234,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-					TaskIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
 					},
 				},
 			},
@@ -271,7 +249,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 						Name:      "web-task",
 						Templates: []*structs.Template{{}},
 						Identities: []*structs.WorkloadIdentity{{
-							Name:     "consul/group-web-task",
+							Name:     "consul_default",
 							Audience: []string{"consul.io"},
 						}},
 					}},
@@ -279,7 +257,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 			},
 		},
 		{
-			name: "no mutation for templates when identity is enabled but no task identity is configured",
+			name: "no mutation for templates when no task identity is configured",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
@@ -289,36 +267,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
-			},
-			expectedOutputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
-					}},
-				}},
-			},
-		},
-		{
-			name: "no task mutation for templates when identity is disabled",
-			inputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
-					}},
-				}},
-			},
-			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(false),
-					TaskIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
-					},
-				},
+				ConsulConfigs: map[string]*config.ConsulConfig{},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
@@ -360,9 +309,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				VaultConfig: &config.VaultConfig{
-					DefaultIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"vault.io"},
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault.io"},
+						},
 					},
 				},
 			},
@@ -382,7 +333,9 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				VaultConfig: &config.VaultConfig{},
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {},
+				},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
@@ -408,9 +361,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				VaultConfig: &config.VaultConfig{
-					DefaultIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"vault-from-config.io"},
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault-from-config.io"},
+						},
 					},
 				},
 			},
@@ -440,9 +395,11 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				}},
 			},
 			inputConfig: &Config{
-				VaultConfig: &config.VaultConfig{
-					DefaultIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"vault.io"},
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault.io"},
+						},
 					},
 				},
 			},
@@ -455,6 +412,45 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 						}},
 						Vault: &structs.Vault{
 							Cluster: structs.VaultDefaultCluster,
+						},
+					}},
+				}},
+			},
+		},
+		{
+			name: "mutate when task does not have a vault identity for non-default cluster",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Vault: &structs.Vault{
+							Cluster: "other",
+						},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				VaultConfigs: map[string]*config.VaultConfig{
+					structs.VaultDefaultCluster: {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault.io"},
+						},
+					},
+					"other": {
+						DefaultIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"vault-other.io"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Identities: []*structs.WorkloadIdentity{{
+							Name:     "vault_other",
+							Audience: []string{"vault-other.io"},
+						}},
+						Vault: &structs.Vault{
+							Cluster: "other",
 						},
 					}},
 				}},

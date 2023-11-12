@@ -30,7 +30,7 @@ Usage: nomad operator autopilot <subcommand> [options]
   This command groups subcommands for interacting with Nomad's Autopilot
   subsystem. Autopilot provides automatic, operator-friendly management of Nomad
   servers. The command can be used to view or modify the current Autopilot
-  configuration. For a full guide see: https://www.nomadproject.io/guides/autopilot.html
+  configuration. For a full guide see: https://developer.hashicorp.com/nomad/tutorials/manage-clusters/autopilot
 
   Get the current Autopilot configuration:
 

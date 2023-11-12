@@ -787,16 +787,16 @@ func TestHTTP_JobUpdate_EvalPriority(t *testing.T) {
 
 				// Make the HTTP request
 				req, err := http.NewRequest(http.MethodPut, "/v1/job/"+*job.ID, buf)
-				assert.Nil(t, err)
+				must.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				// Make the request
 				obj, err := s.Server.JobSpecificRequest(respW, req)
 				if tc.expectedError {
-					assert.NotNil(t, err)
+					must.Error(t, err)
 					return
 				} else {
-					assert.Nil(t, err)
+					must.NoError(t, err)
 				}
 
 				// Check the response
@@ -813,7 +813,7 @@ func TestHTTP_JobUpdate_EvalPriority(t *testing.T) {
 					},
 				}
 				var getResp structs.SingleJobResponse
-				assert.Nil(t, s.Agent.RPC("Job.GetJob", &getReq, &getResp))
+				must.NoError(t, s.Agent.RPC("Job.GetJob", &getReq, &getResp))
 				assert.NotNil(t, getResp.Job)
 
 				// Check the evaluation that resulted from the job register.
@@ -1244,6 +1244,131 @@ func TestHTTP_Job_ScaleStatus(t *testing.T) {
 
 		// Check for the index
 		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
+	})
+}
+
+func TestHTTP_JobActions(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		job := mock.Job()
+
+		regReq := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var regResp structs.JobRegisterResponse
+		must.NoError(t, s.Agent.RPC("Job.Register", &regReq, &regResp))
+
+		// Make the HTTP request to get job actions
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/actions", nil)
+		must.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		must.NoError(t, err)
+
+		// Check the output
+		actionsResp := obj.([]*structs.JobAction)
+
+		// Two actions by default, both in Task web and Group web
+		must.Len(t, 2, actionsResp, must.Sprint("expected 2 actions"))
+
+		must.Eq(t, "date test", actionsResp[0].Name)
+
+		must.Eq(t, "echo test", actionsResp[1].Name)
+
+		// Both have Args lists length of 1
+		must.Len(t, 1, actionsResp[0].Args, must.Sprint("expected 1 arg"))
+		must.Len(t, 1, actionsResp[1].Args, must.Sprint("expected 1 arg"))
+
+		// Both pull the name of their task/group up with them
+		must.Eq(t, "web", actionsResp[0].TaskName)
+		must.Eq(t, "web", actionsResp[1].TaskName)
+
+		// A job with no actions
+		job2 := mock.Job()
+		job2.TaskGroups[0].Tasks[0].Actions = nil
+		regReq2 := structs.JobRegisterRequest{
+			Job: job2,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var regResp2 structs.JobRegisterResponse
+		must.NoError(t, s.Agent.RPC("Job.Register", &regReq2, &regResp2))
+
+		// Make the HTTP request to get job actions
+		req2, err := http.NewRequest("GET", "/v1/job/"+job2.ID+"/actions", nil)
+		must.NoError(t, err)
+
+		respW2 := httptest.NewRecorder()
+
+		obj2, err := s.Server.JobSpecificRequest(respW2, req2)
+		must.NoError(t, err)
+
+		// Check the output
+		actionsResp2 := obj2.([]*structs.JobAction)
+		must.Len(t, 0, actionsResp2, must.Sprint("no actions received"))
+
+		// Construct a new job with 2 taskgroups
+		job3 := mock.ActionsJob()
+
+		regReq3 := structs.JobRegisterRequest{
+			Job: job3,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var regResp3 structs.JobRegisterResponse
+		must.NoError(t, s.Agent.RPC("Job.Register", &regReq3, &regResp3))
+
+		// Make the HTTP request to get job actions
+		req3, err := http.NewRequest("GET", "/v1/job/"+job3.ID+"/actions", nil)
+		must.NoError(t, err)
+
+		respW3 := httptest.NewRecorder()
+
+		obj3, err := s.Server.JobSpecificRequest(respW3, req3)
+		must.NoError(t, err)
+
+		// Check the output
+		// 3 task groups: g, g1, g2
+		// g has 3 tasks: t, t1, t2
+		// g1 has 1 task: t
+		// g2 has 1 task: t
+		// All tasks have 2 actions: date test, echo test
+		// Total actions: 2 * (3 + 1 + 1) = 10
+		actionsResp3 := obj3.([]*structs.JobAction)
+
+		must.Len(t, 10, actionsResp3, must.Sprint("expected 10 actions"))
+
+		// Five of the actions have a Name of date test, 5 have a Name of echo test
+		dateTestCount := 0
+		echoTestCount := 0
+		for _, action := range actionsResp3 {
+			if action.Name == "date test" {
+				dateTestCount++
+			} else if action.Name == "echo test" {
+				echoTestCount++
+			}
+		}
+		must.Eq(t, 5, dateTestCount)
+		must.Eq(t, 5, echoTestCount)
+
+		// 3 actions have a TaskGroupName of g
+		groupCount := 0
+		for _, action := range actionsResp3 {
+			if action.TaskGroupName == "g" {
+				groupCount++
+			}
+		}
+		must.Eq(t, 6, groupCount)
+
 	})
 }
 
@@ -2654,6 +2779,16 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Weight:  pointer.Of(int8(50)),
 							},
 						},
+						Identities: []*api.WorkloadIdentity{
+							{
+								Name:         "aws",
+								Audience:     []string{"s3"},
+								Env:          true,
+								File:         true,
+								ChangeMode:   "signal",
+								ChangeSignal: "SIGHUP",
+							},
+						},
 						VolumeMounts: []*api.VolumeMount{
 							{
 								Volume:          pointer.Of("vol"),
@@ -3069,6 +3204,16 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								RTarget: "b",
 								Operand: "c",
 								Weight:  50,
+							},
+						},
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:         "aws",
+								Audience:     []string{"s3"},
+								Env:          true,
+								File:         true,
+								ChangeMode:   "signal",
+								ChangeSignal: "SIGHUP",
 							},
 						},
 						Env: map[string]string{
@@ -3732,6 +3877,23 @@ func TestConversion_apiResourcesToStructs(t *testing.T) {
 				MemoryMaxMB: 300,
 			},
 		},
+		{
+			"with numa",
+			&api.Resources{
+				CPU:      pointer.Of(100),
+				MemoryMB: pointer.Of(200),
+				NUMA: &api.NUMAResource{
+					Affinity: "prefer",
+				},
+			},
+			&structs.Resources{
+				CPU:      100,
+				MemoryMB: 200,
+				NUMA: &structs.NUMA{
+					Affinity: "prefer",
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -4088,7 +4250,9 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 
 func Test_apiWorkloadIdentityToStructs(t *testing.T) {
 	ci.Parallel(t)
+
 	must.Nil(t, apiWorkloadIdentityToStructs(nil))
+
 	must.Eq(t, &structs.WorkloadIdentity{
 		Name:        "consul/test",
 		Audience:    []string{"consul.io"},
@@ -4101,5 +4265,23 @@ func Test_apiWorkloadIdentityToStructs(t *testing.T) {
 		Env:         false,
 		File:        false,
 		ServiceName: "web",
+	}))
+
+	must.Eq(t, &structs.WorkloadIdentity{
+		Name:         "aws",
+		Audience:     []string{"s3"},
+		Env:          true,
+		File:         true,
+		ChangeMode:   "signal",
+		ChangeSignal: "SIGHUP",
+		TTL:          2 * time.Hour,
+	}, apiWorkloadIdentityToStructs(&api.WorkloadIdentity{
+		Name:         "aws",
+		Audience:     []string{"s3"},
+		Env:          true,
+		File:         true,
+		ChangeMode:   "signal",
+		ChangeSignal: "SIGHUP",
+		TTL:          2 * time.Hour,
 	}))
 }

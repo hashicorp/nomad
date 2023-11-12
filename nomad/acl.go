@@ -8,42 +8,34 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (srv *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity) error {
-	return srv.auth.Authenticate(ctx, args)
+func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity) error {
+	return s.auth.Authenticate(ctx, args)
 }
 
-func (srv *Server) AuthenticateServerOnly(ctx *RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
-	return srv.auth.AuthenticateServerOnly(ctx, args)
+func (s *Server) AuthenticateServerOnly(ctx *RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
+	return s.auth.AuthenticateServerOnly(ctx, args)
 }
 
-func (srv *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
-	return srv.auth.ResolveACL(args)
+func (s *Server) AuthenticateClientOnly(ctx *RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
+	return s.auth.AuthenticateClientOnly(ctx, args)
 }
 
-func (srv *Server) VerifyClaim(token string) (*structs.IdentityClaims, error) {
-	return srv.auth.VerifyClaim(token)
+func (s *Server) AuthenticateClientOnlyLegacy(ctx *RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
+	return s.auth.AuthenticateClientOnlyLegacy(ctx, args)
 }
 
-func (srv *Server) ResolveToken(secretID string) (*acl.ACL, error) {
-	return srv.auth.ResolveToken(secretID)
+func (s *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
+	return s.auth.ResolveACL(args)
 }
 
-func (srv *Server) ResolveClientOrACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
-	return srv.auth.ResolveClientOrACL(args)
+func (s *Server) VerifyClaim(token string) (*structs.IdentityClaims, error) {
+	return s.auth.VerifyClaim(token)
 }
 
-func (srv *Server) ResolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*structs.ACLPolicy, error) {
-	return srv.auth.ResolvePoliciesForClaims(claims)
+func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
+	return s.auth.ResolveToken(secretID)
 }
 
-func (srv *Server) ResolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL, error) {
-	return srv.auth.ResolveACLForToken(aclToken)
-}
-
-func (srv *Server) ResolveSecretToken(secretID string) (*structs.ACLToken, error) {
-	return srv.auth.ResolveSecretToken(secretID)
-}
-
-func (srv *Server) ResolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error) {
-	return srv.auth.ResolveClaims(claims)
+func (s *Server) ResolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*structs.ACLPolicy, error) {
+	return s.auth.ResolvePoliciesForClaims(claims)
 }

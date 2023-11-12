@@ -33,7 +33,7 @@ import (
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/lib/idset"
@@ -46,7 +46,6 @@ import (
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
@@ -136,6 +135,7 @@ const (
 )
 
 const (
+
 	// SystemInitializationType is used for messages that initialize parts of
 	// the system, such as the state store. These messages are not included in
 	// the event stream.
@@ -493,15 +493,24 @@ func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
 // ACLToken makes the original of the credential clear to RPC handlers, who may
 // have different behavior for internal vs external origins.
 type AuthenticatedIdentity struct {
-	// ACLToken authenticated. Claims will be nil if this is set.
+	// ACLToken authenticated. Claims and ClientID will be unset if this is set.
 	ACLToken *ACLToken
 
-	// Claims authenticated by workload identity. ACLToken will be nil if this is
-	// set.
+	// Claims authenticated by workload identity. ACLToken and ClientID will be
+	// unset if this is set.
 	Claims *IdentityClaims
 
+	// ClientID is the Nomad client node ID. ACLToken and Claims will be nil if
+	// this is set.
 	ClientID string
-	TLSName  string
+
+	// TLSName is the name of the TLS certificate, if any. Outside of the
+	// AuthenticateServerOnly and AuthenticateClientOnly methods, this should be
+	// used only to identify the request for metrics, not authorization
+	TLSName string
+
+	// RemoteIP is the name of the connection's IP address; this should be used
+	// only to identify the request for metrics, not authorization
 	RemoteIP net.IP
 }
 
@@ -523,7 +532,7 @@ func (ai *AuthenticatedIdentity) String() string {
 	if ai == nil {
 		return "unauthenticated"
 	}
-	if ai.ACLToken != nil {
+	if ai.ACLToken != nil && ai.ACLToken != AnonymousACLToken {
 		return "token:" + ai.ACLToken.AccessorID
 	}
 	if ai.Claims != nil {
@@ -2230,6 +2239,13 @@ func (n *Node) Canonicalize() {
 		n.SchedulingEligibility = NodeSchedulingEligible
 	}
 
+	// COMPAT remove in 1.9+
+	// In v1.7 we introduce Topology into the NodeResources struct which the client
+	// will fingerprint. Since the upgrade path must cover servers that get upgraded
+	// before clients which will send the old struct, we synthesize a pseudo topology
+	// given the old struct data.
+	n.NodeResources.Compatibility()
+
 	// COMPAT remove in 1.0
 	// In v0.12.0 we introduced a separate node specific network resource struct
 	// so we need to covert any pre 0.12 clients to the correct struct
@@ -2297,66 +2313,6 @@ func (n *Node) TerminalStatus() bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// ComparableReservedResources returns the reserved resouces on the node
-// handling upgrade paths. Reserved networks must be handled separately. After
-// 0.11 calls to this should be replaced with:
-// node.ReservedResources.Comparable()
-//
-// COMPAT(0.11): Remove in 0.11
-func (n *Node) ComparableReservedResources() *ComparableResources {
-	// See if we can no-op
-	if n.Reserved == nil && n.ReservedResources == nil {
-		return nil
-	}
-
-	// Node already has 0.9+ behavior
-	if n.ReservedResources != nil {
-		return n.ReservedResources.Comparable()
-	}
-
-	// Upgrade path
-	return &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: int64(n.Reserved.CPU),
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: int64(n.Reserved.MemoryMB),
-			},
-		},
-		Shared: AllocatedSharedResources{
-			DiskMB: int64(n.Reserved.DiskMB),
-		},
-	}
-}
-
-// ComparableResources returns the resouces on the node
-// handling upgrade paths. Networking must be handled separately. After 0.11
-// calls to this should be replaced with: node.NodeResources.Comparable()
-//
-// // COMPAT(0.11): Remove in 0.11
-func (n *Node) ComparableResources() *ComparableResources {
-	// Node already has 0.9+ behavior
-	if n.NodeResources != nil {
-		return n.NodeResources.Comparable()
-	}
-
-	// Upgrade path
-	return &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: int64(n.Resources.CPU),
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: int64(n.Resources.MemoryMB),
-			},
-		},
-		Shared: AllocatedSharedResources{
-			DiskMB: int64(n.Resources.DiskMB),
-		},
 	}
 }
 
@@ -2467,6 +2423,7 @@ type Resources struct {
 	IOPS        int // COMPAT(0.10): Only being used to issue warnings
 	Networks    Networks
 	Devices     ResourceDevices
+	NUMA        *NUMA
 }
 
 const (
@@ -2583,6 +2540,20 @@ func (r *Resources) Equal(o *Resources) bool {
 // COMPAT(0.10): Remove in 0.10.
 type ResourceDevices []*RequestedDevice
 
+// Copy ResourceDevices
+//
+// COMPAT(0.10): Remove in 0.10.
+func (d ResourceDevices) Copy() ResourceDevices {
+	if d == nil {
+		return nil
+	}
+	c := make(ResourceDevices, len(d))
+	for i, device := range d {
+		c[i] = device.Copy()
+	}
+	return c
+}
+
 // Equal ResourceDevices as set keyed by Name.
 //
 // COMPAT(0.10): Remove in 0.10
@@ -2648,22 +2619,17 @@ func (r *Resources) Copy() *Resources {
 	if r == nil {
 		return nil
 	}
-	newR := new(Resources)
-	*newR = *r
-
-	// Copy the network objects
-	newR.Networks = r.Networks.Copy()
-
-	// Copy the devices
-	if r.Devices != nil {
-		n := len(r.Devices)
-		newR.Devices = make([]*RequestedDevice, n)
-		for i := 0; i < n; i++ {
-			newR.Devices[i] = r.Devices[i].Copy()
-		}
+	return &Resources{
+		CPU:         r.CPU,
+		Cores:       r.Cores,
+		MemoryMB:    r.MemoryMB,
+		MemoryMaxMB: r.MemoryMaxMB,
+		DiskMB:      r.DiskMB,
+		IOPS:        r.IOPS,
+		Networks:    r.Networks.Copy(),
+		Devices:     r.Devices.Copy(),
+		NUMA:        r.NUMA.Copy(),
 	}
-
-	return newR
 }
 
 // NetIndex finds the matching net index using device name
@@ -3136,10 +3102,15 @@ func (r *RequestedDevice) Validate() error {
 
 // NodeResources is used to define the resources available on a client node.
 type NodeResources struct {
-	Cpu     NodeCpuResources
-	Memory  NodeMemoryResources
-	Disk    NodeDiskResources
-	Devices []*NodeDeviceResource
+	// Do not read from this value except for compatibility (i.e. serialization).
+	//
+	// Deprecated; use NodeProcessorResources instead.
+	Cpu LegacyNodeCpuResources
+
+	Processors NodeProcessorResources
+	Memory     NodeMemoryResources
+	Disk       NodeDiskResources
+	Devices    []*NodeDeviceResource
 
 	// NodeNetworks was added in Nomad 0.12 to support multiple interfaces.
 	// It is the superset of host_networks, fingerprinted networks, and the
@@ -3164,7 +3135,7 @@ func (n *NodeResources) Copy() *NodeResources {
 
 	newN := new(NodeResources)
 	*newN = *n
-	newN.Cpu = n.Cpu.Copy()
+	newN.Processors = n.Processors.Copy()
 	newN.Networks = n.Networks.Copy()
 
 	if n.NodeNetworks != nil {
@@ -3183,6 +3154,10 @@ func (n *NodeResources) Copy() *NodeResources {
 		}
 	}
 
+	// COMPAT remove in 1.9+
+	// apply compatibility fixups covering node topology
+	n.Compatibility()
+
 	return newN
 }
 
@@ -3193,11 +3168,16 @@ func (n *NodeResources) Comparable() *ComparableResources {
 		return nil
 	}
 
+	usableCores := n.Processors.Topology.UsableCores().Slice()
+	reservableCores := helper.ConvertSlice(usableCores, func(id hw.CoreID) uint16 {
+		return uint16(id)
+	})
+
 	c := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares:     n.Cpu.CpuShares,
-				ReservedCores: n.Cpu.ReservableCpuCores,
+				CpuShares:     int64(n.Processors.Topology.UsableCompute()),
+				ReservedCores: reservableCores,
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
@@ -3216,7 +3196,7 @@ func (n *NodeResources) Merge(o *NodeResources) {
 		return
 	}
 
-	n.Cpu.Merge(&o.Cpu)
+	n.Processors.Merge(&o.Processors)
 	n.Memory.Merge(&o.Memory)
 	n.Disk.Merge(&o.Disk)
 
@@ -3237,6 +3217,10 @@ func (n *NodeResources) Merge(o *NodeResources) {
 			}
 		}
 	}
+
+	// COMPAT remove in 1.9+
+	// apply compatibility fixups covering node topology
+	n.Compatibility()
 }
 
 func lookupNetworkByDevice(nets []*NodeNetworkResource, name string) (int, *NodeNetworkResource) {
@@ -3257,7 +3241,7 @@ func (n *NodeResources) Equal(o *NodeResources) bool {
 		return false
 	}
 
-	if !n.Cpu.Equal(&o.Cpu) {
+	if !n.Processors.Equal(&o.Processors) {
 		return false
 	}
 	if !n.Memory.Equal(&o.Memory) {
@@ -3340,82 +3324,6 @@ func NodeNetworksEquals(n1, n2 []*NodeNetworkResource) bool {
 
 	return true
 
-}
-
-// NodeCpuResources captures the CPU resources of the node.
-type NodeCpuResources struct {
-	// CpuShares is the CPU shares available. This is calculated by number of
-	// cores multiplied by the core frequency.
-	CpuShares int64
-
-	// TotalCpuCores is the total number of cores on the machine. This includes cores not in
-	// the agent's cpuset if on a linux platform
-	TotalCpuCores uint16
-
-	// ReservableCpuCores is the set of cpus which are available to be reserved on the Node.
-	// This value is currently only reported on Linux platforms which support cgroups and is
-	// discovered by inspecting the cpuset of the agent's cgroup.
-	ReservableCpuCores []uint16
-}
-
-func (n NodeCpuResources) Copy() NodeCpuResources {
-	newN := n
-	if n.ReservableCpuCores != nil {
-		newN.ReservableCpuCores = make([]uint16, len(n.ReservableCpuCores))
-		copy(newN.ReservableCpuCores, n.ReservableCpuCores)
-	}
-
-	return newN
-}
-
-func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
-	if o == nil {
-		return
-	}
-
-	if o.CpuShares != 0 {
-		n.CpuShares = o.CpuShares
-	}
-
-	if o.TotalCpuCores != 0 {
-		n.TotalCpuCores = o.TotalCpuCores
-	}
-
-	if len(o.ReservableCpuCores) != 0 {
-		n.ReservableCpuCores = o.ReservableCpuCores
-	}
-}
-
-func (n *NodeCpuResources) Equal(o *NodeCpuResources) bool {
-	if o == nil && n == nil {
-		return true
-	} else if o == nil {
-		return false
-	} else if n == nil {
-		return false
-	}
-
-	if n.CpuShares != o.CpuShares {
-		return false
-	}
-
-	if n.TotalCpuCores != o.TotalCpuCores {
-		return false
-	}
-
-	if len(n.ReservableCpuCores) != len(o.ReservableCpuCores) {
-		return false
-	}
-	for i := range n.ReservableCpuCores {
-		if n.ReservableCpuCores[i] != o.ReservableCpuCores[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func (n *NodeCpuResources) SharesPerCore() int64 {
-	return n.CpuShares / int64(n.TotalCpuCores)
 }
 
 // NodeMemoryResources captures the memory resources of the node
@@ -4094,9 +4002,14 @@ func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {
 		return
 	}
 
+	// add cpu bandwidth
 	a.CpuShares += delta.CpuShares
 
-	a.ReservedCores = cpuset.New(a.ReservedCores...).Union(cpuset.New(delta.ReservedCores...)).ToSlice()
+	// add cpu cores
+	cores := idset.From[uint16](a.ReservedCores)
+	deltaCores := idset.From[uint16](delta.ReservedCores)
+	cores.InsertSet(deltaCores)
+	a.ReservedCores = cores.Slice()
 }
 
 func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
@@ -4104,8 +4017,14 @@ func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
 		return
 	}
 
+	// remove cpu bandwidth
 	a.CpuShares -= delta.CpuShares
-	a.ReservedCores = cpuset.New(a.ReservedCores...).Difference(cpuset.New(delta.ReservedCores...)).ToSlice()
+
+	// remove cpu cores
+	cores := idset.From[uint16](a.ReservedCores)
+	deltaCores := idset.From[uint16](delta.ReservedCores)
+	cores.RemoveSet(deltaCores)
+	a.ReservedCores = cores.Slice()
 }
 
 func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
@@ -4271,12 +4190,16 @@ func (c *ComparableResources) Superset(other *ComparableResources) (bool, string
 		return false, "cpu"
 	}
 
-	if len(c.Flattened.Cpu.ReservedCores) > 0 && !cpuset.New(c.Flattened.Cpu.ReservedCores...).IsSupersetOf(cpuset.New(other.Flattened.Cpu.ReservedCores...)) {
+	cores := idset.From[uint16](c.Flattened.Cpu.ReservedCores)
+	otherCores := idset.From[uint16](other.Flattened.Cpu.ReservedCores)
+	if len(c.Flattened.Cpu.ReservedCores) > 0 && !cores.Superset(otherCores) {
 		return false, "cores"
 	}
+
 	if c.Flattened.Memory.MemoryMB < other.Flattened.Memory.MemoryMB {
 		return false, "memory"
 	}
+
 	if c.Shared.DiskMB < other.Shared.DiskMB {
 		return false, "disk"
 	}
@@ -7620,6 +7543,9 @@ type Task struct {
 	// Identities are the alternate workload identities for use with 3rd party
 	// endpoints.
 	Identities []*WorkloadIdentity
+
+	// Alloc-exec-like runnable commands
+	Actions []*Action
 }
 
 func (t *Task) UsesCores() bool {
@@ -7666,10 +7592,13 @@ func (t *Task) GetIdentity(name string) *WorkloadIdentity {
 	return nil
 }
 
-// MakeUniqueIdentityName returns a task identity name consisting of: task
-// group name and task name.
-func (t *Task) MakeUniqueIdentityName(taskGroup string) string {
-	return fmt.Sprintf("%v-%v", taskGroup, t.Name)
+func (t *Task) GetAction(name string) *Action {
+	for _, a := range t.Actions {
+		if a.Name == name {
+			return a
+		}
+	}
+	return nil
 }
 
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of unique WI
@@ -7712,6 +7641,7 @@ func (t *Task) Copy() *Task {
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
 	nt.Identities = helper.CopySlice(nt.Identities)
+	nt.Actions = helper.CopySlice(nt.Actions)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -7921,6 +7851,22 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		} else {
 			destinations[tmpl.DestPath] = idx + 1
 		}
+	}
+
+	// Validate actions.
+	actions := make(map[string]bool)
+	for _, action := range t.Actions {
+		if err := action.Validate(); err != nil {
+			outer := fmt.Errorf("Action %s validation failed: %s", action.Name, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+
+		if handled, seen := actions[action.Name]; seen && !handled {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Action %s defined multiple times", action.Name))
+			actions[action.Name] = true
+			continue
+		}
+		actions[action.Name] = false
 	}
 
 	// Validate the dispatch payload block if there
@@ -10759,13 +10705,19 @@ func (a *Allocation) JobNamespacedID() NamespacedID {
 // Index returns the index of the allocation. If the allocation is from a task
 // group with count greater than 1, there will be multiple allocations for it.
 func (a *Allocation) Index() uint {
-	l := len(a.Name)
-	prefix := len(a.JobID) + len(a.TaskGroup) + 2
+	return AllocIndexFromName(a.Name, a.JobID, a.TaskGroup)
+}
+
+// AllocIndexFromName returns the index of an allocation given its name, the
+// jobID and the task group name.
+func AllocIndexFromName(allocName, jobID, taskGroup string) uint {
+	l := len(allocName)
+	prefix := len(jobID) + len(taskGroup) + 2
 	if l <= 3 || l <= prefix {
 		return uint(0)
 	}
 
-	strNum := a.Name[prefix : len(a.Name)-1]
+	strNum := allocName[prefix : len(allocName)-1]
 	num, _ := strconv.Atoi(strNum)
 	return uint(num)
 }
@@ -10946,6 +10898,12 @@ func (a *Allocation) MigrateStrategy() *MigrateStrategy {
 func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	failTime := a.LastEventTime()
 	reschedulePolicy := a.ReschedulePolicy()
+
+	//If reschedule is disabled, return early
+	if reschedulePolicy.Attempts == 0 && !reschedulePolicy.Unlimited {
+		return time.Time{}, false
+	}
+
 	if a.DesiredStatus == AllocDesiredStatusStop || a.ClientStatus != AllocClientStatusFailed || failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false
 	}
@@ -10965,16 +10923,16 @@ func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *Re
 	return nextRescheduleTime, rescheduleEligible
 }
 
-// NextRescheduleTimeByFailTime works like NextRescheduleTime but allows callers
+// NextRescheduleTimeByTime works like NextRescheduleTime but allows callers
 // specify a failure time. Useful for things like determining whether to reschedule
 // an alloc on a disconnected node.
-func (a *Allocation) NextRescheduleTimeByFailTime(failTime time.Time) (time.Time, bool) {
+func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	reschedulePolicy := a.ReschedulePolicy()
 	if reschedulePolicy == nil {
 		return time.Time{}, false
 	}
 
-	return a.nextRescheduleTime(failTime, reschedulePolicy)
+	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
 // ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
@@ -11181,46 +11139,6 @@ func (a *Allocation) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
 }
 
-// ComparableResources returns the resources on the allocation
-// handling upgrade paths. After 0.11 calls to this should be replaced with:
-// alloc.AllocatedResources.Comparable()
-//
-// COMPAT(0.11): Remove in 0.11
-func (a *Allocation) ComparableResources() *ComparableResources {
-	// Alloc already has 0.9+ behavior
-	if a.AllocatedResources != nil {
-		return a.AllocatedResources.Comparable()
-	}
-
-	var resources *Resources
-	if a.Resources != nil {
-		resources = a.Resources
-	} else if a.TaskResources != nil {
-		resources = new(Resources)
-		resources.Add(a.SharedResources)
-		for _, taskResource := range a.TaskResources {
-			resources.Add(taskResource)
-		}
-	}
-
-	// Upgrade path
-	return &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: int64(resources.CPU),
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB:    int64(resources.MemoryMB),
-				MemoryMaxMB: int64(resources.MemoryMaxMB),
-			},
-			Networks: resources.Networks,
-		},
-		Shared: AllocatedSharedResources{
-			DiskMB: int64(resources.DiskMB),
-		},
-	}
-}
-
 // LookupTask by name from the Allocation. Returns nil if the Job is not set, the
 // TaskGroup does not exist, or the task name cannot be found.
 func (a *Allocation) LookupTask(name string) *Task {
@@ -11314,7 +11232,7 @@ func (a *Allocation) Expired(now time.Time) bool {
 	}
 
 	expiry := lastUnknown.Add(*tg.MaxClientDisconnect)
-	return now.UTC().After(expiry) || now.UTC().Equal(expiry)
+	return expiry.Sub(now) <= 0
 }
 
 // LastUnknown returns the timestamp for the last time the allocation
@@ -13085,8 +13003,8 @@ func (a *ACLToken) Copy() *ACLToken {
 }
 
 var (
-	// AnonymousACLToken is used no SecretID is provided, and the
-	// request is made anonymously.
+	// AnonymousACLToken is used when no SecretID is provided, and the request
+	// is made anonymously.
 	AnonymousACLToken = &ACLToken{
 		AccessorID: "anonymous",
 		Name:       "Anonymous Token",
@@ -13101,6 +13019,14 @@ var (
 		AccessorID: "leader",
 		Name:       "Leader Token",
 		Type:       ACLManagementToken,
+	}
+
+	// ACLsDisabledToken is used when ACLs are disabled.
+	ACLsDisabledToken = &ACLToken{
+		AccessorID: "acls-disabled",
+		Name:       "ACLs disabled token",
+		Type:       ACLClientToken,
+		Global:     false,
 	}
 )
 

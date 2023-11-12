@@ -34,7 +34,7 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations and ensure
 				// they are in the same namespace.
@@ -52,8 +52,7 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 				var serviceRegResp structs.ServiceRegistrationUpsertResponse
 				err := msgpackrpc.CallWithCodec(
 					codec, structs.ServiceRegistrationUpsertRPCMethod, serviceRegReq, &serviceRegResp)
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "node lookup by SecretID failed")
+				must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 				// Generate a node and retry the upsert.
 				node := mock.Node()
@@ -79,7 +78,7 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations and ensure
 				// they are in the same namespace.
@@ -117,7 +116,7 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations and ensure
 				// they are in the same namespace.
@@ -135,8 +134,7 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 				var serviceRegResp structs.ServiceRegistrationUpsertResponse
 				err := msgpackrpc.CallWithCodec(
 					codec, structs.ServiceRegistrationUpsertRPCMethod, serviceRegReq, &serviceRegResp)
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "node lookup by SecretID failed")
+				must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 				// Generate a node and retry the upsert.
 				node := mock.Node()
@@ -161,7 +159,7 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations and ensure
 				// they are in the same namespace.
@@ -219,7 +217,7 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Attempt to delete a service registration that does not
 				// exist.
@@ -246,7 +244,7 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -274,7 +272,7 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -303,7 +301,7 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -333,7 +331,7 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -367,7 +365,7 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -422,7 +420,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -467,7 +465,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -505,7 +503,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Test a request without setting an ACL token.
 				serviceRegReq := &structs.ServiceRegistrationListRequest{
@@ -528,7 +526,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -555,7 +553,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -582,7 +580,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -627,7 +625,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
@@ -664,7 +662,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Create a policy and grab the token which has the read-job
 				// capability on the platform namespace.
@@ -706,7 +704,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Create a namespace as this is needed when using an ACL like
 				// we do in this test.
@@ -759,7 +757,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Create a namespace as this is needed when using an ACL like
 				// we do in this test.
@@ -812,7 +810,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Create a namespace as this is needed when using an ACL like
 				// we do in this test.
@@ -870,7 +868,7 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Create a namespace as this is needed when using an ACL like
 				// we do in this test.
@@ -889,7 +887,7 @@ func TestServiceRegistration_List(t *testing.T) {
 				job.Namespace = "platform"
 				allocs[0].Namespace = "platform"
 				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
-				s.signAllocIdentities(job, allocs, time.Now())
+				signAllocIdentities(s.encrypter, job, allocs, time.Now())
 				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
 
 				signedToken := allocs[0].SignedIdentities["web"]
@@ -965,7 +963,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate mock services then upsert them individually using different indexes.
 				services := mock.ServiceRegistrations()
@@ -1028,7 +1026,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate mock services then upsert them individually using different indexes.
 				services := mock.ServiceRegistrations()
@@ -1109,7 +1107,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate mock services then upsert them individually using different indexes.
 				services := mock.ServiceRegistrations()
@@ -1161,7 +1159,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate mock services then upsert them individually using different indexes.
 				services := mock.ServiceRegistrations()
@@ -1176,7 +1174,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				allocs := []*structs.Allocation{mock.Alloc()}
 				job := allocs[0].Job
 				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
-				s.signAllocIdentities(job, allocs, time.Now())
+				signAllocIdentities(s.encrypter, job, allocs, time.Now())
 				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
 
 				signedToken := allocs[0].SignedIdentities["web"]
@@ -1206,7 +1204,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// Generate mock services then upsert them individually using different indexes.
 				services := mock.ServiceRegistrations()
@@ -1307,7 +1305,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// insert 3 instances of service s1
 				nodeID, jobID, allocID := "node_id", "job_id", "alloc_id"
@@ -1385,7 +1383,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
 				codec := rpcClient(t, s)
-				testutil.WaitForLeader(t, s.RPC)
+				testutil.WaitForKeyring(t, s.RPC, "global")
 
 				// insert 2 instances of service s1
 				nodeID, jobID, allocID := "node_id", "job_id", "alloc_id"

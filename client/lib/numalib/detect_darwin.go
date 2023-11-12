@@ -64,9 +64,10 @@ func (m *MacOS) scanAppleSilicon(top *Topology) {
 }
 
 func (m *MacOS) scanLegacyX86(top *Topology) {
-	coreCount, _ := unix.SysctlUint32("machdep.cpu.core_count")
+	coreCount, _ := unix.SysctlUint32("hw.ncpu")
 	hz, _ := unix.SysctlUint64("hw.cpufrequency")
-	coreSpeed := hw.KHz(hz / 1_000_000)
+
+	coreSpeed := hw.KHz(hz / 1_000)
 
 	top.Cores = make([]Core, coreCount)
 	for i := 0; i < int(coreCount); i++ {

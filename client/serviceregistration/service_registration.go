@@ -48,6 +48,8 @@ type Handler interface {
 	UpdateTTL(id, namespace, output, status string) error
 }
 
+type HandlerFunc func(string) Handler
+
 // WorkloadRestarter allows the checkWatcher to restart tasks or entire task
 // groups.
 type WorkloadRestarter interface {

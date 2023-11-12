@@ -90,6 +90,10 @@
         "path": "concepts/architecture"
       },
       {
+        "title": "CPU",
+        "path": "concepts/cpu"
+      },
+      {
         "title": "Plugins",
         "routes": [
           {
@@ -1316,7 +1320,12 @@
                   },
                   {
                     "title": "rsadecrypt",
-                    "path": "job-specification/hcl2/functions/crypto/rsadecrypt"
+                    "path": "job-specification/hcl2/functions/crypto/rsadecrypt",
+                    "badge": {
+                      "text": "Deprecated",
+                      "type": "outlined",
+                      "color": "neutral"
+                    }
                   },
                   {
                     "title": "sha1",
@@ -1612,6 +1621,10 @@
         "path": "job-specification/connect"
       },
       {
+        "title": "consul",
+        "path": "job-specification/consul"
+      },
+      {
         "title": "constraint",
         "path": "job-specification/constraint"
       },
@@ -1678,6 +1691,10 @@
       {
         "title": "network",
         "path": "job-specification/network"
+      },
+      {
+        "title": "numa",
+        "path": "job-specification/numa"
       },
       {
         "title": "parameterized",
@@ -2278,6 +2295,10 @@
           {
             "title": "Overview",
             "path": "enterprise/license"
+          },
+          {
+            "title": "Automated license utilization reporting",
+            "path": "enterprise/license/utilization-reporting"
           },
           {
             "title": "FAQ",

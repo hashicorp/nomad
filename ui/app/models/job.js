@@ -155,6 +155,22 @@ export default class Job extends Model {
 
   @hasMany('recommendation-summary') recommendationSummaries;
 
+  get actions() {
+    return this.taskGroups.reduce((acc, taskGroup) => {
+      return acc.concat(
+        taskGroup.tasks
+          .map((task) => {
+            return task.get('actions')?.toArray() || [];
+          })
+          .reduce((taskAcc, taskActions) => taskAcc.concat(taskActions), [])
+      );
+    }, []);
+  }
+
+  runAction(action, allocID) {
+    return this.store.adapterFor('job').runAction(this, action, allocID);
+  }
+
   @computed('taskGroups.@each.drivers')
   get drivers() {
     return this.taskGroups

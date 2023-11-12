@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
+	"github.com/moby/term"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
 )
@@ -534,6 +536,10 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			return nil, nil, fmt.Errorf("Failed to parse HCL job: %w", err)
 		}
 
+		// Perform the environment listing here as it is used twice beyond this
+		// point.
+		osEnv := os.Environ()
+
 		// we are parsing HCL2, whether from a file or stdio
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:     pathName,
@@ -541,7 +547,7 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			ArgVars:  j.Vars,
 			AllowFS:  true,
 			VarFiles: j.VarFiles,
-			Envs:     os.Environ(),
+			Envs:     osEnv,
 			Strict:   j.Strict,
 		})
 
@@ -549,15 +555,24 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 		var readVarFileErr error
 		if err == nil {
 			// combine any -var-file data into one big blob
-			varFileCat, readVarFileErr = extractVarFiles([]string(j.VarFiles))
+			varFileCat, readVarFileErr = extractVarFiles(j.VarFiles)
 			if readVarFileErr != nil {
 				return nil, nil, fmt.Errorf("Failed to read var file(s): %w", readVarFileErr)
 			}
 		}
 
+		// Extract variables declared by the -var flag and as environment
+		// variables.
+		extractedVarFlags := extractVarFlags(j.Vars)
+		extractedEnvVars := extractJobSpecEnvVars(osEnv)
+
+		// Merge the two maps ensuring that variables defined by -var flags
+		// take precedence.
+		maps.Copy(extractedEnvVars, extractedVarFlags)
+
 		// submit the job with the submission with content from -var flags
 		jobSubmission = &api.JobSubmission{
-			VariableFlags: extractVarFlags(j.Vars),
+			VariableFlags: extractedEnvVars,
 			Variables:     varFileCat,
 			Source:        source.String(),
 			Format:        formatHCL2,
@@ -603,6 +618,36 @@ func extractVarFlags(slice []string) map[string]string {
 			m[tokens[0]] = tokens[1]
 		}
 	}
+	return m
+}
+
+// extractJobSpecEnvVars is used to extract Nomad specific HCL variables from
+// the OS environment. The input envVars parameter is expected to be generated
+// from the os.Environment function call. The result is never nil for
+// convenience.
+func extractJobSpecEnvVars(envVars []string) map[string]string {
+
+	m := make(map[string]string)
+
+	for _, raw := range envVars {
+		if !strings.HasPrefix(raw, jobspec2.VarEnvPrefix) {
+			continue
+		}
+
+		// Trim the prefix, so we just have the raw key=value variable
+		// remaining.
+		raw = raw[len(jobspec2.VarEnvPrefix):]
+
+		// Identify the index of the equals sign which is where we split the
+		// variable k/v pair. -1 indicates the equals sign is not found and
+		// therefore the var is not valid.
+		if eq := strings.Index(raw, "="); eq == -1 {
+			continue
+		} else if raw[:eq] != "" {
+			m[raw[:eq]] = raw[eq+1:]
+		}
+	}
+
 	return m
 }
 
@@ -712,4 +757,11 @@ func loadFromStdin(testStdin io.Reader) (string, error) {
 		return "", fmt.Errorf("Failed to read stdin: %v", err)
 	}
 	return b.String(), nil
+}
+
+// isTty returns true if both stdin and stdout are a TTY
+func isTty() bool {
+	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
+	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
+	return isStdinTerminal && isStdoutTerminal
 }

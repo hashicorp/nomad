@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing
@@ -46,6 +47,9 @@ type Authenticator struct {
 	getLeaderACL LeaderACLGetter
 	region       string
 
+	validServerCertNames []string
+	validClientCertNames []string
+
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *structs.ACLCache[*acl.ACL]
 
@@ -66,14 +70,19 @@ type AuthenticatorConfig struct {
 
 func NewAuthenticator(cfg *AuthenticatorConfig) *Authenticator {
 	return &Authenticator{
-		aclsEnabled:  cfg.AclsEnabled,
-		tlsEnabled:   cfg.TLSEnabled,
-		logger:       cfg.Logger.With("auth"),
-		getState:     cfg.StateFn,
-		getLeaderACL: cfg.GetLeaderACLFn,
-		region:       cfg.Region,
-		aclCache:     structs.NewACLCache[*acl.ACL](aclCacheSize),
-		encrypter:    cfg.Encrypter,
+		aclsEnabled:          cfg.AclsEnabled,
+		tlsEnabled:           cfg.TLSEnabled,
+		logger:               cfg.Logger.With("auth"),
+		getState:             cfg.StateFn,
+		getLeaderACL:         cfg.GetLeaderACLFn,
+		region:               cfg.Region,
+		aclCache:             structs.NewACLCache[*acl.ACL](aclCacheSize),
+		encrypter:            cfg.Encrypter,
+		validServerCertNames: []string{"server." + cfg.Region + ".nomad"},
+		validClientCertNames: []string{
+			"client." + cfg.Region + ".nomad",
+			"server." + cfg.Region + ".nomad",
+		},
 	}
 }
 
@@ -95,15 +104,21 @@ func (s *Authenticator) Authenticate(ctx RPCContext, args structs.RequestWithIde
 
 	// get the user ACLToken or anonymous token
 	secretID := args.GetAuthToken()
-	aclToken, err := s.ResolveSecretToken(secretID)
+	aclToken, err := s.resolveSecretToken(secretID)
 
 	switch {
+	case err == nil && (aclToken == structs.AnonymousACLToken ||
+		aclToken == structs.ACLsDisabledToken):
+		// When ACLs are disabled or if we have an anonymous token, we want to
+		// continue on to check mTLS certs, if available, so set the token but
+		// don't return yet
+		args.SetIdentity(&structs.AuthenticatedIdentity{ACLToken: aclToken})
+
 	case err == nil:
-		// If ACLs are disabled or we have a non-anonymous token, return that.
-		if aclToken == nil || aclToken != structs.AnonymousACLToken {
-			args.SetIdentity(&structs.AuthenticatedIdentity{ACLToken: aclToken})
-			return nil
-		}
+		// ACLs are enabled and we have a non-anonymous token, so set that as
+		// our identity and return
+		args.SetIdentity(&structs.AuthenticatedIdentity{ACLToken: aclToken})
+		return nil
 
 	case errors.Is(err, structs.ErrTokenExpired):
 		return err
@@ -159,7 +174,7 @@ func (s *Authenticator) Authenticate(ctx RPCContext, args structs.RequestWithIde
 	// If there's no context we're in a "static" handler which only happens for
 	// cases where the leader is making RPCs internally (volumewatcher and
 	// deploymentwatcher)
-	if ctx == nil {
+	if ctx.IsStatic() {
 		args.SetIdentity(&structs.AuthenticatedIdentity{ACLToken: aclToken})
 		return nil
 	}
@@ -185,24 +200,37 @@ func (s *Authenticator) Authenticate(ctx RPCContext, args structs.RequestWithIde
 	return nil
 }
 
-// ResolveACL is an authentication wrapper which handles resolving both ACL
-// tokens and Workload Identities. If both are provided the ACL token is
-// preferred, but it is best for the RPC caller to only include the credentials
-// for the identity they intend the operation to be performed with.
+// ResolveACL is an authentication wrapper which handles resolving ACL tokens,
+// Workload Identities, or client secrets into acl.ACL objects. Exclusively
+// server-to-server or client-to-server requests should be using
+// AuthenticateServerOnly or AuthenticateClientOnly and never use this method.
 func (s *Authenticator) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
 	identity := args.GetIdentity()
-	if !s.aclsEnabled || identity == nil {
-		return nil, nil
+	if identity == nil {
+		// should never happen
+		return nil, structs.ErrPermissionDenied
 	}
-	aclToken := identity.GetACLToken()
-	if aclToken != nil {
-		return s.ResolveACLForToken(aclToken)
+
+	if !s.aclsEnabled {
+		return acl.ACLsDisabledACL, nil
+	}
+
+	if identity.ClientID != "" {
+		return acl.ClientACL, nil
 	}
 	claims := identity.GetClaims()
 	if claims != nil {
-		return s.ResolveClaims(claims)
+		return s.resolveClaims(claims)
 	}
-	return nil, nil
+
+	// this will include any anonymous token, so this is the last chance to
+	// avoid an error
+	aclToken := identity.GetACLToken()
+	if aclToken != nil {
+		return s.resolveACLForToken(aclToken)
+	}
+
+	return nil, structs.ErrPermissionDenied
 }
 
 // AuthenticateServerOnly returns an ACL object for use *only* with internal
@@ -232,9 +260,7 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 		// set on the identity whether or not its valid for server RPC, so we
 		// can capture it for metrics
 		identity.TLSName = tlsCert.Subject.CommonName
-
-		expected := "server." + s.region + ".nomad"
-		_, err := validateCertificateForName(tlsCert, expected)
+		_, err := validateCertificateForNames(tlsCert, s.validServerCertNames)
 		if err != nil {
 			return nil, err
 		}
@@ -249,35 +275,142 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 	return acl.ServerACL, nil
 }
 
-// validateCertificateForName returns true if the certificate is valid
-// for the given domain name.
-func validateCertificateForName(cert *x509.Certificate, expectedName string) (bool, error) {
+// AuthenticateClientOnly returns an ACL object for use *only* with internal
+// RPCs originating from clients (including those forwarded). This should never
+// be used for RPCs that serve HTTP endpoints to avoid confused deputy attacks
+// by making a request to a client that's forwarded. It should also not be used
+// with Node.Register, which should use AuthenticateClientTOFU
+//
+// The returned ACL object is always a acl.ClientACL but in the future this
+// could be extended to allow clients access only to their own pool and
+// associated namespaces, etc.
+func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
+
+	remoteIP, err := ctx.GetRemoteIP() // capture for metrics
+	if err != nil {
+		s.logger.Error("could not determine remote address", "error", err)
+	}
+
+	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
+	defer args.SetIdentity(identity) // always set the identity, even on errors
+
+	if s.tlsEnabled && !ctx.IsStatic() {
+		tlsCert := ctx.Certificate()
+		if tlsCert == nil {
+			return nil, errors.New("missing certificate information")
+		}
+
+		// set on the identity whether or not its valid for server RPC, so we
+		// can capture it for metrics
+		identity.TLSName = tlsCert.Subject.CommonName
+		_, err := validateCertificateForNames(tlsCert, s.validClientCertNames)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	secretID := args.GetAuthToken()
+	if secretID == "" {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	// Otherwise, see if the secret ID belongs to a node. We should
+	// reach this point only on first connection.
+	node, err := s.getState().NodeBySecretID(nil, secretID)
+	if err != nil {
+		// this is a go-memdb error; shouldn't happen
+		return nil, fmt.Errorf("could not resolve node secret: %w", err)
+	}
+	if node == nil {
+		return nil, structs.ErrPermissionDenied
+	}
+	identity.ClientID = node.ID
+	return acl.ClientACL, nil
+}
+
+// AuthenticateClientOnlyLegacy is a version of AuthenticateClientOnly that's
+// used by a few older RPCs that did not properly enforce node secrets.
+// COMPAT(1.8.0): In Nomad 1.6.0 we starting sending those node secrets, so we
+// can remove this in Nomad 1.8.0.
+func (s *Authenticator) AuthenticateClientOnlyLegacy(ctx RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
+
+	remoteIP, err := ctx.GetRemoteIP() // capture for metrics
+	if err != nil {
+		s.logger.Error("could not determine remote address", "error", err)
+	}
+
+	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
+	defer args.SetIdentity(identity) // always set the identity, even on errors
+
+	if s.tlsEnabled && !ctx.IsStatic() {
+		tlsCert := ctx.Certificate()
+		if tlsCert == nil {
+			return nil, errors.New("missing certificate information")
+		}
+
+		// set on the identity whether or not its valid for server RPC, so we
+		// can capture it for metrics
+		identity.TLSName = tlsCert.Subject.CommonName
+		_, err := validateCertificateForNames(tlsCert, s.validClientCertNames)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return acl.ClientACL, nil
+}
+
+// validateCertificateForNames returns true if the certificate is valid for any
+// of the given domain names.
+func validateCertificateForNames(cert *x509.Certificate, expectedNames []string) (bool, error) {
 	if cert == nil {
 		return false, nil
 	}
 
 	validNames := []string{cert.Subject.CommonName}
 	validNames = append(validNames, cert.DNSNames...)
-	for _, valid := range validNames {
-		if expectedName == valid {
+
+	for _, expectedName := range expectedNames {
+		if slices.Contains(validNames, expectedName) {
 			return true, nil
 		}
 	}
 
-	return false, fmt.Errorf("invalid certificate, %s not in %s",
-		expectedName, strings.Join(validNames, ","))
+	return false, fmt.Errorf("invalid certificate: %s not in expected %s",
+		strings.Join(validNames, ", "),
+		strings.Join(expectedNames, ", "))
+
 }
 
-// ResolveACLForToken resolves an ACL from a token only. It should be used only
+// IdentityToACLClaim returns an ACLClaim suitable for checking permissions
+func IdentityToACLClaim(ai *structs.AuthenticatedIdentity, store *state.StateStore) *acl.ACLClaim {
+	if ai == nil || ai.Claims == nil {
+		return nil
+	}
+
+	var group string
+	alloc, err := store.AllocByID(nil, ai.Claims.AllocationID)
+	if err != nil {
+		// we should never hit this error, but if we did the caller would get a
+		// nil claim and auth will fail
+		return nil
+	}
+	if alloc != nil {
+		group = alloc.TaskGroup
+	}
+
+	return &acl.ACLClaim{
+		Namespace: ai.Claims.Namespace,
+		Job:       ai.Claims.JobID,
+		Group:     group,
+		Task:      ai.Claims.TaskName,
+	}
+}
+
+// resolveACLForToken resolves an ACL from a token only. It should be used only
 // by Variables endpoints, which have additional implicit policies for their
 // claims so we can't wrap them up in ResolveACL.
-//
-// TODO: figure out a way to the Variables endpoint implicit policies baked into
-// their acl.ACL object so that we can avoid using this method.
-func (s *Authenticator) ResolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL, error) {
-	if !s.aclsEnabled {
-		return nil, nil
-	}
+func (s *Authenticator) resolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL, error) {
 	snap, err := s.getState().Snapshot()
 	if err != nil {
 		return nil, err
@@ -285,28 +418,16 @@ func (s *Authenticator) ResolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL
 	return resolveACLFromToken(snap, s.aclCache, aclToken)
 }
 
-// ResolveClientOrACL resolves an ACL if the identity has a token or claim, and
-// falls back to verifying the client ID if one has been set
-func (s *Authenticator) ResolveClientOrACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
-	identity := args.GetIdentity()
-	if !s.aclsEnabled || identity == nil || identity.ClientID != "" {
-		return nil, nil
-	}
-	aclObj, err := s.ResolveACL(args)
-	if err != nil {
-		return nil, err
-	}
-
-	// Returns either the users aclObj, or nil if ACLs are disabled.
-	return aclObj, nil
-}
-
 // ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
+//
+// TODO(tgross): this is used in lots of places we probably should be calling
+// Authenticate + ResolveACL on, because they support HTTP APIs that may be used
+// by the Task API
 func (s *Authenticator) ResolveToken(secretID string) (*acl.ACL, error) {
 	// Fast-path if ACLs are disabled
 	if !s.aclsEnabled {
-		return nil, nil
+		return acl.ACLsDisabledACL, nil
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "resolveToken"}, time.Now())
 
@@ -326,8 +447,9 @@ func (s *Authenticator) ResolveToken(secretID string) (*acl.ACL, error) {
 	return resolveTokenFromSnapshotCache(snap, s.aclCache, secretID)
 }
 
-// VerifyClaim asserts that the token is valid and that the resulting
-// allocation ID belongs to a non-terminal allocation
+// VerifyClaim asserts that the token is valid and that the resulting allocation
+// ID belongs to a non-terminal allocation. This should usually not be called by
+// RPC handlers, and exists only to support the ACL.WhoAmI endpoint.
 func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, error) {
 
 	claims, err := s.encrypter.VerifyClaim(token)
@@ -347,14 +469,14 @@ func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, erro
 	}
 
 	// the claims for terminal allocs are always treated as expired
-	if alloc.TerminalStatus() {
+	if alloc.ClientTerminalStatus() {
 		return nil, fmt.Errorf("allocation is terminal")
 	}
 
 	return claims, nil
 }
 
-func (s *Authenticator) ResolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error) {
+func (s *Authenticator) resolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error) {
 
 	policies, err := s.ResolvePoliciesForClaims(claims)
 	if err != nil {
@@ -468,17 +590,15 @@ func resolveACLFromToken(snap *state.StateSnapshot, cache *structs.ACLCache[*acl
 	return aclObj, nil
 }
 
-// ResolveSecretToken is used to translate an ACL Token Secret ID into
-// an ACLToken object, nil if ACLs are disabled, or an error.
-func (s *Authenticator) ResolveSecretToken(secretID string) (*structs.ACLToken, error) {
-	// TODO(Drew) Look into using ACLObject cache or create a separate cache
+// resolveSecretToken is used to translate an ACL Token Secret ID into a
+// Accessor ID, the anonymous accessor, or an error.
+func (s *Authenticator) resolveSecretToken(secretID string) (*structs.ACLToken, error) {
 
-	// Fast-path if ACLs are disabled
+	defer metrics.MeasureSince([]string{"nomad", "acl", "accessorForSecretToken"}, time.Now())
+
 	if !s.aclsEnabled {
-		return nil, nil
+		return structs.ACLsDisabledToken, nil
 	}
-	defer metrics.MeasureSince([]string{"nomad", "acl", "resolveSecretToken"}, time.Now())
-
 	if secretID == "" {
 		return structs.AnonymousACLToken, nil
 	}

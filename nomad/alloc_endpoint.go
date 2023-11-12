@@ -155,7 +155,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 
 	// Check namespace read-job permissions before performing blocking query.
 	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
-	aclObj, err := a.srv.ResolveClientOrACL(args)
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -200,21 +200,20 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
 
-	authErr := a.srv.Authenticate(a.ctx, args)
-
-	// Ensure the connection was initiated by a client if TLS is used.
-	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient)
+	aclObj, err := a.srv.AuthenticateClientOnly(a.ctx, args)
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricWrite, args)
 	if err != nil {
-		return err
+		return structs.ErrPermissionDenied
 	}
+
 	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
 		return err
 	}
-	a.srv.MeasureRPCRate("alloc", structs.RateMetricList, args)
-	if authErr != nil {
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
+
+	if !aclObj.AllowClientOp() {
 		return structs.ErrPermissionDenied
 	}
-	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 
@@ -355,7 +354,7 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	// Check that it is a management token.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -393,15 +392,13 @@ func (a *Alloc) GetServiceRegistrations(
 
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_service_registrations"}, time.Now())
 
-	// If ACLs are enabled, ensure the caller has the read-job namespace
-	// capability.
+	// Ensure the caller has the read-job namespace capability.
 	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if aclObj != nil {
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-			return structs.ErrPermissionDenied
-		}
+	}
+	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Set up the blocking query.
@@ -452,21 +449,20 @@ func (a *Alloc) GetServiceRegistrations(
 // This is an internal-only RPC and not exposed via the HTTP API.
 func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *structs.AllocIdentitiesResponse) error {
 
-	authErr := a.srv.Authenticate(a.ctx, args)
-
-	// Ensure the connection was initiated by a client if TLS is used.
-	if err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient); err != nil {
-		return err
-	}
-	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
-		return err
-	}
+	aclObj, err := a.srv.AuthenticateClientOnly(a.ctx, args)
 	a.srv.MeasureRPCRate("alloc", structs.RateMetricRead, args)
-	if authErr != nil {
+	if err != nil {
 		return structs.ErrPermissionDenied
 	}
 
+	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
+
+	if !aclObj.AllowClientOp() {
+		return structs.ErrPermissionDenied
+	}
 
 	if len(args.Identities) == 0 {
 		// Client bug. Fail loudly instead of letting clients waste time with

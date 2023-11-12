@@ -189,6 +189,17 @@ func CopyMapOfSlice[K comparable, V any](m map[K][]V) map[K][]V {
 	return c
 }
 
+// SliceToMap creates a map from a slice, using keyFn to extract a key from each
+// value. Note this doesn't copy the elements of the slice, so you may need to
+// call slices.Clone on the result
+func SliceToMap[M ~map[K]V, K comparable, V any](slice []V, keyFn func(value V) K) M {
+	result := make(map[K]V, len(slice))
+	for _, item := range slice {
+		result[keyFn(item)] = item
+	}
+	return result
+}
+
 // CleanEnvVar replaces all occurrences of illegal characters in an environment
 // variable with the specified byte.
 func CleanEnvVar(s string, r byte) string {

@@ -4,7 +4,6 @@
 package nomad
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -34,9 +33,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				Name:     "web",
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(false),
-				},
+				ConsulConfigs: map[string]*config.ConsulConfig{},
 			},
 		},
 		{
@@ -46,22 +43,23 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				Name:     "web",
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-					ServiceIdentity: &config.WorkloadIdentityConfig{
-						Audience: []string{"consul.io"},
-						TTL:      pointer.Of(time.Hour),
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						ServiceIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+							TTL:      pointer.Of(time.Hour),
+						},
 					},
 				},
 			},
 		},
 		{
-			name: "no error when consul identity is enabled and identity is provided via service",
+			name: "no error when consul identity is missing and identity is provided via service",
 			inputService: &structs.Service{
 				Provider: "consul",
 				Name:     "web",
 				Identity: &structs.WorkloadIdentity{
-					Name:        "consul-service/web",
+					Name:        "consul-service_web",
 					Audience:    []string{"consul.io"},
 					File:        true,
 					Env:         false,
@@ -70,9 +68,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
+				ConsulConfigs: map[string]*config.ConsulConfig{},
 			},
 		},
 		{
@@ -81,7 +77,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				Provider: "consul",
 				Name:     "web",
 				Identity: &structs.WorkloadIdentity{
-					Name:        "consul-service/web",
+					Name:        "consul-service_web",
 					Audience:    []string{"consul.io"},
 					File:        true,
 					Env:         false,
@@ -89,46 +85,11 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				},
 			},
 			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
+				ConsulConfigs: map[string]*config.ConsulConfig{},
 			},
 			expectedWarns: []string{
 				"identities without an expiration are insecure",
 			},
-		},
-		{
-			name: "error when consul identity is disabled and service has identity",
-			inputService: &structs.Service{
-				Provider: "consul",
-				Name:     "web",
-				Identity: &structs.WorkloadIdentity{
-					Name:     fmt.Sprintf("%s/web", consulServiceIdentityNamePrefix),
-					Audience: []string{"consul.io"},
-					File:     true,
-					Env:      false,
-					TTL:      time.Hour,
-				},
-			},
-			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(false),
-				},
-			},
-			expectedErr: "defines an identity but server is not configured to use Consul identities",
-		},
-		{
-			name: "error when consul identity is enabled but no service identity is provided",
-			inputService: &structs.Service{
-				Provider: "consul",
-				Name:     "web",
-			},
-			inputConfig: &Config{
-				ConsulConfig: &config.ConsulConfig{
-					UseIdentity: pointer.Of(true),
-				},
-			},
-			expectedErr: "expected to have an identity",
 		},
 	}
 
@@ -174,48 +135,103 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 		name                string
 		inputTaskVault      *structs.Vault
 		inputTaskIdentities []*structs.WorkloadIdentity
-		inputConfig         *config.VaultConfig
+		inputConfig         map[string]*config.VaultConfig
 		expectedWarns       []string
 		expectedErr         string
 	}{
 		{
-			name:                "no error when vault identity is provided via config",
-			inputTaskVault:      &structs.Vault{},
+			name: "no error when vault identity is provided via config",
+			inputTaskVault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
 			inputTaskIdentities: nil,
-			inputConfig: &config.VaultConfig{
-				DefaultIdentity: &config.WorkloadIdentityConfig{
-					Audience: []string{"vault.io"},
-					TTL:      pointer.Of(time.Hour),
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+						TTL:      pointer.Of(time.Hour),
+					},
 				},
 			},
 		},
 		{
-			name:           "no error when vault identity is provided via task",
-			inputTaskVault: &structs.Vault{},
+			name: "no error when vault identity is provided via config from non-default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster: "other",
+			},
+			inputTaskIdentities: nil,
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {},
+				"other": {
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+						TTL:      pointer.Of(time.Hour),
+					},
+				},
+			},
+		},
+		{
+			name: "no error when vault identity is provided via task",
+			inputTaskVault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
 			inputTaskIdentities: []*structs.WorkloadIdentity{{
 				Name:     "vault_default",
 				Audience: []string{"vault.io"},
 				TTL:      time.Hour,
 			}},
-			inputConfig: &config.VaultConfig{},
 		},
 		{
-			name:                "error when not using vault identity and vault block is missing policies",
-			inputTaskVault:      &structs.Vault{},
+			name: "no error when vault identity is provided via task for non-default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster: "other",
+			},
+			inputTaskIdentities: []*structs.WorkloadIdentity{{
+				Name:     "vault_other",
+				Audience: []string{"vault.io"},
+				TTL:      time.Hour,
+			}},
+		},
+		{
+			name: "no error when task uses legacy flow with default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster:  structs.VaultDefaultCluster,
+				Policies: []string{"nomad-workload"},
+			},
+		},
+		{
+			name: "error when not using vault identity and vault block is missing policies",
+			inputTaskVault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
 			inputTaskIdentities: nil,
-			inputConfig:         &config.VaultConfig{},
 			expectedErr:         "Vault block with an empty list of policies",
+		},
+		{
+			name: "error when no identity is available for non-default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster: "other",
+			},
+			inputTaskIdentities: nil,
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {},
+				"other":                     {},
+			},
+			expectedErr: "does not have an identity named vault_other",
 		},
 		{
 			name: "warn when using default vault identity but task has vault policies",
 			inputTaskVault: &structs.Vault{
+				Cluster:  structs.VaultDefaultCluster,
 				Policies: []string{"nomad-workload"},
 			},
 			inputTaskIdentities: nil,
-			inputConfig: &config.VaultConfig{
-				DefaultIdentity: &config.WorkloadIdentityConfig{
-					Audience: []string{"vault.io"},
-					TTL:      pointer.Of(time.Hour),
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+						TTL:      pointer.Of(time.Hour),
+					},
 				},
 			},
 			expectedWarns: []string{"policies will be ignored"},
@@ -223,6 +239,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 		{
 			name: "warn when using task vault identity but task has vault policies",
 			inputTaskVault: &structs.Vault{
+				Cluster:  structs.VaultDefaultCluster,
 				Policies: []string{"nomad-workload"},
 			},
 			inputTaskIdentities: []*structs.WorkloadIdentity{{
@@ -230,7 +247,6 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				Audience: []string{"vault.io"},
 				TTL:      time.Hour,
 			}},
-			inputConfig:   &config.VaultConfig{},
 			expectedWarns: []string{"policies will be ignored"},
 		},
 		{
@@ -241,7 +257,6 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				Audience: []string{"vault.io"},
 				TTL:      time.Hour,
 			}},
-			inputConfig: &config.VaultConfig{},
 			expectedWarns: []string{
 				"has an identity called vault_default but no vault block",
 			},
@@ -250,12 +265,14 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			impl := jobValidate{srv: &Server{
+			srv := &Server{
 				config: &Config{
 					JobMaxPriority: 100,
-					VaultConfig:    tc.inputConfig,
+					VaultConfigs:   tc.inputConfig,
 				},
-			}}
+			}
+			implicitIdentities := jobImplicitIdentitiesHook{srv: srv}
+			impl := jobValidate{srv: srv}
 
 			job := mock.Job()
 			task := job.TaskGroups[0].Tasks[0]
@@ -266,7 +283,11 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				task.Vault.ChangeMode = structs.VaultChangeModeRestart
 			}
 
-			warns, err := impl.Validate(job)
+			mutatedJob, warn, err := implicitIdentities.Mutate(job)
+			must.NoError(t, err)
+			must.SliceEmpty(t, warn)
+
+			warns, err := impl.Validate(mutatedJob)
 
 			if len(tc.expectedErr) == 0 {
 				must.NoError(t, err)
@@ -449,9 +470,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 							},
 						},
 						Constraints: []*structs.Constraint{
-							&structs.Constraint{
+							{
 								LTarget: "${attr.vault.infra.version}",
-								RTarget: ">= 0.6.1",
+								RTarget: ">= 1.11.0",
 								Operand: structs.ConstraintSemver,
 							},
 							vaultConstraint,
@@ -1090,6 +1111,49 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 							},
 						},
 						Constraints: []*structs.Constraint{consulServiceDiscoveryConstraint},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
+		{
+			name: "task group with numa block",
+			inputJob: &structs.Job{
+				Name: "numa",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*structs.Task{
+							{
+								Resources: &structs.Resources{
+									NUMA: &structs.NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "numa",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Constraints: []*structs.Constraint{
+							numaVersionConstraint,
+							numaKernelConstraint,
+						},
+						Tasks: []*structs.Task{
+							{
+								Resources: &structs.Resources{
+									NUMA: &structs.NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
 					},
 				},
 			},

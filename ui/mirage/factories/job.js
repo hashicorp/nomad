@@ -199,6 +199,9 @@ export default Factory.extend({
   // When true, only task groups and allocations are made
   shallow: false,
 
+  // When true, the job's groups' tasks will have actions blocks
+  withActions: false,
+
   afterCreate(job, server) {
     Ember.assert(
       '[Mirage] No node pools! make sure node pools are created before jobs',
@@ -231,13 +234,18 @@ export default Factory.extend({
       withRescheduling: job.withRescheduling,
       withServices: job.withGroupServices,
       withTaskServices: job.withTaskServices,
+      withActions: job.withActions,
       createRecommendations: job.createRecommendations,
       shallow: job.shallow,
       allocStatusDistribution: job.allocStatusDistribution,
     };
 
     if (job.groupTaskCount) {
-      groupProps.count = job.groupTaskCount;
+      groupProps.taskCount = job.groupTaskCount;
+    }
+
+    if (job.groupAllocCount) {
+      groupProps.count = job.groupAllocCount;
     }
 
     let groups;

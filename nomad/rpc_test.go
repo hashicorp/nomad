@@ -1257,7 +1257,7 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 			name:      "other region server/clients only rpc",
 			cn:        "server.other.nomad",
 			rpcs:      localClientsOnlyRPCs,
-			expectErr: "(certificate|broken pipe)",
+			expectErr: "(Permission denied|broken pipe)",
 		},
 		// Other region client.
 		{

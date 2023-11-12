@@ -23,7 +23,7 @@ func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.C
 	// Check node read permissions
 	if aclObj, err := s.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	} else if !aclObj.AllowNodeRead() {
 		return nstructs.ErrPermissionDenied
 	}
 

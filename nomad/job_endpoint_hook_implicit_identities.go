@@ -4,14 +4,7 @@
 package nomad
 
 import (
-	"fmt"
-
 	"github.com/hashicorp/nomad/nomad/structs"
-)
-
-const (
-	consulServiceIdentityNamePrefix = "consul-service"
-	consulTaskIdentityNamePrefix    = "consul"
 )
 
 // jobImplicitIdentitiesHook adds implicit `identity` blocks for external
@@ -27,15 +20,15 @@ func (jobImplicitIdentitiesHook) Name() string {
 func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
-			h.handleConsulService(s)
+			h.handleConsulService(s, tg)
 		}
 
 		for _, t := range tg.Tasks {
 			for _, s := range t.Services {
-				h.handleConsulService(s)
+				h.handleConsulService(s, tg)
 			}
 			if len(t.Templates) > 0 {
-				h.handleConsulTasks(t, tg.Name)
+				h.handleConsulTasks(t, tg)
 			}
 			h.handleVault(t)
 		}
@@ -45,17 +38,12 @@ func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []err
 }
 
 // handleConsulService injects a workload identity to the service if:
-//  1. The service uses the Consul provider.
-//  2. The server is configured with `consul.use_identity = true` and a
-//     `consul.service_identity` is provided.
+//  1. The service uses the Consul provider, and
+//  2. The server is configured with `consul.service_identity`
 //
-// If the service already has an identity it sets the identity name and service
-// name values.
-func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
-	if !h.srv.config.UseConsulIdentity() {
-		return
-	}
-
+// If the service already has an identity the server sets the identity name and
+// service name values.
+func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service, tg *structs.TaskGroup) {
 	if s.Provider != "" && s.Provider != "consul" {
 		return
 	}
@@ -65,7 +53,7 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 	if serviceWID == nil {
 		// If the service doesn't specify an identity, fallback to the service
 		// identity defined in the server configuration.
-		serviceWID = h.srv.config.ConsulServiceIdentity()
+		serviceWID = h.srv.config.ConsulServiceIdentity(s.GetConsulClusterName(tg))
 		if serviceWID == nil {
 			// If no identity is found, skip injecting the implicit identity
 			// and fallback to the legacy flow.
@@ -74,20 +62,14 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 	}
 
 	// Set the expected identity name and service name.
-	name := s.MakeUniqueIdentityName()
-	serviceWID.Name = fmt.Sprintf("%s/%s", consulServiceIdentityNamePrefix, name)
+	serviceWID.Name = s.MakeUniqueIdentityName()
 	serviceWID.ServiceName = s.Name
 
 	s.Identity = serviceWID
 }
 
-func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, taskGroup string) {
-	if !h.srv.config.UseConsulIdentity() {
-		return
-	}
-
-	name := t.MakeUniqueIdentityName(taskGroup)
-	widName := fmt.Sprintf("%s/%s", consulTaskIdentityNamePrefix, name)
+func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, tg *structs.TaskGroup) {
+	widName := t.Consul.IdentityName()
 
 	// Use the Consul identity specified in the task if present
 	for _, wid := range t.Identities {
@@ -98,7 +80,7 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, taskGroup 
 
 	// If task doesn't specify an identity for Consul, fallback to the
 	// default identity defined in the server configuration.
-	taskWID := h.srv.config.ConsulTaskIdentity()
+	taskWID := h.srv.config.ConsulTaskIdentity(t.GetConsulClusterName(tg))
 	if taskWID == nil {
 		// If no identity is found skip inject the implicit identity and
 		// fallback to the legacy flow.
@@ -126,7 +108,7 @@ func (h jobImplicitIdentitiesHook) handleVault(t *structs.Task) {
 
 	// If the task doesn't specify an identity for Vault, fallback to the
 	// default identity defined in the server configuration.
-	vaultWID = h.srv.config.VaultDefaultIdentity()
+	vaultWID = h.srv.config.VaultIdentityConfig(t.GetVaultClusterName())
 	if vaultWID == nil {
 		// If no identity is found skip inject the implicit identity and
 		// fallback to the legacy flow.

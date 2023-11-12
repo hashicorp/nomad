@@ -101,7 +101,7 @@ func TestVarLockCommand_Good(t *testing.T) {
 	code := cmd.Run([]string{"-address=" + url, "test/var/shell", "touch ", filePath})
 	require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
 
-	sv, _, err := srv.Client().Variables().Peek("test/var/shell", nil)
+	sv, _, err := srv.APIClient().Variables().Peek("test/var/shell", nil)
 	must.NoError(t, err)
 
 	must.NotNil(t, sv)
@@ -135,7 +135,7 @@ func TestVarLockCommand_Good_NoShell(t *testing.T) {
 	code := cmd.Run([]string{"-address=" + url, "-shell=false", "test/var/noShell", "touch", filePath})
 	require.Zero(t, 0, code)
 
-	sv, _, err := srv.Client().Variables().Peek("test/var/noShell", nil)
+	sv, _, err := srv.APIClient().Variables().Peek("test/var/noShell", nil)
 	must.NoError(t, err)
 
 	must.NotNil(t, sv)

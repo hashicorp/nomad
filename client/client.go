@@ -220,9 +220,9 @@ type Client struct {
 	// pendingUpdates stores allocations that need to be synced to the server.
 	pendingUpdates *pendingClientUpdates
 
-	// consulService is the Consul handler implementation for managing services
-	// and checks.
-	consulService serviceregistration.Handler
+	// consulServices gets a Consul handler implementation for managing
+	// services and checks.
+	consulServices serviceregistration.Handler
 
 	// nomadService is the Nomad handler implementation for managing service
 	// registrations.
@@ -237,11 +237,12 @@ type Client struct {
 	// this without needing to identify which backend provider should be used.
 	serviceRegWrapper *wrapper.HandlerWrapper
 
-	// consulProxies is Nomad's custom Consul client for looking up supported
-	// envoy versions
-	consulProxies consulApi.SupportedProxiesAPI
+	// consulProxiesFunc gets an interface to Nomad's custom Consul client for
+	// looking up supported envoy versions
+	consulProxiesFunc consulApi.SupportedProxiesAPIFunc
 
-	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
+	// consulCatalog is the subset of Consul's Catalog API Nomad uses for self
+	// service discovery
 	consulCatalog consul.CatalogAPI
 
 	// HostStatsCollector collects host resource usage stats
@@ -351,7 +352,7 @@ var (
 // registered via https://golang.org/pkg/net/rpc/#Server.RegisterName in place
 // of the client's normal RPC handlers. This allows server tests to override
 // the behavior of the client.
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxiesFunc consulApi.SupportedProxiesAPIFunc, consulServices serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -376,8 +377,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c := &Client{
 		config:               cfg,
 		consulCatalog:        consulCatalog,
-		consulProxies:        consulProxies,
-		consulService:        consulService,
+		consulProxiesFunc:    consulProxiesFunc,
+		consulServices:       consulServices,
 		start:                time.Now(),
 		connPool:             pool.NewPool(logger, clientRPCCache, clientMaxStreams, tlsWrap),
 		tlsWrap:              tlsWrap,
@@ -529,7 +530,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// implementations. The Nomad implementation is only ever used on the
 	// client, so we do that here rather than within the agent.
 	c.setupNomadServiceRegistrationHandler()
-	c.serviceRegWrapper = wrapper.NewHandlerWrapper(c.logger, c.consulService, c.nomadService)
+	c.serviceRegWrapper = wrapper.NewHandlerWrapper(c.logger, c.consulServices, c.nomadService)
 
 	// Batching of initial fingerprints is done to reduce the number of node
 	// updates sent to the server on startup.
@@ -567,7 +568,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	// Setup Consul discovery if enabled
-	if cfg.ConsulConfig.ClientAutoJoin != nil && *cfg.ConsulConfig.ClientAutoJoin {
+	if cfg.GetDefaultConsul().ClientAutoJoin != nil && *cfg.GetDefaultConsul().ClientAutoJoin {
 		c.shutdownGroup.Go(c.consulDiscovery)
 		if c.servers.NumServers() == 0 {
 			// No configured servers; trigger discovery manually
@@ -1505,7 +1506,7 @@ func (c *Client) setupNode() error {
 		node.NodeResources = &structs.NodeResources{}
 		node.NodeResources.MinDynamicPort = newConfig.MinDynamicPort
 		node.NodeResources.MaxDynamicPort = newConfig.MaxDynamicPort
-		node.NodeResources.Cpu = newConfig.Node.NodeResources.Cpu
+		node.NodeResources.Processors = newConfig.Node.NodeResources.Processors
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
@@ -1642,19 +1643,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		}
 	}
 
-	// COMPAT(0.10): Remove in 0.10
-	// update the response networks with the config
-	// if we still have node changes, merge them
-	if response.Resources != nil {
-		response.Resources.Networks = updateNetworks(
-			response.Resources.Networks,
-			newConfig)
-		if !newConfig.Node.Resources.Equal(response.Resources) {
-			newConfig.Node.Resources.Merge(response.Resources)
-			nodeHasChanged = true
-		}
-	}
-
 	// update the response networks with the config
 	// if we still have node changes, merge them
 	if response.NodeResources != nil {
@@ -1672,7 +1660,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		}
 
 		// update config with total cpu compute if it was detected
-		if cpu := int(response.NodeResources.Cpu.CpuShares); cpu > 0 {
+		if cpu := response.NodeResources.Processors.TotalCompute(); cpu > 0 {
 			newConfig.CpuCompute = cpu
 		}
 	}
@@ -2766,8 +2754,8 @@ func (c *Client) newAllocRunnerConfig(
 		CSIManager:          c.csimanager,
 		CheckStore:          c.checkStore,
 		ClientConfig:        c.GetConfig(),
-		Consul:              c.consulService,
-		ConsulProxies:       c.consulProxies,
+		ConsulServices:      c.consulServices,
+		ConsulProxiesFunc:   c.consulProxiesFunc,
 		ConsulSI:            c.tokensClient,
 		DeviceManager:       c.devicemanager,
 		DeviceStatsReporter: c,
@@ -2790,6 +2778,7 @@ func (c *Client) newAllocRunnerConfig(
 
 // setupConsulTokenClient configures a tokenClient for managing consul service
 // identity tokens.
+// DEPRECATED: remove in 1.9.0
 func (c *Client) setupConsulTokenClient() error {
 	tc := consulApi.NewIdentitiesClient(c.logger, c.deriveSIToken)
 	c.tokensClient = tc
@@ -3025,7 +3014,7 @@ func taskIsPresent(taskName string, tasks []*structs.Task) bool {
 // triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
 	config := c.GetConfig()
-	if config.ConsulConfig.ClientAutoJoin != nil && *config.ConsulConfig.ClientAutoJoin {
+	if config.GetDefaultConsul() != nil && *config.GetDefaultConsul().ClientAutoJoin {
 		select {
 		case c.triggerDiscoveryCh <- struct{}{}:
 			// Discovery goroutine was released to execute
@@ -3070,7 +3059,7 @@ func (c *Client) consulDiscoveryImpl() error {
 		dcs = dcs[0:min(len(dcs), datacenterQueryLimit)]
 	}
 
-	serviceName := c.GetConfig().ConsulConfig.ServerServiceName
+	serviceName := c.GetConfig().GetDefaultConsul().ServerServiceName
 	var mErr multierror.Error
 	var nomadServers servers.Servers
 	consulLogger.Debug("bootstrap contacting Consul DCs", "consul_dcs", dcs)
@@ -3248,7 +3237,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 	// Emit unallocated
 	unallocatedMem := total.Memory.MemoryMB - res.Memory.MemoryMB - allocated.Flattened.Memory.MemoryMB
 	unallocatedDisk := total.Disk.DiskMB - res.Disk.DiskMB - allocated.Shared.DiskMB
-	unallocatedCpu := total.Cpu.CpuShares - res.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
+	unallocatedCpu := int64(total.Processors.Topology.UsableCompute()) - res.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
 
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), baseLabels)
@@ -3355,8 +3344,7 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 		}
 
 		// Add the resources
-		// COMPAT(0.11): Just use the allocated resources
-		allocated.Add(alloc.ComparableResources())
+		allocated.Add(alloc.AllocatedResources.Comparable())
 
 		// Add the used network
 		if alloc.AllocatedResources != nil {

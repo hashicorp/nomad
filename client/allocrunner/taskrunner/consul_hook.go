@@ -68,7 +68,7 @@ func (h *consulHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, 
 
 			filename := fmt.Sprintf("%s_%s_%s", consulTokenFilePrefix, cluster, identity)
 			tokenPath := filepath.Join(h.tokenDir, filename)
-			if err := os.WriteFile(tokenPath, []byte(token), consulTokenFilePerms); err != nil {
+			if err := os.WriteFile(tokenPath, []byte(token.SecretID), consulTokenFilePerms); err != nil {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
 			}
 		}

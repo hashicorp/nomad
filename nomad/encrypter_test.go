@@ -14,11 +14,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -31,12 +33,29 @@ var (
 	}
 )
 
+type mockSigner struct {
+	calls []*structs.IdentityClaims
+
+	nextToken, nextKeyID string
+	nextErr              error
+}
+
+func (s *mockSigner) SignClaims(c *structs.IdentityClaims) (token, keyID string, err error) {
+	s.calls = append(s.calls, c)
+	return s.nextToken, s.nextKeyID, s.nextErr
+}
+
 // TestEncrypter_LoadSave exercises round-tripping keys to disk
 func TestEncrypter_LoadSave(t *testing.T) {
 	ci.Parallel(t)
 
+	srv, cleanupSrv := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	t.Cleanup(cleanupSrv)
+
 	tmpDir := t.TempDir()
-	encrypter, err := NewEncrypter(&Server{shutdownCtx: context.Background()}, tmpDir)
+	encrypter, err := NewEncrypter(srv, tmpDir)
 	require.NoError(t, err)
 
 	algos := []structs.EncryptionAlgorithm{
@@ -73,7 +92,7 @@ func TestEncrypter_Restore(t *testing.T) {
 		c.DataDir = tmpDir
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 	nodeID := srv.GetConfig().NodeID
 
@@ -116,7 +135,7 @@ func TestEncrypter_Restore(t *testing.T) {
 		c.DataDir = tmpDir
 	})
 	defer shutdown2()
-	testutil.WaitForLeader(t, srv2.RPC)
+	testutil.WaitForKeyring(t, srv2.RPC, "global")
 	codec = rpcClient(t, srv2)
 
 	// Verify we've restored all the keys from the old keystore
@@ -172,9 +191,9 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	TestJoin(t, srv1, srv2)
 	TestJoin(t, srv1, srv3)
 
-	testutil.WaitForLeader(t, srv1.RPC)
-	testutil.WaitForLeader(t, srv2.RPC)
-	testutil.WaitForLeader(t, srv3.RPC)
+	testutil.WaitForKeyring(t, srv1.RPC, "global")
+	testutil.WaitForKeyring(t, srv2.RPC, "global")
+	testutil.WaitForKeyring(t, srv3.RPC, "global")
 
 	servers := []*Server{srv1, srv2, srv3}
 	var leader *Server
@@ -352,7 +371,7 @@ func TestEncrypter_EncryptDecrypt(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	e := srv.encrypter
 
@@ -372,7 +391,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	alloc := mock.Alloc()
 	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
@@ -382,11 +401,45 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	require.NoError(t, err)
 
 	got, err := e.VerifyClaim(out)
+	must.NoError(t, err)
+	must.NotNil(t, got)
+	must.Eq(t, alloc.ID, got.AllocationID)
+	must.Eq(t, alloc.JobID, got.JobID)
+	must.Eq(t, "web", got.TaskName)
+
+	// By default an issuer should not be set. See _Issuer test.
+	must.Eq(t, "", got.Issuer)
+}
+
+// TestEncrypter_SignVerify_Issuer asserts that the signer adds an issuer if it
+// is configured.
+func TestEncrypter_SignVerify_Issuer(t *testing.T) {
+	// Set OIDCIssuer to a valid looking (but fake) issuer
+	const testIssuer = "https://oidc.test.nomadproject.io"
+
+	ci.Parallel(t)
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+
+		c.OIDCIssuer = testIssuer
+	})
+	defer shutdown()
+	testutil.WaitForKeyring(t, srv.RPC, "global")
+
+	alloc := mock.Alloc()
+	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
+	e := srv.encrypter
+
+	out, _, err := e.SignClaims(claims)
 	require.NoError(t, err)
-	require.NotNil(t, got)
-	require.Equal(t, alloc.ID, got.AllocationID)
-	require.Equal(t, alloc.JobID, got.JobID)
-	require.Equal(t, "web", got.TaskName)
+
+	got, err := e.VerifyClaim(out)
+	must.NoError(t, err)
+	must.NotNil(t, got)
+	must.Eq(t, alloc.ID, got.AllocationID)
+	must.Eq(t, alloc.JobID, got.JobID)
+	must.Eq(t, "web", got.TaskName)
+	must.Eq(t, testIssuer, got.Issuer)
 }
 
 func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
@@ -396,7 +449,7 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	alloc := mock.Alloc()
 	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
@@ -437,4 +490,124 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 	must.Error(t, err)
 	must.ErrorContains(t, err, "invalid signature")
 	must.Nil(t, got)
+}
+
+// TestEncrypter_Upgrade17 simulates upgrading from 1.6 -> 1.7 does not break
+// old (ed25519) or new (rsa) signing keys.
+func TestEncrypter_Upgrade17(t *testing.T) {
+
+	ci.Parallel(t)
+
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	t.Cleanup(shutdown)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
+	codec := rpcClient(t, srv)
+
+	// Fake life as a 1.6 server by writing only ed25519 keys
+	oldRootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+
+	oldRootKey.Meta.SetActive()
+
+	// Remove RSAKey to mimic 1.6
+	oldRootKey.RSAKey = nil
+
+	// Add to keyring
+	must.NoError(t, srv.encrypter.AddKey(oldRootKey))
+
+	// Write metadata to Raft
+	wr := structs.WriteRequest{
+		Namespace: "default",
+		Region:    "global",
+	}
+	req := structs.KeyringUpdateRootKeyMetaRequest{
+		RootKeyMeta:  oldRootKey.Meta,
+		WriteRequest: wr,
+	}
+	_, _, err = srv.raftApply(structs.RootKeyMetaUpsertRequestType, req)
+	must.NoError(t, err)
+
+	// Create a 1.6 style workload identity
+	claims := &structs.IdentityClaims{
+		Namespace:    "default",
+		JobID:        "fakejob",
+		AllocationID: uuid.Generate(),
+		TaskName:     "faketask",
+	}
+
+	// Sign the claims and assert they were signed with EdDSA (the 1.6 signing
+	// algorithm)
+	oldRawJWT, oldKeyID, err := srv.encrypter.SignClaims(claims)
+	must.NoError(t, err)
+	must.Eq(t, oldRootKey.Meta.KeyID, oldKeyID)
+
+	oldJWT, err := jwt.ParseSigned(oldRawJWT)
+	must.NoError(t, err)
+
+	foundKeyID := false
+	foundAlg := false
+	for _, h := range oldJWT.Headers {
+		if h.KeyID != "" {
+			// Should only have one key id header
+			must.False(t, foundKeyID)
+			foundKeyID = true
+			must.Eq(t, oldKeyID, h.KeyID)
+		}
+
+		if h.Algorithm != "" {
+			// Should only have one alg header
+			must.False(t, foundAlg)
+			foundAlg = true
+			must.Eq(t, structs.PubKeyAlgEdDSA, h.Algorithm)
+		}
+	}
+	must.True(t, foundKeyID)
+	must.True(t, foundAlg)
+
+	_, err = srv.encrypter.VerifyClaim(oldRawJWT)
+	must.NoError(t, err)
+
+	// !! Mimic an upgrade by rotating to get a new RSA key !!
+	rotateReq := &structs.KeyringRotateRootKeyRequest{
+		WriteRequest: wr,
+	}
+	var rotateResp structs.KeyringRotateRootKeyResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp))
+
+	newRawJWT, newKeyID, err := srv.encrypter.SignClaims(claims)
+	must.NoError(t, err)
+	must.NotEq(t, oldRootKey.Meta.KeyID, newKeyID)
+	must.Eq(t, rotateResp.Key.KeyID, newKeyID)
+
+	newJWT, err := jwt.ParseSigned(newRawJWT)
+	must.NoError(t, err)
+
+	foundKeyID = false
+	foundAlg = false
+	for _, h := range newJWT.Headers {
+		if h.KeyID != "" {
+			// Should only have one key id header
+			must.False(t, foundKeyID)
+			foundKeyID = true
+			must.Eq(t, newKeyID, h.KeyID)
+		}
+
+		if h.Algorithm != "" {
+			// Should only have one alg header
+			must.False(t, foundAlg)
+			foundAlg = true
+			must.Eq(t, structs.PubKeyAlgRS256, h.Algorithm)
+		}
+	}
+	must.True(t, foundKeyID)
+	must.True(t, foundAlg)
+
+	_, err = srv.encrypter.VerifyClaim(newRawJWT)
+	must.NoError(t, err)
+
+	// Ensure that verifying the old JWT still works
+	_, err = srv.encrypter.VerifyClaim(oldRawJWT)
+	must.NoError(t, err)
 }

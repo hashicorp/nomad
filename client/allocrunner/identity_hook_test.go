@@ -4,7 +4,6 @@
 package allocrunner
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -21,7 +20,8 @@ import (
 // statically assert network hook implements the expected interfaces
 var _ interfaces.RunnerPrerunHook = (*identityHook)(nil)
 var _ interfaces.ShutdownHook = (*identityHook)(nil)
-var _ interfaces.TaskStopHook = (*identityHook)(nil)
+var _ interfaces.RunnerPreKillHook = (*identityHook)(nil)
+var _ interfaces.RunnerDestroyHook = (*identityHook)(nil)
 
 func TestIdentityHook_Prerun(t *testing.T) {
 	ci.Parallel(t)
@@ -86,5 +86,7 @@ func TestIdentityHook_Prerun(t *testing.T) {
 		start.Add(ttl).Add(1*time.Second).Unix(),
 	)
 
-	must.NoError(t, hook.Stop(context.Background(), nil, nil))
+	// shutting down twice must not panic
+	hook.PreKill()
+	hook.PreKill()
 }

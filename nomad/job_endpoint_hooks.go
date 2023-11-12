@@ -62,6 +62,22 @@ var (
 		RTarget: ">= 1.4.0",
 		Operand: structs.ConstraintSemver,
 	}
+
+	// numaVersionConstraint is the constraint injected into task groups that
+	// utilize Nomad's NUMA aware scheduling which requires Nomad 1.7 or later.
+	numaVersionConstraint = &structs.Constraint{
+		LTarget: "${attr.nomad.version}",
+		RTarget: ">= 1.6.3-dev",
+		Operand: structs.ConstraintSemver,
+	}
+
+	// numaKernelConstraint is the constraint injected into task groups that utilize
+	// Nomad's NUMA aware scheduling which requires running on Linux.
+	numaKernelConstraint = &structs.Constraint{
+		LTarget: "${attr.kernel.name}",
+		RTarget: "linux",
+		Operand: "=",
+	}
 )
 
 type admissionController interface {
@@ -173,9 +189,15 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// Identify which task groups are utilising Consul service discovery.
 	consulServiceDisco := j.RequiredConsulServiceDiscovery()
 
-	// Hot path
+	// Identify which task groups are utilizing NUMA resources.
+	numaTaskGroups := j.RequiredNUMA()
+
+	// Hot path where none of our things require constraints.
+	//
+	// [UPDATE THIS] if you are adding a new constraint thing!
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
-		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 {
+		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
+		numaTaskGroups.Empty() {
 		return j, nil, nil
 	}
 
@@ -183,13 +205,18 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// constraints. When adding new implicit constraints, they should go inside
 	// this single loop, with a new constraintMatcher if needed.
 	for _, tg := range j.TaskGroups {
-
 		// If the task group utilises Vault, run the mutator.
 		vaultTasks := maps.Keys(vaultBlocks[tg.Name])
 		sort.Strings(vaultTasks)
 		for _, vaultTask := range vaultTasks {
 			vaultBlock := vaultBlocks[tg.Name][vaultTask]
 			mutateConstraint(constraintMatcherLeft, tg, vaultConstraintFn(vaultBlock))
+		}
+
+		// If the task group utilizes NUMA resources, run the mutator.
+		if numaTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherFull, tg, numaVersionConstraint)
+			mutateConstraint(constraintMatcherFull, tg, numaKernelConstraint)
 		}
 
 		// Check whether the task group is using signals. In the case that it
@@ -227,7 +254,6 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 				}
 			}
 		}
-
 	}
 
 	return j, nil, nil
@@ -239,9 +265,11 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 // need to split out the behavior to ENT-specific code.
 func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
 	if vault.Cluster != structs.VaultDefaultCluster && vault.Cluster != "" {
+		// Non-default clusters use workload identities to derive tokens, which
+		// require Vault 1.11.0+.
 		return &structs.Constraint{
 			LTarget: fmt.Sprintf("${attr.vault.%s.version}", vault.Cluster),
-			RTarget: ">= 0.6.1",
+			RTarget: ">= 1.11.0",
 			Operand: structs.ConstraintSemver,
 		}
 	}
@@ -355,19 +383,26 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 		multierror.Append(validationErrors, fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, v.srv.config.JobMaxPriority))
 	}
 
+	okForIdentity := v.isEligibleForMultiIdentity()
+
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
-			serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task group %s", tg.Name))
+			serviceErrs := v.validateServiceIdentity(
+				s, fmt.Sprintf("task group %s", tg.Name), okForIdentity)
 			multierror.Append(validationErrors, serviceErrs)
 		}
 
 		for _, t := range tg.Tasks {
+			if len(t.Identities) > 1 && !okForIdentity {
+				multierror.Append(validationErrors, fmt.Errorf("tasks can only have 1 identity block until all servers are upgraded to %s or later", minVersionMultiIdentities))
+			}
 			for _, s := range t.Services {
-				serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task %s", t.Name))
+				serviceErrs := v.validateServiceIdentity(
+					s, fmt.Sprintf("task %s", t.Name), okForIdentity)
 				multierror.Append(validationErrors, serviceErrs)
 			}
 
-			vaultWarns, vaultErrs := v.validateVaultIdentity(t)
+			vaultWarns, vaultErrs := v.validateVaultIdentity(t, okForIdentity)
 			multierror.Append(validationErrors, vaultErrs)
 			warnings = append(warnings, vaultWarns...)
 		}
@@ -376,67 +411,78 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	return warnings, validationErrors.ErrorOrNil()
 }
 
-func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string) error {
-	var mErr *multierror.Error
-
-	if s.Identity != nil {
-		if !v.srv.config.UseConsulIdentity() {
-			mErr = multierror.Append(mErr, fmt.Errorf(
-				"Service %s in %s defines an identity but server is not configured to use Consul identities, set use_identity to true in the Consul server configuration",
-				s.Name, parent,
-			))
-		}
-
-		if s.Identity.Name == "" {
-			mErr = multierror.Append(mErr, fmt.Errorf("Service %s in %s has an identity with an empty name", s.Name, parent))
-		}
-	} else if v.srv.config.UseConsulIdentity() && v.srv.config.ConsulServiceIdentity() == nil {
-		mErr = multierror.Append(mErr, fmt.Errorf(
-			"Service %s in %s expected to have an identity, add an identity block to the service or provide a default using the service_identity block in the server Consul configuration",
-			s.Name, parent,
-		))
+func (v *jobValidate) isEligibleForMultiIdentity() bool {
+	if v.srv == nil || v.srv.serf == nil {
+		return true // handle tests w/o real servers safely
 	}
-
-	return mErr.ErrorOrNil()
+	return ServersMeetMinimumVersion(
+		v.srv.Members(), v.srv.Region(), minVersionMultiIdentities, true)
 }
 
-func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
-	var mErr *multierror.Error
+func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string, okForIdentity bool) error {
+	if s.Identity != nil && !okForIdentity {
+		return fmt.Errorf("Service %s in %s cannot have an identity until all servers are upgraded to %s or later",
+			s.Name, parent, minVersionMultiIdentities)
+	}
+	if s.Identity != nil && s.Identity.Name == "" {
+		return fmt.Errorf("Service %s in %s has an identity with an empty name", s.Name, parent)
+	}
+
+	return nil
+}
+
+// validateVaultIdentity validates that a task is properly configured to access
+// a Vault cluster.
+//
+// It assumes the jobImplicitIdentitiesHook mutator hook has been called to
+// inject task identities if necessary.
+func (v *jobValidate) validateVaultIdentity(t *structs.Task, okForIdentity bool) ([]error, error) {
 	var warnings []error
 
-	vaultWIDs := []string{}
-	for _, wid := range t.Identities {
-		if strings.HasPrefix(wid.Name, structs.WorkloadIdentityVaultPrefix) {
-			vaultWIDs = append(vaultWIDs, wid.Name)
-		}
-	}
-	hasTaskWID := len(vaultWIDs) > 0
-	hasDefaultWID := v.srv.config.VaultDefaultIdentity() != nil
-
 	if t.Vault == nil {
-		for _, wid := range vaultWIDs {
-			warnings = append(warnings, fmt.Errorf("Task %s has an identity called %s but no vault block", t.Name, wid))
+		// Warn if task doesn't use Vault but has Vault identities.
+		for _, wid := range t.Identities {
+			if strings.HasPrefix(wid.Name, structs.WorkloadIdentityVaultPrefix) {
+				warnings = append(warnings, fmt.Errorf("Task %s has an identity called %s but no vault block", t.Name, wid.Name))
+			}
 		}
 		return warnings, nil
 	}
 
-	if hasTaskWID || hasDefaultWID {
-		if len(t.Vault.Policies) > 0 {
-			warnings = append(warnings, fmt.Errorf(
-				"Task %s has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored",
-				t.Name,
-			))
+	vaultWIDName := t.Vault.IdentityName()
+	vaultWID := t.GetIdentity(vaultWIDName)
+
+	if vaultWID != nil && !okForIdentity {
+		return warnings, fmt.Errorf("Task %s cannot have an identity for Vault until all servers are upgraded to %s or later", t.Name, minVersionMultiIdentities)
+	}
+
+	if vaultWID == nil {
+		// Tasks using non-default clusters are required to have an identity.
+		if t.Vault.Cluster != structs.VaultDefaultCluster {
+			return warnings, fmt.Errorf(
+				"Task %s uses Vault cluster %s but does not have an identity named %s and no default identity is provided in agent configuration",
+				t.Name, t.Vault.Cluster, vaultWIDName,
+			)
 		}
+
+		// Tasks using the default cluster but without a Vault identity will
+		// use the legacy flow.
+		if len(t.Vault.Policies) == 0 {
+			return warnings, fmt.Errorf("Task %s has a Vault block with an empty list of policies", t.Name)
+		}
+
 		return warnings, nil
 	}
 
-	// At this point Nomad will use the legacy token-based flow, so keep the
-	// existing validations.
-	if len(t.Vault.Policies) == 0 {
-		mErr = multierror.Append(mErr, fmt.Errorf("Task %s has a Vault block with an empty list of policies", t.Name))
+	// Warn if tasks is using identity-based flow with the deprecated policies
+	// field.
+	if len(t.Vault.Policies) > 0 {
+		warnings = append(warnings, fmt.Errorf(
+			"Task %s has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored",
+			t.Name,
+		))
 	}
-
-	return warnings, mErr.ErrorOrNil()
+	return warnings, nil
 }
 
 type memoryOversubscriptionValidate struct {

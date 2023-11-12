@@ -39,28 +39,29 @@ import (
 type OperatorDebugCommand struct {
 	Meta
 
-	timestamp     string
-	collectDir    string
-	duration      time.Duration
-	interval      time.Duration
-	pprofInterval time.Duration
-	pprofDuration time.Duration
-	logLevel      string
-	maxNodes      int
-	nodeClass     string
-	nodeIDs       []string
-	serverIDs     []string
-	topics        map[api.Topic][]string
-	index         uint64
-	consul        *external
-	vault         *external
-	manifest      []string
-	ctx           context.Context
-	cancel        context.CancelFunc
-	opts          *api.QueryOptions
-	verbose       bool
-	members       *api.ServerMembers
-	nodes         []*api.NodeListStub
+	timestamp          string
+	collectDir         string
+	duration           time.Duration
+	interval           time.Duration
+	pprofInterval      time.Duration
+	pprofDuration      time.Duration
+	logLevel           string
+	logIncludeLocation bool
+	maxNodes           int
+	nodeClass          string
+	nodeIDs            []string
+	serverIDs          []string
+	topics             map[api.Topic][]string
+	index              uint64
+	consul             *external
+	vault              *external
+	manifest           []string
+	ctx                context.Context
+	cancel             context.CancelFunc
+	opts               *api.QueryOptions
+	verbose            bool
+	members            *api.ServerMembers
+	nodes              []*api.NodeListStub
 }
 
 const (
@@ -178,6 +179,10 @@ Debug Options:
   -log-level=<level>
     The log level to monitor. Defaults to DEBUG.
 
+  -log-include-location
+    Include file and line information in each log line monitored. The default
+    is true.
+
   -max-nodes=<count>
     Cap the maximum number of client nodes included in the capture. Defaults
     to 10, set to 0 for unlimited.
@@ -225,20 +230,21 @@ func (c *OperatorDebugCommand) Synopsis() string {
 func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-duration":       complete.PredictAnything,
-			"-event-index":    complete.PredictAnything,
-			"-event-topic":    complete.PredictAnything,
-			"-interval":       complete.PredictAnything,
-			"-log-level":      complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
-			"-max-nodes":      complete.PredictAnything,
-			"-node-class":     NodeClassPredictor(c.Client),
-			"-node-id":        NodePredictor(c.Client),
-			"-server-id":      ServerPredictor(c.Client),
-			"-output":         complete.PredictDirs("*"),
-			"-pprof-duration": complete.PredictAnything,
-			"-consul-token":   complete.PredictAnything,
-			"-vault-token":    complete.PredictAnything,
-			"-verbose":        complete.PredictAnything,
+			"-duration":             complete.PredictAnything,
+			"-event-index":          complete.PredictAnything,
+			"-event-topic":          complete.PredictAnything,
+			"-interval":             complete.PredictAnything,
+			"-log-level":            complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
+			"-log-include-location": complete.PredictAnything,
+			"-max-nodes":            complete.PredictAnything,
+			"-node-class":           NodeClassPredictor(c.Client),
+			"-node-id":              NodePredictor(c.Client),
+			"-server-id":            ServerPredictor(c.Client),
+			"-output":               complete.PredictDirs("*"),
+			"-pprof-duration":       complete.PredictAnything,
+			"-consul-token":         complete.PredictAnything,
+			"-vault-token":          complete.PredictAnything,
+			"-verbose":              complete.PredictAnything,
 		})
 }
 
@@ -358,6 +364,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&eventTopic, "event-topic", "none", "")
 	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
+	flags.BoolVar(&c.logIncludeLocation, "log-include-location", true, "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
 	flags.StringVar(&nodeIDs, "node-id", "all", "")
@@ -769,8 +776,9 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 
 	qo := api.QueryOptions{
 		Params: map[string]string{
-			idKey:       nodeID,
-			"log_level": c.logLevel,
+			idKey:                  nodeID,
+			"log_level":            c.logLevel,
+			"log_include_location": strconv.FormatBool(c.logIncludeLocation),
 		},
 		AllowStale: c.queryOpts().AllowStale,
 	}
@@ -922,7 +930,7 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 
 		if strings.Contains(err.Error(), api.PermissionDeniedErrorContent) {
 			// Drop a hint to help the operator resolve the error
-			c.Ui.Warn("Agent host retrieval requires agent:read ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#host for more information.")
+			c.Ui.Warn("Agent host retrieval requires agent:read ACL or enable_debug=true.  See https://developer.hashicorp.com/nomad/api-docs/agent#host for more information.")
 		}
 		return // exit on any error
 	}
@@ -1016,7 +1024,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 			// one permission failure before we bail.
 			// But lets first drop a hint to help the operator resolve the error
 
-			c.Ui.Warn("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#agent-runtime-profiles for more information.")
+			c.Ui.Warn("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://developer.hashicorp.com/nomad/api-docs/agent#agent-runtime-profiles for more information.")
 			return // only exit on 403
 		}
 	} else {

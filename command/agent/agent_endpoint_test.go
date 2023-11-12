@@ -31,6 +31,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,15 +57,15 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		require.NotEmpty(self.Stats)
 
 		// Check the Vault config
-		require.Empty(self.Config.Vault.Token)
+		require.Empty(self.Config.defaultVault().Token)
 
 		// Assign a Vault token and require it is redacted.
-		s.Config.Vault.Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		s.Config.defaultVault().Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
 		respW = httptest.NewRecorder()
 		obj, err = s.Server.AgentSelfRequest(respW, req)
 		require.NoError(err)
 		self = obj.(agentSelf)
-		require.Equal("<redacted>", self.Config.Vault.Token)
+		require.Equal("<redacted>", self.Config.defaultVault().Token)
 
 		// Assign a ReplicationToken token and require it is redacted.
 		s.Config.ACL.ReplicationToken = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
@@ -75,15 +76,15 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		require.Equal("<redacted>", self.Config.ACL.ReplicationToken)
 
 		// Check the Consul config
-		require.Empty(self.Config.Consul.Token)
+		require.Empty(self.Config.Consuls[0].Token)
 
 		// Assign a Consul token and require it is redacted.
-		s.Config.Consul.Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		s.Config.Consuls[0].Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
 		respW = httptest.NewRecorder()
 		obj, err = s.Server.AgentSelfRequest(respW, req)
 		require.NoError(err)
 		self = obj.(agentSelf)
-		require.Equal("<redacted>", self.Config.Consul.Token)
+		require.Equal("<redacted>", self.Config.Consuls[0].Token)
 
 		// Check the Circonus config
 		require.Empty(self.Config.Telemetry.CirconusAPIToken)
@@ -290,6 +291,18 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			_, err = s.Server.AgentMonitor(resp, req)
 			httpErr := err.(HTTPCodedError).Code()
 			require.Equal(t, 400, httpErr)
+		})
+	})
+
+	t.Run("unknown log_include_location", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/monitor?log_include_location=maybe", nil)
+			must.NoError(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			must.Eq(t, http.StatusBadRequest, err.(HTTPCodedError).Code())
 		})
 	})
 

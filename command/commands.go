@@ -235,6 +235,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"action": func() (cli.Command, error) {
+			return &ActionCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc": func() (cli.Command, error) {
 			return &AllocCommand{
 				Meta: meta,
@@ -1023,6 +1028,21 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"service delete": func() (cli.Command, error) {
 			return &ServiceDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"setup": func() (cli.Command, error) {
+			return &SetupCommand{
+				Meta: meta,
+			}, nil
+		},
+		"setup consul": func() (cli.Command, error) {
+			return &SetupConsulCommand{
+				Meta: meta,
+			}, nil
+		},
+		"setup vault": func() (cli.Command, error) {
+			return &SetupVaultCommand{
 				Meta: meta,
 			}, nil
 		},

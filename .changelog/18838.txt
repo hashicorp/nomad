@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler (Enterprise): auto-unblock evals with associated quotas when node resources are freed up
+```

@@ -31,9 +31,9 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 
 	node := testClient.config.Node
 
-	must.Positive(t, node.Resources.CPU)
-	must.Positive(t, node.Resources.MemoryMB)
-	must.Positive(t, node.Resources.DiskMB)
+	must.Positive(t, node.NodeResources.Processors.TotalCompute())
+	must.Positive(t, node.NodeResources.Memory.MemoryMB)
+	must.Positive(t, node.NodeResources.Disk.DiskMB)
 }
 
 func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {

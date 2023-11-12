@@ -168,7 +168,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 			return 1
 		}
 
-		allocStub, err = getRandomJobAlloc(client, jobID, ns)
+		allocStub, err = getRandomJobAlloc(client, jobID, "", ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -299,13 +299,6 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 
 	return client.Allocations().Exec(ctx,
 		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
-}
-
-// isTty returns true if both stdin and stdout are a TTY
-func isTty() bool {
-	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
-	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
-	return isStdinTerminal && isStdoutTerminal
 }
 
 // setRawTerminal sets the stream terminal in raw mode, so process captures

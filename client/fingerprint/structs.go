@@ -21,7 +21,6 @@ type FingerprintRequest struct {
 type FingerprintResponse struct {
 	Attributes    map[string]string
 	Links         map[string]string
-	Resources     *structs.Resources // COMPAT(0.10): Remove in 0.10
 	NodeResources *structs.NodeResources
 
 	// Detected is a boolean indicating whether the fingerprinter detected

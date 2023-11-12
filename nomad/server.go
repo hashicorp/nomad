@@ -291,6 +291,15 @@ type Server struct {
 	// dependencies.
 	reportingManager *reporting.Manager
 
+	// oidcDisco is the OIDC Discovery configuration to be returned by the
+	// Keyring.GetConfig RPC and /.well-known/openid-configuration HTTP API.
+	//
+	// The issuer and jwks url are user configurable and therefore the struct is
+	// initialized when NewServer is setup.
+	//
+	// MAY BE nil! Issuer must be explicitly configured by the end user.
+	oidcDisco *structs.OIDCDiscoveryConfig
+
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
 
@@ -305,7 +314,7 @@ type Server struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) (*Server, error) {
+func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) (*Server, error) {
 
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(
@@ -384,7 +393,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
 
 	// Setup Consul (more)
-	s.setupConsul(consulConfigEntries, consulACLs)
+	s.setupConsul(consulConfigFunc, consulACLs)
 
 	// Setup Vault
 	if err := s.setupVaultClient(); err != nil {
@@ -407,9 +416,22 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	}
 	s.encrypter = encrypter
 
-	// Set up the OIDC provider cache. This is needed by the setupRPC, but must
-	// be done separately so that the server can stop all background processes
-	// when it shuts down itself.
+	// Set up the OIDC discovery configuration required by third parties, such as
+	// AWS's IAM OIDC Provider, to authenticate workload identity JWTs.
+	if iss := config.OIDCIssuer; iss != "" {
+		oidcDisco, err := structs.NewOIDCDiscoveryConfig(iss)
+		if err != nil {
+			return nil, err
+		}
+		s.oidcDisco = oidcDisco
+		s.logger.Info("issuer set; OIDC Discovery endpoint for workload identities enabled", "issuer", iss)
+	} else {
+		s.logger.Debug("issuer not set; OIDC Discovery endpoint for workload identities disabled")
+	}
+
+	// Set up the SSO OIDC provider cache. This is needed by the setupRPC, but
+	// must be done separately so that the server can stop all background
+	// processes when it shuts down itself.
 	s.oidcProviderCache = oidc.NewProviderCache()
 
 	// Initialize the RPC layer
@@ -853,7 +875,7 @@ func (s *Server) Reload(newConfig *Config) error {
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
-		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
+		if err := s.vault.SetConfig(newConfig.GetDefaultVault()); err != nil {
 			_ = multierror.Append(&mErr, err)
 		}
 	}
@@ -996,7 +1018,7 @@ func (s *Server) setupBootstrapHandler() error {
 			dcs = dcs[0:min(len(dcs), datacenterQueryLimit)]
 		}
 
-		nomadServerServiceName := s.config.ConsulConfig.ServerServiceName
+		nomadServerServiceName := s.config.GetDefaultConsul().ServerServiceName
 		var mErr multierror.Error
 		const defaultMaxNumNomadServers = 8
 		nomadServerServices := make([]string, 0, defaultMaxNumNomadServers)
@@ -1084,7 +1106,8 @@ func (s *Server) setupBootstrapHandler() error {
 // setupConsulSyncer creates Server-mode consul.Syncer which periodically
 // executes callbacks on a fixed interval.
 func (s *Server) setupConsulSyncer() error {
-	if s.config.ConsulConfig.ServerAutoJoin != nil && *s.config.ConsulConfig.ServerAutoJoin {
+	conf := s.config.GetDefaultConsul()
+	if conf.ServerAutoJoin != nil && *conf.ServerAutoJoin {
 		if err := s.setupBootstrapHandler(); err != nil {
 			return err
 		}
@@ -1143,15 +1166,21 @@ func (s *Server) setupNodeDrainer() {
 }
 
 // setupConsul is used to setup Server specific consul components.
-func (s *Server) setupConsul(consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) {
-	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigEntries, s.logger)
+func (s *Server) setupConsul(consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) {
+	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigFunc, s.logger)
 	s.consulACLs = NewConsulACLsAPI(consulACLs, s.logger, s.purgeSITokenAccessors)
 }
 
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
+	vconfig := s.config.GetDefaultVault()
+	if vconfig != nil && vconfig.DefaultIdentity != nil {
+		s.vault = &NoopVault{}
+		return nil
+	}
+
 	delegate := s.entVaultDelegate()
-	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors, delegate)
+	v, err := NewVaultClient(vconfig, s.logger, s.purgeVaultAccessors, delegate)
 	if err != nil {
 		return err
 	}
@@ -1834,7 +1863,7 @@ func (s *Server) listenWorkerEvents() {
 				if err != nil {
 					s.logger.Debug("failed to encode event to JSON", "error", err)
 				}
-				s.logger.Warn("unexpected node port collision, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
+				s.logger.Warn("unexpected node port collision, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information",
 					"node_id", event.Node.ID, "reason", event.Reason, "event", string(eventJson))
 				loggedAt[event.Node.ID] = time.Now()
 			}
@@ -2125,7 +2154,7 @@ const peersInfoContent = `
 As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. The format of this file depends on what the server has
 configured for its Raft protocol version. Please see the server configuration
-page at https://www.nomadproject.io/docs/configuration/server#raft_protocol for more
+page at https://developer.hashicorp.com/nomad/docs/configuration/server#raft_protocol for more
 details about this parameter.
 For Raft protocol version 2 and earlier, this should be formatted as a JSON
 array containing the address and port of each Nomad server in the cluster, like
@@ -2161,7 +2190,7 @@ directory.
 The "address" field is the address and port of the server.
 The "non_voter" field controls whether the server is a non-voter, which is used
 in some advanced Autopilot configurations, please see
-https://www.nomadproject.io/guides/operations/outage.html for more information. If
+https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery for more information. If
 "non_voter" is omitted it will default to false, which is typical for most
 clusters.
 
@@ -2178,5 +2207,5 @@ creating the peers.json file, and that all servers receive the same
 configuration. Once the peers.json file is successfully ingested and applied, it
 will be deleted.
 
-Please see https://www.nomadproject.io/guides/outage.html for more information.
+Please see https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery for more information.
 `

@@ -13,6 +13,91 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.7.0
+
+#### Vault Integration Changes
+
+Starting in Nomad 1.7, Nomad clients will use a task's [Workload Identity][] to
+authenticate to Vault and obtain a Vault token specific to the task.
+
+The existing workflow using a Vault token provided in either the agent
+configuration or at the time of job submission is deprecated and will be removed
+in Nomad 1.9. The [`vault.policies`][] field is also deprecated and will work
+only with the existing workflow. Instead, you should configure a suitable Vault
+role and use that.
+
+The following agent configuration fields are deprecated:
+- [`vault.allow_unauthenticated`][] will be removed in Nomad 1.9. Tasks will use
+  the workload identity without the user supplying a Vault token.
+- [`vault.task_token_ttl`][] will be removed in Nomad 1.9. With workload
+  identity, tasks will receive their TTL configuration from the Vault role.
+- [`vault.token`][] will be removed in Nomad 1.9. Nomad agents will no longer
+  make requests to authenticated endpoints except with a task's workload
+  identity.
+
+Before upgrading to Nomad 1.9 you will need to have configured authentication
+with Vault to work with workload identity. See [Migrating to Using Workload
+Identity with Vault][] for more details.
+
+#### Consul Integration Changes
+
+Starting in Nomad 1.7, Nomad clients will use a service's or task's [Workload
+Identity][] to authenticate to Consul and obtain a Consul token specific to the
+workload.
+
+The existing workflow using a Consul token provided in either the agent
+configuration or at the time of job submission is deprecated and will be removed
+in Nomad 1.9. The [`consul.allow_unauthenticated`][] agent configuration field
+will be removed in Nomad 1.9. Tasks will use the workload identity without the
+user supplying a Consul token.
+
+Before upgrading to Nomad 1.9 you will need to have configured authentication
+with Consul to work with workload identity. See [Migrating to Using Workload
+Identity with Consul][] for more details.
+
+#### RS256 JWT Signing Algorithm Support
+
+Prior to Nomad 1.7, workload identity JWTs were signed with the `EdDSA`
+algorithm. While `EdDSA` has numerous advantages as a signing algorithm, most
+third parties that accept JWTs expect the `RS256` signing algorithm to be used.
+
+Therefore starting in Nomad 1.7 *new* signing keys will generate an RSA key and
+sign workload identities with the `RS256` signing algorithm.
+
+Before setting up third party authentication methods to use workload
+identities, it is recommended to run [`nomad operator root keyring
+rotate`](/nomad/docs/commands/operator/root/keyring-rotate) to ensure you
+generate a new RSA key.
+
+To verify an RSA key is present you may check the [`/.well-known/jwks.json`
+endpoint](/nomad/api-docs/operator/keyring#list-active-public-keys) on any
+Nomad agent. If you see `"kty": "RSA"`, then an RSA key exists and you do not
+need to rotate keys.
+
+New Nomad clusters will use RSA by default and are not affected.
+
+#### CPU Fingerprinting Changes
+
+Starting in Nomad 1.7, Nomad clients improve the accuracy of detected CPU
+performance metrics. The fingerprinter now takes into account heterogeneous core
+types on applicable processors. In addition, Nomad will attempt to detect and
+use the base frequency of the processor rather than the turbo frequency when
+calculating the total available CPU bandwidth. The net result of these behaviors
+is that the calculated total CPU bandwidth available on a node may change when
+upgrading to Nomad 1.7. Operators are encouraged to ensure planned capacity
+meets expectations before upgrading. The [cpu concepts][cpu] documentation
+contains guidance in understanding how Nomad detects CPU metrics.
+
+#### CPU Core Isolation
+
+Starting in Nomad 1.7, Nomad tasks that specify CPU resources using the `cores`
+attribute will be restricted to using only the CPU cores assigned to them. In
+previous versions of Nomad these tasks could also make use of other non-reserved
+CPU cores. However this feature would cause severe performance problems for
+the Linux kernel as the number of tasks increased. Operators are encouraged
+to ensure tasks making use of the `cores` attribute are given sufficient CPU
+resources before upgrading.
+
 ## Nomad 1.6.0
 
 #### Enterprise License Validation with BuildDate
@@ -1870,3 +1955,12 @@ deleted and then Nomad 0.3.0 can be launched.
 [artifact_env]: /nomad/docs/configuration/client#set_environment_variables
 [dangling_container_reconciliation]: /nomad/docs/drivers/docker#enabled
 [hard_guide]: /nomad/docs/install/production/requirements#hardening-nomad
+[Workload Identity]: /nomad/docs/concepts/workload-identity
+[Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul
+[Migrating to Using Workload Identity with Vault]: /nomad/docs/integrations/vault-integration#migrating-to-using-workload-identity-with-vault
+[`vault.policies`]: /nomad/docs/job-specification/vault#policies
+[`vault.allow_unauthenticated`]: /nomad/docs/configuration/vault#allow_unauthenticated
+[`vault.token`]: /nomad/docs/configuration/vault#token
+[`vault.task_token_ttl`]: /nomad/docs/configuration/vault#task_token_ttl
+[`consul.allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
+[cpu]: /nomad/docs/concepts/cpu

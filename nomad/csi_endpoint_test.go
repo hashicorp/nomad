@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
@@ -2414,4 +2415,73 @@ func fakeCSIClaim(nodeID string) *structs.CSIVolumeClaim {
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		State:          structs.CSIVolumeClaimStateTaken,
 	}
+}
+
+// TestCSIPluginEndpoint_ACLNamespaceFilterAlloc checks that plugin allocations
+// are filtered by namespace when getting plugins, and enforcing that the client
+// has job-read ACL access to the namespace of the plugin allocations
+func TestCSIPluginEndpoint_ACLNamespaceFilterAlloc(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+	s := srv.fsm.State()
+
+	ns1 := mock.Namespace()
+	must.NoError(t, s.UpsertNamespaces(1000, []*structs.Namespace{ns1}))
+
+	// Setup ACLs
+	codec := rpcClient(t, srv)
+	listJob := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
+	policy := mock.PluginPolicy("read") + listJob
+	getToken := mock.CreatePolicyAndToken(t, s, 1001, "plugin-read", policy)
+
+	// Create the plugin and then some allocations to pretend to be the allocs that are
+	// running the plugin tasks
+	deleteNodes := state.CreateTestCSIPlugin(srv.fsm.State(), "foo")
+	defer deleteNodes()
+
+	plug, _ := s.CSIPluginByID(memdb.NewWatchSet(), "foo")
+	var allocs []*structs.Allocation
+	for _, info := range plug.Controllers {
+		a := mock.Alloc()
+		a.ID = info.AllocID
+		allocs = append(allocs, a)
+	}
+	for _, info := range plug.Nodes {
+		a := mock.Alloc()
+		a.ID = info.AllocID
+		allocs = append(allocs, a)
+	}
+
+	must.Eq(t, 3, len(allocs))
+	allocs[0].Namespace = ns1.Name
+
+	err := s.UpsertAllocs(structs.MsgTypeTestSetup, 1003, allocs)
+	must.NoError(t, err)
+
+	req := &structs.CSIPluginGetRequest{
+		ID: "foo",
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: getToken.SecretID,
+		},
+	}
+	resp := &structs.CSIPluginGetResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req, resp)
+	must.NoError(t, err)
+	must.Eq(t, 2, len(resp.Plugin.Allocations))
+
+	for _, a := range resp.Plugin.Allocations {
+		must.Eq(t, structs.DefaultNamespace, a.Namespace)
+	}
+
+	p2 := mock.PluginPolicy("read")
+	t2 := mock.CreatePolicyAndToken(t, s, 1004, "plugin-read2", p2)
+	req.AuthToken = t2.SecretID
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req, resp)
+	must.NoError(t, err)
+	must.Eq(t, 0, len(resp.Plugin.Allocations))
 }

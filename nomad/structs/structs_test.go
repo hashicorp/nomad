@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
@@ -6824,7 +6826,6 @@ func TestNode_Canonicalize(t *testing.T) {
 
 func TestNode_Copy(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	node := &Node{
 		ID:         uuid.Generate(),
@@ -6838,36 +6839,9 @@ func TestNode_Copy(t *testing.T) {
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
 		},
-		Resources: &Resources{
-			CPU:      4000,
-			MemoryMB: 8192,
-			DiskMB:   100 * 1024,
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "192.168.0.100/32",
-					MBits:  1000,
-				},
-			},
-		},
-		Reserved: &Resources{
-			CPU:      100,
-			MemoryMB: 256,
-			DiskMB:   4 * 1024,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
-					MBits:         1,
-				},
-			},
-		},
 		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares:          4000,
-				TotalCpuCores:      4,
-				ReservableCpuCores: []uint16{0, 1, 2, 3},
+			Processors: NodeProcessorResources{
+				Topology: MockBasicTopology(),
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,
@@ -6923,14 +6897,14 @@ func TestNode_Copy(t *testing.T) {
 
 	node2 := node.Copy()
 
-	require.Equal(node.Attributes, node2.Attributes)
-	require.Equal(node.Resources, node2.Resources)
-	require.Equal(node.Reserved, node2.Reserved)
-	require.Equal(node.Links, node2.Links)
-	require.Equal(node.Meta, node2.Meta)
-	require.Equal(node.Events, node2.Events)
-	require.Equal(node.DrainStrategy, node2.DrainStrategy)
-	require.Equal(node.Drivers, node2.Drivers)
+	must.Eq(t, node.Attributes, node2.Attributes)
+	must.Eq(t, node.Resources, node2.Resources)
+	must.Eq(t, node.Reserved, node2.Reserved)
+	must.Eq(t, node.Links, node2.Links)
+	must.Eq(t, node.Meta, node2.Meta)
+	must.Eq(t, node.Events, node2.Events)
+	must.Eq(t, node.DrainStrategy, node2.DrainStrategy)
+	must.Eq(t, node.Drivers, node2.Drivers)
 }
 
 func TestNode_GetID(t *testing.T) {
@@ -7196,10 +7170,8 @@ func TestNodeResources_Copy(t *testing.T) {
 	ci.Parallel(t)
 
 	orig := &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares:          int64(32000),
-			TotalCpuCores:      32,
-			ReservableCpuCores: []uint16{1, 2, 3, 9},
+		Processors: NodeProcessorResources{
+			Topology: MockBasicTopology(),
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(64000),
@@ -7228,25 +7200,20 @@ func TestNodeResources_Copy(t *testing.T) {
 		},
 	}
 
-	kopy := orig.Copy()
-	assert.Equal(t, orig, kopy)
+	cpy := orig.Copy()
+	must.Eq(t, orig, cpy)
 
-	// Make sure slices aren't shared
-	kopy.Cpu.ReservableCpuCores[1] = 9000
-	assert.NotEqual(t, orig.Cpu.ReservableCpuCores, kopy.Cpu.ReservableCpuCores)
-
-	kopy.NodeNetworks[0].MacAddress = "11:11:11:11:11:11"
-	kopy.NodeNetworks[0].Addresses[0].Alias = "public"
-	assert.NotEqual(t, orig.NodeNetworks[0], kopy.NodeNetworks[0])
+	cpy.NodeNetworks[0].MacAddress = "11:11:11:11:11:11"
+	cpy.NodeNetworks[0].Addresses[0].Alias = "public"
+	must.NotEq(t, orig.NodeNetworks[0], cpy.NodeNetworks[0])
 }
 
 func TestNodeResources_Merge(t *testing.T) {
 	ci.Parallel(t)
 
 	res := &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares:     int64(32000),
-			TotalCpuCores: 32,
+		Processors: NodeProcessorResources{
+			Topology: MockBasicTopology(),
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(64000),
@@ -7258,8 +7225,11 @@ func TestNodeResources_Merge(t *testing.T) {
 		},
 	}
 
+	topo2 := MockBasicTopology()
+	topo2.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2})
+
 	res.Merge(&NodeResources{
-		Cpu: NodeCpuResources{ReservableCpuCores: []uint16{0, 1, 2, 3}},
+		Processors: NodeProcessorResources{topo2},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
 		},
@@ -7270,11 +7240,9 @@ func TestNodeResources_Merge(t *testing.T) {
 		},
 	})
 
-	require.Exactly(t, &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares:          int64(32000),
-			TotalCpuCores:      32,
-			ReservableCpuCores: []uint16{0, 1, 2, 3},
+	must.Eq(t, &NodeResources{
+		Processors: NodeProcessorResources{
+			Topology: MockBasicTopology(),
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),

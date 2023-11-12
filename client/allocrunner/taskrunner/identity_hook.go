@@ -7,10 +7,13 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"time"
 
+	"github.com/hashicorp/consul-template/signals"
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/users"
@@ -37,6 +40,7 @@ type identityHook struct {
 	task       *structs.Task
 	tokenDir   string
 	envBuilder *taskenv.Builder
+	lifecycle  ti.TaskLifecycle
 	ts         tokenSetter
 	widmgr     widmgr.IdentityManager
 	logger     log.Logger
@@ -52,6 +56,7 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 		task:       tr.Task(),
 		tokenDir:   tr.taskDir.SecretsDir,
 		envBuilder: tr.envBuilder,
+		lifecycle:  tr,
 		ts:         tr,
 		widmgr:     tr.widmgr,
 		stopCtx:    stopCtx,
@@ -65,34 +70,63 @@ func (*identityHook) Name() string {
 	return "identity"
 }
 
-func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, *interfaces.TaskPrestartResponse) error {
+func (h *identityHook) Prestart(ctx context.Context, _ *interfaces.TaskPrestartRequest, _ *interfaces.TaskPrestartResponse) error {
 
 	// Handle default workload identity
 	if err := h.setDefaultToken(); err != nil {
 		return err
 	}
 
+	// Track first run signals from watchers
+	firstRunCh := make(chan struct{}, len(h.task.Identities))
+
 	// Start token watcher loops
 	for _, widspec := range h.task.Identities {
 		w := widspec
-		go h.watchIdentity(w)
+		go h.watchIdentity(w, firstRunCh)
+	}
+
+	// Don't block indefinitely for identities
+	deadlineTimer := time.NewTimer(time.Minute)
+	defer deadlineTimer.Stop()
+
+	// Wait until every watcher ticks the first run chan
+	for i := range h.task.Identities {
+		select {
+		case <-firstRunCh:
+			// Identity fetched, loop
+		case <-deadlineTimer.C:
+			h.logger.Warn("timed out waiting for initial identity tokens to be fetched",
+				"num_fetched", i, "num_total", len(h.task.Identities))
+			return nil
+		case <-ctx.Done():
+			h.logger.Debug("task prestart cancelled before initial identity tokens were fetched",
+				"num_fetched", i, "num_total", len(h.task.Identities))
+			return nil
+		case <-h.stopCtx.Done():
+			h.logger.Debug("task stopped before initial identity tokens were fetched",
+				"num_fetched", i, "num_total", len(h.task.Identities))
+			return nil
+		}
 	}
 
 	return nil
 }
 
-func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity) {
+func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity, runCh chan struct{}) {
 	id := structs.WIHandle{WorkloadIdentifier: h.task.Name, IdentityName: wid.Name}
 	signedIdentitiesChan, stopWatching := h.widmgr.Watch(id)
 	defer stopWatching()
 
+	firstRun := true
+
 	for {
 		select {
 		case signedWID, ok := <-signedIdentitiesChan:
-			h.logger.Trace("receiving renewed identity", "identity_name", wid.Name)
+			h.logger.Trace("receiving renewed identity", "identity", wid.Name)
 			if !ok {
 				// Chan was closed, stop watching
-				h.logger.Trace("identity watch closed", "task", h.task.Name, "identity", wid.Name)
+				h.logger.Trace("identity watch closed", "identity", wid.Name)
 				return
 			}
 
@@ -100,15 +134,72 @@ func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity) {
 				// The only way to hit this should be a bug as it indicates the server
 				// did not sign an identity for a task on this alloc.
 				h.logger.Error("missing workload identity %q", wid.Name)
+				return
 			}
 
 			if err := h.setAltToken(wid, signedWID.JWT); err != nil {
 				h.logger.Error(err.Error())
 			}
+
+			// Skip ChangeMode on firstRun and notify caller it can proceed
+			if firstRun {
+				select {
+				case runCh <- struct{}{}:
+				default:
+					// Not great but not necessarily fatal
+					h.logger.Warn("task started before identity %q was fetched", wid.Name)
+				}
+
+				firstRun = false
+				continue
+			}
+
+			switch wid.ChangeMode {
+			case structs.WIChangeModeRestart:
+				const noFailure = false
+				err := h.lifecycle.Restart(h.stopCtx, structs.NewTaskEvent(structs.TaskRestartSignal).
+					SetDisplayMessage(fmt.Sprintf("Identity[%s]: new token acquired", wid.Name)), noFailure)
+				if err != nil {
+					// Ignore error from kill because if that fails there's really
+					// nothing to be done.
+					_ = h.lifecycle.Kill(h.stopCtx, structs.NewTaskEvent(structs.TaskKilling).
+						SetFailsTask().
+						SetDisplayMessage(fmt.Sprintf("Identity[%s]: failed to restart: %v", wid.Name, err)))
+					return
+				}
+
+			case structs.WIChangeModeSignal:
+				if err := h.signalTask(wid); err != nil {
+					h.logger.Error("failed to send signal", "identity", wid.Name, "signal", wid.ChangeSignal)
+					// Ignore error from kill because if that fails there's really
+					// nothing to be done.
+					_ = h.lifecycle.Kill(h.stopCtx, structs.NewTaskEvent(structs.TaskKilling).
+						SetFailsTask().
+						SetDisplayMessage(fmt.Sprintf("Identity[%s]: failed to send signal: %v", wid.Name, err)))
+					return
+				}
+
+			}
+
+			// Note: any code added here will not run on first run
+
 		case <-h.stopCtx.Done():
 			return
 		}
 	}
+}
+
+// signalTask sends the configured signal to a task or returns an error.
+func (h *identityHook) signalTask(wid *structs.WorkloadIdentity) error {
+	s, err := signals.Parse(wid.ChangeSignal)
+	if err != nil {
+		return fmt.Errorf("failed to parse signal: %w", err)
+	}
+
+	event := structs.NewTaskEvent(structs.TaskSignaling).
+		SetTaskSignal(s).
+		SetDisplayMessage(fmt.Sprintf("Identity[%s]: new Identity token acquired", wid.Name))
+	return h.lifecycle.Signal(event, wid.ChangeSignal)
 }
 
 // setDefaultToken adds the Nomad token to the task's environment and writes it to a

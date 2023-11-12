@@ -15,5 +15,39 @@ section.notifications {
     &:not(:last-child) {
       margin-bottom: 1rem;
     }
+
+    $toastPadding: 16px;
+    $toastIconSize: 20px;
+    $toastIconPadding: 12px;
+    $codeDeMargin: -($toastPadding + $toastIconSize + $toastIconPadding);
+    $codeBottomMargin: 18px;
+
+    code {
+      background-color: black;
+      color: white;
+      display: block;
+      padding: 0.25rem;
+      height: 200px;
+      overflow: auto;
+      position: relative;
+      margin-left: $codeDeMargin;
+      margin-right: $codeDeMargin;
+      width: 500px;
+      margin-top: 1rem;
+      margin-bottom: -$codeBottomMargin;
+    }
+
+    pre {
+      display: inline-block;
+      background: inherit;
+      color: inherit;
+      border: none;
+      white-space: pre;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .follows-code {
+      margin-top: calc(1rem + $codeBottomMargin);
+    }
   }
 }

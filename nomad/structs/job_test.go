@@ -338,3 +338,136 @@ func TestJob_RequiredConsulServiceDiscovery(t *testing.T) {
 		})
 	}
 }
+
+func TestJob_RequiredNUMA(t *testing.T) {
+	cases := []struct {
+		name     string
+		inputJob *Job
+		exp      []string
+	}{
+		{
+			name: "no numa blocks",
+			inputJob: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+						},
+					},
+					{
+						Name: "group2",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+						},
+					},
+				},
+			},
+			exp: []string{},
+		},
+		{
+			name: "two numa blocks one none",
+			inputJob: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+					{
+						Name: "group2",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "none",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			exp: []string{"group1"},
+		},
+		{
+			name: "three numa blocks one none",
+			inputJob: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+					{
+						Name: "group2",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "none",
+									},
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "prefer",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			exp: []string{"group1", "group2"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputJob.Canonicalize()
+			result := tc.inputJob.RequiredNUMA()
+			must.SliceContainsAll(t, tc.exp, result.Slice())
+		})
+	}
+}

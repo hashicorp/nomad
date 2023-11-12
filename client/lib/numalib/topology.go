@@ -94,11 +94,32 @@ func (c Core) MHz() hw.MHz {
 }
 
 // SLIT (system locality information table) describes the relative cost for
-// accessing memory across each combination of NUMA boundary.
+// accessing memory across each combination of NUMA node boundary.
 type SLIT [][]Cost
 
 func (d SLIT) cost(a, b hw.NodeID) Cost {
 	return d[a][b]
+}
+
+func (st *Topology) NodeDistance(node hw.NodeID, core Core) Cost {
+	// todo(shoenig) we should memoize these values - they never change but
+	// they get used a lot in numa scheduling
+
+	// fast path, core is on node
+	if core.NodeID == node {
+		// return the distance to itself (100%)
+		return st.Distances.cost(node, node)
+	}
+
+	// find a core on node to compare with
+	for _, target := range st.Cores {
+		if target.NodeID == node {
+			return st.Distances.cost(target.NodeID, core.NodeID)
+		}
+	}
+
+	// should not be possible
+	panic("topology: no node distance")
 }
 
 // SupportsNUMA returns whether Nomad supports NUMA detection on the client's
@@ -158,6 +179,9 @@ func (st *Topology) String() string {
 // value is used instead even if it violates the above invariant.
 func (st *Topology) TotalCompute() hw.MHz {
 	if st.OverrideTotalCompute > 0 {
+		// TODO(shoenig) Starting in Nomad 1.7 we should warn about setting
+		// cpu_total_compute override, and suggeset users who think they still
+		// need this to file a bug so we can understand what is not detectable.
 		return st.OverrideTotalCompute
 	}
 
@@ -173,13 +197,23 @@ func (st *Topology) TotalCompute() hw.MHz {
 // the TotalCompute of the system. Nomad must subtract off any reserved compute
 // (reserved.cpu or reserved.cores) from the total hardware compute.
 func (st *Topology) UsableCompute() hw.MHz {
+	if st.OverrideTotalCompute > 0 {
+		// TODO(shoenig) Starting in Nomad 1.7 we should warn about setting
+		// cpu_total_compute override, and suggeset users who think they still
+		// need this to file a bug so we can understand what is not detectable.
+		return st.OverrideTotalCompute
+	}
+
 	var total hw.MHz
 	for _, cpu := range st.Cores {
+		// only use cores allowable by config
 		if !cpu.Disable {
 			total += cpu.MHz()
 		}
 	}
-	return total
+
+	// only use compute allowable by config
+	return total - st.OverrideWitholdCompute
 }
 
 // NumCores returns the number of logical cores detected. This includes both
@@ -243,4 +277,13 @@ func (st *Topology) Compute() cpustats.Compute {
 		TotalCompute: st.TotalCompute(),
 		NumCores:     st.NumCores(),
 	}
+}
+
+func (st *Topology) Equal(o *Topology) bool {
+	if st == nil || o == nil {
+		return st == o
+	}
+	// simply iterates each core; the topology never changes for a node once
+	// it has been created at agent startup
+	return st.TotalCompute() == o.TotalCompute()
 }

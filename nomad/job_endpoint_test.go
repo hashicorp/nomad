@@ -15,6 +15,9 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -128,8 +131,18 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 
 	// Create a mock node with easy to check resources
 	node := mock.Node()
-	node.Resources = nil // Deprecated in 0.9
-	node.NodeResources.Cpu.CpuShares = 700
+	node.NodeResources.Processors = structs.NodeProcessorResources{
+		Topology: &numalib.Topology{
+			NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
+			Distances: numalib.SLIT{[]numalib.Cost{10}},
+			Cores: []numalib.Core{{
+				ID:        0,
+				Grade:     numalib.Performance,
+				BaseSpeed: 700,
+			}},
+		},
+	}
+	node.NodeResources.Compatibility()
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 	codec := rpcClient(t, s1)
@@ -1537,7 +1550,7 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 		f := false
-		c.VaultConfig.Enabled = &f
+		c.GetDefaultVault().Enabled = &f
 	})
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -1560,7 +1573,7 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "Vault not enabled") {
+	if err == nil || !strings.Contains(err.Error(), `Vault "default" not enabled`) {
 		t.Fatalf("expected Vault not enabled error: %v", err)
 	}
 }
@@ -1580,8 +1593,8 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 
 	// Enable vault and allow authenticated
 	tr := true
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &tr
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &tr
 
 	// Replace the Vault Client on the server
 	s1.vault = &TestVaultClient{}
@@ -1637,8 +1650,8 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 
 	// Enable vault and allow authenticated
 	tr := true
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &tr
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &tr
 
 	// Replace the Vault Client on the server
 	s1.vault = &TestVaultClient{}
@@ -1694,8 +1707,8 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	s1.vault = &TestVaultClient{}
@@ -1735,8 +1748,8 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -1875,8 +1888,8 @@ func TestJobEndpoint_Register_Vault_MultiNamespaces(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -2658,8 +2671,8 @@ func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -2758,8 +2771,8 @@ func TestJobEndpoint_Revert_Vault_Policies(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -6390,8 +6403,8 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}

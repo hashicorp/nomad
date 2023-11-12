@@ -3,7 +3,7 @@ Demo TLS Configuration
 
 **Do _NOT_ use in production. For testing purposes only.**
 
-See [Securing Nomad](https://www.nomadproject.io/guides/securing-nomad.html)
+See [Securing Nomad](https://developer.hashicorp.com/nomad/guides/securing-nomad.html)
 for a full guide.
 
 This directory contains sample TLS certificates and configuration to ease

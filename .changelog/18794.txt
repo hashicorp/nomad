@@ -1,0 +1,3 @@
+```release-note:feature
+**Job Actions**: Introduces the action concept to jobspecs, the web UI, CLI and API. Operators can now define actions that Nomad users can execute against running allocations.
+```

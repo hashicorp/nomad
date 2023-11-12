@@ -119,7 +119,7 @@ module('Acceptance | allocation detail', function (hooks) {
   test('/allocation/:id should present task lifecycles', async function (assert) {
     const job = server.create('job', {
       groupsCount: 1,
-      groupTaskCount: 6,
+      groupAllocCount: 6,
       withGroupServices: true,
       createAllocations: false,
     });
@@ -168,7 +168,7 @@ module('Acceptance | allocation detail', function (hooks) {
   test('each task row should list high-level information for the task', async function (assert) {
     const job = server.create('job', {
       groupsCount: 1,
-      groupTaskCount: 3,
+      groupAllocCount: 3,
       withGroupServices: true,
       createAllocations: false,
     });
@@ -402,7 +402,7 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.stop.idle();
 
     run.later(() => {
-      assert.ok(Allocation.stop.isRunning, 'Stop is loading');
+      assert.ok(Allocation.stop.isDisabled, 'Stop is disabled');
       assert.ok(Allocation.restart.isDisabled, 'Restart is disabled');
       assert.ok(Allocation.restartAll.isDisabled, 'Restart All is disabled');
       server.pretender.resolve(server.pretender.requestReferences[0].request);
