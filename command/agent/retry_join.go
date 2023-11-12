@@ -88,7 +88,7 @@ func (d autoDiscover) Addrs(cfg string, logger log.Logger) (addrs []string, err 
 	case strings.HasPrefix(cfg, "exec="):
 		ipAddrs, err = d.netAddrs.IPAddrs(context.Background(), cfg, logger)
 		for _, addr := range ipAddrs {
-			addrs = append(addrs, addr.String())
+			addrs = append(addrs, addr.IP.String())
 		}
 	case strings.HasPrefix(cfg, "provider="):
 		addrs, err = d.goDiscover.Addrs(cfg, logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true}))
