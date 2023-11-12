@@ -6,24 +6,22 @@ package agent
 import (
 	"context"
 	"fmt"
+	golog "log"
 	"net"
 	"regexp"
 	"strings"
 	"time"
 
-	golog "log"
-
-	hclog "github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-netaddrs"
 )
 
 // cfgPrefixes are autoDisocver's allowed cfg prefixes
-var cfgPrefixes = regexp.MustCompile("^(exec|provider|dns)=(.+)$")
+var cfgPrefixes = regexp.MustCompile("^(exec|provider)=(.+)$")
 
 // AutoDiscoverInterface is an interface for autoDiscover to ease testing
 type AutoDiscoverInterface interface {
-	Addrs(cfg string, logger hclog.Logger) ([]string, error)
+	Addrs(cfg string, logger log.Logger) ([]string, error)
 }
 
 // DiscoverInterface is an interface for the Discover type in the go-discover
@@ -66,11 +64,6 @@ type autoDiscover struct {
 
 // Addrs looks up and returns IP addresses specified by cfg.
 //
-// If cfg is a IPv4 or IPv6 address, return the stringified IP address.
-//
-// If cfg has a dns= prefix, the configuration is treated as a DNS lookup on the
-// name following the prefix.
-//
 // If cfg has an exec= prefix, IP addresses are looked up by executing the command
 // after exec=. The command may include optional arguments. Command arguments
 // must be space separated (spaces in argument values can not be escaped).
@@ -85,39 +78,21 @@ type autoDiscover struct {
 //
 // If cfg has a provider= prefix, IP addresses are looked up using the go-discover
 // provider specified in cfg.
-func (d autoDiscover) Addrs(cfg string, logger hclog.Logger) (addrs []string, err error) {
-	ip := net.ParseIP(cfg)
-	if ip != nil {
-		return []string{cfg}, nil
-	}
-
-	if !cfgPrefixes.MatchString(cfg) {
-		return nil, fmt.Errorf("auto-discover configurations must begin with: exec=, provider=, or dns=; got %s", cfg)
-	}
-
+//
+// If cfg contains neither an exec= or provider= prefix, the configuration is
+// returned as-is, to be resolved later via Serf in the server's Join() function.
+func (d autoDiscover) Addrs(cfg string, logger log.Logger) (addrs []string, err error) {
 	var ipAddrs []net.IPAddr
-	prefixMatches := cfgPrefixes.FindStringSubmatch(cfg)
-	cfgPrefix := prefixMatches[1]
-	cfgValue := prefixMatches[2]
-	switch cfgPrefix {
-	case "exec":
+	switch {
+	case strings.HasPrefix(cfg, "exec="):
 		ipAddrs, err = d.netAddrs.IPAddrs(context.Background(), cfg, logger)
-
 		for _, addr := range ipAddrs {
 			addrs = append(addrs, addr.String())
 		}
-	case "dns":
-		ipAddrs, err = d.netAddrs.IPAddrs(context.Background(),
-			cfgValue,
-			logger)
-		for _, addr := range ipAddrs {
-			addrs = append(addrs, addr.String())
-		}
-	case "provider":
-		addrs, err = d.goDiscover.Addrs(cfg, logger.StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}))
+	case strings.HasPrefix(cfg, "provider="):
+		addrs, err = d.goDiscover.Addrs(cfg, logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true}))
 	default:
-		return nil, fmt.Errorf("auto-discover configurations must begin with: exec=, provider=, or dns=; got '%s'",
-			cfgPrefix)
+		return []string{cfg}, err
 	}
 
 	return
@@ -206,9 +181,8 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 		for _, addr := range serverJoin.RetryJoin {
 			servers, err := r.autoDiscover.Addrs(addr, r.logger)
 			if err != nil {
-				r.logger.Warn("discovering join addresses failed", "join_config", addr, "error", err)
-				addrs = append(addrs, addr)
-				continue
+				r.logger.Error("discovering join addresses failed", "join_config", addr, "error", err)
+				return
 			}
 
 			addrs = append(addrs, servers...)

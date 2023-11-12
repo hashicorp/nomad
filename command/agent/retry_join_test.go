@@ -44,11 +44,11 @@ func (m *MockNetaddrs) IPAddrs(ctx context.Context, cfg string, l netaddrs.Logge
 	m.ReceivedConfig = append(m.ReceivedConfig, cfg)
 
 	ip := net.ParseIP(stubAddress)
-	if ip != nil {
-		return []net.IPAddr{{IP: ip}}, nil
+	if ip == nil {
+		return nil, fmt.Errorf("unable to transform the stubAddress into a valid IP")
 	}
 
-	return nil, fmt.Errorf("unable to transform the stubAddress into a valid IP")
+	return []net.IPAddr{{IP: ip}}, nil
 }
 
 func TestRetryJoin_Integration(t *testing.T) {
@@ -193,18 +193,21 @@ func TestRetryJoin_AutoDiscover(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	var output []string
+	var joinAddrs []string
 	mockJoin := func(s []string) (int, error) {
-		output = s
+		joinAddrs = s
 		return 0, nil
 	}
 
-	// 'exec=*'' tests go-netaddr
-	// 'localhost' also tests get-netaddr by ensuring it resolves to "::1" and "127.0.0.1"
-	// '100.100.100.100' ensures that bare IPs are used as-is
+	// 'exec=*'' tests autoDiscover go-netaddr support
+	// 'provider=aws, tag_value=foo' ensures that provider-prefixed configs are routed to go-discover
+	// 'localhost' ensures that bare hostnames are returned as-is
+	// 'localhost2:4648' ensures hostname:port entries are returned as-is
+	// '127.0.0.1:4648' ensures ip:port entiresare returned as-is
+	// '100.100.100.100' ensures that bare IPs are returned as-is
 	serverJoin := &ServerJoin{
 		RetryMaxAttempts: 1,
-		RetryJoin:        []string{"exec=echo 127.0.0.1", "dns=localhost", "100.100.100.100", "provider=aws, tag_value=foo"},
+		RetryJoin:        []string{"exec=echo 127.0.0.1", "provider=aws, tag_value=foo", "localhost", "localhost2:4648", "127.0.0.1:4648", "100.100.100.100"},
 	}
 
 	mockDiscover := &MockDiscover{}
@@ -219,12 +222,14 @@ func TestRetryJoin_AutoDiscover(t *testing.T) {
 
 	joiner.RetryJoin(serverJoin)
 
-	must.Len(t, 4, output) // [127.0.0.1 127.0.0.1 100.100.100.100 127.0.0.1]
-	must.Eq(t, "100.100.100.100", output[2])
-	must.Len(t, 2, mockNetaddrs.ReceivedConfig)
-	must.Eq(t, "exec=echo 127.0.0.1", mockNetaddrs.ReceivedConfig[0])
-	must.Eq(t, "localhost", mockNetaddrs.ReceivedConfig[1])
-	must.Eq(t, "provider=aws, tag_value=foo", mockDiscover.ReceivedConfig)
+	require.Len(joinAddrs, 6) // [127.0.0.1 127.0.0.1 localhost localhost2:4648 127.0.0.1:4648 100.100.100.
+	require.Equal("localhost", joinAddrs[2])
+	require.Equal("localhost2:4648", joinAddrs[3])
+	require.Equal("127.0.0.1:4648", joinAddrs[4])
+	require.Equal("100.100.100.100", joinAddrs[5])
+	require.Len(mockNetaddrs.ReceivedConfig, 1)
+	require.Equal("exec=echo 127.0.0.1", mockNetaddrs.ReceivedConfig[0])
+	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedConfig)
 }
 
 func TestRetryJoin_Client(t *testing.T) {
