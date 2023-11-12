@@ -8,16 +8,12 @@ import (
 	"fmt"
 	golog "log"
 	"net"
-	"regexp"
 	"strings"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-netaddrs"
 )
-
-// cfgPrefixes are autoDisocver's allowed cfg prefixes
-var cfgPrefixes = regexp.MustCompile("^(exec|provider)=(.+)$")
 
 // AutoDiscoverInterface is an interface for autoDiscover to ease testing
 type AutoDiscoverInterface interface {
