@@ -222,7 +222,7 @@ func TestRetryJoin_AutoDiscover(t *testing.T) {
 
 	joiner.RetryJoin(serverJoin)
 
-	require.Len(joinAddrs, 6) // [127.0.0.1 127.0.0.1 localhost localhost2:4648 127.0.0.1:4648 100.100.100.
+	require.Len(joinAddrs, 6) // [127.0.0.1 127.0.0.1 localhost localhost2:4648 127.0.0.1:4648 100.100.100.100]
 	require.Equal("localhost", joinAddrs[2])
 	require.Equal("localhost2:4648", joinAddrs[3])
 	require.Equal("127.0.0.1:4648", joinAddrs[4])

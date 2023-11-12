@@ -80,7 +80,8 @@ type autoDiscover struct {
 // provider specified in cfg.
 //
 // If cfg contains neither an exec= or provider= prefix, the configuration is
-// returned as-is, to be resolved later via Serf in the server's Join() function.
+// returned as-is, to be resolved later via Serf in the server's Join() function,
+// or via DNS in client's SetServers() function.
 func (d autoDiscover) Addrs(cfg string, logger log.Logger) (addrs []string, err error) {
 	var ipAddrs []net.IPAddr
 	switch {
