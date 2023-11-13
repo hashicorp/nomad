@@ -66,7 +66,8 @@ server_join {
   Server addresses and Cloud Auto-join configurations may be used together.
   This is a mixed configuration containing a server address and Cloud Auto-join
   configuration.
-  ```
+  
+  ```hcl
   server_join {
     retry_join = [ "1.1.1.1", "provider=aws tag_key=..." ]
   }
