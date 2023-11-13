@@ -270,7 +270,8 @@ the executable's name if it can be found on the Nomad agent's PATH. See
 for more details on the lookup behavior.
 
 Example `go-netaddrs` configuration. 
-```
+
+```hcl
 server_join {
   retry_join = [ "exec=hcloud server list -o noheader -o columns=ipv4 -l nomad-server=true | tr '\n' ' '" ]
 }
