@@ -271,9 +271,10 @@ What follows the `exec=` prefix may be any executable program and its arguments.
 Commands run by `go-netaddrs` must return a list of space-delimited IPv4 or IPv6
 addresses and exit with code `0` on success and non-zero on failure.
 
-Executables may be referenced by absolute file system path or by any program
-name discoverable by `os/exec`'s [LookPath](https://pkg.go.dev/os/exec#LookPath)
-function.
+You can refer to the executable by its absolute file system path, or by
+the executable's name if it can be found on the Nomad agent's PATH. See
+[executables in the current directory](https://pkg.go.dev/os/exec#hdr-Executables_in_the_current_directory) 
+for more details on the lookup behavior.
 
 Example `go-netaddrs` configuration. 
 ```
