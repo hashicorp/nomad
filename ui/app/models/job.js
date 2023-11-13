@@ -11,6 +11,7 @@ import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
+// import ActionModel from '../models/action';
 
 const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
@@ -167,8 +168,17 @@ export default class Job extends Model {
     }, []);
   }
 
-  runAction(action, allocID) {
-    return this.store.adapterFor('job').runAction(this, action, allocID);
+  /**
+   *
+   * @param {ActionModel} action
+   * @param {string} allocID
+   * @param {import('../models/action-instance').default} actionInstance
+   * @returns
+   */
+  runAction(action, allocID, actionInstance) {
+    return this.store
+      .adapterFor('job')
+      .runAction(this, action, allocID, actionInstance);
   }
 
   @computed('taskGroups.@each.drivers')

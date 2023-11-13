@@ -173,3 +173,13 @@ $subNavOffset: 49px;
     height: 100%;
   }
 }
+
+// The actions sidebar is more "global" than others,
+// and as such sits higher onthe page vertically as
+// well as on the z-index.
+#actions-flyout {
+  z-index: $z-actions;
+  & + .hds-flyout__overlay {
+    z-index: $z-actions-backdrop;
+  }
+}

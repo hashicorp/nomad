@@ -16,6 +16,10 @@ import classic from 'ember-classic-decorator';
 export default class Title extends Component {
   @service router;
   @service notifications;
+  /**
+   * @type { import('../../../services/nomad-actions') }
+   */
+  @service nomadActions;
 
   job = null;
   title = null;
@@ -122,10 +126,12 @@ export default class Title extends Component {
       const job = this.job;
       if (allocID === 'all') {
         yield action.allocations.map((alloc) => {
-          return job.runAction(action, alloc.id);
+          this.nomadActions.runAction(action, alloc.id, job);
+          // return job.runAction(action, alloc.id);
         });
       } else {
-        yield job.runAction(action, allocID);
+        this.nomadActions.runAction(action, allocID, job);
+        // yield job.runAction(action, allocID);
       }
     } catch (err) {
       this.notifications.add({

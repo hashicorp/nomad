@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import { base64EncodeString } from 'nomad-ui/utils/encode';
@@ -17,6 +18,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   @service system;
   @service notifications;
   @service token;
+  @service nomadActions;
 
   relationshipFallbackLinks = {
     summary: '/summary',
@@ -173,8 +175,16 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
   }
 
-  runAction(job, action, allocID) {
-    let messageBuffer = '';
+  /**
+   *
+   * @param {import('../models/job').default} job
+   * @param {import('../models/action').default} action
+   * @param {string} allocID
+   * @param {import('../models/action-instance').default} actionInstance
+   * @returns {WebSocket}
+   */
+  runAction(job, action, allocID, actionInstance) {
+    // let messageBuffer = '';
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const region = this.system.activeRegion;
@@ -182,6 +192,11 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     const prefix = `${
       applicationAdapter.host || window.location.host
     }/${applicationAdapter.urlPrefix()}`;
+
+    // /**
+    //  * @type {import('../services/nomad-actions').default}
+    //  */
+    console.log('action In Queue', actionInstance);
 
     const wsUrl =
       `${protocol}//${prefix}/job/${encodeURIComponent(
@@ -194,6 +209,9 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       }&tty=true&ws_handshake=true` +
       (region ? `&region=${region}` : '');
 
+    /**
+     * @type {WebSocket}
+     */
     let socket;
 
     const mirageEnabled =
@@ -231,22 +249,23 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       socket = new WebSocket(wsUrl);
     }
 
-    let notification;
+    // let notification;
     socket.addEventListener('open', () => {
-      notification = this.notifications
-        .add({
-          title: `Action ${action.name} Started`,
-          color: 'neutral',
-          code: true,
-          sticky: true,
-          customAction: {
-            label: 'Stop Action',
-            action: () => {
-              socket.close();
-            },
-          },
-        })
-        .getFlashObject();
+      actionInstance.state = 'starting';
+      // notification = this.notifications
+      //   .add({
+      //     title: `Action ${action.name} Started`,
+      //     color: 'neutral',
+      //     code: true,
+      //     sticky: true,
+      //     customAction: {
+      //       label: 'Stop Action',
+      //       action: () => {
+      //         socket.close();
+      //       },
+      //     },
+      //   })
+      //   .getFlashObject();
 
       socket.send(
         JSON.stringify({ version: 1, auth_token: this.token?.secret || '' })
@@ -259,28 +278,34 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
 
     socket.addEventListener('message', (event) => {
-      if (!this.notifications.queue.includes(notification)) {
-        // User has manually closed the notification;
-        // explicitly close the socket and return;
-        socket.close();
-        return;
-      }
+      actionInstance.state = 'running';
+      // TODO: Make sure we don't need to recreate socket close handling
+      // if (!this.notifications.queue.includes(notification)) {
+      //   // User has manually closed the notification;
+      //   // explicitly close the socket and return;
+      //   socket.close();
+      //   return;
+      // }
 
       let jsonData = JSON.parse(event.data);
       if (jsonData.stdout && jsonData.stdout.data) {
         // strip ansi escape characters that are common in action responses;
         // for example, we shouldn't show the newline or color code characters.
-        messageBuffer += base64DecodeString(jsonData.stdout.data);
-        messageBuffer += '\n';
-        messageBuffer = messageBuffer.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-        notification.set('message', messageBuffer);
-        notification.set('title', `Action ${action.name} Running`);
+        // TODO: Don't process the whole .messages every time a new one comes in!
+        actionInstance.messages += base64DecodeString(jsonData.stdout.data);
+        actionInstance.messages += '\n';
+        actionInstance.messages = actionInstance.messages.replace(
+          /\x1b\[[0-9;]*[a-zA-Z]/g,
+          ''
+        );
+        // notification.set('message', messageBuffer);
+        // notification.set('title', `Action ${action.name} Running`);
       } else if (jsonData.stderr && jsonData.stderr.data) {
-        messageBuffer = base64DecodeString(jsonData.stderr.data);
-        messageBuffer += '\n';
+        // messageBuffer = base64DecodeString(jsonData.stderr.data);
+        // messageBuffer += '\n';
         this.notifications.add({
           title: `Error received from ${action.name}`,
-          message: messageBuffer,
+          // message: messageBuffer,
           color: 'critical',
           code: true,
           sticky: true,
@@ -289,17 +314,20 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
 
     socket.addEventListener('close', () => {
-      notification.set('title', `Action ${action.name} Finished`);
-      notification.set('customAction', null);
+      actionInstance.state = 'complete';
+      // notification.set('title', `Action ${action.name} Finished`);
+      // notification.set('customAction', null);
     });
 
-    socket.addEventListener('error', function (event) {
-      this.notifications.add({
-        title: `Error received from ${action.name}`,
-        message: event,
-        color: 'critical',
-        sticky: true,
-      });
+    socket.addEventListener('error', function (/*event*/) {
+      actionInstance.state = 'error';
+      // TODO: implement instance.error
+      // this.notifications.add({
+      //   title: `Error received from ${action.name}`,
+      //   message: event,
+      //   color: 'critical',
+      //   sticky: true,
+      // });
     });
 
     if (mirageEnabled) {
