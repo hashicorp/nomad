@@ -280,10 +280,10 @@ server_join {
   retry_join = [ "exec=hcloud server list -o noheader -o columns=ipv4 -l nomad-server=true | tr '\n' ' '" ]
 }
 ```
-Here,  `hcloud`'s newline-delimited output has been re-formatted as space-
-deliminted by piping its output into `tr`.
+Here, `hcloud`'s newline-delimited output has been re-formatted as space-
+delimited by piping its output into `tr`.
 
-Output of an exmaple `go-netaddrs` executable
+Output of an example `go-netaddrs` executable
 ```
 "1.1.1.1 2.2.2.2"
 ```
