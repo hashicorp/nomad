@@ -219,7 +219,7 @@ func TestVaultClient_DeriveTokenWithJWT(t *testing.T) {
 	jwtStr := signedWIDs[0].JWT
 	token, err := c.DeriveTokenWithJWT(context.Background(), JWTLoginRequest{
 		JWT: jwtStr,
-	})
+	}, "default")
 	must.NoError(t, err)
 	must.NotEq(t, "", token)
 
@@ -259,7 +259,7 @@ func TestVaultClient_DeriveTokenWithJWT(t *testing.T) {
 	token, err = c.DeriveTokenWithJWT(context.Background(), JWTLoginRequest{
 		JWT:  jwtStr,
 		Role: "test",
-	})
+	}, "default")
 	must.ErrorContains(t, err, `role "test" could not be found`)
 }
 

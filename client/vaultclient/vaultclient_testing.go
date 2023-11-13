@@ -44,7 +44,7 @@ type MockVaultClient struct {
 
 	// deriveTokenWithJWTFn allows the caller to control the DeriveTokenWithJWT
 	// functio.
-	deriveTokenWithJWTFn func(context.Context, JWTLoginRequest) (string, error)
+	deriveTokenWithJWTFn func(context.Context, JWTLoginRequest, string) (string, error)
 
 	mu sync.Mutex
 }
@@ -52,12 +52,12 @@ type MockVaultClient struct {
 // NewMockVaultClient returns a MockVaultClient for testing
 func NewMockVaultClient(_ string) (VaultClient, error) { return &MockVaultClient{}, nil }
 
-func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, error) {
+func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest, ns string) (string, error) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 
 	if vc.deriveTokenWithJWTFn != nil {
-		return vc.deriveTokenWithJWTFn(ctx, req)
+		return vc.deriveTokenWithJWTFn(ctx, req, ns)
 	}
 
 	if vc.jwtTokens == nil {
@@ -207,7 +207,7 @@ func (vc *MockVaultClient) DeriveTokenErrors() map[string]map[string]error {
 }
 
 // SetDeriveTokenWithJWTFn sets the function used to derive tokens using JWT.
-func (vc *MockVaultClient) SetDeriveTokenWithJWTFn(f func(context.Context, JWTLoginRequest) (string, error)) {
+func (vc *MockVaultClient) SetDeriveTokenWithJWTFn(f func(context.Context, JWTLoginRequest, string) (string, error)) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 	vc.deriveTokenWithJWTFn = f

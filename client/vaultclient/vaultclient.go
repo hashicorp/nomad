@@ -58,8 +58,8 @@ type VaultClient interface {
 	DeriveToken(*structs.Allocation, []string) (map[string]string, error)
 
 	// DeriveTokenWithJWT returns a Vault ACL token using the JWT login
-	// endpoint.
-	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, error)
+	// endpoint. Accepts the Vault namespace.
+	DeriveTokenWithJWT(context.Context, JWTLoginRequest, string) (string, error)
 
 	// GetConsulACL fetches the Consul ACL token required for the task
 	GetConsulACL(string, string) (*vaultapi.Secret, error)
@@ -254,6 +254,7 @@ func (c *vaultClient) Stop() {
 // lock. Helper method for deferring a call that does both.
 func (c *vaultClient) unlockAndUnset() {
 	c.client.SetToken("")
+	c.client.SetNamespace("default")
 	c.lock.Unlock()
 }
 
@@ -285,7 +286,7 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 }
 
 // DeriveTokenWithJWT returns a Vault ACL token using the JWT login endpoint.
-func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, error) {
+func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest, ns string) (string, error) {
 	if !c.config.IsEnabled() {
 		return "", fmt.Errorf("vault client not enabled")
 	}
@@ -296,8 +297,10 @@ func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginReques
 	c.lock.Lock()
 	defer c.unlockAndUnset()
 
-	// Make sure the login request is not passing any token.
+	// Make sure the login request is not passing any token and that we're using
+	// the expected namespace to login
 	c.client.SetToken("")
+	c.client.SetNamespace(ns)
 
 	jwtLoginPath := fmt.Sprintf("auth/%s/login", c.config.JWTAuthBackendPath)
 	s, err := c.client.Logical().WriteWithContext(ctx, jwtLoginPath,

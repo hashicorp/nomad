@@ -424,7 +424,7 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// Set unrecoverable error.
-		mockVaultClient.SetDeriveTokenWithJWTFn(func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, error) {
+		mockVaultClient.SetDeriveTokenWithJWTFn(func(_ context.Context, _ vaultclient.JWTLoginRequest, _ string) (string, error) {
 			// Cancel the context to simulate the task being killed.
 			cancel()
 			return "", structs.NewRecoverableError(errors.New("unrecoverable test error"), false)
@@ -472,14 +472,14 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// Set recoverable error.
-		mockVaultClient.SetDeriveTokenWithJWTFn(func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, error) {
+		mockVaultClient.SetDeriveTokenWithJWTFn(func(_ context.Context, _ vaultclient.JWTLoginRequest, _ string) (string, error) {
 			return "", structs.NewRecoverableError(errors.New("recoverable test error"), true)
 		})
 
 		go func() {
 			// Wait a bit for the first error then fix token renewal.
 			time.Sleep(time.Second)
-			mockVaultClient.SetDeriveTokenWithJWTFn(func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, error) {
+			mockVaultClient.SetDeriveTokenWithJWTFn(func(_ context.Context, _ vaultclient.JWTLoginRequest, _ string) (string, error) {
 				return "secret", nil
 			})
 
@@ -516,7 +516,7 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 		t.Cleanup(cancel)
 
 		// Derive predictable token and fail renew request.
-		mockVaultClient.SetDeriveTokenWithJWTFn(func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, error) {
+		mockVaultClient.SetDeriveTokenWithJWTFn(func(_ context.Context, _ vaultclient.JWTLoginRequest, _ string) (string, error) {
 			return "secret", nil
 		})
 		mockVaultClient.SetRenewTokenError("secret", errors.New("test error"))
