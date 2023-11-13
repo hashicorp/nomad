@@ -130,8 +130,7 @@ unless configured otherwise:
 nomad-01.company.local => nomad-01.company.local:4648
 ```
 
-### `go-discover` format
-
+### Via the go-discover interface
 `retry_join` accepts a unified interface using the
 [go-discover](https://github.com/hashicorp/go-discover) library for doing
 automated cluster joining using cloud provider metadata. See [Cloud
@@ -140,12 +139,6 @@ Auto-join](#cloud-auto-join) for more information.
 ```
 "provider=aws tag_key=..." => 1.2.3.4:4648
 ```
-
-### `go-netaddrs` format
-
-As of Nomad 1.x.x (**TODO**: What version would this land in?) `retry_join` accepts
-Cloud Auto-join configurations in [go-netaddrs](https://github.com/hashicorp/go-netaddrs) 
-format. See [Cloud Auto-join](#cloud-auto-join) for more information.
 
 ## Cloud Auto-join
 
