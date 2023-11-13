@@ -229,6 +229,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Return nothing if no nodes found
 		if len(nodes) == 0 {
+			c.Ui.Output("No nodes registered")
 			return 0
 		}
 
