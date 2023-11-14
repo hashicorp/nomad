@@ -431,9 +431,10 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 
 	// Derive Vault token with signed identity.
 	token, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
-		JWT:  signed.JWT,
-		Role: role,
-	}, h.vaultBlock.Namespace)
+		JWT:       signed.JWT,
+		Role:      role,
+		Namespace: h.vaultBlock.Namespace,
+	})
 	if err != nil {
 		return "", structs.WrapRecoverable(
 			fmt.Sprintf("failed to derive Vault token for identity %s: %v", h.widName, err),
