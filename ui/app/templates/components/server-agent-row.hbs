@@ -9,8 +9,22 @@
     action=(action this.goToAgent)
   }}
 ><LinkTo @route="servers.server" @model={{this.agent.id}} class="is-primary">{{this.agent.name}}</LinkTo></td>
-<td data-test-server-status>{{this.agent.status}}</td>
-<td data-test-server-is-leader>{{if this.agent.isLeader "True" "False"}}</td>
+<td data-test-server-status><span>
+    <Hds::Badge
+      @text={{capitalize this.agent.status}}
+      @color={{this.agentStatusColor}}
+      @size="large"
+    />
+  </span></td>
+<td data-test-server-is-leader>
+
+    <Hds::Badge
+      @text={{if this.agent.isLeader "True" "False"}}
+      @icon={{if this.agent.isLeader "check-circle" ""}}
+      @color={{if this.agent.isLeader "success" "neutral"}}
+      @size="large"
+    />
+</td>
 <td data-test-server-address class="is-200px is-truncatable">{{this.agent.address}}</td>
 <td data-test-server-port>{{this.agent.serfPort}}</td>
 <td data-test-server-datacenter>{{this.agent.datacenter}}</td>

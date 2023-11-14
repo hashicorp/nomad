@@ -80,7 +80,11 @@ module('Acceptance | servers list', function (hooks) {
     const agentRow = ServersList.servers.objectAt(0);
 
     assert.equal(agentRow.name, agent.name, 'Name');
-    assert.equal(agentRow.status, agent.member.Status, 'Status');
+    assert.equal(
+      agentRow.status,
+      agent.member.Status[0].toUpperCase() + agent.member.Status.substring(1),
+      'Status'
+    );
     assert.equal(agentRow.leader, 'True', 'Leader?');
     assert.equal(agentRow.address, agent.member.Address, 'Address');
     assert.equal(agentRow.serfPort, agent.member.Port, 'Serf Port');
