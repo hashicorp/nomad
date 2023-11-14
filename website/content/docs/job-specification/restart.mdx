@@ -122,6 +122,21 @@ defaults by job type:
   }
   ```
 
+### Disabling restart
+
+To disable restarting, set the `attempts` parameter to zero and `mode` to `"fail"`.
+
+```hcl
+job "docs" {
+  group "example" {
+    restart {
+      attempts = 0
+      mode     = "fail"
+    }
+  }
+}
+```
+
 ### `mode` Values
 
 This section details the specific values for the "mode" parameter in the Nomad
