@@ -62,8 +62,11 @@ be able to access sensitive process information like environment variables.
 able to make use of IPC features, like sending unexpected POSIX signals.
 
 - `cap_add` - (Optional) A list of Linux capabilities to enable for the task.
-  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a subset
-  of the allowed capabilities configured with [`allow_caps`][allow_caps].
+  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a
+  subset of the allowed capabilities configured with [`allow_caps`][allow_caps].
+  Note that `"all"` is not permitted here if the `allow_caps` field in the
+  driver configuration doesn't also allow all capabilities.
+
 
 ```hcl
 config {
