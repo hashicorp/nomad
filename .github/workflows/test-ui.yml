@@ -2,14 +2,14 @@ name: test-ui
 on:
   pull_request:
     paths:
-      - 'ui'
+      - 'ui/**'
   push:
     branches:
       - main
       - release/**
       - test-ui
     paths:
-      - 'ui'
+      - 'ui/**'
 
 jobs:
   pre-test:
