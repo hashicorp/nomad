@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/go-version"
 	goversion "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/api"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -80,100 +81,65 @@ func testVaultBuild(t *testing.T, b build) {
 	})
 }
 
-func testVaultLegacy(t *testing.T, b build) {
-	vStop, vc := startVault(t, b)
-	defer vStop()
-	setupVaultLegacy(t, vc)
-
-	nStop, nc := startNomad(t, configureNomadVaultLegacy(vc))
-	defer nStop()
-	runJob(t, nc, "input/cat.hcl", func(allocs []*nomadapi.AllocationListStub) error {
-		if n := len(allocs); n != 1 {
-			return fmt.Errorf("expected 1 alloc, got %d", n)
-		}
-		if s := allocs[0].ClientStatus; s != "complete" {
-			return fmt.Errorf("expected alloc status complete, got %s", s)
-		}
-		return nil
-	})
+func validateLegacyAllocs(allocs []*nomadapi.AllocationListStub) error {
+	if n := len(allocs); n != 1 {
+		return fmt.Errorf("expected 1 alloc, got %d", n)
+	}
+	if s := allocs[0].ClientStatus; s != "complete" {
+		return fmt.Errorf("expected alloc status complete, got %s", s)
+	}
+	return nil
 }
 
-func testVaultJWT(t *testing.T, b build) {
-	vStop, vc := startVault(t, b)
-	defer vStop()
+func validateJWTAllocs(allocs []*nomadapi.AllocationListStub) error {
+	if n := len(allocs); n != 2 {
+		return fmt.Errorf("expected 2 allocs, got %d", n)
+	}
 
-	// Start Nomad without access to the Vault token.
-	vaultToken := vc.Token()
-	vc.SetToken("")
-	nStop, nc := startNomad(t, configureNomadVaultJWT(vc))
-	defer nStop()
+	for _, alloc := range allocs {
+		switch alloc.TaskGroup {
 
-	// Restore token and configure Vault for JWT login.
-	vc.SetToken(vaultToken)
-	setupVaultJWT(t, vc, nc.Address()+"/.well-known/jwks.json")
+		// Verify all tasks in "success" group complete.
+		case "success":
+			if s := alloc.ClientStatus; s != "complete" {
+				return fmt.Errorf("expected alloc status complete, got %s", s)
+			}
 
-	// Write secrets for test job.
-	_, err := vc.KVv2("secret").Put(context.Background(), "default/cat_jwt", map[string]any{
-		"secret": "workload",
-	})
-	must.NoError(t, err)
+		// Verify all tasks in "fail" group fail for the expected reasons.
+		case "fail":
+			for task, state := range alloc.TaskStates {
+				switch task {
 
-	_, err = vc.KVv2("secret").Put(context.Background(), "restricted", map[string]any{
-		"secret": "restricted",
-	})
-	must.NoError(t, err)
-
-	// Run test job.
-	runJob(t, nc, "input/cat_jwt.hcl", func(allocs []*nomadapi.AllocationListStub) error {
-		if n := len(allocs); n != 2 {
-			return fmt.Errorf("expected 2 allocs, got %d", n)
-		}
-
-		for _, alloc := range allocs {
-			switch alloc.TaskGroup {
-
-			// Verify all tasks in "success" group complete.
-			case "success":
-				if s := alloc.ClientStatus; s != "complete" {
-					return fmt.Errorf("expected alloc status complete, got %s", s)
-				}
-
-			// Verify all tasks in "fail" group fail for the expected reasons.
-			case "fail":
-				for task, state := range alloc.TaskStates {
-					switch task {
-
-					// Verify "unauthorized" task can't access Vault secret.
-					case "unauthorized":
-						hasEvent := false
+				// Verify "unauthorized" task can't access Vault secret.
+				case "unauthorized":
+					hasEvent := false
+					for _, ev := range state.Events {
+						if strings.Contains(ev.DisplayMessage, "Missing: vault.read") {
+							hasEvent = true
+							break
+						}
+					}
+					if !hasEvent {
+						got := make([]string, 0, len(state.Events))
 						for _, ev := range state.Events {
-							if strings.Contains(ev.DisplayMessage, "Missing: vault.read") {
-								hasEvent = true
-								break
-							}
+							got = append(got, ev.DisplayMessage)
 						}
-						if !hasEvent {
-							got := make([]string, 0, len(state.Events))
-							for _, ev := range state.Events {
-								got = append(got, ev.DisplayMessage)
-							}
-							return fmt.Errorf("missing expected event, got [%v]", strings.Join(got, ", "))
-						}
+						return fmt.Errorf("missing expected event, got [%v]", strings.Join(got, ", "))
+					}
 
-					// Verify "missing_vault" task fails.
-					case "missing_vault":
-						if !state.Failed {
-							return fmt.Errorf("expected task to fail")
-						}
+				// Verify "missing_vault" task fails.
+				case "missing_vault":
+					if !state.Failed {
+						return fmt.Errorf("expected task to fail")
 					}
 				}
 			}
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
-func runJob(t *testing.T, nc *nomadapi.Client, jobPath string, validateAllocs func([]*nomadapi.AllocationListStub) error) {
+func runJob(t *testing.T, nc *nomadapi.Client, jobPath, ns string, validateAllocs func([]*nomadapi.AllocationListStub) error) {
 	b, err := os.ReadFile(jobPath)
 	must.NoError(t, err)
 
@@ -184,9 +150,16 @@ func runJob(t *testing.T, nc *nomadapi.Client, jobPath string, validateAllocs fu
 	_, _, err = jobs.Register(job, nil)
 	must.NoError(t, err, must.Sprint("failed to register job"))
 
+	qOpts := &api.QueryOptions{Namespace: ns}
+	wOpts := &api.WriteOptions{Namespace: ns}
+
+	t.Cleanup(func() {
+		jobs.Deregister(*job.Name, true, wOpts)
+	})
+
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
-			allocs, _, err := jobs.Allocations(*job.ID, false, nil)
+			allocs, _, err := jobs.Allocations(*job.ID, false, qOpts)
 			if err != nil {
 				return err
 			}
@@ -197,9 +170,6 @@ func runJob(t *testing.T, nc *nomadapi.Client, jobPath string, validateAllocs fu
 	))
 
 	t.Logf("success running job %s", *job.ID)
-
-	_, _, err = jobs.Deregister(*job.Name, true, nil)
-	must.NoError(t, err, must.Sprint("faild to deregister job"))
 }
 
 func startVault(t *testing.T, b build) (func(), *vaultapi.Client) {
@@ -370,19 +340,6 @@ func (b build) compare(o build) int {
 type vaultJSON struct {
 	Versions map[string]struct {
 		Builds []build `json:"builds"`
-	}
-}
-
-func usable(v, minimum *version.Version) bool {
-	switch {
-	case v.Prerelease() != "":
-		return false
-	case v.Metadata() != "":
-		return false
-	case v.LessThan(minimum):
-		return false
-	default:
-		return true
 	}
 }
 
