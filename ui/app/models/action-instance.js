@@ -21,4 +21,24 @@ export default class ActionInstanceModel extends Model {
     },
   })
   createdAt;
+
+  @attr('date', {
+    defaultValue() {
+      return null;
+    },
+  })
+  completedAt;
+
+  @attr('string') allocID;
+
+  // stop() {
+  //   console.log('ok stopping instance lol');
+  //   console.log('thissocket', this.socket,)
+  //   this.socket.stop();
+  // }
+
+  /**
+   * @type {WebSocket}
+   */
+  @attr() socket;
 }

@@ -249,6 +249,8 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       socket = new WebSocket(wsUrl);
     }
 
+    actionInstance.set('socket', socket);
+
     // let notification;
     socket.addEventListener('open', () => {
       actionInstance.state = 'starting';
@@ -315,11 +317,12 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     socket.addEventListener('close', () => {
       actionInstance.state = 'complete';
+      actionInstance.completedAt = new Date();
       // notification.set('title', `Action ${action.name} Finished`);
       // notification.set('customAction', null);
     });
 
-    socket.addEventListener('error', function (/*event*/) {
+    socket.addEventListener('error', function (event) {
       actionInstance.state = 'error';
       // TODO: implement instance.error
       // this.notifications.add({

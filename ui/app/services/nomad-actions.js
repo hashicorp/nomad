@@ -36,11 +36,9 @@ export default class NomadActionsService extends Service {
   @tracked flyoutActive = false;
 
   @action openFlyout() {
-    console.log('opening flyout', this.flyoutActive);
     this.flyoutActive = true;
   }
   @action closeFlyout() {
-    console.log('closing flyout', this.flyoutActive);
     this.flyoutActive = false;
   }
 
@@ -51,7 +49,6 @@ export default class NomadActionsService extends Service {
   actionsQueue = [];
 
   updateQueue() {
-    console.log('updating queue');
     this.actionsQueue = [...this.actionsQueue];
   }
 
@@ -62,7 +59,7 @@ export default class NomadActionsService extends Service {
    * @param {import("../models/job").default} job
    */
   runAction(action, allocID, job) {
-    const actionQueueID = `${action.name}-${Date.now()}`;
+    const actionQueueID = `${action.name}-${allocID}-${Date.now()}`;
     /**
      * @type {import ('../models/action-instance').default}
      */
@@ -70,12 +67,17 @@ export default class NomadActionsService extends Service {
       action,
       state: 'pending',
       id: actionQueueID,
+      allocID,
     });
 
     job.runAction(action, allocID, actionInstance);
-    this.actionsQueue.push(actionInstance);
+    this.actionsQueue.unshift(actionInstance);
     this.updateQueue();
 
     this.openFlyout();
+  }
+
+  get runningActions() {
+    return this.actionsQueue.filter((a) => a.state === 'running');
   }
 }

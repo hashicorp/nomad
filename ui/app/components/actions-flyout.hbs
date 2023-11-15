@@ -1,6 +1,6 @@
 {{#if this.nomadActions.flyoutActive}}
   <Hds::Flyout id="actions-flyout"
-    @onClose={{this.nomadActions.closeFlyout}} as |Fly|
+    @onClose={{this.nomadActions.closeFlyout}} @size="large" as |Fly|
   >
     <Fly.Header>
       Actions
@@ -8,13 +8,7 @@
     <Fly.Body>
       <ul class="actions-queue">
         {{#each this.nomadActions.actionsQueue as |instance|}}
-          <header>
-            Action <strong>{{instance.action.name}}</strong> run on {{instance.action.task.name}} in {{instance.task.taskGroup.job.name}}
-            <Hds::Badge @text="{{instance.state}}" @color="highlight" />
-          </header>
-            {{#if instance.messages.length}}
-              <code><pre>{{instance.messages}}</pre></code>
-            {{/if}}
+          <ActionCard @instance={{instance}} />
         {{/each}}
       </ul>
     </Fly.Body>

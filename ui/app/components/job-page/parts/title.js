@@ -124,8 +124,10 @@ export default class Title extends Component {
     }
     try {
       const job = this.job;
+      // TODO: have the service handle "all" vs specific
       if (allocID === 'all') {
         yield action.allocations.map((alloc) => {
+          console.log('---> running on ', action.allocations.length, alloc.id);
           this.nomadActions.runAction(action, alloc.id, job);
           // return job.runAction(action, alloc.id);
         });
@@ -137,6 +139,8 @@ export default class Title extends Component {
       this.notifications.add({
         title: `Error starting ${action.name}`,
         message: err,
+        // dont timeout
+        sticky: true,
         color: 'critical',
       });
     }

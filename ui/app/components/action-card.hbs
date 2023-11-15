@@ -1,0 +1,37 @@
+<div class="action-card">
+    <header>
+      <h3>
+        {{@instance.action.name}}
+        <Hds::Badge @text="{{@instance.state}}" @color={{this.stateColor}} />
+      </h3>
+      <ul>
+        <li><span>Task:</span> {{@instance.action.task.name}}</li>
+        <li><span>Job:</span> {{@instance.action.task.taskGroup.job.name}}</li>
+        <li><span>Allocation:</span> {{@instance.allocID}}</li>
+        <li><span>Created:</span> {{moment-from-now @instance.createdAt}}</li>
+        {{#if @instance.completedAt}}
+        {{#if (gt (moment-diff @instance.createdAt @instance.completedAt precision='seconds') 1)}}
+          <li>Completed after {{moment-diff @instance.createdAt @instance.completedAt precision='seconds'}} seconds</li>
+        {{else}}
+          <li>Completed in {{moment-diff @instance.createdAt @instance.completedAt precision='seconds' float=true}} seconds</li>
+        {{/if}}
+        {{/if}}
+      </ul>
+      
+    </header>
+
+    <div class="messages">
+      {{#if @instance.messages.length}}
+        <code><pre>{{@instance.messages}}</pre></code>
+      {{/if}}
+    </div>
+
+    {{!-- If status is running, show stop control --}}
+    <footer>
+      {{#if (eq @instance.state "running")}}
+        <Hds::Button @text="Stop" @color="critical" @size="small" {{on "click" this.stop}} />
+      {{/if}}
+    </footer>
+
+    {{yield}}
+</div>

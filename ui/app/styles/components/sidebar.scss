@@ -179,7 +179,53 @@ $subNavOffset: 49px;
 // well as on the z-index.
 #actions-flyout {
   z-index: $z-actions;
+  left: unset;
+  animation-name: FlyoutSlideIn;
+  animation-duration: 0.2s;
+  animation-fill-mode: both;
+
   & + .hds-flyout__overlay {
     z-index: $z-actions-backdrop;
+    animation-name: FlyoutOverlayFadeIn;
+    animation-duration: 0.2s;
+    animation-fill-mode: both;
+  }
+
+  .actions-queue {
+    display: grid;
+    gap: 1rem;
+    .action-card {
+      overflow: hidden; // lets code > pre handle scrolling
+      display: grid;
+      gap: 1rem;
+      grid-template-rows: auto 1fr auto;
+      .messages {
+        overflow: hidden;
+        code > pre {
+          height: 200px;
+          background-color: #0a0a0a;
+          color: whitesmoke;
+        }
+      }
+    }
+  }
+}
+
+@keyframes FlyoutSlideIn {
+  from {
+    // right: -480px; //medium
+    right: -720px; //large
+  }
+  to {
+    right: 0px;
+  }
+}
+
+@keyframes FlyoutOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.5;
   }
 }
