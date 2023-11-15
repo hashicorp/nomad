@@ -17,6 +17,7 @@ export default class TaskSubRowComponent extends Component {
   @service store;
   @service router;
   @service notifications;
+  @service nomadActions;
   @service('stats-trackers-registry') statsTrackersRegistry;
 
   constructor() {
@@ -101,14 +102,21 @@ export default class TaskSubRowComponent extends Component {
     return this.task.task?.taskGroup.job.namespace;
   }
 
+  /**
+   * @param {string} action - The action to run
+   * @param {string} allocID - The allocation ID to run the action on
+   * @param {Event} ev - The event that triggered the action
+   */
   @task(function* (action, allocID) {
     try {
       const job = this.task.task.taskGroup.job;
-      yield job.runAction(action, allocID);
+      // TODO: have the service handle "all" vs specific
+      yield this.nomadActions.runAction(action, allocID, job);
     } catch (err) {
       this.notifications.add({
         title: `Error starting ${action.name}`,
         message: err,
+        sticky: true,
         color: 'critical',
       });
     }

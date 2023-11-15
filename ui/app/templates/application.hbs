@@ -57,7 +57,7 @@
         {{on "click" this.nomadActions.openFlyout}}
         disabled={{this.nomadActions.flyoutActive}}
         @text="Actions"
-        @icon="chevron-right"
+        @icon={{if this.nomadActions.runningActions.length "loading" "chevron-right"}}
         @iconPosition="trailing"
         @color="secondary"
       />

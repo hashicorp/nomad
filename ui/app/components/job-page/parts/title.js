@@ -127,19 +127,15 @@ export default class Title extends Component {
       // TODO: have the service handle "all" vs specific
       if (allocID === 'all') {
         yield action.allocations.map((alloc) => {
-          console.log('---> running on ', action.allocations.length, alloc.id);
           this.nomadActions.runAction(action, alloc.id, job);
-          // return job.runAction(action, alloc.id);
         });
       } else {
         this.nomadActions.runAction(action, allocID, job);
-        // yield job.runAction(action, allocID);
       }
     } catch (err) {
       this.notifications.add({
         title: `Error starting ${action.name}`,
         message: err,
-        // dont timeout
         sticky: true,
         color: 'critical',
       });
