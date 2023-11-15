@@ -46,9 +46,10 @@ server_join {
   ```
 
   Auto-join configurations must conform to the [Cloud Auto-join format](#cloud-auto-join).
-    
+
   Cloud-Auto join using `go-discover` to join an AWS EC2 cluster.
-  ```
+
+  ```hcl
   server_join {
     retry_join = [ "provider=aws tag_key=..." ]
   }
@@ -57,7 +58,7 @@ server_join {
   Cloud-Auto join using `go-netaddrs` to join a Hetzner cluster of servers
   labeled with `nomad-server=true` using the `hcloud` CLI.
 
-  ```
+  ```hcl
   server_join {
     retry_join = [ "exec=hcloud server list -o noheader -o columns=ipv4 -l nomad-server=true | tr '\n' ' '" ]
   }
@@ -66,7 +67,7 @@ server_join {
   Server addresses and Cloud Auto-join configurations may be used together.
   This is a mixed configuration containing a server address and Cloud Auto-join
   configuration.
-  
+
   ```hcl
   server_join {
     retry_join = [ "1.1.1.1", "provider=aws tag_key=..." ]
@@ -143,8 +144,8 @@ Auto-join](#cloud-auto-join) for more information.
 ## Cloud Auto-join
 
 `retry_join`'s Cloud Auto-join allows Nomad to automatically discover cluster
-server addresses using cloud provider metadata. Cloud Auto-join allows both 
-[go-discover](https://github.com/hashicorp/go-discover) and 
+server addresses using cloud provider metadata. Cloud Auto-join allows both
+[go-discover](https://github.com/hashicorp/go-discover) and
 [go-netaddrs](https://github.com/hashicorp/go-netaddrs) formats.
 
 Configurations prefixed with `provider=` use `go-discover` whereas
@@ -266,20 +267,22 @@ addresses and exit with code `0` on success and non-zero on failure.
 
 You can refer to the executable by its absolute file system path, or by
 the executable's name if it can be found on the Nomad agent's PATH. See
-[executables in the current directory](https://pkg.go.dev/os/exec#hdr-Executables_in_the_current_directory) 
+[executables in the current directory](https://pkg.go.dev/os/exec#hdr-Executables_in_the_current_directory)
 for more details on the lookup behavior.
 
-Example `go-netaddrs` configuration. 
+Example `go-netaddrs` configuration.
 
 ```hcl
 server_join {
   retry_join = [ "exec=hcloud server list -o noheader -o columns=ipv4 -l nomad-server=true | tr '\n' ' '" ]
 }
 ```
+
 Here, `hcloud`'s newline-delimited output has been re-formatted as space-
 delimited by piping its output into `tr`.
 
 Output of an example `go-netaddrs` executable
+
 ```
 "1.1.1.1 2.2.2.2"
 ```

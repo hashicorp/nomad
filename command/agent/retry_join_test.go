@@ -6,18 +6,18 @@ package agent
 import (
 	"context"
 	"fmt"
+	golog "log"
 	"net"
 	"os"
 	"testing"
 	"time"
-
-	golog "log"
 
 	"github.com/hashicorp/go-netaddrs"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -191,7 +191,6 @@ func TestRetryJoin_Server_MixedProvider(t *testing.T) {
 
 func TestRetryJoin_AutoDiscover(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	var joinAddrs []string
 	mockJoin := func(s []string) (int, error) {
@@ -207,7 +206,9 @@ func TestRetryJoin_AutoDiscover(t *testing.T) {
 	// '100.100.100.100' ensures that bare IPs are returned as-is
 	serverJoin := &ServerJoin{
 		RetryMaxAttempts: 1,
-		RetryJoin:        []string{"exec=echo 127.0.0.1", "provider=aws, tag_value=foo", "localhost", "localhost2:4648", "127.0.0.1:4648", "100.100.100.100"},
+		RetryJoin: []string{
+			"exec=echo 127.0.0.1", "provider=aws, tag_value=foo",
+			"localhost", "localhost2:4648", "127.0.0.1:4648", "100.100.100.100"},
 	}
 
 	mockDiscover := &MockDiscover{}
@@ -222,14 +223,12 @@ func TestRetryJoin_AutoDiscover(t *testing.T) {
 
 	joiner.RetryJoin(serverJoin)
 
-	require.Len(joinAddrs, 6) // [127.0.0.1 127.0.0.1 localhost localhost2:4648 127.0.0.1:4648 100.100.100.100]
-	require.Equal("localhost", joinAddrs[2])
-	require.Equal("localhost2:4648", joinAddrs[3])
-	require.Equal("127.0.0.1:4648", joinAddrs[4])
-	require.Equal("100.100.100.100", joinAddrs[5])
-	require.Len(mockNetaddrs.ReceivedConfig, 1)
-	require.Equal("exec=echo 127.0.0.1", mockNetaddrs.ReceivedConfig[0])
-	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedConfig)
+	must.Eq(t, []string{
+		"127.0.0.1", "127.0.0.1", "localhost", "localhost2:4648",
+		"127.0.0.1:4648", "100.100.100.100"},
+		joinAddrs)
+	must.Eq(t, []string{"exec=echo 127.0.0.1"}, mockNetaddrs.ReceivedConfig)
+	must.Eq(t, "provider=aws, tag_value=foo", mockDiscover.ReceivedConfig)
 }
 
 func TestRetryJoin_Client(t *testing.T) {
