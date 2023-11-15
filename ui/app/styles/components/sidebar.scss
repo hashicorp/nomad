@@ -195,20 +195,47 @@ $subNavOffset: 49px;
     display: grid;
     gap: 1rem;
     .action-card {
-      overflow: hidden; // lets code > pre handle scrolling
       display: grid;
       gap: 1rem;
       grid-template-rows: auto 1fr auto;
+      border-bottom: 1px solid $grey-blue;
+      padding: 1rem 0 2rem;
+
+      header {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        h3 {
+          font-size: 1.5rem;
+        }
+      }
+
       .messages {
         overflow: hidden;
         code > pre {
           height: 200px;
           background-color: #0a0a0a;
           color: whitesmoke;
+          border-radius: 6px;
         }
+      }
+
+      footer {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: start;
       }
     }
   }
+}
+
+.actions-flyout-button {
+  position: fixed;
+  top: 65px; //TODO: magic number
+  right: 1.5rem;
+  z-index: $z-actions;
+  animation-name: FlyoutButtonSlideIn;
+  animation-duration: 0.2s;
+  animation-fill-mode: both;
 }
 
 @keyframes FlyoutSlideIn {
@@ -218,6 +245,15 @@ $subNavOffset: 49px;
   }
   to {
     right: 0px;
+  }
+}
+
+@keyframes FlyoutButtonSlideIn {
+  from {
+    right: -200px;
+  }
+  to {
+    right: 1.5rem;
   }
 }
 

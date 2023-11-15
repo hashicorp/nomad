@@ -58,23 +58,42 @@ export default class NomadActionsService extends Service {
    * @param {string} allocID
    * @param {import("../models/job").default} job
    */
-  runAction(action, allocID, job) {
+  async runAction(action, allocID, job) {
+    console.log('service running action', action, allocID, job);
     const actionQueueID = `${action.name}-${allocID}-${Date.now()}`;
     /**
      * @type {import ('../models/action-instance').default}
      */
-    const actionInstance = this.store.createRecord('action-instance', {
-      action,
+    const actionInstance = await this.store.createRecord('action-instance', {
       state: 'pending',
       id: actionQueueID,
       allocID,
     });
 
-    job.runAction(action, allocID, actionInstance);
-    this.actionsQueue.unshift(actionInstance);
-    this.updateQueue();
+    // Note: setting post-createRecord because of a noticed bug
+    // when passing action as a property to createRecord.
+    actionInstance.set('action', action);
 
+    job.runAction(action, allocID, actionInstance);
+
+    this.actionsQueue.unshift(actionInstance); // add to the front of the queue
+    this.updateQueue();
     this.openFlyout();
+  }
+
+  /**
+   *
+   * @param {import ('../models/action-instance').default} actionInstance
+   */
+  @action clearActionInstance(actionInstance) {
+    // if instance is still running, stop it
+    if (actionInstance.state === 'running') {
+      actionInstance.socket.close();
+    }
+    this.actionsQueue = this.actionsQueue.filter(
+      (a) => a.id !== actionInstance.id
+    );
+    // this.updateQueue();
   }
 
   get runningActions() {

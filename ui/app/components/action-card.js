@@ -6,8 +6,11 @@
 // @ts-check
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
+import { inject as service } from '@ember/service';
+// import { alias } from '@ember/object/computed';
 
 export default class ActionCardComponent extends Component {
+  @service nomadActions;
   get stateColor() {
     /**
      * @type {import('../models/action-instance').default}
@@ -28,7 +31,6 @@ export default class ActionCardComponent extends Component {
   }
 
   @action stop() {
-    console.log('instance socket is', this.args.instance.socket);
     this.args.instance.socket.close();
   }
 }

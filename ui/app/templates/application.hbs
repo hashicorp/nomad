@@ -48,6 +48,23 @@
 <KeyboardShortcutsModal />
 
 <ActionsFlyout />
+{{#if this.nomadActions.actionsQueue.length}}
+  {{#unless this.nomadActions.flyoutActive}}
+    <div class="actions-flyout-button"
+      {{keyboard-shortcut menuLevel=true pattern=(array "a" "c") action=(action this.nomadActions.openFlyout) }}
+    >
+      <Hds::Button
+        {{on "click" this.nomadActions.openFlyout}}
+        disabled={{this.nomadActions.flyoutActive}}
+        @text="Actions"
+        @icon="chevron-right"
+        @iconPosition="trailing"
+        @color="secondary"
+      />
+    </div>
+  {{/unless}}
+{{/if}}
+
 
 <PortalTarget @name="log-sidebar-portal" />
 

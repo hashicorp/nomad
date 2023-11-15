@@ -254,6 +254,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     // let notification;
     socket.addEventListener('open', () => {
       actionInstance.state = 'starting';
+      actionInstance.createdAt = new Date();
       // notification = this.notifications
       //   .add({
       //     title: `Action ${action.name} Started`,
@@ -318,8 +319,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     socket.addEventListener('close', () => {
       actionInstance.state = 'complete';
       actionInstance.completedAt = new Date();
-      // notification.set('title', `Action ${action.name} Finished`);
-      // notification.set('customAction', null);
     });
 
     socket.addEventListener('error', function (event) {

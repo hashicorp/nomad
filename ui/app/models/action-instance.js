@@ -15,19 +15,9 @@ export default class ActionInstanceModel extends Model {
     },
   })
   messages;
-  @attr('date', {
-    defaultValue() {
-      return new Date();
-    },
-  })
-  createdAt;
+  @attr('date') createdAt;
 
-  @attr('date', {
-    defaultValue() {
-      return null;
-    },
-  })
-  completedAt;
+  @attr('date') completedAt;
 
   @attr('string') allocID;
 
