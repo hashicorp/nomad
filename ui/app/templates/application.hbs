@@ -48,6 +48,7 @@
 <KeyboardShortcutsModal />
 
 <ActionsFlyout />
+{{!-- TODO: componentize --}}
 {{#if this.nomadActions.actionsQueue.length}}
   {{#unless this.nomadActions.flyoutActive}}
     <div class="actions-flyout-button"
@@ -56,7 +57,7 @@
       <Hds::Button
         {{on "click" this.nomadActions.openFlyout}}
         disabled={{this.nomadActions.flyoutActive}}
-        @text="Actions"
+        @text={{if this.nomadActions.runningActions.length (concat this.nomadActions.runningActions.length " Actions Running") "Actions"}}
         @icon={{if this.nomadActions.runningActions.length "loading" "chevron-right"}}
         @iconPosition="trailing"
         @color="secondary"

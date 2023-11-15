@@ -96,7 +96,26 @@ export default class NomadActionsService extends Service {
     // this.updateQueue();
   }
 
+  @action clearFinishedActions() {
+    // this.actionsQueue = [];
+    this.actionsQueue = this.actionsQueue.filter((a) => a.state !== 'complete');
+  }
+
+  @action stopAll() {
+    this.actionsQueue.forEach((a) => {
+      if (a.state === 'running') {
+        a.socket.close();
+      }
+    });
+  }
+
   get runningActions() {
     return this.actionsQueue.filter((a) => a.state === 'running');
+  }
+
+  get finishedActions() {
+    return this.actionsQueue.filter(
+      (a) => a.state === 'complete' || a.state === 'error'
+    );
   }
 }

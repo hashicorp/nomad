@@ -191,6 +191,13 @@ $subNavOffset: 49px;
     animation-fill-mode: both;
   }
 
+  .hds-flyout__title {
+    display: grid;
+    align-items: start;
+    grid-template-columns: 1fr auto auto;
+    gap: 1rem;
+  }
+
   .actions-queue {
     display: grid;
     gap: 1rem;

@@ -4,6 +4,12 @@
   >
     <Fly.Header>
       Actions
+      {{#if this.nomadActions.runningActions.length}}
+        <Hds::Button @text="Stop All" @color="critical" @size="medium" {{on "click" this.nomadActions.stopAll}} />
+      {{/if}}
+      {{#if this.nomadActions.finishedActions.length}}
+        <Hds::Button @text="Clear Finished Actions" @color="secondary" @size="medium" {{on "click" this.nomadActions.clearFinishedActions}} />
+      {{/if}}
     </Fly.Header>
     <Fly.Body>
       <ul class="actions-queue">
