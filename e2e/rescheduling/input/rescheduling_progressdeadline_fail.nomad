@@ -27,7 +27,7 @@ job "demo2" {
     update {
       # we want the first allocation to take a while before we give up on it,
       # so that we can check the deployment's progress deadline before and
-      # after it becomes healthy
+      # after we determine it will never become healthy
       min_healthy_time  = "10s"
       healthy_deadline  = "15s"
       progress_deadline = "20s"
@@ -42,7 +42,7 @@ job "demo2" {
     }
 
     reschedule {
-      unlimited      = "true"
+      unlimited      = true
       delay_function = "constant"
       delay          = "5s"
     }

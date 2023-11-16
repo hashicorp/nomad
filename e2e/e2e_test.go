@@ -31,7 +31,6 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/podman"
 	_ "github.com/hashicorp/nomad/e2e/quotas"
 	_ "github.com/hashicorp/nomad/e2e/remotetasks"
-	_ "github.com/hashicorp/nomad/e2e/rescheduling"
 	_ "github.com/hashicorp/nomad/e2e/scaling"
 	_ "github.com/hashicorp/nomad/e2e/scalingpolicies"
 	_ "github.com/hashicorp/nomad/e2e/scheduler_sysbatch"
@@ -45,6 +44,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/disconnectedclients"
 	_ "github.com/hashicorp/nomad/e2e/namespaces"
 	_ "github.com/hashicorp/nomad/e2e/nodedrain"
+	_ "github.com/hashicorp/nomad/e2e/rescheduling"
 	_ "github.com/hashicorp/nomad/e2e/volumes"
 )
 
