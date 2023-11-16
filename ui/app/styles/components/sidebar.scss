@@ -218,11 +218,13 @@ $subNavOffset: 49px;
 
       .messages {
         overflow: hidden;
+
         code > pre {
           height: 200px;
           background-color: #0a0a0a;
           color: whitesmoke;
           border-radius: 6px;
+          resize: vertical;
         }
       }
 
