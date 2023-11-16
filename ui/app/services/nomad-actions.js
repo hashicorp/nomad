@@ -58,13 +58,13 @@ export default class NomadActionsService extends Service {
    * @param {string} allocID
    * @param {import("../models/job").default} job
    */
-  async runAction(action, allocID, job) {
+  @action runAction(action, allocID, job) {
     console.log('service running action', action, allocID, job);
     const actionQueueID = `${action.name}-${allocID}-${Date.now()}`;
     /**
      * @type {import ('../models/action-instance').default}
      */
-    const actionInstance = await this.store.createRecord('action-instance', {
+    const actionInstance = this.store.createRecord('action-instance', {
       state: 'pending',
       id: actionQueueID,
       allocID,

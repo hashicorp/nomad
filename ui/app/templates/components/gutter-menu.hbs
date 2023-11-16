@@ -151,19 +151,6 @@
       </ul>
     </aside>
       <footer class="gutter-footer">
-        {{!-- {{#if this.nomadActions.actionsQueue.length}}
-          <div class="actions-flyout-button"
-            {{keyboard-shortcut menuLevel=true pattern=(array "a" "c") action=(action this.nomadActions.openFlyout) }}
-          >
-            <Hds::Button
-              {{on "click" this.nomadActions.openFlyout}}
-              disabled={{this.nomadActions.flyoutActive}}
-              @text="Actions"
-              @isFullWidth={{true}}
-              @color="primary"
-            />
-          </div>
-        {{/if}} --}}
         {{#if this.system.agent.version}}
           <span class="is-faded">
             v{{this.system.agent.version}}

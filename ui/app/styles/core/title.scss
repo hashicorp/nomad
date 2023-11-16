@@ -25,7 +25,9 @@
 }
 
 // Job page header, actions bar
-.job-page-header {
+// TODO: move to its own component scss
+.job-page-header,
+.hds-flyout__title {
   margin-bottom: 1rem;
   position: relative;
   z-index: $z-base - 1;

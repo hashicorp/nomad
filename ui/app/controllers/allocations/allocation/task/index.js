@@ -50,6 +50,7 @@ export default class IndexController extends Controller {
    * @param {Event} ev - The event that triggered the action
    */
   @task(function* (action, allocID) {
+    // Yo this is such a dumb bug! allocID is getting the 0th entry in task.actions.allocations but those are populated regardless of whether we're in a task context (which would necessitate a specific allocID)
     try {
       const job = this.model.task.taskGroup.job;
       // TODO: have the service handle "all" vs specific

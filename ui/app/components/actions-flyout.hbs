@@ -9,6 +9,27 @@
   >
     <Fly.Header>
       Actions
+      {{#if this.contextualActions.length}}
+        <Hds::Dropdown class="actions-dropdown" as |dd|>
+          <dd.ToggleButton @color="secondary" @text="Actions for {{if this.task "Task" "Job"}}" @size="medium" />
+          {{#each this.contextualActions as |action|}}
+            {{#if this.task}}
+              <dd.Interactive {{on "click" (fn this.nomadActions.runAction action this.allocation.id this.job)}} @text="{{action.name}}" />
+            {{else}}
+              {{#if (gt action.allocations.length 1)}}
+                <dd.Generic>
+                  <Hds::Reveal @text={{action.name}}>
+                    <dd.Interactive {{on "click" (fn this.nomadActions.runAction action null this.job)}} @text="Run on a random alloc" />
+                    <dd.Interactive {{on "click" (fn this.nomadActions.runAction action "all" this.job)}} @text="Run on all {{action.allocations.length}} allocs" />
+                  </Hds::Reveal>
+                </dd.Generic>
+              {{else}}
+                <dd.Interactive {{on "click" (fn this.nomadActions.runAction action (get (object-at 0 action.allocations) "id") this.job)}} @text="{{action.name}}" />
+              {{/if}}
+            {{/if}}
+          {{/each}}
+        </Hds::Dropdown>
+      {{/if}}
       {{#if this.nomadActions.runningActions.length}}
         <Hds::Button @text="Stop All" @color="critical" @size="medium" {{on "click" this.nomadActions.stopAll}} />
       {{/if}}

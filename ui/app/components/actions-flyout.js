@@ -10,6 +10,37 @@ import { alias } from '@ember/object/computed';
 
 export default class ActionsFlyoutComponent extends Component {
   @service nomadActions;
+  @service router;
+
+  get job() {
+    if (this.task) {
+      return this.task.taskGroup.job;
+    } else {
+      return (
+        this.router.currentRouteName.startsWith('jobs.job') &&
+        this.router.currentRoute.attributes
+      );
+    }
+  }
+
+  get task() {
+    return (
+      this.router.currentRouteName.startsWith('allocations.allocation.task') &&
+      this.router.currentRoute.attributes.task
+    );
+  }
+
+  get allocation() {
+    return this.task && this.router.currentRoute.attributes.allocation;
+  }
+
+  get contextualParent() {
+    return this.task || this.job;
+  }
+
+  get contextualActions() {
+    return this.contextualParent?.actions || [];
+  }
 
   @alias('nomadActions.flyoutActive') isOpen;
 }

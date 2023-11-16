@@ -245,3 +245,10 @@ module('Acceptance | actions', function (hooks) {
     );
   });
 });
+
+// TODO:
+// - Actions populate within flyout at job level (index and say, allocations)
+// - Actions populate within flyout at task level (index and logs)
+// - running actions trigger an "x actions running" label on the actions toggle button
+// - "stop all running" and "clear all finished" conditions observed in acitons flyout
+// - "a c" keybinding works as expected
