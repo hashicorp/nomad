@@ -10,6 +10,7 @@ import { inject as service } from '@ember/service';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
+import { action } from '@ember/object';
 
 @classic
 @tagName('')
@@ -142,4 +143,14 @@ export default class Title extends Component {
     }
   })
   runAction;
+
+  /**
+   * @param {HTMLElement} el
+   */
+  @action openActionsDropdown(el) {
+    const dropdownTrigger = el?.getElementsByTagName('button')[0];
+    if (dropdownTrigger) {
+      dropdownTrigger.click();
+    }
+  }
 }

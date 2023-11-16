@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+// @ts-check
 import Model from '@ember-data/model';
 import { attr, belongsTo } from '@ember-data/model';
 
@@ -20,12 +26,6 @@ export default class ActionInstanceModel extends Model {
   @attr('date') completedAt;
 
   @attr('string') allocID;
-
-  // stop() {
-  //   console.log('ok stopping instance lol');
-  //   console.log('thissocket', this.socket,)
-  //   this.socket.stop();
-  // }
 
   /**
    * @type {WebSocket}

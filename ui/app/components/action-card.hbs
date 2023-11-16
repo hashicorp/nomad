@@ -1,47 +1,52 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <div class="action-card">
-    <header>
-      <h3>
-        {{@instance.action.name}}
-      </h3>
-      <Hds::Badge @text="{{capitalize @instance.state}}" @color={{this.stateColor}} @size="large" />
-      <Hds::Button @text="Clear Action" @icon="x" @isIconOnly={{true}}
-      @color="tertiary"
-        {{on "click" (action this.nomadActions.clearActionInstance @instance)}}
-      />
-    </header>
+  <header>
+    <h3>
+      {{@instance.action.name}}
+    </h3>
+    <Hds::Badge @text="{{capitalize @instance.state}}" @color={{this.stateColor}} @size="large" />
+    <Hds::Button @text="Clear Action" @icon="x" @isIconOnly={{true}}
+    @color="tertiary"
+      {{on "click" (action this.nomadActions.clearActionInstance @instance)}}
+    />
+  </header>
 
-    <div class="messages">
-      {{#if @instance.messages.length}}
-        <code><pre>{{@instance.messages}}</pre></code>
-      {{else}}
-        {{#if (eq @instance.state "complete")}}
-          <p class="no-messages">Action completed with no output</p>
-        {{/if}}
+  <div class="messages">
+    {{#if @instance.messages.length}}
+      <code><pre>{{@instance.messages}}</pre></code>
+    {{else}}
+      {{#if (eq @instance.state "complete")}}
+        <p class="no-messages">Action completed with no output</p>
       {{/if}}
-    </div>
+    {{/if}}
+  </div>
 
-    <footer>
-      <Hds::Reveal @text="Action Info">
-        <ul>
-          <li><span>Task:</span> {{@instance.action.task.name}}</li>
-          <li><span>Job:</span> {{@instance.action.task.taskGroup.job.name}}</li>
-          <li><span>Allocation:</span> {{@instance.allocID}}</li>
-          <li><span>Created:</span> {{moment-from-now @instance.createdAt}}</li>
-          {{#if @instance.completedAt}}
-            {{#if (gt (moment-diff @instance.createdAt @instance.completedAt precision='seconds') 1)}}
-              <li>Completed after {{moment-diff @instance.createdAt @instance.completedAt precision='seconds'}} seconds</li>
-            {{else}}
-              <li>Completed in {{moment-diff @instance.createdAt @instance.completedAt precision='seconds' float=true}} seconds</li>
-            {{/if}}
+  <footer>
+    <Hds::Reveal @text="Action Info">
+      <ul>
+        <li><span>Task:</span> {{@instance.action.task.name}}</li>
+        <li><span>Job:</span> {{@instance.action.task.taskGroup.job.name}}</li>
+        <li><span>Allocation:</span> {{@instance.allocID}}</li>
+        <li><span>Created:</span> {{moment-from-now @instance.createdAt}}</li>
+        {{#if @instance.completedAt}}
+          {{#if (gt (moment-diff @instance.createdAt @instance.completedAt precision='seconds') 1)}}
+            <li>Completed after {{moment-diff @instance.createdAt @instance.completedAt precision='seconds'}} seconds</li>
+          {{else}}
+            <li>Completed in {{moment-diff @instance.createdAt @instance.completedAt precision='seconds' float=true}} seconds</li>
           {{/if}}
-        </ul>
-      </Hds::Reveal>
+        {{/if}}
+      </ul>
+    </Hds::Reveal>
 
-      {{!-- If status is running, show stop control --}}
-      {{#if (eq @instance.state "running")}}
-        <Hds::Button @text="Stop Action" @color="critical" @size="medium" {{on "click" this.stop}} />
-      {{/if}}
-    </footer>
+    {{!-- If status is running, show stop control --}}
+    {{#if (eq @instance.state "running")}}
+      <Hds::Button @text="Stop Action" @color="critical" @size="medium" {{on "click" this.stop}} />
+    {{/if}}
+  </footer>
 
-    {{yield}}
+  {{yield}}
 </div>

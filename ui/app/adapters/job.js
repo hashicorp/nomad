@@ -321,7 +321,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       actionInstance.completedAt = new Date();
     });
 
-    socket.addEventListener('error', function (event) {
+    socket.addEventListener('error', function () {
       actionInstance.state = 'error';
       // TODO: implement instance.error
       // this.notifications.add({
