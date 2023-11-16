@@ -1026,7 +1026,7 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 							consulServiceDiscoveryConstraint,
 							&structs.Constraint{
 								LTarget: "${attr.consul.infra.version}",
-								RTarget: ">= 1.7.0",
+								RTarget: ">= 1.8.0",
 								Operand: structs.ConstraintSemver,
 							},
 						},

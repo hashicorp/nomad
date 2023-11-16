@@ -34,10 +34,10 @@ var (
 	// consulServiceDiscoveryConstraint is the implicit constraint added to
 	// task groups which include services utilising the Consul provider. The
 	// Consul version is pinned to a minimum of that which introduced the
-	// namespace feature.
+	// JWT auth feature.
 	consulServiceDiscoveryConstraint = &structs.Constraint{
 		LTarget: attrConsulVersion,
-		RTarget: ">= 1.7.0",
+		RTarget: ">= 1.8.0",
 		Operand: structs.ConstraintSemver,
 	}
 
@@ -285,7 +285,7 @@ func consulConstraintFn(service *structs.Service) *structs.Constraint {
 	if service.Cluster != structs.ConsulDefaultCluster && service.Cluster != "" {
 		return &structs.Constraint{
 			LTarget: fmt.Sprintf("${attr.consul.%s.version}", service.Cluster),
-			RTarget: ">= 1.7.0",
+			RTarget: ">= 1.8.0",
 			Operand: structs.ConstraintSemver,
 		}
 	}

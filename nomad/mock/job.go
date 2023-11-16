@@ -36,7 +36,7 @@ func Job() *structs.Job {
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "${attr.consul.version}",
-						RTarget: ">= 1.7.0",
+						RTarget: ">= 1.8.0",
 						Operand: structs.ConstraintSemver,
 					},
 				},
