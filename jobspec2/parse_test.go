@@ -953,6 +953,115 @@ func TestParse_Meta_Alternatives(t *testing.T) {
 
 }
 
+func TestParse_Constraint_Alternatives(t *testing.T) {
+	ci.Parallel(t)
+
+	hclOpVal := `
+job "example" {
+  constraint {
+    operator = "distinct_hosts"
+    value    = "true"
+  }
+
+  constraint {
+    operator  = "distinct_property"
+    attribute = "${meta.rack}"
+    value     = "1"
+  }
+
+  group "group" {
+    constraint {
+      operator = "distinct_hosts"
+      value    = "false"
+    }
+
+    constraint {
+      operator  = "distinct_property"
+      attribute = "${meta.rack}"
+      value     = "2"
+    }
+
+    task "task" {
+      constraint {
+        operator = "distinct_hosts"
+        value    = "true"
+      }
+
+      constraint {
+        operator  = "distinct_property"
+        attribute = "${meta.rack}"
+        value     = "3"
+      }
+      driver = "config"
+      config {}
+    }
+  }
+}
+`
+	hclCompact := `
+job "example" {
+  constraint {
+    distinct_hosts = true
+  }
+
+  constraint {
+    distinct_property = "${meta.rack}"
+    value     = "1"
+  }
+
+  group "group" {
+    constraint {
+      distinct_hosts = false
+    }
+
+    constraint {
+      distinct_property = "${meta.rack}"
+      value     = "2"
+    }
+    task "task" {
+      constraint {
+        distinct_hosts = true
+      }
+
+      constraint {
+        distinct_property = "${meta.rack}"
+        value     = "3"
+      }
+      driver = "config"
+      config {}
+    }
+  }
+}
+`
+	asOpValue, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hclOpVal),
+	})
+	require.NoError(t, err)
+
+	asCompact, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hclCompact),
+	})
+	require.NoError(t, err)
+
+	constraint := func(l, r, op string) *api.Constraint {
+		return &api.Constraint{
+			LTarget: l,
+			RTarget: r,
+			Operand: op,
+		}
+	}
+
+	require.Equal(t, asOpValue, asCompact)
+	require.Equal(t, constraint("", "true", "distinct_hosts"), asOpValue.Constraints[0])
+	require.Equal(t, constraint("", "false", "distinct_hosts"), asOpValue.TaskGroups[0].Constraints[0])
+	require.Equal(t, constraint("", "true", "distinct_hosts"), asOpValue.TaskGroups[0].Tasks[0].Constraints[0])
+	require.Equal(t, constraint("${meta.rack}", "1", "distinct_property"), asOpValue.Constraints[1])
+	require.Equal(t, constraint("${meta.rack}", "2", "distinct_property"), asOpValue.TaskGroups[0].Constraints[1])
+	require.Equal(t, constraint("${meta.rack}", "3", "distinct_property"), asOpValue.TaskGroups[0].Tasks[0].Constraints[1])
+}
+
 // TestParse_UndefinedVariables asserts that values with undefined variables are left
 // intact in the job representation
 func TestParse_UndefinedVariables(t *testing.T) {
