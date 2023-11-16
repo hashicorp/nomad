@@ -4,7 +4,6 @@
 package rescheduling
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"sort"
@@ -14,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/jobspec"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -426,24 +424,31 @@ func TestRescheduling_ProgressDeadline(t *testing.T) {
 		must.Sprint("should have a running allocation"),
 	)
 
+	var deploymentID string
+
 	deploymentID, err := e2eutil.LastDeploymentID(jobID, ns)
 	must.NoError(t, err, must.Sprint("couldn't look up deployment"))
 
-	oldDeadline, err := getProgressDeadline(deploymentID)
-	must.NoError(t, err, must.Sprint("could not get progress deadline"))
-	time.Sleep(time.Second * 20)
+	_, oldDeadline := getDeploymentState(t, deploymentID)
 
-	newDeadline, err := getProgressDeadline(deploymentID)
-	must.NoError(t, err, must.Sprint("could not get new progress deadline"))
+	var newStatus string
+	var newDeadline time.Time
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			newStatus, newDeadline = getDeploymentState(t, deploymentID)
+			return newStatus == "successful"
+		}),
+		wait.Timeout(30*time.Second),
+		wait.Gap(500*time.Millisecond),
+	), must.Sprint("deployment should be successful"))
+
 	must.NotEq(t, oldDeadline, newDeadline,
 		must.Sprint("progress deadline should have been updated"))
-
-	must.NoError(t, e2eutil.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
-		must.Sprint("deployment should be successful"))
 }
 
-// TestRescheduling_ProgressDeadlineFail verifies the progress deadline is reset with
-// each healthy allocation, and that a rescheduled allocation does not.
+// TestRescheduling_ProgressDeadlineFail verifies the progress deadline is only
+// reset with each healthy allocation, and this fails the deployment if not
 func TestRescheduling_ProgressDeadlineFail(t *testing.T) {
 
 	jobID := "test-reschedule-deadline-fail" + uuid.Generate()[0:8]
@@ -451,62 +456,54 @@ func TestRescheduling_ProgressDeadlineFail(t *testing.T) {
 
 	cleanupJob(t, jobID)
 
-	testutil.WaitForResult(func() (bool, error) {
-		_, err := e2eutil.LastDeploymentID(jobID, ns)
-		return err == nil, err
-	}, func(err error) {
-		must.NoError(t, err, must.Sprint("deployment wasn't created yet"))
-	})
+	var deploymentID string
 
-	deploymentID, err := e2eutil.LastDeploymentID(jobID, ns)
-	must.NoError(t, err, must.Sprint("couldn't look up deployment"))
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			deploymentID, _ = e2eutil.LastDeploymentID(jobID, ns)
+			return deploymentID != ""
+		}),
+		wait.Timeout(5*time.Second),
+		wait.Gap(500*time.Millisecond),
+	), must.Sprint("deployment not created"))
 
-	oldDeadline, err := getProgressDeadline(deploymentID)
-	must.NoError(t, err, must.Sprint("could not get progress deadline"))
-	time.Sleep(time.Second * 20)
+	_, oldDeadline := getDeploymentState(t, deploymentID)
 
-	must.NoError(t, e2eutil.WaitForLastDeploymentStatus(jobID, ns, "failed", nil),
-		must.Sprint("deployment should be failed"))
+	var newStatus string
+	var newDeadline time.Time
 
-	must.NoError(t,
-		e2eutil.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2eutil.AllocStatuses(jobID, ns) },
-			func(got []string) bool {
-				for _, status := range got {
-					if status != "failed" {
-						return false
-					}
-				}
-				return true
-			}, nil,
-		),
-		must.Sprint("should have only failed allocs"),
-	)
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			newStatus, newDeadline = getDeploymentState(t, deploymentID)
+			return newStatus == "failed"
+		}),
+		wait.Timeout(30*time.Second),
+		wait.Gap(500*time.Millisecond),
+	), must.Sprint("deployment should be failed"))
 
-	newDeadline, err := getProgressDeadline(deploymentID)
-	must.NoError(t, err, must.Sprint("could not get new progress deadline"))
 	must.Eq(t, oldDeadline, newDeadline,
 		must.Sprint("progress deadline should not have been updated"))
 }
 
-func getProgressDeadline(deploymentID string) (time.Time, error) {
+// getDeploymentState returns the status and progress deadline for the given
+// deployment
+func getDeploymentState(t *testing.T, deploymentID string) (string, time.Time) {
 
 	out, err := e2eutil.Command("nomad", "deployment", "status", deploymentID)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("could not get deployment status: %v\n%v", err, out)
-	}
+	must.NoError(t, err, must.Sprintf("could not get deployment status from output: %v", out))
+
+	status, err := e2eutil.GetField(out, "Status")
+	must.NoError(t, err, must.Sprintf("could not find Status field in output: %v", out))
 
 	section, err := e2eutil.GetSection(out, "Deployed")
-	if err != nil {
-		return time.Time{}, fmt.Errorf("could not find Deployed section: %w", err)
-	}
+	must.NoError(t, err, must.Sprintf("could not find Deployed section in output: %v", out))
 
 	rows, err := e2eutil.ParseColumns(section)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("could not parse Deployed section: %w", err)
-	}
+	must.NoError(t, err, must.Sprintf("could not parse Deployed section from output: %v", out))
 
 	layout := "2006-01-02T15:04:05Z07:00" // taken from command/helpers.go
 	raw := rows[0]["Progress Deadline"]
-	return time.Parse(layout, raw)
+	deadline, err := time.Parse(layout, raw)
+	must.NoError(t, err, must.Sprint("could not parse Progress Deadline timestamp"))
+	return status, deadline
 }
