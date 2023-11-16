@@ -10,17 +10,6 @@ After=network-online.target
 #Wants=consul.service
 #After=consul.service
 
-[Service]
-EnvironmentFile=-/etc/nomad.d/nomad.env
-ExecReload=/bin/kill -HUP $MAINPID
-ExecStart=/usr/bin/nomad agent -config /etc/nomad.d
-KillMode=process
-KillSignal=SIGINT
-LimitNOFILE=65536
-LimitNPROC=infinity
-Restart=on-failure
-RestartSec=2
-
 ## Configure unit start rate limiting. Units which are started more than
 ## *burst* times within an *interval* time span are not permitted to start any
 ## more. Use `StartLimitIntervalSec` or `StartLimitInterval` (depending on
@@ -35,6 +24,17 @@ RestartSec=2
 
 ## StartLimitInterval is used for systemd versions < 230
 # StartLimitInterval = 10s
+
+[Service]
+EnvironmentFile=-/etc/nomad.d/nomad.env
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/bin/nomad agent -config /etc/nomad.d
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=65536
+LimitNPROC=infinity
+Restart=on-failure
+RestartSec=2
 
 TasksMax=infinity
 OOMScoreAdjust=-1000
