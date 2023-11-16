@@ -5,6 +5,7 @@ package rescheduling
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -16,9 +17,24 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 const ns = "default"
+
+func reschedulingTestCleanup(t *testing.T, jobID string) func() {
+	return func() {
+		t.Helper()
+
+		if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
+			return
+		}
+
+		e2eutil.StopJob(jobID, "-purge", "-detach")
+		_, err := e2eutil.Command("nomad", "system", "gc")
+		test.NoError(t, err)
+	}
+}
 
 // Note: most of the StopJob calls in this test suite will return an
 // error because the job has previously failed and we're not waiting for
@@ -30,11 +46,7 @@ func TestRescheduling_Service_NoReschedule(t *testing.T) {
 	jobID := "test-no-reschedule-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/norescheduling_service.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	expected := []string{"failed", "failed", "failed"}
 	must.NoError(t,
@@ -49,11 +61,7 @@ func TestRescheduling_System_NoReschedule(t *testing.T) {
 	jobID := "test-no-reschedule-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/norescheduling_system.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	must.NoError(t,
 		e2eutil.WaitForAllocStatusComparison(
@@ -76,11 +84,7 @@ func TestRescheduling_Default(t *testing.T) {
 	jobID := "test-default-reschedule-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_default.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	expected := []string{"failed", "failed", "failed"}
 	must.NoError(t,
@@ -103,11 +107,7 @@ func TestRescheduling_MaxAttempts(t *testing.T) {
 	jobID := "test-reschedule-fail-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_fail.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	expected := []string{"failed", "failed", "failed"}
 	must.NoError(t,
@@ -124,20 +124,20 @@ func TestRescheduling_MaxAttempts(t *testing.T) {
 	_, _, err = nc.Jobs().Register(job, nil)
 	must.NoError(t, err, must.Sprint("could not register updated job"))
 
-	must.NoError(t,
-		e2eutil.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2eutil.AllocStatuses(jobID, ns) },
-			func(got []string) bool {
-				for _, status := range got {
-					if status == "running" {
-						return true
-					}
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			got, err := e2eutil.AllocStatuses(jobID, ns)
+			must.NoError(t, err)
+			for _, status := range got {
+				if status == "running" {
+					return true
 				}
-				return false
-			}, nil,
-		),
-		must.Sprint("should have at least 1 running alloc"),
-	)
+			}
+			return false
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(500*time.Millisecond),
+	), must.Sprint("should have at least 1 running alloc"))
 }
 
 // TestRescheduling_Success runs a job that should be running after rescheduling
@@ -146,26 +146,23 @@ func TestRescheduling_Success(t *testing.T) {
 	jobID := "test-reschedule-success-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_success.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
-	must.NoError(t,
-		e2eutil.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2eutil.AllocStatuses(jobID, ns) },
-			func(got []string) bool {
-				for _, status := range got {
-					if status == "running" {
-						return true
-					}
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			got, err := e2eutil.AllocStatuses(jobID, ns)
+			must.NoError(t, err)
+			running := 0
+			for _, status := range got {
+				if status == "running" {
+					running++
 				}
-				return false
-			}, nil,
-		),
-		must.Sprint("should have at least 1 running alloc"),
-	)
+			}
+			return running == 3
+		}),
+		wait.Timeout(60*time.Second), // this can take a while!
+		wait.Gap(500*time.Millisecond),
+	), must.Sprint("all 3 allocs should eventually be running"))
 }
 
 // TestRescheduling_WithUpdate updates a running job to fail, and verifies that
@@ -175,11 +172,7 @@ func TestRescheduling_WithUpdate(t *testing.T) {
 	jobID := "test-reschedule-update-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_update.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	expected := []string{"running", "running", "running"}
 	must.NoError(t,
@@ -213,11 +206,7 @@ func TestRescheduling_WithCanary(t *testing.T) {
 	jobID := "test-reschedule-canary-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_canary.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	expected := []string{"running", "running", "running"}
 	must.NoError(t,
@@ -259,11 +248,7 @@ func TestRescheduling_WithCanaryAutoRevert(t *testing.T) {
 	jobID := "test-reschedule-canary-revert-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_canary_autorevert.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	expected := []string{"running", "running", "running"}
 	must.NoError(t,
@@ -311,11 +296,7 @@ func TestRescheduling_MaxParallel(t *testing.T) {
 	jobID := "test-reschedule-maxp-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_maxp.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	expected := []string{"running", "running", "running"}
 	must.NoError(t,
@@ -362,11 +343,7 @@ func TestRescheduling_MaxParallelAutoRevert(t *testing.T) {
 	jobID := "test-reschedule-maxp-revert-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_maxp_autorevert.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	expected := []string{"running", "running", "running"}
 	must.NoError(t,
@@ -434,18 +411,15 @@ func TestRescheduling_MaxParallelAutoRevert(t *testing.T) {
 		must.Sprintf("expected 2 successful deployments, got:\n%s", out))
 }
 
-// TestRescheduling_ProgressDeadline verifies the progress deadline is reset with
-// each healthy allocation, and that a rescheduled allocation does not.
+// TestRescheduling_ProgressDeadline verifies the progress deadline is only
+// reset with each healthy allocation, not failed one (which we'll then
+// reschedule)
 func TestRescheduling_ProgressDeadline(t *testing.T) {
 
 	jobID := "test-reschedule-deadline-" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_progressdeadline.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	expected := []string{"running"}
 	must.NoError(t,
@@ -476,11 +450,7 @@ func TestRescheduling_ProgressDeadlineFail(t *testing.T) {
 	jobID := "test-reschedule-deadline-fail" + uuid.Generate()[0:8]
 	must.NoError(t, e2eutil.Register(jobID, "./input/rescheduling_progressdeadline_fail.nomad"))
 
-	t.Cleanup(func() {
-		e2eutil.StopJob(jobID, "-purge", "-detach")
-		_, err := e2eutil.Command("nomad", "system", "gc")
-		test.NoError(t, err)
-	})
+	t.Cleanup(reschedulingTestCleanup(t, jobID))
 
 	testutil.WaitForResult(func() (bool, error) {
 		_, err := e2eutil.LastDeploymentID(jobID, ns)
