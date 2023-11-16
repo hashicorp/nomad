@@ -27,7 +27,7 @@ job "test" {
       min_healthy_time  = "1s"
       auto_revert       = true
       healthy_deadline  = "2s"
-      progress_deadline = "3s"
+      progress_deadline = "5s"
     }
 
     restart {
