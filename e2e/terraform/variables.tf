@@ -18,7 +18,7 @@ variable "availability_zone" {
 
 variable "instance_type" {
   description = "The AWS instance type to use for both clients and servers."
-  default     = "t2.medium"
+  default     = "t3a.medium"
 }
 
 variable "server_count" {
