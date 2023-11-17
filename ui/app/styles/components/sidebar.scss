@@ -211,8 +211,14 @@ $subNavOffset: 49px;
       header {
         display: grid;
         grid-template-columns: 1fr auto auto;
+        gap: 1rem;
         h3 {
           font-size: 1.5rem;
+
+          .job-name {
+            opacity: 0.5;
+            font-size: 1rem;
+          }
         }
       }
 

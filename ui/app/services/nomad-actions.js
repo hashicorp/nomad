@@ -56,10 +56,10 @@ export default class NomadActionsService extends Service {
    *
    * @param {import("../models/action").default} action
    * @param {string} allocID
-   * @param {import("../models/job").default} job
    */
-  @action runAction(action, allocID, job) {
-    console.log('service running action', action, allocID, job);
+  @action runAction(action, allocID) {
+    const job = action.task.taskGroup.job;
+
     const actionQueueID = `${action.name}-${allocID}-${Date.now()}`;
     /**
      * @type {import ('../models/action-instance').default}
@@ -74,11 +74,34 @@ export default class NomadActionsService extends Service {
     // when passing action as a property to createRecord.
     actionInstance.set('action', action);
 
+    // TODO: something funky with timing here; actionInstance.allocID is undefined, but allocID is a string
+    // console.log("actionInstance is set and its alloc is", actionInstance.allocID, allocID, typeof allocID);
+
     job.runAction(action, allocID, actionInstance);
 
     this.actionsQueue.unshift(actionInstance); // add to the front of the queue
     this.updateQueue();
     this.openFlyout();
+  }
+
+  /**
+   * @param {import('../models/action').default} action
+   */
+  @action runActionOnRandomAlloc(action) {
+    let allocID =
+      action.allocations[Math.floor(Math.random() * action.allocations.length)]
+        .id;
+    this.runAction(action, allocID);
+  }
+
+  /**
+   * @param {import('../models/action').default} action
+   */
+  @action runActionOnAllAllocs(action) {
+    // TODO: peer grouping
+    action.allocations.forEach((alloc) => {
+      this.runAction(action, alloc.id);
+    });
   }
 
   /**

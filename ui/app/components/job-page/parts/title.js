@@ -10,7 +10,6 @@ import { inject as service } from '@ember/service';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
-import { action } from '@ember/object';
 
 @classic
 @tagName('')
@@ -108,49 +107,4 @@ export default class Title extends Component {
     }
   })
   startJob;
-
-  // run action task
-
-  /**
-   * @param {string} action - The action to run
-   * @param {string} allocID - The allocation ID to run the action on
-   * @param {Event} ev - The event that triggered the action
-   */
-  @task(function* (action, allocID) {
-    if (!allocID) {
-      allocID =
-        action.allocations[
-          Math.floor(Math.random() * action.allocations.length)
-        ].id;
-    }
-    try {
-      const job = this.job;
-      // TODO: have the service handle "all" vs specific
-      if (allocID === 'all') {
-        yield action.allocations.map((alloc) => {
-          this.nomadActions.runAction(action, alloc.id, job);
-        });
-      } else {
-        this.nomadActions.runAction(action, allocID, job);
-      }
-    } catch (err) {
-      this.notifications.add({
-        title: `Error starting ${action.name}`,
-        message: err,
-        sticky: true,
-        color: 'critical',
-      });
-    }
-  })
-  runAction;
-
-  /**
-   * @param {HTMLElement} el
-   */
-  @action openActionsDropdown(el) {
-    const dropdownTrigger = el?.getElementsByTagName('button')[0];
-    if (dropdownTrigger) {
-      dropdownTrigger.click();
-    }
-  }
 }

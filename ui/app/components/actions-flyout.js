@@ -31,7 +31,10 @@ export default class ActionsFlyoutComponent extends Component {
   }
 
   get allocation() {
-    return this.task && this.router.currentRoute.attributes.allocation;
+    return (
+      this.args.allocation ||
+      (this.task && this.router.currentRoute.attributes.allocation)
+    );
   }
 
   get contextualParent() {

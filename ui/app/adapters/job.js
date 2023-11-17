@@ -193,11 +193,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       applicationAdapter.host || window.location.host
     }/${applicationAdapter.urlPrefix()}`;
 
-    // /**
-    //  * @type {import('../services/nomad-actions').default}
-    //  */
-    console.log('action In Queue', actionInstance);
-
     const wsUrl =
       `${protocol}//${prefix}/job/${encodeURIComponent(
         job.get('name')

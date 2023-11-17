@@ -1,0 +1,55 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<Hds::Dropdown class="actions-dropdown"
+  {{keyboard-shortcut 
+    label="Open Actions Dropdown"
+    pattern=(array "a" "c")
+    action=(action this.openActionsDropdown)
+  }}
+as |dd|>
+  <dd.ToggleButton @color="secondary" @text="Actions{{if @context (concat " for " @context.name)}}" @size="medium" />
+  {{#each @actions as |action|}}
+    {{#if @allocation}}
+      <dd.Interactive
+        {{keyboard-shortcut 
+          enumerated=true
+          action=(fn this.nomadActions.runAction action @allocation.id)
+        }}
+        {{on "click" (fn this.nomadActions.runAction action @allocation.id)}} @text={{action.name}}
+      />
+    {{else if (eq action.allocations.length 1)}}{{!-- TODO: Combine this and above block --}}
+      <dd.Interactive
+        {{keyboard-shortcut 
+          enumerated=true
+          action=(fn this.nomadActions.runAction action (get (object-at 0 action.allocations) "id"))
+        }}
+        {{on "click" (fn this.nomadActions.runAction action (get (object-at 0 action.allocations) "id"))}} @text="{{action.name}}"
+      />
+    {{else}}
+      {{!-- Either no allocation was passed in, or there are multiple allocatios on the action to choose from --}}
+      <dd.Generic>
+        <Hds::Reveal @text={{action.name}}>
+          <dd.Interactive
+            {{keyboard-shortcut 
+              enumerated=true
+              action=(fn this.nomadActions.runActionOnRandomAlloc action)
+            }}
+            {{on "click" (fn this.nomadActions.runActionOnRandomAlloc action)}}
+            @text="Run on a random alloc"
+          />
+          <dd.Interactive
+            {{keyboard-shortcut 
+              enumerated=true
+              action=(fn this.nomadActions.runActionOnAllAllocs action)
+            }}
+            {{on "click" (fn this.nomadActions.runActionOnAllAllocs action)}}
+            @text="Run on all {{action.allocations.length}} allocs"
+          />
+        </Hds::Reveal>
+      </dd.Generic>
+    {{/if}}
+  {{/each}}
+</Hds::Dropdown>

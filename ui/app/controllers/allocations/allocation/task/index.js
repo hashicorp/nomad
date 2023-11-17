@@ -43,26 +43,4 @@ export default class IndexController extends Controller {
       this.nomadActions.hasActionPermissions
     );
   }
-
-  /**
-   * @param {string} action - The action to run
-   * @param {string} allocID - The allocation ID to run the action on
-   * @param {Event} ev - The event that triggered the action
-   */
-  @task(function* (action, allocID) {
-    // Yo this is such a dumb bug! allocID is getting the 0th entry in task.actions.allocations but those are populated regardless of whether we're in a task context (which would necessitate a specific allocID)
-    try {
-      const job = this.model.task.taskGroup.job;
-      // TODO: have the service handle "all" vs specific
-      yield this.nomadActions.runAction(action, allocID, job);
-    } catch (err) {
-      this.notifications.add({
-        title: `Error starting ${action.name}`,
-        message: err,
-        sticky: true,
-        color: 'critical',
-      });
-    }
-  })
-  runAction;
 }

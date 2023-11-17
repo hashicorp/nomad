@@ -7,10 +7,12 @@
   <header>
     <h3>
       {{@instance.action.name}}
+      <span class="job-name">{{@instance.action.task.taskGroup.job.name}}</span>
+      {{!-- TODO: make job name a link --}}
     </h3>
     <Hds::Badge @text="{{capitalize @instance.state}}" @color={{this.stateColor}} @size="large" />
-    <Hds::Button @text="Clear Action" @icon="x" @isIconOnly={{true}}
-    @color="tertiary"
+    <Hds::Button @text="Clear Action"
+      @color="secondary"
       {{on "click" (action this.nomadActions.clearActionInstance @instance)}}
     />
   </header>
@@ -31,7 +33,7 @@
         <li><span>Task:</span> {{@instance.action.task.name}}</li>
         <li><span>Job:</span> {{@instance.action.task.taskGroup.job.name}}</li>
         <li><span>Allocation:</span> {{@instance.allocID}}</li>
-        <li><span>Created:</span> {{moment-from-now @instance.createdAt}}</li>
+        <li><span>Created:</span> {{format-ts @instance.createdAt}}</li>
         {{#if @instance.completedAt}}
           {{#if (gt (moment-diff @instance.createdAt @instance.completedAt precision='seconds') 1)}}
             <li>Completed after {{moment-diff @instance.createdAt @instance.completedAt precision='seconds'}} seconds</li>
