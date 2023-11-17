@@ -1465,8 +1465,12 @@ func TestDistinctHostsIterator_JobDistinctHosts_Table(t *testing.T) {
 		na := make([]*structs.Allocation, len(js))
 		for i, j := range js {
 			allocID := uuid.Generate()
+			ns := structs.DefaultNamespace
+			if j.Namespace != "" {
+				ns = j.Namespace
+			}
 			na[i] = &structs.Allocation{
-				Namespace: structs.DefaultNamespace,
+				Namespace: ns,
 				TaskGroup: j.TaskGroups[0].Name,
 				JobID:     j.ID,
 				Job:       j,
@@ -1522,16 +1526,20 @@ func TestDistinctHostsIterator_JobDistinctHosts_Table(t *testing.T) {
 			j := job.Copy()
 			j.Constraints[0].RTarget = tc.RTarget
 
+			// This job has all the same identifiers as the first; however, it is
+			// placed in a different namespace to ensure that it doesn't interact
+			// with the feasibility of this placement.
 			oj := j.Copy()
-			oj.ID = "otherJob"
+			oj.Namespace = "different"
 
 			plan := ctx.Plan()
 			// Add allocations so that some of the nodes will be ineligible
 			// to receive the job when the distinct_hosts constraint
 			// is active. This will require the job be placed on n3.
 			//
-			// Another job is placed on all of the nodes to ensure that there
-			// are no unexpected interactions.
+			// Another job (oj) is placed on all of the nodes to ensure that
+			// there are no unexpected interactions between namespaces.
+
 			plan.NodeAllocation[n1.ID] = makeJobAllocs([]*structs.Job{j, oj})
 			plan.NodeAllocation[n2.ID] = makeJobAllocs([]*structs.Job{j, oj})
 			plan.NodeAllocation[n3.ID] = makeJobAllocs([]*structs.Job{oj})

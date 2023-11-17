@@ -98,6 +98,18 @@ the Linux kernel as the number of tasks increased. Operators are encouraged
 to ensure tasks making use of the `cores` attribute are given sufficient CPU
 resources before upgrading.
 
+#### The `distinct_hosts` Constraint Now Honors Namespaces
+
+Nomad 1.7.0 changes the behavior of the [`distinct_hosts`][] constraint such that
+namespaces are taken into account when choosing feasible clients for allocation
+placement. The previous, less-expected behavior would cause **any** job with the
+same name running on a client to cause that node to be considered infeasible.
+
+This change allows workloads that formerly did not colocate to be scheduled
+onto the same client when they are in different namespaces. To prevent this,
+consider using [node pools] and constrain the jobs with a [`distinct_property`][]
+constraint over [`${node.pool}`][node_attributes].
+
 ## Nomad 1.6.0
 
 #### Enterprise License Validation with BuildDate
@@ -298,7 +310,7 @@ allocation's task directory.
 In an effort to improve the resilience and security model of the Nomad Client,
 in 1.5.0 artifact downloads occur in a sub-process. Where possible, that
 sub-process is run as the `nobody` user, and on modern Linux systems will
-be isolated from the filesystem via the kernel's [landlock] capabilitiy.
+be isolated from the filesystem via the kernel's [landlock] capability.
 
 Operators are encouraged to ensure jobs making use of artifacts continue to work
 as expected. In particular, git-ssh users will need to make sure the system-wide
@@ -1880,87 +1892,90 @@ draining the node so no tasks are running on it. This can be verified by running
 state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
+[`allow_caps`]: /nomad/docs/drivers/docker#allow_caps
+[`cap_net_raw`]: https://security.stackexchange.com/a/128988
+[`consul.allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
+[`distinct_hosts`]: /nomad/docs/job-specification/constraint#distinct_hosts
+[`distinct_property`]: /nomad/docs/job-specification/constraint#distinct_property
+[`extra_hosts`]: /nomad/docs/drivers/docker#extra_hosts
+[`linux capabilities`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[`Local`]: /consul/docs/security/acl/acl-tokens#token-attributes
+[`log_file`]: /nomad/docs/configuration#log_file
+[`raft protocol`]: /nomad/docs/configuration/server#raft_protocol
+[`rejoin_after_leave`]: /nomad/docs/configuration/server#rejoin_after_leave
+[`sidecar_task.config`]: /nomad/docs/job-specification/sidecar_task#config
+[`template.disable_file_sandbox`]: /nomad/docs/configuration/client#template-parameters
+[`vault.allow_unauthenticated`]: /nomad/docs/configuration/vault#allow_unauthenticated
+[`vault.policies`]: /nomad/docs/job-specification/vault#policies
+[`vault.task_token_ttl`]: /nomad/docs/configuration/vault#task_token_ttl
+[`vault.token`]: /nomad/docs/configuration/vault#token
+[`volume create`]: /nomad/docs/commands/volume/create
+[`volume register`]: /nomad/docs/commands/volume/register
+[`volume`]: /nomad/docs/job-specification/volume
+[alloc_overlap]: https://github.com/hashicorp/nomad/issues/10440
+[allow_caps_exec]: /nomad/docs/drivers/exec#allow_caps
+[allow_caps_java]: /nomad/docs/drivers/java#allow_caps
+[anon_token]: /consul/docs/security/acl/acl-tokens#special-purpose-tokens
 [api_jobs_parse]: /nomad/api-docs/jobs#parse-job
-[artifacts]: /nomad/docs/job-specification/artifact
+[artifact_env]: /nomad/docs/configuration/client#set_environment_variables
+[artifact_fs_isolation]: /nomad/docs/configuration/client#disable_filesystem_isolation
 [artifact_params]: /nomad/docs/job-specification/artifact#artifact-parameters
-[cgroups2]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
+[artifacts]: /nomad/docs/job-specification/artifact
+[cap_add_exec]: /nomad/docs/drivers/exec#cap_add
+[cap_drop_exec]: /nomad/docs/drivers/exec#cap_drop
 [cgroup_parent]: /nomad/docs/configuration/client#cgroup_parent
+[cgroups2]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
 [client_artifact]: /nomad/docs/configuration/client#artifact-parameters
+[consul_acl]: https://github.com/hashicorp/consul/issues/7414
 [cores]: /nomad/docs/job-specification/resources#cores
+[cpu]: /nomad/docs/concepts/cpu
+[dangling_container_reconciliation]: /nomad/docs/drivers/docker#enabled
 [dangling-containers]: /nomad/docs/drivers/docker#dangling-containers
+[decompression_file_count_limit]: /nomad/docs/configuration/client#decompression_file_count_limit
+[decompression_size_limit]: /nomad/docs/configuration/client#decompression_size_limit
 [drain-api]: /nomad/api-docs/nodes#drain-node
 [drain-cli]: /nomad/docs/commands/node/drain
 [dst]: /nomad/docs/job-specification/periodic#daylight-saving-time
+[enterprise licensing]: /nomad/docs/enterprise/license
 [envoy_concurrency]: https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
+[gh_10446]: https://github.com/hashicorp/nomad/pull/10446#issuecomment-1224833906
+[gh_issue]: https://github.com/hashicorp/nomad/issues/new/choose
+[gh-10875]: https://github.com/hashicorp/nomad/pull/10875
+[gh-11563]: https://github.com/hashicorp/nomad/issues/11563
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
 [gh-8457]: https://github.com/hashicorp/nomad/issues/8457
 [gh-9148]: https://github.com/hashicorp/nomad/issues/9148
-[gh-10875]: https://github.com/hashicorp/nomad/pull/10875
-[gh-11563]: https://github.com/hashicorp/nomad/issues/11563
 [go-client]: https://pkg.go.dev/github.com/hashicorp/nomad/api#Client
+[hard_guide]: /nomad/docs/install/production/requirements#hardening-nomad
 [hcl2]: https://github.com/hashicorp/hcl2
+[kill_timeout]: /nomad/docs/job-specification/task#kill_timeout
+[landlock]: https://docs.kernel.org/userspace-api/landlock.html
 [limits]: /nomad/docs/configuration#limits
 [lxc]: /nomad/plugins/drivers/community/lxc
+[max_kill_timeout]: /nomad/docs/configuration/client#max_kill_timeout
 [migrate]: /nomad/docs/job-specification/migrate
+[Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul
+[Migrating to Using Workload Identity with Vault]: /nomad/docs/integrations/vault-integration#migrating-to-using-workload-identity-with-vault
+[no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[node drain]: /nomad/docs/upgrade#5-upgrade-clients
+[node pools]: /nomad/docs/concepts/node-pools
+[node_attributes]: /nomad/docs/runtime/interpolation#node-attributes
 [nvidia]: /nomad/plugins/devices/nvidia
+[pki]: /vault/docs/secrets/pki
 [plugin-block]: /nomad/docs/configuration/plugin
 [plugins]: /nomad/plugins/drivers/community
 [preemption-api]: /nomad/api-docs/operator#update-scheduler-configuration
 [preemption]: /nomad/docs/concepts/scheduling/preemption
 [proxy_concurrency]: /nomad/docs/job-specification/sidecar_task#proxy_concurrency
-[`sidecar_task.config`]: /nomad/docs/job-specification/sidecar_task#config
-[`raft_protocol`]: /nomad/docs/configuration/server#raft_protocol
-[`raft protocol`]: /nomad/docs/configuration/server#raft_protocol
-[`rejoin_after_leave`]: /nomad/docs/configuration/server#rejoin_after_leave
 [reserved]: /nomad/docs/configuration/client#reserved-parameters
 [task-config]: /nomad/docs/job-specification/task#config
+[template_gid]: /nomad/docs/job-specification/template#gid
+[template_uid]: /nomad/docs/job-specification/template#uid
 [tls-guide]: /nomad/tutorials/transport-security/security-enable-tls
 [tls-vault-guide]: /nomad/tutorials/integrate-vault/vault-pki-nomad
 [update]: /nomad/docs/job-specification/update
+[upgrade process]: /nomad/docs/upgrade#upgrade-process
+[Upgrading to Raft Protocol 3]: /nomad/docs/upgrade#upgrading-to-raft-protocol-3
 [validate]: /nomad/docs/commands/job/validate
 [vault_grace]: /nomad/docs/job-specification/template
-[node drain]: /nomad/docs/upgrade#5-upgrade-clients
-[`template.disable_file_sandbox`]: /nomad/docs/configuration/client#template-parameters
-[template_gid]: /nomad/docs/job-specification/template#gid
-[template_uid]: /nomad/docs/job-specification/template#uid
-[pki]: /vault/docs/secrets/pki
-[`volume create`]: /nomad/docs/commands/volume/create
-[`volume register`]: /nomad/docs/commands/volume/register
-[`volume`]: /nomad/docs/job-specification/volume
-[enterprise licensing]: /nomad/docs/enterprise/license
-[`cap_net_raw`]: https://security.stackexchange.com/a/128988
-[`linux capabilities`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-[`allow_caps`]: /nomad/docs/drivers/docker#allow_caps
-[`extra_hosts`]: /nomad/docs/drivers/docker#extra_hosts
-[no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
-[allow_caps_exec]: /nomad/docs/drivers/exec#allow_caps
-[allow_caps_java]: /nomad/docs/drivers/java#allow_caps
-[cap_add_exec]: /nomad/docs/drivers/exec#cap_add
-[cap_drop_exec]: /nomad/docs/drivers/exec#cap_drop
-[`log_file`]: /nomad/docs/configuration#log_file
-[Upgrading to Raft Protocol 3]: /nomad/docs/upgrade#upgrading-to-raft-protocol-3
-[`Local`]: /consul/docs/security/acl/acl-tokens#token-attributes
-[anon_token]: /consul/docs/security/acl/acl-tokens#special-purpose-tokens
-[consul_acl]: https://github.com/hashicorp/consul/issues/7414
-[kill_timeout]: /nomad/docs/job-specification/task#kill_timeout
-[max_kill_timeout]: /nomad/docs/configuration/client#max_kill_timeout
-[alloc_overlap]: https://github.com/hashicorp/nomad/issues/10440
-[gh_10446]: https://github.com/hashicorp/nomad/pull/10446#issuecomment-1224833906
-[gh_issue]: https://github.com/hashicorp/nomad/issues/new/choose
-[upgrade process]: /nomad/docs/upgrade#upgrade-process
-[landlock]: https://docs.kernel.org/userspace-api/landlock.html
-[artifact_fs_isolation]: /nomad/docs/configuration/client#disable_filesystem_isolation
-[decompression_file_count_limit]: /nomad/docs/configuration/client#decompression_file_count_limit
-[decompression_size_limit]: /nomad/docs/configuration/client#decompression_size_limit
-[artifact_env]: /nomad/docs/configuration/client#set_environment_variables
-[dangling_container_reconciliation]: /nomad/docs/drivers/docker#enabled
-[hard_guide]: /nomad/docs/install/production/requirements#hardening-nomad
 [Workload Identity]: /nomad/docs/concepts/workload-identity
-[Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul
-[Migrating to Using Workload Identity with Vault]: /nomad/docs/integrations/vault-integration#migrating-to-using-workload-identity-with-vault
-[`vault.policies`]: /nomad/docs/job-specification/vault#policies
-[`vault.allow_unauthenticated`]: /nomad/docs/configuration/vault#allow_unauthenticated
-[`vault.token`]: /nomad/docs/configuration/vault#token
-[`vault.task_token_ttl`]: /nomad/docs/configuration/vault#task_token_ttl
-[`consul.allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
-[cpu]: /nomad/docs/concepts/cpu

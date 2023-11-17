@@ -22,10 +22,14 @@ filter on [attributes][interpolation] or [client metadata][client-meta].
 Additionally constraints may be specified at the [job][job], [group][group], or
 [task][task] levels for ultimate flexibility.
 
-~> **It is possible to define irreconcilable constraints in a job.**
-For example, because all [tasks within a group are scheduled on the same client node][group],
-specifying different [`${attr.unique.hostname}`][node-variables] constraints at
-the task level will cause a job to be unplaceable.
+<Warning>
+
+**It is possible to define irreconcilable constraints in a job.**
+
+For example, specifying different [`${attr.unique.hostname}`][node-variables]
+constraints at the task level will cause a job to be unplaceable because all
+[tasks within a group are scheduled on the same client node][group].
+</Warning>
 
 ```hcl
 job "docs" {
