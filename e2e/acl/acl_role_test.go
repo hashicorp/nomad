@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 // testACLRole tests basic functionality of ACL roles when used for
@@ -32,8 +32,8 @@ func testACLRole(t *testing.T) {
 		Policies:    []*api.ACLRolePolicyLink{{Name: "404-not-found"}},
 	}
 	aclRoleCreateResp, _, err := nomadClient.ACLRoles().Create(&invalidRole, nil)
-	require.ErrorContains(t, err, "cannot find policy 404-not-found")
-	require.Nil(t, aclRoleCreateResp)
+	must.ErrorContains(t, err, "cannot find policy 404-not-found")
+	must.Nil(t, aclRoleCreateResp)
 
 	// Create a custom namespace to test along with the default.
 	ns := api.Namespace{
@@ -41,7 +41,7 @@ func testACLRole(t *testing.T) {
 		Description: "E2E ACL Role Testing",
 	}
 	_, err = nomadClient.Namespaces().Register(&ns, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	cleanUpProcess.add(ns.Name, namespaceTestResourceType)
 
@@ -53,7 +53,7 @@ func testACLRole(t *testing.T) {
 		Rules:       fmt.Sprintf(`namespace %q {policy = "read"}`, ns.Name),
 	}
 	_, err = nomadClient.ACLPolicies().Upsert(&customNamespacePolicy, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	cleanUpProcess.add(customNamespacePolicy.Name, aclPolicyTestResourceType)
 
@@ -64,18 +64,18 @@ func testACLRole(t *testing.T) {
 		Policies:    []*api.ACLRolePolicyLink{{Name: customNamespacePolicy.Name}},
 	}
 	aclRoleCreateResp, _, err = nomadClient.ACLRoles().Create(&validRole, nil)
-	require.NoError(t, err)
-	require.NotNil(t, aclRoleCreateResp)
-	require.NotEmpty(t, aclRoleCreateResp.ID)
-	require.Equal(t, validRole.Name, aclRoleCreateResp.Name)
+	must.NoError(t, err)
+	must.NotNil(t, aclRoleCreateResp)
+	must.NotEq(t, "", aclRoleCreateResp.ID)
+	must.Eq(t, validRole.Name, aclRoleCreateResp.Name)
 
 	cleanUpProcess.add(aclRoleCreateResp.ID, aclRoleTestResourceType)
 
 	// Perform a role listing and check we have the expected entries.
 	aclRoleListResp, _, err := nomadClient.ACLRoles().List(nil)
-	require.NoError(t, err)
-	require.Len(t, aclRoleListResp, 1)
-	require.Equal(t, aclRoleCreateResp.ID, aclRoleListResp[0].ID)
+	must.NoError(t, err)
+	must.Len(t, 1, aclRoleListResp)
+	must.Eq(t, aclRoleCreateResp.ID, aclRoleListResp[0].ID)
 
 	// Create our ACL token which is linked to the created ACL role.
 	token := api.ACLToken{
@@ -84,8 +84,8 @@ func testACLRole(t *testing.T) {
 		Roles: []*api.ACLTokenRoleLink{{ID: aclRoleCreateResp.ID}},
 	}
 	aclTokenCreateResp, _, err := nomadClient.ACLTokens().Create(&token, nil)
-	require.NoError(t, err)
-	require.NotNil(t, aclTokenCreateResp)
+	must.NoError(t, err)
+	must.NotNil(t, aclTokenCreateResp)
 
 	cleanUpProcess.add(aclTokenCreateResp.AccessorID, aclTokenTestResourceType)
 
@@ -95,12 +95,11 @@ func testACLRole(t *testing.T) {
 	customNSQueryMeta := api.QueryOptions{Namespace: ns.Name, AuthToken: aclTokenCreateResp.SecretID}
 	defaultNSQueryMeta := api.QueryOptions{Namespace: "default", AuthToken: aclTokenCreateResp.SecretID}
 
-	jobListResp, _, err := nomadClient.Jobs().List(&customNSQueryMeta)
-	require.NoError(t, err)
-	require.Empty(t, jobListResp)
+	_, _, err = nomadClient.Jobs().List(&customNSQueryMeta)
+	must.NoError(t, err)
 
-	jobListResp, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
-	require.ErrorContains(t, err, "Permission denied")
+	_, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
+	must.ErrorContains(t, err, "Permission denied")
 
 	// Create an ACL policy which grants read access to the default namespace.
 	defaultNamespacePolicy := api.ACLPolicy{
@@ -109,7 +108,7 @@ func testACLRole(t *testing.T) {
 		Rules:       `namespace "default" {policy = "read"}`,
 	}
 	_, err = nomadClient.ACLPolicies().Upsert(&defaultNamespacePolicy, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	cleanUpProcess.add(defaultNamespacePolicy.Name, aclPolicyTestResourceType)
 
@@ -119,35 +118,34 @@ func testACLRole(t *testing.T) {
 		Name: defaultNamespacePolicy.Name,
 	})
 	aclRoleUpdateResp, _, err := nomadClient.ACLRoles().Update(aclRoleCreateResp, nil)
-	require.NoError(t, err)
-	require.Equal(t, aclRoleCreateResp.ID, aclRoleUpdateResp.ID)
-	require.Len(t, aclRoleUpdateResp.Policies, 2)
+	must.NoError(t, err)
+	must.Eq(t, aclRoleCreateResp.ID, aclRoleUpdateResp.ID)
+	must.Len(t, 2, aclRoleUpdateResp.Policies)
 
 	// Try listing the jobs in the default namespace again to ensure we now
 	// have permission due to the updated role.
-	jobListResp, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
-	require.NoError(t, err)
-	require.Empty(t, jobListResp)
+	_, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
+	must.NoError(t, err)
 
 	// Delete a policy from under the role.
 	_, err = nomadClient.ACLPolicies().Delete(defaultNamespacePolicy.Name, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	cleanUpProcess.remove(defaultNamespacePolicy.Name, aclPolicyTestResourceType)
 
 	// The permission to list the job in the default namespace should now be
 	// revoked.
-	jobListResp, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
-	require.ErrorContains(t, err, "Permission denied")
+	_, _, err = nomadClient.Jobs().List(&defaultNSQueryMeta)
+	must.ErrorContains(t, err, "Permission denied")
 
 	// Delete the ACL role.
 	_, err = nomadClient.ACLRoles().Delete(aclRoleUpdateResp.ID, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	cleanUpProcess.remove(aclRoleUpdateResp.ID, aclRoleTestResourceType)
 
 	// We should now not be able to list jobs in the custom namespace either as
 	// the token does not have any permissions.
-	jobListResp, _, err = nomadClient.Jobs().List(&customNSQueryMeta)
-	require.ErrorContains(t, err, "Permission denied")
+	_, _, err = nomadClient.Jobs().List(&customNSQueryMeta)
+	must.ErrorContains(t, err, "Permission denied")
 }
