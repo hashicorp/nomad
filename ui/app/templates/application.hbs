@@ -57,7 +57,7 @@
       <Hds::Button
         {{on "click" this.nomadActions.openFlyout}}
         disabled={{this.nomadActions.flyoutActive}}
-        @text={{if this.nomadActions.runningActions.length (concat this.nomadActions.runningActions.length " Actions Running") "Actions"}}
+        @text={{if this.nomadActions.runningActions.length (concat this.nomadActions.runningActions.length " " (pluralize 'Action' this.nomadActions.runningActions.length) " Running") "Actions"}}
         @icon={{if this.nomadActions.runningActions.length "loading" "chevron-right"}}
         @iconPosition="trailing"
         @color="secondary"
