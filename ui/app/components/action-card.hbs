@@ -24,7 +24,7 @@
       class="peer"
       @icon={{if (eq peer.state "running") "loading" null}}
       @iconPosition="trailing"
-      @text={{peer.allocID}}
+      @text={{peer.allocShortID}}
       @color={{if (eq this.instance.id peer.id) "primary" "secondary"}}
       {{on "click" (action this.selectPeer peer)}}
     />

@@ -27,6 +27,10 @@ export default class ActionInstanceModel extends Model {
 
   @attr('string') allocID;
 
+  get allocShortID() {
+    return this.allocID?.substring(0, 8);
+  }
+
   /**
    * Used to group action instances "run on all allocs"
    */
