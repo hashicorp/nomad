@@ -622,11 +622,12 @@ func (iter *DistinctHostsIterator) satisfiesDistinctHosts(option *structs.Node) 
 
 	// Skip the node if the task group has already been allocated on it.
 	for _, alloc := range proposed {
-		// If the job has a distinct_hosts constraint we only need an alloc
-		// collision on the JobID but if the constraint is on the TaskGroup then
+		// If the job has a distinct_hosts constraint we need an alloc collision
+		// on the Namespace,JobID but if the constraint is on the TaskGroup then
 		// we need both a job and TaskGroup collision.
-		jobCollision := alloc.JobID == iter.job.ID
+		jobCollision := alloc.JobID == iter.job.ID && alloc.Namespace == iter.job.Namespace
 		taskCollision := alloc.TaskGroup == iter.tg.Name
+
 		if iter.jobDistinctHosts && jobCollision || jobCollision && taskCollision {
 			return false
 		}
