@@ -1053,13 +1053,13 @@ job "example" {
 		}
 	}
 
-	require.Equal(t, asOpValue, asCompact)
-	require.Equal(t, constraint("", "true", "distinct_hosts"), asOpValue.Constraints[0])
-	require.Equal(t, constraint("", "false", "distinct_hosts"), asOpValue.TaskGroups[0].Constraints[0])
-	require.Equal(t, constraint("", "true", "distinct_hosts"), asOpValue.TaskGroups[0].Tasks[0].Constraints[0])
-	require.Equal(t, constraint("${meta.rack}", "1", "distinct_property"), asOpValue.Constraints[1])
-	require.Equal(t, constraint("${meta.rack}", "2", "distinct_property"), asOpValue.TaskGroups[0].Constraints[1])
-	require.Equal(t, constraint("${meta.rack}", "3", "distinct_property"), asOpValue.TaskGroups[0].Tasks[0].Constraints[1])
+	must.Eq(t, asOpValue, asCompact)
+	must.Eq(t, constraint("", "true", "distinct_hosts"), asOpValue.Constraints[0])
+	must.Eq(t, constraint("", "false", "distinct_hosts"), asOpValue.TaskGroups[0].Constraints[0])
+	must.Eq(t, constraint("", "true", "distinct_hosts"), asOpValue.TaskGroups[0].Tasks[0].Constraints[0])
+	must.Eq(t, constraint("${meta.rack}", "1", "distinct_property"), asOpValue.Constraints[1])
+	must.Eq(t, constraint("${meta.rack}", "2", "distinct_property"), asOpValue.TaskGroups[0].Constraints[1])
+	must.Eq(t, constraint("${meta.rack}", "3", "distinct_property"), asOpValue.TaskGroups[0].Tasks[0].Constraints[1])
 }
 
 // TestParse_UndefinedVariables asserts that values with undefined variables are left
