@@ -157,6 +157,6 @@ func testDynamicNodeMetadata(t *testing.T) {
 	must.Eq(t, "bar", resp.Meta[keyFoo])
 	must.Eq(t, "set", resp.Meta[keyUnset])
 	must.MapNotContainsKey(t, resp.Meta, keyEmpty)
-	must.MapContainsKey(t, resp.Dynamic, keyEmpty)
+	must.MapNotContainsKey(t, resp.Dynamic, keyEmpty)
 	must.Nil(t, resp.Dynamic[keyEmpty])
 }
