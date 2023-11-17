@@ -6,6 +6,8 @@
 // Guess who just found out that "actions" is a reserved name in Ember?
 // Signed, the person who just renamed this NomadActions.
 
+// TODO: Move a lot of the job adapter funcs to here
+
 // @ts-check
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
@@ -53,11 +55,16 @@ export default class NomadActionsService extends Service {
   }
 
   /**
-   *
-   * @param {import("../models/action").default} action
-   * @param {string} allocID
+   * @typedef {Object} RunActionParams
+   * @property {import("../models/action").default} action
+   * @property {string} allocID
+   * @property {string} [peerID]
    */
-  @action runAction(action, allocID) {
+
+  /**
+   * @param {RunActionParams} params
+   */
+  @action runAction({ action, allocID, peerID = null }) {
     const job = action.task.taskGroup.job;
 
     const actionQueueID = `${action.name}-${allocID}-${Date.now()}`;
@@ -68,14 +75,12 @@ export default class NomadActionsService extends Service {
       state: 'pending',
       id: actionQueueID,
       allocID,
+      peerID,
     });
 
     // Note: setting post-createRecord because of a noticed bug
     // when passing action as a property to createRecord.
     actionInstance.set('action', action);
-
-    // TODO: something funky with timing here; actionInstance.allocID is undefined, but allocID is a string
-    // console.log("actionInstance is set and its alloc is", actionInstance.allocID, allocID, typeof allocID);
 
     job.runAction(action, allocID, actionInstance);
 
@@ -91,7 +96,7 @@ export default class NomadActionsService extends Service {
     let allocID =
       action.allocations[Math.floor(Math.random() * action.allocations.length)]
         .id;
-    this.runAction(action, allocID);
+    this.runAction({ action, allocID });
   }
 
   /**
@@ -99,8 +104,10 @@ export default class NomadActionsService extends Service {
    */
   @action runActionOnAllAllocs(action) {
     // TODO: peer grouping
+    // Generate a new peer ID for these action instances to use
+    const peerID = `${action.name}-${Date.now()}`;
     action.allocations.forEach((alloc) => {
-      this.runAction(action, alloc.id);
+      this.runAction({ action, allocID: alloc.id, peerID });
     });
   }
 

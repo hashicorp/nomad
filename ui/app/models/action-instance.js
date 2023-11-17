@@ -28,6 +28,11 @@ export default class ActionInstanceModel extends Model {
   @attr('string') allocID;
 
   /**
+   * Used to group action instances "run on all allocs"
+   */
+  @attr('string') peerID;
+
+  /**
    * @type {WebSocket}
    */
   @attr() socket;

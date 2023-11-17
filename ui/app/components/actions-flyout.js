@@ -46,4 +46,23 @@ export default class ActionsFlyoutComponent extends Component {
   }
 
   @alias('nomadActions.flyoutActive') isOpen;
+
+  /**
+   * Group peers together by their peerID
+   */
+  get actionInstances() {
+    let instances = this.nomadActions.actionsQueue;
+
+    // Only keep the first of any found peerID value from the list
+    let peerIDs = new Set();
+    let filteredInstances = [];
+    for (let instance of instances) {
+      if (!instance.peerID || !peerIDs.has(instance.peerID)) {
+        filteredInstances.push(instance);
+        peerIDs.add(instance.peerID);
+      }
+    }
+
+    return filteredInstances;
+  }
 }

@@ -3,6 +3,20 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+//  TODO: generally move sidebar.scss stuff to here.
 .actions-dropdown {
   // border: 5px solid red;
+}
+
+.action-card {
+  .peers {
+    width: 100%;
+    overflow: auto;
+    .peer {
+      white-space: nowrap;
+      &.active {
+        background: blue;
+      }
+    }
+  }
 }

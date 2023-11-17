@@ -6,22 +6,37 @@
 <div class="action-card">
   <header>
     <h3>
-      {{@instance.action.name}}
-      <span class="job-name">{{@instance.action.task.taskGroup.job.name}}</span>
+      {{this.instance.action.name}}
+      <span class="job-name">{{this.instance.action.task.taskGroup.job.name}}</span>
       {{!-- TODO: make job name a link --}}
     </h3>
-    <Hds::Badge @text="{{capitalize @instance.state}}" @color={{this.stateColor}} @size="large" />
+    <Hds::Badge @text="{{capitalize this.instance.state}}" @color={{this.stateColor}} @size="large" />
     <Hds::Button @text="Clear Action"
       @color="secondary"
-      {{on "click" (action this.nomadActions.clearActionInstance @instance)}}
+      {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
     />
   </header>
 
+  {{#if this.instance.peerID}}
+  <Hds::ButtonSet class="peers">
+    {{#each (filter-by 'peerID' this.instance.peerID this.nomadActions.actionsQueue) as |peer|}}
+    <Hds::Button
+      class="peer"
+      @icon={{if (eq peer.state "running") "loading" null}}
+      @iconPosition="trailing"
+      @text={{peer.allocID}}
+      @color={{if (eq this.instance.id peer.id) "primary" "secondary"}}
+      {{on "click" (action this.selectPeer peer)}}
+    />
+    {{/each}}
+  </Hds::ButtonSet>
+  {{/if}}
+
   <div class="messages">
-    {{#if @instance.messages.length}}
-      <code><pre>{{@instance.messages}}</pre></code>
+    {{#if this.instance.messages.length}}
+      <code><pre>{{this.instance.messages}}</pre></code>
     {{else}}
-      {{#if (eq @instance.state "complete")}}
+      {{#if (eq this.instance.state "complete")}}
         <p class="no-messages">Action completed with no output</p>
       {{/if}}
     {{/if}}
@@ -30,22 +45,22 @@
   <footer>
     <Hds::Reveal @text="Action Info">
       <ul>
-        <li><span>Task:</span> {{@instance.action.task.name}}</li>
-        <li><span>Job:</span> {{@instance.action.task.taskGroup.job.name}}</li>
-        <li><span>Allocation:</span> {{@instance.allocID}}</li>
-        <li><span>Created:</span> {{format-ts @instance.createdAt}}</li>
-        {{#if @instance.completedAt}}
-          {{#if (gt (moment-diff @instance.createdAt @instance.completedAt precision='seconds') 1)}}
-            <li>Completed after {{moment-diff @instance.createdAt @instance.completedAt precision='seconds'}} seconds</li>
+        <li><span>Task:</span> {{this.instance.action.task.name}}</li>
+        <li><span>Job:</span> {{this.instance.action.task.taskGroup.job.name}}</li>
+        <li><span>Allocation:</span> {{this.instance.allocID}}</li>
+        <li><span>Created:</span> {{format-ts this.instance.createdAt}}</li>
+        {{#if this.instance.completedAt}}
+          {{#if (gt (moment-diff this.instance.createdAt this.instance.completedAt precision='seconds') 1)}}
+            <li>Completed after {{moment-diff this.instance.createdAt this.instance.completedAt precision='seconds'}} seconds</li>
           {{else}}
-            <li>Completed in {{moment-diff @instance.createdAt @instance.completedAt precision='seconds' float=true}} seconds</li>
+            <li>Completed in {{moment-diff this.instance.createdAt this.instance.completedAt precision='seconds' float=true}} seconds</li>
           {{/if}}
         {{/if}}
       </ul>
     </Hds::Reveal>
 
     {{!-- If status is running, show stop control --}}
-    {{#if (eq @instance.state "running")}}
+    {{#if (eq this.instance.state "running")}}
       <Hds::Button @text="Stop Action" @color="critical" @size="medium" {{on "click" this.stop}} />
     {{/if}}
   </footer>

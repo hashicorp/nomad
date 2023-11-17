@@ -16,17 +16,17 @@ as |dd|>
       <dd.Interactive
         {{keyboard-shortcut 
           enumerated=true
-          action=(fn this.nomadActions.runAction action @allocation.id)
+          action=(fn this.nomadActions.runAction (hash action=action allocID=@allocation.id))
         }}
-        {{on "click" (fn this.nomadActions.runAction action @allocation.id)}} @text={{action.name}}
+        {{on "click" (fn this.nomadActions.runAction (hash action=action allocID=@allocation.id))}} @text={{action.name}}
       />
     {{else if (eq action.allocations.length 1)}}{{!-- TODO: Combine this and above block --}}
       <dd.Interactive
         {{keyboard-shortcut 
           enumerated=true
-          action=(fn this.nomadActions.runAction action (get (object-at 0 action.allocations) "id"))
+          action=(fn this.nomadActions.runAction (hash action=action allocID=(get (object-at 0 action.allocations) "id")))
         }}
-        {{on "click" (fn this.nomadActions.runAction action (get (object-at 0 action.allocations) "id"))}} @text="{{action.name}}"
+        {{on "click" (fn this.nomadActions.runAction (hash action=action allocID=(get (object-at 0 action.allocations) "id")))}} @text="{{action.name}}"
       />
     {{else}}
       {{!-- Either no allocation was passed in, or there are multiple allocatios on the action to choose from --}}

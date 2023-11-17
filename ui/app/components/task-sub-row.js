@@ -109,9 +109,7 @@ export default class TaskSubRowComponent extends Component {
    */
   @task(function* (action, allocID) {
     try {
-      const job = this.task.task.taskGroup.job;
-      // TODO: have the service handle "all" vs specific
-      yield this.nomadActions.runAction(action, allocID, job);
+      yield this.nomadActions.runAction({ action, allocID });
     } catch (err) {
       this.notifications.add({
         title: `Error starting ${action.name}`,

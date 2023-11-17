@@ -7,6 +7,7 @@
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { tracked } from '@glimmer/tracking';
 // import { alias } from '@ember/object/computed';
 
 export default class ActionCardComponent extends Component {
@@ -15,7 +16,7 @@ export default class ActionCardComponent extends Component {
     /**
      * @type {import('../models/action-instance').default}
      */
-    const instance = this.args.instance;
+    const instance = this.instance;
     switch (instance.state) {
       case 'starting':
         return 'neutral';
@@ -31,6 +32,17 @@ export default class ActionCardComponent extends Component {
   }
 
   @action stop() {
-    this.args.instance.socket.close();
+    this.instance.socket.close();
+  }
+
+  @tracked selectedPeer = null;
+
+  @action selectPeer(peer) {
+    this.selectedPeer = peer;
+  }
+
+  get instance() {
+    // Either the passed instance, or the peer-selected instance
+    return this.selectedPeer || this.args.instance;
   }
 }
