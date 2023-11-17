@@ -187,6 +187,7 @@ type Option func(*Submission)
 type Cleanup func()
 
 func Submit(t *testing.T, filename string, opts ...Option) (*Submission, Cleanup) {
+	t.Helper()
 	sub := initialize(t, filename)
 
 	for _, opt := range opts {
@@ -205,6 +206,7 @@ func Namespace(name string) Option {
 		sub.inNamespace = name
 	}
 }
+
 func AuthToken(token string) Option {
 	return func(sub *Submission) {
 		sub.authToken = token

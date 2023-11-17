@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 job "nomad_provider_service_lookup" {
-  datacenters = ["dc1"]
-  type        = "service"
 
   constraint {
     attribute = "${attr.kernel.name}"

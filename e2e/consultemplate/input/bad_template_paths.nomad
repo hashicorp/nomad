@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 job "bad-template-paths" {
-  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
