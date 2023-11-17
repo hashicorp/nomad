@@ -1037,13 +1037,13 @@ job "example" {
 		Path: "input.hcl",
 		Body: []byte(hclOpVal),
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	asCompact, err := ParseWithConfig(&ParseConfig{
 		Path: "input.hcl",
 		Body: []byte(hclCompact),
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	constraint := func(l, r, op string) *api.Constraint {
 		return &api.Constraint{
