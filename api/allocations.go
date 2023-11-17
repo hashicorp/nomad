@@ -307,7 +307,7 @@ type NodeScoreMeta struct {
 
 // Stub returns a list stub for the allocation
 func (a *Allocation) Stub() *AllocationListStub {
-	return &AllocationListStub{
+	stub := &AllocationListStub{
 		ID:                    a.ID,
 		EvalID:                a.EvalID,
 		Name:                  a.Name,
@@ -315,8 +315,6 @@ func (a *Allocation) Stub() *AllocationListStub {
 		NodeID:                a.NodeID,
 		NodeName:              a.NodeName,
 		JobID:                 a.JobID,
-		JobType:               *a.Job.Type,
-		JobVersion:            *a.Job.Version,
 		TaskGroup:             a.TaskGroup,
 		DesiredStatus:         a.DesiredStatus,
 		DesiredDescription:    a.DesiredDescription,
@@ -333,6 +331,13 @@ func (a *Allocation) Stub() *AllocationListStub {
 		CreateTime:            a.CreateTime,
 		ModifyTime:            a.ModifyTime,
 	}
+
+	if a.Job != nil {
+		stub.JobType = *a.Job.Type
+		stub.JobVersion = *a.Job.Version
+	}
+
+	return stub
 }
 
 // ServerTerminalStatus returns true if the desired state of the allocation is
