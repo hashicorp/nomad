@@ -980,6 +980,8 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) (bool, error) {
 		return false, nil // no active key
 	}
 
+	//TODO if activeKey.CreateTime > threshold/2 -> create "next" key ahead of
+	//time; then Rotate swaps next->active
 	if activeKey.CreateTime >= rotationThreshold.UnixNano() {
 		return false, nil // key is too new
 	}
