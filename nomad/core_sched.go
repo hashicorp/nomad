@@ -914,8 +914,11 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 
 func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
 
-	oldThreshold := c.getThreshold(eval, "root key",
-		"root_key_gc_threshold", c.srv.config.RootKeyGCThreshold)
+	// gcThreshold = Rotate + GC Threshold since we only record key creation
+	// time. Modify time is unnecessary since keys should never go from
+	// inactive-> active.
+	keyTTL := c.srv.config.RootKeyGCThreshold + c.srv.config.RootKeyRotationThreshold
+	gcThreshold := time.Now().Add(-1 * keyTTL)
 
 	ws := memdb.NewWatchSet()
 	iter, err := c.snap.RootKeyMetas(ws)
@@ -932,8 +935,9 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
 		if keyMeta.Active() || keyMeta.Rekeying() {
 			continue // never GC the active key or one we're rekeying
 		}
-		if keyMeta.CreateIndex > oldThreshold {
-			continue // don't GC recent keys
+
+		if keyMeta.CreateTime >= gcThreshold.UnixNano() {
+			return nil // key is too new
 		}
 
 		inUse, err := c.snap.IsRootKeyMetaInUse(keyMeta.KeyID)
@@ -965,8 +969,7 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
 // to kick off a rotation.
 func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) (bool, error) {
 
-	rotationThreshold := c.getThreshold(eval, "root key",
-		"root_key_rotation_threshold", c.srv.config.RootKeyRotationThreshold)
+	rotationThreshold := time.Now().Add(-1 * c.srv.config.RootKeyRotationThreshold)
 
 	ws := memdb.NewWatchSet()
 	activeKey, err := c.snap.GetActiveRootKeyMeta(ws)
@@ -976,7 +979,8 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) (bool, error) {
 	if activeKey == nil {
 		return false, nil // no active key
 	}
-	if activeKey.CreateIndex >= rotationThreshold {
+
+	if activeKey.CreateTime >= rotationThreshold.UnixNano() {
 		return false, nil // key is too new
 	}
 
