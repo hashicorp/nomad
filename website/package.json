@@ -13,7 +13,7 @@
     "dart-linkcheck": "^2.0.15",
     "husky": "4.3.8",
     "next": "^14.0.1",
-    "prettier": "2.8.8"
+    "prettier": "3.1.0"
   },
   "husky": {
     "hooks": {
