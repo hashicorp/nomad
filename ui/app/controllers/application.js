@@ -22,7 +22,6 @@ export default class ApplicationController extends Controller {
   @service system;
   @service token;
   @service notifications;
-  @service nomadActions;
 
   /**
    * @type {KeyboardService}
