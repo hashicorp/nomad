@@ -11,6 +11,7 @@ import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import percySnapshot from '@percy/ember';
 import Actions from 'nomad-ui/tests/pages/jobs/job/actions';
+import { triggerEvent } from '@ember/test-helpers';
 
 module('Acceptance | actions', function (hooks) {
   setupApplicationTest(hooks);
@@ -104,7 +105,7 @@ module('Acceptance | actions', function (hooks) {
 
   // Running actions test
   test('Running actions and notifications', async function (assert) {
-    assert.expect(13);
+    assert.expect(20);
     allScenarios.smallCluster(server);
     let managementToken = server.create('token', {
       type: 'management',
@@ -122,6 +123,7 @@ module('Acceptance | actions', function (hooks) {
 
     // Open the dropdown
     await Actions.titleActions.click();
+    assert.equal(Actions.titleActions.expandedValue, 'true');
     assert.equal(
       Actions.titleActions.actions.length,
       5,
@@ -165,36 +167,74 @@ module('Acceptance | actions', function (hooks) {
     // run on a random alloc
     await Actions.titleActions.multiAllocActions[0].subActions[0].click();
 
+    assert.ok(Actions.flyout.isPresent);
     assert.equal(
-      Actions.toast.length,
+      Actions.flyout.instances.length,
       1,
-      'A toast notification pops up upon running an action'
+      'A sidebar instance pops up upon running an action'
     );
 
     assert.ok(
-      Actions.toast[0].code.includes('Message Received'),
-      'The notification contains the message from the action'
+      Actions.flyout.instances[0].code.includes('Message Received'),
+      'The instance contains the message from the action'
     );
     assert.ok(
-      Actions.toast[0].titleBar.includes('Finished'),
-      'The notification contains the message from the action'
+      Actions.flyout.instances[0].statusBadge.includes('Complete'),
+      'The instance contains the status of the action'
     );
 
-    // run on all allocs
+    await Actions.flyout.close();
+    // Type the escape key: the Helios dropdown doesn't automatically close on click-away events
+    // as defined by clickable in the page object here, so we should explicitly make sure it's closed.
+    await triggerEvent('.job-page-header .actions-dropdown', 'keyup', {
+      key: 'Escape',
+    });
+
+    assert.notOk(Actions.flyout.isPresent);
+    assert.equal(Actions.titleActions.expandedValue, 'false');
+
+    await Actions.titleActions.click();
+    await Actions.titleActions.multiAllocActions[0].button[0].click();
     await Actions.titleActions.multiAllocActions[0].subActions[1].click();
 
+    assert.ok(Actions.flyout.isPresent);
+
+    // assert.equal(
+    //   Actions.flyout.instances.length,
+    //   6,
+    //   'Running on all allocs in the group (5) results in 6 total toasts'
+    // );
+
+    // 2 assets, the second of which has multiple peer allocs within it
     assert.equal(
-      Actions.toast.length,
-      6,
-      'Running on all allocs in the group (5) results in 6 total toasts'
+      Actions.flyout.instances.length,
+      2,
+      'Running on all allocs in the group (1) results in 2 total instances'
     );
 
-    // Click the orphan alloc action
+    assert.ok(
+      Actions.flyout.instances[0].hasPeers,
+      'The first instance has peers'
+    );
+    assert.notOk(
+      Actions.flyout.instances[1].hasPeers,
+      'The second instance does not have peers'
+    );
+
+    await Actions.flyout.close();
+    // Type the escape key: the Helios dropdown doesn't automatically close on click-away events
+    // as defined by clickable in the page object here, so we should explicitly make sure it's closed.
+    await triggerEvent('.job-page-header .actions-dropdown', 'keyup', {
+      key: 'Escape',
+    });
+
+    await Actions.titleActions.click();
     await Actions.titleActions.singleAllocActions[0].button[0].click();
+
     assert.equal(
-      Actions.toast.length,
-      7,
-      'Running on an orphan alloc results in 1 further action/toast'
+      Actions.flyout.instances.length,
+      3,
+      'Running on an orphan alloc results in 1 further action instance'
     );
 
     await percySnapshot(assert);
@@ -234,14 +274,15 @@ module('Acceptance | actions', function (hooks) {
     );
 
     await Actions.taskRowActions[0].actions[0].click();
+    assert.ok(Actions.flyout.isPresent);
     assert.equal(
-      Actions.toast.length,
+      Actions.flyout.instances.length,
       1,
-      'A toast notification pops up upon running an action'
+      'A sidebar instance pops up upon running an action'
     );
     assert.ok(
-      Actions.toast[0].code.includes('Message Received'),
-      'The notification contains the message from the action'
+      Actions.flyout.instances[0].code.includes('Message Received'),
+      'The instance contains the message from the action'
     );
   });
 });
