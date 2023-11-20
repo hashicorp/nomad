@@ -97,6 +97,7 @@ func (h *consulHook) Prerun() error {
 
 	err := mErr.ErrorOrNil()
 	if err != nil {
+		multierror.Flatten(err)
 		h.revokeTokens(tokens)
 		return err
 	}
