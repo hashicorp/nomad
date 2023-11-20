@@ -191,11 +191,15 @@ $subNavOffset: 49px;
     animation-fill-mode: both;
   }
 
-  .hds-flyout__title {
-    display: grid;
-    align-items: start;
-    grid-template-columns: 1fr auto auto auto;
-    gap: 1rem;
+  & > .hds-flyout__header {
+    position: relative;
+    z-index: $z-base;
+    .hds-flyout__title {
+      display: grid;
+      align-items: start;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 1rem;
+    }
   }
 
   .actions-queue {
@@ -209,16 +213,9 @@ $subNavOffset: 49px;
       padding: 1rem 0 2rem;
 
       header {
-        display: grid;
-        grid-template-columns: 1fr auto auto;
-        gap: 1rem;
-        h3 {
-          font-size: 1.5rem;
-
-          .job-name {
-            opacity: 0.5;
-            font-size: 1rem;
-          }
+        .job-name {
+          opacity: 0.5;
+          font-size: 1rem;
         }
       }
 

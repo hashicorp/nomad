@@ -35,6 +35,10 @@ export default class ActionCardComponent extends Component {
     this.instance.socket.close();
   }
 
+  @action stopAll() {
+    this.nomadActions.stopAll(this.instance.peerID);
+  }
+
   @tracked selectedPeer = null;
 
   @action selectPeer(peer) {

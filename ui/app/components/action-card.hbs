@@ -5,16 +5,36 @@
 
 <div class="action-card">
   <header>
-    <h3>
+
+  <Hds::PageHeader class="job-page-header" as |PH|>
+    <PH.Title>
       {{this.instance.action.name}}
       <span class="job-name">{{this.instance.action.task.taskGroup.job.name}}</span>
       {{!-- TODO: make job name a link --}}
-    </h3>
-    <Hds::Badge @text="{{capitalize this.instance.state}}" @color={{this.stateColor}} @size="large" />
-    <Hds::Button @text="Clear Action"
-      @color="secondary"
-      {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
-    />
+    </PH.Title>
+    <PH.Actions>
+      <Hds::Badge @text="{{capitalize this.instance.state}}" @color={{this.stateColor}} @size="large" />
+
+      {{#if (eq this.instance.state "running")}}
+        <Hds::Button @text="Stop" @color="critical" @size="medium" {{on "click" this.stop}} />
+      {{/if}}
+
+      {{#if this.instance.peerID}}
+        {{#if (get (filter-by 'state' 'running' (filter-by 'peerID' this.instance.peerID this.nomadActions.actionsQueue)) 'length')}}
+          <Hds::Button @text="Stop All" @color="critical" @size="medium" {{on "click" this.stopAll}} />
+        {{/if}}
+      {{/if}}
+
+      <Hds::Button @text="Clear"
+        @color="secondary"
+        {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
+      />
+
+    </PH.Actions>
+  </Hds::PageHeader>
+
+
+
   </header>
 
   {{#if this.instance.peerID}}
@@ -58,11 +78,6 @@
         {{/if}}
       </ul>
     </Hds::Reveal>
-
-    {{!-- If status is running, show stop control --}}
-    {{#if (eq this.instance.state "running")}}
-      <Hds::Button @text="Stop Action" @color="critical" @size="medium" {{on "click" this.stop}} />
-    {{/if}}
   </footer>
 
   {{yield}}

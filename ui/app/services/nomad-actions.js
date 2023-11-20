@@ -123,7 +123,15 @@ export default class NomadActionsService extends Service {
     this.actionsQueue = this.actionsQueue.filter(
       (a) => a.id !== actionInstance.id
     );
-    // this.updateQueue();
+
+    // If action had peers, clear them out as well
+    if (actionInstance.peerID) {
+      console.log('did i have a peer id?', actionInstance.peerID);
+      this.actionsQueue = this.actionsQueue.filter(
+        (a) => a.peerID !== actionInstance.peerID
+      );
+    }
+    this.updateQueue();
   }
 
   @action clearFinishedActions() {
@@ -131,12 +139,17 @@ export default class NomadActionsService extends Service {
     this.actionsQueue = this.actionsQueue.filter((a) => a.state !== 'complete');
   }
 
-  @action stopAll() {
-    this.actionsQueue.forEach((a) => {
+  @action stopAll(peerID = null) {
+    let actionsToStop = this.actionsQueue;
+    if (peerID) {
+      actionsToStop = actionsToStop.filter((a) => a.peerID === peerID);
+    }
+    actionsToStop.forEach((a) => {
       if (a.state === 'running') {
         a.socket.close();
       }
     });
+    this.updateQueue();
   }
 
   get runningActions() {
