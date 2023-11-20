@@ -23,14 +23,15 @@ var _ cli.Command = &ACLAuthMethodCreateCommand{}
 type ACLAuthMethodCreateCommand struct {
 	Meta
 
-	name          string
-	methodType    string
-	tokenLocality string
-	maxTokenTTL   time.Duration
-	isDefault     bool
-	config        string
-	json          bool
-	tmpl          string
+	name            string
+	methodType      string
+	tokenLocality   string
+	tokenNameFormat string
+	maxTokenTTL     time.Duration
+	isDefault       bool
+	config          string
+	json            bool
+	tmpl            string
 
 	testStdin io.Reader
 }
@@ -63,6 +64,9 @@ ACL Auth Method Create Options:
     Defines the kind of token that this auth method should produce. This can be
     either 'local' or 'global'.
 
+  -token-name-format
+    Sets the token format for the authenticated users.
+
   -default
     Specifies whether this auth method should be treated as a default one in
     case no auth method is explicitly specified for a login command.
@@ -84,14 +88,15 @@ ACL Auth Method Create Options:
 func (a *ACLAuthMethodCreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(a.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-name":           complete.PredictAnything,
-			"-type":           complete.PredictSet("OIDC", "JWT"),
-			"-max-token-ttl":  complete.PredictAnything,
-			"-token-locality": complete.PredictSet("local", "global"),
-			"-default":        complete.PredictSet("true", "false"),
-			"-config":         complete.PredictNothing,
-			"-json":           complete.PredictNothing,
-			"-t":              complete.PredictAnything,
+			"-name":              complete.PredictAnything,
+			"-type":              complete.PredictSet("OIDC", "JWT"),
+			"-max-token-ttl":     complete.PredictAnything,
+			"-token-locality":    complete.PredictSet("local", "global"),
+			"-token-name-format": complete.PredictNothing,
+			"-default":           complete.PredictSet("true", "false"),
+			"-config":            complete.PredictNothing,
+			"-json":              complete.PredictNothing,
+			"-t":                 complete.PredictAnything,
 		})
 }
 
@@ -113,6 +118,7 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 	flags.StringVar(&a.name, "name", "", "")
 	flags.StringVar(&a.methodType, "type", "", "")
 	flags.StringVar(&a.tokenLocality, "token-locality", "", "")
+	flags.StringVar(&a.tokenNameFormat, "token-name-format", "", "")
 	flags.DurationVar(&a.maxTokenTTL, "max-token-ttl", 0, "")
 	flags.BoolVar(&a.isDefault, "default", false, "")
 	flags.StringVar(&a.config, "config", "", "")
@@ -166,12 +172,13 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 
 	// Set up the auth method with the passed parameters.
 	authMethod := api.ACLAuthMethod{
-		Name:          a.name,
-		Type:          strings.ToUpper(a.methodType),
-		TokenLocality: a.tokenLocality,
-		MaxTokenTTL:   a.maxTokenTTL,
-		Default:       a.isDefault,
-		Config:        &configJSON,
+		Name:            a.name,
+		Type:            strings.ToUpper(a.methodType),
+		TokenLocality:   a.tokenLocality,
+		TokenNameFormat: a.tokenNameFormat,
+		MaxTokenTTL:     a.maxTokenTTL,
+		Default:         a.isDefault,
+		Config:          &configJSON,
 	}
 
 	// Get the HTTP client.

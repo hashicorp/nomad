@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"text/template"
 	"time"
 
 	"github.com/hashicorp/go-bexpr"
@@ -742,12 +743,13 @@ type ACLRoleByNameResponse struct {
 // ACLAuthMethod is used to capture the properties of an authentication method
 // used for single sing-on
 type ACLAuthMethod struct {
-	Name          string
-	Type          string
-	TokenLocality string // is the token valid locally or globally?
-	MaxTokenTTL   time.Duration
-	Default       bool
-	Config        *ACLAuthMethodConfig
+	Name            string
+	Type            string
+	TokenLocality   string // is the token valid locally or globally?
+	TokenNameFormat string
+	MaxTokenTTL     time.Duration
+	Default         bool
+	Config          *ACLAuthMethodConfig
 
 	Hash []byte
 
@@ -771,6 +773,7 @@ func (a *ACLAuthMethod) SetHash() []byte {
 	_, _ = hash.Write([]byte(a.Name))
 	_, _ = hash.Write([]byte(a.Type))
 	_, _ = hash.Write([]byte(a.TokenLocality))
+	_, _ = hash.Write([]byte(a.TokenNameFormat))
 	_, _ = hash.Write([]byte(a.MaxTokenTTL.String()))
 	_, _ = hash.Write([]byte(strconv.FormatBool(a.Default)))
 
@@ -900,6 +903,10 @@ func (a *ACLAuthMethod) Canonicalize() {
 		a.CreateTime = t
 	}
 	a.ModifyTime = t
+
+	if a.TokenNameFormat == "" {
+		a.TokenNameFormat = "{{ .auth_type }}-{{ .auth_name }}"
+	}
 }
 
 // Merge merges auth method a with method b. It sets all required empty fields
@@ -909,6 +916,7 @@ func (a *ACLAuthMethod) Merge(b *ACLAuthMethod) {
 	if b != nil {
 		a.Type = helper.Merge(a.Type, b.Type)
 		a.TokenLocality = helper.Merge(a.TokenLocality, b.TokenLocality)
+		a.TokenNameFormat = helper.Merge(a.TokenNameFormat, b.TokenNameFormat)
 		a.MaxTokenTTL = helper.Merge(a.MaxTokenTTL, b.MaxTokenTTL)
 		a.Config = helper.Merge(a.Config, b.Config)
 	}
@@ -927,6 +935,10 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 	if !slices.Contains([]string{ACLAuthMethodTokenLocalityLocal, ACLAuthMethodTokenLocalityGlobal}, a.TokenLocality) {
 		mErr.Errors = append(
 			mErr.Errors, fmt.Errorf("invalid token locality '%s'", a.TokenLocality))
+	}
+
+	if _, err := template.New("auth_method").Parse(a.TokenNameFormat); err != nil {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid TokenNameFormat:%s", err))
 	}
 
 	if !slices.Contains(ValidACLAuthMethodTypes, a.Type) {

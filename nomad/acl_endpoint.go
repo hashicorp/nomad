@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -2769,8 +2771,13 @@ func (a *ACL) OIDCCompleteAuth(
 	// logic, so we do not want to call Raft directly or copy that here. In the
 	// future we should try and extract out the logic into an interface, or at
 	// least a separate function.
+	name, err := formatTokenName(authMethod.TokenNameFormat, "OIDC", authMethod.Name, oidcInternalClaims.Value)
+	if err != nil {
+		return err
+	}
+
 	token := structs.ACLToken{
-		Name:          "OIDC-" + authMethod.Name,
+		Name:          name,
 		Global:        authMethod.TokenLocalityIsGlobal(),
 		ExpirationTTL: authMethod.MaxTokenTTL,
 	}
@@ -2917,8 +2924,13 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	// logic, so we do not want to call Raft directly or copy that here. In the
 	// future we should try and extract out the logic into an interface, or at
 	// least a separate function.
+	name, err := formatTokenName(authMethod.TokenNameFormat, "JWT", authMethod.Name, jwtClaims.Value)
+	if err != nil {
+		return err
+	}
+
 	token := structs.ACLToken{
-		Name:          "JWT-" + authMethod.Name,
+		Name:          name,
 		Global:        authMethod.TokenLocalityIsGlobal(),
 		ExpirationTTL: authMethod.MaxTokenTTL,
 	}
@@ -2951,4 +2963,22 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	reply.ACLToken = tokenUpsertReply.Tokens[0]
 
 	return nil
+}
+
+func formatTokenName(format, authType, authName string, valueClaims map[string]string) (string, error) {
+	data := map[string]interface{}{
+		"auth_type": authType,
+		"auth_name": authName,
+		"timestamp": time.Now().UnixNano(),
+		"claims":    valueClaims,
+	}
+
+	// this shouldn't fail as we are testing the template when configured
+	tmpl := template.Must(template.New("token_name").Parse(format))
+	nameBuffer := bytes.Buffer{}
+
+	if err := tmpl.Execute(&nameBuffer, data); err != nil {
+		return "", fmt.Errorf("error executing token name template: %w", err)
+	}
+	return nameBuffer.String(), nil
 }
