@@ -4,13 +4,12 @@
 ~}}
 
 <div class="action-card">
-  <header>
-
   <Hds::PageHeader class="job-page-header" as |PH|>
     <PH.Title>
       {{this.instance.action.name}}
-      <span class="job-name">{{this.instance.action.task.taskGroup.job.name}}</span>
-      {{!-- TODO: make job name a link --}}
+      <LinkTo class="job-name" @route="jobs.job" @model={{this.instance.action.task.taskGroup.job}}>
+        {{this.instance.action.task.taskGroup.job.name}}
+      </LinkTo>
     </PH.Title>
     <PH.Actions>
       <Hds::Badge @text="{{capitalize this.instance.state}}" @color={{this.stateColor}} @size="large" />
@@ -32,10 +31,6 @@
 
     </PH.Actions>
   </Hds::PageHeader>
-
-
-
-  </header>
 
   {{#if this.instance.peerID}}
   <Hds::ButtonSet class="peers">

@@ -196,7 +196,7 @@ $subNavOffset: 49px;
     z-index: $z-base;
     .hds-flyout__title {
       display: grid;
-      align-items: start;
+      align-items: center;
       grid-template-columns: 1fr auto auto auto;
       gap: 1rem;
     }
@@ -212,10 +212,15 @@ $subNavOffset: 49px;
       border-bottom: 1px solid $grey-blue;
       padding: 1rem 0 2rem;
 
+      &:last-of-type {
+        border-bottom: none;
+      }
+
       header {
         .job-name {
           opacity: 0.5;
           font-size: 1rem;
+          color: black;
         }
       }
 
