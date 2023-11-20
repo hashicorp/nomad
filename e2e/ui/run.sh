@@ -2,8 +2,6 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-set -e
-
 help() {
     cat <<EOF
 Usage: run.sh [subcommand] [options] [--help]
@@ -22,6 +20,8 @@ Usage: run.sh [subcommand] [options] [--help]
          this so that we don't need to load a CA certificate into the browser.
          This reverse proxy uses a self-signed cert. Will print a new NOMAD_ADDR
          address for you to use for test runs.
+
+  ci     For use in CI: runs the proxy, then tests, then stops the proxy.
 
   Environment Variables:
   NOMAD_ADDR    Address of Nomad cluster or reverse proxy.
@@ -43,7 +43,9 @@ run_shell() {
 }
 
 run() {
-    exec docker run -it --rm \
+    local tty_args
+    [ -t 1 ] && tty_args='-it'
+    docker run $tty_args --rm \
            -v $(pwd):/src \
            -w /src \
            -e NOMAD_ADDR=$NOMAD_ADDR \
@@ -55,13 +57,48 @@ run() {
 }
 
 run_proxy() {
-    nomad namespace apply proxy
-    nomad job run "./input/proxy.nomad"
-    IP=$(nomad node status -json -verbose \
-          $(nomad operator api '/v1/allocations?namespace=proxy' | jq -r '.[] | select(.JobID == "nomad-proxy") | .NodeID') \
-        | jq -r '.Attributes."unique.platform.aws.public-ipv4"')
-    echo "NOMAD_ADDR=https://$IP:6464"
-    exit 0
+  # sending these outputs to stderr so that 'export NOMAD_ADDR='
+  # is the only stdout line, for scripts to eval.
+  nomad namespace apply proxy 1>&2 || return
+  nomad job run "./input/proxy.nomad" 1>&2
+  IP="$(_get_aws_ip)"
+  [ -n "$IP" ] || {
+    >&2 echo 'falling back to service IP'
+    IP="$(_get_svc_ip)"
+  }
+  [ -n "$IP" ] || {
+    >&2 echo 'unable to get an IP for nomad proxy...'
+    exit 1 # bad form to exit from a function, but this is essential (and eval'd)
+  }
+  echo "export NOMAD_ADDR=https://$IP:6464"
+}
+
+_get_aws_ip(){
+  aws_metadata_url="http://169.254.169.254/latest/meta-data"
+  nomad exec -namespace=proxy -job nomad-proxy \
+    curl -s "$aws_metadata_url/public-ipv4"
+}
+
+_get_svc_ip() {
+  nomad service info -namespace=proxy \
+    -t '{{ range . }}{{ .Address }}{{ end }}' \
+    nomad-proxy
+}
+
+stop_proxy() {
+  # make sure addr isn't still pointed at the proxy
+  export NOMAD_ADDR="${NOMAD_ADDR/6464/4646}"
+  nomad job stop -namespace=proxy nomad-proxy
+  nomad namespace delete proxy
+}
+
+run_ci() {
+  set -x
+  eval "$(run_proxy)"
+  run_tests
+  rc=$?
+  stop_proxy
+  exit $rc
 }
 
 opt="$1"
@@ -69,8 +106,8 @@ case $opt in
     help|--help|-h) help ;;
     proxy|--proxy) run_proxy ;;
     test|--test) shift ; run_tests "$@" ;;
-    shell) shift ; run_shell ;;
+    stop|--stop) stop_proxy ;;
+    ci|--ci) run_ci ;;
+    shell) shift ; run_shell "$@" ;;
     *) run_tests "$@" ;;
 esac
-
-run_tests
