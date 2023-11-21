@@ -16,13 +16,14 @@ import (
 
 	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/v3/jobs3"
+	"github.com/hashicorp/nomad/e2e/v3/namespaces3"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
 
-const ns = ""
+const ns = "vault-secrets"
 
 func TestVaultSecrets(t *testing.T) {
 	// use a random suffix to encapsulate test keys, polices, etc.
@@ -34,6 +35,8 @@ func TestVaultSecrets(t *testing.T) {
 	secretKey := secretsPath + "/data/myapp"
 	pkiCertIssue := pkiPath + "/issue/nomad"
 	policyID := "access-secrets-" + testID
+
+	t.Cleanup(namespaces3.Create(t, ns))
 
 	// configure KV secrets engine
 	// Note: the secret key is written to 'secret-###/myapp' but the kv2 API
@@ -62,6 +65,7 @@ func TestVaultSecrets(t *testing.T) {
 
 	submission, cleanJob := jobs3.Submit(t,
 		"./input/secrets.nomad",
+		jobs3.Namespace(ns),
 		jobs3.Detach(),
 		jobs3.ReplaceInJobSpec("TESTID", testID),
 		jobs3.ReplaceInJobSpec("DEPLOYNUMBER", "FIRST"),
@@ -79,7 +83,7 @@ func TestVaultSecrets(t *testing.T) {
 
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
-			out, err := e2e.Command("nomad", "alloc", "status", allocID)
+			out, err := e2e.Command("nomad", "alloc", "status", "-namespace", ns, allocID)
 			if err != nil {
 				return err
 			}
