@@ -212,7 +212,7 @@ func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[st
 	}
 
 	// get consul acl tokens
-	t, err := client.DeriveSITokenWithJWT(req)
+	t, err := client.DeriveTokenWithJWT(req)
 	if err != nil {
 		return err
 	}

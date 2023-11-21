@@ -51,9 +51,9 @@ type JWTLoginRequest struct {
 // Client is the interface that the nomad client uses to interact with
 // Consul.
 type Client interface {
-	// DeriveSITokenWithJWT logs into Consul using JWT and retrieves a Consul
-	// SI ACL token.
-	DeriveSITokenWithJWT(map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error)
+	// DeriveTokenWithJWT logs into Consul using JWT and retrieves a Consul ACL
+	// token.
+	DeriveTokenWithJWT(map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error)
 
 	RevokeTokens([]*consulapi.ACLToken) error
 }
@@ -101,9 +101,9 @@ func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Client, 
 	return c, nil
 }
 
-// DeriveSITokenWithJWT takes a JWT from request and returns a consul token for
+// DeriveTokenWithJWT takes a JWT from request and returns a consul token for
 // each identity in the request
-func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error) {
+func (c *consulClient) DeriveTokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error) {
 	tokens := make(map[string]*consulapi.ACLToken, len(reqs))
 	var mErr *multierror.Error
 
