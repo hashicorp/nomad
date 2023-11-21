@@ -65,7 +65,7 @@ Action Specific Options:
     Specifies the task in which the Action is defined. Required if no
     allocation is provided.
 
-  -group=<group-name>
+  -group <group-name>
     Specifies the group in which the Action is defined. Required if no
     allocation is provided.
 
