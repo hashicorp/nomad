@@ -754,7 +754,7 @@ type ACLAuthMethod struct {
 	// ACLAuthMethodTokenLocalityGlobal for convenience.
 	TokenLocality string
 
-	// TokenNameFormat defines the template to use when building the token name
+	// TokenNameFormat defines the HIL template to use when building the token name
 	TokenNameFormat string
 
 	// MaxTokenTTL is the maximum life of a token created by this method.

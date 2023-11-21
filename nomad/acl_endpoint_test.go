@@ -3764,12 +3764,14 @@ func TestACL_Login(t *testing.T) {
 	iat := time.Now().Unix()
 	nbf := time.Now().Unix()
 	exp := time.Now().Add(time.Hour).Unix()
+	user := "John"
 	testToken, testPubKey, err := mock.SampleJWTokenWithKeys(jwt.MapClaims{
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},
 		"iat":                            iat,
 		"nbf":                            nbf,
 		"exp":                            exp,
+		"sub":                            user,
 		"iss":                            "nomad test suite",
 		"aud":                            []string{"sales", "engineering"},
 	}, nil)
@@ -3810,7 +3812,9 @@ func TestACL_Login(t *testing.T) {
 	mockedAuthMethod.Config.BoundIssuer = []string{"nomad test suite"}
 	mockedAuthMethod.Config.ExpirationLeeway = time.Duration(3600)
 	mockedAuthMethod.Config.ClockSkewLeeway = time.Duration(3600)
-	mockedAuthMethod.Config.ClaimMappings = map[string]string{}
+	mockedAuthMethod.Config.ClaimMappings = map[string]string{
+		"sub": "user",
+	}
 	mockedAuthMethod.Config.ListClaimMappings = map[string]string{
 		"http://nomad.internal/roles":    "roles",
 		"http://nomad.internal/policies": "policies",
@@ -3877,6 +3881,7 @@ func TestACL_Login(t *testing.T) {
 	must.Len(t, 1, completeAuthResp4.ACLToken.Roles)
 	must.Eq(t, mockACLRole.Name, completeAuthResp4.ACLToken.Roles[0].Name)
 	must.Eq(t, mockACLRole.ID, completeAuthResp4.ACLToken.Roles[0].ID)
+	must.Eq(t, mockedAuthMethod.Type+"-"+mockedAuthMethod.Name, completeAuthResp4.ACLToken.Name)
 
 	// Create a binding rule which generates management tokens. This should
 	// override the other rules, giving us a management token when we next
@@ -3901,8 +3906,26 @@ func TestACL_Login(t *testing.T) {
 	var completeAuthResp5 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq5, &completeAuthResp5)
 	must.NoError(t, err)
-	must.NotNil(t, completeAuthResp4.ACLToken)
+	must.NotNil(t, completeAuthResp5.ACLToken)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Policies)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Roles)
 	must.Eq(t, structs.ACLManagementToken, completeAuthResp5.ACLToken.Type)
+
+	// Change the token name format
+	mockedAuthMethod.TokenNameFormat = "${auth_type}-${auth_name}-${value.user}"
+	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(60, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+	loginReq6 := structs.ACLLoginRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		LoginToken:     testToken,
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+
+	var completeAuthResp6 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq6, &completeAuthResp6)
+	must.NoError(t, err)
+	must.NotNil(t, completeAuthResp6.ACLToken)
+	must.Eq(t, mockedAuthMethod.Type+"-"+mockedAuthMethod.Name+"-"+user, completeAuthResp6.ACLToken.Name)
 }
