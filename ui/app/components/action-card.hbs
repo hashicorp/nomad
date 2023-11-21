@@ -14,21 +14,39 @@
     <PH.Actions>
       <Hds::Badge @text="{{capitalize this.instance.state}}" @color={{this.stateColor}} @size="large" />
 
-      {{#if (eq this.instance.state "running")}}
-        <Hds::Button @text="Stop" @color="critical" @size="medium" {{on "click" this.stop}} />
-      {{/if}}
-
+      {{!--
+        Action instance with peers (run on multiple allocs):
+        - If instance is running, user can stop it.
+        - If peers are running, user can stop all of them,
+        - And if none are running, user can clear all of them.
+      --}}
       {{#if this.instance.peerID}}
+        {{#if (eq this.instance.state "running")}}
+          <Hds::Button @text="Stop" @color="critical" @size="medium" {{on "click" this.stop}} />
+        {{/if}}
         {{#if (get (filter-by 'state' 'running' (filter-by 'peerID' this.instance.peerID this.nomadActions.actionsQueue)) 'length')}}
           <Hds::Button @text="Stop All" @color="critical" @size="medium" {{on "click" this.stopAll}} />
+        {{else}}
+          <Hds::Button @text="Clear"
+            @color="secondary"
+            {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
+          />
+        {{/if}}
+      {{else}}
+      {{!--
+        Action instance run on a singl alloc:
+        - If instance is running, user can stop it.
+        - if not, user can clear it from queue.
+      --}}
+        {{#if (eq this.instance.state "running")}}
+          <Hds::Button @text="Stop" @color="critical" @size="medium" {{on "click" this.stop}} />
+        {{else}}
+          <Hds::Button @text="Clear"
+            @color="secondary"
+            {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
+          />
         {{/if}}
       {{/if}}
-
-      <Hds::Button @text="Clear"
-        @color="secondary"
-        {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
-      />
-
     </PH.Actions>
   </Hds::PageHeader>
 

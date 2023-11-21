@@ -126,7 +126,6 @@ export default class NomadActionsService extends Service {
 
     // If action had peers, clear them out as well
     if (actionInstance.peerID) {
-      console.log('did i have a peer id?', actionInstance.peerID);
       this.actionsQueue = this.actionsQueue.filter(
         (a) => a.peerID !== actionInstance.peerID
       );
