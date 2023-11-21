@@ -42,7 +42,7 @@ func (a *Action) Copy() *Action {
 }
 
 func (a *Action) Equal(o *Action) bool {
-	if a == o {
+	if a == nil && o == nil {
 		return true
 	}
 	if a == nil || o == nil {
