@@ -6,10 +6,15 @@ package e2eutil
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
+	"testing"
 	"time"
+
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
 )
 
 // Command sends a command line argument to Nomad and returns the unbuffered
@@ -23,6 +28,32 @@ func Command(cmd string, args ...string) (string, error) {
 		return out, fmt.Errorf("command %v %v failed: %v\nOutput: %v", cmd, args, err, out)
 	}
 	return out, err
+}
+
+// Commandf runs a Command but with a Sprintf-style string and args
+func Commandf(format string, args ...any) (string, error) {
+	cmd := fmt.Sprintf(format, args...)
+	parts := strings.Split(cmd, " ")
+	return Command(parts[0], parts[1:]...)
+}
+
+// MustCommand runs a Commandf and must run without error
+func MustCommand(t *testing.T, format string, args ...any) {
+	t.Helper()
+	_, err := Commandf(format, args...)
+	must.NoError(t, err)
+}
+
+// CleanupCommand adds a Commandf to t.Cleanup
+func CleanupCommand(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
+		return
+	}
+	t.Cleanup(func() {
+		_, err := Commandf(format, args...)
+		test.NoError(t, err)
+	})
 }
 
 // GetField returns the value of an output field (ex. the "Submit Date" field

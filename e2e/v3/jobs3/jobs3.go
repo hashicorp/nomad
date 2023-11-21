@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +36,10 @@ type Submission struct {
 	noCleanup     bool
 	timeout       time.Duration
 	verbose       bool
+	detach        bool
+
+	// jobspec mutator funcs
+	mutators []func(string) string
 
 	vars         *set.Set[string] // key=value
 	waitComplete *set.Set[string] // groups to wait until complete
@@ -210,10 +215,23 @@ var (
 	idRe = regexp.MustCompile(`(?m)^job "(.*)" \{`)
 )
 
+func (sub *Submission) Rerun(opts ...Option) {
+	sub.noRandomJobID = true
+	for _, opt := range opts {
+		opt(sub)
+	}
+	sub.run()
+	sub.waits()
+}
+
 func (sub *Submission) run() {
 	if !sub.noRandomJobID {
 		sub.jobID = fmt.Sprintf("%s-%03d", sub.origJobID, rand.Int()%1000)
 		sub.jobSpec = idRe.ReplaceAllString(sub.jobSpec, fmt.Sprintf("job %q {", sub.jobID))
+	}
+
+	for _, mut := range sub.mutators {
+		sub.jobSpec = mut(sub.jobSpec)
 	}
 
 	parseConfig := &jobspec2.ParseConfig{
@@ -292,6 +310,10 @@ EVAL:
 			evalID = nextEvalID
 			continue
 		}
+	}
+
+	if sub.detach {
+		return
 	}
 
 	switch *job.Type {
@@ -433,6 +455,24 @@ func DisableCleanup() Option {
 	return func(sub *Submission) {
 		sub.noCleanup = true
 	}
+}
+
+func Detach() Option {
+	return func(c *Submission) {
+		c.detach = true
+	}
+}
+
+func MutateJobSpec(mut func(string) string) Option {
+	return func(c *Submission) {
+		c.mutators = append(c.mutators, mut)
+	}
+}
+
+func ReplaceInJobSpec(old, new string) Option {
+	return MutateJobSpec(func(j string) string {
+		return strings.ReplaceAll(j, old, new)
+	})
 }
 
 func Timeout(timeout time.Duration) Option {
