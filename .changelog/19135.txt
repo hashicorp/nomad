@@ -1,0 +1,3 @@
+```release-note:improvement
+acl: Allow adding a tokenNameFormat to auth methods for changing the resulting token name
+```
