@@ -127,21 +127,17 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		}
 
 		ti := *task.IdentityHandle(i)
-
-		req, err := h.prepareConsulClientReq(ti, consulConfig.TaskIdentityAuthMethod)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-			continue
-		}
-
 		jwt, err := h.widmgr.Get(ti)
 		if err != nil {
-			h.logger.Error("error getting signed identity", "error", err)
-			mErr.Errors = append(mErr.Errors, err)
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+				"error getting signed identity for task %s: %v",
+				task.Name, err,
+			))
 			continue
 		}
 
-		req[task.Identity.Name] = consul.JWTLoginRequest{
+		req := map[string]consul.JWTLoginRequest{}
+		req[ti.IdentityName] = consul.JWTLoginRequest{
 			JWT:            jwt.JWT,
 			AuthMethodName: consulConfig.TaskIdentityAuthMethod,
 		}
@@ -175,8 +171,21 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			return fmt.Errorf("no such consul cluster: %s", clusterName)
 		}
 
-		req, err := h.prepareConsulClientReq(
-			*service.IdentityHandle(), consulConfig.ServiceIdentityAuthMethod)
+		req := map[string]consul.JWTLoginRequest{}
+		identity := *service.IdentityHandle()
+		jwt, err := h.widmgr.Get(identity)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+				"error getting signed identity for service %s: %v",
+				service.Name, err,
+			))
+			continue
+		}
+
+		req[identity.IdentityName] = consul.JWTLoginRequest{
+			JWT:            jwt.JWT,
+			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
+		}
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
@@ -222,23 +231,6 @@ func (h *consulHook) clientForCluster(cluster string) (consul.Client, error) {
 	}
 
 	return h.consulClientConstructor(consulConf, h.logger)
-}
-
-func (h *consulHook) prepareConsulClientReq(identity structs.WIHandle, authMethodName string) (map[string]consul.JWTLoginRequest, error) {
-	req := map[string]consul.JWTLoginRequest{}
-
-	jwt, err := h.widmgr.Get(identity)
-	if err != nil {
-		h.logger.Error("error getting signed identity", "error", err)
-		return req, err
-	}
-
-	req[identity.IdentityName] = consul.JWTLoginRequest{
-		JWT:            jwt.JWT,
-		AuthMethodName: authMethodName,
-	}
-
-	return req, nil
 }
 
 // Postrun cleans up the Consul tokens after the tasks have exited.
