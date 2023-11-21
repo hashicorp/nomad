@@ -129,8 +129,10 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		ti := *task.IdentityHandle(i)
 		jwt, err := h.widmgr.Get(ti)
 		if err != nil {
-			h.logger.Error("error getting signed identity", "error", err)
-			mErr.Errors = append(mErr.Errors, err)
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+				"error getting signed identity for task %s: %v",
+				task.Name, err,
+			))
 			continue
 		}
 
@@ -173,8 +175,10 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		identity := *service.IdentityHandle()
 		jwt, err := h.widmgr.Get(identity)
 		if err != nil {
-			h.logger.Error("error getting signed identity", "error", err)
-			mErr.Errors = append(mErr.Errors, err)
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+				"error getting signed identity for service %s: %v",
+				service.Name, err,
+			))
 			continue
 		}
 
