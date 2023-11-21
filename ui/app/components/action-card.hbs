@@ -4,7 +4,7 @@
 ~}}
 
 <div class="action-card">
-  <Hds::PageHeader class="job-page-header" as |PH|>
+  <Hds::PageHeader class="action-card-header" as |PH|>
     <PH.Title>
       {{this.instance.action.name}}
       <LinkTo class="job-name" @route="jobs.job" @model={{this.instance.action.task.taskGroup.job}}>

@@ -8,7 +8,9 @@
     @onClose={{this.nomadActions.closeFlyout}} @size="large" as |Fly|
   >
     <Fly.Header>
-      Actions
+      <h3>
+        Actions
+      </h3>
       {{#if this.contextualActions.length}}
         <ActionsDropdown
           @actions={{this.contextualActions}}
@@ -17,7 +19,6 @@
         />
       {{/if}}
       {{#if this.nomadActions.runningActions.length}}
-        {{!-- TODO: Make two-step --}}
         <Hds::Button @text="Stop All" @color="critical" @size="medium" {{on "click" this.nomadActions.stopAll}} />
       {{/if}}
       {{#if this.nomadActions.finishedActions.length}}
