@@ -892,7 +892,7 @@ func TestReconciler_LostNode_RescheduleOff(t *testing.T) {
 	ci.Parallel(t)
 
 	job := mock.Job()
-	job.TaskGroups[0].RescheduleOnLost = false
+	job.TaskGroups[0].SingleInstanceOnLost = false
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {

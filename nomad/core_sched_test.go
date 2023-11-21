@@ -1940,21 +1940,21 @@ func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 // Tests various scenarios when allocations are eligible to be GCed
 func TestAllocation_GCEligible(t *testing.T) {
 	type testCase struct {
-		Desc                string
-		GCTime              time.Time
-		ClientStatus        string
-		DesiredStatus       string
-		JobStatus           string
-		JobStop             bool
-		RescheduleOnLost    *bool
-		AllocJobModifyIndex uint64
-		JobModifyIndex      uint64
-		ModifyIndex         uint64
-		NextAllocID         string
-		ReschedulePolicy    *structs.ReschedulePolicy
-		RescheduleTrackers  []*structs.RescheduleEvent
-		ThresholdIndex      uint64
-		ShouldGC            bool
+		Desc                 string
+		GCTime               time.Time
+		ClientStatus         string
+		DesiredStatus        string
+		JobStatus            string
+		JobStop              bool
+		SingleInstanceOnLost *bool
+		AllocJobModifyIndex  uint64
+		JobModifyIndex       uint64
+		ModifyIndex          uint64
+		NextAllocID          string
+		ReschedulePolicy     *structs.ReschedulePolicy
+		RescheduleTrackers   []*structs.RescheduleEvent
+		ThresholdIndex       uint64
+		ShouldGC             bool
 	}
 
 	fail := time.Now()
@@ -2130,15 +2130,6 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ShouldGC:      true,
 		},
 		{
-			Desc:             "Don't GC when alloc is lost and not being rescheduled",
-			ClientStatus:     structs.AllocClientStatusLost,
-			DesiredStatus:    structs.AllocDesiredStatusStop,
-			RescheduleOnLost: pointer.Of(false),
-			GCTime:           fail,
-			JobStatus:        structs.JobStatusDead,
-			ShouldGC:         false,
-		},
-		{
 			Desc:             "GC when job status is dead",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
@@ -2184,8 +2175,8 @@ func TestAllocation_GCEligible(t *testing.T) {
 		alloc.NextAllocation = tc.NextAllocID
 		job := mock.Job()
 		alloc.TaskGroup = job.TaskGroups[0].Name
-		if tc.RescheduleOnLost != nil {
-			job.TaskGroups[0].RescheduleOnLost = *tc.RescheduleOnLost
+		if tc.SingleInstanceOnLost != nil {
+			job.TaskGroups[0].SingleInstanceOnLost = *tc.SingleInstanceOnLost
 		}
 		job.TaskGroups[0].ReschedulePolicy = tc.ReschedulePolicy
 		if tc.JobStatus != "" {

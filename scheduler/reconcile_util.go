@@ -298,7 +298,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				}
 
 			case structs.NodeStatusDown:
-				if !alloc.RescheduleOnLost() {
+				if !alloc.SingleInstanceOnLost() {
 					if alloc.ClientStatus == structs.AllocClientStatusLost {
 						untainted[alloc.ID] = alloc
 						continue

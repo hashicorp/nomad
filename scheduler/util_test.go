@@ -548,9 +548,9 @@ func TestTasksUpdated(t *testing.T) {
 	j30.TaskGroups[0].Tasks[0].Templates[0].ErrMissingKey = true
 	require.True(t, tasksUpdated(j29, j30, name).modified)
 
-	// Change rescheduleOnLost mode
+	// Change SingleInstanceOnLost mode
 	j31 := mock.Job()
-	j31.TaskGroups[0].RescheduleOnLost = false
+	j31.TaskGroups[0].SingleInstanceOnLost = false
 	require.True(t, tasksUpdated(j1, j31, name).modified)
 }
 

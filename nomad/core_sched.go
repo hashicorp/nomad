@@ -630,28 +630,13 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 	}
 
 	// If the job is deleted, stopped or dead all allocs can be removed
-	if job == nil || job.Stop {
-		return true
-	}
-
-	tg := job.LookupTaskGroup(a.TaskGroup)
-	if tg == nil {
+	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
 		return true
 	}
 
 	// If the allocation's desired state is Stop, it can be GCed even if it
 	// has failed and hasn't been rescheduled. This can happen during job updates
 	if a.DesiredStatus == structs.AllocDesiredStatusStop {
-		// Don't GC lost allocs when RescheduleOnLost is disabled
-		if !tg.RescheduleOnLost && a.ClientStatus == structs.AllocClientStatusUnknown {
-			return false
-		}
-
-		return true
-	}
-
-	// If the job is deleted, stopped or dead all allocs can be removed
-	if job.Status == structs.JobStatusDead {
 		return true
 	}
 
@@ -663,6 +648,12 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 	}
 
 	var reschedulePolicy *structs.ReschedulePolicy
+	tg := job.LookupTaskGroup(a.TaskGroup)
+
+	if tg != nil {
+		reschedulePolicy = tg.ReschedulePolicy
+	}
+
 	// No reschedule policy or rescheduling is disabled
 	if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
 		return true

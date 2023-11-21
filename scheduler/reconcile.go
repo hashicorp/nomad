@@ -472,7 +472,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// which ones later and which ones can't be rescheduled at all.
 	timeoutLaterEvals := map[string]string{}
 	if len(disconnecting) > 0 {
-		if tg.RescheduleOnLost {
+		if tg.SingleInstanceOnLost {
 			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
 			rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
@@ -495,10 +495,8 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	lostLater := []*delayedRescheduleInfo{}
 
 	if len(lost) > 0 {
-		if tg.RescheduleOnLost {
-			lostLater = lost.delayByStopAfterClientDisconnect()
-			lostLaterEvals = a.createLostLaterEvals(lostLater, tg.Name)
-		}
+		lostLater = lost.delayByStopAfterClientDisconnect()
+		lostLaterEvals = a.createLostLaterEvals(lostLater, tg.Name)
 	}
 
 	// Merge disconnecting with the stop_after_client_disconnect set into the
@@ -785,7 +783,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	// Add replacements for disconnected and lost allocs up to group.Count
 	existing := len(untainted) + len(migrate) + len(reschedule)
 
-	if group.RescheduleOnLost {
+	if group.SingleInstanceOnLost {
 		// Add replacements for lost
 		for _, alloc := range lost {
 			if existing >= group.Count {
@@ -807,7 +805,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			})
 		}
 	} else {
-		//Don't add placements for lost where RescheduleOnLost is not enabled
+		//Don't add placements for lost where SingleInstanceOnLost is not enabled
 		existing += len(lost)
 	}
 
@@ -865,7 +863,7 @@ func (a *allocReconciler) computeReplacements(tg *structs.TaskGroup, deploymentP
 
 	// If allocs have been lost, determine the number of replacements that are needed
 	// and add placements to the result for the lost allocs.
-	if len(lost) != 0 && tg.RescheduleOnLost {
+	if len(lost) != 0 && tg.SingleInstanceOnLost {
 		allowed := min(len(lost), len(place))
 		desiredChanges.Place += uint64(allowed)
 		a.result.place = append(a.result.place, place[:allowed]...)
@@ -1004,11 +1002,6 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	// Mark all lost allocations for stop.
 	var stop allocSet
 	stop = stop.union(lost)
-	if group.RescheduleOnLost {
-		a.markDelayed(lost, structs.AllocClientStatusLost, allocLost, followupEvals)
-	} else {
-		//a.markStop()
-	}
 
 	// If we are still deploying or creating canaries, don't stop them
 	if isCanarying {
@@ -1134,7 +1127,7 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 	reconnect := make(allocSet)
 
 	for _, reconnectingAlloc := range reconnecting {
-		if !reconnectingAlloc.RescheduleOnLost() {
+		if !reconnectingAlloc.SingleInstanceOnLost() {
 			continue
 		}
 

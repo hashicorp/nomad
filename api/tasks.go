@@ -459,7 +459,7 @@ type TaskGroup struct {
 	MaxClientDisconnect       *time.Duration            `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
 	Consul                    *Consul                   `hcl:"consul,block"`
-	RescheduleOnLost          *bool                     `hcl:"reschedule_on_lost,optional"`
+	SingleInstanceOnLost      *bool                     `hcl:"single_instance_on_lost,optional"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -578,8 +578,8 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
 	}
-	if g.RescheduleOnLost == nil {
-		g.RescheduleOnLost = pointerOf(true)
+	if g.SingleInstanceOnLost == nil {
+		g.SingleInstanceOnLost = pointerOf(false)
 	}
 }
 

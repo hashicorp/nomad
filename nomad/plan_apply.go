@@ -806,7 +806,7 @@ func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
 // updates to mark allocations as unknown.
 func isValidForLostNode(plan *structs.Plan, nodeID string) bool {
 	for _, alloc := range plan.NodeAllocation[nodeID] {
-		if alloc.ClientStatus != structs.AllocClientStatusUnknown && !alloc.RescheduleOnLost() {
+		if alloc.ClientStatus != structs.AllocClientStatusUnknown && !alloc.SingleInstanceOnLost() {
 			return false
 		}
 	}

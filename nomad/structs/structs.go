@@ -6642,10 +6642,10 @@ type TaskGroup struct {
 	// allocations for tasks in this group to attempt to resume running without a restart.
 	MaxClientDisconnect *time.Duration
 
-	// RescheduleOnLost is used to control how allocations on disconnected
-	// nodes are handled. For backwards compatibility, it defaults to true.
-	// When true, such jobs are rescheduled.
-	RescheduleOnLost bool
+	// SingleInstanceOnLost is used to control if a lost allocation will be replaced
+	// or not. When true, no new allocations will be scheduled to replace the lost
+	// a lost one.
+	SingleInstanceOnLost bool
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -11024,13 +11024,13 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 	return false
 }
 
-// RescheduleOnLost determines if an alloc is configured to restart if
-// the client becomes lost
-func (a *Allocation) RescheduleOnLost() bool {
+// SingleInstanceOnLost determines if an alloc allows to have a replacement
+// when lost.
+func (a *Allocation) SingleInstanceOnLost() bool {
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return tg.RescheduleOnLost
+			return tg.SingleInstanceOnLost
 		}
 	}
 

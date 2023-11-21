@@ -63,7 +63,7 @@ job "docs" {
   rescheduling strategy. Nomad will then attempt to schedule the task on another
   node if any of the group allocation statuses become "failed".
 
-- `reschedule_on_lost` `(bool: true)` - Specifies if a groups tasks can be
+- `single_instance_on_lost` `(bool: true)` - Specifies if a groups tasks can be
   rescheduled when their allocations become lost. If set to false, jobs with
   lost tasks will be left in a running state until an operator intervenes.
 
