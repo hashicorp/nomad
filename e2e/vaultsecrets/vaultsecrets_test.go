@@ -11,149 +11,140 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"testing"
 	"time"
 
 	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/e2e/framework"
+	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 )
 
 const ns = ""
 
-type VaultSecretsTest struct {
-	framework.TC
-	secretsPath string
-	pkiPath     string
-	jobIDs      []string
-	policies    []string
-}
+//type VaultSecretsTest struct {
+//	framework.TC
+//	secretsPath string
+//	pkiPath     string
+//	jobIDs      []string
+//	policies    []string
+//}
 
-func init() {
-	framework.AddSuites(&framework.TestSuite{
-		Component:   "VaultSecrets",
-		CanRunLocal: true,
-		Consul:      true,
-		Vault:       true,
-		Cases: []framework.TestCase{
-			new(VaultSecretsTest),
-		},
-	})
-}
+//func init() {
+//	framework.AddSuites(&framework.TestSuite{
+//		Component:   "VaultSecrets",
+//		CanRunLocal: true,
+//		Consul:      true,
+//		Vault:       true,
+//		Cases: []framework.TestCase{
+//			new(VaultSecretsTest),
+//		},
+//	})
+//}
 
-func (tc *VaultSecretsTest) BeforeAll(f *framework.F) {
-	e2e.WaitForLeader(f.T(), tc.Nomad())
-	e2e.WaitForNodesReady(f.T(), tc.Nomad(), 1)
-}
+//func (tc *VaultSecretsTest) BeforeAll(f *framework.F) {
+//	e2e.WaitForLeader(f.T(), tc.Nomad())
+//	e2e.WaitForNodesReady(f.T(), tc.Nomad(), 1)
+//}
 
-func (tc *VaultSecretsTest) AfterEach(f *framework.F) {
-	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
-		return
-	}
+//func cleanUpVault(t *testing.T) {
+//	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
+//		return
+//	}
+//
+//	for _, id := range tc.jobIDs {
+//		_, err := e2e.Command("nomad", "job", "stop", "-purge", id)
+//		f.Assert().NoError(err, "could not clean up job", id)
+//	}
+//	tc.jobIDs = []string{}
+//
+//	for _, policy := range tc.policies {
+//		_, err := e2e.Command("vault", "policy", "delete", policy)
+//		f.Assert().NoError(err, "could not clean up vault policy", policy)
+//	}
+//	tc.policies = []string{}
+//
+//	// disabling the secrets engines will wipe all the secrets as well
+//	_, err := e2e.Command("vault", "secrets", "disable", tc.secretsPath)
+//	f.Assert().NoError(err)
+//	_, err = e2e.Command("vault", "secrets", "disable", tc.pkiPath)
+//	f.Assert().NoError(err)
+//
+//	_, err = e2e.Command("nomad", "system", "gc")
+//	f.NoError(err)
+//}
 
-	for _, id := range tc.jobIDs {
-		_, err := e2e.Command("nomad", "job", "stop", "-purge", id)
-		f.Assert().NoError(err, "could not clean up job", id)
-	}
-	tc.jobIDs = []string{}
-
-	for _, policy := range tc.policies {
-		_, err := e2e.Command("vault", "policy", "delete", policy)
-		f.Assert().NoError(err, "could not clean up vault policy", policy)
-	}
-	tc.policies = []string{}
-
-	// disabling the secrets engines will wipe all the secrets as well
-	_, err := e2e.Command("vault", "secrets", "disable", tc.secretsPath)
-	f.Assert().NoError(err)
-	_, err = e2e.Command("vault", "secrets", "disable", tc.pkiPath)
-	f.Assert().NoError(err)
-
-	_, err = e2e.Command("nomad", "system", "gc")
-	f.NoError(err)
-}
-
-func (tc *VaultSecretsTest) TestVaultSecrets(f *framework.F) {
+func TestVaultSecrets(t *testing.T) {
 
 	// use a random suffix to encapsulate test keys, polices, etc.
 	// for cleanup from vault
 	testID := uuid.Generate()[0:8]
 	jobID := "test-vault-secrets-" + testID
-	tc.secretsPath = "secrets-" + testID
-	tc.pkiPath = "pki-" + testID
+	secretsPath := "secrets-" + testID
+	pkiPath := "pki-" + testID
 	secretValue := uuid.Generate()
-	secretKey := tc.secretsPath + "/data/myapp"
-	pkiCertIssue := tc.pkiPath + "/issue/nomad"
+	secretKey := secretsPath + "/data/myapp"
+	pkiCertIssue := pkiPath + "/issue/nomad"
 	policyID := "access-secrets-" + testID
-	index := 0
 	wc := &e2e.WaitConfig{Retries: 500}
 	interval, retries := wc.OrDefault()
 
-	setupCmds := []string{
+	// configure KV secrets engine
+	// Note: the secret key is written to 'secret-###/myapp' but the kv2 API
+	// for Vault implicitly turns that into 'secret-###/data/myapp' so we
+	// need to use the longer path for everything other than kv put/get
+	e2e.MustCommand(t, "vault secrets enable -path=%s kv-v2", secretsPath)
+	e2e.CleanupCommand(t, "vault secrets disable %s", secretsPath)
+	e2e.MustCommand(t, "vault kv put %s/myapp key=%s", secretsPath, secretValue)
+	e2e.MustCommand(t, "vault secrets tune -max-lease-ttl=1m %s", secretsPath)
 
-		// configure KV secrets engine
-		// Note: the secret key is written to 'secret-###/myapp' but the kv2 API
-		// for Vault implicitly turns that into 'secret-###/data/myapp' so we
-		// need to use the longer path for everything other than kv put/get
-		fmt.Sprintf("vault secrets enable -path=%s kv-v2", tc.secretsPath),
-		fmt.Sprintf("vault kv put %s/myapp key=%s", tc.secretsPath, secretValue),
-		fmt.Sprintf("vault secrets tune -max-lease-ttl=1m %s", tc.secretsPath),
-
-		// configure PKI secrets engine
-		fmt.Sprintf("vault secrets enable -path=%s pki", tc.pkiPath),
-		fmt.Sprintf("vault write %s/root/generate/internal "+
-			"common_name=service.consul ttl=1h", tc.pkiPath),
-		fmt.Sprintf("vault write %s/roles/nomad "+
-			"allowed_domains=service.consul "+
-			"allow_subdomains=true "+
-			"generate_lease=true "+
-			"max_ttl=1m", tc.pkiPath),
-		fmt.Sprintf("vault secrets tune -max-lease-ttl=1m %s", tc.pkiPath),
-	}
-
-	for _, setupCmd := range setupCmds {
-		cmd := strings.Split(setupCmd, " ")
-		out, err := e2e.Command(cmd[0], cmd[1:]...)
-		f.NoError(err, fmt.Sprintf("error for %q:\n%s", setupCmd, out))
-	}
+	// configure PKI secrets engine
+	e2e.MustCommand(t, "vault secrets enable -path=%s pki", pkiPath)
+	e2e.CleanupCommand(t, "vault secrets disable %s", pkiPath)
+	e2e.MustCommand(t, "vault write %s/root/generate/internal "+
+		"common_name=service.consul ttl=1h", pkiPath)
+	e2e.MustCommand(t, "vault write %s/roles/nomad "+
+		"allowed_domains=service.consul "+
+		"allow_subdomains=true "+
+		"generate_lease=true "+
+		"max_ttl=1m", pkiPath)
+	e2e.MustCommand(t, "vault secrets tune -max-lease-ttl=1m %s", pkiPath)
 
 	// we can't set an empty policy in our job, so write a bogus policy that
 	// doesn't have access to any of the paths we're using
-	out, err := writePolicy(policyID, "./vaultsecrets/input/policy-bad.hcl", testID)
-	f.NoError(err, out)
-	tc.policies = append(tc.policies, policyID)
+	out := writePolicy(t, policyID, "./vaultsecrets/input/policy-bad.hcl", testID)
+	// ^ TODO: need out?
 
-	index++
-	err = runJob(jobID, testID, index)
-	f.NoError(err, "could not register job")
-	tc.jobIDs = append(tc.jobIDs, jobID)
+	submission, cleanJob := jobs3.Submit(t, "./vaultsecrets/input/secrets.nomad")
+	t.Cleanup(cleanJob)
 
 	// job doesn't have access to secrets, so they can't start
-	err = e2e.WaitForAllocStatusExpected(jobID, ns, []string{"pending"})
-	f.NoError(err, "expected pending allocation")
+	err := e2e.WaitForAllocStatusExpected(jobID, ns, []string{"pending"})
+	must.NoError(t, err, must.Sprint("expected pending allocation"))
+
+	allocID := submission.AllocID("group")
 
 	// we should get a task event about why they can't start
 	expect := fmt.Sprintf("Missing: vault.read(%s), vault.write(%s", secretKey, pkiCertIssue)
-
-	allocID, err := latestAllocID(jobID)
-	f.NoError(err)
+	//allocID, err := latestAllocID(jobID)
+	//must.NoError(t, err)
 
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(interval)
 		out, err := e2e.Command("nomad", "alloc", "status", allocID)
-		f.NoError(err, "could not get allocation status")
+		must.NoError(t, err, must.Sprint("could not get allocation status"))
 		return strings.Contains(out, expect),
 			fmt.Errorf("expected '%s', got\n%v", expect, out)
 	}, func(e error) {
-		f.NoError(e)
+		must.NoError(t, e)
 	})
 
 	// write a working policy and redeploy
-	out, err = writePolicy(policyID, "./vaultsecrets/input/policy-good.hcl", testID)
-	f.NoError(err, out)
-	index++
-	err = runJob(jobID, testID, index)
-	f.NoError(err, "could not register job")
+	out = writePolicy(t, policyID, "./vaultsecrets/input/policy-good.hcl", testID)
+	//index++
+	//err = runJob(jobID, testID, index)
+	//f.NoError(err, "could not register job")
 
 	// record the rough start of vault token TTL window, so that we don't have
 	// to wait excessively later on
@@ -161,46 +152,41 @@ func (tc *VaultSecretsTest) TestVaultSecrets(f *framework.F) {
 
 	// job should be now unblocked
 	err = e2e.WaitForAllocStatusExpected(jobID, ns, []string{"running", "complete"})
-	f.NoError(err, "expected running allocation")
+	must.NoError(t, err, must.Sprint("expected running allocation"))
 
-	allocID, err = latestAllocID(jobID)
-	f.NoError(err)
+	allocID = submission.AllocID("group")
 
 	renderedCert, err := waitForAllocSecret(allocID, "task", "/secrets/certificate.crt",
 		func(out string) bool {
 			return strings.Contains(out, "BEGIN CERTIFICATE")
 		}, wc)
-	f.NoError(err)
+	must.NoError(t, err)
 
 	_, err = waitForAllocSecret(allocID, "task", "/secrets/access.key",
 		func(out string) bool {
 			return strings.Contains(out, secretValue)
 		}, wc)
-	f.NoError(err)
+	must.NoError(t, err)
 
 	var re = regexp.MustCompile(`VAULT_TOKEN=(.*)`)
 
 	// check vault token was written and save it for later comparison
-	out, err = e2e.AllocExec(allocID, "task", "env", ns, nil)
-	f.NoError(err)
-	match := re.FindStringSubmatch(out)
-	f.NotNil(match, fmt.Errorf("could not find VAULT_TOKEN, got:%v\n", out))
+	logs := submission.Exec("group", "task", []string{"env"})
+	match := re.FindStringSubmatch(logs.Stdout)
+	must.NotNil(t, match, must.Sprintf("could not find VAULT_TOKEN, got:%v\n", out))
 	taskToken := match[1]
 
 	// Update secret
-	out, err = e2e.Command("vault", "kv", "put",
-		fmt.Sprintf("%s/myapp", tc.secretsPath), "key=UPDATED")
-	f.NoError(err, out)
+	e2e.MustCommand(t, "vault kv put %s/myapp key=UPDATED", secretsPath)
 
 	elapsed := time.Since(ttlStart)
 	time.Sleep((time.Second * 60) - elapsed)
 
 	// tokens will not be updated
-	out, err = e2e.AllocExec(allocID, "task", "env", ns, nil)
-	f.NoError(err)
-	match = re.FindStringSubmatch(out)
-	f.NotNil(match, fmt.Errorf("could not find VAULT_TOKEN, got:%v\n", out))
-	f.Equal(taskToken, match[1])
+	logs = submission.Exec("group", "task", []string{"env"})
+	match = re.FindStringSubmatch(logs.Stdout)
+	must.NotNil(t, match, must.Sprintf("could not find VAULT_TOKEN, got:%v\n", out))
+	must.Eq(t, taskToken, match[1])
 
 	// cert will be renewed
 	_, err = waitForAllocSecret(allocID, "task", "/secrets/certificate.crt",
@@ -208,24 +194,25 @@ func (tc *VaultSecretsTest) TestVaultSecrets(f *framework.F) {
 			return strings.Contains(out, "BEGIN CERTIFICATE") &&
 				out != renderedCert
 		}, wc)
-	f.NoError(err)
+	must.NoError(t, err)
 
 	// secret will *not* be renewed because it doesn't have a lease to expire
 	_, err = waitForAllocSecret(allocID, "task", "/secrets/access.key",
 		func(out string) bool {
 			return strings.Contains(out, secretValue)
 		}, wc)
-	f.NoError(err)
+	must.NoError(t, err)
 
 }
 
 // We need to namespace the keys in the policy, so read it in and replace the
 // values of the policy names
-func writePolicy(policyID, policyPath, testID string) (string, error) {
+func writePolicy(t *testing.T, policyID, policyPath, testID string) string {
+	t.Helper()
+
 	raw, err := os.ReadFile(policyPath)
-	if err != nil {
-		return "", err
-	}
+	must.NoError(t, err)
+
 	policyDoc := string(raw)
 	policyDoc = strings.ReplaceAll(policyDoc, "TESTID", testID)
 
@@ -233,17 +220,19 @@ func writePolicy(policyID, policyPath, testID string) (string, error) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "vault", "policy", "write", policyID, "-")
 	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return "", err
-	}
+	must.NoError(t, err)
 
 	go func() {
 		defer stdin.Close()
-		io.WriteString(stdin, policyDoc)
+		_, err := io.WriteString(stdin, policyDoc)
+		must.NoError(t, err)
 	}()
 
 	out, err := cmd.CombinedOutput()
-	return string(out), err
+	must.NoError(t, err)
+	e2e.CleanupCommand(t, "vault policy delete %s", policyID)
+
+	return string(out)
 }
 
 // We need to namespace the vault paths in the job, so parse it
