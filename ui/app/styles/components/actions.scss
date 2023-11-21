@@ -76,6 +76,9 @@
     z-index: $z-base - 1;
     .hds-page-header__main {
       flex-direction: unset;
+      .hds-page-header__content {
+        gap: 0;
+      }
       .hds-page-header__actions {
         align-items: stretch;
       }
@@ -96,10 +99,13 @@
       }
 
       header {
-        .job-name {
-          opacity: 0.5;
-          font-size: 1rem;
-          color: black;
+        .action-card-title {
+          display: block;
+          .job-name {
+            opacity: 0.5;
+            font-size: 1rem;
+            color: black;
+          }
         }
       }
 

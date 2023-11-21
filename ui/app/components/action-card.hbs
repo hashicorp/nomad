@@ -6,14 +6,15 @@
 <div class="action-card">
   <Hds::PageHeader class="action-card-header" as |PH|>
     <PH.Title>
-      {{this.instance.action.name}}
-      <LinkTo class="job-name" @route="jobs.job" @model={{this.instance.action.task.taskGroup.job}}>
-        {{this.instance.action.task.taskGroup.job.name}}
-      </LinkTo>
+      <span class="action-card-title">
+        <span>{{this.instance.action.name}}</span>
+        <LinkTo class="job-name" @route="jobs.job" @model={{this.instance.action.task.taskGroup.job}}>
+          {{this.instance.action.task.taskGroup.job.name}}
+        </LinkTo>
+      </span>
+      <Hds::Badge @text="{{capitalize this.instance.state}}" @color={{this.stateColor}} @size="medium" />
     </PH.Title>
     <PH.Actions>
-      <Hds::Badge @text="{{capitalize this.instance.state}}" @color={{this.stateColor}} @size="large" />
-
       {{!--
         Action instance with peers (run on multiple allocs):
         - If instance is running, user can stop it.
