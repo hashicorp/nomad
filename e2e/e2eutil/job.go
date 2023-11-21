@@ -154,8 +154,8 @@ func RegisterFromJobspec(jobID, jobspec string) error {
 		return fmt.Errorf("could not open stdin?: %w", err)
 	}
 
-	// hack off the first line to replace with our unique ID
-	var re = regexp.MustCompile(`^job "\w+" \{`)
+	// replace job label with our unique ID
+	var re = regexp.MustCompile(`job "\w+" \{`)
 	jobspec = re.ReplaceAllString(jobspec,
 		fmt.Sprintf("job \"%s\" {", jobID))
 
