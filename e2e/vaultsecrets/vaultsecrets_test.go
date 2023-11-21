@@ -106,10 +106,8 @@ func TestVaultSecrets(t *testing.T) {
 
 	allocID = submission.AllocID("group")
 
-	renderedCert := waitForAllocSecret(t, allocID, "task",
-		"/secrets/certificate.crt", "BEGIN CERTIFICATE")
-
-	waitForAllocSecret(t, allocID, "task", "/secrets/access.key", secretValue)
+	renderedCert := waitForAllocSecret(t, submission, "/secrets/certificate.crt", "BEGIN CERTIFICATE")
+	waitForAllocSecret(t, submission, "/secrets/access.key", secretValue)
 
 	var re = regexp.MustCompile(`VAULT_TOKEN=(.*)`)
 
@@ -133,12 +131,11 @@ func TestVaultSecrets(t *testing.T) {
 	must.Eq(t, taskToken, match[1])
 
 	// cert will be renewed
-	newCert := waitForAllocSecret(t, allocID, "task",
-		"/secrets/certificate.crt", "BEGIN CERTIFICATE")
+	newCert := waitForAllocSecret(t, submission, "/secrets/certificate.crt", "BEGIN CERTIFICATE")
 	must.NotEq(t, renderedCert, newCert)
 
 	// secret will *not* be renewed because it doesn't have a lease to expire
-	waitForAllocSecret(t, allocID, "task", "/secrets/access.key", secretValue)
+	waitForAllocSecret(t, submission, "/secrets/access.key", secretValue)
 
 }
 
@@ -172,18 +169,13 @@ func writePolicy(t *testing.T, policyID, policyPath, testID string) {
 
 // waitForAllocSecret is similar to e2e.WaitForAllocFile but uses `alloc exec`
 // to be able to read the secrets dir, which is not available to `alloc fs`
-func waitForAllocSecret(t *testing.T, allocID, taskID, path string, expect string) string {
+func waitForAllocSecret(t *testing.T, sub *jobs3.Submission, path string, expect string) string {
 	t.Helper()
-
-	var err error
 	var out string
 
 	f := func() error {
-		out, err = e2e.Command("nomad", "alloc", "exec", "-task", taskID, allocID, "cat", path)
-		if err != nil {
-			return fmt.Errorf("could not get file %q from allocation %q: %v",
-				path, allocID, err)
-		}
+		logs := sub.Exec("group", "task", []string{"cat", path})
+		out = logs.Stdout
 		if !strings.Contains(out, expect) {
 			return fmt.Errorf("test for file content failed: got\n%#v", out)
 		}
