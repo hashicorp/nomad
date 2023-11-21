@@ -103,7 +103,6 @@ export default class NomadActionsService extends Service {
    * @param {import('../models/action').default} action
    */
   @action runActionOnAllAllocs(action) {
-    // TODO: peer grouping
     // Generate a new peer ID for these action instances to use
     const peerID = `${action.name}-${Date.now()}`;
     action.allocations.forEach((alloc) => {

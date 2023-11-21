@@ -13,6 +13,7 @@ as |dd|>
   <dd.ToggleButton class="action-toggle-button" @color="secondary" @text="Actions{{if @context (concat " for " @context.name)}}" @size="medium" />
   {{#each @actions as |action|}}
     {{#if @allocation}}
+      {{!-- If an allocation was passed in, we run the action on that alloc --}}
       <dd.Interactive
         {{keyboard-shortcut 
           enumerated=true
@@ -20,7 +21,8 @@ as |dd|>
         }}
         {{on "click" (fn this.nomadActions.runAction (hash action=action allocID=@allocation.id))}} @text={{action.name}}
       />
-    {{else if (eq action.allocations.length 1)}}{{!-- TODO: Combine this and above block --}}
+    {{else if (eq action.allocations.length 1)}} 
+      {{!-- If there is only one allocation on the action, we can just run it on the 0th alloc --}}
       <dd.Interactive
         {{keyboard-shortcut 
           enumerated=true

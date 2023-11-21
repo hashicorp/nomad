@@ -24,7 +24,7 @@ export default class ActionCardComponent extends Component {
         return 'highlight';
       case 'complete':
         return 'success';
-      case 'error': // TODO: handle error type
+      case 'error':
         return 'critical';
       default:
         return 'neutral';

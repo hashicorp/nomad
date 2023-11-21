@@ -130,9 +130,12 @@
   }
 }
 
+// The centre of the subnav
+$actionButtonTopOffset: calc($subNavOffset + ($secondaryNavbarHeight/4));
+
 .actions-flyout-button {
   position: fixed;
-  top: 65px; //TODO: magic number
+  top: $actionButtonTopOffset;
   right: 1.5rem;
   z-index: $z-actions;
   animation-name: FlyoutButtonSlideIn;

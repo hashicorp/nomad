@@ -11,7 +11,7 @@ export default class ActionInstanceModel extends Model {
   @belongsTo('action') action;
 
   /**
-   * @type {'starting'|'running'|'complete'}
+   * @type {'starting'|'running'|'complete'|'error'}
    */
   @attr('string') state;
 
