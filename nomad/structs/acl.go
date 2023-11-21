@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
-	"text/template"
 	"time"
 
 	"github.com/hashicorp/go-bexpr"
@@ -905,7 +904,7 @@ func (a *ACLAuthMethod) Canonicalize() {
 	a.ModifyTime = t
 
 	if a.TokenNameFormat == "" {
-		a.TokenNameFormat = "{{ .auth_type }}-{{ .auth_name }}"
+		a.TokenNameFormat = "${auth_type}-${auth_name}"
 	}
 }
 
@@ -935,10 +934,6 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 	if !slices.Contains([]string{ACLAuthMethodTokenLocalityLocal, ACLAuthMethodTokenLocalityGlobal}, a.TokenLocality) {
 		mErr.Errors = append(
 			mErr.Errors, fmt.Errorf("invalid token locality '%s'", a.TokenLocality))
-	}
-
-	if _, err := template.New("auth_method").Parse(a.TokenNameFormat); err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid TokenNameFormat:%s", err))
 	}
 
 	if !slices.Contains(ValidACLAuthMethodTypes, a.Type) {

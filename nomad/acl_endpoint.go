@@ -4,7 +4,6 @@
 package nomad
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -2965,20 +2963,19 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	return nil
 }
 
-func formatTokenName(format, authType, authName string, valueClaims map[string]string) (string, error) {
-	data := map[string]interface{}{
+func formatTokenName(format, authType, authName string, claims map[string]string) (string, error) {
+	claimMappings := map[string]string{
 		"auth_type": authType,
 		"auth_name": authName,
-		"timestamp": time.Now().UnixNano(),
-		"claims":    valueClaims,
+	}
+	for k, v := range claims {
+		claimMappings["value."+k] = v
 	}
 
-	// this shouldn't fail as we are testing the template when configured
-	tmpl := template.Must(template.New("token_name").Parse(format))
-	nameBuffer := bytes.Buffer{}
-
-	if err := tmpl.Execute(&nameBuffer, data); err != nil {
-		return "", fmt.Errorf("error executing token name template: %w", err)
+	tokenName, err := auth.InterpolateHIL(format, claimMappings, true)
+	if err != nil {
+		return "", err
 	}
-	return nameBuffer.String(), nil
+
+	return tokenName, nil
 }
