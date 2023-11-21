@@ -17,9 +17,9 @@ import (
 	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 const ns = ""
@@ -34,8 +34,6 @@ func TestVaultSecrets(t *testing.T) {
 	secretKey := secretsPath + "/data/myapp"
 	pkiCertIssue := pkiPath + "/issue/nomad"
 	policyID := "access-secrets-" + testID
-	wc := &e2e.WaitConfig{Retries: 500}
-	interval, retries := wc.OrDefault()
 
 	// configure KV secrets engine
 	// Note: the secret key is written to 'secret-###/myapp' but the kv2 API
@@ -70,6 +68,7 @@ func TestVaultSecrets(t *testing.T) {
 	)
 	t.Cleanup(cleanJob)
 	jobID := submission.JobID()
+
 	// job doesn't have access to secrets, so they can't start
 	err := e2e.WaitForAllocStatusExpected(jobID, ns, []string{"pending"})
 	must.NoError(t, err, must.Sprint("expected pending allocation"))
@@ -78,15 +77,20 @@ func TestVaultSecrets(t *testing.T) {
 	expect := fmt.Sprintf("Missing: vault.read(%s), vault.write(%s", secretKey, pkiCertIssue)
 	allocID := submission.AllocID("group")
 
-	testutil.WaitForResultRetries(retries, func() (bool, error) {
-		time.Sleep(interval)
-		out, err := e2e.Command("nomad", "alloc", "status", allocID)
-		must.NoError(t, err, must.Sprint("could not get allocation status"))
-		return strings.Contains(out, expect),
-			fmt.Errorf("expected '%s', got\n%v", expect, out)
-	}, func(e error) {
-		must.NoError(t, e)
-	})
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			out, err := e2e.Command("nomad", "alloc", "status", allocID)
+			if err != nil {
+				return err
+			}
+			if !strings.Contains(out, expect) {
+				return fmt.Errorf("test for alloc status failed; got:\n%v", out)
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(time.Second),
+	), must.Sprintf("expected '%s' in alloc status", expect))
 
 	// write a working policy and redeploy
 	writePolicy(t, policyID, "./input/policy-good.hcl", testID)
@@ -102,17 +106,10 @@ func TestVaultSecrets(t *testing.T) {
 
 	allocID = submission.AllocID("group")
 
-	renderedCert, err := waitForAllocSecret(allocID, "task", "/secrets/certificate.crt",
-		func(out string) bool {
-			return strings.Contains(out, "BEGIN CERTIFICATE")
-		}, wc)
-	must.NoError(t, err)
+	renderedCert := waitForAllocSecret(t, allocID, "task",
+		"/secrets/certificate.crt", "BEGIN CERTIFICATE")
 
-	_, err = waitForAllocSecret(allocID, "task", "/secrets/access.key",
-		func(out string) bool {
-			return strings.Contains(out, secretValue)
-		}, wc)
-	must.NoError(t, err)
+	waitForAllocSecret(t, allocID, "task", "/secrets/access.key", secretValue)
 
 	var re = regexp.MustCompile(`VAULT_TOKEN=(.*)`)
 
@@ -126,6 +123,7 @@ func TestVaultSecrets(t *testing.T) {
 	e2e.MustCommand(t, "vault kv put %s/myapp key=UPDATED", secretsPath)
 
 	elapsed := time.Since(ttlStart)
+	// up to 60 seconds because the max ttl is 1m
 	time.Sleep((time.Second * 60) - elapsed)
 
 	// tokens will not be updated
@@ -135,19 +133,12 @@ func TestVaultSecrets(t *testing.T) {
 	must.Eq(t, taskToken, match[1])
 
 	// cert will be renewed
-	_, err = waitForAllocSecret(allocID, "task", "/secrets/certificate.crt",
-		func(out string) bool {
-			return strings.Contains(out, "BEGIN CERTIFICATE") &&
-				out != renderedCert
-		}, wc)
-	must.NoError(t, err)
+	newCert := waitForAllocSecret(t, allocID, "task",
+		"/secrets/certificate.crt", "BEGIN CERTIFICATE")
+	must.NotEq(t, renderedCert, newCert)
 
 	// secret will *not* be renewed because it doesn't have a lease to expire
-	_, err = waitForAllocSecret(allocID, "task", "/secrets/access.key",
-		func(out string) bool {
-			return strings.Contains(out, secretValue)
-		}, wc)
-	must.NoError(t, err)
+	waitForAllocSecret(t, allocID, "task", "/secrets/access.key", secretValue)
 
 }
 
@@ -181,22 +172,29 @@ func writePolicy(t *testing.T, policyID, policyPath, testID string) {
 
 // waitForAllocSecret is similar to e2e.WaitForAllocFile but uses `alloc exec`
 // to be able to read the secrets dir, which is not available to `alloc fs`
-func waitForAllocSecret(allocID, taskID, path string, test func(string) bool, wc *e2e.WaitConfig) (string, error) {
+func waitForAllocSecret(t *testing.T, allocID, taskID, path string, expect string) string {
+	t.Helper()
+
 	var err error
 	var out string
-	interval, retries := wc.OrDefault()
 
-	testutil.WaitForResultRetries(retries, func() (bool, error) {
-		time.Sleep(interval)
+	f := func() error {
 		out, err = e2e.Command("nomad", "alloc", "exec", "-task", taskID, allocID, "cat", path)
 		if err != nil {
-			return false, fmt.Errorf("could not get file %q from allocation %q: %v",
+			return fmt.Errorf("could not get file %q from allocation %q: %v",
 				path, allocID, err)
 		}
-		return test(out),
-			fmt.Errorf("test for file content failed: got\n%#v", out)
-	}, func(e error) {
-		err = e
-	})
-	return out, err
+		if !strings.Contains(out, expect) {
+			return fmt.Errorf("test for file content failed: got\n%#v", out)
+		}
+		return nil
+	}
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(10*time.Second),
+		wait.Gap(time.Second),
+	), must.Sprintf("expected file %s to contain '%s'", path, expect))
+
+	return out
 }
