@@ -20,10 +20,10 @@ func NewMockConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Clie
 	return &MockConsulClient{}, nil
 }
 
-// DeriveSITokenWithJWT returns ACLTokens with deterministic values for testing:
+// DeriveTokenWithJWT returns ACLTokens with deterministic values for testing:
 // the request ID for the AccessorID and the md5 checksum of the request ID for
 // the SecretID
-func (mc *MockConsulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error) {
+func (mc *MockConsulClient) DeriveTokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error) {
 	if mc.tokens != nil && len(mc.tokens) > 0 {
 		return mc.tokens, nil
 	}
