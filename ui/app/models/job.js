@@ -175,10 +175,10 @@ export default class Job extends Model {
    * @param {import('../models/action-instance').default} actionInstance
    * @returns
    */
-  runAction(action, allocID, actionInstance) {
+  getActionSocketUrl(action, allocID, actionInstance) {
     return this.store
       .adapterFor('job')
-      .runAction(this, action, allocID, actionInstance);
+      .getActionSocketUrl(this, action, allocID, actionInstance);
   }
 
   @computed('taskGroups.@each.drivers')

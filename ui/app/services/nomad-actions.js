@@ -6,24 +6,18 @@
 // Guess who just found out that "actions" is a reserved name in Ember?
 // Signed, the person who just renamed this NomadActions.
 
-// TODO: Move a lot of the job adapter funcs to here
-
 // @ts-check
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
-
-// /**
-//  * @typedef ActionObject
-//  * @property {"running"|"complete"} state
-//  * @property {string} id
-//  * @property {ActionModel} action
-//  */
+import { base64DecodeString } from '../utils/encode';
+import config from 'nomad-ui/config/environment';
 
 export default class NomadActionsService extends Service {
   @service can;
   @service store;
+  @service token;
 
   // Note: future Actions Governance work (https://github.com/hashicorp/nomad/issues/18800)
   // will require this to be a computed property that depends on the current user's permissions.
@@ -49,6 +43,16 @@ export default class NomadActionsService extends Service {
 
   updateQueue() {
     this.actionsQueue = [...this.actionsQueue];
+  }
+
+  get runningActions() {
+    return this.actionsQueue.filter((a) => a.state === 'running');
+  }
+
+  get finishedActions() {
+    return this.actionsQueue.filter(
+      (a) => a.state === 'complete' || a.state === 'error'
+    );
   }
 
   /**
@@ -79,7 +83,9 @@ export default class NomadActionsService extends Service {
     // when passing action as a property to createRecord.
     actionInstance.set('action', action);
 
-    job.runAction(action, allocID, actionInstance);
+    let wsURL = job.getActionSocketUrl(action, allocID, actionInstance);
+
+    this.establishInstanceSocket(actionInstance, wsURL);
 
     this.actionsQueue.unshift(actionInstance); // add to the front of the queue
     this.updateQueue();
@@ -108,7 +114,6 @@ export default class NomadActionsService extends Service {
   }
 
   /**
-   *
    * @param {import ('../models/action-instance').default} actionInstance
    */
   @action clearActionInstance(actionInstance) {
@@ -130,7 +135,6 @@ export default class NomadActionsService extends Service {
   }
 
   @action clearFinishedActions() {
-    // this.actionsQueue = [];
     this.actionsQueue = this.actionsQueue.filter((a) => a.state !== 'complete');
   }
 
@@ -157,13 +161,148 @@ export default class NomadActionsService extends Service {
     this.updateQueue();
   }
 
-  get runningActions() {
-    return this.actionsQueue.filter((a) => a.state === 'running');
-  }
+  //#region Socket
 
-  get finishedActions() {
-    return this.actionsQueue.filter(
-      (a) => a.state === 'complete' || a.state === 'error'
+  get mirageEnabled() {
+    return (
+      config.environment !== 'production' &&
+      config['ember-cli-mirage'] &&
+      config['ember-cli-mirage'].enabled !== false
     );
   }
+
+  /**
+   * Mocks a WebSocket for testing.
+   * @returns {Object}
+   */
+  createMockWebSocket() {
+    let socket = new Object({
+      messageDisplayed: false,
+      addEventListener: function (event, callback) {
+        if (event === 'message') {
+          this.onmessage = callback;
+        }
+        if (event === 'open') {
+          this.onopen = callback;
+        }
+        if (event === 'close') {
+          this.onclose = callback;
+        }
+        if (event === 'error') {
+          this.onerror = callback;
+        }
+      },
+
+      send(e) {
+        if (!this.messageDisplayed) {
+          this.messageDisplayed = true;
+          this.onmessage({
+            data: `{"stdout":{"data":"${btoa('Message Received')}"}}`,
+          });
+        } else {
+          this.onmessage({ data: e.replace('stdin', 'stdout') });
+        }
+      },
+    });
+    return socket;
+  }
+
+  /**
+   * Establishes a WebSocket connection for a given action instance.
+   *
+   * @param {import('../models/action-instance').default} actionInstance - The action instance model.
+   * @param {string} wsURL - The WebSocket URL.
+   */
+  establishInstanceSocket(actionInstance, wsURL) {
+    let socket = this.createWebSocket(wsURL);
+    actionInstance.set('socket', socket);
+
+    socket.addEventListener('open', () =>
+      this.handleSocketOpen(actionInstance, socket)
+    );
+    socket.addEventListener('message', (event) =>
+      this.handleSocketMessage(actionInstance, event)
+    );
+    socket.addEventListener('close', () =>
+      this.handleSocketClose(actionInstance)
+    );
+    socket.addEventListener('error', () =>
+      this.handleSocketError(actionInstance)
+    );
+
+    // Open,
+    if (this.mirageEnabled) {
+      socket.onopen();
+      socket.onclose();
+    }
+  }
+
+  /**
+   * Creates a WebSocket or a mock WebSocket for testing.
+   *
+   * @param {string} wsURL - The WebSocket URL.
+   * @returns {WebSocket|Object} - The WebSocket or a mock WebSocket object.
+   */
+  createWebSocket(wsURL) {
+    return this.mirageEnabled
+      ? this.createMockWebSocket()
+      : new WebSocket(wsURL);
+  }
+
+  /**
+   * @param {import('../models/action-instance').default} actionInstance - The action instance model.
+   * @param {WebSocket} socket - The WebSocket instance.
+   */
+  handleSocketOpen(actionInstance, socket) {
+    actionInstance.state = 'starting';
+    actionInstance.createdAt = new Date();
+
+    socket.send(
+      JSON.stringify({ version: 1, auth_token: this.token?.secret || '' })
+    );
+    socket.send(JSON.stringify({ tty_size: { width: 250, height: 100 } }));
+  }
+
+  /**
+   * @param {import('../models/action-instance').default} actionInstance - The action instance model.
+   * @param {MessageEvent} event - The message event.
+   */
+  handleSocketMessage(actionInstance, event) {
+    actionInstance.state = 'running';
+
+    let jsonData = JSON.parse(event.data);
+    if (jsonData.stdout && jsonData.stdout.data) {
+      const message = base64DecodeString(jsonData.stdout.data).replace(
+        /\x1b\[[0-9;]*[a-zA-Z]/g,
+        ''
+      );
+      actionInstance.messages += '\n' + message;
+    } else if (jsonData.stderr && jsonData.stderr.data) {
+      actionInstance.state = 'error';
+      actionInstance.error += '\n' + base64DecodeString(jsonData.stderr.data);
+    }
+  }
+
+  /**
+   * Handles the WebSocket 'close' event.
+   *
+   * @param {import('../models/action-instance').default} actionInstance - The action instance model.
+   */
+  handleSocketClose(actionInstance) {
+    actionInstance.state = 'complete';
+    actionInstance.completedAt = new Date();
+  }
+
+  /**
+   * Handles the WebSocket 'error' event.
+   *
+   * @param {import('../models/action-instance').default} actionInstance - The action instance model.
+   */
+  handleSocketError(actionInstance) {
+    actionInstance.state = 'error';
+    actionInstance.completedAt = new Date();
+    actionInstance.error = 'Error connecting to action socket';
+  }
+
+  // #endregion Socket
 }

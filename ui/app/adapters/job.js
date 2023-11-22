@@ -10,8 +10,6 @@ import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
-import { base64DecodeString } from '../utils/encode';
-import config from 'nomad-ui/config/environment';
 
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
@@ -180,12 +178,15 @@ export default class JobAdapter extends WatchableNamespaceIDs {
    * @param {import('../models/job').default} job
    * @param {import('../models/action').default} action
    * @param {string} allocID
-   * @param {import('../models/action-instance').default} actionInstance
-   * @returns {WebSocket}
+   * @returns {string}
    */
-  runAction(job, action, allocID, actionInstance) {
+  getActionSocketUrl(job, action, allocID) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const region = this.system.activeRegion;
+
+    /**
+     * @type {Partial<import('../adapters/application').default>}
+     */
     const applicationAdapter = getOwner(this).lookup('adapter:application');
     const prefix = `${
       applicationAdapter.host || window.location.host
@@ -202,120 +203,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       }&tty=true&ws_handshake=true` +
       (region ? `&region=${region}` : '');
 
-    /**
-     * @type {WebSocket}
-     */
-    let socket;
-
-    const mirageEnabled =
-      config.environment !== 'production' &&
-      config['ember-cli-mirage'] &&
-      config['ember-cli-mirage'].enabled !== false;
-
-    if (mirageEnabled) {
-      socket = new Object({
-        messageDisplayed: false,
-        addEventListener: function (event, callback) {
-          if (event === 'message') {
-            this.onmessage = callback;
-          }
-          if (event === 'open') {
-            this.onopen = callback;
-          }
-          if (event === 'close') {
-            this.onclose = callback;
-          }
-          if (event === 'error') {
-            this.onerror = callback;
-          }
-        },
-
-        send(e) {
-          if (!this.messageDisplayed) {
-            this.messageDisplayed = true;
-            this.onmessage({
-              data: `{"stdout":{"data":"${btoa('Message Received')}"}}`,
-            });
-          } else {
-            this.onmessage({ data: e.replace('stdin', 'stdout') });
-          }
-        },
-      });
-    } else {
-      socket = new WebSocket(wsUrl);
-    }
-
-    actionInstance.set('socket', socket);
-
-    // let notification;
-    socket.addEventListener('open', () => {
-      actionInstance.state = 'starting';
-      actionInstance.createdAt = new Date();
-      // notification = this.notifications
-      //   .add({
-      //     title: `Action ${action.name} Started`,
-      //     color: 'neutral',
-      //     code: true,
-      //     sticky: true,
-      //     customAction: {
-      //       label: 'Stop Action',
-      //       action: () => {
-      //         socket.close();
-      //       },
-      //     },
-      //   })
-      //   .getFlashObject();
-
-      socket.send(
-        JSON.stringify({ version: 1, auth_token: this.token?.secret || '' })
-      );
-      socket.send(
-        JSON.stringify({
-          tty_size: { width: 250, height: 100 }, // Magic numbers, but they pass the eye test.
-        })
-      );
-    });
-
-    socket.addEventListener('message', (event) => {
-      actionInstance.state = 'running';
-      // TODO: handle stick-to-bottom message scrolling
-
-      let jsonData = JSON.parse(event.data);
-      if (jsonData.stdout && jsonData.stdout.data) {
-        // strip ansi escape characters that are common in action responses;
-        // for example, we shouldn't show the newline or color code characters.
-
-        // TODO: Consider handling ansi escape characters, rather than stripping them.
-
-        const message = base64DecodeString(jsonData.stdout.data).replace(
-          /\x1b\[[0-9;]*[a-zA-Z]/g,
-          ''
-        );
-
-        actionInstance.messages += '\n' + message;
-      } else if (jsonData.stderr && jsonData.stderr.data) {
-        actionInstance.state = 'error';
-        const error = base64DecodeString(jsonData.stderr.data);
-        actionInstance.error += '\n' + error;
-      }
-    });
-
-    socket.addEventListener('close', () => {
-      actionInstance.state = 'complete';
-      actionInstance.completedAt = new Date();
-    });
-
-    socket.addEventListener('error', function () {
-      actionInstance.state = 'error';
-      actionInstance.completedAt = new Date();
-      actionInstance.error = 'Error connecting to action socket';
-    });
-
-    if (mirageEnabled) {
-      socket.onopen();
-      socket.onclose();
-    }
-
-    return socket;
+    return wsUrl;
   }
 }
