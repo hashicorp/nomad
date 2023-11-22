@@ -410,6 +410,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		}
 
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
+		fmt.Println(isUntainted, ignore)
 		if isUntainted && !isDisconnecting {
 			untainted[alloc.ID] = alloc
 		}
@@ -458,14 +459,12 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 			if alloc.RanSuccessfully() {
 				return true, false
 			}
-
+			return false, true
 		case structs.AllocDesiredStatusEvict:
 			return false, true
 		}
 
 		switch alloc.ClientStatus {
-		case structs.AllocClientStatusComplete:
-			return false, true
 		case structs.AllocClientStatusFailed:
 			return false, false
 		}
@@ -475,17 +474,12 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 
 	// Handle service jobs
 	switch alloc.DesiredStatus {
-	case structs.AllocDesiredStatusEvict:
+	case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
 		return false, true
 	}
 
 	switch alloc.ClientStatus {
-	case structs.AllocClientStatusComplete:
-		return false, true
-	case structs.AllocClientStatusLost:
-		if alloc.DesiredStatus == structs.AllocDesiredStatusStop {
-			return true, false
-		}
+	case structs.AllocClientStatusComplete, structs.AllocClientStatusLost:
 		return false, true
 	}
 

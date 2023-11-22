@@ -33,7 +33,7 @@ func Job() *structs.Job {
 			{
 				Name:                 "web",
 				Count:                10,
-				SingleInstanceOnLost: true,
+				SingleInstanceOnLost: false,
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "${attr.consul.version}",
