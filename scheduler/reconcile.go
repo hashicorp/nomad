@@ -565,7 +565,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// placements can be made without any other consideration.
 	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !isCanarying
 
-	underProvisionedBy = a.computeReplacements(tg, deploymentPlaceReady, desiredChanges, place, rescheduleNow, lost, underProvisionedBy)
+	underProvisionedBy = a.computeReplacements(deploymentPlaceReady, desiredChanges, place, rescheduleNow, lost, underProvisionedBy)
 
 	if deploymentPlaceReady {
 		a.computeDestructiveUpdates(destructive, underProvisionedBy, desiredChanges, tg)
@@ -823,7 +823,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 // and if the placement is already rescheduling or part of a failed deployment.
 // The input deploymentPlaceReady is calculated as the deployment is not paused, failed, or canarying.
 // It returns the number of allocs still needed.
-func (a *allocReconciler) computeReplacements(tg *structs.TaskGroup, deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
+func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
 	place []allocPlaceResult, rescheduleNow, lost allocSet, underProvisionedBy int) int {
 
 	// Disconnecting allocs are not failing, but are included in rescheduleNow.
@@ -1005,7 +1005,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 		untainted = untainted.difference(canaries)
 	}
 
-	// Remove disconnected and lost allocations so they won't be stopped
+	// Remove disconnected allocations so they won't be stopped
 	knownUntainted := untainted.filterOutByClientStatus(structs.AllocClientStatusUnknown)
 
 	// Hot path the nothing to do case
@@ -1124,9 +1124,6 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 	reconnect := make(allocSet)
 
 	for _, reconnectingAlloc := range reconnecting {
-		if !reconnectingAlloc.SingleInstanceOnLost() {
-			continue
-		}
 
 		// Stop allocations that failed to reconnect.
 		reconnectFailed := !reconnectingAlloc.ServerTerminalStatus() &&

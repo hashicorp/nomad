@@ -6642,9 +6642,9 @@ type TaskGroup struct {
 	// allocations for tasks in this group to attempt to resume running without a restart.
 	MaxClientDisconnect *time.Duration
 
-	// SingleInstanceOnLost is used to control if a lost allocation will be replaced
-	// or not. When true, no new allocations will be scheduled to replace the lost
-	// a lost one.
+	// SingleInstanceOnLost is used to signal if multiple instances of the same
+	// task can be running at the same time, it controls if a replacement is triggered
+	// when the task state is unknown
 	SingleInstanceOnLost bool
 }
 
