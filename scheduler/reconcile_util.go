@@ -597,7 +597,7 @@ func (a allocSet) delayByMaxClientDisconnect(now time.Time) ([]*delayedReschedul
 func (a allocSet) filterOutByClientStatus(clientStatuses ...string) allocSet {
 	allocs := make(allocSet)
 	for _, alloc := range a {
-		if slices.Contains(clientStatuses, alloc.ClientStatus) {
+		if !slices.Contains(clientStatuses, alloc.ClientStatus) {
 			allocs[alloc.ID] = alloc
 		}
 	}
