@@ -78,12 +78,12 @@ func Job() *structs.Job {
 						},
 						Actions: []*structs.Action{
 							{
-								Name:    "date test",
+								Name:    "date-test",
 								Command: "/bin/date",
 								Args:    []string{"-u"},
 							},
 							{
-								Name:    "echo test",
+								Name:    "echo-test",
 								Command: "/bin/echo",
 								Args:    []string{"hello world"},
 							},
@@ -706,7 +706,7 @@ func BigBenchmarkJob() *structs.Job {
 	return job
 }
 
-// A multi-group, multi-task job with actions testing.
+// ActionsJob produces a multi-group, multi-task job with actions for testing.
 func ActionsJob() *structs.Job {
 	job := MinJob()
 
@@ -726,12 +726,12 @@ func ActionsJob() *structs.Job {
 		for _, task := range tg.Tasks {
 			task.Actions = []*structs.Action{
 				{
-					Name:    "date test",
+					Name:    "date-test",
 					Command: "/bin/date",
 					Args:    []string{"-u"},
 				},
 				{
-					Name:    "echo test",
+					Name:    "echo-test",
 					Command: "/bin/echo",
 					Args:    []string{"hello world"},
 				},
