@@ -7,6 +7,7 @@ import helloWorld from './default_jobs/hello-world';
 import parameterized from './default_jobs/parameterized';
 import serviceDiscovery from './default_jobs/service-discovery';
 import variables from './default_jobs/variables';
+import actions from './default_jobs/actions';
 
 export default [
   {
@@ -19,6 +20,19 @@ export default [
       {
         key: 'description',
         value: 'A simple job that runs a single task on a single node',
+      },
+    ],
+  },
+  {
+    id: 'nomad/job-templates/default/actions',
+    keyValues: [
+      {
+        key: 'template',
+        value: actions,
+      },
+      {
+        key: 'description',
+        value: 'A raw exec job that shows off Nomad Actions',
       },
     ],
   },
