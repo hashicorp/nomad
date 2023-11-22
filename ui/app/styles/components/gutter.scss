@@ -65,15 +65,9 @@
   }
 
   .gutter-footer {
-    & > span {
-      display: block;
-      border-top: 1px solid lighten($grey-blue, 10%);
-      text-align: center;
-      padding: 0.5em 0;
-    }
-    & > .actions-flyout-button {
-      margin: 1rem;
-    }
+    text-align: center;
+    border-top: 1px solid lighten($grey-blue, 10%);
+    padding: 0.5em 0;
     margin-top: auto;
   }
 }

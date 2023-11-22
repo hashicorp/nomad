@@ -14,9 +14,6 @@ import { getOwner } from '@ember/application';
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
   @service system;
-  @service notifications;
-  @service token;
-  @service nomadActions;
 
   relationshipFallbackLinks = {
     summary: '/summary',

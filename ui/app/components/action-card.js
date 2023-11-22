@@ -8,7 +8,6 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
-// import { alias } from '@ember/object/computed';
 
 export default class ActionCardComponent extends Component {
   @service nomadActions;
@@ -36,7 +35,7 @@ export default class ActionCardComponent extends Component {
   }
 
   @action stopAll() {
-    this.nomadActions.stopAll(this.instance.peerID);
+    this.nomadActions.stopPeers(this.instance.peerID);
   }
 
   @tracked selectedPeer = null;

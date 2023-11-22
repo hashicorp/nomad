@@ -3,9 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// Guess who just found out that "actions" is a reserved name in Ember?
-// Signed, the person who just renamed this NomadActions.
-
 // @ts-check
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
@@ -270,16 +267,21 @@ export default class NomadActionsService extends Service {
   handleSocketMessage(actionInstance, event) {
     actionInstance.state = 'running';
 
-    let jsonData = JSON.parse(event.data);
-    if (jsonData.stdout && jsonData.stdout.data) {
-      const message = base64DecodeString(jsonData.stdout.data).replace(
-        /\x1b\[[0-9;]*[a-zA-Z]/g,
-        ''
-      );
-      actionInstance.messages += '\n' + message;
-    } else if (jsonData.stderr && jsonData.stderr.data) {
+    try {
+      let jsonData = JSON.parse(event.data);
+      if (jsonData.stdout && jsonData.stdout.data) {
+        const message = base64DecodeString(jsonData.stdout.data).replace(
+          /\x1b\[[0-9;]*[a-zA-Z]/g,
+          ''
+        );
+        actionInstance.messages += '\n' + message;
+      } else if (jsonData.stderr && jsonData.stderr.data) {
+        actionInstance.state = 'error';
+        actionInstance.error += '\n' + base64DecodeString(jsonData.stderr.data);
+      }
+    } catch (e) {
       actionInstance.state = 'error';
-      actionInstance.error += '\n' + base64DecodeString(jsonData.stderr.data);
+      actionInstance.error += '\n' + e;
     }
   }
 

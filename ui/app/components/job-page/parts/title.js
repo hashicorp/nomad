@@ -16,10 +16,6 @@ import classic from 'ember-classic-decorator';
 export default class Title extends Component {
   @service router;
   @service notifications;
-  /**
-   * @type { import('../../../services/nomad-actions') }
-   */
-  @service nomadActions;
 
   job = null;
   title = null;

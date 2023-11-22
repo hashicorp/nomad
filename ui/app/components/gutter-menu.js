@@ -13,7 +13,6 @@ export default class GutterMenu extends Component {
   @service system;
   @service router;
   @service keyboard;
-  @service nomadActions;
 
   @computed('system.namespaces.@each.name')
   get sortedNamespaces() {

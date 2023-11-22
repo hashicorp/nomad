@@ -150,13 +150,13 @@
         {{/if}}
       </ul>
     </aside>
+    {{#if this.system.agent.version}}
       <footer class="gutter-footer">
-        {{#if this.system.agent.version}}
-          <span class="is-faded">
-            v{{this.system.agent.version}}
-          </span>
-        {{/if}}
+        <span class="is-faded">
+          v{{this.system.agent.version}}
+        </span>
       </footer>
+    {{/if}}
   </div>
 </div>
 <div data-test-page-content class="page-column is-right">
