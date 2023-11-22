@@ -67,6 +67,9 @@
   {{/if}}
 
   <div class="messages">
+    {{#if this.instance.error}}
+      <code><pre>Error: {{this.instance.error}}</pre></code>
+    {{/if}}
     {{#if this.instance.messages.length}}
       <code><pre>{{this.instance.messages}}</pre></code>
     {{else}}

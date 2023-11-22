@@ -12,9 +12,6 @@
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
-// import ActionModel from '../models/action';
-// import JobModel from '../models/job';
-// import ActionInstanceModel from '../models/action-instance';
 import { action } from '@ember/object';
 
 // /**
@@ -137,16 +134,26 @@ export default class NomadActionsService extends Service {
     this.actionsQueue = this.actionsQueue.filter((a) => a.state !== 'complete');
   }
 
-  @action stopAll(peerID = null) {
-    let actionsToStop = this.actionsQueue;
-    if (peerID) {
-      actionsToStop = actionsToStop.filter((a) => a.peerID === peerID);
-    }
-    actionsToStop.forEach((a) => {
+  @action stopAll() {
+    this.actionsQueue.forEach((a) => {
       if (a.state === 'running') {
         a.socket.close();
       }
     });
+    this.updateQueue();
+  }
+
+  @action stopPeers(peerID) {
+    if (!peerID) {
+      return;
+    }
+    this.actionsQueue
+      .filter((a) => a.peerID === peerID)
+      .forEach((a) => {
+        if (a.state === 'running') {
+          a.socket.close();
+        }
+      });
     this.updateQueue();
   }
 

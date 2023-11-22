@@ -27,6 +27,8 @@ export default class ActionInstanceModel extends Model {
 
   @attr('string') allocID;
 
+  @attr('string') error;
+
   get allocShortID() {
     return this.allocID?.substring(0, 8);
   }
