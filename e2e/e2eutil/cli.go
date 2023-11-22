@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/e2e/v3/util3"
+
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
@@ -40,17 +42,20 @@ func Commandf(format string, args ...any) (string, error) {
 // MustCommand runs a Commandf and must run without error
 func MustCommand(t *testing.T, format string, args ...any) {
 	t.Helper()
+	util3.Log3(t, false, "must command: "+format, args...)
 	_, err := Commandf(format, args...)
 	must.NoError(t, err)
 }
 
 // CleanupCommand adds a Commandf to t.Cleanup
 func CleanupCommand(t *testing.T, format string, args ...any) {
-	t.Helper()
 	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
 		return
 	}
+	t.Helper()
 	t.Cleanup(func() {
+		t.Helper() // yes, another Helper() because this is another nested func
+		util3.Log3(t, false, "cleanup command: "+format, args)
 		_, err := Commandf(format, args...)
 		test.NoError(t, err)
 	})
