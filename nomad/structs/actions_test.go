@@ -149,13 +149,41 @@ func TestAction_Validate(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "empty command",
-			inputAction:   &Action{},
-			expectedError: errors.New("Missing command"),
+			name: "empty command",
+			inputAction: &Action{
+				Name: "adrian-iv",
+			},
+			expectedError: errors.New("command cannot be empty"),
 		},
 		{
-			name:          "valid",
-			inputAction:   &Action{Command: "env"},
+			name: "empty name",
+			inputAction: &Action{
+				Command: "env",
+			},
+			expectedError: errors.New(`invalid name ''`),
+		},
+		{
+			name: "too long name",
+			inputAction: &Action{
+				Name:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				Command: "env",
+			},
+			expectedError: errors.New(`invalid name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'`),
+		},
+		{
+			name: "invalid character name",
+			inputAction: &Action{
+				Name:    `\//?|?|?%&%@$&£@$)`,
+				Command: "env",
+			},
+			expectedError: errors.New(`invalid name '\//?|?|?%&%@$&£@$)'`),
+		},
+		{
+			name: "valid",
+			inputAction: &Action{
+				Name:    "adrian-iv",
+				Command: "env",
+			},
 			expectedError: nil,
 		},
 	}

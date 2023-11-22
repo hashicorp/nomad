@@ -9,10 +9,15 @@ package structs
 
 import (
 	"errors"
+	"fmt"
+	"regexp"
 	"slices"
 
 	"github.com/hashicorp/go-multierror"
 )
+
+// validJobActionName is used to validate a job action name.
+var validJobActionName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
 type Action struct {
 	Name    string
@@ -60,7 +65,10 @@ func (a *Action) Validate() error {
 
 	var mErr *multierror.Error
 	if a.Command == "" {
-		mErr = multierror.Append(mErr, errors.New("Missing command"))
+		mErr = multierror.Append(mErr, errors.New("command cannot be empty"))
+	}
+	if !validJobActionName.MatchString(a.Name) {
+		mErr = multierror.Append(mErr, fmt.Errorf("invalid name '%s'", a.Name))
 	}
 
 	return mErr.ErrorOrNil()

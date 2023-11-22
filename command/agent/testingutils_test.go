@@ -81,12 +81,12 @@ func MockJob() *api.Job {
 						// actions
 						Actions: []*api.Action{
 							{
-								Name:    "date test",
+								Name:    "date-test",
 								Command: "/bin/date",
 								Args:    []string{"-u"},
 							},
 							{
-								Name:    "echo test",
+								Name:    "echo-test",
 								Command: "/bin/echo",
 								Args:    []string{"hello world"},
 							},
