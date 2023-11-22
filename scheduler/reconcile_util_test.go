@@ -926,12 +926,13 @@ func TestReconcile_shouldFilter(t *testing.T) {
 			ignore:        true,
 		},
 		{
-			description:   "service lost",
+			description:   "service client complete",
 			batch:         false,
-			desiredStatus: structs.AllocDesiredStatusStop,
-			clientStatus:  structs.AllocClientStatusLost,
-			untainted:     true,
-			ignore:        false,
+			failed:        false,
+			desiredStatus: structs.AllocDesiredStatusRun,
+			clientStatus:  structs.AllocClientStatusComplete,
+			untainted:     false,
+			ignore:        true,
 		},
 	}
 
