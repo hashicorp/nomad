@@ -31,7 +31,25 @@ type JobAction struct {
 	TaskGroupName string
 }
 
-type ActionListResponse struct {
+const (
+	// JobGetActionsRPCMethod is the RPC method for listing all configured
+	// actions within a job.
+	//
+	// Args: JobActionListRequest
+	// Reply: JobActionListResponse
+	JobGetActionsRPCMethod = "Job.GetActions"
+)
+
+// JobActionListRequest is the request object when listing the actions
+// configured within a job.
+type JobActionListRequest struct {
+	JobID string
+	QueryOptions
+}
+
+// JobActionListResponse is the response object when performing a listing of
+// actions configured within a job.
+type JobActionListResponse struct {
 	Actions []*JobAction
 	QueryMeta
 }

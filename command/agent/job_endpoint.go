@@ -346,15 +346,15 @@ func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, job
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
-	args := structs.JobSpecificRequest{
+	args := structs.JobActionListRequest{
 		JobID: jobID,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
 
-	var out structs.ActionListResponse
-	if err := s.agent.RPC("Job.GetActions", &args, &out); err != nil {
+	var out structs.JobActionListResponse
+	if err := s.agent.RPC(structs.JobGetActionsRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 
