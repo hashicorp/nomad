@@ -296,17 +296,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 					reconnecting[alloc.ID] = alloc
 					continue
 				}
-
-			case structs.NodeStatusDown:
-				if !alloc.SingleInstanceOnLost() {
-					if alloc.ClientStatus == structs.AllocClientStatusLost {
-						untainted[alloc.ID] = alloc
-						continue
-					} else if alloc.ClientStatus == structs.AllocClientStatusRunning {
-						disconnecting[alloc.ID] = alloc
-						continue
-					}
-				}
 			}
 		}
 
@@ -372,6 +361,16 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 
 		// Allocs on GC'd (nil) or lost nodes are Lost
 		if taintedNode == nil || taintedNode.TerminalStatus() {
+			if alloc.SingleInstanceOnLost() {
+				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+					untainted[alloc.ID] = alloc
+					continue
+				} else if alloc.ClientStatus == structs.AllocClientStatusRunning {
+					disconnecting[alloc.ID] = alloc
+					continue
+				}
+			}
+
 			lost[alloc.ID] = alloc
 			continue
 		}
@@ -410,7 +409,6 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		}
 
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
-		fmt.Println(isUntainted, ignore)
 		if isUntainted && !isDisconnecting {
 			untainted[alloc.ID] = alloc
 		}
