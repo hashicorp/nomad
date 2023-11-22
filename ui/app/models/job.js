@@ -11,7 +11,6 @@ import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
-// import ActionModel from '../models/action';
 
 const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
@@ -170,7 +169,7 @@ export default class Job extends Model {
 
   /**
    *
-   * @param {ActionModel} action
+   * @param {import('../models/action').default} action
    * @param {string} allocID
    * @param {import('../models/action-instance').default} actionInstance
    * @returns
