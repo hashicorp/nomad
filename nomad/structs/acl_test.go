@@ -1051,15 +1051,17 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 
 	maxTokenTTL, _ := time.ParseDuration("3600s")
 	am1 := &ACLAuthMethod{
-		Name:          name,
-		TokenLocality: "global",
+		Name:            name,
+		TokenLocality:   "global",
+		TokenNameFormat: "${auth_method_name}-${value.sub}",
 	}
 	am2 := &ACLAuthMethod{
-		Name:          name,
-		Type:          "OIDC",
-		TokenLocality: "locality",
-		MaxTokenTTL:   maxTokenTTL,
-		Default:       true,
+		Name:            name,
+		Type:            "OIDC",
+		TokenLocality:   "locality",
+		TokenNameFormat: "format",
+		MaxTokenTTL:     maxTokenTTL,
+		Default:         true,
 		Config: &ACLAuthMethodConfig{
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
@@ -1078,6 +1080,7 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 
 	am1.Merge(am2)
 	must.Eq(t, am1.TokenLocality, "global")
+	must.Eq(t, am1.TokenNameFormat, "${auth_method_name}-${value.sub}")
 	minTTL, _ := time.ParseDuration("10s")
 	maxTTL, _ := time.ParseDuration("10h")
 	must.NoError(t, am1.Validate(minTTL, maxTTL))
@@ -1118,6 +1121,10 @@ func TestACLAuthMethod_Canonicalize(t *testing.T) {
 			&ACLAuthMethod{},
 		},
 		{
+			"no create time or modify time set & token name format set",
+			&ACLAuthMethod{TokenNameFormat: "${auth_method_name}-${value.sub}"},
+		},
+		{
 			"create time set to now, modify time not set",
 			&ACLAuthMethod{CreateTime: now},
 		},
@@ -1137,6 +1144,11 @@ func TestACLAuthMethod_Canonicalize(t *testing.T) {
 			}
 			if existing.ModifyTime.IsZero() {
 				must.NotEq(t, time.Time{}, tt.inputMethod.ModifyTime)
+			}
+			if existing.TokenNameFormat == "" {
+				must.Eq(t, "${auth_method_type}-${auth_method_name}", tt.inputMethod.TokenNameFormat)
+			} else {
+				must.Eq(t, existing.TokenNameFormat, tt.inputMethod.TokenNameFormat)
 			}
 		})
 	}

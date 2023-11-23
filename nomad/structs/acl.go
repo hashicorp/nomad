@@ -904,7 +904,7 @@ func (a *ACLAuthMethod) Canonicalize() {
 	a.ModifyTime = t
 
 	if a.TokenNameFormat == "" {
-		a.TokenNameFormat = "${auth_type}-${auth_name}"
+		a.TokenNameFormat = "${auth_method_type}-${auth_method_name}"
 	}
 }
 

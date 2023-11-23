@@ -61,8 +61,8 @@ ACL Auth Method Update Options:
     either 'local' or 'global'.
 
   -token-name-format
-    Sets the token format for the authenticated users. This can be lightly
-    templated using HIL ${foo} syntax. Defaults to ${auth_type}-${auth_name}
+    Sets the token format for the authenticated users. This can be lightly templated 
+    using HIL '${foo}' syntax. Defaults to '${auth_method_type}-${auth_method_name}'
 
   -default
     Specifies whether this auth method should be treated as a default one in

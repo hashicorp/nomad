@@ -3912,7 +3912,7 @@ func TestACL_Login(t *testing.T) {
 	must.Eq(t, structs.ACLManagementToken, completeAuthResp5.ACLToken.Type)
 
 	// Change the token name format
-	mockedAuthMethod.TokenNameFormat = "${auth_type}-${auth_name}-${value.user}"
+	mockedAuthMethod.TokenNameFormat = "${auth_method_type}-${auth_method_name}-${value.user}"
 	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(60, []*structs.ACLAuthMethod{mockedAuthMethod}))
 
 	loginReq6 := structs.ACLLoginRequest{

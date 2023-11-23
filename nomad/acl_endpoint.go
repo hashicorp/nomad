@@ -2769,7 +2769,7 @@ func (a *ACL) OIDCCompleteAuth(
 	// logic, so we do not want to call Raft directly or copy that here. In the
 	// future we should try and extract out the logic into an interface, or at
 	// least a separate function.
-	name, err := formatTokenName(authMethod.TokenNameFormat, "OIDC", authMethod.Name, oidcInternalClaims.Value)
+	name, err := formatTokenName(authMethod.TokenNameFormat, structs.ACLAuthMethodTypeOIDC, authMethod.Name, oidcInternalClaims.Value)
 	if err != nil {
 		return err
 	}
@@ -2922,7 +2922,7 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	// logic, so we do not want to call Raft directly or copy that here. In the
 	// future we should try and extract out the logic into an interface, or at
 	// least a separate function.
-	name, err := formatTokenName(authMethod.TokenNameFormat, "JWT", authMethod.Name, jwtClaims.Value)
+	name, err := formatTokenName(authMethod.TokenNameFormat, structs.ACLAuthMethodTypeJWT, authMethod.Name, jwtClaims.Value)
 	if err != nil {
 		return err
 	}
@@ -2965,8 +2965,8 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 
 func formatTokenName(format, authType, authName string, claims map[string]string) (string, error) {
 	claimMappings := map[string]string{
-		"auth_type": authType,
-		"auth_name": authName,
+		"auth_method_type": authType,
+		"auth_method_name": authName,
 	}
 	for k, v := range claims {
 		claimMappings["value."+k] = v
@@ -2974,7 +2974,7 @@ func formatTokenName(format, authType, authName string, claims map[string]string
 
 	tokenName, err := auth.InterpolateHIL(format, claimMappings, false)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to generate ACL token name: %w", err)
 	}
 
 	return tokenName, nil
