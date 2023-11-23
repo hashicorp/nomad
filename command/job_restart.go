@@ -187,7 +187,7 @@ Restart Options:
     in-place. Since the group is not modified the restart does not create a new
     deployment, and so values defined in 'update' blocks, such as
     'max_parallel', are not taken into account. This option cannot be used with
-    '-task'.
+    '-task'. Only jobs of type 'service' and 'system' can be rescheduled.
 
   -task=<task-name>
     Specify the task to restart. Can be specified multiple times. If groups are
@@ -285,6 +285,16 @@ func (c *JobRestartCommand) Run(args []string) int {
 	defer signal.Stop(c.sigsCh)
 
 	go c.handleSignal(c.sigsCh, activeCh)
+
+	// Verify job type can be rescheduled.
+	if c.reschedule {
+		switch *job.Type {
+		case api.JobTypeService, api.JobTypeSystem:
+		default:
+			c.Ui.Error(fmt.Sprintf("Jobs of type %q are not allowed to be rescheduled.", *job.Type))
+			return 1
+		}
+	}
 
 	// Confirm that we should restart a multi-region job in a single region.
 	if job.IsMultiregion() && !c.autoYes && !c.shouldRestartMultiregion() {
@@ -950,6 +960,18 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 	resp, err := c.client.Allocations().Stop(&api.Allocation{ID: alloc.ID}, q)
 	if err != nil {
 		return fmt.Errorf("Failed to stop allocation: %w", err)
+	}
+
+	// Allocations for system jobs do not get replaced by the scheduler after
+	// being stopped, so an eval is needed to trigger the reconciler.
+	if *alloc.Job.Type == api.JobTypeSystem {
+		opts := api.EvalOptions{
+			ForceReschedule: true,
+		}
+		_, _, err := c.client.Jobs().EvaluateWithOpts(*alloc.Job.ID, opts, nil)
+		if err != nil {
+			return fmt.Errorf("Failed evaluate job: %w", err)
+		}
 	}
 
 	// errCh receives an error if anything goes wrong or nil when the

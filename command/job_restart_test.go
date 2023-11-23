@@ -237,7 +237,7 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 	}
 }
 
-func TestJobRestartCommand_Run(t *testing.T) {
+func TestJobRestartCommand_Run_service(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a job with multiple tasks, groups, and allocations.
@@ -662,6 +662,150 @@ func TestJobRestartCommand_Run(t *testing.T) {
 			if tc.validateFn != nil {
 				tc.validateFn(t, client, allocStubs, ui.OutputWriter.String(), ui.ErrorWriter.String())
 			}
+		})
+	}
+}
+
+func TestJobRestartCommand_Run_system_reschedule(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a system job.
+	job := api.NewSystemJob("test_job", "test_job", "global", 100).
+		AddDatacenter("dc1").
+		AddTaskGroup(
+			api.NewTaskGroup("group", 1).
+				AddTask(
+					api.NewTask("task", "mock_driver").
+						SetConfig("run_for", "1m").
+						SetConfig("exit_code", 0),
+				),
+		)
+
+	// Start a server and 3 clients.
+	srv, client, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
+	testClient(t, "client1", newClientAgentConfigFunc("", "", srvRPCAddr))
+	testClient(t, "client2", newClientAgentConfigFunc("", "", srvRPCAddr))
+	testClient(t, "client3", newClientAgentConfigFunc("", "", srvRPCAddr))
+
+	waitForNodes(t, client)
+
+	// Initialize UI and command.
+	ui := cli.NewMockUi()
+	cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+	// Register test job and wait for its allocs to be running.
+	resp, _, err := client.Jobs().Register(job, nil)
+	must.NoError(t, err)
+
+	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+	must.Zero(t, code)
+
+	allocStubs, _, err := client.Jobs().Allocations(*job.ID, true, nil)
+	must.NoError(t, err)
+	for _, alloc := range allocStubs {
+		waitForAllocRunning(t, client, alloc.ID)
+	}
+
+	// Run job restart command.
+	args := []string{"-address", url, "-yes", "-verbose", "-reschedule", *job.ID}
+	code = cmd.Run(args)
+	must.Eq(t, code, 0)
+
+	reschedules := map[string]bool{}
+	for _, alloc := range allocStubs {
+		reschedules[alloc.ID] = true
+	}
+	waitAllocsRescheduled(t, client, reschedules)
+
+	// Check that allocations were rescheduled properly.
+	stdout := ui.OutputWriter.String()
+	must.StrContains(t, stdout, "Restarting 3 allocations")
+	for _, alloc := range allocStubs {
+		must.StrContains(t, stdout, fmt.Sprintf(`Rescheduling allocation "%s"`, alloc.ID))
+		must.StrContains(t, stdout, fmt.Sprintf(`Allocation "%s" replaced by`, alloc.ID))
+	}
+}
+
+func TestJobRestartCommand_Run_rescheduleNotSupported(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a batch job.
+	batchJob := api.NewBatchJob("test_batch_job", "test_batch_job", "global", 100).
+		AddDatacenter("dc1").
+		AddTaskGroup(
+			api.NewTaskGroup("group", 1).
+				AddTask(
+					api.NewTask("task", "mock_driver").
+						SetConfig("run_for", "1m").
+						SetConfig("exit_code", 0),
+				),
+		)
+
+	sysbatchJob := api.NewSysbatchJob("test_sysbatch_job", "test_sysbatch_job", "global", 100).
+		AddDatacenter("dc1").
+		AddTaskGroup(
+			api.NewTaskGroup("group", 1).
+				AddTask(
+					api.NewTask("task", "mock_driver").
+						SetConfig("run_for", "1m").
+						SetConfig("exit_code", 0),
+				),
+		)
+
+	// Start a server and 3 clients.
+	srv, client, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
+	testClient(t, "client1", newClientAgentConfigFunc("", "", srvRPCAddr))
+	testClient(t, "client2", newClientAgentConfigFunc("", "", srvRPCAddr))
+	testClient(t, "client3", newClientAgentConfigFunc("", "", srvRPCAddr))
+
+	waitForNodes(t, client)
+
+	testCases := []struct {
+		name string
+		job  *api.Job
+	}{
+		{
+			name: "batch job",
+			job:  batchJob,
+		},
+		{
+			name: "sysbatch job",
+			job:  sysbatchJob,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Initialize UI and command.
+			ui := cli.NewMockUi()
+			cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+			// Register test job and wait for its allocs to be running.
+			resp, _, err := client.Jobs().Register(tc.job, nil)
+			must.NoError(t, err)
+
+			code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+			must.Zero(t, code)
+
+			allocStubs, _, err := client.Jobs().Allocations(*tc.job.ID, true, nil)
+			must.NoError(t, err)
+			for _, alloc := range allocStubs {
+				waitForAllocRunning(t, client, alloc.ID)
+			}
+
+			// Run job restart command and expect error.
+			args := []string{"-address", url, "-yes", "-verbose", "-reschedule", *tc.job.ID}
+			code = cmd.Run(args)
+			must.Eq(t, code, 1)
+
+			stderr := ui.ErrorWriter.String()
+			must.StrContains(t, stderr, "not allowed to be rescheduled")
 		})
 	}
 }
