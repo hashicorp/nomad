@@ -72,7 +72,7 @@ func (h *consulHook) Prerun() error {
 		return err
 	}
 
-	mErr := multierror.Error{}
+	var mErr *multierror.Error
 
 	// tokens are a map of Consul cluster to service identity name to Consul
 	// ACL token
@@ -84,21 +84,22 @@ func (h *consulHook) Prerun() error {
 	}
 
 	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+		mErr = multierror.Append(mErr, err)
 	}
 	for _, task := range tg.Tasks {
 		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 		}
 		if err := h.prepareConsulTokensForTask(task, tg, tokens); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 		}
 	}
 
 	err := mErr.ErrorOrNil()
 	if err != nil {
-		h.revokeTokens(tokens)
-		return err
+		revokeErr := h.revokeTokens(tokens)
+		mErr = multierror.Append(mErr, revokeErr)
+		return mErr.ErrorOrNil()
 	}
 
 	// write the tokens to hookResources
@@ -120,7 +121,7 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 	}
 
 	// get tokens for alt identities for Consul
-	mErr := multierror.Error{}
+	var mErr *multierror.Error
 	for _, i := range task.Identities {
 		if i.Name != fmt.Sprintf("%s_%s", structs.ConsulTaskIdentityNamePrefix, consulConfig.Name) {
 			continue
@@ -129,7 +130,7 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		ti := *task.IdentityHandle(i)
 		jwt, err := h.widmgr.Get(ti)
 		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+			mErr = multierror.Append(mErr, fmt.Errorf(
 				"error getting signed identity for task %s: %v",
 				task.Name, err,
 			))
@@ -155,7 +156,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		return nil
 	}
 
-	mErr := multierror.Error{}
+	var mErr *multierror.Error
 	for _, service := range services {
 		// see if maybe we can quit early
 		if service == nil || !service.IsConsul() {
@@ -175,7 +176,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		identity := *service.IdentityHandle()
 		jwt, err := h.widmgr.Get(identity)
 		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+			mErr = multierror.Append(mErr, fmt.Errorf(
 				"error getting signed identity for service %s: %v",
 				service.Name, err,
 			))
@@ -187,7 +188,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
 		}
 		if err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 			continue
 		}
 
@@ -197,7 +198,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		}
 
 		if err := h.getConsulTokens(clusterName, service.Identity.Name, tokens, req); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 			continue
 		}
 	}
@@ -257,7 +258,7 @@ func (h *consulHook) Destroy() error {
 }
 
 func (h *consulHook) revokeTokens(tokens map[string]map[string]*consulapi.ACLToken) error {
-	mErr := multierror.Error{}
+	var mErr *multierror.Error
 
 	for cluster, tokensForCluster := range tokens {
 		if tokensForCluster == nil {
@@ -266,7 +267,7 @@ func (h *consulHook) revokeTokens(tokens map[string]map[string]*consulapi.ACLTok
 		}
 		client, err := h.clientForCluster(cluster)
 		if err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 			continue
 		}
 		toRevoke := []*consulapi.ACLToken{}
@@ -275,7 +276,7 @@ func (h *consulHook) revokeTokens(tokens map[string]map[string]*consulapi.ACLTok
 		}
 		err = client.RevokeTokens(toRevoke)
 		if err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 			continue
 		}
 		tokens[cluster] = nil
