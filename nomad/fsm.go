@@ -659,7 +659,7 @@ func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, i
 	}
 
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
-		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.NoShutdownDelay, tx)
+		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.SubmitTime, req.NoShutdownDelay, tx)
 
 		if err != nil {
 			n.logger.Error("deregistering job failed",
@@ -699,7 +699,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 	// evals for jobs whose deregistering didn't get committed yet.
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
-			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, false, tx); err != nil {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, req.SubmitTime, false, tx); err != nil {
 				n.logger.Error("deregistering job failed", "job", jobNS.ID, "error", err)
 				return err
 			}
@@ -724,7 +724,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 
 // handleJobDeregister is used to deregister a job. Leaves error logging up to
 // caller.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, noShutdownDelay bool, tx state.Txn) error {
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, submitTime int64, noShutdownDelay bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
@@ -772,6 +772,9 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 
 		stopped := current.Copy()
 		stopped.Stop = true
+		if submitTime != 0 {
+			stopped.SubmitTime = submitTime
+		}
 
 		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
 			return fmt.Errorf("UpsertJob failed: %w", err)
