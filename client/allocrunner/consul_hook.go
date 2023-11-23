@@ -84,20 +84,19 @@ func (h *consulHook) Prerun() error {
 	}
 
 	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+		mErr.Errors = append(mErr.Errors, err.Errors...)
 	}
 	for _, task := range tg.Tasks {
 		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr.Errors = append(mErr.Errors, err.Errors...)
 		}
 		if err := h.prepareConsulTokensForTask(task, tg, tokens); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr.Errors = append(mErr.Errors, err.Errors...)
 		}
 	}
 
 	err := mErr.ErrorOrNil()
 	if err != nil {
-		multierror.Flatten(err)
 		h.revokeTokens(tokens)
 		return err
 	}
@@ -108,20 +107,20 @@ func (h *consulHook) Prerun() error {
 	return nil
 }
 
-func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken) error {
+func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken) *multierror.Error {
 	if task == nil {
 		// programming error
-		return fmt.Errorf("cannot prepare consul tokens, no task specified")
+		return &multierror.Error{Errors: []error{fmt.Errorf("cannot prepare consul tokens, no task specified")}}
 	}
 
 	clusterName := task.GetConsulClusterName(tg)
 	consulConfig, ok := h.consulConfigs[clusterName]
 	if !ok {
-		return fmt.Errorf("no such consul cluster: %s", clusterName)
+		return &multierror.Error{Errors: []error{fmt.Errorf("no such consul cluster: %s", clusterName)}}
 	}
 
 	// get tokens for alt identities for Consul
-	mErr := multierror.Error{}
+	mErr := &multierror.Error{}
 	for _, i := range task.Identities {
 		if i.Name != fmt.Sprintf("%s_%s", structs.ConsulTaskIdentityNamePrefix, consulConfig.Name) {
 			continue
@@ -143,20 +142,20 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 			AuthMethodName: consulConfig.TaskIdentityAuthMethod,
 		}
 
-		if err := h.getConsulTokens(consulConfig.Name, ti.IdentityName, tokens, req); err != nil {
-			return err
+		if merr := h.getConsulTokens(consulConfig.Name, ti.IdentityName, tokens, req); merr != nil {
+			return merr
 		}
 	}
 
-	return mErr.ErrorOrNil()
+	return mErr
 }
 
-func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken) error {
+func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken) *multierror.Error {
 	if len(services) == 0 {
 		return nil
 	}
 
-	mErr := multierror.Error{}
+	mErr := &multierror.Error{}
 	for _, service := range services {
 		// see if maybe we can quit early
 		if service == nil || !service.IsConsul() {
@@ -169,7 +168,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		clusterName := service.GetConsulClusterName(tg)
 		consulConfig, ok := h.consulConfigs[clusterName]
 		if !ok {
-			return fmt.Errorf("no such consul cluster: %s", clusterName)
+			return &multierror.Error{Errors: []error{fmt.Errorf("no such consul cluster: %s", clusterName)}}
 		}
 
 		req := map[string]consul.JWTLoginRequest{}
@@ -197,25 +196,27 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			continue
 		}
 
-		if err := h.getConsulTokens(clusterName, service.Identity.Name, tokens, req); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+		if merr := h.getConsulTokens(clusterName, service.Identity.Name, tokens, req); merr != nil {
+			mErr.Errors = append(mErr.Errors, merr.Errors...)
 			continue
 		}
 	}
 
-	return mErr.ErrorOrNil()
+	return mErr
 }
 
-func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[string]map[string]*consulapi.ACLToken, req map[string]consul.JWTLoginRequest) error {
+func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[string]map[string]*consulapi.ACLToken, req map[string]consul.JWTLoginRequest) *multierror.Error {
 	client, err := h.clientForCluster(cluster)
 	if err != nil {
-		return err
+		return &multierror.Error{Errors: []error{err}}
 	}
 
 	// get consul acl tokens
 	t, err := client.DeriveTokenWithJWT(req)
 	if err != nil {
-		return err
+		// DeriveTokenWithJWT actually returns a multierror, so we assert the
+		// type to make error formatting from the hook level more readable.
+		return err.(*multierror.Error)
 	}
 	if tokens[cluster] == nil {
 		tokens[cluster] = map[string]*consulapi.ACLToken{}

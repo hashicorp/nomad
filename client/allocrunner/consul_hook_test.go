@@ -147,10 +147,10 @@ func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := hook.prepareConsulTokensForTask(tt.task, nil, tt.tokens)
 			if tt.wantErr {
-				must.Error(t, err)
-				must.ErrorContains(t, err, tt.errMsg)
+				must.Error(t, err.ErrorOrNil())
+				must.ErrorContains(t, err.ErrorOrNil(), tt.errMsg)
 			} else {
-				must.NoError(t, err)
+				must.NoError(t, err.ErrorOrNil())
 				must.Eq(t, tt.tokens, tt.expectedTokens)
 			}
 		})
@@ -217,10 +217,10 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := hook.prepareConsulTokensForServices(tt.services, nil, tt.tokens)
 			if tt.wantErr {
-				must.Error(t, err)
-				must.ErrorContains(t, err, tt.errMsg)
+				must.Error(t, err.ErrorOrNil())
+				must.ErrorContains(t, err.ErrorOrNil(), tt.errMsg)
 			} else {
-				must.NoError(t, err)
+				must.NoError(t, err.ErrorOrNil())
 				must.Eq(t, tt.tokens, tt.expectedTokens)
 			}
 		})
@@ -236,7 +236,7 @@ func Test_consulHook_Postrun(t *testing.T) {
 
 	task := hook.alloc.LookupTask("web")
 	tokens := map[string]map[string]*consulapi.ACLToken{}
-	must.NoError(t, hook.prepareConsulTokensForTask(task, nil, tokens))
+	must.SliceLen(t, 0, hook.prepareConsulTokensForTask(task, nil, tokens).Errors)
 	hook.hookResources.SetConsulTokens(tokens)
 	must.MapLen(t, 1, tokens)
 
