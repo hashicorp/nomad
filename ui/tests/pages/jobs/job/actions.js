@@ -73,6 +73,11 @@ export default create({
     ),
   },
 
+  globalButton: {
+    isPresent: isPresent('.actions-flyout-button button'),
+    click: clickable('.actions-flyout-button button'),
+  },
+
   flyout: {
     isPresent: isPresent('#actions-flyout'),
     instances: collection('.actions-queue .action-card', {
@@ -84,11 +89,13 @@ export default create({
     }),
     close: clickable('.hds-flyout__dismiss'),
     actions: {
+      // find within actions-flyout
+      isPresent: isPresent('#actions-flyout .actions-dropdown'),
       click: clickable('.actions-dropdown .action-toggle-button'),
-      expandedValue: attribute(
-        'aria-expanded',
-        '.job-page-header .actions-dropdown .action-toggle-button'
-      ),
+      // expandedValue: attribute(
+      //   'aria-expanded',
+      //   '.actions-dropdown .action-toggle-button'
+      // ),
       actions: collection('.actions-dropdown .hds-dropdown__list li', {
         text: text(),
         click: clickable('button'),

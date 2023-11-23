@@ -11,7 +11,7 @@ import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import percySnapshot from '@percy/ember';
 import Actions from 'nomad-ui/tests/pages/jobs/job/actions';
-import { triggerEvent } from '@ember/test-helpers';
+import { triggerEvent, visit, click } from '@ember/test-helpers';
 
 module('Acceptance | actions', function (hooks) {
   setupApplicationTest(hooks);
@@ -199,12 +199,6 @@ module('Acceptance | actions', function (hooks) {
 
     assert.ok(Actions.flyout.isPresent);
 
-    // assert.equal(
-    //   Actions.flyout.instances.length,
-    //   6,
-    //   'Running on all allocs in the group (5) results in 6 total toasts'
-    // );
-
     // 2 assets, the second of which has multiple peer allocs within it
     assert.equal(
       Actions.flyout.instances.length,
@@ -285,11 +279,61 @@ module('Acceptance | actions', function (hooks) {
       'The instance contains the message from the action'
     );
   });
-});
 
-// TODO:
-// - Actions populate within flyout at job level (index and say, allocations)
-// - Actions populate within flyout at task level (index and logs)
-// - running actions trigger an "x actions running" label on the actions toggle button
-// - "stop all running" and "clear all finished" conditions observed in acitons flyout
-// - "a c" keybinding works as expected
+  test('Actions flyout gets dynamic actions list', async function (assert) {
+    assert.expect(7);
+    allScenarios.smallCluster(server);
+    let managementToken = server.create('token', {
+      type: 'management',
+      name: 'Management Token',
+    });
+    await Tokens.visit();
+    const { secretId } = managementToken;
+    await Tokens.secret(secretId).submit();
+    await Actions.visitIndex({ id: 'actionable-job' });
+    // Run an action to open the flyout; observe the dropdown there
+    await Actions.titleActions.click();
+    await Actions.titleActions.singleAllocActions[0].button[0].click();
+
+    // Is flyout open?
+    assert.ok(Actions.flyout.isPresent, 'Flyout is open');
+
+    // Is there a dropdown in the flyout?
+    assert.ok(Actions.flyout.actions.isPresent, 'Flyout has actions dropdown');
+
+    // Close the flyout go to the Jobs page
+    await Actions.flyout.close();
+    await visit('/jobs');
+
+    assert.notOk(Actions.flyout.isPresent, 'Flyout is closed');
+
+    // Global button should be present
+    assert.ok(Actions.globalButton.isPresent, 'Global button is present');
+
+    // click it
+    await Actions.globalButton.click();
+
+    // actions flyout should be open
+    assert.ok(Actions.flyout.isPresent, 'Flyout is open');
+
+    // it shouldn't have a dropdown in it
+    assert.notOk(
+      Actions.flyout.actions.isPresent,
+      'Flyout has no actions dropdown'
+    );
+    await Actions.flyout.close();
+
+    // head back into the job, and into a task
+    await Actions.visitIndex({ id: 'actionable-job' });
+    await click('[data-test-task-group="actionable-group"] a');
+    await click('.task-name');
+    // Click global button
+    await Actions.globalButton.click();
+    // Dropdown present
+    assert.ok(
+      Actions.flyout.actions.isPresent,
+      'Flyout has actions dropdown on task page'
+    );
+    await percySnapshot(assert);
+  });
+});
