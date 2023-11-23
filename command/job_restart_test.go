@@ -1242,6 +1242,21 @@ func TestJobRestartCommand_filterAllocs(t *testing.T) {
 					}
 					allocs[key] = alloc
 					allAllocs = append(allAllocs, alloc)
+
+					// Allocations with a replacement must always be skipped.
+					replacedAlloc := AllocationListStubWithJob{
+						AllocationListStub: &api.AllocationListStub{
+							ID:             key,
+							JobVersion:     *job.Version,
+							TaskGroup:      *tg.Name,
+							DesiredStatus:  desired,
+							ClientStatus:   client,
+							NextAllocation: alloc.ID,
+						},
+						Job: job,
+					}
+					allocs[key+"_replaced"] = replacedAlloc
+					allAllocs = append(allAllocs, replacedAlloc)
 				}
 			}
 		}
