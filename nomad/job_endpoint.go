@@ -1771,6 +1771,7 @@ func (j *Job) GetActions(args *structs.JobActionListRequest, reply *structs.JobA
 	}
 
 	reply.Actions = jobActions
+	reply.Index = job.ModifyIndex
 
 	j.srv.setQueryMeta(&reply.QueryMeta)
 
