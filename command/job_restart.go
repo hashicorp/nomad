@@ -633,6 +633,19 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 			continue
 		}
 
+		// Skip allocations that have already been replaced.
+		if stub.NextAllocation != "" {
+			if c.verbose {
+				c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
+					"[dark_gray]    %s: Skipping allocation %q because it has already been replaced by %q[reset]",
+					formatTime(time.Now()),
+					shortAllocID,
+					limit(stub.NextAllocation, c.length),
+				)))
+			}
+			continue
+		}
+
 		// Skip allocations for groups that were not requested.
 		if c.groups.Size() > 0 {
 			if !c.groups.Contains(stub.TaskGroup) {
