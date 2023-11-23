@@ -37,6 +37,10 @@ The table below shows this endpoint's support for
   creates a local or global token when performing SSO login. This field must be
   set to either "local" or "global"
 
+- `TokenNameFormat` `(string <optional>)` - Defines the token name format for the
+  generated tokens This can be lightly templated using HIL '${foo}' syntax. 
+  Defaults to '${auth_method_type}-${auth_method_name}'
+
 - `MaxTokenTTL` `(duration: <required>)` - Defines the maximum life of a token created
   by this method. When set, it will initialize the `ExpirationTime` field on all
   tokens to a value of `Token.CreateTime + AuthMethod.MaxTokenTTL`. This field is
@@ -92,6 +96,7 @@ The table below shows this endpoint's support for
   "Name": "example-acl-auth-method",
   "Type": "OIDC",
   "TokenLocality": "local",
+  "TokenNameFormat": "${auth_method_type}-${value.user}",
   "MaxTokenTTL": "1h0m0s",
   "Default": false,
   "Config": {
@@ -136,6 +141,7 @@ $ curl \
     "Name": "example-acl-auth-method",
     "Type": "OIDC",
     "TokenLocality": "local",
+    "TokenNameFormat": "${auth_method_type}-${value.user}",
     "Default": false,
     "Config": {
         "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
@@ -196,6 +202,10 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
   creates a local or global token when performing SSO login. This field must be
   set to either "local" or "global"
 
+- `TokenNameFormat` `(string <optional>)` - Defines the token name format for the
+  generated tokens This can be lightly templated using HIL '${foo}' syntax. 
+  Defaults to '${auth_method_type}-${auth_method_name}'
+
 - `MaxTokenTTL` `(duration: <required>)` - Defines the maximum life of a token created
   by this method. When set it will initialize the `ExpirationTime` field on all
   tokens to a value of `Token.CreateTime + AuthMethod.MaxTokenTTL`. This field is
@@ -251,6 +261,7 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
   "Name": "example-acl-auth-method",
   "Type": "OIDC",
   "Tokenlocality": "global",
+  "TokenNameFormat": "${auth_method_type}-${value.user}",
   "Maxtokenttl": "1h0m0s",
   "Default": true,
   "Config": {
@@ -295,6 +306,7 @@ $ curl \
     "Name": "example-acl-auth-method",
     "Type": "OIDC",
     "TokenLocality": "global",
+    "TokenNameFormat": "${auth_method_type}-${value.user}",
     "Default": true,
     "Config": {
         "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
@@ -404,6 +416,7 @@ $ curl \
     "Name": "example-acl-auth-method",
     "Type": "OIDC",
     "TokenLocality": "global",
+    "TokenNameFormat": "${auth_method_type}-${value.user}",
     "Default": true,
     "Config": {
       "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",

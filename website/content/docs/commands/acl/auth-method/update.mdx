@@ -45,6 +45,10 @@ The `acl auth-method update` command requires an existing method's name.
 - `-token-locality`: Updates the kind of token that this auth method should
   produce. This can be either `local` or `global`.
 
+- `token-name-format`: Sets the token format for the authenticated users. 
+  This can be lightly templated using HIL '${foo}' syntax. Defaults to 
+  '${auth_method_type}-${auth_method_name}'.
+
 - `-default`: Specifies whether this auth method should be treated as a default
   one in case no auth method is explicitly specified for a login command.
 
@@ -61,14 +65,15 @@ The `acl auth-method update` command requires an existing method's name.
 Update an existing ACL auth method:
 
 ```shell-session
-$ nomad acl auth-method update -token-locality "global" -config @config.json example-acl-auth-method
-Name         = example-acl-auth-method
-Type         = OIDC
-Locality     = global
-MaxTokenTTL  = 1h0m0s
-Default      = false
-Create Index = 14
-Modify Index = 33
+$ nomad acl auth-method update -token-locality "global" -token-name-format '${auth_method_name}-${value.user}' -config @config.json example-acl-auth-method
+Name              = example-acl-auth-method
+Type              = OIDC
+Locality          = global
+MaxTokenTTL       = 1h0m0s
+Token Name Format = ${auth_method_name}-${value.user}
+Default           = false
+Create Index      = 14
+Modify Index      = 33
 
 Auth Method Config
 

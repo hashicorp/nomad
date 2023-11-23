@@ -34,13 +34,14 @@ Fetch information about an existing ACL Auth Method:
 
 ```shell-session
 $ nomad acl auth-method info example-acl-auth-method
-Name         = example-acl-auth-method
-Type         = OIDC
-Locality     = local
-MaxTokenTTL  = 1h0m0s
-Default      = false
-Create Index = 14
-Modify Index = 14
+Name              = example-acl-auth-method
+Type              = OIDC
+Locality          = local
+MaxTokenTTL       = 1h0m0s
+Token Name Format = ${auth_method_type}-${auth_method_name}
+Default           = false
+Create Index      = 14
+Modify Index      = 14
 
 Auth Method Config
 
