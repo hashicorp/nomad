@@ -12,6 +12,13 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+func TestJobActionListRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	req := JobActionListRequest{}
+	must.True(t, req.IsRead())
+}
+
 func TestAction_Copy(t *testing.T) {
 	ci.Parallel(t)
 

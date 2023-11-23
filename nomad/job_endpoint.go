@@ -1720,11 +1720,12 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
-// jobActions is used to parse through a job's taskgroups' tasks and aggregate their actions, flattened
-func (j *Job) GetActions(args *structs.JobSpecificRequest, reply *structs.ActionListResponse) error {
+// GetActions is used to iterate through a job's taskgroups' tasks and
+// aggregate their actions, flattened.
+func (j *Job) GetActions(args *structs.JobActionListRequest, reply *structs.JobActionListResponse) error {
 	// authenticate, measure, and forward
 	authErr := j.srv.Authenticate(j.ctx, args)
-	if done, err := j.srv.forward("Job.GetActions", args, args, reply); done {
+	if done, err := j.srv.forward(structs.JobGetActionsRPCMethod, args, args, reply); done {
 		return err
 	}
 	j.srv.MeasureRPCRate("job", structs.RateMetricRead, args)
