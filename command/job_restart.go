@@ -272,6 +272,17 @@ func (c *JobRestartCommand) Run(args []string) int {
 		c.client.SetNamespace(*job.Namespace)
 	}
 
+	// Handle SIGINT to prevent accidental cancellations of the long-lived
+	// restart loop. activeCh is blocked while a signal is being handled to
+	// prevent new work from starting while the user is deciding if they want
+	// to cancel the command or not.
+	activeCh := make(chan any)
+	c.sigsCh = make(chan os.Signal, 1)
+	signal.Notify(c.sigsCh, os.Interrupt)
+	defer signal.Stop(c.sigsCh)
+
+	go c.handleSignal(c.sigsCh, activeCh)
+
 	// Confirm that we should restart a multi-region job in a single region.
 	if job.IsMultiregion() && !c.autoYes && !c.shouldRestartMultiregion() {
 		c.Ui.Output("\nJob restart canceled.")
@@ -325,17 +336,6 @@ func (c *JobRestartCommand) Run(args []string) int {
 		formatTime(time.Now()),
 		english.Plural(len(restartAllocs), "allocation", "allocations"),
 	)))
-
-	// Handle SIGINT to prevent accidental cancellations of the long-lived
-	// restart loop. activeCh is blocked while a signal is being handled to
-	// prevent new work from starting while the user is deciding if they want
-	// to cancel the command or not.
-	activeCh := make(chan any)
-	c.sigsCh = make(chan os.Signal, 1)
-	signal.Notify(c.sigsCh, os.Interrupt)
-	defer signal.Stop(c.sigsCh)
-
-	go c.handleSignal(c.sigsCh, activeCh)
 
 	// restartErr accumulates the errors that happen in each batch.
 	var restartErr *multierror.Error
