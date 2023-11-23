@@ -773,6 +773,9 @@ type JobDeregisterRequest struct {
 	// Eval is the evaluation to create that's associated with job deregister
 	Eval *Evaluation
 
+	// SubmitTime is the time at which the job was requested to be stopped
+	SubmitTime int64
+
 	WriteRequest
 }
 
@@ -784,6 +787,9 @@ type JobBatchDeregisterRequest struct {
 
 	// Evals is the set of evaluations to create.
 	Evals []*Evaluation
+
+	// SubmitTime is the time at which the job was requested to be stopped
+	SubmitTime int64
 
 	WriteRequest
 }
@@ -4512,8 +4518,8 @@ type Job struct {
 	// on each job register.
 	Version uint64
 
-	// SubmitTime is the time at which the job was submitted as a UnixNano in
-	// UTC
+	// SubmitTime is the time at which the job version was submitted as
+	// UnixNano in UTC
 	SubmitTime int64
 
 	// Raft Indexes
