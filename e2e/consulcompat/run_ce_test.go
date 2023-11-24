@@ -90,12 +90,12 @@ func testConsulBuild(t *testing.T, b build, baseDir string) {
 			Address:                   consulHTTPAddr,
 			Auth:                      "",
 			Token:                     consulToken,
-			ServiceIdentityAuthMethod: "nomad-services",
+			ServiceIdentityAuthMethod: "nomad-workloads",
 			ServiceIdentity: &testutil.WorkloadIdentityConfig{
 				Audience: []string{"consul.io"},
 				TTL:      "1h",
 			},
-			TaskIdentityAuthMethod: "nomad-tasks",
+			TaskIdentityAuthMethod: "nomad-workloads",
 			TaskIdentity: &testutil.WorkloadIdentityConfig{
 				Audience: []string{"consul.io"},
 				TTL:      "1h",
@@ -105,8 +105,7 @@ func testConsulBuild(t *testing.T, b build, baseDir string) {
 		nc := startNomad(t, consulCfg)
 
 		// configure authentication for WI to Consul
-		setupConsulJWTAuthForServices(t, consulAPI, nc.Address(), nil)
-		setupConsulJWTAuthForTasks(t, consulAPI, nc.Address())
+		setupConsulJWTAuth(t, consulAPI, nc.Address())
 
 		verifyConsulFingerprint(t, nc, b.Version, "default")
 		runConnectJob(t, nc, "default", "./input/connect.nomad.hcl")
