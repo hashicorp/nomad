@@ -195,8 +195,8 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       )}/action` +
       `?namespace=${job.get('namespace.id')}&action=${
         action.name
-      }&allocID=${allocID}&task=${action.task.name}&group=${
-        action.task.taskGroup.name
+      }&allocID=${allocID}&task=${
+        action.task.name
       }&tty=true&ws_handshake=true` +
       (region ? `&region=${region}` : '');
 
