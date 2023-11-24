@@ -235,7 +235,7 @@ var basicConfig = &Config{
 		ChecksUseAdvertise:        &trueValue,
 		Timeout:                   5 * time.Second,
 		TimeoutHCL:                "5s",
-		ServiceIdentityAuthMethod: "nomad-workloads",
+		ServiceIdentityAuthMethod: "nomad-services",
 		ServiceIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io", "nomad.dev"},
 			Env:      pointer.Of(false),
@@ -243,7 +243,7 @@ var basicConfig = &Config{
 			TTL:      pointer.Of(1 * time.Hour),
 			TTLHCL:   "1h",
 		},
-		TaskIdentityAuthMethod: "nomad-workloads",
+		TaskIdentityAuthMethod: "nomad-tasks",
 		TaskIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io"},
 			Env:      pointer.Of(true),
