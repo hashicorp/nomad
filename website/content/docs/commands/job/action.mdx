@@ -10,7 +10,7 @@ description: |
 
 **Alias: `nomad action`**
 
-The `job action` command allows operators to execute predefined actions specified
+The `job action` command allows operators to execute predefined actions declared
 in Nomad job specifications. These actions can be defined at task level and are
 intended for specific operational tasks, such as clearing a cache, or migrating
 a database.
@@ -29,7 +29,7 @@ this command requires the `alloc-node-exec`, `alloc-exec`, `read-job`, and
 ## Usage
 
 ```plaintext
-nomad job action [options]
+nomad job action [options] <job_action_name>
 ```
 
 The `job action` command requires an action name and accepts two ways of
@@ -58,13 +58,13 @@ supported.
   If omitted, either a task-group and task-name must be provided, and a random
   allocation will be selected from them.
 
-- `-task`: (Required if no allocation is specified) Specifies the task within
-  the job where the action is defined. This must correspond to a task in the job's
-  specification.
+- `-task`: Specifies the task within the job where the action is defined. This
+  must correspond to a task in the job's specification, and is required if no
+  `alloc` option is provided.
 
-- `-group`: (Required if no allocation is specified) Specifies the task group 
-  within the job. This is needed when selecting a random allocation from a
-  specific task.
+- `-group`: Specifies the task group within the job. This is needed when
+  selecting a random allocation from a specific task, and is required if no
+  `alloc` option is provided.
 
 - `-i`: Pass stdin to the container, defaults to true. Pass `-i=false` to
   disable explicitly.
@@ -96,7 +96,7 @@ Execute an action within a specific allocation:
 
 ```shell-session
 $ nomad action \
-  -alloc=alloc123 \
+  -alloc=f200a789-6da4-504c-d131-6181764f101e \
   -job=actions-demo \
   echo-time
 
