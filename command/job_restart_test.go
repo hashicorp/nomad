@@ -636,7 +636,11 @@ func TestJobRestartCommand_Run_service(t *testing.T) {
 			must.NoError(t, err)
 
 			code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-			must.Zero(t, code)
+			must.Zero(t, code, must.Sprintf(
+				"stdout: %s\n\nstderr: %s\n",
+				ui.OutputWriter.String(),
+				ui.ErrorWriter.String()),
+			)
 
 			allocStubs, _, err := client.Jobs().Allocations(jobID, true, nil)
 			must.NoError(t, err)
@@ -701,7 +705,11 @@ func TestJobRestartCommand_Run_system_reschedule(t *testing.T) {
 	must.NoError(t, err)
 
 	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-	must.Zero(t, code)
+	must.Zero(t, code, must.Sprintf(
+		"stdout: %s\n\nstderr: %s\n",
+		ui.OutputWriter.String(),
+		ui.ErrorWriter.String()),
+	)
 
 	allocStubs, _, err := client.Jobs().Allocations(*job.ID, true, nil)
 	must.NoError(t, err)
@@ -791,7 +799,11 @@ func TestJobRestartCommand_Run_rescheduleNotSupported(t *testing.T) {
 			must.NoError(t, err)
 
 			code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-			must.Zero(t, code)
+			must.Zero(t, code, must.Sprintf(
+				"stdout: %s\n\nstderr: %s\n",
+				ui.OutputWriter.String(),
+				ui.ErrorWriter.String()),
+			)
 
 			allocStubs, _, err := client.Jobs().Allocations(*tc.job.ID, true, nil)
 			must.NoError(t, err)
@@ -896,10 +908,18 @@ func TestJobRestartCommand_jobPrefixAndNamespace(t *testing.T) {
 			code := cmd.Run(args)
 
 			if tc.expectedErr != "" {
-				must.NonZero(t, code)
+				must.NonZero(t, code, must.Sprintf(
+					"stdout: %s\n\nstderr: %s\n",
+					ui.OutputWriter.String(),
+					ui.ErrorWriter.String()),
+				)
 				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
 			} else {
-				must.Zero(t, code)
+				must.Zero(t, code, must.Sprintf(
+					"stdout: %s\n\nstderr: %s\n",
+					ui.OutputWriter.String(),
+					ui.ErrorWriter.String()),
+				)
 			}
 		})
 	}
@@ -935,7 +955,11 @@ func TestJobRestartCommand_noAllocs(t *testing.T) {
 		"-yes",
 		jobID,
 	})
-	must.Zero(t, code)
+	must.Zero(t, code, must.Sprintf(
+		"stdout: %s\n\nstderr: %s\n",
+		ui.OutputWriter.String(),
+		ui.ErrorWriter.String()),
+	)
 	must.StrContains(t, ui.OutputWriter.String(), "No allocations to restart")
 }
 
@@ -954,13 +978,19 @@ func TestJobRestartCommand_rescheduleFail(t *testing.T) {
 	// Register test job with 3 allocs.
 	jobID := "test_job_restart_reschedule_fail"
 	job := testJob(jobID)
+	job.Type = pointer.Of(api.JobTypeService)
 	job.TaskGroups[0].Count = pointer.Of(3)
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{"run_for": "10m"}
 
 	resp, _, err := client.Jobs().Register(job, nil)
 	must.NoError(t, err)
 
 	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-	must.Zero(t, code)
+	must.Zero(t, code, must.Sprintf(
+		"stdout: %s\n\nstderr: %s\n",
+		ui.OutputWriter.String(),
+		ui.ErrorWriter.String()),
+	)
 	ui.OutputWriter.Reset()
 
 	// Wait for allocs to be running.
@@ -1007,7 +1037,11 @@ func TestJobRestartCommand_monitorReplacementAlloc(t *testing.T) {
 		must.NoError(t, err)
 
 		code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-		must.Zero(t, code)
+		must.Zero(t, code, must.Sprintf(
+			"stdout: %s\n\nstderr: %s\n",
+			ui.OutputWriter.String(),
+			ui.ErrorWriter.String()),
+		)
 	}
 	ui.OutputWriter.Reset()
 
@@ -1220,9 +1254,17 @@ namespace "default" {
 			// Run command.
 			code := cmd.Run(args)
 			if tc.expectedErr == "" {
-				must.Zero(t, code)
+				must.Zero(t, code, must.Sprintf(
+					"stdout: %s\n\nstderr: %s\n",
+					ui.OutputWriter.String(),
+					ui.ErrorWriter.String()),
+				)
 			} else {
-				must.One(t, code)
+				must.One(t, code, must.Sprintf(
+					"stdout: %s\n\nstderr: %s\n",
+					ui.OutputWriter.String(),
+					ui.ErrorWriter.String()),
+				)
 				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
 			}
 		})
@@ -1266,8 +1308,9 @@ func TestJobRestartCommand_shutdownDelay_reschedule(t *testing.T) {
 			jobID := nonAlphaNum.ReplaceAllString(tc.name, "-")
 
 			job := testJob(jobID)
+			job.Type = pointer.Of(api.JobTypeService)
 			job.TaskGroups[0].Count = pointer.Of(2)
-			job.TaskGroups[0].Tasks[0].Config["run_for"] = "10m"
+			job.TaskGroups[0].Tasks[0].Config = map[string]any{"run_for": "10m"}
 			job.TaskGroups[0].Tasks[0].ShutdownDelay = shutdownDelay
 			job.TaskGroups[0].Tasks[0].Services = []*api.Service{{
 				Name:     "service",
@@ -1278,7 +1321,11 @@ func TestJobRestartCommand_shutdownDelay_reschedule(t *testing.T) {
 			must.NoError(t, err)
 
 			code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-			must.Zero(t, code)
+			must.Zero(t, code, must.Sprintf(
+				"stdout:\n%s\n\nstderr:\n%s\n",
+				ui.OutputWriter.String(),
+				ui.ErrorWriter.String()),
+			)
 			ui.OutputWriter.Reset()
 
 			// Wait for alloc to be running.
@@ -1299,7 +1346,11 @@ func TestJobRestartCommand_shutdownDelay_reschedule(t *testing.T) {
 			args = append(args, jobID)
 
 			code = cmd.Run(args)
-			must.Zero(t, code)
+			must.Zero(t, code, must.Sprintf(
+				"stdout:\n%s\n\nstderr:\n%s\n",
+				ui.OutputWriter.String(),
+				ui.ErrorWriter.String()),
+			)
 
 			// Wait for all allocs to restart.
 			reschedules := map[string]bool{}
@@ -1524,7 +1575,11 @@ func TestJobRestartCommand_filterAllocs(t *testing.T) {
 			args := append(tc.args, "-verbose", "-yes", "example")
 			code, err := cmd.parseAndValidate(args)
 			must.NoError(t, err)
-			must.Zero(t, code)
+			must.Zero(t, code, must.Sprintf(
+				"stdout: %s\n\nstderr: %s\n",
+				ui.OutputWriter.String(),
+				ui.ErrorWriter.String()),
+			)
 
 			got := cmd.filterAllocs(allAllocs)
 			must.SliceEqFunc(t, tc.expectedAllocs, got, func(a, b AllocationListStubWithJob) bool {
@@ -1567,7 +1622,11 @@ func TestJobRestartCommand_onErrorFail(t *testing.T) {
 	must.NoError(t, err)
 
 	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-	must.Zero(t, code)
+	must.Zero(t, code, must.Sprintf(
+		"stdout: %s\n\nstderr: %s\n",
+		ui.OutputWriter.String(),
+		ui.ErrorWriter.String()),
+	)
 	ui.OutputWriter.Reset()
 
 	// Create a proxy to inject an error after 2 allocation restarts.
