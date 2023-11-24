@@ -194,8 +194,8 @@ func DefaultConsulConfig() *ConsulConfig {
 		ClientAutoJoin:            pointer.Of(true),
 		AllowUnauthenticated:      pointer.Of(true),
 		Timeout:                   5 * time.Second,
-		ServiceIdentityAuthMethod: structs.ConsulServicesDefaultAuthMethodName,
-		TaskIdentityAuthMethod:    structs.ConsulTasksDefaultAuthMethodName,
+		ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
+		TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
 
 		// From Consul api package defaults
 		Addr:      def.Address,

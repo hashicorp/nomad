@@ -235,7 +235,7 @@ var basicConfig = &Config{
 		ChecksUseAdvertise:        &trueValue,
 		Timeout:                   5 * time.Second,
 		TimeoutHCL:                "5s",
-		ServiceIdentityAuthMethod: "nomad-services",
+		ServiceIdentityAuthMethod: "nomad-workloads",
 		ServiceIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io", "nomad.dev"},
 			Env:      pointer.Of(false),
@@ -243,7 +243,7 @@ var basicConfig = &Config{
 			TTL:      pointer.Of(1 * time.Hour),
 			TTLHCL:   "1h",
 		},
-		TaskIdentityAuthMethod: "nomad-tasks",
+		TaskIdentityAuthMethod: "nomad-workloads",
 		TaskIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io"},
 			Env:      pointer.Of(true),
@@ -836,8 +836,8 @@ var sample1 = &Config{
 		ChecksUseAdvertise:        pointer.Of(false),
 		AllowUnauthenticated:      pointer.Of(true),
 		Timeout:                   5 * time.Second,
-		ServiceIdentityAuthMethod: structs.ConsulServicesDefaultAuthMethodName,
-		TaskIdentityAuthMethod:    structs.ConsulTasksDefaultAuthMethodName,
+		ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
+		TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
 		Addr:                      "127.0.0.1:8500",
 		VerifySSL:                 pointer.Of(true),
 	}},
