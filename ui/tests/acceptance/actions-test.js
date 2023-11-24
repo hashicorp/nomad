@@ -281,7 +281,7 @@ module('Acceptance | actions', function (hooks) {
   });
 
   test('Actions flyout gets dynamic actions list', async function (assert) {
-    assert.expect(7);
+    assert.expect(8);
     allScenarios.smallCluster(server);
     let managementToken = server.create('token', {
       type: 'management',
@@ -335,5 +335,16 @@ module('Acceptance | actions', function (hooks) {
       'Flyout has actions dropdown on task page'
     );
     await percySnapshot(assert);
+
+    // Clear finished actions and take a snapshot
+    await click('button[data-test-clear-finished-actions]');
+    await percySnapshot('Cleared actions/flyout open state');
+
+    // Close flyout; global button is no longer present
+    await Actions.flyout.close();
+    assert.notOk(
+      Actions.globalButton.isPresent,
+      'Global button is not present after flyout close'
+    );
   });
 });
