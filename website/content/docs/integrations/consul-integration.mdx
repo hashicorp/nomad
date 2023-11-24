@@ -91,6 +91,14 @@ The auth method will have two binding rules attached: one mapping Nomad
 `service` blocks to Consul services, and one mapping Nomad namespaces or your
 job IDs to Consul Roles.
 
+<Note>
+
+Nomad also supports having separate auth methods for services and tasks, for
+additional flexibility. Consult [`service_auth_method`] and [`task_auth_method`]
+configuration parameters. 
+
+</Note>
+
 #### Auth Method and Binding Rules for Services and Templates
 
 Using the configuration file shown above, create a Consul Auth Method to
@@ -151,7 +159,7 @@ $ consul acl binding-rule create \
          -method 'nomad-workloads' \
          -description 'binding rule for Nomad template workload identities (WI)' \
          -bind-type role \
-         -bind-name 'nomad-${value.nomad_namespace}' \
+         -bind-name 'nomad-${value.nomad_namespace}-tasks' \
          -selector '"nomad_service" not in value`
 ```
 
@@ -330,3 +338,5 @@ Consul, with some exceptions.
 [`consul.task_identity`]: /nomad/docs/configuration/consul#task_identity
 [`identity`]: /nomad/docs/job-specification/identity
 [CDP]: /consul/docs/connect/dataplane
+[`service_auth_method`]: /nomad/docs/configuration/consul#service_auth_method
+[`task_auth_method`]: /nomad/docs/configuration/consul#task_auth_method
