@@ -54,13 +54,13 @@ Create a new ACL Auth Method:
 
 ```shell-session
 $ nomad acl auth-method create -name "example-acl-auth-method" -type "OIDC" -max-token-ttl "1h" -token-locality "local" -config "@config.json"
-Name         = example-acl-auth-method
-Type         = OIDC
-Locality     = local
-MaxTokenTTL  = 1h0m0s
-Default      = false
-Create Index = 14
-Modify Index = 14
+Name           = example-acl-auth-method
+Type           = OIDC
+Locality       = local
+Max Token TTL  = 1h0m0s
+Default        = false
+Create Index   = 14
+Modify Index   = 14
 
 Auth Method Config
 

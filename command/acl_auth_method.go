@@ -74,7 +74,7 @@ func formatAuthMethod(authMethod *api.ACLAuthMethod) string {
 		fmt.Sprintf("Name|%s", authMethod.Name),
 		fmt.Sprintf("Type|%s", authMethod.Type),
 		fmt.Sprintf("Locality|%s", authMethod.TokenLocality),
-		fmt.Sprintf("MaxTokenTTL|%s", authMethod.MaxTokenTTL.String()),
+		fmt.Sprintf("Max Token TTL|%s", authMethod.MaxTokenTTL.String()),
 		fmt.Sprintf("Default|%t", authMethod.Default),
 		fmt.Sprintf("Create Index|%d", authMethod.CreateIndex),
 		fmt.Sprintf("Modify Index|%d", authMethod.ModifyIndex),
