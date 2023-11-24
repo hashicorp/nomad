@@ -515,6 +515,10 @@
             "path": "commands/job"
           },
           {
+            "title": "action",
+            "path": "commands/job/action"
+          },
+          {
             "title": "allocs",
             "path": "commands/job/allocs"
           },
@@ -1595,6 +1599,10 @@
             "path": "job-specification/hcl2/variables"
           }
         ]
+      },
+      {
+        "title": "action",
+        "path": "job-specification/action"
       },
       {
         "title": "artifact",
