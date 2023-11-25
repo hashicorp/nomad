@@ -4,12 +4,14 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -41,6 +44,38 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// disconnectRPCHandler is a wrapper around another RCPHandler that allows
+// controlling if the request succeeds or fails.
+type disconnectRPCHandler struct {
+	disconnected     bool
+	disconnectedLock sync.RWMutex
+
+	handler config.RPCHandler
+}
+
+func (h *disconnectRPCHandler) RPC(method string, args interface{}, reply interface{}) error {
+	h.disconnectedLock.RLock()
+	disconnected := h.disconnected
+	h.disconnectedLock.RUnlock()
+
+	if disconnected {
+		return errors.New("RPCHandler is disconnected")
+	}
+	return h.handler.RPC(method, args, reply)
+}
+
+func (h *disconnectRPCHandler) Disconnect() {
+	h.disconnectedLock.Lock()
+	defer h.disconnectedLock.Unlock()
+	h.disconnected = true
+}
+
+func (h *disconnectRPCHandler) Connect() {
+	h.disconnectedLock.Lock()
+	defer h.disconnectedLock.Unlock()
+	h.disconnected = false
+}
 
 func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken, func()) {
 	server, token, cleanup := nomad.TestACLServer(t, cb)
@@ -1966,6 +2001,84 @@ func Test_verifiedTasks(t *testing.T) {
 		tasks := []string{"g1t1", "g1t3"}
 		tgTasks := []string{"g1t1", "g1t2", "g1t3"}
 		try(t, alloc(tgTasks), tasks, tasks, "")
+	})
+}
+
+func TestClient_Reconnect(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start a server with low hearbeat miss tolerance.
+	heartbeatTTL := time.Duration(500*testutil.TestMultiplier()) * time.Millisecond
+	s1, _, cleanupS1 := testServer(t, func(c *nomad.Config) {
+		c.MinHeartbeatTTL = heartbeatTTL
+		c.HeartbeatGrace = 2 * heartbeatTTL
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Start a client with the RPC handler wrapped in a disconnectRPCHandler.
+	rpcHandler := &disconnectRPCHandler{handler: s1}
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
+		c.DevMode = true
+		c.RPCHandler = rpcHandler
+	})
+	defer cleanupC1()
+	waitTilNodeReady(c1, t)
+
+	// Register a test job with max_client_disconnect.
+	job := mock.MinJob()
+	job.TaskGroups[0].MaxClientDisconnect = pointer.Of(time.Hour)
+
+	jobRegReq := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var jobRegResp structs.JobRegisterResponse
+	err := s1.RPC("Job.Register", jobRegReq, &jobRegResp)
+	must.NoError(t, err)
+
+	// Wait for allocation to be placed and running.
+	testutil.WaitForResult(func() (bool, error) {
+		s := s1.State()
+		allocs, err := s.AllocsByJob(nil, job.Namespace, job.ID, true)
+		if err != nil {
+			return false, err
+		}
+		if len(allocs) == 0 {
+			return false, fmt.Errorf("job has %d allocs", len(allocs))
+		}
+		if allocs[0].ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("alloc is %s", allocs[0].ClientStatus)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Disconnect client.
+	rpcHandler.Disconnect()
+	testutil.WaitForResult(func() (bool, error) {
+		state := s1.State()
+		n, _ := state.NodeByID(nil, c1.Node().ID)
+		if n.Status != structs.NodeStatusDisconnected {
+			return false, fmt.Errorf("node still connected")
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Reconnect client and ensure it becomes ready.
+	rpcHandler.Connect()
+	testutil.WaitForResult(func() (bool, error) {
+		state := s1.State()
+		n, _ := state.NodeByID(nil, c1.Node().ID)
+		if n.Status != structs.NodeStatusReady {
+			return false, fmt.Errorf("node still disconnected")
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
 	})
 }
 

@@ -612,6 +612,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			if len(allocs) > 0 && !allocsUpdated {
 				n.logger.Debug(fmt.Sprintf("marking node as %s due to outdated allocation information", structs.NodeStatusInit))
 				args.Status = structs.NodeStatusInit
+				reply.SyncAllocs = true
 			}
 
 			// Keep node in the initialing status if it's in a node pool that

@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -185,6 +186,10 @@ type Client struct {
 	haveHeartbeated bool
 	heartbeatLock   sync.Mutex
 	heartbeatStop   *heartbeatStop
+
+	// forceAllocSync is used to indicate that the server requested allocs to
+	// be synced, even if there are no changes to submit.
+	forceAllocSync *atomic.Bool
 
 	// triggerDiscoveryCh triggers Consul discovery; see triggerDiscovery
 	triggerDiscoveryCh chan struct{}
@@ -385,6 +390,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		streamingRpcs:        structs.NewStreamingRpcRegistry(),
 		logger:               logger,
 		rpcLogger:            logger.Named("rpc"),
+		forceAllocSync:       &atomic.Bool{},
 		allocs:               make(map[string]interfaces.AllocRunner),
 		pendingUpdates:       newPendingClientUpdates(),
 		shutdownCh:           make(chan struct{}),
@@ -2140,6 +2146,10 @@ func (c *Client) handleNodeUpdateResponse(resp structs.NodeUpdateResponse) error
 		return noServersErr
 	}
 	c.servers.SetServers(nomadServers)
+
+	if resp.SyncAllocs {
+		c.forceAllocSync.Store(true)
+	}
 	return nil
 }
 
@@ -2163,15 +2173,7 @@ func (c *Client) AllocStateUpdated(alloc *structs.Allocation) {
 
 	// Strip all the information that can be reconstructed at the server.  Only
 	// send the fields that are updatable by the client.
-	stripped := new(structs.Allocation)
-	stripped.ID = alloc.ID
-	stripped.NodeID = c.NodeID()
-	stripped.TaskStates = alloc.TaskStates
-	stripped.ClientStatus = alloc.ClientStatus
-	stripped.ClientDescription = alloc.ClientDescription
-	stripped.DeploymentStatus = alloc.DeploymentStatus
-	stripped.NetworkStatus = alloc.NetworkStatus
-
+	stripped := c.stripAlloc(alloc)
 	c.pendingUpdates.add(stripped)
 }
 
@@ -2197,9 +2199,24 @@ func (c *Client) allocSync() {
 			updateTicks++
 			toSync := c.pendingUpdates.nextBatch(c, updateTicks)
 
+			force := c.forceAllocSync.Load()
 			if len(toSync) == 0 {
-				syncTicker.Reset(allocSyncIntv)
-				continue
+				if !force {
+					// Skip alloc sync since there's nothing to do.
+					syncTicker.Reset(allocSyncIntv)
+					continue
+				}
+
+				// Server requested a forced sync, likely because the client
+				// was disconnected. Send all allocations make sure the server
+				// has all it needs.
+				c.allocLock.RLock()
+				for _, ar := range c.allocs {
+					toSync = append(toSync, c.stripAlloc(ar.Alloc()))
+				}
+				c.allocLock.RUnlock()
+				c.logger.Debug("server requested forced alloc sync")
+				c.forceAllocSync.Store(false)
 			}
 
 			// Send to server.
@@ -2580,6 +2597,20 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	c.garbageCollector.Trigger()
 	c.logger.Debug("allocation updates applied", "added", len(diff.added), "removed", len(diff.removed),
 		"updated", len(diff.updated), "ignored", len(diff.ignore), "errors", errs)
+}
+
+// stripAlloc removes all information from an allocation that can be
+// reconstructed by the server.
+func (c *Client) stripAlloc(alloc *structs.Allocation) *structs.Allocation {
+	stripped := new(structs.Allocation)
+	stripped.ID = alloc.ID
+	stripped.NodeID = c.NodeID()
+	stripped.TaskStates = alloc.TaskStates
+	stripped.ClientStatus = alloc.ClientStatus
+	stripped.ClientDescription = alloc.ClientDescription
+	stripped.DeploymentStatus = alloc.DeploymentStatus
+	stripped.NetworkStatus = alloc.NetworkStatus
+	return stripped
 }
 
 // makeFailedAlloc creates a stripped down version of the allocation passed in

@@ -1546,6 +1546,10 @@ type NodeUpdateResponse struct {
 	// has for their scheduling status during heartbeats.
 	SchedulingEligibility string
 
+	// SyncAllocs is set to true by the server to force the client to sync its
+	// allocations.
+	SyncAllocs bool
+
 	QueryMeta
 }
 
