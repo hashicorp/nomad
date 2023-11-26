@@ -6,6 +6,9 @@
 package cgroupslib
 
 import (
+	"fmt"
+	"strings"
+	"slices"
 	"bytes"
 	"os"
 	"path/filepath"
@@ -134,18 +137,37 @@ func Init(log hclog.Logger, cores string) {
 
 	case CG2:
 		// the cgroup controllers we need to activate at the root and on the nomad slice
-		const activation = "+cpuset +cpu +io +memory +pids"
+		controllers := []string{"cpuset", "cpu", "io", "memory", "pids"}
 
 		// the name of the cgroup subtree interface file
 		const subtreeFile = "cgroup.subtree_control"
+
+		// the name of the cgroup controllers interface file
+		const controllersFile = "cgroup.controllers"
 
 		//
 		// configuring root cgroup (/sys/fs/cgroup)
 		//
 
-		if err := writeCG(activation, subtreeFile); err != nil {
-			log.Error("failed to create nomad cgroup", "error", err)
-			return
+		controllersRootPath := filepath.Join(root, controllersFile)
+		content, err := os.ReadFile(controllersRootPath)
+		if err != nil {
+			log.Info("failed to read cgroups controller file", "path", controllersRootPath, "error", err)
+		} else {
+			rootSubtreeControllers := strings.Split(strings.TrimSpace(string(content)), " ")
+
+			for _, controller := range controllers {
+				if !slices.Contains(rootSubtreeControllers, controller) {
+					log.Error("controller not enabled in your system, check kernel build configuration and commandline (/proc/cmdline)", "controller", controller)
+				}
+			}
+		}
+
+		for _, controller := range controllers {
+			if err := writeCG(fmt.Sprintf("+%s", controller), subtreeFile); err != nil {
+				log.Error("failed to enable cgroup controller", "error", err, "controller", controller)
+				return
+			}
 		}
 
 		//
@@ -157,9 +179,11 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		if err := writeCG(activation, NomadCgroupParent, subtreeFile); err != nil {
-			log.Error("failed to set subtree control on nomad cgroup", "error", err)
-			return
+		for _, controller := range controllers {
+			if err := writeCG(fmt.Sprintf("+%s", controller), NomadCgroupParent, subtreeFile); err != nil {
+				log.Error("failed to enable controller on nomad cgroup", "error", err, "controller", controller)
+				return
+			}
 		}
 
 		if err := writeCG(cores, NomadCgroupParent, cpusetFile); err != nil {
@@ -178,9 +202,11 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		if err := writeCG(activation, NomadCgroupParent, SharePartition(), subtreeFile); err != nil {
-			log.Error("failed to set subtree control on cpuset share partition", "error", err)
-			return
+		for _, controller := range controllers {
+				if err := writeCG(fmt.Sprintf("+%s", controller), NomadCgroupParent, SharePartition(), subtreeFile); err != nil {
+						log.Error("failed to set subtree control on share partition", "error", err)
+						return
+				}
 		}
 
 		log.Debug("partition member nomad.slice/share cgroup initialized")
@@ -194,9 +220,11 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		if err := writeCG(activation, NomadCgroupParent, ReservePartition(), subtreeFile); err != nil {
-			log.Error("failed to set subtree control on cpuset reserve partition", "error", err)
-			return
+		for _, controller := range controllers {
+				if err := writeCG(fmt.Sprintf("+%s", controller), NomadCgroupParent, ReservePartition(), subtreeFile); err != nil {
+						log.Error("failed to set subtree control on reserve partition", "error", err)
+						return
+				}
 		}
 
 		log.Debug("partition member nomad.slice/reserve cgroup initialized")
