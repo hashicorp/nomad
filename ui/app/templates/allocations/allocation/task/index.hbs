@@ -49,12 +49,10 @@
       {{#if this.model.isRunning}}
 
         {{#if this.shouldShowActions}}
-          <Hds::Dropdown class="actions-dropdown" as |dd|>
-            <dd.ToggleButton @color="secondary" @text="Actions" @size="medium" />
-            {{#each this.model.task.actions as |action|}}
-              <dd.Interactive {{on "click" (perform this.runAction action (get (object-at 0 action.allocations) "id"))}} @text="{{action.name}}" />
-            {{/each}}
-          </Hds::Dropdown>
+          <ActionsDropdown
+            @actions={{this.model.task.actions}}
+            @allocation={{this.model.allocation}}
+          />
         {{/if}}
 
         <div class="two-step-button">

@@ -167,8 +167,17 @@ export default class Job extends Model {
     }, []);
   }
 
-  runAction(action, allocID) {
-    return this.store.adapterFor('job').runAction(this, action, allocID);
+  /**
+   *
+   * @param {import('../models/action').default} action
+   * @param {string} allocID
+   * @param {import('../models/action-instance').default} actionInstance
+   * @returns
+   */
+  getActionSocketUrl(action, allocID, actionInstance) {
+    return this.store
+      .adapterFor('job')
+      .getActionSocketUrl(this, action, allocID, actionInstance);
   }
 
   @computed('taskGroups.@each.drivers')
