@@ -32,7 +32,8 @@ export default [
       },
       {
         key: 'description',
-        value: 'A raw exec job that shows off Nomad Actions',
+        value:
+          'Nomad Actions let job authors describe commands that can be run in one click from the UI or one command from the CLI. This example job shows how to use them to simulate development on a Redis instance.',
       },
     ],
   },

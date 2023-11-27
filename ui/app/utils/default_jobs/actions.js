@@ -3,128 +3,129 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-export default `job "job-with-actions" {
-  # Specifies the datacenter where this job should be run
-  # This can be omitted and it will default to ["*"]
+export default `job "redis-actions" {
   datacenters = ["*"]
 
-  # Run the job only on Linux or MacOS.
-  constraint {
-    attribute = "\${attr.kernel.name}"
-    operator  = "set_contains_any"
-    value     = "darwin,linux"
-  }
+  group "cache" {
+    count = 1
+    network {
+      port "db" {}
+    }
 
-  group "my_group" {
-    # Specifies the number of instances of this group that should be running.
-    # Use this to scale or parallelize your job.
-    count = 3
+    task "redis" {
+      driver = "docker"
 
-    task "sleepy" {
-      driver = "raw_exec"
-
-      # The "command" stanza specifies the command to run.
-      # This command will run a .sh file generated from the template stanza below,
-      # which will sleep for 2 seconds and repeat until the job is stopped.
       config {
-        command = "\${NOMAD_TASK_DIR}/sleepy.sh"
+        image = "redis:3.2"
+        ports = ["db"]
+        command = "/bin/sh"
+        args = ["-c", "redis-server --port \${NOMAD_PORT_db} & /local/db_log.sh"]
       }
 
       resources {
-        memory = 16
-        cpu = 16
+        cpu = 500
+        memory = 256
+      }
+
+      service {
+        name = "redis-service"
+        port = "db"
+        provider = "nomad"
+
+        check {
+          name     = "alive"
+          type     = "tcp"
+          port     = "db"
+          interval = "10s"
+          timeout  = "2s"
+        }
       }
 
       template {
-        data = <<EOH
-#!/bin/bash
-SLEEP_SECS=2
-interruptable_sleep() { for i in $(seq 1 $((2*\${1}))); do sleep .5; done; }
-sigint() { echo "$(date) - SIGTERM received; Ending."; exit 0; }
-trap 'sigint'  INT
-echo "$(date) - Starting. SLEEP_SECS=\${SLEEP_SECS}"
-while true; do echo "$(date) - Sleeping for \${SLEEP_SECS} seconds."; interruptable_sleep \${SLEEP_SECS}; done
-EOH
-        destination = "local/sleepy.sh"
+        data = <<EOF
+          #!/bin/sh
+          while true; do
+            echo "$(date): Current DB Size: $(redis-cli -p \${NOMAD_PORT_db} DBSIZE)"
+            sleep 3
+          done
+EOF
+        destination = "local/db_log.sh"
+        perms = "0755"
       }
 
-      # Action blocks can be used to run arbitrary commands on an allocation,
-      # such as to collect logs, clear caches, migrate databases, or debug issues.
-
-      # This action will run a simple echo command every second.
-      # Where the other actions run and exit upon completion, this action will run
-      # until it is manually stopped with an escape character or socket closure.
-      action "echo time" {
+      # Adds a random key/value to the Redis database
+      action "add-random-key" {
         command = "/bin/sh"
-        args    = ["-c", "counter=0; while true; do echo \\"Running for \${counter} seconds\\"; counter=$((counter + 1)); sleep 1; done"]
+        args    = ["-c", "key=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); value=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); redis-cli -p \${NOMAD_PORT_db} SET $key $value; echo Key $key added with value $value"]
       }
-      
-      # These next two actions use the nomad CLI to get information about the job and allocation.
-      # The NOMAD_JOB_NAME and NOMAD_ALLOC_ID environment variables are made available to running
-      # tasks and can be used in jobspecs.
-      action "get-job-info" {
+
+      # Adds a random key/value with a "temp_" prefix to the Redis database
+      action "add-random-temporary-key" {
         command = "/bin/sh"
-        args    = ["-c",
-          <<EOT
-          nomad job status \${NOMAD_JOB_NAME}
-          EOT
+        args    = ["-c", "key=temp_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); value=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13); redis-cli -p \${NOMAD_PORT_db} SET $key $value; echo Key $key added with value $value"]
+      }
+
+      # Lists all keys currently stored in the Redis database.
+      action "list-keys" {
+        command = "/bin/sh"
+        args    = ["-c", "redis-cli -p \${NOMAD_PORT_db} KEYS '*'"]
+      }
+
+      # Retrieves various stats about the Redis server
+      action "get-redis-stats" {
+        command = "/bin/sh"
+        args    = ["-c", "redis-cli -p \${NOMAD_PORT_db} INFO"]
+      }
+
+      # Performs a latency check of the Redis server.
+      # This action is a non-terminating action, meaning it will run indefinitely until it is stopped.
+      # Pass an escape sequence (Ctrl-C) to stop the action.
+      action "health-check" {
+        command = "/bin/sh"
+        args    = ["-c", "redis-cli -p \${NOMAD_PORT_db} --latency"]
+      }
+
+      # Deletes all keys with a 'temp_' prefix
+      action "flush-temp-keys" {
+        command = "/bin/sh"
+        args    = ["-c", <<EOF
+          keys_to_delete=$(redis-cli -p \${NOMAD_PORT_db} --scan --pattern 'temp_*')
+          if [ -n "$keys_to_delete" ]; then
+            # Count the number of keys to delete
+            deleted_count=$(echo "$keys_to_delete" | wc -l)
+            # Execute the delete command
+            echo "$keys_to_delete" | xargs redis-cli -p \${NOMAD_PORT_db} DEL
+          else
+            deleted_count=0
+          fi
+          remaining_keys=$(redis-cli -p \${NOMAD_PORT_db} DBSIZE)
+          echo "$deleted_count temporary keys removed; $remaining_keys keys remaining in database"
+EOF
         ]
       }
 
-      action "get alloc info" {
+
+      # Toggles saving to disk (RDB persistence). When enabled, allocation logs will indicate a save every 60 seconds.
+      action "toggle-save-to-disk" {
         command = "/bin/sh"
-        args    = ["-c",
-          <<EOT
-          nomad alloc status \${NOMAD_ALLOC_ID}
-          EOT
+        args    = ["-c", <<EOF
+          current_config=$(redis-cli -p \${NOMAD_PORT_db} CONFIG GET save | awk 'NR==2');
+          if [ -z "$current_config" ]; then
+            # Enable saving to disk (example: save after 60 seconds if at least 1 key changed)
+            redis-cli -p \${NOMAD_PORT_db} CONFIG SET save "60 1";
+            echo "Saving to disk enabled: 60 seconds interval if at least 1 key changed";
+          else
+            # Disable saving to disk
+            redis-cli -p \${NOMAD_PORT_db} CONFIG SET save "";
+            echo "Saving to disk disabled";
+          fi;
+EOF
         ]
       }
 
-      # This final action will fetch the latest Nomad changelog and parse it to get the latest 3 versions
-      # and the number of items under each section using curl and awk. This is meant to demonstrate
-      # how actions can be used to fetch information or perform other tasks that are not directly related
-      # to the running task.
-      action "fetch-latest-nomad-changelog" {
-        command = "/bin/sh"
-        args    = ["-c", 
-          <<EOT
-          curl -s https://raw.githubusercontent.com/hashicorp/nomad/main/CHANGELOG.md | 
-          awk 'BEGIN{
-              RS="## "; FS="\\n"; 
-              section=""; count=0
-          }
-          {
-              if (count < 3 && NR > 1){
-                  split($1, versionInfo, /[()]/);
-                  version=versionInfo[1];
-                  gsub(" ", "", version);
-                  releaseDate=versionInfo[2];
-                  urlVersion=version; gsub("\\\\.", "", urlVersion);
-                  urlDate=releaseDate; gsub(" ", "-", urlDate); gsub(",", "", urlDate);
-                  for(i=1; i<=NF; i++){
-                      if($i ~ /^[A-Z ]+:$/){
-                          gsub(":", "", $i);
-                          section=$i;
-                          itemCount[section]=0;
-                      }
-                      if(section && $i ~ /^\\*/){
-                          itemCount[section]++;
-                      }
-                  }
-                  printf "Version: %s\\nRelease Date: %s\\n", version, releaseDate;
-                  for (s in itemCount) {
-                      printf "%d %s, ", itemCount[s], s;
-                  }
-                  printf "\\nLink: https://github.com/hashicorp/nomad/blob/main/CHANGELOG.md#%s-%s\\n\\n", urlVersion, tolower(urlDate);
-                  delete itemCount;
-                  count++;
-              }
-          }'
-          EOT
-        ]
-      }
 
     }
   }
+
 }
 `;
