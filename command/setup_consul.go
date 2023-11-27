@@ -691,7 +691,7 @@ func (s *SetupConsulCommand) removeConfiguredComponents() int {
 			}
 		}
 
-		for _, authMethod := range componentsToRemove["Auth methods"] {
+		for _, authMethod := range componentsToRemove["Auth method"] {
 			_, err := s.client.ACL().AuthMethodDelete(authMethod, nil)
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete auth method %q: %v", authMethod, err.Error()))
