@@ -11250,7 +11250,7 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	if tg.MaxClientDisconnect == nil {
+	if tg.MaxClientDisconnect == nil && !tg.SingleInstanceOnLost {
 		return false
 	}
 
