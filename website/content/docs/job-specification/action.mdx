@@ -1,8 +1,7 @@
 ---
 layout: docs
 page_title: action Block - Job Specification
-description: The "action" block allows for executable commands that operators
-
+description: The "action" block allows for executable commands that job authors can predefine for operators to subsequently run against their job.
 ---
 
 # `action` Block
@@ -15,10 +14,8 @@ allocation, offering a controlled way to interact with tasks.
 
 ## `action` Parameters
 
-The `action` block is used within a task and has the following parameters:
-
-- `command` (Required): Specifies the command to be executed.
-- `args` (Optional): Provides a list of arguments to pass to the command.
+- `command` `(string: <required>)` - Specifies the command to be executed.
+- `args` `(array<string>: [])` - Provides a list of arguments to pass to the command.
 
 ```hcl
 job "my-job" {
@@ -26,8 +23,12 @@ job "my-job" {
     task "my-task" {
       action "get-changelog" {
         command = "/usr/bin/curl"
-        args = ["-s", "https://raw.githubusercontent.com/hashicorp/nomad/main/CHANGELOG.md"]
+        args = [
+          "-s",
+          "https://raw.githubusercontent.com/hashicorp/nomad/main/CHANGELOG.md"
+        ]
       }
+      # ...
     }
   }
 }
@@ -40,11 +41,11 @@ This example demonstrates a simple action that prints the current date and time:
 
 ```hcl
 job "example" {
-  ...
+  # ...
   group "demo" {
-    ...
+    # ...
     task "show-date" {
-      ...
+      # ...
       action "current-date" {
         command = "/bin/date"
       }
@@ -58,11 +59,11 @@ Here, an action uses arguments to perform a specific task:
 
 ```hcl
 job "example" {
-  ...
+  # ...
   group "demo" {
-    ...
+    # ...
     task "list-files" {
-      ...
+      # ...
       action "list-tmp" {
         command = "/bin/ls"
         args    = ["-l", "/tmp"]

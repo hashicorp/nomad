@@ -29,11 +29,11 @@ this command requires the `alloc-node-exec`, `alloc-exec`, `read-job`, and
 ## Usage
 
 ```plaintext
-nomad job action [options] <job_action_name>
+nomad job action [options] <action>
 ```
 
 The `job action` command requires an action name and accepts two ways of
-specifying where it should be run:
+specifying where it should run:
 - by passing the job name and known allocation ID along with the name of the action
 - by passing the job, task group, and task name along with the name of the action
 (when the allocation ID is not known). A random allocation will be selected if
@@ -51,31 +51,29 @@ supported.
 
 ## Action Options
 
-- `-job`: (Required) Specifies the job containing the predefined action. This
-  is the job under which the task is registered.
+- `-job`: (Required) Specifies the job containing the predefined action.
 
 - `-alloc`: Specifies the allocation within which the action is to be executed.
-  If omitted, either a task-group and task-name must be provided, and a random
-  allocation will be selected from them.
+  If omitted, `-group` and `-task` must be provided, and a random
+  allocation for the group will be selected.
 
 - `-task`: Specifies the task within the job where the action is defined. This
-  must correspond to a task in the job's specification, and is required if no
-  `alloc` option is provided.
+  is required either if `-alloc` provided and your group has multiple tasks,
+  or if you specify a `-group`.
 
-- `-group`: Specifies the task group within the job. This is needed when
-  selecting a random allocation from a specific task, and is required if no
-  `alloc` option is provided.
+- `-group`: Specifies the task group within the job. If present, a random
+  allocation is selected. If omitted, `-alloc` must be provided.
 
-- `-i`: Pass stdin to the container, defaults to true. Pass `-i=false` to
+- `-i`: Pass stdin to the action, defaults to `true`. Pass `-i=false` to
   disable explicitly.
 
-- `-t`: Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty
+- `-t`: Allocate a pseudo-tty, defaults to `true` if stdin is detected to be a tty
   session. Pass `-t=false` to disable explicitly.
 
-- `-e` <escape_char>: Sets the escape character for sessions with a pty
-  (default: '~'). The escape character is only recognized at the beginning of a
-  line. The escape character followed by a dot ('.') closes the connection.
-  Setting the character to 'none' disables any escapes and makes the session
+- `-e` <escape_char>: Sets the escape character for sessions with a pty,
+  defaults to '~'. The escape character is only recognized at the beginning of a
+  line. The escape character followed by a dot (`.`) closes the connection.
+  Setting the character to `none` disables any escapes and makes the session
   fully transparent.
 
 ## Examples
@@ -90,7 +88,7 @@ $ nomad action \
   weather
 
 Toronto: ☁️   +3°C
-``````
+```
 
 Execute an action within a specific allocation:
 

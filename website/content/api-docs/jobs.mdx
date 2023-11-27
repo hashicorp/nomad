@@ -2521,8 +2521,7 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/job/my-job/actions
+$ nomad operator api '/v1/job/my-job/actions'
 ```
 
 ### Sample Response
@@ -2545,7 +2544,7 @@ $ curl \
       "nomad alloc status ${NOMAD_ALLOC_ID}"
     ],
     "Command": "/bin/sh",
-    "Name": "get alloc info",
+    "Name": "get-alloc-info",
     "TaskGroupName": "group2",
     "TaskName": "task"
   },
@@ -2554,7 +2553,7 @@ $ curl \
 
 ## Run Action
 
-This endpoint executes a predefined action from a job specification in the
+This endpoint executes a predefined action from a job in the
 context of a specific task within an allocation. It opens a WebSocket to
 transmit output from the running action.
 
@@ -2569,7 +2568,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required                                                                                 |
 | ---------------- | -------------------------------------------------------------------------------------------- |
-| `NO`             | `namespace:alloc-exec` (and `namespace:alloc-node-exec` if target task uses raw_exec driver) |
+| `NO`             | `namespace:alloc-exec` (and `namespace:alloc-node-exec` if task driver does not support [file system isolation](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error)) |
 
 ### Parameters
 
@@ -2577,19 +2576,18 @@ The table below shows this endpoint's support for
   action. This is specified as part of the path.
 - `action` `(string: <required>)` - Specifies the name of the action to be
   executed, as defined within the job's task. Specified as a query parameter.
-- `allocID` `(string: <required>)` - Specifies the UUID of the target
+- `alloc_id` `(string: <required>)` - Specifies the UUID of the target
   allocation. Specified as a query parameter.
-- `task` `(string: <required>)` - Specifies the task within the group where the
-  action is defined. Specified as a query parameter.
+- `task` `(string: <required>)` - Specifies the task where the action is
+  defined. Specified as a query parameter.
 - `tty` `(bool: false)` - Specifies whether a TTY is allocated for this action.
   Specified as a query parameter.
 - `ws_handshake` `(bool: false)` - Specifies whether to expect the
   authentication token in the first frame, as a query parameter.
 
-
 ### WebSocket Upgrade Request
 
-To execute an action, a WebSocket upgrade request is sent. The request headers
+Actions are executed with a WebSocket upgrade request. The request headers
 must include the standard WebSocket upgrade parameters. Example:
 
 ```shell-session
@@ -2599,7 +2597,16 @@ $ curl \
   -H 'Upgrade: websocket' \
   -H 'Sec-Websocket-Version: 13' \
   -H 'Sec-Websocket-Key: x3JJHMbDL1EzLkh9GBhXDw==' \
-  http://127.0.0.1:4646/v1/job/actions-demo/action?action=weather&allocID=8614ed07-425f-889f-170d-dd2716e0e01f&task=task&tty=true -o /dev/tty
+  'http://127.0.0.1:4646/v1/job/actions-demo/action?action=weather&allocID=8614ed07-425f-889f-170d-dd2716e0e01f&task=task&tty=true'
+```
+or
+```shell-session
+$ nomad operator api \
+-H "Connection: Upgrade" \
+-H "Upgrade: websocket" \
+-H "Sec-WebSocket-Version: 13" \
+-H "Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==" \
+'/v1/job/actions-demo/action?action=weather&allocID=8614ed07-425f-889f-170d-dd2716e0e01f&task=task&tty=true'
 ```
 
 ### Request Frames
@@ -2644,8 +2651,8 @@ transmitted over WebSocket connections without issues, regardless of its content
 
 ### Sample Request and Response
 
-This example response includes instances of the ANSI “control sequence
-introducer” (CSI), which is ASCII code 27 followed by `[`. The second stdout
+This example response includes instances of the ANSI "control sequence
+introducer" (CSI), which is ASCII code 27 followed by `[`. The second stdout
 frame includes the desired output from the Action in question, which prints
 the local weather.
 
