@@ -8,6 +8,10 @@ description: The /node endpoints are used to query for and interact with client 
 
 The `/node` endpoints are used to query for and interact with client nodes.
 
+Requests to these endpoints are always forwarded to and answered by Nomad
+servers. The [`/client`](/nomad/api-docs/client) endpoints provide node
+information that are answered directly by the Nomad client.
+
 ## List Nodes
 
 This endpoint lists all nodes registered with Nomad.
