@@ -516,7 +516,6 @@ REQ:
 
 	// Check if we got a response
 	if resp.Eval != nil {
-		fmt.Println("\n **** eval triggered_by", resp.Eval.TriggeredBy)
 		w.logger.Debug("dequeued evaluation", "eval_id", resp.Eval.ID, "type", resp.Eval.Type, "namespace", resp.Eval.Namespace, "job_id", resp.Eval.JobID, "node_id", resp.Eval.NodeID, "triggered_by", resp.Eval.TriggeredBy)
 		return resp.Eval, resp.Token, resp.GetWaitIndex(), false
 	}

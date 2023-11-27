@@ -4672,6 +4672,13 @@ func (j *Job) Validate() error {
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
 					tg.Name, tg.Count))
 		}
+
+		if tg.MaxClientDisconnect != nil &&
+			tg.ReschedulePolicy.Attempts > 0 &&
+			tg.SingleInstanceOnLost {
+			err := fmt.Errorf("having max_client_disconnect enable along with a reschedule policy can lead to having multiple instances of a task running at the same time")
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
 
 	// Validate the task group
@@ -4735,13 +4742,6 @@ func (j *Job) Warnings() error {
 
 			// Having no canaries implies auto-promotion since there are no canaries to promote.
 			allAutoPromote = allAutoPromote && (u.Canary == 0 || u.AutoPromote)
-		}
-
-		if tg.MaxClientDisconnect != nil &&
-			tg.ReschedulePolicy.Attempts > 0 &&
-			tg.SingleInstanceOnLost {
-			err := fmt.Errorf("having max_client_disconnect enable along with a reschedule policy can lead to having multiple instances of a task running at the same time")
-			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
 
