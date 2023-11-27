@@ -177,7 +177,7 @@ func (r *reconcileResults) GoString() string {
 	for tg, u := range r.desiredTGUpdates {
 		base += fmt.Sprintf("\nDesired Changes for %q: %#v", tg, u)
 	}
-	fmt.Println("\n ***", base)
+
 	return base
 }
 

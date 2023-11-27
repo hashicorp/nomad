@@ -241,7 +241,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
 
 		reconnect := false
-		//expired := false
 
 		// Only compute reconnect for unknown, running, and failed since they
 		// need to go through the reconnect logic.
@@ -250,9 +249,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusFailed) {
 			reconnect = alloc.NeedsToReconnect()
-			//if reconnect {
-			//	expired = alloc.Expired(now)
-			//}
 		}
 
 		// Failed allocs that need to be reconnected must be added to
@@ -266,51 +262,33 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		}
 
 		taintedNode, nodeIsTainted := taintedNodes[alloc.NodeID]
-		if taintedNode != nil {
+		if taintedNode != nil && taintedNode.Status == structs.NodeStatusDisconnected {
 			// Group disconnecting
-			switch taintedNode.Status {
-			case structs.NodeStatusDisconnected:
-				if supportsDisconnectedClients {
-					// Filter running allocs on a node that is disconnected to be marked as unknown.
+			if supportsDisconnectedClients {
+				// Filter running allocs on a node that is disconnected to be marked as unknown.
+				if alloc.ClientStatus == structs.AllocClientStatusRunning {
+					disconnecting[alloc.ID] = alloc
+					continue
+				}
+				// Filter pending allocs on a node that is disconnected to be marked as lost.
+				if alloc.ClientStatus == structs.AllocClientStatusPending {
+					lost[alloc.ID] = alloc
+					continue
+				}
+
+			} else {
+				if alloc.SingleInstanceOnLost() {
 					if alloc.ClientStatus == structs.AllocClientStatusRunning {
 						disconnecting[alloc.ID] = alloc
 						continue
 					}
-					// Filter pending allocs on a node that is disconnected to be marked as lost.
-					if alloc.ClientStatus == structs.AllocClientStatusPending {
-						lost[alloc.ID] = alloc
-						continue
-					}
 
-				} else {
-					if alloc.SingleInstanceOnLost() {
-						if alloc.ClientStatus == structs.AllocClientStatusRunning {
-							disconnecting[alloc.ID] = alloc
-							continue
-						}
-
-						untainted[alloc.ID] = alloc
-						continue
-					}
-
-					lost[alloc.ID] = alloc
+					untainted[alloc.ID] = alloc
 					continue
 				}
-				/* 			case structs.NodeStatusReady:
-				// Filter reconnecting allocs on a node that is now connected.
-				if reconnect {
-					if alloc.Expired(now) {
-						if alloc.SingleInstanceOnLost() {
-							expiring[alloc.ID] = alloc
-							continue
-						}
-						lost[alloc.ID] = alloc
-						continue
-					}
 
-					reconnecting[alloc.ID] = alloc
-					continue
-				}*/
+				lost[alloc.ID] = alloc
+				continue
 			}
 		}
 
@@ -364,13 +342,10 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				// and single instance on lost configurations, they are both treated as
 				// expiring.
 				if alloc.Expired(now) {
-					//		if alloc.SingleInstanceOnLost() {
 					expiring[alloc.ID] = alloc
 					continue
-					//		}
-					//	lost[alloc.ID] = alloc
-					//	continue
 				}
+
 				reconnecting[alloc.ID] = alloc
 				continue
 			}
