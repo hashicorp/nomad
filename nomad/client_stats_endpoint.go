@@ -6,8 +6,8 @@ package nomad
 import (
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/structs"
