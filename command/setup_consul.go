@@ -491,7 +491,8 @@ func (s *SetupConsulCommand) bindingRuleExists(rule *api.ACLBindingRule) bool {
 		func(r *api.ACLBindingRule) bool {
 			return r.AuthMethod == rule.AuthMethod &&
 				r.BindType == rule.BindType &&
-				r.BindName == rule.BindName
+				r.BindName == rule.BindName &&
+				r.Selector == rule.Selector
 		})
 }
 
