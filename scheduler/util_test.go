@@ -550,7 +550,7 @@ func TestTasksUpdated(t *testing.T) {
 
 	// Change SingleInstanceOnLost mode
 	j31 := mock.Job()
-	j31.TaskGroups[0].SingleInstanceOnLost = false
+	j31.TaskGroups[0].SingleInstanceOnLost = true
 	require.True(t, tasksUpdated(j1, j31, name).modified)
 }
 
