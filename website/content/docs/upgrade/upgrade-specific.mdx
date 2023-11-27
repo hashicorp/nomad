@@ -110,6 +110,13 @@ onto the same client when they are in different namespaces. To prevent this,
 consider using [node pools] and constrain the jobs with a [`distinct_property`][]
 constraint over [`${node.pool}`][node_attributes].
 
+#### Loading Binaries from `plugin_dir` Without Configuration
+
+Starting with Nomad 1.7.0, loading plugins that are not referenced in the agent
+configuration file is deprecated. Future versions of Nomad will only load
+plugins that have a corresponding [`plugin`](/nomad/docs/configuration/plugin)
+block in the agent configuration file.
+
 ## Nomad 1.6.0
 
 #### Enterprise License Validation with BuildDate

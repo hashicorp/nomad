@@ -264,7 +264,10 @@ func (l *PluginLoader) fingerprintPlugins(plugins []os.FileInfo, configs map[str
 	fingerprinted := make(map[PluginID]*pluginInfo, len(plugins))
 	for _, p := range plugins {
 		name := cleanPluginExecutable(p.Name())
-		c := configs[name]
+		c, ok := configs[name]
+		if !ok {
+			l.logger.Warn("plugin not referenced in the agent configuration file, future versions of Nomad will not load this plugin until the agent configuration is updated", "plugin", name)
+		}
 		info, err := l.fingerprintPlugin(p, c)
 		if err != nil {
 			l.logger.Error("failed to fingerprint plugin", "plugin", name, "error", err)
