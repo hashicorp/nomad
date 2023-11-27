@@ -2,7 +2,7 @@
 layout: docs
 page_title: Considerations for Stateful Workloads
 description: |-
-  Learn about the available options for persistent workload storage on Nomad
+  Learn about persistent storage options for stateful workloads on Nomad.
 ---
 
 # Considerations for Stateful Workloads
@@ -14,16 +14,16 @@ This document explores the options for persistent storage of workloads running i
 At the end of this article, we provide a [storage comparison](#storage-comparison) table with the advantages, disadvantages, and the ideal use-case for each storage option. This guidance will help you understand and choose the best storage option for your Nomad allocation storage. 
 
 ## Considerations
-There are a few considerations when choosing the most appropriate storage strategy, such as performance, reliability, availability, and maintenance.
 
-Local storage is usually the most performant and available option, requiring little maintenance outside of ensuring adequate capacity. However, since there is no redundancy, if a single node, disk, or group of disks fails, data loss and service interruption will occur. A geographically distributed networked storage with multiple redundancies, including disks, controllers, and network paths, would be the most highly available and reliable. 
+Consider performance, reliability, availability, and maintenance to choose the most appropriate storage strategy. 
 
-For high availability and resilience, use a geographically distributed networked storage with multiple redundancies, including disks, controllers, and network paths. This implementation can tolerate multiple hardware failures before risking data loss. However, it relies on network performance and comes with the tradeoffs of higher latency, lower throughput, and increased maintenance. 
+Local storage is performant and available. If it has enough capacity it does not need much maintenance. But, it is not redundant; if a single node, disk, or group of disks fails, data loss and service interruption will occur.
+
+A geographically distributed networked storage with multiple redundancies, including disks, controllers, and network paths, provides higher availability and resilience, and can tolerate multiple hardware failures before risking data loss. But, it relies on network performance, can have higher latency, be lower-throughput, and need more maintenance.
 
 This document addresses traditional storage you can attach as a filesystem and does not cover object storage such as AWS S3 or MinIO. 
 
 It is also important to consider the environment Nomad will run in when reviewing different storage options. Nomad can run either in public clouds or on-prem. Depending on your organizational and application needs, understanding the storage options for each provider will help you optimize your stateful workloads.
-
 
 ### Public cloud
 
@@ -31,31 +31,31 @@ Public cloud providers offer services, such as Azure Ephemeral OS disks, Managed
 
 In an AWS environment, an EBS block volume is zonal and slower than the local storage on the EC2 instances, but it is readily available. Your data will persist in the case of a crash of the underlying hardware, and you can reattach the volume to a different EC2 instance within the same AZ. However, in the case of a zonal failure, the data on it is "stuck" within that zone, and the application is not redundant across Availability Zones. You must provision volumes at a fixed size, which you need to monitor and manage. 
 
-AWS EFS is a regional service that provides file storage using the NFS protocol. Since the data replicates across different Availability Zones and uses a higher level protocol (file instead of block like EBS), EFS has higher latencies and lower throughput than EBS. However, it can continue to serve data requests in case of a zonal failure. A significant advantage, and sometimes a disadvantage, for NFS and similar protocols is that you can mount and access them simultaneously on multiple machines.
+AWS EFS is a regional service that provides file storage using the NFS protocol. Since the data replicates across different Availability Zones and uses a higher level protocol (file instead of block like EBS), EFS has higher latencies and lower throughput than EBS. However, it can continue to serve data requests in case of a zonal failure. 
 
-This availability is useful when sharing storage across multiple instances, such as shared files, or quickly accessing data during failover. The downside is that it can lead to contention issues if not properly managed by the consuming application. For example, storing PostgreSQL's database files on an NFS share and running three instances of PostgreSQL simultaneously accessing the same NFS can lead to data corruption. 
+You can mount and access services that use NFS (and similar protocols) simultaneously on multiple machines. This availability lets you share storage across multiple instances, such as shared files, and quickly access data during failover. But, it can lead to contention issues if the consuming application doesn't properly manage the service. For example, storing PostgreSQL's database files on an NFS share and running three instances of PostgreSQL that simultaneously access the same NFS can lead to data corruption. 
 
 ### Private cloud or on-premises
 
-When running workloads on-premises in a self-managed private cloud, SAN/NAS systems or Software Defined Storage like Portworx or Ceph usually provisions non-local storage. The storage can be accessed using a block protocol such as iSCSI, FC, NVMe-oF, or a file protocol such as NFS, CIFS, or sometimes both. Dedicated storage teams manage these systems in most organizations.
+When running workloads on-premises in a self-managed private cloud, SAN/NAS systems or Software Defined Storage like Portworx or Ceph usually provision non-local storage. Compute instances can access the storage using a block protocol such as iSCSI, FC, NVMe-oF, or a file protocol such as NFS, CIFS, or sometimes both. Dedicated storage teams manage these systems in most organizations.
 
 ## Persistent storage options
 
-The following are options for persistent storage. Since environments differ depending on application requirements, it is important to choose the appropriate storage for your environment. The most important things to consider are performance, reliability, availability, and maintenance.
+Since environments differ depending on application requirements, consider performance, reliability, availability, and maintenance when choosing a storage option.
 
 ### CSI
 
-[Container Storage Interface](https://github.com/container-storage-interface/spec) is a vendor-neutral specification that allows storage providers to develop plugins that orchestrators such as Nomad can use. CSI plugins can support various features, such as dynamic provisioning of volumes and their lifecycle management, such as snapshots, deletion, and dynamic resizing. The exact feature set will depend on the plugin and the underlying storage platform.  
+[Container Storage Interface](https://github.com/container-storage-interface/spec) is a vendor-neutral specification that allows storage providers to develop plugins that orchestrators such as Nomad can use. Some CSI plugins can dynamically provision and manage volume lifecycles, including snapshots, deletion, and dynamic resizing. The exact feature set each plugin supports will depend on the plugin and the underlying storage platform.  
 
-You can find a list of plugins and their feature set in the [Kubernetes CSI Developer Documentation](https://kubernetes-csi.github.io/docs/drivers.html)
+Find a list of plugins and their feature set in the [Kubernetes CSI Developer Documentation](https://kubernetes-csi.github.io/docs/drivers.html).
 
 While Nomad follows the CSI specification, some plugins may implement orchestrator-specific logic that makes them incompatible with Nomad. You should validate that your chosen plugin works with Nomad before using it. Refer to the plugin documentation for more information.
 
 There are three CSI plugin subtypes:
 
-- Controller, which communicates with the storage provider for the management of the volume lifecycle
-- Node, which runs on all Nomad clients and handles all local operations (for example, mounting/unmounting volumes in allocations) and have to be `privileged` to be able to perform those operations
-- Monolithic, which combines both the above roles.
+- **Controller**: Communicates with the storage provider to manage the volume lifecycle.
+	- **Node**: Runs on all Nomad clients and handles all local operations (for example, mounting/unmounting volumes in allocations). The node must be `privileged` to perform those operations.
+	- **Monolithic**: Combines both the above roles.
 
 All types can and should be run as Nomad jobs - `system` jobs for Node and Monolithic, `service` for Controllers.
 
@@ -65,11 +65,11 @@ The [Stateful Workloads with CSI tutorial](/nomad/tutorials/stateful-workloads/s
 
 ### Host volumes
 
-Host volumes mount paths from the host (the Nomad client) into allocations. Nomad is aware of and takes into account their availability for scheduling but is indifferent about their underlying characteristics, such as if it is a standard folder on a local ext4 filesystem, backed by a distributed networked storage such as GlusterFS, or a mounted NFS/CIFS volume from a NAS or a public cloud service such as AWS EFS. Currently, you need to declare Host volumes in the agent configuration file and since the configuration is static until the Nomad client is restarted, host volumes are impractical if frequent storage changes are a requirement. 
+Host volumes mount paths from the host (the Nomad client) into allocations. Nomad is aware host volume availability and uses it for job scheduling. But, Nomad does not know about the volume's underlying characteristics, such as if it is a standard folder on a local ext4 filesystem, backed by a distributed networked storage such as GlusterFS, or a mounted NFS/CIFS volume from a NAS or a public cloud service such as AWS EFS. Because you need to declare host volumes in the agent configuration file, you have to restart the Nomad client to reconfigure them. This makes host volumes impractical if you need to change your storage configuration frequently. 
 
-As administrators usually handle storage, operating system (OS), and job configurations separately, it is important to ensure that appropriate access controls are in place to grant permission to modify and update these configurations. If there is a complete separation of duties for storage, OS, and job management, good communication between the different teams is important to mitigate potential issues around storage performance, size limitations, and inappropriate mounting options.
+As administrators usually handle storage, operating system (OS), and job configurations separately, make sure that appropriate access controls grant permission to modify and update these configurations. If there is a complete separation of duties for storage, OS, and job management, the different teams must communicate well to mitigate potential issues around storage performance, size limitations, and inappropriate mounting options.
 
-Host volumes backed by local storage help persist data that is not highly critical, such as on-disk cache that can be rebuilt if needed but preferably should persist. When backed by networked storage such as NFS/CIFS-mounted volumes or distributed storage via GlusterFS/Ceph, they provide a quick option to consume highly available and reliable storage.
+Host volumes backed by local storage help persist data that is not critical, for example an on-disk cache that you can rebuild you need to. When backed by networked storage such as NFS/CIFS-mounted volumes or distributed storage via GlusterFS/Ceph, host volumes provide a quick option to consume highly available and reliable storage.
 
 Refer to the [Stateful workloads with Nomad host volumes](/nomad/tutorials/stateful-workloads/stateful-workloads-host-volumes) tutorial to learn more about using host volumes with Nomad.
 
@@ -85,15 +85,15 @@ To learn more about hard mounts and soft mounts, visit Red Hat's [NFS documentat
 
 ### Ephemeral disks
 
-Nomad has the concept of [ephemeral disks](/nomad/docs/job-specification/ephemeral_disk), which is a way to describe the best effort persistence of a Nomad allocation's folder. It supports data migrations between hosts (which requires network connectivity between the Nomad client nodes) and is size-aware for scheduling. Since persistence is the best effort, however,  you will lose data in the case of a client or underlying storage failure. Ephemeral disks are perfectly suited for data that can be rebuilt if needed, such as an in-progress cache or a local copy of data.
+Nomad [ephemeral disks](/nomad/docs/job-specification/ephemeral_disk), describe the best-effort persistence of a Nomad allocation's folder. They support data migrations between hosts (which require network connectivity between the Nomad client nodes) and are size-aware for scheduling. Since persistence is the best effort, however,  you will lose data if the client or underlying storage fails. Ephemeral disks are perfect for data that you can rebuild if needed, such as an in-progress cache or a local copy of data.
 
 ## Storage comparison
 
-With the information laid out in this document, you can use the following table to make an informed decision on the storage options that best addresses your Nomad storage requirements.
+With the information laid out in this document, use the following table to choose the storage options that best addresses your Nomad storage requirements.
 
 | Storage option  | Advantages  | Disadvantages  | Ideal for  |
 |---|---|---|---|
-| CSI volumes  | <ul><li>Wide ecosystem with many providers</li><li>Advanced features such as snapshots, cloning, and resizing</li><li>High level of dynamism and self-service (volumes can be created on-demand by anyone with the correct ACL policies) and flexibility</li></ul>    | <ul><li>Some complexity and ongoing maintenance</li><li>Upgrades of the CSI plugins have to follow the underlying storage provider's API changes/upgrades</li><li>Not all CSI plugins implement all features</li><li>Not all CSI plugins respect the CSI spec and are Nomad compatible</li><li>Node plugins need to run in privileged mode to be able to mount the volumes in allocations</li></ul>  |  <ul><li>Environments with dynamic storage requirements where Nomad cluster operators and consumers should be able to easily add/change storage, and where the storage provider of choice has a CSI plugin that respects the CSI spec.</li></ul> |
+| CSI volumes  | <ul><li>Wide ecosystem with many providers</li><li>Advanced features such as snapshots, cloning, and resizing</li><li>Dynamic, flexible, and self-service (anyone with the correct ACL policies can create volumes on-demand)</li></ul>    | <ul><li>Some complexity and ongoing maintenance</li><li>Plugin upgrades have to follow the underlying storage provider's API changes/upgrades</li><li>Not all CSI plugins implement all features</li><li>Not all CSI plugins respect the CSI spec and are Nomad compatible</li><li>Node plugins need to run in privileged mode to be able to mount the volumes in allocations</li></ul>  |  <ul><li>Environments where Nomad cluster operators and consumers need to easily add/change storage, and where the storage provider of choice has a CSI plugin that respects the CSI spec</li></ul> |
 | Host volumes backed by local storage  | <ul><li>Readily available</li><li>Fast due to being local</li><li>Doesn't require ongoing maintenance</li></ul>  | <ul><li>Requires coordination between multiple personas to configure and consume (operators running the Nomad clients need to configure them statically in the Nomad client's configuration file)</li><li>Not fault tolerant. In case of hardware failure on a single instance, the data will be lost</li></ul>  | <ul><li> Environments with low amounts of ideally persistent storage requirements that could tolerate some failure, but prefer not to and/or have high performance / low latency needs.</li></ul>   |
 | Host volumes backed by networked storage  | <ul><li>Readily available</li><li>Require no ongoing maintenance</li></ul>  | <ul><li>Require coordination between multiple personas to configure and consume (storage admins need to provision volumes, operators running the Nomad clients need to configure them statically in the Nomad client's configuration file)</li><li>The underlying networked storage and its limitations are decoupled from the consumer, but need to be understood. For example,  is concurrent access possible</li></ul>  | <ul><li>Environments with low amounts or low frequency of change of storage that have an existing storage provider that can be consumed via NFS/CIFS.</li></ul>  |
 | Ephemeral disks  | <ul><li>Fast due to being local</li><li>Basic best effort persistence, including optional migration across Nomad clients</li></ul>  | <ul><li> Not fault tolerant. In case of hardware failure on a single instance, the data will be lost </li></ul>  | <ul><li>Environments that need temporary caches, somewhere to store files undergoing processing, etc. Everything which is ephemeral and can be easily rebuilt.</li></ul>  |
