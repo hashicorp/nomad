@@ -4739,7 +4739,7 @@ func (j *Job) Warnings() error {
 
 		if tg.MaxClientDisconnect != nil &&
 			tg.ReschedulePolicy.Attempts > 0 &&
-			tg.SingleInstanceOnLost == true {
+			tg.SingleInstanceOnLost {
 			err := fmt.Errorf("having max_client_disconnect enable along with a reschedule policy can lead to having multiple instances of a task running at the same time")
 			mErr.Errors = append(mErr.Errors, err)
 		}
