@@ -329,8 +329,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 - `namespace` `(string: "default")` - Specifies the namespace of the job. If not specified,
   defaults to "default". This is specified as a URL query parameter.
 
@@ -639,8 +639,8 @@ The table below shows this endpoint's support for
 - `diffs` `(bool: false)` - Specifies if the Diffs field should be populated,
   containing the structured diff between the current and last job version.
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -1235,8 +1235,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `all` `(bool: false)` - Specifies whether the list of allocations should
   include allocations from a previously registered job with the same ID. This is
@@ -1408,8 +1408,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -1473,8 +1473,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `all` `(bool: false)` - Specifies whether the list of deployments should
   include deployments from a previously registered job with the same ID. This is
@@ -1565,8 +1565,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -1628,8 +1628,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -1685,8 +1685,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
 
@@ -1759,8 +1759,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified
-  in the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `IdempotencyToken` `(string: "")` - Optional identifier used to prevent more
   than one instance of the job from being dispatched. This is specified as a
@@ -1829,8 +1829,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `JobID` `(string: <required>)` - Specifies the ID of the job (as specified
-  in the job file during submission). This is specified as part of the path.
+- `JobID` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `JobVersion` `(integer: 0)` - Specifies the job version to revert to.
 
@@ -1894,8 +1894,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `JobID` `(string: <required>)` - Specifies the ID of the job (as specified
-  in the job file during submission). This is specified as part of the path.
+- `JobID` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `JobVersion` `(integer: 0)` - Specifies the job version to set the stability on.
 
@@ -1954,8 +1954,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `JobID` `(string: <required>)` - Specify the ID of the job in the JSON payload
 
@@ -2016,8 +2016,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-- the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `Job` `(string: <required>)` - Specifies the JSON definition of the job.
 
@@ -2227,8 +2227,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 ### Sample Request
 
@@ -2265,8 +2265,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `eval_priority` `(int: 0)` - Override the priority of the evaluations produced
   as a result of this job deregistration. By default, this is set to the priority
@@ -2319,8 +2319,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -2375,8 +2375,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `Count` `(int: <optional>)` - Specifies the new task group count.
 
@@ -2461,8 +2461,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace.
 
@@ -2515,8 +2515,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 ### Sample Request
 
