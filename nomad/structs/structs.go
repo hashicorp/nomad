@@ -4736,6 +4736,13 @@ func (j *Job) Warnings() error {
 			// Having no canaries implies auto-promotion since there are no canaries to promote.
 			allAutoPromote = allAutoPromote && (u.Canary == 0 || u.AutoPromote)
 		}
+
+		if tg.MaxClientDisconnect != nil &&
+			tg.ReschedulePolicy.Attempts > 0 &&
+			tg.SingleInstanceOnLost == true {
+			err := fmt.Errorf("having max_client_disconnect enable along with a reschedule policy can lead to having multiple instances of a task running at the same time")
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
 
 	// Check AutoPromote, should be all or none
