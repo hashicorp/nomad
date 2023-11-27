@@ -2,25 +2,29 @@
 layout: api
 page_title: Client - HTTP API
 description: |-
-  The /client endpoints are used to access client information and inspect
-  allocations running on a particular client.
+  The /client endpoints are used to access client information, read and write
+  dynamic node metadata, and inspect allocations running on a particular
+  client.
 ---
 
 # Client HTTP API
 
-The `/v1/client` endpoints are used to interact with the Nomad clients.
+The `/client` endpoints are used to interact with the Nomad clients.
 
-Since Nomad 0.8.0, both a client and server can handle client endpoints. This is
-particularly useful for when a direct connection to a client is not possible due
-to the network configuration. For high volume access to the client endpoints,
-particularly endpoints streaming file contents, direct access to the node should
-be preferred as it avoids adding additional load to the servers.
+Both clients and servers can handle client endpoints. This is particularly
+useful for when a direct connection to a client is not possible due to the
+network configuration. For high volume access to the client endpoints,
+particularly endpoints streaming file contents, direct access to the node
+should be preferred as it avoids adding additional load to the servers.
 
 When accessing the endpoints via the server, if the desired node is ambiguous
 based on the URL, an additional `?node_id` query parameter must be provided to
 disambiguate.
 
-## Read Node Metadata
+The [`/node`](/nomad/api-docs/nodes) endpoints provide node information that
+are retried from Nomad servers.
+
+## Read Dynamic Node Metadata
 
 This endpoint queries Node metadata on a specific Client agent and responds
 with the following fields:
@@ -97,7 +101,7 @@ Formatted by appending `?pretty` above.
 
 ### Sample Request
 
-## Update Node Metadata
+## Update Dynamic Node Metadata
 
 This endpoint updates dynamic Node metadata on a specific Client agent. Since
 dynamic Node metadata is only periodically synchronized to Nomad Servers, the
