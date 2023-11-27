@@ -189,6 +189,9 @@ service_prefix "" {
 }
 ```
 
+The binding rule you created above for Nomad namespaces will map workloads to
+the role with this policy.
+
 ## Authenticating Without Workload Identity (Legacy)
 
 If [Consul ACLs][consul_acls] are enabled, the [`allow_unauthenticated`][]
