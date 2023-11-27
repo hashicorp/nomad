@@ -3,20 +3,17 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
-import { base64DecodeString } from '../utils/encode';
-import config from 'nomad-ui/config/environment';
 
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
   @service system;
-  @service notifications;
-  @service token;
 
   relationshipFallbackLinks = {
     summary: '/summary',
@@ -52,7 +49,12 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   purge(job) {
-    const url = this.urlForFindRecord(job.get('id'), 'job') + '?purge=true';
+    const url = addToPath(
+      this.urlForFindRecord(job.get('id'), 'job'),
+      '',
+      'purge=true'
+    );
+
     return this.ajax(url, 'DELETE');
   }
 
@@ -168,11 +170,20 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
   }
 
-  runAction(job, action, allocID) {
-    let messageBuffer = '';
-
+  /**
+   *
+   * @param {import('../models/job').default} job
+   * @param {import('../models/action').default} action
+   * @param {string} allocID
+   * @returns {string}
+   */
+  getActionSocketUrl(job, action, allocID) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const region = this.system.activeRegion;
+
+    /**
+     * @type {Partial<import('../adapters/application').default>}
+     */
     const applicationAdapter = getOwner(this).lookup('adapter:application');
     const prefix = `${
       applicationAdapter.host || window.location.host
@@ -189,119 +200,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       }&tty=true&ws_handshake=true` +
       (region ? `&region=${region}` : '');
 
-    let socket;
-
-    const mirageEnabled =
-      config.environment !== 'production' &&
-      config['ember-cli-mirage'] &&
-      config['ember-cli-mirage'].enabled !== false;
-
-    if (mirageEnabled) {
-      socket = new Object({
-        messageDisplayed: false,
-        addEventListener: function (event, callback) {
-          if (event === 'message') {
-            this.onmessage = callback;
-          }
-          if (event === 'open') {
-            this.onopen = callback;
-          }
-          if (event === 'close') {
-            this.onclose = callback;
-          }
-        },
-
-        send(e) {
-          if (!this.messageDisplayed) {
-            this.messageDisplayed = true;
-            this.onmessage({
-              data: `{"stdout":{"data":"${btoa('Message Received')}"}}`,
-            });
-          } else {
-            this.onmessage({ data: e.replace('stdin', 'stdout') });
-          }
-        },
-      });
-    } else {
-      socket = new WebSocket(wsUrl);
-    }
-
-    let notification;
-    socket.addEventListener('open', () => {
-      notification = this.notifications
-        .add({
-          title: `Action ${action.name} Started`,
-          color: 'neutral',
-          code: true,
-          sticky: true,
-          customAction: {
-            label: 'Stop Action',
-            action: () => {
-              socket.close();
-            },
-          },
-        })
-        .getFlashObject();
-
-      socket.send(
-        JSON.stringify({ version: 1, auth_token: this.token?.secret || '' })
-      );
-      socket.send(
-        JSON.stringify({
-          tty_size: { width: 250, height: 100 }, // Magic numbers, but they pass the eye test.
-        })
-      );
-    });
-
-    socket.addEventListener('message', (event) => {
-      if (!this.notifications.queue.includes(notification)) {
-        // User has manually closed the notification;
-        // explicitly close the socket and return;
-        socket.close();
-        return;
-      }
-
-      let jsonData = JSON.parse(event.data);
-      if (jsonData.stdout && jsonData.stdout.data) {
-        // strip ansi escape characters that are common in action responses;
-        // for example, we shouldn't show the newline or color code characters.
-        messageBuffer += base64DecodeString(jsonData.stdout.data);
-        messageBuffer += '\n';
-        messageBuffer = messageBuffer.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-        notification.set('message', messageBuffer);
-        notification.set('title', `Action ${action.name} Running`);
-      } else if (jsonData.stderr && jsonData.stderr.data) {
-        messageBuffer = base64DecodeString(jsonData.stderr.data);
-        messageBuffer += '\n';
-        this.notifications.add({
-          title: `Error received from ${action.name}`,
-          message: messageBuffer,
-          color: 'critical',
-          code: true,
-          sticky: true,
-        });
-      }
-    });
-
-    socket.addEventListener('close', () => {
-      notification.set('title', `Action ${action.name} Finished`);
-      notification.set('customAction', null);
-    });
-
-    socket.addEventListener('error', function (event) {
-      this.notifications.add({
-        title: `Error received from ${action.name}`,
-        message: event,
-        color: 'critical',
-        sticky: true,
-      });
-    });
-
-    if (mirageEnabled) {
-      socket.onopen();
-      socket.onclose();
-    }
-
-    return socket;
+    return wsUrl;
   }
 }

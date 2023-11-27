@@ -5,7 +5,7 @@
 
 {{#if this.keyboard.shortcutsVisible}}
   {{keyboard-commands (array this.escapeCommand)}}
-  <div class="keyboard-shortcuts"
+  <section class="keyboard-shortcuts"
       {{on-click-outside
         (toggle "keyboard.shortcutsVisible" this)
       }}
@@ -54,7 +54,7 @@
         title="{{if this.keyboard.enabled "enable" "disable"}} keyboard shortcuts"
       />
     </footer>
-  </div>
+  </section>
 {{/if}}
 
 {{#if (and this.keyboard.enabled this.keyboard.displayHints)}}

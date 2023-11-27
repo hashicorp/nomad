@@ -26,7 +26,7 @@ export default create({
     },
   },
 
-  state: text('.title [data-test-state]'),
+  state: text('[data-test-title] [data-test-state]'),
   startedAt: text('[data-test-started-at]'),
 
   lifecycle: text('.pair [data-test-lifecycle]'),

@@ -103,37 +103,4 @@ export default class Title extends Component {
     }
   })
   startJob;
-
-  // run action task
-
-  /**
-   * @param {string} action - The action to run
-   * @param {string} allocID - The allocation ID to run the action on
-   * @param {Event} ev - The event that triggered the action
-   */
-  @task(function* (action, allocID) {
-    if (!allocID) {
-      allocID =
-        action.allocations[
-          Math.floor(Math.random() * action.allocations.length)
-        ].id;
-    }
-    try {
-      const job = this.job;
-      if (allocID === 'all') {
-        yield action.allocations.map((alloc) => {
-          return job.runAction(action, alloc.id);
-        });
-      } else {
-        yield job.runAction(action, allocID);
-      }
-    } catch (err) {
-      this.notifications.add({
-        title: `Error starting ${action.name}`,
-        message: err,
-        color: 'critical',
-      });
-    }
-  })
-  runAction;
 }

@@ -130,6 +130,14 @@ function smallCluster(server) {
     clientStatus: 'running',
   });
 
+  // Set its task state to running
+  server.schema.allocations
+    .all()
+    .filter((x) => x.taskGroup === actionsGroup.name)
+    .models[0].taskStates.models[0].update({
+      state: 'running',
+    });
+
   server.create('policy', {
     id: 'client-reader',
     name: 'client-reader',
