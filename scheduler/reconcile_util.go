@@ -357,7 +357,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			continue
 		}
 
-		if !nodeIsTainted || taintedNode.Status == structs.NodeStatusReady {
+		if !nodeIsTainted || (taintedNode != nil && taintedNode.Status == structs.NodeStatusReady) {
 			// Filter allocs on a node that is now re-connected to be resumed.
 			if reconnect {
 				// Expired unknown allocs should be processed depending on the max client disconnect
