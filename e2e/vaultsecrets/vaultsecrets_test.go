@@ -78,37 +78,42 @@ func TestVaultSecrets(t *testing.T) {
 	must.NoError(t, err, must.Sprint("expected pending allocation"))
 
 	// we should get a task event about why they can't start
-	expect := fmt.Sprintf("Missing: vault.read(%s), vault.write(%s", secretKey, pkiCertIssue)
-	allocID := submission.AllocID("group")
-
+	expectEvent := fmt.Sprintf("Missing: vault.read(%s), vault.write(%s", secretKey, pkiCertIssue)
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
-			out, err := e2e.Command("nomad", "alloc", "status", "-namespace", ns, allocID)
+			allocEvents, err := e2e.AllocTaskEventsForJob(submission.JobID(), ns)
 			if err != nil {
 				return err
 			}
-			if !strings.Contains(out, expect) {
-				return fmt.Errorf("test for alloc status failed; got:\n%v", out)
+			for _, events := range allocEvents {
+				for _, e := range events {
+					desc, ok := e["Description"]
+					if !ok {
+						return fmt.Errorf("no 'Description' in event: %+v", e)
+					}
+					if strings.HasPrefix(desc, expectEvent) {
+						// joy!
+						return nil
+					}
+				}
 			}
-			return nil
+			return fmt.Errorf("did not find '%s' in task events: %+v", expectEvent, allocEvents)
 		}),
 		wait.Timeout(10*time.Second),
 		wait.Gap(time.Second),
-	), must.Sprintf("expected '%s' in alloc status", expect))
+	), must.Sprintf("expected '%s' in alloc status", expectEvent))
 
 	// write a working policy and redeploy
 	writePolicy(t, policyID, "./input/policy-good.hcl", testID)
 	submission.Rerun(jobs3.ReplaceInJobSpec("FIRST", "SECOND"))
 
-	// record the rough start of vault token TTL window, so that we don't have
+	// record the rough start of vault lease TTL window, so that we don't have
 	// to wait excessively later on
 	ttlStart := time.Now()
 
 	// job should be now unblocked
 	err = e2e.WaitForAllocStatusExpected(jobID, ns, []string{"running", "complete"})
 	must.NoError(t, err, must.Sprint("expected running->complete allocation"))
-
-	allocID = submission.AllocID("group")
 
 	renderedCert := waitForAllocSecret(t, submission, "/secrets/certificate.crt", "BEGIN CERTIFICATE")
 	waitForAllocSecret(t, submission, "/secrets/access.key", secretValue)
