@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -666,6 +667,15 @@ func toWsCode(httpCode int) int {
 func isClosedError(err error) bool {
 	if err == nil {
 		return false
+	}
+
+	// check if the websocket "error" is one of the benign "close" status codes
+	if codedErr, ok := err.(HTTPCodedError); ok {
+		return slices.ContainsFunc([]string{
+			"close 1000", // CLOSE_NORMAL
+			"close 1001", // CLOSE_GOING_AWAY
+			"close 1005", // CLOSED_NO_STATUS
+		}, func(s string) bool { return strings.Contains(codedErr.Error(), s) })
 	}
 
 	return err == io.EOF ||
