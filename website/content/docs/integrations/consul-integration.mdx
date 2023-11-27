@@ -78,6 +78,15 @@ remaining fields are required to match those shown here.
 }
 ```
 
+<Note>
+
+If you're using an https endpoint on Nomad server itself for JWKS, and your
+server is configured with `tls.verify_https_client = true`, you will need to
+provide a PEM-encoded CA cert for Consul, using a `JWKSCACert` field. Consult
+Consul [JWT Auth Method][] documentation for more details.
+
+</Note>
+
 Using that configuration file, you'll create two different Consul Auth Methods:
 
 * The first, named `nomad-services`, controls authentication for Service
