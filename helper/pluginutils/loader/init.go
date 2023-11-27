@@ -266,6 +266,7 @@ func (l *PluginLoader) fingerprintPlugins(plugins []os.FileInfo, configs map[str
 		name := cleanPluginExecutable(p.Name())
 		c, ok := configs[name]
 		if !ok {
+			// COMPAT(1.7): Skip executing unconfigured plugins in 1.8 or later.
 			l.logger.Warn("plugin not referenced in the agent configuration file, future versions of Nomad will not load this plugin until the agent configuration is updated", "plugin", name)
 		}
 		info, err := l.fingerprintPlugin(p, c)
