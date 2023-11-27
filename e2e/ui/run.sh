@@ -2,6 +2,8 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+set -eu
+
 help() {
     cat <<EOF
 Usage: run.sh [subcommand] [options] [--help]
@@ -43,7 +45,7 @@ run_shell() {
 }
 
 run() {
-    local tty_args
+    local tty_args=''
     [ -t 1 ] && tty_args='-it'
     docker run $tty_args --rm \
            -v $(pwd):/src \
@@ -57,15 +59,17 @@ run() {
 }
 
 run_proxy() {
-  # sending these outputs to stderr so that 'export NOMAD_ADDR='
-  # is the only stdout line, for scripts to eval.
-  nomad namespace apply proxy 1>&2 || return
-  nomad job run "./input/proxy.nomad" 1>&2
+  # sending these outputs to stderr so that 'export NOMAD_ADDR=' is the
+  # only stdout line, for users to eval, or this script to write then source.
+  nomad namespace apply proxy 1>&2
+  nomad job run ./input/proxy.nomad 1>&2
+  set +e
   IP="$(_get_aws_ip)"
   [ -n "$IP" ] || {
     >&2 echo 'falling back to service IP'
     IP="$(_get_svc_ip)"
   }
+  set -e
   [ -n "$IP" ] || {
     >&2 echo 'unable to get an IP for nomad proxy...'
     exit 1 # bad form to exit from a function, but this is essential (and eval'd)
@@ -94,7 +98,8 @@ stop_proxy() {
 
 run_ci() {
   set -x
-  eval "$(run_proxy)"
+  run_proxy > /tmp/proxy_addr.env
+  source /tmp/proxy_addr.env
   run_tests
   rc=$?
   stop_proxy
