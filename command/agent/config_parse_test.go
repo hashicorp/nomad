@@ -846,7 +846,7 @@ var sample1 = &Config{
 		Enabled:              pointer.Of(true),
 		Role:                 "nomad-cluster",
 		Addr:                 "http://host.example.com:8200",
-		JWTAuthBackendPath:   "jwt",
+		JWTAuthBackendPath:   "jwt-nomad",
 		ConnectionRetryIntv:  30 * time.Second,
 		AllowUnauthenticated: pointer.Of(true),
 	}},
@@ -978,7 +978,7 @@ func TestConfig_MultipleVault(t *testing.T) {
 			must.Nil(t, defaultVault.Enabled) // unset
 			must.Eq(t, "https://vault.service.consul:8200", defaultVault.Addr)
 			must.Eq(t, "", defaultVault.Token)
-			must.Eq(t, "jwt", defaultVault.JWTAuthBackendPath)
+			must.Eq(t, "jwt-nomad", defaultVault.JWTAuthBackendPath)
 
 			// merge in the user's configuration
 			fc, err := LoadConfig("testdata/basic." + suffix)
@@ -1019,7 +1019,7 @@ func TestConfig_MultipleVault(t *testing.T) {
 
 			// check that extra Vault clusters have the defaults applied when not
 			// overridden
-			must.Eq(t, "jwt", cfg.Vaults[2].JWTAuthBackendPath)
+			must.Eq(t, "jwt-nomad", cfg.Vaults[2].JWTAuthBackendPath)
 		})
 	}
 }

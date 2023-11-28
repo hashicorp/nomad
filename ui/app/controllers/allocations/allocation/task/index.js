@@ -13,6 +13,7 @@ import { inject as service } from '@ember/service';
 @classic
 export default class IndexController extends Controller {
   @service nomadActions;
+  @service notifications;
   @overridable(() => {
     // { title, description }
     return null;
@@ -42,18 +43,4 @@ export default class IndexController extends Controller {
       this.nomadActions.hasActionPermissions
     );
   }
-
-  @task(function* (action, allocID) {
-    try {
-      const job = this.model.task.taskGroup.job;
-      yield job.runAction(action, allocID);
-    } catch (err) {
-      this.notifications.add({
-        title: `Error starting ${action.name}`,
-        message: err,
-        color: 'critical',
-      });
-    }
-  })
-  runAction;
 }
