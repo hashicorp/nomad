@@ -1,3 +1,3 @@
 ```release-note:bug
-cli: Fixed the `nomad job restart` command to create replacements for system jobs and prevent batch and sysbatch jobs from being rescheduled
+cli: Fixed the `nomad job restart` command to create replacements for batch and system jobs and to prevent sysbatch jobs from being rescheduled since they never create replacements
 ```

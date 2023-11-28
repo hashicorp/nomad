@@ -237,7 +237,7 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 	}
 }
 
-func TestJobRestartCommand_Run_service(t *testing.T) {
+func TestJobRestartCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a job with multiple tasks, groups, and allocations.
@@ -259,8 +259,19 @@ func TestJobRestartCommand_Run_service(t *testing.T) {
 		SetConfig("run_for", "1m").
 		SetConfig("exit_code", 0)
 
-	jobID := "test_job_restart_cmd"
-	job := api.NewServiceJob(jobID, jobID, "global", 1).
+	batchJob := api.NewBatchJob("test_job_batch", "test_job_batch", "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(
+			api.NewTaskGroup("single_task", 3).
+				AddTask(mainTask),
+		).
+		AddTaskGroup(
+			api.NewTaskGroup("multiple_tasks", 2).
+				AddTask(prestartTask).
+				AddTask(sidecarTask).
+				AddTask(mainTask),
+		)
+	serviceJob := api.NewServiceJob("test_job_service", "test_job_service", "global", 1).
 		AddDatacenter("dc1").
 		AddTaskGroup(
 			api.NewTaskGroup("single_task", 3).
@@ -613,60 +624,62 @@ func TestJobRestartCommand_Run_service(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			// Run each test case in parallel because they are fairly slow.
-			ci.Parallel(t)
+	for _, job := range []*api.Job{batchJob, serviceJob} {
+		for _, tc := range testCases {
+			tc := tc
+			t.Run(fmt.Sprintf("%s/%s", *job.Type, tc.name), func(t *testing.T) {
+				// Run each test case in parallel because they are fairly slow.
+				ci.Parallel(t)
 
-			// Initialize UI and command.
-			ui := cli.NewMockUi()
-			cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+				// Initialize UI and command.
+				ui := cli.NewMockUi()
+				cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
 
-			// Start client and server and wait for node to be ready.
-			// User separate cluster for each test case so they can run in
-			// parallel without affecting each other.
-			srv, client, url := testServer(t, true, nil)
-			defer srv.Shutdown()
+				// Start client and server and wait for node to be ready.
+				// User separate cluster for each test case so they can run in
+				// parallel without affecting each other.
+				srv, client, url := testServer(t, true, nil)
+				defer srv.Shutdown()
 
-			waitForNodes(t, client)
+				waitForNodes(t, client)
 
-			// Register test job and wait for its allocs to be running.
-			resp, _, err := client.Jobs().Register(job, nil)
-			must.NoError(t, err)
+				// Register test job and wait for its allocs to be running.
+				resp, _, err := client.Jobs().Register(job, nil)
+				must.NoError(t, err)
 
-			code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-			must.Zero(t, code, must.Sprintf(
-				"stdout: %s\n\nstderr: %s\n",
-				ui.OutputWriter.String(),
-				ui.ErrorWriter.String()),
-			)
+				code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+				must.Zero(t, code, must.Sprintf(
+					"stdout: %s\n\nstderr: %s\n",
+					ui.OutputWriter.String(),
+					ui.ErrorWriter.String()),
+				)
 
-			allocStubs, _, err := client.Jobs().Allocations(jobID, true, nil)
-			must.NoError(t, err)
-			for _, alloc := range allocStubs {
-				waitForAllocRunning(t, client, alloc.ID)
-			}
+				allocStubs, _, err := client.Jobs().Allocations(*job.ID, true, nil)
+				must.NoError(t, err)
+				for _, alloc := range allocStubs {
+					waitForAllocRunning(t, client, alloc.ID)
+				}
 
-			// Fetch allocations before the restart so we know which ones are
-			// supposed to be affected in case the test reschedules allocs.
-			allocStubs, _, err = client.Jobs().Allocations(jobID, true, nil)
-			must.NoError(t, err)
+				// Fetch allocations before the restart so we know which ones are
+				// supposed to be affected in case the test reschedules allocs.
+				allocStubs, _, err = client.Jobs().Allocations(*job.ID, true, nil)
+				must.NoError(t, err)
 
-			// Prepend server URL and append job ID to the test case command.
-			args := []string{"-address", url, "-yes"}
-			args = append(args, tc.args...)
-			args = append(args, jobID)
+				// Prepend server URL and append job ID to the test case command.
+				args := []string{"-address", url, "-yes"}
+				args = append(args, tc.args...)
+				args = append(args, *job.ID)
 
-			// Run job restart command.
-			code = cmd.Run(args)
-			must.Eq(t, code, tc.expectedCode)
+				// Run job restart command.
+				code = cmd.Run(args)
+				must.Eq(t, code, tc.expectedCode)
 
-			// Run test case validation function.
-			if tc.validateFn != nil {
-				tc.validateFn(t, client, allocStubs, ui.OutputWriter.String(), ui.ErrorWriter.String())
-			}
-		})
+				// Run test case validation function.
+				if tc.validateFn != nil {
+					tc.validateFn(t, client, allocStubs, ui.OutputWriter.String(), ui.ErrorWriter.String())
+				}
+			})
+		}
 	}
 }
 
@@ -740,18 +753,7 @@ func TestJobRestartCommand_Run_system_reschedule(t *testing.T) {
 func TestJobRestartCommand_Run_rescheduleNotSupported(t *testing.T) {
 	ci.Parallel(t)
 
-	// Create a batch job.
-	batchJob := api.NewBatchJob("test_batch_job", "test_batch_job", "global", 100).
-		AddDatacenter("dc1").
-		AddTaskGroup(
-			api.NewTaskGroup("group", 1).
-				AddTask(
-					api.NewTask("task", "mock_driver").
-						SetConfig("run_for", "1m").
-						SetConfig("exit_code", 0),
-				),
-		)
-
+	// Create a sysbatch job.
 	sysbatchJob := api.NewSysbatchJob("test_sysbatch_job", "test_sysbatch_job", "global", 100).
 		AddDatacenter("dc1").
 		AddTaskGroup(
@@ -763,25 +765,18 @@ func TestJobRestartCommand_Run_rescheduleNotSupported(t *testing.T) {
 				),
 		)
 
-	// Start a server and 3 clients.
+	// Start a server and a client.
 	srv, client, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
 	testClient(t, "client1", newClientAgentConfigFunc("", "", srvRPCAddr))
-	testClient(t, "client2", newClientAgentConfigFunc("", "", srvRPCAddr))
-	testClient(t, "client3", newClientAgentConfigFunc("", "", srvRPCAddr))
-
 	waitForNodes(t, client)
 
 	testCases := []struct {
 		name string
 		job  *api.Job
 	}{
-		{
-			name: "batch job",
-			job:  batchJob,
-		},
 		{
 			name: "sysbatch job",
 			job:  sysbatchJob,

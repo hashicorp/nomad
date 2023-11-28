@@ -187,7 +187,8 @@ Restart Options:
     in-place. Since the group is not modified the restart does not create a new
     deployment, and so values defined in 'update' blocks, such as
     'max_parallel', are not taken into account. This option cannot be used with
-    '-task'. Only jobs of type 'service' and 'system' can be rescheduled.
+    '-task'. Only jobs of type 'batch', 'service', and 'system' can be
+    rescheduled.
 
   -task=<task-name>
     Specify the task to restart. Can be specified multiple times. If groups are
@@ -289,7 +290,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	// Verify job type can be rescheduled.
 	if c.reschedule {
 		switch *job.Type {
-		case api.JobTypeService, api.JobTypeSystem:
+		case api.JobTypeBatch, api.JobTypeService, api.JobTypeSystem:
 		default:
 			c.Ui.Error(fmt.Sprintf("Jobs of type %q are not allowed to be rescheduled.", *job.Type))
 			return 1
