@@ -982,6 +982,26 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation) (bool, error) {
 
 	//TODO if activeKey.CreateTime > threshold/2 -> create "next" key ahead of
 	//time; then Rotate swaps next->active
+
+	if activeKey.CreateTime >= rotationThreshold.UnixNano()/2 {
+		nextKey, err := c.snap.GetNextRootKeyMeta(ws)
+		if err != nil {
+			return false, err
+		}
+		if nextKey == nil {
+			req := &structs.KeyringUpdateRootKeyRequest{
+				RootKey: &structs.RootKey{
+					FIXME
+				},
+				Rekey:   false,
+				WriteRequest: structs.WriteRequest{
+					Region:    c.srv.config.Region,
+					AuthToken: eval.LeaderACL,
+				},
+			}
+		}
+	}
+
 	if activeKey.CreateTime >= rotationThreshold.UnixNano() {
 		return false, nil // key is too new
 	}
