@@ -236,7 +236,7 @@ func Test_consulHook_Postrun(t *testing.T) {
 
 	task := hook.alloc.LookupTask("web")
 	tokens := map[string]map[string]*consulapi.ACLToken{}
-	must.SliceLen(t, 0, hook.prepareConsulTokensForTask(task, nil, tokens).Errors)
+	must.Nil(t, hook.prepareConsulTokensForTask(task, nil, tokens))
 	hook.hookResources.SetConsulTokens(tokens)
 	must.MapLen(t, 1, tokens)
 

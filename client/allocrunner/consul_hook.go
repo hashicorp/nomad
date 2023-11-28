@@ -144,7 +144,7 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		}
 
 		if merr := h.getConsulTokens(consulConfig.Name, ti.IdentityName, tokens, req); merr != nil {
-			return merr
+			return &multierror.Error{Errors: []error{err}}
 		}
 	}
 
@@ -206,18 +206,16 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 	return mErr
 }
 
-func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[string]map[string]*consulapi.ACLToken, req map[string]consul.JWTLoginRequest) *multierror.Error {
+func (h *consulHook) getConsulTokens(cluster, identityName string, tokens map[string]map[string]*consulapi.ACLToken, req map[string]consul.JWTLoginRequest) error {
 	client, err := h.clientForCluster(cluster)
 	if err != nil {
-		return &multierror.Error{Errors: []error{err}}
+		return err
 	}
 
 	// get consul acl tokens
 	t, err := client.DeriveTokenWithJWT(req)
 	if err != nil {
-		// DeriveTokenWithJWT actually returns a multierror, so we assert the
-		// type to make error formatting from the hook level more readable.
-		return err.(*multierror.Error)
+		return err
 	}
 	if tokens[cluster] == nil {
 		tokens[cluster] = map[string]*consulapi.ACLToken{}
