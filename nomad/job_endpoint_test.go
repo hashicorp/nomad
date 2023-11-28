@@ -172,7 +172,6 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 			Namespace: structs.DefaultNamespace,
 		},
 	}
-
 	var alloc *structs.AllocListStub
 	testutil.Wait(t, func() (bool, error) {
 		resp := structs.JobAllocationsResponse{}
@@ -184,7 +183,6 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 		alloc = resp.Allocations[0]
 		return true, nil
 	})
-
 	must.Eq(t, alloc.NodeID, node.ID)
 	must.Eq(t, alloc.DesiredStatus, structs.AllocDesiredStatusRun)
 	must.Eq(t, alloc.ClientStatus, structs.AllocClientStatusPending)

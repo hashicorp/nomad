@@ -653,7 +653,6 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 	if tg != nil {
 		reschedulePolicy = tg.ReschedulePolicy
 	}
-
 	// No reschedule policy or rescheduling is disabled
 	if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
 		return true
