@@ -439,8 +439,8 @@ func TestConfig_Merge(t *testing.T) {
 			ServerSerfCheckName:       "Nomad Server Serf Check",
 			ServerRPCCheckName:        "Nomad Server RPC Check",
 			ClientHTTPCheckName:       "Nomad Client HTTP Check",
-			ServiceIdentityAuthMethod: structs.ConsulServicesDefaultAuthMethodName,
-			TaskIdentityAuthMethod:    structs.ConsulTasksDefaultAuthMethodName,
+			ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
+			TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
 		}},
 		Sentinel: &config.SentinelConfig{
 			Imports: []*config.SentinelImport{

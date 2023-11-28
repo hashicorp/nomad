@@ -111,7 +111,7 @@ func setupConsulACLsForTasks(t *testing.T, consulAPI *consulapi.Client, roleName
 	must.NoError(t, err, must.Sprint("could not create token in Consul"))
 }
 
-func setupConsulJWTAuthForTasks(t *testing.T, consulAPI *consulapi.Client, address string) {
+func setupConsulJWTAuth(t *testing.T, consulAPI *consulapi.Client, address string) {
 
 	authConfig := map[string]any{
 		"JWKSURL":          fmt.Sprintf("%s/.well-known/jwks.json", address),
@@ -126,61 +126,32 @@ func setupConsulJWTAuthForTasks(t *testing.T, consulAPI *consulapi.Client, addre
 	}
 
 	_, _, err := consulAPI.ACL().AuthMethodCreate(&consulapi.ACLAuthMethod{
-		Name:          "nomad-tasks",
+		Name:          "nomad-workloads",
 		Type:          "jwt",
-		DisplayName:   "nomad-tasks",
+		DisplayName:   "nomad-workloads",
 		Description:   "login method for Nomad tasks with workload identity (WI)",
 		MaxTokenTTL:   time.Hour,
 		TokenLocality: "local",
 		Config:        authConfig,
 	}, nil)
-	must.NoError(t, err, must.Sprint("could not create Consul auth method for tasks"))
+	must.NoError(t, err, must.Sprint("could not create Consul auth method for Nomad workloads"))
 
 	rule := &consulapi.ACLBindingRule{
 		ID:          "",
 		Description: "binding rule for Nomad workload identities (WI) for tasks",
-		AuthMethod:  "nomad-tasks",
-		Selector:    "",
+		AuthMethod:  "nomad-workloads",
+		Selector:    `"nomad_service" not in value`,
 		BindType:    "role",
 		BindName:    "nomad-${value.nomad_namespace}",
 	}
 	_, _, err = consulAPI.ACL().BindingRuleCreate(rule, nil)
 	must.NoError(t, err, must.Sprint("could not create Consul binding rule"))
-}
 
-func setupConsulJWTAuthForServices(t *testing.T, consulAPI *consulapi.Client, address string, namespaceRules []*consulapi.ACLAuthMethodNamespaceRule) {
-
-	authConfig := map[string]any{
-		"JWKSURL":          fmt.Sprintf("%s/.well-known/jwks.json", address),
-		"JWTSupportedAlgs": []string{"RS256"},
-		"BoundAudiences":   "consul.io",
-		"ClaimMappings": map[string]string{
-			"nomad_namespace": "nomad_namespace",
-			"nomad_job_id":    "nomad_job_id",
-			"nomad_task":      "nomad_task",
-			"nomad_service":   "nomad_service",
-		},
-	}
-
-	// create an auth method with namespace rule for Consul ENT
-	_, _, err := consulAPI.ACL().AuthMethodCreate(&consulapi.ACLAuthMethod{
-		Name:           "nomad-services",
-		Type:           "jwt",
-		DisplayName:    "nomad-services",
-		Description:    "login method for Nomad workload identities (WI)",
-		MaxTokenTTL:    time.Hour,
-		TokenLocality:  "local",
-		Config:         authConfig,
-		NamespaceRules: namespaceRules,
-	}, nil)
-
-	must.NoError(t, err, must.Sprint("could not create Consul auth method for services"))
-
-	rule := &consulapi.ACLBindingRule{
+	rule = &consulapi.ACLBindingRule{
 		ID:          "",
 		Description: "binding rule for Nomad workload identities (WI) for services",
-		AuthMethod:  "nomad-services",
-		Selector:    "",
+		AuthMethod:  "nomad-workloads",
+		Selector:    `"nomad_service" in value`,
 		BindType:    "service",
 		BindName:    "${value.nomad_service}",
 	}

@@ -20,15 +20,10 @@ const (
 	// ConsulTaskIdentityNamePrefix is used in naming identities of consul tasks
 	ConsulTaskIdentityNamePrefix = "consul"
 
-	// ConsulServicesDefaultAuthMethodName is the default JWT auth method name
+	// ConsulWorkloadsDefaultAuthMethodName is the default JWT auth method name
 	// that has to be configured in Consul in order to authenticate Nomad
-	// services.
-	ConsulServicesDefaultAuthMethodName = "nomad-services"
-
-	// ConsulTasksDefaultAuthMethodName the default JWT auth method name that
-	// has to be configured in Consul in order to authenticate Nomad tasks (used
-	// by templates).
-	ConsulTasksDefaultAuthMethodName = "nomad-tasks"
+	// services and tasks.
+	ConsulWorkloadsDefaultAuthMethodName = "nomad-workloads"
 )
 
 // Consul represents optional per-group consul configuration.
