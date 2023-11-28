@@ -264,7 +264,11 @@ func (l *PluginLoader) fingerprintPlugins(plugins []os.FileInfo, configs map[str
 	fingerprinted := make(map[PluginID]*pluginInfo, len(plugins))
 	for _, p := range plugins {
 		name := cleanPluginExecutable(p.Name())
-		c := configs[name]
+		c, config_does_exist := configs[name]
+		if !config_does_exist {
+			l.logger.Error("failed to load config for plugin. Is it specified in the config?", "plugin", name)
+			continue
+		}
 		info, err := l.fingerprintPlugin(p, c)
 		if err != nil {
 			l.logger.Error("failed to fingerprint plugin", "plugin", name, "error", err)

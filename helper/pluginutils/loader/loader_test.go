@@ -103,7 +103,7 @@ func TestPluginLoader_External(t *testing.T) {
 	require := require.New(t)
 
 	// Create two plugins
-	plugins := []string{"mock-device", "mock-device-2"}
+	plugins := []string{"mock-device", "mock-device-2", "mock-device-3"}
 	pluginVersions := []string{"v0.0.1", "v0.0.2"}
 	h := newHarness(t, plugins)
 
@@ -133,6 +133,8 @@ func TestPluginLoader_External(t *testing.T) {
 	require.NoError(err)
 
 	// Get the catalog and assert we have the two plugins
+	//
+	// Note: mock-device-3 is ignored because it does not have a related config.
 	c := l.Catalog()
 	require.Len(c, 1)
 	require.Contains(c, base.PluginTypeDevice)
