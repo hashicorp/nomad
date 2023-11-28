@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"

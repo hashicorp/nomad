@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	client "github.com/hashicorp/nomad/client/config"
