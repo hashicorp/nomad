@@ -4675,7 +4675,7 @@ func (j *Job) Validate() error {
 
 		if tg.MaxClientDisconnect != nil &&
 			tg.ReschedulePolicy.Attempts > 0 &&
-			tg.SingleInstanceOnLost {
+			tg.AvoidRescheduleOnLost {
 			err := fmt.Errorf("having max_client_disconnect enable along with a reschedule policy can lead to having multiple instances of a task running at the same time")
 			mErr.Errors = append(mErr.Errors, err)
 		}
@@ -6649,10 +6649,10 @@ type TaskGroup struct {
 	// allocations for tasks in this group to attempt to resume running without a restart.
 	MaxClientDisconnect *time.Duration
 
-	// SingleInstanceOnLost is used to signal if multiple instances of the same
-	// task can be running at the same time, it controls if a replacement is triggered
-	// when the task state is unknown
-	SingleInstanceOnLost bool
+	// AvoidRescheduleOnLost is used to signal that an allocation should not
+	// be rescheduled if its node becomes lost. If the node is disconnected, it will
+	// be also considered as lost and wont be rescheduled.
+	AvoidRescheduleOnLost bool
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -11031,13 +11031,13 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 	return false
 }
 
-// SingleInstanceOnLost determines if an alloc allows to have a replacement
+// AvoidRescheduleOnLost determines if an alloc allows to have a replacement
 // when lost.
-func (a *Allocation) SingleInstanceOnLost() bool {
+func (a *Allocation) AvoidRescheduleOnLost() bool {
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return tg.SingleInstanceOnLost
+			return tg.AvoidRescheduleOnLost
 		}
 	}
 
@@ -11257,7 +11257,7 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	if tg.MaxClientDisconnect == nil && !tg.SingleInstanceOnLost {
+	if tg.MaxClientDisconnect == nil && !tg.AvoidRescheduleOnLost {
 		return false
 	}
 

@@ -471,7 +471,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	}
 
 	if len(expiring) > 0 {
-		if tg.SingleInstanceOnLost {
+		if tg.AvoidRescheduleOnLost {
 			untainted = untainted.union(expiring)
 		} else {
 			lost = lost.union(expiring)
@@ -493,7 +493,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 			// create followup evals, and update the ClientStatus to unknown.
 			timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
 
-		case tg.SingleInstanceOnLost:
+		case tg.AvoidRescheduleOnLost:
 			untainted = untainted.union(disconnecting)
 		}
 

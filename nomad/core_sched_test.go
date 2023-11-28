@@ -1940,21 +1940,21 @@ func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 // Tests various scenarios when allocations are eligible to be GCed
 func TestAllocation_GCEligible(t *testing.T) {
 	type testCase struct {
-		Desc                 string
-		GCTime               time.Time
-		ClientStatus         string
-		DesiredStatus        string
-		JobStatus            string
-		JobStop              bool
-		SingleInstanceOnLost *bool
-		AllocJobModifyIndex  uint64
-		JobModifyIndex       uint64
-		ModifyIndex          uint64
-		NextAllocID          string
-		ReschedulePolicy     *structs.ReschedulePolicy
-		RescheduleTrackers   []*structs.RescheduleEvent
-		ThresholdIndex       uint64
-		ShouldGC             bool
+		Desc                  string
+		GCTime                time.Time
+		ClientStatus          string
+		DesiredStatus         string
+		JobStatus             string
+		JobStop               bool
+		AvoidRescheduleOnLost *bool
+		AllocJobModifyIndex   uint64
+		JobModifyIndex        uint64
+		ModifyIndex           uint64
+		NextAllocID           string
+		ReschedulePolicy      *structs.ReschedulePolicy
+		RescheduleTrackers    []*structs.RescheduleEvent
+		ThresholdIndex        uint64
+		ShouldGC              bool
 	}
 
 	fail := time.Now()
@@ -2175,8 +2175,8 @@ func TestAllocation_GCEligible(t *testing.T) {
 		alloc.NextAllocation = tc.NextAllocID
 		job := mock.Job()
 		alloc.TaskGroup = job.TaskGroups[0].Name
-		if tc.SingleInstanceOnLost != nil {
-			job.TaskGroups[0].SingleInstanceOnLost = *tc.SingleInstanceOnLost
+		if tc.AvoidRescheduleOnLost != nil {
+			job.TaskGroups[0].AvoidRescheduleOnLost = *tc.AvoidRescheduleOnLost
 		}
 		job.TaskGroups[0].ReschedulePolicy = tc.ReschedulePolicy
 		if tc.JobStatus != "" {

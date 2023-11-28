@@ -1363,40 +1363,40 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 }
 
 // Tests the reconciler properly handles lost nodes with allocations
-func TestReconciler_LostNode_SingleInstanceOnLost(t *testing.T) {
+func TestReconciler_LostNode_AvoidRescheduleOnLost(t *testing.T) {
 	ci.Parallel(t)
 	testCases := []struct {
-		name                 string
-		singleInstanceOnLost bool
-		place                int
-		stop                 int
-		ignore               int
-		disconnect           int
-		allocStatus          string
+		name                  string
+		AvoidRescheduleOnLost bool
+		place                 int
+		stop                  int
+		ignore                int
+		disconnect            int
+		allocStatus           string
 	}{
 		{
-			name:                 "SingleInstanceOnLost off",
-			singleInstanceOnLost: false,
-			place:                2,
-			stop:                 2,
-			ignore:               8,
-			allocStatus:          structs.AllocClientStatusLost,
+			name:                  "AvoidRescheduleOnLost off",
+			AvoidRescheduleOnLost: false,
+			place:                 2,
+			stop:                  2,
+			ignore:                8,
+			allocStatus:           structs.AllocClientStatusLost,
 		},
 		{
-			name:                 "SingleInstanceOnLost on",
-			singleInstanceOnLost: true,
-			place:                0,
-			stop:                 0,
-			ignore:               10,
-			disconnect:           2,
-			allocStatus:          structs.AllocClientStatusUnknown,
+			name:                  "AvoidRescheduleOnLost on",
+			AvoidRescheduleOnLost: true,
+			place:                 0,
+			stop:                  0,
+			ignore:                10,
+			disconnect:            2,
+			allocStatus:           structs.AllocClientStatusUnknown,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			job := mock.Job()
-			job.TaskGroups[0].SingleInstanceOnLost = tc.singleInstanceOnLost
+			job.TaskGroups[0].AvoidRescheduleOnLost = tc.AvoidRescheduleOnLost
 			// Create 10 existing allocations
 			var allocs []*structs.Allocation
 			for i := 0; i < 10; i++ {
