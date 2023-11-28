@@ -63,11 +63,16 @@ job "docs" {
   rescheduling strategy. Nomad will then attempt to schedule the task on another
   node if any of the group allocation statuses become "failed".
 
-- `avoid_reschedule_on_lost` `(bool: true)` - Specifies if a groups tasks that can't
-  have multiple instances running at the same time. If the node this tasks are 
-  running on becomes disconnected or goes down, this allocations wont be rescheduled 
-  and will show up as `unknown` until the node comes back up or they are manually
-  restarted.
+- `avoid_reschedule_on_lost` `(bool: true)` - Defines the reschedule behaviour 
+  of an allocation when the node it is running on becomes disconnect or lost. 
+  When enabled, if the node it is running on becomes disconnected 
+  or goes down, this allocations wont be rescheduled and will show up as `unknown`
+  until the node comes back up or it is manually restarted. 
+  This behaviour will only modify the reschedule process on the server.
+  To modify the allocation behaviour on the client, see `stop_after_client_disconnect`.
+
+  In case of `max_client_disconnect_disconnect` also being enabled, 
+  `reschedule_policy` must be disabled. Setting both up will return an error.
 
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
@@ -329,11 +334,13 @@ group "second" {
 }
 ```
 
-~> **Note:** The `max_client_disconnect` feature is only supported on Nomad
-version 1.3.0 and above. If you run a job with `max_client_disconnect` on servers
-where some servers are not upgraded to 1.3.0, the `max_client_disconnect`
-flag will be _ignored_. Deploying a job with `max_client_disconnect` to a
-`datacenter` of Nomad clients where all clients are not 1.3.0 or above is unsupported.
+~> **Note:** The `max_client_disconnect` and `avoid_reschedule_on_lost` 
+feature is only supported on Nomad version 1.3.0 and above. If you run a job
+with `max_client_disconnect`  or `avoid_reschedule_on_lost` on servers where 
+some servers are not upgraded to 1.3.0, the `max_client_disconnect` and 
+`avoid_reschedule_on_lost` flags will be _ignored_. Deploying a job with 
+`max_client_disconnect` or `avoid_reschedule_on_lost` to a`datacenter` of 
+Nomad clients where all clients are not 1.3.0 or above is unsupported.
 
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
