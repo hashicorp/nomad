@@ -506,7 +506,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				}
 
 				if tc.shouldStopOnDisconnectedNode {
-					require.Equal(t, testNode.ID, stopResult.alloc.NodeID)
+					must.Eq(t, testNode.ID, stopResult.alloc.NodeID)
 				} else {
 					require.NotEqual(t, testNode.ID, stopResult.alloc.NodeID)
 				}
