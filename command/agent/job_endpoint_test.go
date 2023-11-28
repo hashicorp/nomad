@@ -1276,9 +1276,9 @@ func TestHTTP_JobActions(t *testing.T) {
 		// Two actions by default, both in Task web and Group web
 		must.Len(t, 2, actionsResp, must.Sprint("expected 2 actions"))
 
-		must.Eq(t, "date test", actionsResp[0].Name)
+		must.Eq(t, "date-test", actionsResp[0].Name)
 
-		must.Eq(t, "echo test", actionsResp[1].Name)
+		must.Eq(t, "echo-test", actionsResp[1].Name)
 
 		// Both have Args lists length of 1
 		must.Len(t, 1, actionsResp[0].Args, must.Sprint("expected 1 arg"))
@@ -1351,9 +1351,9 @@ func TestHTTP_JobActions(t *testing.T) {
 		dateTestCount := 0
 		echoTestCount := 0
 		for _, action := range actionsResp3 {
-			if action.Name == "date test" {
+			if action.Name == "date-test" {
 				dateTestCount++
-			} else if action.Name == "echo test" {
+			} else if action.Name == "echo-test" {
 				echoTestCount++
 			}
 		}

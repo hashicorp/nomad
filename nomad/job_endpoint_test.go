@@ -6201,6 +6201,202 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 	}
 }
 
+func TestJob_GetActions(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerCleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer testServerCleanup()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Perform a request which does not include the jobID.
+	jobActionsReq1 := structs.JobActionListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var jobActionsResp1 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq1, &jobActionsResp1),
+		"JobID required for actions")
+
+	// Perform a request which specifies a jobID which is not present within
+	// Nomad's state.
+	jobActionsReq2 := structs.JobActionListRequest{
+		JobID: "not-found",
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var jobActionsResp2 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq2, &jobActionsResp2),
+		"Unknown job")
+
+	// Upsert a job which contains some actions.
+	mockJob := mock.Job()
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 4, nil, mockJob))
+
+	// Read the job actions.
+	jobActionsReq3 := structs.JobActionListRequest{
+		JobID: mockJob.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockJob.Namespace,
+		},
+	}
+
+	var jobActionsResp3 structs.JobActionListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq3, &jobActionsResp3))
+	must.Len(t, 2, jobActionsResp3.Actions)
+	must.Eq(t, 4, jobActionsResp3.Index)
+
+	// Create a namespace, place a job within this, and read out the job
+	// actions.
+	mockNamespace := mock.Namespace()
+	must.NoError(t, testServer.fsm.State().UpsertNamespaces(22, []*structs.Namespace{mockNamespace}))
+
+	mockJobNonDefault := mock.Job()
+	mockJobNonDefault.Namespace = mockNamespace.Name
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 30, nil, mockJobNonDefault))
+
+	jobActionsReq4 := structs.JobActionListRequest{
+		JobID: mockJobNonDefault.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockNamespace.Name,
+		},
+	}
+
+	var jobActionsResp4 structs.JobActionListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq4, &jobActionsResp4))
+	must.Len(t, 2, jobActionsResp4.Actions)
+	must.Eq(t, 30, jobActionsResp4.Index)
+}
+
+func TestJob_GetActions_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, rootACLToken, testServerCleanup := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer testServerCleanup()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Perform a request which does not include the jobID.
+	jobActionsReq1 := structs.JobActionListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+			AuthToken: rootACLToken.SecretID,
+		},
+	}
+
+	var jobActionsResp1 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq1, &jobActionsResp1),
+		"JobID required for actions")
+
+	// Perform a request which does not include an authentication token.
+	jobActionsReq2 := structs.JobActionListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var jobActionsResp2 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq2, &jobActionsResp2),
+		structs.ErrPermissionDenied.Error())
+
+	// Perform a request which specifies a jobID which is not present within
+	// Nomad's state.
+	jobActionsReq3 := structs.JobActionListRequest{
+		JobID: "not-found",
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+			AuthToken: rootACLToken.SecretID,
+		},
+	}
+
+	var jobActionsResp3 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq3, &jobActionsResp3),
+		structs.ErrUnknownJobPrefix)
+
+	// Upsert a job which contains some actions.
+	mockJob := mock.Job()
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 4, nil, mockJob))
+
+	// Read the job actions using the root ACL token.
+	jobActionsReq4 := structs.JobActionListRequest{
+		JobID: mockJob.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockJob.Namespace,
+			AuthToken: rootACLToken.SecretID,
+		},
+	}
+
+	var jobActionsResp4 structs.JobActionListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq4, &jobActionsResp4))
+	must.Len(t, 2, jobActionsResp4.Actions)
+	must.Eq(t, 4, jobActionsResp4.Index)
+
+	// Create a namespace and place a job within this.
+	mockNamespace := mock.Namespace()
+	must.NoError(t, testServer.fsm.State().UpsertNamespaces(22, []*structs.Namespace{mockNamespace}))
+
+	mockJobNonDefault := mock.Job()
+	mockJobNonDefault.Namespace = mockNamespace.Name
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 30, nil, mockJobNonDefault))
+
+	// Create a scoped policy and use this to look-up the job action within the
+	// non-default namespace.
+	namespaceScopedToken := mock.CreatePolicyAndToken(
+		t, testServer.State(), 40, "test-job-actions-get",
+		mock.NamespacePolicy(mockJobNonDefault.Namespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	jobActionsReq5 := structs.JobActionListRequest{
+		JobID: mockJobNonDefault.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockNamespace.Name,
+			AuthToken: namespaceScopedToken.SecretID,
+		},
+	}
+
+	var jobActionsResp5 structs.JobActionListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq5, &jobActionsResp5))
+	must.Len(t, 2, jobActionsResp5.Actions)
+	must.Eq(t, 30, jobActionsResp5.Index)
+
+	// Attempt to use the namespace scoped token, to read across into the
+	// default namespace.
+	jobActionsReq6 := structs.JobActionListRequest{
+		JobID: mockJob.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockJob.Name,
+			AuthToken: namespaceScopedToken.SecretID,
+		},
+	}
+
+	var jobActionsResp6 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq6, &jobActionsResp6),
+		structs.ErrPermissionDenied.Error())
+}
+
 func TestJobEndpoint_Plan_ACL(t *testing.T) {
 	ci.Parallel(t)
 

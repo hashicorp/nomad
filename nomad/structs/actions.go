@@ -9,10 +9,15 @@ package structs
 
 import (
 	"errors"
+	"fmt"
+	"regexp"
 	"slices"
 
 	"github.com/hashicorp/go-multierror"
 )
+
+// validJobActionName is used to validate a job action name.
+var validJobActionName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
 type Action struct {
 	Name    string
@@ -26,7 +31,25 @@ type JobAction struct {
 	TaskGroupName string
 }
 
-type ActionListResponse struct {
+const (
+	// JobGetActionsRPCMethod is the RPC method for listing all configured
+	// actions within a job.
+	//
+	// Args: JobActionListRequest
+	// Reply: JobActionListResponse
+	JobGetActionsRPCMethod = "Job.GetActions"
+)
+
+// JobActionListRequest is the request object when listing the actions
+// configured within a job.
+type JobActionListRequest struct {
+	JobID string
+	QueryOptions
+}
+
+// JobActionListResponse is the response object when performing a listing of
+// actions configured within a job.
+type JobActionListResponse struct {
 	Actions []*JobAction
 	QueryMeta
 }
@@ -42,7 +65,7 @@ func (a *Action) Copy() *Action {
 }
 
 func (a *Action) Equal(o *Action) bool {
-	if a == o {
+	if a == nil && o == nil {
 		return true
 	}
 	if a == nil || o == nil {
@@ -60,7 +83,10 @@ func (a *Action) Validate() error {
 
 	var mErr *multierror.Error
 	if a.Command == "" {
-		mErr = multierror.Append(mErr, errors.New("Missing command"))
+		mErr = multierror.Append(mErr, errors.New("command cannot be empty"))
+	}
+	if !validJobActionName.MatchString(a.Name) {
+		mErr = multierror.Append(mErr, fmt.Errorf("invalid name '%s'", a.Name))
 	}
 
 	return mErr.ErrorOrNil()

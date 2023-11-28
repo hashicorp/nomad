@@ -1,0 +1,176 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.action-card {
+  .peers {
+    width: 100%;
+    overflow: auto;
+    padding: 4px;
+    .peer {
+      white-space: nowrap;
+      &.active {
+        background: blue;
+      }
+    }
+  }
+}
+
+.actions-dropdown {
+  z-index: 3;
+  .hds-dropdown__list {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .hds-reveal {
+    width: auto;
+    .hds-reveal__toggle-button {
+      color: black;
+      flex-direction: row-reverse;
+      width: 100%;
+      text-align: left;
+      font-weight: 600;
+      padding-top: calc(0.25rem + 8px);
+      padding-bottom: calc(0.25rem + 8px);
+      padding-left: 0;
+      padding-right: 0;
+      border-width: 0;
+    }
+  }
+}
+
+// The actions sidebar is more "global" than others,
+// and as such sits higher onthe page vertically as
+// well as on the z-index.
+#actions-flyout {
+  z-index: $z-actions;
+  left: unset;
+  animation-name: FlyoutSlideIn;
+  animation-duration: 0.2s;
+  animation-fill-mode: both;
+
+  & + .hds-flyout__overlay {
+    z-index: $z-actions-backdrop;
+    animation-name: FlyoutOverlayFadeIn;
+    animation-duration: 0.2s;
+    animation-fill-mode: both;
+  }
+
+  & > .hds-flyout__header {
+    position: relative;
+    z-index: $z-base;
+    .hds-flyout__title {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      justify-content: space-between;
+      h3 {
+        flex-grow: 1;
+      }
+    }
+  }
+
+  .hds-application-state {
+    width: auto;
+  }
+
+  .action-card-header {
+    position: relative;
+    z-index: $z-base - 1;
+    .hds-page-header__main {
+      flex-direction: unset;
+      .hds-page-header__content {
+        gap: 0;
+      }
+      .hds-page-header__actions {
+        align-items: stretch;
+      }
+    }
+  }
+  .actions-queue {
+    display: grid;
+    gap: 1rem;
+    .action-card {
+      display: grid;
+      gap: 1rem;
+      grid-template-rows: auto 1fr auto;
+      border-bottom: 1px solid $grey-blue;
+      padding: 1rem 0 2rem;
+
+      &:last-of-type {
+        border-bottom: none;
+      }
+
+      header {
+        .action-card-title {
+          display: block;
+          .job-name {
+            opacity: 0.5;
+            font-size: 1rem;
+            color: black;
+          }
+        }
+      }
+
+      .messages {
+        overflow: hidden;
+
+        code > pre {
+          height: 200px;
+          background-color: #0a0a0a;
+          color: whitesmoke;
+          border-radius: 6px;
+          resize: vertical;
+        }
+      }
+
+      footer {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: start;
+      }
+    }
+  }
+}
+
+// The centre of the subnav
+$actionButtonTopOffset: calc($subNavOffset + ($secondaryNavbarHeight/4));
+
+.actions-flyout-button {
+  position: fixed;
+  top: $actionButtonTopOffset;
+  right: 1.5rem;
+  z-index: $z-actions;
+  animation-name: FlyoutButtonSlideIn;
+  animation-duration: 0.2s;
+  animation-fill-mode: both;
+}
+
+@keyframes FlyoutSlideIn {
+  from {
+    // right: -480px; //medium
+    right: -720px; //large
+  }
+  to {
+    right: 0px;
+  }
+}
+
+@keyframes FlyoutButtonSlideIn {
+  from {
+    right: -200px;
+  }
+  to {
+    right: 1.5rem;
+  }
+}
+
+@keyframes FlyoutOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
