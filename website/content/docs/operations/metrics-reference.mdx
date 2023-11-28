@@ -183,8 +183,8 @@ Nomad will emit [tagged metrics][tagged-metrics], in the below format:
 ## Allocation Metrics
 
 The following metrics are emitted for each allocation if allocation metrics
-are enabled. Note that allocation metrics available may be dependent on the
-task driver; not all task drivers can provide all metrics.
+are enabled. Note that allocation metrics available may be dependent on factors
+such as the task driver and control group (cgroup) version in use.
 
 | Metric                                        | Description                                                       | Unit        | Type    | Labels                                           |
 |-----------------------------------------------|-------------------------------------------------------------------|-------------|---------|--------------------------------------------------|
