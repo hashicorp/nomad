@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/nomad/state"
