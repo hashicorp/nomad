@@ -26,7 +26,7 @@ topologies into account.
 
 ## Calculating CPU Resources
 
-The total CPU bandwidth of a Nomad node is the sum of the product between the 
+The total CPU bandwidth of a Nomad node is the sum of the product between the
 frequency of each core type and the total number of cores of that type in the
 CPU.
 
@@ -52,7 +52,7 @@ up of mixed core types, with a P-Core base frequency of 2 GHz and an E-Core
 base frequency of 1.5 GHz.
 
 These characteristics are reflected in the `cpu.frequency.performance` and
-`cpu.frequency.efficiency` node attributes respectively. 
+`cpu.frequency.efficiency` node attributes respectively.
 
 ```text
 cpu.arch                        = amd64
@@ -97,7 +97,7 @@ client {
 ```
 
 When the CPU is constrained by one of the above configurations, the node
-attribute `cpu.usablecompute` indicates the total amount of CPU bandwdith
+attribute `cpu.usablecompute` indicates the total amount of CPU bandwidth
 available for scheduling of Nomad tasks.
 
 ## Allocating CPU Resources
@@ -115,12 +115,13 @@ task {
 }
 ```
 
-Note that the isolation mechansim around CPU resources is dependent on each
-task driver and its configuration. The standard behavior is that Nomad ensures
-a task has access to _at least_ as much of its allocated CPU bandwidth. In which
-case if a node has idle CPU capacity, a task may use additional CPU resources.
-Some task drivers enable limiting a task to use only the amount of bandwidth
-allocated to the task, described in the CPU Hard Limits section below.
+Note that the isolation mechanism around CPU resources is dependent on each task
+driver and its configuration. The standard behavior is that Nomad ensures a task
+has access to _at least_ as much of its allocated CPU bandwidth. In which case
+if a node has idle CPU capacity, a task may use additional CPU resources.  Some
+task drivers enable limiting a task to use only the amount of bandwidth
+allocated to the task, described in the [CPU Hard Limits](#cpu-hard-limits)
+section below.
 
 On Linux systems, Nomad supports reserving whole CPU cores specifically for a
 task. No task will be allowed to run on a CPU core reserved for another task.
@@ -143,7 +144,7 @@ this option restricts tasks from bursting above their CPU limit even when there
 is idle capacity on the node. The tradeoff is consistency versus utilization.
 A task with too few CPU resources may operate fine until another task is placed
 on the node causing a reduction in available CPU bandwidth, which could cause
-distruption for the underprovisioned task.
+disruption for the underprovisioned task.
 
 ### CPU Environment Variables
 
@@ -151,11 +152,10 @@ To help tasks understand the resources available to them, Nomad sets the
 following environment variables in their runtime environment.
 
 
-- <code>NOMAD_CPU_LIMIT</code> - The amount of CPU bandwidth allocated on behalf of the
-task.
-
-- <code>NOMAD_CPU_CORES</code> - The set of cores in [cpuset][] notation reserved for the
-task. This value is only set if `resources.cores` is configured.
+- `NOMAD_CPU_LIMIT` - The amount of CPU bandwidth allocated on behalf of the
+  task.
+- `NOMAD_CPU_CORES` - The set of cores in [cpuset][] notation reserved for the
+  task. This value is only set if `resources.cores` is configured.
 
 ```env
 NOMAD_CPU_CORES=3-5
@@ -191,7 +191,7 @@ in Mem 2 might take 300% longer.
 The extreme differences are due to various physical hardware limitations. A core
 accessing memory in its own NUMA node is optimal. Programs which perform a high
 throughput of reads or writes to/from system memory will have their performance
-substantially hindered by not optimizing their spatial locality iwth regard to
+substantially hindered by not optimizing their spatial locality with regard to
 the systems NUMA topology.
 
 ### SLIT tables
@@ -231,7 +231,7 @@ node   0   1   2   3
 
 These SLIT table "node distance" values are presented as approximate relative
 ratios. The value of 10 represents an optimal situation where a memory access
-is occuring from a CPU that is part of the same NUMA node. A value of 20 would
+is occurring from a CPU that is part of the same NUMA node. A value of 20 would
 indicate a 200% performance degradation, 30 for 300%, etc.
 
 ### Node Attributes
@@ -308,7 +308,7 @@ resources {
 
 In the `require` mode the Nomad scheduler uses the topology of each potential
 client to find a set of available CPU cores that belong to the same NUMA node.
-If no such set of cores can be found, that node is marked exhasusted for the
+If no such set of cores can be found, that node is marked exhausted for the
 resource of `numa-cores`.
 
 ```hcl
@@ -323,4 +323,3 @@ resources {
 [cpuset]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/cpusets.html
 [cpushares]: https://www.redhat.com/sysadmin/cgroups-part-two
 [numa_wiki]: https://en.wikipedia.org/wiki/Non-uniform_memory_access
-
