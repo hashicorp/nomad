@@ -2164,6 +2164,14 @@ func TestAllocation_GCEligible(t *testing.T) {
 			},
 			ShouldGC: true,
 		},
+		{
+			Desc:          "GC when alloc is unknown and but desired state is running",
+			ClientStatus:  structs.AllocClientStatusUnknown,
+			DesiredStatus: structs.AllocDesiredStatusRun,
+			GCTime:        fail,
+			JobStatus:     structs.JobStatusRunning,
+			ShouldGC:      false,
+		},
 	}
 
 	for _, tc := range harness {

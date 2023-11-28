@@ -10824,6 +10824,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 func (a *Allocation) TerminalStatus() bool {
 	// First check the desired state and if that isn't terminal, check client
 	// state.
+
 	return a.ServerTerminalStatus() || a.ClientTerminalStatus()
 }
 

@@ -801,7 +801,8 @@ func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
 // as non reschedulables when lost.
 func isValidForLostNode(plan *structs.Plan, nodeID string) bool {
 	for _, alloc := range plan.NodeAllocation[nodeID] {
-		if !(alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.AvoidRescheduleOnLost()) {
+		if !(alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.AvoidRescheduleOnLost()) &&
+			(alloc.ClientStatus != structs.AllocClientStatusLost) {
 			return false
 		}
 	}

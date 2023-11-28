@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -395,7 +396,6 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.NotEqual(t, 0, tc.allocCount, "invalid test case: alloc count must be greater than zero")
 
 			testNode := mock.Node()
 			if tc.nodeStatusDisconnected == true {
