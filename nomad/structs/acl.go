@@ -213,6 +213,8 @@ const (
 	// ACLAuthMethodTypeJWT the ACLAuthMethod.Type and represents an auth-method
 	// which uses the JWT type.
 	ACLAuthMethodTypeJWT = "JWT"
+
+	DefaultACLAuthMethodTokenNameFormat = "${auth_method_type}-${auth_method_name}"
 )
 
 var (
@@ -742,12 +744,13 @@ type ACLRoleByNameResponse struct {
 // ACLAuthMethod is used to capture the properties of an authentication method
 // used for single sing-on
 type ACLAuthMethod struct {
-	Name          string
-	Type          string
-	TokenLocality string // is the token valid locally or globally?
-	MaxTokenTTL   time.Duration
-	Default       bool
-	Config        *ACLAuthMethodConfig
+	Name            string
+	Type            string
+	TokenLocality   string // is the token valid locally or globally?
+	TokenNameFormat string
+	MaxTokenTTL     time.Duration
+	Default         bool
+	Config          *ACLAuthMethodConfig
 
 	Hash []byte
 
@@ -771,6 +774,7 @@ func (a *ACLAuthMethod) SetHash() []byte {
 	_, _ = hash.Write([]byte(a.Name))
 	_, _ = hash.Write([]byte(a.Type))
 	_, _ = hash.Write([]byte(a.TokenLocality))
+	_, _ = hash.Write([]byte(a.TokenNameFormat))
 	_, _ = hash.Write([]byte(a.MaxTokenTTL.String()))
 	_, _ = hash.Write([]byte(strconv.FormatBool(a.Default)))
 
@@ -900,6 +904,10 @@ func (a *ACLAuthMethod) Canonicalize() {
 		a.CreateTime = t
 	}
 	a.ModifyTime = t
+
+	if a.TokenNameFormat == "" {
+		a.TokenNameFormat = DefaultACLAuthMethodTokenNameFormat
+	}
 }
 
 // Merge merges auth method a with method b. It sets all required empty fields
@@ -909,6 +917,7 @@ func (a *ACLAuthMethod) Merge(b *ACLAuthMethod) {
 	if b != nil {
 		a.Type = helper.Merge(a.Type, b.Type)
 		a.TokenLocality = helper.Merge(a.TokenLocality, b.TokenLocality)
+		a.TokenNameFormat = helper.Merge(a.TokenNameFormat, b.TokenNameFormat)
 		a.MaxTokenTTL = helper.Merge(a.MaxTokenTTL, b.MaxTokenTTL)
 		a.Config = helper.Merge(a.Config, b.Config)
 	}

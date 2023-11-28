@@ -37,6 +37,10 @@ via flags detailed below.
 - `-token-locality`: Defines the kind of token that this auth method should
   produce. This can be either `local` or `global`.
 
+- `token-name-format`: Sets the token format for the authenticated users.
+  This can be lightly templated using HIL '${foo}' syntax. Defaults to
+  '${auth_method_type}-${auth_method_name}'.
+
 - `-default`: Specifies whether this auth method should be treated as a default
   one in case no auth method is explicitly specified for a login command.
 
@@ -54,13 +58,14 @@ Create a new ACL Auth Method:
 
 ```shell-session
 $ nomad acl auth-method create -name "example-acl-auth-method" -type "OIDC" -max-token-ttl "1h" -token-locality "local" -config "@config.json"
-Name           = example-acl-auth-method
-Type           = OIDC
-Locality       = local
-Max Token TTL  = 1h0m0s
-Default        = false
-Create Index   = 14
-Modify Index   = 14
+Name                = example-acl-auth-method
+Type                = OIDC
+Locality            = local
+Max Token TTL       = 1h0m0s
+Token Name Format   = ${auth_method_type}-${auth_method_name}
+Default             = false
+Create Index        = 14
+Modify Index        = 14
 
 Auth Method Config
 

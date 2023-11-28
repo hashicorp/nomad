@@ -24,13 +24,14 @@ var _ cli.Command = &ACLAuthMethodUpdateCommand{}
 type ACLAuthMethodUpdateCommand struct {
 	Meta
 
-	methodType    string
-	tokenLocality string
-	maxTokenTTL   time.Duration
-	isDefault     bool
-	config        string
-	json          bool
-	tmpl          string
+	methodType      string
+	tokenLocality   string
+	tokenNameFormat string
+	maxTokenTTL     time.Duration
+	isDefault       bool
+	config          string
+	json            bool
+	tmpl            string
 
 	testStdin io.Reader
 }
@@ -59,6 +60,10 @@ ACL Auth Method Update Options:
     Updates the kind of token that this auth method should produce. This can be
     either 'local' or 'global'.
 
+  -token-name-format
+    Sets the token format for the authenticated users. This can be lightly templated 
+    using HIL '${foo}' syntax. Defaults to '${auth_method_type}-${auth_method_name}'
+
   -default
     Specifies whether this auth method should be treated as a default one in
     case no auth method is explicitly specified for a login command.
@@ -81,13 +86,14 @@ ACL Auth Method Update Options:
 func (a *ACLAuthMethodUpdateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(a.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-type":           complete.PredictSet("OIDC", "JWT"),
-			"-max-token-ttl":  complete.PredictAnything,
-			"-token-locality": complete.PredictSet("local", "global"),
-			"-default":        complete.PredictSet("true", "false"),
-			"-config":         complete.PredictNothing,
-			"-json":           complete.PredictNothing,
-			"-t":              complete.PredictAnything,
+			"-type":              complete.PredictSet("OIDC", "JWT"),
+			"-max-token-ttl":     complete.PredictAnything,
+			"-token-locality":    complete.PredictSet("local", "global"),
+			"-token-name-format": complete.PredictNothing,
+			"-default":           complete.PredictSet("true", "false"),
+			"-config":            complete.PredictNothing,
+			"-json":              complete.PredictNothing,
+			"-t":                 complete.PredictAnything,
 		})
 }
 
@@ -108,6 +114,7 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 	flags.Usage = func() { a.Ui.Output(a.Help()) }
 	flags.StringVar(&a.methodType, "type", "", "")
 	flags.StringVar(&a.tokenLocality, "token-locality", "", "")
+	flags.StringVar(&a.tokenNameFormat, "token-name-format", "", "")
 	flags.DurationVar(&a.maxTokenTTL, "max-token-ttl", 0, "")
 	flags.StringVar(&a.config, "config", "", "")
 	flags.BoolVar(&a.isDefault, "default", false, "")
@@ -142,7 +149,7 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 
 	// Check if any command-specific flags were set
 	setFlags := []string{}
-	for _, f := range []string{"type", "token-locality", "max-token-ttl", "config", "default"} {
+	for _, f := range []string{"type", "token-locality", "token-name-format", "max-token-ttl", "config", "default"} {
 		if flagPassed(flags, f) {
 			setFlags = append(setFlags, f)
 		}
@@ -160,6 +167,10 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 			return 1
 		}
 		updatedMethod.TokenLocality = a.tokenLocality
+	}
+
+	if slices.Contains(setFlags, "token-name-format") {
+		updatedMethod.TokenNameFormat = a.tokenNameFormat
 	}
 
 	if slices.Contains(setFlags, "type") {
