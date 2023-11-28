@@ -213,6 +213,8 @@ const (
 	// ACLAuthMethodTypeJWT the ACLAuthMethod.Type and represents an auth-method
 	// which uses the JWT type.
 	ACLAuthMethodTypeJWT = "JWT"
+
+	DefaultACLAuthMethodTokenNameFormat = "${auth_method_type}-${auth_method_name}"
 )
 
 var (
@@ -904,7 +906,7 @@ func (a *ACLAuthMethod) Canonicalize() {
 	a.ModifyTime = t
 
 	if a.TokenNameFormat == "" {
-		a.TokenNameFormat = "${auth_method_type}-${auth_method_name}"
+		a.TokenNameFormat = DefaultACLAuthMethodTokenNameFormat
 	}
 }
 

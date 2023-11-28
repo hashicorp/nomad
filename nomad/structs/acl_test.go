@@ -1146,7 +1146,7 @@ func TestACLAuthMethod_Canonicalize(t *testing.T) {
 				must.NotEq(t, time.Time{}, tt.inputMethod.ModifyTime)
 			}
 			if existing.TokenNameFormat == "" {
-				must.Eq(t, "${auth_method_type}-${auth_method_name}", tt.inputMethod.TokenNameFormat)
+				must.Eq(t, DefaultACLAuthMethodTokenNameFormat, tt.inputMethod.TokenNameFormat)
 			} else {
 				must.Eq(t, existing.TokenNameFormat, tt.inputMethod.TokenNameFormat)
 			}

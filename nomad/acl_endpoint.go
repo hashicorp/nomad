@@ -2972,6 +2972,9 @@ func formatTokenName(format, authType, authName string, claims map[string]string
 		claimMappings["value."+k] = v
 	}
 
+	if format == "" {
+		format = structs.DefaultACLAuthMethodTokenNameFormat
+	}
 	tokenName, err := auth.InterpolateHIL(format, claimMappings, false)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate ACL token name: %w", err)
