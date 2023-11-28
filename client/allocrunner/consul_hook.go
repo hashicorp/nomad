@@ -140,6 +140,9 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		req[ti.IdentityName] = consul.JWTLoginRequest{
 			JWT:            jwt.JWT,
 			AuthMethodName: consulConfig.TaskIdentityAuthMethod,
+			Meta: map[string]string{
+				"requested_by": fmt.Sprintf("nomad_task_%s", ti.WorkloadIdentifier),
+			},
 		}
 
 		if err := h.getConsulTokens(consulConfig.Name, ti.IdentityName, tokens, req); err != nil {
@@ -185,6 +188,9 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		req[identity.IdentityName] = consul.JWTLoginRequest{
 			JWT:            jwt.JWT,
 			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
+			Meta: map[string]string{
+				"requested_by": fmt.Sprintf("nomad_service_%s", identity.WorkloadIdentifier),
+			},
 		}
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)

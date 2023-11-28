@@ -46,6 +46,7 @@ type SupportedProxiesAPIFunc func(string) SupportedProxiesAPI
 type JWTLoginRequest struct {
 	JWT            string
 	AuthMethodName string
+	Meta           map[string]string
 }
 
 // Client is the interface that the nomad client uses to interact with
@@ -112,6 +113,7 @@ func (c *consulClient) DeriveTokenWithJWT(reqs map[string]JWTLoginRequest) (map[
 		t, _, err := c.client.ACL().Login(&consulapi.ACLLoginParams{
 			AuthMethod:  req.AuthMethodName,
 			BearerToken: req.JWT,
+			Meta:        req.Meta,
 		}, &consulapi.WriteOptions{})
 		if err != nil {
 			mErr = multierror.Append(mErr, fmt.Errorf(
