@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 job "templating" {
-  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -105,9 +104,10 @@ EOT
 
     task "task" {
 
-      driver = "exec"
+      driver = "docker"
 
       config {
+        image   = "busybox:1"
         command = "/bin/sh"
         args    = ["-c", "sleep 300"]
       }
