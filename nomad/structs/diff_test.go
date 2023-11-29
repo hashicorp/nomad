@@ -441,7 +441,6 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			// NodePool added
 			Old: &Job{},
@@ -510,7 +509,6 @@ func TestJobDiff(t *testing.T) {
 				Type: DiffTypeNone,
 			},
 		},
-
 		{
 			// Periodic added
 			Old: &Job{},
@@ -1297,15 +1295,15 @@ func TestJobDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeAdded,
-								Name: "Count",
-								Old:  "",
-								New:  "1",
-							},
-							{
-								Type: DiffTypeAdded,
 								Name: "AvoidRescheduleOnLost",
 								Old:  "",
 								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Count",
+								Old:  "",
+								New:  "1",
 							},
 						},
 					},
@@ -1329,16 +1327,17 @@ func TestJobDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "foo",
 						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeDeleted,
-								Name: "Count",
-								Old:  "1",
-								New:  "",
-							},
+
 							{
 								Type: DiffTypeDeleted,
 								Name: "AvoidRescheduleOnLost",
 								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Count",
+								Old:  "1",
 								New:  "",
 							},
 						},
