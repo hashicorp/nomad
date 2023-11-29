@@ -1,0 +1,3 @@
+```release-note:bug
+ui: fix an issue where starting a stopped job with default-less variables would not retain those variables when done via the job page start button in the web ui
+```
