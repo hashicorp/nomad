@@ -43,480 +43,6 @@ var (
 	}
 )
 
-// Tests that when a node disconnects/reconnects allocations for that node are
-// reconciled according to the business rules.
-func TestReconciler_Disconnected_Client(t *testing.T) {
-	disconnectAllocState := []*structs.AllocState{{
-		Field: structs.AllocStateFieldClientStatus,
-		Value: structs.AllocClientStatusUnknown,
-		Time:  time.Now(),
-	}}
-
-	type testCase struct {
-		name                         string
-		allocCount                   int
-		disconnectedAllocCount       int
-		jobVersionIncrement          uint64
-		nodeScoreIncrement           float64
-		disconnectedAllocStatus      string
-		disconnectedAllocStates      []*structs.AllocState
-		isBatch                      bool
-		nodeStatusDisconnected       bool
-		replace                      bool
-		failReplacement              bool
-		taintReplacement             bool
-		disconnectReplacement        bool
-		replaceFailedReplacement     bool
-		shouldStopOnDisconnectedNode bool
-		maxDisconnect                *time.Duration
-		expected                     *resultExpectation
-	}
-
-	testCases := []testCase{
-		{
-			name:                    "reconnect-original-no-replacement",
-			allocCount:              2,
-			replace:                 false,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: false,
-			expected: &resultExpectation{
-				reconnectUpdates: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Ignore: 2,
-					},
-				},
-			},
-		},
-		{
-			name:                    "resume-original-and-stop-replacement",
-			allocCount:              3,
-			replace:                 true,
-			disconnectedAllocCount:  1,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: false,
-			expected: &resultExpectation{
-				stop:             1,
-				reconnectUpdates: 1,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Stop:   1,
-						Ignore: 3,
-					},
-				},
-			},
-		},
-		{
-			name:                    "stop-original-with-lower-node-score",
-			allocCount:              4,
-			replace:                 true,
-			disconnectedAllocCount:  1,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: true,
-			nodeScoreIncrement:           1,
-			expected: &resultExpectation{
-				stop: 1,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Stop:   1,
-						Ignore: 4,
-					},
-				},
-			},
-		},
-		{
-			name:                    "stop-original-failed-on-reconnect",
-			allocCount:              4,
-			replace:                 true,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusFailed,
-
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: true,
-			expected: &resultExpectation{
-				stop: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Stop:   2,
-						Ignore: 4,
-					},
-				},
-			},
-		},
-		{
-			name:                    "reschedule-original-failed-if-not-replaced",
-			allocCount:              4,
-			replace:                 false,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusFailed,
-
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: true,
-			expected: &resultExpectation{
-				stop:  2,
-				place: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Ignore: 2,
-						Place:  2,
-						Stop:   2,
-					},
-				},
-			},
-		},
-		{
-			name:                    "ignore-reconnect-completed",
-			allocCount:              2,
-			replace:                 false,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusComplete,
-
-			disconnectedAllocStates: disconnectAllocState,
-			isBatch:                 true,
-			expected: &resultExpectation{
-				place: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Ignore: 2,
-						Place:  2,
-					},
-				},
-			},
-		},
-		{
-			name:                    "keep-original-alloc-and-stop-failed-replacement",
-			allocCount:              3,
-			replace:                 true,
-			failReplacement:         true,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
-			disconnectedAllocStates: disconnectAllocState,
-			expected: &resultExpectation{
-				reconnectUpdates: 2,
-				stop:             0,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Ignore: 5,
-					},
-				},
-			},
-		},
-		{
-			name:                    "keep-original-and-stop-reconnecting-replacement",
-			allocCount:              2,
-			replace:                 true,
-			disconnectReplacement:   true,
-			disconnectedAllocCount:  1,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
-			disconnectedAllocStates: disconnectAllocState,
-			expected: &resultExpectation{
-				reconnectUpdates: 1,
-				stop:             1,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Ignore: 2,
-						Stop:   1,
-					},
-				},
-			},
-		},
-		{
-			name:                    "keep-original-and-stop-tainted-replacement",
-			allocCount:              3,
-			replace:                 true,
-			taintReplacement:        true,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
-			disconnectedAllocStates: disconnectAllocState,
-			expected: &resultExpectation{
-				reconnectUpdates: 2,
-				stop:             2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Ignore: 3,
-						Stop:   2,
-					},
-				},
-			},
-		},
-		{
-			name:                    "stop-original-alloc-with-old-job-version",
-			allocCount:              5,
-			replace:                 true,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: true,
-			jobVersionIncrement:          1,
-			expected: &resultExpectation{
-				stop: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Ignore: 5,
-						Stop:   2,
-					},
-				},
-			},
-		},
-		{
-			name:                    "stop-original-alloc-with-old-job-version-reconnect-eval",
-			allocCount:              5,
-			replace:                 true,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: true,
-			jobVersionIncrement:          1,
-			expected: &resultExpectation{
-				stop: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Stop:   2,
-						Ignore: 5,
-					},
-				},
-			},
-		},
-		{
-			name:                         "stop-original-alloc-with-old-job-version-and-failed-replacements-replaced",
-			allocCount:                   5,
-			replace:                      true,
-			failReplacement:              true,
-			replaceFailedReplacement:     true,
-			disconnectedAllocCount:       2,
-			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: false,
-			jobVersionIncrement:          1,
-			expected: &resultExpectation{
-				stop:             2,
-				reconnectUpdates: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Stop:   2,
-						Ignore: 7,
-					},
-				},
-			},
-		},
-		{
-			name:                    "stop-original-pending-alloc-for-disconnected-node",
-			allocCount:              2,
-			replace:                 true,
-			disconnectedAllocCount:  1,
-			disconnectedAllocStatus: structs.AllocClientStatusPending,
-
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: true,
-			nodeStatusDisconnected:       true,
-			expected: &resultExpectation{
-				stop: 1,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Stop:   1,
-						Ignore: 2,
-					},
-				},
-			},
-		},
-		{
-			name:                    "stop-failed-original-and-failed-replacements-and-place-new",
-			allocCount:              5,
-			replace:                 true,
-			failReplacement:         true,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusFailed,
-
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: true,
-			expected: &resultExpectation{
-				stop:  2,
-				place: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Stop:   2,
-						Place:  2,
-						Ignore: 5,
-					},
-				},
-			},
-		},
-		{
-			name:                         "stop-expired-allocs",
-			allocCount:                   5,
-			replace:                      true,
-			disconnectedAllocCount:       2,
-			disconnectedAllocStatus:      structs.AllocClientStatusUnknown,
-			disconnectedAllocStates:      disconnectAllocState,
-			shouldStopOnDisconnectedNode: true,
-			nodeStatusDisconnected:       true,
-			maxDisconnect:                pointer.Of(2 * time.Second),
-			expected: &resultExpectation{
-				stop: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Stop:   2,
-						Ignore: 5,
-					},
-				},
-			},
-		},
-		{
-			name:                    "replace-allocs-on-disconnected-node",
-			allocCount:              5,
-			replace:                 false,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-			disconnectedAllocStates: []*structs.AllocState{},
-			nodeStatusDisconnected:  true,
-			expected: &resultExpectation{
-				place:             2,
-				disconnectUpdates: 2,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					"web": {
-						Place:  2,
-						Ignore: 3,
-					},
-				},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-
-			testNode := mock.Node()
-			if tc.nodeStatusDisconnected == true {
-				testNode.Status = structs.NodeStatusDisconnected
-			}
-
-			// Create resumable allocs
-			job, allocs := buildResumableAllocations(tc.allocCount, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
-
-			origAllocs := set.New[string](len(allocs))
-			for _, alloc := range allocs {
-				origAllocs.Insert(alloc.ID)
-			}
-
-			if tc.isBatch {
-				job.Type = structs.JobTypeBatch
-			}
-
-			// Set alloc state
-			disconnectedAllocCount := tc.disconnectedAllocCount
-			for _, alloc := range allocs {
-				alloc.DesiredStatus = structs.AllocDesiredStatusRun
-
-				if tc.maxDisconnect != nil {
-					alloc.Job.TaskGroups[0].MaxClientDisconnect = tc.maxDisconnect
-				}
-
-				if disconnectedAllocCount > 0 {
-					alloc.ClientStatus = tc.disconnectedAllocStatus
-					alloc.AllocStates = tc.disconnectedAllocStates
-					// Set the node id on all the disconnected allocs to the node under test.
-					alloc.NodeID = testNode.ID
-					alloc.NodeName = "disconnected"
-					disconnectedAllocCount--
-				}
-			}
-
-			// Place the allocs on another node.
-			if tc.replace {
-				replacements := make([]*structs.Allocation, 0)
-				for _, alloc := range allocs {
-					if alloc.NodeID != testNode.ID {
-						continue
-					}
-					replacement := alloc.Copy()
-					replacement.ID = uuid.Generate()
-					replacement.NodeID = uuid.Generate()
-					replacement.ClientStatus = structs.AllocClientStatusRunning
-					replacement.PreviousAllocation = alloc.ID
-					replacement.AllocStates = nil
-					replacement.TaskStates = nil
-					replacement.CreateIndex += 1
-					alloc.NextAllocation = replacement.ID
-
-					if tc.jobVersionIncrement != 0 {
-						replacement.Job.Version = replacement.Job.Version + tc.jobVersionIncrement
-					}
-					if tc.nodeScoreIncrement != 0 {
-						replacement.Metrics.ScoreMetaData[0].NormScore = replacement.Metrics.ScoreMetaData[0].NormScore + tc.nodeScoreIncrement
-					}
-					if tc.taintReplacement {
-						replacement.DesiredTransition.Migrate = pointer.Of(true)
-					}
-					if tc.disconnectReplacement {
-						replacement.AllocStates = tc.disconnectedAllocStates
-					}
-
-					// If we want to test intermediate replacement failures simulate that.
-					if tc.failReplacement {
-						replacement.ClientStatus = structs.AllocClientStatusFailed
-
-						if tc.replaceFailedReplacement {
-							nextReplacement := replacement.Copy()
-							nextReplacement.ID = uuid.Generate()
-							nextReplacement.ClientStatus = structs.AllocClientStatusRunning
-							nextReplacement.DesiredStatus = structs.AllocDesiredStatusRun
-							nextReplacement.PreviousAllocation = replacement.ID
-							nextReplacement.CreateIndex += 1
-
-							replacement.NextAllocation = nextReplacement.ID
-							replacement.DesiredStatus = structs.AllocDesiredStatusStop
-
-							replacements = append(replacements, nextReplacement)
-						}
-					}
-
-					replacements = append(replacements, replacement)
-				}
-
-				allocs = append(allocs, replacements...)
-			}
-
-			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, tc.isBatch, job.ID, job,
-				nil, allocs, map[string]*structs.Node{testNode.ID: testNode}, "", 50, true)
-
-			reconciler.now = time.Now()
-			if tc.maxDisconnect != nil {
-				reconciler.now = time.Now().Add(*tc.maxDisconnect * 20)
-			}
-
-			results := reconciler.Compute()
-			assertResults(t, results, tc.expected)
-
-			for _, stopResult := range results.stop {
-				// Skip replacement allocs.
-				if !origAllocs.Contains(stopResult.alloc.ID) {
-					continue
-				}
-
-				if tc.shouldStopOnDisconnectedNode {
-					must.Eq(t, testNode.ID, stopResult.alloc.NodeID)
-				} else {
-					require.NotEqual(t, testNode.ID, stopResult.alloc.NodeID)
-				}
-
-				require.Equal(t, job.Version, stopResult.alloc.Job.Version)
-			}
-		})
-	}
-}
-
 func allocUpdateFnIgnore(*structs.Allocation, *structs.Job, *structs.TaskGroup) (bool, bool, *structs.Allocation) {
 	return true, false, nil
 }
@@ -1372,7 +898,7 @@ func TestReconciler_LostNode_AvoidRescheduleOnLost(t *testing.T) {
 		Attempts:  0,
 		Unlimited: false,
 	}
-	fmt.Println(disabledReschedulePolicy)
+
 	ci.Parallel(t)
 	now := time.Now()
 
@@ -5790,6 +5316,480 @@ func TestReconciler_RescheduleNot_Service(t *testing.T) {
 	// none of the placement should have preallocs or rescheduled
 	assertPlaceResultsHavePreviousAllocs(t, 0, r.place)
 	assertPlacementsAreRescheduled(t, 0, r.place)
+}
+
+// Tests that when a node disconnects/reconnects allocations for that node are
+// reconciled according to the business rules.
+func TestReconciler_Disconnected_Client(t *testing.T) {
+	disconnectAllocState := []*structs.AllocState{{
+		Field: structs.AllocStateFieldClientStatus,
+		Value: structs.AllocClientStatusUnknown,
+		Time:  time.Now(),
+	}}
+
+	type testCase struct {
+		name                         string
+		allocCount                   int
+		disconnectedAllocCount       int
+		jobVersionIncrement          uint64
+		nodeScoreIncrement           float64
+		disconnectedAllocStatus      string
+		disconnectedAllocStates      []*structs.AllocState
+		isBatch                      bool
+		nodeStatusDisconnected       bool
+		replace                      bool
+		failReplacement              bool
+		taintReplacement             bool
+		disconnectReplacement        bool
+		replaceFailedReplacement     bool
+		shouldStopOnDisconnectedNode bool
+		maxDisconnect                *time.Duration
+		expected                     *resultExpectation
+	}
+
+	testCases := []testCase{
+		{
+			name:                    "reconnect-original-no-replacement",
+			allocCount:              2,
+			replace:                 false,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: false,
+			expected: &resultExpectation{
+				reconnectUpdates: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 2,
+					},
+				},
+			},
+		},
+		{
+			name:                    "resume-original-and-stop-replacement",
+			allocCount:              3,
+			replace:                 true,
+			disconnectedAllocCount:  1,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: false,
+			expected: &resultExpectation{
+				stop:             1,
+				reconnectUpdates: 1,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   1,
+						Ignore: 3,
+					},
+				},
+			},
+		},
+		{
+			name:                    "stop-original-with-lower-node-score",
+			allocCount:              4,
+			replace:                 true,
+			disconnectedAllocCount:  1,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: true,
+			nodeScoreIncrement:           1,
+			expected: &resultExpectation{
+				stop: 1,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   1,
+						Ignore: 4,
+					},
+				},
+			},
+		},
+		{
+			name:                    "stop-original-failed-on-reconnect",
+			allocCount:              4,
+			replace:                 true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusFailed,
+
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: true,
+			expected: &resultExpectation{
+				stop: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   2,
+						Ignore: 4,
+					},
+				},
+			},
+		},
+		{
+			name:                    "reschedule-original-failed-if-not-replaced",
+			allocCount:              4,
+			replace:                 false,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusFailed,
+
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: true,
+			expected: &resultExpectation{
+				stop:  2,
+				place: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 2,
+						Place:  2,
+						Stop:   2,
+					},
+				},
+			},
+		},
+		{
+			name:                    "ignore-reconnect-completed",
+			allocCount:              2,
+			replace:                 false,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusComplete,
+
+			disconnectedAllocStates: disconnectAllocState,
+			isBatch:                 true,
+			expected: &resultExpectation{
+				place: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 2,
+						Place:  2,
+					},
+				},
+			},
+		},
+		{
+			name:                    "keep-original-alloc-and-stop-failed-replacement",
+			allocCount:              3,
+			replace:                 true,
+			failReplacement:         true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+
+			disconnectedAllocStates: disconnectAllocState,
+			expected: &resultExpectation{
+				reconnectUpdates: 2,
+				stop:             0,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 5,
+					},
+				},
+			},
+		},
+		{
+			name:                    "keep-original-and-stop-reconnecting-replacement",
+			allocCount:              2,
+			replace:                 true,
+			disconnectReplacement:   true,
+			disconnectedAllocCount:  1,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+
+			disconnectedAllocStates: disconnectAllocState,
+			expected: &resultExpectation{
+				reconnectUpdates: 1,
+				stop:             1,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 2,
+						Stop:   1,
+					},
+				},
+			},
+		},
+		{
+			name:                    "keep-original-and-stop-tainted-replacement",
+			allocCount:              3,
+			replace:                 true,
+			taintReplacement:        true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+
+			disconnectedAllocStates: disconnectAllocState,
+			expected: &resultExpectation{
+				reconnectUpdates: 2,
+				stop:             2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 3,
+						Stop:   2,
+					},
+				},
+			},
+		},
+		{
+			name:                    "stop-original-alloc-with-old-job-version",
+			allocCount:              5,
+			replace:                 true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: true,
+			jobVersionIncrement:          1,
+			expected: &resultExpectation{
+				stop: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 5,
+						Stop:   2,
+					},
+				},
+			},
+		},
+		{
+			name:                    "stop-original-alloc-with-old-job-version-reconnect-eval",
+			allocCount:              5,
+			replace:                 true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: true,
+			jobVersionIncrement:          1,
+			expected: &resultExpectation{
+				stop: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   2,
+						Ignore: 5,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-original-alloc-with-old-job-version-and-failed-replacements-replaced",
+			allocCount:                   5,
+			replace:                      true,
+			failReplacement:              true,
+			replaceFailedReplacement:     true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: false,
+			jobVersionIncrement:          1,
+			expected: &resultExpectation{
+				stop:             2,
+				reconnectUpdates: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   2,
+						Ignore: 7,
+					},
+				},
+			},
+		},
+		{
+			name:                    "stop-original-pending-alloc-for-disconnected-node",
+			allocCount:              2,
+			replace:                 true,
+			disconnectedAllocCount:  1,
+			disconnectedAllocStatus: structs.AllocClientStatusPending,
+
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: true,
+			nodeStatusDisconnected:       true,
+			expected: &resultExpectation{
+				stop: 1,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   1,
+						Ignore: 2,
+					},
+				},
+			},
+		},
+		{
+			name:                    "stop-failed-original-and-failed-replacements-and-place-new",
+			allocCount:              5,
+			replace:                 true,
+			failReplacement:         true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusFailed,
+
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: true,
+			expected: &resultExpectation{
+				stop:  2,
+				place: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   2,
+						Place:  2,
+						Ignore: 5,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-expired-allocs",
+			allocCount:                   5,
+			replace:                      true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusUnknown,
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: true,
+			nodeStatusDisconnected:       true,
+			maxDisconnect:                pointer.Of(2 * time.Second),
+			expected: &resultExpectation{
+				stop: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   2,
+						Ignore: 5,
+					},
+				},
+			},
+		},
+		{
+			name:                    "replace-allocs-on-disconnected-node",
+			allocCount:              5,
+			replace:                 false,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: []*structs.AllocState{},
+			nodeStatusDisconnected:  true,
+			expected: &resultExpectation{
+				place:             2,
+				disconnectUpdates: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Place:  2,
+						Ignore: 3,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			testNode := mock.Node()
+			if tc.nodeStatusDisconnected == true {
+				testNode.Status = structs.NodeStatusDisconnected
+			}
+
+			// Create resumable allocs
+			job, allocs := buildResumableAllocations(tc.allocCount, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
+
+			origAllocs := set.New[string](len(allocs))
+			for _, alloc := range allocs {
+				origAllocs.Insert(alloc.ID)
+			}
+
+			if tc.isBatch {
+				job.Type = structs.JobTypeBatch
+			}
+
+			// Set alloc state
+			disconnectedAllocCount := tc.disconnectedAllocCount
+			for _, alloc := range allocs {
+				alloc.DesiredStatus = structs.AllocDesiredStatusRun
+
+				if tc.maxDisconnect != nil {
+					alloc.Job.TaskGroups[0].MaxClientDisconnect = tc.maxDisconnect
+				}
+
+				if disconnectedAllocCount > 0 {
+					alloc.ClientStatus = tc.disconnectedAllocStatus
+					alloc.AllocStates = tc.disconnectedAllocStates
+					// Set the node id on all the disconnected allocs to the node under test.
+					alloc.NodeID = testNode.ID
+					alloc.NodeName = "disconnected"
+					disconnectedAllocCount--
+				}
+			}
+
+			// Place the allocs on another node.
+			if tc.replace {
+				replacements := make([]*structs.Allocation, 0)
+				for _, alloc := range allocs {
+					if alloc.NodeID != testNode.ID {
+						continue
+					}
+					replacement := alloc.Copy()
+					replacement.ID = uuid.Generate()
+					replacement.NodeID = uuid.Generate()
+					replacement.ClientStatus = structs.AllocClientStatusRunning
+					replacement.PreviousAllocation = alloc.ID
+					replacement.AllocStates = nil
+					replacement.TaskStates = nil
+					replacement.CreateIndex += 1
+					alloc.NextAllocation = replacement.ID
+
+					if tc.jobVersionIncrement != 0 {
+						replacement.Job.Version = replacement.Job.Version + tc.jobVersionIncrement
+					}
+					if tc.nodeScoreIncrement != 0 {
+						replacement.Metrics.ScoreMetaData[0].NormScore = replacement.Metrics.ScoreMetaData[0].NormScore + tc.nodeScoreIncrement
+					}
+					if tc.taintReplacement {
+						replacement.DesiredTransition.Migrate = pointer.Of(true)
+					}
+					if tc.disconnectReplacement {
+						replacement.AllocStates = tc.disconnectedAllocStates
+					}
+
+					// If we want to test intermediate replacement failures simulate that.
+					if tc.failReplacement {
+						replacement.ClientStatus = structs.AllocClientStatusFailed
+
+						if tc.replaceFailedReplacement {
+							nextReplacement := replacement.Copy()
+							nextReplacement.ID = uuid.Generate()
+							nextReplacement.ClientStatus = structs.AllocClientStatusRunning
+							nextReplacement.DesiredStatus = structs.AllocDesiredStatusRun
+							nextReplacement.PreviousAllocation = replacement.ID
+							nextReplacement.CreateIndex += 1
+
+							replacement.NextAllocation = nextReplacement.ID
+							replacement.DesiredStatus = structs.AllocDesiredStatusStop
+
+							replacements = append(replacements, nextReplacement)
+						}
+					}
+
+					replacements = append(replacements, replacement)
+				}
+
+				allocs = append(allocs, replacements...)
+			}
+
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, tc.isBatch, job.ID, job,
+				nil, allocs, map[string]*structs.Node{testNode.ID: testNode}, "", 50, true)
+
+			reconciler.now = time.Now()
+			if tc.maxDisconnect != nil {
+				reconciler.now = time.Now().Add(*tc.maxDisconnect * 20)
+			}
+
+			results := reconciler.Compute()
+			assertResults(t, results, tc.expected)
+
+			for _, stopResult := range results.stop {
+				// Skip replacement allocs.
+				if !origAllocs.Contains(stopResult.alloc.ID) {
+					continue
+				}
+
+				if tc.shouldStopOnDisconnectedNode {
+					must.Eq(t, testNode.ID, stopResult.alloc.NodeID)
+				} else {
+					require.NotEqual(t, testNode.ID, stopResult.alloc.NodeID)
+				}
+
+				require.Equal(t, job.Version, stopResult.alloc.Job.Version)
+			}
+		})
+	}
 }
 
 // Tests behavior of batch failure with rescheduling policy preventing rescheduling:

@@ -500,8 +500,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		// wont be rescheduled, there is no need to specifically do any extra processing.
 		// If MaxClientDisconnect is not enabled, then AvoidRescheduleOnLost
 		// requires handling.
-		switch {
-		case tg.MaxClientDisconnect != nil:
+		if tg.MaxClientDisconnect != nil {
 			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
 			rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
@@ -512,8 +511,10 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 			// create followup evals, and update the ClientStatus to unknown.
 			timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
 
-		case tg.AvoidRescheduleOnLost:
-			untainted = untainted.union(disconnecting)
+		} else {
+			if tg.AvoidRescheduleOnLost {
+				untainted = untainted.union(disconnecting)
+			}
 		}
 
 		a.appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals)
