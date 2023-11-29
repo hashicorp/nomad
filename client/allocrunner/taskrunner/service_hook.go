@@ -33,10 +33,6 @@ type serviceHookConfig struct {
 	alloc *structs.Allocation
 	task  *structs.Task
 
-	// namespace is the Nomad or Consul namespace in which service
-	// registrations will be made.
-	providerNamespace string
-
 	// serviceRegWrapper is the handler wrapper that is used to perform service
 	// and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
@@ -93,6 +89,7 @@ type serviceHook struct {
 
 func newServiceHook(c serviceHookConfig) *serviceHook {
 	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
+	providerNamespace := c.alloc.ServiceProviderNamespaceForTask(c.task.Name)
 
 	h := &serviceHook{
 		allocID:           c.alloc.ID,
@@ -101,7 +98,7 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		taskName:          c.task.Name,
 		tg:                tg,
 		namespace:         c.alloc.Namespace,
-		providerNamespace: c.providerNamespace,
+		providerNamespace: providerNamespace,
 		serviceRegWrapper: c.serviceRegWrapper,
 		services:          c.task.Services,
 		restarter:         c.restarter,
@@ -191,7 +188,7 @@ func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error 
 
 	// An update may change the service provider, therefore we need to account
 	// for how namespaces work across providers also.
-	h.providerNamespace = req.Alloc.ServiceProviderNamespace()
+	h.providerNamespace = req.Alloc.ServiceProviderNamespaceForTask(h.taskName)
 
 	return nil
 }
