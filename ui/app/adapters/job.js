@@ -44,7 +44,12 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   purge(job) {
-    const url = this.urlForFindRecord(job.get('id'), 'job') + '?purge=true';
+    const url = addToPath(
+      this.urlForFindRecord(job.get('id'), 'job'),
+      '',
+      'purge=true'
+    );
+
     return this.ajax(url, 'DELETE');
   }
 
