@@ -107,10 +107,6 @@ func (tr *TaskRunner) initHooks() {
 	// Get the consul namespace for the TG of the allocation.
 	consulNamespace := tr.alloc.ConsulNamespaceForTask(tr.taskName)
 
-	// Identify the service registration provider, which can differ from the
-	// Consul namespace depending on which provider is used.
-	serviceProviderNamespace := tr.alloc.ServiceProviderNamespace()
-
 	// If there are templates is enabled, add the hook
 	if len(task.Templates) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
@@ -133,7 +129,6 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
 		alloc:             tr.Alloc(),
 		task:              tr.Task(),
-		providerNamespace: serviceProviderNamespace,
 		serviceRegWrapper: tr.serviceRegWrapper,
 		restarter:         tr,
 		hookResources:     tr.allocHookResources,

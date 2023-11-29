@@ -26,7 +26,7 @@ var _ interfaces.TaskExitedHook = (*serviceHook)(nil)
 var _ interfaces.TaskPreKillHook = (*serviceHook)(nil)
 var _ interfaces.TaskUpdateHook = (*serviceHook)(nil)
 
-func TestUpdate_beforePoststart(t *testing.T) {
+func Test_serviceHook_Update_beforePoststart(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.Job.Canonicalize()
 	logger := testlog.HCLogger(t)
@@ -183,7 +183,6 @@ func Test_serviceHook_Nomad(t *testing.T) {
 	h := newServiceHook(serviceHookConfig{
 		alloc:             alloc,
 		task:              alloc.LookupTask("web"),
-		providerNamespace: "default",
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,
