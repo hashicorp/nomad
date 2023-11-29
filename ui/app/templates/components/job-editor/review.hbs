@@ -20,6 +20,7 @@
 >
     <div class="boxed-section-head" data-test-dry-run-title>Scheduler dry-run</div>
     <div class="boxed-section-body" data-test-dry-run-body>
+    {{!-- TODO: warnings here? --}}
     {{#if @data.planOutput.failedTGAllocs}}
         {{#each @data.planOutput.failedTGAllocs as |placementFailure|}}
         <PlacementFailure @failedTGAlloc={{placementFailure}} />
