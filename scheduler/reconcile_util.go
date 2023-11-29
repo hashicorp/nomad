@@ -339,7 +339,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			// Filter allocs on a node that is now re-connected to be resumed.
 			if reconnect {
 				// Expired unknown allocs should be processed depending on the max client disconnect
-				// and single instance on lost configurations, they are both treated as
+				// and/or avoid reschedule on lost configurations, they are both treated as
 				// expiring.
 				if alloc.Expired(now) {
 					expiring[alloc.ID] = alloc
