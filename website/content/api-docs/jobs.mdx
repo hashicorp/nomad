@@ -2283,6 +2283,11 @@ The table below shows this endpoint's support for
 enabled, this value must match a namespace that the token is allowed to
 access. This is specified as a query string parameter.
 
+- `no_shutdown_delay` `(bool: false)` - Ignore the group and task `shutdown_delay`
+  configuration so that there is no delay between service deregistration and task
+  shutdown. Note that using this flag will result in failed network connections
+  to the allocations being stopped.
+
 ### Sample Request
 
 ```shell-session
