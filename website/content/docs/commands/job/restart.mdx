@@ -86,7 +86,8 @@ of the exact job ID.
   restarted in-place. Since the group is not modified the restart does not
   create a new deployment, and so values defined in [`update`][] blocks, such
   as [`max_parallel`][], are not taken into account. This option cannot be used
-  with `-task`.
+  with `-task`. Only jobs of type `batch`, `service`, and `system` can be
+  rescheduled.
 
 - `-on-error=<ask|fail>`: Determines what action to take when an error happens
   during a restart batch. If `ask` the command stops and waits for user
