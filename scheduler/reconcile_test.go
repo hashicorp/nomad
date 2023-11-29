@@ -1362,79 +1362,173 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 4), destructiveResultsToNames(r.destructiveUpdate))
 }
 
-// Tests the reconciler properly handles lost nodes with allocations
+// Tests the reconciler properly handles allocations when a node
+// goes down or disconnects, using all possible combinations of
+// AvoidRescheduleOnLost, MaxClientDisconnect and ReschedulePolicy.
+// Having the 3 configurations enabled is not a valid option and is not
+// included in the test.
 func TestReconciler_LostNode_AvoidRescheduleOnLost(t *testing.T) {
+	disabledReschedulePolicy := &structs.ReschedulePolicy{
+		Attempts:  0,
+		Unlimited: false,
+	}
+	fmt.Println(disabledReschedulePolicy)
 	ci.Parallel(t)
+	now := time.Now()
+
 	testCases := []struct {
 		name                  string
-		AvoidRescheduleOnLost bool
-		place                 int
-		stop                  int
-		ignore                int
-		disconnect            int
+		avoidRescheduleOnLost bool
+		maxClientDisconnect   *time.Duration
+		reschedulePolicy      *structs.ReschedulePolicy
+		expectPlace           int
+		expectStop            int
+		expectIgnore          int
+		expectDisconnect      int
 		allocStatus           string
 	}{
 		{
-			name:                  "AvoidRescheduleOnLost off",
-			AvoidRescheduleOnLost: false,
-			place:                 2,
-			stop:                  2,
-			ignore:                8,
+			name:                  "AvoidRescheduleOnLost off, MaxClientDisconnect off, Reschedule off",
+			maxClientDisconnect:   nil,
+			avoidRescheduleOnLost: false,
+			reschedulePolicy:      disabledReschedulePolicy,
+			expectPlace:           2,
+			expectStop:            2,
+			expectIgnore:          3,
+			expectDisconnect:      0,
 			allocStatus:           structs.AllocClientStatusLost,
 		},
 		{
-			name:                  "AvoidRescheduleOnLost on",
-			AvoidRescheduleOnLost: true,
-			place:                 0,
-			stop:                  0,
-			ignore:                10,
-			disconnect:            2,
+			name:                  "AvoidRescheduleOnLost on, MaxClientDisconnect off, Reschedule off",
+			maxClientDisconnect:   nil,
+			avoidRescheduleOnLost: true,
+			reschedulePolicy:      disabledReschedulePolicy,
+			expectPlace:           0,
+			expectStop:            0,
+			expectIgnore:          5,
+			expectDisconnect:      2,
 			allocStatus:           structs.AllocClientStatusUnknown,
+		},
+		{
+			name:                  "AvoidRescheduleOnLost off, MaxClientDisconnect on, Reschedule off",
+			maxClientDisconnect:   pointer.Of(10 * time.Second),
+			avoidRescheduleOnLost: false,
+			reschedulePolicy:      disabledReschedulePolicy,
+			expectPlace:           2,
+			expectStop:            1,
+			expectIgnore:          4,
+			expectDisconnect:      1,
+			allocStatus:           structs.AllocClientStatusLost,
+		},
+		{
+			name:                  "AvoidRescheduleOnLost on, MaxClientDisconnect on, Reschedule off",
+			maxClientDisconnect:   pointer.Of(10 * time.Second),
+			avoidRescheduleOnLost: true,
+			reschedulePolicy:      disabledReschedulePolicy,
+			expectPlace:           1, // This behaviour needs to be verified
+			expectStop:            0,
+			expectIgnore:          5,
+			expectDisconnect:      2,
+			allocStatus:           structs.AllocClientStatusUnknown,
+		},
+
+		{
+			name:                  "AvoidRescheduleOnLost off, MaxClientDisconnect off, Reschedule on",
+			maxClientDisconnect:   nil,
+			avoidRescheduleOnLost: false,
+			reschedulePolicy: &structs.ReschedulePolicy{
+				Attempts: 1,
+			},
+			expectPlace:  3,
+			expectStop:   3,
+			expectIgnore: 2,
+			allocStatus:  structs.AllocClientStatusLost,
+		},
+		{
+			name:                  "AvoidRescheduleOnLost on, MaxClientDisconnect off, Reschedule on",
+			maxClientDisconnect:   nil,
+			avoidRescheduleOnLost: true,
+			reschedulePolicy: &structs.ReschedulePolicy{
+				Attempts: 1,
+			},
+			expectPlace:      1,
+			expectStop:       1,
+			expectIgnore:     4,
+			expectDisconnect: 2,
+			allocStatus:      structs.AllocClientStatusUnknown,
+		},
+		{
+			name:                  "AvoidRescheduleOnLost off, MaxClientDisconnect on, Reschedule on",
+			maxClientDisconnect:   pointer.Of(10 * time.Second),
+			avoidRescheduleOnLost: false,
+			reschedulePolicy: &structs.ReschedulePolicy{
+				Attempts: 1,
+			},
+			expectPlace:      3,
+			expectStop:       1,
+			expectIgnore:     3,
+			expectDisconnect: 1,
+			allocStatus:      structs.AllocClientStatusLost,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			job := mock.Job()
-			job.TaskGroups[0].AvoidRescheduleOnLost = tc.AvoidRescheduleOnLost
-			// Create 10 existing allocations
+			job.TaskGroups[0].Count = 5
+			job.TaskGroups[0].AvoidRescheduleOnLost = tc.avoidRescheduleOnLost
+			job.TaskGroups[0].MaxClientDisconnect = tc.maxClientDisconnect
+			job.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
+
+			// Create 9 existing running allocations and a failed one
 			var allocs []*structs.Allocation
-			for i := 0; i < 10; i++ {
+			for i := 0; i < 5; i++ {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
+
 				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
-				allocs = append(allocs, alloc)
 				alloc.DesiredStatus = structs.AllocDesiredStatusRun
-				alloc.ClientStatus = structs.AllocClientStatusRunning
+
+				// Set one of the allocations to failed
+				if i == 4 {
+					alloc.ClientStatus = structs.AllocClientStatusFailed
+				} else {
+					alloc.ClientStatus = structs.AllocClientStatusRunning
+				}
+
+				allocs = append(allocs, alloc)
 			}
 
-			// Build a map of tainted nodes
+			// Build a map of tainted nodes, one down one disconnected
 			tainted := make(map[string]*structs.Node, 2)
-			for i := 0; i < 2; i++ {
-				n := mock.Node()
-				n.ID = allocs[i].NodeID
-				n.Status = structs.NodeStatusDown
-				tainted[n.ID] = n
-			}
+			downNode := mock.Node()
+			downNode.ID = allocs[0].NodeID
+			downNode.Status = structs.NodeStatusDown
+			tainted[downNode.ID] = downNode
+
+			disconnected := mock.Node()
+			disconnected.ID = allocs[1].NodeID
+			disconnected.Status = structs.NodeStatusDisconnected
+			tainted[disconnected.ID] = disconnected
 
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-				nil, allocs, tainted, "", 50, true)
+				nil, allocs, tainted, "", 50, true, AllocRenconcilerWithNow(now))
 			r := reconciler.Compute()
 
 			// Assert the correct results
 			assertResults(t, r, &resultExpectation{
 				createDeployment:  nil,
 				deploymentUpdates: nil,
-				place:             tc.place,
-				stop:              tc.stop,
-				disconnectUpdates: tc.disconnect,
+				place:             tc.expectPlace,
+				stop:              tc.expectStop,
+				disconnectUpdates: tc.expectDisconnect,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					job.TaskGroups[0].Name: {
-						Place:  uint64(tc.place),
-						Stop:   uint64(tc.stop),
-						Ignore: uint64(tc.ignore),
+						Place:  uint64(tc.expectPlace),
+						Stop:   uint64(tc.expectStop),
+						Ignore: uint64(tc.expectIgnore),
 					},
 				},
 			})

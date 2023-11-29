@@ -40,6 +40,14 @@ const (
 type allocUpdateType func(existing *structs.Allocation, newJob *structs.Job,
 	newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation)
 
+type AllocReconcilerOption func(*allocReconciler)
+
+func AllocRenconcilerWithNow(now time.Time) AllocReconcilerOption {
+	return func(ar *allocReconciler) {
+		ar.now = now
+	}
+}
+
 // allocReconciler is used to determine the set of allocations that require
 // placement, inplace updating or stopping given the job specification and
 // existing cluster state. The reconciler should only be used for batch and
@@ -186,8 +194,8 @@ func (r *reconcileResults) GoString() string {
 func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string,
-	evalPriority int, supportsDisconnectedClients bool) *allocReconciler {
-	return &allocReconciler{
+	evalPriority int, supportsDisconnectedClients bool, opts ...AllocReconcilerOption) *allocReconciler {
+	ar := &allocReconciler{
 		logger:                      logger.Named("reconciler"),
 		allocUpdateFn:               allocUpdateFn,
 		batch:                       batch,
@@ -209,6 +217,12 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 			taskGroupAllocNameIndexes: make(map[string]*allocNameIndex),
 		},
 	}
+
+	for _, op := range opts {
+		op(ar)
+	}
+
+	return ar
 }
 
 // Compute reconciles the existing cluster state and returns the set of changes
