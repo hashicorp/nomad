@@ -111,7 +111,7 @@ func setupConsulACLsForTasks(t *testing.T, consulAPI *consulapi.Client, roleName
 	must.NoError(t, err, must.Sprint("could not create token in Consul"))
 }
 
-func setupConsulJWTAuth(t *testing.T, consulAPI *consulapi.Client, address string) {
+func setupConsulJWTAuth(t *testing.T, consulAPI *consulapi.Client, address string, namespaceRules []*consulapi.ACLAuthMethodNamespaceRule) {
 
 	authConfig := map[string]any{
 		"JWKSURL":          fmt.Sprintf("%s/.well-known/jwks.json", address),
@@ -126,13 +126,14 @@ func setupConsulJWTAuth(t *testing.T, consulAPI *consulapi.Client, address strin
 	}
 
 	_, _, err := consulAPI.ACL().AuthMethodCreate(&consulapi.ACLAuthMethod{
-		Name:          "nomad-workloads",
-		Type:          "jwt",
-		DisplayName:   "nomad-workloads",
-		Description:   "login method for Nomad tasks with workload identity (WI)",
-		MaxTokenTTL:   time.Hour,
-		TokenLocality: "local",
-		Config:        authConfig,
+		Name:           "nomad-workloads",
+		Type:           "jwt",
+		DisplayName:    "nomad-workloads",
+		Description:    "login method for Nomad tasks with workload identity (WI)",
+		MaxTokenTTL:    time.Hour,
+		TokenLocality:  "local",
+		Config:         authConfig,
+		NamespaceRules: namespaceRules,
 	}, nil)
 	must.NoError(t, err, must.Sprint("could not create Consul auth method for Nomad workloads"))
 
