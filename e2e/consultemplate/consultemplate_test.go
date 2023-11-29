@@ -14,9 +14,9 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/v3/jobs3"
+	"github.com/hashicorp/nomad/e2e/v3/namespaces3"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -306,27 +306,39 @@ func TestTemplatePathInterpolation_SharedAllocDir(t *testing.T) {
 	for _, task := range []string{"docker", "exec", "raw_exec"} {
 
 		// tests that we can render templates into the shared alloc directory
-		must.NoError(t, waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/raw_exec.env",
-			func(out string) bool {
-				return len(out) > 0 && strings.TrimSpace(out) != "/alloc"
-			}, nil), must.Sprint("expected raw_exec.env to not be '/alloc'"))
+		mustWaitForTaskFile(t, allocID, task, "${NOMAD_ALLOC_DIR}/raw_exec.env",
+			func(out string) error {
+				if len(out) == 0 || strings.TrimSpace(out) == "/alloc" {
+					return fmt.Errorf("expected raw_exec.env to not be '/alloc'")
+				}
+				return nil
+			})
 
-		must.NoError(t, waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/exec.env",
-			func(out string) bool {
-				return strings.TrimSpace(out) == "/alloc"
-			}, nil), must.Sprint("expected shared exec.env to contain '/alloc'"))
+		mustWaitForTaskFile(t, allocID, task, "${NOMAD_ALLOC_DIR}/exec.env",
+			func(out string) error {
+				if strings.TrimSpace(out) != "/alloc" {
+					return fmt.Errorf("expected shared exec.env to contain '/alloc'")
+				}
+				return nil
+			})
 
-		must.NoError(t, waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/docker.env",
-			func(out string) bool {
-				return strings.TrimSpace(out) == "/alloc"
-			}, nil), must.Sprint("expected shared docker.env to contain '/alloc'"))
+		mustWaitForTaskFile(t, allocID, task, "${NOMAD_ALLOC_DIR}/docker.env",
+			func(out string) error {
+				if strings.TrimSpace(out) != "/alloc" {
+					return fmt.Errorf("expected shared docker.env to contain '/alloc'")
+				}
+				return nil
+			})
 
 		// test that we can fetch artifacts into the shared alloc directory
 		for _, a := range []string{"google1.html", "google2.html", "google3.html"} {
-			must.NoError(t, waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/"+a,
-				func(out string) bool {
-					return len(out) > 0
-				}, nil), must.Sprint("expected artifact in alloc dir"))
+			mustWaitForTaskFile(t, allocID, task, "${NOMAD_ALLOC_DIR}/"+a,
+				func(out string) error {
+					if len(out) == 0 {
+						return fmt.Errorf("expected artifact in alloc dir")
+					}
+					return nil
+				})
 		}
 
 		// test that we can load environment variables rendered with templates using interpolated paths
@@ -350,9 +362,7 @@ func TestConsulTemplate_NomadServiceLookups(t *testing.T) {
 	serviceAllocID := serviceJobSubmission.AllocID("nomad_provider_service")
 
 	// Create a non-default namespace.
-	_, err := e2eutil.Command("nomad", "namespace", "apply", "platform")
-	must.NoError(t, err)
-	cleanupNamespace(t, "platform")
+	t.Cleanup(namespaces3.Create(t, "platform"))
 
 	// Register a job which includes services destined for the Nomad provider
 	// into the platform namespace. This is used to ensure consul-template
@@ -369,26 +379,33 @@ func TestConsulTemplate_NomadServiceLookups(t *testing.T) {
 
 	// Ensure the listing (nomadServices) template function has found all
 	// services within the default namespace.
-	err = waitForTaskFile(serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/services.conf",
-		func(out string) bool {
-			if !strings.Contains(out, "service default-nomad-provider-service-primary [bar foo]") {
-				return false
+	mustWaitForTaskFile(t, serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/services.conf",
+		func(out string) error {
+			expect := "service default-nomad-provider-service-primary [bar foo]"
+			if !strings.Contains(out, expect) {
+				return fmt.Errorf("expected %q, got %q", expect, out)
 			}
-			if !strings.Contains(out, "service default-nomad-provider-service-secondary [baz buz]") {
-				return false
+			expect = "service default-nomad-provider-service-secondary [baz buz]"
+			if !strings.Contains(out, expect) {
+				return fmt.Errorf("expected %q, got %q", expect, out)
 			}
-			return !strings.Contains(out, "service platform-nomad-provider-service-secondary [baz buz]")
-		}, nil)
-	must.NoError(t, err)
+			expect = "service platform-nomad-provider-service-secondary [baz buz]"
+			if !strings.Contains(out, expect) {
+				return fmt.Errorf("expected %q, got %q", expect, out)
+			}
+			return nil
+		})
 
 	// Ensure the direct service lookup has found the entry we expect.
 	expected := fmt.Sprintf("service default-nomad-provider-service-primary [bar foo] dc1 %s", serviceAllocID)
-	err = waitForTaskFile(serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/service.conf",
-		func(out string) bool {
-			return strings.Contains(out, expected)
-		},
-		nil)
-	must.NoError(t, err, must.Sprintf("expected: %v", expected))
+
+	mustWaitForTaskFile(t, serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/service.conf",
+		func(out string) error {
+			if !strings.Contains(out, expected) {
+				return fmt.Errorf("expected %q, got %q", expected, out)
+			}
+			return nil
+		})
 
 	// Scale the default namespaced service job in order to change the expected
 	// number of entries.
@@ -400,6 +417,7 @@ func TestConsulTemplate_NomadServiceLookups(t *testing.T) {
 	// in the rendered template later on. Wrap this in a wait due to the
 	// eventual consistency around the service registration process.
 	serviceJobAllocs := []map[string]string{}
+	var err error
 	must.Wait(t, wait.InitialSuccess(
 		wait.BoolFunc(func() bool {
 			serviceJobAllocs, err = e2eutil.AllocsForJob(serviceJobSubmission.JobID(), "default")
@@ -419,35 +437,34 @@ func TestConsulTemplate_NomadServiceLookups(t *testing.T) {
 	}
 
 	// Ensure the direct service lookup has the new entries we expect.
-	err = waitForTaskFile(serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/service.conf",
-		func(out string) bool {
+	mustWaitForTaskFile(t, serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/service.conf",
+		func(out string) error {
 			for _, entry := range expectedEntries {
 				if !strings.Contains(out, entry) {
-					return false
+					return fmt.Errorf("expected %q, got %q", expectedEntries, out)
 				}
 			}
-			return true
-		}, nil)
-	must.NoError(t, err, must.Sprintf("expected: %v", expectedEntries))
+			return nil
+		})
 }
 
-func waitForTaskFile(allocID, task, path string, test func(out string) bool, wc *e2eutil.WaitConfig) error {
-	var err error
-	var out string
-	interval, retries := wc.OrDefault()
+// mustWaitForTaskFile is a helper that asserts a file not reachable from alloc
+// FS has been rendered and tests its contents
+func mustWaitForTaskFile(t *testing.T, allocID, task, path string, testFn func(string) error, testSettings ...must.Setting) {
+	t.Helper()
 
-	testutil.WaitForResultRetries(retries, func() (bool, error) {
-		time.Sleep(interval)
-		out, err = e2eutil.Command("nomad", "alloc", "exec", "-task", task, allocID, "sh", "-c", "cat "+path)
-		if err != nil {
-			return false, fmt.Errorf("could not cat file %q from task %q in allocation %q: %v",
-				path, task, allocID, err)
-		}
-		return test(out), nil
-	}, func(e error) {
-		err = fmt.Errorf("test for file content failed: got %#v\nerror: %v", out, e)
-	})
-	return err
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			out, err := e2eutil.Command("nomad", "alloc", "exec", "-task", task, allocID, "sh", "-c", "cat "+path)
+			if err != nil {
+				return fmt.Errorf("could not cat file %q from task %q in allocation %q: %v",
+					path, task, allocID, err)
+			}
+			return testFn(out)
+		}),
+		wait.Gap(time.Millisecond*500),
+		wait.Timeout(30*time.Second),
+	), testSettings...)
 }
 
 // mustWaitTemplateRender is a helper that asserts a file has been rendered and
@@ -507,17 +524,6 @@ func cleanupJob(t *testing.T, ns, jobID string) {
 	t.Helper()
 	t.Cleanup(func() {
 		e2eutil.StopJob(jobID, "-purge", "-detach", "-namespace", ns)
-	})
-}
-
-func cleanupNamespace(t *testing.T, ns string) {
-	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
-		return
-	}
-
-	t.Helper()
-	t.Cleanup(func() {
-		e2eutil.Command("nomad", "namespace", "delete", ns)
 	})
 }
 
