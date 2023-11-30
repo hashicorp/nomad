@@ -11311,9 +11311,10 @@ func NewIdentityClaims(job *Job, alloc *Allocation, wihandle *WIHandle, wid *Wor
 
 	jwtnow := jwt.NewNumericDate(now.UTC())
 	claims := &IdentityClaims{
-		Namespace:    alloc.Namespace,
-		JobID:        alloc.JobID,
-		AllocationID: alloc.ID,
+		Namespace:       alloc.Namespace,
+		JobID:           alloc.JobID,
+		AllocationID:    alloc.ID,
+		ConsulNamespace: ConsulDefaultNamespace,
 		Claims: jwt.Claims{
 			NotBefore: jwtnow,
 			IssuedAt:  jwtnow,

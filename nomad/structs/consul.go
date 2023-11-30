@@ -13,6 +13,10 @@ const (
 	// have a name.
 	ConsulDefaultCluster = "default"
 
+	// ConsulDefaultNamespace is the default name of a Consul namespace, used
+	// for Consul Enterprise jobs that do not set it explicitly.
+	ConsulDefaultNamespace = "default"
+
 	// ConsulServiceIdentityNamePrefix is used in naming identities of consul
 	// services
 	ConsulServiceIdentityNamePrefix = "consul-service"

@@ -8109,9 +8109,10 @@ func TestNewIdentityClaims(t *testing.T) {
 	expectedClaims := map[string]*IdentityClaims{
 		// group: no consul.
 		"job/group/services/group-service": {
-			Namespace:   "default",
-			JobID:       "job",
-			ServiceName: "group-service",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			ServiceName:     "group-service",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:group:group-service:consul-service_group-service-http",
 				Audience: jwt.Audience{"group-service.consul.io"},
@@ -8120,18 +8121,20 @@ func TestNewIdentityClaims(t *testing.T) {
 		// group: no consul.
 		// task:  no consul, no vault.
 		"job/group/task/default-identity": {
-			Namespace: "default",
-			JobID:     "job",
-			TaskName:  "task",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			TaskName:        "task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:group:task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
 		},
 		"job/group/task/alt-identity": {
-			Namespace: "default",
-			JobID:     "job",
-			TaskName:  "task",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			TaskName:        "task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:group:task:alt-identity",
 				Audience: jwt.Audience{"alt.example.com"},
@@ -8140,8 +8143,8 @@ func TestNewIdentityClaims(t *testing.T) {
 		// No ConsulNamespace because there is no consul block at either task
 		// or group level.
 		"job/group/task/consul_default": {
-			ConsulNamespace: "",
 			Namespace:       "default",
+			ConsulNamespace: "default",
 			JobID:           "job",
 			TaskName:        "task",
 			Claims: jwt.Claims{
@@ -8152,19 +8155,21 @@ func TestNewIdentityClaims(t *testing.T) {
 		// No VaultNamespace because there is no vault block at either task
 		// or group level.
 		"job/group/task/vault_default": {
-			VaultNamespace: "",
-			Namespace:      "default",
-			JobID:          "job",
-			TaskName:       "task",
+			VaultNamespace:  "",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			TaskName:        "task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
 		},
 		"job/group/task/services/task-service": {
-			Namespace:   "default",
-			JobID:       "job",
-			ServiceName: "task-service",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			ServiceName:     "task-service",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:group:task-service:consul-service_task-task-service-http",
 				Audience: jwt.Audience{"task-service.consul.io"},
@@ -8173,9 +8178,10 @@ func TestNewIdentityClaims(t *testing.T) {
 		// group: no consul.
 		// task:  with consul, with vault.
 		"job/group/consul-vault-task/default-identity": {
-			Namespace: "default",
-			JobID:     "job",
-			TaskName:  "consul-vault-task",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			TaskName:        "consul-vault-task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:group:consul-vault-task:default-identity",
 				Audience: jwt.Audience{"example.com"},
@@ -8194,10 +8200,11 @@ func TestNewIdentityClaims(t *testing.T) {
 		},
 		// Use task-level Vault namespace.
 		"job/group/consul-vault-task/vault_default": {
-			VaultNamespace: "vault-namespace",
-			Namespace:      "default",
-			JobID:          "job",
-			TaskName:       "consul-vault-task",
+			VaultNamespace:  "vault-namespace",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			TaskName:        "consul-vault-task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
@@ -8229,18 +8236,20 @@ func TestNewIdentityClaims(t *testing.T) {
 		// group: with consul.
 		// task:  no consul, no vault.
 		"job/consul-group/task/default-identity": {
-			Namespace: "default",
-			JobID:     "job",
-			TaskName:  "task",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			TaskName:        "task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:consul-group:task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
 		},
 		"job/consul-group/task/alt-identity": {
-			Namespace: "default",
-			JobID:     "job",
-			TaskName:  "task",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			TaskName:        "task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:consul-group:task:alt-identity",
 				Audience: jwt.Audience{"alt.example.com"},
@@ -8259,9 +8268,10 @@ func TestNewIdentityClaims(t *testing.T) {
 			},
 		},
 		"job/consul-group/task/vault_default": {
-			Namespace: "default",
-			JobID:     "job",
-			TaskName:  "task",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			TaskName:        "task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:consul-group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
@@ -8282,9 +8292,10 @@ func TestNewIdentityClaims(t *testing.T) {
 		// group: no consul.
 		// task:  with consul, with vault.
 		"job/consul-group/consul-vault-task/default-identity": {
-			Namespace: "default",
-			JobID:     "job",
-			TaskName:  "consul-vault-task",
+			Namespace:       "default",
+			ConsulNamespace: "default",
+			JobID:           "job",
+			TaskName:        "consul-vault-task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:consul-group:consul-vault-task:default-identity",
 				Audience: jwt.Audience{"example.com"},
@@ -8302,10 +8313,11 @@ func TestNewIdentityClaims(t *testing.T) {
 			},
 		},
 		"job/consul-group/consul-vault-task/vault_default": {
-			VaultNamespace: "vault-namespace",
-			Namespace:      "default",
-			JobID:          "job",
-			TaskName:       "consul-vault-task",
+			VaultNamespace:  "vault-namespace",
+			ConsulNamespace: "default",
+			Namespace:       "default",
+			JobID:           "job",
+			TaskName:        "consul-vault-task",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:consul-group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
