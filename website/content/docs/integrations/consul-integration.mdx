@@ -57,6 +57,18 @@ Identity][] to authenticate to Consul and obtain a Consul token specific to the
 service or task. When using Workload Identity you will no longer need to pass in
 a Consul token to submit a job.
 
+<Note>
+
+For Consul Enterprise users that would like to use Consul Namespaces, currently
+the only supported way of namespacing ACL objects is: creating auth methods and
+binding rules in the `default` namespace and roles and policies in the desired
+Consul namespace. The reason for this is simplicity: users wanting complete
+namespacing of all ACL objects would be required to create an auth method and
+binding rule per namespace. In the future we plan on adding such a possibility,
+but currently such a configuration is not supported by Nomad.
+
+</Note>
+
 ### Configuring Consul Authentication
 
 Create a configuration file for a Consul [JWT Auth Method][]. The `JWKSURL`
@@ -134,7 +146,7 @@ $ consul acl auth-method create \
 </Tab>
 <Tab heading="Consul Enterprise">
 
-In Consul Enterprise, you'll map a Nomad namespace to a Consul namespace.
+In Consul Enterprise, you'll map the auth method to a Consul namespace.
 
 ```shell-session
 $ consul acl auth-method create \
