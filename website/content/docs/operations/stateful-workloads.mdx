@@ -98,14 +98,16 @@ With the information laid out in this document, use the following table to choos
 | Host volumes backed by networked storage  | <ul><li>Readily available</li><li>Require no ongoing maintenance</li></ul>  | <ul><li>Require coordination between multiple personas to configure and consume (storage admins need to provision volumes, operators running the Nomad clients need to configure them statically in the Nomad client's configuration file)</li><li>The underlying networked storage and its limitations are decoupled from the consumer, but need to be understood. For example,  is concurrent access possible</li></ul>  | <ul><li>Environments with low amounts or low frequency of change of storage that have an existing storage provider that can be consumed via NFS/CIFS.</li></ul>  |
 | Ephemeral disks  | <ul><li>Fast due to being local</li><li>Basic best effort persistence, including optional migration across Nomad clients</li></ul>  | <ul><li> Not fault tolerant. In case of hardware failure on a single instance, the data will be lost </li></ul>  | <ul><li>Environments that need temporary caches, somewhere to store files undergoing processing, etc. Everything which is ephemeral and can be easily rebuilt.</li></ul>  |
 
-## Next steps
+## Additional resources
 
 In this document, you learned about the different persistent storage options for Nomad.
 
 To learn more about Nomad and the topics covered in this article, visit the following resources:
+### Allocations
 - Learn how to [manage your allocations and its storage](/nomad/tutorials/manage-clusters)
 - Monitoring your allocations and their storage with [Nomad's event stream](/nomad/tutorials/integrate-nomad/event-stream)
 - [Best practices for cluster setup](/well-architected-framework/nomad/production-reference-architecture-vm-with-consul)
+### CSI
 - [Nomad CSI plugin concepts](/nomad/docs/concepts/plugins/csi)
 - [Nomad CSI tutorial](/nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes)
 - [Nomad CSI examples](https://github.com/hashicorp/nomad/tree/main/demo/csi)
