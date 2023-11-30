@@ -53,7 +53,7 @@ func (a *Allocation) ServiceProviderNamespace() string {
 			case ServiceProviderNomad:
 				return a.Job.Namespace
 			default:
-				return tg.Consul.GetNamespace()
+				return a.ConsulNamespaceForTask(task.Name)
 			}
 		}
 	}
