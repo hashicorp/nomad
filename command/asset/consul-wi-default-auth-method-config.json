@@ -3,6 +3,7 @@
   "JWTSupportedAlgs": ["ES256"],
   "BoundAudiences": ["consul.io"],
   "ClaimMappings": {
+	"consul_namespace": "consul_namespace",
     "nomad_namespace": "nomad_namespace",
     "nomad_job_id": "nomad_job_id",
     "nomad_task": "nomad_task",
