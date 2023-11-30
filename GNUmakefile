@@ -165,7 +165,7 @@ check: ## Lint the source code
 	@hclogvet .
 
 	@echo "==> Spell checking website..."
-	@misspell -error -source=text website/pages/
+	@misspell -error -source=text website/content/
 
 	@echo "==> Checking for breaking changes in protos..."
 	@buf breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
