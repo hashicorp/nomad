@@ -4,7 +4,6 @@
 package scheduler
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -77,7 +76,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			Time:  now,
 		},
 	}
-	fmt.Println(expiredAllocState, reconnectedAllocState, unknownAllocState)
+
 	type testCase struct {
 		name                        string
 		all                         allocSet
