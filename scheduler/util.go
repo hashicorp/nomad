@@ -222,11 +222,6 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		return difference("number of tasks", lenA, lenB)
 	}
 
-	// Check for AvoidRescheduleOnLost changes
-	if a.AvoidRescheduleOnLost != b.AvoidRescheduleOnLost {
-		return difference("reschedule on lost", a.AvoidRescheduleOnLost, b.AvoidRescheduleOnLost)
-	}
-
 	// Check ephemeral disk
 	if !a.EphemeralDisk.Equal(b.EphemeralDisk) {
 		return difference("ephemeral disk", a.EphemeralDisk, b.EphemeralDisk)
