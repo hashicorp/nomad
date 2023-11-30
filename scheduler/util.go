@@ -289,7 +289,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		if !at.Vault.Equal(bt.Vault) {
 			return difference("task vault", at.Vault, bt.Vault)
 		}
-		if c := consulUpdated(a.Consul, b.Consul); c.modified {
+		if c := consulUpdated(at.Consul, bt.Consul); c.modified {
 			return c
 		}
 		if !slices.EqualFunc(at.Templates, bt.Templates, func(a, b *structs.Template) bool { return a.Equal(b) }) {
