@@ -10,8 +10,6 @@ import (
 	"github.com/posener/complete"
 )
 
-const defaultEscapeChar = "~"
-
 type ActionCommand struct {
 	Meta
 
