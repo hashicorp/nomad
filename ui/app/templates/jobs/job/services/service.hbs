@@ -16,6 +16,7 @@
       <th>Allocation</th>
       <th>Client</th>
       <th>IP Address &amp; Port</th>
+      <th>Tags</th>
     </t.head>
     <t.body as |row|>
       <tr data-test-service-row>
@@ -32,7 +33,7 @@
             >{{allocation.shortId}}</LinkTo>
           </td>
         {{/let}}
-		{{#let (async-escape-hatch row.model "node") as |node|}}
+        {{#let (async-escape-hatch row.model "node") as |node|}}
           <td>
             <Tooltip @text={{node.name}}>
               <LinkTo
@@ -44,6 +45,14 @@
         {{/let}}
         <td>
           {{row.model.address}}:{{row.model.port}}
+        </td>
+        <td>
+          {{#each row.model.tags as |tag|}}
+            <span class="tag is-service">{{tag}}</span>
+          {{/each}}
+          {{#each row.model.canary_tags as |tag|}}
+            <span class="tag canary is-service">{{tag}}</span>
+          {{/each}}
         </td>
       </tr>
     </t.body>

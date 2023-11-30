@@ -72,7 +72,11 @@ export default class JobsJobServicesIndexController extends Controller.extend(
   get services() {
     return this.serviceFragments.map((fragment) => {
       fragment.instances = this.job.services.filter(
-        (s) => s.name === fragment.name && s.derivedLevel === fragment.level
+        (s) =>
+          s.name === fragment.name &&
+          s.derivedLevel === fragment.level &&
+          s.tags.length === fragment.tags.length &&
+          s.tags.every((tag) => fragment.tags.includes(tag))
       );
       return fragment;
     });

@@ -1,0 +1,3 @@
+```release-note:bug
+ui: disambiguate same-named services with distinct tag arrays
+```
