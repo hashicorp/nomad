@@ -56,7 +56,7 @@ func (s *HTTPServer) JWKSRequest(resp http.ResponseWriter, req *http.Request) (a
 		if k, err := pubKey.GetPublicKey(); err == nil {
 			jwk.Key = k
 		} else {
-			s.logger.Warn("error getting public key. server is likely newer than client", "err", err)
+			s.logger.Warn("error getting public key. server is likely newer than client", "error", err)
 			continue
 		}
 
