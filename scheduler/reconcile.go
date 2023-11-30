@@ -496,10 +496,8 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	timeoutLaterEvals := map[string]string{}
 	if len(disconnecting) > 0 {
 		// If MaxClientDisconnect is enabled as well as tg.AvoidRescheduleOnLost,
-		// the reschedule policy won't be enable and the lost allocations
-		// wont be rescheduled, there is no need to specifically do any extra processing.
-		// If MaxClientDisconnect is not enabled, then AvoidRescheduleOnLost
-		// requires handling.
+		// the reschedule policy won't be enabled and the lost allocations
+		// wont be rescheduled, and AvoidRescheduleOnLost is ignored.
 		if tg.MaxClientDisconnect != nil {
 			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
