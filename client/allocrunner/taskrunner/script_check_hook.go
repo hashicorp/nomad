@@ -37,13 +37,18 @@ type scriptCheckHookConfig struct {
 // scriptCheckHook implements a task runner hook for running script
 // checks in the context of a task
 type scriptCheckHook struct {
-	consul          serviceregistration.Handler
-	consulNamespace string
-	alloc           *structs.Allocation
-	task            *structs.Task
-	logger          log.Logger
-	shutdownWait    time.Duration // max time to wait for scripts to shutdown
-	shutdownCh      chan struct{} // closed when all scripts should shutdown
+	consul serviceregistration.Handler
+
+	// a script check hook can create checks for both group-level and task-level
+	// services, so we track both possible namespaces we require
+	groupConsulNamespace string
+	taskConsulNamespace  string
+
+	alloc        *structs.Allocation
+	task         *structs.Task
+	logger       log.Logger
+	shutdownWait time.Duration // max time to wait for scripts to shutdown
+	shutdownCh   chan struct{} // closed when all scripts should shutdown
 
 	// The following fields can be changed by Update()
 	driverExec tinterfaces.ScriptExecutor
@@ -63,14 +68,15 @@ type scriptCheckHook struct {
 // in Poststart() or Update()
 func newScriptCheckHook(c scriptCheckHookConfig) *scriptCheckHook {
 	h := &scriptCheckHook{
-		consul:          c.consul,
-		consulNamespace: c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup).Consul.GetNamespace(),
-		alloc:           c.alloc,
-		task:            c.task,
-		scripts:         make(map[string]*scriptCheck),
-		runningScripts:  make(map[string]*taskletHandle),
-		shutdownWait:    defaultShutdownWait,
-		shutdownCh:      make(chan struct{}),
+		consul:               c.consul,
+		groupConsulNamespace: c.alloc.ConsulNamespace(),
+		taskConsulNamespace:  c.alloc.ConsulNamespaceForTask(c.task.Name),
+		alloc:                c.alloc,
+		task:                 c.task,
+		scripts:              make(map[string]*scriptCheck),
+		runningScripts:       make(map[string]*taskletHandle),
+		shutdownWait:         defaultShutdownWait,
+		shutdownCh:           make(chan struct{}),
 	}
 
 	if c.shutdownWait != 0 {
@@ -124,6 +130,8 @@ func (h *scriptCheckHook) Update(ctx context.Context, req *interfaces.TaskUpdate
 	h.alloc = req.Alloc
 	h.task = task
 	h.taskEnv = req.TaskEnv
+	h.groupConsulNamespace = req.Alloc.ConsulNamespace()
+	h.taskConsulNamespace = req.Alloc.ConsulNamespaceForTask(task.Name)
 
 	return h.upsertChecks()
 }
@@ -188,7 +196,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			serviceID := serviceregistration.MakeAllocServiceID(
 				h.alloc.ID, h.task.Name, service)
 			sc := newScriptCheck(&scriptCheckConfig{
-				consulNamespace: h.consulNamespace,
+				consulNamespace: h.taskConsulNamespace,
 				allocID:         h.alloc.ID,
 				taskName:        h.task.Name,
 				check:           check,
@@ -228,7 +236,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			serviceID := serviceregistration.MakeAllocServiceID(
 				h.alloc.ID, groupTaskName, service)
 			sc := newScriptCheck(&scriptCheckConfig{
-				consulNamespace: h.consulNamespace,
+				consulNamespace: h.groupConsulNamespace,
 				allocID:         h.alloc.ID,
 				taskName:        groupTaskName,
 				check:           check,
