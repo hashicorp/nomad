@@ -44,4 +44,9 @@ export default () => ({
     errored: hasClass('hds-alert--color-critical'),
     succeeded: hasClass('hds-alert--color-success'),
   },
+
+  warningMessage: {
+    scope: '[data-test-dry-run-warnings]',
+    body: text('[data-test-dry-run-warning-body]'),
+  },
 });

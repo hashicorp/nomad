@@ -29,8 +29,8 @@
 <br>
 
 {{#if this.warnings}}
-  <Hds::Alert @type="inline" @color="warning" as |A|>
-    <A.Description>
+  <Hds::Alert @type="inline" @color="warning" data-test-dry-run-warnings as |A|>
+    <A.Description data-test-dry-run-warning-body>
       <p>
         {{this.warnings}}
       </p>
