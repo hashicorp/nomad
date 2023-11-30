@@ -91,6 +91,19 @@ type WorkloadIdentity struct {
 	TTL time.Duration
 }
 
+// IsConsul returns true if the identity name starts with the standard prefix
+// for Consul tasks and services.
+func (wi *WorkloadIdentity) IsConsul() bool {
+	return strings.HasPrefix(wi.Name, ConsulTaskIdentityNamePrefix) ||
+		strings.HasPrefix(wi.Name, ConsulServiceIdentityNamePrefix)
+}
+
+// IsVault returns true if the identity name starts with the standard prefix
+// for Vault tasks.
+func (wi *WorkloadIdentity) IsVault() bool {
+	return strings.HasPrefix(wi.Name, WorkloadIdentityVaultPrefix)
+}
+
 func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
 	if wi == nil {
 		return nil

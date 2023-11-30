@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	jwt "github.com/go-jose/go-jose/v3/jwt"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
@@ -7945,4 +7947,477 @@ func TestTaskIdentity_Canonicalize(t *testing.T) {
 	must.Len(t, 0, task.Identities[1].Audience)
 	must.True(t, task.Identities[1].Env)
 	must.False(t, task.Identities[1].File)
+}
+
+func TestNewIdentityClaims(t *testing.T) {
+	ci.Parallel(t)
+
+	job := &Job{
+		ID:        "job",
+		Name:      "job",
+		Namespace: "default",
+		Region:    "global",
+
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "group",
+				Services: []*Service{{
+					Name:      "group-service-",
+					PortLabel: "http",
+					Identity: &WorkloadIdentity{
+						Audience: []string{"group-service.consul.io"},
+					},
+				}},
+				Tasks: []*Task{
+					{
+						Name: "task",
+						Identity: &WorkloadIdentity{
+							Name:     "default-identity",
+							Audience: []string{"example.com"},
+						},
+						Identities: []*WorkloadIdentity{
+							{
+								Name:     "alt-identity",
+								Audience: []string{"alt.example.com"},
+							},
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+						Services: []*Service{{
+							Name:      "task-service",
+							PortLabel: "http",
+							Identity: &WorkloadIdentity{
+								Audience: []string{"task-service.consul.io"},
+							},
+						}},
+					},
+					{
+						Name: "consul-vault-task",
+						Consul: &Consul{
+							Namespace: "task-consul-namespace",
+						},
+						Vault: &Vault{
+							Namespace: "vault-namespace",
+						},
+						Identity: &WorkloadIdentity{
+							Name:     "default-identity",
+							Audience: []string{"example.com"},
+						},
+						Identities: []*WorkloadIdentity{
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+						Services: []*Service{{
+							Name:      "consul-task-service",
+							PortLabel: "http",
+							Identity: &WorkloadIdentity{
+								Audience: []string{"task-service.consul.io"},
+							},
+						}},
+					},
+				},
+			},
+			{
+				Name: "consul-group",
+				Consul: &Consul{
+					Namespace: "group-consul-namespace",
+				},
+				Services: []*Service{{
+					Name:      "group-service",
+					PortLabel: "http",
+					Identity: &WorkloadIdentity{
+						Audience: []string{"group-service.consul.io"},
+					},
+				}},
+				Tasks: []*Task{
+					{
+						Name: "task",
+						Identity: &WorkloadIdentity{
+							Name:     "default-identity",
+							Audience: []string{"example.com"},
+						},
+						Identities: []*WorkloadIdentity{
+							{
+								Name:     "alt-identity",
+								Audience: []string{"alt.example.com"},
+							},
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+						Services: []*Service{{
+							Name:      "task-service",
+							PortLabel: "http",
+							Identity: &WorkloadIdentity{
+								Audience: []string{"task-service.consul.io"},
+							},
+						}},
+					},
+					{
+						Name: "consul-vault-task",
+						Consul: &Consul{
+							Namespace: "task-consul-namespace",
+						},
+						Vault: &Vault{
+							Namespace: "vault-namespace",
+						},
+						Identity: &WorkloadIdentity{
+							Name:     "default-identity",
+							Audience: []string{"example.com"},
+						},
+						Identities: []*WorkloadIdentity{
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+						Services: []*Service{{
+							Name:      "consul-task-service",
+							PortLabel: "http",
+							Identity: &WorkloadIdentity{
+								Audience: []string{"consul.io"},
+							},
+						}},
+					},
+				},
+			},
+		},
+	}
+	job.Canonicalize()
+
+	expectedClaims := map[string]*IdentityClaims{
+		// group: no consul.
+		"job/group/services/group-service": {
+			Namespace:   "default",
+			JobID:       "job",
+			ServiceName: "group-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:group-service:consul-service_group-service-http",
+				Audience: jwt.Audience{"group-service.consul.io"},
+			},
+		},
+		// group: no consul.
+		// task:  no consul, no vault.
+		"job/group/task/default-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task:default-identity",
+				Audience: jwt.Audience{"example.com"},
+			},
+		},
+		"job/group/task/alt-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task:alt-identity",
+				Audience: jwt.Audience{"alt.example.com"},
+			},
+		},
+		// No ConsulNamespace because there is no consul block at either task
+		// or group level.
+		"job/group/task/consul_default": {
+			ConsulNamespace: "",
+			Namespace:       "default",
+			JobID:           "job",
+			TaskName:        "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task:consul_default",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		// No VaultNamespace because there is no vault block at either task
+		// or group level.
+		"job/group/task/vault_default": {
+			VaultNamespace: "",
+			Namespace:      "default",
+			JobID:          "job",
+			TaskName:       "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task:vault_default",
+				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		"job/group/task/services/task-service": {
+			Namespace:   "default",
+			JobID:       "job",
+			ServiceName: "task-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task-service:consul-service_task-task-service-http",
+				Audience: jwt.Audience{"task-service.consul.io"},
+			},
+		},
+		// group: no consul.
+		// task:  with consul, with vault.
+		"job/group/consul-vault-task/default-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:consul-vault-task:default-identity",
+				Audience: jwt.Audience{"example.com"},
+			},
+		},
+		// Use task-level Consul namespace.
+		"job/group/consul-vault-task/consul_default": {
+			ConsulNamespace: "task-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			TaskName:        "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:consul-vault-task:consul_default",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		// Use task-level Vault namespace.
+		"job/group/consul-vault-task/vault_default": {
+			VaultNamespace: "vault-namespace",
+			Namespace:      "default",
+			JobID:          "job",
+			TaskName:       "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:consul-vault-task:vault_default",
+				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		// Use task-level Consul namespace for task services.
+		"job/group/consul-vault-task/services/consul-vault-task-service": {
+			ConsulNamespace: "task-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			ServiceName:     "consul-vault-task-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:consul-vault-task-service:consul-service_consul-vault-task-service-http",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		// group: with consul.
+		// Use group-level Consul namespace for group services.
+		"job/consul-group/services/group-service": {
+			ConsulNamespace: "group-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			ServiceName:     "group-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:group-service:consul-service_group-service-http",
+				Audience: jwt.Audience{"group-service.consul.io"},
+			},
+		},
+		// group: with consul.
+		// task:  no consul, no vault.
+		"job/consul-group/task/default-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task:default-identity",
+				Audience: jwt.Audience{"example.com"},
+			},
+		},
+		"job/consul-group/task/alt-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task:alt-identity",
+				Audience: jwt.Audience{"alt.example.com"},
+			},
+		},
+		// Use group-level Consul namespace because task doesn't have a consul
+		// block.
+		"job/consul-group/task/consul_default": {
+			ConsulNamespace: "group-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			TaskName:        "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task:consul_default",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		"job/consul-group/task/vault_default": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task:vault_default",
+				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		// Use group-level Consul namespace for task service because task
+		// doesn't have a consul block.
+		"job/consul-group/task/services/task-service": {
+			ConsulNamespace: "group-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			ServiceName:     "task-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task-service:consul-service_task-task-service-http",
+				Audience: jwt.Audience{"task-service.consul.io"},
+			},
+		},
+		// group: no consul.
+		// task:  with consul, with vault.
+		"job/consul-group/consul-vault-task/default-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:consul-vault-task:default-identity",
+				Audience: jwt.Audience{"example.com"},
+			},
+		},
+		// Use task-level Consul namespace.
+		"job/consul-group/consul-vault-task/consul_default": {
+			ConsulNamespace: "task-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			TaskName:        "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:consul-vault-task:consul_default",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		"job/consul-group/consul-vault-task/vault_default": {
+			VaultNamespace: "vault-namespace",
+			Namespace:      "default",
+			JobID:          "job",
+			TaskName:       "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:consul-vault-task:vault_default",
+				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		// Use task-level Consul namespace for task services.
+		"job/consul-group/consul-vault-task/services/consul-task-service": {
+			ConsulNamespace: "task-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			ServiceName:     "consul-task-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:consul-task-service:consul-service_consul-vault-task-consul-task-service-http",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+	}
+
+	// Generate service identity names.
+	for _, tg := range job.TaskGroups {
+		for _, s := range tg.Services {
+			if s.Identity != nil {
+				s.Identity.Name = s.MakeUniqueIdentityName()
+			}
+		}
+		for _, t := range tg.Tasks {
+			for _, s := range t.Services {
+				if s.Identity != nil {
+					s.Identity.Name = s.MakeUniqueIdentityName()
+				}
+			}
+		}
+	}
+
+	// Find all indentites in test job and create a test case for each.
+	// Tests for identities missing from expectedClaims are skipped.
+	type testCase struct {
+		name           string
+		group          string
+		wid            *WorkloadIdentity
+		wiHandle       *WIHandle
+		expectedClaims *IdentityClaims
+	}
+	testCases := []testCase{}
+	for _, tg := range job.TaskGroups {
+		path := job.ID + "/" + tg.Name
+
+		for _, s := range tg.Services {
+			path := path + "/services/" + s.Name
+			testCases = append(testCases, testCase{
+				name:           path,
+				group:          tg.Name,
+				wid:            s.Identity,
+				wiHandle:       s.IdentityHandle(),
+				expectedClaims: expectedClaims[path],
+			})
+		}
+
+		for _, t := range tg.Tasks {
+			path := path + "/" + t.Name
+
+			for _, wid := range append(t.Identities, t.Identity) {
+				if wid == nil {
+					continue
+				}
+
+				path := path + "/" + wid.Name
+				testCases = append(testCases, testCase{
+					name:           path,
+					group:          tg.Name,
+					wid:            wid,
+					wiHandle:       t.IdentityHandle(wid),
+					expectedClaims: expectedClaims[path],
+				})
+			}
+
+			for _, s := range t.Services {
+				path := path + "/services/" + s.Name
+				testCases = append(testCases, testCase{
+					name:           path,
+					group:          tg.Name,
+					wid:            s.Identity,
+					wiHandle:       s.IdentityHandle(),
+					expectedClaims: expectedClaims[path],
+				})
+			}
+		}
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectedClaims == nil {
+				t.Skip("missing expected claims")
+			}
+
+			now := time.Now()
+			alloc := &Allocation{
+				ID:        uuid.Generate(),
+				Namespace: job.Namespace,
+				JobID:     job.ID,
+				TaskGroup: tc.group,
+			}
+
+			got := NewIdentityClaims(job, alloc, tc.wiHandle, tc.wid, now)
+
+			must.Eq(t, tc.expectedClaims, got, must.Cmp(cmpopts.IgnoreFields(
+				IdentityClaims{},
+				"ID", "AllocationID", "IssuedAt", "NotBefore",
+			)))
+			must.Eq(t, alloc.ID, got.AllocationID)
+			must.Eq(t, jwt.NewNumericDate(now), got.IssuedAt)
+			must.Eq(t, jwt.NewNumericDate(now), got.NotBefore)
+		})
+	}
 }
