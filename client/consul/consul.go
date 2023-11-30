@@ -54,7 +54,7 @@ type JWTLoginRequest struct {
 type Client interface {
 	// DeriveTokenWithJWT logs into Consul using JWT and retrieves a Consul ACL
 	// token.
-	DeriveTokenWithJWT(map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error)
+	DeriveTokenWithJWT(JWTLoginRequest) (*consulapi.ACLToken, error)
 
 	RevokeTokens([]*consulapi.ACLToken) error
 }
@@ -102,34 +102,14 @@ func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Client, 
 	return c, nil
 }
 
-// DeriveTokenWithJWT takes a JWT from request and returns a consul token for
-// each identity in the request
-func (c *consulClient) DeriveTokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error) {
-	tokens := make(map[string]*consulapi.ACLToken, len(reqs))
-	var mErr *multierror.Error
-
-	for k, req := range reqs {
-		// login using the JWT and obtain a Consul ACL token for each workload
-		t, _, err := c.client.ACL().Login(&consulapi.ACLLoginParams{
-			AuthMethod:  req.AuthMethodName,
-			BearerToken: req.JWT,
-			Meta:        req.Meta,
-		}, &consulapi.WriteOptions{})
-		if err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf(
-				"failed to authenticate with consul for identity %s: %v", k, err,
-			))
-			continue
-		}
-
-		tokens[k] = t
-	}
-
-	if err := mErr.ErrorOrNil(); err != nil {
-		return tokens, err
-	}
-
-	return tokens, nil
+// DeriveTokenWithJWT takes a JWT from request and returns a consul token.
+func (c *consulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLToken, error) {
+	t, _, err := c.client.ACL().Login(&consulapi.ACLLoginParams{
+		AuthMethod:  req.AuthMethodName,
+		BearerToken: req.JWT,
+		Meta:        req.Meta,
+	}, nil)
+	return t, err
 }
 
 func (c *consulClient) RevokeTokens(tokens []*consulapi.ACLToken) error {
