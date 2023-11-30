@@ -71,8 +71,11 @@ job "docs" {
   This behaviour will only modify the reschedule process on the server.
   To modify the allocation behaviour on the client, see `stop_after_client_disconnect`.
 
-  In case of `max_client_disconnect_disconnect` also being enabled, 
-  `reschedule_policy` must be disabled. Setting both up will return an error.
+  Setting `max_client_disconnect` and `avoid_reschedule_on_list=true` at the same time 
+  requires that [rescheduling is disabled entirely][] If [`max_client_disconnect`](#max_client_disconnect) 
+  is set and `avoid_reschedule_on_lost=true`, allocations on disconnected nodes will be
+  `unknown` until the `max_client_disconnect` window expires, at which point they 
+  become `lost` but will not be rescheduled. 
 
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
