@@ -623,7 +623,11 @@ func (s *SetupConsulCommand) removeConfiguredComponents() int {
 		componentsToRemove["Auth method"] = []string{consulAuthMethodName}
 	}
 
-	authMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodName, nil)
+	qo := &api.QueryOptions{}
+	if s.consulEnt {
+		qo.Namespace = "default"
+	}
+	authMethodRules, _, err := s.client.ACL().BindingRuleList(consulAuthMethodName, qo)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("[✘] Failed to fetch binding rules for method: %q", consulAuthMethodName))
 		exitCode = 1
@@ -704,7 +708,11 @@ func (s *SetupConsulCommand) removeConfiguredComponents() int {
 		}
 
 		for _, b := range authMethodRules {
-			_, err := s.client.ACL().BindingRuleDelete(b.ID, nil)
+			wo := &api.WriteOptions{}
+			if s.consulEnt {
+				wo.Namespace = "default"
+			}
+			_, err := s.client.ACL().BindingRuleDelete(b.ID, wo)
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete binding rule %q: %v", b.ID, err.Error()))
 				exitCode = 1
@@ -714,7 +722,11 @@ func (s *SetupConsulCommand) removeConfiguredComponents() int {
 		}
 
 		for _, authMethod := range componentsToRemove["Auth method"] {
-			_, err := s.client.ACL().AuthMethodDelete(authMethod, nil)
+			wo := &api.WriteOptions{}
+			if s.consulEnt {
+				wo.Namespace = "default"
+			}
+			_, err := s.client.ACL().AuthMethodDelete(authMethod, wo)
 			if err != nil {
 				s.Ui.Error(fmt.Sprintf("[✘] Failed to delete auth method %q: %v", authMethod, err.Error()))
 				exitCode = 1
