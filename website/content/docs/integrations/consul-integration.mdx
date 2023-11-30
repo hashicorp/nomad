@@ -76,6 +76,8 @@ field should point to all the Nomad servers; you should use a proxy or DNS A
 Record to ensure that requests can go to any server in the cluster. The
 remaining fields are required to match those shown here.
 
+<Tabs>
+<Tab heading="Consul Community Edition">
 ```json
 {
   "JWKSURL": "https://nomad.example.com:4646/.well-known/jwks.json",
@@ -89,6 +91,23 @@ remaining fields are required to match those shown here.
   }
 }
 ```
+</Tab>
+<Tab heading="Consul Enterprise">
+```json
+{
+  "JWKSURL": "https://nomad.example.com:4646/.well-known/jwks.json",
+  "JWTSupportedAlgs": ["RS256"],
+  "BoundAudiences": "consul.io",
+  "ClaimMappings": {
+    "consul_namespace": "consul_namespace",
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task",
+    "nomad_service": "nomad_service"
+  }
+}
+</Tab>
+</Tabs>
 
 <Note>
 
@@ -96,7 +115,7 @@ If you're using an https endpoint on Nomad server itself for JWKS, your server
 must be configured with `tls.verify_https_client = false`, because currently
 there is no way to provide Nomad certificates to Consul (or Vault) clients. If
 you want to use mTLS, which is the recommended practice, you need to terminate
-TLS before the requests reach Nomad JWKS endpoint. 
+TLS before the requests reach Nomad JWKS endpoint.
 
 </Note>
 
