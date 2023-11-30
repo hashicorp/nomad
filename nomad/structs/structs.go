@@ -11287,6 +11287,9 @@ type IdentityClaims struct {
 	TaskName     string `json:"nomad_task,omitempty"`
 	ServiceName  string `json:"nomad_service,omitempty"`
 
+	ConsulNamespace string `json:"consul_namespace,omitempty"`
+	VaultNamespace  string `json:"vault_namespace,omitempty"`
+
 	jwt.Claims
 }
 
@@ -11322,14 +11325,55 @@ func NewIdentityClaims(job *Job, alloc *Allocation, wihandle *WIHandle, wid *Wor
 		claims.JobID = job.ParentID
 	}
 
+	var taskName string
+
 	switch wihandle.WorkloadType {
 	case WorkloadTypeService:
-		claims.ServiceName = wihandle.WorkloadIdentifier
+		serviceName := wihandle.WorkloadIdentifier
+		claims.ServiceName = serviceName
+
+		// Find task name if this is a task service.
+		for _, t := range tg.Tasks {
+			for _, s := range t.Services {
+				if s.Name == serviceName {
+					taskName = t.Name
+					break
+				}
+			}
+			if taskName != "" {
+				break
+			}
+		}
+
 	case WorkloadTypeTask:
-		claims.TaskName = wihandle.WorkloadIdentifier
+		taskName = wihandle.WorkloadIdentifier
+		claims.TaskName = taskName
+
 	default:
 		// in case of an unknown workload type we quit
 		return nil
+	}
+
+	// Add ConsulNamespace and VaultNamespace claims if necessary.
+	if taskName != "" {
+		task := tg.LookupTask(taskName)
+		if task == nil {
+			return nil
+		}
+
+		if wid.IsConsul() {
+			if task.Consul != nil {
+				claims.ConsulNamespace = task.Consul.Namespace
+			} else if tg.Consul != nil {
+				claims.ConsulNamespace = tg.Consul.Namespace
+			}
+		}
+
+		if wid.IsVault() && task.Vault != nil {
+			claims.VaultNamespace = task.Vault.Namespace
+		}
+	} else if wid.IsConsul() && tg.Consul != nil {
+		claims.ConsulNamespace = tg.Consul.Namespace
 	}
 
 	claims.Audience = slices.Clone(wid.Audience)
