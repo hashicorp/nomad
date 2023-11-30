@@ -300,9 +300,10 @@ EVAL:
 			deploymentID = eval.DeploymentID
 			break EVAL
 		case nomadapi.EvalStatusFailed:
-			must.Unreachable(sub.t, must.Sprint("eval failed"))
+			must.Unreachable(sub.t, must.Sprintf("eval failed: %s, triggered by: %s, failed allocs: %d",
+				eval.StatusDescription, eval.TriggeredBy, len(eval.FailedTGAllocs)))
 		case nomadapi.EvalStatusCancelled:
-			must.Unreachable(sub.t, must.Sprint("eval cancelled"))
+			must.Unreachable(sub.t, must.Sprintf("eval canceled: %s", eval.StatusDescription))
 		default:
 			time.Sleep(1 * time.Second)
 		}
