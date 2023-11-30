@@ -15,6 +15,7 @@ import jobEditor from 'nomad-ui/tests/pages/components/job-editor';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 const Editor = create(jobEditor());
 
@@ -290,7 +291,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when the scheduler dry-run has warnings, the warnings are shown to the user', async function (assert) {
+  test('when the scheduler dry-run has errors, the errors are shown to the user', async function (assert) {
     assert.expect(4);
 
     const spec = jsonJob({ Unschedulable: true });
@@ -313,6 +314,8 @@ module('Integration | Component | job-editor', function (hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+
+    await percySnapshot(assert);
   });
 
   test('when the scheduler dry-run has no warnings, a success message is shown to the user', async function (assert) {
