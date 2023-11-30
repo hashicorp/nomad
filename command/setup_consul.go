@@ -407,7 +407,13 @@ consul {
 }
 
 func (s *SetupConsulCommand) authMethodExists(authMethodName string) bool {
-	existingMethods, _, _ := s.client.ACL().AuthMethodList(nil)
+	qo := &api.QueryOptions{}
+	if s.consulEnt {
+		// auth methods are created in the default ns
+		qo.Namespace = "default"
+	}
+
+	existingMethods, _, _ := s.client.ACL().AuthMethodList(qo)
 	return slices.ContainsFunc(
 		existingMethods,
 		func(m *api.ACLAuthMethodListEntry) bool { return m.Name == authMethodName })
@@ -432,7 +438,7 @@ func (s *SetupConsulCommand) renderAuthMethod(name string, desc string) (*api.AC
 		TokenLocality: "local",
 		Config:        authConfig,
 	}
-	if s.consulEnt && (s.clientCfg.Namespace == "" || s.clientCfg.Namespace == "default") {
+	if s.consulEnt {
 		method.NamespaceRules = []*api.ACLAuthMethodNamespaceRule{{
 			Selector:      "",
 			BindNamespace: "${value.nomad_namespace}",
@@ -443,7 +449,13 @@ func (s *SetupConsulCommand) renderAuthMethod(name string, desc string) (*api.AC
 }
 
 func (s *SetupConsulCommand) createAuthMethod(authMethod *api.ACLAuthMethod) error {
-	_, _, err := s.client.ACL().AuthMethodCreate(authMethod, nil)
+	wo := &api.WriteOptions{}
+	if s.consulEnt {
+		// auth methods are created in the default ns
+		wo.Namespace = "default"
+	}
+
+	_, _, err := s.client.ACL().AuthMethodCreate(authMethod, wo)
 	if err != nil {
 		if strings.Contains(err.Error(), "error checking JWKSURL") {
 			s.Ui.Error(fmt.Sprintf(
@@ -485,7 +497,12 @@ func (s *SetupConsulCommand) createNamespace(ns string) error {
 }
 
 func (s *SetupConsulCommand) bindingRuleExists(rule *api.ACLBindingRule) bool {
-	existingRules, _, _ := s.client.ACL().BindingRuleList("", nil)
+	qo := &api.QueryOptions{}
+	if s.consulEnt {
+		// binding rules are created in the default ns
+		qo.Namespace = "default"
+	}
+	existingRules, _, _ := s.client.ACL().BindingRuleList("", qo)
 	return slices.ContainsFunc(
 		existingRules,
 		func(r *api.ACLBindingRule) bool {
@@ -497,7 +514,12 @@ func (s *SetupConsulCommand) bindingRuleExists(rule *api.ACLBindingRule) bool {
 }
 
 func (s *SetupConsulCommand) createBindingRules(rule *api.ACLBindingRule) error {
-	_, _, err := s.client.ACL().BindingRuleCreate(rule, nil)
+	wo := &api.WriteOptions{}
+	if s.consulEnt {
+		// binding rules are created in the default ns
+		wo.Namespace = "default"
+	}
+	_, _, err := s.client.ACL().BindingRuleCreate(rule, wo)
 	if err != nil {
 		return fmt.Errorf("[✘] Could not create Consul binding rule: %w", err)
 	}
