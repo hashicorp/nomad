@@ -98,7 +98,13 @@ func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 
 	hook := consulHookTestHarness(t)
 	task := hook.alloc.LookupTask("web")
-	hashForDefaultCluster := md5.Sum([]byte("consul_default"))
+
+	wid := task.GetIdentity("consul_default")
+	ti := *task.IdentityHandle(wid)
+	jwt, err := hook.widmgr.Get(ti)
+	must.NoError(t, err)
+
+	hashJWT := md5.Sum([]byte(jwt.JWT))
 
 	tests := []struct {
 		name           string
@@ -125,8 +131,9 @@ func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 			expectedTokens: map[string]map[string]*consulapi.ACLToken{
 				"default": {
 					"consul_default": &consulapi.ACLToken{
-						AccessorID: "consul_default",
-						SecretID:   hex.EncodeToString(hashForDefaultCluster[:])},
+						AccessorID: hex.EncodeToString(hashJWT[:]),
+						SecretID:   hex.EncodeToString(hashJWT[:]),
+					},
 				},
 			},
 		},
@@ -163,7 +170,16 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 	hook := consulHookTestHarness(t)
 	task := hook.alloc.LookupTask("web")
 	services := task.Services
-	hashForServiceCluster := md5.Sum([]byte("consul-service_webservice"))
+
+	hashedJWT := make(map[string]string)
+	for _, s := range services {
+		widHandle := *s.IdentityHandle()
+		jwt, err := hook.widmgr.Get(widHandle)
+		must.NoError(t, err)
+
+		hash := md5.Sum([]byte(jwt.JWT))
+		hashedJWT[s.Name] = hex.EncodeToString(hash[:])
+	}
 
 	tests := []struct {
 		name           string
@@ -189,9 +205,10 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 			errMsg:   "",
 			expectedTokens: map[string]map[string]*consulapi.ACLToken{
 				"default": {
-					"consul-service_webservice": &consulapi.ACLToken{
-						AccessorID: "consul-service_webservice",
-						SecretID:   hex.EncodeToString(hashForServiceCluster[:])},
+					"consul-service_webservice": {
+						AccessorID: hashedJWT["webservice"],
+						SecretID:   hashedJWT["webservice"],
+					},
 				},
 			},
 		},

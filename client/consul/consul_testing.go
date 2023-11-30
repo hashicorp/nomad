@@ -23,22 +23,23 @@ func NewMockConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Clie
 // DeriveTokenWithJWT returns ACLTokens with deterministic values for testing:
 // the request ID for the AccessorID and the md5 checksum of the request ID for
 // the SecretID
-func (mc *MockConsulClient) DeriveTokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]*consulapi.ACLToken, error) {
-	if mc.tokens != nil && len(mc.tokens) > 0 {
-		return mc.tokens, nil
+func (mc *MockConsulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLToken, error) {
+	if t, ok := mc.tokens[req.JWT]; ok {
+		return t, nil
 	}
 
-	tokens := make(map[string]*consulapi.ACLToken, len(reqs))
-	for id := range reqs {
-		hash := md5.Sum([]byte(id))
-		token := &consulapi.ACLToken{
-			AccessorID: id,
-			SecretID:   hex.EncodeToString(hash[:]),
-		}
-		tokens[id] = token
+	hash := md5.Sum([]byte(req.JWT))
+	token := &consulapi.ACLToken{
+		AccessorID: hex.EncodeToString(hash[:]),
+		SecretID:   hex.EncodeToString(hash[:]),
 	}
 
-	return tokens, nil
+	if mc.tokens == nil {
+		mc.tokens = make(map[string]*consulapi.ACLToken)
+	}
+	mc.tokens[req.JWT] = token
+
+	return token, nil
 }
 
 func (mc *MockConsulClient) RevokeTokens(tokens []*consulapi.ACLToken) error {
