@@ -4676,7 +4676,7 @@ func (j *Job) Validate() error {
 		if tg.MaxClientDisconnect != nil &&
 			tg.ReschedulePolicy.Attempts > 0 &&
 			tg.AvoidRescheduleOnLost {
-			err := fmt.Errorf("max_client_disconnect and single_instance_on_lost cannot be enabled when rechedule.attempts > 0")
+			err := fmt.Errorf("max_client_disconnect and avoid_reschedule_on_lost cannot be enabled when rechedule.attempts > 0")
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
