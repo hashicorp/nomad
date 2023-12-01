@@ -16,7 +16,7 @@ export default class JobsJobServicesServiceRoute extends Route {
           service.derivedLevel === level &&
           // Tags are an array, but queryparam is a string of values separated by commas.
           (tags
-            ? tags.split(',').every((tag) => service.tags.includes(tag))
+            ? tags.split(',').every((tag) => service.tags?.includes(tag))
             : true)
       );
     return { name, instances: services || [] };
