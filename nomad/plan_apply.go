@@ -738,10 +738,10 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		}
 		return false, "node is disconnected and contains invalid updates", nil
 	} else if node.Status == structs.NodeStatusDown {
-		if isValidForLostNode(plan, node.ID) {
+		if isValidForDownNode(plan, node.ID) {
 			return true, "", nil
 		}
-		return false, "node is lost and contains invalid updates", nil
+		return false, "node is down and contains invalid updates", nil
 	} else if node.Status != structs.NodeStatusReady {
 		return false, "node is not ready for placements", nil
 	}
