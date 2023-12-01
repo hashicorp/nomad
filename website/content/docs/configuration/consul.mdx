@@ -26,10 +26,10 @@ consul {
 ```
 
 A default `consul` block is automatically merged with all Nomad agent
-configurations. These sane defaults automatically enable Consul integration if
-Consul is detected on the system. This allows for seamless bootstrapping of the
-cluster with zero configuration. To put it another way: if you have a Consul
-agent running on the same host as the Nomad agent with the default
+configurations. These sensible defaults automatically enable Consul integration
+if Consul is detected on the system. This allows for seamless bootstrapping of
+the cluster with zero configuration. To put it another way: if you have a
+Consul agent running on the same host as the Nomad agent with the default
 configuration, Nomad will automatically connect and configure with Consul.
 
 If the local Consul agent is configured and accessible by the Nomad agents, the
@@ -97,7 +97,7 @@ agents.
   Community Edition, only the `"default"` cluster will be used, so this field
   should be omitted.
 
-- `namespace` `(string: "")` - Specifies the [Consul
+- `namespace` `(string: "")` <EnterpriseAlert inline/> - Specifies the [Consul
   namespace](/consul/docs/enterprise/namespaces) used by the Consul
   integration. If non-empty, this namespace will be used on all Consul API calls
   and for Consul Connect configurations, unless overridden by the job's
@@ -108,7 +108,7 @@ agents.
   environment variable if set.
 
 - `tags` `(array<string>: [])` - Specifies optional Consul tags to be
-  registered with the Nomad server and agent services.
+  registered with the Nomad server and client services.
 
 - `timeout` `(string: "5s")` - Specifies a time limit for requests made against
   Consul. This is specified using a label suffix like "10s".
@@ -182,16 +182,16 @@ agents with [`server.enabled`] set to `true`.
   Consul [authentication method][auth-method] that will be used to login with a
   Nomad JWT for services.
 
-- `service_identity` <code>([Identity][identity_block]: nil)</code> - Specifies
+- `service_identity` <code>([Identity](#service_identity-parameters): nil)</code> - Specifies
   a default Workload Identity to use when obtaining Service Identity tokens from
   Consul to register services. Refer to [Workload Identity](#workload-identity)
   for a recommended configuration.
 
-- `task_auth_method` `(string: "nomad-tasks")` - Specifies the name of the
+- `task_auth_method` `(string: "nomad-workloads")` - Specifies the name of the
   Consul [authentication method][auth-method] that will be used to login with a
   Nomad JWT for tasks.
 
-- `task_identity` <code>([Identity][identity_block]: nil)</code> - Specifies a
+- `task_identity` <code>([Identity](#task_identity-parameters): nil)</code> - Specifies a
   default Workload Identity to use when obtaining Consul tokens from Consul to
   support [`template`][] blocks. Refer to [Workload
   Identity](#workload-identity) for a recommended configuration.
@@ -253,11 +253,12 @@ consul {
   and only one, audience to minimize where the identity may be used.
 
 - `env` `(bool: false)` - If true the workload identity will be available in the
-  task's `NOMAD_TOKEN_consul` environment variable.
+  task's `NOMAD_TOKEN_consul_default` (or `NOMAD_TOKEN_consul_<name>` depending
+  on the [`name`](#name) field) environment variable.
 
 - `file` `(bool: false)` - If true the workload identity will be available in
-  the task's filesystem via the path `secrets/nomad_default_consul.jwt` (or
-  `secrets/nomad_$name_consul.jwt` depending on the [`name`](#name) field). If
+  the task's filesystem via the path `secrets/nomad_consul_default.jwt` (or
+  `secrets/nomad_consul_<name>.jwt` depending on the [`name`](#name) field). If
   the [`task.user`][taskuser] parameter is set, the token file will only be
   readable by that user. Otherwise the file is readable by everyone but is
   protected by parent directory permissions.
@@ -310,7 +311,7 @@ consul {
 }
 ```
 
-### Consul Namespace
+### Consul Namespace <EnterpriseAlert inline/>
 
 Consul does not allow ACL policies associated with namespaces to use agent
 permissions. Nomad requires `agent:read` permissions. In order to use the
