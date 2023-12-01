@@ -83,7 +83,7 @@
     "ember-cli-mirage": "2.2.0",
     "ember-cli-moment-shim": "^3.8.0",
     "ember-cli-page-object": "^2.0.0-beta.3",
-    "ember-cli-sass": "^10.0.0",
+    "ember-cli-sass": "^11.0.1",
     "ember-cli-sri": "^2.1.1",
     "ember-cli-string-helpers": "^6.1.0",
     "ember-cli-terser": "^4.0.2",
