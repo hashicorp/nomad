@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/generic/alloc"
 )
 
 const (
@@ -508,7 +509,7 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 
 // computePlacements computes placements for allocations. It is given the set of
 // destructive updates to place and the set of new placements to place.
-func (s *GenericScheduler) computePlacements(destructive, place []placementResult, nameIndex map[string]*allocNameIndex) error {
+func (s *GenericScheduler) computePlacements(destructive, place []placementResult, nameIndex map[string]*alloc.NameIndex) error {
 
 	// Get the base nodes
 	nodes, byDC, err := s.setNodes(s.job)
