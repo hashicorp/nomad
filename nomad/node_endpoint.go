@@ -1862,7 +1862,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 		setError(fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID), false)
 		return nil
 	}
-	if alloc.TerminalStatus() {
+	if alloc.ClientTerminalStatus() {
 		setError(fmt.Errorf("Can't request Vault token for terminal allocation"), false)
 		return nil
 	}
