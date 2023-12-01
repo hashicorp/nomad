@@ -367,7 +367,8 @@ func TestConsulTemplate_NomadServiceLookups(t *testing.T) {
 	// Register a job which includes services destined for the Nomad provider
 	// into the platform namespace. This is used to ensure consul-template
 	// lookups stay bound to the allocation namespace.
-	_, diffCleanupJob := jobs3.Submit(t, "./input/nomad_provider_service_ns.nomad")
+	_, diffCleanupJob := jobs3.Submit(t, "./input/nomad_provider_service_ns.nomad",
+		jobs3.Namespace("platform"))
 	t.Cleanup(diffCleanupJob)
 
 	// Register a job which includes consul-template function performing Nomad
@@ -377,10 +378,11 @@ func TestConsulTemplate_NomadServiceLookups(t *testing.T) {
 	t.Cleanup(serviceLookupJobCleanup)
 	serviceLookupAllocID := serviceLookupJobSubmission.AllocID("nomad_provider_service_lookup")
 
-	// Ensure the listing (nomadServices) template function has found all
-	// services within the default namespace.
 	mustWaitForTaskFile(t, serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/services.conf",
 		func(out string) error {
+
+			// Ensure the listing (nomadServices) template function has found all
+			// services within the default namespace...
 			expect := "service default-nomad-provider-service-primary [bar foo]"
 			if !strings.Contains(out, expect) {
 				return fmt.Errorf("expected %q, got %q", expect, out)
@@ -389,8 +391,10 @@ func TestConsulTemplate_NomadServiceLookups(t *testing.T) {
 			if !strings.Contains(out, expect) {
 				return fmt.Errorf("expected %q, got %q", expect, out)
 			}
+
+			// ... but not the platform namespace.
 			expect = "service platform-nomad-provider-service-secondary [baz buz]"
-			if !strings.Contains(out, expect) {
+			if strings.Contains(out, expect) {
 				return fmt.Errorf("expected %q, got %q", expect, out)
 			}
 			return nil
