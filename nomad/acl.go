@@ -247,7 +247,7 @@ func (s *Server) VerifyClaim(token string) (*structs.IdentityClaims, error) {
 	}
 
 	// the claims for terminal allocs are always treated as expired
-	if alloc.TerminalStatus() {
+	if alloc.ClientTerminalStatus() {
 		return nil, fmt.Errorf("allocation is terminal")
 	}
 
