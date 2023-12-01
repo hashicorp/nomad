@@ -47,11 +47,14 @@ func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []err
 }
 
 // implicitIdentityClientVersionConstraint is used when the client needs to
-// support a workload identity workflow for Consul or Vault.
+// support a workload identity workflow for Consul or Vault, or multiple
+// identities in general.
 func implicitIdentityClientVersionConstraint() *structs.Constraint {
+	// "-a" is used here so that it is "less than" all pre-release versions of
+	// Nomad 1.7.0 as well
 	return &structs.Constraint{
 		LTarget: "${attr.nomad.version}",
-		RTarget: ">= 1.7.0-dev",
+		RTarget: ">= 1.7.0-a",
 		Operand: structs.ConstraintSemver,
 	}
 }
