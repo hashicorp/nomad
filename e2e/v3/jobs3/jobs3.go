@@ -161,9 +161,13 @@ func (sub *Submission) logf(msg string, args ...any) {
 }
 
 func (sub *Submission) cleanup() {
+	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
+		return
+	}
 	if sub.noCleanup {
 		return
 	}
+	sub.noCleanup = true // so this isn't attempted more than once
 
 	// deregister the job that was submitted
 	jobsAPI := sub.nomadClient.Jobs()
@@ -264,6 +268,11 @@ func (sub *Submission) run() {
 	sub.logf("register (%s) job: %q", *job.Type, sub.jobID)
 	regResp, _, err := jobsAPI.Register(job, writeOpts)
 	must.NoError(sub.t, err)
+
+	if !sub.noCleanup {
+		sub.t.Cleanup(sub.cleanup)
+	}
+
 	evalID := regResp.EvalID
 
 	queryOpts := &nomadapi.QueryOptions{
