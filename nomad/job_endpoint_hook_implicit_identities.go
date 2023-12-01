@@ -19,22 +19,44 @@ func (jobImplicitIdentitiesHook) Name() string {
 
 func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	for _, tg := range job.TaskGroups {
+		var hasIdentity bool
+
 		for _, s := range tg.Services {
 			h.handleConsulService(s, tg)
+			hasIdentity = hasIdentity || s.Identity != nil
 		}
 
 		for _, t := range tg.Tasks {
 			for _, s := range t.Services {
 				h.handleConsulService(s, tg)
+				hasIdentity = hasIdentity || s.Identity != nil
 			}
 			if len(t.Templates) > 0 {
 				h.handleConsulTasks(t, tg)
 			}
 			h.handleVault(t)
+			hasIdentity = hasIdentity || (len(t.Identities) > 0)
+		}
+
+		if hasIdentity {
+			tg.Constraints = append(tg.Constraints, implicitIdentityClientVersionConstraint())
 		}
 	}
 
 	return job, nil, nil
+}
+
+// implicitIdentityClientVersionConstraint is used when the client needs to
+// support a workload identity workflow for Consul or Vault, or multiple
+// identities in general.
+func implicitIdentityClientVersionConstraint() *structs.Constraint {
+	// "-a" is used here so that it is "less than" all pre-release versions of
+	// Nomad 1.7.0 as well
+	return &structs.Constraint{
+		LTarget: "${attr.nomad.version}",
+		RTarget: ">= 1.7.0-a",
+		Operand: structs.ConstraintSemver,
+	}
 }
 
 // handleConsulService injects a workload identity to the service if:
