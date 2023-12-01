@@ -10,6 +10,7 @@ import { inject as service } from '@ember/service';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
+import jsonToHcl from 'nomad-ui/utils/json-to-hcl';
 
 @classic
 @tagName('')
@@ -76,6 +77,16 @@ export default class Title extends Component {
     // In the event that this fails, fall back to the raw definition.
     try {
       const specification = yield job.fetchRawSpecification();
+
+      let _newDefinitionVariables = job.get('_newDefinitionVariables') || '';
+      if (specification.VariableFlags) {
+        _newDefinitionVariables += jsonToHcl(specification.VariableFlags);
+      }
+      if (specification.Variables) {
+        _newDefinitionVariables += specification.Variables;
+      }
+      job.set('_newDefinitionVariables', _newDefinitionVariables);
+
       job.set('_newDefinition', specification.Source);
     } catch {
       const definition = yield job.fetchRawDefinition();
