@@ -1,0 +1,3 @@
+```release-note:bug
+variables: Fixed a bug where poststop tasks were not allowed access to Variables
+```
