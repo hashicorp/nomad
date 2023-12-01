@@ -368,7 +368,16 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `cpu` `(int: 0)` - Specifies the amount of CPU to reserve, in MHz.
 
-- `cores` `(int: 0)` - Specifies the number of CPU cores to reserve.
+- `cores` `(int: 0)` - Specifies the cpuset of CPU cores to reserve. Only
+  supported on Linux.
+
+  ```hcl
+    client {
+      reserved {
+        cores = "0-4"
+      }
+    }
+  ```
 
 - `memory` `(int: 0)` - Specifies the amount of memory to reserve, in MB.
 
