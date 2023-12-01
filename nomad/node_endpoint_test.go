@@ -3647,8 +3647,8 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 		t.Fatalf("Expected no policies error: %v", resp.Error)
 	}
 
-	// Update to be terminal
-	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	// Update to be client-terminal
+	alloc.ClientStatus = structs.AllocClientStatusFailed
 	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3660,6 +3660,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 	if resp.Error == nil || !strings.Contains(resp.Error.Error(), "terminal") {
 		t.Fatalf("Expected terminal allocation error: %v", resp.Error)
 	}
+
 }
 
 func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
