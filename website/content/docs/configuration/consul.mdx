@@ -32,6 +32,11 @@ cluster with zero configuration. To put it another way: if you have a Consul
 agent running on the same host as the Nomad agent with the default
 configuration, Nomad will automatically connect and configure with Consul.
 
+If the local Consul agent is configured and accessible by the Nomad agents, the
+Nomad cluster will [automatically bootstrap][bootstrap] provided
+`server_auto_join`, `client_auto_join`, and `auto_advertise` are all enabled
+(which is the default).
+
 ~> An important requirement is that each Nomad agent talks to a unique Consul
 agent. Nomad agents should be configured to talk to Consul agents and not
 Consul servers. If you are observing flapping services, you may have
@@ -44,17 +49,21 @@ value for the [`name`](#name) field.
 
 ## `consul` Parameters
 
+Some parameters are expected to be specified in the configuration file of Nomad
+agents running as clients, servers, or in all agents. Parameters are safely
+ignored if placed in a configuration file where they are not expected to be
+defined.
+
+### Parameters for Nomad Clients and Servers
+
+These parameters should be defined in the configuration file of all Nomad
+agents.
+
 - `address` `(string: "127.0.0.1:8500")` - Specifies the address to the local
   Consul agent, given in the format `host:port`. Supports Unix sockets with the
   format: `unix:///tmp/consul/consul.sock`. Will default to the
   `CONSUL_HTTP_ADDR` environment variable if set.
   The value supports [go-sockaddr/template format][go-sockaddr/template].
-
-- `allow_unauthenticated` `(bool: true)` - Specifies if users submitting jobs to
-  the Nomad server should be required to provide their own Consul token, proving
-  they have access to the service identity policies required by the Consul Connect
-  enabled services listed in the job. This option should be
-  disabled in an untrusted environment.
 
 - `auth` `(string: "")` - Specifies the HTTP Basic Authentication information to
   use for access to the Consul Agent, given in the format `username:password`.
@@ -64,10 +73,6 @@ value for the [`name`](#name) field.
   and `client_service_name`. Nomad servers and clients advertise their
   respective services, each tagged appropriately with either `http` or `rpc`
   tag. Nomad servers also advertise a `serf` tagged service.
-
-- `grpc_ca_file` `(string: "")` - Specifies an optional path to the GRPC CA
-   certificate used for communication between Connect sidecar proxies and Consul
-   agents. Will default to the `CONSUL_GRPC_CACERT` environment variable if set.
 
 - `ca_file` `(string: "")` - Specifies an optional path to the CA certificate
   used for Consul communication. This defaults to the system bundle if
@@ -82,6 +87,46 @@ value for the [`name`](#name) field.
   [HTTP address](/nomad/docs/configuration#http) is
   specified, it will fall back to the
   [bind_addr](/nomad/docs/configuration#bind_addr).
+
+- `key_file` `(string: "")` - Specifies the path to the private key used for
+  Consul communication. If this is set then you need to also set `cert_file`.
+
+- `name` `(string: "default")` <EnterpriseAlert inline/> - Specifies a name for
+  the cluster so it can be referred to by job submitters in the job
+  specification's [`consul.cluster`][] or [`service.cluster`][] fields. In Nomad
+  Community Edition, only the `"default"` cluster will be used, so this field
+  should be omitted.
+
+- `namespace` `(string: "")` - Specifies the [Consul
+  namespace](/consul/docs/enterprise/namespaces) used by the Consul
+  integration. If non-empty, this namespace will be used on all Consul API calls
+  and for Consul Connect configurations, unless overridden by the job's
+  [`consul.namespace`][] field.
+
+- `ssl` `(bool: false)` - Specifies if the transport scheme should use HTTPS to
+  communicate with the Consul agent. Will default to the `CONSUL_HTTP_SSL`
+  environment variable if set.
+
+- `tags` `(array<string>: [])` - Specifies optional Consul tags to be
+  registered with the Nomad server and agent services.
+
+- `timeout` `(string: "5s")` - Specifies a time limit for requests made against
+  Consul. This is specified using a label suffix like "10s".
+
+- `token` `(string: "")` - Specifies the token used to provide a per-request ACL
+  token. This option overrides the Consul Agent's default token. If the token is
+  not set here or on the Consul agent, it will default to Consul's anonymous policy,
+  which may or may not allow writes. Will default to the `CONSUL_HTTP_TOKEN`
+  environment variable if set.
+
+- `verify_ssl` `(bool: true)`- Specifies if SSL peer verification should be used
+  when communicating to the Consul API client over HTTPS. Will default to the
+  `CONSUL_HTTP_SSL_VERIFY` environment variable if set.
+
+### Parameters for Nomad Clients
+
+These parameters should only be defined in the configuration file of Nomad
+agents with [`client.enabled`][] set to `true`.
 
 - `client_auto_join` `(bool: true)` - Specifies if the Nomad clients should
   automatically discover servers in the same region by searching for the Consul
@@ -101,18 +146,20 @@ value for the [`name`](#name) field.
   Consul does not enable the [`grpc`][grpc_port] or [`grpc_tls`][grpctls_port]
   listeners by default.
 
-- `key_file` `(string: "")` - Specifies the path to the private key used for
-  Consul communication. If this is set then you need to also set `cert_file`.
+- `grpc_ca_file` `(string: "")` - Specifies an optional path to the GRPC CA
+  certificate used for communication between Connect sidecar proxies and Consul
+  agents. Will default to the `CONSUL_GRPC_CACERT` environment variable if set.
 
-- `name` `(string: "default")` <EnterpriseAlert inline/> - Specifies a name for
-  the cluster so it can be referred to by job submitters in the job
-  specification's [`consul.cluster`][] or [`service.cluster`][] fields. In Nomad
-  Community Edition, only the `"default"` cluster will be used, so this field
-  should be omitted.
+- `share_ssl` `(bool: true)` - Specifies whether the Nomad client should share
+  its Consul SSL configuration with Connect Native applications. Includes values
+  of `ca_file`, `cert_file`, `key_file`, `ssl`, and `verify_ssl`. Does not
+  include the values for the ACL `token` or `auth`. This option should be
+  disabled in environments where Consul ACLs are not enabled.
 
-- `namespace` `(string: "")` - Specifies the [Consul namespace](/consul/docs/enterprise/namespaces)
-  used by the Consul integration. If non-empty, this namespace will be used on
-  all Consul API calls and for Consul Connect configurations.
+### Parameters for Nomad Servers
+
+These parameters should only be defined in the configuration file of Nomad
+agents with [`server.enabled`] set to `true`.
 
 - `server_service_name` `(string: "nomad")` - Specifies the name of the service
   in Consul for the Nomad servers.
@@ -140,19 +187,6 @@ value for the [`name`](#name) field.
   Consul to register services. Refer to [Workload Identity](#workload-identity)
   for a recommended configuration.
 
-- `share_ssl` `(bool: true)` - Specifies whether the Nomad client should share
-  its Consul SSL configuration with Connect Native applications. Includes values
-  of `ca_file`, `cert_file`, `key_file`, `ssl`, and `verify_ssl`. Does not include
-  the values for the ACL `token` or `auth`. This option should be disabled in
-  environments where Consul ACLs are not enabled.
-
-- `ssl` `(bool: false)` - Specifies if the transport scheme should use HTTPS to
-  communicate with the Consul agent. Will default to the `CONSUL_HTTP_SSL`
-  environment variable if set.
-
-- `tags` `(array<string>: [])` - Specifies optional Consul tags to be
-  registered with the Nomad server and agent services.
-
 - `task_auth_method` `(string: "nomad-tasks")` - Specifies the name of the
   Consul [authentication method][auth-method] that will be used to login with a
   Nomad JWT for tasks.
@@ -162,42 +196,18 @@ value for the [`name`](#name) field.
   support [`template`][] blocks. Refer to [Workload
   Identity](#workload-identity) for a recommended configuration.
 
-- `timeout` `(string: "5s")` - Specifies a time limit for requests made against
-  Consul. This is specified using a label suffix like "10s".
+### Deprecated Parameters
 
-- `token` `(string: "")` - Specifies the token used to provide a per-request ACL
-  token. This option overrides the Consul Agent's default token. If the token is
-  not set here or on the Consul agent, it will default to Consul's anonymous policy,
-  which may or may not allow writes. Will default to the `CONSUL_HTTP_TOKEN`
-  environment variable if set.
+These parameters are used by the deprecated token-based authentication flow and
+will be removed in a future release.
 
-- `verify_ssl` `(bool: true)`- Specifies if SSL peer verification should be used
-  when communicating to the Consul API client over HTTPS. Will default to the
-  `CONSUL_HTTP_SSL_VERIFY` environment variable if set.
+- `allow_unauthenticated` `(bool: true)` - Specifies if users submitting jobs to
+  the Nomad server should be required to provide their own Consul token, proving
+  they have access to the service identity policies required by the Consul
+  Connect enabled services listed in the job. This option should be disabled in
+  an untrusted environment.
 
-If the local Consul agent is configured and accessible by the Nomad agents, the
-Nomad cluster will [automatically bootstrap][bootstrap] provided
-`server_auto_join`, `client_auto_join`, and `auto_advertise` are all enabled
-(which is the default).
-
-## `consul` Examples
-
-### Default
-
-This example shows the default Consul integration:
-
-```hcl
-consul {
-  address             = "127.0.0.1:8500"
-  server_service_name = "nomad"
-  client_service_name = "nomad-client"
-  auto_advertise      = true
-  server_auto_join    = true
-  client_auto_join    = true
-}
-```
-
-### Workload Identity
+## Workload Identity
 
 The `service_identity` and `task_identity` blocks accept all the same values as
 the job specification's [`identity`][identity_block] (except that the
@@ -222,6 +232,53 @@ consul {
     aud = ["consul.io"]
     ttl = "1h"
   }
+}
+```
+
+### `service_identity` Parameters
+
+- `aud` `(array<string>: [])` - List of valid recipients for this workload
+  identity. This value must match the [`BoundAudiences`][consul_bound_aud]
+  configuration in the Consul JWT auth method. It is recommended to provide one,
+  and only one, audience to minimize where the identity may be used.
+
+- `ttl` `(string: "")` - Specifies for how long the workload identity should be
+  considered as valid before expiring.
+
+### `task_identity` Parameters
+
+- `aud` `(array<string>: [])` - List of valid recipients for this workload
+  identity. This value must match the [`BoundAudiences`][consul_bound_aud]
+  configuration in the Consul JWT auth method. It is recommended to provide one,
+  and only one, audience to minimize where the identity may be used.
+
+- `env` `(bool: false)` - If true the workload identity will be available in the
+  task's `NOMAD_TOKEN_consul` environment variable.
+
+- `file` `(bool: false)` - If true the workload identity will be available in
+  the task's filesystem via the path `secrets/nomad_default_consul.jwt` (or
+  `secrets/nomad_$name_consul.jwt` depending on the [`name`](#name) field). If
+  the [`task.user`][taskuser] parameter is set, the token file will only be
+  readable by that user. Otherwise the file is readable by everyone but is
+  protected by parent directory permissions.
+
+- `ttl` `(string: "")` - Specifies for how long the workload identity should be
+  considered as valid before expiring.
+
+## `consul` Examples
+
+### Default
+
+This example shows the default Consul integration:
+
+```hcl
+consul {
+  address             = "127.0.0.1:8500"
+  server_service_name = "nomad"
+  client_service_name = "nomad-client"
+  auto_advertise      = true
+  server_auto_join    = true
+  client_auto_join    = true
 }
 ```
 
@@ -297,3 +354,8 @@ namespace "nomad-ns" {
 [`template`]: /nomad/docs/job-specification/template
 [Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul
 [auth-method]: /consul/docs/security/acl/auth-methods/jwt
+[`client.enabled`]: /nomad/docs/configuration/client#enabled
+[`server.enabled`]: /nomad/docs/configuration/server#enabled
+[taskuser]: /nomad/docs/job-specification/task#user "Nomad task Block"
+[consul_bound_aud]: /consul/docs/security/acl/auth-methods/jwt#boundaudiences
+[`consul.namespace`]: /nomad/docs/job-specification/consul#namespace
