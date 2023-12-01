@@ -440,7 +440,7 @@ func (s *SetupConsulCommand) renderAuthMethod(name string, desc string) (*api.AC
 	}
 	if s.consulEnt {
 		method.NamespaceRules = []*api.ACLAuthMethodNamespaceRule{{
-			Selector:      "",
+			Selector:      `"consul_namespace" in value`,
 			BindNamespace: "${value.consul_namespace}",
 		}}
 	}
