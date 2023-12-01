@@ -31,9 +31,9 @@ func Job() *structs.Job {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:                  "web",
-				Count:                 10,
-				AvoidRescheduleOnLost: false,
+				Name:                    "web",
+				Count:                   10,
+				PreventRescheduleOnLost: false,
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "${attr.consul.version}",

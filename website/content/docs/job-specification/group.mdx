@@ -63,7 +63,7 @@ job "docs" {
   rescheduling strategy. Nomad will then attempt to schedule the task on another
   node if any of the group allocation statuses become "failed".
 
-- `avoid_reschedule_on_lost` `(bool: false)` - Defines the reschedule behaviour 
+- `prevent_reschedule_on_lost` `(bool: false)` - Defines the reschedule behaviour 
   of an allocation when the node it is running on becomes disconnect or lost. 
   When enabled, if the node it is running on becomes disconnected 
   or goes down, this allocations wont be rescheduled and will show up as `unknown`
@@ -73,10 +73,10 @@ job "docs" {
   To modify the allocation behaviour on the client, see 
   [`stop_after_client_disconnect`](#stop_after_client_disconnect) .
 
-  Setting `max_client_disconnect` and `avoid_reschedule_on_lost=true` at the same 
+  Setting `max_client_disconnect` and `prevent_reschedule_on_lost=true` at the same 
   time requires that [rescheduling is disabled entirely][].
   If [`max_client_disconnect`](#max_client_disconnect) is set and 
-  `avoid_reschedule_on_lost=true`, allocations on disconnected nodes will be
+  `prevent_reschedule_on_lost=true`, allocations on disconnected nodes will be
   `unknown` until the `max_client_disconnect` window expires, at which point 
   the node will be transition from `disconnected` to `down`. The allocation 
   will remain as `unknown` and won't be rescheduled.

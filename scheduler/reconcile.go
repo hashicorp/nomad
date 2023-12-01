@@ -485,7 +485,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	}
 
 	if len(expiring) > 0 {
-		if tg.AvoidRescheduleOnLost {
+		if tg.PreventRescheduleOnLost {
 			untainted = untainted.union(expiring)
 		} else {
 			lost = lost.union(expiring)
@@ -495,9 +495,9 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// which ones later and which ones can't be rescheduled at all.
 	timeoutLaterEvals := map[string]string{}
 	if len(disconnecting) > 0 {
-		// If MaxClientDisconnect is enabled as well as tg.AvoidRescheduleOnLost,
+		// If MaxClientDisconnect is enabled as well as tg.PreventRescheduleOnLost,
 		// the reschedule policy won't be enabled and the lost allocations
-		// wont be rescheduled, and AvoidRescheduleOnLost is ignored.
+		// wont be rescheduled, and PreventRescheduleOnLost is ignored.
 		if tg.MaxClientDisconnect != nil {
 			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
@@ -509,7 +509,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 			// create followup evals, and update the ClientStatus to unknown.
 			timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
 
-		} else if tg.AvoidRescheduleOnLost {
+		} else if tg.PreventRescheduleOnLost {
 			untainted = untainted.union(disconnecting)
 		}
 

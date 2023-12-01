@@ -4675,8 +4675,8 @@ func (j *Job) Validate() error {
 
 		if tg.MaxClientDisconnect != nil &&
 			tg.ReschedulePolicy.Attempts > 0 &&
-			tg.AvoidRescheduleOnLost {
-			err := fmt.Errorf("max_client_disconnect and avoid_reschedule_on_lost cannot be enabled when rechedule.attempts > 0")
+			tg.PreventRescheduleOnLost {
+			err := fmt.Errorf("max_client_disconnect and prevent_reschedule_on_lost cannot be enabled when rechedule.attempts > 0")
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -6649,10 +6649,10 @@ type TaskGroup struct {
 	// allocations for tasks in this group to attempt to resume running without a restart.
 	MaxClientDisconnect *time.Duration
 
-	// AvoidRescheduleOnLost is used to signal that an allocation should not
+	// PreventRescheduleOnLost is used to signal that an allocation should not
 	// be rescheduled if its node becomes lost. If the node is disconnected, it will
 	// be also considered as lost and wont be rescheduled.
-	AvoidRescheduleOnLost bool
+	PreventRescheduleOnLost bool
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -11032,13 +11032,13 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 	return false
 }
 
-// AvoidRescheduleOnLost determines if an alloc allows to have a replacement
+// PreventRescheduleOnLost determines if an alloc allows to have a replacement
 // when lost.
-func (a *Allocation) AvoidRescheduleOnLost() bool {
+func (a *Allocation) PreventRescheduleOnLost() bool {
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return tg.AvoidRescheduleOnLost
+			return tg.PreventRescheduleOnLost
 		}
 	}
 
@@ -11258,7 +11258,7 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	if tg.MaxClientDisconnect == nil && !tg.AvoidRescheduleOnLost {
+	if tg.MaxClientDisconnect == nil && !tg.PreventRescheduleOnLost {
 		return false
 	}
 

@@ -890,10 +890,10 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 
 // Tests the reconciler properly handles allocations when a node
 // goes down or disconnects, using all possible combinations of
-// AvoidRescheduleOnLost, MaxClientDisconnect and ReschedulePolicy.
+// PreventRescheduleOnLost, MaxClientDisconnect and ReschedulePolicy.
 // Having the 3 configurations enabled is not a valid option and is not
 // included in the test.
-func TestReconciler_LostNode_AvoidRescheduleOnLost(t *testing.T) {
+func TestReconciler_LostNode_PreventRescheduleOnLost(t *testing.T) {
 	disabledReschedulePolicy := &structs.ReschedulePolicy{
 		Attempts:  0,
 		Unlimited: false,
@@ -903,65 +903,65 @@ func TestReconciler_LostNode_AvoidRescheduleOnLost(t *testing.T) {
 	now := time.Now()
 
 	testCases := []struct {
-		name                  string
-		avoidRescheduleOnLost bool
-		maxClientDisconnect   *time.Duration
-		reschedulePolicy      *structs.ReschedulePolicy
-		expectPlace           int
-		expectStop            int
-		expectIgnore          int
-		expectDisconnect      int
-		allocStatus           string
+		name                    string
+		PreventRescheduleOnLost bool
+		maxClientDisconnect     *time.Duration
+		reschedulePolicy        *structs.ReschedulePolicy
+		expectPlace             int
+		expectStop              int
+		expectIgnore            int
+		expectDisconnect        int
+		allocStatus             string
 	}{
 		{
-			name:                  "AvoidRescheduleOnLost off, MaxClientDisconnect off, Reschedule off",
-			maxClientDisconnect:   nil,
-			avoidRescheduleOnLost: false,
-			reschedulePolicy:      disabledReschedulePolicy,
-			expectPlace:           2,
-			expectStop:            2,
-			expectIgnore:          3,
-			expectDisconnect:      0,
-			allocStatus:           structs.AllocClientStatusLost,
+			name:                    "PreventRescheduleOnLost off, MaxClientDisconnect off, Reschedule off",
+			maxClientDisconnect:     nil,
+			PreventRescheduleOnLost: false,
+			reschedulePolicy:        disabledReschedulePolicy,
+			expectPlace:             2,
+			expectStop:              2,
+			expectIgnore:            3,
+			expectDisconnect:        0,
+			allocStatus:             structs.AllocClientStatusLost,
 		},
 		{
-			name:                  "AvoidRescheduleOnLost on, MaxClientDisconnect off, Reschedule off",
-			maxClientDisconnect:   nil,
-			avoidRescheduleOnLost: true,
-			reschedulePolicy:      disabledReschedulePolicy,
-			expectPlace:           0,
-			expectStop:            0,
-			expectIgnore:          5,
-			expectDisconnect:      2,
-			allocStatus:           structs.AllocClientStatusUnknown,
+			name:                    "PreventRescheduleOnLost on, MaxClientDisconnect off, Reschedule off",
+			maxClientDisconnect:     nil,
+			PreventRescheduleOnLost: true,
+			reschedulePolicy:        disabledReschedulePolicy,
+			expectPlace:             0,
+			expectStop:              0,
+			expectIgnore:            5,
+			expectDisconnect:        2,
+			allocStatus:             structs.AllocClientStatusUnknown,
 		},
 		{
-			name:                  "AvoidRescheduleOnLost off, MaxClientDisconnect on, Reschedule off",
-			maxClientDisconnect:   pointer.Of(10 * time.Second),
-			avoidRescheduleOnLost: false,
-			reschedulePolicy:      disabledReschedulePolicy,
-			expectPlace:           2,
-			expectStop:            1,
-			expectIgnore:          4,
-			expectDisconnect:      1,
-			allocStatus:           structs.AllocClientStatusLost,
+			name:                    "PreventRescheduleOnLost off, MaxClientDisconnect on, Reschedule off",
+			maxClientDisconnect:     pointer.Of(10 * time.Second),
+			PreventRescheduleOnLost: false,
+			reschedulePolicy:        disabledReschedulePolicy,
+			expectPlace:             2,
+			expectStop:              1,
+			expectIgnore:            4,
+			expectDisconnect:        1,
+			allocStatus:             structs.AllocClientStatusLost,
 		},
 		{
-			name:                  "AvoidRescheduleOnLost on, MaxClientDisconnect on, Reschedule off",
-			maxClientDisconnect:   pointer.Of(10 * time.Second),
-			avoidRescheduleOnLost: true,
-			reschedulePolicy:      disabledReschedulePolicy,
-			expectPlace:           1, // This behaviour needs to be verified
-			expectStop:            0,
-			expectIgnore:          5,
-			expectDisconnect:      2,
-			allocStatus:           structs.AllocClientStatusUnknown,
+			name:                    "PreventRescheduleOnLost on, MaxClientDisconnect on, Reschedule off",
+			maxClientDisconnect:     pointer.Of(10 * time.Second),
+			PreventRescheduleOnLost: true,
+			reschedulePolicy:        disabledReschedulePolicy,
+			expectPlace:             1, // This behaviour needs to be verified
+			expectStop:              0,
+			expectIgnore:            5,
+			expectDisconnect:        2,
+			allocStatus:             structs.AllocClientStatusUnknown,
 		},
 
 		{
-			name:                  "AvoidRescheduleOnLost off, MaxClientDisconnect off, Reschedule on",
-			maxClientDisconnect:   nil,
-			avoidRescheduleOnLost: false,
+			name:                    "PreventRescheduleOnLost off, MaxClientDisconnect off, Reschedule on",
+			maxClientDisconnect:     nil,
+			PreventRescheduleOnLost: false,
 			reschedulePolicy: &structs.ReschedulePolicy{
 				Attempts: 1,
 			},
@@ -971,9 +971,9 @@ func TestReconciler_LostNode_AvoidRescheduleOnLost(t *testing.T) {
 			allocStatus:  structs.AllocClientStatusLost,
 		},
 		{
-			name:                  "AvoidRescheduleOnLost on, MaxClientDisconnect off, Reschedule on",
-			maxClientDisconnect:   nil,
-			avoidRescheduleOnLost: true,
+			name:                    "PreventRescheduleOnLost on, MaxClientDisconnect off, Reschedule on",
+			maxClientDisconnect:     nil,
+			PreventRescheduleOnLost: true,
 			reschedulePolicy: &structs.ReschedulePolicy{
 				Attempts: 1,
 			},
@@ -984,9 +984,9 @@ func TestReconciler_LostNode_AvoidRescheduleOnLost(t *testing.T) {
 			allocStatus:      structs.AllocClientStatusUnknown,
 		},
 		{
-			name:                  "AvoidRescheduleOnLost off, MaxClientDisconnect on, Reschedule on",
-			maxClientDisconnect:   pointer.Of(10 * time.Second),
-			avoidRescheduleOnLost: false,
+			name:                    "PreventRescheduleOnLost off, MaxClientDisconnect on, Reschedule on",
+			maxClientDisconnect:     pointer.Of(10 * time.Second),
+			PreventRescheduleOnLost: false,
 			reschedulePolicy: &structs.ReschedulePolicy{
 				Attempts: 1,
 			},
@@ -1002,7 +1002,7 @@ func TestReconciler_LostNode_AvoidRescheduleOnLost(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			job := mock.Job()
 			job.TaskGroups[0].Count = 5
-			job.TaskGroups[0].AvoidRescheduleOnLost = tc.avoidRescheduleOnLost
+			job.TaskGroups[0].PreventRescheduleOnLost = tc.PreventRescheduleOnLost
 			job.TaskGroups[0].MaxClientDisconnect = tc.maxClientDisconnect
 			job.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
 

@@ -43,14 +43,14 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 
 	testJobSingle := mock.Job()
 	testJobSingle.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
-	testJobSingle.TaskGroups[0].AvoidRescheduleOnLost = true
+	testJobSingle.TaskGroups[0].PreventRescheduleOnLost = true
 
 	testJobNoMaxDisconnect := mock.Job()
 	testJobNoMaxDisconnect.TaskGroups[0].MaxClientDisconnect = nil
 
 	testJobNoMaxDisconnectSingle := mock.Job()
 	testJobNoMaxDisconnectSingle.TaskGroups[0].MaxClientDisconnect = nil
-	testJobNoMaxDisconnectSingle.TaskGroups[0].AvoidRescheduleOnLost = true
+	testJobNoMaxDisconnectSingle.TaskGroups[0].PreventRescheduleOnLost = true
 
 	unknownAllocState := []*structs.AllocState{{
 		Field: structs.AllocStateFieldClientStatus,
@@ -84,7 +84,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		supportsDisconnectedClients bool
 		skipNilNodeTest             bool
 		now                         time.Time
-		AvoidRescheduleOnLost       bool
+		PreventRescheduleOnLost     bool
 		// expected results
 		untainted     allocSet
 		migrate       allocSet

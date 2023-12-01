@@ -546,7 +546,7 @@ func TestTasksUpdated(t *testing.T) {
 
 	// Compare changed Template ErrMissingKey
 	j30.TaskGroups[0].Tasks[0].Templates[0].ErrMissingKey = true
-	require.True(t, tasksUpdated(j29, j30, name).modified)
+	must.True(t, tasksUpdated(j29, j30, name).modified)
 
 }
 

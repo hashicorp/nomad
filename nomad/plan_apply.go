@@ -796,12 +796,12 @@ func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
 	return true
 }
 
-// The plan is only valid for lost nodes if it only contains
+// The plan is only valid for a node down if it only contains
 // updates to mark allocations as unknown and those allocations are configured
-// as non reschedulables when lost.
-func isValidForLostNode(plan *structs.Plan, nodeID string) bool {
+// as non reschedulables when lost or if the allocs are being updated to lost.
+func isValidForDownNode(plan *structs.Plan, nodeID string) bool {
 	for _, alloc := range plan.NodeAllocation[nodeID] {
-		if !(alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.AvoidRescheduleOnLost()) &&
+		if !(alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.PreventRescheduleOnLost()) &&
 			(alloc.ClientStatus != structs.AllocClientStatusLost) {
 			return false
 		}
