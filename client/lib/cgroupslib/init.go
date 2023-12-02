@@ -152,7 +152,7 @@ func Init(log hclog.Logger, cores string) {
 		controllersRootPath := filepath.Join(root, controllersFile)
 		content, err := os.ReadFile(controllersRootPath)
 		if err != nil {
-			log.Info("failed to read cgroups controller file", "path", controllersRootPath, "error", err)
+			log.Error("failed to read cgroups controller file", "path", controllersRootPath, "error", err)
 		} else {
 			rootSubtreeControllers := strings.Split(strings.TrimSpace(string(content)), " ")
 
