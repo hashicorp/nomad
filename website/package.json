@@ -8,7 +8,7 @@
     "node": ">=16.x <=18.x"
   },
   "devDependencies": {
-    "@hashicorp/platform-cli": "^2.6.0",
+    "@hashicorp/platform-cli": "^2.7.3",
     "@hashicorp/platform-content-conformance": "^0.0.12",
     "dart-linkcheck": "^2.0.15",
     "husky": "4.3.8",
