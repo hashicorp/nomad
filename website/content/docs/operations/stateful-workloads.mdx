@@ -4,14 +4,13 @@ page_title: Considerations for Stateful Workloads
 description: |-
   Learn about persistent storage options for stateful workloads on Nomad.
 ---
-
-# Considerations for Stateful Workloads
-
 By default, HashiCorp Nomad's allocation storage is ephemeral and can be discarded at any moment (such as a new deployment, rescheduling, or losing a Nomad client). This is undesirable when running persistent workloads such as databases.
 
 This document explores the options for persistent storage of workloads running in Nomad. The information provided is for practitioners familiar with Nomad and with a foundational understanding of storage basics. 
 
-At the end of this article, we provide a [storage comparison](#storage-comparison) table with the advantages, disadvantages, and the ideal use-case for each storage option. This guidance will help you understand and choose the best storage option for your Nomad allocation storage. 
+At the end of this article, we provide a [storage comparison](#storage-comparison) table with the advantages, disadvantages, and the ideal use-case for each storage option. This guidance will help you understand and choose the best storage option for your Nomad allocation storage.
+
+This document addresses traditional storage you can attach as a filesystem and does not cover object storage such as AWS S3 or MinIO. 
 
 ## Considerations
 
@@ -20,8 +19,6 @@ Consider performance, reliability, availability, and maintenance to choose the m
 Local storage is performant and available. If it has enough capacity it does not need much maintenance. But, it is not redundant; if a single node, disk, or group of disks fails, data loss and service interruption will occur.
 
 A geographically distributed networked storage with multiple redundancies, including disks, controllers, and network paths, provides higher availability and resilience, and can tolerate multiple hardware failures before risking data loss. But, it relies on network performance, can have higher latency, be lower-throughput, and need more maintenance.
-
-This document addresses traditional storage you can attach as a filesystem and does not cover object storage such as AWS S3 or MinIO. 
 
 It is also important to consider the environment Nomad will run in when reviewing different storage options. Nomad can run either in public clouds or on-prem. Depending on your organizational and application needs, understanding the storage options for each provider will help you optimize your stateful workloads.
 
