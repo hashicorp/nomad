@@ -50,6 +50,7 @@ func TestMetrics(t *testing.T) {
 	cluster3.Establish(t,
 		cluster3.Leader(),
 		cluster3.LinuxClients(1),
+		cluster3.ShowState(),
 	)
 
 	t.Log("tweaking podman registry auth files ...")
