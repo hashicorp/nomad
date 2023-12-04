@@ -46,7 +46,7 @@ type SetupVaultCommand struct {
 
 	jwksURL string
 
-	cleanup bool
+	destroy bool
 	autoYes bool
 }
 
@@ -71,7 +71,7 @@ Setup Vault options:
     URL of Nomad's JWKS endpoint contacted by Vault to verify JWT
     signatures. Defaults to http://localhost:4646/.well-known/jwks.json.
 
-  -cleanup
+  -destroy
     Removes all configuration components this command created from the
     Vault cluster.
 
@@ -87,7 +87,7 @@ func (s *SetupVaultCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-jwks-url": complete.PredictAnything,
-			"-cleanup":  complete.PredictSet("true", "false"),
+			"-destroy":  complete.PredictSet("true", "false"),
 			"-y":        complete.PredictSet("true", "false"),
 		})
 }
@@ -107,7 +107,7 @@ func (s *SetupVaultCommand) Run(args []string) int {
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
-	flags.BoolVar(&s.cleanup, "cleanup", false, "")
+	flags.BoolVar(&s.destroy, "destroy", false, "")
 	flags.BoolVar(&s.autoYes, "y", false, "")
 	flags.StringVar(&s.jwksURL, "jwks-url", "http://localhost:4646/.well-known/jwks.json", "")
 	if err := flags.Parse(args); err != nil {
@@ -126,7 +126,7 @@ func (s *SetupVaultCommand) Run(args []string) int {
 		return 1
 	}
 
-	if !s.cleanup {
+	if !s.destroy {
 		s.Ui.Output(`
 This command will walk you through configuring all the components required for
 Nomad workloads to authenticate themselves against Vault ACL using their
@@ -181,7 +181,7 @@ Please set the VAULT_NAMESPACE environment variable to the Vault namespace to us
 		}
 	}
 
-	if s.cleanup {
+	if s.destroy {
 		return s.removeConfiguredComponents()
 	}
 
@@ -448,15 +448,15 @@ func (s *SetupVaultCommand) createAuthMethod(authConfig map[string]any) error {
 	return nil
 }
 
-// namespaceExists takes checks if ns exists. if cleanup is true, it will check
+// namespaceExists takes checks if ns exists. if destroy is true, it will check
 // for custom metadata presence to prevent deleting a namespace we didn't
 // create.
-func (s *SetupVaultCommand) namespaceExists(ns string, cleanup bool) bool {
+func (s *SetupVaultCommand) namespaceExists(ns string, destroy bool) bool {
 	s.vClient.SetNamespace("")
 	defer s.vClient.SetNamespace(s.ns)
 
 	existingNamespace, _ := s.vLogical.Read(fmt.Sprintf("/sys/namespaces/%s", ns))
-	if cleanup && existingNamespace != nil {
+	if destroy && existingNamespace != nil {
 		if m, ok := existingNamespace.Data["custom_metadata"]; ok {
 			if mm, ok := m.(map[string]any)["created-by"]; ok {
 				return mm == "nomad-setup"
