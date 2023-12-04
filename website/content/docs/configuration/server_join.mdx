@@ -20,8 +20,8 @@ to Nomad servers.
 
 ```hcl
 server_join {
-  retry_join = [ "1.1.1.1", "2.2.2.2" ]
-  retry_max = 3
+  retry_join     = [ "1.1.1.1", "2.2.2.2" ]
+  retry_max      = 3
   retry_interval = "15s"
 }
 ```
