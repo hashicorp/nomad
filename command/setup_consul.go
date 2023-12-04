@@ -45,7 +45,7 @@ type SetupConsulCommand struct {
 	jwksURL string
 
 	consulEnt bool
-	cleanup   bool
+	destroy   bool
 	autoYes   bool
 }
 
@@ -71,7 +71,7 @@ Setup Consul options:
     URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
     signatures. Defaults to http://localhost:4646/.well-known/jwks.json.
 
-  -cleanup
+  -destroy
     Removes all configuration components this command created from the
     Consul cluster.
 
@@ -87,7 +87,7 @@ func (s *SetupConsulCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-jwks-url": complete.PredictAnything,
-			"-cleanup":  complete.PredictSet("true", "false"),
+			"-destroy":  complete.PredictSet("true", "false"),
 			"-y":        complete.PredictSet("true", "false"),
 		})
 }
@@ -107,7 +107,7 @@ func (s *SetupConsulCommand) Run(args []string) int {
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
-	flags.BoolVar(&s.cleanup, "cleanup", false, "")
+	flags.BoolVar(&s.destroy, "destroy", false, "")
 	flags.BoolVar(&s.autoYes, "y", false, "")
 	flags.StringVar(&s.jwksURL, "jwks-url", "http://localhost:4646/.well-known/jwks.json", "")
 	if err := flags.Parse(args); err != nil {
@@ -126,7 +126,7 @@ func (s *SetupConsulCommand) Run(args []string) int {
 		return 1
 	}
 
-	if !s.cleanup {
+	if !s.destroy {
 		s.Ui.Output(`
 This command will walk you through configuring all the components required for
 Nomad workloads to authenticate themselves against Consul ACL using their
@@ -181,7 +181,7 @@ Please set the CONSUL_NAMESPACE environment variable to the Consul namespace to 
 		}
 	}
 
-	if s.cleanup {
+	if s.destroy {
 		return s.removeConfiguredComponents()
 	}
 

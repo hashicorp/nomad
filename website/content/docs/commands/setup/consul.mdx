@@ -32,7 +32,7 @@ nomad setup consul [options]
 - `-jwks-url`: URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
   signatures. Defaults to `http://localhost:4646/.well-known/jwks.json`.
 
-- `-cleanup`: Removes all configuration components this command created from the
+- `-destroy`: Removes all configuration components this command created from the
   Consul cluster.
 
 - `-y`: Automatically answers `yes` to all the questions, making the setup
@@ -42,7 +42,7 @@ nomad setup consul [options]
 
 Below is an example of an interactive session with default options, interrupted
 by answering `no` to one of the questions, demonstrating the capabilities of the
-`-cleanup` flag.
+`-destroy` flag.
 
 ```shell-session
 $ nomad setup consul
