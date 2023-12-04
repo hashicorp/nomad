@@ -219,14 +219,17 @@ export default Factory.extend({
         server.create('service', {
           serviceName: fragment.name,
           id: `${faker.internet.domainWord()}-group-${fragment.name}`,
+          tags: fragment.tags || [],
         });
         server.create('service', {
           serviceName: fragment.name,
           id: `${faker.internet.domainWord()}-group-${fragment.name}`,
+          tags: fragment.tags || [],
         });
         server.create('service', {
           serviceName: fragment.name,
           id: `${faker.internet.domainWord()}-group-${fragment.name}`,
+          tags: fragment.tags || [],
         });
       });
 
