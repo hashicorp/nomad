@@ -114,7 +114,8 @@ export default Factory.extend({
           ],
         },
       ];
-      task?.update({ actions: actionsData });
+      console.log('about to update task', task.id, task.update.toString());
+      task.update({ actions: actionsData });
     }
   },
 });
