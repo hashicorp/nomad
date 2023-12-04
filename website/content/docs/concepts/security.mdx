@@ -37,7 +37,7 @@ but the general mechanisms for a secure Nomad deployment revolve around:
   authorization for authenticated connections by granting capabilities to ACL
   tokens.
 
-- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)** - 
+- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)** -
   Access to read and write to a namespace can be
   controlled to allow for granular access to job information managed within a
   multi-tenant cluster.
@@ -128,6 +128,11 @@ recommendations accordingly.
     as a server or client node, and allows other services to be signed easily by
     the same CA. This also avoids any potential pitfalls with certificates using
     the IP or Hostname of nodes within a cluster.
+
+  * Using [`tls.verify_https_client=false`][verify_https_client] downgrades the
+    Nomad agent HTTP server to use TLS instead of mTLS. This is safe if ACLs are
+    enabled and is recommended if you are using the Nomad web UI to avoid the
+    difficulty of distributing client certificates to browsers.
 
 - **[ACLs enabled](/nomad/tutorials/access-control)** - The
   access control list (ACL) system provides a capability-based control
@@ -331,3 +336,4 @@ There are two main components to consider to for external threats in a Nomad clu
 
 
 [Variables]: /nomad/docs/concepts/variables
+[verify_https_client]: /nomad/docs/configuration/tls#verify_https_client
