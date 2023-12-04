@@ -1295,15 +1295,15 @@ func TestJobDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeAdded,
-								Name: "PreventRescheduleOnLost",
-								Old:  "",
-								New:  "true",
-							},
-							{
-								Type: DiffTypeAdded,
 								Name: "Count",
 								Old:  "",
 								New:  "1",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PreventRescheduleOnLost",
+								Old:  "",
+								New:  "true",
 							},
 						},
 					},
@@ -1327,17 +1327,16 @@ func TestJobDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "foo",
 						Fields: []*FieldDiff{
-
-							{
-								Type: DiffTypeDeleted,
-								Name: "PreventRescheduleOnLost",
-								Old:  "true",
-								New:  "",
-							},
 							{
 								Type: DiffTypeDeleted,
 								Name: "Count",
 								Old:  "1",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "PreventRescheduleOnLost",
+								Old:  "true",
 								New:  "",
 							},
 						},
