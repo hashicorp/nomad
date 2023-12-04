@@ -1,0 +1,31 @@
+---
+layout: docs
+page_title: 'Commands: setup'
+description: |
+  The setup command is used to interact with interactive setup helpers.
+---
+
+# Command: setup
+
+The `setup` command groups helper subcommands used for setting up external
+tools.
+
+<Warning>
+
+These commands are experimental features and may change their behavior in future
+versions of Nomad.
+
+</Warning>
+
+## Usage
+
+Usage: `nomad setup <subcommand> [options]`
+
+Run `nomad setup <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`setup consul`][consul] - Setup a Consul cluster for Nomad integration.
+- [`setup vault`][vault] - Setup a Vault cluster for Nomad integration.
+
+[consul]: /nomad/docs/commands/setup/consul
+[vault]: /nomad/docs/commands/setup/vault

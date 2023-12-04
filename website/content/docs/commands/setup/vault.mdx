@@ -1,0 +1,148 @@
+---
+layout: docs
+page_title: 'Commands: setup vault'
+description: |
+  Setup a Vault cluster for Nomad integration.
+---
+
+# Command: setup vault
+
+This command sets up Vault for allowing Nomad workloads to authenticate
+themselves using Workload Identity.
+
+This command requires `acl:write` permissions for Vault and respects
+`VAULT_TOKEN`, `VAULT_ADDR`, and other [Vault-related environment
+variables][vaultenv].
+
+<Warning>
+
+This command is an experimental feature and may change its behavior in future
+versions of Nomad.
+
+</Warning>
+
+## Usage
+
+```plaintext
+nomad setup vault [options]
+```
+
+## Setup Vault Options
+
+- `-jwks-url`: URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
+  signatures. Defaults to `http://localhost:4646/.well-known/jwks.json`.
+
+- `-cleanup`: Removes all configuration components this command created from the
+  Consul cluster.
+
+- `-y`: Automatically answers `yes` to all the questions, making the setup
+  non-interactive. Defaults to `false`.
+
+## Examples
+
+Below is an example of an interactive session with default options, interrupted
+by answering `no` to one of the questions, demonstrating the capabilities of the
+`-cleanup` flag.
+
+```shell-session
+$ nomad setup vault
+
+This command will walk you through configuring all the components required for
+Nomad workloads to authenticate themselves against Vault ACL using their
+respective workload identities.
+
+First we need to connect to Vault.
+
+[?] Is "http://127.0.0.1:8200" the correct address of your Vault cluster? [Y/n]
+
+Since you're running Vault Enterprise, we will additionally create
+a namespace "nomad-workloads" and create all configuration within that namespace.
+
+[?] Create the namespace "nomad-workloads" in your Vault cluster? [Y/n]
+[✔] Created namespace "nomad-workloads".
+
+We will now enable the JWT credential backend and create a JWT auth method that
+Nomad workloads will use.
+
+This is the method configuration:
+
+{
+    "default_role": "nomad-workloads",
+    "jwks_url": "http://localhost:4646/.well-known/jwks.json",
+    "jwt_supported_algs": [
+        "EdDSA",
+        "RS256"
+    ]
+}
+[?] Create JWT auth method in your Vault cluster? [Y/n]
+[✔] Created JWT auth method "jwt-nomad".
+
+We need to create a role that Nomad workloads will assume while authenticating,
+and a policy associated with that role.
+
+
+These are the rules for the policy "nomad-workloads" that we will create. It uses a templated
+policy to allow Nomad tasks to access secrets in the path
+"secrets/data/<job namespace>/<job name>":
+
+path "secret/data/{{identity.entity.aliases.auth_jwt_1b8dcc32.metadata.nomad_namespace}}/{{identity.entity.aliases.auth_jwt_1b8dcc32.metadata.nomad_job_id}}/*" {
+  capabilities = ["read"]
+}
+
+path "secret/data/{{identity.entity.aliases.auth_jwt_1b8dcc32.metadata.nomad_namespace}}/{{identity.entity.aliases.auth_jwt_1b8dcc32.metadata.nomad_job_id}}" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/{{identity.entity.aliases.auth_jwt_1b8dcc32.metadata.nomad_namespace}}/*" {
+  capabilities = ["list"]
+}
+
+path "secret/metadata/*" {
+  capabilities = ["list"]
+}
+
+[?] Create the above policy in your Vault cluster? [Y/n]
+[✔] Created policy "nomad-workloads".
+
+We will now create an ACL role called "nomad-workloads" associated with the policy above.
+
+{
+    "bound_audiences": "vault.io",
+    "claim_mappings": {
+        "nomad_job_id": "nomad_job_id",
+        "nomad_namespace": "nomad_namespace",
+        "nomad_task": "nomad_task"
+    },
+    "role_type": "jwt",
+    "token_period": "30m",
+    "token_policies": [
+        "nomad-workloads"
+    ],
+    "token_type": "service",
+    "user_claim": "/nomad_job_id",
+    "user_claim_json_pointer": true
+}
+[?] Create role in your Vault cluster? [Y/n] n
+
+By answering "no" to any of these questions, you are risking an incorrect Vault
+cluster configuration. Nomad workloads with Workload Identity will not be able
+to authenticate unless you create missing configuration yourself.
+
+[?] Remove everything this command creates? [Y/n]
+The following items will be deleted:
+  * Policy: "nomad-workloads"
+  * JWT auth method: "jwt-nomad"
+  * Namespace: "nomad-workloads"
+
+[?] Remove all the items listed above? [Y/n]
+[✔] Deleted policy "nomad-workloads".
+[✔] Disabled JWT auth method "jwt-nomad".
+[✔] Deleted namespace "nomad-workloads".
+
+Vault cluster has not been configured for authenticating Nomad tasks and
+services using workload identities.
+
+Run the command again to finish the configuration process.
+```
+
+[vaultenv]: /vault/docs/commands#environment-variables
