@@ -10,8 +10,12 @@ description: |-
 
 <Placement groups={['tls']} />
 
-The `tls` block configures Nomad's TLS communication via HTTP and RPC to
-enforce secure cluster communication between servers, clients, and between.
+The `tls` block configures Nomad's TLS communication via HTTP and RPC to enforce
+secure cluster communication between servers, clients, and between. Note that in
+most cases, this is mutual TLS (mTLS) where both ends of the connection
+authenticate each other. The Nomad documentation will typically use "TLS" to
+refer to this communication except when it is potentially ambiguous between TLS
+and mTLS.
 
 ```hcl
 tls {
@@ -38,13 +42,18 @@ the [Enable TLS Encryption for Nomad Tutorial](/nomad/tutorials/transport-securi
 - `key_file` `(string: "")` - Specifies the path to the key file to use for
   Nomad's TLS communication.
 
-- `http` `(bool: false)` - Specifies if mTLS should be enabled on the HTTP
-  endpoints on the Nomad agent, including the API.
+- `http` `(bool: false)` - Specifies if TLS should be enabled on the HTTP
+  endpoints on the Nomad agent, including the API. By default this is non-mutual
+  TLS. You can upgrade this to mTLS by setting
+  [`verify_https_client=true`](#verify_https_client), but this can complicate
+  using the Nomad UI by requiring mTLS in your browser or running a proxy in
+  front of the Nomad UI.
 
-- `rpc` `(bool: false)` - Toggle the option to enable mTLS on the RPC endpoints 
-   and [Raft][raft] traffic. When this setting is activated, it establishes protection 
-   both between Nomad servers and from the clients back to the servers, ensuring 
-   mutual authentication.
+- `rpc` `(bool: false)` - Toggle the option to enable mTLS on the RPC endpoints
+  and [Raft][raft] traffic. When this setting is activated, it establishes
+  protection both between Nomad servers and from the clients back to the
+  servers, ensuring mutual authentication. Setting `rpc=true` is required for
+  secure operation of Nomad.
 
 - `rpc_upgrade_mode` `(bool: false)` - This option should be used only when the
   cluster is being upgraded to TLS, and removed after the migration is
@@ -70,9 +79,13 @@ the [Enable TLS Encryption for Nomad Tutorial](/nomad/tutorials/transport-securi
 - `tls_prefer_server_cipher_suites` `(bool: false)` - Specifies whether
   TLS connections should prefer the server's ciphersuites over the client's.
 
-- `verify_https_client` `(bool: false)` - Specifies agents should require
-  client certificates for all incoming HTTPS requests. The client certificates
-  must be signed by the same CA as Nomad.
+- `verify_https_client` `(bool: false)` - Specifies agents should require client
+  certificates for all incoming HTTPS requests, effectively upgrading
+  [`tls.http=true`](#http) to mTLS. The client certificates must be signed by
+  the same CA as Nomad. By default, `verify_https_client` is set to `false`,
+  which is safe so long as ACLs are enabled. This is recommended if you are
+  using the Nomad web UI to avoid the difficulty of distributing client certs to
+  browsers.
 
 - `verify_server_hostname` `(bool: false)` - Specifies if outgoing TLS
   connections should verify the server's hostname.
@@ -84,7 +97,7 @@ The following examples only show the `tls` blocks. Remember that the
 
 ### Enabling TLS
 
-This example shows enabling TLS configuration. This enables TLS communication
+This example shows enabling TLS configuration. This enables mTLS communication
 between all servers and clients using the default system CA bundle and
 certificates.
 
@@ -103,9 +116,9 @@ tls {
 
 Nomad supports dynamically reloading both client and server TLS
 configuration. To reload an agent's TLS configuration, first update the TLS
-block in the agent's configuration file and then send the Nomad agent a
-`SIGHUP` signal. Note that this will only reload a subset of the configuration
-file, including the TLS configuration.
+block in the agent's configuration file and then send the Nomad agent a `SIGHUP`
+signal. Note that this will only reload a subset of the configuration file,
+including the TLS configuration.
 
 The agent reloads all its network connections when there are changes to its
 TLS configuration during a config reload via `SIGHUP`. Any new connections
