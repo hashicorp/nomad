@@ -1,0 +1,3 @@
+```release-note:improvement
+cgroupslib: Log an error message when failing to enable CGroup controllers
+```
