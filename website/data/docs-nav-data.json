@@ -944,6 +944,23 @@
         ]
       },
       {
+        "title": "setup",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/setup"
+          },
+          {
+            "title": "consul",
+            "path": "commands/setup/consul"
+          },
+          {
+            "title": "vault",
+            "path": "commands/setup/vault"
+          }
+        ]
+      },
+      {
         "title": "scaling",
         "routes": [
           {
