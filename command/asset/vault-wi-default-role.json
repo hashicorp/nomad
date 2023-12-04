@@ -6,7 +6,6 @@
   "claim_mappings": {
     "nomad_namespace": "nomad_namespace",
     "nomad_job_id": "nomad_job_id",
-    "nomad_group": "nomad_group",
     "nomad_task": "nomad_task"
   },
   "token_type": "service",
