@@ -114,7 +114,7 @@ export default Factory.extend({
           ],
         },
       ];
-      task.update({ actions: actionsData });
+      task?.update({ actions: actionsData });
     }
   },
 });
