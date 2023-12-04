@@ -577,7 +577,7 @@ and ACLs.
 ```hcl
 client {
   host_volume "ca-certificates" {
-    path = "/etc/ssl/certs"
+    path      = "/etc/ssl/certs"
     read_only = true
   }
 }
@@ -603,7 +603,7 @@ The key of the block corresponds to the name of the network used in the
 ```hcl
 client {
   host_network "public" {
-    cidr = "203.0.113.0/24"
+    cidr           = "203.0.113.0/24"
     reserved_ports = "22,80"
   }
 }
@@ -678,8 +678,8 @@ cluster.
 client {
   enabled = true
   server_join {
-    retry_join = [ "1.1.1.1", "2.2.2.2" ]
-    retry_max = 3
+    retry_join     = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max      = 3
     retry_interval = "15s"
   }
 }
