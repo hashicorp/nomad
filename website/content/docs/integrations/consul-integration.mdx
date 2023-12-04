@@ -83,7 +83,7 @@ remaining fields are required to match those shown here.
 {
   "JWKSURL": "https://nomad.example.com:4646/.well-known/jwks.json",
   "JWTSupportedAlgs": ["RS256"],
-  "BoundAudiences": "consul.io",
+  "BoundAudiences": ["consul.io"],
   "ClaimMappings": {
     "nomad_namespace": "nomad_namespace",
     "nomad_job_id": "nomad_job_id",
@@ -100,7 +100,7 @@ remaining fields are required to match those shown here.
 {
   "JWKSURL": "https://nomad.example.com:4646/.well-known/jwks.json",
   "JWTSupportedAlgs": ["RS256"],
-  "BoundAudiences": "consul.io",
+  "BoundAudiences": ["consul.io"],
   "ClaimMappings": {
     "consul_namespace": "consul_namespace",
     "nomad_namespace": "nomad_namespace",
@@ -163,7 +163,6 @@ $ consul acl auth-method create \
          -description 'login method for Nomad workloads' \
          -format json \
          -namespace-rule-selector='' \
-         -namespace-rule-bind-namespace='default' \
          -config "@consul-auth-method-config.json"
 ```
 
@@ -194,8 +193,8 @@ $ consul acl binding-rule create \
          -method 'nomad-workloads' \
          -description 'binding rule for Nomad workload identities (WI)' \
          -bind-type service \
-         -bind-name '${value.nomad_namespace}-${value.nomad_service}' \
-         -selector '"nomad_service" in value`
+         -bind-name '${value.nomad_service}' \
+         -selector '"nomad_service" in value'
 ```
 
 Next, create a Consul Binding Rule that maps Nomad namespaces to Consul Roles:
@@ -206,18 +205,19 @@ $ consul acl binding-rule create \
          -description 'binding rule for Nomad template workload identities (WI)' \
          -bind-type role \
          -bind-name 'nomad-${value.nomad_namespace}-tasks' \
-         -selector '"nomad_service" not in value`
+         -selector '"nomad_service" not in value'
 ```
 
 #### Role for Templates
 
 For each Nomad namespace that you want to grant access to Consul, create a
-[Consul role][] with a name like `nomad-$nomadNamespace`. For example, for the Nomad
-namespace named `prod` you'll create the following Consul role.
+[Consul role][] with a name like `nomad-$nomadNamespace-tasks` to match the
+binding rule you created previously. For example, for the Nomad namespace named
+`prod` you'll create the following Consul role.
 
 ```shell-session
 $ consul acl role create \
-       -name "nomad-prod" \
+       -name "nomad-prod-tasks" \
        -description "role for Nomad production workloads with templates" \
        -policy-name "example-policy"
 ```
