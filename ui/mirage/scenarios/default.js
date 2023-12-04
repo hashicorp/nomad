@@ -134,7 +134,7 @@ function smallCluster(server) {
   server.schema.allocations
     .all()
     .filter((x) => x.taskGroup === actionsGroup.name)
-    .models[0].taskStates.models[0].update({
+    .models[0].taskStates.models[0]?.update({
       state: 'running',
     });
 

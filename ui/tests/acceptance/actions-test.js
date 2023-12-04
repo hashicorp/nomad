@@ -324,9 +324,20 @@ module('Acceptance | actions', function (hooks) {
     await Actions.flyout.close();
 
     // head back into the job, and into a task
+    console.log(
+      'dealing w this particular allocation and',
+      server.schema.allocations
+        .all()
+        .models.filter((a) => a.jobId === 'actionable-job')
+    );
     await Actions.visitIndex({ id: 'actionable-job' });
+    await percySnapshot('Actions flyout on task page 0');
     await click('[data-test-task-group="actionable-group"] a');
-    await click('.task-name');
+    await percySnapshot('Actions flyout on task page 1');
+    await click('.allocation-row [data-test-short-id] a');
+    await percySnapshot('Actions flyout on task page 2');
+    await click('.task-row [data-test-name] a');
+
     // Click global button
     await Actions.globalButton.click();
     // Dropdown present
