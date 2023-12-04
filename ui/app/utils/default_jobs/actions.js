@@ -4,10 +4,8 @@
  */
 
 export default `job "redis-actions" {
-  datacenters = ["*"]
 
   group "cache" {
-    count = 1
     network {
       port "db" {}
     }
@@ -16,20 +14,32 @@ export default `job "redis-actions" {
       driver = "docker"
 
       config {
-        image = "redis:3.2"
-        ports = ["db"]
+        image   = "redis:7"
+        ports   = ["db"]
         command = "/bin/sh"
-        args = ["-c", "redis-server --port \${NOMAD_PORT_db} & /local/db_log.sh"]
+        args    = ["-c", "redis-server --port \${NOMAD_PORT_db} & /local/db_log.sh"]
+      }
+
+      template {
+        data        = <<EOF
+          #!/bin/sh
+          while true; do
+            echo "$(date): Current DB Size: $(redis-cli -p \${NOMAD_PORT_db} DBSIZE)"
+            sleep 3
+          done
+EOF
+        destination = "local/db_log.sh"
+        perms       = "0755"
       }
 
       resources {
-        cpu = 500
-        memory = 256
+        cpu    = 128
+        memory = 128
       }
 
       service {
-        name = "redis-service"
-        port = "db"
+        name     = "redis-service"
+        port     = "db"
         provider = "nomad"
 
         check {
@@ -39,18 +49,6 @@ export default `job "redis-actions" {
           interval = "10s"
           timeout  = "2s"
         }
-      }
-
-      template {
-        data = <<EOF
-          #!/bin/sh
-          while true; do
-            echo "$(date): Current DB Size: $(redis-cli -p \${NOMAD_PORT_db} DBSIZE)"
-            sleep 3
-          done
-EOF
-        destination = "local/db_log.sh"
-        perms = "0755"
       }
 
       # Adds a random key/value to the Redis database
@@ -79,7 +77,7 @@ EOF
 
       # Performs a latency check of the Redis server.
       # This action is a non-terminating action, meaning it will run indefinitely until it is stopped.
-      # Pass an escape sequence (Ctrl-C) to stop the action.
+      # Pass a signal interruption (Ctrl-C) to stop the action.
       action "health-check" {
         command = "/bin/sh"
         args    = ["-c", "redis-cli -p \${NOMAD_PORT_db} --latency"]
@@ -104,7 +102,6 @@ EOF
         ]
       }
 
-
       # Toggles saving to disk (RDB persistence). When enabled, allocation logs will indicate a save every 60 seconds.
       action "toggle-save-to-disk" {
         command = "/bin/sh"
@@ -122,10 +119,7 @@ EOF
 EOF
         ]
       }
-
-
     }
   }
-
 }
 `;
