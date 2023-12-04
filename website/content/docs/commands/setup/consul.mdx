@@ -27,10 +27,6 @@ versions of Nomad.
 nomad setup consul [options]
 ```
 
-## General Options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Setup Consul Options
 
 - `-jwks-url`: URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
@@ -39,14 +35,14 @@ nomad setup consul [options]
 - `-cleanup`: Removes all configuration components this command created from the
   Consul cluster.
 
-- `-y`: Automatically answers "yes" to all the questions, making the setup
-  non-interactive. Defaults to "false".
+- `-y`: Automatically answers `yes` to all the questions, making the setup
+  non-interactive. Defaults to `false`.
 
 ## Examples
 
 Below is an example of an interactive session with default options, interrupted
-by answering "no" to one of the questions, demonstrating the helper's "cleanup"
-capabilities as well.
+by answering `no` to one of the questions, demonstrating the capabilities of the
+`-cleanup` flag.
 
 ```shell-session
 $ nomad setup consul
