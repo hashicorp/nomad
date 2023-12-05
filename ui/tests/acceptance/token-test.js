@@ -1208,7 +1208,15 @@ module('Acceptance | tokens', function (hooks) {
     test('Token can be deleted', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
       await visit(`/access-control/tokens/${token.id}`);
-      await click('[data-test-delete-token]');
+
+      const deleteButton = find('[data-test-delete-token] button');
+      assert.dom(deleteButton).exists('delete button is present');
+      await click(deleteButton);
+      assert
+        .dom('[data-test-confirmation-message]')
+        .exists('confirmation message is present');
+      await click(find('[data-test-confirm-button]'));
+
       assert.dom('.flash-message.alert-success').exists();
       await AccessControl.visitTokens();
       assert.dom('[data-test-token-name="cl4y-t0k3n"]').doesNotExist();

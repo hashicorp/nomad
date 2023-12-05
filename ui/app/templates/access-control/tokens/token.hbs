@@ -10,10 +10,17 @@
 			Edit Token
 		</div>
 		{{#if (can "destroy token")}}
-      <Hds::Button @text="Delete Token" @color="critical"
-        {{on "click" (perform this.deleteToken)}}
-        data-test-delete-token
-      />
+      <TwoStepButton
+          data-test-delete-token
+          @alignRight={{true}}
+          @idleText="Delete Token"
+          @cancelText="Cancel"
+          @confirmText="Yes, Delete Token"
+          @confirmationMessage="Are you sure?"
+          @awaitingConfirmation={{this.deleteToken.isRunning}}
+          @disabled={{this.deleteToken.isRunning}}
+          @onConfirm={{perform this.deleteToken}}
+        />
 		{{/if}}
 	</h1>
   <TokenEditor

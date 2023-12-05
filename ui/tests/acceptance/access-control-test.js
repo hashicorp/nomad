@@ -83,10 +83,12 @@ module('Acceptance | access control', function (hooks) {
     assert.dom('[data-test-tokens-card]').exists();
     assert.dom('[data-test-roles-card]').exists();
     assert.dom('[data-test-policies-card]').exists();
+    assert.dom('[data-test-namespaces-card]').exists();
 
     const numberOfTokens = server.db.tokens.length;
     const numberOfRoles = server.db.roles.length;
     const numberOfPolicies = server.db.policies.length;
+    const numberOfNamespaces = server.db.namespaces.length;
 
     assert
       .dom('[data-test-tokens-card] a')
@@ -97,6 +99,9 @@ module('Acceptance | access control', function (hooks) {
     assert
       .dom('[data-test-policies-card] a')
       .includesText(`${numberOfPolicies} Policies`);
+    assert
+      .dom('[data-test-namespaces-card] a')
+      .includesText(`${numberOfNamespaces} Namespaces`);
   });
 
   test('Access control subnav', async function (assert) {
@@ -136,6 +141,15 @@ module('Acceptance | access control', function (hooks) {
       currentURL(),
       `/access-control/policies`,
       'Shift+ArrowRight takes you to the next tab (Policies)'
+    );
+
+    await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
+      shiftKey: true,
+    });
+    assert.equal(
+      currentURL(),
+      `/access-control/namespaces`,
+      'Shift+ArrowRight takes you to the next tab (Namespaces)'
     );
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {

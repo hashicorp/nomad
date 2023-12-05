@@ -731,6 +731,43 @@ export default function () {
     });
   });
 
+  this.get('/namespaces', function ({ namespaces }, req) {
+    return this.serialize(namespaces.all());
+  });
+
+  this.get('/namespaces/:id', function ({ namespaces }, req) {
+    const namespace = namespaces.findBy({ name: req.params.id });
+    return this.serialize(namespace);
+  });
+
+  this.post('/namespace/:id', function (schema, request) {
+    const { Name, Description } = JSON.parse(request.requestBody);
+
+    return server.create('namespace', {
+      id: Name,
+      name: Name,
+      description: Description,
+    });
+  });
+
+  this.put('/namespace/:id', function () {
+    return new Response(200, {}, {});
+  });
+
+  this.delete('/namespace/:id', function (schema, request) {
+    const { id } = request.params;
+
+    // If any variables exist for the namespace, error
+    const variables =
+      server.db.variables.where((v) => v.namespace === id) || [];
+    if (variables.length) {
+      return new Response(403, {}, 'Namespace has variables');
+    }
+
+    server.db.namespaces.remove(id);
+    return '';
+  });
+
   this.get('/regions', function ({ regions }) {
     return this.serialize(regions.all());
   });
