@@ -52,7 +52,7 @@ export NOMAD_ADDR=https://${aws_instance.server[0].public_ip}:4646
 export NOMAD_CACERT=${abspath(path.root)}/keys/tls_ca.crt
 export NOMAD_CLIENT_CERT=${abspath(path.root)}/keys/tls_api_client.crt
 export NOMAD_CLIENT_KEY=${abspath(path.root)}/keys/tls_api_client.key
-export NOMAD_TOKEN=${data.local_file.nomad_token.content}
+export NOMAD_TOKEN=${data.local_sensitive_file.nomad_token.content}
 export NOMAD_E2E=1
 
 EOM
