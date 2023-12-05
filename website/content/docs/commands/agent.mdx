@@ -101,6 +101,12 @@ via CLI arguments. The `agent` command accepts the following arguments:
   network interface rather than localhost for using Consul Connect. This mode
   is supported only on Linux as root.
 
+- `-dev-consul`: Starts the agent in development mode with a default Consul
+  configuration for Nomad workload identity.
+
+- `-dev-vault`: Starts the agent in development mode with a default Vault
+  configuration for Nomad workload identity.
+
 - `-encrypt`: Set the Serf encryption key. See the [Encryption Overview] for
   more details.
 
