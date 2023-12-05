@@ -18,31 +18,11 @@ resource "aws_efs_mount_target" "csi" {
   security_groups = [aws_security_group.nfs[0].id]
 }
 
-data "template_file" "efs_volume_hcl" {
-  count    = var.volumes ? 1 : 0
-  template = <<EOT
-type = "csi"
-id = "efs-vol0"
-name = "efs-vol0"
-external_id = "${aws_efs_file_system.csi[0].id}"
-plugin_id = "aws-efs0"
-
-capability {
-  access_mode     = "single-node-writer"
-  attachment_mode = "file-system"
-}
-
-capability {
-  access_mode = "single-node-reader"
-  attachment_mode = "file-system"
-}
-
-EOT
-}
-
 resource "local_file" "efs_volume_hcl" {
-  count           = var.volumes ? 1 : 0
-  content         = data.template_file.efs_volume_hcl[0].rendered
+  count = var.volumes ? 1 : 0
+  content = templatefile("${path.module}/volumes.tftpl", {
+    id = aws_efs_file_system.csi[0].id,
+  })
   filename        = "${path.module}/../csi/input/volume-efs.hcl"
   file_permission = "0664"
 }
