@@ -102,7 +102,23 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	var res *cni.CNIResult
 	for attempt := 1; ; attempt++ {
 		var err error
-		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
+		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path,
+			cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP)),
+			// "labels" get turned into CNI_ARGS env for CNI plugins to consume.
+			cni.WithLabels(map[string]string{
+				// some plugins (ex bridge) reject unknown fields by default,
+				// unless this is set.
+				"IgnoreUnknown": "true",
+				// nomad-specific info for plugins to use
+				"NomadAllocID":   alloc.ID,
+				"NomadNamespace": alloc.Namespace,
+				"NomadTaskGroup": alloc.TaskGroup,
+				// k8s equivalents that some plugins use
+				"K8S_POD_NAME":      alloc.Job.Name,
+				"K8S_POD_NAMESPACE": alloc.Namespace,
+				//"K8S_POD_INFRA_CONTAINER_ID": "nomad_init_" + alloc.ID, // nomad_init_$CNI_CONTAINERID"
+			}),
+		); err != nil {
 			c.logger.Warn("failed to configure network", "error", err, "attempt", attempt)
 			switch attempt {
 			case 1:
