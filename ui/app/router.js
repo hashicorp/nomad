@@ -130,6 +130,12 @@ Router.map(function () {
         path: '/:id',
       });
     });
+    this.route('namespaces', function () {
+      this.route('new');
+      this.route('namespace', {
+        path: '/:id',
+      });
+    });
   });
   // Mirage-only route for testing OIDC flow
   if (config['ember-cli-mirage']) {

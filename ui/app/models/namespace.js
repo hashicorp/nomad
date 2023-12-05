@@ -12,3 +12,5 @@ export default class Namespace extends Model {
   @attr('string') hash;
   @attr('string') description;
 }
+
+// TODO: Nomitch - figure out what to do with the actual rules
