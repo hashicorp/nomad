@@ -312,6 +312,22 @@ EVAL:
 			must.Unreachable(sub.t, must.Sprintf("eval failed: %s, triggered by: %s, failed allocs: %d",
 				eval.StatusDescription, eval.TriggeredBy, len(eval.FailedTGAllocs)))
 		case nomadapi.EvalStatusCancelled:
+			sub.logf("dumping information about a cancelled evaluation")
+			sub.logf("\tJobID: %s", eval.JobID)
+			sub.logf("\tNodeID: %s", eval.NodeID)
+			sub.logf("\tDeploymentID: %s", eval.DeploymentID)
+			sub.logf("\tType: %s", eval.Type)
+			sub.logf("\tTriggeredBy: %s", eval.TriggeredBy)
+			sub.logf("\tStatus: %s %q", eval.Status, eval.StatusDescription)
+			sub.logf("\tPriority: %d", eval.Priority)
+			sub.logf("\tBlockedEval: %s", eval.BlockedEval)
+			sub.logf("\tClassEligibility: %v", eval.ClassEligibility)
+			sub.logf("\tQuotaLimitReached: %s", eval.QuotaLimitReached)
+			for group, metric := range eval.FailedTGAllocs {
+				sub.logf("\t[%s]: %v", group, metric)
+			}
+			sub.logf("eval dump complete")
+
 			must.Unreachable(sub.t, must.Sprintf("eval canceled: %s", eval.StatusDescription))
 		default:
 			time.Sleep(1 * time.Second)
