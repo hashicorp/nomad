@@ -1417,12 +1417,14 @@ General Options (clients and servers):
 
   -dev-connect
     Start the agent in development mode, but bind to a public network
-    interface rather than localhost for using Consul Connect. This
+    interface rather than localhost for using Consul Connect. It may be used
+    with -dev-consul to configure default workload identities for Consul. This
     mode is supported only on Linux as root.
 
   -dev-consul
     Starts the agent in development mode with a default Consul configuration
-    for Nomad workload identity.
+    for Nomad workload identity. It may be used with -dev-connect to configure
+    the agent for Consul Service Mesh.
 
   -dev-vault
     Starts the agent in development mode with a default Vault configuration

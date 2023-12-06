@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -725,59 +724,61 @@ func TestConfig_Listener(t *testing.T) {
 	}
 }
 
-func TestConfig_DevModeFlag(t *testing.T) {
+func TestConfig_DevMode_validate(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		dev         bool
-		connect     bool
-		expected    *devModeConfig
+		devConfig   *devModeConfig
 		expectedErr string
 	}{}
 	if runtime.GOOS != "linux" {
 		cases = []struct {
-			dev         bool
-			connect     bool
-			expected    *devModeConfig
+			devConfig   *devModeConfig
 			expectedErr string
 		}{
-			{false, false, nil, ""},
-			{true, false, &devModeConfig{defaultMode: true, connectMode: false}, ""},
-			{true, true, nil, "-dev-connect is only supported on linux"},
-			{false, true, nil, "-dev-connect is only supported on linux"},
+			{
+				devConfig: &devModeConfig{
+					connectMode: true,
+				},
+				expectedErr: "-dev-connect is only supported on linux",
+			},
+			{
+				devConfig: &devModeConfig{
+					defaultMode: true,
+					connectMode: true,
+				},
+				expectedErr: "-dev-connect is only supported on linux",
+			},
 		}
 	}
 	if runtime.GOOS == "linux" {
 		testutil.RequireRoot(t)
 		cases = []struct {
-			dev         bool
-			connect     bool
-			expected    *devModeConfig
+			devConfig   *devModeConfig
 			expectedErr string
 		}{
-			{false, false, nil, ""},
-			{true, false, &devModeConfig{defaultMode: true, connectMode: false}, ""},
-			{true, true, &devModeConfig{defaultMode: true, connectMode: true}, ""},
-			{false, true, &devModeConfig{defaultMode: false, connectMode: true}, ""},
+			{
+				devConfig: &devModeConfig{
+					connectMode: true,
+				},
+				expectedErr: "",
+			},
+			{
+				devConfig: &devModeConfig{
+					defaultMode: true,
+					connectMode: true,
+				},
+				expectedErr: "",
+			},
 		}
 	}
 	for _, c := range cases {
 		t.Run("", func(t *testing.T) {
-			mode, err := newDevModeConfig(c.dev, c.connect)
-			if err != nil && c.expectedErr == "" {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if err != nil && !strings.Contains(err.Error(), c.expectedErr) {
-				t.Fatalf("expected %s; got %v", c.expectedErr, err)
-			}
-			if mode == nil && c.expected != nil {
-				t.Fatalf("expected %+v but got nil", c.expected)
-			}
-			if mode != nil {
-				if c.expected.defaultMode != mode.defaultMode ||
-					c.expected.connectMode != mode.connectMode {
-					t.Fatalf("expected %+v, got %+v", c.expected, mode)
-				}
+			err := c.devConfig.validate()
+			if c.expectedErr != "" {
+				must.Error(t, err)
+			} else {
+				must.NoError(t, err)
 			}
 		})
 	}
