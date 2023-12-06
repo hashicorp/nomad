@@ -4672,6 +4672,13 @@ func (j *Job) Validate() error {
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
 					tg.Name, tg.Count))
 		}
+
+		if tg.MaxClientDisconnect != nil &&
+			tg.ReschedulePolicy.Attempts > 0 &&
+			tg.PreventRescheduleOnLost {
+			err := fmt.Errorf("max_client_disconnect and prevent_reschedule_on_lost cannot be enabled when rechedule.attempts > 0")
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
 
 	// Validate the task group
@@ -6641,6 +6648,10 @@ type TaskGroup struct {
 	// MaxClientDisconnect, if set, configures the client to allow placed
 	// allocations for tasks in this group to attempt to resume running without a restart.
 	MaxClientDisconnect *time.Duration
+
+	// PreventRescheduleOnLost is used to signal that an allocation should not
+	// be rescheduled if its node goes down or is disconnected.
+	PreventRescheduleOnLost bool
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -8871,7 +8882,7 @@ const (
 	// TaskPluginHealthy indicates that a plugin managed by Nomad became healthy
 	TaskPluginHealthy = "Plugin became healthy"
 
-	// TaskClientReconnected indicates that the client running the task disconnected.
+	// TaskClientReconnected indicates that the client running the task reconnected.
 	TaskClientReconnected = "Reconnected"
 
 	// TaskWaitingShuttingDownDelay indicates that the task is waiting for
@@ -10994,7 +11005,6 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
 	timeout := tg.MaxClientDisconnect
-
 	if timeout == nil {
 		return now
 	}
@@ -11014,6 +11024,19 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
 			return tg.MaxClientDisconnect != nil
+		}
+	}
+
+	return false
+}
+
+// PreventRescheduleOnLost determines if an alloc allows to have a replacement
+// when lost.
+func (a *Allocation) PreventRescheduleOnLost() bool {
+	if a.Job != nil {
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+		if tg != nil {
+			return tg.PreventRescheduleOnLost
 		}
 	}
 
@@ -11233,7 +11256,7 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	if tg.MaxClientDisconnect == nil {
+	if tg.MaxClientDisconnect == nil && !tg.PreventRescheduleOnLost {
 		return false
 	}
 
