@@ -6,7 +6,7 @@
 <tr class="task-group-row is-interactive" data-test-task-group
   {{on "mouseover" (fn this.onHover @taskGroup)}}
   {{on "mouseout" (fn this.onHover null)}}
-  {{on "click" (action this.gotoTaskGroup @taskGroup)}}
+  {{on "click" (action this.click)}}
   {{keyboard-shortcut 
     enumerated=true
     action=(action this.gotoTaskGroup @taskGroup)
