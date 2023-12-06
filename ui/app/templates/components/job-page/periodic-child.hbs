@@ -22,9 +22,9 @@
         </span>
       </:before-namespace>
     </jobPage.ui.StatsBox>
-    <jobPage.ui.StatusPanel @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} />
+    <jobPage.ui.StatusPanel @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} @focusedGroup={{@focusedGroup}} />
     <jobPage.ui.PlacementFailures />
-    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
+    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} @focusGroup={{@focusGroup}} />
     <jobPage.ui.RecentAllocations @activeTask={{@activeTask}} @setActiveTaskQueryParam={{@setActiveTaskQueryParam}} />
     <jobPage.ui.Meta />
   </jobPage.ui.Body>

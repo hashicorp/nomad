@@ -48,7 +48,6 @@ export default class TaskGroupRow extends Component {
     lazyClick([() => this.gotoTaskGroup(this.taskGroup), event]);
   }
 
-  // TODO: DONT DO THIS, JUST PASS ON HOVER TO ALL JOB TYPES
   get onHover() {
     return this.args.onHover || (() => {});
   }

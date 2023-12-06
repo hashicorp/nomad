@@ -9,8 +9,8 @@
     <jobPage.ui.Title />
     <jobPage.ui.StatsBox />
     <jobPage.ui.PlacementFailures />
-    <jobPage.ui.StatusPanel @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} />
-    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
+    <jobPage.ui.StatusPanel @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} @focusedGroup={{@focusedGroup}} />
+    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} @focusGroup={{@focusGroup}} />
     <jobPage.ui.RecentAllocations @activeTask={{@activeTask}} @setActiveTaskQueryParam={{@setActiveTaskQueryParam}} />
     <jobPage.ui.Meta />
   </jobPage.ui.Body>
