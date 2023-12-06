@@ -30,6 +30,7 @@ type ConnectACLsE2ETest struct {
 	jobIDs          []string
 	consulPolicyIDs []string
 	consulTokenIDs  []string
+	consulNamespace string
 }
 
 func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
@@ -72,14 +73,28 @@ func (tc *ConnectACLsE2ETest) AfterEach(f *framework.F) {
 	// cleanup consul tokens
 	for _, id := range tc.consulTokenIDs {
 		t.Log("cleanup: delete consul token id:", id)
-		_, err := tc.Consul().ACL().TokenDelete(id, &consulapi.WriteOptions{Token: tc.consulManagementToken})
+		_, err := tc.Consul().ACL().TokenDelete(id, &consulapi.WriteOptions{
+			Token:     tc.consulManagementToken,
+			Namespace: tc.consulNamespace,
+		})
 		f.NoError(err)
 	}
 
 	// cleanup consul policies
 	for _, id := range tc.consulPolicyIDs {
 		t.Log("cleanup: delete consul policy id:", id)
-		_, err := tc.Consul().ACL().PolicyDelete(id, &consulapi.WriteOptions{Token: tc.consulManagementToken})
+		_, err := tc.Consul().ACL().PolicyDelete(id, &consulapi.WriteOptions{
+			Token:     tc.consulManagementToken,
+			Namespace: tc.consulNamespace,
+		})
+		f.NoError(err)
+	}
+
+	if tc.consulNamespace != "" {
+		t.Log("cleanup: delete consul namespace:", tc.consulNamespace)
+		_, err := tc.Consul().Namespaces().Delete(tc.consulNamespace, &consulapi.WriteOptions{
+			Token: tc.consulManagementToken,
+		})
 		f.NoError(err)
 	}
 
@@ -98,6 +113,7 @@ func (tc *ConnectACLsE2ETest) AfterEach(f *framework.F) {
 	tc.jobIDs = []string{}
 	tc.consulTokenIDs = []string{}
 	tc.consulPolicyIDs = []string{}
+	tc.consulNamespace = ""
 }
 
 // todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
@@ -274,6 +290,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectDemoNamespaced(f *framework.
 
 	// create a namespace
 	namespace := tc.createConsulNamespace("ns-"+uuid.Short(), f)
+	tc.consulNamespace = namespace
 	t.Log("created namespace:", namespace)
 
 	// create a policy allowing writes of services "count-api" and "count-dashboard"
