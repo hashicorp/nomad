@@ -10,14 +10,14 @@ import classic from 'ember-classic-decorator';
 export default class Namespace extends ApplicationSerializer {
   primaryKey = 'Name';
 
-  // normalize(typeHash, hash) {
-  //   hash.ID = hash.Name;
-  //   return super.normalize(typeHash, hash);
-  // }
+  normalize(typeHash, hash) {
+    hash.ID = hash.Name;
+    return super.normalize(typeHash, hash);
+  }
 
-  // serialize(snapshot, options) {
-  //   const hash = super.serialize(snapshot, options);
-  //   hash.ID = hash.Name;
-  //   return hash;
-  // }
+  serialize(snapshot, options) {
+    const hash = super.serialize(snapshot, options);
+    hash.ID = hash.Name;
+    return hash;
+  }
 }

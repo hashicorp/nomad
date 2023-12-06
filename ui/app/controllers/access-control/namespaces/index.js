@@ -16,7 +16,7 @@ export default class AccessControlNamespacesIndexController extends Controller {
   @action openNamespace(namespace) {
     this.router.transitionTo(
       'access-control.namespaces.namespace',
-      namespace.id
+      namespace.name
     );
   }
 
@@ -37,16 +37,8 @@ export default class AccessControlNamespacesIndexController extends Controller {
       },
     ];
 
-    const deleteColumn = {
-      key: 'delete',
-      label: 'Delete',
-    };
-
     // TODO: clean up
-    return [
-      ...defaultColumns,
-      ...(this.can.can('destroy role') ? [deleteColumn] : []),
-    ];
+    return [...defaultColumns];
   }
   @task(function* (namespace) {
     try {

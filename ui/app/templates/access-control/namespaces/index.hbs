@@ -45,18 +45,11 @@
         }}
         data-test-namespace-row
     >
-        <B.Td>
-            {{!-- <LinkTo data-test-namespace-name={{"default"}} @route="access-control.namespaces.namespace" @model={{"default"}}>{{"default"}}</LinkTo> --}}
-        </B.Td>
+        {{!-- <B.Td>
+          <LinkTo data-test-namespace-name={{B.data.name}} @route="access-control.namespaces.namespace" @model={{B.data}}>{{B.data.name}}</LinkTo>
+        </B.Td> --}}
+        <B.Td>{{B.data.name}}</B.Td>
         <B.Td>{{B.data.description}}</B.Td>
-        {{#if (and (not (eq B.data.name "default")) (can "destroy namespace"))}}
-        <B.Td>
-            <Hds::Button @text="Delete" @size="small" @color="critical"
-            {{on "click" (perform this.deleteNamespace B.data)}}
-            data-test-delete-namespace
-            />
-        </B.Td>
-        {{/if}}
     </B.Tr>
     </:body>
 </Hds::Table>

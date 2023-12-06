@@ -16,10 +16,6 @@ export default class AccessControlNamespacesRoleController extends Controller {
 
   @alias('model.namespace') namespace;
 
-  get newNamespaceString() {
-    return `nomad namespace apply -description "My new namespace" ${this.namespace.name} <input>`;
-  }
-
   @task(function* () {
     try {
       yield this.role.deleteRecord();

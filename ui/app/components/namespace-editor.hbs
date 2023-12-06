@@ -1,3 +1,40 @@
-{{!-- TODO: Nomitch --}}
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
 
-This is the editor
+<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
+		<Hds::Form::TextInput::Field
+			@isRequired={{true}}
+			data-test-namespace-name-input
+			@value={{@namespace.name}}
+			{{on "input" this.updateNamespaceName}}
+			{{autofocus ignore=(not @namespace.isNew)}}
+		as |F|>
+			<F.Label>Policy Name</F.Label>
+		</Hds::Form::TextInput::Field>
+
+	<div>
+		<label>
+			<span>
+				Description (optional)
+			</span>
+			<Input
+				data-test-namespace-description-input
+				@value={{@namespace.description}}
+				class="input"
+			/>
+		</label>
+	</div>
+
+    {{!-- TODO: Nomitch add rules field --}}
+
+	<footer>
+		{{#if (can "update namespace")}}
+      <Hds::Button @text="Save Namespace" @color="primary"
+        {{on "click" this.save}}
+				data-test-save-namespace
+      />
+		{{/if}}
+	</footer>
+</form>

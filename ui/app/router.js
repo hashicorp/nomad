@@ -133,7 +133,7 @@ Router.map(function () {
     this.route('namespaces', function () {
       this.route('new');
       this.route('namespace', {
-        path: '/:id',
+        path: '/:name',
       });
     });
   });
