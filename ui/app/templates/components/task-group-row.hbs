@@ -6,6 +6,11 @@
 <tr class="task-group-row is-interactive" data-test-task-group
   {{on "mouseover" (fn this.onHover @taskGroup)}}
   {{on "mouseout" (fn this.onHover null)}}
+  {{on "click" (action this.gotoTaskGroup @taskGroup)}}
+  {{keyboard-shortcut 
+    enumerated=true
+    action=(action this.gotoTaskGroup @taskGroup)
+  }}
 >
   <td data-test-task-group-name={{@taskGroup.name}}>
     <LinkTo @route="jobs.job.task-group" @models={{array @taskGroup.job @taskGroup}} class="is-primary">

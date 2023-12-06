@@ -325,7 +325,7 @@ module('Acceptance | actions', function (hooks) {
 
     // head back into the job, and into a task
     await Actions.visitIndex({ id: 'actionable-job' });
-    await click('[data-test-task-group="actionable-group"] a');
+    await click('[data-test-task-group-name="actionable-group"] a');
     await click('.task-name');
     // Click global button
     await Actions.globalButton.click();

@@ -14,12 +14,22 @@ import { lazyClick } from '../helpers/lazy-click';
 
 export default class TaskGroupRow extends Component {
   @service can;
+  @service router;
 
   @alias('args.taskGroup') taskGroup;
   debounce = 500;
 
   @oneWay('taskGroup.count') count;
   @alias('taskGroup.job.runningDeployment') runningDeployment;
+
+  @action
+  gotoTaskGroup(taskGroup) {
+    this.router.transitionTo(
+      'jobs.job.task-group',
+      taskGroup.job,
+      taskGroup.name
+    );
+  }
 
   get namespace() {
     return this.taskGroup.job.namespace.get('name');
