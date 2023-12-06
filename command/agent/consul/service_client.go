@@ -1760,6 +1760,15 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 					sreg.Checks = append(sreg.Checks, check)
 				}
 			}
+
+			if sidecarService := getNomadSidecar(serviceID, services); sidecarService != nil {
+				sreg.SidecarService = sidecarService
+				for _, check := range checks {
+					if check.ServiceID == sidecarService.ID {
+						sreg.SidecarChecks = append(sreg.SidecarChecks, check)
+					}
+				}
+			}
 		}
 	}
 
