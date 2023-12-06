@@ -459,6 +459,7 @@ type TaskGroup struct {
 	MaxClientDisconnect       *time.Duration            `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
 	Consul                    *Consul                   `hcl:"consul,block"`
+	PreventRescheduleOnLost   *bool                     `hcl:"prevent_reschedule_on_lost,optional"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -577,7 +578,9 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
 	}
-
+	if g.PreventRescheduleOnLost == nil {
+		g.PreventRescheduleOnLost = pointerOf(false)
+	}
 }
 
 // These needs to be in sync with DefaultServiceJobRestartPolicy in
