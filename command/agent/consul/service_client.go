@@ -1761,7 +1761,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 				}
 			}
 
-			if sidecarService := services[serviceID+sidecarSuffix]; sidecarService != nil {
+			if sidecarService := getNomadSidecar(serviceID, services); sidecarService != nil {
 				sreg.SidecarService = sidecarService
 				for _, check := range checks {
 					if check.ServiceID == sidecarService.ID {
