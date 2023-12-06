@@ -9,7 +9,7 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
-export default class AccessControlNamespacesNamespaceController extends Controller {
+export default class AccessControlHamespacesHamespaceController extends Controller {
   @service notifications;
   @service router;
   @service store;

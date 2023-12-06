@@ -8,20 +8,20 @@ import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { task } from 'ember-concurrency';
 
-export default class AccessControlNamespacesIndexController extends Controller {
+export default class AccessControlHamespacesIndexController extends Controller {
   @service router;
   @service notifications;
   @service can;
 
   @action openNamespace(namespace) {
     this.router.transitionTo(
-      'access-control.namespaces.namespace',
+      'access-control.hamespaces.hamespace',
       namespace.name
     );
   }
 
   @action goToNewNamespace() {
-    this.router.transitionTo('access-control.namespaces.new');
+    this.router.transitionTo('access-control.hamespaces.new');
   }
 
   get columns() {

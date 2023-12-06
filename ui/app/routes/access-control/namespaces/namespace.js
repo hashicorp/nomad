@@ -10,13 +10,14 @@ import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
 import { inject as service } from '@ember/service';
 import { hash } from 'rsvp';
 
-export default class AccessControlNamespacesNamespaceRoute extends Route.extend(
+export default class AccessControlNamespacesHamespaceRoute extends Route.extend(
   withForbiddenState,
   WithModelErrorHandling
 ) {
   @service store;
 
   async model(params) {
+    console.log('model hit');
     let namespace = await this.store.findRecord(
       'namespace',
       decodeURIComponent(params.name),
@@ -24,6 +25,8 @@ export default class AccessControlNamespacesNamespaceRoute extends Route.extend(
         reload: true,
       }
     );
+
+    console.log('ns', namespace);
 
     return hash({
       namespace,

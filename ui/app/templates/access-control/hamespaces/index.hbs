@@ -13,7 +13,7 @@
         <Hds::Button
           @text="Create Namespace"
           @icon="plus"
-          @route="access-control.namespaces.new"
+          @route="access-control.hamespaces.new"
           {{keyboard-shortcut
             pattern=(array "n" "n")
             action=(action this.goToNewNamespace)
@@ -46,9 +46,8 @@
         data-test-namespace-row
     >
         <B.Td>
-          <LinkTo data-test-namespace-name={{B.data.name}} @route="access-control.namespaces.namespace" @model={{B.data.name}}>{{B.data.name}}</LinkTo>
+          <LinkTo data-test-namespace-name={{B.data.name}} @route="access-control.hamespaces.hamespace" @model={{B.data.name}}>{{B.data.name}}</LinkTo>
         </B.Td>
-        {{!-- <B.Td>{{B.data.name}}</B.Td> --}}
         <B.Td>{{B.data.description}}</B.Td>
     </B.Tr>
     </:body>

@@ -130,9 +130,9 @@ Router.map(function () {
         path: '/:id',
       });
     });
-    this.route('namespaces', function () {
+    this.route('hamespaces', function () {
       this.route('new');
-      this.route('namespace', {
+      this.route('hamespace', {
         path: '/:name',
       });
     });
