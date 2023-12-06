@@ -6650,8 +6650,7 @@ type TaskGroup struct {
 	MaxClientDisconnect *time.Duration
 
 	// PreventRescheduleOnLost is used to signal that an allocation should not
-	// be rescheduled if its node becomes lost. If the node is disconnected, it will
-	// be also considered as lost and wont be rescheduled.
+	// be rescheduled if its node goes down or is disconnected.
 	PreventRescheduleOnLost bool
 }
 
