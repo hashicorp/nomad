@@ -146,6 +146,12 @@ type ServiceRegistration struct {
 
 	// Checks is the status of the registered checks.
 	Checks []*api.AgentCheck
+
+	// SidecarService is the AgentService registered in Consul for any Connect sidecar
+	SidecarService *api.AgentService
+
+	// SidecarChecks is the status of the registered checks for any Connect sidecar
+	SidecarChecks []*api.AgentCheck
 }
 
 func (s *ServiceRegistration) copy() *ServiceRegistration {
