@@ -203,7 +203,7 @@ func DeleteConsulPolicies(t *testing.T, client *capi.Client, policies map[string
 // the given policyID in the specified namespace.
 //
 // Requires Consul Enterprise.
-func CreateConsulToken(t *testing.T, client *capi.Client, namespace, policyID string) string {
+func CreateConsulToken(t *testing.T, client *capi.Client, namespace, policyID string) (secret, accessor string) {
 	aclClient := client.ACL()
 	opts := &capi.WriteOptions{Namespace: namespace}
 
@@ -212,7 +212,7 @@ func CreateConsulToken(t *testing.T, client *capi.Client, namespace, policyID st
 		Description: "An e2e test token",
 	}, opts)
 	require.NoError(t, err, "failed to create consul acl token")
-	return token.SecretID
+	return token.SecretID, token.AccessorID
 }
 
 // DeleteConsulTokens is used to delete a set of tokens from Consul.
