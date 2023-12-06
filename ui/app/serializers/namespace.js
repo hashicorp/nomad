@@ -7,7 +7,7 @@ import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class Namespace extends ApplicationSerializer {
+export default class NamespaceSerializer extends ApplicationSerializer {
   primaryKey = 'Name';
 
   normalize(typeHash, hash) {

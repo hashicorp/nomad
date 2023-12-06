@@ -45,10 +45,10 @@
         }}
         data-test-namespace-row
     >
-        {{!-- <B.Td>
-          <LinkTo data-test-namespace-name={{B.data.name}} @route="access-control.namespaces.namespace" @model={{B.data}}>{{B.data.name}}</LinkTo>
-        </B.Td> --}}
-        <B.Td>{{B.data.name}}</B.Td>
+        <B.Td>
+          <LinkTo data-test-namespace-name={{B.data.name}} @route="access-control.namespaces.namespace" @model={{B.data.name}}>{{B.data.name}}</LinkTo>
+        </B.Td>
+        {{!-- <B.Td>{{B.data.name}}</B.Td> --}}
         <B.Td>{{B.data.description}}</B.Td>
     </B.Tr>
     </:body>

@@ -9,7 +9,7 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
-export default class AccessControlNamespacesRoleController extends Controller {
+export default class AccessControlNamespacesNamespaceController extends Controller {
   @service notifications;
   @service router;
   @service store;
@@ -18,8 +18,8 @@ export default class AccessControlNamespacesRoleController extends Controller {
 
   @task(function* () {
     try {
-      yield this.role.deleteRecord();
-      yield this.role.save();
+      yield this.namespace.deleteRecord();
+      yield this.namespace.save();
       this.notifications.add({
         title: 'Namespace Deleted',
         color: 'success',
