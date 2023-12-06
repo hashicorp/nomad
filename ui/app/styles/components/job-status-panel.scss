@@ -345,6 +345,10 @@
       }
     }
 
+    &.faded {
+      opacity: 0.3;
+    }
+
     &.legend-example {
       background: #eee;
     }

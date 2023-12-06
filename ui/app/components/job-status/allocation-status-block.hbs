@@ -3,6 +3,13 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
+{{!--
+  Exists as a "middleman" between AllocationStatusRow and IndividualAllocation
+  only when showSummaries in AllocationStatusRow is true (i.e. when the math of how
+  many allocations to show in each block is done x minWidth of each alloc exceeds
+  available space)
+--}}
+
 <div
   class="allocation-status-block {{unless this.countToShow "rest-only"}}"
   style={{html-safe (concat "width: " @width "px")}}
@@ -16,6 +23,7 @@
           @health={{@health}}
           @canary={{@canary}}
           @steady={{@steady}}
+          @focusedGroup={{@focusedGroup}}
         />
       {{/each}}
     </div>

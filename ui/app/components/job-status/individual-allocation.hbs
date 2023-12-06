@@ -10,7 +10,7 @@
     @condition={{not (eq @status "unplaced")}}
     @route="allocations.allocation"
     @model={{@allocation.id}}
-    @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
+    @class="represented-allocation {{@status}} {{@health}} {{@canary}} {{if this.shouldFade "faded"}}"
     @label="View allocation"
   >
     {{#unless @steady}}

@@ -21,10 +21,22 @@ export default class JobStatusIndividualAllocationComponent extends Component {
   get tooltipText() {
     if (this.showClient) {
       return `${this.nodeName} - ${this.shortId}`;
-    } else if (this.taskGroups.length > 1) {
+    } else if (this.groupName && this.taskGroups?.length > 1) {
       return `${this.groupName} - ${this.shortId}`;
-    } else {
+    } else if (this.shortId) {
       return this.shortId;
+    } else {
+      return 'oof';
     }
+  }
+
+  // If a user has hovered or otherwise focused a taskGroup,
+  // and it differs from this alloc's task group, then fade it.
+  get shouldFade() {
+    return (
+      this.groupName &&
+      this.args.focusedGroup &&
+      this.args.focusedGroup !== this.args.allocation.taskGroup
+    );
   }
 }

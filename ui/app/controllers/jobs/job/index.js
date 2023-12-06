@@ -62,4 +62,10 @@ export default class IndexController extends Controller.extend(
   setStatusMode(mode) {
     this.statusMode = mode;
   }
+
+  @tracked focusedGroup = null;
+
+  @action focusGroup(group) {
+    this.focusedGroup = group;
+  }
 }

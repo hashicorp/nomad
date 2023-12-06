@@ -3,34 +3,26 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Component from '@ember/component';
+// import Component from '@ember/component';
+import Component from '@glimmer/component';
+
 import { inject as service } from '@ember/service';
 import { computed, action } from '@ember/object';
 import { alias, oneWay } from '@ember/object/computed';
 import { debounce } from '@ember/runloop';
-import {
-  classNames,
-  tagName,
-  attributeBindings,
-} from '@ember-decorators/component';
-import classic from 'ember-classic-decorator';
 import { lazyClick } from '../helpers/lazy-click';
 
-@classic
-@tagName('tr')
-@classNames('task-group-row', 'is-interactive')
-@attributeBindings('data-test-task-group')
 export default class TaskGroupRow extends Component {
   @service can;
 
-  taskGroup = null;
+  @alias('args.taskGroup') taskGroup;
   debounce = 500;
 
   @oneWay('taskGroup.count') count;
   @alias('taskGroup.job.runningDeployment') runningDeployment;
 
   get namespace() {
-    return this.get('taskGroup.job.namespace.name');
+    return this.taskGroup.job.namespace.get('name');
   }
 
   @computed('runningDeployment', 'namespace')
@@ -46,6 +38,11 @@ export default class TaskGroupRow extends Component {
 
   click(event) {
     lazyClick([this.onClick, event]);
+  }
+
+  // TODO: DONT DO THIS, JUST PASS ON HOVER TO ALL JOB TYPES
+  get onHover() {
+    return this.args.onHover || (() => {});
   }
 
   @computed('count', 'taskGroup.scaling.min')

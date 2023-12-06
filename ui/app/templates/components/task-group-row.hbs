@@ -3,46 +3,51 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<td data-test-task-group-name={{this.taskGroup.name}}>
-  <LinkTo @route="jobs.job.task-group" @models={{array this.taskGroup.job this.taskGroup}} class="is-primary">
-    {{this.taskGroup.name}}
-  </LinkTo>
-</td>
-<td data-test-task-group-count class="nowrap">
-  {{this.count}}
-  {{#if this.taskGroup.scaling}}
-  <div
-    data-test-scale-controls
-    class="button-bar is-shadowless is-text bumper-left {{if (or this.runningDeployment (cannot "scale job" namespace=this.namespace)) "tooltip multiline"}}"
-    aria-label={{this.tooltipText}}>
-      <button
-        data-test-scale="decrement"
-        role="button"
-        aria-label="decrement"
-        class="button is-xsmall is-light"
-        disabled={{or this.isMinimum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
-        onclick={{action "countDown"}}
-        type="button">
-        {{x-icon "minus-plain" class="is-text"}}
-      </button>
-      <button
-        data-test-scale-controls-increment
-        data-test-scale="increment"
-        role="button"
-        aria-label="increment"
-        class="button is-xsmall is-light"
-        disabled={{or this.isMaximum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
-        onclick={{action "countUp"}}
-        type="button">
-        {{x-icon "plus-plain" class="is-text"}}
-      </button>
-    </div>
-  {{/if}}
-</td>
-<td data-test-task-group-allocs>
-  <div class="inline-chart"><AllocationStatusBar @allocationContainer={{this.taskGroup.summary}} @isNarrow={{true}} /></div>
-</td>
-<td data-test-task-group-volume>{{if this.taskGroup.volumes.length "Yes"}}</td>
-<td data-test-task-group-cpu>{{format-scheduled-hertz this.taskGroup.reservedCPU}}</td>
-<td data-test-task-group-mem>{{format-scheduled-bytes this.taskGroup.reservedMemory start="MiB"}}</td>
-<td data-test-task-group-disk>{{format-scheduled-bytes this.taskGroup.reservedEphemeralDisk start="MiB"}}</td>
+<tr class="task-group-row is-interactive" data-test-task-group
+  {{on "mouseover" (fn this.onHover @taskGroup)}}
+  {{on "mouseout" (fn this.onHover null)}}
+>
+  <td data-test-task-group-name={{@taskGroup.name}}>
+    <LinkTo @route="jobs.job.task-group" @models={{array @taskGroup.job @taskGroup}} class="is-primary">
+      {{@taskGroup.name}}
+    </LinkTo>
+  </td>
+  <td data-test-task-group-count class="nowrap">
+    {{this.count}}
+    {{#if @taskGroup.scaling}}
+    <div
+      data-test-scale-controls
+      class="button-bar is-shadowless is-text bumper-left {{if (or this.runningDeployment (cannot "scale job" namespace=this.namespace)) "tooltip multiline"}}"
+      aria-label={{this.tooltipText}}>
+        <button
+          data-test-scale="decrement"
+          role="button"
+          aria-label="decrement"
+          class="button is-xsmall is-light"
+          disabled={{or this.isMinimum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
+          onclick={{action "countDown"}}
+          type="button">
+          {{x-icon "minus-plain" class="is-text"}}
+        </button>
+        <button
+          data-test-scale-controls-increment
+          data-test-scale="increment"
+          role="button"
+          aria-label="increment"
+          class="button is-xsmall is-light"
+          disabled={{or this.isMaximum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
+          onclick={{action "countUp"}}
+          type="button">
+          {{x-icon "plus-plain" class="is-text"}}
+        </button>
+      </div>
+    {{/if}}
+  </td>
+  <td data-test-task-group-allocs>
+    <div class="inline-chart"><AllocationStatusBar @allocationContainer={{@taskGroup.summary}} @isNarrow={{true}} /></div>
+  </td>
+  <td data-test-task-group-volume>{{if @taskGroup.volumes.length "Yes"}}</td>
+  <td data-test-task-group-cpu>{{format-scheduled-hertz @taskGroup.reservedCPU}}</td>
+  <td data-test-task-group-mem>{{format-scheduled-bytes @taskGroup.reservedMemory start="MiB"}}</td>
+  <td data-test-task-group-disk>{{format-scheduled-bytes @taskGroup.reservedEphemeralDisk start="MiB"}}</td>
+</tr>

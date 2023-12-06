@@ -20,7 +20,9 @@
                 @steady={{@steady}}
                 @count={{allocsByCanary.length}}
                 @width={{compute (action this.calcPerc) allocsByCanary.length}}
-                @allocs={{allocsByCanary}} />
+                @allocs={{allocsByCanary}}
+                @focusedGroup={{@focusedGroup}}
+                />
             {{/if}}
           {{/each-in}}
         {{/each-in}}
@@ -42,6 +44,7 @@
                       @health={{health}}
                       @canary={{canary}}
                       @steady={{@steady}}
+                      @focusedGroup={{@focusedGroup}}
                     />
               {{/each}}
             {{/if}}

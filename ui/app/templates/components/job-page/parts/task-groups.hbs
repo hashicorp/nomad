@@ -41,6 +41,7 @@
           @data-test-task-group={{row.model.name}}
           @taskGroup={{row.model}}
           @onClick={{fn this.gotoTaskGroup row.model}}
+          @onHover={{@focusGroup}}
           {{keyboard-shortcut 
             enumerated=true
             action=(fn this.gotoTaskGroup row.model)

@@ -88,7 +88,7 @@
             </section>
           </h4>
           <div class="previous-allocations">
-            <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
+            <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}}  @focusedGroup={{@focusedGroup}} />
           </div>
           <div class="legend-and-summary" data-test-previous-allocations-legend>
             <legend>
@@ -113,7 +113,7 @@
           </span>
         </h4>
         <div class="new-allocations">
-          <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
+          <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}}  @focusedGroup={{@focusedGroup}} />
         </div>
       </div>
 

@@ -4,7 +4,7 @@
 ~}}
 
 {{#if this.isActivelyDeploying}}
-  <JobStatus::Panel::Deploying @job={{@job}} @handleError={{@handleError}} />
+  <JobStatus::Panel::Deploying @job={{@job}} @handleError={{@handleError}} @focusedGroup={{@focusedGroup}} />
 {{else}}
-  <JobStatus::Panel::Steady @job={{@job}} @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} @nodes={{this.nodes}} />
+  <JobStatus::Panel::Steady @job={{@job}} @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} @nodes={{this.nodes}}  @focusedGroup={{@focusedGroup}} />
 {{/if}}

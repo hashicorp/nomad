@@ -45,7 +45,7 @@
           {{pluralize "Allocation" @job.runningAllocs}} Running
         {{/if}}
       </h3>
-      <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}} />
+      <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}}  @focusedGroup={{@focusedGroup}} />
 
       <div class="legend-and-summary {{if @job.latestDeployment "has-latest-deployment"}}">
         <legend>
