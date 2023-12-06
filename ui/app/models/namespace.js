@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { readOnly } from '@ember/object/computed';
+// import { readOnly } from '@ember/object/computed';
 import Model from '@ember-data/model';
 import { attr } from '@ember-data/model';
 
 export default class Namespace extends Model {
-  @readOnly('id') name;
+  // TODO: Did I break something??
+  @attr('string') name;
   @attr('string') hash;
   @attr('string') description;
 }

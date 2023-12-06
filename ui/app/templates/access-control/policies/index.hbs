@@ -40,8 +40,8 @@
       @sortBy="name"
     >
       <:body as |B|>
-        <B.Tr 
-          {{keyboard-shortcut 
+        <B.Tr
+          {{keyboard-shortcut
             enumerated=true
             action=(action "openPolicy" B.data)
           }}

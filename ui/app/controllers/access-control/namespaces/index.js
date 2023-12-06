@@ -4,6 +4,7 @@
  */
 
 import Controller from '@ember/controller';
+import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { task } from 'ember-concurrency';
 
@@ -11,6 +12,17 @@ export default class AccessControlNamespacesIndexController extends Controller {
   @service router;
   @service notifications;
   @service can;
+
+  @action openNamespace(namespace) {
+    this.router.transitionTo(
+      'access-control.namespaces.namespace',
+      namespace.id
+    );
+  }
+
+  @action goToNewNamespace() {
+    this.router.transitionTo('access-control.namespaces.new');
+  }
 
   get columns() {
     const defaultColumns = [
@@ -25,8 +37,16 @@ export default class AccessControlNamespacesIndexController extends Controller {
       },
     ];
 
+    const deleteColumn = {
+      key: 'delete',
+      label: 'Delete',
+    };
+
     // TODO: clean up
-    return [...defaultColumns];
+    return [
+      ...defaultColumns,
+      ...(this.can.can('destroy role') ? [deleteColumn] : []),
+    ];
   }
   @task(function* (namespace) {
     try {

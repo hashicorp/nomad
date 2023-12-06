@@ -1,3 +1,63 @@
-{{!-- TODO: NOMITCH --}}
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
 
-Namespace Index
+<section class="section">
+  <header class="acl-explainer">
+    <p>
+      Namespaces allow jobs and associated objects to be segmented from each other and other users of the cluster.
+    </p>
+    <div>
+      {{#if (can "write namespace")}}
+        <Hds::Button
+          @text="Create Namespace"
+          @icon="plus"
+          @route="access-control.namespaces.new"
+          {{keyboard-shortcut
+            pattern=(array "n" "n")
+            action=(action this.goToNewNamespace)
+            label="Create Namespace"
+          }}
+          data-test-create-namespace
+        />
+      {{else}}
+        <Hds::Button
+          @text="Create Namespace"
+          @icon="plus"
+          disabled
+          data-test-disabled-create-namespace
+        />
+      {{/if}}
+    </div>
+  </header>
+
+<Hds::Table @caption="A list of namespaces for this cluster" class="acl-table"
+    @model={{this.model.namespaces}}
+    @columns={{this.columns}}
+    @sortBy="name"
+>
+    <:body as |B|>
+    <B.Tr
+        {{keyboard-shortcut
+        enumerated=true
+        action=(action "openNamespace" B.data)
+        }}
+        data-test-namespace-row
+    >
+        <B.Td>
+            {{!-- <LinkTo data-test-namespace-name={{"default"}} @route="access-control.namespaces.namespace" @model={{"default"}}>{{"default"}}</LinkTo> --}}
+        </B.Td>
+        <B.Td>{{B.data.description}}</B.Td>
+        {{#if (and (not (eq B.data.name "default")) (can "destroy namespace"))}}
+        <B.Td>
+            <Hds::Button @text="Delete" @size="small" @color="critical"
+            {{on "click" (perform this.deleteNamespace B.data)}}
+            data-test-delete-namespace
+            />
+        </B.Td>
+        {{/if}}
+    </B.Tr>
+    </:body>
+</Hds::Table>
+</section>

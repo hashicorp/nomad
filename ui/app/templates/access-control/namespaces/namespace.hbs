@@ -1,3 +1,21 @@
-{{!-- TODO: NOMITCH --}}
-
-Single Namespace
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+<Breadcrumb @crumb={{hash label=this.namespace.name args=(array "access-control.namespaces.namespace" this.namespace.name)}} />
+{{page-title "Namespace"}}
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		<div>
+			Edit Namespace
+		</div>
+		{{#if (can "destroy namespace")}}
+      <Hds::Button @text="Delete Namespace" @color="critical"
+        {{on "click" (perform this.deleteNamespace)}}
+        data-test-delete-namespace
+      />
+		{{/if}}
+	</h1>
+    <p> TODO: NOMITCH </p>
+	{{!-- <NamespaceEditor @namespace={{this.namespace}} /> --}}
+</section>
