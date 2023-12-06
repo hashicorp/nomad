@@ -572,6 +572,8 @@ func evaluateConsulChecks(services []*structs.Service, registrations *servicereg
 		}
 	}
 
+	// The sidecar service and checks are created when the service is
+	// registered, not on job registration, so they won't appear in the jobspec.
 	if !maps.Equal(expChecks, regChecks) {
 		return false
 	}
@@ -592,6 +594,21 @@ func evaluateConsulChecks(services []*structs.Service, registrations *servicereg
 					}
 				}
 			}
+
+			// Check the health of Connect sidecars, so we don't accidentally
+			// mark an allocation healthy before min_healthy_time. These don't
+			// currently support on_update.
+			if service.SidecarService != nil {
+				for _, check := range service.SidecarChecks {
+					switch check.Status {
+					case api.HealthWarning:
+						return false
+					case api.HealthCritical:
+						return false
+					}
+				}
+			}
+
 		}
 	}
 

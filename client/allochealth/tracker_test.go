@@ -1463,6 +1463,42 @@ func TestTracker_evaluateConsulChecks(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "failing sidecar checks only",
+			exp:  false,
+			tg: &structs.TaskGroup{
+				Services: []*structs.Service{{
+					Name: "group-s1",
+					Checks: []*structs.ServiceCheck{
+						{Name: "c1"},
+					},
+				}},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"group": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"abc123": {
+								ServiceID: "abc123",
+								Checks: []*consulapi.AgentCheck{
+									{
+										Name:   "c1",
+										Status: consulapi.HealthPassing,
+									},
+								},
+								SidecarService: &consulapi.AgentService{},
+								SidecarChecks: []*consulapi.AgentCheck{
+									{
+										Name:   "sidecar-check",
+										Status: consulapi.HealthCritical,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
