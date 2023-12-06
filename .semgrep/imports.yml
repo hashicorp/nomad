@@ -10,6 +10,7 @@ rules:
       - pattern: '"github.com/hashicorp/consul/command/flags"'
       - pattern: '"github.com/hashicorp/consul/sdk"'
       - pattern: '"github.com/hashicorp/go-set"'
+      - pattern: '"github.com/mitchellh/cli"'
       - pattern: '"golang.org/x/exp/slices"'
       - pattern: '"golang.org/x/exp/maps"'
     message: "Import of this package has been disallowed"
