@@ -71,20 +71,16 @@ job "docs" {
   
   This behaviour will only modify the reschedule process on the server.
   To modify the allocation behaviour on the client, see 
-  [`stop_after_client_disconnect`](#stop_after_client_disconnect) .
-
-  Setting `max_client_disconnect` and `prevent_reschedule_on_lost=true` at the same 
-  time requires that [rescheduling is disabled entirely][].
-  If [`max_client_disconnect`](#max_client_disconnect) is set and 
-  `prevent_reschedule_on_lost=true`, allocations on disconnected nodes will be
-  `unknown` until the `max_client_disconnect` window expires, at which point 
-  the node will be transition from `disconnected` to `down`. The allocation 
-  will remain as `unknown` and won't be rescheduled.
+  [`stop_after_client_disconnect`](#stop_after_client_disconnect).
 
   The `unknown` allocation has to be manually stopped to run it again.
 
   ```plaintext
   `nomad alloc stop  <alloc ID>`
+  ```
+
+  Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the 
+  same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
 
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
@@ -346,6 +342,36 @@ group "second" {
 }
 ```
 
+#### Max Client Disconnect and Prevent Reschedule On Lost
+
+Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the 
+same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
+
+```hcl
+# jobspec.nomad
+
+group "first" {
+  max_client_disconnect = "12h"
+  prevent_reschedule_on_lost = true
+  task "first-task" {
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
+    ...
+  }
+}
+```
+
+If [`max_client_disconnect`](#max_client_disconnect) is set and 
+`prevent_reschedule_on_lost = true`, allocations on disconnected nodes will be
+`unknown` until the `max_client_disconnect` window expires, at which point 
+the node will be transition from `disconnected` to `down`. The allocation 
+will remain as `unknown` and won't be rescheduled.
+
+
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [constraint]: /nomad/docs/job-specification/constraint 'Nomad constraint Job Specification'
@@ -356,6 +382,7 @@ group "second" {
 [ephemeraldisk]: /nomad/docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
 [`heartbeat_grace`]: /nomad/docs/configuration/server#heartbeat_grace
 [`max_client_disconnect`]: /nomad/docs/job-specification/group#max_client_disconnect
+[`disable_rescheduling`]: /nomad/docs/job-specification/reschedule#disabling-rescheduling
 [max-client-disconnect]: /nomad/docs/job-specification/group#max-client-disconnect 'the example code below'
 [`stop_after_client_disconnect`]: /nomad/docs/job-specification/group#stop_after_client_disconnect
 [meta]: /nomad/docs/job-specification/meta 'Nomad meta Job Specification'
