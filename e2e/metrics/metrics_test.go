@@ -42,15 +42,11 @@ func (m *metric) Query() string {
 
 func TestMetrics(t *testing.T) {
 	// Run via the e2e suite. Requires AWS attributes.
-	//
-	// Set verbose for now to debug the e2e nightly.
-	t.Setenv("NOMAD_E2E_VERBOSE", "1")
 
-	// Wait for the cluster to be ready
+	// Wait for the cluster to be ready.
 	cluster3.Establish(t,
 		cluster3.Leader(),
 		cluster3.LinuxClients(1),
-		cluster3.ShowState(),
 	)
 
 	t.Log("tweaking podman registry auth files ...")
