@@ -63,7 +63,7 @@ export default class TaskGroupRow extends Component {
   countUp() {
     const scaling = this.taskGroup.scaling;
     if (!scaling || scaling.max == null || this.count < scaling.max) {
-      this.incrementProperty('count');
+      this.count++;
       this.scale(this.count);
     }
   }
@@ -72,7 +72,7 @@ export default class TaskGroupRow extends Component {
   countDown() {
     const scaling = this.taskGroup.scaling;
     if (!scaling || scaling.min == null || this.count > scaling.min) {
-      this.decrementProperty('count');
+      this.count--;
       this.scale(this.count);
     }
   }
