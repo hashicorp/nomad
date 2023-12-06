@@ -8,7 +8,7 @@ import Component from '@glimmer/component';
 
 import { inject as service } from '@ember/service';
 import { computed, action } from '@ember/object';
-import { alias, oneWay } from '@ember/object/computed';
+import { alias } from '@ember/object/computed';
 import { debounce } from '@ember/runloop';
 import { lazyClick } from '../helpers/lazy-click';
 
@@ -19,7 +19,7 @@ export default class TaskGroupRow extends Component {
   @alias('args.taskGroup') taskGroup;
   debounce = 500;
 
-  @oneWay('taskGroup.count') count;
+  @alias('taskGroup.count') count;
   @alias('taskGroup.job.runningDeployment') runningDeployment;
 
   @action
