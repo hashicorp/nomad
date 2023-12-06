@@ -1608,6 +1608,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 					GRPCUseTLS:             check.GRPCUseTLS,
 					SuccessBeforePassing:   check.SuccessBeforePassing,
 					FailuresBeforeCritical: check.FailuresBeforeCritical,
+					FailuresBeforeWarning:  check.FailuresBeforeWarning,
 					OnUpdate:               onUpdate,
 				}
 

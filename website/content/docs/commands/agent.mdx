@@ -25,72 +25,84 @@ correctly.
 A subset of the available Nomad agent configuration can optionally be passed in
 via CLI arguments. The `agent` command accepts the following arguments:
 
-- `-alloc-dir=<path>`: Equivalent to the Client [alloc_dir] config
+- `-alloc-dir=<path>`: Equivalent to the Client [alloc_dir][] config
   option.
 
-- `-acl-enabled`: Equivalent to the ACL [enabled] config option.
+- `-acl-enabled`: Equivalent to the ACL [enabled][] config option.
 
-- `-acl-replication-token`: Equivalent to the ACL [replication_token] config
+- `-acl-replication-token`: Equivalent to the ACL [replication_token][] config
   option.
 
-- `-bind=<address>`: Equivalent to the [bind_addr] config option.
+- `-bind=<address>`: Equivalent to the [bind_addr][] config option.
 
 - `-bootstrap-expect=<num>`: Equivalent to the
-  [bootstrap_expect] config option.
+  [bootstrap_expect][] config option.
 
 - `-client`: Enable client mode on the local agent.
 
 - `-config=<path>`: Specifies the path to a configuration file or a directory of
   configuration files to load. Can be specified multiple times.
 
-- `-consul-address=<addr>`: Equivalent to the [address] config option.
+- `-consul-address=<addr>`: Equivalent to the [address][] config option.
 
-- `-consul-auth=<auth>`: Equivalent to the [auth] config option.
+- `-consul-auth=<auth>`: Equivalent to the [auth][] config option.
 
-- `-consul-auto-advertise`: Equivalent to the [auto_advertise] config option.
+- `-consul-auto-advertise`: Equivalent to the [auto_advertise][] config option.
 
-- `-consul-ca-file=<path>`: Equivalent to the [ca_file] config option.
+- `-consul-ca-file=<path>`: Equivalent to the [ca_file][] config option.
 
-- `-consul-cert-file=<path>`: Equivalent to the [cert_file] config option.
+- `-consul-cert-file=<path>`: Equivalent to the [cert_file][] config option.
 
-- `-consul-checks-use-advertise`: Equivalent to the [checks_use_advertise]
+- `-consul-checks-use-advertise`: Equivalent to the [checks_use_advertise][]
   config option.
 
-- `-consul-client-auto-join`: Equivalent to the [client_auto_join] config
+- `-consul-client-auto-join`: Equivalent to the [client_auto_join][] config
   option.
 
-- `-consul-client-service-name=<name>`: Equivalent to the [client_service_name]
+- `-consul-client-service-name=<name>`: Equivalent to the [client_service_name][]
   config option.
 
 - `-consul-client-http-check-name=<name>`: Equivalent to the
-  [client_http_check_name] config option.
+  [client_http_check_name][] config option.
 
-- `-consul-key-file=<path>`: Equivalent to the [key_file] config option.
+- `-consul-client-failures-before-critical=<num>`: Equivalent to the
+  [client_failures_before_critical][] config option.
 
-- `-consul-server-service-name=<name>`: Equivalent to the [server_service_name]
+- `-consul-client-failures-before-warning=<num>`: Equivalent to the
+  [client_failures_before_warning][] config option.
+
+- `-consul-key-file=<path>`: Equivalent to the [key_file][] config option.
+
+- `-consul-server-service-name=<name>`: Equivalent to the [server_service_name][]
   config option.
 
 - `-consul-server-http-check-name=<name>`: Equivalent to the
-  [server_http_check_name] config option.
+  [server_http_check_name][] config option.
 
 - `-consul-server-serf-check-name=<name>`: Equivalent to the
-  [server_serf_check_name] config option.
+  [server_serf_check_name][] config option.
 
 - `-consul-server-rpc-check-name=<name>`: Equivalent to the
-  [server_rpc_check_name] config option.
+  [server_rpc_check_name][] config option.
 
-- `-consul-server-auto-join`: Equivalent to the [server_auto_join] config
+- `-consul-server-auto-join`: Equivalent to the [server_auto_join][] config
   option.
 
-- `-consul-ssl`: Equivalent to the [ssl] config option.
+- `-consul-server-failures-before-critical=<num>`: Equivalent to the
+  [server_failures_before_critical][] config option.
 
-- `-consul-token=<token>`: Equivalent to the [token] config option.
+- `-consul-server-failures-before-warning=<num>`: Equivalent to the
+  [server_failures_before_warning][] config option.
 
-- `-consul-verify-ssl`: Equivalent to the [verify_ssl] config option.
+- `-consul-ssl`: Equivalent to the [ssl][] config option.
 
-- `-data-dir=<path>`: Equivalent to the [data_dir] config option.
+- `-consul-token=<token>`: Equivalent to the [token][] config option.
 
-- `-dc=<datacenter>`: Equivalent to the [datacenter] config option.
+- `-consul-verify-ssl`: Equivalent to the [verify_ssl][] config option.
+
+- `-data-dir=<path>`: Equivalent to the [data_dir][] config option.
+
+- `-dc=<datacenter>`: Equivalent to the [datacenter][] config option.
 
 - `-dev`: Start the agent in development mode. This enables a pre-configured
   dual-role agent (client + server) which is useful for developing or testing
@@ -109,38 +121,38 @@ via CLI arguments. The `agent` command accepts the following arguments:
 - `-dev-vault`: Starts the agent in development mode with a default Vault
   configuration for Nomad workload identity.
 
-- `-encrypt`: Set the Serf encryption key. See the [Encryption Overview] for
+- `-encrypt`: Set the Serf encryption key. See the [Encryption Overview][] for
   more details.
 
 - `-join=<address>`: Address of another agent to join upon starting up. This can
   be specified multiple times to specify multiple agents to join.
 
-- `-log-level=<level>`: Equivalent to the [log_level] config option.
+- `-log-level=<level>`: Equivalent to the [log_level][] config option.
 
-- `-log-include-location`: Equivalent to the [log_include_location] config option.
+- `-log-include-location`: Equivalent to the [log_include_location][] config option.
 
-- `-log-json`: Equivalent to the [log_json] config option.
+- `-log-json`: Equivalent to the [log_json][] config option.
 
-- `-meta=<key=value>`: Equivalent to the Client [meta] config option.
+- `-meta=<key=value>`: Equivalent to the Client [meta][] config option.
 
 - `-network-interface=<interface>`: Equivalent to the Client
-  [network_interface] config option.
+  [network_interface][] config option.
 
-- `-node=<name>`: Equivalent to the [name] config option.
+- `-node=<name>`: Equivalent to the [name][] config option.
 
-- `-node-class=<class>`: Equivalent to the Client [node_class]
+- `-node-class=<class>`: Equivalent to the Client [node_class][]
   config option.
 
-- `-node-pool=<node-pool>`: Equivalent to the Client [node_pool]
+- `-node-pool=<node-pool>`: Equivalent to the Client [node_pool][]
   config option.
 
-- `-plugin-dir=<path>`: Equivalent to the [plugin_dir] config option.
+- `-plugin-dir=<path>`: Equivalent to the [plugin_dir][] config option.
 
-- `-region=<region>`: Equivalent to the [region] config option.
+- `-region=<region>`: Equivalent to the [region][] config option.
 
-- `-rejoin`: Equivalent to the [rejoin_after_leave] config option.
+- `-rejoin`: Equivalent to the [rejoin_after_leave][] config option.
 
-- `-retry-interval`: Equivalent to the [retry_interval] config option.
+- `-retry-interval`: Equivalent to the [retry_interval][] config option.
 
 - `-retry-join`: Similar to `-join` but allows retrying a join if the first
   attempt fails.
@@ -152,14 +164,14 @@ via CLI arguments. The `agent` command accepts the following arguments:
   `retry-join` can be defined as a command line flag only for servers. Clients
   can configure `retry-join` only in configuration files.
 
-- `-retry-max`: Similar to the [retry_max] config option.
+- `-retry-max`: Similar to the [retry_max][] config option.
 
 - `-server`: Enable server mode on the local agent.
 
-- `-servers=<host:port>`: Equivalent to the Client [servers] config
+- `-servers=<host:port>`: Equivalent to the Client [servers][] config
   option.
 
-- `-state-dir=<path>`: Equivalent to the Client [state_dir] config
+- `-state-dir=<path>`: Equivalent to the Client [state_dir][] config
   option.
 
 - `-vault-enabled`: Whether to enable or disabled Vault integration.
@@ -205,6 +217,10 @@ via CLI arguments. The `agent` command accepts the following arguments:
 [checks_use_advertise]: /nomad/docs/configuration/consul#checks_use_advertise
 [client_auto_join]: /nomad/docs/configuration/consul#client_auto_join
 [client_http_check_name]: /nomad/docs/configuration/consul#client_http_check_name
+[client_failures_before_critical]: /nomad/docs/configuration/consul#client_failures_before_critical
+[client_failures_before_warning]: /nomad/docs/configuration/consul#client_failures_before_warning
+[server_failures_before_critical]: /nomad/docs/configuration/consul#server_failures_before_critical
+[server_failures_before_warning]: /nomad/docs/configuration/consul#server_failures_before_warning
 [client_service_name]: /nomad/docs/configuration/consul#client_service_name
 [configuration]: /nomad/docs/configuration
 [data_dir]: /nomad/docs/configuration#data_dir
