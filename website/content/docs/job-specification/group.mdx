@@ -64,7 +64,7 @@ job "docs" {
   node if any of the group allocation statuses become "failed".
 
 - `prevent_reschedule_on_lost` `(bool: false)` - Defines the reschedule behaviour 
-  of an allocation when the node it is running on becomes disconnect or lost. 
+  of an allocation when the node it is running on misses heartbeats. 
   When enabled, if the node it is running on becomes disconnected 
   or goes down, this allocations wont be rescheduled and will show up as `unknown`
   until the node comes back up or it is manually restarted. 
