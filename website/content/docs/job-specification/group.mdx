@@ -81,12 +81,10 @@ job "docs" {
   the node will be transition from `disconnected` to `down`. The allocation 
   will remain as `unknown` and won't be rescheduled.
 
-  To get the job up and running again it has to be manually stopped and run again
-  or [restarted][restart] using the `reschedule` option:
+  The `unknown` allocation has to be manually stopped to run it again.
 
   ```plaintext
-  `nomad job restart -reschedule <job>`
-  ```
+  `nomad alloc stop  <alloc ID>`
 
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
