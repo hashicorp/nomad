@@ -9,7 +9,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/hashicorp/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"

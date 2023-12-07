@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/armon/go-metrics"
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-set"
 
 	policy "github.com/hashicorp/nomad/acl"
