@@ -139,7 +139,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.1.12
 	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.6.1
-	go install github.com/shoenig/go-modtool@v0.1.1
+	go install github.com/shoenig/go-modtool@v0.2.0
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -249,6 +249,7 @@ tidy: ## Tidy up the go mod files
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
 	@echo "==> Tidy nomad module"
+	@go-modtool -config=ci/modtool.toml fmt go.mod
 	@go mod tidy
 
 .PHONY: dev
