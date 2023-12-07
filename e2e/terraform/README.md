@@ -136,6 +136,39 @@ user and will drop you into a Powershell shell instead of bash:
 ssh -i keys/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
 ```
 
+## SSM
+
+You can also access nodes -- including those built in CI,
+where you don't have the SSH keys -- via AWS Session Manager,
+with these prereqs:
+
+- aws cli v2
+  - [aws docs](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+  - [brew](https://formulae.brew.sh/formula/awscli)
+- [session manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
+- aws credentials in your environment
+
+The commands are provided in Terraform Apply output, e.g.:
+
+```sh
+export AWS_REGION=us-east-1
+aws ssm start-session --target i-asdf1234
+```
+
+Servers also include Nomad env vars in `/root/.bashrc`:
+
+```
+local ~ $ aws ssm start-session --target i-asdf1234
+
+Starting session with SessionId: [.....]
+
+$ sudo -i
+root@ip-172-31-90-42:~# nomad status
+No running jobs
+root@ip-172-31-90-42:~# journalctl -u nomad
+[... logs logs logs ...]
+```
+
 ## Teardown
 
 The terraform state file stores all the info.
