@@ -1,0 +1,3 @@
+ReplaceComment    = "Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826."
+SubmodulesComment = "Nomad is built using the current source of the API module."
+WriteFile         = true
