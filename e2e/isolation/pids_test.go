@@ -82,7 +82,7 @@ func testJavaNamespacePID(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/java.hcl",
 		jobs3.WaitComplete("group"),
-		jobs3.Timeout(time.Second*30), // exec prestart can be slow
+		jobs3.Timeout(time.Second*60), // exec prestart + java main
 	)
 	t.Cleanup(cleanup)
 
@@ -94,7 +94,7 @@ func testJavaHostPID(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/java_host.hcl",
 		jobs3.WaitComplete("group"),
-		jobs3.Timeout(time.Second*30), // exec prestart can be slow
+		jobs3.Timeout(time.Second*60), // exec prestart + java main
 	)
 	t.Cleanup(cleanup)
 
@@ -107,7 +107,7 @@ func testJavaHostPID(t *testing.T) {
 func testJavaNamespaceAllocExec(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/alloc_exec_java.hcl",
-		jobs3.Timeout(time.Second*30), // exec prestart can be slow
+		jobs3.Timeout(time.Second*60), // exec prestart + java main
 	)
 	t.Cleanup(cleanup)
 
