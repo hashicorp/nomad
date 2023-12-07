@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"

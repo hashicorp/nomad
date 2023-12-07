@@ -1,7 +1,7 @@
 package nomad
 
 import (
-	"github.com/hashicorp/go-metrics"
+	"github.com/armon/go-metrics"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )

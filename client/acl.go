@@ -3,7 +3,7 @@ package client
 import (
 	"time"
 
-	"github.com/hashicorp/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"

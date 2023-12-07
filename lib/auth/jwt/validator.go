@@ -7,8 +7,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/cap/jwt"
-	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
