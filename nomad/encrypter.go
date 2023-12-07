@@ -116,7 +116,7 @@ func (e *Encrypter) loadKeystore() error {
 			return fmt.Errorf("root key ID %s must match key file %s", key.Meta.KeyID, path)
 		}
 
-		err = e.AddKey(key)
+		err = e.addCipher(key)
 		if err != nil {
 			return fmt.Errorf("could not add key file %s to keystore: %w", path, err)
 		}
@@ -338,15 +338,15 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 }
 
 // GetKey retrieves the key material by ID from the keyring
-func (e *Encrypter) GetKey(keyID string) ([]byte, error) {
+func (e *Encrypter) GetKey(keyID string) ([]byte, []byte, error) {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
 
 	keyset, err := e.keysetByIDLocked(keyID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return keyset.rootKey.Key, nil
+	return keyset.rootKey.Key, keyset.rootKey.RSAKey, nil
 }
 
 // activeKeySetLocked returns the keyset that belongs to the key marked as
@@ -582,7 +582,7 @@ func (krr *KeyringReplicator) run(ctx context.Context) {
 				}
 
 				keyMeta := raw.(*structs.RootKeyMeta)
-				if key, err := krr.encrypter.GetKey(keyMeta.KeyID); err == nil && len(key) > 0 {
+				if key, _, err := krr.encrypter.GetKey(keyMeta.KeyID); err == nil && len(key) > 0 {
 					// the key material is immutable so if we've already got it
 					// we can move on to the next key
 					continue
