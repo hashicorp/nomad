@@ -114,6 +114,6 @@
     @text="Save as .nomad.hcl"
     @color="secondary"
     {{on "click" @fns.onSaveFile}}
-
+    disabled={{not @data.job._newDefinition}}
   />
 </Hds::ButtonSet>
