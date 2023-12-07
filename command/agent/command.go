@@ -293,6 +293,10 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}
 
+	// Read Vault configuration for the default cluster again after all
+	// configuration sources have been merged.
+	defaultVault = config.defaultVault()
+
 	// Check to see if we should read the Vault token from the environment
 	if defaultVault.Token == "" {
 		defaultVault.Token = os.Getenv("VAULT_TOKEN")
