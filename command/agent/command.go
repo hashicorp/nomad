@@ -61,7 +61,6 @@ type Command struct {
 }
 
 func (c *Command) readConfig() *Config {
-	var dev *devModeConfig
 	var configPath []string
 	var servers string
 	var meta []string
@@ -86,8 +85,12 @@ func (c *Command) readConfig() *Config {
 	// Role options
 	var devMode bool
 	var devConnectMode bool
+	var devConsulMode bool
+	var devVaultMode bool
 	flags.BoolVar(&devMode, "dev", false, "")
 	flags.BoolVar(&devConnectMode, "dev-connect", false, "")
+	flags.BoolVar(&devConsulMode, "dev-consul", false, "")
+	flags.BoolVar(&devVaultMode, "dev-vault", false, "")
 	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
 	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
 
@@ -221,14 +224,26 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Load the configuration
-	dev, err := newDevModeConfig(devMode, devConnectMode)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return nil
-	}
 	var config *Config
-	if dev != nil {
-		config = DevConfig(dev)
+
+	devConfig := &devModeConfig{
+		defaultMode: devMode,
+		connectMode: devConnectMode,
+		consulMode:  devConsulMode,
+		vaultMode:   devVaultMode,
+	}
+	if devConfig.enabled() {
+		err := devConfig.validate()
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return nil
+		}
+		err = devConfig.networkConfig()
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return nil
+		}
+		config = DevConfig(devConfig)
 	} else {
 		config = DefaultConfig()
 	}
@@ -1402,8 +1417,18 @@ General Options (clients and servers):
 
   -dev-connect
     Start the agent in development mode, but bind to a public network
-    interface rather than localhost for using Consul Connect. This
+    interface rather than localhost for using Consul Connect. It may be used
+    with -dev-consul to configure default workload identities for Consul. This
     mode is supported only on Linux as root.
+
+  -dev-consul
+    Starts the agent in development mode with a default Consul configuration
+    for Nomad workload identity. It may be used with -dev-connect to configure
+    the agent for Consul Service Mesh.
+
+  -dev-vault
+    Starts the agent in development mode with a default Vault configuration
+    for Nomad workload identity.
 
 Server Options:
 
