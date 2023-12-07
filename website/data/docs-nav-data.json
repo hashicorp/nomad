@@ -2211,6 +2211,10 @@
             "path": "enterprise/license/faq"
           }
         ]
+      },
+      {
+        "title": "Sentinel",
+        "path": "enterprise/sentinel"
       }
     ]
   },
