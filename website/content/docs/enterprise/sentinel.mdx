@@ -1,0 +1,93 @@
+---
+layout: docs
+page_title: Sentinel Policy Reference
+description: >-
+  Learn about Nomad Sentinel Policy Objects
+---
+
+## Sentinel
+
+In Nomad Enterprise, operators can create Sentinel policies for fine-grained
+policy enforcement. Sentinel policies build on top of the ACL system and allow
+operators to define policies such as disallowing jobs to be submitted to
+production on Fridays or only allowing users to run jobs that use pre-authorized
+Docker images. Sentinel policies are defined as code, giving operators
+considerable flexibility to meet compliance requirements.
+
+See the [Nomad Sentinel Tutorial][] for more information about deploying
+Sentinel policies, as well as the documentation for the [`nomad sentinel`
+subcommands][]
+
+### Sentinel Policies
+
+Sentinel policies are specified in the [Sentinel Language][sentinel]. The
+language is designed to be understandable for people who are reading and writing
+policies, while remaining fast to evaluate. There is no limitation on how
+complex policies can be, but they are in the execution path so care should be
+taken to avoid adversely impacting performance.
+
+In each scope, there are different objects made available for introspection,
+such a job being submitted. Policies can inspect these objects to apply
+fine-grained policies.
+
+The following top-level objects are available to policies in the `submit-job`
+scope automatically, without an explicit import.
+
+* `job`: the submitted job. This is a [Sentinel Job
+  Object](#sentinel-job-objects).
+* `existing_job`: the previous version of the job. If `job_exists` is true, this
+  will always be non-nil. This is also a [Sentinel Job
+  Object](#sentinel-job-objects).
+* `job_exists`: a boolean field that indicates that a previous version of the
+  job exists.
+* `nomad_acl_token`: the ACL token the job was submitted with. This is a
+  [Sentinel Nomad ACL Token Object](#sentinel-nomad-acl-token-objects).
+* `namespace`: the namespace the job is in. This is a [Sentinel Nomad Namespace
+  Object](#sentinel-namespace-objects).
+
+Sentinel convention for identifiers is lower case and separated by underscores.
+All fields on an object are accessed by the same name, converted to lower case
+and separating camel case to underscores.
+
+### Sentinel Job Objects
+
+The `job` and `existing_job` objects map to the [JSON job specification][], with
+the fields converted to the Sentinel convention. Here are some examples:
+
+| Job Field                                | Sentinel Accessor                           |
+|------------------------------------------|---------------------------------------------|
+| `job.ID`                                 | `job.id`                                    |
+| `job.AllAtOnce`                          | `job.all_at_once`                           |
+| `job.ParentID`                           | `job.parent_id`                             |
+| `job.TaskGroups`                         | `job.task_groups`                           |
+| `job.TaskGroups[0].EphemeralDisk.SizeMB` | `job.task_groups[0].ephemeral_disk.size_mb` |
+
+
+### Sentinel ACL Token Objects
+
+The `nomad_acl_token` object maps to the [ACL token][], with the fields
+converted to the Sentinel convention. Here are some examples:
+
+| Nomad ACL Token Field         | Sentinel Accessor             |
+|-------------------------------|-------------------------------|
+| `nomad_acl_token.AccessorID`  | `nomad_acl_token.accessor_id` |
+| `nomad_acl_token.Policies[0]` | `nomad_acl_token.policies[0]` |
+
+Note that the `SecretID` field is always redacted to prevent credential leaks.
+
+### Sentinel Namespace Objects
+
+The `namespace` object maps to the [Namespace][], with the fields converted to
+the Sentinel convention. Here are some examples:
+
+| Namespace Field                              | Sentinel Accessor                              |
+|----------------------------------------------|------------------------------------------------|
+| `namespace.Description`                      | `namespace.description`                        |
+| `namespace.NodePoolConfiguration.Allowed[0]` | `namespace.node_pool_configuration.allowed[0]` |
+
+[Nomad Sentinel Tutorial]: /nomad/tutorials/governance-and-policy/sentinel
+[`nomad sentinel` sub-commands]: /nomad/docs/commands/sentinel
+[sentinel]: https://docs.hashicorp.com/sentinel
+[JSON job specification]: /nomad/api-docs/json-jobs
+[ACL token]: https://github.com/hashicorp/nomad/blob/v1.7.0-rc.1/nomad/structs/structs.go#L12991-L13020
+[Namespace]: https://github.com/hashicorp/nomad/blob/v1.7.0-rc.1/nomad/structs/structs.go#L5306-L5338
