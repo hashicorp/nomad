@@ -750,6 +750,10 @@ func TestClient_SaveRestoreState(t *testing.T) {
 		wait.Gap(time.Millisecond*30),
 	))
 
+	// Create a corrupted allocation that will be removed during restore
+	corruptAlloc := mock.Alloc()
+	c1.stateDB.PutAllocation(corruptAlloc)
+
 	t.Log("shutting down client")
 	must.NoError(t, c1.Shutdown()) // note: this saves the client state DB
 
@@ -864,6 +868,9 @@ func TestClient_SaveRestoreState(t *testing.T) {
 						return fmt.Errorf(
 							"alloc %s stopped during shutdown should have updated", a3.ID[:8])
 					}
+
+				case corruptAlloc.ID:
+					return fmt.Errorf("corrupted allocation should not have been restored")
 
 				default:
 					if ar.AllocState().ClientStatus != structs.AllocClientStatusComplete {
