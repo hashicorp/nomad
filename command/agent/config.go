@@ -1177,47 +1177,43 @@ type devModeConfig struct {
 	// mode flags are set at the command line via -dev and -dev-connect
 	defaultMode bool
 	connectMode bool
+	consulMode  bool
+	vaultMode   bool
 
 	bindAddr string
 	iface    string
 }
 
-// newDevModeConfig parses the optional string value of the -dev flag
-func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
-	if !devMode && !connectMode {
-		return nil, nil
-	}
-	mode := &devModeConfig{}
-	mode.defaultMode = devMode
-	if connectMode {
+func (mode *devModeConfig) enabled() bool {
+	return mode.defaultMode || mode.connectMode ||
+		mode.consulMode || mode.vaultMode
+}
+
+func (mode *devModeConfig) validate() error {
+	if mode.connectMode {
 		if runtime.GOOS != "linux" {
 			// strictly speaking -dev-connect only binds to the
 			// non-localhost interface, but given its purpose
 			// is to support a feature with network namespaces
 			// we'll return an error here rather than let the agent
 			// come up and fail unexpectedly to run jobs
-			return nil, fmt.Errorf("-dev-connect is only supported on linux.")
+			return fmt.Errorf("-dev-connect is only supported on linux.")
 		}
 		u, err := users.Current()
 		if err != nil {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"-dev-connect uses network namespaces and is only supported for root: %v", err)
 		}
 		if u.Uid != "0" {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"-dev-connect uses network namespaces and is only supported for root.")
 		}
 		// Ensure Consul is on PATH
 		if _, err := exec.LookPath("consul"); err != nil {
-			return nil, fmt.Errorf("-dev-connect requires a 'consul' binary in Nomad's $PATH")
+			return fmt.Errorf("-dev-connect requires a 'consul' binary in Nomad's $PATH")
 		}
-		mode.connectMode = true
 	}
-	err := mode.networkConfig()
-	if err != nil {
-		return nil, err
-	}
-	return mode, nil
+	return nil
 }
 
 func (mode *devModeConfig) networkConfig() error {
@@ -1289,6 +1285,26 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
+
+	if mode.consulMode {
+		conf.Consuls[0].ServiceIdentity = &config.WorkloadIdentityConfig{
+			Audience: []string{"consul.io"},
+			TTL:      pointer.Of(time.Hour),
+		}
+		conf.Consuls[0].TaskIdentity = &config.WorkloadIdentityConfig{
+			Audience: []string{"consul.io"},
+			TTL:      pointer.Of(time.Hour),
+		}
+	}
+
+	if mode.vaultMode {
+		conf.Vaults[0].Enabled = pointer.Of(true)
+		conf.Vaults[0].Addr = "http://localhost:8200"
+		conf.Vaults[0].DefaultIdentity = &config.WorkloadIdentityConfig{
+			Audience: []string{"vault.io"},
+			TTL:      pointer.Of(time.Hour),
+		}
+	}
 	return conf
 }
 
