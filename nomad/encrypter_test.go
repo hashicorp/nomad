@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
@@ -56,7 +57,7 @@ func TestEncrypter_LoadSave(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	encrypter, err := NewEncrypter(srv, tmpDir)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	algos := []structs.EncryptionAlgorithm{
 		structs.EncryptionAlgorithmAES256GCM,
@@ -65,13 +66,21 @@ func TestEncrypter_LoadSave(t *testing.T) {
 	for _, algo := range algos {
 		t.Run(string(algo), func(t *testing.T) {
 			key, err := structs.NewRootKey(algo)
-			require.NoError(t, err)
-			require.NoError(t, encrypter.saveKeyToStore(key))
+			must.Greater(t, 0, len(key.RSAKey))
+			must.NoError(t, err)
+			must.NoError(t, encrypter.saveKeyToStore(key))
 
+			// startup code path
 			gotKey, err := encrypter.loadKeyFromStore(
 				filepath.Join(tmpDir, key.Meta.KeyID+".nks.json"))
-			require.NoError(t, err)
-			require.NoError(t, encrypter.addCipher(gotKey))
+			must.NoError(t, err)
+			must.NoError(t, encrypter.addCipher(gotKey))
+			must.Greater(t, 0, len(gotKey.RSAKey))
+			must.NoError(t, encrypter.saveKeyToStore(key))
+
+			active, err := encrypter.keysetByIDLocked(key.Meta.KeyID)
+			must.NoError(t, err)
+			must.Greater(t, 0, len(active.rootKey.RSAKey))
 		})
 	}
 }
@@ -122,8 +131,17 @@ func TestEncrypter_Restore(t *testing.T) {
 	var rotateResp structs.KeyringRotateRootKeyResponse
 	for i := 0; i < 4; i++ {
 		err := msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
-		require.NoError(t, err)
+		must.NoError(t, err)
 	}
+
+	// Ensure all rotated keys are correct
+	srv.encrypter.lock.Lock()
+	test.MapLen(t, 5, srv.encrypter.keyring)
+	for _, keyset := range srv.encrypter.keyring {
+		test.Len(t, 32, keyset.rootKey.Key)
+		test.Greater(t, 0, len(keyset.rootKey.RSAKey))
+	}
+	srv.encrypter.lock.Unlock()
 
 	shutdown()
 
@@ -146,6 +164,14 @@ func TestEncrypter_Restore(t *testing.T) {
 		return len(listResp.Keys) == 5 // 4 new + the bootstrap key
 	}, time.Second*5, time.Second, "expected keyring to be restored")
 
+	srv.encrypter.lock.Lock()
+	test.MapLen(t, 5, srv.encrypter.keyring)
+	for _, keyset := range srv.encrypter.keyring {
+		test.Len(t, 32, keyset.rootKey.Key)
+		test.Greater(t, 0, len(keyset.rootKey.RSAKey))
+	}
+	srv.encrypter.lock.Unlock()
+
 	for _, keyMeta := range listResp.Keys {
 
 		getReq := &structs.KeyringGetRootKeyRequest{
@@ -157,10 +183,11 @@ func TestEncrypter_Restore(t *testing.T) {
 		}
 		var getResp structs.KeyringGetRootKeyResponse
 		err := msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		gotKey := getResp.Key
-		require.Len(t, gotKey.Key, 32)
+		must.Len(t, 32, gotKey.Key)
+		test.Greater(t, 0, len(gotKey.RSAKey))
 	}
 }
 
