@@ -19,6 +19,15 @@ automatic failover. In daemon mode, the agent will also register itself with
 Consul as a service, along with health checks that show the agent is alive
 and able to take snapshots.
 
+<Warning>
+
+This snapshot agent only saves a Raft snapshot. Key material for the Nomad
+keyring is stored on disk and must be saved separately. To use a snapshot saved
+by the agent to recover a cluster, you will also need to [restore the keyring][]
+onto at least one server.
+
+</Warning>
+
 If ACLs are enabled, a management token must be supplied in order to perform
 snapshot operations.
 
@@ -155,3 +164,5 @@ Note that despite the AWS references, any S3-compatible endpoint can be specifie
 ### Google Storage Options
 
 - `-google-bucket`: The bucket to use.
+
+[restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backup
