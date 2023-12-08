@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/helper"
