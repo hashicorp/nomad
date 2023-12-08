@@ -640,8 +640,8 @@ multiple templates watching the same path return the same data.
 ```hcl
 template {
   data = <<EOH
-{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
-{{- .Data.certificate -}}
+{{ with pkiCert "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
+{{- .Cert -}}
 {{ end }}
 EOH
   destination   = "${NOMAD_SECRETS_DIR}/certificate.crt"
@@ -650,8 +650,8 @@ EOH
 
 template {
   data = <<EOH
-{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
-{{- .Data.issuing_ca -}}
+{{ with pkiCert "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
+{{- .CA -}}
 {{ end }}
 EOH
   destination   = "${NOMAD_SECRETS_DIR}/ca.crt"
@@ -660,8 +660,8 @@ EOH
 
 template {
   data = <<EOH
-{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
-{{- .Data.private_key -}}
+{{ with pkiCert "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
+{{- .Key -}}
 {{ end }}
 EOH
   destination   = "${NOMAD_SECRETS_DIR}/private_key.key"
@@ -681,10 +681,10 @@ directory.
 ```hcl
 template {
   data = <<EOH
-{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" "format=pem" }}
-{{ .Data.certificate }}
-{{ .Data.issuing_ca }}
-{{ .Data.private_key }}{{ end }}
+{{ with pkiCert "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" "format=pem" }}
+{{ .Cert }}
+{{ .CA }}
+{{ .Key }}{{ end }}
 EOH
   destination   = "${NOMAD_SECRETS_DIR}/bundle.pem"
   change_mode   = "restart"
