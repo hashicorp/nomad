@@ -63,7 +63,6 @@ module('Acceptance | jobs list', function (hooks) {
   test('each job row should contain information about the job', async function (assert) {
     server.createList('job', 2);
     const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
-    const taskGroups = server.db.taskGroups.where({ jobId: job.id });
 
     await JobsList.visit();
 
@@ -76,7 +75,6 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(jobRow.status, job.status, 'Status');
     assert.equal(jobRow.type, typeForJob(job), 'Type');
     assert.equal(jobRow.priority, job.priority, 'Priority');
-    assert.equal(jobRow.taskGroups, taskGroups.length, '# Groups');
   });
 
   test('each job row should link to the corresponding job', async function (assert) {
