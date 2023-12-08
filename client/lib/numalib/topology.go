@@ -152,15 +152,21 @@ func (st *Topology) NodeCores(node hw.NodeID) *idset.Set[hw.CoreID] {
 	return result
 }
 
-func (st *Topology) insert(node hw.NodeID, socket hw.SocketID, core hw.CoreID, grade CoreGrade, max, base hw.KHz) {
-	st.Cores[core] = Core{
-		NodeID:    node,
-		SocketID:  socket,
-		ID:        core,
-		Grade:     grade,
-		MaxSpeed:  max.MHz(),
-		BaseSpeed: base.MHz(),
+func (st *Topology) insert(node hw.NodeID, socket hw.SocketID, core hw.CoreID, grade CoreGrade, max, base hw.KHz) error {
+	if int(core) <= len(st.Cores) {
+		st.Cores[core] = Core{
+			NodeID:    node,
+			SocketID:  socket,
+			ID:        core,
+			Grade:     grade,
+			MaxSpeed:  max.MHz(),
+			BaseSpeed: base.MHz(),
+		}
+	} else {
+		return fmt.Errorf("incorrect core number")
 	}
+
+	return nil
 }
 
 func (st *Topology) String() string {

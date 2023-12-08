@@ -125,7 +125,9 @@ func (*Sysfs) discoverCores(st *Topology) {
 				max, _ := getNumeric[hw.KHz](cpuMaxFile, core)
 				base, _ := getNumeric[hw.KHz](cpuBaseFile, core)
 				siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, core)
-				st.insert(node, socket, core, gradeOf(siblings), max, base)
+				if err := st.insert(node, socket, core, gradeOf(siblings), max, base); err != nil {
+					return err
+				}
 				return nil
 			})
 			return nil
