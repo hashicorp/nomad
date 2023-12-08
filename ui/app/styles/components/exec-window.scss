@@ -156,7 +156,7 @@
   }
 }
 // Media query for small screens
-@media (max-width: 768px) {
+@media ($breakpoint-mobile) {
   .exec-window {
     width: 100vw;
     height: 100vh;
