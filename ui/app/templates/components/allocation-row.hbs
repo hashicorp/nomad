@@ -137,4 +137,6 @@
     @error={{this.statsError}}
   />
 </td>
-<td class="job-actions-cell" />
+{{#if @jobHasActions}}
+  <td class="job-actions-cell" />
+{{/if}}

@@ -496,12 +496,16 @@
             <th>
               Memory
             </th>
+            <th>
+              Actions
+            </th>
           </t.head>
           <t.body as |row|>
             <AllocationRow
               @allocation={{row.model}}
               @context="job"
               @data-test-allocation={{row.model.id}}
+              @jobHasActions={{true}}
             />
           </t.body>
         </ListTable>

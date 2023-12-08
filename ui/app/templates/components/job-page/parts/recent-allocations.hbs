@@ -68,6 +68,7 @@
             @context="job"
             @onClick={{action "gotoAllocation" row.model}}
             @showSubTasks={{this.showSubTasks}}
+            @jobHasActions={{this.job.actions.length}}
             {{keyboard-shortcut
               enumerated=true
               action=(action "gotoAllocation" row.model)

@@ -278,6 +278,7 @@
     $complete: $nomad-green-pale;
     $failed: $danger;
     $lost: $dark;
+    transition: 0.2s;
 
     // Client Statuses
     &.running {
@@ -347,6 +348,7 @@
 
     &.faded {
       opacity: 0.3;
+      transform: scale(0.5);
     }
 
     &.legend-example {

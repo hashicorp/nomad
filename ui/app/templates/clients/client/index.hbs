@@ -576,6 +576,7 @@
                 @context="node"
                 @onClick={{action "gotoAllocation" row.model}}
                 @data-test-allocation={{row.model.id}}
+                @jobHasActions={{true}}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
