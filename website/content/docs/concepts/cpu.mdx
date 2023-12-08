@@ -320,6 +320,12 @@ resources {
 }
 ```
 
+## Virtual CPU Fingerprinting
+
+When running on a virtualized host such as Amazon EC2 Nomad makes use of the
+`dmidecode` tool to detect CPU performance data. Some Linux distributions will
+require installing the `dmidecode` package manually.
+
 [cpuset]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/cpusets.html
 [cpushares]: https://www.redhat.com/sysadmin/cgroups-part-two
 [numa_wiki]: https://en.wikipedia.org/wiki/Non-uniform_memory_access
