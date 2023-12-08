@@ -4,6 +4,8 @@
 package oversubscription
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/e2e/v3/cluster3"
 	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 var (
@@ -51,13 +54,23 @@ func testExec(t *testing.T) {
 	job, jobCleanup := jobs3.Submit(t, "./input/exec.hcl")
 	t.Cleanup(jobCleanup)
 
-	// wait for poststart
-	time.Sleep(10 * time.Second)
+	testFunc := func() error {
+		// job will cat /sys/fs/cgroup/nomad.slice/share.slice/<allocid>.sleep.scope/memory.max
+		// which should be set to the 30 megabyte memory_max value
+		expect := "31457280"
+		logs := job.TaskLogs("group", "cat")
+		if !strings.Contains(logs.Stdout, expect) {
+			return fmt.Errorf("expect '%s' in stdout, got: '%s'", expect, logs.Stdout)
+		}
+		return nil
+	}
 
-	// job will cat /sys/fs/cgroup/nomad.slice/share.slice/<allocid>.sleep.scope/memory.max
-	// which should be set to the 30 megabyte memory_max value
-	logs := job.TaskLogs("group", "cat")
-	must.StrContains(t, logs.Stdout, "31457280")
+	// wait for poststart to run, up to 20 seconds
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(testFunc),
+		wait.Timeout(time.Second*20),
+		wait.Gap(time.Second*2),
+	))
 }
 
 func captureSchedulerConfiguration(t *testing.T) {
