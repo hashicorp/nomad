@@ -6,11 +6,16 @@ description: Learn about Nomad's workload identity feature
 
 # Workload Identity
 
-Every workload running in Nomad is given an identity. When an [allocation][] is
-accepted by the [plan applier][], the leader generates a Workload Identity for
-each task in the allocation. This workload identity is a [JSON Web Token
-(JWT)][] that has been signed by the leader's keyring. The workload identity
-includes the following identity claims:
+Every workload running in Nomad is given a default identity. When an
+[allocation][] is accepted by the [plan applier][], the leader generates a
+Workload Identity for each task in the allocation. This workload identity is a
+[JSON Web Token (JWT)][] that has been signed by the leader's keyring.
+Additional workload identities may be defined in tasks and services using the
+[`identity`][identity-block] block.
+
+## Workload Identity Claims
+
+Nomad workload identity for tasks include the following identity claims.
 
 ```json
 {
@@ -18,6 +23,33 @@ includes the following identity claims:
   "nomad_job_id": "example",
   "nomad_allocation_id": "5c6328f7-48c5-4d03-bada-91ef2e904d0d",
   "nomad_task": "web"
+}
+```
+
+Workload identities for Consul services have a claim with the service name
+instead of the task name.
+
+```json
+{
+  "nomad_namespace": "default",
+  "nomad_job_id": "example",
+  "nomad_allocation_id": "8623ac7a-28ba-20c3-24a6-e615a39bbbf3",
+  "nomad_service": "example-cache-redis"
+}
+```
+
+In Nomad Enterprise <EnterpriseAlert inline />, tasks and services with a
+[`consul`][jobspec_consul] block that defines a
+[`namespace`][jobspec_consul_ns] value, or inside a `group` block that does it,
+have an additional claim called `consul_namespace`.
+
+```json
+{
+  "consul_namespace": "prod",
+  "nomad_namespace": "default",
+  "nomad_job_id": "example",
+  "nomad_allocation_id": "8623ac7a-28ba-20c3-24a6-e615a39bbbf3",
+  "nomad_service": "example-cache-redis"
 }
 ```
 
@@ -105,6 +137,8 @@ It can be convenient to combine workload identity with Nomad's [Task API]
 
 [allocation]: /nomad/docs/concepts/architecture#allocation
 [identity-block]: /nomad/docs/job-specification/identity
+[jobspec_consul]: /nomad/docs/job-specification/consul
+[jobspec_consul_ns]: /nomad/docs/job-specification/consul#namespace
 [plan applier]: /nomad/docs/concepts/scheduling/scheduling
 [JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519
 [Task Access to Variables]: /nomad/docs/concepts/variables#task-access-to-variables

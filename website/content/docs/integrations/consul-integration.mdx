@@ -50,195 +50,433 @@ Consul data, Vault secrets, or just general configurations within a Nomad task.
 For more information on Nomad's template block and how it leverages Consul
 Template, please see the [`template` job specification documentation][].
 
-## Using Nomad Workload Identity with Consul
+## Consul ACL
 
-Starting in Nomad 1.7, Nomad clients will use a task or service's [Workload
-Identity][] to authenticate to Consul and obtain a Consul token specific to the
-service or task. When using Workload Identity you will no longer need to pass in
-a Consul token to submit a job.
+The [Consul ACL][consul_acls] system protects the cluster from unauthorized
+access. When enabled, both Consul and Nomad must be properly configured in
+order for their integrations to work. Nomad agents must be configured with
+their own Consul ACL token, and Consul must be configured to accept workload
+identities from tasks and services running in Nomad.
 
-<Note>
+### Nomad Agents
 
-For Consul Enterprise users that would like to use Consul Namespaces, currently
-the only supported way of namespacing ACL objects is creating auth methods and
-binding rules in the `default` namespace, and roles and policies in the desired
-Consul namespace. The reason for this is simplicity: users wanting complete
-namespacing of all ACL objects would be required to create an auth method and
-binding rule per namespace. In the future we plan on adding such a possibility,
-but currently such a configuration is not supported by Nomad.
-
-</Note>
-
-### Configuring Consul Authentication
-
-Create a configuration file for a Consul [JWT Auth Method][]. The `JWKSURL`
-field should point to all the Nomad servers; you should use a proxy or DNS A
-Record to ensure that requests can go to any server in the cluster. The
-remaining fields are required to match those shown here.
+Nomad agents need access to Consul in order to register themselves in the
+service catalog and discover other Nomad agents via service discovery for
+automatic clustering. Nomad servers also create [configuration
+entries][consul_config_entry] for Consul Service Mesh, so the specific
+permissions vary slightly between Nomad servers and clients.
 
 <Tabs>
-<Tab heading="Consul Community Edition">
-
-```json
-{
-  "JWKSURL": "https://nomad.example.com:4646/.well-known/jwks.json",
-  "JWTSupportedAlgs": ["RS256"],
-  "BoundAudiences": ["consul.io"],
-  "ClaimMappings": {
-    "nomad_namespace": "nomad_namespace",
-    "nomad_job_id": "nomad_job_id",
-    "nomad_task": "nomad_task",
-    "nomad_service": "nomad_service"
-  }
-}
-```
-
-</Tab>
-<Tab heading="Consul Enterprise">
-
-```json
-{
-  "JWKSURL": "https://nomad.example.com:4646/.well-known/jwks.json",
-  "JWTSupportedAlgs": ["RS256"],
-  "BoundAudiences": ["consul.io"],
-  "ClaimMappings": {
-    "consul_namespace": "consul_namespace",
-    "nomad_namespace": "nomad_namespace",
-    "nomad_job_id": "nomad_job_id",
-    "nomad_task": "nomad_task",
-    "nomad_service": "nomad_service"
-  }
-}
-```
-
-</Tab>
-</Tabs>
-
-<Note>
-
-If you're using an https endpoint on Nomad server itself for JWKS, your server
-must be configured with `tls.verify_https_client = false`, because currently
-there is no way to provide Nomad certificates to Consul (or Vault) clients. If
-you want to use mTLS, which is the recommended practice, you need to terminate
-TLS before the requests reach Nomad JWKS endpoint.
-
-</Note>
-
-Using that configuration file, you'll create a Consul Auth Method named
-`nomad-workloads`, which controls:
-
-* Authentication for Service Identity tokens used to register services and
-  configure Consul Connect.
-
-* Access to reading service data and Consul KV for your jobs' `template`
-  blocks.
-
-The auth method will have two binding rules attached: one mapping Nomad
-`service` blocks to Consul services, and one mapping Nomad namespaces or your
-job IDs to Consul Roles.
-
-<Note>
-
-Nomad also supports having separate auth methods for services and tasks, for
-additional flexibility. Consult [`service_auth_method`] and [`task_auth_method`]
-configuration parameters documentation.
-
-</Note>
-
-#### Auth Method and Binding Rules for Services and Templates
-
-Using the configuration file shown above, create a Consul Auth Method to
-support Nomad workloads. Note that you should not set the `-max-token-ttl` flag
-for Consul Auth Methods used for Nomad.
-
-<Tabs>
-<Tab heading="Consul Community Edition">
-
-In Consul Community Edition, you'll always bind to the default Consul namespace.
-
-```shell-session
-$ consul acl auth-method create \
-         -name 'nomad-workloads' \
-         -type jwt \
-         -description 'login method for Nomad workloads' \
-         -format json \
-         -namespace-rule-selector='' \
-         -config "@consul-auth-method-config.json"
-```
-
-</Tab>
-<Tab heading="Consul Enterprise">
-
-In Consul Enterprise, you'll map the auth method to a Consul namespace.
-
-```shell-session
-$ consul acl auth-method create \
-         -name 'nomad-workloads' \
-         -type jwt \
-         -description 'login method for Nomad workloads' \
-         -format json \
-         -namespace-rule-selector='' \
-         -namespace-rule-bind-namespace='${value.nomad_namespace}' \
-         -config "@consul-auth-method-config.json"
-```
-
-</Tab>
-</Tabs>
-
-Create a [Consul Binding Rule][] that maps the Nomad Workload Identity to the
-Consul Service Identity.
-
-```shell-session
-$ consul acl binding-rule create \
-         -method 'nomad-workloads' \
-         -description 'binding rule for Nomad workload identities (WI)' \
-         -bind-type service \
-         -bind-name '${value.nomad_service}' \
-         -selector '"nomad_service" in value'
-```
-
-Next, create a Consul Binding Rule that maps Nomad namespaces to Consul Roles:
-
-```shell-session
-$ consul acl binding-rule create \
-         -method 'nomad-workloads' \
-         -description 'binding rule for Nomad template workload identities (WI)' \
-         -bind-type role \
-         -bind-name 'nomad-${value.nomad_namespace}-tasks' \
-         -selector '"nomad_service" not in value'
-```
-
-#### Role for Templates
-
-For each Nomad namespace that you want to grant access to Consul, create a
-[Consul role][] with a name like `nomad-$nomadNamespace-tasks` to match the
-binding rule you created previously. For example, for the Nomad namespace named
-`prod` you'll create the following Consul role.
-
-```shell-session
-$ consul acl role create \
-       -name "nomad-prod-tasks" \
-       -description "role for Nomad production workloads with templates" \
-       -policy-name "example-policy"
-```
-
-The policy you assign to the role should have sufficient `service:read` and
-`kv:read` permissions. An example policy might look like the following.
+<Tab heading="Nomad Servers">
 
 ```hcl
-key_prefix "" {
+agent_prefix "" {
+  policy = "read"
+}
+
+node_prefix "" {
   policy = "read"
 }
 
 service_prefix "" {
+  policy = "write"
+}
+
+mesh = "write"
+```
+
+</Tab>
+<Tab heading="Nomad Clients">
+
+```hcl
+agent_prefix "" {
   policy = "read"
+}
+
+node_prefix "" {
+  policy = "read"
+}
+
+service_prefix "" {
+  policy = "write"
 }
 ```
 
-The binding rule you created above for Nomad namespaces will map workloads to
-the role with this policy.
+</Tab>
+</Tabs>
 
-## Authenticating Without Workload Identity (Legacy)
+### Nomad Workload Identities
+
+Starting in Nomad 1.7, Nomad clients can use a task or service's [Workload
+Identity][nomad_wid] to authenticate to Consul and obtain an ACL token specific
+to the service or task. When using Nomad workload identities, you no longer
+need to pass in a Consul ACL token to submit a job.
+
+By default, Nomad does not generate workload identities for services, and tasks
+only have a default identity that is used to access Nomad itself. To access
+Consul, jobs must define additional workload identities suitable for Consul
+access.
+
+These additional identities can be defined as an [`identity`][] block inside
+`task` or `service` blocks. When specified inside a `task`, the
+[`identity.name`][] value must follow the pattern `consul_<cluster name>`,
+where `<cluster name>` is the value for [`consul.cluster`][] of the `consul`
+block defined in the task or in the task parent group.
+
+Support for multiple Consul clusters is only available in Nomad Enterprise. For
+Nomad Community Edition the identity name should always be `consul_default`.
+Refer to the [Multiple Consul Clusters](#multiple-consul-clusters) section for
+more information.
+
+<Tabs>
+<Tab heading="Nomad Community Edition" group="ce">
+<CodeBlockConfig highlight="12-15,28-32">
+
+```hcl
+job "httpd" {
+  group "httpd" {
+    network {
+      port "http" {}
+    }
+
+    service {
+      provider = "consul"
+      name     = "httpd"
+      port     = "http"
+
+      identity {
+        aud = ["consul.io"]
+        ttl = "1h"
+      }
+    }
+
+    task "httpd" {
+      driver = "docker"
+
+      config {
+        image   = "busybox:1.36"
+        command = "httpd"
+        args    = ["-f", "-p", "${NOMAD_PORT_http}"]
+        ports   = ["http"]
+      }
+
+      identity {
+        name = "consul_default"
+        aud  = ["consul.io"]
+        ttl  = "1h"
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="Nomad Enterprise" group="ent">
+<CodeBlockConfig highlight="3-5,16-19,32-36">
+
+```hcl
+job "httpd" {
+  group "httpd" {
+    consul {
+      cluster = "prod"
+    }
+
+    network {
+      port "http" {}
+    }
+
+    service {
+      provider = "consul"
+      name     = "httpd"
+      port     = "http"
+
+      identity {
+        aud = ["consul.io"]
+        ttl = "1h"
+      }
+    }
+
+    task "httpd" {
+      driver = "docker"
+
+      config {
+        image   = "busybox:1.36"
+        command = "httpd"
+        args    = ["-f", "-p", "${NOMAD_PORT_http}"]
+        ports   = ["http"]
+      }
+
+      identity {
+        name = "consul_prod"
+        aud  = ["consul.io"]
+        ttl  = "1h"
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+</Tabs>
+
+To avoid having to add these additional identities to every job that needs
+access to Consul, you may configure the Nomad servers to automatically inject
+default identities for services, using the [`consul.service_identity`][]
+Nomad agent configuration, and for tasks, using [`consul.task_identity`][].
+
+These default identities are only injected when not specified in the job. You
+may still defined them directly in the job to overwrite the default Nomad
+server configuration.
+
+#### Configuring Consul Authentication
+
+Consul must be configured to receive, validate, and trust these Nomad workload
+identities. Since they are encoded as [JSON Web Tokens (JWTs)][jwt], this is
+done via a [JWT ACL auth method][consul_jwt_auth_method], which creates an
+endpoint where Nomad workload identities can be exchanged for Consul ACL
+tokens. Refer to Consul's [Auth Methods Overview][consul_auth_methods]
+documentation for more information.
+
+##### Consul Auth Method
+
+The auth method configuration points to Nomad's [JSON Web Key Set (JWKS)
+URL][nomad_jwks_url]. Consul servers call this URL to retrieve the public keys
+Nomad used to sign the workload identities so they can validate their origin
+and confirm that they were created by Nomad.
+
+<CodeBlockConfig highlight="2" filename="auth-method.json">
+
+```json
+{
+  "JWKSURL": "http://nomad.example.com:4646/.well-known/jwks.json",
+  "JWTSupportedAlgs": ["RS256"],
+  "BoundAudiences": ["consul.io"],
+  "ClaimMappings": {
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task",
+    "nomad_service": "nomad_service"
+  }
+}
+```
+
+</CodeBlockConfig>
+
+The `JWKSURL` address must be reachable by all Consul servers and should
+resolve to multiple Nomad agents to avoid a single point of failure. Both Nomad
+servers and clients are able to handle this request.
+
+[![Consul Auth Method][img_consul_auth_method]][img_consul_auth_method]
+
+When Nomad is configured to use mTLS, [`tls.verify_https_client`][] must be set
+to `false` since it is not possible to provide client certificates to the
+Consul auth method. Alternatively, you may expose Nomad's JWKS URL from a proxy
+or load balancer that terminates the TLS connection.
+
+If the Consul servers are not able to reach Nomad's JWKS URL, the public keys
+may be read from Nomad's `/.well-known/jwks.json` and provided to the auth
+method directly using the [`JWTValidationPubKeys`][] parameter. The keys must
+be converted from JWKS to PEM format and **are rotated periodically**, so this
+process must be done continually. The rotation frequency is controlled by the
+[`server.root_key_rotation_threshold`][] configuration of the Nomad servers.
+
+When an allocation that needs access access to Consul starts, the Nomad client
+running it exchanges the Nomad workload identities for Consul from tasks and
+services for Consul ACL tokens.
+
+[![Consul JWT Login][img_consul_wid_acl_token]][img_consul_wid_acl_token]
+
+The auth method also defines the list of authorized audience values, which must
+have at least one match with the values defined in the Nomad workload identity
+[`aud`][] parameter. For security reasons, it is recommended to only define a
+single audience value.
+
+<CodeBlockConfig highlight="4" filename="auth-method.json">
+
+```json
+{
+  "JWKSURL": "http://nomad.example.com:4646/.well-known/jwks.json",
+  "JWTSupportedAlgs": ["RS256"],
+  "BoundAudiences": ["consul.io"],
+  "ClaimMappings": {
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task",
+    "nomad_service": "nomad_service"
+  }
+}
+```
+
+</CodeBlockConfig>
+
+Nomad workload identities have a set of [claims][nomad_wid_claims] that can be
+referenced as dynamic values in Consul ACL configuration. The auth method
+determines which of these claims are made available to the rest of the
+configuration.
+
+<CodeBlockConfig highlight="6-9" filename="auth-method.json">
+
+```json
+{
+  "JWKSURL": "http://nomad.example.com:4646/.well-known/jwks.json",
+  "JWTSupportedAlgs": ["RS256"],
+  "BoundAudiences": ["consul.io"],
+  "ClaimMappings": {
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task",
+    "nomad_service": "nomad_service"
+  }
+}
+```
+
+</CodeBlockConfig>
+
+##### Consul Binding Rules
+
+Consul auth methods use [binding rules][consul_binding_rules] to determine the
+set of policies applied to the generated ACL token. Nomad workload identities
+can be used in Consul for two main purpose: registering services and retrieving
+configuration values from Consul KV using `template` blocks in tasks. Each
+purpose requires tokens with different permissions so Nomad requires two
+binding rules.
+
+The first binding rule associates the Consul ACL token with a [service
+identity][consul_si], allowing the token to register and manage the lifecyle of
+a given service. This binding rule is only applied to Nomad workload identities
+for services because they are the only ones that have a `nomad_service` claim.
+
+```shell-session
+$ consul acl binding-rule create \
+    -method 'nomad-workloads' \
+    -bind-type 'service' \
+    -bind-name '${value.nomad_service}' \
+    -selector '"nomad_service" in value'
+```
+
+The [`-bind-name`][] flag restricts the token to only be able to modify
+services with the same name as the one defined in the Nomad workload identity
+claim. The [`-selector`][] flag ensures this binding rule only applies to
+workload identities for services.
+
+The second binding rule associates the Consul ACL token with an [ACL
+role][consul_acl_role], which is a collection of [ACL
+policies][consul_acl_policy] that define what the token is authorized to do.
+This binding rule is applied to Nomad workload identities for tasks to access
+information from Consul. The exact ACL policy rules will depend on the level of
+access required by the tasks.
+
+```shell-session
+$ consul acl binding-rule create \
+  -method 'nomad-workloads' \
+  -bind-type 'role' \
+  -bind-name 'nomad-tasks-${value.nomad_namespace}' \
+  -selector '"nomad_service" not in value'
+```
+
+The `-bind-name` flag defines which role is used for the token. It may
+reference claim values from the Nomad workload identity to apply different
+roles to different tasks. Similarly to the binding rule for services, the
+`-selector` flag ensures this binding rule only applies to workload identities
+for tasks since they don't have the `nomad_service` claim.
+
+The overall configuration structure is illustrated in the following diagram.
+
+[![Consul Auth Overview][img_consul_auth]][img_consul_auth]
+
+The [`consul.service_auth_method`][] and [`consul.task_auth_method`][]
+configuration define the auth method used by Nomad to retrieve Consul ACL
+tokens for services and tasks.
+
+By default, they follow the structure described above and use a single auth
+method for both, but it is possible to use two different auth methods, provided
+the resulting Consul ACL token from each have the expected service identity and
+role applied.
+
+##### Consul Namespace Rules <EnterpriseAlert inline />
+
+Consul Enterprise supports multiple namespaces and Nomad Enterprise allows jobs
+to use the [`consul.namespace`][] parameter to register services and read KV
+data from different Consul namespaces.
+
+In a multi-namespace environment, the auth method and binding rules should be
+created in the `default` namespace and the auth method configured with a set of
+[`NamespaceRules`][].
+
+Similarly to binding rules, namespace rules have a [`Selector`][] expression to
+determine when the rule should be applied and a [`BindNamespace`][] value that
+defines the namespace used.
+
+In Nomad Enterprise, workload identities for tasks and services placed within
+the scope of a `consul` block that has a `namespace` value, have an additional
+claim, called `consul_namespace`, that represents the Consul namespace used in
+Nomad for the workload.
+
+If a `consul` block is not defined, then the workload identity does not have
+the `consul_namespace` claim, since Nomad is not able to determine which Consul
+namespace should be used.
+
+<CodeBlockConfig highlight="9-11" filename="example.nomad.hcl">
+
+```hcl
+job "example" {
+  group "cache" {
+    network {
+      port "db" {
+        to = 6379
+      }
+    }
+
+    consul {
+      namespace = "prod"
+    }
+
+    service {
+      port     = "db"
+      name     = "redis"
+      provider = "consul"
+    }
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:7"
+        ports = ["db"]
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+
+```shell-session
+$ consul acl auth-method create \
+  -name 'nomad-workloads' \
+  -type 'jwt' \
+  -config '@auth-method.json' \
+  -namespace-rule-selector '"consul_namespace" in value' \
+  -namespace-rule-bind-namespace '${value.consul_namespace}'
+```
+
+Refer to the [Consul Namespaces](#consul-namespaces) section for more
+information.
+
+#### Additional References
+
+The [Consul ACL with Nomad Workload Identities][consul_tutorial_wid] tutorial
+provides guided instructions on how to configure Consul and Nomad for workload
+identities.
+
+The [`nomad setup consul`][nomad_cli_setup_consul] command and the
+[`hashicorp-modules/nomad-setup/consul`][tf_nomad_setup_consul] Terraform
+module can help automate the process of applying configuration to a Consul
+cluster.
+
+### Authenticating Without Workload Identity (Legacy)
 
 If [Consul ACLs][consul_acls] are enabled, the [`allow_unauthenticated`][]
 configuration parameter will control whether a Consul token will be required
@@ -257,15 +495,15 @@ service_prefix "" {
 }
 ```
 
-<Note>
+<Note title="Deprecation Warning">
 
 This legacy workflow will be removed in Nomad 1.9. Before upgrading to Nomad 1.9
 you will need to have configured authentication with Consul as described in
-[Configuring Consul Authentication](#configuring-consul-authentication).
+[Nomad Workload Identities](#nomad-workload-identities).
 
 </Note>
 
-## Migrating to Using Workload Identity with Consul
+### Migrating to Using Workload Identity with Consul
 
 Migrating from the legacy (pre-1.7) workflow where workload use the agent's
 Consul token requires configuation on your Consul cluster and your Nomad server
@@ -318,6 +556,17 @@ following hierarchy from lowest to highest precedence:
   task level Consul [namespace field][consul_jobspec_namespace] is configured,
   this namespace will take precedence over all other options.
 
+## Multiple Consul Clusters <EnterpriseAlert inline />
+
+Nomad Enterprise supports access to multiple Consul clusters. They can be
+configured using multiple [`consul`][nomad_config_consul] blocks with different
+`name` values. If a `name` is not provided, the cluster configuration is called
+`default`. Nomad automatic clustering uses the `default` cluster for service
+discovery.
+
+Jobs that need access to Consul may specify which Consul cluster to use with
+the [`consul.cluster`][] parameter.
+
 ## Assumptions
 
 * Each Nomad client should have a local Consul agent running on the same host,
@@ -365,27 +614,55 @@ Consul, with some exceptions.
 | Nomad 1.4.4-1.4.10  | ✅                     | ❌            | ✅            | ✅             |
 | Nomad 1.4.0-1.4.3   | ✅                     | ❌            | ✅            | ❌             |
 
-
-[Consul]: https://www.consul.io/ "Consul by HashiCorp"
-[Workload Identity]: /nomad/docs/concepts/workload-identity
-[Nomad agent Consul configuration]: /nomad/docs/configuration/consul
 [Automatic Clustering with Consul]: /nomad/tutorials/manage-clusters/clustering
-[service]: /nomad/docs/job-specification/service "Nomad service Job Specification"
-[`template` block]: /nomad/docs/job-specification/template
-[Consul Template]: https://github.com/hashicorp/consul-template
-[`template` job specification documentation]: /nomad/docs/job-specification/template
-[consul_namespaces]: /consul/docs/enterprise/namespaces
-[consul_agent_namespace]: /nomad/docs/configuration/consul#namespace
-[consul_jobspec_namespace]: /nomad/docs/job-specification/consul#namespace
-[consul_run_namespace]: /nomad/docs/commands/job/run#consul-namespace
-[`allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
-[consul_acls]: /consul/docs/security/acl
-[JWT Auth Method]: /consul/docs/security/acl/auth-methods/jwt
-[Consul Binding Rule]: /consul/api-docs/acl/binding-rules
-[Consul role]: /consul/docs/security/acl/acl-roles
-[`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
-[`consul.task_identity`]: /nomad/docs/configuration/consul#task_identity
-[`identity`]: /nomad/docs/job-specification/identity
 [CDP]: /consul/docs/connect/dataplane
+[Consul Template]: https://github.com/hashicorp/consul-template
+[Consul]: https://www.consul.io/ "Consul by HashiCorp"
+[Nomad agent Consul configuration]: /nomad/docs/configuration/consul
+[`-bind-name`]: /consul/commands/acl/binding-rule/create#bind-name
+[`-selector`]: /consul/commands/acl/binding-rule/create#selector
+[`BindNamespace`]: /consul/api-docs/acl/auth-methods#bindnamespace
+[`JWTValidationPubKeys`]: /consul/docs/security/acl/auth-methods/jwt#jwtvalidationpubkeys
+[`NamespaceRules`]: /consul/api-docs/acl/auth-methods#namespacerules
+[`Selector`]: /consul/api-docs/acl/auth-methods#selector
+[`allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
+[`aud`]: /nomad/docs/job-specification/identity#aud
+[`consul.cluster`]: /nomad/docs/job-specification/consul#cluster
+[`consul.namespace`]: /nomad/docs/job-specification/consul#namespace
+[`consul.service_auth_method`]: /nomad/docs/configuration/consul#service_auth_method
+[`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
+[`consul.task_auth_method`]: /nomad/docs/configuration/consul#task_auth_method
+[`consul.task_identity`]: /nomad/docs/configuration/consul#task_identity
+[`identity.name`]: /nomad/docs/job-specification/identity#name
+[`identity`]: /nomad/docs/job-specification/identity
+[`server.root_key_rotation_threshold`]: /nomad/docs/configuration/server#root_key_rotation_threshold
 [`service_auth_method`]: /nomad/docs/configuration/consul#service_auth_method
 [`task_auth_method`]: /nomad/docs/configuration/consul#task_auth_method
+[`template` block]: /nomad/docs/job-specification/template
+[`template` job specification documentation]: /nomad/docs/job-specification/template
+[`tls.verify_https_client`]: /nomad/docs/configuration/tls#verify_https_client
+[consul_acl_policy]: /consul/docs/security/acl/acl-policies
+[consul_acl_role]: /consul/docs/security/acl/acl-roles
+[consul_acls]: /consul/docs/security/acl
+[consul_agent_namespace]: /nomad/docs/configuration/consul#namespace
+[consul_auth_methods]: /consul/docs/security/acl/auth-methods
+[consul_binding_rules]: /consul/api-docs/acl/binding-rules
+[consul_config_entry]: /consul/docs/connect/config-entries
+[consul_jobspec_namespace]: /nomad/docs/job-specification/consul#namespace
+[consul_jwt_auth_method]: /consul/docs/security/acl/auth-methods/jwt
+[consul_namespaces]: /consul/docs/enterprise/namespaces
+[consul_run_namespace]: /nomad/docs/commands/job/run#consul-namespace
+[consul_si]: /consul/docs/security/acl/acl-roles#service-identities
+[consul_tutorial_wid]: /nomad/tutorials/integrate-consul/consul-acl
+[img_consul_auth]: /img/consul-integration-wi.png
+[img_consul_auth_method]: /img/consul-integration-auth-method.png
+[img_consul_wid_acl_token]: /img/consul-integration-wid-acl-token.png
+[jwt]: https://jwt.io/
+[nomad_cli_setup_consul]: /nomad/docs/commands/setup/consul
+[nomad_config_consul]: /nomad/docs/configuration/consul
+[nomad_config_consul_name]: /nomad/docs/configuration/consul#name
+[nomad_jwks_url]: /nomad/api-docs/operator/keyring#list-active-public-keys
+[nomad_wid]: /nomad/docs/concepts/workload-identity
+[nomad_wid_claims]: /nomad/docs/concepts/workload-identity#workload-identity-claims
+[service]: /nomad/docs/job-specification/service "Nomad service Job Specification"
+[tf_nomad_setup_consul]: https://registry.terraform.io/modules/hashicorp-modules/nomad-setup/consul/
