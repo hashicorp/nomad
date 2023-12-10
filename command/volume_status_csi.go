@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
 )
 
@@ -187,11 +188,12 @@ func (c *VolumeStatusCommand) csiFormatVolumes(vols []*api.CSIVolumeListStub) (s
 // Format the volumes, assumes that we're already sorted by volume ID
 func csiFormatSortedVolumes(vols []*api.CSIVolumeListStub) (string, error) {
 	rows := make([]string, len(vols)+1)
-	rows[0] = "ID|Name|Plugin ID|Schedulable|Access Mode"
+	rows[0] = "ID|Name|Namespace|Plugin ID|Schedulable|Access Mode"
 	for i, v := range vols {
-		rows[i+1] = fmt.Sprintf("%s|%s|%s|%t|%s",
+		rows[i+1] = fmt.Sprintf("%s|%s|%s|%s|%t|%s",
 			v.ID,
 			v.Name,
+			v.Namespace,
 			v.PluginID,
 			v.Schedulable,
 			v.AccessMode,
@@ -212,10 +214,12 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
 	output := []string{
 		fmt.Sprintf("ID|%s", vol.ID),
 		fmt.Sprintf("Name|%s", vol.Name),
+		fmt.Sprintf("Namespace|%s", vol.Namespace),
 		fmt.Sprintf("External ID|%s", vol.ExternalID),
 		fmt.Sprintf("Plugin ID|%s", vol.PluginID),
 		fmt.Sprintf("Provider|%s", vol.Provider),
 		fmt.Sprintf("Version|%s", vol.ProviderVersion),
+		fmt.Sprintf("Capacity|%s", humanize.IBytes(uint64(vol.Capacity))),
 		fmt.Sprintf("Schedulable|%t", vol.Schedulable),
 		fmt.Sprintf("Controllers Healthy|%d", vol.ControllersHealthy),
 		fmt.Sprintf("Controllers Expected|%d", vol.ControllersExpected),

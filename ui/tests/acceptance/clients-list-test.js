@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 /* eslint-disable qunit/require-expect */
@@ -77,7 +77,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(nodeRow.nodePool, node.nodePool, 'Node Pool');
     assert.equal(
       nodeRow.compositeStatus.text,
-      'draining',
+      'Draining',
       'Combined status, draining, and eligbility'
     );
     assert.equal(nodeRow.address, node.httpAddr);
@@ -111,7 +111,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(
       nodeRow.compositeStatus.text,
-      'ready',
+      'Ready',
       'Combined status, draining, and eligbility'
     );
     assert.equal(nodeRow.allocations, running.length, '# Allocations');
@@ -156,38 +156,28 @@ module('Acceptance | clients list', function (hooks) {
     });
 
     await ClientsList.visit();
-
     ClientsList.nodes[0].compositeStatus.as((readyClient) => {
-      assert.equal(readyClient.text, 'ready');
-      assert.ok(readyClient.isUnformatted, 'expected no status class');
+      assert.equal(readyClient.text, 'Ready');
+      console.log('readyClient', readyClient.text);
       assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
     });
 
-    assert.equal(ClientsList.nodes[1].compositeStatus.text, 'initializing');
-    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down');
+    assert.equal(ClientsList.nodes[1].compositeStatus.text, 'Initializing');
+    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'Down');
     assert.equal(
       ClientsList.nodes[2].compositeStatus.text,
-      'down',
+      'Down',
       'down takes priority over ineligible'
     );
+    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'Ineligible');
 
-    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'ineligible');
-    assert.ok(
-      ClientsList.nodes[4].compositeStatus.isWarning,
-      'expected warning class'
-    );
-
-    assert.equal(ClientsList.nodes[5].compositeStatus.text, 'draining');
-    assert.ok(
-      ClientsList.nodes[5].compositeStatus.isInfo,
-      'expected info class'
-    );
+    assert.equal(ClientsList.nodes[5].compositeStatus.text, 'Draining');
 
     await ClientsList.sortBy('compositeStatus');
 
     assert.deepEqual(
       ClientsList.nodes.map((n) => n.compositeStatus.text),
-      ['ready', 'initializing', 'ineligible', 'draining', 'down', 'down']
+      ['Ready', 'Initializing', 'Ineligible', 'Draining', 'Down', 'Down']
     );
 
     // Simulate a client state change arriving through polling
@@ -201,7 +191,7 @@ module('Acceptance | clients list', function (hooks) {
 
     assert.deepEqual(
       ClientsList.nodes.map((n) => n.compositeStatus.text),
-      ['initializing', 'ineligible', 'ineligible', 'draining', 'down', 'down']
+      ['Initializing', 'Ineligible', 'Ineligible', 'Draining', 'Down', 'Down']
     );
   });
 

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
@@ -466,7 +466,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.queuedAllocs[p.placeTaskGroup.Name] += 1
 		destructive = append(destructive, p)
 	}
-	return s.computePlacements(destructive, place)
+	return s.computePlacements(destructive, place, results.taskGroupAllocNameIndexes)
 }
 
 // downgradedJobForPlacement returns the job appropriate for non-canary placement replacement
@@ -508,7 +508,8 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 
 // computePlacements computes placements for allocations. It is given the set of
 // destructive updates to place and the set of new placements to place.
-func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
+func (s *GenericScheduler) computePlacements(destructive, place []placementResult, nameIndex map[string]*allocNameIndex) error {
+
 	// Get the base nodes
 	nodes, byDC, err := s.setNodes(s.job)
 	if err != nil {
@@ -530,6 +531,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 		for _, missing := range results {
 			// Get the task group
 			tg := missing.TaskGroup()
+
+			// This is populated from the reconciler via the compute results,
+			// therefore we cannot have an allocation belonging to a task group
+			// that has not generated and been through allocation name index
+			// tracking.
+			taskGroupNameIndex := nameIndex[tg.Name]
 
 			var downgradedJob *structs.Job
 
@@ -628,12 +635,34 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					resources.Shared.Ports = option.AllocResources.Ports
 				}
 
+				// Pull the allocation name as a new variables, so we can alter
+				// this as needed without making changes to the original
+				// object.
+				newAllocName := missing.Name()
+
+				// Identify the index from the name, so we can check this
+				// against the allocation name index tracking for duplicates.
+				allocIndex := structs.AllocIndexFromName(newAllocName, s.job.ID, tg.Name)
+
+				// If the allocation index is a duplicate, we cannot simply
+				// create a new allocation with the same name. We need to
+				// generate a new index and use this. The log message is useful
+				// for debugging and development, but could be removed in a
+				// future version of Nomad.
+				if taskGroupNameIndex.IsDuplicate(allocIndex) {
+					oldAllocName := newAllocName
+					newAllocName = taskGroupNameIndex.Next(1)[0]
+					taskGroupNameIndex.UnsetIndex(allocIndex)
+					s.logger.Debug("duplicate alloc index found and changed",
+						"old_alloc_name", oldAllocName, "new_alloc_name", newAllocName)
+				}
+
 				// Create an allocation for this
 				alloc := &structs.Allocation{
 					ID:                 uuid.Generate(),
 					Namespace:          s.job.Namespace,
 					EvalID:             s.eval.ID,
-					Name:               missing.Name(),
+					Name:               newAllocName,
 					JobID:              s.job.ID,
 					TaskGroup:          tg.Name,
 					Metrics:            s.ctx.Metrics(),

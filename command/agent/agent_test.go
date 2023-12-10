@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -12,10 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -24,6 +20,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAgent_RPC_Ping(t *testing.T) {
@@ -745,19 +744,6 @@ func TestAgent_ClientConfig_JobMaxSourceSize(t *testing.T) {
 	must.Eq(t, 1e6, serverConf.JobMaxSourceSize)
 }
 
-func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
-	ci.Parallel(t)
-	conf := DefaultConfig()
-	conf.Client.Enabled = true
-	conf.Client.ReserveableCores = "0-7"
-	conf.Client.Reserved.Cores = "0,2-3"
-	a := &Agent{config: conf}
-	c, err := a.clientConfig()
-	must.NoError(t, err)
-	must.Eq(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
-	must.Eq(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
-}
-
 // Clients should inherit telemetry configuration
 func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	ci.Parallel(t)
@@ -788,9 +774,10 @@ func TestAgent_HTTPCheck(t *testing.T) {
 			config: &Config{
 				AdvertiseAddrs:  &AdvertiseAddrs{HTTP: "advertise:4646"},
 				normalizedAddrs: &NormalizedAddrs{HTTP: []string{"normalized:4646"}},
-				Consul: &config.ConsulConfig{
+				Consuls: []*config.ConsulConfig{{
+					Name:               "default",
 					ChecksUseAdvertise: pointer.Of(false),
-				},
+				}},
 				TLSConfig: &config.TLSConfig{EnableHTTP: false},
 			},
 		}
@@ -818,7 +805,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 
 	t.Run("Plain HTTP + ChecksUseAdvertise", func(t *testing.T) {
 		a := agent()
-		a.config.Consul.ChecksUseAdvertise = pointer.Of(true)
+		a.config.Consuls[0].ChecksUseAdvertise = pointer.Of(true)
 		check := a.agentHTTPCheck(false)
 		if check == nil {
 			t.Fatalf("expected non-nil check")
@@ -1091,8 +1078,6 @@ func Test_GetConfig(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &config.VaultConfig{},
-		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
 	}
 
@@ -1207,7 +1192,8 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
 		c.Server.NumSchedulers = pointer.Of(0)
-		c.Vault = &config.VaultConfig{
+		c.Vaults[0] = &config.VaultConfig{
+			Name:      "default",
 			Enabled:   pointer.Of(true),
 			Token:     "vault-token",
 			Namespace: "vault-namespace",
@@ -1217,7 +1203,8 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 	defer agent.Shutdown()
 
 	newConfig := agent.GetConfig().Copy()
-	newConfig.Vault = &config.VaultConfig{
+	newConfig.Vaults[0] = &config.VaultConfig{
+		Name:      "default",
 		Enabled:   pointer.Of(true),
 		Token:     "vault-token",
 		Namespace: "another-namespace",

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package client
 
@@ -40,12 +40,11 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	aclObj, err := a.c.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+	} else if !aclObj.AllowAgentWrite() {
 		return structs.ErrPermissionDenied
 	}
 
-	// If ACLs are disabled, EnableDebug must be enabled
-	if aclObj == nil && !a.c.GetConfig().EnableDebug {
+	if !aclObj.AllowAgentDebug(a.c.GetConfig().EnableDebug) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -100,7 +99,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		handleStreamResultError(err, pointer.Of(int64(403)), encoder)
 		return
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+	} else if !aclObj.AllowAgentRead() {
 		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
 		return
 	}
@@ -119,8 +118,9 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	defer cancel()
 
 	monitor := monitor.New(512, a.c.logger, &log.LoggerOptions{
-		JSONFormat: args.LogJSON,
-		Level:      logLevel,
+		JSONFormat:      args.LogJSON,
+		Level:           logLevel,
+		IncludeLocation: args.LogIncludeLocation,
 	})
 
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
@@ -220,8 +220,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	if err != nil {
 		return err
 	}
-	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
-		(aclObj == nil && !a.c.GetConfig().EnableDebug) {
+	if !aclObj.AllowAgentRead() && !a.c.GetConfig().EnableDebug {
 		return structs.ErrPermissionDenied
 	}
 

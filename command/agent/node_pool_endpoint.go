@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -13,9 +13,9 @@ import (
 
 func (s *HTTPServer) NodePoolsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.nodePoolList(resp, req)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.nodePoolUpsert(resp, req, "")
 	default:
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
@@ -38,11 +38,11 @@ func (s *HTTPServer) NodePoolSpecificRequest(resp http.ResponseWriter, req *http
 
 func (s *HTTPServer) nodePoolCRUD(resp http.ResponseWriter, req *http.Request, poolName string) (any, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.nodePoolQuery(resp, req, poolName)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.nodePoolUpsert(resp, req, poolName)
-	case "DELETE":
+	case http.MethodDelete:
 		return s.nodePoolDelete(resp, req, poolName)
 	default:
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)

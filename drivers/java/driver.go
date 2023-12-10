@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package java
 
@@ -12,11 +12,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/drivers/shared/capabilities"
-
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
@@ -332,17 +331,9 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			return fp
 		}
 
-		mount, err := cgutil.FindCgroupMountpointDir()
-		if err != nil {
+		if cgroupslib.GetMode() == cgroupslib.OFF {
 			fp.Health = drivers.HealthStateUnhealthy
 			fp.HealthDescription = drivers.NoCgroupMountMessage
-			d.logger.Warn(fp.HealthDescription, "error", err)
-			return fp
-		}
-
-		if mount == "" {
-			fp.Health = drivers.HealthStateUnhealthy
-			fp.HealthDescription = drivers.CgroupMountEmpty
 			return fp
 		}
 	}
@@ -402,8 +393,12 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
 	}
 
-	execImpl, pluginClient, err := executor.ReattachToExecutor(plugRC,
-		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
+	execImpl, pluginClient, err := executor.ReattachToExecutor(
+		plugRC,
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
+		d.nomadConfig.Topology.Compute(),
+	)
+
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to reattach to executor: %v", err)
@@ -461,6 +456,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		LogFile:     pluginLogFile,
 		LogLevel:    "debug",
 		FSIsolation: driverCapabilities.FSIsolation == drivers.FSIsolationChroot,
+		Compute:     d.nomadConfig.Topology.Compute(),
 	}
 
 	exec, pluginClient, err := executor.CreateExecutor(

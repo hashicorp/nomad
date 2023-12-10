@@ -92,6 +92,11 @@ the outcome by searching for the updated Node's metadata:
 $ nomad node status -filter 'Meta.example == "Hello World!"'
 ```
 
+## Limitations
+
+- Using the Task API Unix Domain Socket on Windows [requires][windows] Windows
+build 17063 or later.
+
 [acl]: /nomad/docs/concepts/acl
 [acl-tokens]: /nomad/docs/concepts/acl#token
 [alloc-exec]: /nomad/docs/commands/alloc/exec
@@ -100,3 +105,5 @@ $ nomad node status -filter 'Meta.example == "Hello World!"'
 [mTLS]: /nomad/tutorials/transport-security/security-enable-tls
 [task-user]: /nomad/docs/job-specification/task#user
 [workload-id]: /nomad/docs/concepts/workload-identity
+[windows]: https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
+[dnm]: /nomad/api-docs/client#update-node-metadata

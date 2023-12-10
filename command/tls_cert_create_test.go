@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -10,13 +10,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	type testcase struct {
 		args      []string
@@ -44,7 +45,7 @@ func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
 	for name, tc := range cases {
 		tc := tc
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 			ui := cli.NewMockUi()
 			cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
 			require.NotEqual(t, 0, cmd.Run(tc.args))

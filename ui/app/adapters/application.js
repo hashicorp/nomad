@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { inject as service } from '@ember/service';
@@ -44,7 +44,9 @@ export default class ApplicationAdapter extends RESTAdapter {
     return super.findAll(...arguments).catch((error) => {
       const errorCodes = codesForError(error);
 
-      const isNotImplemented = errorCodes.includes('501');
+      const isNotImplemented =
+        errorCodes.includes('501') ||
+        error.message.includes("rpc: can't find service");
 
       if (isNotImplemented) {
         return [];

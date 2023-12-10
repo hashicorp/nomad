@@ -1,13 +1,13 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package config
 
 import (
+	"slices"
 	"time"
 
 	"github.com/hashicorp/nomad/helper/pointer"
-	"golang.org/x/exp/slices"
 )
 
 // AuditConfig is the configuration specific to Audit Logging

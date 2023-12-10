@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nodedrain
 
@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -231,12 +231,18 @@ func testKillTimeout(t *testing.T) {
 	must.Len(t, 1, newAllocs, must.Sprint("expected 1 new alloc"))
 
 	must.Wait(t, wait.InitialSuccess(
-		wait.BoolFunc(func() bool {
+		wait.ErrorFunc(func() error {
 			node, _, err := nomadClient.Nodes().Info(oldNodeID, nil)
-			must.NoError(t, err)
-			return node.DrainStrategy == nil
+			if err != nil {
+				return err
+			}
+			if node.DrainStrategy != nil {
+				return fmt.Errorf("node '%s' DrainStrategy should be nil, got: %+v",
+					oldNodeID, node.DrainStrategy)
+			}
+			return nil
 		}),
-		wait.Timeout(time.Second*5),
+		wait.Timeout(time.Second*10),
 		wait.Gap(500*time.Millisecond),
 	))
 }

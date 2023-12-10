@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package consul
 
@@ -23,10 +23,11 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger log.Logger, client Age
 
 	defer close(done)
 
-	i := uint64(0)
-
 	timer, stop := helper.NewSafeTimer(limit)
 	defer stop()
+
+	var attempts uint64
+	var backoff time.Duration
 
 	for {
 		self, err := client.Self()
@@ -40,13 +41,8 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger log.Logger, client Age
 			return
 		}
 
-		backoff := (1 << (2 * i)) * baseline
-		if backoff > limit {
-			backoff = limit
-		} else {
-			i++
-		}
-
+		backoff = helper.Backoff(baseline, limit, attempts)
+		attempts++
 		timer.Reset(backoff)
 
 		select {

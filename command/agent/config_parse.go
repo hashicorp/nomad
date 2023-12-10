@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -9,12 +9,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/hcl/hcl/ast"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/mitchellh/mapstructure"
 )
 
 // ParseConfigFile returns an agent.Config from parsed from a file.
@@ -53,15 +57,39 @@ func ParseConfigFile(path string) (*Config, error) {
 		},
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
-		Consul:    &config.ConsulConfig{},
+		Consuls:   []*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
-		Vault:     &config.VaultConfig{},
+		Vaults:    []*config.VaultConfig{},
+		Reporting: config.DefaultReporting(),
 	}
 
 	err = hcl.Decode(c, buf.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode HCL file %s: %w", path, err)
+	}
+
+	// Re-parse the file to extract the multiple Vault configurations, which we
+	// need to parse by hand because we don't have a label on the block
+	root, err := hcl.Parse(buf.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HCL file %s: %w", path, err)
+	}
+	list, ok := root.Node.(*ast.ObjectList)
+	if !ok {
+		return nil, fmt.Errorf("error parsing: root should be an object")
+	}
+	matches := list.Filter("vault")
+	if len(matches.Items) > 0 {
+		if err := parseVaults(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'vault': %w", err)
+		}
+	}
+	matches = list.Filter("consul")
+	if len(matches.Items) > 0 {
+		if err := parseConsuls(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'consul': %w", err)
+		}
 	}
 
 	// convert strings to time.Durations
@@ -79,7 +107,6 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"server.plan_rejection_tracker.node_window", &c.Server.PlanRejectionTracker.NodeWindow, &c.Server.PlanRejectionTracker.NodeWindowHCL, nil},
 		{"server.retry_interval", &c.Server.RetryInterval, &c.Server.RetryIntervalHCL, nil},
 		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL, nil},
-		{"consul.timeout", &c.Consul.Timeout, &c.Consul.TimeoutHCL, nil},
 		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL, nil},
 		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL, nil},
 		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval, nil},
@@ -142,6 +169,46 @@ func ParseConfigFile(path string) (*Config, error) {
 				c.Client.TemplateConfig.NomadRetry.MaxBackoff = d
 			},
 		},
+	}
+
+	// Parse durations for Consul and Vault config blocks if provided.
+	for _, consulConfig := range c.Consuls {
+		// Capture consulConfig inside the loop so the parse duration function
+		// modifies the right configuration.
+		consulConfig := consulConfig
+
+		if consulConfig.ServiceIdentity != nil {
+			tds = append(tds, durationConversionMap{
+				"consul.service_identity.ttl", nil, &consulConfig.ServiceIdentity.TTLHCL,
+				func(d *time.Duration) {
+					consulConfig.ServiceIdentity.TTL = d
+				},
+			})
+		}
+
+		if consulConfig.TaskIdentity != nil {
+			tds = append(tds, durationConversionMap{
+				"consul.task_identity.ttl", nil, &consulConfig.TaskIdentity.TTLHCL,
+				func(d *time.Duration) {
+					consulConfig.TaskIdentity.TTL = d
+				},
+			})
+		}
+	}
+
+	for _, vaultConfig := range c.Vaults {
+		// Capture vaultConfig inside the loop so the parse duration function
+		// modifies the right configuration.
+		vaultConfig := vaultConfig
+
+		if vaultConfig.DefaultIdentity != nil {
+			tds = append(tds, durationConversionMap{
+				"vaults.default_identity.ttl", nil, &vaultConfig.DefaultIdentity.TTLHCL,
+				func(d *time.Duration) {
+					vaultConfig.DefaultIdentity.TTL = d
+				},
+			})
+		}
 	}
 
 	// Add enterprise audit sinks for time.Duration parsing
@@ -261,6 +328,18 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
 	}
 
+	// Remove reporting extra keys
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "license" })
+
+	// The`vault` and `consul` blocks are parsed separately from the Decode method, so it
+	// will incorrectly report them as extra keys, of which there may be multiple
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "vault" })
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "consul" })
+
+	if len(c.ExtraKeysHCL) == 0 {
+		c.ExtraKeysHCL = nil
+	}
+
 	return helper.UnusedKeys(c)
 }
 
@@ -292,4 +371,152 @@ func finalizeClientTemplateConfig(config *Config) {
 	if config.Client.TemplateConfig.IsEmpty() {
 		config.Client.TemplateConfig = nil
 	}
+}
+
+// parseVaults decodes the `vault` blocks. The hcl.Decode method can't parse
+// these correctly as HCL1 because they don't have labels, which would result in
+// all the blocks getting merged regardless of name.
+func parseVaults(c *Config, list *ast.ObjectList) error {
+	if len(list.Items) == 0 {
+		return nil
+	}
+
+	for _, obj := range list.Items {
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+			return err
+		}
+
+		delete(m, "default_identity")
+
+		v := &config.VaultConfig{}
+		err := mapstructure.WeakDecode(m, v)
+		if err != nil {
+			return err
+		}
+		if v.Name == "" {
+			v.Name = structs.VaultDefaultCluster
+		}
+
+		var vaultFound bool
+		for i, exist := range c.Vaults {
+			if exist.Name == v.Name {
+				c.Vaults[i] = exist.Merge(v)
+				vaultFound = true
+				break
+			}
+		}
+		if !vaultFound {
+			c.Vaults = append(c.Vaults, v)
+		}
+
+		// Decode the default identity.
+		var listVal *ast.ObjectList
+		if ot, ok := obj.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("should be an object")
+		}
+
+		if o := listVal.Filter("default_identity"); len(o.Items) > 0 {
+			var m map[string]interface{}
+			defaultIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, defaultIdentityBlock.Val); err != nil {
+				return err
+			}
+
+			var defaultIdentity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &defaultIdentity); err != nil {
+				return err
+			}
+			v.DefaultIdentity = &defaultIdentity
+		}
+	}
+
+	return nil
+}
+
+// parseConsuls decodes the `consul` blocks. The hcl.Decode method can't parse
+// these correctly as HCL1 because they don't have labels, which would result in
+// all the blocks getting merged regardless of name.
+func parseConsuls(c *Config, list *ast.ObjectList) error {
+	if len(list.Items) == 0 {
+		return nil
+	}
+
+	for _, obj := range list.Items {
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+			return err
+		}
+
+		delete(m, "service_identity")
+		delete(m, "task_identity")
+
+		cc := &config.ConsulConfig{}
+		err := mapstructure.WeakDecode(m, cc)
+		if err != nil {
+			return err
+		}
+		if cc.Name == "" {
+			cc.Name = structs.ConsulDefaultCluster
+		}
+		if cc.TimeoutHCL != "" {
+			d, err := time.ParseDuration(cc.TimeoutHCL)
+			if err != nil {
+				return err
+			}
+			cc.Timeout = d
+		}
+
+		var consulFound bool
+		for i, exist := range c.Consuls {
+			if exist.Name == cc.Name {
+				c.Consuls[i] = exist.Merge(cc)
+				consulFound = true
+				break
+			}
+		}
+		if !consulFound {
+			c.Consuls = append(c.Consuls, cc)
+		}
+
+		// decode service and template identity blocks
+		var listVal *ast.ObjectList
+		if ot, ok := obj.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("should be an object")
+		}
+
+		if o := listVal.Filter("service_identity"); len(o.Items) > 0 {
+			var m map[string]interface{}
+			serviceIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, serviceIdentityBlock.Val); err != nil {
+				return err
+			}
+
+			var serviceIdentity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &serviceIdentity); err != nil {
+				return err
+			}
+			cc.ServiceIdentity = &serviceIdentity
+		}
+
+		if o := listVal.Filter("task_identity"); len(o.Items) > 0 {
+			var m map[string]interface{}
+			taskIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, taskIdentityBlock.Val); err != nil {
+				return err
+			}
+
+			var taskIdentity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &taskIdentity); err != nil {
+				return err
+			}
+			cc.TaskIdentity = &taskIdentity
+		}
+	}
+
+	return nil
 }

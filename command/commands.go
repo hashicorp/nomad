@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -235,6 +235,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"action": func() (cli.Command, error) {
+			return &ActionCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc": func() (cli.Command, error) {
 			return &AllocCommand{
 				Meta: meta,
@@ -410,6 +415,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"job": func() (cli.Command, error) {
 			return &JobCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job action": func() (cli.Command, error) {
+			return &JobActionCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -749,6 +759,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator raft transfer-leadership": func() (cli.Command, error) {
+			return &OperatorRaftTransferLeadershipCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator raft info": func() (cli.Command, error) {
 			return &OperatorRaftInfoCommand{
 				Meta: meta,
@@ -1021,6 +1036,21 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"setup": func() (cli.Command, error) {
+			return &SetupCommand{
+				Meta: meta,
+			}, nil
+		},
+		"setup consul": func() (cli.Command, error) {
+			return &SetupConsulCommand{
+				Meta: meta,
+			}, nil
+		},
+		"setup vault": func() (cli.Command, error) {
+			return &SetupVaultCommand{
+				Meta: meta,
+			}, nil
+		},
 		"status": func() (cli.Command, error) {
 			return &StatusCommand{
 				Meta: meta,
@@ -1119,6 +1149,13 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		"var put": func() (cli.Command, error) {
 			return &VarPutCommand{
 				Meta: meta,
+			}, nil
+		},
+		"var lock": func() (cli.Command, error) {
+			return &VarLockCommand{
+				varPutCommand: &VarPutCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 		"var get": func() (cli.Command, error) {

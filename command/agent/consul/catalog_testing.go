@@ -1,18 +1,26 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package consul
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"sync"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
+
+type MockClient struct {
+	MockCatalog
+	MockNamespaces
+}
+
+var _ NamespaceAPI = (*MockClient)(nil)
+var _ CatalogAPI = (*MockClient)(nil)
 
 // MockNamespaces is a mock implementation of NamespaceAPI.
 type MockNamespaces struct {
@@ -265,7 +273,7 @@ func (c *MockAgent) CheckRegs() []*api.AgentCheckRegistration {
 }
 
 // CheckRegister implements AgentAPI
-func (c *MockAgent) CheckRegister(check *api.AgentCheckRegistration) error {
+func (c *MockAgent) CheckRegisterOpts(check *api.AgentCheckRegistration, _ *api.QueryOptions) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.checkRegister(check)
@@ -322,8 +330,8 @@ func (c *MockAgent) CheckDeregisterOpts(checkID string, q *api.QueryOptions) err
 	return nil
 }
 
-// ServiceRegister implements AgentAPI
-func (c *MockAgent) ServiceRegister(service *api.AgentServiceRegistration) error {
+// ServiceRegisterOpts implements AgentAPI
+func (c *MockAgent) ServiceRegisterOpts(service *api.AgentServiceRegistration, _ api.ServiceRegisterOpts) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 //go:build !release
 // +build !release
@@ -18,7 +18,8 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/mock"
@@ -83,19 +84,20 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*config.All
 		Logger:             clientConf.Logger,
 		ClientConfig:       clientConf,
 		StateDB:            stateDB,
-		Consul:             consulRegMock,
+		ConsulServices:     consulRegMock,
 		ConsulSI:           consul.NewMockServiceIdentitiesClient(),
-		Vault:              vaultclient.NewMockVaultClient(),
+		VaultFunc:          vaultclient.NewMockVaultClient,
 		StateUpdater:       &MockStateUpdater{},
 		PrevAllocWatcher:   allocwatcher.NoopPrevAlloc{},
 		PrevAllocMigrator:  allocwatcher.NoopPrevAlloc{},
 		DeviceManager:      devicemanager.NoopMockManager(),
 		DriverManager:      drivermanager.TestDriverManager(t),
-		CpusetManager:      new(cgutil.NoopCpusetManager),
 		ServersContactedCh: make(chan struct{}),
 		ServiceRegWrapper:  wrapper.NewHandlerWrapper(clientConf.Logger, consulRegMock, nomadRegMock),
 		CheckStore:         checkstore.NewStore(clientConf.Logger, stateDB),
 		Getter:             getter.TestSandbox(t),
+		Wranglers:          proclib.MockWranglers(t),
+		Partitions:         cgroupslib.NoopPartition(),
 	}
 
 	return conf, cleanup

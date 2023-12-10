@@ -1,9 +1,10 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package checkstore
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -13,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	"golang.org/x/exp/slices"
 )
 
 var (

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	structsconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/shoenig/test/must"
@@ -83,7 +84,7 @@ func TestConfigForServer(t testing.T) *Config {
 
 	// Disable Vault
 	f := false
-	config.VaultConfig.Enabled = &f
+	config.GetDefaultVault().Enabled = &f
 
 	// Tighten the autopilot timing
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
@@ -91,7 +92,7 @@ func TestConfigForServer(t testing.T) *Config {
 	config.AutopilotInterval = 100 * time.Millisecond
 
 	// Disable consul autojoining: tests typically join servers directly
-	config.ConsulConfig.ServerAutoJoin = &f
+	config.GetDefaultConsul().ServerAutoJoin = &f
 
 	// Enable fuzzy search API
 	config.SearchConfig = &structs.SearchConfig{
@@ -112,6 +113,11 @@ func TestConfigForServer(t testing.T) *Config {
 	// max job submission source size
 	config.JobMaxSourceSize = 1e6
 
+	// Default to having concurrent schedulers
+	config.NumSchedulers = 2
+
+	config.Reporting = structsconfig.DefaultReporting()
+
 	return config
 }
 
@@ -124,6 +130,7 @@ func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 
 	cCatalog := consul.NewMockCatalog(config.Logger)
 	cConfigs := consul.NewMockConfigsAPI(config.Logger)
+	cConfigFunc := func(_ string) consul.ConfigAPI { return cConfigs }
 	cACLs := consul.NewMockACLsAPI(config.Logger)
 
 	var server *Server
@@ -131,7 +138,7 @@ func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 
 	for i := 10; i >= 0; i-- {
 		// Create server
-		server, err = NewServer(config, cCatalog, cConfigs, cACLs)
+		server, err = NewServer(config, cCatalog, cConfigFunc, cACLs)
 		if err == nil {
 			return server, func() {
 				ch := make(chan error)

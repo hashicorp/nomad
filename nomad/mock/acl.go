@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package mock
 
@@ -268,7 +268,7 @@ func ACLOIDCAuthMethod() *structs.ACLAuthMethod {
 	method := structs.ACLAuthMethod{
 		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
 		Type:          "OIDC",
-		TokenLocality: "local",
+		TokenLocality: structs.ACLAuthMethodTokenLocalityLocal,
 		MaxTokenTTL:   maxTokenTTL,
 		Default:       false,
 		Config: &structs.ACLAuthMethodConfig{
@@ -297,7 +297,7 @@ func ACLJWTAuthMethod() *structs.ACLAuthMethod {
 	method := structs.ACLAuthMethod{
 		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
 		Type:          "JWT",
-		TokenLocality: "local",
+		TokenLocality: structs.ACLAuthMethodTokenLocalityLocal,
 		MaxTokenTTL:   maxTokenTTL,
 		Default:       false,
 		Config: &structs.ACLAuthMethodConfig{

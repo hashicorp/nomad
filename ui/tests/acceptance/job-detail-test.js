@@ -1,11 +1,11 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 /* eslint-disable ember/no-test-module-for */
 /* eslint-disable qunit/require-expect */
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -15,6 +15,7 @@ import moduleForJob, {
   moduleForJobWithClientStatus,
 } from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
+import percySnapshot from '@percy/ember';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
   server.create('job', {
@@ -614,5 +615,80 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
     await JobDetail.visit({ id: `${job2.id}@${secondNamespace.name}` });
     assert.ok(JobDetail.incrementButton.isDisabled);
+  });
+
+  test('handles when a job is remotely purged', async function (assert) {
+    const namespace = server.create('namespace');
+    const job = server.create('job', {
+      namespaceId: namespace.id,
+      status: 'running',
+      type: 'service',
+      shallow: true,
+      noActiveDeployment: true,
+      createAllocations: true,
+      groupsCount: 1,
+      groupAllocCount: 1,
+      allocStatusDistribution: {
+        running: 1,
+      },
+    });
+
+    await JobDetail.visit({ id: `${job.id}@${namespace.id}` });
+
+    assert.equal(currentURL(), `/jobs/${job.id}%40${namespace.id}`);
+
+    // Simulate a 404 error on the job watcher
+    const controller = this.owner.lookup('controller:jobs.job');
+    let jobWatcher = controller.watchers.job;
+    jobWatcher.isError = true;
+    jobWatcher.error = { errors: [{ status: '404' }] };
+    await settled();
+
+    // User should be booted off the page
+    assert.equal(currentURL(), '/jobs?namespace=*');
+
+    // A notification should be present
+    assert
+      .dom('.flash-message.alert-critical')
+      .exists('A toast error message pops up.');
+
+    await percySnapshot(assert);
+  });
+
+  test('handles when a job is remotely purged, from a job subnav page', async function (assert) {
+    const namespace = server.create('namespace');
+    const job = server.create('job', {
+      namespaceId: namespace.id,
+      status: 'running',
+      type: 'service',
+      shallow: true,
+      noActiveDeployment: true,
+      createAllocations: true,
+      groupsCount: 1,
+      groupAllocCount: 1,
+      allocStatusDistribution: {
+        running: 1,
+      },
+    });
+
+    await JobDetail.visit({ id: `${job.id}@${namespace.id}` });
+    await JobDetail.tabFor('allocations').visit();
+
+    assert.equal(currentURL(), `/jobs/${job.id}@${namespace.id}/allocations`);
+
+    // Simulate a 404 error on the job watcher
+    const controller = this.owner.lookup('controller:jobs.job');
+    let jobWatcher = controller.watchers.job;
+    jobWatcher.isError = true;
+    jobWatcher.error = { errors: [{ status: '404' }] };
+    await settled();
+
+    // User should be booted off the page
+    assert.equal(currentURL(), '/jobs?namespace=*');
+
+    // A notification should be present
+    assert
+      .dom('.flash-message.alert-critical')
+      .exists('A toast error message pops up.');
   });
 });

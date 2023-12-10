@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { computed } from '@ember/object';
@@ -28,10 +28,26 @@ export default class TaskGroup extends Fragment {
     if (this.job.parent.get('id')) {
       return this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${JSON.parse(this.job.parent.get('id'))[0]}/${this.name}`
+        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`
       );
     } else {
       return this.job.variables?.findBy(
+        'path',
+        `nomad/jobs/${this.job.plainId}/${this.name}`
+      );
+    }
+  }
+
+  // TODO: This async fetcher seems like a better fit for most of our use-cases than the above getter (which cannot do async/await)
+  async getPathLinkedVariable() {
+    await this.job.variables;
+    if (this.job.parent.get('id')) {
+      return await this.job.variables?.findBy(
+        'path',
+        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`
+      );
+    } else {
+      return await this.job.variables?.findBy(
         'path',
         `nomad/jobs/${this.job.plainId}/${this.name}`
       );

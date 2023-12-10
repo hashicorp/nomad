@@ -90,6 +90,10 @@
         "path": "concepts/architecture"
       },
       {
+        "title": "CPU",
+        "path": "concepts/cpu"
+      },
+      {
         "title": "Plugins",
         "routes": [
           {
@@ -130,6 +134,10 @@
             "path": "concepts/scheduling/scheduling"
           },
           {
+            "title": "Placement",
+            "path": "concepts/scheduling/placement"
+          },
+          {
             "title": "Preemption",
             "path": "concepts/scheduling/preemption"
           }
@@ -146,6 +154,10 @@
       {
         "title": "Gossip Protocol",
         "path": "concepts/gossip"
+      },
+      {
+        "title": "Node Pools",
+        "path": "concepts/node-pools"
       },
       {
         "title": "Security Model",
@@ -503,6 +515,10 @@
             "path": "commands/job"
           },
           {
+            "title": "action",
+            "path": "commands/job/action"
+          },
+          {
             "title": "allocs",
             "path": "commands/job/allocs"
           },
@@ -792,6 +808,10 @@
               {
                 "title": "state",
                 "path": "commands/operator/raft/state"
+              },
+              {
+                "title": "transfer-leadership",
+                "path": "commands/operator/raft/transfer-leadership"
               }
             ]
           },
@@ -920,6 +940,23 @@
           {
             "title": "list",
             "path": "commands/recommendation/list"
+          }
+        ]
+      },
+      {
+        "title": "setup",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/setup"
+          },
+          {
+            "title": "consul",
+            "path": "commands/setup/consul"
+          },
+          {
+            "title": "vault",
+            "path": "commands/setup/vault"
           }
         ]
       },
@@ -1081,6 +1118,10 @@
             "path": "commands/var/put"
           },
           {
+            "title": "lock",
+            "path": "commands/var/lock"
+          },
+          {
             "title": "purge",
             "path": "commands/var/purge"
           }
@@ -1140,6 +1181,10 @@
         ]
       }
     ]
+  },
+  {
+    "title": "Glossary",
+    "path": "glossary"
   },
   {
     "divider": true
@@ -1296,7 +1341,12 @@
                   },
                   {
                     "title": "rsadecrypt",
-                    "path": "job-specification/hcl2/functions/crypto/rsadecrypt"
+                    "path": "job-specification/hcl2/functions/crypto/rsadecrypt",
+                    "badge": {
+                      "text": "Deprecated",
+                      "type": "outlined",
+                      "color": "neutral"
+                    }
                   },
                   {
                     "title": "sha1",
@@ -1568,6 +1618,10 @@
         ]
       },
       {
+        "title": "action",
+        "path": "job-specification/action"
+      },
+      {
         "title": "artifact",
         "path": "job-specification/artifact"
       },
@@ -1590,6 +1644,10 @@
       {
         "title": "connect",
         "path": "job-specification/connect"
+      },
+      {
+        "title": "consul",
+        "path": "job-specification/consul"
       },
       {
         "title": "constraint",
@@ -1658,6 +1716,10 @@
       {
         "title": "network",
         "path": "job-specification/network"
+      },
+      {
+        "title": "numa",
+        "path": "job-specification/numa"
       },
       {
         "title": "parameterized",
@@ -1820,6 +1882,10 @@
           {
             "title": "containerd",
             "href": "/plugins/drivers/community/containerd"
+          },
+          {
+            "title": "Pledge",
+            "href": "/plugins/drivers/community/pledge"
           },
           {
             "title": "Firecracker driver",
@@ -2260,10 +2326,18 @@
             "path": "enterprise/license"
           },
           {
+            "title": "Automated license utilization reporting",
+            "path": "enterprise/license/utilization-reporting"
+          },
+          {
             "title": "FAQ",
             "path": "enterprise/license/faq"
           }
         ]
+      },
+      {
+        "title": "Sentinel",
+        "path": "enterprise/sentinel"
       }
     ]
   },

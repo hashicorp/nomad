@@ -33,8 +33,8 @@ Serving the Web UI is done with a single command in the `/ui` directory.
 However, this will use the [Mirage fixtures](http://www.ember-cli-mirage.com/) as a backend.
 To use your own Nomad cluster as a backend, use the proxy option.
 
-  - **Local:** `ember serve --proxy https://demo.nomadproject.io`
-  - **Vagrant:** `ember serve --watch polling --port 4201 --proxy https://demo.nomadproject.io`
+  - **Local:** `ember serve --proxy https://demo.example.com`
+  - **Vagrant:** `ember serve --watch polling --port 4201 --proxy https://demo.example.com`
 
 The Web UI will now be accessible from your host machine.
 

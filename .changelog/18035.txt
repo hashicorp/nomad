@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Add JWKS HTTP API endpoint
+```

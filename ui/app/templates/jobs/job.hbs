@@ -1,6 +1,7 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
+{{did-update this.notFoundJobHandler this.watchers.job.isError}}
 <Breadcrumb @crumb={{hash type="job" job=this.job}} />{{outlet}}

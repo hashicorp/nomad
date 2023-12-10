@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -15,6 +15,9 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -25,7 +28,6 @@ import (
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/slices"
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
@@ -129,8 +131,18 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 
 	// Create a mock node with easy to check resources
 	node := mock.Node()
-	node.Resources = nil // Deprecated in 0.9
-	node.NodeResources.Cpu.CpuShares = 700
+	node.NodeResources.Processors = structs.NodeProcessorResources{
+		Topology: &numalib.Topology{
+			NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
+			Distances: numalib.SLIT{[]numalib.Cost{10}},
+			Cores: []numalib.Core{{
+				ID:        0,
+				Grade:     numalib.Performance,
+				BaseSpeed: 700,
+			}},
+		},
+	}
+	node.NodeResources.Compatibility()
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 	codec := rpcClient(t, s1)
@@ -267,21 +279,18 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 			return false, fmt.Errorf("expected 2 allocs but found %d:\n%v", n, allocResp.Allocations)
 		}
 
-		slices.SortFunc(allocResp.Allocations, func(a, b *structs.AllocListStub) bool {
-			return a.CreateIndex < b.CreateIndex
-		})
-
-		if alloc.ID != allocResp.Allocations[0].ID {
-			return false, fmt.Errorf("unexpected change in alloc: %#v", *allocResp.Allocations[0])
+		for _, a := range allocResp.Allocations {
+			if a.ID == alloc.ID {
+				if cs := a.ClientStatus; cs != structs.AllocClientStatusComplete {
+					return false, fmt.Errorf("expected old alloc to be complete but found: %s", cs)
+				}
+			} else {
+				if cs := a.ClientStatus; cs != structs.AllocClientStatusPending {
+					return false, fmt.Errorf("expected new alloc to be pending but found: %s", cs)
+				}
+			}
 		}
 
-		if cs := allocResp.Allocations[0].ClientStatus; cs != structs.AllocClientStatusComplete {
-			return false, fmt.Errorf("expected old alloc to be complete but found: %s", cs)
-		}
-
-		if cs := allocResp.Allocations[1].ClientStatus; cs != structs.AllocClientStatusPending {
-			return false, fmt.Errorf("expected new alloc to be pending but found: %s", cs)
-		}
 		return true, nil
 	})
 }
@@ -1541,7 +1550,7 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 		f := false
-		c.VaultConfig.Enabled = &f
+		c.GetDefaultVault().Enabled = &f
 	})
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -1564,7 +1573,7 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "Vault not enabled") {
+	if err == nil || !strings.Contains(err.Error(), `Vault "default" not enabled`) {
 		t.Fatalf("expected Vault not enabled error: %v", err)
 	}
 }
@@ -1584,8 +1593,8 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 
 	// Enable vault and allow authenticated
 	tr := true
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &tr
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &tr
 
 	// Replace the Vault Client on the server
 	s1.vault = &TestVaultClient{}
@@ -1641,8 +1650,8 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 
 	// Enable vault and allow authenticated
 	tr := true
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &tr
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &tr
 
 	// Replace the Vault Client on the server
 	s1.vault = &TestVaultClient{}
@@ -1698,8 +1707,8 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	s1.vault = &TestVaultClient{}
@@ -1739,8 +1748,8 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -1879,8 +1888,8 @@ func TestJobEndpoint_Register_Vault_MultiNamespaces(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -2420,7 +2429,7 @@ func TestJobRegister_ACL_RejectedBySchedulerConfig(t *testing.T) {
 			name:          "reject enabled, without a token",
 			token:         "",
 			rejectEnabled: true,
-			errExpected:   structs.ErrPermissionDenied.Error(),
+			errExpected:   structs.ErrJobRegistrationDisabled.Error(),
 		},
 		{
 			name:          "reject enabled, with a management token",
@@ -2662,8 +2671,8 @@ func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -2762,8 +2771,8 @@ func TestJobEndpoint_Revert_Vault_Policies(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -6192,6 +6201,202 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 	}
 }
 
+func TestJob_GetActions(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerCleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer testServerCleanup()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Perform a request which does not include the jobID.
+	jobActionsReq1 := structs.JobActionListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var jobActionsResp1 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq1, &jobActionsResp1),
+		"JobID required for actions")
+
+	// Perform a request which specifies a jobID which is not present within
+	// Nomad's state.
+	jobActionsReq2 := structs.JobActionListRequest{
+		JobID: "not-found",
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var jobActionsResp2 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq2, &jobActionsResp2),
+		"Unknown job")
+
+	// Upsert a job which contains some actions.
+	mockJob := mock.Job()
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 4, nil, mockJob))
+
+	// Read the job actions.
+	jobActionsReq3 := structs.JobActionListRequest{
+		JobID: mockJob.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockJob.Namespace,
+		},
+	}
+
+	var jobActionsResp3 structs.JobActionListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq3, &jobActionsResp3))
+	must.Len(t, 2, jobActionsResp3.Actions)
+	must.Eq(t, 4, jobActionsResp3.Index)
+
+	// Create a namespace, place a job within this, and read out the job
+	// actions.
+	mockNamespace := mock.Namespace()
+	must.NoError(t, testServer.fsm.State().UpsertNamespaces(22, []*structs.Namespace{mockNamespace}))
+
+	mockJobNonDefault := mock.Job()
+	mockJobNonDefault.Namespace = mockNamespace.Name
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 30, nil, mockJobNonDefault))
+
+	jobActionsReq4 := structs.JobActionListRequest{
+		JobID: mockJobNonDefault.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockNamespace.Name,
+		},
+	}
+
+	var jobActionsResp4 structs.JobActionListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq4, &jobActionsResp4))
+	must.Len(t, 2, jobActionsResp4.Actions)
+	must.Eq(t, 30, jobActionsResp4.Index)
+}
+
+func TestJob_GetActions_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, rootACLToken, testServerCleanup := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer testServerCleanup()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Perform a request which does not include the jobID.
+	jobActionsReq1 := structs.JobActionListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+			AuthToken: rootACLToken.SecretID,
+		},
+	}
+
+	var jobActionsResp1 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq1, &jobActionsResp1),
+		"JobID required for actions")
+
+	// Perform a request which does not include an authentication token.
+	jobActionsReq2 := structs.JobActionListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var jobActionsResp2 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq2, &jobActionsResp2),
+		structs.ErrPermissionDenied.Error())
+
+	// Perform a request which specifies a jobID which is not present within
+	// Nomad's state.
+	jobActionsReq3 := structs.JobActionListRequest{
+		JobID: "not-found",
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.DefaultNamespace,
+			AuthToken: rootACLToken.SecretID,
+		},
+	}
+
+	var jobActionsResp3 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq3, &jobActionsResp3),
+		structs.ErrUnknownJobPrefix)
+
+	// Upsert a job which contains some actions.
+	mockJob := mock.Job()
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 4, nil, mockJob))
+
+	// Read the job actions using the root ACL token.
+	jobActionsReq4 := structs.JobActionListRequest{
+		JobID: mockJob.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockJob.Namespace,
+			AuthToken: rootACLToken.SecretID,
+		},
+	}
+
+	var jobActionsResp4 structs.JobActionListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq4, &jobActionsResp4))
+	must.Len(t, 2, jobActionsResp4.Actions)
+	must.Eq(t, 4, jobActionsResp4.Index)
+
+	// Create a namespace and place a job within this.
+	mockNamespace := mock.Namespace()
+	must.NoError(t, testServer.fsm.State().UpsertNamespaces(22, []*structs.Namespace{mockNamespace}))
+
+	mockJobNonDefault := mock.Job()
+	mockJobNonDefault.Namespace = mockNamespace.Name
+	must.NoError(t, testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 30, nil, mockJobNonDefault))
+
+	// Create a scoped policy and use this to look-up the job action within the
+	// non-default namespace.
+	namespaceScopedToken := mock.CreatePolicyAndToken(
+		t, testServer.State(), 40, "test-job-actions-get",
+		mock.NamespacePolicy(mockJobNonDefault.Namespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	jobActionsReq5 := structs.JobActionListRequest{
+		JobID: mockJobNonDefault.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockNamespace.Name,
+			AuthToken: namespaceScopedToken.SecretID,
+		},
+	}
+
+	var jobActionsResp5 structs.JobActionListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq5, &jobActionsResp5))
+	must.Len(t, 2, jobActionsResp5.Actions)
+	must.Eq(t, 30, jobActionsResp5.Index)
+
+	// Attempt to use the namespace scoped token, to read across into the
+	// default namespace.
+	jobActionsReq6 := structs.JobActionListRequest{
+		JobID: mockJob.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: mockJob.Name,
+			AuthToken: namespaceScopedToken.SecretID,
+		},
+	}
+
+	var jobActionsResp6 structs.JobActionListResponse
+	must.ErrorContains(t,
+		msgpackrpc.CallWithCodec(codec, structs.JobGetActionsRPCMethod, &jobActionsReq6, &jobActionsResp6),
+		structs.ErrPermissionDenied.Error())
+}
+
 func TestJobEndpoint_Plan_ACL(t *testing.T) {
 	ci.Parallel(t)
 
@@ -6394,8 +6599,8 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 
 	// Enable vault
 	tr, f := true, false
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &f
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &f
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}

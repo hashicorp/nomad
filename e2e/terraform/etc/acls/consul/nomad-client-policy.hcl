@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 // The Nomad Client will be registering things into its buddy Consul Client.
 // Note: because we also test the use of Consul namespaces, this token must be

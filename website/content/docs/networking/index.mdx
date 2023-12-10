@@ -282,7 +282,7 @@ the same port number.
 
 In Nomad, allocations use the IP address of the client they are running and are
 assigned random port numbers and so Nomad service discovery with DNS uses
-[`SRV` records][dns_srv] instead of `A` or `AAA` records.
+[`SRV` records][dns_srv] instead of `A` or `AAAA` records.
 
 ## Next topics
 
@@ -306,7 +306,7 @@ assigned random port numbers and so Nomad service discovery with DNS uses
 [cni]: /nomad/docs/networking/cni
 [cni_bridge]: https://www.cni.dev/plugins/current/main/bridge/
 [cni_install]: /nomad/docs/install#post-installation-steps
-[consul_dns]: /consul/docs/discovery/dns
+[consul_dns]: /consul/docs/services/discovery/dns-overview
 [consul_dns_forwarding]: /consul/tutorials/networking/dns-forwarding
 [consul_service_mesh]: /nomad/docs/integrations/consul-connect
 [dns_srv]: https://en.wikipedia.org/wiki/SRV_record
@@ -314,7 +314,7 @@ assigned random port numbers and so Nomad service discovery with DNS uses
 [docker_compose]: https://docs.docker.com/compose/
 [docker_dns]: https://docs.docker.com/config/containers/container-networking/#dns-services
 [docker_iptables]: https://docs.docker.com/network/iptables/
-[docker_network_mode]: https://nomadproject.io/drivers/docker#network_mode
+[docker_network_mode]: /nomad/docs/drivers/docker#network_mode
 [docker_networking]: /nomad/docs/drivers/docker#networking
 [docker_overlay]: https://docs.docker.com/network/overlay/
 [docker_swarm]: https://docs.docker.com/engine/swarm/

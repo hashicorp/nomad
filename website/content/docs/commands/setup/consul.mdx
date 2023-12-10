@@ -1,0 +1,156 @@
+---
+layout: docs
+page_title: 'Commands: setup consul'
+description: |
+  Setup a Consul cluster for Nomad integration.
+---
+
+# Command: setup consul
+
+This command sets up Consul for allowing Nomad workloads to authenticate
+themselves using Workload Identity.
+
+This command requires `acl:write` permissions for Consul and respects
+`CONSUL_HTTP_TOKEN`, `CONSUL_HTTP_ADDR`, and other [Consul-related environment
+variables][consulenv].
+
+<Warning>
+
+This command is an experimental feature and may change its behavior in future
+versions of Nomad.
+
+</Warning>
+
+## Usage
+
+```plaintext
+nomad setup consul [options]
+```
+
+## Setup Consul Options
+
+- `-jwks-url`: URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
+  signatures. Defaults to `http://localhost:4646/.well-known/jwks.json`.
+
+- `-destroy`: Removes all configuration components this command created from the
+  Consul cluster.
+
+- `-y`: Automatically answers `yes` to all the questions, making the setup
+  non-interactive. Defaults to `false`.
+
+## Examples
+
+Below is an example of an interactive session with default options, interrupted
+by answering `no` to one of the questions, demonstrating the capabilities of the
+`-destroy` flag.
+
+```shell-session
+$ nomad setup consul
+
+This command will walk you through configuring all the components required for
+Nomad workloads to authenticate themselves against Consul ACL using their
+respective workload identities.
+
+First we need to connect to Consul.
+
+[?] Is "127.0.0.1:8500" the correct address of your Consul cluster? [Y/n]
+
+Since you're running Consul Enterprise, we will additionally create
+a namespace "nomad-workloads" and bind the auth methods to that namespace.
+
+[?] Create the namespace "nomad-workloads" in your Consul cluster? [Y/n]
+[✔] Created namespace "nomad-workloads".
+
+Nomad needs a JWT auth method for Consul services and tasks. The method for
+services will be called "nomad-workloads".
+
+This is the "nomad-workloads" method configuration:
+
+{
+    "Name": "nomad-workloads",
+    "Type": "jwt",
+    "DisplayName": "nomad-workloads",
+    "Description": "Login method for Nomad workloads using workload identities",
+    "TokenLocality": "local",
+    "Config": {
+        "BoundAudiences": [
+            "consul.io"
+        ],
+        "ClaimMappings": {
+            "consul_namespace": "consul_namespace",
+            "nomad_job_id": "nomad_job_id",
+            "nomad_namespace": "nomad_namespace",
+            "nomad_service": "nomad_service",
+            "nomad_task": "nomad_task"
+        },
+        "JWKSURL": "http://localhost:4646/.well-known/jwks.json",
+        "JWTSupportedAlgs": [
+            "RS256"
+        ]
+    },
+    "CreateIndex": 0,
+    "ModifyIndex": 0,
+    "NamespaceRules": [
+        {
+            "BindNamespace": "${value.consul_namespace}"
+        }
+    ]
+}
+[?] Create "nomad-workloads" auth method in your Consul cluster? [Y/n]
+[✔] Created auth method "nomad-workloads".
+
+Consul uses binding rules to map claims between Nomad's JWTs to Consul service
+identities and ACL roles, so we need to create a two binding rules for the auth
+method we created above: one for services, and one for tasks.
+
+This is the binding rule for services:
+
+{
+    "ID": "",
+    "Description": "Binding rule for Nomad services authenticated using a workload identity",
+    "AuthMethod": "nomad-workloads",
+    "Selector": "\"nomad_service\" in value",
+    "BindType": "service",
+    "BindName": "${value.nomad_service}",
+    "CreateIndex": 0,
+    "ModifyIndex": 0
+}
+[?] Create this binding rule in your Consul cluster? [Y/n]
+[✔] Created binding rule for auth method "nomad-workloads".
+
+This is the binding rule for tasks:
+
+{
+    "ID": "",
+    "Description": "Binding rule for Nomad tasks authenticated using a workload identity",
+    "AuthMethod": "nomad-workloads",
+    "Selector": "\"nomad_service\" not in value",
+    "BindType": "role",
+    "BindName": "nomad-${value.nomad_namespace}-tasks",
+    "CreateIndex": 0,
+    "ModifyIndex": 0
+}
+[?] Create this binding rule in your Consul cluster? [Y/n] n
+
+By answering "no" to any of these questions, you are risking an incorrect Consul
+cluster configuration. Nomad workloads with Workload Identity will not be able
+to authenticate unless you create missing configuration yourself.
+
+[?] Remove everything this command creates? [Y/n]
+The following items will be deleted:
+  * Auth method: nomad-workloads
+  * Binding rules: 4d80108a-6d77-36e1-71b1-d20a9acf8b17
+  * Namespace: nomad-workloads
+
+[?] Remove all the items listed above? [Y/n]
+[✔] Deleted binding rule "4d80108a-6d77-36e1-71b1-d20a9acf8b17".
+[✔] Deleted auth method "nomad-workloads".
+[✔] Deleted namespace "nomad-workloads".
+
+Consul cluster has not been configured for authenticating Nomad tasks and
+services using workload identitiies.
+
+Run the command again to finish the configuration process.
+```
+
+[consulenv]: /consul/commands#environment-variables

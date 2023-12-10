@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -38,8 +38,8 @@ Usage: nomad alloc exec [options] <allocation> <command>
   When ACLs are enabled, this command requires a token with the 'alloc-exec',
   'read-job', and 'list-jobs' capabilities for the allocation's namespace. If
   the task driver does not have file system isolation (as with 'raw_exec'),
-  this command requires the 'alloc-node-exec', 'read-job', and 'list-jobs'
-  capabilities for the allocation's namespace.
+  this command requires the 'alloc-node-exec', 'alloc-exec', 'read-job',
+  and 'list-jobs' capabilities for the allocation's namespace.
 
 General Options:
 
@@ -51,7 +51,7 @@ Exec Specific Options:
     Sets the task to exec command in
 
   -job
-    Use a random allocation from the specified job ID.
+    Use a random allocation from the specified job ID or prefix.
 
   -i
     Pass stdin to the container, defaults to true.  Pass -i=false to disable.
@@ -162,8 +162,13 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	var allocStub *api.AllocationListStub
 	if job {
-		jobID := args[0]
-		allocStub, err = getRandomJobAlloc(client, jobID)
+		jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
+		if err != nil {
+			l.Ui.Error(err.Error())
+			return 1
+		}
+
+		allocStub, err = getRandomJobAlloc(client, jobID, "", ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -294,13 +299,6 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 
 	return client.Allocations().Exec(ctx,
 		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
-}
-
-// isTty returns true if both stdin and stdout are a TTY
-func isTty() bool {
-	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
-	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
-	return isStdinTerminal && isStdoutTerminal
 }
 
 // setRawTerminal sets the stream terminal in raw mode, so process captures

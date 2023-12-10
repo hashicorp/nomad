@@ -83,8 +83,9 @@ client {
   port assignment via [`reserved`](#reserved-parameters) parameters.
 
 - `node_class` `(string: "")` - Specifies an arbitrary string used to logically
-  group client nodes by user-defined class. This can be used during job
-  placement as a filter.
+  group client nodes by user-defined class. This value can be used during job
+  placement as an [`affinity`][] or [`constraint`][] attribute and other places
+  where [variable interpolation][runtime_var_interpolation] is supported.
 
 - `node_pool` `(string: "default")` - Specifies the node pool in which the
   client is registered. If the node pool does not exist yet, it will be created
@@ -367,7 +368,16 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `cpu` `(int: 0)` - Specifies the amount of CPU to reserve, in MHz.
 
-- `cores` `(int: 0)` - Specifies the number of CPU cores to reserve.
+- `cores` `(int: 0)` - Specifies the cpuset of CPU cores to reserve. Only
+  supported on Linux.
+
+  ```hcl
+    client {
+      reserved {
+        cores = "0-4"
+      }
+    }
+  ```
 
 - `memory` `(int: 0)` - Specifies the amount of memory to reserve, in MB.
 
@@ -567,7 +577,7 @@ and ACLs.
 ```hcl
 client {
   host_volume "ca-certificates" {
-    path = "/etc/ssl/certs"
+    path      = "/etc/ssl/certs"
     read_only = true
   }
 }
@@ -593,7 +603,7 @@ The key of the block corresponds to the name of the network used in the
 ```hcl
 client {
   host_network "public" {
-    cidr = "203.0.113.0/24"
+    cidr           = "203.0.113.0/24"
     reserved_ports = "22,80"
   }
 }
@@ -668,8 +678,8 @@ cluster.
 client {
   enabled = true
   server_join {
-    retry_join = [ "1.1.1.1", "2.2.2.2" ]
-    retry_max = 3
+    retry_join     = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max      = 3
     retry_interval = "15s"
   }
 }
@@ -714,10 +724,13 @@ client {
 }
 ```
 
+[`affinity`]: /nomad/docs/job-specification/affinity
+[`constraint`]: /nomad/docs/job-specification/constraint
 [plugin-options]: #plugin-options
 [plugin-block]: /nomad/docs/configuration/plugin
 [server-join]: /nomad/docs/configuration/server_join 'Server Join'
 [metadata_constraint]: /nomad/docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
+[runtime_var_interpolation]: /nomad/docs/runtime/interpolation
 [task working directory]: /nomad/docs/runtime/environment#task-directories 'Task directories'
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
 [landlock]: https://docs.kernel.org/userspace-api/landlock.html

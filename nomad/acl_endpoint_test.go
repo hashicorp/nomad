@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -271,11 +271,11 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	// Create the register request
 	policy := mock.ACLPolicy()
 	policy2 := mock.ACLPolicy()
-	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2})
+	must.NoError(t, s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2}))
 
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
+	must.NoError(t, s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token}))
 
 	// Lookup the policy which is a subset of our tokens
 	get := &structs.ACLPolicySetRequest{
@@ -286,19 +286,15 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 		},
 	}
 	var resp structs.ACLPolicySetResponse
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.Equal(t, uint64(1000), resp.Index)
-	assert.Equal(t, 1, len(resp.Policies))
-	assert.Equal(t, policy, resp.Policies[policy.Name])
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp))
+	must.Eq(t, uint64(1000), resp.Index)
+	must.Eq(t, 1, len(resp.Policies))
+	must.Eq(t, policy, resp.Policies[policy.Name])
 
 	// Lookup non-associated policy
 	get.Names = []string{policy2.Name}
 	resp = structs.ACLPolicySetResponse{}
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err == nil {
-		t.Fatalf("expected error")
-	}
+	must.Error(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp))
 
 	// Generate and upsert an ACL role which links to the previously created
 	// policy.
@@ -352,6 +348,27 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req2, &resp2))
 	must.Eq(t, 1000, resp2.Index)
 	must.Eq(t, 2, len(resp2.Policies))
+
+	// Delete one of the policies, which means the ACL token has a dangling
+	// policy. When a Nomad client perform an ACL lookup, it adds the policies
+	// attached to the token within the request arguments. This test section
+	// mimics the behaviour when a token is being used that contains dangling
+	// policies.
+	must.NoError(t, s1.fsm.State().DeleteACLPolicies(structs.MsgTypeTestSetup, 1040, []string{policy.Name}))
+
+	req3 := &structs.ACLPolicySetRequest{
+		Names: []string{policy.Name, policy2.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: mockTokenWithRolePolicy.SecretID,
+		},
+	}
+
+	var resp3 structs.ACLPolicySetResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req3, &resp3))
+	must.Eq(t, 1040, resp3.Index)
+	must.MapLen(t, 1, resp3.Policies)
+	must.MapContainsKey(t, resp3.Policies, policy2.Name)
 }
 
 func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
@@ -2682,7 +2699,7 @@ func TestACL_GetRoleByName(t *testing.T) {
 }
 
 func TestACLEndpoint_GetAuthMethod(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2718,7 +2735,7 @@ func TestACLEndpoint_GetAuthMethod(t *testing.T) {
 }
 
 func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2778,7 +2795,7 @@ func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_GetAuthMethods(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2814,7 +2831,7 @@ func TestACLEndpoint_GetAuthMethods(t *testing.T) {
 }
 
 func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2874,7 +2891,7 @@ func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_ListAuthMethods(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2922,7 +2939,7 @@ func TestACLEndpoint_ListAuthMethods(t *testing.T) {
 }
 
 func TestACLEndpoint_ListAuthMethods_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2974,7 +2991,7 @@ func TestACLEndpoint_ListAuthMethods_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -3010,7 +3027,7 @@ func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
 }
 
 func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -3483,7 +3500,7 @@ func TestACL_GetBindingRule(t *testing.T) {
 }
 
 func TestACL_OIDCAuthURL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testServer, _, testServerCleanupFn := TestACLServer(t, nil)
 	defer testServerCleanupFn()
@@ -3564,7 +3581,7 @@ func TestACL_OIDCAuthURL(t *testing.T) {
 }
 
 func TestACL_OIDCCompleteAuth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testServer, _, testServerCleanupFn := TestACLServer(t, nil)
 	defer testServerCleanupFn()
@@ -3736,7 +3753,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 }
 
 func TestACL_Login(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testServer, _, testServerCleanupFn := TestACLServer(t, nil)
 	defer testServerCleanupFn()
@@ -3747,12 +3764,14 @@ func TestACL_Login(t *testing.T) {
 	iat := time.Now().Unix()
 	nbf := time.Now().Unix()
 	exp := time.Now().Add(time.Hour).Unix()
+	user := "John"
 	testToken, testPubKey, err := mock.SampleJWTokenWithKeys(jwt.MapClaims{
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},
 		"iat":                            iat,
 		"nbf":                            nbf,
 		"exp":                            exp,
+		"sub":                            user,
 		"iss":                            "nomad test suite",
 		"aud":                            []string{"sales", "engineering"},
 	}, nil)
@@ -3793,7 +3812,9 @@ func TestACL_Login(t *testing.T) {
 	mockedAuthMethod.Config.BoundIssuer = []string{"nomad test suite"}
 	mockedAuthMethod.Config.ExpirationLeeway = time.Duration(3600)
 	mockedAuthMethod.Config.ClockSkewLeeway = time.Duration(3600)
-	mockedAuthMethod.Config.ClaimMappings = map[string]string{}
+	mockedAuthMethod.Config.ClaimMappings = map[string]string{
+		"sub": "user",
+	}
 	mockedAuthMethod.Config.ListClaimMappings = map[string]string{
 		"http://nomad.internal/roles":    "roles",
 		"http://nomad.internal/policies": "policies",
@@ -3860,6 +3881,7 @@ func TestACL_Login(t *testing.T) {
 	must.Len(t, 1, completeAuthResp4.ACLToken.Roles)
 	must.Eq(t, mockACLRole.Name, completeAuthResp4.ACLToken.Roles[0].Name)
 	must.Eq(t, mockACLRole.ID, completeAuthResp4.ACLToken.Roles[0].ID)
+	must.Eq(t, mockedAuthMethod.Type+"-"+mockedAuthMethod.Name, completeAuthResp4.ACLToken.Name)
 
 	// Create a binding rule which generates management tokens. This should
 	// override the other rules, giving us a management token when we next
@@ -3884,8 +3906,26 @@ func TestACL_Login(t *testing.T) {
 	var completeAuthResp5 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq5, &completeAuthResp5)
 	must.NoError(t, err)
-	must.NotNil(t, completeAuthResp4.ACLToken)
+	must.NotNil(t, completeAuthResp5.ACLToken)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Policies)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Roles)
 	must.Eq(t, structs.ACLManagementToken, completeAuthResp5.ACLToken.Type)
+
+	// Change the token name format
+	mockedAuthMethod.TokenNameFormat = "${auth_method_type}-${auth_method_name}-${value.user}"
+	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(60, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+	loginReq6 := structs.ACLLoginRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		LoginToken:     testToken,
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+
+	var completeAuthResp6 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq6, &completeAuthResp6)
+	must.NoError(t, err)
+	must.NotNil(t, completeAuthResp6.ACLToken)
+	must.Eq(t, mockedAuthMethod.Type+"-"+mockedAuthMethod.Name+"-"+user, completeAuthResp6.ACLToken.Name)
 }

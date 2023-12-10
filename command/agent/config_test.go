@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,8 +44,6 @@ func TestConfig_Merge(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &config.VaultConfig{},
-		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
 		Autopilot:      &config.AutopilotConfig{},
 	}
@@ -57,6 +55,7 @@ func TestConfig_Merge(t *testing.T) {
 		DataDir:                   "/tmp/dir1",
 		PluginDir:                 "/tmp/pluginDir1",
 		LogLevel:                  "INFO",
+		LogIncludeLocation:        false,
 		LogJson:                   false,
 		EnableDebug:               false,
 		LeaveOnInt:                false,
@@ -141,6 +140,9 @@ func TestConfig_Merge(t *testing.T) {
 			ProtocolVersion:        1,
 			RaftProtocol:           1,
 			RaftMultiplier:         pointer.Of(5),
+			RaftSnapshotThreshold:  pointer.Of(100),
+			RaftSnapshotInterval:   pointer.Of("30m"),
+			RaftTrailingLogs:       pointer.Of(200),
 			NumSchedulers:          pointer.Of(1),
 			NodeGCThreshold:        "1h",
 			BatchEvalGCThreshold:   "4h",
@@ -156,6 +158,7 @@ func TestConfig_Merge(t *testing.T) {
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},
+			OIDCIssuer: "https://oidc.test.nomadproject.io",
 		},
 		ACL: &ACLConfig{
 			Enabled:               true,
@@ -183,7 +186,8 @@ func TestConfig_Merge(t *testing.T) {
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin": "*",
 		},
-		Vault: &config.VaultConfig{
+		Vaults: []*config.VaultConfig{{
+			Name:                 structs.VaultDefaultCluster,
 			Token:                "1",
 			AllowUnauthenticated: &falseValue,
 			TaskTokenTTL:         "1",
@@ -194,8 +198,8 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "1",
 			TLSSkipVerify:        &falseValue,
 			TLSServerName:        "1",
-		},
-		Consul: &config.ConsulConfig{
+		}},
+		Consuls: []*config.ConsulConfig{{
 			ServerServiceName:    "1",
 			ClientServiceName:    "1",
 			AutoAdvertise:        &falseValue,
@@ -212,7 +216,7 @@ func TestConfig_Merge(t *testing.T) {
 			ServerAutoJoin:       &falseValue,
 			ClientAutoJoin:       &falseValue,
 			ChecksUseAdvertise:   &falseValue,
-		},
+		}},
 		Autopilot: &config.AutopilotConfig{
 			CleanupDeadServers:      &falseValue,
 			ServerStabilizationTime: 1 * time.Second,
@@ -241,6 +245,7 @@ func TestConfig_Merge(t *testing.T) {
 		DataDir:                   "/tmp/dir2",
 		PluginDir:                 "/tmp/pluginDir2",
 		LogLevel:                  "DEBUG",
+		LogIncludeLocation:        true,
 		LogJson:                   true,
 		EnableDebug:               true,
 		LeaveOnInt:                true,
@@ -341,6 +346,9 @@ func TestConfig_Merge(t *testing.T) {
 			ProtocolVersion:        2,
 			RaftProtocol:           2,
 			RaftMultiplier:         pointer.Of(6),
+			RaftSnapshotThreshold:  pointer.Of(100),
+			RaftSnapshotInterval:   pointer.Of("30m"),
+			RaftTrailingLogs:       pointer.Of(200),
 			NumSchedulers:          pointer.Of(2),
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
@@ -364,6 +372,7 @@ func TestConfig_Merge(t *testing.T) {
 			},
 			JobMaxPriority:     pointer.Of(200),
 			JobDefaultPriority: pointer.Of(100),
+			OIDCIssuer:         "https://oidc.test.nomadproject.io",
 		},
 		ACL: &ACLConfig{
 			Enabled:               true,
@@ -392,7 +401,8 @@ func TestConfig_Merge(t *testing.T) {
 			"Access-Control-Allow-Origin":  "*",
 			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 		},
-		Vault: &config.VaultConfig{
+		Vaults: []*config.VaultConfig{{
+			Name:                 structs.VaultDefaultCluster,
 			Token:                "2",
 			AllowUnauthenticated: &trueValue,
 			TaskTokenTTL:         "2",
@@ -403,25 +413,34 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "2",
 			TLSSkipVerify:        &trueValue,
 			TLSServerName:        "2",
-		},
-		Consul: &config.ConsulConfig{
-			ServerServiceName:    "2",
-			ClientServiceName:    "2",
-			AutoAdvertise:        &trueValue,
-			Addr:                 "2",
-			AllowUnauthenticated: &trueValue,
-			Timeout:              2 * time.Second,
-			Token:                "2",
-			Auth:                 "2",
-			EnableSSL:            &trueValue,
-			VerifySSL:            &trueValue,
-			CAFile:               "2",
-			CertFile:             "2",
-			KeyFile:              "2",
-			ServerAutoJoin:       &trueValue,
-			ClientAutoJoin:       &trueValue,
-			ChecksUseAdvertise:   &trueValue,
-		},
+			ConnectionRetryIntv:  time.Duration(30000000000),
+			JWTAuthBackendPath:   "jwt",
+		}},
+		Consuls: []*config.ConsulConfig{{
+			Name:                      "default",
+			ServerServiceName:         "2",
+			ClientServiceName:         "2",
+			AutoAdvertise:             &trueValue,
+			Addr:                      "2",
+			AllowUnauthenticated:      &trueValue,
+			Timeout:                   2 * time.Second,
+			Token:                     "2",
+			Auth:                      "2",
+			EnableSSL:                 &trueValue,
+			VerifySSL:                 &trueValue,
+			CAFile:                    "2",
+			CertFile:                  "2",
+			KeyFile:                   "2",
+			ServerAutoJoin:            &trueValue,
+			ClientAutoJoin:            &trueValue,
+			ChecksUseAdvertise:        &trueValue,
+			ServerHTTPCheckName:       "Nomad Server HTTP Check",
+			ServerSerfCheckName:       "Nomad Server Serf Check",
+			ServerRPCCheckName:        "Nomad Server RPC Check",
+			ClientHTTPCheckName:       "Nomad Client HTTP Check",
+			ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
+			TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
+		}},
 		Sentinel: &config.SentinelConfig{
 			Imports: []*config.SentinelImport{
 				{
@@ -457,12 +476,19 @@ func TestConfig_Merge(t *testing.T) {
 				},
 			},
 		},
+		Reporting: &config.ReportingConfig{
+			License: &config.LicenseReportingConfig{
+				Enabled: pointer.Of(true),
+			},
+		},
 	}
 
 	result := c0.Merge(c1)
 	result = result.Merge(c2)
 	result = result.Merge(c3)
-	require.Equal(t, c3, result)
+	expected := c3.Copy()
+
+	must.Eq(t, expected, result)
 }
 
 func TestConfig_ParseConfigFile(t *testing.T) {
@@ -698,59 +724,61 @@ func TestConfig_Listener(t *testing.T) {
 	}
 }
 
-func TestConfig_DevModeFlag(t *testing.T) {
+func TestConfig_DevMode_validate(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		dev         bool
-		connect     bool
-		expected    *devModeConfig
+		devConfig   *devModeConfig
 		expectedErr string
 	}{}
 	if runtime.GOOS != "linux" {
 		cases = []struct {
-			dev         bool
-			connect     bool
-			expected    *devModeConfig
+			devConfig   *devModeConfig
 			expectedErr string
 		}{
-			{false, false, nil, ""},
-			{true, false, &devModeConfig{defaultMode: true, connectMode: false}, ""},
-			{true, true, nil, "-dev-connect is only supported on linux"},
-			{false, true, nil, "-dev-connect is only supported on linux"},
+			{
+				devConfig: &devModeConfig{
+					connectMode: true,
+				},
+				expectedErr: "-dev-connect is only supported on linux",
+			},
+			{
+				devConfig: &devModeConfig{
+					defaultMode: true,
+					connectMode: true,
+				},
+				expectedErr: "-dev-connect is only supported on linux",
+			},
 		}
 	}
 	if runtime.GOOS == "linux" {
 		testutil.RequireRoot(t)
 		cases = []struct {
-			dev         bool
-			connect     bool
-			expected    *devModeConfig
+			devConfig   *devModeConfig
 			expectedErr string
 		}{
-			{false, false, nil, ""},
-			{true, false, &devModeConfig{defaultMode: true, connectMode: false}, ""},
-			{true, true, &devModeConfig{defaultMode: true, connectMode: true}, ""},
-			{false, true, &devModeConfig{defaultMode: false, connectMode: true}, ""},
+			{
+				devConfig: &devModeConfig{
+					connectMode: true,
+				},
+				expectedErr: "",
+			},
+			{
+				devConfig: &devModeConfig{
+					defaultMode: true,
+					connectMode: true,
+				},
+				expectedErr: "",
+			},
 		}
 	}
 	for _, c := range cases {
 		t.Run("", func(t *testing.T) {
-			mode, err := newDevModeConfig(c.dev, c.connect)
-			if err != nil && c.expectedErr == "" {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if err != nil && !strings.Contains(err.Error(), c.expectedErr) {
-				t.Fatalf("expected %s; got %v", c.expectedErr, err)
-			}
-			if mode == nil && c.expected != nil {
-				t.Fatalf("expected %+v but got nil", c.expected)
-			}
-			if mode != nil {
-				if c.expected.defaultMode != mode.defaultMode ||
-					c.expected.connectMode != mode.connectMode {
-					t.Fatalf("expected %+v, got %+v", c.expected, mode)
-				}
+			err := c.devConfig.validate()
+			if c.expectedErr != "" {
+				must.Error(t, err)
+			} else {
+				must.NoError(t, err)
 			}
 		})
 	}

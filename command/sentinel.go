@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -24,7 +24,7 @@ Usage: nomad sentinel <subcommand> [options] [args]
   Sentinel integration builds on the ACL System. Users can read existing
   Sentinel policies, create new policies, delete and list existing policies, and
   more. For a full guide on Sentinel policies see:
-  https://www.nomadproject.io/guides/sentinel-policy.html
+  https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel
 
   Read an existing policy:
 

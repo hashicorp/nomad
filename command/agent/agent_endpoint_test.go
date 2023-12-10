@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -31,6 +31,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,7 +42,7 @@ func TestHTTP_AgentSelf(t *testing.T) {
 
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/agent/self", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/self", nil)
 		require.NoError(err)
 		respW := httptest.NewRecorder()
 
@@ -56,15 +57,15 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		require.NotEmpty(self.Stats)
 
 		// Check the Vault config
-		require.Empty(self.Config.Vault.Token)
+		require.Empty(self.Config.defaultVault().Token)
 
 		// Assign a Vault token and require it is redacted.
-		s.Config.Vault.Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		s.Config.defaultVault().Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
 		respW = httptest.NewRecorder()
 		obj, err = s.Server.AgentSelfRequest(respW, req)
 		require.NoError(err)
 		self = obj.(agentSelf)
-		require.Equal("<redacted>", self.Config.Vault.Token)
+		require.Equal("<redacted>", self.Config.defaultVault().Token)
 
 		// Assign a ReplicationToken token and require it is redacted.
 		s.Config.ACL.ReplicationToken = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
@@ -75,15 +76,15 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		require.Equal("<redacted>", self.Config.ACL.ReplicationToken)
 
 		// Check the Consul config
-		require.Empty(self.Config.Consul.Token)
+		require.Empty(self.Config.Consuls[0].Token)
 
 		// Assign a Consul token and require it is redacted.
-		s.Config.Consul.Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		s.Config.Consuls[0].Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
 		respW = httptest.NewRecorder()
 		obj, err = s.Server.AgentSelfRequest(respW, req)
 		require.NoError(err)
 		self = obj.(agentSelf)
-		require.Equal("<redacted>", self.Config.Consul.Token)
+		require.Equal("<redacted>", self.Config.Consuls[0].Token)
 
 		// Check the Circonus config
 		require.Empty(self.Config.Telemetry.CirconusAPIToken)
@@ -106,7 +107,7 @@ func TestHTTP_AgentSelf_ACL(t *testing.T) {
 		state := s.Agent.server.State()
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/agent/self", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/self", nil)
 		require.Nil(err)
 
 		// Try request without a token and expect failure
@@ -162,7 +163,7 @@ func TestHTTP_AgentJoin(t *testing.T) {
 		addr := net.JoinHostPort(member.Addr.String(), strconv.Itoa(int(member.Port)))
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT",
+		req, err := http.NewRequest(http.MethodPut,
 			fmt.Sprintf("/v1/agent/join?address=%s&address=%s", addr, addr), nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -190,7 +191,7 @@ func TestHTTP_AgentMembers(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/agent/members", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/members", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -218,7 +219,7 @@ func TestHTTP_AgentMembers_ACL(t *testing.T) {
 		state := s.Agent.server.State()
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/agent/members", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/members", nil)
 		require.Nil(err)
 
 		// Try request without a token and expect failure
@@ -269,7 +270,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 	t.Run("invalid log_json parameter", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_json=no", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/monitor?log_json=no", nil)
 			require.NoError(t, err)
 			resp := newClosableRecorder()
 
@@ -282,7 +283,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 	t.Run("unknown log_level", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=unknown", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/monitor?log_level=unknown", nil)
 			require.NoError(t, err)
 			resp := newClosableRecorder()
 
@@ -293,9 +294,21 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 		})
 	})
 
+	t.Run("unknown log_include_location", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/monitor?log_include_location=maybe", nil)
+			must.NoError(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			must.Eq(t, http.StatusBadRequest, err.(HTTPCodedError).Code())
+		})
+	})
+
 	t.Run("check for specific log level", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/monitor?log_level=warn", nil)
 			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
@@ -329,7 +342,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 	t.Run("plain output", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=debug&plain=true", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/monitor?log_level=debug&plain=true", nil)
 			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
@@ -363,7 +376,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 	t.Run("logs for a specific node", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn&node_id="+s.client.NodeID(), nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/monitor?log_level=warn&node_id="+s.client.NodeID(), nil)
 			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
@@ -403,7 +416,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 	t.Run("logs for a local client with no server running on agent", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/monitor?log_level=warn", nil)
 			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
@@ -508,7 +521,7 @@ func TestAgent_PprofRequest_Permissions(t *testing.T) {
 				httpTest(t, cb, func(s *TestAgent) {
 					state := s.Agent.server.State()
 					url := "/v1/agent/pprof/cmdline"
-					req, err := http.NewRequest("GET", url, nil)
+					req, err := http.NewRequest(http.MethodGet, url, nil)
 					require.NoError(t, err)
 					respW := httptest.NewRecorder()
 
@@ -605,7 +618,7 @@ func TestAgent_PprofRequest(t *testing.T) {
 					s.Agent.server = nil
 				}
 
-				req, err := http.NewRequest("GET", url, nil)
+				req, err := http.NewRequest(http.MethodGet, url, nil)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -646,7 +659,7 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
+		req, err := http.NewRequest(http.MethodPut, "/v1/agent/force-leave?node=foo", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -668,7 +681,7 @@ func TestHTTP_AgentForceLeave_ACL(t *testing.T) {
 		state := s.Agent.server.State()
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
+		req, err := http.NewRequest(http.MethodPut, "/v1/agent/force-leave?node=foo", nil)
 		require.Nil(err)
 
 		// Try request without a token and expect failure
@@ -737,7 +750,7 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		})
 
 		// Create the request
-		req, err := http.NewRequest("PUT", "/v1/agent/servers", nil)
+		req, err := http.NewRequest(http.MethodPut, "/v1/agent/servers", nil)
 		require.Nil(err)
 
 		// Send the request
@@ -747,7 +760,7 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		require.Contains(err.Error(), "missing server address")
 
 		// Create a valid request
-		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647&address=127.0.0.3%3A4647", nil)
+		req, err = http.NewRequest(http.MethodPut, "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647&address=127.0.0.3%3A4647", nil)
 		require.Nil(err)
 
 		// Send the request which should fail
@@ -756,7 +769,7 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 		require.NotNil(err)
 
 		// Retrieve the servers again
-		req, err = http.NewRequest("GET", "/v1/agent/servers", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/agent/servers", nil)
 		require.Nil(err)
 		respW = httptest.NewRecorder()
 
@@ -802,7 +815,7 @@ func TestHTTP_AgentSetServers_ACL(t *testing.T) {
 
 		// Make the HTTP request
 		path := fmt.Sprintf("/v1/agent/servers?address=%s", url.QueryEscape(s.GetConfig().AdvertiseAddrs.RPC))
-		req, err := http.NewRequest("PUT", path, nil)
+		req, err := http.NewRequest(http.MethodPut, path, nil)
 		require.Nil(err)
 
 		// Try request without a token and expect failure
@@ -852,7 +865,7 @@ func TestHTTP_AgentListServers_ACL(t *testing.T) {
 		state := s.Agent.server.State()
 
 		// Create list request
-		req, err := http.NewRequest("GET", "/v1/agent/servers", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/servers", nil)
 		require.Nil(err)
 
 		expected := []string{
@@ -917,7 +930,7 @@ func TestHTTP_AgentListKeys(t *testing.T) {
 	httpTest(t, func(c *Config) {
 		c.Server.EncryptKey = key1
 	}, func(s *TestAgent) {
-		req, err := http.NewRequest("GET", "/v1/agent/keyring/list", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/keyring/list", nil)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -944,7 +957,7 @@ func TestHTTP_AgentListKeys_ACL(t *testing.T) {
 		state := s.Agent.server.State()
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/agent/keyring/list", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/keyring/list", nil)
 		require.Nil(err)
 
 		// Try request without a token and expect failure
@@ -1003,7 +1016,7 @@ func TestHTTP_AgentInstallKey(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		req, err := http.NewRequest("GET", "/v1/agent/keyring/install", bytes.NewReader(b))
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/keyring/install", bytes.NewReader(b))
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1013,7 +1026,7 @@ func TestHTTP_AgentInstallKey(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		req, err = http.NewRequest("GET", "/v1/agent/keyring/list", bytes.NewReader(b))
+		req, err = http.NewRequest(http.MethodGet, "/v1/agent/keyring/list", bytes.NewReader(b))
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1044,7 +1057,7 @@ func TestHTTP_AgentRemoveKey(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		req, err := http.NewRequest("GET", "/v1/agent/keyring/install", bytes.NewReader(b))
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/keyring/install", bytes.NewReader(b))
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1054,7 +1067,7 @@ func TestHTTP_AgentRemoveKey(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 
-		req, err = http.NewRequest("GET", "/v1/agent/keyring/remove", bytes.NewReader(b))
+		req, err = http.NewRequest(http.MethodGet, "/v1/agent/keyring/remove", bytes.NewReader(b))
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1063,7 +1076,7 @@ func TestHTTP_AgentRemoveKey(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 
-		req, err = http.NewRequest("GET", "/v1/agent/keyring/list", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/agent/keyring/list", nil)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1087,7 +1100,7 @@ func TestHTTP_AgentHealth_Ok(t *testing.T) {
 	httpACLTest(t, nil, func(s *TestAgent) {
 		// No ?type=
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/health", nil)
 			require.Nil(err)
 
 			respW := httptest.NewRecorder()
@@ -1106,7 +1119,7 @@ func TestHTTP_AgentHealth_Ok(t *testing.T) {
 
 		// type=client
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/health?type=client", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/health?type=client", nil)
 			require.Nil(err)
 
 			respW := httptest.NewRecorder()
@@ -1123,7 +1136,7 @@ func TestHTTP_AgentHealth_Ok(t *testing.T) {
 
 		// type=server
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/health?type=server", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/health?type=server", nil)
 			require.Nil(err)
 
 			respW := httptest.NewRecorder()
@@ -1140,7 +1153,7 @@ func TestHTTP_AgentHealth_Ok(t *testing.T) {
 
 		// type=client&type=server
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/health?type=client&type=server", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/health?type=client&type=server", nil)
 			require.Nil(err)
 
 			respW := httptest.NewRecorder()
@@ -1175,7 +1188,7 @@ func TestHTTP_AgentHealth_BadServer(t *testing.T) {
 
 	// No ?type= means server is just skipped
 	{
-		req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/health", nil)
 		require.Nil(err)
 
 		respW := httptest.NewRecorder()
@@ -1192,7 +1205,7 @@ func TestHTTP_AgentHealth_BadServer(t *testing.T) {
 
 	// type=server means server is considered unhealthy
 	{
-		req, err := http.NewRequest("GET", "/v1/agent/health?type=server", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/health?type=server", nil)
 		require.Nil(err)
 
 		respW := httptest.NewRecorder()
@@ -1218,7 +1231,7 @@ func TestHTTP_AgentHealth_BadClient(t *testing.T) {
 	httpACLTest(t, cb, func(s *TestAgent) {
 		// No ?type= means client is just skipped
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/health", nil)
 			require.Nil(err)
 
 			respW := httptest.NewRecorder()
@@ -1235,7 +1248,7 @@ func TestHTTP_AgentHealth_BadClient(t *testing.T) {
 
 		// type=client means client is considered unhealthy
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/health?type=client", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/health?type=client", nil)
 			require.Nil(err)
 
 			respW := httptest.NewRecorder()
@@ -1396,7 +1409,7 @@ func TestHTTP_XSS_Monitor(t *testing.T) {
 			defer s.Shutdown()
 
 			path := fmt.Sprintf("%s/v1/agent/monitor?error_level=error&plain=%t", s.HTTPAddr(), !tc.JSON)
-			req, err := http.NewRequest("GET", path, nil)
+			req, err := http.NewRequest(http.MethodGet, path, nil)
 			require.NoError(t, err)
 			resp := NewFakeRW()
 			closedErr := errors.New("sentinel error")
@@ -1562,7 +1575,7 @@ func schedulerWorkerInfoTest_testCases() []schedulerWorkerAPITest_testCase {
 		{
 			name: "get without token",
 			request: schedulerWorkerAPITest_testRequest{
-				verb:        "GET",
+				verb:        http.MethodGet,
 				aclToken:    "",
 				requestBody: "",
 			},
@@ -1572,7 +1585,7 @@ func schedulerWorkerInfoTest_testCases() []schedulerWorkerAPITest_testCase {
 		{
 			name: "get with management token",
 			request: schedulerWorkerAPITest_testRequest{
-				verb:        "GET",
+				verb:        http.MethodGet,
 				aclToken:    "management",
 				requestBody: "",
 			},
@@ -1582,7 +1595,7 @@ func schedulerWorkerInfoTest_testCases() []schedulerWorkerAPITest_testCase {
 		{
 			name: "get with read token",
 			request: schedulerWorkerAPITest_testRequest{
-				verb:        "GET",
+				verb:        http.MethodGet,
 				aclToken:    "agent_read",
 				requestBody: "",
 			},
@@ -1592,7 +1605,7 @@ func schedulerWorkerInfoTest_testCases() []schedulerWorkerAPITest_testCase {
 		{
 			name: "get with invalid token",
 			request: schedulerWorkerAPITest_testRequest{
-				verb:        "GET",
+				verb:        http.MethodGet,
 				aclToken:    "node_write",
 				requestBody: "",
 			},
@@ -1736,7 +1749,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "get without token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "GET",
+				verb:        http.MethodGet,
 				aclToken:    "",
 				requestBody: "",
 			},
@@ -1746,7 +1759,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "get with management token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "GET",
+				verb:        http.MethodGet,
 				aclToken:    "management",
 				requestBody: "",
 			},
@@ -1756,7 +1769,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "get with read token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "GET",
+				verb:        http.MethodGet,
 				aclToken:    "agent_read",
 				requestBody: "",
 			},
@@ -1766,7 +1779,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "get with write token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "GET",
+				verb:        http.MethodGet,
 				aclToken:    "agent_write",
 				requestBody: "",
 			},
@@ -1776,7 +1789,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "post with no token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "POST",
+				verb:        http.MethodPost,
 				aclToken:    "",
 				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1786,7 +1799,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "put with no token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "PUT",
+				verb:        http.MethodPut,
 				aclToken:    "",
 				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1796,7 +1809,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "post with invalid token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "POST",
+				verb:        http.MethodPost,
 				aclToken:    "node_write",
 				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1806,7 +1819,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "put with invalid token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "PUT",
+				verb:        http.MethodPut,
 				aclToken:    "node_write",
 				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1816,7 +1829,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "post with valid token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "POST",
+				verb:        http.MethodPost,
 				aclToken:    "agent_write",
 				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1826,7 +1839,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "put with valid token",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "PUT",
+				verb:        http.MethodPut,
 				aclToken:    "agent_write",
 				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1836,7 +1849,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "post with good token and bad value",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "POST",
+				verb:        http.MethodPost,
 				aclToken:    "agent_write",
 				requestBody: `{"num_schedulers":-1,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1846,7 +1859,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "post with bad token and bad value",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "POST",
+				verb:        http.MethodPost,
 				aclToken:    "node_write",
 				requestBody: `{"num_schedulers":-1,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1856,7 +1869,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "put with good token and bad value",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "PUT",
+				verb:        http.MethodPut,
 				aclToken:    "agent_write",
 				requestBody: `{"num_schedulers":-1,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1866,7 +1879,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "put with bad token and bad value",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "PUT",
+				verb:        http.MethodPut,
 				aclToken:    "node_write",
 				requestBody: `{"num_schedulers":-1,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1876,7 +1889,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "post with bad json",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "POST",
+				verb:        http.MethodPost,
 				aclToken:    "agent_write",
 				requestBody: `{num_schedulers:-1,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -1886,7 +1899,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 		{
 			name: "put with bad json",
 			request: schedulerWorkerConfigTest_testRequest{
-				verb:        "PUT",
+				verb:        http.MethodPut,
 				aclToken:    "agent_write",
 				requestBody: `{num_schedulers:-1,"enabled_schedulers":["_core", "batch"]}`,
 			},
@@ -2019,7 +2032,7 @@ func schedulerWorkerTest_parseError(t *testing.T, isACLEnabled bool, tc schedule
 func TestHTTP_AgentSchedulerWorkerInfoRequest_Client(t *testing.T) {
 	ci.Parallel(t)
 
-	verbs := []string{"GET", "POST", "PUT"}
+	verbs := []string{http.MethodGet, http.MethodPost, http.MethodPut}
 	path := "schedulers"
 
 	for _, verb := range verbs {
@@ -2045,7 +2058,7 @@ func TestHTTP_AgentSchedulerWorkerInfoRequest_Client(t *testing.T) {
 func TestHTTP_AgentSchedulerWorkerConfigRequest_Client(t *testing.T) {
 	ci.Parallel(t)
 
-	verbs := []string{"GET", "POST", "PUT"}
+	verbs := []string{http.MethodGet, http.MethodPost, http.MethodPut}
 	path := "schedulers/config"
 
 	for _, verb := range verbs {

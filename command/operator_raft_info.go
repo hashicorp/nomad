@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -36,7 +36,7 @@ func (c *OperatorRaftInfoCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *OperatorRaftInfoCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return complete.PredictFiles("*")
 }
 
 func (c *OperatorRaftInfoCommand) Synopsis() string {

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -31,7 +31,7 @@ func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.Te
 	})
 	t.Cleanup(a.Shutdown)
 
-	c := a.Client()
+	c := a.APIClient()
 	return a, c, a.HTTPAddr()
 }
 
@@ -46,7 +46,7 @@ func testClient(t *testing.T, name string, cb func(*agent.Config)) (*agent.TestA
 	})
 	t.Cleanup(a.Shutdown)
 
-	c := a.Client()
+	c := a.APIClient()
 	t.Logf("Waiting for client %s to join server(s) %s", name, a.GetConfig().Client.Servers)
 	testutil.WaitForClient(t, a.Agent.RPC, a.Agent.Client().NodeID(), a.Agent.Client().Region())
 

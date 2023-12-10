@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package csimanager
 
@@ -93,7 +93,7 @@ func (c *csiManager) WaitForPlugin(ctx context.Context, pType, pID string) error
 	return nil
 }
 
-func (c *csiManager) MounterForPlugin(ctx context.Context, pluginID string) (VolumeMounter, error) {
+func (c *csiManager) ManagerForPlugin(ctx context.Context, pluginID string) (VolumeManager, error) {
 	c.instancesLock.RLock()
 	defer c.instancesLock.RUnlock()
 	nodePlugins, hasAnyNodePlugins := c.instances["csi-node"]
@@ -106,7 +106,7 @@ func (c *csiManager) MounterForPlugin(ctx context.Context, pluginID string) (Vol
 		return nil, fmt.Errorf("plugin %s for type csi-node not found", pluginID)
 	}
 
-	return mgr.VolumeMounter(ctx)
+	return mgr.VolumeManager(ctx)
 }
 
 // Run starts a plugin manager and should return early

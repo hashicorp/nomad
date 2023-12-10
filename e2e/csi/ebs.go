@@ -1,10 +1,12 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package csi
 
 import (
+	"context"
 	"fmt"
+	"os/exec"
 	"time"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
@@ -195,8 +197,12 @@ func (tc *CSIControllerPluginEBSTest) TestVolumeClaim(f *framework.F) {
 // TestSnapshot exercises the snapshot commands.
 func (tc *CSIControllerPluginEBSTest) TestSnapshot(f *framework.F) {
 
-	out, err := e2eutil.Command("nomad", "volume", "snapshot", "create",
-		tc.volumeIDs[0], "snap-"+tc.uuid)
+	// EBS snapshots can take a very long time to run
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	bytes, err := exec.CommandContext(ctx, "nomad", "volume", "snapshot", "create",
+		tc.volumeIDs[0], "snap-"+tc.uuid).CombinedOutput()
+	out := string(bytes)
 	requireNoErrorElseDump(f, err, "could not create volume snapshot", tc.pluginJobIDs)
 
 	snaps, err := e2eutil.ParseColumns(out)

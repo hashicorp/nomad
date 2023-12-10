@@ -32,6 +32,7 @@ var (
 	}
 
 	normalTaskKeys = append(commonTaskKeys,
+		"action",
 		"artifact",
 		"constraint",
 		"affinity",
@@ -493,8 +494,6 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			ChangeMode:    stringToPtr("restart"),
 			Splay:         timeToPtr(5 * time.Second),
 			Perms:         stringToPtr("0644"),
-			Uid:           pointer.Of(-1),
-			Gid:           pointer.Of(-1),
 			ErrMissingKey: pointer.Of(false),
 		}
 

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -14,7 +14,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -40,37 +40,26 @@ func (s *ServiceRegistration) Upsert(
 	args *structs.ServiceRegistrationUpsertRequest,
 	reply *structs.ServiceRegistrationUpsertResponse) error {
 
-	authErr := s.srv.Authenticate(s.ctx, args)
-
-	// Ensure the connection was initiated by a client if TLS is used.
-	if err := validateTLSCertificateLevel(s.srv, s.ctx, tlsCertificateLevelClient); err != nil {
-		return err
+	aclObj, err := s.srv.AuthenticateClientOnly(s.ctx, args)
+	s.srv.MeasureRPCRate("service_registration", structs.RateMetricWrite, args)
+	if err != nil {
+		return structs.ErrPermissionDenied
 	}
+
 	if done, err := s.srv.forward(structs.ServiceRegistrationUpsertRPCMethod, args, args, reply); done {
 		return err
 	}
-	s.srv.MeasureRPCRate("service_registration", structs.RateMetricWrite, args)
-	if authErr != nil {
+	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
+
+	if !aclObj.AllowClientOp() {
 		return structs.ErrPermissionDenied
 	}
-	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
 	// Nomad service registrations can only be used once all servers, in the
 	// local region, have been upgraded to 1.3.0 or greater.
 	if !ServersMeetMinimumVersion(s.srv.Members(), s.srv.Region(), minNomadServiceRegistrationVersion, false) {
 		return fmt.Errorf("all servers should be running version %v or later to use the Nomad service provider",
 			minNomadServiceRegistrationVersion)
-	}
-
-	// This endpoint is only callable by nodes in the cluster. Therefore,
-	// perform a node lookup using the secret ID to confirm the caller is a
-	// known node.
-	node, err := s.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
-	if err != nil {
-		return err
-	}
-	if node == nil {
-		return structs.ErrTokenNotFound
 	}
 
 	// Use a multierror, so we can capture all validation errors and pass this
@@ -124,41 +113,10 @@ func (s *ServiceRegistration) DeleteByID(
 			minNomadServiceRegistrationVersion)
 	}
 
-	// Perform the ACL token resolution.
-	aclObj, err := s.srv.ResolveACL(args)
-
-	switch err {
-	case nil:
-		// If ACLs are enabled, ensure the caller has the submit-job namespace
-		// capability.
-		if aclObj != nil {
-			hasSubmitJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob)
-			if !hasSubmitJob {
-				return structs.ErrPermissionDenied
-			}
-		}
-	default:
-		// This endpoint is generally called by Nomad nodes, so we want to
-		// perform this check, unless the token resolution gave us a terminal
-		// error.
-		if err != structs.ErrTokenNotFound {
-			return err
-		}
-
-		// Attempt to lookup AuthToken as a Node.SecretID and return any error
-		// wrapped along with the original.
-		node, stateErr := s.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
-		if stateErr != nil {
-			var mErr multierror.Error
-			mErr.Errors = append(mErr.Errors, err, stateErr)
-			return mErr.ErrorOrNil()
-		}
-
-		// At this point, we do not have a valid ACL token, nor are we being
-		// called, or able to confirm via the state store, by a node.
-		if node == nil {
-			return structs.ErrTokenNotFound
-		}
+	if aclObj, err := s.srv.ResolveACL(args); err != nil {
+		return structs.ErrPermissionDenied
+	} else if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Update via Raft.
@@ -180,7 +138,7 @@ func (s serviceTagSet) add(service string, tags []string) {
 	if _, exists := s[service]; !exists {
 		s[service] = set.From[string](tags)
 	} else {
-		s[service].InsertAll(tags)
+		s[service].InsertSlice(tags)
 	}
 }
 
@@ -216,12 +174,12 @@ func (s *ServiceRegistration) List(
 		return s.listAllServiceRegistrations(args, reply)
 	}
 
-	aclObj, err := s.srv.ResolveClientOrACL(args)
+	aclObj, err := s.srv.ResolveACL(args)
 	if err != nil {
-		return structs.ErrPermissionDenied
+		return err
 	}
-	if args.GetIdentity().Claims == nil &&
-		!aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	if !aclObj.AllowServiceRegistrationReadList(args.RequestNamespace(),
+		args.GetIdentity().Claims != nil) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -250,7 +208,7 @@ func (s *ServiceRegistration) List(
 			for service, tags := range tagSet {
 				serviceList = append(serviceList, &structs.ServiceRegistrationStub{
 					ServiceName: service,
-					Tags:        tags.List(),
+					Tags:        tags.Slice(),
 				})
 			}
 
@@ -346,7 +304,7 @@ func (s *ServiceRegistration) listAllServiceRegistrations(
 				for service, tags := range tagSet {
 					stubs = append(stubs, &structs.ServiceRegistrationStub{
 						ServiceName: service,
-						Tags:        tags.List(),
+						Tags:        tags.Slice(),
 					})
 				}
 				registrations = append(registrations, &structs.ServiceRegistrationListStub{
@@ -381,12 +339,12 @@ func (s *ServiceRegistration) GetService(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "get_service"}, time.Now())
 
-	aclObj, err := s.srv.ResolveClientOrACL(args)
+	aclObj, err := s.srv.ResolveACL(args)
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-	if args.GetIdentity().Claims == nil &&
-		!aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	if !aclObj.AllowServiceRegistrationReadList(args.RequestNamespace(),
+		args.GetIdentity().Claims != nil) {
 		return structs.ErrPermissionDenied
 	}
 

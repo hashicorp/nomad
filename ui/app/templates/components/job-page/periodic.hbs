@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 <JobPage @job={{@job}} as |jobPage|>
@@ -23,9 +23,13 @@
       <:after-namespace>
         <span class="pair" data-test-job-stat="cron">
           <span class="term">
-            Cron
+            {{pluralize "Cron" (or @job.periodicDetails.Specs.length 1)}}
           </span>
-          {{@job.periodicDetails.Spec}}
+            {{#each @job.periodicDetails.Specs as |spec|}}
+            <span class="bumper-right tag">{{spec}}</span>
+            {{else}}
+            <span class="tag">{{@job.periodicDetails.Spec}}</span>
+            {{/each}}
         </span>
       </:after-namespace>
     </jobPage.ui.StatsBox>

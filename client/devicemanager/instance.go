@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package devicemanager
 
@@ -11,6 +11,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -450,7 +451,8 @@ func (i *instanceManager) handleFingerprint(f *device.FingerprintResponse) error
 // collectStats is a long lived goroutine for collecting device statistics. It
 // handles errors by backing off exponentially and retrying.
 func (i *instanceManager) collectStats() {
-	attempt := 0
+	var attempt uint64
+	var backoff time.Duration
 
 START:
 	// Get a device plugin
@@ -495,10 +497,7 @@ START:
 			}
 
 			// Retry with an exponential backoff
-			backoff := (1 << (2 * uint64(attempt))) * statsBackoffBaseline
-			if backoff > statsBackoffLimit {
-				backoff = statsBackoffLimit
-			}
+			backoff = helper.Backoff(statsBackoffBaseline, statsBackoffLimit, attempt)
 			attempt++
 
 			i.logger.Error("stats returned an error", "error", err, "retry", backoff)
@@ -511,7 +510,7 @@ START:
 			}
 		}
 
-		// Reset the attempt since we got statistics
+		// Reset the attempts since we got statistics
 		attempt = 0
 
 		// Store the new stats

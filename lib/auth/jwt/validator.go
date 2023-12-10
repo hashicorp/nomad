@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package jwt
 
@@ -7,12 +7,11 @@ import (
 	"context"
 	"crypto"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/cap/jwt"
-	"golang.org/x/exp/slices"
-
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )

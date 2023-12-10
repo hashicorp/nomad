@@ -1,11 +1,10 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package template
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -16,7 +15,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -25,6 +23,7 @@ import (
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	trtesting "github.com/hashicorp/nomad/client/allocrunner/taskrunner/testing"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
@@ -48,84 +47,6 @@ const (
 	TestTaskName = "test-task"
 )
 
-// MockTaskHooks is a mock of the TaskHooks interface useful for testing
-type MockTaskHooks struct {
-	Restarts  int
-	RestartCh chan struct{}
-
-	Signals    []string
-	SignalCh   chan struct{}
-	signalLock sync.Mutex
-
-	// SignalError is returned when Signal is called on the mock hook
-	SignalError error
-
-	UnblockCh chan struct{}
-
-	KillEvent *structs.TaskEvent
-	KillCh    chan *structs.TaskEvent
-
-	Events      []*structs.TaskEvent
-	EmitEventCh chan *structs.TaskEvent
-
-	// hasHandle can be set to simulate restoring a task after client restart
-	hasHandle bool
-}
-
-func NewMockTaskHooks() *MockTaskHooks {
-	return &MockTaskHooks{
-		UnblockCh:   make(chan struct{}, 1),
-		RestartCh:   make(chan struct{}, 1),
-		SignalCh:    make(chan struct{}, 1),
-		KillCh:      make(chan *structs.TaskEvent, 1),
-		EmitEventCh: make(chan *structs.TaskEvent, 1),
-	}
-}
-func (m *MockTaskHooks) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	m.Restarts++
-	select {
-	case m.RestartCh <- struct{}{}:
-	default:
-	}
-	return nil
-}
-
-func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s string) error {
-	m.signalLock.Lock()
-	m.Signals = append(m.Signals, s)
-	m.signalLock.Unlock()
-	select {
-	case m.SignalCh <- struct{}{}:
-	default:
-	}
-
-	return m.SignalError
-}
-
-func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) error {
-	m.KillEvent = event
-	select {
-	case m.KillCh <- event:
-	default:
-	}
-	return nil
-}
-
-func (m *MockTaskHooks) IsRunning() bool {
-	return m.hasHandle
-}
-
-func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
-	m.Events = append(m.Events, event)
-	select {
-	case m.EmitEventCh <- event:
-	case <-m.EmitEventCh:
-		m.EmitEventCh <- event
-	}
-}
-
-func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
-
 // mockExecutor implements script executor interface
 type mockExecutor struct {
 	DesiredExit int
@@ -140,7 +61,7 @@ func (m *mockExecutor) Exec(timeout time.Duration, cmd string, args []string) ([
 // Consul/Vault as needed
 type testHarness struct {
 	manager        *TaskTemplateManager
-	mockHooks      *MockTaskHooks
+	mockHooks      *trtesting.MockTaskHooks
 	templates      []*structs.Template
 	envBuilder     *taskenv.Builder
 	node           *structs.Node
@@ -160,7 +81,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	mockNode := mock.Node()
 
 	harness := &testHarness{
-		mockHooks: NewMockTaskHooks(),
+		mockHooks: trtesting.NewMockTaskHooks(),
 		templates: templates,
 		node:      mockNode,
 		config: &config.Config{
@@ -193,14 +114,17 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		if err != nil {
 			t.Fatalf("error starting test Consul server: %v", err)
 		}
-		harness.config.ConsulConfig = &sconfig.ConsulConfig{
-			Addr: harness.consul.HTTPAddr,
-		}
+		harness.config.ConsulConfigs = map[string]*sconfig.ConsulConfig{
+			structs.ConsulDefaultCluster: {
+				Addr: harness.consul.HTTPAddr,
+			}}
 	}
 
 	if vault {
 		harness.vault = testutil.NewTestVault(t)
-		harness.config.VaultConfig = harness.vault.Config
+		harness.config.VaultConfigs = map[string]*sconfig.VaultConfig{
+			structs.VaultDefaultCluster: harness.vault.Config,
+		}
 		harness.vaultToken = harness.vault.RootToken
 	}
 
@@ -221,7 +145,9 @@ func (h *testHarness) startWithErr() error {
 		Events:               h.mockHooks,
 		Templates:            h.templates,
 		ClientConfig:         h.config,
+		ConsulConfig:         h.config.GetDefaultConsul(),
 		VaultToken:           h.vaultToken,
+		VaultConfig:          h.config.GetDefaultVault(),
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.envBuilder,
 		MaxTemplateEventRate: h.emitRate,
@@ -251,7 +177,7 @@ func (h *testHarness) stop() {
 
 func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 	ci.Parallel(t)
-	hooks := NewMockTaskHooks()
+	hooks := trtesting.NewMockTaskHooks()
 	clientConfig := &config.Config{Region: "global"}
 	taskDir := "foo"
 	a := mock.Alloc()
@@ -846,7 +772,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	require.Equal(content, string(raw), "Unexpected template data; got %s, want %q", raw, content)
 
 	// task is now running
-	harness.mockHooks.hasHandle = true
+	harness.mockHooks.HasHandle = true
 
 	// simulate a client restart
 	harness.manager.Stop()
@@ -1017,7 +943,7 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 		t.Fatalf("Task unblock should have been called")
 	}
 
-	if len(harness.mockHooks.Signals) != 0 {
+	if len(harness.mockHooks.Signals()) != 0 {
 		t.Fatalf("Should not have received any signals: %+v", harness.mockHooks)
 	}
 
@@ -1033,9 +959,7 @@ OUTER:
 		case <-harness.mockHooks.RestartCh:
 			t.Fatalf("Restart with signal policy: %+v", harness.mockHooks)
 		case <-harness.mockHooks.SignalCh:
-			harness.mockHooks.signalLock.Lock()
-			s := harness.mockHooks.Signals
-			harness.mockHooks.signalLock.Unlock()
+			s := harness.mockHooks.Signals()
 			if len(s) != 2 {
 				continue
 			}
@@ -1211,7 +1135,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	}
 
 	require.NotNil(harness.mockHooks.KillEvent)
-	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to send signals")
+	require.Contains(harness.mockHooks.KillEvent().DisplayMessage, "failed to send signals")
 }
 
 func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
@@ -1373,7 +1297,7 @@ BAR={{key "bar"}}
 	}
 
 	require.NotNil(harness.mockHooks.KillEvent)
-	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "task is being killed")
+	require.Contains(harness.mockHooks.KillEvent().DisplayMessage, "task is being killed")
 }
 
 func TestTaskTemplateManager_ChangeModeMixed(t *testing.T) {
@@ -1786,22 +1710,26 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	ci.Parallel(t)
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       pointer.Of(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
+	c.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:       pointer.Of(true),
+			Addr:          "https://localhost/",
+			TLSServerName: "notlocalhost",
+		},
 	}
+
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
+		VaultConfig:  c.GetDefaultVault(),
 	}
 	ctconf, err := newRunnerConfig(config, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if *ctconf.Vault.SSL.ServerName != c.VaultConfig.TLSServerName {
-		t.Fatalf("expected %q but found %q", c.VaultConfig.TLSServerName, *ctconf.Vault.SSL.ServerName)
+	if *ctconf.Vault.SSL.ServerName != c.GetDefaultVault().TLSServerName {
+		t.Fatalf("expected %q but found %q", c.GetDefaultVault().TLSServerName, *ctconf.Vault.SSL.ServerName)
 	}
 }
 
@@ -1814,17 +1742,20 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 	testNS := "test-namespace"
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       pointer.Of(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
-		Namespace:     testNS,
+	c.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:       pointer.Of(true),
+			Addr:          "https://localhost/",
+			TLSServerName: "notlocalhost",
+			Namespace:     testNS,
+		},
 	}
 
 	alloc := mock.Alloc()
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
+		VaultConfig:  c.GetDefaultVault(),
 		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 	}
 
@@ -1845,11 +1776,13 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 	testNS := "test-namespace"
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       pointer.Of(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
-		Namespace:     testNS,
+	c.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:       pointer.Of(true),
+			Addr:          "https://localhost/",
+			TLSServerName: "notlocalhost",
+			Namespace:     testNS,
+		},
 	}
 
 	alloc := mock.Alloc()
@@ -1859,6 +1792,7 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 	config := &TaskTemplateManagerConfig{
 		ClientConfig:   c,
 		VaultToken:     "token",
+		VaultConfig:    c.GetDefaultVault(),
 		VaultNamespace: overriddenNS,
 		EnvBuilder:     taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 	}
@@ -2179,11 +2113,11 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 
 	// Check to see we got a correct message
 	// assert that all 0-4 keys are missing
-	require.Len(harness.mockHooks.Events, 1)
-	t.Logf("first message: %v", harness.mockHooks.Events[0])
-	missing, more := missingKeys(harness.mockHooks.Events[0])
+	require.Len(harness.mockHooks.Events(), 1)
+	t.Logf("first message: %v", harness.mockHooks.Events()[0])
+	missing, more := missingKeys(harness.mockHooks.Events()[0])
 	require.Equal(5, len(missing)+more)
-	require.Contains(harness.mockHooks.Events[0].DisplayMessage, "and 2 more")
+	require.Contains(harness.mockHooks.Events()[0].DisplayMessage, "and 2 more")
 
 	// Write 0-2 keys to Consul
 	for i := 0; i < 3; i++ {
@@ -2212,7 +2146,7 @@ WAIT_LOOP:
 	}
 
 	// Check to see we got a correct message
-	event := harness.mockHooks.Events[len(harness.mockHooks.Events)-1]
+	event := harness.mockHooks.Events()[len(harness.mockHooks.Events())-1]
 	if !isExpectedFinalEvent(event) {
 		t.Logf("received all events: %v", pretty.Sprint(harness.mockHooks.Events))
 
@@ -2231,14 +2165,16 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 	clientConfig := config.DefaultConfig()
 	clientConfig.Node = mock.Node()
 
-	clientConfig.VaultConfig = &sconfig.VaultConfig{
-		Enabled:   pointer.Of(true),
-		Namespace: testNS,
+	clientConfig.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:   pointer.Of(true),
+			Namespace: testNS,
+		},
 	}
-
-	clientConfig.ConsulConfig = &sconfig.ConsulConfig{
-		Namespace: testNS,
-	}
+	clientConfig.ConsulConfigs = map[string]*sconfig.ConsulConfig{
+		structs.ConsulDefaultCluster: {
+			Namespace: testNS,
+		}}
 
 	// helper to reduce boilerplate
 	waitConfig := &config.WaitConfig{
@@ -2289,7 +2225,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
+				ConsulConfig: clientConfig.GetDefaultConsul(),
 				VaultToken:   "token",
+				VaultConfig:  clientConfig.GetDefaultVault(),
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 			},
 			&config.Config{
@@ -2322,7 +2260,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
+				ConsulConfig: clientConfig.GetDefaultConsul(),
 				VaultToken:   "token",
+				VaultConfig:  clientConfig.GetDefaultVault(),
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 			},
 			&config.Config{
@@ -2359,7 +2299,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
+				ConsulConfig: clientConfig.GetDefaultConsul(),
 				VaultToken:   "token",
+				VaultConfig:  clientConfig.GetDefaultVault(),
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 				Templates: []*structs.Template{
 					{

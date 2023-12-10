@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package cluster3
 
@@ -11,10 +11,12 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/api"
 	nomadapi "github.com/hashicorp/nomad/api"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
+	"oss.indeed.com/go/libtime"
 )
 
 type Cluster struct {
@@ -30,6 +32,7 @@ type Cluster struct {
 	vaultReady     bool
 	linuxClients   int
 	windowsClients int
+	showState      bool
 }
 
 func (c *Cluster) wait() {
@@ -155,11 +158,14 @@ func Establish(t *testing.T, opts ...Option) {
 		t:       t,
 		timeout: 10 * time.Second,
 	}
+
 	for _, opt := range opts {
 		opt(c)
 	}
+
 	c.setClients()
 	c.wait()
+	c.dump()
 }
 
 func (c *Cluster) setClients() {
@@ -215,4 +221,119 @@ func Vault() Option {
 	return func(c *Cluster) {
 		c.vaultReady = true
 	}
+}
+
+func ShowState() Option {
+	return func(c *Cluster) {
+		c.showState = true
+	}
+}
+
+func (c *Cluster) dump() {
+	if !c.showState {
+		return
+	}
+
+	servers := func() {
+		debug("\n--- LEADER / SERVER STATUS ---")
+		statusAPI := c.nomadClient.Status()
+		leader, leaderErr := statusAPI.Leader()
+		must.NoError(c.t, leaderErr, must.Sprint("unable to get leader"))
+		debug("leader:     %s", leader)
+		peers, peersErr := statusAPI.Peers()
+		must.NoError(c.t, peersErr, must.Sprint("unable to get peers"))
+		for i, peer := range peers {
+			debug("peer (%d/%d): %s", i+1, len(peers), peer)
+		}
+	}
+
+	nodes := func() {
+		debug("\n--- NODE STATUS ---")
+		nodesAPI := c.nomadClient.Nodes()
+		stubs, _, stubsErr := nodesAPI.List(nil)
+		must.NoError(c.t, stubsErr, must.Sprint("unable to list nodes"))
+		for i, stub := range stubs {
+			node, _, nodeErr := nodesAPI.Info(stub.ID, nil)
+			must.NoError(c.t, nodeErr, must.Sprint("unable to get node info"))
+			debug("NODE %s @ %s (%d/%d)", node.Name, node.Datacenter, i+1, len(stubs))
+			debug("\tID: %s", node.ID)
+			shares, cores := node.NodeResources.Cpu.CpuShares, node.NodeResources.Cpu.TotalCpuCores
+			debug("\tNodeResources: shares: %d, cores: %d", shares, cores)
+			debug("\tPool: %s, Class: %q", node.NodePool, node.NodeClass)
+			debug("\tStatus: %s %s", node.Status, node.StatusDescription)
+			debug("\tDrain: %t", node.Drain)
+			for driver, info := range node.Drivers {
+				debug("\t[%s]", driver)
+				debug("\t\tDetected: %t", info.Detected)
+				debug("\t\tHealthy: %t %q", info.Healthy, info.HealthDescription)
+			}
+			debug("\tEvents")
+			for i, event := range node.Events {
+				debug("\t\t(%d/%d) %s @ %s", i+1, len(node.Events), event.Message, event.Timestamp)
+			}
+		}
+	}
+
+	allocs := func() {
+		allocsAPI := c.nomadClient.Allocations()
+		opts := &api.QueryOptions{Namespace: "*"}
+		stubs, _, stubsErr := allocsAPI.List(opts)
+		must.NoError(c.t, stubsErr, must.Sprint("unable to get allocs list"))
+		debug("\n--- ALLOCATIONS (found %d) ---", len(stubs))
+		for _, stub := range stubs {
+			info, _, infoErr := allocsAPI.Info(stub.ID, nil)
+			must.NoError(c.t, infoErr, must.Sprint("unable to get alloc"))
+			debug("ALLOC (%s/%s, %s)", info.Namespace, *info.Job.ID, info.TaskGroup)
+			debug("\tNode: %s, NodeID: %s", info.NodeName, info.NodeID)
+			debug("\tClientStatus: %s %q", info.ClientStatus, info.ClientDescription)
+			debug("\tClientTerminalStatus: %t", info.ClientTerminalStatus())
+			debug("\tDesiredStatus: %s %q", info.DesiredStatus, info.DesiredDescription)
+			debug("\tServerTerminalStatus: %t", info.ServerTerminalStatus())
+			debug("\tDeployment: %s, Healthy: %t", info.DeploymentID, *info.DeploymentStatus.Healthy)
+			for task, resources := range info.TaskResources {
+				shares, cores, memory, memoryMax := *resources.CPU, *resources.Cores, *resources.MemoryMB, *resources.MemoryMaxMB
+				debug("\tTask [%s] shares: %d, cores: %d, memory: %d, memory_max: %d", task, shares, cores, memory, memoryMax)
+			}
+		}
+	}
+
+	evals := func() {
+		debug("\n--- EVALUATIONS ---")
+		evalsAPI := c.nomadClient.Evaluations()
+		opts := &api.QueryOptions{Namespace: "*"}
+		stubs, _, stubsErr := evalsAPI.List(opts)
+		must.NoError(c.t, stubsErr, must.Sprint("unable to list evaluations"))
+		for i, stub := range stubs {
+			eval, _, evalErr := evalsAPI.Info(stub.ID, opts)
+			must.NoError(c.t, evalErr, must.Sprint("unable to get eval"))
+			debug("EVAL (%d/%d) %s/%s on %q", i+1, len(stubs), eval.Namespace, eval.JobID, eval.NodeID)
+			createTime := libtime.FromMilliseconds(eval.CreateTime / 1_000_000)
+			debug("\tStatus: %s", eval.Status)
+			debug("\tCreateIndex: %d, CreateTime: %s", eval.CreateIndex, createTime)
+			debug("\tDeploymentID: %s", eval.DeploymentID)
+			debug("\tQuotaLimitReached: %q", eval.QuotaLimitReached)
+			debug("\tEscapedComputedClass: %t", eval.EscapedComputedClass)
+			debug("\tBlockedEval: %q", eval.BlockedEval)
+			debug("\tClassEligibility: %v", eval.ClassEligibility)
+			debug("\tQueuedAllocations: %v", eval.QueuedAllocations)
+		}
+	}
+
+	servers()
+	nodes()
+	allocs()
+	evals()
+
+	debug("\n--- END ---\n")
+
+	// TODO
+	// - deployments
+	// - services
+	// - anything else interesting
+}
+
+// debug uses Printf for outputting immediately to standard out instead of
+// using Logf which witholds output until after the test runs
+func debug(msg string, args ...any) {
+	fmt.Printf(msg+"\n", args...)
 }

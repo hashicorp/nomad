@@ -1,0 +1,300 @@
+---
+layout: api
+page_title: Variables - HTTP API
+description: The /var endpoints are used to query for and interact with variables.
+---
+
+# Variables HTTP API
+
+The `/var` and `/vars` endpoints are used to query for and interact with
+variables.
+
+See the [Variables][] documentation for information how these capabilities are
+used. 
+
+## List Variables
+
+This endpoint lists all variables. Note this API returns only variable metadata
+without decrypting the variable body.
+
+| Method | Path       | Produces           |
+|--------|------------|--------------------|
+| `GET`  | `/v1/vars` | `application/json` |
+
+The table below shows this endpoint's support for [blocking queries] and
+[required ACLs].
+
+| Blocking Queries | ACL Required                                                                            |
+|------------------|-----------------------------------------------------------------------------------------|
+| `YES`            | `namespace:* variables:list`<br />The list capability on the namespace and path queried |
+
+### Parameters
+
+- `prefix` `(string: "")` - Specifies a string to filter variables on based on
+  an index prefix. This is specified as a query string parameter.
+
+- `next_token` `(string: "")` - This endpoint supports paging. The `next_token`
+  parameter accepts a string which identifies the next expected job. This value
+  can be obtained from the `X-Nomad-NextToken` header from the previous
+  response.
+
+- `per_page` `(int: 0)` - Specifies a maximum number of variables to return for
+  this request. If omitted, the response is not paginated. The value of the
+  `X-Nomad-NextToken` header of the last response can be used as the
+  `next_token` of the next request to fetch additional pages.
+
+- `filter` `(string: "")` - Specifies the [expression](/nomad/api-docs#filtering) used
+  to filter the results. Consider using pagination or a query parameter to
+  reduce resources used to serve the request.
+
+- `namespace` `(string: "default")` - Specifies the target namespace. Specifying
+  `*` will return all variables across all the authorized namespaces.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/vars?namespace=prod&prefix=example
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "Namespace": "prod",
+    "Path": "example/first",
+    "CreateIndex": 1457,
+    "ModifyIndex": 1457,
+    "CreateTime": 1662061225600373000,
+    "ModifyTime": 1662061225600373000
+  },
+  {
+    "Namespace": "prod",
+    "Path": "example/second",
+    "CreateIndex": 800,
+    "ModifyIndex": 1000,
+    "CreateTime": 1662061717905426000,
+    "ModifyTime": 1662062162982630000
+  }
+]
+```
+
+## Read Variable
+
+This endpoint reads a specific variable by path. This API returns the decrypted
+variable body.
+
+| Method | Path               | Produces           |
+|--------|--------------------|--------------------|
+| `GET`  | `/v1/var/:var_path` | `application/json` |
+
+The table below shows this endpoint's support for [blocking queries] and
+[required ACLs].
+
+| Blocking Queries | ACL Required                                                                               |
+|------------------|--------------------------------------------------------------------------------------------|
+| `YES`            | `namespace:* variables:read`<br />The read capability on the variable's namespace and path |
+
+### Parameters
+
+- `namespace` `(string: "default")` - Specifies the variable's namespace.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/var/example/first?namespace=prod
+```
+
+### Sample Response
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "CreateIndex": 1457,
+  "ModifyIndex": 1457,
+  "CreateTime": 1662061225600373000,
+  "ModifyTime": 1662061225600373000
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  }
+}
+```
+
+## Create Variable
+
+This endpoint creates or updates a variable.
+
+| Method | Path                | Produces           |
+|--------|---------------------|--------------------|
+| `PUT`  | `/v1/var/:var_path` | `application/json` |
+
+The table below shows this endpoint's support for [blocking queries] and
+[required ACLs].
+
+| Blocking Queries | ACL Required                                                                                |
+|------------------|---------------------------------------------------------------------------------------------|
+| `NO`             | `namespace:* variables:write`<br />The read capability on the variable's namespace and path |
+
+### Parameters
+
+- `namespace` `(string: "default")` - Specifies the variable's namespace. If
+  set, this will override the request body.
+
+- `cas` `(int: <unset>)` - If set, the variable will only be updated if the
+  `cas` value matches the current variables `ModifyIndex`. If the `cas` value is
+  0, the variable is only created if it does not already exist. This paradigm
+  allows check-and-set style updates.
+
+- `lock-operation` `(string: <unset>)` - This endpoint can also be used to create 
+and hold a lock over a variable, refer to the [locks section][] for more
+information.
+
+## Restrictions
+
+Variable paths are restricted to [RFC3986][] URL-safe characters that don't
+conflict with the use of the characters `@` and `.` in template blocks. This
+includes alphanumeric characters and the special characters `-`, `_`, `~`, and
+`/`. Paths may be up to 128 bytes long. The following regex matches the allowed
+paths: `^[a-zA-Z0-9-_~/]{1,128}$`
+
+Variable items are restricted to 64KiB in size. This limit is calculated by
+taking the sum of the length in bytes of all of the unencrypted keys and values
+in the `Items` field.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    -XPUT -d@spec.nsv.json \
+    https://localhost:4646/v1/var/example/first
+```
+
+### Sample Payload
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  }
+}
+```
+
+### Sample Response
+
+The response body returns the created or updated variable along with metadata
+created by the server:
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "CreateIndex": 1457,
+  "ModifyIndex": 1457,
+  "CreateTime": 1662061225600373000,
+  "ModifyTime": 1662061225600373000,
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  }
+}
+```
+
+### Sample Response for Conflict
+
+In the case of a compare-and-set conflict, the API will return HTTP error code
+409 and a response body showing the conflicting variable. If the provided ACL
+token does not also have `read` permissions to the variable path, the response
+will include only metadata and not the `Items` field:
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "CreateIndex": 1457,
+  "ModifyIndex": 1457,
+  "CreateTime": 1662061225600373000,
+  "ModifyTime": 1662061225600373000,
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  }
+}
+```
+
+
+## Delete Variable
+
+This endpoint deletes a specific variable by path.
+
+| Method | Path               | Produces           |
+|--------|--------------------|--------------------|
+| `DELETE`  | `/v1/var/:var_path` | `application/json` |
+
+The table below shows this endpoint's support for [blocking queries] and
+[required ACLs].
+
+| Blocking Queries | ACL Required                                                                                     |
+|------------------|--------------------------------------------------------------------------------------------------|
+| `NO`             | `namespace:* variables:destroy`<br />The destroy capability on the variable's namespace and path |
+
+### Parameters
+
+- `namespace` `(string: "default")` - Specifies the variable's namespace.
+
+- `cas` `(int: <unset>)` - If set, the variable will only be deleted if the
+  `cas` value matches the current variables `ModifyIndex`.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    -XDELETE \
+    https://localhost:4646/v1/var/example/first?namespace=prod
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 16
+}
+```
+
+### Sample Request With CAS
+
+```shell-session
+$ curl \
+    -XDELETE \
+    https://localhost:4646/v1/var/example/first?namespace=prod&cas=1
+```
+
+### Sample Response for Conflict
+
+In the case of a compare-and-set conflict on delete, the API will return HTTP
+error code 409 and a response body showing the conflicting variable. If the
+provided ACL token does not also have `read` permissions to the variable path,
+the response will include only metadata and not the `Items` field:
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "CreateIndex": 1457,
+  "ModifyIndex": 1457,
+  "CreateTime": 1662061225600373000,
+  "ModifyTime": 1662061225600373000
+}
+```
+
+[Variables]: /nomad/docs/concepts/variables
+[locks section]:/nomad/api-docs/variables/locks
+[blocking queries]: /nomad/api-docs#blocking-queries
+[required ACLs]: /nomad/api-docs#acls
+[RFC3986]: https://www.rfc-editor.org/rfc/rfc3986#section-2

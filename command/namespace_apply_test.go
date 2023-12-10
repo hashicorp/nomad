@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -88,6 +88,16 @@ node_pool_config {
   allowed = ["prod*"]
 }
 
+vault {
+  default = "infra"
+  allowed = ["apps", "infra"]
+}
+
+consul {
+  default = "prod"
+  allowed = ["prod", "apps*"]
+}
+
 meta {
   dept = "eng"
 }`,
@@ -102,6 +112,14 @@ meta {
 				NodePoolConfiguration: &api.NamespaceNodePoolConfiguration{
 					Default: "dev",
 					Allowed: []string{"prod*"},
+				},
+				VaultConfiguration: &api.NamespaceVaultConfiguration{
+					Default: "infra",
+					Allowed: []string{"apps", "infra"},
+				},
+				ConsulConfiguration: &api.NamespaceConsulConfiguration{
+					Default: "prod",
+					Allowed: []string{"prod", "apps*"},
 				},
 				Meta: map[string]string{
 					"dept": "eng",
@@ -119,6 +137,24 @@ meta {
 			name:     "empty",
 			input:    "",
 			expected: &api.Namespace{},
+		},
+		{
+			name: "lists in node pool config are nil if not provided",
+			input: `
+name = "nil-lists"
+
+node_pool_config {
+  default = "default"
+}
+`,
+			expected: &api.Namespace{
+				Name: "nil-lists",
+				NodePoolConfiguration: &api.NamespaceNodePoolConfiguration{
+					Default: "default",
+					Allowed: nil,
+					Denied:  nil,
+				},
+			},
 		},
 	}
 

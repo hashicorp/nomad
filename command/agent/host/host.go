@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package host
 
@@ -93,7 +93,7 @@ func environment() map[string]string {
 // DefaultEnvDenyList is the default set of environment variables that are
 // filtered when passing the environment variables of the host to the task.
 //
-// Update https://www.nomadproject.io/docs/configuration/client#env-denylist
+// Update https://developer.hashicorp.com/nomad/docs/configuration/client#env-denylist
 // whenever this is changed.
 var DefaultEnvDenyList = []string{
 	"CONSUL_TOKEN",

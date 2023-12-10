@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -26,9 +26,9 @@ import (
 )
 
 // allocClientStateSimulator simulates the updates in state from the
-// client. allocations that are new on the server get marked with healthy
-// deployments, and allocations that are DesiredStatus=stop on the server get
-// updates with terminal client status.
+// client. service allocations that are new on the server get marked with
+// healthy deployments, and service allocations that are DesiredStatus=stop on
+// the server get updates with terminal client status.
 func allocClientStateSimulator(t *testing.T, errCh chan<- error, ctx context.Context,
 	srv *Server, nodeID string, logger log.Logger) {
 
@@ -529,9 +529,13 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 		new.ClientStatus = structs.AllocClientStatusComplete
 		updates = append(updates, new)
 	}
-	index, _ := store.LatestIndex()
-	index++
-	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, index, updates))
+
+	batchDoneReq := &structs.AllocUpdateRequest{
+		Alloc:        updates,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", batchDoneReq, &resp)
+	must.NoError(t, err)
 
 	// Wait for the service allocations to be replaced
 	waitForPlacedAllocs(t, store, n2.ID, 3)

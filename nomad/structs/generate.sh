@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 set -e
 
@@ -11,5 +11,5 @@ codecgen \
     -d 100 \
     -t codegen_generated \
     -o structs.generated.go \
-    -nr="(^ACLCache$)|(^IdentityClaims$)" \
+    -nr="(^ACLCache$)|(^IdentityClaims$)|(^OIDCDiscoveryConfig$)|(^KeyEncryptionKeyWrapper$)" \
     ${FILES}

@@ -1,0 +1,128 @@
+---
+layout: docs
+page_title: action Block - Job Specification
+description: The "action" block allows for executable commands that job authors can predefine for operators to subsequently run against their job.
+---
+
+# `action` Block
+
+<Placement groups={['job', 'group', 'task', 'action']} />
+
+The `action` block allows job authors to define custom commands. These commands
+can be executed by operators with the necessary permissions on a running
+allocation, offering a controlled way to interact with tasks.
+
+## `action` Parameters
+
+- `command` `(string: <required>)` - Specifies the command to be executed.
+- `args` `(array<string>: [])` - Provides a list of arguments to pass to the command.
+
+```hcl
+job "my-job" {
+  group "my-group" {
+    task "my-task" {
+      action "get-changelog" {
+        command = "/usr/bin/curl"
+        args = [
+          "-s",
+          "https://raw.githubusercontent.com/hashicorp/nomad/main/CHANGELOG.md"
+        ]
+      }
+      # ...
+    }
+  }
+}
+```
+
+## `action` Examples
+
+### Basic Action
+This example demonstrates a simple action that prints the current date and time:
+
+```hcl
+job "example" {
+  # ...
+  group "demo" {
+    # ...
+    task "show-date" {
+      # ...
+      action "current-date" {
+        command = "/bin/date"
+      }
+    }
+  }
+}
+```
+
+### Action with Arguments
+Here, an action uses arguments to perform a specific task:
+
+```hcl
+job "example" {
+  # ...
+  group "demo" {
+    # ...
+    task "list-files" {
+      # ...
+      action "list-tmp" {
+        command = "/bin/ls"
+        args    = ["-l", "/tmp"]
+      }
+    }
+  }
+}
+```
+
+### Action with Template
+This advanced example demonstrates an action that fetches and formats the latest
+changelog from the Nomad GitHub repository using a shell script. It showcases
+the use of templating with embedded environment variables and a multi-line script.
+
+```hcl
+action "fetch-latest-nomad-changelog" {
+  command = "/bin/sh"
+  args    = ["-c", 
+    <<EOT
+curl -s https://raw.githubusercontent.com/hashicorp/nomad/main/CHANGELOG.md | 
+
+awk 'BEGIN{
+    # Setting record and field separators
+    RS="## "; FS="\n"; 
+    section=""; count=0
+}
+{
+    # Processing only the first 3 sections after the header
+    if (count < 3 && NR > 1){
+        # Splitting the version line into components
+        split($1, versionInfo, /[()]/);
+        version=versionInfo[1];
+        gsub(" ", "", version); # Removing spaces from version
+        releaseDate=versionInfo[2];
+        # Formatting URL components
+        urlVersion=version; gsub("\\.", "", urlVersion); # Remove dots from version
+        urlDate=releaseDate; gsub(" ", "-", urlDate); gsub(",", "", urlDate); # Replace spaces with hyphens and remove comma
+        # Counting items under each section
+        for(i=1; i<=NF; i++){
+            if($i ~ /^[A-Z ]+:$/){
+                gsub(":", "", $i);
+                section=$i;
+                itemCount[section]=0;
+            }
+            if(section && $i ~ /^\*/){
+                itemCount[section]++;
+            }
+        }
+        # Printing the extracted information
+        printf "Version: %s\nRelease Date: %s\n", version, releaseDate;
+        for (s in itemCount) {
+            printf "%d %s, ", itemCount[s], s;
+        }
+        printf "\nLink: https://github.com/hashicorp/nomad/blob/main/CHANGELOG.md#%s-%s\n\n", urlVersion, tolower(urlDate);
+        delete itemCount;  # Clear the itemCount array for the next version
+        count++;
+    }
+}'
+    EOT
+  ]
+}
+```

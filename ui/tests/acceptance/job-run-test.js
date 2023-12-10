@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import AdapterError from '@ember-data/adapter/error';
@@ -28,6 +28,8 @@ import percySnapshot from '@percy/ember';
 const newJobName = 'new-job';
 const newJobTaskGroupName = 'redis';
 const newJobNamespace = 'default';
+
+const NUMBER_OF_DEFAULT_TEMPLATES = 5;
 
 let managementToken, clientToken;
 
@@ -245,7 +247,10 @@ module('Acceptance | job run', function (hooks) {
       // Assert
       assert
         .dom('[data-test-template-card]')
-        .exists({ count: 4 }, 'A list of default job templates is rendered.');
+        .exists(
+          { count: NUMBER_OF_DEFAULT_TEMPLATES },
+          'A list of default job templates is rendered.'
+        );
 
       await click('[data-test-create-new-button]');
       assert.equal(currentRouteName(), 'jobs.run.templates.new');
@@ -331,7 +336,10 @@ module('Acceptance | job run', function (hooks) {
       // Assert
       assert
         .dom('[data-test-template-card]')
-        .exists({ count: 4 }, 'A list of default job templates is rendered.');
+        .exists(
+          { count: NUMBER_OF_DEFAULT_TEMPLATES },
+          'A list of default job templates is rendered.'
+        );
 
       await click('[data-test-create-new-button]');
       assert.equal(currentRouteName(), 'jobs.run.templates.new');
@@ -380,7 +388,10 @@ module('Acceptance | job run', function (hooks) {
       // Assert
       assert
         .dom('[data-test-template-card]')
-        .exists({ count: 4 }, 'A list of default job templates is rendered.');
+        .exists(
+          { count: NUMBER_OF_DEFAULT_TEMPLATES },
+          'A list of default job templates is rendered.'
+        );
 
       await click('[data-test-create-new-button]');
       assert.equal(currentRouteName(), 'jobs.run.templates.new');
@@ -576,7 +587,6 @@ module('Acceptance | job run', function (hooks) {
 
     test('default templates', async function (assert) {
       assert.expect(4);
-      const NUMBER_OF_DEFAULT_TEMPLATES = 4;
 
       await visit('/jobs/run/templates');
 

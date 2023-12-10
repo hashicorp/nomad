@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -216,9 +216,9 @@ func TestServer_Reload_Vault(t *testing.T) {
 
 	tr := true
 	config := DefaultConfig()
-	config.VaultConfig.Enabled = &tr
-	config.VaultConfig.Token = uuid.Generate()
-	config.VaultConfig.Namespace = "nondefault"
+	config.GetDefaultVault().Enabled = &tr
+	config.GetDefaultVault().Token = uuid.Generate()
+	config.GetDefaultVault().Namespace = "nondefault"
 
 	if err := s1.Reload(config); err != nil {
 		t.Fatalf("Reload failed: %v", err)

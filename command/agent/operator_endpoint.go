@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -30,6 +30,8 @@ func (s *HTTPServer) OperatorRequest(resp http.ResponseWriter, req *http.Request
 		return s.OperatorRaftConfiguration(resp, req)
 	case strings.HasPrefix(path, "peer"):
 		return s.OperatorRaftPeer(resp, req)
+	case strings.HasPrefix(path, "transfer-leadership"):
+		return s.OperatorRaftTransferLeadership(resp, req)
 	default:
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
@@ -38,7 +40,7 @@ func (s *HTTPServer) OperatorRequest(resp http.ResponseWriter, req *http.Request
 // OperatorRaftConfiguration is used to inspect the current Raft configuration.
 // This supports the stale query mode in case the cluster doesn't have a leader.
 func (s *HTTPServer) OperatorRaftConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		resp.WriteHeader(http.StatusMethodNotAllowed)
 		return nil, nil
 	}
@@ -56,10 +58,9 @@ func (s *HTTPServer) OperatorRaftConfiguration(resp http.ResponseWriter, req *ht
 	return reply, nil
 }
 
-// OperatorRaftPeer supports actions on Raft peers. Currently we only support
-// removing peers by address.
+// OperatorRaftPeer supports actions on Raft peers.
 func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "DELETE" {
+	if req.Method != http.MethodDelete {
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
 
@@ -97,12 +98,63 @@ func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Reques
 	return nil, nil
 }
 
+// OperatorRaftTransferLeadership supports actions on Raft peers.
+func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPost && req.Method != http.MethodPut {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	params := req.URL.Query()
+
+	// Using the params map directly
+	id, hasID := params["id"]
+	addr, hasAddress := params["address"]
+
+	// There are some items that we can parse for here that are more unwieldy in
+	// the Validate() func on the RPC request object, like repeated query params.
+	switch {
+	case !hasID && !hasAddress:
+		return nil, CodedError(http.StatusBadRequest, "must specify id or address")
+	case hasID && hasAddress:
+		return nil, CodedError(http.StatusBadRequest, "must specify either id or address")
+	case hasID && id[0] == "":
+		return nil, CodedError(http.StatusBadRequest, "id must be non-empty")
+	case hasID && len(id) > 1:
+		return nil, CodedError(http.StatusBadRequest, "must specify only one id")
+	case hasAddress && addr[0] == "":
+		return nil, CodedError(http.StatusBadRequest, "address must be non-empty")
+	case hasAddress && len(addr) > 1:
+		return nil, CodedError(http.StatusBadRequest, "must specify only one address")
+	}
+
+	var out structs.LeadershipTransferResponse
+	args := &structs.RaftPeerRequest{}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	if hasID {
+		args.ID = raft.ServerID(id[0])
+	} else {
+		args.Address = raft.ServerAddress(addr[0])
+	}
+
+	if err := args.Validate(); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+
+	err := s.agent.RPC("Operator.TransferLeadershipToPeer", &args, &out)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
 // OperatorAutopilotConfiguration is used to inspect the current Autopilot configuration.
 // This supports the stale query mode in case the cluster doesn't have a leader.
 func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Switch on the method
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		var args structs.GenericRequest
 		if done := s.parse(resp, req, &args.Region, &args.QueryOptions); done {
 			return nil, nil
@@ -128,7 +180,7 @@ func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, re
 
 		return out, nil
 
-	case "PUT":
+	case http.MethodPut:
 		var args structs.AutopilotSetConfigRequest
 		s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -177,7 +229,7 @@ func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, re
 
 // OperatorServerHealth is used to get the health of the servers in the given Region.
 func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
 
@@ -225,10 +277,10 @@ func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Re
 func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Switch on the method
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.schedulerGetConfig(resp, req)
 
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.schedulerUpdateConfig(resp, req)
 
 	default:
@@ -297,9 +349,9 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 
 func (s *HTTPServer) SnapshotRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.snapshotSaveRequest(resp, req)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.snapshotRestoreRequest(resp, req)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)

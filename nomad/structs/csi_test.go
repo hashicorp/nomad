@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -596,17 +597,6 @@ func TestCSIVolume_Merge(t *testing.T) {
 		expectFn func(t *testing.T, v *CSIVolume)
 	}{
 		{
-			name: "invalid capacity update",
-			v:    &CSIVolume{Capacity: 100},
-			update: &CSIVolume{
-				RequestedCapacityMax: 300, RequestedCapacityMin: 200},
-			expected: "volume requested capacity update was not compatible with existing capacity",
-			expectFn: func(t *testing.T, v *CSIVolume) {
-				require.NotEqual(t, 300, v.RequestedCapacityMax)
-				require.NotEqual(t, 200, v.RequestedCapacityMin)
-			},
-		},
-		{
 			name: "invalid capability update",
 			v: &CSIVolume{
 				AccessMode:     CSIVolumeAccessModeMultiNodeReader,
@@ -637,7 +627,7 @@ func TestCSIVolume_Merge(t *testing.T) {
 			update:   &CSIVolume{},
 			expected: "volume topology request update was not compatible with existing topology",
 			expectFn: func(t *testing.T, v *CSIVolume) {
-				require.Len(t, v.Topologies, 1)
+				must.Len(t, 1, v.Topologies)
 			},
 		},
 		{
@@ -657,8 +647,8 @@ func TestCSIVolume_Merge(t *testing.T) {
 			},
 			expected: "volume topology request update was not compatible with existing topology",
 			expectFn: func(t *testing.T, v *CSIVolume) {
-				require.Len(t, v.Topologies, 1)
-				require.Equal(t, "R1", v.Topologies[0].Segments["rack"])
+				must.Len(t, 1, v.Topologies)
+				must.Eq(t, "R1", v.Topologies[0].Segments["rack"])
 			},
 		},
 		{
@@ -685,6 +675,20 @@ func TestCSIVolume_Merge(t *testing.T) {
 				},
 			},
 			expected: "volume topology request update was not compatible with existing topology",
+		},
+		{
+			name: "invalid mount options while in use",
+			v: &CSIVolume{
+				// having any allocs means it's "in use"
+				ReadAllocs: map[string]*Allocation{
+					"test-alloc": {ID: "anything"},
+				},
+			},
+			update: &CSIVolume{
+				MountOptions: &CSIMountOptions{
+					MountFlags: []string{"any flags"}},
+			},
+			expected: "can not update mount options while volume is in use",
 		},
 		{
 			name: "valid update",
@@ -715,7 +719,7 @@ func TestCSIVolume_Merge(t *testing.T) {
 				},
 				MountOptions: &CSIMountOptions{
 					FSType:     "ext4",
-					MountFlags: []string{"noatime"},
+					MountFlags: []string{"noatime", "another"},
 				},
 				RequestedTopologies: &CSITopologyRequest{
 					Required: []*CSITopology{
@@ -736,20 +740,26 @@ func TestCSIVolume_Merge(t *testing.T) {
 					},
 				},
 			},
+			expectFn: func(t *testing.T, v *CSIVolume) {
+				test.Len(t, 2, v.RequestedCapabilities,
+					test.Sprint("should add 2 requested capabilities"))
+				test.Eq(t, []string{"noatime", "another"}, v.MountOptions.MountFlags,
+					test.Sprint("should add mount flag"))
+			},
 		},
 	}
 	for _, tc := range testCases {
-		tc = tc
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.v.Merge(tc.update)
+			if tc.expectFn != nil {
+				tc.expectFn(t, tc.v)
+			}
 			if tc.expected == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				if tc.expectFn != nil {
-					tc.expectFn(t, tc.v)
-				}
-				require.Error(t, err, tc.expected)
-				require.Contains(t, err.Error(), tc.expected)
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expected)
 			}
 		})
 	}

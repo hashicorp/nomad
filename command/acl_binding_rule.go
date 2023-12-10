@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -26,7 +26,7 @@ Usage: nomad acl binding-rule <subcommand> [options] [args]
 
   This command groups subcommands for interacting with ACL binding rules.
   Nomad's ACL system can be used to control access to data and APIs. For a full
-  guide see: https://www.nomadproject.io/guides/acl.html
+  guide see: https://developer.hashicorp.com/nomad/tutorials/access-control
 
   Create an ACL binding rule:
 

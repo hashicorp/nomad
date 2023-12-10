@@ -41,7 +41,8 @@ job "docs" {
   block, if present; otherwise, this defaults to `1`.
 
 - `consul` <code>([Consul][consul]: nil)</code> - Specifies Consul configuration
-  options specific to the group.
+  options specific to the group. These options will be applied to all tasks and
+  services in the group unless a task has its own `consul` block.
 
 - `ephemeral_disk` <code>([EphemeralDisk][]: nil)</code> - Specifies the
   ephemeral disk requirements of the group. Ephemeral disks can be marked as
@@ -61,6 +62,25 @@ job "docs" {
 - `reschedule` <code>([Reschedule][]: nil)</code> - Allows to specify a
   rescheduling strategy. Nomad will then attempt to schedule the task on another
   node if any of the group allocation statuses become "failed".
+
+- `prevent_reschedule_on_lost` `(bool: false)` - Defines the reschedule behaviour 
+  of an allocation when the node it is running on misses heartbeats. 
+  When enabled, if the node it is running on becomes disconnected 
+  or goes down, this allocations wont be rescheduled and will show up as `unknown`
+  until the node comes back up or it is manually restarted. 
+  
+  This behaviour will only modify the reschedule process on the server.
+  To modify the allocation behaviour on the client, see 
+  [`stop_after_client_disconnect`](#stop_after_client_disconnect).
+
+  The `unknown` allocation has to be manually stopped to run it again.
+
+  ```plaintext
+  `nomad alloc stop  <alloc ID>`
+  ```
+
+  Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the 
+  same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
 
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
@@ -114,14 +134,6 @@ job "docs" {
 
 - `volume` <code>([Volume][]: nil)</code> - Specifies the volumes that are
   required by tasks within the group.
-
-### `consul` Parameters
-
-- `namespace` `(string: "")` <EnterpriseAlert inline/> - The Consul namespace in which
-  group and task-level services within the group will be registered. Use of
-  `template` to access Consul KV will read from the specified Consul namespace.
-  Specifying `namespace` takes precedence over the [`-consul-namespace`][consul_namespace]
-  command line argument in `job run`.
 
 ## `group` Examples
 
@@ -330,22 +342,47 @@ group "second" {
 }
 ```
 
-~> **Note:** The `max_client_disconnect` feature is only supported on Nomad
-version 1.3.0 and above. If you run a job with `max_client_disconnect` on servers
-where some servers are not upgraded to 1.3.0, the `max_client_disconnect`
-flag will be _ignored_. Deploying a job with `max_client_disconnect` to a
-`datacenter` of Nomad clients where all clients are not 1.3.0 or above is unsupported.
+#### Max Client Disconnect and Prevent Reschedule On Lost
+
+Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the 
+same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
+
+```hcl
+# jobspec.nomad
+
+group "first" {
+  max_client_disconnect = "12h"
+  prevent_reschedule_on_lost = true
+  task "first-task" {
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
+    ...
+  }
+}
+```
+
+If [`max_client_disconnect`](#max_client_disconnect) is set and 
+`prevent_reschedule_on_lost = true`, allocations on disconnected nodes will be
+`unknown` until the `max_client_disconnect` window expires, at which point 
+the node will be transition from `disconnected` to `down`. The allocation 
+will remain as `unknown` and won't be rescheduled.
+
 
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [constraint]: /nomad/docs/job-specification/constraint 'Nomad constraint Job Specification'
-[consul]: /nomad/docs/job-specification/group#consul-parameters
+[consul]: /nomad/docs/job-specification/consul
 [consul_namespace]: /nomad/docs/commands/job/run#consul-namespace
 [spread]: /nomad/docs/job-specification/spread 'Nomad spread Job Specification'
 [affinity]: /nomad/docs/job-specification/affinity 'Nomad affinity Job Specification'
 [ephemeraldisk]: /nomad/docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
 [`heartbeat_grace`]: /nomad/docs/configuration/server#heartbeat_grace
 [`max_client_disconnect`]: /nomad/docs/job-specification/group#max_client_disconnect
+[`disable_rescheduling`]: /nomad/docs/job-specification/reschedule#disabling-rescheduling
 [max-client-disconnect]: /nomad/docs/job-specification/group#max-client-disconnect 'the example code below'
 [`stop_after_client_disconnect`]: /nomad/docs/job-specification/group#stop_after_client_disconnect
 [meta]: /nomad/docs/job-specification/meta 'Nomad meta Job Specification'
@@ -358,3 +395,4 @@ flag will be _ignored_. Deploying a job with `max_client_disconnect` to a
 [update]: /nomad/docs/job-specification/update 'Nomad update Job Specification'
 [vault]: /nomad/docs/job-specification/vault 'Nomad vault Job Specification'
 [volume]: /nomad/docs/job-specification/volume 'Nomad volume Job Specification'
+[`consul.name`]: /nomad/docs/configuration/consul#name

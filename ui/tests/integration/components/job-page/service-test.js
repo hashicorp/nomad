@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { assign } from '@ember/polyfills';
@@ -32,6 +32,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.server = startMirage();
     this.server.create('namespace');
     this.server.create('node-pool');
+    this.server.create('node');
   });
 
   hooks.afterEach(function () {
@@ -109,7 +110,7 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
-    assert.expect(2);
+    assert.expect(1);
 
     const mirageJob = makeMirageJob(this.server, { status: 'dead' });
     await this.store.findAll('job');
@@ -137,7 +138,6 @@ module('Integration | Component | job-page/service', function (hooks) {
     await render(commonTemplate);
 
     await startJob();
-
     await expectError(assert, 'Could Not Start Job');
   });
 

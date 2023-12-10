@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -57,11 +57,11 @@ Logs Specific Options:
     Show full information.
 
   -task <task-name>
-    Sets the task to view the logs. If task name is given with both an argument 
+    Sets the task to view the logs. If task name is given with both an argument
 	and the '-task' option, preference is given to the '-task' option.
 
   -job <job-id>
-    Use a random allocation from the specified job ID.
+    Use a random allocation from the specified job ID or prefix.
 
   -f
     Causes the output to not stop when the end of the logs are reached, but
@@ -167,7 +167,13 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	// If -job is specified, use random allocation, otherwise use provided allocation
 	allocID := args[0]
 	if l.job {
-		allocID, err = getRandomJobAllocID(client, args[0])
+		jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
+		if err != nil {
+			l.Ui.Error(err.Error())
+			return 1
+		}
+
+		allocID, err = getRandomJobAllocID(client, jobID, "", ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -352,7 +358,7 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 	defer close(cancel)
 
 	stdoutFrames, stdoutErrCh := client.AllocFS().Logs(
-		alloc, true, l.task, api.FSLogNameStdout, api.OriginEnd, 1, cancel, nil)
+		alloc, true, l.task, api.FSLogNameStdout, api.OriginEnd, 0, cancel, nil)
 
 	// Setting up the logs stream can fail, therefore we need to check the
 	// error channel before continuing further.
@@ -363,7 +369,7 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 	}
 
 	stderrFrames, stderrErrCh := client.AllocFS().Logs(
-		alloc, true, l.task, api.FSLogNameStderr, api.OriginEnd, 1, cancel, nil)
+		alloc, true, l.task, api.FSLogNameStderr, api.OriginEnd, 0, cancel, nil)
 
 	// Setting up the logs stream can fail, therefore we need to check the
 	// error channel before continuing further.
@@ -397,11 +403,15 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 		case stdoutErr := <-stdoutErrCh:
 			return fmt.Errorf("received an error from stdout log stream: %v", stdoutErr)
 		case stdoutFrame := <-stdoutFrames:
-			logUI.Output(string(stdoutFrame.Data))
+			if stdoutFrame != nil {
+				logUI.Output(string(stdoutFrame.Data))
+			}
 		case stderrErr := <-stderrErrCh:
 			return fmt.Errorf("received an error from stderr log stream: %v", stderrErr)
 		case stderrFrame := <-stderrFrames:
-			logUI.Warn(string(stderrFrame.Data))
+			if stderrFrame != nil {
+				logUI.Warn(string(stderrFrame.Data))
+			}
 		}
 	}
 }

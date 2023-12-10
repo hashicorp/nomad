@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import AbstractAbility from './abstract';
@@ -18,6 +18,14 @@ export default class Job extends AbstractAbility {
     'policiesSupportScaling'
   )
   canScale;
+
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'specificNamespaceSupportsReading',
+    'policiesSupportReading'
+  )
+  canRead;
 
   // TODO: A person can also see all jobs if their token grants read access to all namespaces,
   // but given the complexity of namespaces and policy precedence, there isn't a good quick way
@@ -59,9 +67,22 @@ export default class Job extends AbstractAbility {
     );
   }
 
+  @computed('token.selfTokenPolicies.[]')
+  get policiesSupportReading() {
+    return this.policyNamespacesIncludePermissions(
+      this.token.selfTokenPolicies,
+      ['read-job']
+    );
+  }
+
   @computed('rulesForNamespace.@each.capabilities')
   get specificNamespaceSupportsRunning() {
     return this.namespaceIncludesCapability('submit-job');
+  }
+
+  @computed('rulesForNamespace.@each.capabilities')
+  get specificNamespaceSupportsReading() {
+    return this.namespaceIncludesCapability('read-job');
   }
 
   @computed('rulesForNamespace.@each.capabilities')

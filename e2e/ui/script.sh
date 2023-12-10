@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # we can't simply run 'npm playwright test' because of a bug in either
 # NPM or playwright where we get either an interactive prompt or (with

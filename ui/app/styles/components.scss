@@ -1,9 +1,9 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
-@import './components/accordion';
+@import './components/accordion-internal';
 @import './components/badge-nomad-internal';
 @import './components/boxed-section';
 @import './components/codemirror';
@@ -56,6 +56,7 @@
 @import './components/services';
 @import './components/task-sub-row';
 @import './components/authorization';
-@import './components/policies';
 @import './components/metadata-editor';
 @import './components/job-status-panel';
+@import './components/access-control';
+@import './components/actions';

@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 // @ts-check
@@ -19,7 +19,7 @@ export function trimPath([path]) {
   if (path?.endsWith('/')) {
     path = trimPath([path.slice(0, -1)]);
   }
-  return path;
+  return path.trim();
 }
 
 export default Helper.helper(trimPath);

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
 
@@ -13,6 +13,7 @@ import (
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -32,16 +33,14 @@ type serviceHookConfig struct {
 	alloc *structs.Allocation
 	task  *structs.Task
 
-	// namespace is the Nomad or Consul namespace in which service
-	// registrations will be made.
-	providerNamespace string
-
 	// serviceRegWrapper is the handler wrapper that is used to perform service
 	// and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
 
 	// Restarter is a subset of the TaskLifecycle interface
 	restarter serviceregistration.WorkloadRestarter
+
+	hookResources *cstructs.AllocHookResources
 
 	logger log.Logger
 }
@@ -54,6 +53,7 @@ type serviceHook struct {
 	namespace string
 	restarter serviceregistration.WorkloadRestarter
 	logger    log.Logger
+	tg        *structs.TaskGroup
 
 	// The following fields may be updated
 	driverExec tinterfaces.ScriptExecutor
@@ -80,22 +80,29 @@ type serviceHook struct {
 	// we do not call this multiple times for a single task when not needed.
 	deregistered bool
 
+	hookResources *cstructs.AllocHookResources
+
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
 	mu sync.Mutex
 }
 
 func newServiceHook(c serviceHookConfig) *serviceHook {
+	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
+	providerNamespace := c.alloc.ServiceProviderNamespaceForTask(c.task.Name)
+
 	h := &serviceHook{
 		allocID:           c.alloc.ID,
 		jobID:             c.alloc.JobID,
 		groupName:         c.alloc.TaskGroup,
 		taskName:          c.task.Name,
+		tg:                tg,
 		namespace:         c.alloc.Namespace,
-		providerNamespace: c.providerNamespace,
+		providerNamespace: providerNamespace,
 		serviceRegWrapper: c.serviceRegWrapper,
 		services:          c.task.Services,
 		restarter:         c.restarter,
+		hookResources:     c.hookResources,
 		ports:             c.alloc.AllocatedResources.Shared.Ports,
 	}
 
@@ -181,7 +188,7 @@ func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error 
 
 	// An update may change the service provider, therefore we need to account
 	// for how namespaces work across providers also.
-	h.providerNamespace = req.Alloc.ServiceProviderNamespace()
+	h.providerNamespace = req.Alloc.ServiceProviderNamespaceForTask(h.taskName)
 
 	return nil
 }
@@ -224,6 +231,16 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
 
+	allocTokens := h.hookResources.GetConsulTokens()
+
+	tokens := map[string]string{}
+	for _, service := range h.services {
+		cluster := service.GetConsulClusterName(h.tg)
+		if token, ok := allocTokens[cluster][service.MakeUniqueIdentityName()]; ok {
+			tokens[service.Name] = token.SecretID
+		}
+	}
+
 	info := structs.AllocInfo{
 		AllocID:   h.allocID,
 		JobID:     h.jobID,
@@ -243,5 +260,6 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 		Networks:          h.networks,
 		Canary:            h.canary,
 		Ports:             h.ports,
+		Tokens:            tokens,
 	}
 }

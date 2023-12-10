@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Component from '@glimmer/component';
@@ -19,6 +19,10 @@ export default class PolicyEditorComponent extends Component {
     this.policy.set('rules', value);
   }
 
+  @action updatePolicyName({ target: { value } }) {
+    this.policy.set('name', value);
+  }
+
   @action async save(e) {
     if (e instanceof Event) {
       e.preventDefault(); // code-mirror "command+enter" submits the form, but doesnt have a preventDefault()
@@ -30,20 +34,22 @@ export default class PolicyEditorComponent extends Component {
           `Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.`
         );
       }
-
       const shouldRedirectAfterSave = this.policy.isNew;
-
+      // Because we set the ID for adapter/serialization reasons just before save here,
+      // that becomes a barrier to our Unique Name validation. So we explicltly exclude
+      // the current policy when checking for uniqueness.
       if (
         this.policy.isNew &&
-        this.store.peekRecord('policy', this.policy.name)
+        this.store
+          .peekAll('policy')
+          .filter((policy) => policy !== this.policy)
+          .findBy('name', this.policy.name)
       ) {
         throw new Error(
           `A policy with name ${this.policy.name} already exists.`
         );
       }
-
-      this.policy.id = this.policy.name;
-
+      this.policy.set('id', this.policy.name);
       await this.policy.save();
 
       this.notifications.add({
@@ -52,7 +58,10 @@ export default class PolicyEditorComponent extends Component {
       });
 
       if (shouldRedirectAfterSave) {
-        this.router.transitionTo('policies.policy', this.policy.id);
+        this.router.transitionTo(
+          'access-control.policies.policy',
+          this.policy.id
+        );
       }
     } catch (error) {
       this.notifications.add({

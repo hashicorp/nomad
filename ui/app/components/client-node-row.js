@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { inject as service } from '@ember/service';
@@ -58,15 +58,37 @@ export default class ClientNodeRow extends Component.extend(
   @watchRelationship('allocations') watch;
 
   @computed('node.compositeStatus')
-  get compositeStatusClass() {
+  get nodeStatusColor() {
     let compositeStatus = this.get('node.compositeStatus');
 
     if (compositeStatus === 'draining') {
-      return 'status-text is-info';
+      return 'neutral';
     } else if (compositeStatus === 'ineligible') {
-      return 'status-text is-warning';
+      return 'warning';
     } else if (compositeStatus === 'down') {
-      return 'status-text is-danger';
+      return 'critical';
+    } else if (compositeStatus === 'ready') {
+      return 'success';
+    } else if (compositeStatus === 'initializing') {
+      return 'neutral';
+    } else {
+      return 'neutral';
+    }
+  }
+  @computed('node.compositeStatus')
+  get nodeStatusIcon() {
+    let compositeStatus = this.get('node.compositeStatus');
+
+    if (compositeStatus === 'draining') {
+      return 'minus-circle';
+    } else if (compositeStatus === 'ineligible') {
+      return 'skip';
+    } else if (compositeStatus === 'down') {
+      return 'x-circle';
+    } else if (compositeStatus === 'ready') {
+      return 'check-circle';
+    } else if (compositeStatus === 'initializing') {
+      return 'entry-point';
     } else {
       return '';
     }

@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 <div class="boxed-section">
@@ -13,22 +13,32 @@
     />
     </div>
 </div>
-<div
-    class="boxed-section
-    {{if @data.planOutput.failedTGAllocs 'is-warning' 'is-primary'}}"
-    data-test-dry-run-message
->
-    <div class="boxed-section-head" data-test-dry-run-title>Scheduler dry-run</div>
-    <div class="boxed-section-body" data-test-dry-run-body>
+
+<Hds::Alert @type="inline" @color={{if @data.planOutput.failedTGAllocs "critical" "success"}} data-test-dry-run-message as |A|>
+  <A.Title data-test-dry-run-title>Scheduler dry-run</A.Title>
+  <A.Description data-test-dry-run-body>
     {{#if @data.planOutput.failedTGAllocs}}
-        {{#each @data.planOutput.failedTGAllocs as |placementFailure|}}
+      {{#each @data.planOutput.failedTGAllocs as |placementFailure|}}
         <PlacementFailure @failedTGAlloc={{placementFailure}} />
-        {{/each}}
+      {{/each}}
     {{else}}
-        All tasks successfully allocated.
+      All tasks successfully allocated.
     {{/if}}
-    </div>
-</div>
+  </A.Description>
+</Hds::Alert>
+<br>
+
+{{#if this.warnings}}
+  <Hds::Alert @type="inline" @color="warning" data-test-dry-run-warnings as |A|>
+    <A.Description data-test-dry-run-warning-body>
+      <p>
+        {{this.warnings}}
+      </p>
+    </A.Description>
+  </Hds::Alert>
+  <br>
+{{/if}}
+
 {{#if
     (and
     @data.planOutput.preemptions.isFulfilled @data.planOutput.preemptions.length

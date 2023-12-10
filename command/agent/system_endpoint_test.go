@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -15,7 +15,7 @@ func TestHTTP_SystemGarbageCollect(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/system/gc", nil)
+		req, err := http.NewRequest(http.MethodPut, "/v1/system/gc", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -32,7 +32,7 @@ func TestHTTP_ReconcileJobSummaries(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/system/reconcile/summaries", nil)
+		req, err := http.NewRequest(http.MethodPut, "/v1/system/reconcile/summaries", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

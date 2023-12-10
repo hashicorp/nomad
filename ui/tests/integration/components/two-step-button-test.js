@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { find, click, render } from '@ember/test-helpers';
@@ -138,8 +138,10 @@ module('Integration | Component | two step button', function (hooks) {
       TwoStepButton.confirmIsDisabled,
       'The confirm button is disabled'
     );
-    assert.ok(
-      TwoStepButton.isRunning,
+
+    assert.equal(
+      TwoStepButton.confirmText,
+      'Loading...',
       'The confirm button is in a loading state'
     );
 

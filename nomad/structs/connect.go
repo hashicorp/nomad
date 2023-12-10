@@ -1,11 +1,12 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
 // ConsulConfigEntries represents Consul ConfigEntry definitions from a job for
 // a single Consul namespace.
 type ConsulConfigEntries struct {
+	Cluster     string
 	Ingress     map[string]*ConsulIngressConfigEntry
 	Terminating map[string]*ConsulTerminatingConfigEntry
 }
@@ -31,8 +32,10 @@ func (j *Job) ConfigEntries() map[string]*ConsulConfigEntries {
 				gateway := service.Connect.Gateway
 				if ig := gateway.Ingress; ig != nil {
 					collection[ns].Ingress[service.Name] = ig
+					collection[ns].Cluster = service.Cluster
 				} else if term := gateway.Terminating; term != nil {
 					collection[ns].Terminating[service.Name] = term
+					collection[ns].Cluster = service.Cluster
 				}
 			}
 		}

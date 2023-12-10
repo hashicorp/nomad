@@ -1,0 +1,44 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#if this.nomadActions.flyoutActive}}
+  <Hds::Flyout id="actions-flyout"
+    @onClose={{this.nomadActions.closeFlyout}} @size="large" as |Fly|
+  >
+    <Fly.Header>
+      <h3>
+        Actions
+      </h3>
+      {{#if this.contextualActions.length}}
+        <ActionsDropdown
+          @actions={{this.contextualActions}}
+          @allocation={{this.allocation}}
+          @context={{if this.task this.task this.job}}
+        />
+      {{/if}}
+      {{#if this.nomadActions.runningActions.length}}
+        <Hds::Button @text="Stop All" @color="critical" @size="medium" {{on "click" this.nomadActions.stopAll}} />
+      {{/if}}
+      {{#if this.nomadActions.finishedActions.length}}
+        <Hds::Button data-test-clear-finished-actions @text="Clear Finished Actions" @color="secondary" @size="medium" {{on "click" this.nomadActions.clearFinishedActions}} />
+      {{/if}}
+    </Fly.Header>
+    <Fly.Body>
+      <ul class="actions-queue">
+        {{#each this.actionInstances as |instance|}}
+          <ActionCard @instance={{instance}} />
+        {{else}}
+          <Hds::ApplicationState as |A|>
+            <A.Header @title="No actions in queue" />
+            <A.Body @text="Your actions have been manually cleared. To run more, head to a Job or Task page with actions in its Jobspec, and an Actions dropdown will automatically populate." />
+            <A.Footer @hasDivider={{true}} as |F|>
+              <F.Link::Standalone @icon="docs-link" @text="Learn more about Actions" @href="https://developer.hashicorp.com/nomad/docs/job-specification/action" @iconPosition="trailing" />
+            </A.Footer>
+          </Hds::ApplicationState>
+        {{/each}}
+      </ul>
+    </Fly.Body>
+  </Hds::Flyout>
+{{/if}}

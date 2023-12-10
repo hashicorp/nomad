@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -11,10 +11,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
@@ -22,7 +23,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
-	"golang.org/x/exp/slices"
 )
 
 // Detect characters that are not valid identifiers to emit a warning when they
@@ -73,7 +73,7 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-Apply Options:
+Var put Options:
 
   -check-index
      If set, the variable is only acted upon if the server-side version's index
@@ -376,6 +376,7 @@ func (c *VarPutCommand) makeVariable(path string) (*api.Variable, error) {
 		out.Items = make(map[string]string)
 		return out, nil
 	}
+
 	switch c.inFmt {
 	case "json":
 		err = json.Unmarshal(c.contents, out)
@@ -580,10 +581,12 @@ func formatInvalidVarKeyChars(invalid []string) string {
 
 	// Sort the characters for output
 	charList := make([]string, 0, chars.Size())
-	for _, k := range chars.List() {
+	chars.ForEach(func(k string) bool {
 		// Use %s instead of %q to avoid escaping characters.
 		charList = append(charList, fmt.Sprintf(`"%s"`, k))
-	}
+		return true
+	})
+
 	slices.Sort(charList)
 
 	// Build string

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
@@ -747,6 +747,46 @@ func TestConsulUpstream_upstreamEqual(t *testing.T) {
 		must.False(t, upstreamsEquals(a, b))
 	})
 
+	t.Run("different dest peer", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000)}
+		a[0].DestinationPeer = "10.0.0.1:6379"
+
+		b := []ConsulUpstream{up("foo", 8000)}
+		b[0].DestinationPeer = "10.0.0.1:6375"
+
+		must.False(t, upstreamsEquals(a, b))
+	})
+
+	t.Run("different dest type", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000)}
+		a[0].DestinationType = "tcp"
+
+		b := []ConsulUpstream{up("foo", 8000)}
+		b[0].DestinationType = "udp"
+
+		must.False(t, upstreamsEquals(a, b))
+	})
+
+	t.Run("different socket path", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000)}
+		a[0].LocalBindSocketPath = "/var/run/mysocket.sock"
+
+		b := []ConsulUpstream{up("foo", 8000)}
+		b[0].LocalBindSocketPath = "/var/run/testsocket.sock"
+
+		must.False(t, upstreamsEquals(a, b))
+	})
+
+	t.Run("different socket mode", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000)}
+		a[0].LocalBindSocketMode = "0666"
+
+		b := []ConsulUpstream{up("foo", 8000)}
+		b[0].LocalBindSocketMode = "0600"
+
+		must.False(t, upstreamsEquals(a, b))
+	})
+
 	t.Run("different mesh_gateway", func(t *testing.T) {
 		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "local"}}}
 		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: ConsulMeshGateway{Mode: "remote"}}}
@@ -762,6 +802,14 @@ func TestConsulUpstream_upstreamEqual(t *testing.T) {
 	t.Run("identical", func(t *testing.T) {
 		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
 		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
+		a[0].DestinationPeer = "10.0.0.1:6379"
+		a[0].DestinationType = "tcp"
+		a[0].LocalBindSocketPath = "/var/run/mysocket.sock"
+		a[0].LocalBindSocketMode = "0666"
+		b[0].DestinationPeer = "10.0.0.1:6379"
+		b[0].DestinationType = "tcp"
+		b[0].LocalBindSocketPath = "/var/run/mysocket.sock"
+		b[0].LocalBindSocketMode = "0666"
 		must.True(t, upstreamsEquals(a, b))
 	})
 
@@ -1806,6 +1854,21 @@ func TestService_Validate(t *testing.T) {
 					{
 						Name: "servicecheck",
 						Type: "script",
+					},
+				},
+			},
+			expErr: true,
+		},
+		{
+			name: "provider nomad with tls skip verify",
+			input: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+				Checks: []*ServiceCheck{
+					{
+						Name:          "servicecheck",
+						Type:          "http",
+						TLSSkipVerify: true,
 					},
 				},
 			},

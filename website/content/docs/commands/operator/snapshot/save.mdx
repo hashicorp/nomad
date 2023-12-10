@@ -14,6 +14,13 @@ recovery].
 If ACLs are enabled, a management token must be supplied in order to perform
 snapshot operations.
 
+<Warning>
+
+This command only saves a Raft snapshot. If you use this snapshot to recover a
+cluster, you will also need to [restore the keyring][] onto at least one server.
+
+</Warning>
+
 To create a snapshot from the leader server and save it to "backup.snap":
 
 ```shell-session
@@ -26,10 +33,6 @@ leader is available):
 ```shell-session
 $ nomad operator snapshot save -stale backup.snap
 ```
-
-This command only saves a Raft snapshot. If you use this snapshot to recover a
-cluster, you will also need to [restore the keyring][] onto at least one server.
-
 
 ## Usage
 
@@ -49,4 +52,4 @@ nomad operator snapshot save [options] <file>
   server.
 
 [outage recovery]: /nomad/tutorials/manage-clusters/outage-recovery
-[restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backu
+[restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backup

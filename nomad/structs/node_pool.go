@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
@@ -35,7 +35,7 @@ var (
 	validNodePoolName = regexp.MustCompile("^[a-zA-Z0-9-_]{1,128}$")
 )
 
-// ValidadeNodePoolName returns an error if a node pool name is invalid.
+// ValidateNodePoolName returns an error if a node pool name is invalid.
 func ValidateNodePoolName(pool string) error {
 	if !validNodePoolName.MatchString(pool) {
 		return fmt.Errorf("invalid name %q, must match regex %s", pool, validNodePoolName)

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -43,7 +43,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -112,16 +112,10 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "list"}, time.Now())
 
-	// we need to allow both humans with management tokens and
-	// non-leader servers to list keys, in order to support
-	// replication
-	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
-	if err != nil {
-		if aclObj, err := k.srv.ResolveACL(args); err != nil {
-			return err
-		} else if aclObj != nil && !aclObj.IsManagement() {
-			return structs.ErrPermissionDenied
-		}
+	if aclObj, err := k.srv.ResolveACL(args); err != nil {
+		return err
+	} else if !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
 	}
 
 	// Setup the blocking query
@@ -173,7 +167,7 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -238,20 +232,15 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 // Get retrieves an existing key from the keyring, including both the
 // key material and metadata. It is used only for replication.
 func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.KeyringGetRootKeyResponse) error {
+	aclObj, err := k.srv.AuthenticateServerOnly(k.ctx, args)
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricRead, args)
 
-	authErr := k.srv.Authenticate(k.ctx, args)
-
-	// ensure that only another server can make this request
-	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
-	if err != nil {
-		return err
+	if err != nil || !aclObj.AllowServerOp() {
+		return structs.ErrPermissionDenied
 	}
+
 	if done, err := k.srv.forward("Keyring.Get", args, args, reply); done {
 		return err
-	}
-	k.srv.MeasureRPCRate("keyring", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "get"}, time.Now())
 
@@ -279,13 +268,14 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 			}
 
 			// retrieve the key material from the keyring
-			key, err := k.encrypter.GetKey(keyMeta.KeyID)
+			key, rsaKey, err := k.encrypter.GetKey(keyMeta.KeyID)
 			if err != nil {
 				return err
 			}
 			rootKey := &structs.RootKey{
-				Meta: keyMeta,
-				Key:  key,
+				Meta:   keyMeta,
+				Key:    key,
+				RSAKey: rsaKey,
 			}
 			reply.Key = rootKey
 
@@ -323,7 +313,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -358,5 +348,89 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	k.encrypter.RemoveKey(args.KeyID)
 
 	reply.Index = index
+	return nil
+}
+
+// ListPublic signing keys used for workload identities. This RPC is used to
+// back a JWKS endpoint.
+//
+// Unauthenticated because public keys are not sensitive.
+func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.KeyringListPublicResponse) error {
+
+	// JWKS is a public endpoint: intentionally ignore auth errors and only
+	// authenticate to measure rate metrics.
+	k.srv.Authenticate(k.ctx, args)
+	if done, err := k.srv.forward("Keyring.ListPublic", args, args, reply); done {
+		return err
+	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricList, args)
+
+	defer metrics.MeasureSince([]string{"nomad", "keyring", "list_public"}, time.Now())
+
+	// Expose root_key_rotation_threshold so consumers can determine reasonable
+	// cache settings.
+	reply.RotationThreshold = k.srv.config.RootKeyRotationThreshold
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, s *state.StateStore) error {
+
+			// retrieve all the key metadata
+			snap, err := k.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			iter, err := snap.RootKeyMetas(ws)
+			if err != nil {
+				return err
+			}
+
+			pubKeys := []*structs.KeyringPublicKey{}
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+
+				keyMeta := raw.(*structs.RootKeyMeta)
+				if keyMeta.State == structs.RootKeyStateDeprecated {
+					// Only include valid keys
+					continue
+				}
+
+				pubKey, err := k.encrypter.GetPublicKey(keyMeta.KeyID)
+				if err != nil {
+					return err
+				}
+
+				pubKeys = append(pubKeys, pubKey)
+			}
+			reply.PublicKeys = pubKeys
+			return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
+		},
+	}
+	return k.srv.blockingRPC(&opts)
+}
+
+// GetConfig for workload identities. This RPC is used to back an OIDC
+// Discovery endpoint.
+//
+// Unauthenticated because OIDC Discovery endpoints must be publically
+// available.
+func (k *Keyring) GetConfig(args *structs.GenericRequest, reply *structs.KeyringGetConfigResponse) error {
+
+	// JWKS is a public endpoint: intentionally ignore auth errors and only
+	// authenticate to measure rate metrics.
+	k.srv.Authenticate(k.ctx, args)
+	if done, err := k.srv.forward("Keyring.GetConfig", args, args, reply); done {
+		return err
+	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricList, args)
+
+	defer metrics.MeasureSince([]string{"nomad", "keyring", "get_config"}, time.Now())
+
+	reply.OIDCDiscovery = k.srv.oidcDisco
 	return nil
 }

@@ -1,16 +1,21 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package state
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/hashicorp/go-memdb"
-
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+var (
+	errVarAlreadyLocked = errors.New("variable already holds a lock")
+	errVarNotFound      = errors.New("variable doesn't exist")
+	errLockNotFound     = errors.New("variable doesn't hold a lock")
 )
 
 // Variables queries all the variables and is used only for
@@ -177,10 +182,12 @@ func (s *StateStore) varSetCASTxn(tx WriteTxn, idx uint64, req *structs.VarApply
 		return req.ConflictResponse(idx, zeroVal)
 	}
 
-	// If the existing index does not match the provided CAS index arg, then we
-	// shouldn't update anything and can safely return early here.
-	if ok && sv.ModifyIndex != svEx.ModifyIndex {
-		return req.ConflictResponse(idx, svEx)
+	if ok {
+		// If the existing index does not match the provided CAS index arg, then we
+		// shouldn't update anything and can safely return early here.
+		if sv.ModifyIndex != svEx.ModifyIndex {
+			return req.ConflictResponse(idx, svEx)
+		}
 	}
 
 	// If we made it this far, we should perform the set.
@@ -195,6 +202,7 @@ func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplySta
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("failed sve lookup: %s", err))
 	}
+
 	existing, _ := existingRaw.(*structs.VariableEncrypted)
 
 	existingQuota, err := tx.First(TableVariablesQuotas, indexID, sv.Namespace)
@@ -203,9 +211,21 @@ func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplySta
 	}
 
 	var quotaChange int64
-
 	// Set the CreateIndex and CreateTime
 	if existing != nil {
+
+		// If the variable is locked, it can only be updated by providing the correct
+		// lock ID.
+		if isLocked(existing.Lock, req) {
+			zeroVal := &structs.VariableEncrypted{
+				VariableMetadata: structs.VariableMetadata{
+					Namespace: sv.Namespace,
+					Path:      sv.Path,
+				},
+			}
+			return req.ConflictResponse(idx, zeroVal)
+		}
+
 		sv.CreateIndex = existing.CreateIndex
 		sv.CreateTime = existing.CreateTime
 
@@ -251,7 +271,7 @@ func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplySta
 	if quotaChange > 0 {
 		quotaUsed.Size += quotaChange
 	} else if quotaChange < 0 {
-		quotaUsed.Size -= helper.Min(quotaUsed.Size, -quotaChange)
+		quotaUsed.Size -= min(quotaUsed.Size, -quotaChange)
 	}
 
 	err = s.enforceVariablesQuota(idx, tx, sv.Namespace, quotaChange)
@@ -381,18 +401,28 @@ func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.VarApplyS
 		return req.SuccessResponse(idx, nil)
 	}
 
+	sv := existingRaw.(*structs.VariableEncrypted)
+
+	if isLocked(sv.Lock, req) {
+		zeroVal := &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Namespace: sv.Namespace,
+				Path:      sv.Path,
+			},
+		}
+		return req.ConflictResponse(idx, zeroVal)
+	}
+
 	existingQuota, err := tx.First(TableVariablesQuotas, indexID, req.Var.Namespace)
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("variable quota lookup failed: %v", err))
 	}
 
-	sv := existingRaw.(*structs.VariableEncrypted)
-
 	// Track quota usage
 	if existingQuota != nil {
 		quotaUsed := existingQuota.(*structs.VariablesQuota)
 		quotaUsed = quotaUsed.Copy()
-		quotaUsed.Size -= helper.Min(quotaUsed.Size, int64(len(sv.Data)))
+		quotaUsed.Size -= min(quotaUsed.Size, int64(len(sv.Data)))
 		quotaUsed.ModifyIndex = idx
 		if err := tx.Insert(TableVariablesQuotas, quotaUsed); err != nil {
 			return req.ErrorResponse(idx, fmt.Errorf("variable quota insert failed: %v", err))
@@ -449,4 +479,118 @@ func (s *StateStore) VariablesQuotaByNamespace(ws memdb.WatchSet, namespace stri
 	}
 	quotaUsed := raw.(*structs.VariablesQuota)
 	return quotaUsed, nil
+}
+
+// VarLockAcquire is the method used to append a lock to a variable, if the
+// variable doesn't exists, it is created.
+// IMPORTANT: this method overwrites the variable, data included.
+func (s *StateStore) VarLockAcquire(idx uint64,
+	req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
+	tx := s.db.WriteTxn(idx)
+	defer tx.Abort()
+
+	// Try to fetch the variable.
+	raw, err := tx.First(TableVariables, indexID, req.Var.Namespace, req.Var.Path)
+	if err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("variable lookup failed: %v", err))
+	}
+
+	sv, ok := raw.(*structs.VariableEncrypted)
+	// If the variable exist, we must make sure it doesn't hold a lock already
+	if ok {
+		if isLocked(sv.VariableMetadata.Lock, req) {
+			zeroVal := &structs.VariableEncrypted{
+				VariableMetadata: structs.VariableMetadata{
+					Namespace: sv.Namespace,
+					Path:      sv.Path,
+				},
+			}
+			return req.ConflictResponse(idx, zeroVal)
+		}
+	}
+
+	resp := s.varSetTxn(tx, idx, req)
+	if resp.IsError() {
+		return resp
+	}
+
+	if err := tx.Commit(); err != nil {
+		return req.ErrorResponse(idx, err)
+	}
+
+	return resp
+}
+
+func (s *StateStore) VarLockRelease(idx uint64,
+	req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
+	tx := s.db.WriteTxn(idx)
+	defer tx.Abort()
+
+	// Look up the entry in the state store.
+	raw, err := tx.First(TableVariables, indexID, req.Var.Namespace, req.Var.Path)
+	if err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("failed variable lookup: %s", err))
+	}
+
+	sv, ok := raw.(*structs.VariableEncrypted)
+	if !ok {
+		return req.ErrorResponse(idx, errVarNotFound)
+	}
+
+	if sv.Lock == nil || sv.Lock.ID == "" {
+		return req.ErrorResponse(idx, errLockNotFound)
+	}
+
+	if req.Var.Lock != nil && sv.Lock.ID != req.Var.Lock.ID {
+		// Avoid showing the variable data on a failed lock release
+		zeroVal := &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Namespace: sv.Namespace,
+				Path:      sv.Path,
+				Lock:      &structs.VariableLock{},
+			},
+		}
+		return req.ConflictResponse(idx, zeroVal)
+	}
+
+	// Avoid overwriting the variable data when releasing the lock, to prevent
+	// a delay release to remove customer data.
+
+	updated := sv.Copy()
+	updated.Lock = nil
+	updated.ModifyIndex = idx
+
+	err = s.updateVarsAndIndexTxn(tx, idx, &updated)
+	if err != nil {
+		req.ErrorResponse(idx, fmt.Errorf("failed lock release: %s", err))
+	}
+
+	if err := tx.Commit(); err != nil {
+		return req.ErrorResponse(idx, err)
+	}
+
+	return req.SuccessResponse(idx, &updated.VariableMetadata)
+}
+
+func (s *StateStore) updateVarsAndIndexTxn(tx WriteTxn, idx uint64, sv *structs.VariableEncrypted) error {
+	if err := tx.Insert(TableVariables, sv); err != nil {
+		return fmt.Errorf("failed inserting variable: %w", err)
+	}
+
+	if err := tx.Insert(tableIndex,
+		&IndexEntry{TableVariables, idx}); err != nil {
+		return fmt.Errorf("failed updating variable index: %w", err)
+	}
+	return nil
+}
+
+func isLocked(lock *structs.VariableLock, req *structs.VarApplyStateRequest) bool {
+	if lock != nil {
+		if req.Var.VariableMetadata.Lock == nil ||
+			req.Var.VariableMetadata.Lock.ID != lock.ID {
+
+			return true
+		}
+	}
+	return false
 }

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package consul
 
@@ -11,7 +11,7 @@ import (
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -94,7 +94,8 @@ func (tc *ConsulNamespacesE2ETest) AfterAll(f *framework.F) {
 func (tc *ConsulNamespacesE2ETest) TestNamespacesExist(f *framework.F) {
 	// make sure our namespaces exist + default
 	namespaces := e2eutil.ListConsulNamespaces(f.T(), tc.Consul())
-	require.True(f.T(), helper.SliceSetEq(namespaces, append(consulNamespaces, "default")))
+	must.SliceContainsSubset(f.T(), namespaces, allConsulNamespaces, must.Sprintf(
+		"expected %+v to be a subset of: %+v", allConsulNamespaces, namespaces))
 }
 
 func (tc *ConsulNamespacesE2ETest) testConsulRegisterGroupServices(f *framework.F, token, nsA, nsB, nsC, nsZ string) {

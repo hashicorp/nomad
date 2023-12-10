@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -24,7 +24,7 @@ func TestHTTP_MetricsWithIllegalMethod(t *testing.T) {
 	assert := assert.New(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("DELETE", "/v1/metrics", nil)
+		req, err := http.NewRequest(http.MethodDelete, "/v1/metrics", nil)
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
@@ -38,7 +38,7 @@ func TestHTTP_MetricsPrometheusDisabled(t *testing.T) {
 	assert := assert.New(t)
 
 	httpTest(t, func(c *Config) { c.Telemetry.PrometheusMetrics = false }, func(s *TestAgent) {
-		req, err := http.NewRequest("GET", "/v1/metrics?format=prometheus", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/metrics?format=prometheus", nil)
 		assert.Nil(err)
 
 		resp, err := s.Server.MetricsRequest(nil, req)
@@ -52,7 +52,7 @@ func TestHTTP_MetricsPrometheusEnabled(t *testing.T) {
 	assert := assert.New(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("GET", "/v1/metrics?format=prometheus", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/metrics?format=prometheus", nil)
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
@@ -74,14 +74,14 @@ func TestHTTP_Metrics(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		// make a separate HTTP request first, to ensure Nomad has written metrics
 		// and prevent a race condition
-		req, err := http.NewRequest("GET", "/v1/agent/self", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/agent/self", nil)
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 		s.Server.AgentSelfRequest(respW, req)
 
 		// now make a metrics endpoint request, which should be already initialized
 		// and written to
-		req, err = http.NewRequest("GET", "/v1/metrics", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/metrics", nil)
 		assert.Nil(err)
 		respW = httptest.NewRecorder()
 
@@ -136,7 +136,7 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 		var pending, running, terminal float32 = -1.0, -1.0, -1.0
 		testutil.WaitForResultRetries(100, func() (bool, error) {
 			time.Sleep(100 * time.Millisecond)
-			req, err := http.NewRequest("GET", "/v1/metrics", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/metrics", nil)
 			require.NoError(err)
 			respW := httptest.NewRecorder()
 

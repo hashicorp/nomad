@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -224,9 +224,10 @@ const (
       resources {}
     }
     restart {
-      attempts = 10
-      mode     = "delay"
-      interval = "15s"
+      attempts         = 10
+      mode             = "delay"
+      interval         = "15s"
+      render_templates = false
     }
   }
 }`
@@ -243,9 +244,10 @@ var (
 				Name:  pointer.Of("group1"),
 				Count: pointer.Of(1),
 				RestartPolicy: &api.RestartPolicy{
-					Attempts: pointer.Of(10),
-					Interval: pointer.Of(15 * time.Second),
-					Mode:     pointer.Of("delay"),
+					Attempts:        pointer.Of(10),
+					Interval:        pointer.Of(15 * time.Second),
+					Mode:            pointer.Of("delay"),
+					RenderTemplates: pointer.Of(false),
 				},
 
 				Tasks: []*api.Task{
@@ -680,6 +682,54 @@ func Test_extractVarFlags(t *testing.T) {
 			"one":   "1",
 			"two":   "2",
 			"three": "",
+		}, result)
+	})
+}
+
+func Test_extractJobSpecEnvVars(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		must.MapEmpty(t, extractJobSpecEnvVars(nil))
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count=13",
+			"GOPATH=/Users/jrasell/go",
+			"NOMAD_VAR_image=redis:7",
+		})
+		must.Eq(t, map[string]string{
+			"count": "13",
+			"image": "redis:7",
+		}, result)
+	})
+
+	t.Run("whitespace", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count = 13",
+			"GOPATH = /Users/jrasell/go",
+		})
+		must.Eq(t, map[string]string{
+			"count ": " 13",
+		}, result)
+	})
+
+	t.Run("empty key", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_=13",
+			"=/Users/jrasell/go",
+		})
+		must.Eq(t, map[string]string{}, result)
+	})
+
+	t.Run("empty value", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count=",
+			"GOPATH=",
+		})
+		must.Eq(t, map[string]string{
+			"count": "",
 		}, result)
 	})
 }

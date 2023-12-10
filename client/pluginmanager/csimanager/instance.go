@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package csimanager
 
@@ -94,17 +94,23 @@ func (i *instanceManager) setupVolumeManager() {
 	case <-i.shutdownCtx.Done():
 		return
 	case <-i.fp.hadFirstSuccessfulFingerprintCh:
-		i.volumeManager = newVolumeManager(i.logger, i.eventer, i.client, i.mountPoint, i.containerMountPoint, i.fp.requiresStaging)
+
+		var externalID string
+		if i.fp.basicInfo != nil && i.fp.basicInfo.NodeInfo != nil {
+			externalID = i.fp.basicInfo.NodeInfo.ID
+		}
+
+		i.volumeManager = newVolumeManager(i.logger, i.eventer, i.client, i.mountPoint, i.containerMountPoint, i.fp.requiresStaging, externalID)
 		i.logger.Debug("volume manager setup complete")
 		close(i.volumeManagerSetupCh)
 		return
 	}
 }
 
-// VolumeMounter returns the volume manager that is configured for the given plugin
+// VolumeManager returns the volume manager that is configured for the given plugin
 // instance. If called before the volume manager has been setup, it will block until
 // the volume manager is ready or the context is closed.
-func (i *instanceManager) VolumeMounter(ctx context.Context) (VolumeMounter, error) {
+func (i *instanceManager) VolumeManager(ctx context.Context) (VolumeManager, error) {
 	select {
 	case <-i.volumeManagerSetupCh:
 		return i.volumeManager, nil

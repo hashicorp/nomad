@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 //go:build !windows
 
@@ -22,7 +22,7 @@ import (
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
-	basePlug "github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
@@ -69,15 +69,20 @@ func TestRawExecDriver_Signal(t *testing.T) {
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 
+	allocID := uuid.Generate()
+	taskName := "signal"
 	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "signal",
-		Env:     defaultEnv(),
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Env:       defaultEnv(),
+		Resources: testResources(allocID, taskName),
 	}
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
+
+	harness.MakeTaskCgroup(allocID, taskName)
 
 	tc := &TaskConfig{
 		Command: "/bin/bash",
@@ -143,16 +148,26 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	// Disable cgroups so test works without root
-	config := &Config{NoCgroups: true, Enabled: true}
+	config := &Config{NoCgroups: false, Enabled: true}
 	var data []byte
-	require.NoError(basePlug.MsgPackEncode(&data, config))
-	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(base.MsgPackEncode(&data, config))
+	bconfig := &base.Config{
+		PluginConfig: data,
+		AgentConfig: &base.AgentConfig{
+			Driver: &base.ClientDriverConfig{
+				Topology: d.nomadConfig.Topology,
+			},
+		},
+	}
 	require.NoError(harness.SetConfig(bconfig))
 
+	allocID := uuid.Generate()
+	taskName := "test"
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Resources: testResources(allocID, taskName),
 	}
 
 	taskConfig := map[string]interface{}{}
@@ -163,6 +178,8 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
+
+	harness.MakeTaskCgroup(allocID, taskName)
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
@@ -212,15 +229,20 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
+	allocID := uuid.Generate()
+	taskName := "test"
 	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "test",
-		Env:     defaultEnv(),
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Env:       defaultEnv(),
+		Resources: testResources(allocID, taskName),
 	}
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
+
+	harness.MakeTaskCgroup(allocID, taskName)
 
 	taskConfig := map[string]interface{}{}
 	taskConfig["command"] = "/bin/sh"
@@ -314,15 +336,20 @@ func TestRawExec_ExecTaskStreaming(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
+	allocID := uuid.Generate()
+	taskName := "sleep"
 	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "sleep",
-		Env:     defaultEnv(),
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Env:       defaultEnv(),
+		Resources: testResources(allocID, taskName),
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
+
+	harness.MakeTaskCgroup(allocID, taskName)
 
 	tc := &TaskConfig{
 		Command: testtask.Path(),
@@ -340,32 +367,29 @@ func TestRawExec_ExecTaskStreaming(t *testing.T) {
 }
 
 func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
+	t.Skip("todo(shoenig): this test has always been broken, now we skip instead of paving over it")
 	ci.Parallel(t)
 	clienttestutil.RequireLinux(t)
 
 	d := newEnabledRawExecDriver(t)
 
-	// because we cannot set AllocID, see below
-	d.config.NoCgroups = true
-
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
+	allocID := uuid.Generate()
+	taskName := "sleep"
 	task := &drivers.TaskConfig{
-		// todo(shoenig) - Setting AllocID causes test to fail - with or without
-		//  cgroups, and with or without chroot. It has to do with MkAllocDir
-		//  creating the directory structure, but the actual root cause is still
-		//  TBD. The symptom is that any command you try to execute will result
-		//  in "permission denied" coming from os/exec. This test is imperfect,
-		//  the actual feature of running commands as another user works fine.
-		// AllocID: uuid.Generate()
-		ID:   uuid.Generate(),
-		Name: "sleep",
-		User: "nobody",
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		User:      "nobody",
+		Resources: testResources(allocID, taskName),
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
+
+	harness.MakeTaskCgroup(allocID, taskName)
 
 	err := os.Chmod(task.AllocDir, 0777)
 	require.NoError(t, err)
@@ -385,62 +409,4 @@ func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
 	require.Zero(t, code)
 	require.Empty(t, stderr)
 	require.Contains(t, stdout, "nobody")
-}
-
-func TestRawExecDriver_NoCgroup(t *testing.T) {
-	ci.Parallel(t)
-	clienttestutil.RequireLinux(t)
-
-	expectedBytes, err := os.ReadFile("/proc/self/cgroup")
-	require.NoError(t, err)
-	expected := strings.TrimSpace(string(expectedBytes))
-
-	d := newEnabledRawExecDriver(t)
-	d.config.NoCgroups = true
-	harness := dtestutil.NewDriverHarness(t, d)
-
-	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "nocgroup",
-	}
-
-	cleanup := harness.MkAllocDir(task, true)
-	defer cleanup()
-
-	tc := &TaskConfig{
-		Command: "/bin/cat",
-		Args:    []string{"/proc/self/cgroup"},
-	}
-	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	testtask.SetTaskConfigEnv(task)
-
-	_, _, err = harness.StartTask(task)
-	require.NoError(t, err)
-
-	// Task should terminate quickly
-	waitCh, err := harness.WaitTask(context.Background(), task.ID)
-	require.NoError(t, err)
-	select {
-	case res := <-waitCh:
-		require.True(t, res.Successful())
-		require.Zero(t, res.ExitCode)
-	case <-time.After(time.Duration(testutil.TestMultiplier()*6) * time.Second):
-		require.Fail(t, "WaitTask timeout")
-	}
-
-	// Check the log file to see it exited because of the signal
-	outputFile := filepath.Join(task.TaskDir().LogDir, "nocgroup.stdout.0")
-	testutil.WaitForResult(func() (bool, error) {
-		act, err := os.ReadFile(outputFile)
-		if err != nil {
-			return false, fmt.Errorf("Couldn't read expected output: %v", err)
-		}
-
-		if strings.TrimSpace(string(act)) != expected {
-			t.Logf("Read from %v", outputFile)
-			return false, fmt.Errorf("Command outputted\n%v; want\n%v", string(act), expected)
-		}
-		return true, nil
-	}, func(err error) { require.NoError(t, err) })
 }

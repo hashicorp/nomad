@@ -1,17 +1,18 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	vapi "github.com/hashicorp/vault/api"
-	"golang.org/x/exp/slices"
 )
 
 // jobVaultHook is an job registration admission controller for Vault blocks.
@@ -29,13 +30,27 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 		return nil, nil
 	}
 
-	vconf := h.srv.config.VaultConfig
-	if !vconf.IsEnabled() {
-		return nil, fmt.Errorf("Vault not enabled but used in the job")
+	requiresToken := false
+	for _, tg := range vaultBlocks {
+		for _, vaultBlock := range tg {
+			vconf := h.srv.config.VaultConfigs[vaultBlock.Cluster]
+			if !vconf.IsEnabled() {
+				return nil, fmt.Errorf("Vault %q not enabled but used in the job",
+					vaultBlock.Cluster)
+			}
+			if !vconf.AllowsUnauthenticated() {
+				requiresToken = true
+			}
+		}
+	}
+
+	err := h.validateClustersForNamespace(job, vaultBlocks)
+	if err != nil {
+		return nil, err
 	}
 
 	// Return early if Vault configuration doesn't require authentication.
-	if vconf.AllowsUnauthenticated() {
+	if !requiresToken {
 		return nil, nil
 	}
 
@@ -45,24 +60,27 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 		return nil, fmt.Errorf("Vault used in the job but missing Vault token")
 	}
 
+	warnings := []error{
+		errors.New("Setting a Vault token when submitting a job is deprecated and will be removed in Nomad 1.9. Migrate your Vault configuration to use workload identity")}
+
 	tokenSecret, err := h.srv.vault.LookupToken(context.Background(), job.VaultToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lookup Vault token: %v", err)
+		return warnings, fmt.Errorf("failed to lookup Vault token: %v", err)
 	}
 
 	// Check namespaces.
 	err = h.validateNamespaces(vaultBlocks, tokenSecret)
 	if err != nil {
-		return nil, err
+		return warnings, err
 	}
 
 	// Check policies.
 	err = h.validatePolicies(vaultBlocks, tokenSecret)
 	if err != nil {
-		return nil, err
+		return warnings, err
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // validatePolicies returns an error if the job contains Vault blocks that

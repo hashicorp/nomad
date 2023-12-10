@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 job "linux" {
   datacenters = ["dc1"]
@@ -25,7 +25,7 @@ job "linux" {
 
     task "zip_bomb" {
       artifact {
-        source      = "https://github.com/hashicorp/go-getter/blob/v1.7.0/testdata/decompress-zip/bomb.zip"
+        source      = "https://github.com/hashicorp/go-getter/raw/v1.7.0/testdata/decompress-zip/bomb.zip"
         destination = "local/"
       }
 

@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 <ListTable class="path-tree" @source={{@branch}} as |t|>
@@ -36,7 +36,7 @@
 
     {{#each this.files as |file|}}
       <tr
-        data-test-file-row
+        data-test-file-row="{{file.name}}"
         {{on "click" (fn this.handleFileClick file)}}
         class={{if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace) "" "inaccessible"}}
         {{keyboard-shortcut 

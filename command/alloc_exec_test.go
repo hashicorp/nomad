@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -60,7 +60,7 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 		{
 			"job not found",
 			[]string{"-address=" + url, "-job", "example", "/bin/bash"},
-			`job "example" doesn't exist`,
+			`No job(s) with prefix or ID "example" found`,
 		},
 		{
 			"command missing",

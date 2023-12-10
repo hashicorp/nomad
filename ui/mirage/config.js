@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Ember from 'ember';
@@ -117,7 +117,7 @@ export default function () {
       200,
       {},
       JSON.stringify({
-        Source: 'the job source v0',
+        Source: `job "${req.params.id}" {`,
         Format: 'hcl2',
         VariableFlags: { X: 'x', Y: '42', Z: 'true' },
         Variables: 'var file content',
@@ -139,10 +139,16 @@ export default function () {
     const FailedTGAllocs =
       body.Job.Unschedulable && generateFailedTGAllocs(body.Job);
 
+    const jobPlanWarnings = body.Job.WithWarnings && generateWarnings();
+
     return new Response(
       200,
       {},
-      JSON.stringify({ FailedTGAllocs, Diff: generateDiff(req.params.id) })
+      JSON.stringify({
+        FailedTGAllocs,
+        Warnings: jobPlanWarnings,
+        Diff: generateDiff(req.params.id),
+      })
     );
   });
 
@@ -299,8 +305,16 @@ export default function () {
     });
 
     if (token) {
-      const { policyIds } = token;
-      const policies = server.db.policies.find(policyIds);
+      const policyIds = token.policyIds || [];
+
+      const roleIds = token.roleIds || [];
+      const roles = server.db.roles.find(roleIds);
+      const rolePolicyIds = roles.map((role) => role.policyIds).flat();
+
+      const policies = server.db.policies.find([
+        ...policyIds,
+        ...rolePolicyIds,
+      ]);
       const hasReadPolicy = policies.find(
         (p) =>
           p.rulesJSON.Node?.Policy === 'read' ||
@@ -476,14 +490,57 @@ export default function () {
   });
 
   this.post('/acl/token', function (schema, request) {
-    const { Name, Policies, Type } = JSON.parse(request.requestBody);
+    const { Name, Policies, Type, ExpirationTTL, ExpirationTime } = JSON.parse(
+      request.requestBody
+    );
+
+    function parseDuration(duration) {
+      const [_, value, unit] = duration.match(/(\d+)(\w)/);
+      const unitMap = {
+        s: 1000,
+        m: 1000 * 60,
+        h: 1000 * 60 * 60,
+        d: 1000 * 60 * 60 * 24,
+      };
+      return value * unitMap[unit];
+    }
+
+    // If there's an expirationTime, use that. Otherwise, use the TTL.
+    const expirationTime = ExpirationTime
+      ? new Date(ExpirationTime)
+      : ExpirationTTL
+      ? new Date(Date.now() + parseDuration(ExpirationTTL))
+      : null;
+
     return server.create('token', {
       name: Name,
       policyIds: Policies,
       type: Type,
       id: faker.random.uuid(),
+      expirationTime,
       createTime: new Date().toISOString(),
     });
+  });
+
+  this.post('/acl/token/:id', function (schema, request) {
+    // If both Policies and Roles arrays are empty, return an error
+    const { Policies, Roles } = JSON.parse(request.requestBody);
+    if (!Policies.length && !Roles.length) {
+      return new Response(
+        500,
+        {},
+        'Either Policies or Roles must be specified'
+      );
+    }
+    return new Response(
+      200,
+      {},
+      {
+        id: request.params.id,
+        Policies,
+        Roles,
+      }
+    );
   });
 
   this.get('/acl/token/self', function ({ tokens }, req) {
@@ -557,7 +614,6 @@ export default function () {
     const policy = policies.findBy({ name: req.params.id });
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
-
     if (req.params.id === 'anonymous') {
       if (policy) {
         return this.serialize(policy);
@@ -565,13 +621,15 @@ export default function () {
         return new Response(404, {}, null);
       }
     }
-
     // Return the policy only if the token that matches the request header
     // includes the policy or if the token that matches the request header
     // is of type management
     if (
       tokenForSecret &&
       (tokenForSecret.policies.includes(policy) ||
+        tokenForSecret.roles.models.any((role) =>
+          role.policies.includes(policy)
+        ) ||
         tokenForSecret.type === 'management')
     ) {
       return this.serialize(policy);
@@ -581,21 +639,82 @@ export default function () {
     return new Response(403, {}, null);
   });
 
+  this.get('/acl/roles', function ({ roles }, req) {
+    return this.serialize(roles.all());
+  });
+
+  this.get('/acl/role/:id', function ({ roles }, req) {
+    const role = roles.findBy({ id: req.params.id });
+    return this.serialize(role);
+  });
+
+  this.post('/acl/role', function (schema, request) {
+    const { Name, Description } = JSON.parse(request.requestBody);
+    return server.create('role', {
+      name: Name,
+      description: Description,
+    });
+  });
+
+  this.put('/acl/role/:id', function (schema, request) {
+    const { Policies } = JSON.parse(request.requestBody);
+    if (!Policies.length) {
+      return new Response(500, {}, 'Policies must be specified');
+    }
+    return new Response(
+      200,
+      {},
+      {
+        id: request.params.id,
+        Policies,
+      }
+    );
+  });
+
+  this.delete('/acl/role/:id', function (schema, request) {
+    const { id } = request.params;
+
+    // Also update any tokens whose policyIDs include this policy
+    const tokens =
+      server.schema.tokens.where((token) => token.roleIds?.includes(id)) || [];
+    tokens.models.forEach((token) => {
+      token.update({
+        roleIds: token.roleIds.filter((roleId) => roleId !== id),
+      });
+    });
+
+    server.db.roles.remove(id);
+    return '';
+  });
+
   this.get('/acl/policies', function ({ policies }, req) {
     return this.serialize(policies.all());
   });
 
   this.delete('/acl/policy/:id', function (schema, request) {
     const { id } = request.params;
-    schema.tokens
-      .all()
-      .models.filter((token) => token.policyIds.includes(id))
-      .forEach((token) => {
-        token.update({
-          policyIds: token.policyIds.filter((pid) => pid !== id),
-        });
+
+    // Also update any tokens whose policyIDs include this policy
+    const tokens =
+      server.schema.tokens.where((token) => token.policyIds?.includes(id)) ||
+      [];
+    tokens.models.forEach((token) => {
+      token.update({
+        policyIds: token.policyIds.filter((policyId) => policyId !== id),
       });
+    });
+
+    // Also update any roles whose policyIDs include this policy
+    const roles =
+      server.schema.roles.where((role) => role.policyIds?.includes(id)) || [];
+    roles.models.forEach((role) => {
+      role.update({
+        policyIds: role.policyIds.filter((policyId) => policyId !== id),
+      });
+    });
+
     server.db.policies.remove(id);
+
     return '';
   });
 
@@ -960,7 +1079,11 @@ export default function () {
   });
 
   this.get('/var/:id', function ({ variables }, { params }) {
-    return variables.find(params.id);
+    let variable = variables.find(params.id);
+    if (!variable) {
+      return new Response(404, {}, {});
+    }
+    return variable;
   });
 
   this.put('/var/:id', function (schema, request) {
@@ -1106,4 +1229,8 @@ function generateFailedTGAllocs(job, taskGroups) {
     hash[tgName] = generateTaskGroupFailures();
     return hash;
   }, {});
+}
+
+function generateWarnings() {
+  return '2 warnings:\n\n* Group "yourtask" has warnings: 1 error occurred:\n\t* Task "yourtask" has warnings: 1 error occurred:\n\t* 2 errors occurred:\n\t* Identity[vault_default] identities without an audience are insecure\n\t* Identity[vault_default] identities without an expiration are insecure\n* Task yourtask has an identity called vault_default but no vault block';
 }

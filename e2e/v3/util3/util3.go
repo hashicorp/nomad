@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package util3
 
@@ -19,6 +19,7 @@ func ShortID(prefix string) string {
 //
 // Do not call this directly from tests.
 func Log3(t *testing.T, verbose bool, msg string, args ...any) {
+	t.Helper()
 	env := os.Getenv("NOMAD_E2E_VERBOSE")
 	on := verbose || env == "1" || env == "true"
 	if on {

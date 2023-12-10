@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -45,13 +45,13 @@ Status Options:
     queried, and drops verbose information about allocations.
 
   -verbose
-    Display full allocation information.
+    Display full volumes information.
 
   -json
-    Output the allocation in its JSON format.
+    Output the volumes in JSON format.
 
   -t
-    Format and display allocation using a Go template.
+    Format and display volumes using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -26,7 +26,7 @@ func TestClientStatsRequest(t *testing.T) {
 
 		// Local node, local resp
 		{
-			req, err := http.NewRequest("GET", "/v1/client/stats/?since=foo", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/client/stats/?since=foo", nil)
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
@@ -43,7 +43,7 @@ func TestClientStatsRequest(t *testing.T) {
 			srv := s.server
 			s.server = nil
 
-			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/stats?node_id=%s", uuid.Generate()), nil)
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/v1/client/stats?node_id=%s", uuid.Generate()), nil)
 			require.Nil(err)
 
 			respW := httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestClientStatsRequest(t *testing.T) {
 				t.Fatalf("should have client: %v", err)
 			})
 
-			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/stats?node_id=%s", c.NodeID()), nil)
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/v1/client/stats?node_id=%s", c.NodeID()), nil)
 			require.Nil(err)
 
 			respW := httptest.NewRecorder()
@@ -85,7 +85,7 @@ func TestClientStatsRequest_ACL(t *testing.T) {
 	assert := assert.New(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
-		req, err := http.NewRequest("GET", "/v1/client/stats/", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/stats/", nil)
 		assert.Nil(err)
 
 		// Try request without a token and expect failure

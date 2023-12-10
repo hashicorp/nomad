@@ -1,8 +1,9 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
 import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { generateResources } from '../common';
@@ -15,6 +16,9 @@ export default Factory.extend({
   createRecommendations: false,
 
   withServices: false,
+
+  withActions: false,
+  actions: [],
 
   // Hidden property used to compute the Summary hash
   groupNames: [],
@@ -95,6 +99,21 @@ export default Factory.extend({
         });
       });
       task.update({ services });
+    }
+
+    if (task.withActions) {
+      let actionsData = [
+        {
+          taskName: task.name,
+          Name: faker.hacker.verb(),
+          Command: '/bin/sh',
+          Args: [
+            '-c',
+            'counter=0; while true; do echo "Running for ${counter} seconds"; counter=$((counter + 1)); sleep 1; done',
+          ],
+        },
+      ];
+      task.update({ actions: actionsData });
     }
   },
 });

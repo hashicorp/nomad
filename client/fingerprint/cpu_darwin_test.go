@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 //go:build darwin && arm64 && cgo
 
@@ -32,14 +32,13 @@ func TestCPUFingerprint_AppleSilicon(t *testing.T) {
 	attributes := response.Attributes
 	must.NotNil(t, attributes)
 	must.MapContainsKey(t, attributes, "cpu.modelname")
-	must.MapContainsKey(t, attributes, "cpu.numcores.power")
+	must.MapContainsKey(t, attributes, "cpu.numcores.performance")
 	must.MapContainsKey(t, attributes, "cpu.numcores.efficiency")
-	must.MapContainsKey(t, attributes, "cpu.frequency.power")
+	must.MapContainsKey(t, attributes, "cpu.frequency.performance")
 	must.MapContainsKey(t, attributes, "cpu.frequency.efficiency")
 	must.MapContainsKey(t, attributes, "cpu.totalcompute")
-	must.Positive(t, response.Resources.CPU)
 	must.Positive(t, response.NodeResources.Cpu.CpuShares)
-	must.Positive(t, response.NodeResources.Cpu.SharesPerCore())
+	must.Positive(t, response.NodeResources.Cpu.TotalCpuCores)
 	must.SliceEmpty(t, response.NodeResources.Cpu.ReservableCpuCores)
 
 	// not included for mixed core types (that we can detect)

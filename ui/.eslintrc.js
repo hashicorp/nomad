@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 'use strict';
@@ -37,6 +37,7 @@ module.exports = {
     'ember/no-classic-components': 'off',
     'ember/no-component-lifecycle-hooks': 'off',
     'ember/require-tagless-components': 'off',
+    'no-control-regex': 'off',
   },
   overrides: [
     // node files

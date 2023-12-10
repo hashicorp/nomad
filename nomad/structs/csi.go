@@ -1,18 +1,19 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+
 	"github.com/hashicorp/nomad/helper"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // CSISocketName is the filename that Nomad expects plugins to create inside the
@@ -130,15 +131,6 @@ const (
 	CSIVolumeAttachmentModeFilesystem  CSIVolumeAttachmentMode = "file-system"
 )
 
-func ValidCSIVolumeAttachmentMode(attachmentMode CSIVolumeAttachmentMode) bool {
-	switch attachmentMode {
-	case CSIVolumeAttachmentModeBlockDevice, CSIVolumeAttachmentModeFilesystem:
-		return true
-	default:
-		return false
-	}
-}
-
 // CSIVolumeAccessMode indicates how a volume should be used in a storage topology
 // e.g whether the provider should make the volume available concurrently.
 type CSIVolumeAccessMode string
@@ -153,31 +145,6 @@ const (
 	CSIVolumeAccessModeMultiNodeSingleWriter CSIVolumeAccessMode = "multi-node-single-writer"
 	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
 )
-
-// ValidCSIVolumeAccessMode checks to see that the provided access mode is a valid,
-// non-empty access mode.
-func ValidCSIVolumeAccessMode(accessMode CSIVolumeAccessMode) bool {
-	switch accessMode {
-	case CSIVolumeAccessModeSingleNodeReader, CSIVolumeAccessModeSingleNodeWriter,
-		CSIVolumeAccessModeMultiNodeReader, CSIVolumeAccessModeMultiNodeSingleWriter,
-		CSIVolumeAccessModeMultiNodeMultiWriter:
-		return true
-	default:
-		return false
-	}
-}
-
-// ValidCSIVolumeWriteAccessMode checks for a writable access mode.
-func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
-	switch accessMode {
-	case CSIVolumeAccessModeSingleNodeWriter,
-		CSIVolumeAccessModeMultiNodeSingleWriter,
-		CSIVolumeAccessModeMultiNodeMultiWriter:
-		return true
-	default:
-		return false
-	}
-}
 
 // CSIMountOptions contain optional additional configuration that can be used
 // when specifying that a Volume should be used with VolumeAccessTypeMount.
@@ -816,20 +783,6 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 			"volume snapshot ID cannot be updated"))
 	}
 
-	// must be compatible with capacity range
-	// TODO: when ExpandVolume is implemented we'll need to update
-	// this logic https://github.com/hashicorp/nomad/issues/10324
-	if v.Capacity != 0 {
-		if other.RequestedCapacityMax < v.Capacity ||
-			other.RequestedCapacityMin > v.Capacity {
-			errs = multierror.Append(errs, errors.New(
-				"volume requested capacity update was not compatible with existing capacity"))
-		} else {
-			v.RequestedCapacityMin = other.RequestedCapacityMin
-			v.RequestedCapacityMax = other.RequestedCapacityMax
-		}
-	}
-
 	// must be compatible with volume_capabilities
 	if v.AccessMode != CSIVolumeAccessModeUnknown ||
 		v.AttachmentMode != CSIVolumeAttachmentModeUnknown {
@@ -860,9 +813,15 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 		}
 	}
 
-	// MountOptions can be updated so long as the volume isn't in use,
-	// but the caller will reject updating an in-use volume
-	v.MountOptions = other.MountOptions
+	// MountOptions can be updated so long as the volume isn't in use
+	if v.InUse() {
+		if !v.MountOptions.Equal(other.MountOptions) {
+			errs = multierror.Append(errs, errors.New(
+				"can not update mount options while volume is in use"))
+		}
+	} else {
+		v.MountOptions = other.MountOptions
+	}
 
 	// Secrets can be updated freely
 	v.Secrets = other.Secrets
@@ -917,6 +876,19 @@ type CSIVolumeDeleteRequest struct {
 }
 
 type CSIVolumeDeleteResponse struct {
+	QueryMeta
+}
+
+type CSIVolumeExpandRequest struct {
+	VolumeID             string
+	RequestedCapacityMin int64
+	RequestedCapacityMax int64
+	Secrets              CSISecrets
+	WriteRequest
+}
+
+type CSIVolumeExpandResponse struct {
+	CapacityBytes int64
 	QueryMeta
 }
 

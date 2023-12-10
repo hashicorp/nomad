@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
 
@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -25,7 +26,7 @@ var _ interfaces.TaskExitedHook = (*serviceHook)(nil)
 var _ interfaces.TaskPreKillHook = (*serviceHook)(nil)
 var _ interfaces.TaskUpdateHook = (*serviceHook)(nil)
 
-func TestUpdate_beforePoststart(t *testing.T) {
+func Test_serviceHook_Update_beforePoststart(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.Job.Canonicalize()
 	logger := testlog.HCLogger(t)
@@ -43,6 +44,7 @@ func TestUpdate_beforePoststart(t *testing.T) {
 		task:              alloc.LookupTask("web"),
 		serviceRegWrapper: regWrap,
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{
 		Alloc:   alloc,
@@ -108,6 +110,7 @@ func Test_serviceHook_multipleDeRegisterCall(t *testing.T) {
 		task:              alloc.LookupTask("web"),
 		serviceRegWrapper: regWrap,
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 
 	// Interpolating workload services performs a check on the task env, if it
@@ -180,10 +183,10 @@ func Test_serviceHook_Nomad(t *testing.T) {
 	h := newServiceHook(serviceHookConfig{
 		alloc:             alloc,
 		task:              alloc.LookupTask("web"),
-		providerNamespace: "default",
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 
 	// Create a taskEnv builder to use in requests, otherwise interpolation of

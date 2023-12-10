@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package state
 
@@ -53,6 +53,21 @@ type StateDB interface {
 	// GetAcknowledgedState retrieves an allocation's last acknowledged
 	// state. It may be nil even if there's no error
 	GetAcknowledgedState(string) (*arstate.State, error)
+
+	// PutAllocVolumes stores stubs of an allocation's dynamic volume mounts so
+	// they can be restored.
+	PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opts ...WriteOption) error
+
+	// GetAllocVolumes retrieves stubs of an allocation's dynamic volume mounts
+	// so they can be restored.
+	GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error)
+
+	// PutAllocIdentities stores signed workload identities for an allocation.
+	PutAllocIdentities(allocID string, identities []*structs.SignedWorkloadIdentity, opts ...WriteOption) error
+
+	// GetAllocIdentities returns the previously-signed workload identities for
+	// an allocation.
+	GetAllocIdentities(allocID string) ([]*structs.SignedWorkloadIdentity, error)
 
 	// GetTaskRunnerState returns the LocalState and TaskState for a
 	// TaskRunner. Either state may be nil if it is not found, but if an

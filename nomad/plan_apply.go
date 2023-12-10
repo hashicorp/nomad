@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -22,8 +22,7 @@ import (
 // planner is used to manage the submitted allocation plans that are waiting
 // to be accessed by the leader
 type planner struct {
-	*Server
-	log log.Logger
+	srv *Server
 
 	// planQueue is used to manage the submitted allocation
 	// plans that are waiting to be assessed by the leader
@@ -63,8 +62,7 @@ func newPlanner(s *Server) (*planner, error) {
 	}
 
 	return &planner{
-		Server:         s,
-		log:            log,
+		srv:            s,
 		planQueue:      planQueue,
 		badNodeTracker: badNodeTracker,
 	}, nil
@@ -157,16 +155,16 @@ func (p *planner) planApply() {
 		if planIndexCh == nil || snap == nil {
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
-				p.logger.Error("failed to snapshot state", "error", err)
+				p.srv.logger.Error("failed to snapshot state", "error", err)
 				pending.respond(nil, err)
 				continue
 			}
 		}
 
 		// Evaluate the plan
-		result, err := evaluatePlan(pool, snap, pending.plan, p.logger)
+		result, err := evaluatePlan(pool, snap, pending.plan, p.srv.logger)
 		if err != nil {
-			p.logger.Error("failed to evaluate plan", "error", err)
+			p.srv.logger.Error("failed to evaluate plan", "error", err)
 			pending.respond(nil, err)
 			continue
 		}
@@ -192,7 +190,7 @@ func (p *planner) planApply() {
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
-				p.logger.Error("failed to update snapshot state", "error", err)
+				p.srv.logger.Error("failed to update snapshot state", "error", err)
 				pending.respond(nil, err)
 				continue
 			}
@@ -201,7 +199,7 @@ func (p *planner) planApply() {
 		// Dispatch the Raft transaction for the plan
 		future, err := p.applyPlan(pending.plan, result, snap)
 		if err != nil {
-			p.logger.Error("failed to submit plan", "error", err)
+			p.srv.logger.Error("failed to submit plan", "error", err)
 			pending.respond(nil, err)
 			continue
 		}
@@ -229,7 +227,7 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 	// because schedulers won't dequeue more work while waiting.
 	const timeout = 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	snap, err := p.fsm.State().SnapshotMinIndex(ctx, minIndex)
+	snap, err := p.srv.fsm.State().SnapshotMinIndex(ctx, minIndex)
 	cancel()
 	if err == context.DeadlineExceeded {
 		return nil, fmt.Errorf("timed out after %s waiting for index=%d (previous plan result index=%d; plan snapshot index=%d)",
@@ -241,7 +239,8 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UTC()
+	unixNow := now.UnixNano()
 
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
@@ -252,12 +251,12 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		DeploymentUpdates: result.DeploymentUpdates,
 		IneligibleNodes:   result.IneligibleNodes,
 		EvalID:            plan.EvalID,
-		UpdatedAt:         now,
+		UpdatedAt:         unixNow,
 	}
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
 
-	if ServersMeetMinimumVersion(p.Members(), p.Region(), MinVersionPlanNormalization, true) {
+	if ServersMeetMinimumVersion(p.srv.Members(), p.srv.Region(), MinVersionPlanNormalization, true) {
 		// Initialize the allocs request using the new optimized log entry format.
 		// Determine the minimum number of updates, could be more if there
 		// are multiple updates per node
@@ -267,7 +266,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		for _, updateList := range result.NodeUpdate {
 			for _, stoppedAlloc := range updateList {
-				req.AllocsStopped = append(req.AllocsStopped, normalizeStoppedAlloc(stoppedAlloc, now))
+				req.AllocsStopped = append(req.AllocsStopped, normalizeStoppedAlloc(stoppedAlloc, unixNow))
 			}
 		}
 
@@ -277,16 +276,16 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		// Set the time the alloc was applied for the first time. This can be used
 		// to approximate the scheduling time.
-		updateAllocTimestamps(req.AllocsUpdated, now)
+		updateAllocTimestamps(req.AllocsUpdated, unixNow)
 
-		err := p.signAllocIdentities(plan.Job, req.AllocsUpdated)
+		err := signAllocIdentities(p.srv.encrypter, plan.Job, req.AllocsUpdated, now)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, preemptions := range result.NodePreemptions {
 			for _, preemptedAlloc := range preemptions {
-				req.AllocsPreempted = append(req.AllocsPreempted, normalizePreemptedAlloc(preemptedAlloc, now))
+				req.AllocsPreempted = append(req.AllocsPreempted, normalizePreemptedAlloc(preemptedAlloc, unixNow))
 
 				// Gather jobids to create follow up evals
 				appendNamespacedJobID(preemptedJobIDs, preemptedAlloc)
@@ -318,19 +317,19 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		// Set the time the alloc was applied for the first time. This can be used
 		// to approximate the scheduling time.
-		updateAllocTimestamps(req.Alloc, now)
+		updateAllocTimestamps(req.Alloc, unixNow)
 
 		// Set modify time for preempted allocs if any
 		// Also gather jobids to create follow up evals
 		for _, alloc := range req.NodePreemptions {
-			alloc.ModifyTime = now
+			alloc.ModifyTime = unixNow
 			appendNamespacedJobID(preemptedJobIDs, alloc)
 		}
 	}
 
 	var evals []*structs.Evaluation
 	for preemptedJobID := range preemptedJobIDs {
-		job, _ := p.State().JobByID(nil, preemptedJobID.Namespace, preemptedJobID.ID)
+		job, _ := p.srv.State().JobByID(nil, preemptedJobID.Namespace, preemptedJobID.ID)
 		if job != nil {
 			eval := &structs.Evaluation{
 				ID:          uuid.Generate(),
@@ -340,8 +339,8 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 				Type:        job.Type,
 				Priority:    job.Priority,
 				Status:      structs.EvalStatusPending,
-				CreateTime:  now,
-				ModifyTime:  now,
+				CreateTime:  unixNow,
+				ModifyTime:  unixNow,
 			}
 			evals = append(evals, eval)
 		}
@@ -349,14 +348,14 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	req.PreemptionEvals = evals
 
 	// Dispatch the Raft transaction
-	future, err := p.raftApplyFuture(structs.ApplyPlanResultsRequestType, &req)
+	future, err := p.srv.raftApplyFuture(structs.ApplyPlanResultsRequestType, &req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Optimistically apply to our state view
 	if snap != nil {
-		nextIdx := p.raft.AppliedIndex() + 1
+		nextIdx := p.srv.raft.AppliedIndex() + 1
 		if err := snap.UpsertPlanResults(structs.ApplyPlanResultsRequestType, nextIdx, &req); err != nil {
 			return future, err
 		}
@@ -409,16 +408,20 @@ func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
 	}
 }
 
-func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.Allocation) error {
-
-	encrypter := p.Server.encrypter
-
+func signAllocIdentities(signer claimSigner, job *structs.Job, allocations []*structs.Allocation, now time.Time) error {
 	for _, alloc := range allocations {
-		alloc.SignedIdentities = map[string]string{}
+		if alloc.SignedIdentities == nil {
+			alloc.SignedIdentities = map[string]string{}
+		}
 		tg := job.LookupTaskGroup(alloc.TaskGroup)
 		for _, task := range tg.Tasks {
-			claims := alloc.ToTaskIdentityClaims(job, task.Name)
-			token, keyID, err := encrypter.SignClaims(claims)
+			// skip tasks that already have an identity
+			if _, ok := alloc.SignedIdentities[task.Name]; ok {
+				continue
+			}
+			defaultWI := &structs.WorkloadIdentity{Name: "default"}
+			claims := structs.NewIdentityClaims(job, alloc, task.IdentityHandle(defaultWI), task.Identity, now)
+			token, keyID, err := signer.SignClaims(claims)
 			if err != nil {
 				return err
 			}
@@ -439,7 +442,7 @@ func (p *planner) asyncPlanWait(indexCh chan<- uint64, future raft.ApplyFuture,
 
 	// Wait for the plan to apply
 	if err := future.Error(); err != nil {
-		p.logger.Error("failed to apply plan", "error", err)
+		p.srv.logger.Error("failed to apply plan", "error", err)
 		pending.respond(nil, err)
 		return
 	}
@@ -551,7 +554,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 				//is resolved this log line is the only way to
 				//monitor the disagreement between workers and
 				//the plan applier.
-				logger.Info("plan for node rejected, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
+				logger.Info("plan for node rejected, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information",
 					"node_id", nodeID, "reason", reason, "eval_id", plan.EvalID,
 					"namespace", plan.Job.Namespace)
 			}
@@ -734,6 +737,11 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 			return true, "", nil
 		}
 		return false, "node is disconnected and contains invalid updates", nil
+	} else if node.Status == structs.NodeStatusDown {
+		if isValidForDownNode(plan, node.ID) {
+			return true, "", nil
+		}
+		return false, "node is down and contains invalid updates", nil
 	} else if node.Status != structs.NodeStatusReady {
 		return false, "node is not ready for placements", nil
 	}
@@ -788,9 +796,16 @@ func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
 	return true
 }
 
-func max(a, b uint64) uint64 {
-	if a > b {
-		return a
+// The plan is only valid for a node down if it only contains
+// updates to mark allocations as unknown and those allocations are configured
+// as non reschedulables when lost or if the allocs are being updated to lost.
+func isValidForDownNode(plan *structs.Plan, nodeID string) bool {
+	for _, alloc := range plan.NodeAllocation[nodeID] {
+		if !(alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.PreventRescheduleOnLost()) &&
+			(alloc.ClientStatus != structs.AllocClientStatusLost) {
+			return false
+		}
 	}
-	return b
+
+	return true
 }

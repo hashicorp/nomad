@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 job "test" {
 
@@ -30,7 +30,7 @@ job "test" {
       min_healthy_time  = "1s"
       auto_revert       = true
       healthy_deadline  = "2s"
-      progress_deadline = "3s"
+      progress_deadline = "5s"
     }
 
     restart {

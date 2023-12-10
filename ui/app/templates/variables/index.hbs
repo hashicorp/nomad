@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 {{page-title "Variables"}}
@@ -22,6 +22,11 @@
           @route="variables.new"
           class="button is-primary"
           data-test-create-var
+          {{keyboard-shortcut
+            pattern=(array "n" "v")
+            action=(action this.goToNewVariable)
+            label="Create Variable"
+          }}
         >
           Create Variable
         </LinkTo>

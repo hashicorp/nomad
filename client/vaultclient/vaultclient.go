@@ -1,10 +1,12 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package vaultclient
 
 import (
 	"container/heap"
+	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -13,16 +15,37 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
 )
 
+// VaultClientFunc is the interface of a function that retreives the VaultClient
+// by cluster name. This function is injected into the allocrunner/taskrunner
+type VaultClientFunc func(string) (VaultClient, error)
+
 // TokenDeriverFunc takes in an allocation and a set of tasks and derives a
 // wrapped token for all the tasks, from the nomad server. All the derived
 // wrapped tokens will be unwrapped using the vault API client.
 type TokenDeriverFunc func(*structs.Allocation, []string, *vaultapi.Client) (map[string]string, error)
+
+// JWTLoginRequest is used to derive a Vault ACL token using a JWT login
+// request.
+type JWTLoginRequest struct {
+	// JWT is the signed JWT to be used for the login request.
+	JWT string
+
+	// Role is Vault ACL role to use for the login request. If empty, the
+	// Nomad client's create_from_role value is used, or the Vault cluster
+	// default role.
+	Role string
+
+	// Namespace is the Vault namespace to use for the login request. If empty,
+	// the Nomad client's Vault configuration namespace will be used.
+	Namespace string
+}
 
 // VaultClient is the interface which nomad client uses to interact with vault and
 // periodically renews the tokens and secrets.
@@ -37,6 +60,10 @@ type VaultClient interface {
 	// a set of tasks. The wrapped tokens will be unwrapped using vault and
 	// returned.
 	DeriveToken(*structs.Allocation, []string) (map[string]string, error)
+
+	// DeriveTokenWithJWT returns a Vault ACL token using the JWT login
+	// endpoint.
+	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, error)
 
 	// GetConsulACL fetches the Consul ACL token required for the task
 	GetConsulACL(string, string) (*vaultapi.Secret, error)
@@ -85,6 +112,11 @@ type vaultClient struct {
 // vaultClientRenewalRequest is a request object for renewal of both tokens and
 // secret's leases.
 type vaultClientRenewalRequest struct {
+	// renewalLoopCh is used to notify listeners every time the token goes
+	// through the renewal loop. It does not guarantee the renewal was
+	// successful, so listeners should also read from errCh for renewal errors.
+	renewalLoopCh chan struct{}
+
 	// errCh is the channel into which any renewal error will be sent to
 	errCh chan error
 
@@ -124,7 +156,7 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDerive
 		return nil, fmt.Errorf("nil vault config")
 	}
 
-	logger = logger.Named("vault")
+	logger = logger.Named("vault").With("name", config.Name)
 
 	c := &vaultClient{
 		config: config,
@@ -222,10 +254,14 @@ func (c *vaultClient) Stop() {
 	close(c.stopCh)
 }
 
-// unlockAndUnset is used to unset the vault token on the client and release the
-// lock. Helper method for deferring a call that does both.
-func (c *vaultClient) unlockAndUnset() {
+// unlockAndUnset is used to unset the vault token on the client, restore the
+// client's namespace, and release the lock. Helper method for deferring a call
+// that does both.
+func (c *vaultClient) unlockAndUnset(previousNs string) {
 	c.client.SetToken("")
+	if previousNs != "" {
+		c.client.SetNamespace(previousNs)
+	}
 	c.lock.Unlock()
 }
 
@@ -242,7 +278,7 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	}
 
 	c.lock.Lock()
-	defer c.unlockAndUnset()
+	defer c.unlockAndUnset(c.client.Namespace())
 
 	// Use the token supplied to interact with vault
 	c.client.SetToken("")
@@ -254,6 +290,49 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	}
 
 	return tokens, nil
+}
+
+// DeriveTokenWithJWT returns a Vault ACL token using the JWT login endpoint.
+func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, error) {
+	if !c.config.IsEnabled() {
+		return "", fmt.Errorf("vault client not enabled")
+	}
+	if !c.isRunning() {
+		return "", fmt.Errorf("vault client is not running")
+	}
+
+	c.lock.Lock()
+	defer c.unlockAndUnset(c.client.Namespace())
+
+	// Make sure the login request is not passing any token and that we're using
+	// the expected namespace to login
+	c.client.SetToken("")
+	if req.Namespace != "" {
+		c.client.SetNamespace(req.Namespace)
+	}
+
+	jwtLoginPath := fmt.Sprintf("auth/%s/login", c.config.JWTAuthBackendPath)
+	s, err := c.client.Logical().WriteWithContext(ctx, jwtLoginPath,
+		map[string]any{
+			"role": req.Role,
+			"jwt":  req.JWT,
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to login with JWT: %v", err)
+	}
+	if s == nil {
+		return "", errors.New("JWT login returned an empty secret")
+	}
+	if s.Auth == nil {
+		return "", errors.New("JWT login did not return a token")
+	}
+
+	for _, w := range s.Warnings {
+		c.logger.Warn("JWT login warning", "warning", w)
+	}
+
+	return s.Auth.ClientToken, nil
 }
 
 // GetConsulACL creates a vault API client and reads from vault a consul ACL
@@ -270,7 +349,7 @@ func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error)
 	}
 
 	c.lock.Lock()
-	defer c.unlockAndUnset()
+	defer c.unlockAndUnset(c.client.Namespace())
 
 	// Use the token supplied to interact with vault
 	c.client.SetToken(token)
@@ -279,13 +358,15 @@ func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error)
 	return c.client.Logical().Read(path)
 }
 
-// RenewToken renews the supplied token for a given duration (in seconds) and
-// adds it to the min-heap so that it is renewed periodically by the renewal
-// loop. Any error returned during renewal will be written to a buffered
-// channel and the channel is returned instead of an actual error. This helps
-// the caller be notified of a renewal failure asynchronously for appropriate
-// actions to be taken. The caller of this function need not have to close the
-// error channel.
+// RenewToken pushes the supplied token to the min-heap for an immediate
+// renewal for a given duration (in seconds) and blocks until the renewal loop
+// has processed it. The token is then renewed periodically until Stop() or
+// StopRenewToken() is called.
+//
+// Any error returned during the periodical renewal will be written to a
+// buffered channel and the channel is returned instead of an actual error.
+// This helps the caller be notified of a renewal failure asynchronously for
+// appropriate actions to be taken.
 func (c *vaultClient) RenewToken(token string, increment int) (<-chan error, error) {
 	if token == "" {
 		err := fmt.Errorf("missing token")
@@ -296,27 +377,63 @@ func (c *vaultClient) RenewToken(token string, increment int) (<-chan error, err
 		return nil, err
 	}
 
-	// Create a buffered error channel
-	errCh := make(chan error, 1)
-
 	// Create a renewal request and indicate that the identifier in the
 	// request is a token and not a lease
-	renewalReq := &vaultClientRenewalRequest{
-		errCh:     errCh,
-		id:        token,
-		isToken:   true,
-		increment: increment,
+	req := &vaultClientRenewalRequest{
+		renewalLoopCh: make(chan struct{}),
+		errCh:         make(chan error, 1),
+		id:            token,
+		isToken:       true,
+		increment:     increment,
 	}
 
-	// Perform the renewal of the token and send any error to the dedicated
-	// error channel.
-	if err := c.renew(renewalReq); err != nil {
-		c.logger.Error("error during renewal of token", "error", err)
-		metrics.IncrCounter([]string{"client", "vault", "renew_token_failure"}, 1)
+	// Push an immediate renewal request to the heap and block until a result
+	// is received.
+	err := c.pushRenewalRequest(req, time.Now())
+	if err != nil {
 		return nil, err
 	}
 
-	return errCh, nil
+	select {
+	case err := <-req.errCh:
+		c.logger.Error("error during renewal of token", "error", err)
+		metrics.IncrCounter([]string{"client", "vault", "renew_token_failure"}, 1)
+		return nil, err
+	case <-req.renewalLoopCh:
+		return req.errCh, nil
+	}
+}
+
+// pushRenewalRequest pushes a renewal request to the heap and triggers the
+// renewal loop to re-fetch a new request.
+func (c *vaultClient) pushRenewalRequest(req *vaultClientRenewalRequest, next time.Time) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if !c.running {
+		return errors.New("token renewal loop is not running")
+	}
+
+	if !c.isTracked(req.id) {
+		err := c.heap.Push(req, next)
+		if err != nil {
+			return fmt.Errorf("failed to push renewal request to heap: %v", err)
+		}
+	} else {
+		err := c.heap.Update(req, next)
+		if err != nil {
+			return fmt.Errorf("failed to update renewal request: %v", err)
+		}
+	}
+
+	// Signal an update for the renewal loop to trigger a fresh computation for
+	// the next best candidate for renewal.
+	select {
+	case c.updateCh <- struct{}{}:
+	default:
+	}
+
+	return nil
 }
 
 // renew is a common method to handle renewal of both tokens and secret leases.
@@ -324,9 +441,19 @@ func (c *vaultClient) RenewToken(token string, increment int) (<-chan error, err
 // successful, min-heap is updated based on the duration after which it needs
 // renewal again. The next renewal time is randomly selected to avoid spikes in
 // the number of APIs periodically.
+// Only tokens that are present in the heap are renewed.
 func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+
+	// Always notify listeners that the request has been processed before
+	// exiting.
+	defer func() {
+		select {
+		case req.renewalLoopCh <- struct{}{}:
+		default:
+		}
+	}()
 
 	if req == nil {
 		return fmt.Errorf("nil renewal request")
@@ -350,6 +477,12 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	if req.increment < 1 {
 		close(req.errCh)
 		return fmt.Errorf("increment cannot be less than 1")
+	}
+
+	// Verify token is still in the heap before proceeding as it may have been
+	// removed while waiting for the renewal timer to tick.
+	if !c.isTracked(req.id) {
+		return nil
 	}
 
 	var renewalErr error
@@ -391,6 +524,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	fatal := false
 	if renewalErr != nil &&
 		(strings.Contains(renewalErr.Error(), "lease not found or lease is not renewable") ||
+			strings.Contains(renewalErr.Error(), "invalid lease ID") ||
 			strings.Contains(renewalErr.Error(), "lease is not renewable") ||
 			strings.Contains(renewalErr.Error(), "token not found") ||
 			strings.Contains(renewalErr.Error(), "permission denied")) {
@@ -401,60 +535,25 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			"error", renewalErr, "period", next)
 	}
 
-	if c.isTracked(req.id) {
-		if fatal {
-			// If encountered with an error where in a lease or a
-			// token is not valid at all with vault, and if that
-			// item is tracked by the renewal loop, stop renewing
-			// it by removing the corresponding heap entry.
-			if err := c.heap.Remove(req.id); err != nil {
-				return fmt.Errorf("failed to remove heap entry: %v", err)
-			}
-
-			// Report the fatal error to the client
-			req.errCh <- renewalErr
-			close(req.errCh)
-
-			return renewalErr
+	if fatal {
+		// If encountered with an error where in a lease or a
+		// token is not valid at all with vault, and if that
+		// item is tracked by the renewal loop, stop renewing
+		// it by removing the corresponding heap entry.
+		if err := c.heap.Remove(req.id); err != nil {
+			return fmt.Errorf("failed to remove heap entry: %v", err)
 		}
 
-		// If the identifier is already tracked, this indicates a
-		// subsequest renewal. In this case, update the existing
-		// element in the heap with the new renewal time.
-		if err := c.heap.Update(req, next); err != nil {
-			return fmt.Errorf("failed to update heap entry. err: %v", err)
-		}
+		// Report the fatal error to the client
+		req.errCh <- renewalErr
+		close(req.errCh)
 
-		// There is no need to signal an update to the renewal loop
-		// here because this case is hit from the renewal loop itself.
-	} else {
-		if fatal {
-			// If encountered with an error where in a lease or a
-			// token is not valid at all with vault, and if that
-			// item is not tracked by renewal loop, don't add it.
+		return renewalErr
+	}
 
-			// Report the fatal error to the client
-			req.errCh <- renewalErr
-			close(req.errCh)
-
-			return renewalErr
-		}
-
-		// If the identifier is not already tracked, this is a first
-		// renewal request. In this case, add an entry into the heap
-		// with the next renewal time.
-		if err := c.heap.Push(req, next); err != nil {
-			return fmt.Errorf("failed to push an entry to heap.  err: %v", err)
-		}
-
-		// Signal an update for the renewal loop to trigger a fresh
-		// computation for the next best candidate for renewal.
-		if c.running {
-			select {
-			case c.updateCh <- struct{}{}:
-			default:
-			}
-		}
+	// Update the element in the heap with the new renewal time.
+	if err := c.heap.Update(req, next); err != nil {
+		return fmt.Errorf("failed to update heap entry. err: %v", err)
 	}
 
 	return nil

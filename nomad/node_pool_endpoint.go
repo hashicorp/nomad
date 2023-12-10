@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -12,9 +12,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -106,7 +104,7 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Max(1, index)
+			reply.Index = max(1, index)
 
 			// Set the query response.
 			n.srv.setQueryMeta(&reply.QueryMeta)
@@ -161,7 +159,7 @@ func (n *NodePool) GetNodePool(args *structs.NodePoolSpecificRequest, reply *str
 				if err != nil {
 					return err
 				}
-				reply.Index = helper.Max(1, index)
+				reply.Index = max(1, index)
 			}
 			return nil
 		}}
@@ -503,7 +501,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Max(jindex, sindex)
+			reply.Index = max(jindex, sindex)
 
 			// Set the query response
 			n.srv.setQueryMeta(&reply.QueryMeta)
@@ -593,7 +591,7 @@ func (n *NodePool) ListNodes(args *structs.NodePoolNodesRequest, reply *structs.
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Max(1, index)
+			reply.Index = max(1, index)
 
 			// Set the query response.
 			n.srv.setQueryMeta(&reply.QueryMeta)

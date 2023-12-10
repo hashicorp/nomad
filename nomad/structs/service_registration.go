@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
@@ -7,10 +7,10 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"slices"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/ipaddr"
-	"golang.org/x/exp/slices"
 )
 
 const (

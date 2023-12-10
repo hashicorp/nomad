@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -121,7 +121,7 @@ func TestHTTP_FS_List_MissingParams(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("GET", "/v1/client/fs/ls/", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/fs/ls/", nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 		_, err = s.Server.DirectoryListRequest(respW, req)
@@ -133,14 +133,14 @@ func TestHTTP_FS_Stat_MissingParams(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("GET", "/v1/client/fs/stat/", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/fs/stat/", nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 
 		_, err = s.Server.FileStatRequest(respW, req)
 		require.EqualError(err, allocIDNotPresentErr.Error())
 
-		req, err = http.NewRequest("GET", "/v1/client/fs/stat/foo", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/fs/stat/foo", nil)
 		require.Nil(err)
 		respW = httptest.NewRecorder()
 
@@ -153,19 +153,19 @@ func TestHTTP_FS_ReadAt_MissingParams(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("GET", "/v1/client/fs/readat/", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/fs/readat/", nil)
 		require.NoError(err)
 
 		_, err = s.Server.FileReadAtRequest(httptest.NewRecorder(), req)
 		require.Error(err)
 
-		req, err = http.NewRequest("GET", "/v1/client/fs/readat/foo", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/fs/readat/foo", nil)
 		require.NoError(err)
 
 		_, err = s.Server.FileReadAtRequest(httptest.NewRecorder(), req)
 		require.Error(err)
 
-		req, err = http.NewRequest("GET", "/v1/client/fs/readat/foo?path=/path/to/file", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/fs/readat/foo?path=/path/to/file", nil)
 		require.NoError(err)
 
 		_, err = s.Server.FileReadAtRequest(httptest.NewRecorder(), req)
@@ -177,14 +177,14 @@ func TestHTTP_FS_Cat_MissingParams(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("GET", "/v1/client/fs/cat/", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/fs/cat/", nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 
 		_, err = s.Server.FileCatRequest(respW, req)
 		require.EqualError(err, allocIDNotPresentErr.Error())
 
-		req, err = http.NewRequest("GET", "/v1/client/fs/stat/foo", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/fs/stat/foo", nil)
 		require.Nil(err)
 		respW = httptest.NewRecorder()
 
@@ -197,21 +197,21 @@ func TestHTTP_FS_Stream_MissingParams(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("GET", "/v1/client/fs/stream/", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/fs/stream/", nil)
 		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
 		require.EqualError(err, allocIDNotPresentErr.Error())
 
-		req, err = http.NewRequest("GET", "/v1/client/fs/stream/foo", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/fs/stream/foo", nil)
 		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
 		require.EqualError(err, fileNameNotPresentErr.Error())
 
-		req, err = http.NewRequest("GET", "/v1/client/fs/stream/foo?path=/path/to/file", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/fs/stream/foo?path=/path/to/file", nil)
 		require.NoError(err)
 		respW = httptest.NewRecorder()
 
@@ -228,7 +228,7 @@ func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// AllocID Not Present
-		req, err := http.NewRequest("GET", "/v1/client/fs/logs/", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/fs/logs/", nil)
 		require.NoError(err)
 		respW := httptest.NewRecorder()
 
@@ -237,7 +237,7 @@ func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
 		require.Equal(400, respW.Code)
 
 		// Task Not Present
-		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/fs/logs/foo", nil)
 		require.NoError(err)
 		respW = httptest.NewRecorder()
 
@@ -246,7 +246,7 @@ func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
 		require.Equal(400, respW.Code)
 
 		// Log Type Not Present
-		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/fs/logs/foo?task=foo", nil)
 		require.NoError(err)
 		respW = httptest.NewRecorder()
 
@@ -255,7 +255,7 @@ func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
 		require.Equal(400, respW.Code)
 
 		// case where all parameters are set but alloc isn't found
-		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo&type=stdout", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/fs/logs/foo?task=foo&type=stdout", nil)
 		require.NoError(err)
 		respW = httptest.NewRecorder()
 
@@ -272,7 +272,7 @@ func TestHTTP_FS_List(t *testing.T) {
 		a := mockFSAlloc(s.client.NodeID(), nil)
 		addAllocToClient(s, a, terminalClientAlloc)
 
-		req, err := http.NewRequest("GET", "/v1/client/fs/ls/"+a.ID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/fs/ls/"+a.ID, nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 		raw, err := s.Server.DirectoryListRequest(respW, req)
@@ -293,7 +293,7 @@ func TestHTTP_FS_Stat(t *testing.T) {
 		addAllocToClient(s, a, terminalClientAlloc)
 
 		path := fmt.Sprintf("/v1/client/fs/stat/%s?path=alloc/", a.ID)
-		req, err := http.NewRequest("GET", path, nil)
+		req, err := http.NewRequest(http.MethodGet, path, nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 		raw, err := s.Server.FileStatRequest(respW, req)
@@ -319,7 +319,7 @@ func TestHTTP_FS_ReadAt(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/readat/%s?path=alloc/logs/web.stdout.0&offset=%d&limit=%d",
 			a.ID, offset, limit)
 
-		req, err := http.NewRequest("GET", path, nil)
+		req, err := http.NewRequest(http.MethodGet, path, nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 		_, err = s.Server.FileReadAtRequest(respW, req)
@@ -365,7 +365,7 @@ func TestHTTP_FS_Cat(t *testing.T) {
 
 		path := fmt.Sprintf("/v1/client/fs/cat/%s?path=alloc/logs/web.stdout.0", a.ID)
 
-		req, err := http.NewRequest("GET", path, nil)
+		req, err := http.NewRequest(http.MethodGet, path, nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 		_, err = s.Server.FileCatRequest(respW, req)
@@ -414,7 +414,7 @@ func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&offset=%d&origin=end&follow=false",
 			a.ID, offset)
 
-		req, err := http.NewRequest("GET", path, nil)
+		req, err := http.NewRequest(http.MethodGet, path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
 		doneCh := make(chan struct{})
@@ -478,7 +478,7 @@ func TestHTTP_FS_Stream_Follow(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&offset=%d&origin=end",
 			a.ID, offset)
 
-		req, err := http.NewRequest("GET", path, nil)
+		req, err := http.NewRequest(http.MethodGet, path, nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 		doneCh := make(chan struct{})
@@ -521,7 +521,7 @@ func TestHTTP_FS_Logs(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true",
 			a.ID, offset)
 
-		req, err := http.NewRequest("GET", path, nil)
+		req, err := http.NewRequest(http.MethodGet, path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
 		go func() {
@@ -580,7 +580,7 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true&follow=true",
 			a.ID, offset)
 
-		req, err := http.NewRequest("GET", path, nil)
+		req, err := http.NewRequest(http.MethodGet, path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
 		errCh := make(chan error, 1)
@@ -616,7 +616,7 @@ func TestHTTP_FS_Logs_PropagatesErrors(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=0&origin=end&plain=true",
 			uuid.Generate())
 
-		req, err := http.NewRequest("GET", path, nil)
+		req, err := http.NewRequest(http.MethodGet, path, nil)
 		require.NoError(t, err)
 		respW := testutil.NewResponseRecorder()
 

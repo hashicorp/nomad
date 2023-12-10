@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -79,6 +79,11 @@ var minNomadServiceRegistrationVersion = version.Must(version.NewVersion("1.3.0"
 // prevent older versions of the server from crashing.
 var minNodePoolsVersion = version.Must(version.NewVersion("1.6.0"))
 
+// minVersionMultiIdentities is the Nomad version at which users can add
+// multiple identity blocks to tasks and workload identities can be
+// automatically added to jobs that need access to Consul or Vault
+var minVersionMultiIdentities = version.Must(version.NewVersion("1.7.0"))
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
@@ -147,6 +152,50 @@ func (s *Server) monitorLeadership() {
 			return
 		}
 	}
+}
+
+func (s *Server) leadershipTransferToServer(to structs.RaftIDAddress) error {
+	if l := structs.NewRaftIDAddress(s.raft.LeaderWithID()); l == to {
+		s.logger.Debug("leadership transfer to current leader is a no-op")
+		return nil
+	}
+	retryCount := 3
+	var lastError error
+	for i := 0; i < retryCount; i++ {
+		err := s.raft.LeadershipTransferToServer(to.ID, to.Address).Error()
+		if err == nil {
+			s.logger.Info("successfully transferred leadership")
+			return nil
+		}
+
+		// "cannot transfer leadership to itself"
+		// Handled at top of function, but reapplied here to prevent retrying if
+		// it occurs while we are retrying
+		if err.Error() == "cannot transfer leadership to itself" {
+			s.logger.Debug("leadership transfer to current leader is a no-op")
+			return nil
+		}
+
+		// ErrRaftShutdown: Don't retry if raft is shut down.
+		if err == raft.ErrRaftShutdown {
+			return err
+		}
+
+		// ErrUnsupportedProtocol: Don't retry if the Raft version doesn't
+		// support leadership transfer since this will never succeed.
+		if err == raft.ErrUnsupportedProtocol {
+			return fmt.Errorf("leadership transfer not supported with Raft version lower than 3")
+		}
+
+		// ErrEnqueueTimeout: This seems to be the valid time to retry.
+		s.logger.Error("failed to transfer leadership attempt, will retry",
+			"attempt", i,
+			"retry_limit", retryCount,
+			"error", err,
+		)
+		lastError = err
+	}
+	return fmt.Errorf("failed to transfer leadership in %d attempts. last error: %w", retryCount, lastError)
 }
 
 func (s *Server) leadershipTransfer() error {
@@ -323,9 +372,11 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Initialize scheduler configuration.
 	schedulerConfig := s.getOrCreateSchedulerConfig()
 
-	// Initialize the ClusterID
-	_, _ = s.ClusterID()
-	// todo: use cluster ID for stuff, later!
+	// Initialize the Cluster metadata
+	clusterMetadata, err := s.ClusterMetadata()
+	if err != nil {
+		return err
+	}
 
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
@@ -397,6 +448,17 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Periodically publish job status metrics
 	go s.publishJobStatusMetrics(stopCh)
 
+	// Populate the variable lock TTL timers, so we can start tracking renewals
+	// and expirations.
+	if err := s.restoreLockTTLTimers(); err != nil {
+		return err
+	}
+
+	// Periodically publish metrics for the lock timer trackers which are only
+	// run on the leader.
+	go s.lockTTLTimer.EmitMetrics(1*time.Second, stopCh)
+	go s.lockDelayTimer.EmitMetrics(1*time.Second, stopCh)
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -434,7 +496,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	}
 
 	// Setup any enterprise systems required.
-	if err := s.establishEnterpriseLeadership(stopCh); err != nil {
+	if err := s.establishEnterpriseLeadership(stopCh, clusterMetadata); err != nil {
 		return err
 	}
 
@@ -1464,6 +1526,10 @@ func (s *Server) revokeLeadership() error {
 	if err := s.revokeEnterpriseLeadership(); err != nil {
 		return err
 	}
+
+	// Stop all the tracked variable lock TTL and delay timers.
+	s.lockTTLTimer.StopAndRemoveAll()
+	s.lockDelayTimer.RemoveAll()
 
 	// Clear the heartbeat timers on either shutdown or step down,
 	// since we are no longer responsible for TTL expirations.
@@ -2702,7 +2768,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 
 	err = s.encrypter.AddKey(rootKey)
 	if err != nil {
-		logger.Error("could not add initial key to keyring: %v", err)
+		logger.Error("could not add initial key to keyring", "error", err)
 		return
 	}
 
@@ -2710,27 +2776,27 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 		structs.KeyringUpdateRootKeyMetaRequest{
 			RootKeyMeta: rootKey.Meta,
 		}); err != nil {
-		logger.Error("could not initialize keyring: %v", err)
+		logger.Error("could not initialize keyring", "error", err)
 		return
 	}
 
 	logger.Info("initialized keyring", "id", rootKey.Meta.KeyID)
 }
 
-func (s *Server) generateClusterID() (string, error) {
+func (s *Server) generateClusterMetadata() (structs.ClusterMetadata, error) {
 	if !ServersMeetMinimumVersion(s.Members(), AllRegions, minClusterIDVersion, false) {
 		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
-		return "", fmt.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
+		return structs.ClusterMetadata{}, fmt.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
 	}
 
 	newMeta := structs.ClusterMetadata{ClusterID: uuid.Generate(), CreateTime: time.Now().UnixNano()}
 	if _, _, err := s.raftApply(structs.ClusterMetadataRequestType, newMeta); err != nil {
 		s.logger.Named("core").Error("failed to create cluster ID", "error", err)
-		return "", fmt.Errorf("failed to create cluster ID: %w", err)
+		return structs.ClusterMetadata{}, fmt.Errorf("failed to create cluster ID: %w", err)
 	}
 
 	s.logger.Named("core").Info("established cluster id", "cluster_id", newMeta.ClusterID, "create_time", newMeta.CreateTime)
-	return newMeta.ClusterID, nil
+	return newMeta, nil
 }
 
 // handleEvalBrokerStateChange handles changing the evalBroker and blockedEvals

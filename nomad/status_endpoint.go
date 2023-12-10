@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -47,9 +47,9 @@ func (s *Status) Leader(args *structs.GenericRequest, reply *string) error {
 		return err
 	}
 
-	leader := string(s.srv.raft.Leader())
+	leader, _ := s.srv.raft.LeaderWithID()
 	if leader != "" {
-		*reply = leader
+		*reply = string(leader)
 	} else {
 		*reply = ""
 	}
@@ -92,7 +92,7 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 	// Check node read permissions
 	if aclObj, err := s.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	} else if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 

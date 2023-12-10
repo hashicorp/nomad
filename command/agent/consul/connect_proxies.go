@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package consul
 
@@ -7,7 +7,8 @@ import (
 	"errors"
 )
 
-// ConnectProxies implements SupportedProxiesAPI by using the Consul Agent API.
+// ConnectProxies implements the client/consul.SupportedProxiesAPI interface by
+// using the Consul Agent API.
 type ConnectProxies struct {
 	agentAPI AgentAPI
 }

@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 <div class="boxed-section">
@@ -114,6 +114,6 @@
     @text="Save as .nomad.hcl"
     @color="secondary"
     {{on "click" @fns.onSaveFile}}
-
+    disabled={{not @data.job._newDefinition}}
   />
 </Hds::ButtonSet>

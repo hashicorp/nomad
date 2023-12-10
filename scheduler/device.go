@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
@@ -9,6 +9,7 @@ import (
 	"math"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 // deviceAllocator is used to allocate devices to allocations. The allocator
@@ -115,7 +116,8 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 
 		assigned := uint64(0)
 		for id, v := range devInst.Instances {
-			if v == 0 && assigned < ask.Count {
+			if v == 0 && assigned < ask.Count &&
+				d.deviceIDMatchesConstraint(id, ask.Constraints, devInst.Device) {
 				assigned++
 				offer.DeviceIDs = append(offer.DeviceIDs, id)
 				if assigned == ask.Count {
@@ -131,4 +133,35 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 	}
 
 	return offer, matchedWeights, nil
+}
+
+// deviceIDMatchesConstraint checks a device instance ID against the constraints
+// to ensure we're only assigning instance IDs that match. This is a narrower
+// check than nodeDeviceMatches because we've already asserted that the device
+// matches and now need to filter by instance ID.
+func (d *deviceAllocator) deviceIDMatchesConstraint(id string, constraints structs.Constraints, device *structs.NodeDeviceResource) bool {
+
+	// There are no constraints to consider
+	if len(constraints) == 0 {
+		return true
+	}
+
+	deviceID := psstructs.NewStringAttribute(id)
+
+	for _, c := range constraints {
+		var target *psstructs.Attribute
+		if c.LTarget == "${device.ids}" {
+			target, _ = resolveDeviceTarget(c.RTarget, device)
+		} else if c.RTarget == "${device.ids}" {
+			target, _ = resolveDeviceTarget(c.LTarget, device)
+		} else {
+			continue
+		}
+
+		if !checkAttributeConstraint(d.ctx, c.Operand, target, deviceID, true, true) {
+			return false
+		}
+	}
+
+	return true
 }

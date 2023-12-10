@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -2057,7 +2057,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	node.StatusUpdatedAt = resp2.Node.StatusUpdatedAt
 	node.SecretID = ""
 	node.Events = resp2.Node.Events
-	require.Equal(t, node, resp2.Node)
+	must.Eq(t, node, resp2.Node)
 
 	// assert that the node register event was set correctly
 	if len(resp2.Node.Events) != 1 {
@@ -3936,8 +3936,8 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 		t.Fatalf("Expected no policies error: %v", resp.Error)
 	}
 
-	// Update to be terminal
-	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	// Update to be client-terminal
+	alloc.ClientStatus = structs.AllocClientStatusFailed
 	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3949,6 +3949,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 	if resp.Error == nil || !strings.Contains(resp.Error.Error(), "terminal") {
 		t.Fatalf("Expected terminal allocation error: %v", resp.Error)
 	}
+
 }
 
 func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
@@ -3962,8 +3963,8 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 
 	// Enable vault and allow authenticated
 	tr := true
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &tr
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &tr
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -4055,8 +4056,8 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 
 	// Enable vault and allow authenticated
 	tr := true
-	s1.config.VaultConfig.Enabled = &tr
-	s1.config.VaultConfig.AllowUnauthenticated = &tr
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &tr
 
 	// Replace the Vault Client on the server
 	tvc := &TestVaultClient{}
@@ -4194,7 +4195,7 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Set allow unauthenticated (no operator token required)
-	s1.config.ConsulConfig.AllowUnauthenticated = pointer.Of(true)
+	s1.config.GetDefaultConsul().AllowUnauthenticated = pointer.Of(true)
 
 	// Create the node
 	node := mock.Node()
@@ -4246,7 +4247,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Set allow unauthenticated (no operator token required)
-	s1.config.ConsulConfig.AllowUnauthenticated = pointer.Of(true)
+	s1.config.GetDefaultConsul().AllowUnauthenticated = pointer.Of(true)
 
 	// Create the node
 	node := mock.Node()
@@ -4378,7 +4379,7 @@ func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	type testCase struct {
 		name               string
@@ -4514,8 +4515,11 @@ func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
 			}
 
 			updateReq := &structs.AllocUpdateRequest{
-				Alloc:        []*structs.Allocation{clientAlloc},
-				WriteRequest: structs.WriteRequest{Region: "global"},
+				Alloc: []*structs.Allocation{clientAlloc},
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					AuthToken: node.SecretID,
+				},
 			}
 
 			var nodeAllocResp structs.NodeAllocsResponse

@@ -1,0 +1,3 @@
+```release-note:bug
+build: Add `timetzdata` Go build tag on Windows binaries to embed time zone data so periodic jobs are able to specify a time zone value on Windows environments
+```

@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { alias, equal, or, and, mapBy } from '@ember/object/computed';
@@ -154,6 +154,31 @@ export default class Job extends Model {
   @hasMany('services') services;
 
   @hasMany('recommendation-summary') recommendationSummaries;
+
+  get actions() {
+    return this.taskGroups.reduce((acc, taskGroup) => {
+      return acc.concat(
+        taskGroup.tasks
+          .map((task) => {
+            return task.get('actions')?.toArray() || [];
+          })
+          .reduce((taskAcc, taskActions) => taskAcc.concat(taskActions), [])
+      );
+    }, []);
+  }
+
+  /**
+   *
+   * @param {import('../models/action').default} action
+   * @param {string} allocID
+   * @param {import('../models/action-instance').default} actionInstance
+   * @returns
+   */
+  getActionSocketUrl(action, allocID, actionInstance) {
+    return this.store
+      .adapterFor('job')
+      .getActionSocketUrl(this, action, allocID, actionInstance);
+  }
 
   @computed('taskGroups.@each.drivers')
   get drivers() {
@@ -355,8 +380,21 @@ export default class Job extends Model {
   // that will be submitted to the create job endpoint, another prop is necessary.
   @attr('string') _newDefinitionJSON;
 
-  @computed('variables', 'parent', 'plainId')
+  @computed('variables.[]', 'parent', 'plainId')
   get pathLinkedVariable() {
+    if (this.parent.get('id')) {
+      return this.variables?.findBy(
+        'path',
+        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`
+      );
+    } else {
+      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
+    }
+  }
+
+  // TODO: This async fetcher seems like a better fit for most of our use-cases than the above getter (which cannot do async/await)
+  async getPathLinkedVariable() {
+    await this.variables;
     if (this.parent.get('id')) {
       return this.variables?.findBy(
         'path',

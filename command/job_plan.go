@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -224,6 +224,10 @@ func (c *JobPlanCommand) Run(args []string) int {
 	if vaultToken == "" {
 		// Check the environment variable
 		vaultToken = os.Getenv("VAULT_TOKEN")
+	}
+
+	if vaultToken != "" {
+		job.VaultToken = pointer.Of(vaultToken)
 	}
 
 	// Set the vault token.

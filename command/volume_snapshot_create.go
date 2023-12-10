@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -19,17 +19,16 @@ type VolumeSnapshotCreateCommand struct {
 
 func (c *VolumeSnapshotCreateCommand) Help() string {
 	helpText := `
-Usage: nomad volume snapshot create <volume id> [snapshot_name]
+Usage: nomad volume snapshot create <volume id> <snapshot_name>
 
   Create a snapshot of an external storage volume. This command requires a
-  volume ID or prefix. If there is an exact match based on the provided volume
-  ID or prefix, then the specific volume is snapshotted. Otherwise, a list of
-  matching volumes and information will be displayed. The volume must still be
-  registered with Nomad in order to be snapshotted.
+  volume ID or prefix and snapthost name. If there is an exact match based on
+	the provided volume ID or prefix, then the specific volume is snapshotted.
+	Otherwise, a list of matching volumes and information will be displayed. The
+	volume must still be registered with Nomad in order to be snapshotted.
 
-  If an optional snapshot name is provided, the argument will be passed to the
-  CSI plugin to be used as the ID of the resulting snapshot. Not all plugins
-  accept this name and it may be ignored.
+  Snapshot name will be passed to the CSI plugin to be used as the ID of the
+  resulting snapshot.
 
   When ACLs are enabled, this command requires a token with the
   'csi-write-volume' capability for the volume's namespace.
@@ -100,16 +99,13 @@ func (c *VolumeSnapshotCreateCommand) Run(args []string) int {
 
 	// Check that we at least one argument
 	args = flags.Args()
-	if l := len(args); l == 0 {
-		c.Ui.Error("This command takes at least one argument: <vol id> [snapshot name]")
+	if l := len(args); l != 2 {
+		c.Ui.Error("This command takes two arguments: <vol id> <snapshot name>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	volID := args[0]
-	snapshotName := ""
-	if len(args) == 2 {
-		snapshotName = args[1]
-	}
+	snapshotName := args[1]
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()

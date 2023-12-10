@@ -21,11 +21,11 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/fifo"
-	"github.com/hashicorp/nomad/client/lib/resources"
-	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/syndtr/gocapability/capability"
 )
@@ -158,6 +158,44 @@ type ExecCommand struct {
 	Capabilities []string
 }
 
+// CpusetCgroup returns the path to the cgroup in which the Nomad client will
+// write the PID of the task process for managing cpu core usage.
+//
+// On cgroups v1 systems this returns the path to the cpuset cgroup specifically.
+// Critical: is "/reserve/<id>" or "/share"; do not try to parse this!
+//
+// On cgroups v2 systems this just returns the unified cgroup.
+//
+// On non-Linux systems this returns the empty string and has no meaning.
+func (c *ExecCommand) CpusetCgroup() string {
+	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
+		return ""
+	}
+	return c.Resources.LinuxResources.CpusetCgroupPath
+}
+
+// StatsCgroup returns the path to the cgroup Nomad client will use to inspect
+// for spawned process IDs.
+//
+// On cgroups v1 systems this returns the path to the freezer cgroup.
+//
+// On cgroups v2 systems this just returns the unified cgroup.
+//
+// On non-Linux systems this returns the empty string and has no meaning.
+func (c *ExecCommand) StatsCgroup() string {
+	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
+		return ""
+	}
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		taskName := filepath.Base(c.TaskDir)
+		allocID := filepath.Base(filepath.Dir(c.TaskDir))
+		return cgroupslib.PathCG1(allocID, taskName, "freezer")
+	default:
+		return c.CpusetCgroup()
+	}
+}
+
 // SetWriters sets the writer for the process stdout and stderr. This should
 // not be used if writing to a file path such as a fifo file. SetStdoutWriter
 // is mainly used for unit testing purposes.
@@ -240,39 +278,31 @@ func (v *ExecutorVersion) GoString() string {
 // supervises processes. In addition to process supervision it provides resource
 // and file system isolation
 type UniversalExecutor struct {
-	childCmd   exec.Cmd
-	commandCfg *ExecCommand
+	childCmd exec.Cmd
+	command  *ExecCommand
 
 	exitState     *ProcessState
 	processExited chan interface{}
 
-	// containment is used to cleanup resources created by the executor
-	// currently only used for killing pids via freezer cgroup on linux
-	containment resources.Containment
-
-	totalCpuStats  *stats.CpuStats
-	userCpuStats   *stats.CpuStats
-	systemCpuStats *stats.CpuStats
-	pidCollector   *pidCollector
+	totalCpuStats  *cpustats.Tracker
+	userCpuStats   *cpustats.Tracker
+	systemCpuStats *cpustats.Tracker
+	processStats   procstats.ProcessStats
 
 	logger hclog.Logger
 }
 
 // NewExecutor returns an Executor
-func NewExecutor(logger hclog.Logger) Executor {
-	logger = logger.Named("executor")
-	if err := shelpers.Init(); err != nil {
-		logger.Error("unable to initialize stats", "error", err)
-	}
-
-	return &UniversalExecutor{
-		logger:         logger,
+func NewExecutor(logger hclog.Logger, compute cpustats.Compute) Executor {
+	ue := &UniversalExecutor{
+		logger:         logger.Named("executor"),
 		processExited:  make(chan interface{}),
-		totalCpuStats:  stats.NewCpuStats(),
-		userCpuStats:   stats.NewCpuStats(),
-		systemCpuStats: stats.NewCpuStats(),
-		pidCollector:   newPidCollector(logger),
+		totalCpuStats:  cpustats.New(compute),
+		userCpuStats:   cpustats.New(compute),
+		systemCpuStats: cpustats.New(compute),
 	}
+	ue.processStats = procstats.New(compute, ue)
+	return ue
 }
 
 // Version returns the api version of the executor
@@ -285,7 +315,7 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
 	e.logger.Trace("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
-	e.commandCfg = command
+	e.command = command
 
 	// setting the user of the process
 	if command.User != "" {
@@ -296,27 +326,26 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// set the task dir as the working directory for the command
-	e.childCmd.Dir = e.commandCfg.TaskDir
+	e.childCmd.Dir = e.command.TaskDir
 
 	// start command in separate process group
 	if err := e.setNewProcessGroup(); err != nil {
 		return nil, err
 	}
 
-	// Maybe setup containment (for now, cgroups only only on linux)
-	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
-		pid := os.Getpid()
-		if err := e.configureResourceContainer(pid); err != nil {
-			e.logger.Error("failed to configure resource container", "pid", pid, "error", err)
-			return nil, err
-		}
+	// setup containment (i.e. cgroups on linux)
+	if cleanup, err := e.configureResourceContainer(command, os.Getpid()); err != nil {
+		// keep going; some folks run nomad as non-root and expect this driver to still work
+		e.logger.Warn("failed to configure container, process isolation will not work", "error", err)
+	} else {
+		defer cleanup()
 	}
 
-	stdout, err := e.commandCfg.Stdout()
+	stdout, err := e.command.Stdout()
 	if err != nil {
 		return nil, err
 	}
-	stderr, err := e.commandCfg.Stderr()
+	stderr, err := e.command.Stderr()
 	if err != nil {
 		return nil, err
 	}
@@ -339,14 +368,13 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	// Set the commands arguments
 	e.childCmd.Path = path
 	e.childCmd.Args = append([]string{e.childCmd.Path}, command.Args...)
-	e.childCmd.Env = e.commandCfg.Env
+	e.childCmd.Env = e.command.Env
 
 	// Start the process
 	if err = withNetworkIsolation(e.childCmd.Start, command.NetworkIsolation); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
-	go e.pidCollector.collectPids(e.processExited, e.getAllPids)
 	go e.wait()
 	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
@@ -355,7 +383,14 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	return ExecScript(ctx, e.childCmd.Dir, e.commandCfg.Env, e.childCmd.SysProcAttr, e.commandCfg.NetworkIsolation, name, args)
+
+	if cleanup, err := e.setSubCmdCgroup(&e.childCmd, e.command.StatsCgroup()); err != nil {
+		return nil, 0, err
+	} else {
+		defer cleanup()
+	}
+
+	return ExecScript(ctx, e.childCmd.Dir, e.command.Env, e.childCmd.SysProcAttr, e.command.NetworkIsolation, name, args)
 }
 
 // ExecScript executes cmd with args and returns the output, exit code, and
@@ -367,6 +402,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 
 	// Copy runtime environment from the main command
 	cmd.SysProcAttr = attrs
+
 	cmd.Dir = dir
 	cmd.Env = env
 
@@ -434,13 +470,18 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return nil
 		},
 		processStart: func() error {
-			if u := e.commandCfg.User; u != "" {
+			if u := e.command.User; u != "" {
 				if err := setCmdUser(cmd, u); err != nil {
 					return err
 				}
 			}
-
-			return withNetworkIsolation(cmd.Start, e.commandCfg.NetworkIsolation)
+			cgroup := e.command.StatsCgroup()
+			if cleanup, err := e.setSubCmdCgroup(cmd, cgroup); err != nil {
+				return err
+			} else {
+				defer cleanup()
+			}
+			return withNetworkIsolation(cmd.Start, e.command.NetworkIsolation)
 		},
 		processWait: func() (*os.ProcessState, error) {
 			err := cmd.Wait()
@@ -467,7 +508,7 @@ func (e *UniversalExecutor) UpdateResources(resources *drivers.Resources) error 
 
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
-	defer e.commandCfg.Close()
+	defer e.command.Close()
 	pid := e.childCmd.Process.Pid
 	err := e.childCmd.Wait()
 	if err == nil {
@@ -517,7 +558,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	var merr multierror.Error
 
 	// If the executor did not launch a process, return.
-	if e.commandCfg == nil {
+	if e.command == nil {
 		return nil
 	}
 
@@ -562,6 +603,11 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		proc.Kill()
 	}
 
+	// Issue sigkill to the process group (if possible)
+	if err = e.killProcessTree(proc); err != nil {
+		e.logger.Warn("failed to shutdown process group", "pid", proc.Pid, "error", err)
+	}
+
 	// Wait for process to exit
 	select {
 	case <-e.processExited:
@@ -570,26 +616,10 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		merr.Errors = append(merr.Errors, fmt.Errorf("process did not exit after 15 seconds"))
 	}
 
-	// prefer killing the process via platform-dependent resource containment
-	killByContainment := e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup
-
-	if !killByContainment {
-		// there is no containment, so kill the group the old fashioned way by sending
-		// SIGKILL to the negative pid
-		if cleanupChildrenErr := e.killProcessTree(proc); cleanupChildrenErr != nil && cleanupChildrenErr.Error() != finishedErr {
-			merr.Errors = append(merr.Errors,
-				fmt.Errorf("can't kill process with pid %d: %v", e.childCmd.Process.Pid, cleanupChildrenErr))
-		}
-	} else {
-		// there is containment available (e.g. cgroups) so defer to that implementation
-		// for killing the processes
-		if cleanupErr := e.containment.Cleanup(); cleanupErr != nil {
-			e.logger.Warn("containment cleanup failed", "error", cleanupErr)
-			merr.Errors = append(merr.Errors, cleanupErr)
-		}
-	}
-
 	if err = merr.ErrorOrNil(); err != nil {
+		// Note that proclib in the TR shutdown may also dispatch a final platform
+		// cleanup technique (e.g. cgroup kill), but if we get to the point where
+		// that matters the Task was doing something naughty.
 		e.logger.Warn("failed to shutdown due to some error", "error", err.Error())
 		return err
 	}
@@ -631,16 +661,12 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 			timer.Reset(interval)
 		}
 
-		pidStats, err := e.pidCollector.pidStats()
-		if err != nil {
-			e.logger.Warn("error collecting stats", "error", err)
-			return
-		}
+		stats := e.processStats.StatProcesses()
 
 		select {
 		case <-ctx.Done():
 			return
-		case ch <- aggregatedResourceUsage(e.systemCpuStats, pidStats):
+		case ch <- procstats.Aggregate(e.systemCpuStats, stats):
 		}
 	}
 }

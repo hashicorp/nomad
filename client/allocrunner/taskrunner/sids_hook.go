@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
 
@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -46,11 +47,12 @@ const (
 )
 
 type sidsHookConfig struct {
-	alloc      *structs.Allocation
-	task       *structs.Task
-	sidsClient consul.ServiceIdentityAPI
-	lifecycle  ti.TaskLifecycle
-	logger     hclog.Logger
+	alloc              *structs.Allocation
+	task               *structs.Task
+	sidsClient         consul.ServiceIdentityAPI
+	lifecycle          ti.TaskLifecycle
+	logger             hclog.Logger
+	allocHookResources *cstructs.AllocHookResources
 }
 
 // Service Identities hook for managing SI tokens of connect enabled tasks.
@@ -80,17 +82,22 @@ type sidsHook struct {
 	// firstRun keeps track of whether the hook is being called for the first
 	// time (for this task) during the lifespan of the Nomad Client process.
 	firstRun bool
+
+	// allocHookResources gives us access to Consul tokens that may have been
+	// set by the consul_hook
+	allocHookResources *cstructs.AllocHookResources
 }
 
 func newSIDSHook(c sidsHookConfig) *sidsHook {
 	return &sidsHook{
-		alloc:             c.alloc,
-		task:              c.task,
-		sidsClient:        c.sidsClient,
-		lifecycle:         c.lifecycle,
-		derivationTimeout: sidsDerivationTimeout,
-		logger:            c.logger.Named(sidsHookName),
-		firstRun:          true,
+		alloc:              c.alloc,
+		task:               c.task,
+		sidsClient:         c.sidsClient,
+		lifecycle:          c.lifecycle,
+		derivationTimeout:  sidsDerivationTimeout,
+		logger:             c.logger.Named(sidsHookName),
+		firstRun:           true,
+		allocHookResources: c.allocHookResources,
 	}
 }
 
@@ -116,6 +123,32 @@ func (h *sidsHook) Prestart(
 	token, err := h.recoverToken(req.TaskDir.SecretsDir)
 	if err != nil {
 		return err
+	}
+
+	// if we're using Workload Identities then this Connect task should already
+	// have a token stored under the cluster + service ID.
+	tokens := h.allocHookResources.GetConsulTokens()
+
+	// Find the group-level service that this task belongs to
+	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
+	serviceName := h.task.Kind.Value()
+	var serviceIdentityName string
+	var cluster string
+	for _, service := range tg.Services {
+		if service.Name == serviceName {
+			serviceIdentityName = service.MakeUniqueIdentityName()
+			cluster = service.GetConsulClusterName(tg)
+			break
+		}
+	}
+	if cluster != "" && serviceIdentityName != "" {
+		if token, ok := tokens[cluster][serviceIdentityName]; ok {
+			if err := h.writeToken(req.TaskDir.SecretsDir, token.SecretID); err != nil {
+				return err
+			}
+			resp.Done = true
+			return nil
+		}
 	}
 
 	// need to ask for a new SI token & persist it to disk

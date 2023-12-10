@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Controller, { inject as controller } from '@ember/controller';
@@ -18,6 +18,10 @@ export default class VariablesIndexController extends Controller {
   @action
   goToVariable(variable) {
     this.router.transitionTo('variables.variable', variable.path);
+  }
+
+  @action goToNewVariable() {
+    this.router.transitionTo('variables.new');
   }
 
   @controller variables;

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -15,7 +15,7 @@ func TestHTTP_RegionList(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/regions", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/regions", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

@@ -1,7 +1,9 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
+
+$secondaryNavbarHeight: 4.5rem;
 
 .navbar {
   display: flex;
@@ -17,9 +19,10 @@
     color: $primary-invert;
     padding-left: 20px;
     padding-right: 20px;
-    overflow: hidden;
+    overflow: visible;
     align-items: center;
     justify-content: space-between;
+    z-index: $z-gutter;
 
     .navbar-item {
       color: rgba($primary-invert, 0.8);
@@ -81,7 +84,7 @@
   &.is-secondary {
     background-color: $nomad-green-dark;
     padding: 1.25rem 20px 1.25rem 0;
-    height: 4.5rem;
+    height: $secondaryNavbarHeight;
     font-weight: $weight-semibold;
     color: $primary-invert;
 
@@ -159,24 +162,16 @@
 
   .profile-dropdown {
     padding: 0.5rem 1rem 0.5rem 0.75rem;
-    background-color: transparent;
-    border: none !important;
-    height: auto;
-    box-shadow: none !important;
+    z-index: $z-gutter;
+    button.hds-dropdown-toggle-icon {
+      border-color: var(--token-color-palette-neutral-200);
+      background-color: transparent;
+      color: var(--token-color-surface-primary);
 
-    &:focus {
-      background-color: #21a572;
-    }
-
-    .ember-power-select-prefix {
-      color: rgba($primary-invert, 0.8);
-    }
-    .ember-power-select-selected-item {
-      margin-left: 0;
-      border: none;
-    }
-    .ember-power-select-status-icon {
-      border-top-color: white;
+      &.hds-dropdown-toggle-icon--is-open {
+        background-color: var(--token-color-surface-primary);
+        color: var(--token-color-foreground-primary);
+      }
     }
   }
 

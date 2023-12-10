@@ -1,10 +1,11 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package fingerprint
 
 import (
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -20,12 +21,21 @@ type FingerprintRequest struct {
 type FingerprintResponse struct {
 	Attributes    map[string]string
 	Links         map[string]string
-	Resources     *structs.Resources // COMPAT(0.10): Remove in 0.10
 	NodeResources *structs.NodeResources
 
 	// Detected is a boolean indicating whether the fingerprinter detected
 	// if the resource was available
 	Detected bool
+
+	// UpdateInitialResult can be used by a fingerprinter to pass information it
+	// discovers back up to the client.
+	UpdateInitialResult func(*InitialResult)
+}
+
+// InitialResult can be updated by individual fingerprinters to bubble information
+// it detected back up to the client after the first pass.
+type InitialResult struct {
+	Topology *numalib.Topology
 }
 
 // AddAttribute adds the name and value for a node attribute to the fingerprint

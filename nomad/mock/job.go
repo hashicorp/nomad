@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package mock
 
@@ -31,12 +31,13 @@ func Job() *structs.Job {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:  "web",
-				Count: 10,
+				Name:                    "web",
+				Count:                   10,
+				PreventRescheduleOnLost: false,
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "${attr.consul.version}",
-						RTarget: ">= 1.7.0",
+						RTarget: ">= 1.8.0",
 						Operand: structs.ConstraintSemver,
 					},
 				},
@@ -44,10 +45,11 @@ func Job() *structs.Job {
 					SizeMB: 150,
 				},
 				RestartPolicy: &structs.RestartPolicy{
-					Attempts: 3,
-					Interval: 10 * time.Minute,
-					Delay:    1 * time.Minute,
-					Mode:     structs.RestartPolicyModeDelay,
+					Attempts:        3,
+					Interval:        10 * time.Minute,
+					Delay:           1 * time.Minute,
+					Mode:            structs.RestartPolicyModeDelay,
+					RenderTemplates: false,
 				},
 				ReschedulePolicy: &structs.ReschedulePolicy{
 					Attempts:      2,
@@ -75,6 +77,18 @@ func Job() *structs.Job {
 						Env: map[string]string{
 							"FOO": "bar",
 						},
+						Actions: []*structs.Action{
+							{
+								Name:    "date-test",
+								Command: "/bin/date",
+								Args:    []string{"-u"},
+							},
+							{
+								Name:    "echo-test",
+								Command: "/bin/echo",
+								Args:    []string{"hello world"},
+							},
+						},
 						Services: []*structs.Service{
 							{
 								Name:      "${TASK}-frontend",
@@ -90,10 +104,12 @@ func Job() *structs.Job {
 										Timeout:  5 * time.Second,
 									},
 								},
+								Cluster: "default",
 							},
 							{
 								Name:      "${TASK}-admin",
 								PortLabel: "admin",
+								Cluster:   "default",
 							},
 						},
 						LogConfig: structs.DefaultLogConfig(),
@@ -226,10 +242,12 @@ func MultiTaskGroupJob() *structs.Job {
 								Timeout:  5 * time.Second,
 							},
 						},
+						Cluster: "default",
 					},
 					{
 						Name:      "${TASK}-admin",
 						PortLabel: "admin",
+						Cluster:   "default",
 					},
 				},
 				LogConfig: structs.DefaultLogConfig(),
@@ -552,10 +570,12 @@ func MaxParallelJob() *structs.Job {
 										Timeout:  5 * time.Second,
 									},
 								},
+								Cluster: "default",
 							},
 							{
 								Name:      "${TASK}-admin",
 								PortLabel: "admin",
+								Cluster:   "default",
 							},
 						},
 						LogConfig: structs.DefaultLogConfig(),
@@ -684,5 +704,40 @@ func BigBenchmarkJob() *structs.Job {
 		Weight:  50,
 	}}
 
+	return job
+}
+
+// ActionsJob produces a multi-group, multi-task job with actions for testing.
+func ActionsJob() *structs.Job {
+	job := MinJob()
+
+	for i := 0; i < 2; i++ {
+		tg := job.TaskGroups[0].Copy()
+		tg.Name = fmt.Sprintf("g%d", i+1)
+		job.TaskGroups = append(job.TaskGroups, tg)
+	}
+
+	for i := 0; i < 2; i++ {
+		task := job.TaskGroups[0].Tasks[0].Copy()
+		task.Name = fmt.Sprintf("t%d", i+1)
+		job.TaskGroups[0].Tasks = append(job.TaskGroups[0].Tasks, task)
+	}
+
+	for _, tg := range job.TaskGroups {
+		for _, task := range tg.Tasks {
+			task.Actions = []*structs.Action{
+				{
+					Name:    "date-test",
+					Command: "/bin/date",
+					Args:    []string{"-u"},
+				},
+				{
+					Name:    "echo-test",
+					Command: "/bin/echo",
+					Args:    []string{"hello world"},
+				},
+			}
+		}
+	}
 	return job
 }

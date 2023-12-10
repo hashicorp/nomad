@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
 
@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	ifs "github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	clientconsul "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/envoy"
@@ -241,9 +242,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
 		},
 		Error: nil,
 	}
+	spAPIFunc := func(_ string) clientconsul.SupportedProxiesAPI { return spAPI }
 
 	// Run envoy_version hook
-	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPI, logger))
+	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPIFunc, logger))
 
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
@@ -283,9 +285,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
 		},
 		Error: nil,
 	}
+	spAPIFunc := func(_ string) clientconsul.SupportedProxiesAPI { return spAPI }
 
 	// Run envoy_version hook
-	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPI, logger))
+	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPIFunc, logger))
 
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
@@ -327,9 +330,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 		},
 		Error: nil,
 	}
+	spAPIFunc := func(_ string) clientconsul.SupportedProxiesAPI { return spAPI }
 
 	// Run envoy_version hook
-	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPI, logger))
+	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPIFunc, logger))
 
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
@@ -365,9 +369,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_no_fallback(t *testing.T) {
 		Value: nil, // old consul, no .xDS.SupportedProxies
 		Error: nil,
 	}
+	spAPIFunc := func(_ string) clientconsul.SupportedProxiesAPI { return spAPI }
 
 	// Run envoy_version hook
-	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPI, logger))
+	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPIFunc, logger))
 
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
@@ -400,9 +405,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_error(t *testing.T) {
 		Value: nil,
 		Error: errors.New("some consul error"),
 	}
+	spAPIFunc := func(_ string) clientconsul.SupportedProxiesAPI { return spAPI }
 
 	// Run envoy_version hook
-	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPI, logger))
+	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, spAPIFunc, logger))
 
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
@@ -438,9 +444,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_restart(t *testing.T) {
 		},
 		Error: nil,
 	}
+	mockProxiesAPIFunc := func(_ string) clientconsul.SupportedProxiesAPI { return mockProxiesAPI }
 
 	// Run envoy_version hook
-	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, mockProxiesAPI, logger))
+	h := newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, mockProxiesAPIFunc, logger))
 
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{

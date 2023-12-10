@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package docker
 
@@ -12,7 +12,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 )
 
 // containerReconciler detects and kills unexpectedly running containers.
@@ -28,7 +28,7 @@ type containerReconciler struct {
 	getClient func() (*docker.Client, error)
 
 	isDriverHealthy   func() bool
-	trackedContainers func() *set.Set[string]
+	trackedContainers func() set.Collection[string]
 	isNomadContainer  func(c docker.APIContainers) bool
 
 	once sync.Once
@@ -134,7 +134,7 @@ func (r *containerReconciler) removeDanglingContainersIteration() error {
 
 // untrackedContainers returns the ids of containers that suspected
 // to have been started by Nomad but aren't tracked by this driver
-func (r *containerReconciler) untrackedContainers(tracked *set.Set[string], cutoffTime time.Time) (*set.Set[string], error) {
+func (r *containerReconciler) untrackedContainers(tracked set.Collection[string], cutoffTime time.Time) (*set.Set[string], error) {
 	result := set.New[string](10)
 
 	ctx, cancel := r.dockerAPIQueryContext()
@@ -230,7 +230,7 @@ func hasNomadName(c docker.APIContainers) bool {
 // trackedContainers returns the set of container IDs of containers that were
 // started by Driver and are expected to be running. This includes both normal
 // Task containers, as well as infra pause containers.
-func (d *Driver) trackedContainers() *set.Set[string] {
+func (d *Driver) trackedContainers() set.Collection[string] {
 	// collect the task containers
 	ids := d.tasks.IDs()
 	// now also accumulate pause containers

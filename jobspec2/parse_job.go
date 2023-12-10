@@ -4,6 +4,7 @@
 package jobspec2
 
 import (
+	"slices"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -19,7 +20,7 @@ func normalizeJob(jc *jobConfig) {
 		j.ID = &jc.JobID
 	}
 
-	if j.Periodic != nil && j.Periodic.Spec != nil {
+	if j.Periodic != nil && (j.Periodic.Spec != nil || j.Periodic.Specs != nil) {
 		v := "cron"
 		j.Periodic.SpecType = &v
 	}
@@ -52,6 +53,23 @@ func normalizeJob(jc *jobConfig) {
 
 			if t.Vault == nil {
 				t.Vault = jc.Vault
+			}
+
+			//COMPAT To preserve compatibility with pre-1.7 agents, move the default
+			//       identity to Task.Identity.
+			defaultIdx := -1
+			for i, wid := range t.Identities {
+				if wid.Name == "" || wid.Name == "default" {
+					t.Identity = wid
+					defaultIdx = i
+					break
+				}
+			}
+
+			// If the default identity was found in Identities above, remove it from the
+			// slice.
+			if defaultIdx >= 0 {
+				t.Identities = slices.Delete(t.Identities, defaultIdx, defaultIdx+1)
 			}
 		}
 	}

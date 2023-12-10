@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics: Add `allocs.memory.max_allocated` to report the value of tasks' `memory_max` resource value
+```

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -113,11 +113,11 @@ func (s *ServiceListCommand) Run(args []string) int {
 		return 0
 	}
 
-	s.formatOutput(list)
+	s.Ui.Output(formatServiceListOutput(s.Meta.namespace, list))
 	return 0
 }
 
-func (s *ServiceListCommand) formatOutput(regs []*api.ServiceRegistrationListStub) {
+func formatServiceListOutput(cmdNS string, regs []*api.ServiceRegistrationListStub) string {
 
 	// Create objects to hold sorted a sorted namespace array and a mapping, so
 	// we can perform service lookups on a namespace basis.
@@ -137,7 +137,7 @@ func (s *ServiceListCommand) formatOutput(regs []*api.ServiceRegistrationListStu
 
 	// If the request was made using the wildcard namespace, include this in
 	// the output.
-	if s.Meta.namespace == api.AllNamespacesNamespace {
+	if cmdNS == api.AllNamespacesNamespace {
 		outputTable[0] += "|Namespace"
 	}
 
@@ -171,7 +171,7 @@ func (s *ServiceListCommand) formatOutput(regs []*api.ServiceRegistrationListStu
 			// Build the output array entry.
 			regOutput := serviceName
 
-			if s.Meta.namespace == api.AllNamespacesNamespace {
+			if cmdNS == api.AllNamespacesNamespace {
 				regOutput += "|" + ns
 			}
 			regOutput += "|" + fmt.Sprintf("[%s]", strings.Join(tags, ","))
@@ -179,5 +179,5 @@ func (s *ServiceListCommand) formatOutput(regs []*api.ServiceRegistrationListStu
 		}
 	}
 
-	s.Ui.Output(formatList(outputTable))
+	return formatList(outputTable)
 }

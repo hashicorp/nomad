@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -30,7 +30,7 @@ type JobStatusCommand struct {
 
 func (c *JobStatusCommand) Help() string {
 	helpText := `
-Usage: nomad status [options] <job>
+Usage: nomad job status [options] <job>
 
   Display status information about a job. If no job ID is given, a list of all
   known jobs will be displayed.

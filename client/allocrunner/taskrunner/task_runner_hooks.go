@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
 
@@ -72,6 +72,7 @@ func (tr *TaskRunner) initHooks() {
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
 		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger),
+		newWranglerHook(tr.wranglers, task.Name, alloc.ID, task.UsesCores(), hookLogger),
 	}
 
 	// If the task has a CSI block, add the hook.
@@ -88,37 +89,38 @@ func (tr *TaskRunner) initHooks() {
 	}
 
 	// If Vault is enabled, add the hook
-	if task.Vault != nil {
+	if task.Vault != nil && tr.vaultClientFunc != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
-			vaultBlock: task.Vault,
-			client:     tr.vaultClient,
-			events:     tr,
-			lifecycle:  tr,
-			updater:    tr,
-			logger:     hookLogger,
-			alloc:      tr.Alloc(),
-			task:       tr.taskName,
+			vaultBlock:       task.Vault,
+			vaultConfigsFunc: tr.clientConfig.GetVaultConfigs,
+			clientFunc:       tr.vaultClientFunc,
+			events:           tr,
+			lifecycle:        tr,
+			updater:          tr,
+			logger:           hookLogger,
+			alloc:            tr.Alloc(),
+			task:             tr.Task(),
+			widmgr:           tr.widmgr,
 		}))
 	}
 
 	// Get the consul namespace for the TG of the allocation.
-	consulNamespace := tr.alloc.ConsulNamespace()
-
-	// Identify the service registration provider, which can differ from the
-	// Consul namespace depending on which provider is used.
-	serviceProviderNamespace := tr.alloc.ServiceProviderNamespace()
+	consulNamespace := tr.alloc.ConsulNamespaceForTask(tr.taskName)
 
 	// If there are templates is enabled, add the hook
 	if len(task.Templates) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
-			logger:          hookLogger,
-			lifecycle:       tr,
-			events:          tr,
-			templates:       task.Templates,
-			clientConfig:    tr.clientConfig,
-			envBuilder:      tr.envBuilder,
-			consulNamespace: consulNamespace,
-			nomadNamespace:  tr.alloc.Job.Namespace,
+			alloc:               tr.Alloc(),
+			logger:              hookLogger,
+			lifecycle:           tr,
+			events:              tr,
+			templates:           task.Templates,
+			clientConfig:        tr.clientConfig,
+			envBuilder:          tr.envBuilder,
+			hookResources:       tr.allocHookResources,
+			consulNamespace:     consulNamespace,
+			nomadNamespace:      tr.alloc.Job.Namespace,
+			renderOnTaskRestart: task.RestartPolicy.RenderTemplates,
 		}))
 	}
 
@@ -127,35 +129,42 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
 		alloc:             tr.Alloc(),
 		task:              tr.Task(),
-		providerNamespace: serviceProviderNamespace,
 		serviceRegWrapper: tr.serviceRegWrapper,
 		restarter:         tr,
+		hookResources:     tr.allocHookResources,
 		logger:            hookLogger,
 	}))
 
 	// If this is a Connect sidecar proxy (or a Connect Native) service,
 	// add the sidsHook for requesting a Service Identity token (if ACLs).
 	if task.UsesConnect() {
+		tg := tr.Alloc().Job.LookupTaskGroup(tr.Alloc().TaskGroup)
+
 		// Enable the Service Identity hook only if the Nomad client is configured
 		// with a consul token, indicating that Consul ACLs are enabled
-		if tr.clientConfig.ConsulConfig.Token != "" {
+		if tr.clientConfig.GetConsulConfigs(tr.logger)[task.GetConsulClusterName(tg)].Token != "" {
 			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
-				alloc:      tr.Alloc(),
-				task:       tr.Task(),
-				sidsClient: tr.siClient,
-				lifecycle:  tr,
-				logger:     hookLogger,
+				alloc:              tr.Alloc(),
+				task:               tr.Task(),
+				sidsClient:         tr.siClient,
+				lifecycle:          tr,
+				logger:             hookLogger,
+				allocHookResources: tr.allocHookResources,
 			}))
 		}
 
 		if task.UsesConnectSidecar() {
 			tr.runnerHooks = append(tr.runnerHooks,
-				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClient, hookLogger)),
-				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, consulNamespace, hookLogger)),
+				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClientFunc, hookLogger)),
+				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc,
+					tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)],
+					consulNamespace,
+					hookLogger)),
 			)
 		} else if task.Kind.IsConnectNative() {
 			tr.runnerHooks = append(tr.runnerHooks, newConnectNativeHook(
-				newConnectNativeHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
+				newConnectNativeHookConfig(alloc,
+					tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)], hookLogger),
 			))
 		}
 	}

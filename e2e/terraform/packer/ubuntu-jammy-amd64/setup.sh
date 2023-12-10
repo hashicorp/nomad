@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # setup script for Ubuntu Linux 22.04. Assumes that Packer has placed
 # build-time config files at /tmp/linux
@@ -27,7 +27,7 @@ sudo apt-get upgrade -y
 sudo apt-get install -y \
      software-properties-common \
      dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
-     apt-transport-https ca-certificates gnupg2
+     apt-transport-https ca-certificates gnupg2 stress
 
 # Install hc-install
 curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.5.2/hc-install_0.5.2_linux_amd64.zip
@@ -43,8 +43,19 @@ sudo chown root:root /usr/local/bin/sockaddr
 sudo ufw disable || echo "ufw not installed"
 
 echo "Install HashiCorp apt repositories"
-curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+echo "Installing Docker apt repositories"
+sudo install -m 0755 -d /etc/apt/keyrings
+curl --insecure -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+echo "Refresh apt with third party repositories"
 sudo apt-get update
 
 echo "Install Consul and Nomad"
@@ -67,16 +78,11 @@ mkdir_for_root /opt/nomad
 mkdir_for_root $NOMAD_PLUGIN_DIR
 sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
-echo "Installing third-party apt repositories"
+echo "Installing third-party tools"
 
 # Docker
-distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
-curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${distro} $(lsb_release -cs) stable"
-
-# Docker
-echo "Installing Docker"
-sudo apt-get install -y docker-ce
+echo "Installing Docker CE"
+sudo apt-get install -y docker-ce docker-ce-cli
 
 # Java
 echo "Installing Java"
@@ -94,7 +100,16 @@ echo "Installing Podman"
 sudo apt-get -y install podman catatonit
 
 echo "Installing Podman Driver"
-sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.4.2 nomad-driver-podman
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.5.0 nomad-driver-podman
+
+# Pledge
+echo "Installing Pledge Driver"
+curl -k -fsSL -o /tmp/pledge-driver.tar.gz https://github.com/shoenig/nomad-pledge-driver/releases/download/v0.3.0/nomad-pledge-driver_0.3.0_linux_amd64.tar.gz
+curl -k -fsSL -o /tmp/pledge https://github.com/shoenig/nomad-pledge-driver/releases/download/pledge-1.8.com/pledge-1.8.com
+tar -C /tmp -xf /tmp/pledge-driver.tar.gz
+sudo mv /tmp/nomad-pledge-driver ${NOMAD_PLUGIN_DIR}
+sudo mv /tmp/pledge /usr/local/bin
+sudo chmod +x /usr/local/bin/pledge
 
 # ECS
 if [ -a "/tmp/linux/nomad-driver-ecs" ]; then

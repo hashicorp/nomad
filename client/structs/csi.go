@@ -1,9 +1,11 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
 import (
+	"errors"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 )
@@ -287,6 +289,36 @@ type ClientCSIControllerCreateVolumeResponse struct {
 	Topologies       []*structs.CSITopology
 }
 
+// ClientCSIControllerExpandVolumeRequest is the RPC made from the server to a
+// Nomad client to tell a CSI controller plugin on that client to perform
+// ControllerExpandVolume
+type ClientCSIControllerExpandVolumeRequest struct {
+	ExternalVolumeID string
+	CapacityRange    *csi.CapacityRange
+	Secrets          structs.CSISecrets
+	VolumeCapability *csi.VolumeCapability
+
+	CSIControllerQuery
+}
+
+func (req *ClientCSIControllerExpandVolumeRequest) ToCSIRequest() *csi.ControllerExpandVolumeRequest {
+	csiReq := &csi.ControllerExpandVolumeRequest{
+		ExternalVolumeID: req.ExternalVolumeID,
+		Capability:       req.VolumeCapability,
+		Secrets:          req.Secrets,
+	}
+	if req.CapacityRange != nil {
+		csiReq.RequiredBytes = req.CapacityRange.RequiredBytes
+		csiReq.LimitBytes = req.CapacityRange.LimitBytes
+	}
+	return csiReq
+}
+
+type ClientCSIControllerExpandVolumeResponse struct {
+	CapacityBytes         int64
+	NodeExpansionRequired bool
+}
+
 // ClientCSIControllerDeleteVolumeRequest the RPC made from the server to a
 // Nomad client to tell a CSI controller plugin on that client to perform
 // DeleteVolume
@@ -422,3 +454,44 @@ type ClientCSINodeDetachVolumeRequest struct {
 }
 
 type ClientCSINodeDetachVolumeResponse struct{}
+
+// ClientCSINodeExpandVolumeRequest is the RPC made from the server to
+// a Nomad client to tell a CSI node plugin on that client to perform
+// NodeExpandVolume.
+type ClientCSINodeExpandVolumeRequest struct {
+	PluginID   string // ID of the plugin that manages the volume (required)
+	VolumeID   string // ID of the volume to be expanded (required)
+	ExternalID string // External ID of the volume to be expanded (required)
+
+	// Capacity range (required) to be sent to the node plugin
+	Capacity *csi.CapacityRange
+
+	// Claim currently held for the allocation (required)
+	// used to determine capabilities and the mount point on the client
+	Claim *structs.CSIVolumeClaim
+}
+
+func (req *ClientCSINodeExpandVolumeRequest) Validate() error {
+	var err error
+	// These should not occur during normal operations; they're here
+	// mainly to catch potential programmer error.
+	if req.PluginID == "" {
+		err = errors.Join(err, errors.New("PluginID is required"))
+	}
+	if req.VolumeID == "" {
+		err = errors.Join(err, errors.New("VolumeID is required"))
+	}
+	if req.ExternalID == "" {
+		err = errors.Join(err, errors.New("ExternalID is required"))
+	}
+	if req.Claim == nil {
+		err = errors.Join(err, errors.New("Claim is required"))
+	} else if req.Claim.AllocationID == "" {
+		err = errors.Join(err, errors.New("Claim.AllocationID is required"))
+	}
+	return err
+}
+
+type ClientCSINodeExpandVolumeResponse struct {
+	CapacityBytes int64
+}

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
 
@@ -7,17 +7,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/slices"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hcldec"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
@@ -27,7 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -36,6 +34,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -186,17 +185,18 @@ type TaskRunner struct {
 	// registering services and checks
 	consulServiceClient serviceregistration.Handler
 
-	// consulProxiesClient is the client used by the envoy version hook for
+	// consulProxiesClientFunc gets a client used by the envoy version hook for
 	// asking consul what version of envoy nomad should inject into the connect
 	// sidecar or gateway task.
-	consulProxiesClient consul.SupportedProxiesAPI
+	consulProxiesClientFunc consul.SupportedProxiesAPIFunc
 
 	// sidsClient is the client used by the service identity hook for managing
 	// service identity tokens
 	siClient consul.ServiceIdentityAPI
 
-	// vaultClient is the client to use to derive and renew Vault tokens
-	vaultClient vaultclient.VaultClient
+	// vaultClientFunc is the function to get a client to use to derive and
+	// renew Vault tokens
+	vaultClientFunc vaultclient.VaultClientFunc
 
 	// vaultToken is the current Vault token. It should be accessed with the
 	// getter.
@@ -231,9 +231,6 @@ type TaskRunner struct {
 	// statistics
 	devicemanager devicemanager.Manager
 
-	// cpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
-	cpusetCgroupPathGetter cgutil.CgroupPathGetter
-
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
@@ -266,6 +263,13 @@ type TaskRunner struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
+
+	// wranglers manage unix/windows processes leveraging operating
+	// system features like cgroups
+	wranglers cinterfaces.ProcessWranglers
+
+	// widmgr manages workload identities
+	widmgr widmgr.IdentityManager
 }
 
 type Config struct {
@@ -275,12 +279,12 @@ type Config struct {
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
 
-	// Consul is the client to use for managing Consul service registrations
-	Consul serviceregistration.Handler
+	// ConsulServices is used for managing Consul service registrations
+	ConsulServices serviceregistration.Handler
 
-	// ConsulProxies is the client to use for looking up supported envoy versions
+	// ConsulProxiesFunc gets a client to use for looking up supported envoy versions
 	// from Consul.
-	ConsulProxies consul.SupportedProxiesAPI
+	ConsulProxiesFunc consul.SupportedProxiesAPIFunc
 
 	// ConsulSI is the client to use for managing Consul SI tokens
 	ConsulSI consul.ServiceIdentityAPI
@@ -288,8 +292,8 @@ type Config struct {
 	// DynamicRegistry is where dynamic plugins should be registered.
 	DynamicRegistry dynamicplugins.Registry
 
-	// Vault is the client to use to derive and renew Vault tokens
-	Vault vaultclient.VaultClient
+	// VaultFunc is function to get the client to use to derive and renew Vault tokens
+	VaultFunc vaultclient.VaultClientFunc
 
 	// StateDB is used to store and restore state.
 	StateDB cstate.StateDB
@@ -302,9 +306,6 @@ type Config struct {
 
 	// CSIManager is used to manage the mounting of CSI volumes into tasks
 	CSIManager csimanager.Manager
-
-	// CpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
-	CpusetCgroupPathGetter cgutil.CgroupPathGetter
 
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
@@ -335,9 +336,15 @@ type Config struct {
 	// Getter is an interface for retrieving artifacts.
 	Getter cinterfaces.ArtifactGetter
 
+	// Wranglers is an interface for managing OS processes.
+	Wranglers cinterfaces.ProcessWranglers
+
 	// AllocHookResources is how taskrunner hooks can get state written by
 	// allocrunner hooks
 	AllocHookResources *cstructs.AllocHookResources
+
+	// WIDMgr manages workload identities
+	WIDMgr widmgr.IdentityManager
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -362,43 +369,44 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:                  config.Alloc,
-		allocID:                config.Alloc.ID,
-		clientConfig:           config.ClientConfig,
-		task:                   config.Task,
-		taskDir:                config.TaskDir,
-		taskName:               config.Task.Name,
-		taskLeader:             config.Task.Leader,
-		envBuilder:             envBuilder,
-		dynamicRegistry:        config.DynamicRegistry,
-		consulServiceClient:    config.Consul,
-		consulProxiesClient:    config.ConsulProxies,
-		siClient:               config.ConsulSI,
-		vaultClient:            config.Vault,
-		state:                  tstate,
-		localState:             state.NewLocalState(),
-		allocHookResources:     config.AllocHookResources,
-		stateDB:                config.StateDB,
-		stateUpdater:           config.StateUpdater,
-		deviceStatsReporter:    config.DeviceStatsReporter,
-		killCtx:                killCtx,
-		killCtxCancel:          killCancel,
-		shutdownCtx:            trCtx,
-		shutdownCtxCancel:      trCancel,
-		triggerUpdateCh:        make(chan struct{}, triggerUpdateChCap),
-		restartCh:              make(chan struct{}, restartChCap),
-		waitCh:                 make(chan struct{}),
-		csiManager:             config.CSIManager,
-		cpusetCgroupPathGetter: config.CpusetCgroupPathGetter,
-		devicemanager:          config.DeviceManager,
-		driverManager:          config.DriverManager,
-		maxEvents:              defaultMaxEvents,
-		serversContactedCh:     config.ServersContactedCh,
-		startConditionMetCh:    config.StartConditionMetCh,
-		shutdownDelayCtx:       config.ShutdownDelayCtx,
-		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
-		serviceRegWrapper:      config.ServiceRegWrapper,
-		getter:                 config.Getter,
+		alloc:                   config.Alloc,
+		allocID:                 config.Alloc.ID,
+		clientConfig:            config.ClientConfig,
+		task:                    config.Task,
+		taskDir:                 config.TaskDir,
+		taskName:                config.Task.Name,
+		taskLeader:              config.Task.Leader,
+		envBuilder:              envBuilder,
+		dynamicRegistry:         config.DynamicRegistry,
+		consulServiceClient:     config.ConsulServices,
+		consulProxiesClientFunc: config.ConsulProxiesFunc,
+		siClient:                config.ConsulSI,
+		vaultClientFunc:         config.VaultFunc,
+		state:                   tstate,
+		localState:              state.NewLocalState(),
+		allocHookResources:      config.AllocHookResources,
+		stateDB:                 config.StateDB,
+		stateUpdater:            config.StateUpdater,
+		deviceStatsReporter:     config.DeviceStatsReporter,
+		killCtx:                 killCtx,
+		killCtxCancel:           killCancel,
+		shutdownCtx:             trCtx,
+		shutdownCtxCancel:       trCancel,
+		triggerUpdateCh:         make(chan struct{}, triggerUpdateChCap),
+		restartCh:               make(chan struct{}, restartChCap),
+		waitCh:                  make(chan struct{}),
+		csiManager:              config.CSIManager,
+		devicemanager:           config.DeviceManager,
+		driverManager:           config.DriverManager,
+		maxEvents:               defaultMaxEvents,
+		serversContactedCh:      config.ServersContactedCh,
+		startConditionMetCh:     config.StartConditionMetCh,
+		shutdownDelayCtx:        config.ShutdownDelayCtx,
+		shutdownDelayCancelFn:   config.ShutdownDelayCancelFn,
+		serviceRegWrapper:       config.ServiceRegWrapper,
+		getter:                  config.Getter,
+		wranglers:               config.Wranglers,
+		widmgr:                  config.WIDMgr,
 	}
 
 	// Create the logger based on the allocation ID
@@ -589,6 +597,12 @@ MAIN:
 			tr.logger.Error("prestart failed", "error", err)
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
+		}
+
+		// Check for a terminal allocation once more before proceeding as the
+		// prestart hooks may have been skipped.
+		if tr.shouldShutdown() {
+			break MAIN
 		}
 
 		select {
@@ -841,19 +855,17 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	}
 }
 
+func (tr *TaskRunner) assignCgroup(taskConfig *drivers.TaskConfig) {
+	reserveCores := len(tr.taskResources.Cpu.ReservedCores) > 0
+	p := cgroupslib.LinuxResourcesPath(taskConfig.AllocID, taskConfig.Name, reserveCores)
+	taskConfig.Resources.LinuxResources.CpusetCgroupPath = p
+}
+
 // runDriver runs the driver and waits for it to exit
 // runDriver emits an appropriate task event on success/failure
 func (tr *TaskRunner) runDriver() error {
-
 	taskConfig := tr.buildTaskConfig()
-	if tr.cpusetCgroupPathGetter != nil {
-		tr.logger.Trace("waiting for cgroup to exist for", "allocID", tr.allocID, "task", tr.task)
-		cpusetCgroupPath, err := tr.cpusetCgroupPathGetter(tr.killCtx)
-		if err != nil {
-			return err
-		}
-		taskConfig.Resources.LinuxResources.CpusetCgroupPath = cpusetCgroupPath
-	}
+	tr.assignCgroup(taskConfig)
 
 	// Build hcl context variables
 	vars, errs, err := tr.envBuilder.Build().AllValues()
@@ -1144,13 +1156,14 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		Namespace:     alloc.Namespace,
 		NodeName:      alloc.NodeName,
 		NodeID:        alloc.NodeID,
+		ParentJobID:   alloc.Job.ParentID,
 		Resources: &drivers.Resources{
 			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: memoryLimit * 1024 * 1024,
 				CPUShares:        taskResources.Cpu.CpuShares,
 				CpusetCpus:       strings.Join(cpusetCpus, ","),
-				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
+				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Processors.Topology.UsableCompute()),
 			},
 			Ports: &ports,
 		},
@@ -1481,9 +1494,11 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedMem float32
+	var allocatedMemMax float32
 	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
 		// Convert to bytes to match other memory metrics
 		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
+		allocatedMemMax = float32(taskRes.Memory.MemoryMaxMB) * 1024 * 1024
 	}
 
 	ms := ru.ResourceUsage.MemoryStats
@@ -1506,6 +1521,10 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	if allocatedMem > 0 {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
 			allocatedMem, tr.baseLabels)
+	}
+	if allocatedMemMax > 0 {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_allocated"},
+			allocatedMemMax, tr.baseLabels)
 	}
 }
 

@@ -1,7 +1,13 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package config
+
+import (
+	"fmt"
+	"slices"
+	"strings"
+)
 
 // UIConfig contains the operator configuration of the web UI
 // Note:
@@ -11,6 +17,9 @@ type UIConfig struct {
 	// Enabled is used to enable the web UI
 	Enabled bool `hcl:"enabled"`
 
+	// ContentSecurityPolicy is used to configure the CSP header
+	ContentSecurityPolicy *ContentSecurityPolicy `hcl:"content_security_policy"`
+
 	// Consul configures deep links for Consul UI
 	Consul *ConsulUIConfig `hcl:"consul"`
 
@@ -19,6 +28,87 @@ type UIConfig struct {
 
 	// Label configures UI label styles
 	Label *LabelUIConfig `hcl:"label"`
+}
+
+// only covers the elements of
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP we need or care about
+type ContentSecurityPolicy struct {
+	ConnectSrc     []string `hcl:"connect_src"`
+	DefaultSrc     []string `hcl:"default_src"`
+	FormAction     []string `hcl:"form_action"`
+	FrameAncestors []string `hcl:"frame_ancestors"`
+	ImgSrc         []string `hcl:"img_src"`
+	ScriptSrc      []string `hcl:"script_src"`
+	StyleSrc       []string `hcl:"style_src"`
+}
+
+// Copy returns a copy of this Vault UI config.
+func (old *ContentSecurityPolicy) Copy() *ContentSecurityPolicy {
+	if old == nil {
+		return nil
+	}
+
+	nc := new(ContentSecurityPolicy)
+	*nc = *old
+	nc.ConnectSrc = slices.Clone(old.ConnectSrc)
+	nc.DefaultSrc = slices.Clone(old.DefaultSrc)
+	nc.FormAction = slices.Clone(old.FormAction)
+	nc.FrameAncestors = slices.Clone(old.FrameAncestors)
+	nc.ImgSrc = slices.Clone(old.ImgSrc)
+	nc.ScriptSrc = slices.Clone(old.ScriptSrc)
+	nc.StyleSrc = slices.Clone(old.StyleSrc)
+	return nc
+}
+
+func (csp *ContentSecurityPolicy) String() string {
+	return fmt.Sprintf("default-src %s; connect-src %s; img-src %s; script-src %s; style-src %s; form-action %s; frame-ancestors %s", strings.Join(csp.DefaultSrc, " "), strings.Join(csp.ConnectSrc, " "), strings.Join(csp.ImgSrc, " "), strings.Join(csp.ScriptSrc, " "), strings.Join(csp.StyleSrc, " "), strings.Join(csp.FormAction, " "), strings.Join(csp.FrameAncestors, " "))
+}
+
+func (csp *ContentSecurityPolicy) Merge(other *ContentSecurityPolicy) *ContentSecurityPolicy {
+	result := csp.Copy()
+	if result == nil {
+		result = &ContentSecurityPolicy{}
+	}
+	if other == nil {
+		return result
+	}
+
+	if len(other.ConnectSrc) > 0 {
+		result.ConnectSrc = other.ConnectSrc
+	}
+	if len(other.DefaultSrc) > 0 {
+		result.DefaultSrc = other.DefaultSrc
+	}
+	if len(other.FormAction) > 0 {
+		result.FormAction = other.FormAction
+	}
+	if len(other.FrameAncestors) > 0 {
+		result.FrameAncestors = other.FrameAncestors
+	}
+	if len(other.ImgSrc) > 0 {
+		result.ImgSrc = other.ImgSrc
+	}
+	if len(other.ScriptSrc) > 0 {
+		result.ScriptSrc = other.ScriptSrc
+	}
+	if len(other.StyleSrc) > 0 {
+		result.StyleSrc = other.StyleSrc
+	}
+
+	return result
+
+}
+
+func DefaultCSPConfig() *ContentSecurityPolicy {
+	return &ContentSecurityPolicy{
+		ConnectSrc:     []string{"*"},
+		DefaultSrc:     []string{"'none'"},
+		FormAction:     []string{"'none'"},
+		FrameAncestors: []string{"'none'"},
+		ImgSrc:         []string{"'self'", "data:"},
+		ScriptSrc:      []string{"'self'"},
+		StyleSrc:       []string{"'self'", "'unsafe-inline'"},
+	}
 }
 
 // ConsulUIConfig configures deep links to this cluster's Consul
@@ -47,10 +137,11 @@ type LabelUIConfig struct {
 // `ui` configuration.
 func DefaultUIConfig() *UIConfig {
 	return &UIConfig{
-		Enabled: true,
-		Consul:  &ConsulUIConfig{},
-		Vault:   &VaultUIConfig{},
-		Label:   &LabelUIConfig{},
+		Enabled:               true,
+		Consul:                &ConsulUIConfig{},
+		Vault:                 &VaultUIConfig{},
+		Label:                 &LabelUIConfig{},
+		ContentSecurityPolicy: DefaultCSPConfig(),
 	}
 }
 
@@ -84,6 +175,7 @@ func (old *UIConfig) Merge(other *UIConfig) *UIConfig {
 	result.Consul = result.Consul.Merge(other.Consul)
 	result.Vault = result.Vault.Merge(other.Vault)
 	result.Label = result.Label.Merge(other.Label)
+	result.ContentSecurityPolicy = result.ContentSecurityPolicy.Merge(other.ContentSecurityPolicy)
 
 	return result
 }

@@ -922,8 +922,12 @@ func parseExposePath(epo *ast.ObjectItem) (*api.ConsulExposePath, error) {
 func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
 	valid := []string{
 		"destination_name",
+		"destination_peer",
+		"destination_type",
 		"local_bind_port",
 		"local_bind_address",
+		"local_bind_socket_path",
+		"local_bind_socket_mode",
 		"datacenter",
 		"mesh_gateway",
 	}

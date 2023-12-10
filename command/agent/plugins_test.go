@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -31,6 +31,6 @@ func testServer(t *testing.T, runClient bool, cb func(*Config)) (*TestAgent, *ap
 	})
 	t.Cleanup(a.Shutdown)
 
-	c := a.Client()
+	c := a.APIClient()
 	return a, c, a.HTTPAddr()
 }

@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { module, test } from 'qunit';
@@ -69,9 +69,9 @@ module(
         createAllocations: true,
         noDeployments: true, // manually created below
         activeDeployment: true,
-        groupTaskCount: ALLOCS_PER_GROUP,
+        groupAllocCount: ALLOCS_PER_GROUP,
         shallow: true,
-        resourceSpec: Array(NUMBER_OF_GROUPS).fill(['M: 257, C: 500']), // length of this array determines number of groups
+        resourceSpec: Array(NUMBER_OF_GROUPS).fill('M: 257, C: 500'), // length of this array determines number of groups
         allocStatusDistribution,
       });
 
@@ -404,9 +404,9 @@ module(
         createAllocations: true,
         noDeployments: true, // manually created below
         activeDeployment: true,
-        groupTaskCount: ALLOCS_PER_GROUP,
+        groupAllocCount: ALLOCS_PER_GROUP,
         shallow: true,
-        resourceSpec: Array(NUMBER_OF_GROUPS).fill(['M: 257, C: 500']), // length of this array determines number of groups
+        resourceSpec: Array(NUMBER_OF_GROUPS).fill('M: 257, C: 500'), // length of this array determines number of groups
         allocStatusDistribution,
       });
 
@@ -486,9 +486,9 @@ module(
         createAllocations: true,
         noDeployments: true, // manually created below
         activeDeployment: true,
-        groupTaskCount: ALLOCS_PER_GROUP,
+        groupAllocCount: ALLOCS_PER_GROUP,
         shallow: true,
-        resourceSpec: Array(NUMBER_OF_GROUPS).fill(['M: 257, C: 500']), // length of this array determines number of groups
+        resourceSpec: Array(NUMBER_OF_GROUPS).fill('M: 257, C: 500'), // length of this array determines number of groups
         allocStatusDistribution,
       });
 

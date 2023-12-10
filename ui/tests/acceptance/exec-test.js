@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 /* eslint-disable qunit/require-expect */
@@ -31,7 +31,7 @@ module('Acceptance | exec', function (hooks) {
 
     this.job = server.create('job', {
       groupsCount: 2,
-      groupTaskCount: 5,
+      groupAllocCount: 5,
       createAllocations: false,
       status: 'running',
     });

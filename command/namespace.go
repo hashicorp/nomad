@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -22,7 +22,7 @@ Usage: nomad namespace <subcommand> [options] [args]
   This command groups subcommands for interacting with namespaces. Namespaces
   allow jobs and their associated objects to be segmented from each other and
   other users of the cluster. For a full guide on namespaces see:
-  https://learn.hashicorp.com/tutorials/nomad/namespaces
+  https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces
 
   Create or update a namespace:
 

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package main
 
@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 )
 
 func main() {
@@ -125,8 +125,8 @@ func isCoveredOne(p string, pkg string) bool {
 	}
 
 	if strings.HasSuffix(p, "/...") {
-		prefix := strings.TrimSuffix(p, "/...")
-		if strings.HasPrefix(pkg, prefix) {
+		prefix := strings.TrimSuffix(p, "...")
+		if strings.HasPrefix(pkg+"/", prefix) {
 			return true
 		}
 	}
@@ -177,7 +177,7 @@ func skip(p string) bool {
 }
 
 func inCode(root string) ([]string, error) {
-	pkgs := set.NewTreeSet[string, set.Compare[string]](set.Cmp[string])
+	pkgs := set.NewTreeSet[string](set.Compare[string])
 
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {

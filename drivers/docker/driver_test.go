@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package docker
 
@@ -20,11 +20,8 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -38,6 +35,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -55,6 +55,10 @@ var (
 			MemoryLimitBytes: 256 * 1024 * 1024,
 		},
 	}
+)
+
+var (
+	top = numalib.Scan(numalib.PlatformScanners())
 )
 
 func dockerIsRemote(t *testing.T) bool {
@@ -1556,6 +1560,8 @@ func TestDockerDriver_Init(t *testing.T) {
 }
 
 func TestDockerDriver_CPUSetCPUs(t *testing.T) {
+	// The cpuset_cpus config option is ignored starting in Nomad 1.7
+
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 	testutil.CgroupsCompatible(t)
@@ -1566,15 +1572,15 @@ func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 	}{
 		{
 			Name:       "Single CPU",
-			CPUSetCPUs: "0",
+			CPUSetCPUs: "",
 		},
 		{
 			Name:       "Comma separated list of CPUs",
-			CPUSetCPUs: "0,1",
+			CPUSetCPUs: "",
 		},
 		{
 			Name:       "Range of CPUs",
-			CPUSetCPUs: "0-1",
+			CPUSetCPUs: "",
 		},
 	}
 
@@ -1583,16 +1589,16 @@ func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 			task, cfg, _ := dockerTask(t)
 
 			cfg.CPUSetCPUs = testCase.CPUSetCPUs
-			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+			must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 			client, d, handle, cleanup := dockerSetup(t, task, nil)
 			defer cleanup()
-			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+			must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 			container, err := client.InspectContainer(handle.containerID)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
-			require.Equal(t, cfg.CPUSetCPUs, container.HostConfig.CPUSetCPUs)
+			must.Eq(t, cfg.CPUSetCPUs, container.HostConfig.CPUSetCPUs)
 		})
 	}
 }
@@ -2086,7 +2092,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 		defer d.DestroyTask(task.ID, true)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		ch, err := handle.Stats(ctx, 1*time.Second)
+		ch, err := handle.Stats(ctx, 1*time.Second, top.Compute())
 		assert.NoError(t, err)
 		select {
 		case ru := <-ch:
@@ -2906,32 +2912,6 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 	}
 }
 
-func TestDockerDriver_cgroupParent(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("v1", func(t *testing.T) {
-		testutil.CgroupsCompatibleV1(t)
-
-		parent := cgroupParent(&drivers.Resources{
-			LinuxResources: &drivers.LinuxResources{
-				CpusetCgroupPath: "/sys/fs/cgroup/cpuset/nomad",
-			},
-		})
-		require.Equal(t, "", parent)
-	})
-
-	t.Run("v2", func(t *testing.T) {
-		testutil.CgroupsCompatibleV2(t)
-
-		parent := cgroupParent(&drivers.Resources{
-			LinuxResources: &drivers.LinuxResources{
-				CpusetCgroupPath: "/sys/fs/cgroup/nomad.slice",
-			},
-		})
-		require.Equal(t, "nomad.slice", parent)
-	})
-}
-
 func TestDockerDriver_parseSignal(t *testing.T) {
 	ci.Parallel(t)
 
@@ -3092,7 +3072,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 
 func TestDockerDriver_GroupAdd(t *testing.T) {
 	if !tu.IsCI() {
-		t.Parallel()
+		ci.Parallel(t)
 	}
 	testutil.DockerCompatible(t)
 

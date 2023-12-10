@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 // @ts-check
@@ -10,6 +10,7 @@ import { inject as service } from '@ember/service';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
+import jsonToHcl from 'nomad-ui/utils/json-to-hcl';
 
 @classic
 @tagName('')
@@ -71,10 +72,27 @@ export default class Title extends Component {
    */
   @task(function* (withNotifications = false) {
     const job = this.job;
-    const definition = yield job.fetchRawDefinition();
 
-    delete definition.Stop;
-    job.set('_newDefinition', JSON.stringify(definition));
+    // Try to get the submission/hcl sourced specification first.
+    // In the event that this fails, fall back to the raw definition.
+    try {
+      const specification = yield job.fetchRawSpecification();
+
+      let _newDefinitionVariables = job.get('_newDefinitionVariables') || '';
+      if (specification.VariableFlags) {
+        _newDefinitionVariables += jsonToHcl(specification.VariableFlags);
+      }
+      if (specification.Variables) {
+        _newDefinitionVariables += specification.Variables;
+      }
+      job.set('_newDefinitionVariables', _newDefinitionVariables);
+
+      job.set('_newDefinition', specification.Source);
+    } catch {
+      const definition = yield job.fetchRawDefinition();
+      delete definition.Stop;
+      job.set('_newDefinition', JSON.stringify(definition));
+    }
 
     try {
       yield job.parse();

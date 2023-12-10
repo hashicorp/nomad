@@ -1,22 +1,19 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<form class="edit-policy" autocomplete="off" {{on "submit" this.save}}>
+<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
 	{{#if @policy.isNew }}
-		<label>
-			<span>
-				Policy Name
-			</span>
-			<Input
-				data-test-policy-name-input
-				@type="text"
-				@value={{@policy.name}}
-				class="input"
-        {{autofocus}}
-			/>
-		</label>
+		<Hds::Form::TextInput::Field
+			@isRequired={{true}}
+			data-test-policy-name-input
+			@value={{@policy.name}}
+			{{on "input" this.updatePolicyName}}
+			{{autofocus}}
+		as |F|>
+			<F.Label>Policy Name</F.Label>
+		</Hds::Form::TextInput::Field>
 	{{/if}}
 
 	<div class="boxed-section">
@@ -34,7 +31,7 @@
           mode="ruby"
           content=@policy.rules
           onUpdate=this.updatePolicyRules
-          autofocus=(not @policy.isNew)
+          autofocus=false
 					extraKeys=(hash Cmd-Enter=this.save)
 				}} />
 		</div>
@@ -55,12 +52,12 @@
 
 	<footer>
 		{{#if (can "update policy")}}
-			<button
-				class="button is-primary"
-				type="submit"
-			>
-				Save Policy
-			</button>
+		<Hds::Button
+			@text="Save Policy"
+			@type="submit"
+			data-test-save-policy
+			{{on "click" this.save}}
+		/>
 		{{/if}}
 	</footer>
 </form>

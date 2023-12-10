@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -17,7 +17,7 @@ import (
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -208,7 +208,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 		}
 
 		// Add the token policies which are directly referenced into the set.
-		tokenPolicyNames.InsertAll(token.Policies)
+		tokenPolicyNames.InsertSlice(token.Policies)
 	}
 
 	// Setup the blocking query
@@ -302,7 +302,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 		}
 
 		// Add the token policies which are directly referenced into the set.
-		tokenPolicyNames.InsertAll(token.Policies)
+		tokenPolicyNames.InsertSlice(token.Policies)
 
 		if !tokenPolicyNames.Contains(args.Name) {
 			return structs.ErrPermissionDenied
@@ -387,12 +387,7 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	}
 
 	// Add the token policies which are directly referenced into the set.
-	tokenPolicyNames.InsertAll(token.Policies)
-
-	// Ensure the token has enough permissions to query the named policies.
-	if token.Type != structs.ACLManagementToken && !tokenPolicyNames.ContainsAll(args.Names) {
-		return structs.ErrPermissionDenied
-	}
+	tokenPolicyNames.InsertSlice(token.Policies)
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -400,17 +395,27 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Setup the output
-			reply.Policies = make(map[string]*structs.ACLPolicy, len(args.Names))
+			reply.Policies = make(map[string]*structs.ACLPolicy)
 
-			// Look for the policy
+			// Look for the policy and check whether the caller has the
+			// permission to view it. This endpoint is used by the replication
+			// process, or Nomad clients looking up a callers policies. It is
+			// therefore safe, to perform auth checks here and ensures we do
+			// not return erroneous permission denied errors when a caller uses
+			// a token with dangling policies.
 			for _, policyName := range args.Names {
 				out, err := state.ACLPolicyByName(ws, policyName)
 				if err != nil {
 					return err
 				}
-				if out != nil {
-					reply.Policies[policyName] = out
+				if out == nil {
+					continue
 				}
+
+				if token.Type != structs.ACLManagementToken && !tokenPolicyNames.Contains(policyName) {
+					return structs.ErrPermissionDenied
+				}
+				reply.Policies[policyName] = out
 			}
 
 			// Use the last index that affected the policy table
@@ -447,7 +452,7 @@ func (a *ACL) GetClaimPolicies(args *structs.GenericRequest, reply *structs.ACLP
 		return structs.ErrPermissionDenied
 	}
 
-	policies, err := a.srv.resolvePoliciesForClaims(claims)
+	policies, err := a.srv.ResolvePoliciesForClaims(claims)
 	if err != nil {
 		// Likely only hit if a job/alloc has been GC'd on the server but the
 		// client hasn't stopped it yet. Return Permission Denied as there's no way
@@ -2764,8 +2769,13 @@ func (a *ACL) OIDCCompleteAuth(
 	// logic, so we do not want to call Raft directly or copy that here. In the
 	// future we should try and extract out the logic into an interface, or at
 	// least a separate function.
+	name, err := formatTokenName(authMethod.TokenNameFormat, structs.ACLAuthMethodTypeOIDC, authMethod.Name, oidcInternalClaims.Value)
+	if err != nil {
+		return err
+	}
+
 	token := structs.ACLToken{
-		Name:          "OIDC-" + authMethod.Name,
+		Name:          name,
 		Global:        authMethod.TokenLocalityIsGlobal(),
 		ExpirationTTL: authMethod.MaxTokenTTL,
 	}
@@ -2912,8 +2922,13 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	// logic, so we do not want to call Raft directly or copy that here. In the
 	// future we should try and extract out the logic into an interface, or at
 	// least a separate function.
+	name, err := formatTokenName(authMethod.TokenNameFormat, structs.ACLAuthMethodTypeJWT, authMethod.Name, jwtClaims.Value)
+	if err != nil {
+		return err
+	}
+
 	token := structs.ACLToken{
-		Name:          "JWT-" + authMethod.Name,
+		Name:          name,
 		Global:        authMethod.TokenLocalityIsGlobal(),
 		ExpirationTTL: authMethod.MaxTokenTTL,
 	}
@@ -2946,4 +2961,24 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	reply.ACLToken = tokenUpsertReply.Tokens[0]
 
 	return nil
+}
+
+func formatTokenName(format, authType, authName string, claims map[string]string) (string, error) {
+	claimMappings := map[string]string{
+		"auth_method_type": authType,
+		"auth_method_name": authName,
+	}
+	for k, v := range claims {
+		claimMappings["value."+k] = v
+	}
+
+	if format == "" {
+		format = structs.DefaultACLAuthMethodTokenNameFormat
+	}
+	tokenName, err := auth.InterpolateHIL(format, claimMappings, false)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate ACL token name: %w", err)
+	}
+
+	return tokenName, nil
 }

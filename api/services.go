@@ -243,10 +243,14 @@ type Service struct {
 	TaggedAddresses   map[string]string `hcl:"tagged_addresses,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
+	Identity          *WorkloadIdentity `hcl:"identity,block"`
 
 	// Provider defines which backend system provides the service registration,
 	// either "consul" (default) or "nomad".
 	Provider string `hcl:"provider,optional"`
+
+	// Cluster is valid only for Nomad Enterprise with provider: consul
+	Cluster string `hcl:"cluster,optional`
 }
 
 const (
@@ -283,6 +287,9 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	// Default the service provider.
 	if s.Provider == "" {
 		s.Provider = ServiceProviderConsul
+	}
+	if s.Cluster == "" {
+		s.Cluster = "default"
 	}
 
 	if len(s.Meta) == 0 {

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package allocrunner
 
@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -130,13 +131,13 @@ func allocWithDifferentNomadChecks(id, addr, port string) *structs.Allocation {
 var checkHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/fail":
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = io.WriteString(w, "500 problem")
 	case "/hang":
 		time.Sleep(2 * time.Second)
 		_, _ = io.WriteString(w, "too slow")
 	default:
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, "200 ok")
 	}
 })
@@ -169,7 +170,9 @@ func TestCheckHook_Checks_ResultsSet(t *testing.T) {
 
 		alloc := allocWithNomadChecks(addr, port, tc.onGroup)
 
-		h := newChecksHook(logger, alloc, checkStore, network)
+		envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+		h := newChecksHook(logger, alloc, checkStore, network, envBuilder.Build())
 
 		// initialize is called; observers are created but not started yet
 		must.MapEmpty(t, h.observers)
@@ -234,7 +237,9 @@ func TestCheckHook_Checks_UpdateSet(t *testing.T) {
 
 	alloc := allocWithNomadChecks(addr, port, true)
 
-	h := newChecksHook(logger, alloc, shim, network)
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	h := newChecksHook(logger, alloc, shim, network, envBuilder.Build())
 
 	// calling pre-run starts the observers
 	err := h.Prerun()

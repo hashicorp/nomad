@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 {{did-update this.onViewChange @view}}
@@ -10,7 +10,8 @@
   {{#if @model.isNew}}
     {{#unless this.isJobTemplateVariable}}
       <div class="related-entities related-entities-hint">
-        <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
+        <p>Prefix your path with <code>nomad/jobs</code> to automatically make your variable accessible to all jobs. <br />
+        Adding job name, group name, or task name will make your variable available to that specific job, group, or task. <br />
         Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
       </div>
     {{/unless}}
@@ -21,7 +22,7 @@
         @job={{@model.pathLinkedEntities.job}}
         @group={{@model.pathLinkedEntities.group}}
         @task={{@model.pathLinkedEntities.task}}
-        @namespace={{this.variableNamespace}}
+        @namespace={{or this.variableNamespace "default"}}
       />
     {{/if}}
 
@@ -72,7 +73,7 @@
           Please choose a different path, or
           <LinkTo
             @route="variables.variable.edit"
-            @model={{this.duplicatePathWarning.path}}
+            @model={{concat this.duplicatePathWarning.path "@" (or this.variableNamespace "default")}}
           >
             edit the existing variable
           </LinkTo>

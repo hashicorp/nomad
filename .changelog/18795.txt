@@ -1,0 +1,12 @@
+```release-note:improvement
+cli: Added `log-include-location` flag to the `monitor` command
+```
+
+```release-note:improvement
+cli: Added `log-include-location` flag to the `operator debug` command
+```
+
+```release-note:improvement
+api: Added support for the `log_include_location` query parameter within the
+`/v1/agent/monitor` HTTP endpoint
+```

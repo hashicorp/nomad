@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -11,9 +11,9 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -407,17 +407,22 @@ func TestJobEndpointConnect_groupConnectHook_MeshGateway(t *testing.T) {
 func TestJobEndpointConnect_ConnectInterpolation(t *testing.T) {
 	ci.Parallel(t)
 
-	server := &Server{logger: testlog.HCLogger(t)}
-	jobEndpoint := NewJobEndpoints(server, nil)
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	t.Cleanup(cleanup)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	jobEndpoint := NewJobEndpoints(srv, nil)
 
 	j := mock.ConnectJob()
 	j.TaskGroups[0].Services[0].Name = "${JOB}-api"
 	j, warnings, err := jobEndpoint.admissionMutators(j)
-	require.NoError(t, err)
-	require.Nil(t, warnings)
+	must.NoError(t, err)
+	must.Nil(t, warnings)
 
-	require.Len(t, j.TaskGroups[0].Tasks, 2)
-	require.Equal(t, "connect-proxy-my-job-api", j.TaskGroups[0].Tasks[1].Name)
+	must.Len(t, 2, j.TaskGroups[0].Tasks)
+	must.Eq(t, "connect-proxy-my-job-api", j.TaskGroups[0].Tasks[1].Name)
 }
 
 func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package auth
 
@@ -131,7 +131,7 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 // - If the computed name is not valid for the type ("INVALID_NAME", false, nil) is returned.
 // - If the computed name is valid for the type ("VALID_NAME", true, nil) is returned.
 func computeBindName(bindType, bindName string, claimMappings map[string]string) (string, bool, error) {
-	bindName, err := interpolateHIL(bindName, claimMappings, true)
+	bindName, err := InterpolateHIL(bindName, claimMappings, true)
 	if err != nil {
 		return "", false, err
 	}
@@ -170,9 +170,9 @@ func doesSelectorMatch(selector string, selectableVars interface{}) bool {
 	return result
 }
 
-// interpolateHIL processes the string as if it were HIL and interpolates only
+// InterpolateHIL processes the string as if it were HIL and interpolates only
 // the provided string->string map as possible variables.
-func interpolateHIL(s string, vars map[string]string, lowercase bool) (string, error) {
+func InterpolateHIL(s string, vars map[string]string, lowercase bool) (string, error) {
 	if !strings.Contains(s, "${") {
 		// Skip going to the trouble of parsing something that has no HIL.
 		return s, nil

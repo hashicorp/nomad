@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 
 set -o errexit
@@ -12,7 +12,7 @@ case $(arch) in
     aarch64) ARCH="arm64" ;;
 esac
 
-VERSION="v1.0.0"
+VERSION="v1.3.0"
 DOWNLOAD=https://github.com/containernetworking/plugins/releases/download/${VERSION}/cni-plugins-linux-${ARCH}-${VERSION}.tgz
 TARGET_DIR=/opt/cni/bin
 CONFIG_DIR=/opt/cni/config

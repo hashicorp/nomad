@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -54,10 +54,10 @@ Stop Options:
     only a single region at a time. Ignored for single-region jobs.
 
   -no-shutdown-delay
-	Ignore the the group and task shutdown_delay configuration so that there is no
-    delay between service deregistration and task shutdown. Note that using
-    this flag will result in failed network connections to the allocations
-    being stopped.
+    Ignore the group and task shutdown_delay configuration so that there is no
+    delay between service deregistration and task shutdown. Note that using this
+    flag will result in failed network connections to the allocations being
+    stopped.
 
   -purge
     Purge is used to stop the job and purge it from the system. If not set, the

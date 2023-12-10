@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
@@ -1432,6 +1432,8 @@ func TestSysBatch_Preemption(t *testing.T) {
 
 	h := NewHarness(t)
 
+	legacyCpuResources, processorResources := cpuResources(3072)
+
 	// Create nodes
 	nodes := make([]*structs.Node, 0)
 	for i := 0; i < 2; i++ {
@@ -1448,9 +1450,10 @@ func TestSysBatch_Preemption(t *testing.T) {
 			}},
 		}
 		node.NodeResources = &structs.NodeResources{
-			Cpu:    structs.NodeCpuResources{CpuShares: 3072},
-			Memory: structs.NodeMemoryResources{MemoryMB: 5034},
-			Disk:   structs.NodeDiskResources{DiskMB: 20 * 1024},
+			Processors: processorResources,
+			Cpu:        legacyCpuResources,
+			Memory:     structs.NodeMemoryResources{MemoryMB: 5034},
+			Disk:       structs.NodeDiskResources{DiskMB: 20 * 1024},
 			Networks: []*structs.NetworkResource{{
 				Device: "eth0",
 				CIDR:   "192.168.0.100/32",

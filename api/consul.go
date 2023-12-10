@@ -13,13 +13,18 @@ import (
 type Consul struct {
 	// (Enterprise-only) Namespace represents a Consul namespace.
 	Namespace string `mapstructure:"namespace" hcl:"namespace,optional"`
+
+	// (Enterprise-only) Cluster represents a specific Consul cluster.
+	Cluster string `mapstructure:"cluster" hcl:"cluster,optional"`
 }
 
 // Canonicalize Consul into a canonical form. The Canonicalize structs containing
 // a Consul should ensure it is not nil.
 func (c *Consul) Canonicalize() {
-	// Nothing to do here.
-	//
+	if c.Cluster == "" {
+		c.Cluster = "default"
+	}
+
 	// If Namespace is nil, that is a choice of the job submitter that
 	// we should inherit from higher up (i.e. job<-group). Likewise, if
 	// Namespace is set but empty, that is a choice to use the default consul
@@ -30,6 +35,7 @@ func (c *Consul) Canonicalize() {
 func (c *Consul) Copy() *Consul {
 	return &Consul{
 		Namespace: c.Namespace,
+		Cluster:   c.Cluster,
 	}
 }
 
@@ -210,9 +216,13 @@ func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
 type ConsulUpstream struct {
 	DestinationName      string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
 	DestinationNamespace string             `mapstructure:"destination_namespace" hcl:"destination_namespace,optional"`
+	DestinationPeer      string             `mapstructure:"destination_peer" hcl:"destination_peer,optional"`
+	DestinationType      string             `mapstructure:"destination_type" hcl:"destination_type,optional"`
 	LocalBindPort        int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
 	Datacenter           string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
 	LocalBindAddress     string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
+	LocalBindSocketPath  string             `mapstructure:"local_bind_socket_path" hcl:"local_bind_socket_path,optional"`
+	LocalBindSocketMode  string             `mapstructure:"local_bind_socket_mode" hcl:"local_bind_socket_mode,optional"`
 	MeshGateway          *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
 	Config               map[string]any     `mapstructure:"config" hcl:"config,block"`
 }
@@ -224,9 +234,13 @@ func (cu *ConsulUpstream) Copy() *ConsulUpstream {
 	return &ConsulUpstream{
 		DestinationName:      cu.DestinationName,
 		DestinationNamespace: cu.DestinationNamespace,
+		DestinationPeer:      cu.DestinationPeer,
+		DestinationType:      cu.DestinationType,
 		LocalBindPort:        cu.LocalBindPort,
 		Datacenter:           cu.Datacenter,
 		LocalBindAddress:     cu.LocalBindAddress,
+		LocalBindSocketPath:  cu.LocalBindSocketPath,
+		LocalBindSocketMode:  cu.LocalBindSocketMode,
 		MeshGateway:          cu.MeshGateway.Copy(),
 		Config:               maps.Clone(cu.Config),
 	}

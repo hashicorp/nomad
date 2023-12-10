@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -24,7 +24,7 @@ func TestHTTP_CSIEndpointPlugin(t *testing.T) {
 		defer cleanup()
 
 		body := bytes.NewBuffer(nil)
-		req, err := http.NewRequest("GET", "/v1/plugin/csi/foo", body)
+		req, err := http.NewRequest(http.MethodGet, "/v1/plugin/csi/foo", body)
 		require.NoError(t, err)
 
 		resp := httptest.NewRecorder()
@@ -66,7 +66,7 @@ func TestHTTP_CSIParseSecrets(t *testing.T) {
 			structs.CSISecrets(map[string]string{"one": "value_one=two", "two": "value_two"})},
 	}
 	for _, tc := range testCases {
-		req, _ := http.NewRequest("GET", "/v1/plugin/csi/foo", nil)
+		req, _ := http.NewRequest(http.MethodGet, "/v1/plugin/csi/foo", nil)
 		req.Header.Add("X-Nomad-CSI-Secrets", tc.val)
 		require.Equal(t, tc.expect, parseCSISecrets(req), tc.val)
 	}
@@ -90,13 +90,13 @@ func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
 			}},
 		}
 		body := encodeReq(args)
-		req, err := http.NewRequest("PUT", "/v1/volumes", body)
+		req, err := http.NewRequest(http.MethodPut, "/v1/volumes", body)
 		require.NoError(t, err)
 		resp := httptest.NewRecorder()
 		_, err = s.Server.CSIVolumesRequest(resp, req)
 		require.NoError(t, err, "put error")
 
-		req, err = http.NewRequest("GET", "/v1/volume/csi/bar", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/volume/csi/bar", nil)
 		require.NoError(t, err)
 		resp = httptest.NewRecorder()
 		raw, err := s.Server.CSIVolumeSpecificRequest(resp, req)
@@ -106,7 +106,7 @@ func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
 		require.Equal(t, 1, out.ControllersHealthy)
 		require.Equal(t, 2, out.NodesHealthy)
 
-		req, err = http.NewRequest("DELETE", "/v1/volume/csi/bar/detach", nil)
+		req, err = http.NewRequest(http.MethodDelete, "/v1/volume/csi/bar/detach", nil)
 		require.NoError(t, err)
 		resp = httptest.NewRecorder()
 		_, err = s.Server.CSIVolumeSpecificRequest(resp, req)
@@ -132,13 +132,13 @@ func TestHTTP_CSIEndpointCreateVolume(t *testing.T) {
 			}},
 		}
 		body := encodeReq(args)
-		req, err := http.NewRequest("PUT", "/v1/volumes/create", body)
+		req, err := http.NewRequest(http.MethodPut, "/v1/volumes/create", body)
 		require.NoError(t, err)
 		resp := httptest.NewRecorder()
 		_, err = s.Server.CSIVolumesRequest(resp, req)
 		require.Error(t, err, "controller validate volume: No path to node")
 
-		req, err = http.NewRequest("DELETE", "/v1/volume/csi/baz", nil)
+		req, err = http.NewRequest(http.MethodDelete, "/v1/volume/csi/baz", nil)
 		require.NoError(t, err)
 		resp = httptest.NewRecorder()
 		_, err = s.Server.CSIVolumeSpecificRequest(resp, req)
@@ -161,7 +161,7 @@ func TestHTTP_CSIEndpointSnapshot(t *testing.T) {
 			}},
 		}
 		body := encodeReq(args)
-		req, err := http.NewRequest("PUT", "/v1/volumes/snapshot", body)
+		req, err := http.NewRequest(http.MethodPut, "/v1/volumes/snapshot", body)
 		require.NoError(t, err)
 		resp := httptest.NewRecorder()
 		_, err = s.Server.CSISnapshotsRequest(resp, req)

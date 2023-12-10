@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -1940,20 +1940,21 @@ func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 // Tests various scenarios when allocations are eligible to be GCed
 func TestAllocation_GCEligible(t *testing.T) {
 	type testCase struct {
-		Desc                string
-		GCTime              time.Time
-		ClientStatus        string
-		DesiredStatus       string
-		JobStatus           string
-		JobStop             bool
-		AllocJobModifyIndex uint64
-		JobModifyIndex      uint64
-		ModifyIndex         uint64
-		NextAllocID         string
-		ReschedulePolicy    *structs.ReschedulePolicy
-		RescheduleTrackers  []*structs.RescheduleEvent
-		ThresholdIndex      uint64
-		ShouldGC            bool
+		Desc                    string
+		GCTime                  time.Time
+		ClientStatus            string
+		DesiredStatus           string
+		JobStatus               string
+		JobStop                 bool
+		PreventRescheduleOnLost *bool
+		AllocJobModifyIndex     uint64
+		JobModifyIndex          uint64
+		ModifyIndex             uint64
+		NextAllocID             string
+		ReschedulePolicy        *structs.ReschedulePolicy
+		RescheduleTrackers      []*structs.RescheduleEvent
+		ThresholdIndex          uint64
+		ShouldGC                bool
 	}
 
 	fail := time.Now()
@@ -2121,6 +2122,14 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ShouldGC: true,
 		},
 		{
+			Desc:          "GC when alloc is lost and eligible for reschedule",
+			ClientStatus:  structs.AllocClientStatusLost,
+			DesiredStatus: structs.AllocDesiredStatusStop,
+			GCTime:        fail,
+			JobStatus:     structs.JobStatusDead,
+			ShouldGC:      true,
+		},
+		{
 			Desc:             "GC when job status is dead",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
@@ -2155,6 +2164,14 @@ func TestAllocation_GCEligible(t *testing.T) {
 			},
 			ShouldGC: true,
 		},
+		{
+			Desc:          "GC when alloc is unknown and but desired state is running",
+			ClientStatus:  structs.AllocClientStatusUnknown,
+			DesiredStatus: structs.AllocDesiredStatusRun,
+			GCTime:        fail,
+			JobStatus:     structs.JobStatusRunning,
+			ShouldGC:      false,
+		},
 	}
 
 	for _, tc := range harness {
@@ -2166,6 +2183,9 @@ func TestAllocation_GCEligible(t *testing.T) {
 		alloc.NextAllocation = tc.NextAllocID
 		job := mock.Job()
 		alloc.TaskGroup = job.TaskGroups[0].Name
+		if tc.PreventRescheduleOnLost != nil {
+			job.TaskGroups[0].PreventRescheduleOnLost = *tc.PreventRescheduleOnLost
+		}
 		job.TaskGroups[0].ReschedulePolicy = tc.ReschedulePolicy
 		if tc.JobStatus != "" {
 			job.Status = tc.JobStatus
@@ -2409,6 +2429,9 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 
 }
 
+// TestCoreScheduler_CSIBadState_ClaimGC asserts that volumes that are in an
+// already invalid state when GC'd have their claims immediately marked as
+// unpublishing
 func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2420,32 +2443,27 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 	testutil.WaitForLeader(t, srv.RPC)
 
 	err := state.TestBadCSIState(t, srv.State())
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	snap, err := srv.State().Snapshot()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 
 	index, _ := srv.State().LatestIndex()
 	index++
 	gc := srv.coreJobEval(structs.CoreJobForceGC, index)
 	c := core.(*CoreScheduler)
-	require.NoError(t, c.csiVolumeClaimGC(gc))
+	must.NoError(t, c.csiVolumeClaimGC(gc))
 
-	require.Eventually(t, func() bool {
-		vol, _ := srv.State().CSIVolumeByID(nil,
-			structs.DefaultNamespace, "csi-volume-nfs0")
-		if len(vol.PastClaims) != 2 {
-			return false
-		}
-		for _, claim := range vol.PastClaims {
-			if claim.State != structs.CSIVolumeClaimStateUnpublishing {
-				return false
-			}
-		}
-		return true
-	}, time.Second*5, 10*time.Millisecond, "invalid claims should be marked for GC")
+	vol, err := srv.State().CSIVolumeByID(nil, structs.DefaultNamespace, "csi-volume-nfs0")
+	must.NoError(t, err)
 
+	must.MapLen(t, 2, vol.PastClaims, must.Sprint("expected 2 past claims"))
+
+	for _, claim := range vol.PastClaims {
+		must.Eq(t, structs.CSIVolumeClaimStateUnpublishing, claim.State,
+			must.Sprintf("expected past claims to be unpublishing"))
+	}
 }
 
 // TestCoreScheduler_RootKeyGC exercises root key GC
@@ -2454,7 +2472,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 
 	srv, cleanup := TestServer(t, nil)
 	defer cleanup()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	// reset the time table
 	srv.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
@@ -2559,7 +2577,7 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 
 	srv, cleanup := TestServer(t, nil)
 	defer cleanup()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	store := srv.fsm.State()
 	key0, err := store.GetActiveRootKeyMeta(nil)

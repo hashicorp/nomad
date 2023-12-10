@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 // @ts-check
@@ -30,6 +30,7 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
  * @property {boolean} [recording]
  * @property {boolean} [custom]
  * @property {boolean} [exclusive]
+ * @property {HTMLElement} [element]
  */
 
 const DEBOUNCE_MS = 750;
@@ -417,7 +418,7 @@ export default class KeyboardService extends Service {
             command.label === 'Hide Keyboard Shortcuts'
           ) {
             event.preventDefault();
-            command.action();
+            command.action(command.element);
           }
         });
         this.clearBuffer();

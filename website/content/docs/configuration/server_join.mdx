@@ -20,45 +20,63 @@ to Nomad servers.
 
 ```hcl
 server_join {
-  retry_join = [ "1.1.1.1", "2.2.2.2" ]
-  retry_max = 3
+  retry_join     = [ "1.1.1.1", "2.2.2.2" ]
+  retry_max      = 3
   retry_interval = "15s"
 }
 ```
 
 ## `server_join` Parameters
 
-- `retry_join` `(array<string>: [])` - Specifies a list of server addresses to
-  join. This is similar to [`start_join`](#start_join), but will continue to
-  be attempted even if the initial join attempt fails, up to
-  [retry_max](#retry_max). Further, `retry_join` is available to
-  both Nomad servers and clients, while `start_join` is only defined for Nomad
-  servers. This is useful for cases where we know the address will become
-  available eventually. Use `retry_join` with an array as a replacement for
-  `start_join`, **do not use both options**.
+- `retry_join` `(array<string>: [])` - Specifies a list of Nomad server
+  addresses and [Cloud Auto-join](#cloud-auto-join) configurations that are
+  joined as cluster members. This is similar to [`start_join`](#start_join),
+  but join attempts are retried up to [retry_max](#retry_max) times.
+  Further, `retry_join` is available to both Nomad servers and clients, while
+  `start_join` is only defined for Nomad servers. This is useful for cases where
+  we know the address will become available eventually. Use `retry_join` with an
+  array as a replacement for `start_join`, **do not use both options**.
 
-  Address format includes both using IP addresses as well as an interface to the
-  [go-discover](https://github.com/hashicorp/go-discover) library for doing
-  automated cluster joining using cloud metadata. See the [Cloud Auto-join](#cloud-auto-join)
-  section below for more information.
+  Server addresses must conform to the [server address format](#server-address-format).
 
-  ```
+  ```hcl
   server_join {
-  retry_join = [ "1.1.1.1", "2.2.2.2" ]
+    retry_join = [ "1.1.1.1", "2.2.2.2" ]
   }
   ```
 
-  Using the `go-discover` interface, this can be defined both in a client or
-  server configuration as well as provided as a command-line argument.
+  Auto-join configurations must conform to the [Cloud Auto-join format](#cloud-auto-join).
 
-  ```
+  Cloud-Auto join using `go-discover` to join an AWS EC2 cluster.
+
+  ```hcl
   server_join {
-  retry_join = [ "provider=aws tag_key=..." ]
+    retry_join = [ "provider=aws tag_key=..." ]
   }
   ```
 
-  See the [server address format](#server-address-format) for more information about expected
-  server address formats.
+  Cloud-Auto join using `go-netaddrs` to join a Hetzner cluster of servers
+  labeled with `nomad-server=true` using the `hcloud` CLI.
+
+  ```hcl
+  server_join {
+    retry_join = [ "exec=hcloud server list -o noheader -o columns=ipv4 -l nomad-server=true | tr '\n' ' '" ]
+  }
+  ```
+
+  Server addresses and Cloud Auto-join configurations may be used together.
+  This is a mixed configuration containing a server address and Cloud Auto-join
+  configuration.
+
+  ```hcl
+  server_join {
+    retry_join = [ "1.1.1.1", "provider=aws tag_key=..." ]
+  }
+  ```
+
+  See [server address format](#server-address-format) for more information
+  about expected server address formats and [Cloud Auto-join](#cloud-auto-join)
+  for more information on expected Cloud Auto-join formats.
 
 - `retry_interval` `(string: "30s")` - Specifies the time to wait between retry
   join attempts.
@@ -114,10 +132,9 @@ nomad-01.company.local => nomad-01.company.local:4648
 ```
 
 ### Via the go-discover interface
-
-As of Nomad 0.8.4, `retry_join` accepts a unified interface using the
+`retry_join` accepts a unified interface using the
 [go-discover](https://github.com/hashicorp/go-discover) library for doing
-automated cluster joining using cloud metadata. See [Cloud
+automated cluster joining using cloud provider metadata. See [Cloud
 Auto-join](#cloud-auto-join) for more information.
 
 ```
@@ -126,11 +143,24 @@ Auto-join](#cloud-auto-join) for more information.
 
 ## Cloud Auto-join
 
+`retry_join`'s Cloud Auto-join allows Nomad to automatically discover cluster
+server addresses using cloud provider metadata. Cloud Auto-join allows both
+[go-discover](https://github.com/hashicorp/go-discover) and
+[go-netaddrs](https://github.com/hashicorp/go-netaddrs) formats.
+
+Configurations prefixed with `provider=` use `go-discover` whereas
+configurations prefixed with `exec=` use `go-netaddrs`. For cloud providers not
+supported by `go-discover`, use `go-netaddrs`.
+
+### `go-discover` Configurations
+
+`go-discover` configurations are prefixed with `provider=`.
+
 The following sections describe the Cloud Auto-join `retry_join` options that are specific
 to a subset of supported cloud providers. For information on all providers, see further
 documentation in [go-discover](https://github.com/hashicorp/go-discover).
 
-### Amazon EC2
+#### Amazon EC2
 
 This returns the first private IP address of all servers in the given
 region which have the given `tag_key` and `tag_value`.
@@ -149,7 +179,7 @@ region which have the given `tag_key` and `tag_value`.
 - `access_key_id` (optional) - the AWS access key for authentication (see below for more information about authenticating).
 - `secret_access_key` (optional) - the AWS secret access key for authentication (see below for more information about authenticating).
 
-#### Authentication &amp; Precedence
+##### Authentication &amp; Precedence
 
 - Static credentials `access_key_id=... secret_access_key=...`
 - Environment variables (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`)
@@ -163,7 +193,7 @@ region which have the given `tag_key` and `tag_value`.
   metadata
   endpoint](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html).
 
-### Microsoft Azure
+#### Microsoft Azure
 
 This returns the first private IP address of all servers in the given region
 which have the given `tag_key` and `tag_value` in the tenant and subscription, or in
@@ -195,7 +225,7 @@ Use these configuration parameters when using Virtual Machine Scale Sets (Consul
   When using tags the only permission needed is the `ListAll` method for `NetworkInterfaces`. When using
   Virtual Machine Scale Sets the only role action needed is `Microsoft.Compute/virtualMachineScaleSets/*/read`.
 
-### Google Compute Engine
+#### Google Compute Engine
 
 This returns the first private IP address of all servers in the given
 project which have the given `tag_value`.
@@ -212,7 +242,7 @@ project which have the given `tag_value`.
 - `zone_pattern` (optional) - the list of zones can be restricted through an RE2 compatible regular expression. If omitted, servers in all zones are returned.
 - `credentials_file` (optional) - the credentials file for authentication. See below for more information.
 
-#### Authentication &amp; Precedence
+##### Authentication &amp; Precedence
 
 - Use credentials from `credentials_file`, if provided.
 - Use JSON file from `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
@@ -225,3 +255,37 @@ project which have the given `tag_value`.
 Discovery requires a [GCE Service
 Account](https://cloud.google.com/compute/docs/access/service-accounts).
 Credentials are searched using the following paths, in order of precedence.
+
+
+### `go-netaddrs` Configurations
+
+`go-netaddrs` configurations are prefixed with `exec=`.
+
+What follows the `exec=` prefix may be any executable program and its arguments.
+Commands run by `go-netaddrs` must return a list of space-delimited IPv4 or IPv6
+addresses and exit with code `0` on success and non-zero on failure.
+
+You can refer to the executable by its absolute file system path, or by
+the executable's name if it can be found on the Nomad agent's PATH. See
+[executables in the current directory](https://pkg.go.dev/os/exec#hdr-Executables_in_the_current_directory)
+for more details on the lookup behavior.
+
+Example `go-netaddrs` configuration.
+
+```hcl
+server_join {
+  retry_join = [ "exec=hcloud server list -o noheader -o columns=ipv4 -l nomad-server=true | tr '\n' ' '" ]
+}
+```
+
+Here, `hcloud`'s newline-delimited output has been re-formatted as space-
+delimited by piping its output into `tr`.
+
+Output of an example `go-netaddrs` executable
+
+```
+"1.1.1.1 2.2.2.2"
+```
+
+Visit [go-netaddrs](https://github.com/hashicorp/go-netaddrs) for more
+information on go-netaddrs configuration.

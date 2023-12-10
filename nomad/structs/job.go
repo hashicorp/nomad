@@ -1,10 +1,10 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
 import (
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 )
 
 const (
@@ -111,9 +111,24 @@ func (j *Job) RequiredConsulServiceDiscovery() map[string]bool {
 // to the function are utilising Consul service discovery.
 func requiresConsulServiceDiscovery(services []*Service) bool {
 	for _, tgService := range services {
-		if tgService.Provider == ServiceProviderConsul || tgService.Provider == "" {
+		if tgService.IsConsul() {
 			return true
 		}
 	}
 	return false
+}
+
+// RequiredNUMA identifies which task groups, if any, within the job contain
+// tasks requesting NUMA resources.
+func (j *Job) RequiredNUMA() set.Collection[string] {
+	result := set.New[string](10)
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.Resources != nil && task.Resources.NUMA.Requested() {
+				result.Insert(tg.Name)
+				break
+			}
+		}
+	}
+	return result
 }

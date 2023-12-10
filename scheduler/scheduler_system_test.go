@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
@@ -259,7 +259,7 @@ func TestSystemSched_ExhaustResources(t *testing.T) {
 	// Create a service job which consumes most of the system resources
 	svcJob := mock.Job()
 	svcJob.TaskGroups[0].Count = 1
-	svcJob.TaskGroups[0].Tasks[0].Resources.CPU = 3600
+	svcJob.TaskGroups[0].Tasks[0].Resources.CPU = 13500 // mock.Node() has 14k
 	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, svcJob))
 
 	// Create a mock evaluation to register the job
@@ -1857,6 +1857,8 @@ func TestSystemSched_Preemption(t *testing.T) {
 
 	h := NewHarness(t)
 
+	legacyCpuResources, processorResources := cpuResources(3072)
+
 	// Create nodes
 	nodes := make([]*structs.Node, 0)
 	for i := 0; i < 2; i++ {
@@ -1873,9 +1875,10 @@ func TestSystemSched_Preemption(t *testing.T) {
 			}},
 		}
 		node.NodeResources = &structs.NodeResources{
-			Cpu:    structs.NodeCpuResources{CpuShares: 3072},
-			Memory: structs.NodeMemoryResources{MemoryMB: 5034},
-			Disk:   structs.NodeDiskResources{DiskMB: 20 * 1024},
+			Processors: processorResources,
+			Cpu:        legacyCpuResources,
+			Memory:     structs.NodeMemoryResources{MemoryMB: 5034},
+			Disk:       structs.NodeDiskResources{DiskMB: 20 * 1024},
 			Networks: []*structs.NetworkResource{{
 				Device: "eth0",
 				CIDR:   "192.168.0.100/32",

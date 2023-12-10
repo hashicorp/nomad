@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package client
 
@@ -11,6 +11,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/structs"
@@ -229,6 +230,47 @@ func (c *CSI) ControllerCreateVolume(req *structs.ClientCSIControllerCreateVolum
 			&nstructs.CSITopology{Segments: topo.Segments})
 	}
 
+	return nil
+}
+
+func (c *CSI) ControllerExpandVolume(req *structs.ClientCSIControllerExpandVolumeRequest, resp *structs.ClientCSIControllerExpandVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_controller", "expand_volume"}, time.Now())
+
+	plugin, err := c.findControllerPlugin(req.PluginID)
+	if err != nil {
+		// the server's view of the plugin health is stale, so let it know it
+		// should retry with another controller instance
+		return fmt.Errorf("CSI.ControllerExpandVolume could not find plugin: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
+	}
+	defer plugin.Close()
+
+	csiReq := req.ToCSIRequest()
+
+	ctx, cancelFn := c.requestContext()
+	defer cancelFn()
+
+	// CSI ControllerExpandVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
+	cresp, err := plugin.ControllerExpandVolume(ctx, csiReq,
+		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
+	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+		// if the volume was deleted out-of-band, we'll get an error from
+		// the plugin but can safely ignore it
+		c.c.logger.Debug("could not expand volume", "error", err)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("CSI.ControllerExpandVolume: %v", err)
+	}
+	if cresp == nil {
+		c.c.logger.Warn("plugin did not return error or response; this is a bug in the plugin and should be reported to the plugin author")
+		return fmt.Errorf("CSI.ControllerExpandVolume: plugin did not return error or response")
+	}
+	resp.CapacityBytes = cresp.CapacityBytes
+	resp.NodeExpansionRequired = cresp.NodeExpansionRequired
 	return nil
 }
 
@@ -474,7 +516,7 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 	ctx, cancelFn := c.requestContext()
 	defer cancelFn()
 
-	mounter, err := c.c.csimanager.MounterForPlugin(ctx, req.PluginID)
+	manager, err := c.c.csimanager.ManagerForPlugin(ctx, req.PluginID)
 	if err != nil {
 		return fmt.Errorf("CSI.NodeDetachVolume: %v", err)
 	}
@@ -485,13 +527,52 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 		AccessMode:     req.AccessMode,
 	}
 
-	err = mounter.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
+	err = manager.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
 	if err != nil && !errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
 		// if the unmounting previously happened but the server failed to
 		// checkpoint, we'll get an error from Unmount but can safely
 		// ignore it.
 		return fmt.Errorf("CSI.NodeDetachVolume: %v", err)
 	}
+	return nil
+}
+
+// NodeExpandVolume instructs the node plugin to complete a volume expansion
+// for a particular claim held by an allocation.
+func (c *CSI) NodeExpandVolume(req *structs.ClientCSINodeExpandVolumeRequest, resp *structs.ClientCSINodeExpandVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_node", "expand_volume"}, time.Now())
+
+	if err := req.Validate(); err != nil {
+		return err
+	}
+	usageOpts := &csimanager.UsageOptions{
+		// Claim will not be nil here, per req.Validate() above.
+		ReadOnly:       req.Claim.Mode == nstructs.CSIVolumeClaimRead,
+		AttachmentMode: req.Claim.AttachmentMode,
+		AccessMode:     req.Claim.AccessMode,
+	}
+
+	ctx, cancel := c.requestContext() // note: this has a 2-minute timeout
+	defer cancel()
+
+	err := c.c.csimanager.WaitForPlugin(ctx, dynamicplugins.PluginTypeCSINode, req.PluginID)
+	if err != nil {
+		return err
+	}
+
+	manager, err := c.c.csimanager.ManagerForPlugin(ctx, req.PluginID)
+	if err != nil {
+		return err
+	}
+
+	newCapacity, err := manager.ExpandVolume(ctx,
+		req.VolumeID, req.ExternalID, req.Claim.AllocationID, usageOpts, req.Capacity)
+
+	if err != nil && !errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+		return err
+	}
+	resp.CapacityBytes = newCapacity
+
 	return nil
 }
 

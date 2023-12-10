@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -245,6 +246,100 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	if node.Node != zero {
 		t.Fatalf("bad")
 	}
+}
+
+func TestServiceStack_Select_HostVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := testContext(t)
+
+	// Create nodes with host volumes and one without.
+	node0 := mock.Node()
+
+	node1 := mock.Node()
+	node1.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"unique": {
+			Name: "unique",
+			Path: "/tmp/unique",
+		},
+		"per_alloc[0]": {
+			Name: "per_alloc[0]",
+			Path: "/tmp/per_alloc_0",
+		},
+	}
+	node1.ComputeClass()
+
+	node2 := mock.Node()
+	node2.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"per_alloc[1]": {
+			Name: "per_alloc[1]",
+			Path: "/tmp/per_alloc_1",
+		},
+	}
+	node2.ComputeClass()
+
+	// Create stack with nodes.
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes([]*structs.Node{node0, node1, node2})
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"unique": {
+		Name:     "unique",
+		Type:     structs.VolumeTypeHost,
+		Source:   "unique",
+		PerAlloc: false,
+	}}
+	stack.SetJob(job)
+
+	// Alloc selects node with host volume 'unique'.
+	selectOptions := &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0),
+	}
+	option := stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, option)
+	must.Eq(t, option.Node.ID, node1.ID)
+
+	// Recreate the stack and select volumes per alloc.
+	stack = NewGenericStack(false, ctx)
+	stack.SetNodes([]*structs.Node{node0, node1, node2})
+
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"per_alloc": {
+		Name:     "per_alloc",
+		Type:     structs.VolumeTypeHost,
+		Source:   "per_alloc",
+		PerAlloc: true,
+	}}
+	stack.SetJob(job)
+
+	// First alloc selects node with host volume 'per_alloc[0]'.
+	selectOptions = &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0),
+	}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, option)
+	must.Eq(t, option.Node.ID, node1.ID)
+
+	// Second alloc selects node with host volume 'per_alloc[1]'.
+	selectOptions = &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 1),
+	}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, option)
+	must.Eq(t, option.Node.ID, node2.ID)
+
+	// Third alloc must select node with host volume 'per_alloc[2]', but none
+	// of the nodes available can fulfil this requirement.
+	selectOptions = &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 2),
+	}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
+	must.Nil(t, option)
+
+	metrics := ctx.Metrics()
+	must.MapLen(t, 1, metrics.ConstraintFiltered)
+	must.Eq(t, metrics.ConstraintFiltered[FilterConstraintHostVolumes], 3)
 }
 
 func TestServiceStack_Select_CSI(t *testing.T) {

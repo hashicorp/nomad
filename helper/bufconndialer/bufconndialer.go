@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 // BufConnWrapper implements consul-template's TransportDialer using a
 // bufconn listener, to provide a way to Dial the in-memory listener
@@ -24,7 +24,10 @@ type BufConnWrapper struct {
 // New returns a new BufConnWrapper with a new bufconn.Listener. The wrapper
 // provides a dialer for creating connections to the listener.
 func New() (net.Listener, *BufConnWrapper) {
-	ln := bufconn.Listen(1024 * 1024)
+	// this buffer is sized to accept a maximum-sized Nomad Variable payload
+	// (64k) with plenty of room to spare for the metadata and envelope, in a
+	// single read
+	ln := bufconn.Listen(1024 * 100)
 	return ln, &BufConnWrapper{listener: ln}
 }
 

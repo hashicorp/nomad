@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 job "checks_task_restart" {
   datacenters = ["dc1"]
@@ -35,7 +35,6 @@ job "checks_task_restart" {
 
     task "python" {
       driver = "raw_exec"
-      user   = "nobody"
       config {
         command = "python3"
         args    = ["-m", "http.server", "${NOMAD_PORT_http}", "--directory", "/tmp"]

@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 variable "build_sha" {
   type        = string
@@ -14,7 +14,7 @@ locals {
 source "amazon-ebs" "latest_windows_2016" {
   ami_name       = "nomad-e2e-${local.version}-windows-2016-amd64-${local.timestamp}"
   communicator   = "ssh"
-  instance_type  = "t2.medium"
+  instance_type  = "m7a.large"
   region         = "us-east-1"
   user_data_file = "windows-2016-amd64/userdata.ps1" # enables ssh
   ssh_timeout    = "10m"
@@ -22,7 +22,7 @@ source "amazon-ebs" "latest_windows_2016" {
 
   source_ami_filter {
     filters = {
-      name                = "Windows_Server-2016-English-Full-Containers-*"
+      name                = "Windows_Server-2016-English-Full-ECS_Optimized-*"
       root-device-type    = "ebs"
       virtualization-type = "hvm"
     }

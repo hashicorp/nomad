@@ -1,11 +1,12 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package config
 
 import (
+	"slices"
+
 	"github.com/hashicorp/nomad/helper"
-	"golang.org/x/exp/slices"
 )
 
 // SentinelConfig is configuration specific to Sentinel

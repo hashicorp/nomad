@@ -3,17 +3,31 @@
 set -euo pipefail
 
 fail () {
-    echo "pre-push hook: $@" >&2
-    echo "    --no-verify to bypass this hook" >&2
-    exit 1
+  echo "pre-push hook: $@" >&2
+  echo "    --no-verify to bypass this hook" >&2
+  exit 1
 }
 
-# only push to oss when the enterprise version is absent
+if ! git rev-parse --show-toplevel > /dev/null; then
+  fail "this hook must be run from a worktree."
+fi
+
+# only push to oss when the enterprise sentinel file is absent
 # ====================
-oss="git@github.com:hashicorp/nomad.git"
-ent="git@github.com:hashicorp/nomad-enterprise.git"
-if [ "$2" != "$ent" -a -f version/version_ent.go ]; then
-    fail "found enterprise version file version/version_ent.go while pushing to oss remote"
+if [ -f version/version_ent.go ]; then
+
+  # isEnterprise exits with a 0 when its first parameter matches the
+  # nomad-enterprise repo, regardless of additional optional and variable
+  # components of the remote URL, like the terminal ".git" extension
+  isEnterprise () {
+    local ent="hashicorp/nomad-enterprise"
+    local remote_url="${1}"
+    echo "${remote_url}" | grep -q -E "^((https://|((ssh://)?git@))?(www\.)?github\.com[:/])?hashicorp/nomad-enterprise(.git)?$"
+  }
+
+  if ! isEnterprise "${2}"; then
+    fail "found version/version_ent.go pushing to non-enterprise remote \"${2}\""
+  fi
 fi
 
 # do not push directly to main, stable-*, release/*
@@ -32,3 +46,4 @@ do
         fail "refusing to push directly to a branch prefixed \`release/\`"
     fi
 done
+

@@ -1,14 +1,14 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
 import (
-	"sync"
 	"testing"
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
@@ -24,7 +24,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	// Upsert a new key
@@ -48,7 +48,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, uint64(0), updateResp.Index)
 
-	// Get and List don't need a token here because they rely on mTLS role verification
+	// Get doesn't need a token here because it uses mTLS role verification
 	getReq := &structs.KeyringGetRootKeyRequest{
 		KeyID:        id,
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -61,24 +61,23 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.Equal(t, structs.EncryptionAlgorithmAES256GCM, getResp.Key.Meta.Algorithm)
 
 	// Make a blocking query for List and wait for an Update. Note
-	// that List/Get queries don't need ACL tokens in the test server
+	// that Get queries don't need ACL tokens in the test server
 	// because they always pass the mTLS check
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	errCh := make(chan error, 1)
 	var listResp structs.KeyringListRootKeyMetaResponse
 
 	go func() {
-		defer wg.Done()
+		defer close(errCh)
 		codec := rpcClient(t, srv) // not safe to share across goroutines
 		listReq := &structs.KeyringListRootKeyMetaRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:        "global",
 				MinQueryIndex: getResp.Index,
+				AuthToken:     rootToken.SecretID,
 			},
 		}
-		err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-		require.NoError(t, err)
+		errCh <- msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
 	}()
 
 	updateReq.RootKey.Meta.CreateTime = time.Now().UTC().UnixNano()
@@ -87,7 +86,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.NotEqual(t, uint64(0), updateResp.Index)
 
 	// wait for the blocking query to complete and check the response
-	wg.Wait()
+	require.NoError(t, <-errCh)
 	require.Equal(t, listResp.Index, updateResp.Index)
 	require.Len(t, listResp.Keys, 2) // bootstrap + new one
 
@@ -116,7 +115,10 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.Greater(t, delResp.Index, getResp.Index)
 
 	listReq := &structs.KeyringListRootKeyMetaRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: rootToken.SecretID,
+		},
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
 	require.NoError(t, err)
@@ -133,7 +135,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	// Setup an existing key
@@ -223,7 +225,7 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
 	// Setup an existing key
@@ -264,7 +266,8 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 
 	listReq := &structs.KeyringListRootKeyMetaRequest{
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			AuthToken: rootToken.SecretID,
 		},
 	}
 	var listResp structs.KeyringListRootKeyMetaResponse
@@ -294,4 +297,113 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 
 	gotKey := getResp.Key
 	require.Len(t, gotKey.Key, 32)
+}
+
+// TestKeyringEndpoint_ListPublic asserts the Keyring.ListPublic RPC returns
+// all keys which may be in use for active crytpographic material (variables,
+// valid JWTs).
+func TestKeyringEndpoint_ListPublic(t *testing.T) {
+
+	ci.Parallel(t)
+	srv, rootToken, shutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForKeyring(t, srv.RPC, "global")
+	codec := rpcClient(t, srv)
+
+	// Assert 1 key exists and normal fields are set
+	req := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: "ignored!",
+		},
+	}
+	var resp structs.KeyringListPublicResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.ListPublic", &req, &resp))
+	must.Eq(t, srv.config.RootKeyRotationThreshold, resp.RotationThreshold)
+	must.Len(t, 1, resp.PublicKeys)
+	must.NonZero(t, resp.Index)
+
+	// Rotate keys and assert there are now 2 keys
+	rotateReq := &structs.KeyringRotateRootKeyRequest{
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: rootToken.SecretID,
+		},
+	}
+	var rotateResp structs.KeyringRotateRootKeyResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp))
+	must.NotEq(t, resp.Index, rotateResp.Index)
+
+	// Verify we have a new key and the old one is inactive
+	var resp2 structs.KeyringListPublicResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.ListPublic", &req, &resp2))
+	must.Eq(t, srv.config.RootKeyRotationThreshold, resp2.RotationThreshold)
+	must.Len(t, 2, resp2.PublicKeys)
+	must.NonZero(t, resp2.Index)
+
+	found := false
+	for _, pk := range resp2.PublicKeys {
+		if pk.KeyID == resp.PublicKeys[0].KeyID {
+			must.False(t, found, must.Sprint("found the original public key twice"))
+			found = true
+			must.Eq(t, resp.PublicKeys[0], pk)
+			break
+		}
+	}
+	must.True(t, found, must.Sprint("original public key missing after rotation"))
+}
+
+// TestKeyringEndpoint_GetConfig_Issuer asserts that GetConfig returns OIDC
+// Discovery Configuration if an issuer is configured.
+func TestKeyringEndpoint_GetConfig_Issuer(t *testing.T) {
+	ci.Parallel(t)
+
+	// Set OIDCIssuer to a valid looking (but fake) issuer
+	const testIssuer = "https://oidc.test.nomadproject.io/"
+
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+
+		c.OIDCIssuer = testIssuer
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+	codec := rpcClient(t, srv)
+
+	req := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: "ignored!",
+		},
+	}
+	var resp structs.KeyringGetConfigResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.GetConfig", &req, &resp))
+	must.NotNil(t, resp.OIDCDiscovery)
+	must.Eq(t, testIssuer, resp.OIDCDiscovery.Issuer)
+	must.StrHasPrefix(t, testIssuer, resp.OIDCDiscovery.JWKS)
+}
+
+// TestKeyringEndpoint_GetConfig_Disabled asserts that GetConfig returns
+// nothing if an issuer is NOT configured. OIDC Discovery cannot work without
+// an issuer set, and there's no sensible default for Nomad to choose.
+func TestKeyringEndpoint_GetConfig_Disabled(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+	codec := rpcClient(t, srv)
+
+	req := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: "ignored!",
+		},
+	}
+	var resp structs.KeyringGetConfigResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.GetConfig", &req, &resp))
+	must.Nil(t, resp.OIDCDiscovery)
 }

@@ -87,7 +87,7 @@
     "ember-cli-sri": "^2.1.1",
     "ember-cli-string-helpers": "^6.1.0",
     "ember-cli-terser": "^4.0.2",
-    "ember-click-outside": "^3.0.0",
+    "ember-click-outside": "^5.0.0",
     "ember-composable-helpers": "^5.0.0",
     "ember-concurrency": "^2.2.1",
     "ember-copy": "^2.0.1",
@@ -178,8 +178,8 @@
   },
   "dependencies": {
     "@babel/helper-string-parser": "^7.19.4",
-    "@hashicorp/design-system-components": "^2.6.0",
-    "@hashicorp/ember-flight-icons": "^3.0.4",
+    "@hashicorp/design-system-components": "^3.3.0",
+    "@hashicorp/ember-flight-icons": "^4.0.4",
     "@percy/cli": "^1.6.1",
     "@percy/ember": "^3.0.0",
     "curved-arrows": "^0.1.0",
@@ -191,6 +191,7 @@
   },
   "resolutions": {
     "ember-auto-import": "^2.4.0",
+    "ember-element-helper": "0.6.0",
     "prop-types": "^15.8.1"
   }
 }

@@ -88,10 +88,11 @@ type AllocCheckStatuses map[string]AllocCheckStatus
 // RestartPolicy defines how the Nomad client restarts
 // tasks in a taskgroup when they fail
 type RestartPolicy struct {
-	Interval *time.Duration `hcl:"interval,optional"`
-	Attempts *int           `hcl:"attempts,optional"`
-	Delay    *time.Duration `hcl:"delay,optional"`
-	Mode     *string        `hcl:"mode,optional"`
+	Interval        *time.Duration `hcl:"interval,optional"`
+	Attempts        *int           `hcl:"attempts,optional"`
+	Delay           *time.Duration `hcl:"delay,optional"`
+	Mode            *string        `hcl:"mode,optional"`
+	RenderTemplates *bool          `mapstructure:"render_templates" hcl:"render_templates,optional"`
 }
 
 func (r *RestartPolicy) Merge(rp *RestartPolicy) {
@@ -106,6 +107,9 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 	}
 	if rp.Mode != nil {
 		r.Mode = rp.Mode
+	}
+	if rp.RenderTemplates != nil {
+		r.RenderTemplates = rp.RenderTemplates
 	}
 }
 
@@ -455,6 +459,7 @@ type TaskGroup struct {
 	MaxClientDisconnect       *time.Duration            `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
 	Consul                    *Consul                   `hcl:"consul,block"`
+	PreventRescheduleOnLost   *bool                     `hcl:"prevent_reschedule_on_lost,optional"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -573,17 +578,20 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
 	}
-
+	if g.PreventRescheduleOnLost == nil {
+		g.PreventRescheduleOnLost = pointerOf(false)
+	}
 }
 
 // These needs to be in sync with DefaultServiceJobRestartPolicy in
 // in nomad/structs/structs.go
 func defaultServiceJobRestartPolicy() *RestartPolicy {
 	return &RestartPolicy{
-		Delay:    pointerOf(15 * time.Second),
-		Attempts: pointerOf(2),
-		Interval: pointerOf(30 * time.Minute),
-		Mode:     pointerOf(RestartPolicyModeFail),
+		Delay:           pointerOf(15 * time.Second),
+		Attempts:        pointerOf(2),
+		Interval:        pointerOf(30 * time.Minute),
+		Mode:            pointerOf(RestartPolicyModeFail),
+		RenderTemplates: pointerOf(false),
 	}
 }
 
@@ -591,10 +599,11 @@ func defaultServiceJobRestartPolicy() *RestartPolicy {
 // in nomad/structs/structs.go
 func defaultBatchJobRestartPolicy() *RestartPolicy {
 	return &RestartPolicy{
-		Delay:    pointerOf(15 * time.Second),
-		Attempts: pointerOf(3),
-		Interval: pointerOf(24 * time.Hour),
-		Mode:     pointerOf(RestartPolicyModeFail),
+		Delay:           pointerOf(15 * time.Second),
+		Attempts:        pointerOf(3),
+		Interval:        pointerOf(24 * time.Hour),
+		Mode:            pointerOf(RestartPolicyModeFail),
+		RenderTemplates: pointerOf(false),
 	}
 }
 
@@ -708,6 +717,7 @@ type Task struct {
 	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
 	Artifacts       []*TaskArtifact        `hcl:"artifact,block"`
 	Vault           *Vault                 `hcl:"vault,block"`
+	Consul          *Consul                `hcl:"consul,block"`
 	Templates       []*Template            `hcl:"template,block"`
 	DispatchPayload *DispatchPayloadConfig `hcl:"dispatch_payload,block"`
 	VolumeMounts    []*VolumeMount         `hcl:"volume_mount,block"`
@@ -717,7 +727,15 @@ type Task struct {
 	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
 	Kind            string                 `hcl:"kind,optional"`
 	ScalingPolicies []*ScalingPolicy       `hcl:"scaling,block"`
-	Identity        *WorkloadIdentity      `hcl:"identity,block"`
+
+	// Identity is the default Nomad Workload Identity and will be added to
+	// Identities with the name "default"
+	Identity *WorkloadIdentity
+
+	// Workload Identities
+	Identities []*WorkloadIdentity `hcl:"identity,block"`
+
+	Actions []*Action `hcl:"action,block"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
@@ -739,6 +757,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	if t.Vault != nil {
 		t.Vault.Canonicalize()
+	}
+	if t.Consul != nil {
+		t.Consul.Canonicalize()
 	}
 	for _, tmpl := range t.Templates {
 		tmpl.Canonicalize()
@@ -917,7 +938,9 @@ func (tmpl *Template) Canonicalize() {
 
 type Vault struct {
 	Policies     []string `hcl:"policies,optional"`
+	Role         string   `hcl:"role,optional"`
 	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
+	Cluster      string   `hcl:"cluster,optional"`
 	Env          *bool    `hcl:"env,optional"`
 	DisableFile  *bool    `mapstructure:"disable_file" hcl:"disable_file,optional"`
 	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
@@ -933,6 +956,9 @@ func (v *Vault) Canonicalize() {
 	}
 	if v.Namespace == nil {
 		v.Namespace = pointerOf("")
+	}
+	if v.Cluster == "" {
+		v.Cluster = "default"
 	}
 	if v.ChangeMode == nil {
 		v.ChangeMode = pointerOf("restart")
@@ -1139,6 +1165,18 @@ func (t *TaskCSIPluginConfig) Canonicalize() {
 // WorkloadIdentity is the jobspec block which determines if and how a workload
 // identity is exposed to tasks.
 type WorkloadIdentity struct {
-	Env  bool `hcl:"env,optional"`
-	File bool `hcl:"file,optional"`
+	Name         string        `hcl:"name,optional"`
+	Audience     []string      `mapstructure:"aud" hcl:"aud,optional"`
+	ChangeMode   string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeSignal string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Env          bool          `hcl:"env,optional"`
+	File         bool          `hcl:"file,optional"`
+	ServiceName  string        `hcl:"service_name,optional"`
+	TTL          time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
+}
+
+type Action struct {
+	Name    string   `hcl:"name,label"`
+	Command string   `mapstructure:"command" hcl:"command"`
+	Args    []string `mapstructure:"args" hcl:"args,optional"`
 }

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package allochealth
 
@@ -1458,6 +1458,42 @@ func TestTracker_evaluateConsulChecks(t *testing.T) {
 										Name:    "c1",
 										CheckID: "c1",
 										Status:  consulapi.HealthCritical,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "failing sidecar checks only",
+			exp:  false,
+			tg: &structs.TaskGroup{
+				Services: []*structs.Service{{
+					Name: "group-s1",
+					Checks: []*structs.ServiceCheck{
+						{Name: "c1"},
+					},
+				}},
+			},
+			registrations: &serviceregistration.AllocRegistration{
+				Tasks: map[string]*serviceregistration.ServiceRegistrations{
+					"group": {
+						Services: map[string]*serviceregistration.ServiceRegistration{
+							"abc123": {
+								ServiceID: "abc123",
+								Checks: []*consulapi.AgentCheck{
+									{
+										Name:   "c1",
+										Status: consulapi.HealthPassing,
+									},
+								},
+								SidecarService: &consulapi.AgentService{},
+								SidecarChecks: []*consulapi.AgentCheck{
+									{
+										Name:   "sidecar-check",
+										Status: consulapi.HealthCritical,
 									},
 								},
 							},

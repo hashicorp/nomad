@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package state
 
@@ -27,6 +27,17 @@ import (
 
 func testStateStore(t *testing.T) *StateStore {
 	return TestStateStore(t)
+}
+
+func TestStateStore_InvalidConfig(t *testing.T) {
+	config := &StateStoreConfig{
+		// default zero value, but explicit because it causes validation failure
+		JobTrackedVersions: 0,
+	}
+	store, err := NewStateStore(config)
+	must.Nil(t, store)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "JobTrackedVersions must be positive")
 }
 
 func TestStateStore_Blocking_Error(t *testing.T) {
@@ -2523,7 +2534,7 @@ func TestStateStore_UpsertJob_submission(t *testing.T) {
 	must.Eq(t, index, sub.JobModifyIndex)
 
 	// insert 6 more, going over the limit
-	for i := 1; i <= structs.JobTrackedVersions; i++ {
+	for i := 1; i <= structs.JobDefaultTrackedVersions; i++ {
 		index++
 		job2 := job.Copy()
 		job2.Meta["version"] = strconv.Itoa(i)
@@ -2624,8 +2635,8 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(allVersions) != structs.JobTrackedVersions {
-		t.Fatalf("got %d; want %d", len(allVersions), structs.JobTrackedVersions)
+	if len(allVersions) != structs.JobDefaultTrackedVersions {
+		t.Fatalf("got %d; want %d", len(allVersions), structs.JobDefaultTrackedVersions)
 	}
 
 	if a := allVersions[0]; a.ID != job.ID || a.Version != 299 || a.Name != "299" {
@@ -2636,7 +2647,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	}
 
 	// Ensure we didn't delete the stable job
-	if a := allVersions[structs.JobTrackedVersions-1]; a.ID != job.ID ||
+	if a := allVersions[structs.JobDefaultTrackedVersions-1]; a.ID != job.ID ||
 		a.Version != 0 || a.Name != "0" || !a.Stable {
 		t.Fatalf("bad: %+v", a)
 	}
@@ -3858,11 +3869,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.True(t, vs[0].ReadSchedulable())
 
-	// registration is an error when the volume is in use
-	index++
-	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{v0})
-	require.Error(t, err, "volume re-registered while in use")
-	// as is deregistration
+	// deregistration is an error when the volume is in use
 	index++
 	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, false)
 	require.Error(t, err, "volume deregistered while in use")

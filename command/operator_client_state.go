@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -70,10 +70,37 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 			return 1
 		}
 
+		identities, err := db.GetAllocIdentities(allocID)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("failed to get identities for %s: %v", allocID, err))
+			return 1
+		}
+
+		networks, err := db.GetNetworkStatus(allocID)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("failed to get networks for %s: %v", allocID, err))
+			return 1
+		}
+
+		volumes, err := db.GetAllocVolumes(allocID)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("failed to get volumes for %s: %v", allocID, err))
+			return 1
+		}
+
 		tasks := map[string]*taskState{}
 		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 		for _, jt := range tg.Tasks {
 			ls, rs, err := db.GetTaskRunnerState(allocID, jt.Name)
+			if ls == nil {
+				c.Ui.Warn(fmt.Sprintf("no task runner state for %s (%s)", allocID, jt.Name))
+				tasks[jt.Name] = &taskState{
+					LocalState:  ls,
+					RemoteState: rs,
+					DriverState: nil,
+				}
+				continue
+			}
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("failed to get task runner state %s: %v", allocID, err))
 				return 1
@@ -99,6 +126,9 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 		data[allocID] = &clientStateAlloc{
 			Alloc:        alloc,
 			DeployStatus: deployState,
+			Identities:   identities,
+			Networks:     networks,
+			Volumes:      volumes,
 			Tasks:        tasks,
 		}
 	}
@@ -122,6 +152,9 @@ type debugOutput struct {
 type clientStateAlloc struct {
 	Alloc        any
 	DeployStatus any
+	Identities   any
+	Networks     any
+	Volumes      any
 	Tasks        map[string]*taskState
 }
 

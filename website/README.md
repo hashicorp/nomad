@@ -1,6 +1,6 @@
 # Nomad Documentation Website
 
-This subdirectory contains the content for the [Nomad Website](https://nomadproject.io/).
+This subdirectory contains the content for the [Nomad Documentation](https://developer.hashicorp.com/nomad/docs).
 
 <!--
   This readme file contains several blocks of generated text, to make it easier to share common information
@@ -48,12 +48,14 @@ The docker image is pre-built with all the website dependencies installed, which
 
 ### With Node
 
-If your local development environment has a supported version (v10.0.0+) of [node installed](https://nodejs.org/en/) you can run:
+If your local development environment has a supported version of [Node.js](https://nodejs.org/en/) installed you can run:
 
 - `npm install`
 - `npm start`
 
 ...and then visit `http://localhost:3000`.
+
+See [`nvmrc`](./.nvmrc) or [`package.json`](./package.json)'s `engines` field for supported Node.js versions.
 
 If you pull down new code from github, you should run `npm install` again. Otherwise, there's no need to re-run `npm install` each time the site is run, you can just run `npm start` to get it going.
 

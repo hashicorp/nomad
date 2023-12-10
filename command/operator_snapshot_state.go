@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -43,7 +43,7 @@ func (c *OperatorSnapshotStateCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *OperatorSnapshotStateCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return complete.PredictFiles("*.snap")
 }
 
 func (c *OperatorSnapshotStateCommand) Synopsis() string {

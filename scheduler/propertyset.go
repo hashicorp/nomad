@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
@@ -9,9 +9,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set"
-
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -263,7 +261,7 @@ func (p *propertySet) UsedCount(option *structs.Node, _ string) (string, string,
 // existing and proposed allocations. It also takes into account any stopped
 // allocations
 func (p *propertySet) GetCombinedUseMap() map[string]uint64 {
-	combinedUse := make(map[string]uint64, helper.Max(len(p.existingValues), len(p.proposedValues)))
+	combinedUse := make(map[string]uint64, max(len(p.existingValues), len(p.proposedValues)))
 	for _, usedValues := range []map[string]uint64{p.existingValues, p.proposedValues} {
 		for propertyValue, usedCount := range usedValues {
 			targetPropertyValue := p.targetedPropertyValue(propertyValue)

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package client_test
 
@@ -59,6 +59,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 			KeyFile:              clientKeyFn,
 		}
 		c.Client.Enabled = true
+		c.Server.Enabled = false
 		c.Client.Servers = []string{server.GetConfig().RPCAddr.String()}
 	}
 	client1 := agent.NewTestAgent(t, "client1", agentConfFunc)

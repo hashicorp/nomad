@@ -1,9 +1,7 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 job "nomad_provider_service_lookup" {
-  datacenters = ["dc1"]
-  type        = "service"
 
   constraint {
     attribute = "${attr.kernel.name}"

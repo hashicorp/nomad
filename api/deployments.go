@@ -18,7 +18,7 @@ func (c *Client) Deployments() *Deployments {
 	return &Deployments{client: c}
 }
 
-// List is used to dump all of the deployments.
+// List is used to dump all the deployments.
 func (d *Deployments) List(q *QueryOptions) ([]*Deployment, *QueryMeta, error) {
 	var resp []*Deployment
 	qm, err := d.client.query("/v1/deployments", &resp, q)

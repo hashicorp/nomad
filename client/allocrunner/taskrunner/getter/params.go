@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package getter
 
@@ -8,14 +8,13 @@ import (
 	"encoding/json"
 	"io"
 	"io/fs"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-getter"
-	"github.com/hashicorp/nomad/helper"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // parameters is encoded by the Nomad client and decoded by the getter sub-process
@@ -65,13 +64,13 @@ func (p *parameters) read(r io.Reader) error {
 // terminated via signal.
 func (p *parameters) deadline() time.Duration {
 	const minimum = 30 * time.Minute
-	max := minimum
-	max = helper.Max(max, p.HTTPReadTimeout)
-	max = helper.Max(max, p.GCSTimeout)
-	max = helper.Max(max, p.GitTimeout)
-	max = helper.Max(max, p.HgTimeout)
-	max = helper.Max(max, p.S3Timeout)
-	return max + 1*time.Minute
+	maximum := minimum
+	maximum = max(maximum, p.HTTPReadTimeout)
+	maximum = max(maximum, p.GCSTimeout)
+	maximum = max(maximum, p.GitTimeout)
+	maximum = max(maximum, p.HgTimeout)
+	maximum = max(maximum, p.S3Timeout)
+	return maximum + 1*time.Minute
 }
 
 // Equal returns whether p and o are the same.
@@ -109,11 +108,17 @@ func (p *parameters) Equal(o *parameters) bool {
 		return false
 	case p.TaskDir != o.TaskDir:
 		return false
-	case !maps.EqualFunc(p.Headers, o.Headers, slices.Equal[string]):
+	case !maps.EqualFunc(p.Headers, o.Headers, headersCompareFn):
 		return false
 	}
 
 	return true
+}
+
+func headersCompareFn(a []string, b []string) bool {
+	slices.Sort(a)
+	slices.Sort(b)
+	return slices.Equal(a, b)
 }
 
 const (

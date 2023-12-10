@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package config
 
@@ -7,14 +7,12 @@ import (
 	"context"
 
 	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	arinterfaces "github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -22,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -50,18 +49,19 @@ type AllocRunnerConfig struct {
 	// StateDB is used to store and restore state.
 	StateDB cstate.StateDB
 
-	// Consul is the Consul client used to register task services and checks
-	Consul serviceregistration.Handler
+	// ConsulServices is used to register task services and checks
+	ConsulServices serviceregistration.Handler
 
-	// ConsulProxies is the Consul client used to lookup supported envoy versions
-	// of the Consul agent.
-	ConsulProxies consul.SupportedProxiesAPI
+	// ConsulProxiesFunc gets a Consul client used to lookup supported envoy
+	// versions of the Consul agent.
+	ConsulProxiesFunc consul.SupportedProxiesAPIFunc
 
 	// ConsulSI is the Consul client used to manage service identity tokens.
 	ConsulSI consul.ServiceIdentityAPI
 
-	// Vault is the Vault client to use to retrieve Vault tokens
-	Vault vaultclient.VaultClient
+	// VaultFunc is the function to get a Vault client to use to retrieve Vault
+	// tokens
+	VaultFunc vaultclient.VaultClientFunc
 
 	// StateUpdater is used to emit updated task state
 	StateUpdater interfaces.AllocStateHandler
@@ -90,9 +90,6 @@ type AllocRunnerConfig struct {
 	// DriverManager handles dispensing of driver plugins
 	DriverManager drivermanager.Manager
 
-	// CpusetManager configures the cpuset cgroup if supported by the platform
-	CpusetManager cgutil.CpusetManager
-
 	// ServersContactedCh is closed when the first GetClientAllocs call to
 	// servers succeeds and allocs are synced.
 	ServersContactedCh chan struct{}
@@ -110,6 +107,18 @@ type AllocRunnerConfig struct {
 
 	// Getter is an interface for retrieving artifacts.
 	Getter interfaces.ArtifactGetter
+
+	// Wranglers is an interface for managing unix/windows processes.
+	Wranglers interfaces.ProcessWranglers
+
+	// Partitions is an interface for managing cpuset partitions.
+	Partitions interfaces.CPUPartitions
+
+	// WIDSigner fetches workload identities
+	WIDSigner widmgr.IdentitySigner
+
+	// WIDMgr manages workload identities
+	WIDMgr widmgr.IdentityManager
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to

@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { action } from '@ember/object';
@@ -25,8 +25,15 @@ export default class CodeMirrorModifier extends Modifier {
     }
   }
 
-  didInstall() {
-    this._setup();
+  element = null;
+  args = {};
+
+  modify(element, positional, named) {
+    if (!this.element) {
+      this.element = element;
+      this.args = { positional, named };
+      this._setup();
+    }
   }
 
   didUpdateArguments() {

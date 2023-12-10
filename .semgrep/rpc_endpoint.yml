@@ -1,10 +1,8 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 rules:
-  # Check potentially unauthenticated RPC endpoints. Technically more
-  # authorization (authz) oriented than authn, but before Nomad 1.4/1.5 that
-  # distinction wasn't as important.
+  # Check potentially RPC endpoints with missing authentication/authorization.
   - id: "rpc-potentially-unauthenticated"
     patterns:
       - pattern: |
@@ -22,18 +20,56 @@ rules:
           ...
           ... := $A.$B.ResolveACL(...)
           ...
-      # Pattern used by endpoints that are used by both ACLs and Clients.
-      # These endpoints will always have a ctx passed to Authenticate
+
+      # Pattern used by endpoints that are used only for server-to-server. The
+      # authentication and authorization check must be done together before
+      # forwarding to prevent the risk of confused deputy when RPCs are
+      # forwarded.
       - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
+
+          aclObj, err := $A.srv.AuthenticateServerOnly($A.ctx, args)
+          ...
+          if err != nil || !aclObj.AllowServerOp() {
+            return structs.ErrPermissionDenied
+          }
+
+          if done, err := $A.srv.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+
+      # Pattern used by endpoints that are used only for client-to-server.
+      # Authorization can be done after forwarding, but must check the
+      # AllowClientOp policy
+      - pattern-not-inside: |
+          aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
           ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := $A.$B.ResolveClientOrACL(...)
+          if !aclObj.AllowClientOp() {
+            return structs.ErrPermissionDenied
+          }
           ...
-      # Pattern used by ACL endpoints that need to interact with the token directly
+
+      # Pattern used by endpoints that are used only for client-to-server.
+      # Authorization can be done after forwarding, but must check the
+      # AllowClientOp policy. This should not be added to any new endpoints.
+      - pattern-not-inside: |
+          aclObj, err := $A.$B.AuthenticateClientOnlyLegacy($A.ctx, args)
+          ...
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          if !aclObj.AllowClientOp() {
+            return structs.ErrPermissionDenied
+          }
+          ...
+
+      # Pattern used by ACL endpoints that need to interact with the token
+      # directly.
       - pattern-not-inside: |
           authErr := $A.$B.Authenticate($A.ctx, args)
           ...
@@ -43,52 +79,7 @@ rules:
           ...
           ... := args.GetIdentity().GetACLToken()
           ...
-      # Pattern used by endpoints called exclusively between agents
-      # (server -> server or client -> server)
-      - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
-          ... := validateTLSCertificateLevel(...)
-          ...
-          if done, err := $A.$B.forward($METHOD, ...); done {
-            return err
-          }
-      # Pattern used by endpoints that support both normal ACLs and workload
-      # identity but break authentication and authorization up
-      # TODO: currently this is just for Variables and should be removed once
-      # https://github.com/hashicorp/nomad/issues/15875 is complete.
-      - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
-          if done, err := $A.$B.forward($METHOD, ...); done {
-            return err
-          }
-          ...
-          ... := $T.handleMixedAuthEndpoint(...)
-          ...
-      # Second pattern used by endpoints that support both normal ACLs and
-      # workload identity but break authentication and authorization up
-      # TODO: currently this is just for Variables and should be removed once
-      # https://github.com/hashicorp/nomad/issues/15875 is complete.
-      - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
-          if done, err := $A.$B.forward($METHOD, ...); done {
-            return err
-          }
-          ...
-          ... := svePreApply($A, args, args.Var)
-          ...
-      # Pattern used by some Node endpoints.
-      - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
-          if done, err := $A.$B.forward($METHOD, ...); done {
-            return err
-          }
-          ...
-          return $A.deregister(...)
-          ...
+
       - metavariable-pattern:
           metavariable: $METHOD
           patterns:
@@ -103,12 +94,33 @@ rules:
             - pattern-not: 'structs.ACLOIDCAuthURLRPCMethod'
             - pattern-not: 'structs.ACLOIDCCompleteAuthRPCMethod'
             - pattern-not: 'structs.ACLLoginRPCMethod'
-            - pattern-not: '"CSIPlugin.Get"'
-            - pattern-not: '"CSIPlugin.List"'
             - pattern-not: '"Status.Leader"'
             - pattern-not: '"Status.Peers"'
             - pattern-not: '"Status.Version"'
+            - pattern-not: '"Keyring.ListPublic"'
+            - pattern-not: '"Keyring.GetConfig"'
     message: "RPC method $METHOD appears to be unauthenticated"
+    languages:
+      - "go"
+    severity: "WARNING"
+    paths:
+      include:
+        - "nomad/*_endpoint.go"
+
+
+  # ACL objects should never be nil-checked in RPC handlers before checking
+  # authorization, as nil ACLs are always programmer errors.
+  - id: "rpc-authz-bypass"
+    patterns:
+      # Pattern that will accidentally bypass authorization checks.
+      - pattern: |
+          ...
+          if aclObj != nil && aclObj.$ACL_CHECK(...) {
+          ...
+          }
+          ...
+
+    message: "RPC method ACL check $ACL_CHECK appears to bypass authorization by first checking for nil ACLs"
     languages:
       - "go"
     severity: "WARNING"

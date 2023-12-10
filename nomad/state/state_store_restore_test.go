@@ -1,10 +1,9 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package state
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
@@ -14,8 +13,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStateStore_RestoreNode(t *testing.T) {
@@ -25,25 +22,15 @@ func TestStateStore_RestoreNode(t *testing.T) {
 	node := mock.Node()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	err = restore.NodeRestore(node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.NodeRestore(node))
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, node) {
-		t.Fatalf("Bad: %#v %#v", out, node)
-	}
+	must.NoError(t, err)
+	must.Eq(t, node, out)
 }
 
 func TestStateStore_RestoreJob(t *testing.T) {
@@ -94,29 +81,16 @@ func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
 	}
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	err = restore.PeriodicLaunchRestore(launch)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.PeriodicLaunchRestore(launch))
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.PeriodicLaunchByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, launch) {
-		t.Fatalf("Bad: %#v %#v", out, job)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.Eq(t, launch, out)
+	must.False(t, watchFired(ws))
 }
 
 func TestStateStore_RestoreJobVersion(t *testing.T) {
@@ -126,29 +100,16 @@ func TestStateStore_RestoreJobVersion(t *testing.T) {
 	job := mock.Job()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	err = restore.JobVersionRestore(job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.JobVersionRestore(job))
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByIDAndVersion(ws, job.Namespace, job.ID, job.Version)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, job) {
-		t.Fatalf("Bad: %#v %#v", out, job)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.Eq(t, job, out)
+	must.False(t, watchFired(ws))
 }
 
 func TestStateStore_RestoreDeployment(t *testing.T) {
@@ -158,29 +119,16 @@ func TestStateStore_RestoreDeployment(t *testing.T) {
 	d := mock.Deployment()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	err = restore.DeploymentRestore(d)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.DeploymentRestore(d))
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.DeploymentByID(ws, d.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, d) {
-		t.Fatalf("Bad: %#v %#v", out, d)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.Eq(t, d, out)
+	must.False(t, watchFired(ws))
 }
 
 func TestStateStore_RestoreJobSummary(t *testing.T) {
@@ -198,66 +146,56 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 		},
 	}
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	err = restore.JobSummaryRestore(jobSummary)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.JobSummaryRestore(jobSummary))
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, jobSummary) {
-		t.Fatalf("Bad: %#v %#v", out, jobSummary)
-	}
+	must.NoError(t, err)
+	must.Eq(t, jobSummary, out)
+	must.False(t, watchFired(ws))
 }
 
 func TestStateStore_RestoreCSIPlugin(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	state := testStateStore(t)
 	plugin := mock.CSIPlugin()
 
 	restore, err := state.Restore()
-	require.NoError(err)
+	must.NoError(t, err)
 
 	err = restore.CSIPluginRestore(plugin)
-	require.NoError(err)
-	require.NoError(restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.CSIPluginByID(ws, plugin.ID)
-	require.NoError(err)
-	require.EqualValues(out, plugin)
+	must.NoError(t, err)
+	must.Eq(t, plugin, out)
+	must.False(t, watchFired(ws))
 }
 
 func TestStateStore_RestoreCSIVolume(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	state := testStateStore(t)
 	plugin := mock.CSIPlugin()
 	volume := mock.CSIVolume(plugin)
 
 	restore, err := state.Restore()
-	require.NoError(err)
+	must.NoError(t, err)
 
 	err = restore.CSIVolumeRestore(volume)
-	require.NoError(err)
-	restore.Commit()
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.CSIVolumeByID(ws, "default", volume.ID)
-	require.NoError(err)
-	require.EqualValues(out, volume)
+	must.NoError(t, err)
+	must.Eq(t, volume, out)
 }
 
 func TestStateStore_RestoreIndex(t *testing.T) {
@@ -266,26 +204,16 @@ func TestStateStore_RestoreIndex(t *testing.T) {
 	state := testStateStore(t)
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	index := &IndexEntry{"jobs", 1000}
-	err = restore.IndexRestore(index)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
 
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.IndexRestore(index))
+	must.NoError(t, restore.Commit())
 
 	out, err := state.Index("jobs")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if out != 1000 {
-		t.Fatalf("Bad: %#v %#v", out, 1000)
-	}
+	must.NoError(t, err)
+	must.Eq(t, 1000, out)
 }
 
 func TestStateStore_RestoreEval(t *testing.T) {
@@ -295,25 +223,15 @@ func TestStateStore_RestoreEval(t *testing.T) {
 	eval := mock.Eval()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	err = restore.EvalRestore(eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.EvalRestore(eval))
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.EvalByID(ws, eval.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, eval) {
-		t.Fatalf("Bad: %#v %#v", out, eval)
-	}
+	must.NoError(t, err)
+	must.Eq(t, eval, out)
 }
 
 func TestStateStore_RestoreAlloc(t *testing.T) {
@@ -323,30 +241,16 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 	alloc := mock.Alloc()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	err = restore.AllocRestore(alloc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.AllocRestore(alloc))
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, alloc) {
-		t.Fatalf("Bad: %#v %#v", out, alloc)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.Eq(t, alloc, out)
+	must.False(t, watchFired(ws))
 }
 
 func TestStateStore_RestoreVaultAccessor(t *testing.T) {
@@ -356,53 +260,36 @@ func TestStateStore_RestoreVaultAccessor(t *testing.T) {
 	a := mock.VaultAccessor()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	err = restore.VaultAccessorRestore(a)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.VaultAccessor(ws, a.Accessor)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, a) {
-		t.Fatalf("Bad: %#v %#v", out, a)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.Eq(t, a, out)
+	must.False(t, watchFired(ws))
 }
 
 func TestStateStore_RestoreSITokenAccessor(t *testing.T) {
 	ci.Parallel(t)
-	r := require.New(t)
 
 	state := testStateStore(t)
 	a1 := mock.SITokenAccessor()
 
 	restore, err := state.Restore()
-	r.NoError(err)
+	must.NoError(t, err)
 
-	err = restore.SITokenAccessorRestore(a1)
-	r.NoError(err)
-
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.SITokenAccessorRestore(a1))
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	result, err := state.SITokenAccessor(ws, a1.AccessorID)
-	r.NoError(err)
-	r.Equal(a1, result)
-
-	wsFired := watchFired(ws)
-	r.False(wsFired)
+	must.NoError(t, err)
+	must.Eq(t, a1, result)
+	must.False(t, watchFired(ws))
 }
 
 func TestStateStore_RestoreACLPolicy(t *testing.T) {
@@ -412,22 +299,16 @@ func TestStateStore_RestoreACLPolicy(t *testing.T) {
 	policy := mock.ACLPolicy()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	err = restore.ACLPolicyRestore(policy)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ACLPolicyByName(ws, policy.Name)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.Equal(t, policy, out)
+	must.NoError(t, err)
+	must.Eq(t, policy, out)
 }
 
 func TestStateStore_RestoreACLToken(t *testing.T) {
@@ -437,26 +318,20 @@ func TestStateStore_RestoreACLToken(t *testing.T) {
 	token := mock.ACLToken()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	err = restore.ACLTokenRestore(token)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ACLTokenByAccessorID(ws, token.AccessorID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.Equal(t, token, out)
+	must.NoError(t, err)
+	must.Eq(t, token, out)
 }
 
 func TestStateStore_ClusterMetadataRestore(t *testing.T) {
-	require := require.New(t)
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	clusterID := "12345678-1234-1234-1234-1234567890"
@@ -464,42 +339,39 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 	meta := &structs.ClusterMetadata{ClusterID: clusterID, CreateTime: now}
 
 	restore, err := state.Restore()
-	require.NoError(err)
+	must.NoError(t, err)
 
 	err = restore.ClusterMetadataRestore(meta)
-	require.NoError(err)
-
-	require.NoError(restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	out, err := state.ClusterMetadata(nil)
-	require.NoError(err)
-	require.Equal(clusterID, out.ClusterID)
-	require.Equal(now, out.CreateTime)
+	must.NoError(t, err)
+	must.Eq(t, clusterID, out.ClusterID)
+	must.Eq(t, now, out.CreateTime)
 }
 
 func TestStateStore_RestoreScalingPolicy(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	state := testStateStore(t)
 	scalingPolicy := mock.ScalingPolicy()
 
 	restore, err := state.Restore()
-	require.NoError(err)
+	must.NoError(t, err)
 
 	err = restore.ScalingPolicyRestore(scalingPolicy)
-	require.NoError(err)
-	require.NoError(restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ScalingPolicyByID(ws, scalingPolicy.ID)
-	require.NoError(err)
-	require.EqualValues(out, scalingPolicy)
+	must.NoError(t, err)
+	must.Eq(t, scalingPolicy, out)
 }
 
 func TestStateStore_RestoreScalingEvents(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	state := testStateStore(t)
 	jobScalingEvents := &structs.JobScalingEvents{
@@ -513,18 +385,18 @@ func TestStateStore_RestoreScalingEvents(t *testing.T) {
 	}
 
 	restore, err := state.Restore()
-	require.NoError(err)
+	must.NoError(t, err)
 
 	err = restore.ScalingEventsRestore(jobScalingEvents)
-	require.NoError(err)
-	require.NoError(restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, _, err := state.ScalingEventsByJob(ws, jobScalingEvents.Namespace,
 		jobScalingEvents.JobID)
-	require.NoError(err)
-	require.NotNil(out)
-	require.EqualValues(jobScalingEvents.ScalingEvents, out)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+	must.Eq(t, jobScalingEvents.ScalingEvents, out)
 }
 
 func TestStateStore_RestoreSchedulerConfig(t *testing.T) {
@@ -539,20 +411,18 @@ func TestStateStore_RestoreSchedulerConfig(t *testing.T) {
 		ModifyIndex: 200,
 	}
 
-	require := require.New(t)
 	restore, err := state.Restore()
-	require.Nil(err)
+	must.NoError(t, err)
 
 	err = restore.SchedulerConfigRestore(schedConfig)
-	require.Nil(err)
+	must.NoError(t, err)
 
-	require.NoError(restore.Commit())
+	must.NoError(t, restore.Commit())
 
 	modIndex, out, err := state.SchedulerConfig()
-	require.Nil(err)
-	require.Equal(schedConfig.ModifyIndex, modIndex)
-
-	require.Equal(schedConfig, out)
+	must.NoError(t, err)
+	must.Eq(t, schedConfig.ModifyIndex, modIndex)
+	must.Eq(t, schedConfig, out)
 }
 
 func TestStateStore_ServiceRegistrationRestore(t *testing.T) {
@@ -564,16 +434,16 @@ func TestStateStore_ServiceRegistrationRestore(t *testing.T) {
 	serviceRegs := mock.ServiceRegistrations()
 
 	restore, err := testState.Restore()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Iterate the service registrations, restore, and commit. Set the indexes
 	// on the objects, so we can check these.
 	for i := range serviceRegs {
 		serviceRegs[i].ModifyIndex = expectedIndex
 		serviceRegs[i].CreateIndex = expectedIndex
-		require.NoError(t, restore.ServiceRegistrationRestore(serviceRegs[i]))
+		must.NoError(t, restore.ServiceRegistrationRestore(serviceRegs[i]))
 	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.Commit())
 
 	// Check the state is now populated as we expect and that we can find the
 	// restored registrations.
@@ -581,8 +451,8 @@ func TestStateStore_ServiceRegistrationRestore(t *testing.T) {
 
 	for i := range serviceRegs {
 		out, err := testState.GetServiceRegistrationByID(ws, serviceRegs[i].Namespace, serviceRegs[i].ID)
-		require.NoError(t, err)
-		require.Equal(t, serviceRegs[i], out)
+		must.NoError(t, err)
+		must.Eq(t, serviceRegs[i], out)
 	}
 }
 
@@ -595,16 +465,16 @@ func TestStateStore_VariablesRestore(t *testing.T) {
 	svs := mock.VariablesEncrypted(5, 5)
 
 	restore, err := testState.Restore()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Iterate the variables, restore, and commit. Set the indexes
 	// on the objects, so we can check these.
 	for i := range svs {
 		svs[i].ModifyIndex = expectedIndex
 		svs[i].CreateIndex = expectedIndex
-		require.NoError(t, restore.VariablesRestore(svs[i]))
+		must.NoError(t, restore.VariablesRestore(svs[i]))
 	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, restore.Commit())
 
 	// Check the state is now populated as we expect and that we can find the
 	// restored variables.
@@ -612,8 +482,8 @@ func TestStateStore_VariablesRestore(t *testing.T) {
 
 	for i := range svs {
 		out, err := testState.GetVariable(ws, svs[i].Namespace, svs[i].Path)
-		require.NoError(t, err)
-		require.Equal(t, svs[i], out)
+		must.NoError(t, err)
+		must.Eq(t, svs[i], out)
 	}
 }
 
@@ -628,16 +498,16 @@ func TestStateStore_ACLRoleRestore(t *testing.T) {
 	aclRole.ModifyIndex = expectedIndex
 
 	restore, err := testState.Restore()
-	require.NoError(t, err)
-	require.NoError(t, restore.ACLRoleRestore(aclRole))
-	require.NoError(t, restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.ACLRoleRestore(aclRole))
+	must.NoError(t, restore.Commit())
 
 	// Check the state is now populated as we expect and that we can find the
 	// restored registrations.
 	ws := memdb.NewWatchSet()
 	out, err := testState.GetACLRoleByName(ws, aclRole.Name)
-	require.NoError(t, err)
-	require.Equal(t, aclRole, out)
+	must.NoError(t, err)
+	must.Eq(t, aclRole, out)
 }
 
 func TestStateStore_ACLAuthMethodRestore(t *testing.T) {
@@ -651,16 +521,16 @@ func TestStateStore_ACLAuthMethodRestore(t *testing.T) {
 	authMethod.ModifyIndex = expectedIndex
 
 	restore, err := testState.Restore()
-	require.NoError(t, err)
-	require.NoError(t, restore.ACLAuthMethodRestore(authMethod))
-	require.NoError(t, restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.ACLAuthMethodRestore(authMethod))
+	must.NoError(t, restore.Commit())
 
 	// Check the state is now populated as we expect and that we can find the
 	// restored registrations.
 	ws := memdb.NewWatchSet()
 	out, err := testState.GetACLAuthMethodByName(ws, authMethod.Name)
-	require.NoError(t, err)
-	require.Equal(t, authMethod, out)
+	must.NoError(t, err)
+	must.Eq(t, authMethod, out)
 }
 
 func TestStateStore_ACLBindingRuleRestore(t *testing.T) {

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package useragent
 
@@ -19,7 +19,7 @@ const (
 
 var (
 	// projectURL is the project URL.
-	projectURL = "https://www.nomadproject.io/"
+	projectURL = "https://developer.hashicorp.com/nomad/"
 
 	// rt is the runtime - variable for tests.
 	rt = runtime.Version()

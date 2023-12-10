@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package state
 
@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -16,12 +17,12 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 // Txn is a transaction against a state store.
@@ -60,7 +61,7 @@ const (
 	// the same node may indicate an underlying issue not detected by Nomad.
 	// The plan applier keeps track of plan rejection history and will mark
 	// nodes as ineligible if they cross a given threshold.
-	NodeEligibilityEventPlanRejectThreshold = "Node marked as ineligible for scheduling due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information"
+	NodeEligibilityEventPlanRejectThreshold = "Node marked as ineligible for scheduling due to multiple plan rejections, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information"
 
 	// NodeRegisterEventRegistered is the message used when the node becomes
 	// registered.
@@ -99,6 +100,16 @@ type StateStoreConfig struct {
 
 	// EventBufferSize configures the amount of events to hold in memory
 	EventBufferSize int64
+
+	// JobTrackedVersions is the number of historic job versions that are kept.
+	JobTrackedVersions int
+}
+
+func (c *StateStoreConfig) Validate() error {
+	if c.JobTrackedVersions <= 0 {
+		return fmt.Errorf("JobTrackedVersions must be positive; got: %d", c.JobTrackedVersions)
+	}
+	return nil
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -135,6 +146,10 @@ func (a *streamACLDelegate) TokenProvider() stream.ACLTokenProvider {
 
 // NewStateStore is used to create a new state store
 func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
 	// Create the MemDB
 	db, err := memdb.NewMemDB(stateStoreSchema())
 	if err != nil {
@@ -251,8 +266,9 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 
 	const backoffBase = 20 * time.Millisecond
 	const backoffLimit = 1 * time.Second
-	var retries uint
+	var retries uint64
 	var retryTimer *time.Timer
+	var deadline time.Duration
 
 	// XXX: Potential optimization is to set up a watch on the state
 	// store's index table and only unblock via a trigger rather than
@@ -270,16 +286,13 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 		}
 
 		// Exponential back off
-		retries++
 		if retryTimer == nil {
 			// First retry, start at baseline
 			retryTimer = time.NewTimer(backoffBase)
 		} else {
 			// Subsequent retry, reset timer
-			deadline := 1 << (2 * retries) * backoffBase
-			if deadline > backoffLimit {
-				deadline = backoffLimit
-			}
+			deadline = helper.Backoff(backoffBase, backoffLimit, retries)
+			retries++
 			retryTimer.Reset(deadline)
 		}
 
@@ -393,7 +406,7 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	// Mark nodes as ineligible.
 	for _, nodeID := range results.IneligibleNodes {
-		s.logger.Warn("marking node as ineligible due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information", "node_id", nodeID)
+		s.logger.Warn("marking node as ineligible due to multiple plan rejections, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information", "node_id", nodeID)
 
 		nodeEvent := structs.NewNodeEvent().
 			SetSubsystem(structs.NodeEventSubsystemScheduler).
@@ -1956,7 +1969,7 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 
 func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
 	// find submissions associated with job
-	remove := *set.NewHashSet[*structs.JobSubmission, string](structs.JobTrackedVersions)
+	remove := *set.NewHashSet[*structs.JobSubmission, string](s.config.JobTrackedVersions)
 
 	iter, err := txn.Get("job_submission", "id_prefix", job.Namespace, job.ID)
 	if err != nil {
@@ -2029,6 +2042,11 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *txn)
 // upsertJobVersion inserts a job into its historic version table and limits the
 // number of job versions that are tracked.
 func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) error {
+	// JobTrackedVersions really must not be zero here
+	if err := s.config.Validate(); err != nil {
+		return err
+	}
+
 	// Insert the job
 	if err := txn.Insert("job_version", job); err != nil {
 		return fmt.Errorf("failed to insert job into job_version table: %v", err)
@@ -2045,7 +2063,7 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 	}
 
 	// If we are below the limit there is no GCing to be done
-	if len(all) <= structs.JobTrackedVersions {
+	if len(all) <= s.config.JobTrackedVersions {
 		return nil
 	}
 
@@ -2061,7 +2079,7 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 
 	// If the stable job is the oldest version, do a swap to bring it into the
 	// keep set.
-	max := structs.JobTrackedVersions
+	max := s.config.JobTrackedVersions
 	if stableIdx == max {
 		all[max-1], all[max] = all[max], all[max-1]
 	}
@@ -2403,25 +2421,17 @@ func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume)
 		}
 		if obj != nil {
 			// Allow some properties of a volume to be updated in place, but
-			// prevent accidentally overwriting important properties, or
-			// overwriting a volume in use
+			// prevent accidentally overwriting important properties.
 			old := obj.(*structs.CSIVolume)
 			if old.ExternalID != v.ExternalID ||
 				old.PluginID != v.PluginID ||
 				old.Provider != v.Provider {
 				return fmt.Errorf("volume identity cannot be updated: %s", v.ID)
 			}
-			s.CSIVolumeDenormalize(nil, old.Copy())
-			if old.InUse() {
-				return fmt.Errorf("volume cannot be updated while in use")
-			}
-
-			v.CreateIndex = old.CreateIndex
-			v.ModifyIndex = index
 		} else {
 			v.CreateIndex = index
-			v.ModifyIndex = index
 		}
+		v.ModifyIndex = index
 
 		// Allocations are copy on write, so we want to keep the Allocation ID
 		// but we need to clear the pointer so that we don't store it when we
@@ -3762,7 +3772,7 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	}
 
 	// Update the index of when nodes last updated their allocs.
-	for _, nodeID := range nodeIDs.List() {
+	for _, nodeID := range nodeIDs.Slice() {
 		if err := s.updateClientAllocUpdateIndex(txn, index, nodeID); err != nil {
 			return fmt.Errorf("node update failed: %v", err)
 		}
@@ -5498,7 +5508,7 @@ func (s *StateStore) pruneJobSubmissions(namespace, jobID string, txn *txn) erro
 	// although the number of tracked submissions is the same as the number of
 	// tracked job versions, do not assume a 1:1 correlation, as there could be
 	// holes in the submissions (or none at all)
-	limit := structs.JobTrackedVersions
+	limit := s.config.JobTrackedVersions
 
 	// iterate through all stored submissions
 	iter, err := txn.Get("job_submission", "id_prefix", namespace, jobID)
@@ -5521,8 +5531,18 @@ func (s *StateStore) pruneJobSubmissions(namespace, jobID string, txn *txn) erro
 	}
 
 	// sort by job modify index descending so we can just keep the first N
-	slices.SortFunc(stored, func(a, b lang.Pair[uint64, uint64]) bool {
-		return a.First > b.First
+	slices.SortFunc(stored, func(a, b lang.Pair[uint64, uint64]) int {
+		var cmp int = 0
+		if a.First < b.First {
+			cmp = -1
+		}
+		if a.First > b.First {
+			cmp = +1
+		}
+
+		// Convert the sort into a descending sort by inverting the sign
+		cmp = cmp * -1
+		return cmp
 	})
 
 	// remove the outdated submission versions

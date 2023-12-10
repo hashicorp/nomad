@@ -42,6 +42,18 @@ node_pool_config {
   default = "prod"
   allowed = ["all", "default"]
 }
+
+# Vault configuration is a Nomad Enterprise feature.
+vault {
+  default = "default"
+  allowed = ["default", "infra"]
+}
+
+# Consul configuration is a Nomad Enterprise feature.
+consul {
+  default = "default"
+  allowed = ["all", "default"]
+}
 ```
 
 ## Namespace Specification Parameters
@@ -66,6 +78,14 @@ node_pool_config {
   Specifies node pool configurations. These values are checked at job
   submission.
 
+- `vault` <code>([Vault](#vault-parameters): &lt;optional&gt;)</code> <EnterpriseAlert inline /> -
+  Specifies which Vault clusters are allowed to be used from this
+  namespace. These values are checked at job submission.
+
+- `consul` <code>([Consul](#consul-parameters): &lt;optional&gt;)</code> <EnterpriseAlert inline /> -
+  Specifies which Consul clusters are allowed to be used from this
+  namespace. These values are checked at job submission.
+
 ### `capabilities` Parameters
 
 - `enabled_task_drivers` `(array<string>: [])` - List of task drivers allowed
@@ -79,17 +99,51 @@ node_pool_config {
 - `default` `(string: "default")` - Specifies the node pool to use for jobs in
   this namespace that don't define a node pool in their specification.
 
-- `allowed` `(array<string>: [])` - Specifies the node pools that are allowed
-  to be used by jobs in this namespace. This field supports wildcard globbing
-  through the use of `*` for multi-character matching. If specified, only the
-  node pools that match these patterns are allowed. This field cannot be used
-  with `denied`.
+- `allowed` `(array<string>: nil)` - Specifies the node pools that are allowed
+  to be used by jobs in this namespace. By default, all node pools are allowed.
+  If an empty list is provided only the namespace's default node pool is
+  allowed. This field supports wildcard globbing through the use of `*` for
+  multi-character matching. This field cannot be used with `denied`.
 
-- `denied` `(array<string>: [])` - Specifies the node pools that are not
+- `denied` `(array<string>: nil)` - Specifies the node pools that are not
   allowed to be used by jobs in this namespace. This field supports wildcard
   globbing through the use of `*` for multi-character matching. If specified,
   any node pool is allowed to be used, except for those that match any of these
   patterns. This field cannot be used with `allowed`.
+
+### `vault` Parameters <EnterpriseAlert inline />
+
+- `default` `(string: "default")` - Specifies the Vault cluster to use for jobs
+  in this namespace that don't define a Vault cluster in their specification.
+
+- `allowed` `(array<string>: nil)` - Specifies the Vault clusters that are
+  allowed to be used by jobs in this namespace. By default, all Vault clusters
+  are allowed.  If an empty list is provided only the namespace's default Vault
+  cluster is allowed. This field supports wildcard globbing through the use of
+  `*` for multi-character matching. This field cannot be used with `denied`.
+
+- `denied` `(array<string>: nil)` - Specifies the Vault clusters that are not
+  allowed to be used by jobs in this namespace. This field supports wildcard
+  globbing through the use of `*` for multi-character matching. If specified,
+  any Vault cluster is allowed to be used, except for those that match any of
+  these patterns. This field cannot be used with `allowed`.
+
+### `consul` Parameters <EnterpriseAlert inline />
+
+- `default` `(string: "default")` - Specifies the Consul cluster to use for jobs
+  in this namespace that don't define a Consul cluster in their specification.
+
+- `allowed` `(array<string>: nil)` - Specifies the Consul clusters that are
+  allowed to be used by jobs in this namespace. By default, all Consul clusters
+  are allowed.  If an empty list is provided only the namespace's default Consul
+  cluster is allowed. This field supports wildcard globbing through the use of
+  `*` for multi-character matching. This field cannot be used with `denied`.
+
+- `denied` `(array<string>: nil)` - Specifies the Consul clusters that are not
+  allowed to be used by jobs in this namespace. This field supports wildcard
+  globbing through the use of `*` for multi-character matching. If specified,
+  any Consul cluster is allowed to be used, except for those that match any of
+  these patterns. This field cannot be used with `allowed`.
 
 [cli_ns_apply]: /nomad/docs/commands/namespace/apply
 [hcl2]: /nomad/docs/job-specification/hcl2

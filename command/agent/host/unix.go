@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 //go:build !windows
 // +build !windows
@@ -8,8 +8,8 @@ package host
 
 import (
 	"strings"
-	"syscall"
 
+	"github.com/shirou/gopsutil/v3/disk"
 	"golang.org/x/sys/unix"
 )
 
@@ -54,19 +54,46 @@ func nullStr(bs []byte) string {
 }
 
 type df struct {
-	s *syscall.Statfs_t
+	usage *disk.UsageStat
 }
 
 func makeDf(path string) (*df, error) {
-	var s syscall.Statfs_t
-	err := syscall.Statfs(path, &s)
-	return &df{s: &s}, err
+	usage, err := disk.Usage(path)
+	return &df{usage: usage}, err
 }
 
 func (d *df) total() uint64 {
-	return d.s.Blocks * uint64(d.s.Bsize)
+	return d.usage.Total
 }
 
 func (d *df) available() uint64 {
-	return d.s.Bavail * uint64(d.s.Bsize)
+	return d.usage.Free
+}
+
+// mountedPaths produces a list of mounts
+func mountedPaths() []string {
+	partitions, err := disk.Partitions(false)
+	if err != nil {
+		return []string{err.Error()}
+	}
+
+	var paths []string
+	for _, partition := range partitions {
+		fsType := partition.Fstype
+
+		switch fsType {
+		case "autofs", "binfmt_misc", "cgroup", "debugfs",
+			"devpts", "devtmpfs",
+			"fusectl", "fuse.lxcfs",
+			"hugetlbfs", "mqueue",
+			"procfs", "pstore", "rpc_pipefs", "securityfs",
+			"sysfs", "tmpfs", "vboxsf", "ptyfs":
+			continue
+		default:
+		}
+
+		paths = append(paths, partition.Mountpoint)
+	}
+
+	return paths
 }

@@ -1,11 +1,12 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
 import (
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -472,6 +474,17 @@ func TestIsValidConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "BadOIDCIssuer",
+			conf: Config{
+				DataDir: "/tmp",
+				Server: &ServerConfig{
+					Enabled:    true,
+					OIDCIssuer: ":/example.com",
+				},
+			},
+			err: "missing protocol scheme",
+		},
 	}
 
 	for _, tc := range cases {
@@ -490,6 +503,125 @@ func TestIsValidConfig(t *testing.T) {
 			assert.False(t, result)
 			require.Contains(t, mui.ErrorWriter.String(), tc.err)
 			t.Logf("%s returned: %s", tc.name, mui.ErrorWriter.String())
+		})
+	}
+}
+
+func TestCommand_readConfig(t *testing.T) {
+	// Don't run in parallel since this test modifies environment variables.
+
+	configFiles := map[string]string{
+		"base.hcl": `
+data_dir = "/tmp/nomad"
+region   = "global"
+
+server {
+  enabled = true
+}
+
+client {
+  enabled = true
+}
+`,
+		"vault.hcl": `
+data_dir = "/tmp/nomad"
+region   = "global"
+
+server {
+  enabled = true
+}
+
+client {
+  enabled = true
+}
+
+vault {
+  token     = "token-from-config"
+  namespace = "ns-from-config"
+}
+`,
+	}
+
+	configDir := t.TempDir()
+	for k, v := range configFiles {
+		err := os.WriteFile(path.Join(configDir, k), []byte(v), 0644)
+		must.NoError(t, err)
+	}
+
+	testCases := []struct {
+		name    string
+		args    []string
+		env     map[string]string
+		checkFn func(*testing.T, *Config)
+	}{
+		{
+			name: "vault token and namespace from env var",
+			args: []string{
+				"-config", path.Join(configDir, "base.hcl"),
+			},
+			env: map[string]string{
+				"VAULT_TOKEN":     "token-from-env",
+				"VAULT_NAMESPACE": "ns-from-env",
+			},
+			checkFn: func(t *testing.T, c *Config) {
+				must.Eq(t, "token-from-env", c.Vaults[0].Token)
+				must.Eq(t, "ns-from-env", c.Vaults[0].Namespace)
+			},
+		},
+		{
+			name: "vault token and namespace from config takes precedence over env var",
+			args: []string{
+				"-config", path.Join(configDir, "vault.hcl"),
+			},
+			env: map[string]string{
+				"VAULT_TOKEN":     "token-from-env",
+				"VAULT_NAMESPACE": "ns-from-env",
+			},
+			checkFn: func(t *testing.T, c *Config) {
+				must.Eq(t, "token-from-config", c.Vaults[0].Token)
+				must.Eq(t, "ns-from-config", c.Vaults[0].Namespace)
+			},
+		},
+		{
+			name: "vault token and namespace from flag takes precedence over env var and config",
+			args: []string{
+				"-config", path.Join(configDir, "vault.hcl"),
+				"-vault-token", "secret-from-cli",
+				"-vault-namespace", "ns-from-cli",
+			},
+			env: map[string]string{
+				"VAULT_TOKEN":     "secret-from-env",
+				"VAULT_NAMESPACE": "ns-from-env",
+			},
+			checkFn: func(t *testing.T, c *Config) {
+				must.Eq(t, "secret-from-cli", c.Vaults[0].Token)
+				must.Eq(t, "ns-from-cli", c.Vaults[0].Namespace)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			defer func() {
+				// Print command stderr in case of a failed test case to help
+				// with debugging.
+				if t.Failed() {
+					t.Log(ui.ErrorWriter.String())
+				}
+			}()
+
+			cmd := &Command{
+				Ui:   ui,
+				args: tc.args,
+			}
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+
+			got := cmd.readConfig()
+			must.NotNil(t, got)
+			tc.checkFn(t, got)
 		})
 	}
 }

@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 location = "East US"
 image_id = "/subscriptions/SUBSCRIPTION_ID/resourceGroups/PACKER/providers/Microsoft.Compute/images/hashistack"

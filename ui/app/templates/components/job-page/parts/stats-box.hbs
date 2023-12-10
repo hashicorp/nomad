@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 {{! template-lint-disable no-inline-styles }}
@@ -33,7 +33,7 @@
     {{/if}}
     <span class="pair" data-test-job-stat="node-pool">
       <span class="term">Node Pool</span>
-      {{@job.nodePool}}
+      {{#if @job.nodePool}}{{@job.nodePool}}{{else}}-{{/if}}
     </span>
     {{yield to="after-namespace"}}
   </div>

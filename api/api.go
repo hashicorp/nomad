@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -200,6 +201,20 @@ type Config struct {
 	TLSConfig *TLSConfig
 
 	Headers http.Header
+
+	// retryOptions holds the configuration necessary to perform retries
+	// on put calls.
+	retryOptions *retryOptions
+
+	// url is populated with the initial parsed address and is not modified in the
+	// case of a unix:// URL, as opposed to Address.
+	url *url.URL
+}
+
+// URL returns a copy of the initial parsed address and is not modified in the
+// case of a `unix://` URL, as opposed to Address.
+func (c *Config) URL() *url.URL {
+	return c.url
 }
 
 // ClientConfig copies the configuration with a new client address, region, and
@@ -209,6 +224,7 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 	if tlsEnabled {
 		scheme = "https"
 	}
+
 	config := &Config{
 		Address:    fmt.Sprintf("%s://%s", scheme, address),
 		Region:     region,
@@ -218,6 +234,7 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
 		TLSConfig:  c.TLSConfig.Copy(),
+		url:        copyURL(c.url),
 	}
 
 	// Update the tls server name for connecting to a client
@@ -273,9 +290,30 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	return nt
 }
 
+// defaultUDSClient creates a unix domain socket client. Errors return a nil
+// http.Client, which is tested for in ConfigureTLS. This function expects that
+// the Address has already been parsed into the config.url value.
+func defaultUDSClient(config *Config) *http.Client {
+
+	config.Address = "http://127.0.0.1"
+
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", config.url.EscapedPath())
+			},
+		},
+	}
+	return defaultClient(httpClient)
+}
+
 func defaultHttpClient() *http.Client {
 	httpClient := cleanhttp.DefaultPooledClient()
-	transport := httpClient.Transport.(*http.Transport)
+	return defaultClient(httpClient)
+}
+
+func defaultClient(c *http.Client) *http.Client {
+	transport := c.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
 		MinVersion: tls.VersionTLS12,
@@ -285,7 +323,7 @@ func defaultHttpClient() *http.Client {
 	// well yet: https://github.com/gorilla/websocket/issues/417
 	transport.ForceAttemptHTTP2 = false
 
-	return httpClient
+	return c
 }
 
 // DefaultConfig returns a default configuration for the client
@@ -462,18 +500,29 @@ type Client struct {
 
 // NewClient returns a new client
 func NewClient(config *Config) (*Client, error) {
+	var err error
 	// bootstrap the config
 	defConfig := DefaultConfig()
 
 	if config.Address == "" {
 		config.Address = defConfig.Address
-	} else if _, err := url.Parse(config.Address); err != nil {
+	}
+
+	// we have to test the address that comes from DefaultConfig, because it
+	// could be the value of NOMAD_ADDR which is applied without testing
+	if config.url, err = url.Parse(config.Address); err != nil {
 		return nil, fmt.Errorf("invalid address '%s': %v", config.Address, err)
 	}
 
 	httpClient := config.HttpClient
 	if httpClient == nil {
-		httpClient = defaultHttpClient()
+		switch {
+		case config.url.Scheme == "unix":
+			httpClient = defaultUDSClient(config) // mutates config
+		default:
+			httpClient = defaultHttpClient()
+		}
+
 		if err := ConfigureTLS(httpClient, config.TLSConfig); err != nil {
 			return nil, err
 		}
@@ -576,6 +625,40 @@ func (c *Client) getNodeClientImpl(nodeID string, timeout time.Duration, q *Quer
 // SetSecretID sets the ACL token secret for API requests.
 func (c *Client) SetSecretID(secretID string) {
 	c.config.SecretID = secretID
+}
+
+func (c *Client) configureRetries(ro *retryOptions) {
+
+	c.config.retryOptions = &retryOptions{
+		maxRetries:      defaultNumberOfRetries,
+		maxBackoffDelay: defaultMaxBackoffDelay,
+		delayBase:       defaultDelayTimeBase,
+	}
+
+	if ro.delayBase != 0 {
+		c.config.retryOptions.delayBase = ro.delayBase
+	}
+
+	if ro.maxRetries != defaultNumberOfRetries {
+		c.config.retryOptions.maxRetries = ro.maxRetries
+	}
+
+	if ro.maxBackoffDelay != 0 {
+		c.config.retryOptions.maxBackoffDelay = ro.maxBackoffDelay
+	}
+
+	if ro.maxToLastCall != 0 {
+		c.config.retryOptions.maxToLastCall = ro.maxToLastCall
+	}
+
+	if ro.fixedDelay != 0 {
+		c.config.retryOptions.fixedDelay = ro.fixedDelay
+	}
+
+	// Ensure that a big attempt number or a big delayBase number will not cause
+	// a negative delay by overflowing the delay increase.
+	c.config.retryOptions.maxValidAttempt = int64(math.Log2(float64(math.MaxInt64 /
+		c.config.retryOptions.delayBase.Nanoseconds())))
 }
 
 // request is used to help build up a request
@@ -721,24 +804,32 @@ func (r *request) toHTTP() (*http.Request, error) {
 
 // newRequest is used to create a new request
 func (c *Client) newRequest(method, path string) (*request, error) {
-	base, _ := url.Parse(c.config.Address)
+
 	u, err := url.Parse(path)
 	if err != nil {
 		return nil, err
 	}
+
 	r := &request{
 		config: &c.config,
 		method: method,
 		url: &url.URL{
-			Scheme:  base.Scheme,
-			User:    base.User,
-			Host:    base.Host,
+			Scheme:  c.config.url.Scheme,
+			User:    c.config.url.User,
+			Host:    c.config.url.Host,
 			Path:    u.Path,
 			RawPath: u.RawPath,
 		},
 		header: make(http.Header),
 		params: make(map[string][]string),
 	}
+
+	// fixup socket paths
+	if r.url.Scheme == "unix" {
+		r.url.Scheme = "http"
+		r.url.Host = "127.0.0.1"
+	}
+
 	if c.config.Region != "" {
 		r.params.Set("region", c.config.Region)
 	}
@@ -895,28 +986,42 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 	conn, resp, err := dialer.Dial(rhttp.URL.String(), rhttp.Header)
 
 	// check resp status code, as it's more informative than handshake error we get from ws library
-	if resp != nil && resp.StatusCode != http.StatusSwitchingProtocols {
-		var buf bytes.Buffer
+	if resp != nil {
+		switch resp.StatusCode {
+		case http.StatusSwitchingProtocols:
+			// Connection upgrade was successful.
 
-		if resp.Header.Get("Content-Encoding") == "gzip" {
-			greader, err := gzip.NewReader(resp.Body)
+		case http.StatusPermanentRedirect, http.StatusTemporaryRedirect, http.StatusMovedPermanently:
+			loc := resp.Header.Get("Location")
+			u, err := url.Parse(loc)
 			if err != nil {
-				return nil, nil, newUnexpectedResponseError(
-					fromStatusCode(resp.StatusCode),
-					withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
-					withError(err))
+				return nil, nil, fmt.Errorf("invalid redirect location %q: %w", loc, err)
 			}
-			io.Copy(&buf, greader)
-		} else {
-			io.Copy(&buf, resp.Body)
-		}
-		resp.Body.Close()
+			return c.websocket(u.Path, q)
 
-		return nil, nil, newUnexpectedResponseError(
-			fromStatusCode(resp.StatusCode),
-			withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
-			withBody(fmt.Sprint(buf.Bytes())),
-		)
+		default:
+			var buf bytes.Buffer
+
+			if resp.Header.Get("Content-Encoding") == "gzip" {
+				greader, err := gzip.NewReader(resp.Body)
+				if err != nil {
+					return nil, nil, newUnexpectedResponseError(
+						fromStatusCode(resp.StatusCode),
+						withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
+						withError(err))
+				}
+				_, _ = io.Copy(&buf, greader)
+			} else {
+				_, _ = io.Copy(&buf, resp.Body)
+			}
+			_ = resp.Body.Close()
+
+			return nil, nil, newUnexpectedResponseError(
+				fromStatusCode(resp.StatusCode),
+				withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
+				withBody(buf.String()),
+			)
+		}
 	}
 
 	return conn, resp, err
@@ -1170,4 +1275,17 @@ func (o *WriteOptions) WithContext(ctx context.Context) *WriteOptions {
 	}
 	o2.ctx = ctx
 	return o2
+}
+
+// copyURL makes a deep copy of a net/url.URL
+func copyURL(u1 *url.URL) *url.URL {
+	if u1 == nil {
+		return nil
+	}
+	o := *u1
+	if o.User != nil {
+		ou := *u1.User
+		o.User = &ou
+	}
+	return &o
 }

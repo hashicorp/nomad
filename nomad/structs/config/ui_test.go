@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package config
 
@@ -26,6 +26,7 @@ func TestUIConfig_Merge(t *testing.T) {
 			BackgroundColor: "blue",
 			TextColor:       "#fff",
 		},
+		ContentSecurityPolicy: DefaultCSPConfig(),
 	}
 
 	testCases := []struct {
@@ -64,6 +65,7 @@ func TestUIConfig_Merge(t *testing.T) {
 				Consul: &ConsulUIConfig{
 					BaseUIURL: "http://consul-other.example.com:8500",
 				},
+				ContentSecurityPolicy: DefaultCSPConfig(),
 			},
 			right: &UIConfig{},
 			expect: &UIConfig{
@@ -71,8 +73,9 @@ func TestUIConfig_Merge(t *testing.T) {
 				Consul: &ConsulUIConfig{
 					BaseUIURL: "http://consul-other.example.com:8500",
 				},
-				Vault: &VaultUIConfig{},
-				Label: &LabelUIConfig{},
+				Vault:                 &VaultUIConfig{},
+				Label:                 &LabelUIConfig{},
+				ContentSecurityPolicy: DefaultCSPConfig(),
 			},
 		},
 	}

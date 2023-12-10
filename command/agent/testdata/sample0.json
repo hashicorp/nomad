@@ -40,6 +40,7 @@
   },
   "bind_addr": "0.0.0.0",
   "consul": {
+    "name": "default",
     "server_auto_join": false,
     "client_auto_join": false,
     "token": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
@@ -82,6 +83,7 @@
     "verify_server_hostname": true
   },
   "vault": {
+    "name": "default",
     "address": "http://host.example.com:8200",
     "create_from_role": "nomad-cluster",
     "enabled": true

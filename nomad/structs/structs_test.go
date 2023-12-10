@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
@@ -12,9 +12,13 @@ import (
 	"testing"
 	"time"
 
+	jwt "github.com/go-jose/go-jose/v3/jwt"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
@@ -101,6 +105,14 @@ func TestNamespace_SetHash(t *testing.T) {
 			Default: "dev",
 			Allowed: []string{"default"},
 		},
+		VaultConfiguration: &NamespaceVaultConfiguration{
+			Default: "default",
+			Allowed: []string{"default"},
+		},
+		ConsulConfiguration: &NamespaceConsulConfiguration{
+			Default: "default",
+			Allowed: []string{"default"},
+		},
 		Meta: map[string]string{
 			"a": "b",
 			"c": "d",
@@ -150,6 +162,24 @@ func TestNamespace_SetHash(t *testing.T) {
 	must.NotNil(t, ns.Hash)
 	must.Eq(t, out6, ns.Hash)
 	must.NotEq(t, out5, out6)
+
+	ns.VaultConfiguration.Default = "infra"
+	ns.VaultConfiguration.Allowed = []string{}
+	ns.VaultConfiguration.Denied = []string{"all"}
+	out7 := ns.SetHash()
+	must.NotNil(t, out7)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out7, ns.Hash)
+	must.NotEq(t, out6, out7)
+
+	ns.ConsulConfiguration.Default = "infra"
+	ns.ConsulConfiguration.Allowed = []string{}
+	ns.ConsulConfiguration.Denied = []string{"all"}
+	out8 := ns.SetHash()
+	must.NotNil(t, out8)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out8, ns.Hash)
+	must.NotEq(t, out7, out8)
 }
 
 func TestNamespace_Copy(t *testing.T) {
@@ -165,6 +195,14 @@ func TestNamespace_Copy(t *testing.T) {
 		},
 		NodePoolConfiguration: &NamespaceNodePoolConfiguration{
 			Default: "dev",
+			Allowed: []string{"default"},
+		},
+		VaultConfiguration: &NamespaceVaultConfiguration{
+			Default: "default",
+			Allowed: []string{"default"},
+		},
+		ConsulConfiguration: &NamespaceConsulConfiguration{
+			Default: "default",
 			Allowed: []string{"default"},
 		},
 		Meta: map[string]string{
@@ -183,6 +221,12 @@ func TestNamespace_Copy(t *testing.T) {
 	nsCopy.NodePoolConfiguration.Default = "default"
 	nsCopy.NodePoolConfiguration.Allowed = []string{}
 	nsCopy.NodePoolConfiguration.Denied = []string{"dev"}
+	nsCopy.VaultConfiguration.Default = "infra"
+	nsCopy.VaultConfiguration.Allowed = []string{}
+	nsCopy.VaultConfiguration.Denied = []string{"dev"}
+	nsCopy.ConsulConfiguration.Default = "infra"
+	nsCopy.ConsulConfiguration.Allowed = []string{}
+	nsCopy.ConsulConfiguration.Denied = []string{"dev"}
 	nsCopy.Meta["a"] = "z"
 	must.NotEq(t, ns, nsCopy)
 
@@ -4307,9 +4351,10 @@ func TestRestartPolicy_Validate(t *testing.T) {
 
 	// Policy with acceptable restart options passes
 	p := &RestartPolicy{
-		Mode:     RestartPolicyModeFail,
-		Attempts: 0,
-		Interval: 5 * time.Second,
+		Mode:            RestartPolicyModeFail,
+		Attempts:        0,
+		Interval:        5 * time.Second,
+		RenderTemplates: true,
 	}
 	if err := p.Validate(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -4548,6 +4593,41 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAllocation_ReservedCores(t *testing.T) {
+	ci.Parallel(t)
+
+	a := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"nil": {
+					Cpu: AllocatedCpuResources{
+						ReservedCores: nil,
+					},
+				},
+				"empty": {
+					Cpu: AllocatedCpuResources{
+						ReservedCores: make([]uint16, 0),
+					},
+				},
+				"one": {
+					Cpu: AllocatedCpuResources{
+						ReservedCores: []uint16{7},
+					},
+				},
+				"three": {
+					Cpu: AllocatedCpuResources{
+						ReservedCores: []uint16{1, 3, 4},
+					},
+				},
+			},
+		},
+	}
+
+	result := a.ReservedCores()
+	must.Eq(t, "1,3-4,7", result.String())
+
 }
 
 func TestAllocation_Index(t *testing.T) {
@@ -6115,15 +6195,9 @@ func TestVault_Validate(t *testing.T) {
 
 	v := &Vault{
 		Env:        true,
-		ChangeMode: VaultChangeModeNoop,
+		ChangeMode: VaultChangeModeSignal,
+		Policies:   []string{"foo", "root"},
 	}
-
-	if err := v.Validate(); err == nil || !strings.Contains(err.Error(), "Policy list") {
-		t.Fatalf("Expected policy list empty error")
-	}
-
-	v.Policies = []string{"foo", "root"}
-	v.ChangeMode = VaultChangeModeSignal
 
 	err := v.Validate()
 	if err == nil {
@@ -6754,7 +6828,6 @@ func TestNode_Canonicalize(t *testing.T) {
 
 func TestNode_Copy(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	node := &Node{
 		ID:         uuid.Generate(),
@@ -6768,36 +6841,9 @@ func TestNode_Copy(t *testing.T) {
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
 		},
-		Resources: &Resources{
-			CPU:      4000,
-			MemoryMB: 8192,
-			DiskMB:   100 * 1024,
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "192.168.0.100/32",
-					MBits:  1000,
-				},
-			},
-		},
-		Reserved: &Resources{
-			CPU:      100,
-			MemoryMB: 256,
-			DiskMB:   4 * 1024,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
-					MBits:         1,
-				},
-			},
-		},
 		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares:          4000,
-				TotalCpuCores:      4,
-				ReservableCpuCores: []uint16{0, 1, 2, 3},
+			Processors: NodeProcessorResources{
+				Topology: MockBasicTopology(),
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,
@@ -6853,14 +6899,14 @@ func TestNode_Copy(t *testing.T) {
 
 	node2 := node.Copy()
 
-	require.Equal(node.Attributes, node2.Attributes)
-	require.Equal(node.Resources, node2.Resources)
-	require.Equal(node.Reserved, node2.Reserved)
-	require.Equal(node.Links, node2.Links)
-	require.Equal(node.Meta, node2.Meta)
-	require.Equal(node.Events, node2.Events)
-	require.Equal(node.DrainStrategy, node2.DrainStrategy)
-	require.Equal(node.Drivers, node2.Drivers)
+	must.Eq(t, node.Attributes, node2.Attributes)
+	must.Eq(t, node.Resources, node2.Resources)
+	must.Eq(t, node.Reserved, node2.Reserved)
+	must.Eq(t, node.Links, node2.Links)
+	must.Eq(t, node.Meta, node2.Meta)
+	must.Eq(t, node.Events, node2.Events)
+	must.Eq(t, node.DrainStrategy, node2.DrainStrategy)
+	must.Eq(t, node.Drivers, node2.Drivers)
 }
 
 func TestNode_GetID(t *testing.T) {
@@ -7126,10 +7172,8 @@ func TestNodeResources_Copy(t *testing.T) {
 	ci.Parallel(t)
 
 	orig := &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares:          int64(32000),
-			TotalCpuCores:      32,
-			ReservableCpuCores: []uint16{1, 2, 3, 9},
+		Processors: NodeProcessorResources{
+			Topology: MockBasicTopology(),
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(64000),
@@ -7158,25 +7202,20 @@ func TestNodeResources_Copy(t *testing.T) {
 		},
 	}
 
-	kopy := orig.Copy()
-	assert.Equal(t, orig, kopy)
+	cpy := orig.Copy()
+	must.Eq(t, orig, cpy)
 
-	// Make sure slices aren't shared
-	kopy.Cpu.ReservableCpuCores[1] = 9000
-	assert.NotEqual(t, orig.Cpu.ReservableCpuCores, kopy.Cpu.ReservableCpuCores)
-
-	kopy.NodeNetworks[0].MacAddress = "11:11:11:11:11:11"
-	kopy.NodeNetworks[0].Addresses[0].Alias = "public"
-	assert.NotEqual(t, orig.NodeNetworks[0], kopy.NodeNetworks[0])
+	cpy.NodeNetworks[0].MacAddress = "11:11:11:11:11:11"
+	cpy.NodeNetworks[0].Addresses[0].Alias = "public"
+	must.NotEq(t, orig.NodeNetworks[0], cpy.NodeNetworks[0])
 }
 
 func TestNodeResources_Merge(t *testing.T) {
 	ci.Parallel(t)
 
 	res := &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares:     int64(32000),
-			TotalCpuCores: 32,
+		Processors: NodeProcessorResources{
+			Topology: MockBasicTopology(),
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(64000),
@@ -7188,8 +7227,11 @@ func TestNodeResources_Merge(t *testing.T) {
 		},
 	}
 
+	topo2 := MockBasicTopology()
+	topo2.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2})
+
 	res.Merge(&NodeResources{
-		Cpu: NodeCpuResources{ReservableCpuCores: []uint16{0, 1, 2, 3}},
+		Processors: NodeProcessorResources{topo2},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
 		},
@@ -7200,11 +7242,9 @@ func TestNodeResources_Merge(t *testing.T) {
 		},
 	})
 
-	require.Exactly(t, &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares:          int64(32000),
-			TotalCpuCores:      32,
-			ReservableCpuCores: []uint16{0, 1, 2, 3},
+	must.Eq(t, &NodeResources{
+		Processors: NodeProcessorResources{
+			Topology: MockBasicTopology(),
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
@@ -7667,12 +7707,16 @@ func TestVault_Equal(t *testing.T) {
 	must.NotEqual[*Vault](t, nil, new(Vault))
 
 	must.StructEqual(t, &Vault{
+		Role:         "nomad-task",
 		Policies:     []string{"one"},
 		Namespace:    "global",
 		Env:          true,
 		ChangeMode:   "signal",
 		ChangeSignal: "SIGILL",
 	}, []must.Tweak[*Vault]{{
+		Field: "Role",
+		Apply: func(v *Vault) { v.Role = "nomad-task-2" },
+	}, {
 		Field: "Policies",
 		Apply: func(v *Vault) { v.Policies = []string{"two"} },
 	}, {
@@ -7851,4 +7895,529 @@ func TestSpread_Equal(t *testing.T) {
 		Field: "SpreadTarget",
 		Apply: func(s *Spread) { s.SpreadTarget = nil },
 	}})
+}
+
+func TestTaskIdentity_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	task := &Task{
+		Identities: []*WorkloadIdentity{
+			{
+				Name:     "consul",
+				Audience: []string{"a", "b"},
+				Env:      true,
+				File:     true,
+			},
+			{
+				Name: WorkloadIdentityDefaultName,
+			},
+			{
+				Name: "vault",
+				Env:  true,
+			},
+		},
+	}
+
+	tg := &TaskGroup{
+		Tasks: []*Task{task},
+	}
+	job := &Job{
+		TaskGroups: []*TaskGroup{tg},
+	}
+
+	task.Canonicalize(job, job.TaskGroups[0])
+
+	// For backward compatibility the default identity should have gotten moved
+	// to the original field.
+	must.NotNil(t, task.Identity)
+	must.Eq(t, WorkloadIdentityDefaultName, task.Identity.Name)
+	must.Eq(t, []string{WorkloadIdentityDefaultAud}, task.Identity.Audience)
+	must.False(t, task.Identity.Env)
+	must.False(t, task.Identity.File)
+
+	// Only alternate identities should remain
+	must.Len(t, 2, task.Identities)
+
+	must.Eq(t, "consul", task.Identities[0].Name)
+	must.Eq(t, []string{"a", "b"}, task.Identities[0].Audience)
+	must.True(t, task.Identities[0].Env)
+	must.True(t, task.Identities[0].File)
+
+	must.Eq(t, "vault", task.Identities[1].Name)
+	must.Len(t, 0, task.Identities[1].Audience)
+	must.True(t, task.Identities[1].Env)
+	must.False(t, task.Identities[1].File)
+}
+
+func TestNewIdentityClaims(t *testing.T) {
+	ci.Parallel(t)
+
+	job := &Job{
+		ID:        "job",
+		Name:      "job",
+		Namespace: "default",
+		Region:    "global",
+
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "group",
+				Services: []*Service{{
+					Name:      "group-service-",
+					PortLabel: "http",
+					Identity: &WorkloadIdentity{
+						Audience: []string{"group-service.consul.io"},
+					},
+				}},
+				Tasks: []*Task{
+					{
+						Name: "task",
+						Identity: &WorkloadIdentity{
+							Name:     "default-identity",
+							Audience: []string{"example.com"},
+						},
+						Identities: []*WorkloadIdentity{
+							{
+								Name:     "alt-identity",
+								Audience: []string{"alt.example.com"},
+							},
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+						Services: []*Service{{
+							Name:      "task-service",
+							PortLabel: "http",
+							Identity: &WorkloadIdentity{
+								Audience: []string{"task-service.consul.io"},
+							},
+						}},
+					},
+					{
+						Name: "consul-vault-task",
+						Consul: &Consul{
+							Namespace: "task-consul-namespace",
+						},
+						Vault: &Vault{
+							Namespace: "vault-namespace",
+						},
+						Identity: &WorkloadIdentity{
+							Name:     "default-identity",
+							Audience: []string{"example.com"},
+						},
+						Identities: []*WorkloadIdentity{
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+						Services: []*Service{{
+							Name:      "consul-task-service",
+							PortLabel: "http",
+							Identity: &WorkloadIdentity{
+								Audience: []string{"task-service.consul.io"},
+							},
+						}},
+					},
+				},
+			},
+			{
+				Name: "consul-group",
+				Consul: &Consul{
+					Namespace: "group-consul-namespace",
+				},
+				Services: []*Service{{
+					Name:      "group-service",
+					PortLabel: "http",
+					Identity: &WorkloadIdentity{
+						Audience: []string{"group-service.consul.io"},
+					},
+				}},
+				Tasks: []*Task{
+					{
+						Name: "task",
+						Identity: &WorkloadIdentity{
+							Name:     "default-identity",
+							Audience: []string{"example.com"},
+						},
+						Identities: []*WorkloadIdentity{
+							{
+								Name:     "alt-identity",
+								Audience: []string{"alt.example.com"},
+							},
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+						Services: []*Service{{
+							Name:      "task-service",
+							PortLabel: "http",
+							Identity: &WorkloadIdentity{
+								Audience: []string{"task-service.consul.io"},
+							},
+						}},
+					},
+					{
+						Name: "consul-vault-task",
+						Consul: &Consul{
+							Namespace: "task-consul-namespace",
+						},
+						Vault: &Vault{
+							Namespace: "vault-namespace",
+						},
+						Identity: &WorkloadIdentity{
+							Name:     "default-identity",
+							Audience: []string{"example.com"},
+						},
+						Identities: []*WorkloadIdentity{
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+						Services: []*Service{{
+							Name:      "consul-task-service",
+							PortLabel: "http",
+							Identity: &WorkloadIdentity{
+								Audience: []string{"consul.io"},
+							},
+						}},
+					},
+				},
+			},
+		},
+	}
+	job.Canonicalize()
+
+	expectedClaims := map[string]*IdentityClaims{
+		// group: no consul.
+		"job/group/services/group-service": {
+			Namespace:   "default",
+			JobID:       "job",
+			ServiceName: "group-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:group-service:consul-service_group-service-http",
+				Audience: jwt.Audience{"group-service.consul.io"},
+			},
+		},
+		// group: no consul.
+		// task:  no consul, no vault.
+		"job/group/task/default-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task:default-identity",
+				Audience: jwt.Audience{"example.com"},
+			},
+		},
+		"job/group/task/alt-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task:alt-identity",
+				Audience: jwt.Audience{"alt.example.com"},
+			},
+		},
+		// No ConsulNamespace because there is no consul block at either task
+		// or group level.
+		"job/group/task/consul_default": {
+			ConsulNamespace: "",
+			Namespace:       "default",
+			JobID:           "job",
+			TaskName:        "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task:consul_default",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		// No VaultNamespace because there is no vault block at either task
+		// or group level.
+		"job/group/task/vault_default": {
+			VaultNamespace: "",
+			Namespace:      "default",
+			JobID:          "job",
+			TaskName:       "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task:vault_default",
+				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		"job/group/task/services/task-service": {
+			Namespace:   "default",
+			JobID:       "job",
+			ServiceName: "task-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:task-service:consul-service_task-task-service-http",
+				Audience: jwt.Audience{"task-service.consul.io"},
+			},
+		},
+		// group: no consul.
+		// task:  with consul, with vault.
+		"job/group/consul-vault-task/default-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:consul-vault-task:default-identity",
+				Audience: jwt.Audience{"example.com"},
+			},
+		},
+		// Use task-level Consul namespace.
+		"job/group/consul-vault-task/consul_default": {
+			ConsulNamespace: "task-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			TaskName:        "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:consul-vault-task:consul_default",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		// Use task-level Vault namespace.
+		"job/group/consul-vault-task/vault_default": {
+			VaultNamespace: "vault-namespace",
+			Namespace:      "default",
+			JobID:          "job",
+			TaskName:       "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:consul-vault-task:vault_default",
+				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		// Use task-level Consul namespace for task services.
+		"job/group/consul-vault-task/services/consul-vault-task-service": {
+			ConsulNamespace: "task-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			ServiceName:     "consul-vault-task-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:group:consul-vault-task-service:consul-service_consul-vault-task-service-http",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		// group: with consul.
+		// Use group-level Consul namespace for group services.
+		"job/consul-group/services/group-service": {
+			ConsulNamespace: "group-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			ServiceName:     "group-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:group-service:consul-service_group-service-http",
+				Audience: jwt.Audience{"group-service.consul.io"},
+			},
+		},
+		// group: with consul.
+		// task:  no consul, no vault.
+		"job/consul-group/task/default-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task:default-identity",
+				Audience: jwt.Audience{"example.com"},
+			},
+		},
+		"job/consul-group/task/alt-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task:alt-identity",
+				Audience: jwt.Audience{"alt.example.com"},
+			},
+		},
+		// Use group-level Consul namespace because task doesn't have a consul
+		// block.
+		"job/consul-group/task/consul_default": {
+			ConsulNamespace: "group-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			TaskName:        "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task:consul_default",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		"job/consul-group/task/vault_default": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task:vault_default",
+				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		// Use group-level Consul namespace for task service because task
+		// doesn't have a consul block.
+		"job/consul-group/task/services/task-service": {
+			ConsulNamespace: "group-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			ServiceName:     "task-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:task-service:consul-service_task-task-service-http",
+				Audience: jwt.Audience{"task-service.consul.io"},
+			},
+		},
+		// group: no consul.
+		// task:  with consul, with vault.
+		"job/consul-group/consul-vault-task/default-identity": {
+			Namespace: "default",
+			JobID:     "job",
+			TaskName:  "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:consul-vault-task:default-identity",
+				Audience: jwt.Audience{"example.com"},
+			},
+		},
+		// Use task-level Consul namespace.
+		"job/consul-group/consul-vault-task/consul_default": {
+			ConsulNamespace: "task-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			TaskName:        "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:consul-vault-task:consul_default",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+		"job/consul-group/consul-vault-task/vault_default": {
+			VaultNamespace: "vault-namespace",
+			Namespace:      "default",
+			JobID:          "job",
+			TaskName:       "consul-vault-task",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:consul-vault-task:vault_default",
+				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		// Use task-level Consul namespace for task services.
+		"job/consul-group/consul-vault-task/services/consul-task-service": {
+			ConsulNamespace: "task-consul-namespace",
+			Namespace:       "default",
+			JobID:           "job",
+			ServiceName:     "consul-task-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:job:consul-group:consul-task-service:consul-service_consul-vault-task-consul-task-service-http",
+				Audience: jwt.Audience{"consul.io"},
+			},
+		},
+	}
+
+	// Generate service identity names.
+	for _, tg := range job.TaskGroups {
+		for _, s := range tg.Services {
+			if s.Identity != nil {
+				s.Identity.Name = s.MakeUniqueIdentityName()
+			}
+		}
+		for _, t := range tg.Tasks {
+			for _, s := range t.Services {
+				if s.Identity != nil {
+					s.Identity.Name = s.MakeUniqueIdentityName()
+				}
+			}
+		}
+	}
+
+	// Find all indentites in test job and create a test case for each.
+	// Tests for identities missing from expectedClaims are skipped.
+	type testCase struct {
+		name           string
+		group          string
+		wid            *WorkloadIdentity
+		wiHandle       *WIHandle
+		expectedClaims *IdentityClaims
+	}
+	testCases := []testCase{}
+	for _, tg := range job.TaskGroups {
+		path := job.ID + "/" + tg.Name
+
+		for _, s := range tg.Services {
+			path := path + "/services/" + s.Name
+			testCases = append(testCases, testCase{
+				name:           path,
+				group:          tg.Name,
+				wid:            s.Identity,
+				wiHandle:       s.IdentityHandle(),
+				expectedClaims: expectedClaims[path],
+			})
+		}
+
+		for _, t := range tg.Tasks {
+			path := path + "/" + t.Name
+
+			for _, wid := range append(t.Identities, t.Identity) {
+				if wid == nil {
+					continue
+				}
+
+				path := path + "/" + wid.Name
+				testCases = append(testCases, testCase{
+					name:           path,
+					group:          tg.Name,
+					wid:            wid,
+					wiHandle:       t.IdentityHandle(wid),
+					expectedClaims: expectedClaims[path],
+				})
+			}
+
+			for _, s := range t.Services {
+				path := path + "/services/" + s.Name
+				testCases = append(testCases, testCase{
+					name:           path,
+					group:          tg.Name,
+					wid:            s.Identity,
+					wiHandle:       s.IdentityHandle(),
+					expectedClaims: expectedClaims[path],
+				})
+			}
+		}
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectedClaims == nil {
+				t.Skip("missing expected claims")
+			}
+
+			now := time.Now()
+			alloc := &Allocation{
+				ID:        uuid.Generate(),
+				Namespace: job.Namespace,
+				JobID:     job.ID,
+				TaskGroup: tc.group,
+			}
+
+			got := NewIdentityClaims(job, alloc, tc.wiHandle, tc.wid, now)
+
+			must.Eq(t, tc.expectedClaims, got, must.Cmp(cmpopts.IgnoreFields(
+				IdentityClaims{},
+				"ID", "AllocationID", "IssuedAt", "NotBefore",
+			)))
+			must.Eq(t, alloc.ID, got.AllocationID)
+			must.Eq(t, jwt.NewNumericDate(now), got.IssuedAt)
+			must.Eq(t, jwt.NewNumericDate(now), got.NotBefore)
+		})
+	}
 }

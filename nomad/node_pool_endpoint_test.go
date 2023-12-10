@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
@@ -1170,8 +1170,8 @@ func TestNodePoolEndpoint_DeleteNodePools_NonLocal(t *testing.T) {
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
-	testutil.WaitForLeader(t, s1.RPC)
-	testutil.WaitForLeader(t, s2.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
+	testutil.WaitForKeyring(t, s2.RPC, s2.config.Region)
 
 	// Write a node pool to the authoritative region
 	np1 := mock.NodePool()

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package config
 
@@ -7,21 +7,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/consul-template/config"
 	log "github.com/hashicorp/go-hclog"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
-
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -169,11 +170,15 @@ type Config struct {
 	// Version is the version of the Nomad client
 	Version *version.VersionInfo
 
-	// ConsulConfig is this Agent's Consul configuration
-	ConsulConfig *structsc.ConsulConfig
+	// ConsulConfigs is a map of Consul configurations, here to support features
+	// in Nomad Enterprise. The default Consul config pointer above will be
+	// found in this map under the name "default"
+	ConsulConfigs map[string]*structsc.ConsulConfig
 
-	// VaultConfig is this Agent's Vault configuration
-	VaultConfig *structsc.VaultConfig
+	// VaultConfigs is a map of Vault configurations, here to support features
+	// in Nomad Enterprise. The default Vault config pointer above will be found
+	// in this map under the name "default"
+	VaultConfigs map[string]*structsc.VaultConfig
 
 	// StatsCollectionInterval is the interval at which the Nomad client
 	// collects resource usage stats
@@ -299,7 +304,7 @@ type Config struct {
 	CgroupParent string
 
 	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
-	ReservableCores []uint16
+	ReservableCores []hw.CoreID
 
 	// NomadServiceDiscovery determines whether the Nomad native service
 	// discovery client functionality is enabled.
@@ -747,8 +752,8 @@ func (c *Config) Copy() *Config {
 	nc.Servers = slices.Clone(nc.Servers)
 	nc.Options = maps.Clone(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
-	nc.ConsulConfig = c.ConsulConfig.Copy()
-	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.ConsulConfigs = helper.DeepCopyMap(c.ConsulConfigs)
+	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TemplateConfig = c.TemplateConfig.Copy()
 	nc.ReservableCores = slices.Clone(c.ReservableCores)
 	nc.Artifact = c.Artifact.Copy()
@@ -757,10 +762,12 @@ func (c *Config) Copy() *Config {
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
-	return &Config{
-		Version:                 version.GetVersion(),
-		VaultConfig:             structsc.DefaultVaultConfig(),
-		ConsulConfig:            structsc.DefaultConsulConfig(),
+	cfg := &Config{
+		Version: version.GetVersion(),
+		VaultConfigs: map[string]*structsc.VaultConfig{
+			structs.VaultDefaultCluster: structsc.DefaultVaultConfig()},
+		ConsulConfigs: map[string]*structsc.ConsulConfig{
+			structs.ConsulDefaultCluster: structsc.DefaultConsulConfig()},
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &structsc.TLSConfig{},
@@ -795,10 +802,12 @@ func DefaultConfig() *Config {
 		CNIConfigDir:       "/opt/cni/config",
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
-		CgroupParent:       cgutil.GetCgroupParent(""),
+		CgroupParent:       "nomad.slice", // SETH todo
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}
+
+	return cfg
 }
 
 // Read returns the specified configuration value or "".
@@ -929,11 +938,20 @@ func splitValue(val string) map[string]struct{} {
 }
 
 // NomadPluginConfig produces the NomadConfig struct which is sent to Nomad plugins
-func (c *Config) NomadPluginConfig() *base.AgentConfig {
+func (c *Config) NomadPluginConfig(topology *numalib.Topology) *base.AgentConfig {
 	return &base.AgentConfig{
 		Driver: &base.ClientDriverConfig{
 			ClientMinPort: c.ClientMinPort,
 			ClientMaxPort: c.ClientMaxPort,
+			Topology:      topology,
 		},
 	}
+}
+
+func (c *Config) GetDefaultConsul() *structsc.ConsulConfig {
+	return c.ConsulConfigs[structs.ConsulDefaultCluster]
+}
+
+func (c *Config) GetDefaultVault() *structsc.VaultConfig {
+	return c.VaultConfigs[structs.VaultDefaultCluster]
 }

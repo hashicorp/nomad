@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -130,7 +131,7 @@ func TestVarListCommand_Online(t *testing.T) {
 
 	nsList := []string{api.DefaultNamespace, "ns1"}
 	pathList := []string{"a/b/c", "a/b/c/d", "z/y", "z/y/x"}
-	variables := setupTestVariables(client, nsList, pathList)
+	variables := setupTestVariables(t, client, nsList, pathList)
 
 	testTmpl := `{{ range $i, $e := . }}{{if ne $i 0}}{{print "•"}}{{end}}{{printf "%v\t%v" .Namespace .Path}}{{end}}`
 
@@ -349,14 +350,14 @@ type testSVNamespacePath struct {
 	Path      string
 }
 
-func setupTestVariables(c *api.Client, nsList, pathList []string) SVMSlice {
+func setupTestVariables(t *testing.T, c *api.Client, nsList, pathList []string) SVMSlice {
 
 	out := make(SVMSlice, 0, len(nsList)*len(pathList))
 
 	for _, ns := range nsList {
 		c.Namespaces().Register(&api.Namespace{Name: ns}, nil)
 		for _, p := range pathList {
-			setupTestVariable(c, ns, p, &out)
+			must.NoError(t, setupTestVariable(c, ns, p, &out))
 		}
 	}
 
@@ -369,8 +370,12 @@ func setupTestVariable(c *api.Client, ns, p string, out *SVMSlice) error {
 		Path:      p,
 		Items:     map[string]string{"k": "v"}}
 	v, _, err := c.Variables().Create(testVar, &api.WriteOptions{Namespace: ns})
+	if err != nil {
+		return err
+	}
+
 	*out = append(*out, *v.Metadata())
-	return err
+	return nil
 }
 
 type NSPather interface {

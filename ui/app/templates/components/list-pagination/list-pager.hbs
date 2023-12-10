@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 {{#if this.visible}}
@@ -9,6 +9,12 @@
     class={{this.class}}
     data-test-pager={{this.test}}
     aria-label={{this.label}}
+    {{(modifier
+      this.includeKeyboardNav
+      label=(if (eq this.label 'Next page') 'Next Page' 'Previous Page')
+      action=(action "gotoRoute")
+      pattern=(if (eq this.label 'Next page') (array "]" "]") (array "[" "["))
+    )}}
   >
     {{yield}}
   </LinkTo>

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -148,16 +148,20 @@ type FSMConfig struct {
 
 	// EventBufferSize is the amount of messages to hold in memory
 	EventBufferSize int64
+
+	// JobTrackedVersions is the number of historic job versions that are kept.
+	JobTrackedVersions int
 }
 
 // NewFSM is used to construct a new FSM with a blank state.
 func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
 	sconfig := &state.StateStoreConfig{
-		Logger:          config.Logger,
-		Region:          config.Region,
-		EnablePublisher: config.EnableEventBroker,
-		EventBufferSize: config.EventBufferSize,
+		Logger:             config.Logger,
+		Region:             config.Region,
+		EnablePublisher:    config.EnableEventBroker,
+		EventBufferSize:    config.EventBufferSize,
+		JobTrackedVersions: config.JobTrackedVersions,
 	}
 	state, err := state.NewStateStore(sconfig)
 	if err != nil {
@@ -722,7 +726,7 @@ func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, i
 	}
 
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
-		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.NoShutdownDelay, tx)
+		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.SubmitTime, req.NoShutdownDelay, tx)
 
 		if err != nil {
 			n.logger.Error("deregistering job failed",
@@ -762,7 +766,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 	// evals for jobs whose deregistering didn't get committed yet.
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
-			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, false, tx); err != nil {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, req.SubmitTime, false, tx); err != nil {
 				n.logger.Error("deregistering job failed", "job", jobNS.ID, "error", err)
 				return err
 			}
@@ -787,7 +791,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 
 // handleJobDeregister is used to deregister a job. Leaves error logging up to
 // caller.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, noShutdownDelay bool, tx state.Txn) error {
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, submitTime int64, noShutdownDelay bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
@@ -835,6 +839,9 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 
 		stopped := current.Copy()
 		stopped.Stop = true
+		if submitTime != 0 {
+			stopped.SubmitTime = submitTime
+		}
 
 		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
 			return fmt.Errorf("UpsertJob failed: %w", err)
@@ -1509,10 +1516,11 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 
 	// Create a new state store
 	config := &state.StateStoreConfig{
-		Logger:          n.config.Logger,
-		Region:          n.config.Region,
-		EnablePublisher: n.config.EnableEventBroker,
-		EventBufferSize: n.config.EventBufferSize,
+		Logger:             n.config.Logger,
+		Region:             n.config.Region,
+		EnablePublisher:    n.config.EnableEventBroker,
+		EventBufferSize:    n.config.EventBufferSize,
+		JobTrackedVersions: n.config.JobTrackedVersions,
 	}
 	newState, err := state.NewStateStore(config)
 	if err != nil {
@@ -2249,7 +2257,8 @@ func (f *FSMFilter) Include(item interface{}) bool {
 	return true
 }
 
-func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte,
+	index uint64) any {
 	var req structs.VarApplyStateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -2265,6 +2274,10 @@ func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byt
 		return n.state.VarDeleteCAS(index, &req)
 	case structs.VarOpCAS:
 		return n.state.VarSetCAS(index, &req)
+	case structs.VarOpLockAcquire:
+		return n.state.VarLockAcquire(index, &req)
+	case structs.VarOpLockRelease:
+		return n.state.VarLockRelease(index, &req)
 	default:
 		err := fmt.Errorf("Invalid variable operation '%s'", req.Op)
 		n.logger.Warn("Invalid variable operation", "operation", req.Op)

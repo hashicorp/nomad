@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package allocrunner
 
@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -36,16 +38,31 @@ type consulHTTPSockHook struct {
 
 	// lock synchronizes proxy and alloc which may be mutated and read concurrently
 	// via Prerun, Update, and Postrun.
-	lock  sync.Mutex
-	alloc *structs.Allocation
-	proxy *httpSocketProxy
+	lock    sync.Mutex
+	alloc   *structs.Allocation
+	proxies map[string]*httpSocketProxy
 }
 
-func newConsulHTTPSocketHook(logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir, config *config.ConsulConfig) *consulHTTPSockHook {
+func newConsulHTTPSocketHook(logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir, configs map[string]*config.ConsulConfig) *consulHTTPSockHook {
+
+	// Get the deduplicated set of Consul clusters that are needed by this
+	// alloc. For Nomad CE, this will always be just the default cluster.
+	clusterNames := set.New[string](1)
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	for _, s := range tg.Services {
+		clusterNames.Insert(s.GetConsulClusterName(tg))
+	}
+	proxies := map[string]*httpSocketProxy{}
+
+	clusterNames.ForEach(func(clusterName string) bool {
+		proxies[clusterName] = newHTTPSocketProxy(logger, allocDir, configs[clusterName])
+		return true
+	})
+
 	return &consulHTTPSockHook{
-		alloc:  alloc,
-		proxy:  newHTTPSocketProxy(logger, allocDir, config),
-		logger: logger.Named(consulHTTPSocketHookName),
+		alloc:   alloc,
+		proxies: proxies,
+		logger:  logger.Named(consulHTTPSocketHookName),
 	}
 }
 
@@ -81,7 +98,13 @@ func (h *consulHTTPSockHook) Prerun() error {
 		return nil
 	}
 
-	return h.proxy.run(h.alloc)
+	var mErr *multierror.Error
+	for _, proxy := range h.proxies {
+		if err := proxy.run(h.alloc); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 func (h *consulHTTPSockHook) Update(req *interfaces.RunnerUpdateRequest) error {
@@ -93,17 +116,29 @@ func (h *consulHTTPSockHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	if !h.shouldRun() {
 		return nil
 	}
+	if len(h.proxies) == 0 {
+		return fmt.Errorf("cannot update alloc to Connect in-place")
+	}
 
-	return h.proxy.run(h.alloc)
+	var mErr *multierror.Error
+	for _, proxy := range h.proxies {
+		if err := proxy.run(h.alloc); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 func (h *consulHTTPSockHook) Postrun() error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	if err := h.proxy.stop(); err != nil {
-		// Only log a failure to stop, worst case is the proxy leaks a goroutine.
-		h.logger.Warn("error stopping Consul HTTP proxy", "error", err)
+	for _, proxy := range h.proxies {
+		if err := proxy.stop(); err != nil {
+			// Only log failures to stop proxies. Worst case scenario is a small
+			// goroutine leak.
+			h.logger.Warn("error stopping Consul HTTP proxy", "error", err)
+		}
 	}
 
 	return nil
@@ -158,7 +193,12 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 		return errors.New("consul address must be set on nomad client")
 	}
 
-	hostHTTPSockPath := filepath.Join(p.allocDir.AllocDir, allocdir.AllocHTTPSocket)
+	socketFile := allocdir.AllocHTTPSocket
+	if p.config.Name != structs.ConsulDefaultCluster && p.config.Name != "" {
+		socketFile = filepath.Join(allocdir.SharedAllocName, allocdir.TmpDirName,
+			"consul_"+p.config.Name+"_http.sock")
+	}
+	hostHTTPSockPath := filepath.Join(p.allocDir.AllocDir, socketFile)
 	if err := maybeRemoveOldSocket(hostHTTPSockPath); err != nil {
 		return err
 	}

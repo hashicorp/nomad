@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package client
 
@@ -27,7 +27,7 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 	// Check node write permissions
 	if aclObj, err := n.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -44,6 +44,16 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 		// bad interleaving between concurrent updates.
 		dyn = maps.Clone(n.c.metaDynamic)
 		maps.Copy(dyn, args.Meta)
+
+		// Delete null values from the dynamic metadata if they are also not
+		// static. Static null values must be kept so their removal is
+		// persisted in client state.
+		for k, v := range args.Meta {
+			_, static := n.c.metaStatic[k]
+			if v == nil && !static {
+				delete(dyn, k)
+			}
+		}
 
 		if stateErr = n.c.stateDB.PutNodeMeta(dyn); stateErr != nil {
 			return
@@ -83,7 +93,7 @@ func (n *NodeMeta) Read(args *structs.NodeSpecificRequest, reply *structs.NodeMe
 	// Check node read permissions
 	if aclObj, err := n.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	} else if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 

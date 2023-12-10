@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { create } from '@storybook/theming';
@@ -37,5 +37,5 @@ export default create({
   barBg: blackBis,
 
   brandTitle: 'Nomad Storybook',
-  brandUrl: 'https://www.nomadproject.io/',
+  brandUrl: 'https://developer.hashicorp.com/nomad/',
 });

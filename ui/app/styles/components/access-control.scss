@@ -1,0 +1,136 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.access-control-overview {
+  .intro {
+    margin-bottom: 2rem;
+    p {
+      margin-bottom: 1rem;
+    }
+    footer {
+      display: flex;
+      gap: 1rem;
+    }
+  }
+
+  .section-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    & > div {
+      padding: 1rem;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 0.5rem;
+
+      & > p {
+        margin-bottom: 0.5rem;
+      }
+      & > a {
+        font-weight: bold;
+        font-size: 1.5rem;
+        text-decoration: none;
+
+        &.hds-button {
+          font-weight: normal;
+          font-size: inherit;
+        }
+      }
+    }
+  }
+}
+
+.acl-table {
+  .tag-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+
+    a {
+      white-space: nowrap;
+    }
+  }
+}
+
+.acl-form {
+  display: grid;
+  max-width: 100%;
+  gap: 2rem;
+
+  .selection-checkbox {
+    position: relative;
+    label {
+      cursor: pointer;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 12px 16px;
+    }
+  }
+
+  .expiration-time fieldset {
+    margin-bottom: 1rem;
+  }
+
+  .boxed-section {
+    overflow: auto;
+    width: 100%;
+  }
+
+  .policy-editor {
+    max-height: 600px;
+    overflow: auto;
+  }
+}
+
+.acl-explainer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.token-operations {
+  margin-bottom: 3rem;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(auto-fit, 50%);
+  grid-auto-rows: minmax(100px, auto);
+  gap: 1rem;
+
+  .boxed-section {
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+
+    .external-link svg {
+      position: relative;
+      top: 3px;
+    }
+
+    button.create-test-token,
+    pre {
+      margin-top: 1rem;
+    }
+
+    pre {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-content: flex-start;
+      white-space: normal;
+      overflow: visible;
+    }
+  }
+}
+
+@media #{$mq-hidden-gutter} {
+  .token-operations {
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+  }
+}

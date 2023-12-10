@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
@@ -7,11 +7,15 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,19 +34,63 @@ func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 	return state, ctx
 }
 
+// cpuResources creates both the legacy and modern structs concerning cpu
+// metrics used for resource accounting
+//
+// only creates a trivial single node, single core system for the sake of
+// compatibility with existing tests
+func cpuResources(shares int) (structs.LegacyNodeCpuResources, structs.NodeProcessorResources) {
+	n := &structs.NodeResources{
+		Processors: structs.NodeProcessorResources{
+			Topology: &numalib.Topology{
+				NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
+				Distances: numalib.SLIT{[]numalib.Cost{10}},
+				Cores: []numalib.Core{{
+					SocketID:  0,
+					NodeID:    0,
+					ID:        0,
+					Grade:     numalib.Performance,
+					Disable:   false,
+					BaseSpeed: hw.MHz(shares),
+				}},
+			},
+		},
+	}
+
+	// polyfill the legacy struct
+	n.Compatibility()
+
+	return n.Cpu, n.Processors
+}
+
+func cpuResourcesFrom(top *numalib.Topology) (structs.LegacyNodeCpuResources, structs.NodeProcessorResources) {
+	n := &structs.NodeResources{
+		Processors: structs.NodeProcessorResources{
+			Topology: top,
+		},
+	}
+
+	// polyfill the legacy struct
+	n.Compatibility()
+
+	return n.Cpu, n.Processors
+}
+
 func TestEvalContext_ProposedAlloc(t *testing.T) {
 	ci.Parallel(t)
 
 	state, ctx := testContext(t)
+
+	legacyCpuResources, processorResources := cpuResources(2048)
+
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources,
+					Cpu:        legacyCpuResources,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -54,9 +102,8 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 				// Perfect fit
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 2048,
-					},
+					Processors: processorResources,
+					Cpu:        legacyCpuResources,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
 					},
@@ -163,14 +210,16 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 	ci.Parallel(t)
 	state, ctx := testContext(t)
+
+	legacyCpuResources, processorResources := cpuResources(3 * 1024)
+
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
-					Cpu: structs.NodeCpuResources{
-						CpuShares: 1024 * 3,
-					},
+					Processors: processorResources,
+					Cpu:        legacyCpuResources,
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 1024 * 3,
 					},
@@ -425,20 +474,20 @@ func TestPortCollisionEvent_Copy(t *testing.T) {
 
 	// Copy must be equal
 	evCopy := ev.Copy()
-	require.Equal(t, ev, evCopy)
+	must.Eq(t, ev, evCopy)
 
 	// Modifying the copy should not affect the original value
 	evCopy.Reason = "copy"
-	require.NotEqual(t, ev.Reason, evCopy.Reason)
+	must.NotEq(t, ev.Reason, evCopy.Reason)
 
 	evCopy.Node.Attributes["test"] = "true"
-	require.NotEqual(t, ev.Node, evCopy.Node)
+	must.NotEq(t, ev.Node, evCopy.Node)
 
 	evCopy.Allocations = append(evCopy.Allocations, mock.Alloc())
-	require.NotEqual(t, ev.Allocations, evCopy.Allocations)
+	must.NotEq(t, ev.Allocations, evCopy.Allocations)
 
 	evCopy.NetIndex.AddAllocs(evCopy.Allocations)
-	require.NotEqual(t, ev.NetIndex, evCopy.NetIndex)
+	must.NotEq(t, ev.NetIndex, evCopy.NetIndex)
 }
 
 func TestPortCollisionEvent_Sanitize(t *testing.T) {

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package docker
 
@@ -103,7 +103,7 @@ func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
 }
 
 // authFromDockerConfig generate an authBackend for a dockercfg-compatible file.
-// The authBacken can either be from explicit auth definitions or via credential
+// The authBackend can either be from explicit auth definitions or via credential
 // helpers
 func authFromDockerConfig(file string) authBackend {
 	return func(repo string) (*docker.AuthConfiguration, error) {

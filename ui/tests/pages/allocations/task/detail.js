@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import {
@@ -26,7 +26,7 @@ export default create({
     },
   },
 
-  state: text('.title [data-test-state]'),
+  state: text('[data-test-title] [data-test-state]'),
   startedAt: text('[data-test-started-at]'),
 
   lifecycle: text('.pair [data-test-lifecycle]'),

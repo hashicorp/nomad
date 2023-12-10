@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package state
 
@@ -35,6 +35,8 @@ allocations/
 	 |--> deploy_status  -> deployStatusEntry{*structs.AllocDeploymentStatus}
 	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
 	 |--> acknowledged_state -> acknowledgedStateEntry{*arstate.State}
+	 |--> alloc_volumes -> allocVolumeStatesEntry{arstate.AllocVolumes}
+     |--> identities -> allocIdentitiesEntry{}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Syncs to servers
@@ -91,6 +93,12 @@ var (
 
 	// acknowledgedStateKey is the key *arstate.State is stored under
 	acknowledgedStateKey = []byte("acknowledged_state")
+
+	allocVolumeKey = []byte("alloc_volume")
+
+	// allocIdentityKey is the key []*structs.SignedWorkloadIdentities is stored
+	// under
+	allocIdentityKey = []byte("alloc_identities")
 
 	// checkResultsBucket is the bucket name in which check query results are stored
 	checkResultsBucket = []byte("check_results")
@@ -453,6 +461,111 @@ func (s *BoltStateDB) GetAcknowledgedState(allocID string) (*arstate.State, erro
 	}
 
 	return entry.State, nil
+}
+
+type allocVolumeStatesEntry struct {
+	State *arstate.AllocVolumes
+}
+
+// PutAllocVolumes stores stubs of an allocation's dynamic volume mounts so they
+// can be restored.
+func (s *BoltStateDB) PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
+		allocBkt, err := getAllocationBucket(tx, allocID)
+		if err != nil {
+			return err
+		}
+
+		entry := allocVolumeStatesEntry{
+			State: state,
+		}
+		return allocBkt.Put(allocVolumeKey, &entry)
+	})
+}
+
+// GetAllocVolumes retrieves stubs of an allocation's dynamic volume mounts so
+// they can be restored.
+func (s *BoltStateDB) GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error) {
+	var entry allocVolumeStatesEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			// No state for alloc, return
+			return nil
+		}
+
+		return allocBkt.Get(allocVolumeKey, &entry)
+	})
+
+	// It's valid for this field to be nil/missing
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.State, nil
+}
+
+// allocIdentitiesEntry wraps the signed identities so we can safely add more
+// state in the future without needing a new entry type
+type allocIdentitiesEntry struct {
+	Identities []*structs.SignedWorkloadIdentity
+}
+
+// PutAllocIdentities stores signed workload identities for an allocation. They
+// will be cleared when the allocation bucket is deleted.
+func (s *BoltStateDB) PutAllocIdentities(allocID string, identities []*structs.SignedWorkloadIdentity, opts ...WriteOption) error {
+
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
+		allocBkt, err := getAllocationBucket(tx, allocID)
+		if err != nil {
+			return err
+		}
+
+		entry := allocIdentitiesEntry{
+			Identities: identities,
+		}
+		return allocBkt.Put(allocIdentityKey, &entry)
+	})
+}
+
+// GetAllocIdentities returns the previously-signed workload identities for an
+// allocation, if any. It's up to the caller to ensure these are still valid.
+func (s *BoltStateDB) GetAllocIdentities(allocID string) ([]*structs.SignedWorkloadIdentity, error) {
+	var entry allocIdentitiesEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			return nil // No previous state at all
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			return nil // No previous state for this alloc
+		}
+
+		return allocBkt.Get(allocIdentityKey, &entry)
+	})
+
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil // There may not be any previously signed identities
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.Identities, nil
 }
 
 // GetTaskRunnerState returns the LocalState and TaskState for a

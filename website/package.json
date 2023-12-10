@@ -4,15 +4,15 @@
   "version": "1.0.0",
   "author": "HashiCorp",
   "engines": {
-    "node": "14.x - 16.x",
-    "npm": ">=7.0.0"
+    "npm": ">=7.0.0",
+    "node": ">=16.x <=18.x"
   },
   "devDependencies": {
     "@hashicorp/platform-cli": "^2.6.0",
-    "@hashicorp/platform-content-conformance": "^0.0.11",
+    "@hashicorp/platform-content-conformance": "^0.0.12",
     "dart-linkcheck": "^2.0.15",
     "husky": "4.3.8",
-    "next": "^13.4.2",
+    "next": "^14.0.1",
     "prettier": "2.8.8"
   },
   "husky": {
@@ -27,7 +27,7 @@
     "generate:readme": "next-hashicorp markdown-blocks README.md",
     "lint": "next-hashicorp lint",
     "start": "./scripts/website-start.sh",
-    "linkcheck": "linkcheck https://www.nomadproject.io",
+    "linkcheck": "linkcheck https://developer.hashicorp.com/nomad",
     "content-check": "hc-content --config base-docs"
   }
 }

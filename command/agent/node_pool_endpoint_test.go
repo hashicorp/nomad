@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -32,7 +32,7 @@ func TestHTTP_NodePool_List(t *testing.T) {
 		must.NoError(t, err)
 
 		// Make HTTP request.
-		req, err := http.NewRequest("GET", "/v1/node/pools", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/node/pools", nil)
 		must.NoError(t, err)
 		respW := httptest.NewRecorder()
 
@@ -63,7 +63,7 @@ func TestHTTP_NodePool_Info(t *testing.T) {
 
 		t.Run("test pool", func(t *testing.T) {
 			// Make HTTP request for test pool.
-			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/node/pool/%s", pool.Name), nil)
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/v1/node/pool/%s", pool.Name), nil)
 			must.NoError(t, err)
 			respW := httptest.NewRecorder()
 
@@ -86,7 +86,7 @@ func TestHTTP_NodePool_Info(t *testing.T) {
 
 		t.Run("built-in pool", func(t *testing.T) {
 			// Make HTTP request for built-in pool.
-			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/node/pool/%s", structs.NodePoolAll), nil)
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/v1/node/pool/%s", structs.NodePoolAll), nil)
 			must.NoError(t, err)
 			respW := httptest.NewRecorder()
 
@@ -104,7 +104,7 @@ func TestHTTP_NodePool_Info(t *testing.T) {
 
 		t.Run("invalid pool", func(t *testing.T) {
 			// Make HTTP request for built-in pool.
-			req, err := http.NewRequest("GET", "/v1/node/pool/doesn-exist", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/node/pool/doesn-exist", nil)
 			must.NoError(t, err)
 			respW := httptest.NewRecorder()
 
@@ -126,7 +126,7 @@ func TestHTTP_NodePool_Create(t *testing.T) {
 		// Create test node pool.
 		pool := mock.NodePool()
 		buf := encodeReq(pool)
-		req, err := http.NewRequest("PUT", "/v1/node/pools", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/node/pools", buf)
 		must.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -174,7 +174,7 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			}
 
 			buf := encodeReq(updated)
-			req, err := http.NewRequest("PUT", fmt.Sprintf("/v1/node/pool/%s", updated.Name), buf)
+			req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("/v1/node/pool/%s", updated.Name), buf)
 			must.NoError(t, err)
 
 			respW := httptest.NewRecorder()
@@ -218,7 +218,7 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			}
 
 			buf := encodeReq(updated)
-			req, err := http.NewRequest("PUT", "/v1/node/pool/", buf)
+			req, err := http.NewRequest(http.MethodPut, "/v1/node/pool/", buf)
 			must.NoError(t, err)
 
 			respW := httptest.NewRecorder()
@@ -261,7 +261,7 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 
 			// Make request with the wrong path.
 			buf := encodeReq(updated)
-			req, err := http.NewRequest("PUT", "/v1/node/pool/wrong", buf)
+			req, err := http.NewRequest(http.MethodPut, "/v1/node/pool/wrong", buf)
 			must.NoError(t, err)
 
 			respW := httptest.NewRecorder()
@@ -294,7 +294,7 @@ func TestHTTP_NodePool_Delete(t *testing.T) {
 		must.NoError(t, err)
 
 		// Delete test node pool.
-		req, err := http.NewRequest("DELETE", fmt.Sprintf("/v1/node/pool/%s", pool.Name), nil)
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/v1/node/pool/%s", pool.Name), nil)
 		must.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -383,7 +383,7 @@ func TestHTTP_NodePool_NodesList(t *testing.T) {
 				t.Run(tc.name, func(t *testing.T) {
 					// Make HTTP request.
 					path := fmt.Sprintf("/v1/node/pool/%s/nodes?%s", tc.pool, tc.args)
-					req, err := http.NewRequest("GET", path, nil)
+					req, err := http.NewRequest(http.MethodGet, path, nil)
 					must.NoError(t, err)
 					respW := httptest.NewRecorder()
 

@@ -98,8 +98,16 @@ via CLI arguments. The `agent` command accepts the following arguments:
   but you may pass an optional comma-separated list of mode configurations:
 
 - `-dev-connect`: Start the agent in development mode, but bind to a public
-  network interface rather than localhost for using Consul Connect. This mode
-  is supported only on Linux as root.
+  network interface rather than localhost for using Consul Connect. It may be
+  used with `-dev-consul` to configure default workload identities for Consul.
+  This mode is supported only on Linux as root.
+
+- `-dev-consul`: Starts the agent in development mode with a default Consul
+  configuration for Nomad workload identity. It may be used with `-dev-connect`
+  to configure the agent for Consul Service Mesh.
+
+- `-dev-vault`: Starts the agent in development mode with a default Vault
+  configuration for Nomad workload identity.
 
 - `-encrypt`: Set the Serf encryption key. See the [Encryption Overview] for
   more details.
@@ -108,6 +116,8 @@ via CLI arguments. The `agent` command accepts the following arguments:
   be specified multiple times to specify multiple agents to join.
 
 - `-log-level=<level>`: Equivalent to the [log_level] config option.
+
+- `-log-include-location`: Equivalent to the [log_include_location] config option.
 
 - `-log-json`: Equivalent to the [log_json] config option.
 
@@ -202,6 +212,7 @@ via CLI arguments. The `agent` command accepts the following arguments:
 [enabled]: /nomad/docs/configuration/acl#enabled
 [encryption overview]: /nomad/tutorials/transport-security/security-gossip-encryption
 [key_file]: /nomad/docs/configuration/consul#key_file
+[log_include_location]: /nomad/docs/configuration#log_include_location
 [log_json]: /nomad/docs/configuration#log_json
 [log_level]: /nomad/docs/configuration#log_level
 [meta]: /nomad/docs/configuration/client#meta

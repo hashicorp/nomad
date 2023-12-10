@@ -61,6 +61,7 @@ func TestParse(t *testing.T) {
 				Datacenters: []string{"us2", "eu1"},
 				Region:      stringToPtr("fooregion"),
 				Namespace:   stringToPtr("foonamespace"),
+				NodePool:    stringToPtr("dev"),
 				ConsulToken: stringToPtr("abc"),
 				VaultToken:  stringToPtr("foo"),
 
@@ -193,10 +194,11 @@ func TestParse(t *testing.T) {
 							"elb_checks":   "3",
 						},
 						RestartPolicy: &api.RestartPolicy{
-							Interval: timeToPtr(10 * time.Minute),
-							Attempts: intToPtr(5),
-							Delay:    timeToPtr(15 * time.Second),
-							Mode:     stringToPtr("delay"),
+							Interval:        timeToPtr(10 * time.Minute),
+							Attempts:        intToPtr(5),
+							Delay:           timeToPtr(15 * time.Second),
+							Mode:            stringToPtr("delay"),
+							RenderTemplates: boolToPtr(false),
 						},
 						Spreads: []*api.Spread{
 							{
@@ -384,8 +386,6 @@ func TestParse(t *testing.T) {
 										Splay:         timeToPtr(10 * time.Second),
 										Perms:         stringToPtr("0644"),
 										Envvars:       boolToPtr(true),
-										Uid:           intToPtr(-1),
-										Gid:           intToPtr(-1),
 										VaultGrace:    timeToPtr(33 * time.Second),
 										ErrMissingKey: boolToPtr(true),
 									},
@@ -531,6 +531,7 @@ func TestParse(t *testing.T) {
 				Constraints: []*api.Constraint{
 					{
 						Operand: api.ConstraintDistinctHosts,
+						RTarget: "true",
 					},
 				},
 			},
@@ -560,6 +561,21 @@ func TestParse(t *testing.T) {
 				Periodic: &api.PeriodicConfig{
 					SpecType:        stringToPtr(api.PeriodicSpecCron),
 					Spec:            stringToPtr("*/5 * * *"),
+					ProhibitOverlap: boolToPtr(true),
+					TimeZone:        stringToPtr("Europe/Minsk"),
+				},
+			},
+			false,
+		},
+
+		{
+			"periodic-crons.hcl",
+			&api.Job{
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
+				Periodic: &api.PeriodicConfig{
+					SpecType:        stringToPtr(api.PeriodicSpecCron),
+					Specs:           []string{"*/5 * * *", "*/7 * * *"},
 					ProhibitOverlap: boolToPtr(true),
 					TimeZone:        stringToPtr("Europe/Minsk"),
 				},
@@ -1185,10 +1201,14 @@ func TestParse(t *testing.T) {
 											LocalServicePort: 8080,
 											Upstreams: []*api.ConsulUpstream{
 												{
-													DestinationName:  "other-service",
-													LocalBindPort:    4567,
-													LocalBindAddress: "0.0.0.0",
-													Datacenter:       "dc1",
+													DestinationName:     "other-service",
+													DestinationPeer:     "10.0.0.1:6379",
+													DestinationType:     "tcp",
+													LocalBindPort:       4567,
+													LocalBindAddress:    "0.0.0.0",
+													LocalBindSocketPath: "/var/run/testsocket.sock",
+													LocalBindSocketMode: "0666",
+													Datacenter:          "dc1",
 
 													MeshGateway: &api.ConsulMeshGateway{
 														Mode: "local",

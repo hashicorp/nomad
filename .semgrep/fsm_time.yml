@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 rules:
   - id: "no-time-in-fsm"
@@ -29,5 +29,7 @@ rules:
     severity: "WARNING"
     paths:
       include:
-        - "nomad/fsm.*"
-        - "nomad/state/state_store.*"
+        - "nomad/fsm*"
+        - "nomad/state/state_store*"
+      exclude:
+        - "*_test.go"

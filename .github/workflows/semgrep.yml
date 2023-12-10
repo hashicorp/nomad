@@ -9,13 +9,14 @@ jobs:
   semgrep:
     name: Semgrep Scan
     runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep:1.36.0
     env:
       SEMGREP_SEND_METRICS: 0
     # Skip any PR created by dependabot to avoid permission issues
     if: (github.actor != 'dependabot[bot]')
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - uses: returntocorp/semgrep-action@8689a93eca50c91f8e8cfa61e3c4fb7e96d12bf2 # v1
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - run: semgrep ci --config=.semgrep/
 permissions:
   contents: read
-

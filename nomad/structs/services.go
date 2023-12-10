@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,13 +22,11 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -344,12 +344,12 @@ func (sc *ServiceCheck) validateNomad() error {
 
 	// expose is connect (consul) specific
 	if sc.Expose {
-		return fmt.Errorf("expose may only be set for Consul service checks")
+		return errors.New("expose may only be set for Consul service checks")
 	}
 
 	// nomad checks do not have warnings
 	if sc.OnUpdate == OnUpdateIgnoreWarn {
-		return fmt.Errorf("on_update may only be set to ignore_warnings for Consul service checks")
+		return errors.New("on_update may only be set to ignore_warnings for Consul service checks")
 	}
 
 	// below are temporary limitations on checks in nomad
@@ -358,13 +358,13 @@ func (sc *ServiceCheck) validateNomad() error {
 	// check_restart.ignore_warnings is not a thing in Nomad (which has no warnings in checks)
 	if sc.CheckRestart != nil {
 		if sc.CheckRestart.IgnoreWarnings {
-			return fmt.Errorf("ignore_warnings on check_restart only supported for Consul service checks")
+			return errors.New("ignore_warnings on check_restart only supported for Consul service checks")
 		}
 	}
 
 	// address_mode="driver" not yet supported on nomad
 	if sc.AddressMode == "driver" {
-		return fmt.Errorf("address_mode = driver may only be set for Consul service checks")
+		return errors.New("address_mode = driver may only be set for Consul service checks")
 	}
 
 	if sc.Type == "http" {
@@ -375,17 +375,22 @@ func (sc *ServiceCheck) validateNomad() error {
 
 	// success_before_passing is consul only
 	if sc.SuccessBeforePassing != 0 {
-		return fmt.Errorf("success_before_passing may only be set for Consul service checks")
+		return errors.New("success_before_passing may only be set for Consul service checks")
 	}
 
 	// failures_before_critical is consul only
 	if sc.FailuresBeforeCritical != 0 {
-		return fmt.Errorf("failures_before_critical may only be set for Consul service checks")
+		return errors.New("failures_before_critical may only be set for Consul service checks")
 	}
 
 	// tls_server_name is consul only
 	if sc.TLSServerName != "" {
-		return fmt.Errorf("tls_server_name may only be set for Consul service checks")
+		return errors.New("tls_server_name may only be set for Consul service checks")
+	}
+
+	// tls_skip_verify is consul only
+	if sc.TLSSkipVerify {
+		return errors.New("tls_skip_verify may only be set for Consul service checks")
 	}
 
 	return nil
@@ -609,6 +614,14 @@ type Service struct {
 	// either ServiceProviderConsul or ServiceProviderNomad and defaults to the former when
 	// left empty by the operator.
 	Provider string
+
+	// Consul Cluster (by name) to send API requests to
+	Cluster string
+
+	// Identity is a field populated automatically by the job mutating hook.
+	// Its name will be `consul-service/${service_name}`, and its contents will
+	// match the server's `consul.service_identity` configuration block.
+	Identity *WorkloadIdentity
 }
 
 // Copy the block recursively. Returns nil if nil.
@@ -634,6 +647,8 @@ func (s *Service) Copy() *Service {
 	ns.Meta = maps.Clone(s.Meta)
 	ns.CanaryMeta = maps.Clone(s.CanaryMeta)
 	ns.TaggedAddresses = maps.Clone(s.TaggedAddresses)
+
+	ns.Identity = s.Identity.Copy()
 
 	return ns
 }
@@ -692,6 +707,20 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 	}
 }
 
+// Warnings returns a list of warnings that may be from dubious settings or
+// deprecation warnings.
+func (s *Service) Warnings() error {
+	var mErr *multierror.Error
+
+	if s.Identity != nil {
+		if err := s.Identity.Warnings(); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // Validate checks if the Service definition is valid
 func (s *Service) Validate() error {
 	var mErr multierror.Error
@@ -736,7 +765,37 @@ func (s *Service) Validate() error {
 			ServiceProviderConsul, ServiceProviderNomad, s.Provider))
 	}
 
+	if err := s.validateIdentity(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
 	return mErr.ErrorOrNil()
+}
+
+// MakeUniqueIdentityName returns a service identity name consisting of: task
+// name, service name and service port label.
+func (s *Service) MakeUniqueIdentityName() string {
+	prefix := ConsulServiceIdentityNamePrefix
+	if s.Provider == ServiceProviderNomad {
+		prefix = "nomad-service"
+	}
+	if s.TaskName != "" {
+		return fmt.Sprintf("%s_%v-%v-%v", prefix, s.TaskName, s.Name, s.PortLabel)
+	}
+	return fmt.Sprintf("%s_%v-%v", prefix, s.Name, s.PortLabel)
+}
+
+// IdentityHandle returns a WorkloadIdentityHandle which is a pair of service
+// identity name and service name.
+func (s *Service) IdentityHandle() *WIHandle {
+	if s.Identity != nil {
+		return &WIHandle{
+			IdentityName:       s.Identity.Name,
+			WorkloadIdentifier: s.Name,
+			WorkloadType:       WorkloadTypeService,
+		}
+	}
+	return nil
 }
 
 func (s *Service) validateCheckPort(c *ServiceCheck) error {
@@ -808,6 +867,20 @@ func (s *Service) validateNomadService(mErr *multierror.Error) {
 	}
 }
 
+// validateIdentity performs validation on workload identity field populated by
+// the job mutating hook
+func (s *Service) validateIdentity() error {
+	if s.Identity == nil {
+		return nil
+	}
+
+	if len(s.Identity.Audience) == 0 {
+		return fmt.Errorf("Service identity must provide at least one target aud value")
+	}
+
+	return nil
+}
+
 // ValidateName checks if the service Name is valid and should be called after
 // the name has been interpolated
 func (s *Service) ValidateName(name string) error {
@@ -846,6 +919,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashConnect(h, s.Connect)
 	hashString(h, s.OnUpdate)
 	hashString(h, s.Namespace)
+	hashIdentity(h, s.Identity)
 
 	// Don't hash the provider parameter, so we don't cause churn of all
 	// registered services when upgrading Nomad versions. The provider is not
@@ -873,9 +947,29 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 				hashString(h, strconv.Itoa(upstream.LocalBindPort))
 				hashStringIfNonEmpty(h, upstream.Datacenter)
 				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
+				hashString(h, upstream.DestinationPeer)
+				hashString(h, upstream.DestinationType)
+				hashString(h, upstream.LocalBindSocketPath)
+				hashString(h, upstream.LocalBindSocketMode)
 				hashConfig(h, upstream.Config)
 			}
 		}
+	}
+}
+
+func hashIdentity(h hash.Hash, identity *WorkloadIdentity) {
+	if identity != nil {
+		hashString(h, identity.Name)
+		hashAud(h, identity.Audience)
+		hashBool(h, identity.Env, "Env")
+		hashBool(h, identity.File, "File")
+		hashString(h, identity.ServiceName)
+	}
+}
+
+func hashAud(h hash.Hash, aud []string) {
+	for _, a := range aud {
+		hashString(h, a)
 	}
 }
 
@@ -910,6 +1004,10 @@ func (s *Service) Equal(o *Service) bool {
 	}
 
 	if s.Provider != o.Provider {
+		return false
+	}
+
+	if s.Cluster != o.Cluster {
 		return false
 	}
 
@@ -969,7 +1067,15 @@ func (s *Service) Equal(o *Service) bool {
 		return false
 	}
 
+	if !s.Identity.Equal(o.Identity) {
+		return false
+	}
+
 	return true
+}
+
+func (s *Service) IsConsul() bool {
+	return s.Provider == ServiceProviderConsul || s.Provider == ""
 }
 
 // ConsulConnect represents a Consul Connect jobspec block.
@@ -1485,6 +1591,13 @@ type ConsulUpstream struct {
 	// DestinationNamespace is the namespace of the upstream service.
 	DestinationNamespace string
 
+	// DestinationPeer the destination service address
+	DestinationPeer string
+
+	// DestinationType is the type of destination. It can be an IP address,
+	// a DNS hostname, or a service name.
+	DestinationType string
+
 	// LocalBindPort is the port the proxy will receive connections for the
 	// upstream on.
 	LocalBindPort int
@@ -1495,6 +1608,13 @@ type ConsulUpstream struct {
 	// LocalBindAddress is the address the proxy will receive connections for the
 	// upstream on.
 	LocalBindAddress string
+
+	// LocalBindSocketPath is the path of the local socket file that will be used
+	// to connect to the destination service
+	LocalBindSocketPath string
+
+	// LocalBindSocketMode defines access permissions to the local socket file
+	LocalBindSocketMode string
 
 	// MeshGateway is the optional configuration of the mesh gateway for this
 	// upstream to use.
@@ -1515,7 +1635,15 @@ func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 		return false
 	case u.DestinationNamespace != o.DestinationNamespace:
 		return false
+	case u.DestinationPeer != o.DestinationPeer:
+		return false
+	case u.DestinationType != o.DestinationType:
+		return false
 	case u.LocalBindPort != o.LocalBindPort:
+		return false
+	case u.LocalBindSocketPath != o.LocalBindSocketPath:
+		return false
+	case u.LocalBindSocketMode != o.LocalBindSocketMode:
 		return false
 	case u.Datacenter != o.Datacenter:
 		return false

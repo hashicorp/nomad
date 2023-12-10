@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where CSI volumes would fail to restore during client restarts
+```

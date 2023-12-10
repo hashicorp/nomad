@@ -149,7 +149,7 @@ job "docs" {
 ```hcl
 plugin "qemu" {
   config {
-    image_paths = ["/mnt/image/paths"]
+    image_paths    = ["/mnt/image/paths"]
     args_allowlist = ["-drive", "-usbdevice"]
   }
 }

@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 /* eslint-disable qunit/require-expect */
@@ -406,7 +406,7 @@ module('Acceptance | task group detail', function (hooks) {
   test('/jobs/:id/:task-group should present task lifecycles', async function (assert) {
     job = server.create('job', {
       groupsCount: 2,
-      groupTaskCount: 3,
+      groupAllocCount: 3,
     });
 
     const taskGroups = server.db.taskGroups.where({ jobId: job.id });

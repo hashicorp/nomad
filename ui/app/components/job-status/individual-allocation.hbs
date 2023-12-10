@@ -1,9 +1,10 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
-
-<Hds::TooltipButton @text="{{get @allocation "shortId"}}" aria-label="Allocation" @extraTippyOptions={{hash trigger=(if (eq @status "unplaced") "manual")}}>
+<Hds::TooltipButton
+  @text="{{if this.showClient (concat this.nodeName " - " (get @allocation "shortId")) (get @allocation "shortId")}}"
+aria-label="Allocation" @extraTippyOptions={{hash trigger=(if (eq @status "unplaced") "manual")}}>
   <ConditionalLinkTo
     @condition={{not (eq @status "unplaced")}}
     @route="allocations.allocation"

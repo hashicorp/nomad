@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 <td data-test-icon class="is-narrow">
@@ -14,11 +14,18 @@
 <td data-test-client-name class="is-200px is-truncatable" title="{{this.node.name}}">{{this.node.name}}</td>
 <td data-test-client-composite-status>
   <span class="tooltip" aria-label="{{this.node.status}} / {{if this.node.isDraining "draining" "not draining"}} / {{if this.node.isEligible "eligible" "not eligible"}}">
-    <span class="{{this.compositeStatusClass}}">{{this.node.compositeStatus}}</span>
+    <Hds::Badge
+      @text={{capitalize this.node.compositeStatus}}
+      @icon={{this.nodeStatusIcon}}
+      @color={{this.nodeStatusColor}}
+      @size="large"
+    />
   </span>
 </td>
 <td data-test-client-address class="is-200px is-truncatable">{{this.node.httpAddr}}</td>
-<td data-test-client-node-pool title="{{this.node.nodePool}}">{{this.node.nodePool}}</td>
+<td data-test-client-node-pool title="{{this.node.nodePool}}">
+  {{#if this.node.nodePool}}{{this.node.nodePool}}{{else}}-{{/if}}
+</td>
 <td data-test-client-datacenter>{{this.node.datacenter}}</td>
 <td data-test-client-version>{{this.node.version}}</td>
 <td data-test-client-volumes>{{if this.node.hostVolumes.length this.node.hostVolumes.length}}</td>

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -30,7 +30,7 @@ Update Options:
     Sets the human readable name for the ACL token.
 
   -type="client"
-    Sets the type of token. Must be one of "client" (default), or "management".
+    Sets the type of token. Must be one of "client" or "management".
 
   -global=false
     Toggles the global mode of the token. Global tokens are replicated to all regions.
@@ -70,7 +70,7 @@ func (c *ACLTokenUpdateCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&name, "name", "", "")
-	flags.StringVar(&tokenType, "type", "client", "")
+	flags.StringVar(&tokenType, "type", "", "")
 	flags.BoolVar(&global, "global", false, "")
 	flags.Var((funcVar)(func(s string) error {
 		policies = append(policies, s)

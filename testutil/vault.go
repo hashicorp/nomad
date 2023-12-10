@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package testutil
 
@@ -10,10 +10,12 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
 	testing "github.com/mitchellh/go-testing-interface"
@@ -25,6 +27,10 @@ import (
 // and backends mounted. The test Vault instances can be used to run a unit test
 // and offers and easy API to tear itself down on test end. The only
 // prerequisite is that the Vault binary is on the $PATH.
+
+const (
+	envVaultLogLevel = "NOMAD_TEST_VAULT_LOG_LEVEL"
+)
 
 // TestVault wraps a test Vault server launched in dev mode, suitable for
 // testing.
@@ -41,13 +47,31 @@ type TestVault struct {
 }
 
 func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
+	t.Helper()
+
+	if _, err := exec.LookPath(binary); err != nil {
+		t.Skipf("Skipping test %s, Vault binary %q not found in path.", t.Name(), binary)
+	}
+
+	// Define which log level to use. Default to the same as Nomad but allow a
+	// custom value for Vault. Since Vault doesn't support "off", cap it to
+	// "error".
+	logLevel := testlog.HCLoggerTestLevel().String()
+	if vaultLogLevel := os.Getenv(envVaultLogLevel); vaultLogLevel != "" {
+		logLevel = vaultLogLevel
+	}
+	if logLevel == hclog.Off.String() {
+		logLevel = hclog.Error.String()
+	}
+
 	port := ci.PortAllocator.Grab(1)[0]
 	token := uuid.Generate()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
 	http := fmt.Sprintf("http://127.0.0.1:%d", port)
 	root := fmt.Sprintf("-dev-root-token-id=%s", token)
+	log := fmt.Sprintf("-log-level=%s", logLevel)
 
-	cmd := exec.Command(binary, "server", "-dev", bind, root)
+	cmd := exec.Command(binary, "server", "-dev", bind, root, log)
 	cmd.Stdout = testlog.NewWriter(t)
 	cmd.Stderr = testlog.NewWriter(t)
 
@@ -72,6 +96,7 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 		RootToken: token,
 		Client:    client,
 		Config: &config.VaultConfig{
+			Name:    structs.VaultDefaultCluster,
 			Enabled: &enable,
 			Token:   token,
 			Addr:    http,
@@ -110,6 +135,8 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 
 // NewTestVault returns a new TestVault instance that is ready for API calls
 func NewTestVault(t testing.T) *TestVault {
+	t.Helper()
+
 	// Lookup vault from the path
 	return NewTestVaultFromPath(t, "vault")
 }

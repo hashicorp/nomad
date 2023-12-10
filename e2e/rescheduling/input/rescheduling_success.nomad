@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 job "test3" {
 
@@ -31,9 +31,10 @@ job "test3" {
     }
 
     reschedule {
-      attempts  = 2
-      interval  = "5m"
-      unlimited = false
+      delay          = "5s"
+      delay_function = "constant"
+      unlimited      = true
     }
+
   }
 }

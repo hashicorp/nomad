@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 job "linux" {
   datacenters = ["dc1"]
@@ -243,7 +243,7 @@ job "linux" {
       driver = "docker"
       config {
         image = "bash:5"
-        args  = ["cat", "local/go.mod"]
+        args  = ["-c", "cat local/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -260,7 +260,7 @@ job "linux" {
       driver = "docker"
       config {
         image = "bash:5"
-        args  = ["cat", "local/my/path/go.mod"]
+        args  = ["-c", "cat local/my/path/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -278,7 +278,7 @@ job "linux" {
       driver = "docker"
       config {
         image = "bash:5"
-        args  = ["cat", "${NOMAD_ALLOC_DIR}/go.mod"]
+        args  = ["-c", "cat ${NOMAD_ALLOC_DIR}/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -294,7 +294,7 @@ job "linux" {
       driver = "docker"
       config {
         image = "bash:5"
-        args  = ["cat", "local/go-set-main/go.mod"]
+        args  = ["-c", "cat local/go-set-main/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -311,7 +311,7 @@ job "linux" {
       driver = "docker"
       config {
         image = "bash:5"
-        args  = ["cat", "local/my/zip/go-set-main/go.mod"]
+        args  = ["-c", "cat local/my/zip/go-set-main/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -328,7 +328,7 @@ job "linux" {
       driver = "docker"
       config {
         image = "bash:5"
-        args  = ["cat", "local/repository/go.mod"]
+        args  = ["-c", "cat local/repository/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16

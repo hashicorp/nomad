@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -34,7 +34,7 @@ func TestHTTP_ScalingPoliciesList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/scaling/policies", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/scaling/policies", nil)
 		require.NoError(err)
 
 		respW := httptest.NewRecorder()
@@ -75,7 +75,7 @@ func TestHTTP_ScalingPoliciesList_Filter(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/scaling/policies?job="+job.ID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/scaling/policies?job="+job.ID, nil)
 		require.NoError(err)
 		respW := httptest.NewRecorder()
 
@@ -88,7 +88,7 @@ func TestHTTP_ScalingPoliciesList_Filter(t *testing.T) {
 		require.Len(l, 1)
 
 		// Request again, with policy type filter
-		req, err = http.NewRequest("GET", "/v1/scaling/policies?type=cluster", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/scaling/policies?type=cluster", nil)
 		require.NoError(err)
 		respW = httptest.NewRecorder()
 
@@ -120,7 +120,7 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 		require.NoError(err)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/scaling/policy/"+p.ID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/scaling/policy/"+p.ID, nil)
 		require.NoError(err)
 		respW := httptest.NewRecorder()
 

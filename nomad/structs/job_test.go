@@ -1,12 +1,12 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
 import (
 	"testing"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -335,6 +335,139 @@ func TestJob_RequiredConsulServiceDiscovery(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := tc.inputJob.RequiredConsulServiceDiscovery()
 			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestJob_RequiredNUMA(t *testing.T) {
+	cases := []struct {
+		name     string
+		inputJob *Job
+		exp      []string
+	}{
+		{
+			name: "no numa blocks",
+			inputJob: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+						},
+					},
+					{
+						Name: "group2",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+						},
+					},
+				},
+			},
+			exp: []string{},
+		},
+		{
+			name: "two numa blocks one none",
+			inputJob: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+					{
+						Name: "group2",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "none",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			exp: []string{"group1"},
+		},
+		{
+			name: "three numa blocks one none",
+			inputJob: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+					{
+						Name: "group2",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "none",
+									},
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "prefer",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			exp: []string{"group1", "group2"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputJob.Canonicalize()
+			result := tc.inputJob.RequiredNUMA()
+			must.SliceContainsAll(t, tc.exp, result.Slice())
 		})
 	}
 }

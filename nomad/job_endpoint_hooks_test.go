@@ -1,28 +1,328 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
+
+func Test_jobValidate_Validate_consul_service(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name          string
+		inputService  *structs.Service
+		inputConfig   *Config
+		expectedWarns []string
+		expectedErr   string
+	}{
+		{
+			name: "no error when consul identity is not enabled and service does not have an identity",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{},
+			},
+		},
+		{
+			name: "no error when consul identity is enabled and identity is provided via server config",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						ServiceIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+							TTL:      pointer.Of(time.Hour),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "no error when consul identity is missing and identity is provided via service",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+				Identity: &structs.WorkloadIdentity{
+					Name:        "consul-service_web",
+					Audience:    []string{"consul.io"},
+					File:        true,
+					Env:         false,
+					ServiceName: "web",
+					TTL:         time.Hour,
+				},
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{},
+			},
+		},
+		{
+			name: "warn when service identity has no TTL",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+				Identity: &structs.WorkloadIdentity{
+					Name:        "consul-service_web",
+					Audience:    []string{"consul.io"},
+					File:        true,
+					Env:         false,
+					ServiceName: "web",
+				},
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{},
+			},
+			expectedWarns: []string{
+				"identities without an expiration are insecure",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputConfig.JobMaxPriority = 100
+			impl := jobValidate{srv: &Server{
+				config: tc.inputConfig,
+			}}
+
+			job := mock.Job()
+			job.TaskGroups[0].Services = []*structs.Service{tc.inputService}
+			job.TaskGroups[0].Tasks[0].Services = []*structs.Service{tc.inputService}
+
+			warns, err := impl.Validate(job)
+
+			if len(tc.expectedErr) == 0 {
+				must.NoError(t, err)
+			} else {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expectedErr)
+			}
+
+			must.Len(t, len(tc.expectedWarns), warns, must.Sprintf("got warnings: %v", warns))
+			for _, exp := range tc.expectedWarns {
+				hasWarn := false
+				for _, w := range warns {
+					if strings.Contains(w.Error(), exp) {
+						hasWarn = true
+						break
+					}
+				}
+				must.True(t, hasWarn, must.Sprintf("expected %v to have warning with %q", warns, exp))
+			}
+		})
+	}
+}
+
+func Test_jobValidate_Validate_vault(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                string
+		inputTaskVault      *structs.Vault
+		inputTaskIdentities []*structs.WorkloadIdentity
+		inputConfig         map[string]*config.VaultConfig
+		expectedWarns       []string
+		expectedErr         string
+	}{
+		{
+			name: "no error when vault identity is provided via config",
+			inputTaskVault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
+			inputTaskIdentities: nil,
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+						TTL:      pointer.Of(time.Hour),
+					},
+				},
+			},
+		},
+		{
+			name: "no error when vault identity is provided via config from non-default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster: "other",
+			},
+			inputTaskIdentities: nil,
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {},
+				"other": {
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+						TTL:      pointer.Of(time.Hour),
+					},
+				},
+			},
+		},
+		{
+			name: "no error when vault identity is provided via task",
+			inputTaskVault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
+			inputTaskIdentities: []*structs.WorkloadIdentity{{
+				Name:     "vault_default",
+				Audience: []string{"vault.io"},
+				TTL:      time.Hour,
+			}},
+		},
+		{
+			name: "no error when vault identity is provided via task for non-default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster: "other",
+			},
+			inputTaskIdentities: []*structs.WorkloadIdentity{{
+				Name:     "vault_other",
+				Audience: []string{"vault.io"},
+				TTL:      time.Hour,
+			}},
+		},
+		{
+			name: "no error when task uses legacy flow with default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster:  structs.VaultDefaultCluster,
+				Policies: []string{"nomad-workload"},
+			},
+		},
+		{
+			name: "error when not using vault identity and vault block is missing policies",
+			inputTaskVault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
+			inputTaskIdentities: nil,
+			expectedErr:         "Vault block with an empty list of policies",
+		},
+		{
+			name: "error when no identity is available for non-default cluster",
+			inputTaskVault: &structs.Vault{
+				Cluster: "other",
+			},
+			inputTaskIdentities: nil,
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {},
+				"other":                     {},
+			},
+			expectedErr: "does not have an identity named vault_other",
+		},
+		{
+			name: "warn when using default vault identity but task has vault policies",
+			inputTaskVault: &structs.Vault{
+				Cluster:  structs.VaultDefaultCluster,
+				Policies: []string{"nomad-workload"},
+			},
+			inputTaskIdentities: nil,
+			inputConfig: map[string]*config.VaultConfig{
+				structs.VaultDefaultCluster: {
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+						TTL:      pointer.Of(time.Hour),
+					},
+				},
+			},
+			expectedWarns: []string{"policies will be ignored"},
+		},
+		{
+			name: "warn when using task vault identity but task has vault policies",
+			inputTaskVault: &structs.Vault{
+				Cluster:  structs.VaultDefaultCluster,
+				Policies: []string{"nomad-workload"},
+			},
+			inputTaskIdentities: []*structs.WorkloadIdentity{{
+				Name:     "vault_default",
+				Audience: []string{"vault.io"},
+				TTL:      time.Hour,
+			}},
+			expectedWarns: []string{"policies will be ignored"},
+		},
+		{
+			name:           "warn when vault identity is provided but task does not have vault block",
+			inputTaskVault: nil,
+			inputTaskIdentities: []*structs.WorkloadIdentity{{
+				Name:     "vault_default",
+				Audience: []string{"vault.io"},
+				TTL:      time.Hour,
+			}},
+			expectedWarns: []string{
+				"has an identity called vault_default but no vault block",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := &Server{
+				config: &Config{
+					JobMaxPriority: 100,
+					VaultConfigs:   tc.inputConfig,
+				},
+			}
+			implicitIdentities := jobImplicitIdentitiesHook{srv: srv}
+			impl := jobValidate{srv: srv}
+
+			job := mock.Job()
+			task := job.TaskGroups[0].Tasks[0]
+
+			task.Identities = tc.inputTaskIdentities
+			task.Vault = tc.inputTaskVault
+			if task.Vault != nil {
+				task.Vault.ChangeMode = structs.VaultChangeModeRestart
+			}
+
+			mutatedJob, warn, err := implicitIdentities.Mutate(job)
+			must.NoError(t, err)
+			must.SliceEmpty(t, warn)
+
+			warns, err := impl.Validate(mutatedJob)
+
+			if len(tc.expectedErr) == 0 {
+				must.NoError(t, err)
+			} else {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expectedErr)
+			}
+
+			must.Len(t, len(tc.expectedWarns), warns, must.Sprintf("got warnings: %v", warns))
+			for _, exp := range tc.expectedWarns {
+				hasWarn := false
+				for _, w := range warns {
+					if strings.Contains(w.Error(), exp) {
+						hasWarn = true
+						break
+					}
+				}
+				must.True(t, hasWarn, must.Sprintf("expected %v to have warning with %q", warns, exp))
+			}
+		})
+	}
+}
 
 func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
+		name                   string
 		inputJob               *structs.Job
 		expectedOutputJob      *structs.Job
 		expectedOutputWarnings []error
 		expectedOutputError    error
-		name                   string
 	}{
 		{
+			name: "no needed constraints",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -41,9 +341,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "no needed constraints",
 		},
 		{
+			name: "task with vault",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -75,9 +375,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task with vault",
 		},
 		{
+			name: "group with multiple tasks with vault",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -125,9 +425,66 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "group with multiple tasks with vault",
 		},
 		{
+			name: "group with multiple vault clusters",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*structs.Task{
+							{
+								Vault: &structs.Vault{Cluster: "infra"},
+								Name:  "group1-task1",
+							},
+							{
+								Vault: &structs.Vault{Cluster: "infra"},
+								Name:  "group1-task2",
+							},
+							{
+								Vault: &structs.Vault{},
+								Name:  "group1-task3",
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*structs.Task{
+							{
+								Vault: &structs.Vault{Cluster: "infra"},
+								Name:  "group1-task1",
+							},
+							{
+								Vault: &structs.Vault{Cluster: "infra"},
+								Name:  "group1-task2",
+							},
+							{
+								Vault: &structs.Vault{},
+								Name:  "group1-task3",
+							},
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "${attr.vault.infra.version}",
+								RTarget: ">= 1.11.0",
+								Operand: structs.ConstraintSemver,
+							},
+							vaultConstraint,
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
+		{
+			name: "multiple groups only one with vault",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -191,9 +548,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "multiple groups only one with vault",
 		},
 		{
+			name: "existing vault version constraint",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -238,9 +595,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "existing vault version constraint",
 		},
 		{
+			name: "vault with other constraints",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -286,9 +643,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "vault with other constraints",
 		},
 		{
+			name: "task with vault signal change",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -333,9 +690,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task with vault signal change",
 		},
 		{
+			name: "task with kill signal",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -373,9 +730,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task with kill signal",
 		},
 		{
+			name: "multiple tasks with template signal change",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -441,9 +798,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "multiple tasks with template signal change",
 		},
 		{
+			name: "task group nomad discovery",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -475,9 +832,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group nomad discovery",
 		},
 		{
+			name: "task group nomad discovery constraint found",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -510,9 +867,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group nomad discovery constraint found",
 		},
 		{
+			name: "task group nomad discovery other constraints",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -558,9 +915,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group nomad discovery other constraints",
 		},
 		{
+			name: "task group Consul discovery",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -592,9 +949,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group Consul discovery",
 		},
 		{
+			name: "task group Consul discovery constraint found",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -627,9 +984,61 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group Consul discovery constraint found",
 		},
 		{
+			name: "task group Consul discovery with multiple clusters",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+							{
+								Name:     "example-group-service-2",
+								Provider: structs.ServiceProviderConsul,
+								Cluster:  "infra",
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+							{
+								Name:     "example-group-service-2",
+								Provider: structs.ServiceProviderConsul,
+								Cluster:  "infra",
+							},
+						},
+						Constraints: []*structs.Constraint{
+							consulServiceDiscoveryConstraint,
+							&structs.Constraint{
+								LTarget: "${attr.consul.infra.version}",
+								RTarget: ">= 1.8.0",
+								Operand: structs.ConstraintSemver,
+							},
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
+
+		{
+			name: "task group Consul discovery other constraints",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -675,9 +1084,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group Consul discovery other constraints",
 		},
 		{
+			name: "task group with empty provider",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -707,7 +1116,49 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group with empty provider",
+		},
+		{
+			name: "task group with numa block",
+			inputJob: &structs.Job{
+				Name: "numa",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*structs.Task{
+							{
+								Resources: &structs.Resources{
+									NUMA: &structs.NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "numa",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Constraints: []*structs.Constraint{
+							numaVersionConstraint,
+							numaKernelConstraint,
+						},
+						Tasks: []*structs.Task{
+							{
+								Resources: &structs.Resources{
+									NUMA: &structs.NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
 		},
 	}
 
@@ -715,9 +1166,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			impl := jobImpliedConstraints{}
 			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
-			require.Equal(t, tc.expectedOutputJob, actualJob)
-			require.ElementsMatch(t, tc.expectedOutputWarnings, actualWarnings)
-			require.Equal(t, tc.expectedOutputError, actualError)
+			must.Eq(t, tc.expectedOutputJob, actualJob)
+			must.SliceContainsAll(t, actualWarnings, tc.expectedOutputWarnings)
+			must.Eq(t, tc.expectedOutputError, actualError)
 		})
 	}
 }

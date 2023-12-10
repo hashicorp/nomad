@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/acl"
 	"golang.org/x/crypto/blake2b"
 )
@@ -152,7 +152,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 			continue
 		}
 
-		cr := alloc.ComparableResources()
+		cr := alloc.AllocatedResources.Comparable()
 		used.Add(cr)
 
 		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap
@@ -171,8 +171,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 
 	// Check that the node resources (after subtracting reserved) are a
 	// super set of those that are being allocated
-	available := node.ComparableResources()
-	available.Subtract(node.ComparableReservedResources())
+	available := node.NodeResources.Comparable()
+	available.Subtract(node.ReservedResources.Comparable())
 	if superset, dimension := available.Superset(used); !superset {
 		return false, dimension, used, nil
 	}
@@ -211,9 +211,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 }
 
 func computeFreePercentage(node *Node, util *ComparableResources) (freePctCpu, freePctRam float64) {
-	// COMPAT(0.11): Remove in 0.11
-	reserved := node.ComparableReservedResources()
-	res := node.ComparableResources()
+	reserved := node.ReservedResources.Comparable()
+	res := node.NodeResources.Comparable()
 
 	// Determine the node availability
 	nodeCpu := float64(res.Flattened.Cpu.CpuShares)
@@ -346,11 +345,11 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 	for _, tgp := range policies {
 		for _, tp := range tgp {
 			if tp != nil {
-				s.InsertAll(tp.Policies)
+				s.InsertSlice(tp.Policies)
 			}
 		}
 	}
-	return s.List()
+	return s.Slice()
 }
 
 // VaultNamespaceSet takes the structure returned by VaultPolicies and
@@ -364,7 +363,7 @@ func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
 			}
 		}
 	}
-	return s.List()
+	return s.Slice()
 }
 
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are

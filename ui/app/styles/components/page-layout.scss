@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 .page-layout {
@@ -17,7 +17,7 @@
     // Defensive styles in case header height goes over 100px, causing
     // the left gutter menu to be on top of the header.
     height: $header-height;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .page-body {

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -37,6 +37,7 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -501,11 +502,15 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.VariablesListRequest)))
 	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.VariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
 
+	// OIDC Handlers
+	s.mux.HandleFunc(structs.JWKSPath, s.wrap(s.JWKSRequest))
+	s.mux.HandleFunc("/.well-known/openid-configuration", s.wrap(s.OIDCDiscoveryRequest))
+
 	agentConfig := s.agent.GetConfig()
 	uiConfigEnabled := agentConfig.UI != nil && agentConfig.UI.Enabled
 
 	if uiEnabled && uiConfigEnabled {
-		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(agentConfig.UI.ContentSecurityPolicy, http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
 		s.logger.Debug("UI is enabled")
 	} else {
 		// Write the stubHTML
@@ -646,10 +651,10 @@ func (e *codedError) Code() int {
 	return e.code
 }
 
-func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
+func (s *HTTPServer) handleUI(policy *config.ContentSecurityPolicy, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		header := w.Header()
-		header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
+		header.Add("Content-Security-Policy", policy.String())
 		h.ServeHTTP(w, req)
 	})
 }
@@ -661,7 +666,7 @@ func (s *HTTPServer) handleRootFallthrough() http.Handler {
 			if req.URL.RawQuery != "" {
 				url = url + "?" + req.URL.RawQuery
 			}
-			http.Redirect(w, req, url, 307)
+			http.Redirect(w, req, url, http.StatusTemporaryRedirect)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -877,7 +882,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 	if wait := query.Get("wait"); wait != "" {
 		dur, err := time.ParseDuration(wait)
 		if err != nil {
-			resp.WriteHeader(400)
+			resp.WriteHeader(http.StatusBadRequest)
 			resp.Write([]byte("Invalid wait time"))
 			return true
 		}
@@ -886,7 +891,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 	if idx := query.Get("index"); idx != "" {
 		index, err := strconv.ParseUint(idx, 10, 64)
 		if err != nil {
-			resp.WriteHeader(400)
+			resp.WriteHeader(http.StatusBadRequest)
 			resp.Write([]byte("Invalid index"))
 			return true
 		}
@@ -905,7 +910,7 @@ func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.Qu
 		}
 		staleQuery, err := strconv.ParseBool(staleVal[0])
 		if err != nil {
-			resp.WriteHeader(400)
+			resp.WriteHeader(http.StatusBadRequest)
 			_, _ = resp.Write([]byte(fmt.Sprintf("Expect `true` or `false` for `stale` query string parameter, got %s", staleVal[0])))
 			return
 		}
@@ -1163,7 +1168,7 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 		}
 
 		a.srv.logger.Error("error authenticating built API request", "error", err, "url", req.URL, "method", req.Method)
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 		resp.Write([]byte("Server error authenticating request\n"))
 		return
 	}

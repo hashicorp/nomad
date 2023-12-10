@@ -912,4 +912,50 @@ $ curl \
 ]
 ```
 
+## Allocation Checks
+
+The endpoint is used to read all health checks registered within Nomad belonging
+to the passed allocation ID.
+
+| Method | Path                           | Produces           |
+| ------ | ------------------------------ | ------------------ |
+| `GET`  | `/allocation/:alloc_id/checks` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required          |
+| ---------------- | --------------------- |
+| `NO`             | `namespace:read-job`` |
+
+### Parameters
+
+- `:alloc_id` `(string: <required>)` - Specifies the allocation ID. This is
+specified as part of the path.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/allocation/177160af-26f6-619f-9c9f-5e46d1104395/checks
+```
+
+### Sample Response
+
+```json
+{
+  "a1ed96606694742bf201a640a607e306": {
+    "Check": "redis_probe",
+    "Group": "example.cache[0]",
+    "ID": "a1ed96606694742bf201a640a607e306",
+    "Mode": "healthiness",
+    "Output": "nomad: tcp ok",
+    "Service": "redis",
+    "Status": "success",
+    "Timestamp": 1690442203
+  }
+}
+```
+
 [`shutdown_delay`]: /nomad/docs/job-specification/group#shutdown_delay

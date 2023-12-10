@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
@@ -170,8 +170,13 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
         selectionClass,
         selectionNodePool,
       } = this;
+      const matchState =
+        selectionState.includes(node.status) ||
+        (selectionState.includes('ineligible') && !node.isEligible) ||
+        (selectionState.includes('draining') && node.isDraining);
+
       return (
-        (selectionState.length ? selectionState.includes(node.status) : true) &&
+        (selectionState.length ? matchState : true) &&
         (selectionVersion.length
           ? selectionVersion.includes(node.version)
           : true) &&

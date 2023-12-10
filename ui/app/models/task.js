@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { attr } from '@ember-data/model';
@@ -18,6 +18,8 @@ export default class Task extends Fragment {
   @attr('string') name;
   @attr('string') driver;
   @attr('string') kind;
+  @fragmentArray('action', { defaultValue: () => [] })
+  actions;
 
   @attr() meta;
 
@@ -58,9 +60,12 @@ export default class Task extends Fragment {
   @fragmentArray('volume-mount', { defaultValue: () => [] }) volumeMounts;
 
   async _fetchParentJob() {
-    let job = await this.store.findRecord('job', this.taskGroup.job.id, {
-      reload: true,
-    });
+    let job = this.store.peekRecord('job', this.taskGroup.job.id);
+    if (!job) {
+      job = await this.store.findRecord('job', this.taskGroup.job.id, {
+        reload: true,
+      });
+    }
     this._job = job;
   }
 
@@ -78,5 +83,25 @@ export default class Task extends Fragment {
         `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`
       );
     }
+  }
+
+  // TODO: This async fetcher seems like a better fit for most of our use-cases than the above getter (which cannot do async/await)
+  async getPathLinkedVariable() {
+    if (!this._job) {
+      await this._fetchParentJob();
+    }
+    await this._job.variables;
+    let jobID = this._job.plainId;
+    // not getting plainID because we dont know the resolution status of the task's job's parent yet
+    let parentID = this._job.belongsTo('parent').id()
+      ? JSON.parse(this._job.belongsTo('parent').id())[0]
+      : null;
+    if (parentID) {
+      jobID = parentID;
+    }
+    return await this._job.variables?.findBy(
+      'path',
+      `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`
+    );
   }
 }

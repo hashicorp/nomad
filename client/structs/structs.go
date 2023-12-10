@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
@@ -9,7 +9,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/client/hoststats"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 )
@@ -33,7 +33,7 @@ func (r *RpcError) Error() string {
 
 // ClientStatsResponse is used to return statistics about a node.
 type ClientStatsResponse struct {
-	HostStats *stats.HostStats
+	HostStats *hoststats.HostStats
 	structs.QueryMeta
 }
 
@@ -44,6 +44,11 @@ type MonitorRequest struct {
 
 	// LogJSON specifies if log format should be unstructured or json
 	LogJSON bool
+
+	// LogIncludeLocation dictates whether the logger includes file and line
+	// information on each log line. This is useful for Nomad development and
+	// debugging.
+	LogIncludeLocation bool
 
 	// NodeID is the node we want to track the logs of
 	NodeID string
@@ -170,6 +175,9 @@ type StreamErrWrapper struct {
 
 // AllocExecRequest is the initial request for execing into an Alloc task
 type AllocExecRequest struct {
+	// JobID is the ID of the job requested
+	JobID string
+
 	// AllocID is the allocation to stream logs from
 	AllocID string
 
@@ -181,6 +189,9 @@ type AllocExecRequest struct {
 
 	// Cmd is the command to be executed
 	Cmd []string
+
+	// The name of a predefined command to be executed (optional)
+	Action string
 
 	structs.QueryOptions
 }

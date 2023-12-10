@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
@@ -27,7 +27,7 @@ func testNode() *Node {
 			"driver.exec": "1",
 		},
 		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
+			Cpu: LegacyNodeCpuResources{
 				CpuShares: 4000,
 			},
 			Memory: NodeMemoryResources{

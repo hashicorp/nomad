@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 // @ts-check
@@ -32,6 +32,7 @@ export default class VariableFormComponent extends Component {
   @service notifications;
   @service router;
   @service store;
+  @service can;
 
   @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
@@ -255,6 +256,15 @@ export default class VariableFormComponent extends Component {
         message: `${this.path} successfully saved`,
         color: 'success',
       });
+
+      if (
+        this.can.can('read job', null, {
+          namespace: this.variableNamespace || 'default',
+        })
+      ) {
+        this.updateJobVariables(this.args.model.pathLinkedEntities.job);
+      }
+
       this.removeExitHandler();
       this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
@@ -272,6 +282,26 @@ export default class VariableFormComponent extends Component {
         }
         window.scrollTo(0, 0); // because the k/v list may be long, ensure the user is snapped to top to read error
       }
+    }
+  }
+
+  /**
+   * A job, its task groups, and tasks, all have a getter called pathLinkedVariable.
+   * These are dependent on a variables list that may already be established. If a variable
+   * is added or removed, this function will update job.variables[] list to reflect the change.
+   * and force an update to the job's pathLinkedVariable getter.
+   */
+  async updateJobVariables(jobName) {
+    if (!jobName) {
+      return;
+    }
+    const fullJobId = JSON.stringify([
+      jobName,
+      this.variableNamespace || 'default',
+    ]);
+    let job = await this.store.findRecord('job', fullJobId, { reload: true });
+    if (job) {
+      job.variables.pushObject(this.args.model);
     }
   }
 

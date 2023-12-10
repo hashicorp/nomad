@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -13,7 +13,7 @@ import (
 
 func (s *HTTPServer) ScalingPoliciesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.scalingPoliciesListRequest(resp, req)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -52,7 +52,7 @@ func (s *HTTPServer) ScalingPolicySpecificRequest(resp http.ResponseWriter, req 
 func (s *HTTPServer) scalingPolicyCRUD(resp http.ResponseWriter, req *http.Request,
 	policyID string) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.scalingPolicyQuery(resp, req, policyID)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)

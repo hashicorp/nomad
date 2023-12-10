@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
@@ -914,7 +914,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	// Create a new task group that requires too much resources.
 	tg := &structs.TaskGroup{}
 	*tg = *job.TaskGroups[0]
-	resource := &structs.Resources{CPU: 9999}
+	resource := &structs.Resources{CPU: 99999}
 	tg.Tasks[0].Resources = resource
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
@@ -1190,6 +1190,25 @@ func TestTasksUpdated_Identity(t *testing.T) {
 	must.True(t, tasksUpdated(j1, j2, name).modified)
 }
 
+func TestTasksUpdated_NUMA(t *testing.T) {
+	ci.Parallel(t)
+
+	j1 := mock.Job()
+	name := j1.TaskGroups[0].Name
+
+	j1.TaskGroups[0].Tasks[0].Resources.NUMA = &structs.NUMA{
+		Affinity: "none",
+	}
+
+	j2 := j1.Copy()
+
+	must.False(t, tasksUpdated(j1, j2, name).modified)
+
+	j2.TaskGroups[0].Tasks[0].Resources.NUMA.Affinity = "require"
+
+	must.True(t, tasksUpdated(j1, j2, name).modified)
+}
+
 func TestTaskGroupConstraints(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1406,4 +1425,20 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 	}
 	expected = []string{}
 	require.True(t, reflect.DeepEqual(allocsLost, expected), "actual: %v, expected: %v", allocsLost, expected)
+}
+
+func TestTaskGroupUpdated_Restart(t *testing.T) {
+	ci.Parallel(t)
+
+	j1 := mock.Job()
+	name := j1.TaskGroups[0].Name
+	j2 := j1.Copy()
+	j3 := j1.Copy()
+
+	must.False(t, tasksUpdated(j1, j2, name).modified)
+	j2.TaskGroups[0].RestartPolicy.RenderTemplates = true
+	must.True(t, tasksUpdated(j1, j2, name).modified)
+
+	j3.TaskGroups[0].Tasks[0].RestartPolicy.RenderTemplates = true
+	must.True(t, tasksUpdated(j1, j3, name).modified)
 }

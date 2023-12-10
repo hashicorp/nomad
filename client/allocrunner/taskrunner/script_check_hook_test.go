@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
 
@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -260,6 +261,7 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 		task:              task,
 		serviceRegWrapper: regWrap,
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 	// emulate prestart having been fired
 	svcHook.taskEnv = env

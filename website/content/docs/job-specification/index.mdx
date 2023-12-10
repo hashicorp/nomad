@@ -22,12 +22,17 @@ The general hierarchy for a job is:
 ```text
 job
   \_ group
+  |     \_ task
+  |     \_ task
+  |
+  \_ group
+        \_ task
         \_ task
 ```
 
 Each job file has only a single job, however a job may have multiple groups, and
 each group may have multiple tasks. Groups contain a set of tasks that are
-co-located on a machine.
+co-located on the same Nomad client.
 
 ## Example
 

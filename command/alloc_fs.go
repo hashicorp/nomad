@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -59,7 +59,7 @@ FS Specific Options:
     Show full information.
 
   -job <job-id>
-    Use a random allocation from the specified job ID.
+    Use a random allocation from the specified job ID or prefix.
 
   -stat
     Show file stat information instead of displaying the file, or listing the directory.
@@ -167,7 +167,13 @@ func (f *AllocFSCommand) Run(args []string) int {
 	// If -job is specified, use random allocation, otherwise use provided allocation
 	allocID := args[0]
 	if job {
-		allocID, err = getRandomJobAllocID(client, args[0])
+		jobID, ns, err := f.JobIDByPrefix(client, args[0], nil)
+		if err != nil {
+			f.Ui.Error(err.Error())
+			return 1
+		}
+
+		allocID, err = getRandomJobAllocID(client, jobID, "", ns)
 		if err != nil {
 			f.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -381,9 +387,13 @@ func (f *AllocFSCommand) followFile(client *api.Client, alloc *api.Allocation,
 
 // Get Random Allocation from a known jobID. Prefer to use a running allocation,
 // but use a dead allocation if no running allocations are found
-func getRandomJobAlloc(client *api.Client, jobID string) (*api.AllocationListStub, error) {
+func getRandomJobAlloc(client *api.Client, jobID, taskGroupName, namespace string) (*api.AllocationListStub, error) {
 	var runningAllocs []*api.AllocationListStub
-	allocs, _, err := client.Jobs().Allocations(jobID, false, nil)
+	q := &api.QueryOptions{
+		Namespace: namespace,
+	}
+
+	allocs, _, err := client.Jobs().Allocations(jobID, false, q)
 	if err != nil {
 		return nil, fmt.Errorf("error querying job %q: %w", jobID, err)
 	}
@@ -391,6 +401,19 @@ func getRandomJobAlloc(client *api.Client, jobID string) (*api.AllocationListStu
 	// Check that the job actually has allocations
 	if len(allocs) == 0 {
 		return nil, fmt.Errorf("job %q doesn't exist or it has no allocations", jobID)
+	}
+
+	if taskGroupName != "" {
+		var filteredAllocs []*api.AllocationListStub
+		for _, alloc := range allocs {
+			if alloc.TaskGroup == taskGroupName {
+				filteredAllocs = append(filteredAllocs, alloc)
+			}
+		}
+		allocs = filteredAllocs
+		if len(allocs) == 0 {
+			return nil, fmt.Errorf("task group %q doesn't exist or it has no allocations", taskGroupName)
+		}
 	}
 
 	for _, v := range allocs {
@@ -409,8 +432,8 @@ func getRandomJobAlloc(client *api.Client, jobID string) (*api.AllocationListStu
 	return alloc, err
 }
 
-func getRandomJobAllocID(client *api.Client, jobID string) (string, error) {
-	alloc, err := getRandomJobAlloc(client, jobID)
+func getRandomJobAllocID(client *api.Client, jobID, group, namespace string) (string, error) {
+	alloc, err := getRandomJobAlloc(client, jobID, group, namespace)
 	if err != nil {
 		return "", err
 	}

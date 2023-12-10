@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { inject as service } from '@ember/service';
@@ -44,7 +44,7 @@ export default class EvaluationsIndexRoute extends Route {
   }) {
     /*
     We use our own DSL for filter expressions. This function takes our query parameters and builds a query that matches our DSL.
-    Documentation can be found here:  https://www.nomadproject.io/api-docs#filtering
+    Documentation can be found here:  https://developer.hashicorp.com/nomad/api-docs#filtering
     */
     const generateFilterExpression = () => {
       const searchFilter = searchTerm

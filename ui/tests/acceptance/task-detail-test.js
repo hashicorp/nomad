@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 /* eslint-disable qunit/require-expect */
@@ -223,7 +223,7 @@ module('Acceptance | task detail', function (hooks) {
       'Event timestamp'
     );
     assert.equal(recentEvent.type, event.type, 'Event type');
-    assert.equal(recentEvent.message, event.message, 'Event message');
+    assert.equal(recentEvent.message, event.displayMessage, 'Event message');
   });
 
   test('when the allocation is not found, the application errors', async function (assert) {

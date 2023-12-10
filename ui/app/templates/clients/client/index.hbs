@@ -1,6 +1,6 @@
 {{!
   Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
+  SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 {{page-title "Client " (or this.model.name this.model.shortId)}}
@@ -247,7 +247,7 @@
         <span class="term">
           Node Pool
         </span>
-        {{this.model.nodePool}}
+        {{#if this.model.nodePool}}{{this.model.nodePool}}{{else}}-{{/if}}
       </span>
       {{#if this.model.nodeClass}}
         <span class="pair" data-test-node-class>
@@ -564,6 +564,7 @@
               <th>
                 Memory
               </th>
+              <th>Actions</th>
             </t.head>
             <t.body as |row|>
               <AllocationRow
@@ -578,7 +579,7 @@
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} />
+                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} @jobHasActions={{true}} />
                 {{/each}}
               {{/if}}
             </t.body>

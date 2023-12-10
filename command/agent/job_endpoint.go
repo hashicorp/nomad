@@ -1,22 +1,24 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/golang/snappy"
+	"github.com/gorilla/websocket"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // jobNotFoundErr is an error string which can be used as the return string
@@ -25,9 +27,9 @@ const jobNotFoundErr = "job not found"
 
 func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobListRequest(resp, req)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.jobUpdate(resp, req, "")
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -110,6 +112,12 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/submission"):
 		jobID := strings.TrimSuffix(path, "/submission")
 		return s.jobSubmissionCRUD(resp, req, jobID)
+	case strings.HasSuffix(path, "/actions"):
+		jobID := strings.TrimSuffix(path, "/actions")
+		return s.jobActions(resp, req, jobID)
+	case strings.HasSuffix(path, "/action"):
+		jobID := strings.TrimSuffix(path, "/action")
+		return s.jobRunAction(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -237,7 +245,7 @@ func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Re
 }
 
 func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	allAllocs, _ := strconv.ParseBool(req.URL.Query().Get("all"))
@@ -266,7 +274,7 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobSpecificRequest{
@@ -289,7 +297,7 @@ func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	all, _ := strconv.ParseBool(req.URL.Query().Get("all"))
@@ -314,7 +322,7 @@ func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobSpecificRequest{
@@ -333,13 +341,73 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 	return out.Deployment, nil
 }
 
+func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	args := structs.JobActionListRequest{
+		JobID: jobID,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobActionListResponse
+	if err := s.agent.RPC(structs.JobGetActionsRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &structs.QueryMeta{})
+
+	return out.Actions, nil
+}
+
+func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+	task := req.URL.Query().Get("task")
+	action := req.URL.Query().Get("action")
+	allocID := req.URL.Query().Get("allocID")
+
+	// Build the request and parse the ACL token
+	var err error
+	isTTY := false
+	if tty := req.URL.Query().Get("tty"); tty != "" {
+		isTTY, err = strconv.ParseBool(tty)
+		if err != nil {
+			return nil, fmt.Errorf("tty value is not a boolean: %v", err)
+		}
+	}
+
+	args := cstructs.AllocExecRequest{
+		JobID:   jobID,
+		Task:    task,
+		Action:  action,
+		AllocID: allocID,
+		Tty:     isTTY,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
+	}
+
+	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
+		return nil, err
+	}
+
+	return s.execStreamImpl(conn, &args)
+}
+
 func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
 	version, err := strconv.ParseUint(req.URL.Query().Get("version"), 10, 64)
 	if err != nil {
 		return nil, CodedError(400, "Unable to parse job submission version parameter")
 	}
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobSubmissionQuery(resp, req, jobID, version)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -371,11 +439,11 @@ func (s *HTTPServer) jobSubmissionQuery(resp http.ResponseWriter, req *http.Requ
 
 func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobQuery(resp, req, jobID)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.jobUpdate(resp, req, jobID)
-	case "DELETE":
+	case http.MethodDelete:
 		return s.jobDelete(resp, req, jobID)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -545,9 +613,9 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request, jobI
 func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobScaleStatus(resp, req, jobID)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.jobScaleAction(resp, req, jobID)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -763,14 +831,12 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Check job parse permissions
-	if aclObj != nil {
-		hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
-		hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
+	hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
+	hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
 
-		allowed := hasParseJob || hasSubmitJob
-		if !allowed {
-			return nil, structs.ErrPermissionDenied
-		}
+	allowed := hasParseJob || hasSubmitJob
+	if !allowed {
+		return nil, structs.ErrPermissionDenied
 	}
 
 	args := &api.JobsParseRequest{}
@@ -1007,6 +1073,10 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		if job.Periodic.Spec != nil {
 			j.Periodic.Spec = *job.Periodic.Spec
 		}
+
+		if job.Periodic.Specs != nil {
+			j.Periodic.Specs = job.Periodic.Specs
+		}
 	}
 
 	if job.ParameterizedJob != nil {
@@ -1058,10 +1128,17 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	tg.Consul = apiConsulToStructs(taskGroup.Consul)
 
 	tg.RestartPolicy = &structs.RestartPolicy{
-		Attempts: *taskGroup.RestartPolicy.Attempts,
-		Interval: *taskGroup.RestartPolicy.Interval,
-		Delay:    *taskGroup.RestartPolicy.Delay,
-		Mode:     *taskGroup.RestartPolicy.Mode,
+		Attempts:        *taskGroup.RestartPolicy.Attempts,
+		Interval:        *taskGroup.RestartPolicy.Interval,
+		Delay:           *taskGroup.RestartPolicy.Delay,
+		Mode:            *taskGroup.RestartPolicy.Mode,
+		RenderTemplates: *taskGroup.RestartPolicy.RenderTemplates,
+	}
+
+	if taskGroup.PreventRescheduleOnLost == nil {
+		tg.PreventRescheduleOnLost = false
+	} else {
+		tg.PreventRescheduleOnLost = *taskGroup.PreventRescheduleOnLost
 	}
 
 	if taskGroup.ShutdownDelay != nil {
@@ -1200,19 +1277,30 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
 
-	if apiTask.Identity != nil {
-		structsTask.Identity = &structs.WorkloadIdentity{
-			Env:  apiTask.Identity.Env,
-			File: apiTask.Identity.File,
+	// Nomad 1.5 CLIs and JSON jobs may set the default identity parameters in
+	// the Task.Identity field, so if it is non-nil use it.
+	if id := apiTask.Identity; id != nil {
+		structsTask.Identity = apiWorkloadIdentityToStructs(id)
+	}
+
+	if ids := apiTask.Identities; len(ids) > 0 {
+		structsTask.Identities = make([]*structs.WorkloadIdentity, 0, len(ids))
+		for _, id := range ids {
+			if id == nil {
+				continue
+			}
+
+			structsTask.Identities = append(structsTask.Identities, apiWorkloadIdentityToStructs(id))
 		}
 	}
 
 	if apiTask.RestartPolicy != nil {
 		structsTask.RestartPolicy = &structs.RestartPolicy{
-			Attempts: *apiTask.RestartPolicy.Attempts,
-			Interval: *apiTask.RestartPolicy.Interval,
-			Delay:    *apiTask.RestartPolicy.Delay,
-			Mode:     *apiTask.RestartPolicy.Mode,
+			Attempts:        *apiTask.RestartPolicy.Attempts,
+			Interval:        *apiTask.RestartPolicy.Interval,
+			Delay:           *apiTask.RestartPolicy.Delay,
+			Mode:            *apiTask.RestartPolicy.Mode,
+			RenderTemplates: *apiTask.RestartPolicy.RenderTemplates,
 		}
 	}
 
@@ -1262,13 +1350,19 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
+			Role:         apiTask.Vault.Role,
 			Policies:     apiTask.Vault.Policies,
 			Namespace:    *apiTask.Vault.Namespace,
+			Cluster:      apiTask.Vault.Cluster,
 			Env:          *apiTask.Vault.Env,
 			DisableFile:  *apiTask.Vault.DisableFile,
 			ChangeMode:   *apiTask.Vault.ChangeMode,
 			ChangeSignal: *apiTask.Vault.ChangeSignal,
 		}
+	}
+
+	if apiTask.Consul != nil {
+		structsTask.Consul = apiConsulToStructs(apiTask.Consul)
 	}
 
 	if len(apiTask.Templates) > 0 {
@@ -1307,6 +1401,11 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Hook:    apiTask.Lifecycle.Hook,
 			Sidecar: apiTask.Lifecycle.Sidecar,
 		}
+	}
+
+	for _, action := range apiTask.Actions {
+		act := ApiActionToStructsAction(job, action)
+		structsTask.Actions = append(structsTask.Actions, act)
 	}
 }
 
@@ -1350,6 +1449,14 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 	return sc
 }
 
+func ApiActionToStructsAction(job *structs.Job, action *api.Action) *structs.Action {
+	return &structs.Action{
+		Name:    action.Name,
+		Args:    slices.Clone(action.Args),
+		Command: action.Command,
+	}
+}
+
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	if in == nil {
 		return nil
@@ -1386,6 +1493,12 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 				Constraints: ApiConstraintsToStructs(d.Constraints),
 				Affinities:  ApiAffinitiesToStructs(d.Affinities),
 			})
+		}
+	}
+
+	if in.NUMA != nil {
+		out.NUMA = &structs.NUMA{
+			Affinity: in.NUMA.Affinity,
 		}
 	}
 
@@ -1463,6 +1576,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			TaggedAddresses:   maps.Clone(s.TaggedAddresses),
 			OnUpdate:          s.OnUpdate,
 			Provider:          s.Provider,
+			Cluster:           s.Cluster,
 		}
 
 		if l := len(s.Checks); l != 0 {
@@ -1516,9 +1630,29 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			out[i].Connect = ApiConsulConnectToStructs(s.Connect)
 		}
 
+		if s.Identity != nil {
+			out[i].Identity = apiWorkloadIdentityToStructs(s.Identity)
+		}
+
 	}
 
 	return out
+}
+
+func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIdentity {
+	if in == nil {
+		return nil
+	}
+	return &structs.WorkloadIdentity{
+		Name:         in.Name,
+		Audience:     slices.Clone(in.Audience),
+		ChangeMode:   in.ChangeMode,
+		ChangeSignal: in.ChangeSignal,
+		Env:          in.Env,
+		File:         in.File,
+		ServiceName:  in.ServiceName,
+		TTL:          in.TTL,
+	}
 }
 
 func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
@@ -1727,7 +1861,11 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 		upstreams[i] = structs.ConsulUpstream{
 			DestinationName:      upstream.DestinationName,
 			DestinationNamespace: upstream.DestinationNamespace,
+			DestinationPeer:      upstream.DestinationPeer,
+			DestinationType:      upstream.DestinationType,
 			LocalBindPort:        upstream.LocalBindPort,
+			LocalBindSocketPath:  upstream.LocalBindSocketPath,
+			LocalBindSocketMode:  upstream.LocalBindSocketMode,
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,
 			MeshGateway:          apiMeshGatewayToStructs(upstream.MeshGateway),
@@ -1802,6 +1940,7 @@ func apiConsulToStructs(in *api.Consul) *structs.Consul {
 	}
 	return &structs.Consul{
 		Namespace: in.Namespace,
+		Cluster:   in.Cluster,
 	}
 }
 

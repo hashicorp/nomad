@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -35,7 +35,7 @@ var (
 // nodeHeartbeater is used to track expiration times of node heartbeats. If it
 // detects an expired node, the node status is updated to be 'down'.
 type nodeHeartbeater struct {
-	*Server
+	srv    *Server
 	logger log.Logger
 
 	// heartbeatTimers track the expiration time of each heartbeat that has
@@ -48,7 +48,7 @@ type nodeHeartbeater struct {
 // failed node heartbeats.
 func newNodeHeartbeater(s *Server) *nodeHeartbeater {
 	return &nodeHeartbeater{
-		Server: s,
+		srv:    s,
 		logger: s.logger.Named("heartbeat"),
 	}
 }
@@ -58,7 +58,7 @@ func newNodeHeartbeater(s *Server) *nodeHeartbeater {
 // the previously known set of timers.
 func (h *nodeHeartbeater) initializeHeartbeatTimers() error {
 	// Scan all nodes and reset their timer
-	snap, err := h.fsm.State().Snapshot()
+	snap, err := h.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (h *nodeHeartbeater) initializeHeartbeatTimers() error {
 		if node.TerminalStatus() {
 			continue
 		}
-		h.resetHeartbeatTimerLocked(node.ID, h.config.FailoverHeartbeatTTL)
+		h.resetHeartbeatTimerLocked(node.ID, h.srv.config.FailoverHeartbeatTTL)
 	}
 	return nil
 }
@@ -97,18 +97,18 @@ func (h *nodeHeartbeater) resetHeartbeatTimer(id string) (time.Duration, error) 
 	// Do not create a timer for the node since we are not the leader. This
 	// check avoids the race in which leadership is lost but a timer is created
 	// on this server since it was servicing an RPC during a leadership loss.
-	if !h.IsLeader() {
+	if !h.srv.IsLeader() {
 		h.logger.Debug("ignoring resetting node TTL since this server is not the leader", "node_id", id)
 		return 0, heartbeatNotLeaderErr
 	}
 
 	// Compute the target TTL value
 	n := len(h.heartbeatTimers)
-	ttl := helper.RateScaledInterval(h.config.MaxHeartbeatsPerSecond, h.config.MinHeartbeatTTL, n)
+	ttl := helper.RateScaledInterval(h.srv.config.MaxHeartbeatsPerSecond, h.srv.config.MinHeartbeatTTL, n)
 	ttl += helper.RandomStagger(ttl)
 
 	// Reset the TTL
-	h.resetHeartbeatTimerLocked(id, ttl+h.config.HeartbeatGrace)
+	h.resetHeartbeatTimerLocked(id, ttl+h.srv.config.HeartbeatGrace)
 	return ttl, nil
 }
 
@@ -148,7 +148,7 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 	// Do not invalidate the node since we are not the leader. This check avoids
 	// the race in which leadership is lost but a timer is created on this
 	// server since it was servicing an RPC during a leadership loss.
-	if !h.IsLeader() {
+	if !h.srv.IsLeader() {
 		h.logger.Debug("ignoring node TTL since this server is not the leader", "node_id", id)
 		return
 	}
@@ -163,7 +163,7 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 		Status:    structs.NodeStatusDown,
 		NodeEvent: structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage(NodeHeartbeatEventMissed),
 		WriteRequest: structs.WriteRequest{
-			Region: h.config.Region,
+			Region: h.srv.config.Region,
 		},
 	}
 
@@ -172,13 +172,13 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 	}
 	var resp structs.NodeUpdateResponse
 
-	if err := h.RPC("Node.UpdateStatus", &req, &resp); err != nil {
+	if err := h.srv.RPC("Node.UpdateStatus", &req, &resp); err != nil {
 		h.logger.Error("update node status failed", "error", err)
 	}
 }
 
 func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
-	node, err := h.State().NodeByID(nil, id)
+	node, err := h.srv.State().NodeByID(nil, id)
 	if err != nil {
 		h.logger.Error("error retrieving node by id", "error", err)
 		return false, false
@@ -189,7 +189,7 @@ func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
 		return false, false
 	}
 
-	allocs, err := h.State().AllocsByNode(nil, id)
+	allocs, err := h.srv.State().AllocsByNode(nil, id)
 	if err != nil {
 		h.logger.Error("error retrieving allocs by node", "error", err)
 		return false, false
@@ -257,7 +257,7 @@ func (h *nodeHeartbeater) heartbeatStats() {
 			h.heartbeatTimersLock.Unlock()
 			metrics.SetGauge([]string{"nomad", "heartbeat", "active"}, float32(num))
 
-		case <-h.shutdownCh:
+		case <-h.srv.shutdownCh:
 			return
 		}
 	}

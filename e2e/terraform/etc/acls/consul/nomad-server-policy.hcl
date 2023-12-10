@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 // The operator=write permission is required for creating config entries for
 // connect ingress gateways. operator ACLs are not namespaced, though the

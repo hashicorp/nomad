@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package state
 
@@ -54,6 +54,20 @@ func (n NoopDB) PutAcknowledgedState(allocID string, state *arstate.State, opts 
 }
 
 func (n NoopDB) GetAcknowledgedState(allocID string) (*arstate.State, error) { return nil, nil }
+
+func (n NoopDB) PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opts ...WriteOption) error {
+	return nil
+}
+
+func (n NoopDB) GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error) { return nil, nil }
+
+func (n NoopDB) PutAllocIdentities(_ string, _ []*structs.SignedWorkloadIdentity, _ ...WriteOption) error {
+	return nil
+}
+
+func (n NoopDB) GetAllocIdentities(_ string) ([]*structs.SignedWorkloadIdentity, error) {
+	return nil, nil
+}
 
 func (n NoopDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
 	return nil, nil, nil

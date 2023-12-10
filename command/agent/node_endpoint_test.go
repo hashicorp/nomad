@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -34,7 +34,7 @@ func TestHTTP_NodesList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/nodes", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/nodes", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -91,7 +91,7 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/nodes?prefix=12345678", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/nodes?prefix=12345678", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -149,7 +149,7 @@ func TestHTTP_NodesOSList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/nodes?prefix=123456&os=true", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/nodes?prefix=123456&os=true", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -213,7 +213,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("POST", "/v1/node/"+node.ID+"/evaluate", nil)
+		req, err := http.NewRequest(http.MethodPost, "/v1/node/"+node.ID+"/evaluate", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -273,7 +273,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/node/"+node.ID+"/allocations", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/node/"+node.ID+"/allocations", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -334,7 +334,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 
 		// Make the HTTP request
 		buf := encodeReq(drainReq)
-		req, err := http.NewRequest("POST", "/v1/node/"+node.ID+"/drain", buf)
+		req, err := http.NewRequest(http.MethodPost, "/v1/node/"+node.ID+"/drain", buf)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 
@@ -376,7 +376,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 			"cancel_reason": "changed my mind",
 		}
 		buf = encodeReq(drainReq)
-		req, err = http.NewRequest("POST", "/v1/node/"+node.ID+"/drain", buf)
+		req, err = http.NewRequest(http.MethodPost, "/v1/node/"+node.ID+"/drain", buf)
 		require.Nil(err)
 		respW = httptest.NewRecorder()
 
@@ -422,7 +422,7 @@ func TestHTTP_NodeEligible(t *testing.T) {
 
 		// Make the HTTP request
 		buf := encodeReq(eligibilityReq)
-		req, err := http.NewRequest("POST", "/v1/node/"+node.ID+"/eligibility", buf)
+		req, err := http.NewRequest(http.MethodPost, "/v1/node/"+node.ID+"/eligibility", buf)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 
@@ -446,7 +446,7 @@ func TestHTTP_NodeEligible(t *testing.T) {
 		// Make the HTTP request to set something invalid
 		eligibilityReq.Eligibility = "foo"
 		buf = encodeReq(eligibilityReq)
-		req, err = http.NewRequest("POST", "/v1/node/"+node.ID+"/eligibility", buf)
+		req, err = http.NewRequest(http.MethodPost, "/v1/node/"+node.ID+"/eligibility", buf)
 		require.Nil(err)
 		respW = httptest.NewRecorder()
 
@@ -484,7 +484,7 @@ func TestHTTP_NodePurge(t *testing.T) {
 		}
 
 		// Make the HTTP request to purge it
-		req, err := http.NewRequest("POST", "/v1/node/"+node.ID+"/purge", nil)
+		req, err := http.NewRequest(http.MethodPost, "/v1/node/"+node.ID+"/purge", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -537,7 +537,7 @@ func TestHTTP_NodeQuery(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/node/"+node.ID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/node/"+node.ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

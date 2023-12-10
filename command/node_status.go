@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -229,6 +229,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Return nothing if no nodes found
 		if len(nodes) == 0 {
+			c.Ui.Output("No nodes registered")
 			return 0
 		}
 
@@ -687,7 +688,9 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 	// Fetch the volume objects with current status
 	// Ignore an error, all we're going to do is omit the volumes
 	volumes := map[string]*api.CSIVolumeListStub{}
-	vs, _ := client.Nodes().CSIVolumes(node.ID, nil)
+	vs, _ := client.Nodes().CSIVolumes(node.ID, &api.QueryOptions{
+		Namespace: "*",
+	})
 	for _, v := range vs {
 		n, ok := requests[v.ID]
 		if ok {
@@ -700,14 +703,15 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 
 		// Output the volumes in name order
 		output := make([]string, 0, len(names)+1)
-		output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode")
+		output = append(output, "ID|Name|Namespace|Plugin ID|Schedulable|Provider|Access Mode")
 		for _, name := range names {
 			v, ok := volumes[name]
 			if ok {
 				output = append(output, fmt.Sprintf(
-					"%s|%s|%s|%t|%s|%s",
+					"%s|%s|%s|%s|%t|%s|%s",
 					v.ID,
 					name,
+					v.Namespace,
 					v.PluginID,
 					v.Schedulable,
 					v.Provider,
@@ -929,14 +933,12 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 func computeNodeTotalResources(node *api.Node) api.Resources {
 	total := api.Resources{}
 
-	r := node.Resources
-	res := node.Reserved
-	if res == nil {
-		res = &api.Resources{}
-	}
-	total.CPU = pointer.Of(*r.CPU - *res.CPU)
-	total.MemoryMB = pointer.Of(*r.MemoryMB - *res.MemoryMB)
-	total.DiskMB = pointer.Of(*r.DiskMB - *res.DiskMB)
+	r := node.NodeResources
+	res := node.ReservedResources
+
+	total.CPU = pointer.Of[int](int(r.Cpu.CpuShares) - int(res.Cpu.CpuShares))
+	total.MemoryMB = pointer.Of[int](int(r.Memory.MemoryMB) - int(res.Memory.MemoryMB))
+	total.DiskMB = pointer.Of[int](int(r.Disk.DiskMB) - int(res.Disk.DiskMB))
 	return total
 }
 
@@ -998,7 +1000,7 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 	if physical {
 		resources[1] = fmt.Sprintf("%v/%d MHz|%s/%s|%s/%s",
 			math.Floor(hostStats.CPUTicksConsumed),
-			*node.Resources.CPU,
+			node.NodeResources.Cpu.CpuShares,
 			humanize.IBytes(hostStats.Memory.Used),
 			humanize.IBytes(hostStats.Memory.Total),
 			humanize.IBytes(diskUsed),
@@ -1009,7 +1011,7 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 		// since nomad doesn't collect the stats data.
 		resources[1] = fmt.Sprintf("%v/%d MHz|%s/%s|(%s)",
 			math.Floor(hostStats.CPUTicksConsumed),
-			*node.Resources.CPU,
+			node.NodeResources.Cpu.CpuShares,
 			humanize.IBytes(hostStats.Memory.Used),
 			humanize.IBytes(hostStats.Memory.Total),
 			storageDevice,

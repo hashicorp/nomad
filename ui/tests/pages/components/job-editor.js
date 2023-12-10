@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { clickable, hasClass, isPresent, text } from 'ember-cli-page-object';
@@ -41,7 +41,12 @@ export default () => ({
     scope: '[data-test-dry-run-message]',
     title: text('[data-test-dry-run-title]'),
     body: text('[data-test-dry-run-body]'),
-    errored: hasClass('is-warning'),
-    succeeded: hasClass('is-primary'),
+    errored: hasClass('hds-alert--color-critical'),
+    succeeded: hasClass('hds-alert--color-success'),
+  },
+
+  warningMessage: {
+    scope: '[data-test-dry-run-warnings]',
+    body: text('[data-test-dry-run-warning-body]'),
   },
 });

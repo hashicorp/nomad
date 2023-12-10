@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -25,7 +25,6 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
@@ -35,12 +34,16 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
+	"github.com/hashicorp/nomad/helper/goruntime"
+	"github.com/hashicorp/nomad/helper/iterator"
 	"github.com/hashicorp/nomad/helper/pool"
-	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
+	"github.com/hashicorp/nomad/nomad/lock"
+	"github.com/hashicorp/nomad/nomad/reporting"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -90,10 +93,6 @@ const (
 	// defaultConsulDiscoveryIntervalRetry is how often to poll Consul for
 	// new servers if there is no leader and the last Consul query failed.
 	defaultConsulDiscoveryIntervalRetry time.Duration = 9 * time.Second
-
-	// aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing and
-	// construction cost, so we keep the hot objects cached to reduce the ACL token resolution time.
-	aclCacheSize = 512
 )
 
 // Server is Nomad server which manages the job queues,
@@ -143,6 +142,8 @@ type Server struct {
 
 	// rpcServer is the static RPC server that is used by the local agent.
 	rpcServer *rpc.Server
+
+	auth *auth.Authenticator
 
 	// clientRpcAdvertise is the advertised RPC address for Nomad clients to connect
 	// to this server
@@ -218,6 +219,13 @@ type Server struct {
 	// volumeWatcher is used to release volume claims
 	volumeWatcher *volumewatcher.Watcher
 
+	// volumeControllerFutures is a map of plugin IDs to pending controller RPCs. If
+	// no RPC is pending for a given plugin, this may be nil.
+	volumeControllerFutures map[string]context.Context
+
+	// volumeControllerLock synchronizes access controllerFutures map
+	volumeControllerLock sync.Mutex
+
 	// keyringReplicator is used to replicate root encryption keys from the
 	// leader
 	keyringReplicator *KeyringReplicator
@@ -255,13 +263,16 @@ type Server struct {
 	workerConfigLock sync.RWMutex
 	workersEventCh   chan interface{}
 
-	// aclCache is used to maintain the parsed ACL objects
-	aclCache *structs.ACLCache[*acl.ACL]
-
 	// oidcProviderCache maintains a cache of OIDC providers. This is useful as
 	// the provider performs background HTTP requests. When the Nomad server is
 	// shutting down, the oidcProviderCache.Shutdown() function must be called.
 	oidcProviderCache *oidc.ProviderCache
+
+	// lockTTLTimer and lockDelayTimer are used to track variable lock timers.
+	// These are held in memory on the leader rather than in state to avoid
+	// large amount of Raft writes.
+	lockTTLTimer   *lock.TTLTimer
+	lockDelayTimer *lock.DelayTimer
 
 	// leaderAcl is the management ACL token that is valid when resolved by the
 	// current leader.
@@ -275,6 +286,19 @@ type Server struct {
 	// statsFetcher is used by autopilot to check the status of the other
 	// Nomad router.
 	statsFetcher *StatsFetcher
+
+	// reportingManager is used to configure and handle all the license reporting
+	// dependencies.
+	reportingManager *reporting.Manager
+
+	// oidcDisco is the OIDC Discovery configuration to be returned by the
+	// Keyring.GetConfig RPC and /.well-known/openid-configuration HTTP API.
+	//
+	// The issuer and jwks url are user configurable and therefore the struct is
+	// initialized when NewServer is setup.
+	//
+	// MAY BE nil! Issuer must be explicitly configured by the end user.
+	oidcDisco *structs.OIDCDiscoveryConfig
 
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
@@ -290,7 +314,7 @@ type Server struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) (*Server, error) {
+func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) (*Server, error) {
 
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(
@@ -311,9 +335,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	if err != nil {
 		return nil, err
 	}
-
-	// Create the ACL object cache
-	aclCache := structs.NewACLCache[*acl.ACL](aclCacheSize)
 
 	// Create the logger
 	logger := config.Logger.ResetNamedIntercept("nomad")
@@ -344,8 +365,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		reapCancelableEvalsCh:   make(chan struct{}),
 		blockedEvals:            NewBlockedEvals(evalBroker, logger),
 		rpcTLS:                  incomingTLS,
-		aclCache:                aclCache,
 		workersEventCh:          make(chan interface{}, 1),
+		lockTTLTimer:            lock.NewTTLTimer(),
+		lockDelayTimer:          lock.NewDelayTimer(),
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
@@ -371,7 +393,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
 
 	// Setup Consul (more)
-	s.setupConsul(consulConfigEntries, consulACLs)
+	s.setupConsul(consulConfigFunc, consulACLs)
 
 	// Setup Vault
 	if err := s.setupVaultClient(); err != nil {
@@ -394,9 +416,22 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	}
 	s.encrypter = encrypter
 
-	// Set up the OIDC provider cache. This is needed by the setupRPC, but must
-	// be done separately so that the server can stop all background processes
-	// when it shuts down itself.
+	// Set up the OIDC discovery configuration required by third parties, such as
+	// AWS's IAM OIDC Provider, to authenticate workload identity JWTs.
+	if iss := config.OIDCIssuer; iss != "" {
+		oidcDisco, err := structs.NewOIDCDiscoveryConfig(iss)
+		if err != nil {
+			return nil, err
+		}
+		s.oidcDisco = oidcDisco
+		s.logger.Info("issuer set; OIDC Discovery endpoint for workload identities enabled", "issuer", iss)
+	} else {
+		s.logger.Debug("issuer not set; OIDC Discovery endpoint for workload identities disabled")
+	}
+
+	// Set up the SSO OIDC provider cache. This is needed by the setupRPC, but
+	// must be done separately so that the server can stop all background
+	// processes when it shuts down itself.
 	s.oidcProviderCache = oidc.NewProviderCache()
 
 	// Initialize the RPC layer
@@ -405,6 +440,16 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		s.logger.Error("failed to start RPC layer", "error", err)
 		return nil, fmt.Errorf("Failed to start RPC layer: %v", err)
 	}
+
+	s.auth = auth.NewAuthenticator(&auth.AuthenticatorConfig{
+		StateFn:        s.State,
+		Logger:         s.logger,
+		GetLeaderACLFn: s.getLeaderAcl,
+		AclsEnabled:    s.config.ACLEnabled,
+		TLSEnabled:     s.config.TLSConfig != nil && s.config.TLSConfig.EnableRPC,
+		Region:         s.Region(),
+		Encrypter:      s.encrypter,
+	})
 
 	// Initialize the Raft server
 	if err := s.setupRaft(); err != nil {
@@ -445,6 +490,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		s.logger.Error("failed to create volume watcher", "error", err)
 		return nil, fmt.Errorf("failed to create volume watcher: %v", err)
 	}
+	s.volumeControllerFutures = map[string]context.Context{}
 
 	// Start the eval broker notification system so any subscribers can get
 	// updates when the processes SetEnabled is triggered.
@@ -829,7 +875,7 @@ func (s *Server) Reload(newConfig *Config) error {
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
-		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
+		if err := s.vault.SetConfig(newConfig.GetDefaultVault()); err != nil {
 			_ = multierror.Append(&mErr, err)
 		}
 	}
@@ -915,7 +961,7 @@ func (s *Server) setupBootstrapHandler() error {
 	// correct number of servers required for quorum are present).
 	bootstrapFn := func() error {
 		// If there is a raft leader, do nothing
-		if s.raft.Leader() != "" {
+		if leader, _ := s.raft.LeaderWithID(); leader != "" {
 			peersTimeout.Reset(maxStaleLeadership)
 			return nil
 		}
@@ -969,10 +1015,10 @@ func (s *Server) setupBootstrapHandler() error {
 			// walk all datacenter until it finds enough hosts to
 			// form a quorum.
 			shuffleStrings(dcs[1:])
-			dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
+			dcs = dcs[0:min(len(dcs), datacenterQueryLimit)]
 		}
 
-		nomadServerServiceName := s.config.ConsulConfig.ServerServiceName
+		nomadServerServiceName := s.config.GetDefaultConsul().ServerServiceName
 		var mErr multierror.Error
 		const defaultMaxNumNomadServers = 8
 		nomadServerServices := make([]string, 0, defaultMaxNumNomadServers)
@@ -1060,7 +1106,8 @@ func (s *Server) setupBootstrapHandler() error {
 // setupConsulSyncer creates Server-mode consul.Syncer which periodically
 // executes callbacks on a fixed interval.
 func (s *Server) setupConsulSyncer() error {
-	if s.config.ConsulConfig.ServerAutoJoin != nil && *s.config.ConsulConfig.ServerAutoJoin {
+	conf := s.config.GetDefaultConsul()
+	if conf.ServerAutoJoin != nil && *conf.ServerAutoJoin {
 		if err := s.setupBootstrapHandler(); err != nil {
 			return err
 		}
@@ -1119,15 +1166,21 @@ func (s *Server) setupNodeDrainer() {
 }
 
 // setupConsul is used to setup Server specific consul components.
-func (s *Server) setupConsul(consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) {
-	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigEntries, s.logger)
+func (s *Server) setupConsul(consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) {
+	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigFunc, s.logger)
 	s.consulACLs = NewConsulACLsAPI(consulACLs, s.logger, s.purgeSITokenAccessors)
 }
 
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
+	vconfig := s.config.GetDefaultVault()
+	if vconfig != nil && vconfig.DefaultIdentity != nil {
+		s.vault = &NoopVault{}
+		return nil
+	}
+
 	delegate := s.entVaultDelegate()
-	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors, delegate)
+	v, err := NewVaultClient(vconfig, s.logger, s.purgeVaultAccessors, delegate)
 	if err != nil {
 		return err
 	}
@@ -1287,13 +1340,14 @@ func (s *Server) setupRaft() error {
 
 	// Create the FSM
 	fsmConfig := &FSMConfig{
-		EvalBroker:        s.evalBroker,
-		Periodic:          s.periodicDispatcher,
-		Blocked:           s.blockedEvals,
-		Logger:            s.logger,
-		Region:            s.Region(),
-		EnableEventBroker: s.config.EnableEventBroker,
-		EventBufferSize:   s.config.EventBufferSize,
+		EvalBroker:         s.evalBroker,
+		Periodic:           s.periodicDispatcher,
+		Blocked:            s.blockedEvals,
+		Logger:             s.logger,
+		Region:             s.Region(),
+		EnableEventBroker:  s.config.EnableEventBroker,
+		EventBufferSize:    s.config.EventBufferSize,
+		JobTrackedVersions: s.config.JobTrackedVersions,
 	}
 	var err error
 	s.fsm, err = NewFSM(fsmConfig)
@@ -1809,7 +1863,7 @@ func (s *Server) listenWorkerEvents() {
 				if err != nil {
 					s.logger.Debug("failed to encode event to JSON", "error", err)
 				}
-				s.logger.Warn("unexpected node port collision, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
+				s.logger.Warn("unexpected node port collision, refer to https://developer.hashicorp.com/nomad/s/port-plan-failure for more information",
 					"node_id", event.Node.ID, "reason", event.Reason, "event", string(eventJson))
 				loggedAt[event.Node.ID] = time.Now()
 			}
@@ -1855,6 +1909,11 @@ func (s *Server) Members() []serf.Member {
 // RemoveFailedNode is used to remove a failed node from the cluster
 func (s *Server) RemoveFailedNode(node string) error {
 	return s.serf.RemoveFailedNode(node)
+}
+
+// RemoveFailedNodePrune immediately removes a failed node from the list of members
+func (s *Server) RemoveFailedNodePrune(node string) error {
+	return s.serf.RemoveFailedNodePrune(node)
 }
 
 // KeyManager returns the Serf keyring manager
@@ -1939,17 +1998,18 @@ func (s *Server) Stats() map[string]map[string]string {
 	toString := func(v uint64) string {
 		return strconv.FormatUint(v, 10)
 	}
+	leader, _ := s.raft.LeaderWithID()
 	stats := map[string]map[string]string{
 		"nomad": {
 			"server":        "true",
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
-			"leader_addr":   string(s.raft.Leader()),
+			"leader_addr":   string(leader),
 			"bootstrap":     fmt.Sprintf("%v", s.isSingleServerCluster()),
 			"known_regions": toString(uint64(len(s.peers))),
 		},
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
-		"runtime": stats.RuntimeStats(),
+		"runtime": goruntime.RuntimeStats(),
 		"vault":   s.vault.Stats(),
 	}
 
@@ -2001,7 +2061,7 @@ func (s *Server) setReplyQueryMeta(stateStore *state.StateStore, table string, r
 	if err != nil {
 		return err
 	}
-	reply.Index = helper.Max(1, index)
+	reply.Index = max(1, index)
 
 	// Set the query response.
 	s.setQueryMeta(reply)
@@ -2029,7 +2089,8 @@ func (s *Server) ReplicationToken() string {
 	return s.config.ReplicationToken
 }
 
-// ClusterID returns the unique ID for this cluster.
+// ClusterMetadata returns the metadata for this cluster composed of a
+// UUID and a timestamp.
 //
 // Any Nomad server agent may call this method to get at the ID.
 // If we are the leader and the ID has not yet been created, it will
@@ -2037,7 +2098,7 @@ func (s *Server) ReplicationToken() string {
 //
 // The ID will not be created until all participating servers have reached
 // a minimum version (0.10.4).
-func (s *Server) ClusterID() (string, error) {
+func (s *Server) ClusterMetadata() (structs.ClusterMetadata, error) {
 	s.clusterIDLock.Lock()
 	defer s.clusterIDLock.Unlock()
 
@@ -2046,30 +2107,44 @@ func (s *Server) ClusterID() (string, error) {
 	existingMeta, err := fsmState.ClusterMetadata(nil)
 	if err != nil {
 		s.logger.Named("core").Error("failed to get cluster ID", "error", err)
-		return "", err
+		return structs.ClusterMetadata{}, err
 	}
 
 	// got the cluster ID from state store, cache that and return it
 	if existingMeta != nil && existingMeta.ClusterID != "" {
-		return existingMeta.ClusterID, nil
+		return *existingMeta, nil
 	}
 
 	// if we are not the leader, nothing more we can do
 	if !s.IsLeader() {
-		return "", errors.New("cluster ID not ready yet")
+		return structs.ClusterMetadata{}, errors.New("cluster ID not ready {}yet")
 	}
 
 	// we are the leader, try to generate the ID now
-	generatedID, err := s.generateClusterID()
+	generatedMD, err := s.generateClusterMetadata()
 	if err != nil {
-		return "", err
+		return structs.ClusterMetadata{}, err
 	}
 
-	return generatedID, nil
+	return generatedMD, nil
 }
 
 func (s *Server) isSingleServerCluster() bool {
 	return s.config.BootstrapExpect == 1
+}
+
+func (s *Server) GetClientNodesCount() (int, error) {
+	stateSnapshot, err := s.State().Snapshot()
+	if err != nil {
+		return 0, err
+	}
+
+	iter, err := stateSnapshot.Nodes(nil)
+	if err != nil {
+		return 0, err
+	}
+
+	return iterator.Len(iter), nil
 }
 
 // peersInfoContent is used to help operators understand what happened to the
@@ -2079,7 +2154,7 @@ const peersInfoContent = `
 As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. The format of this file depends on what the server has
 configured for its Raft protocol version. Please see the server configuration
-page at https://www.nomadproject.io/docs/configuration/server#raft_protocol for more
+page at https://developer.hashicorp.com/nomad/docs/configuration/server#raft_protocol for more
 details about this parameter.
 For Raft protocol version 2 and earlier, this should be formatted as a JSON
 array containing the address and port of each Nomad server in the cluster, like
@@ -2115,7 +2190,7 @@ directory.
 The "address" field is the address and port of the server.
 The "non_voter" field controls whether the server is a non-voter, which is used
 in some advanced Autopilot configurations, please see
-https://www.nomadproject.io/guides/operations/outage.html for more information. If
+https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery for more information. If
 "non_voter" is omitted it will default to false, which is typical for most
 clusters.
 
@@ -2132,5 +2207,5 @@ creating the peers.json file, and that all servers receive the same
 configuration. Once the peers.json file is successfully ingested and applied, it
 will be deleted.
 
-Please see https://www.nomadproject.io/guides/outage.html for more information.
+Please see https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery for more information.
 `

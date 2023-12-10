@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 /* eslint-disable ember/no-controller-access-in-routes */
@@ -56,7 +56,7 @@ export default class ApplicationRoute extends Route {
         this.controllerFor('application').set('error', e);
       }
 
-      const fetchSelfTokenAndPolicies = this.get(
+      const fetchSelfTokenAndPolicies = await this.get(
         'token.fetchSelfTokenAndPolicies'
       )
         .perform()

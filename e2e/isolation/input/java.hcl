@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 job "java" {
   type = "batch"
@@ -46,8 +46,8 @@ EOH
       }
 
       resources {
-        cpu    = 50
-        memory = 64
+        cpu    = 500
+        memory = 256
       }
     }
 
@@ -60,8 +60,8 @@ EOH
       }
 
       resources {
-        cpu    = 50
-        memory = 64
+        cpu    = 500
+        memory = 256
       }
     }
   }

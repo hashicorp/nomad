@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
 
@@ -11,6 +11,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 )
@@ -127,7 +128,9 @@ MAIN:
 //
 // It logs the errors with appropriate log levels; don't log returned error
 func (h *statsHook) callStatsWithRetry(ctx context.Context, handle interfaces.DriverStats) (<-chan *cstructs.TaskResourceUsage, error) {
-	var retry int
+	var retry uint64
+	var backoff time.Duration
+	limit := time.Second * 5
 
 MAIN:
 	if ctx.Err() != nil {
@@ -162,13 +165,7 @@ MAIN:
 		h.logger.Error("failed to start stats collection for task", "error", err)
 	}
 
-	limit := time.Second * 5
-	backoff := 1 << (2 * uint64(retry)) * time.Second
-	if backoff > limit || retry > 5 {
-		backoff = limit
-	}
-
-	// Increment retry counter
+	backoff = helper.Backoff(time.Second, limit, retry)
 	retry++
 
 	time.Sleep(backoff)

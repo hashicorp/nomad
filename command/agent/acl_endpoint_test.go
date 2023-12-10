@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -42,7 +42,7 @@ func TestHTTP_ACLPolicyList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/acl/policies", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/acl/policies", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -91,7 +91,7 @@ func TestHTTP_ACLPolicyQuery(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/acl/policy/"+p1.Name, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/acl/policy/"+p1.Name, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -129,7 +129,7 @@ func TestHTTP_ACLPolicyCreate(t *testing.T) {
 		// Make the HTTP request
 		p1 := mock.ACLPolicy()
 		buf := encodeReq(p1)
-		req, err := http.NewRequest("PUT", "/v1/acl/policy/"+p1.Name, buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/acl/policy/"+p1.Name, buf)
 		must.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -190,7 +190,7 @@ func TestHTTP_ACLPolicyDelete(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("DELETE", "/v1/acl/policy/"+p1.Name, nil)
+		req, err := http.NewRequest(http.MethodDelete, "/v1/acl/policy/"+p1.Name, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -223,7 +223,7 @@ func TestHTTP_ACLTokenBootstrap(t *testing.T) {
 	}
 	httpTest(t, conf, func(s *TestAgent) {
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/acl/bootstrap", nil)
+		req, err := http.NewRequest(http.MethodPut, "/v1/acl/bootstrap", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -262,7 +262,7 @@ func TestHTTP_ACLTokenBootstrapOperator(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/acl/bootstrap", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/acl/bootstrap", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -312,7 +312,7 @@ func TestHTTP_ACLTokenList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/acl/tokens", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/acl/tokens", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -363,7 +363,7 @@ func TestHTTP_ACLTokenQuery(t *testing.T) {
 		out := resp.Tokens[0]
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/acl/token/"+out.AccessorID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/acl/token/"+out.AccessorID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -412,7 +412,7 @@ func TestHTTP_ACLTokenSelf(t *testing.T) {
 		out := resp.Tokens[0]
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/acl/token/self", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/acl/token/self", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -449,7 +449,7 @@ func TestHTTP_ACLTokenCreate(t *testing.T) {
 		p1 := mock.ACLToken()
 		p1.AccessorID = ""
 		buf := encodeReq(p1)
-		req, err := http.NewRequest("PUT", "/v1/acl/token", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/acl/token", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -491,7 +491,7 @@ func TestHTTP_ACLTokenCreateExpirationTTL(t *testing.T) {
   "Global": false
 }`
 
-		req, err := http.NewRequest("PUT", "/v1/acl/token", bytes.NewReader([]byte(aclToken)))
+		req, err := http.NewRequest(http.MethodPut, "/v1/acl/token", bytes.NewReader([]byte(aclToken)))
 		must.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -537,7 +537,7 @@ func TestHTTP_ACLTokenDelete(t *testing.T) {
 		ID := resp.Tokens[0].AccessorID
 
 		// Make the HTTP request
-		req, err := http.NewRequest("DELETE", "/v1/acl/token/"+ID, nil)
+		req, err := http.NewRequest(http.MethodDelete, "/v1/acl/token/"+ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -585,7 +585,7 @@ func TestHTTP_OneTimeToken(t *testing.T) {
 
 		// Make a HTTP request to get a one-time token
 
-		req, err := http.NewRequest("POST", "/v1/acl/token/onetime", nil)
+		req, err := http.NewRequest(http.MethodPost, "/v1/acl/token/onetime", nil)
 		require.NoError(t, err)
 		req.Header.Set("X-Nomad-Token", aclSecret)
 		respW := httptest.NewRecorder()
@@ -602,7 +602,7 @@ func TestHTTP_OneTimeToken(t *testing.T) {
 
 		buf := encodeReq(structs.OneTimeTokenExchangeRequest{
 			OneTimeSecretID: ott.OneTimeToken.OneTimeSecretID})
-		req, err = http.NewRequest("POST", "/v1/acl/token/onetime/exchange", buf)
+		req, err = http.NewRequest(http.MethodPost, "/v1/acl/token/onetime/exchange", buf)
 		require.NoError(t, err)
 		respW = httptest.NewRecorder()
 
@@ -618,7 +618,7 @@ func TestHTTP_OneTimeToken(t *testing.T) {
 
 		buf = encodeReq(structs.OneTimeTokenExchangeRequest{
 			OneTimeSecretID: ott.OneTimeToken.OneTimeSecretID})
-		req, err = http.NewRequest("POST", "/v1/acl/token/onetime/exchange", buf)
+		req, err = http.NewRequest(http.MethodPost, "/v1/acl/token/onetime/exchange", buf)
 		require.NoError(t, err)
 		respW = httptest.NewRecorder()
 

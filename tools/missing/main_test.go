@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package main
 
@@ -11,14 +11,17 @@ import (
 
 func Test_isCoveredOne(t *testing.T) {
 	try := func(p string, exp bool) {
-		result := isCoveredOne(p, "foo/bar")
-		must.Eq(t, exp, result)
+		t.Run(p, func(t *testing.T) {
+			result := isCoveredOne(p, "foo/bar")
+			must.Eq(t, exp, result)
+		})
 	}
 	try("baz", false)
 	try("foo", false)
 	try("foo/bar/baz", false)
 	try("foo/bar", true)
 	try("foo/bar/...", true)
+	try("foo/b/...", false)
 	try("foo/...", true)
 	try("abc/...", false)
 }

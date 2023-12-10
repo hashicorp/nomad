@@ -1,11 +1,13 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: BUSL-1.1
  */
 
 // playwright.config.js
 // @ts-check
 const { devices } = require('@playwright/test');
+
+export const STORAGE_STATE = 'storageState.json';
 
 /** @type {import('@playwright/test').PlaywrightTestConfig} */
 const config = {
@@ -19,7 +21,10 @@ const config = {
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: STORAGE_STATE,
+      },
     },
     // disabling firefox temporarily because the container doesn't
     // include it and so it tries to automatically install it and
@@ -31,7 +36,10 @@ const config = {
     // },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: STORAGE_STATE,
+      },
     },
   ],
 };
