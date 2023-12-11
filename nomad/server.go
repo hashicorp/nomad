@@ -446,7 +446,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		Logger:         s.logger,
 		GetLeaderACLFn: s.getLeaderAcl,
 		AclsEnabled:    s.config.ACLEnabled,
-		TLSEnabled:     s.config.TLSConfig != nil && s.config.TLSConfig.EnableRPC,
+		VerifyTLS:      s.config.TLSConfig != nil && s.config.TLSConfig.EnableRPC && s.config.TLSConfig.VerifyServerHostname,
 		Region:         s.Region(),
 		Encrypter:      s.encrypter,
 	})
