@@ -41,7 +41,7 @@ type Encrypter interface {
 
 type Authenticator struct {
 	aclsEnabled  bool
-	tlsEnabled   bool
+	verifyTLS    bool
 	logger       hclog.Logger
 	getState     StateGetter
 	getLeaderACL LeaderACLGetter
@@ -63,7 +63,7 @@ type AuthenticatorConfig struct {
 	Logger         hclog.Logger
 	GetLeaderACLFn LeaderACLGetter
 	AclsEnabled    bool
-	TLSEnabled     bool
+	VerifyTLS      bool
 	Region         string
 	Encrypter      Encrypter
 }
@@ -71,7 +71,7 @@ type AuthenticatorConfig struct {
 func NewAuthenticator(cfg *AuthenticatorConfig) *Authenticator {
 	return &Authenticator{
 		aclsEnabled:          cfg.AclsEnabled,
-		tlsEnabled:           cfg.TLSEnabled,
+		verifyTLS:            cfg.VerifyTLS,
 		logger:               cfg.Logger.With("auth"),
 		getState:             cfg.StateFn,
 		getLeaderACL:         cfg.GetLeaderACLFn,
@@ -251,7 +251,7 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
 	defer args.SetIdentity(identity) // always set the identity, even on errors
 
-	if s.tlsEnabled && !ctx.IsStatic() {
+	if s.verifyTLS && !ctx.IsStatic() {
 		tlsCert := ctx.Certificate()
 		if tlsCert == nil {
 			return nil, errors.New("missing certificate information")
@@ -294,7 +294,7 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
 	defer args.SetIdentity(identity) // always set the identity, even on errors
 
-	if s.tlsEnabled && !ctx.IsStatic() {
+	if s.verifyTLS && !ctx.IsStatic() {
 		tlsCert := ctx.Certificate()
 		if tlsCert == nil {
 			return nil, errors.New("missing certificate information")
@@ -342,7 +342,7 @@ func (s *Authenticator) AuthenticateClientOnlyLegacy(ctx RPCContext, args struct
 	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
 	defer args.SetIdentity(identity) // always set the identity, even on errors
 
-	if s.tlsEnabled && !ctx.IsStatic() {
+	if s.verifyTLS && !ctx.IsStatic() {
 		tlsCert := ctx.Certificate()
 		if tlsCert == nil {
 			return nil, errors.New("missing certificate information")
