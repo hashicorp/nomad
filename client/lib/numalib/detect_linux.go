@@ -117,13 +117,17 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 	default:
 		// We found node data, associate cores to nodes
 		_ = st.NodeIDs.ForEach(func(node hw.NodeID) error {
-			s, err := os.ReadFile(fmt.Sprintf(cpulistFile, node))
+			s, err := readerFunc(fmt.Sprintf(cpulistFile, node))
 			if err != nil {
 				return err
 			}
 
 			cores := idset.Parse[hw.CoreID](string(s))
 			_ = cores.ForEach(func(core hw.CoreID) error {
+				// if we get incorrect core number, stop
+				if int(core) >= len(st.Cores) {
+					return nil
+				}
 				// best effort, zero values are defaults
 				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, readerFunc, core)
 				cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
