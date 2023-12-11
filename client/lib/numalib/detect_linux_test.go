@@ -41,3 +41,32 @@ func goodValues(path string) ([]byte, error) {
 	}[path], nil
 }
 
+func TestSysfs_discoverOnline(t *testing.T) {
+
+	type args struct {
+		st         *Topology
+		readerFunc pathReaderFn
+	}
+
+	st := NewTopology(&idset.Set[hw.NodeID]{}, SLIT{}, []Core{})
+	lxcTest := args{st, badValues}
+	goodTest := args{st, goodValues}
+	goodIDSet := idset.From[hw.NodeID]([]uint8{0})
+
+	tests := []struct {
+		name          string
+		args          args
+		expectedIDSet *idset.Set[hw.NodeID]
+	}{
+		{"lxc values", lxcTest, idset.Empty[hw.NodeID]()},
+		{"good values", goodTest, goodIDSet},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sy := &Sysfs{}
+			sy.discoverOnline(tt.args.st, tt.args.readerFunc)
+			must.Eq(t, tt.expectedIDSet, tt.args.st.NodeIDs)
+		})
+	}
+}
+
