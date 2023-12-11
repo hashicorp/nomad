@@ -6,6 +6,7 @@
 package numalib
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
@@ -17,10 +18,10 @@ import (
 // containers, virtualization guests
 func badSysData(path string) ([]byte, error) {
 	return map[string][]byte{
-		nodeOnline:     []byte("invalid or corrupted node online info"),
+		nodeOnline:     []byte("invalid data"),
 		cpuOnline:      []byte("1,3"),
-		distanceFile:   []byte("invalid or corrupted distances"),
-		cpulistFile:    []byte("invalid or corrupted cpu list"),
+		distanceFile:   []byte("invalid data"),
+		cpulistFile:    []byte("invalid data"),
 		cpuMaxFile:     []byte("3200000"),
 		cpuBaseFile:    []byte("3200000"),
 		cpuSocketFile:  []byte("0"),
@@ -30,20 +31,34 @@ func badSysData(path string) ([]byte, error) {
 
 func goodSysData(path string) ([]byte, error) {
 	return map[string][]byte{
-		nodeOnline:     []byte("0-3"),
-		cpuOnline:      []byte("0-3"),
-		distanceFile:   []byte("10"),
-		cpulistFile:    []byte("0-3"),
-		cpuMaxFile:     []byte("3200000"),
-		cpuBaseFile:    []byte("3200000"),
-		cpuSocketFile:  []byte("0"),
-		cpuSiblingFile: []byte("0,2"),
+		"/sys/devices/system/node/online":                            []byte("0-1"),
+		"/sys/devices/system/cpu/online":                             []byte("0-3"),
+		"/sys/devices/system/node0/distance":                         []byte("10"),
+		"/sys/devices/system/node0/cpulist":                          []byte("0-3"),
+		"/sys/devices/system/node1/distance":                         []byte("10"),
+		"/sys/devices/system/node1/cpulist":                          []byte("0-3"),
+		"/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq":      []byte("3200000"),
+		"/sys/devices/system/cpu/cpu0/cpufreq/base_frequency":        []byte("3200000"),
+		"/sys/devices/system/cpu/cpu0/topology/physical_package_id":  []byte("0"),
+		"/sys/devices/system/cpu/cpu0/topology/thread_siblings_list": []byte("0,2"),
+		"/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq":      []byte("3200000"),
+		"/sys/devices/system/cpu/cpu1/cpufreq/base_frequency":        []byte("3200000"),
+		"/sys/devices/system/cpu/cpu1/topology/physical_package_id":  []byte("0"),
+		"/sys/devices/system/cpu/cpu1/topology/thread_siblings_list": []byte("0,2"),
+		"/sys/devices/system/cpu/cpu2/cpufreq/cpuinfo_max_freq":      []byte("3200000"),
+		"/sys/devices/system/cpu/cpu2/cpufreq/base_frequency":        []byte("3200000"),
+		"/sys/devices/system/cpu/cpu2/topology/physical_package_id":  []byte("0"),
+		"/sys/devices/system/cpu/cpu2/topology/thread_siblings_list": []byte("0,2"),
+		"/sys/devices/system/cpu/cpu3/cpufreq/cpuinfo_max_freq":      []byte("3200000"),
+		"/sys/devices/system/cpu/cpu3/cpufreq/base_frequency":        []byte("3200000"),
+		"/sys/devices/system/cpu/cpu3/topology/physical_package_id":  []byte("0"),
+		"/sys/devices/system/cpu/cpu3/topology/thread_siblings_list": []byte("0,2"),
 	}[path], nil
 }
 
 func TestSysfs_discoverOnline(t *testing.T) {
 	st := NewTopology(&idset.Set[hw.NodeID]{}, SLIT{}, []Core{})
-	goodIDSet := idset.From[hw.NodeID]([]uint8{0, 1, 2, 3})
+	goodIDSet := idset.From[hw.NodeID]([]uint8{0, 1})
 
 	tests := []struct {
 		name          string
@@ -64,7 +79,6 @@ func TestSysfs_discoverOnline(t *testing.T) {
 
 func TestSysfs_discoverCosts(t *testing.T) {
 	st := NewTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
-	fourNodes := idset.From[hw.NodeID]([]uint8{0, 1, 2, 3})
 	twoNodes := idset.From[hw.NodeID]([]uint8{1, 3})
 
 	tests := []struct {
@@ -74,11 +88,9 @@ func TestSysfs_discoverCosts(t *testing.T) {
 		expectedDistances SLIT
 	}{
 		{"empty node IDs", idset.Empty[hw.NodeID](), os.ReadFile, SLIT{}},
-		{"four nodes and bad sys data", fourNodes, badSysData, SLIT{
-			[]Cost{0, 0, 0, 0},
-			[]Cost{0, 0, 0, 0},
-			[]Cost{0, 0, 0, 0},
-			[]Cost{0, 0, 0, 0},
+		{"two nodes and bad sys data", twoNodes, badSysData, SLIT{
+			[]Cost{0, 0},
+			[]Cost{0, 0},
 		}},
 		{"two nodes and good sys data", twoNodes, goodSysData, SLIT{
 			[]Cost{0, 0},
@@ -95,3 +107,25 @@ func TestSysfs_discoverCosts(t *testing.T) {
 	}
 }
 
+func TestSysfs_discoverCores(t *testing.T) {
+	st := NewTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
+	// twoNodes := idset.From[hw.NodeID]([]uint8{1, 3})
+
+	tests := []struct {
+		name             string
+		onlineCores      *idset.Set[hw.CoreID]
+		nodeIDs          *idset.Set[hw.NodeID]
+		readerFunc       pathReaderFn
+		expectedTopology *Topology
+	}{
+		{"empty node IDs", idset.Empty[hw.CoreID](), idset.Empty[hw.NodeID](), os.ReadFile, &Topology{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sy := &Sysfs{}
+			st.NodeIDs = tt.nodeIDs
+			sy.discoverCores(st, tt.readerFunc)
+			must.Eq(t, tt.expectedTopology, st)
+		})
+	}
+}
