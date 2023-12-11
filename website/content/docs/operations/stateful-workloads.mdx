@@ -4,7 +4,7 @@ page_title: Considerations for Stateful Workloads
 description: |-
   Learn about persistent storage options for stateful workloads on Nomad.
 ---
-By default, HashiCorp Nomad's allocation storage is ephemeral and can be discarded at any moment (such as a new deployment, rescheduling, or losing a Nomad client). This is undesirable when running persistent workloads such as databases.
+By default, HashiCorp Nomad's allocation storage is ephemeral. Nomad can discard it during new deployments, when rescheduling jobs, or if it loses a client. This is undesirable when running persistent workloads such as databases.
 
 This document explores the options for persistent storage of workloads running in Nomad. The information provided is for practitioners familiar with Nomad and with a foundational understanding of storage basics. 
 
@@ -14,23 +14,26 @@ This document addresses traditional storage you can attach as a filesystem and d
 
 ## Considerations
 
-Consider performance, reliability, availability, and maintenance to choose the most appropriate storage strategy. 
+Consider access patterns, performance, reliability and availability needs, and maintenance to choose the most appropriate storage strategy. 
 
 Local storage is performant and available. If it has enough capacity it does not need much maintenance. But, it is not redundant; if a single node, disk, or group of disks fails, data loss and service interruption will occur.
 
 A geographically distributed networked storage with multiple redundancies, including disks, controllers, and network paths, provides higher availability and resilience, and can tolerate multiple hardware failures before risking data loss. But, it relies on network performance, can have higher latency, be lower-throughput, and need more maintenance.
 
-It is also important to consider the environment Nomad will run in when reviewing different storage options. Nomad can run either in public clouds or on-prem. Depending on your organizational and application needs, understanding the storage options for each provider will help you optimize your stateful workloads.
+Consider whether Nomad is running in the public cloud or on-premises, and what storage options are available in that environment. From there, the most optimal choice will depend your organizational and application needs.
 
 ### Public cloud
 
-Public cloud providers offer services, such as Azure Ephemeral OS disks, Managed Disks and Files, GCP Local SSDs, Persistent Disk, and Filestore, and AWS EBS. The relevant difference is that Azure Managed Disks and GCP Persistent Disks are optionally regional, unlike AWS EBS.
+Public cloud providers offer different storage services with various tradeoffs. Usually they're comprised of local disks (physically attached and very performant, but not very persistent), network attacked block devices (performant and very persistent, but usually only attachable to one instance at a time), and networked shared storage (less performant, but can be accessed from multiple instances). 
 
-In an AWS environment, an EBS block volume is zonal and slower than the local storage on the EC2 instances, but it is readily available. Your data will persist in the case of a crash of the underlying hardware, and you can reattach the volume to a different EC2 instance within the same AZ. However, in the case of a zonal failure, the data on it is "stuck" within that zone, and the application is not redundant across Availability Zones. You must provision volumes at a fixed size, which you need to monitor and manage. 
+### AWS 
 
-AWS EFS is a regional service that provides file storage using the NFS protocol. Since the data replicates across different Availability Zones and uses a higher level protocol (file instead of block like EBS), EFS has higher latencies and lower throughput than EBS. However, it can continue to serve data requests in case of a zonal failure. 
+| AWS service                                                                                  | Availability                                                      | Persistence                                                                      | Performance                                                                                                                                        | Suitability                                                                                                                  | Use in Nomad                               |
+|----------------------------------------------------------------------------------------------|-------------------------------------------------------------------|----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------|
+| [Instance Storage](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/InstanceStorage.html) | Locally on some instance types                                    | Limited, not persistent accross instance stops/terminations or hardware failures | High throughput and low latency                                                                                                                    | Temporary storage of information that changes frequently, such as buffers, caches, scratch data, and other temporary content | via `ephemeral_disk` or `host_volume`      |
+| [Elastic Block Store](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html)    | Zonal block devices attached to instances                         | Strongly persistent, with an independent lifecycle                               | [Configurable](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSPerformance.html), but higher latency than Instance Store                    | General purpose persistent storage                                                                                           | via the CSI plugin or static `host_volume` |
+| [Elastic File System](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEFS.html)    | Regional file storage that can be available to multiple instances | Strongly persistent, with an independent lifecycle                               | [Configurable](https://docs.aws.amazon.com/efs/latest/ug/performance.html), but with less throughput and higher latency than Instance Store or EBS | File storage that needs to be available to multiple instances in multiple zones (even only as a failover)                    | via the CSI plugin or static `host_volume` |
 
-You can mount and access services that use NFS (and similar protocols) simultaneously on multiple machines. This availability lets you share storage across multiple instances, such as shared files, and quickly access data during failover. But, it can lead to contention issues if the consuming application doesn't properly manage the service. For example, storing PostgreSQL's database files on an NFS share and running three instances of PostgreSQL that simultaneously access the same NFS can lead to data corruption. 
 
 ### Private cloud or on-premises
 
@@ -46,7 +49,7 @@ Since environments differ depending on application requirements, consider perfor
 
 Find a list of plugins and their feature set in the [Kubernetes CSI Developer Documentation](https://kubernetes-csi.github.io/docs/drivers.html).
 
-While Nomad follows the CSI specification, some plugins may implement orchestrator-specific logic that makes them incompatible with Nomad. You should validate that your chosen plugin works with Nomad before using it. Refer to the plugin documentation for more information.
+While Nomad follows the CSI specification, some plugins may implement orchestrator-specific logic that makes them incompatible with Nomad. You should validate that your chosen plugin works with Nomad before using it. Refer to the plugin documentation from the storage provider for more information.
 
 There are three CSI plugin subtypes:
 
@@ -56,7 +59,7 @@ There are three CSI plugin subtypes:
 
 All types can and should be run as Nomad jobs - `system` jobs for Node and Monolithic, `service` for Controllers.
 
-CSI plugins are useful when storage requirements are quickly and constantly evolving due to their dynamic nature, but they present some challenges in terms of maintenance. Most notably, they need to run constantly, be configured (including authentication and connectivity to the storage platform), and updated to keep track with new features and bug fixes and keep compatibility with the underlying storage platform.
+CSI plugins are useful when storage requirements are quickly and constantly evolving due to their dynamic nature - for instance new workloads needing persistent strage being added or removed frequently, but they present some challenges in terms of maintenance. Most notably, they need to run constantly, be configured (including authentication and connectivity to the storage platform), and updated to keep track with new features and bug fixes and keep compatibility with the underlying storage platform.
 
 The [Stateful Workloads with CSI tutorial](/nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes) and the [Nomad CSI demo repository](https://github.com/hashicorp/nomad/tree/main/demo/csi) offer guidance and examples on how to use CSI plugins with Nomad and include job files for running the plugins and configuration files for creating and consuming volumes.
 
