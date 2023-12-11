@@ -156,6 +156,14 @@ agents with [`client.enabled`][] set to `true`.
   include the values for the ACL `token` or `auth`. This option should be
   disabled in environments where Consul ACLs are not enabled.
 
+- `service_auth_method` `(string: "nomad-workloads")` - Specifies the name of the
+  Consul [authentication method][auth-method] that will be used to login with a
+  Nomad JWT for services.
+
+- `task_auth_method` `(string: "nomad-workloads")` - Specifies the name of the
+  Consul [authentication method][auth-method] that will be used to login with a
+  Nomad JWT for tasks.
+
 ### Parameters for Nomad Servers
 
 These parameters should only be defined in the configuration file of Nomad
@@ -178,18 +186,10 @@ agents with [`server.enabled`] set to `true`.
   Consul service name defined in the `server_service_name` option. This search
   only happens if the server does not have a leader.
 
-- `service_auth_method` `(string: "nomad-workloads")` - Specifies the name of the
-  Consul [authentication method][auth-method] that will be used to login with a
-  Nomad JWT for services.
-
 - `service_identity` <code>([Identity](#service_identity-parameters): nil)</code> - Specifies
   a default Workload Identity to use when obtaining Service Identity tokens from
   Consul to register services. Refer to [Workload Identity](#workload-identity)
   for a recommended configuration.
-
-- `task_auth_method` `(string: "nomad-workloads")` - Specifies the name of the
-  Consul [authentication method][auth-method] that will be used to login with a
-  Nomad JWT for tasks.
 
 - `task_identity` <code>([Identity](#task_identity-parameters): nil)</code> - Specifies a
   default Workload Identity to use when obtaining Consul tokens from Consul to
