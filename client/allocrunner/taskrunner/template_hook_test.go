@@ -6,8 +6,12 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"path"
 	"sync"
 	"testing"
+	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
@@ -17,10 +21,12 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 )
 
@@ -132,6 +138,132 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 			}
 
 			must.Eq(t, tt.wantConsulToken, h.consulToken)
+		})
+	}
+}
+
+func Test_templateHook_Prestart_Vault(t *testing.T) {
+	ci.Parallel(t)
+
+	secretsResp := `
+{
+  "data": {
+    "data": {
+      "secret": "secret"
+    },
+    "metadata": {
+      "created_time": "2023-10-18T15:58:29.65137Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 1
+    }
+  }
+}`
+
+	// Start test server to simulate Vault cluster responses.
+	reqCh := make(chan any)
+	defaultVaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqCh <- struct{}{}
+		fmt.Fprintln(w, secretsResp)
+	}))
+	t.Cleanup(defaultVaultServer.Close)
+
+	// Setup client with Vault config.
+	clientConfig := config.DefaultConfig()
+	clientConfig.TemplateConfig.DisableSandbox = true
+	clientConfig.VaultConfigs = map[string]*structsc.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Name:    structs.VaultDefaultCluster,
+			Enabled: pointer.Of(true),
+			Addr:    defaultVaultServer.URL,
+		},
+	}
+
+	testCases := []struct {
+		name            string
+		vault           *structs.Vault
+		expectedCluster string
+	}{
+		{
+			name: "use default cluster",
+			vault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
+			expectedCluster: structs.VaultDefaultCluster,
+		},
+		{
+			name:            "use default cluster if no vault block is provided",
+			vault:           nil,
+			expectedCluster: structs.VaultDefaultCluster,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Setup alloc and task to connect to Vault cluster.
+			alloc := mock.MinAlloc()
+			task := alloc.Job.TaskGroups[0].Tasks[0]
+			task.Vault = tc.vault
+
+			// Setup template hook.
+			taskDir := t.TempDir()
+			hookConfig := &templateHookConfig{
+				alloc:        alloc,
+				logger:       testlog.HCLogger(t),
+				lifecycle:    trtesting.NewMockTaskHooks(),
+				events:       &trtesting.MockEmitter{},
+				clientConfig: clientConfig,
+				envBuilder:   taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region),
+				templates: []*structs.Template{
+					{
+						EmbeddedTmpl: `{{with secret "secret/data/test"}}{{.Data.data.secret}}{{end}}`,
+						ChangeMode:   structs.TemplateChangeModeNoop,
+						DestPath:     path.Join(taskDir, "out.txt"),
+					},
+				},
+			}
+			hook := newTemplateHook(hookConfig)
+
+			// Start template hook with a timeout context to ensure it exists.
+			req := &interfaces.TaskPrestartRequest{
+				Task:    task,
+				TaskDir: &allocdir.TaskDir{Dir: taskDir},
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			t.Cleanup(cancel)
+
+			// Start in a goroutine because Prestart() blocks until first
+			// render.
+			hookErrCh := make(chan error)
+			go func() {
+				err := hook.Prestart(ctx, req, nil)
+				hookErrCh <- err
+			}()
+
+			var gotRequest bool
+		LOOP:
+			for {
+				select {
+				// Register mock Vault server received a request.
+				case <-reqCh:
+					gotRequest = true
+
+				// Verify test doesn't timeout.
+				case <-ctx.Done():
+					must.NoError(t, ctx.Err())
+					return
+
+				// Verify hook.Prestart() doesn't errors.
+				case err := <-hookErrCh:
+					must.NoError(t, err)
+					break LOOP
+				}
+			}
+
+			// Verify mock Vault server received a request.
+			must.True(t, gotRequest)
 		})
 	}
 }
