@@ -27,6 +27,7 @@ type ConnectACLsE2ETest struct {
 	jobIDs          []string
 	consulPolicyIDs []string
 	consulTokenIDs  []string
+	consulNamespace string
 }
 
 func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
@@ -69,14 +70,28 @@ func (tc *ConnectACLsE2ETest) AfterEach(f *framework.F) {
 	// cleanup consul tokens
 	for _, id := range tc.consulTokenIDs {
 		t.Log("cleanup: delete consul token id:", id)
-		_, err := tc.Consul().ACL().TokenDelete(id, &consulapi.WriteOptions{Token: tc.consulManagementToken})
+		_, err := tc.Consul().ACL().TokenDelete(id, &consulapi.WriteOptions{
+			Token:     tc.consulManagementToken,
+			Namespace: tc.consulNamespace,
+		})
 		f.NoError(err)
 	}
 
 	// cleanup consul policies
 	for _, id := range tc.consulPolicyIDs {
 		t.Log("cleanup: delete consul policy id:", id)
-		_, err := tc.Consul().ACL().PolicyDelete(id, &consulapi.WriteOptions{Token: tc.consulManagementToken})
+		_, err := tc.Consul().ACL().PolicyDelete(id, &consulapi.WriteOptions{
+			Token:     tc.consulManagementToken,
+			Namespace: tc.consulNamespace,
+		})
+		f.NoError(err)
+	}
+
+	if tc.consulNamespace != "" {
+		t.Log("cleanup: delete consul namespace:", tc.consulNamespace)
+		_, err := tc.Consul().Namespaces().Delete(tc.consulNamespace, &consulapi.WriteOptions{
+			Token: tc.consulManagementToken,
+		})
 		f.NoError(err)
 	}
 
@@ -95,12 +110,14 @@ func (tc *ConnectACLsE2ETest) AfterEach(f *framework.F) {
 	tc.jobIDs = []string{}
 	tc.consulTokenIDs = []string{}
 	tc.consulPolicyIDs = []string{}
+	tc.consulNamespace = ""
 }
 
 // todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
 type consulPolicy struct {
-	Name  string // e.g. nomad-operator
-	Rules string // e.g. service "" { policy="write" }
+	Name      string // e.g. nomad-operator
+	Rules     string // e.g. service "" { policy="write" }
+	Namespace string // e.g. default
 }
 
 // todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
@@ -109,17 +126,31 @@ func (tc *ConnectACLsE2ETest) createConsulPolicy(p consulPolicy, f *framework.F)
 		Name:        p.Name,
 		Description: "test policy " + p.Name,
 		Rules:       p.Rules,
+		Namespace:   p.Namespace,
 	}, &consulapi.WriteOptions{Token: tc.consulManagementToken})
 	f.NoError(err, "failed to create consul policy")
 	tc.consulPolicyIDs = append(tc.consulPolicyIDs, result.ID)
 	return result.ID
 }
 
+func (tc *ConnectACLsE2ETest) createConsulNamespace(namespace string, f *framework.F) string {
+	result, _, err := tc.Consul().Namespaces().Create(&consulapi.Namespace{
+		Name: namespace,
+	}, &consulapi.WriteOptions{Token: tc.consulManagementToken})
+	f.NoError(err, "failed to create consul namespace")
+	return result.Name
+}
+
 // todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
 func (tc *ConnectACLsE2ETest) createOperatorToken(policyID string, f *framework.F) string {
+	return tc.createOperatorTokenNamespaced(policyID, "default", f)
+}
+
+func (tc *ConnectACLsE2ETest) createOperatorTokenNamespaced(policyID string, namespace string, f *framework.F) string {
 	token, _, err := tc.Consul().ACL().TokenCreate(&consulapi.ACLToken{
 		Description: "operator token",
 		Policies:    []*consulapi.ACLTokenPolicyLink{{ID: policyID}},
+		Namespace:   namespace,
 	}, &consulapi.WriteOptions{Token: tc.consulManagementToken})
 	f.NoError(err, "failed to create operator token")
 	tc.consulTokenIDs = append(tc.consulTokenIDs, token.AccessorID)
@@ -227,6 +258,48 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectDemo(f *framework.F) {
 
 	// create a Consul "operator token" blessed with the above policy
 	operatorToken := tc.createOperatorToken(policyID, f)
+	t.Log("created operator token:", operatorToken)
+
+	jobID := connectJobID()
+	tc.jobIDs = append(tc.jobIDs, jobID)
+
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectJob, jobID, operatorToken)
+	f.Equal(2, len(allocs), "expected 2 allocs for connect demo", allocs)
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	f.Equal(2, len(allocIDs), "expected 2 allocIDs for connect demo", allocIDs)
+	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
+
+	// === Check Consul SI tokens were generated for sidecars ===
+	foundSITokens := tc.countSITokens(t)
+	f.Equal(2, len(foundSITokens), "expected 2 SI tokens total: %v", foundSITokens)
+	f.Equal(1, foundSITokens["connect-proxy-count-api"], "expected 1 SI token for connect-proxy-count-api: %v", foundSITokens)
+	f.Equal(1, foundSITokens["connect-proxy-count-dashboard"], "expected 1 SI token for connect-proxy-count-dashboard: %v", foundSITokens)
+
+	t.Log("connect legacy job with ACLs enable finished")
+}
+
+func (tc *ConnectACLsE2ETest) TestConnectACLsConnectDemoNamespaced(f *framework.F) {
+	t := f.T()
+
+	t.Log("test register Connect job w/ ACLs enabled w/ operator token")
+
+	// === Setup ACL policy within a namespace and mint Operator token ===
+
+	// create a namespace
+	namespace := tc.createConsulNamespace("ns-"+uuid.Short(), f)
+	tc.consulNamespace = namespace
+	t.Log("created namespace:", namespace)
+
+	// create a policy allowing writes of services "count-api" and "count-dashboard"
+	policyID := tc.createConsulPolicy(consulPolicy{
+		Name:      "nomad-operator-policy-" + uuid.Short(),
+		Rules:     `service "count-api" { policy = "write" } service "count-dashboard" { policy = "write" }`,
+		Namespace: namespace,
+	}, f)
+	t.Log("created operator policy:", policyID)
+
+	// create a Consul "operator token" blessed with the above policy
+	operatorToken := tc.createOperatorTokenNamespaced(policyID, namespace, f)
 	t.Log("created operator token:", operatorToken)
 
 	jobID := connectJobID()
