@@ -38,6 +38,10 @@ const (
 	cpuSiblingFile = sysRoot + "/cpu/cpu%d/topology/thread_siblings_list"
 )
 
+// pathReaderFn is a path reader function, injected into all value getters to
+// ease testing.
+type pathReaderFn func(string) ([]byte, error)
+
 // Sysfs implements SystemScanner for Linux by reading system topology data
 // from /sys/devices/system. This is the best source of truth on Linux and
 // should always be used first - additional scanners can provide more context
@@ -46,27 +50,27 @@ type Sysfs struct{}
 
 func (s *Sysfs) ScanSystem(top *Topology) {
 	// detect the online numa nodes
-	s.discoverOnline(top)
+	s.discoverOnline(top, os.ReadFile)
 
 	// detect cross numa node latency costs
-	s.discoverCosts(top)
+	s.discoverCosts(top, os.ReadFile)
 
 	// detect core performance data
-	s.discoverCores(top)
+	s.discoverCores(top, os.ReadFile)
 }
 
 func (*Sysfs) available() bool {
 	return true
 }
 
-func (*Sysfs) discoverOnline(st *Topology) {
-	ids, err := getIDSet[hw.NodeID](nodeOnline)
+func (*Sysfs) discoverOnline(st *Topology, readerFunc pathReaderFn) {
+	ids, err := getIDSet[hw.NodeID](nodeOnline, readerFunc)
 	if err == nil {
 		st.NodeIDs = ids
 	}
 }
 
-func (*Sysfs) discoverCosts(st *Topology) {
+func (*Sysfs) discoverCosts(st *Topology, readerFunc pathReaderFn) {
 	if st.NodeIDs.Empty() {
 		return
 	}
@@ -78,7 +82,7 @@ func (*Sysfs) discoverCosts(st *Topology) {
 	}
 
 	_ = st.NodeIDs.ForEach(func(id hw.NodeID) error {
-		s, err := getString(distanceFile, id)
+		s, err := getString(distanceFile, readerFunc, id)
 		if err != nil {
 			return err
 		}
@@ -91,8 +95,8 @@ func (*Sysfs) discoverCosts(st *Topology) {
 	})
 }
 
-func (*Sysfs) discoverCores(st *Topology) {
-	onlineCores, err := getIDSet[hw.CoreID](cpuOnline)
+func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
+	onlineCores, err := getIDSet[hw.CoreID](cpuOnline, readerFunc)
 	if err != nil {
 		return
 	}
@@ -105,9 +109,9 @@ func (*Sysfs) discoverCores(st *Topology) {
 			st.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0})
 			const node = 0
 			const socket = 0
-			max, _ := getNumeric[hw.KHz](cpuMaxFile, core)
-			base, _ := getNumeric[hw.KHz](cpuBaseFile, core)
-			st.insert(node, socket, core, Performance, max, base)
+			cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
+			base, _ := getNumeric[hw.KHz](cpuBaseFile, readerFunc, core)
+			st.insert(node, socket, core, Performance, cpuMax, base)
 			return nil
 		})
 	default:
@@ -121,13 +125,11 @@ func (*Sysfs) discoverCores(st *Topology) {
 			cores := idset.Parse[hw.CoreID](string(s))
 			_ = cores.ForEach(func(core hw.CoreID) error {
 				// best effort, zero values are defaults
-				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, core)
-				max, _ := getNumeric[hw.KHz](cpuMaxFile, core)
-				base, _ := getNumeric[hw.KHz](cpuBaseFile, core)
-				siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, core)
-				if err := st.insert(node, socket, core, gradeOf(siblings), max, base); err != nil {
-					return err
-				}
+				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, readerFunc, core)
+				cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
+				base, _ := getNumeric[hw.KHz](cpuBaseFile, readerFunc, core)
+				siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, readerFunc, core)
+				st.insert(node, socket, core, gradeOf(siblings), cpuMax, base)
 				return nil
 			})
 			return nil
@@ -135,18 +137,18 @@ func (*Sysfs) discoverCores(st *Topology) {
 	}
 }
 
-func getIDSet[T idset.ID](path string, args ...any) (*idset.Set[T], error) {
+func getIDSet[T idset.ID](path string, readerFunc pathReaderFn, args ...any) (*idset.Set[T], error) {
 	path = fmt.Sprintf(path, args...)
-	s, err := os.ReadFile(path)
+	s, err := readerFunc(path)
 	if err != nil {
 		return nil, err
 	}
 	return idset.Parse[T](string(s)), nil
 }
 
-func getNumeric[T int | idset.ID](path string, args ...any) (T, error) {
+func getNumeric[T int | idset.ID](path string, readerFunc pathReaderFn, args ...any) (T, error) {
 	path = fmt.Sprintf(path, args...)
-	s, err := os.ReadFile(path)
+	s, err := readerFunc(path)
 	if err != nil {
 		return 0, err
 	}
@@ -157,9 +159,9 @@ func getNumeric[T int | idset.ID](path string, args ...any) (T, error) {
 	return T(i), nil
 }
 
-func getString(path string, args ...any) (string, error) {
+func getString(path string, readerFunc pathReaderFn, args ...any) (string, error) {
 	path = fmt.Sprintf(path, args...)
-	s, err := os.ReadFile(path)
+	s, err := readerFunc(path)
 	if err != nil {
 		return "", err
 	}

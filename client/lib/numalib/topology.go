@@ -63,6 +63,12 @@ type Topology struct {
 	OverrideWitholdCompute hw.MHz
 }
 
+// NewTopology is a constructor for the Topology object, only used in tests for
+// mocking.
+func NewTopology(nodeIDs *idset.Set[hw.NodeID], distances SLIT, cores []Core) *Topology {
+	return &Topology{NodeIDs: nodeIDs, Distances: distances, Cores: cores}
+}
+
 // A Core represents one logical (vCPU) core on a processor. Basically the slice
 // of cores detected should match up with the vCPU description in cloud providers.
 type Core struct {
@@ -152,21 +158,15 @@ func (st *Topology) NodeCores(node hw.NodeID) *idset.Set[hw.CoreID] {
 	return result
 }
 
-func (st *Topology) insert(node hw.NodeID, socket hw.SocketID, core hw.CoreID, grade CoreGrade, max, base hw.KHz) error {
-	if int(core) <= len(st.Cores) {
-		st.Cores[core] = Core{
-			NodeID:    node,
-			SocketID:  socket,
-			ID:        core,
-			Grade:     grade,
-			MaxSpeed:  max.MHz(),
-			BaseSpeed: base.MHz(),
-		}
-	} else {
-		return fmt.Errorf("incorrect core number")
+func (st *Topology) insert(node hw.NodeID, socket hw.SocketID, core hw.CoreID, grade CoreGrade, max, base hw.KHz) {
+	st.Cores[core] = Core{
+		NodeID:    node,
+		SocketID:  socket,
+		ID:        core,
+		Grade:     grade,
+		MaxSpeed:  max.MHz(),
+		BaseSpeed: base.MHz(),
 	}
-
-	return nil
 }
 
 func (st *Topology) String() string {
