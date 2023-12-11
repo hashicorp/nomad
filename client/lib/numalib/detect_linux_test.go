@@ -13,9 +13,9 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-// badValues are example values from sysfs on unsupported platforms, e.g.,
+// badSysData are example values from sysfs on unsupported platforms, e.g.,
 // containers, virtualization guests
-func badValues(path string) ([]byte, error) {
+func badSysData(path string) ([]byte, error) {
 	return map[string][]byte{
 		nodeOnline:     []byte("invalid or corrupted node online info"),
 		cpuOnline:      []byte("1,3"),
@@ -28,9 +28,9 @@ func badValues(path string) ([]byte, error) {
 	}[path], nil
 }
 
-func goodValues(path string) ([]byte, error) {
+func goodSysData(path string) ([]byte, error) {
 	return map[string][]byte{
-		nodeOnline:     []byte("0"),
+		nodeOnline:     []byte("0-3"),
 		cpuOnline:      []byte("0-3"),
 		distanceFile:   []byte("10"),
 		cpulistFile:    []byte("0-3"),
@@ -42,30 +42,55 @@ func goodValues(path string) ([]byte, error) {
 }
 
 func TestSysfs_discoverOnline(t *testing.T) {
-
-	type args struct {
-		st         *Topology
-		readerFunc pathReaderFn
-	}
-
 	st := NewTopology(&idset.Set[hw.NodeID]{}, SLIT{}, []Core{})
-	lxcTest := args{st, badValues}
-	goodTest := args{st, goodValues}
-	goodIDSet := idset.From[hw.NodeID]([]uint8{0})
+	goodIDSet := idset.From[hw.NodeID]([]uint8{0, 1, 2, 3})
 
 	tests := []struct {
 		name          string
-		args          args
+		readerFunc    pathReaderFn
 		expectedIDSet *idset.Set[hw.NodeID]
 	}{
-		{"lxc values", lxcTest, idset.Empty[hw.NodeID]()},
-		{"good values", goodTest, goodIDSet},
+		{"lxc values", badSysData, idset.Empty[hw.NodeID]()},
+		{"good values", goodSysData, goodIDSet},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sy := &Sysfs{}
-			sy.discoverOnline(tt.args.st, tt.args.readerFunc)
-			must.Eq(t, tt.expectedIDSet, tt.args.st.NodeIDs)
+			sy.discoverOnline(st, tt.readerFunc)
+			must.Eq(t, tt.expectedIDSet, st.NodeIDs)
+		})
+	}
+}
+
+func TestSysfs_discoverCosts(t *testing.T) {
+	st := NewTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
+	fourNodes := idset.From[hw.NodeID]([]uint8{0, 1, 2, 3})
+	twoNodes := idset.From[hw.NodeID]([]uint8{1, 3})
+
+	tests := []struct {
+		name              string
+		nodeIDs           *idset.Set[hw.NodeID]
+		readerFunc        pathReaderFn
+		expectedDistances SLIT
+	}{
+		{"empty node IDs", idset.Empty[hw.NodeID](), os.ReadFile, SLIT{}},
+		{"four nodes and bad sys data", fourNodes, badSysData, SLIT{
+			[]Cost{0, 0, 0, 0},
+			[]Cost{0, 0, 0, 0},
+			[]Cost{0, 0, 0, 0},
+			[]Cost{0, 0, 0, 0},
+		}},
+		{"two nodes and good sys data", twoNodes, goodSysData, SLIT{
+			[]Cost{0, 0},
+			[]Cost{0, 0},
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sy := &Sysfs{}
+			st.NodeIDs = tt.nodeIDs
+			sy.discoverCosts(st, tt.readerFunc)
+			must.Eq(t, tt.expectedDistances, st.Distances)
 		})
 	}
 }
