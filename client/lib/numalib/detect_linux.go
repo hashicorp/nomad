@@ -124,15 +124,18 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 
 			cores := idset.Parse[hw.CoreID](string(s))
 			_ = cores.ForEach(func(core hw.CoreID) error {
-				// if we get incorrect core number, stop
-				if int(core) >= len(st.Cores) {
-					return nil
-				}
 				// best effort, zero values are defaults
 				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, readerFunc, core)
 				cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
 				base, _ := getNumeric[hw.KHz](cpuBaseFile, readerFunc, core)
 				siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, readerFunc, core)
+
+				// if we get an incorrect core number, this means we're not getting the right
+				// data from SysFS. In this case we bail and set default values.
+				if int(core) >= len(st.Cores) {
+					return nil
+				}
+
 				st.insert(node, socket, core, gradeOf(siblings), cpuMax, base)
 				return nil
 			})

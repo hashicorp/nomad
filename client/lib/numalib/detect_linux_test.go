@@ -19,9 +19,9 @@ import (
 func badSysData(path string) ([]byte, error) {
 	return map[string][]byte{
 		"/sys/devices/system/node/online":                            []byte("0"),
-		"/sys/devices/system/cpu/online":                             []byte("1,3"),
+		"/sys/devices/system/cpu/online":                             []byte("1,3"), // cpuOnline data indicates 2 CPU IDs online: 1 and 3
 		"/sys/devices/system/node/node0/distance":                    []byte("10"),
-		"/sys/devices/system/node/node0/cpulist":                     []byte("0-3"),
+		"/sys/devices/system/node/node0/cpulist":                     []byte("0-3"), // cpuList data indicates 4 CPU cores available on node0 (can't be true)
 		"/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq":      []byte("3500000"),
 		"/sys/devices/system/cpu/cpu0/cpufreq/base_frequency":        []byte("2100000"),
 		"/sys/devices/system/cpu/cpu0/topology/physical_package_id":  []byte("0"),
@@ -133,6 +133,8 @@ func TestSysfs_discoverCores(t *testing.T) {
 	}{
 		{"empty core and node IDs", idset.Empty[hw.NodeID](), os.ReadFile, &Topology{}},
 		{"empty node IDs", idset.Empty[hw.NodeID](), goodSysData, &Topology{}},
+
+		// issue#19372
 		{"one node and bad sys data", oneNode, badSysData, &Topology{
 			NodeIDs: oneNode,
 			Cores: []Core{
@@ -153,7 +155,7 @@ func TestSysfs_discoverCores(t *testing.T) {
 					MaxSpeed:  3500,
 				},
 			},
-		}}, // issue#19372
+		}},
 		{"two nodes and good sys data", twoNodes, goodSysData, &Topology{
 			NodeIDs: twoNodes,
 			Cores: []Core{
