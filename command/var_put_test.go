@@ -6,6 +6,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -105,6 +106,40 @@ func TestVarPutCommand_GoodJson(t *testing.T) {
 	require.Equal(t, "default", outVar.Namespace)
 	require.Equal(t, "test/var", outVar.Path)
 	require.Equal(t, api.VariableItems{"k1": "v1", "k2": "v2"}, outVar.Items)
+}
+
+func TestVarPutCommand_FlagsWithSpec(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a server
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &VarPutCommand{Meta: Meta{Ui: ui}}
+
+	// Create a temporary file and ensure the proper cleanup is run once the
+	// test ends.
+	osFile, err := os.CreateTemp("", "nomad-cli-var-put-test-*.hcl")
+	must.NoError(t, err)
+
+	t.Cleanup(func() {
+		_ = osFile.Close()
+		_ = os.Remove(osFile.Name())
+	})
+
+	// Write out a partial spec that includes the namespace and variable path.
+	_, err = osFile.Write([]byte("path      = \"path/to/variable\"\nnamespace = \"default\""))
+	must.NoError(t, err)
+
+	// Create the variables, ensure we clean it up, and check the command
+	// response.
+	code := cmd.Run([]string{"-address=" + url, "@" + osFile.Name(), "k1=v1", "k2=v2"})
+	must.Zero(t, code)
+
+	must.StrContains(t, ui.OutputWriter.String(), "path/to/variable")
+	must.StrContains(t, ui.OutputWriter.String(), "\"k1\": \"v1\"")
+	must.StrContains(t, ui.OutputWriter.String(), "\"k2\": \"v2\"")
 }
 
 func TestVarPutCommand_AutocompleteArgs(t *testing.T) {

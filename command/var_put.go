@@ -393,6 +393,13 @@ func (c *VarPutCommand) makeVariable(path string) (*api.Variable, error) {
 		return nil, fmt.Errorf("unknown format flag value")
 	}
 
+	// It is possible a specification file was used which did not declare any
+	// items. Therefore, default the entry to avoid panics and ensure this type
+	// of use is valid.
+	if out.Items == nil {
+		out.Items = make(map[string]string)
+	}
+
 	// Handle cases where values are provided by CLI flags that modify the
 	// the created variable. Typical of a "copy" operation, it is a convenience
 	// to reset the Create and Modify metadata to zero.
