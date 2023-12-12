@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Added validation to prevent StagePublishBaseDir from being a subdir MountDir
+```
