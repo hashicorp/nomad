@@ -112,7 +112,7 @@ func TestVarPutCommand_FlagsWithSpec(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a server
-	srv, client, url := testServer(t, true, nil)
+	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
