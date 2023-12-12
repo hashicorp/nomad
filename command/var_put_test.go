@@ -137,10 +137,6 @@ func TestVarPutCommand_FlagsWithSpec(t *testing.T) {
 	code := cmd.Run([]string{"-address=" + url, "@" + osFile.Name(), "k1=v1", "k2=v2"})
 	must.Zero(t, code)
 
-	t.Cleanup(func() {
-		_, _ = client.Variables().Delete("test/var", nil)
-	})
-
 	must.StrContains(t, ui.OutputWriter.String(), "path/to/variable")
 	must.StrContains(t, ui.OutputWriter.String(), "\"k1\": \"v1\"")
 	must.StrContains(t, ui.OutputWriter.String(), "\"k2\": \"v2\"")
