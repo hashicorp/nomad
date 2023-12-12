@@ -1135,6 +1135,12 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		RenderTemplates: *taskGroup.RestartPolicy.RenderTemplates,
 	}
 
+	if taskGroup.PreventRescheduleOnLost == nil {
+		tg.PreventRescheduleOnLost = false
+	} else {
+		tg.PreventRescheduleOnLost = *taskGroup.PreventRescheduleOnLost
+	}
+
 	if taskGroup.ShutdownDelay != nil {
 		tg.ShutdownDelay = taskGroup.ShutdownDelay
 	}

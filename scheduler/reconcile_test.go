@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -885,6 +886,180 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(5, 9), stopResultsToNames(r.stop))
 	assertNamesHaveIndexes(t, intRange(0, 4), destructiveResultsToNames(r.destructiveUpdate))
+}
+
+// Tests the reconciler properly handles allocations when a node
+// goes down or disconnects, using all possible combinations of
+// PreventRescheduleOnLost, MaxClientDisconnect and ReschedulePolicy.
+// Having the 3 configurations enabled is not a valid option and is not
+// included in the test.
+func TestReconciler_LostNode_PreventRescheduleOnLost(t *testing.T) {
+	disabledReschedulePolicy := &structs.ReschedulePolicy{
+		Attempts:  0,
+		Unlimited: false,
+	}
+
+	ci.Parallel(t)
+	now := time.Now()
+
+	testCases := []struct {
+		name                    string
+		PreventRescheduleOnLost bool
+		maxClientDisconnect     *time.Duration
+		reschedulePolicy        *structs.ReschedulePolicy
+		expectPlace             int
+		expectStop              int
+		expectIgnore            int
+		expectDisconnect        int
+		allocStatus             string
+	}{
+		{
+			name:                    "PreventRescheduleOnLost off, MaxClientDisconnect off, Reschedule off",
+			maxClientDisconnect:     nil,
+			PreventRescheduleOnLost: false,
+			reschedulePolicy:        disabledReschedulePolicy,
+			expectPlace:             2,
+			expectStop:              2,
+			expectIgnore:            3,
+			expectDisconnect:        0,
+			allocStatus:             structs.AllocClientStatusLost,
+		},
+		{
+			name:                    "PreventRescheduleOnLost on, MaxClientDisconnect off, Reschedule off",
+			maxClientDisconnect:     nil,
+			PreventRescheduleOnLost: true,
+			reschedulePolicy:        disabledReschedulePolicy,
+			expectPlace:             0,
+			expectStop:              0,
+			expectIgnore:            5,
+			expectDisconnect:        2,
+			allocStatus:             structs.AllocClientStatusUnknown,
+		},
+		{
+			name:                    "PreventRescheduleOnLost off, MaxClientDisconnect on, Reschedule off",
+			maxClientDisconnect:     pointer.Of(10 * time.Second),
+			PreventRescheduleOnLost: false,
+			reschedulePolicy:        disabledReschedulePolicy,
+			expectPlace:             2,
+			expectStop:              1,
+			expectIgnore:            4,
+			expectDisconnect:        1,
+			allocStatus:             structs.AllocClientStatusLost,
+		},
+		{
+			name:                    "PreventRescheduleOnLost on, MaxClientDisconnect on, Reschedule off",
+			maxClientDisconnect:     pointer.Of(10 * time.Second),
+			PreventRescheduleOnLost: true,
+			reschedulePolicy:        disabledReschedulePolicy,
+			expectPlace:             1, // This behaviour needs to be verified
+			expectStop:              0,
+			expectIgnore:            5,
+			expectDisconnect:        2,
+			allocStatus:             structs.AllocClientStatusUnknown,
+		},
+
+		{
+			name:                    "PreventRescheduleOnLost off, MaxClientDisconnect off, Reschedule on",
+			maxClientDisconnect:     nil,
+			PreventRescheduleOnLost: false,
+			reschedulePolicy: &structs.ReschedulePolicy{
+				Attempts: 1,
+			},
+			expectPlace:  3,
+			expectStop:   3,
+			expectIgnore: 2,
+			allocStatus:  structs.AllocClientStatusLost,
+		},
+		{
+			name:                    "PreventRescheduleOnLost on, MaxClientDisconnect off, Reschedule on",
+			maxClientDisconnect:     nil,
+			PreventRescheduleOnLost: true,
+			reschedulePolicy: &structs.ReschedulePolicy{
+				Attempts: 1,
+			},
+			expectPlace:      1,
+			expectStop:       1,
+			expectIgnore:     4,
+			expectDisconnect: 2,
+			allocStatus:      structs.AllocClientStatusUnknown,
+		},
+		{
+			name:                    "PreventRescheduleOnLost off, MaxClientDisconnect on, Reschedule on",
+			maxClientDisconnect:     pointer.Of(10 * time.Second),
+			PreventRescheduleOnLost: false,
+			reschedulePolicy: &structs.ReschedulePolicy{
+				Attempts: 1,
+			},
+			expectPlace:      3,
+			expectStop:       1,
+			expectIgnore:     3,
+			expectDisconnect: 1,
+			allocStatus:      structs.AllocClientStatusLost,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			job := mock.Job()
+			job.TaskGroups[0].Count = 5
+			job.TaskGroups[0].PreventRescheduleOnLost = tc.PreventRescheduleOnLost
+			job.TaskGroups[0].MaxClientDisconnect = tc.maxClientDisconnect
+			job.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
+
+			// Create 9 existing running allocations and a failed one
+			var allocs []*structs.Allocation
+			for i := 0; i < 5; i++ {
+				alloc := mock.Alloc()
+				alloc.Job = job
+				alloc.JobID = job.ID
+
+				alloc.NodeID = uuid.Generate()
+				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+				alloc.DesiredStatus = structs.AllocDesiredStatusRun
+
+				// Set one of the allocations to failed
+				if i == 4 {
+					alloc.ClientStatus = structs.AllocClientStatusFailed
+				} else {
+					alloc.ClientStatus = structs.AllocClientStatusRunning
+				}
+
+				allocs = append(allocs, alloc)
+			}
+
+			// Build a map of tainted nodes, one down one disconnected
+			tainted := make(map[string]*structs.Node, 2)
+			downNode := mock.Node()
+			downNode.ID = allocs[0].NodeID
+			downNode.Status = structs.NodeStatusDown
+			tainted[downNode.ID] = downNode
+
+			disconnected := mock.Node()
+			disconnected.ID = allocs[1].NodeID
+			disconnected.Status = structs.NodeStatusDisconnected
+			tainted[disconnected.ID] = disconnected
+
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
+				nil, allocs, tainted, "", 50, true, AllocRenconcilerWithNow(now))
+			r := reconciler.Compute()
+
+			// Assert the correct results
+			assertResults(t, r, &resultExpectation{
+				createDeployment:  nil,
+				deploymentUpdates: nil,
+				place:             tc.expectPlace,
+				stop:              tc.expectStop,
+				disconnectUpdates: tc.expectDisconnect,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					job.TaskGroups[0].Name: {
+						Place:  uint64(tc.expectPlace),
+						Stop:   uint64(tc.expectStop),
+						Ignore: uint64(tc.expectIgnore),
+					},
+				},
+			})
+		})
+	}
 }
 
 // Tests the reconciler properly handles lost nodes with allocations
@@ -5143,173 +5318,6 @@ func TestReconciler_RescheduleNot_Service(t *testing.T) {
 	assertPlacementsAreRescheduled(t, 0, r.place)
 }
 
-// Tests behavior of batch failure with rescheduling policy preventing rescheduling:
-// current allocations are left unmodified and no follow up
-func TestReconciler_RescheduleNot_Batch(t *testing.T) {
-	ci.Parallel(t)
-
-	require := require.New(t)
-	// Set desired 4
-	job := mock.Job()
-	job.TaskGroups[0].Count = 4
-	now := time.Now()
-	// Set up reschedule policy
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
-		Attempts:      0,
-		Interval:      24 * time.Hour,
-		Delay:         5 * time.Second,
-		DelayFunction: "constant",
-	}
-	tgName := job.TaskGroups[0].Name
-	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
-	var allocs []*structs.Allocation
-	for i := 0; i < 6; i++ {
-		alloc := mock.Alloc()
-		alloc.Job = job
-		alloc.JobID = job.ID
-		alloc.NodeID = uuid.Generate()
-		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
-		allocs = append(allocs, alloc)
-		alloc.ClientStatus = structs.AllocClientStatusRunning
-	}
-	// Mark 3 as failed with restart tracking info
-	allocs[0].ClientStatus = structs.AllocClientStatusFailed
-	allocs[0].NextAllocation = allocs[1].ID
-	allocs[1].ClientStatus = structs.AllocClientStatusFailed
-	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
-		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
-			PrevAllocID: allocs[0].ID,
-			PrevNodeID:  uuid.Generate(),
-		},
-	}}
-	allocs[1].NextAllocation = allocs[2].ID
-	allocs[2].ClientStatus = structs.AllocClientStatusFailed
-	allocs[2].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
-		StartedAt:  now.Add(-1 * time.Hour),
-		FinishedAt: now.Add(-5 * time.Second)}}
-	allocs[2].FollowupEvalID = uuid.Generate()
-	allocs[2].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
-		{RescheduleTime: time.Now().Add(-2 * time.Hour).UTC().UnixNano(),
-			PrevAllocID: allocs[0].ID,
-			PrevNodeID:  uuid.Generate(),
-		},
-		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
-			PrevAllocID: allocs[1].ID,
-			PrevNodeID:  uuid.Generate(),
-		},
-	}}
-	// Mark one as complete
-	allocs[5].ClientStatus = structs.AllocClientStatusComplete
-
-	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job,
-		nil, allocs, nil, "", 50, true)
-	reconciler.now = now
-	r := reconciler.Compute()
-
-	// Verify that no follow up evals were created
-	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
-
-	// No reschedule attempts were made and all allocs are untouched
-	assertResults(t, r, &resultExpectation{
-		createDeployment:  nil,
-		deploymentUpdates: nil,
-		place:             0,
-		stop:              0,
-		inplace:           0,
-		desiredTGUpdates: map[string]*structs.DesiredUpdates{
-			job.TaskGroups[0].Name: {
-				Place:  0,
-				Stop:   0,
-				Ignore: 4,
-			},
-		},
-	})
-}
-
-// Tests that when a node disconnects running allocations are queued to transition to unknown.
-func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
-	job, allocs := buildResumableAllocations(3, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
-	// Build a map of disconnected nodes
-	nodes := buildDisconnectedNodes(allocs, 2)
-
-	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nodes, "", 50, true)
-	reconciler.now = time.Now().UTC()
-	results := reconciler.Compute()
-
-	// Verify that 1 follow up eval was created with the values we expect.
-	evals := results.desiredFollowupEvals[job.TaskGroups[0].Name]
-	require.Len(t, evals, 1)
-	expectedTime := reconciler.now.Add(5 * time.Minute)
-
-	eval := evals[0]
-	require.NotNil(t, eval.WaitUntil)
-	require.Equal(t, expectedTime, eval.WaitUntil)
-
-	// Validate that the queued disconnectUpdates have the right client status,
-	// and that they have a valid FollowUpdEvalID.
-	for _, disconnectUpdate := range results.disconnectUpdates {
-		require.Equal(t, structs.AllocClientStatusUnknown, disconnectUpdate.ClientStatus)
-		require.NotEmpty(t, disconnectUpdate.FollowupEvalID)
-		require.Equal(t, eval.ID, disconnectUpdate.FollowupEvalID)
-	}
-
-	// 2 to place, 2 to update, 1 to ignore
-	assertResults(t, results, &resultExpectation{
-		createDeployment:  nil,
-		deploymentUpdates: nil,
-		place:             2,
-		stop:              0,
-		inplace:           0,
-		disconnectUpdates: 2,
-
-		// 2 to place and 1 to ignore
-		desiredTGUpdates: map[string]*structs.DesiredUpdates{
-			job.TaskGroups[0].Name: {
-				Place:         2,
-				Stop:          0,
-				Ignore:        1,
-				InPlaceUpdate: 0,
-			},
-		},
-	})
-}
-
-func TestReconciler_Disconnect_UpdateJobAfterReconnect(t *testing.T) {
-	ci.Parallel(t)
-
-	// Create 2 allocs and simulate one have being previously disconnected and
-	// then reconnected.
-	job, allocs := buildResumableAllocations(2, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
-	allocs[0].AllocStates = []*structs.AllocState{
-		{
-			Field: structs.AllocStateFieldClientStatus,
-			Value: structs.AllocClientStatusUnknown,
-			Time:  time.Now().Add(-5 * time.Minute),
-		},
-		{
-			Field: structs.AllocStateFieldClientStatus,
-			Value: structs.AllocClientStatusRunning,
-			Time:  time.Now(),
-		},
-	}
-
-	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job,
-		nil, allocs, nil, "", 50, true)
-	results := reconciler.Compute()
-
-	// Assert both allocations will be updated.
-	assertResults(t, results, &resultExpectation{
-		inplace: 2,
-		desiredTGUpdates: map[string]*structs.DesiredUpdates{
-			job.TaskGroups[0].Name: {
-				InPlaceUpdate: 2,
-			},
-		},
-	})
-}
-
 // Tests that when a node disconnects/reconnects allocations for that node are
 // reconciled according to the business rules.
 func TestReconciler_Disconnected_Client(t *testing.T) {
@@ -5557,14 +5565,13 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                     "stop-original-alloc-with-old-job-version-and-failed-replacements-replaced",
-			allocCount:               5,
-			replace:                  true,
-			failReplacement:          true,
-			replaceFailedReplacement: true,
-			disconnectedAllocCount:   2,
-			disconnectedAllocStatus:  structs.AllocClientStatusRunning,
-
+			name:                         "stop-original-alloc-with-old-job-version-and-failed-replacements-replaced",
+			allocCount:                   5,
+			replace:                      true,
+			failReplacement:              true,
+			replaceFailedReplacement:     true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
 			disconnectedAllocStates:      disconnectAllocState,
 			shouldStopOnDisconnectedNode: false,
 			jobVersionIncrement:          1,
@@ -5664,7 +5671,6 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.NotEqual(t, 0, tc.allocCount, "invalid test case: alloc count must be greater than zero")
 
 			testNode := mock.Node()
 			if tc.nodeStatusDisconnected == true {
@@ -5775,7 +5781,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				}
 
 				if tc.shouldStopOnDisconnectedNode {
-					require.Equal(t, testNode.ID, stopResult.alloc.NodeID)
+					must.Eq(t, testNode.ID, stopResult.alloc.NodeID)
 				} else {
 					require.NotEqual(t, testNode.ID, stopResult.alloc.NodeID)
 				}
@@ -5784,6 +5790,173 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Tests behavior of batch failure with rescheduling policy preventing rescheduling:
+// current allocations are left unmodified and no follow up
+func TestReconciler_RescheduleNot_Batch(t *testing.T) {
+	ci.Parallel(t)
+
+	require := require.New(t)
+	// Set desired 4
+	job := mock.Job()
+	job.TaskGroups[0].Count = 4
+	now := time.Now()
+	// Set up reschedule policy
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      0,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "constant",
+	}
+	tgName := job.TaskGroups[0].Name
+	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
+	var allocs []*structs.Allocation
+	for i := 0; i < 6; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+	// Mark 3 as failed with restart tracking info
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+	allocs[0].NextAllocation = allocs[1].ID
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].NextAllocation = allocs[2].ID
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[2].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-5 * time.Second)}}
+	allocs[2].FollowupEvalID = uuid.Generate()
+	allocs[2].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-2 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[1].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	// Mark one as complete
+	allocs[5].ClientStatus = structs.AllocClientStatusComplete
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job,
+		nil, allocs, nil, "", 50, true)
+	reconciler.now = now
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// No reschedule attempts were made and all allocs are untouched
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		stop:              0,
+		inplace:           0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  0,
+				Stop:   0,
+				Ignore: 4,
+			},
+		},
+	})
+}
+
+// Tests that when a node disconnects running allocations are queued to transition to unknown.
+func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
+	job, allocs := buildResumableAllocations(3, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
+	// Build a map of disconnected nodes
+	nodes := buildDisconnectedNodes(allocs, 2)
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
+		nil, allocs, nodes, "", 50, true)
+	reconciler.now = time.Now().UTC()
+	results := reconciler.Compute()
+
+	// Verify that 1 follow up eval was created with the values we expect.
+	evals := results.desiredFollowupEvals[job.TaskGroups[0].Name]
+	require.Len(t, evals, 1)
+	expectedTime := reconciler.now.Add(5 * time.Minute)
+
+	eval := evals[0]
+	require.NotNil(t, eval.WaitUntil)
+	require.Equal(t, expectedTime, eval.WaitUntil)
+
+	// Validate that the queued disconnectUpdates have the right client status,
+	// and that they have a valid FollowUpdEvalID.
+	for _, disconnectUpdate := range results.disconnectUpdates {
+		require.Equal(t, structs.AllocClientStatusUnknown, disconnectUpdate.ClientStatus)
+		require.NotEmpty(t, disconnectUpdate.FollowupEvalID)
+		require.Equal(t, eval.ID, disconnectUpdate.FollowupEvalID)
+	}
+
+	// 2 to place, 2 to update, 1 to ignore
+	assertResults(t, results, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             2,
+		stop:              0,
+		inplace:           0,
+		disconnectUpdates: 2,
+
+		// 2 to place and 1 to ignore
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:         2,
+				Stop:          0,
+				Ignore:        1,
+				InPlaceUpdate: 0,
+			},
+		},
+	})
+}
+
+func TestReconciler_Disconnect_UpdateJobAfterReconnect(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create 2 allocs and simulate one have being previously disconnected and
+	// then reconnected.
+	job, allocs := buildResumableAllocations(2, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
+	allocs[0].AllocStates = []*structs.AllocState{
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusUnknown,
+			Time:  time.Now().Add(-5 * time.Minute),
+		},
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusRunning,
+			Time:  time.Now(),
+		},
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job,
+		nil, allocs, nil, "", 50, true)
+	results := reconciler.Compute()
+
+	// Assert both allocations will be updated.
+	assertResults(t, results, &resultExpectation{
+		inplace: 2,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				InPlaceUpdate: 2,
+			},
+		},
+	})
 }
 
 // Tests that a client disconnect while a canary is in progress generates the result.

@@ -441,7 +441,6 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			// NodePool added
 			Old: &Job{},
@@ -510,7 +509,6 @@ func TestJobDiff(t *testing.T) {
 				Type: DiffTypeNone,
 			},
 		},
-
 		{
 			// Periodic added
 			Old: &Job{},
@@ -1253,32 +1251,38 @@ func TestJobDiff(t *testing.T) {
 			Old: &Job{
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  "foo",
-						Count: 1,
+						Name:                    "foo",
+						Count:                   1,
+						PreventRescheduleOnLost: true,
 					},
 					{
-						Name:  "bar",
-						Count: 1,
+						Name:                    "bar",
+						Count:                   1,
+						PreventRescheduleOnLost: false,
 					},
 					{
-						Name:  "baz",
-						Count: 1,
+						Name:                    "baz",
+						Count:                   1,
+						PreventRescheduleOnLost: true,
 					},
 				},
 			},
 			New: &Job{
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  "bar",
-						Count: 1,
+						Name:                    "bar",
+						Count:                   1,
+						PreventRescheduleOnLost: false,
 					},
 					{
-						Name:  "baz",
-						Count: 2,
+						Name:                    "baz",
+						Count:                   2,
+						PreventRescheduleOnLost: true,
 					},
 					{
-						Name:  "bam",
-						Count: 1,
+						Name:                    "bam",
+						Count:                   1,
+						PreventRescheduleOnLost: true,
 					},
 				},
 			},
@@ -1294,6 +1298,12 @@ func TestJobDiff(t *testing.T) {
 								Name: "Count",
 								Old:  "",
 								New:  "1",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PreventRescheduleOnLost",
+								Old:  "",
+								New:  "true",
 							},
 						},
 					},
@@ -1321,6 +1331,12 @@ func TestJobDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Count",
 								Old:  "1",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "PreventRescheduleOnLost",
+								Old:  "true",
 								New:  "",
 							},
 						},
@@ -1837,6 +1853,31 @@ func TestTaskGroupDiff(t *testing.T) {
 						Name: "Meta[foo]",
 						Old:  "bar",
 						New:  "baz",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Reschedule on lost diff",
+			Old: &TaskGroup{
+				Name:                    "foo",
+				Count:                   100,
+				PreventRescheduleOnLost: true,
+			},
+			New: &TaskGroup{
+				Name:                    "foo",
+				Count:                   100,
+				PreventRescheduleOnLost: false,
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Name: "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "PreventRescheduleOnLost",
+						Old:  "true",
+						New:  "false",
 					},
 				},
 			},

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // placementResult is an allocation that must be placed. It potentially has a
@@ -225,13 +226,14 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
 // 5. Those that are on a node that has reconnected.
 // 6. Those that are in a state that results in a noop.
-func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverSupportsDisconnectedClients bool, now time.Time) (untainted, migrate, lost, disconnecting, reconnecting, ignore allocSet) {
+func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverSupportsDisconnectedClients bool, now time.Time) (untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
 	disconnecting = make(map[string]*structs.Allocation)
 	reconnecting = make(map[string]*structs.Allocation)
 	ignore = make(map[string]*structs.Allocation)
+	expiring = make(map[string]*structs.Allocation)
 
 	for _, alloc := range a {
 		// make sure we don't apply any reconnect logic to task groups
@@ -239,7 +241,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
 
 		reconnect := false
-		expired := false
 
 		// Only compute reconnect for unknown, running, and failed since they
 		// need to go through the reconnect logic.
@@ -248,9 +249,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusFailed) {
 			reconnect = alloc.NeedsToReconnect()
-			if reconnect {
-				expired = alloc.Expired(now)
-			}
 		}
 
 		// Failed allocs that need to be reconnected must be added to
@@ -264,38 +262,33 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		}
 
 		taintedNode, nodeIsTainted := taintedNodes[alloc.NodeID]
-		if taintedNode != nil {
+		if taintedNode != nil && taintedNode.Status == structs.NodeStatusDisconnected {
 			// Group disconnecting
-			switch taintedNode.Status {
-			case structs.NodeStatusDisconnected:
-				if supportsDisconnectedClients {
+			if supportsDisconnectedClients {
+				// Filter running allocs on a node that is disconnected to be marked as unknown.
+				if alloc.ClientStatus == structs.AllocClientStatusRunning {
+					disconnecting[alloc.ID] = alloc
+					continue
+				}
+				// Filter pending allocs on a node that is disconnected to be marked as lost.
+				if alloc.ClientStatus == structs.AllocClientStatusPending {
+					lost[alloc.ID] = alloc
+					continue
+				}
 
-					// Filter running allocs on a node that is disconnected to be marked as unknown.
+			} else {
+				if alloc.PreventRescheduleOnLost() {
 					if alloc.ClientStatus == structs.AllocClientStatusRunning {
 						disconnecting[alloc.ID] = alloc
 						continue
 					}
-					// Filter pending allocs on a node that is disconnected to be marked as lost.
-					if alloc.ClientStatus == structs.AllocClientStatusPending {
-						lost[alloc.ID] = alloc
-						continue
-					}
-				} else {
-					lost[alloc.ID] = alloc
-					continue
-				}
-			case structs.NodeStatusReady:
-				// Filter reconnecting allocs on a node that is now connected.
-				if reconnect {
-					if expired {
-						lost[alloc.ID] = alloc
-						continue
-					}
 
-					reconnecting[alloc.ID] = alloc
+					untainted[alloc.ID] = alloc
 					continue
 				}
-			default:
+
+				lost[alloc.ID] = alloc
+				continue
 			}
 		}
 
@@ -319,9 +312,8 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			continue
 		}
 
-		// Expired unknown allocs are lost
 		if supportsDisconnectedClients && alloc.Expired(now) {
-			lost[alloc.ID] = alloc
+			expiring[alloc.ID] = alloc
 			continue
 		}
 
@@ -343,13 +335,17 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			continue
 		}
 
-		if !nodeIsTainted {
+		if !nodeIsTainted || (taintedNode != nil && taintedNode.Status == structs.NodeStatusReady) {
 			// Filter allocs on a node that is now re-connected to be resumed.
 			if reconnect {
-				if expired {
-					lost[alloc.ID] = alloc
+				// Expired unknown allocs should be processed depending on the max client disconnect
+				// and/or avoid reschedule on lost configurations, they are both treated as
+				// expiring.
+				if alloc.Expired(now) {
+					expiring[alloc.ID] = alloc
 					continue
 				}
+
 				reconnecting[alloc.ID] = alloc
 				continue
 			}
@@ -360,7 +356,24 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		}
 
 		// Allocs on GC'd (nil) or lost nodes are Lost
-		if taintedNode == nil || taintedNode.TerminalStatus() {
+		if taintedNode == nil {
+			lost[alloc.ID] = alloc
+			continue
+		}
+
+		// Allocs on terminal nodes that can't be rescheduled need to be treated
+		// differently than those that can.
+		if taintedNode.TerminalStatus() {
+			if alloc.PreventRescheduleOnLost() {
+				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+					untainted[alloc.ID] = alloc
+					continue
+				} else if alloc.ClientStatus == structs.AllocClientStatusRunning {
+					disconnecting[alloc.ID] = alloc
+					continue
+				}
+			}
+
 			lost[alloc.ID] = alloc
 			continue
 		}
@@ -447,7 +460,6 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 			if alloc.RanSuccessfully() {
 				return true, false
 			}
-
 			return false, true
 		case structs.AllocDesiredStatusEvict:
 			return false, true
@@ -585,10 +597,10 @@ func (a allocSet) delayByMaxClientDisconnect(now time.Time) ([]*delayedReschedul
 }
 
 // filterOutByClientStatus returns all allocs from the set without the specified client status.
-func (a allocSet) filterOutByClientStatus(clientStatus string) allocSet {
+func (a allocSet) filterOutByClientStatus(clientStatuses ...string) allocSet {
 	allocs := make(allocSet)
 	for _, alloc := range a {
-		if alloc.ClientStatus != clientStatus {
+		if !slices.Contains(clientStatuses, alloc.ClientStatus) {
 			allocs[alloc.ID] = alloc
 		}
 	}
