@@ -80,40 +80,56 @@ func connectGatewayDriverConfig(hostNetwork bool) map[string]interface{} {
 // the proper Consul version is used that supports the necessary Connect
 // features. This includes bootstrapping envoy with a unix socket for Consul's
 // gRPC xDS API, and support for generating local service identity tokens.
-func connectSidecarVersionConstraint() *structs.Constraint {
-	return &structs.Constraint{
-		LTarget: "${attr.consul.version}",
-		RTarget: ">= 1.8.0",
-		Operand: structs.ConstraintSemver,
+func connectSidecarVersionConstraint(cluster string) *structs.Constraint {
+	if cluster != structs.ConsulDefaultCluster && cluster != "" {
+		return &structs.Constraint{
+			LTarget: fmt.Sprintf("${attr.consul.%s.version}", cluster),
+			RTarget: ">= 1.8.0",
+			Operand: structs.ConstraintSemver,
+		}
 	}
+	return consulServiceDiscoveryConstraint
 }
 
 // connectGatewayVersionConstraint is used when building a connect gateway
 // task to ensure proper Consul version is used that supports Connect Gateway
 // features. This includes making use of Consul Configuration Entries of type
 // {ingress,terminating,mesh}-gateway.
-func connectGatewayVersionConstraint() *structs.Constraint {
-	return &structs.Constraint{
-		LTarget: "${attr.consul.version}",
-		RTarget: ">= 1.8.0",
-		Operand: structs.ConstraintSemver,
+func connectGatewayVersionConstraint(cluster string) *structs.Constraint {
+	if cluster != structs.ConsulDefaultCluster && cluster != "" {
+		return &structs.Constraint{
+			LTarget: fmt.Sprintf("${attr.consul.%s.version}", cluster),
+			RTarget: ">= 1.8.0",
+			Operand: structs.ConstraintSemver,
+		}
 	}
+	return consulServiceDiscoveryConstraint
 }
 
 // connectGatewayTLSVersionConstraint is used when building a connect gateway
 // task to ensure proper Consul version is used that supports customized TLS version.
 // https://github.com/hashicorp/consul/pull/11576
-func connectGatewayTLSVersionConstraint() *structs.Constraint {
+func connectGatewayTLSVersionConstraint(cluster string) *structs.Constraint {
+	attr := "${attr.consul.version}"
+	if cluster != structs.ConsulDefaultCluster {
+		attr = fmt.Sprintf("${attr.consul.%s.version}", cluster)
+	}
+
 	return &structs.Constraint{
-		LTarget: "${attr.consul.version}",
+		LTarget: attr,
 		RTarget: ">= 1.11.2",
 		Operand: structs.ConstraintSemver,
 	}
 }
 
-func connectListenerConstraint() *structs.Constraint {
+func connectListenerConstraint(cluster string) *structs.Constraint {
+	attr := "${attr.consul.grpc}"
+	if cluster != structs.ConsulDefaultCluster {
+		attr = fmt.Sprintf("${attr.consul.%s.grpc}", cluster)
+	}
+
 	return &structs.Constraint{
-		LTarget: "${attr.consul.grpc}",
+		LTarget: attr,
 		RTarget: "0",
 		Operand: ">",
 	}
@@ -277,7 +293,8 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			// If the task doesn't already exist, create a new one and add it to the job
 			if task == nil {
 				driver := groupConnectGuessTaskDriver(g)
-				task = newConnectSidecarTask(service.Name, driver)
+				cluster := service.GetConsulClusterName(g)
+				task = newConnectSidecarTask(service.Name, driver, cluster)
 
 				// If there happens to be a task defined with the same name
 				// append an UUID fragment to the task name
@@ -357,7 +374,8 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 				netHost := netMode == "host"
 				customizedTLS := service.Connect.IsCustomizedTLS()
 
-				task := newConnectGatewayTask(prefix, service.Name, netHost, customizedTLS)
+				task := newConnectGatewayTask(prefix, service.Name,
+					service.GetConsulClusterName(g), netHost, customizedTLS)
 				g.Tasks = append(g.Tasks, task)
 
 				// the connect.sidecar_task block can also be used to configure
@@ -476,13 +494,13 @@ func gatewayBindAddressesIngressForBridge(ingress *structs.ConsulIngressConfigEn
 	return addresses
 }
 
-func newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) *structs.Task {
+func newConnectGatewayTask(prefix, service, cluster string, netHost, customizedTls bool) *structs.Task {
 	constraints := structs.Constraints{
-		connectGatewayVersionConstraint(),
-		connectListenerConstraint(),
+		connectGatewayVersionConstraint(cluster),
+		connectListenerConstraint(cluster),
 	}
 	if customizedTls {
-		constraints = append(constraints, connectGatewayTLSVersionConstraint())
+		constraints = append(constraints, connectGatewayTLSVersionConstraint(cluster))
 	}
 	return &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
@@ -500,7 +518,11 @@ func newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) 
 	}
 }
 
-func newConnectSidecarTask(service, driver string) *structs.Task {
+func newConnectSidecarTask(service, driver, cluster string) *structs.Task {
+
+	versionConstraint := connectSidecarVersionConstraint(cluster)
+	listenerConstraint := connectListenerConstraint(cluster)
+
 	return &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
 		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service),
@@ -517,10 +539,7 @@ func newConnectSidecarTask(service, driver string) *structs.Task {
 			Hook:    structs.TaskLifecycleHookPrestart,
 			Sidecar: true,
 		},
-		Constraints: structs.Constraints{
-			connectSidecarVersionConstraint(),
-			connectListenerConstraint(),
-		},
+		Constraints: structs.Constraints{versionConstraint, listenerConstraint},
 	}
 }
 
