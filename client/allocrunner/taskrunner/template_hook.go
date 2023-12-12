@@ -16,7 +16,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
-	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -212,14 +211,12 @@ func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPostst
 func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	unblock = make(chan struct{})
 
-	var vaultConfig *structsc.VaultConfig
-	if h.task.Vault != nil {
-		vaultCluster := h.task.GetVaultClusterName()
-		vaultConfig = h.config.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
+	vaultCluster := h.task.GetVaultClusterName()
+	vaultConfig := h.config.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
 
-		if vaultConfig == nil {
-			return nil, fmt.Errorf("Vault cluster %q is disabled or not configured", vaultCluster)
-		}
+	// Fail if task has a vault block but not client config was found.
+	if h.task.Vault != nil && vaultConfig == nil {
+		return nil, fmt.Errorf("Vault cluster %q is disabled or not configured", vaultCluster)
 	}
 
 	tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
