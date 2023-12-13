@@ -1,0 +1,3 @@
+```release-note:bug
+client: enable a fallback for linux clients unable to detect cpu topology
+```
