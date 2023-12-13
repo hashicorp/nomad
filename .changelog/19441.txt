@@ -1,3 +1,3 @@
 ```release-note:bug
-csi: Added validation to prevent StagePublishBaseDir from being a subdir MountDir
+csi: Added validation to `csi_plugin` blocks to prevent `stage_publish_base_dir` from being a subdirectory of `mount_dir`
 ```
