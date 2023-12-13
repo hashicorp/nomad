@@ -45,6 +45,13 @@ func (n *NodeResources) Compatibility() {
 }
 
 func topologyFromLegacy(old LegacyNodeCpuResources) *numalib.Topology {
+	if len(old.ReservableCpuCores) == 0 {
+		return topologyFromLegacyGeneric(old)
+	}
+	return topologyFromLegacyLinux(old)
+}
+
+func topologyFromLegacyLinux(old LegacyNodeCpuResources) *numalib.Topology {
 	// interpret per-core frequency given total compute and total core count
 	frequency := hw.MHz(old.CpuShares / (int64(len(old.ReservableCpuCores))))
 
