@@ -1,3 +1,3 @@
 ```release-note:bug
-client: enable a fallback for linux clients unable to detect cpu topology
+client: Fixed a bug where clients are unable to detect CPU topology in certain conditions
 ```
