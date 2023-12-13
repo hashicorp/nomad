@@ -23,6 +23,7 @@ func PlatformScanners() []SystemScanner {
 		new(Smbios),
 		new(Cgroups1),
 		new(Cgroups2),
+		new(Fallback),
 	}
 }
 
@@ -219,4 +220,41 @@ func scanIDs(top *Topology, content string) {
 			cpu.Disable = true
 		}
 	}
+}
+
+// Fallback detects if the NUMA aware topology scanning was unable to construct
+// a valid model of the system. This will be common on Nomad clients running in
+// containers, erroneous hypervisors, or without root.
+type Fallback struct{}
+
+func (s *Fallback) ScanSystem(top *Topology) {
+	broken := false
+
+	switch {
+	case top.NodeIDs.Empty():
+		broken = true
+	case len(top.Distances) == 0:
+		broken = true
+	case top.NumCores() <= 0:
+		broken = true
+	case top.TotalCompute() <= 0:
+		broken = true
+	case top.UsableCompute() <= 0:
+		broken = true
+	case top.UsableCores().Empty():
+		broken = true
+	}
+
+	if !broken {
+		return
+	}
+
+	// we have a broken topology; reset it and fallback to the generic scanner
+	// basically treating this client like a windows / unsupported OS
+	top.NodeIDs = nil
+	top.Distances = nil
+	top.Cores = nil
+
+	// invoke the generic scanner
+	scanGeneric(top)
 }
