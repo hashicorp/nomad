@@ -82,7 +82,7 @@ type LegacyNodeCpuResources struct {
 // partial struct serialization / copy / merge sadness means this struct can
 // exist with no data, which is a condition we must detect during the upgrade path
 func (r LegacyNodeCpuResources) empty() bool {
-	return r.CpuShares == 0 || r.TotalCpuCores == 0 || len(r.ReservableCpuCores) == 0
+	return r.CpuShares == 0 || r.TotalCpuCores == 0
 }
 
 // NomadProcessorResources captures the CPU hardware resources of the Nomad node.
