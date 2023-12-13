@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -654,7 +654,7 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 	policy := &structs.ACLPolicy{
 		Name: "policy-for-identity",
 		Rules: mock.NamespacePolicyWithVariables(ns, "read", []string{},
-			map[string][]string{"nomad/jobs/job1/group": []string{"deny"}}),
+			map[string][]string{"nomad/jobs/job1/group": {"deny"}}),
 		JobACL: &structs.JobACL{
 			Namespace: ns,
 			JobID:     "job1",

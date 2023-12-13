@@ -428,3 +428,14 @@ test: ## Use this target as a smoke test
 		-count=1 \
 		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS)
+
+.PHONY: copywriteheaders
+copywriteheaders:
+	copywrite headers --plan
+	# Special case for MPL headers in /api, /drivers/shared, /plugins, /jobspec, /jobspec2, and /demo
+	cd api && $(CURDIR)/scripts/copywrite-exceptions.sh
+	cd drivers/shared && $(CURDIR)/scripts/copywrite-exceptions.sh
+	cd plugins && $(CURDIR)/scripts/copywrite-exceptions.sh
+	cd jobspec && $(CURDIR)/scripts/copywrite-exceptions.sh
+	cd jobspec2 && $(CURDIR)/scripts/copywrite-exceptions.sh
+	cd demo && $(CURDIR)/scripts/copywrite-exceptions.sh

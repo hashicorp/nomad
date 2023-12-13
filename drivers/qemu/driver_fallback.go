@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 //go:build !linux && !darwin && !freebsd && !netbsd && !openbsd
 // +build !linux,!darwin,!freebsd,!netbsd,!openbsd

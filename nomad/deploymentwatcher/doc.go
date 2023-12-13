@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 // deploymentwatcher creates and tracks Deployments, which hold meta data describing the
 // process of upgrading a running job to a new set of Allocations. This encompasses settings

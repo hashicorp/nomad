@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -210,7 +210,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	{
 		validToken := mock.CreatePolicyAndToken(t, store, 1012, "test-valid4", strings.Join([]string{
 			mock.NamespacePolicyWithVariables(structs.DefaultNamespace, "", []string{},
-				map[string][]string{"*": []string{"list"}}),
+				map[string][]string{"*": {"list"}}),
 			mock.NodePolicy(acl.PolicyRead),
 		}, "\n"))
 		req.AuthToken = validToken.SecretID
@@ -228,7 +228,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	{
 		validToken := mock.CreatePolicyAndToken(t, store, 1012, "test-valid4", strings.Join([]string{
 			mock.NamespacePolicyWithVariables(structs.DefaultNamespace, "", []string{},
-				map[string][]string{"*": []string{"list"}}),
+				map[string][]string{"*": {"list"}}),
 			mock.NodePolicy(acl.PolicyRead),
 		}, "\n"))
 		req.AuthToken = validToken.SecretID
@@ -1360,7 +1360,7 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 	{
 		validToken := mock.CreatePolicyAndToken(t, store, 1012, "test-valid4", strings.Join([]string{
 			mock.NamespacePolicyWithVariables(structs.DefaultNamespace, "", []string{},
-				map[string][]string{"*": []string{"list"}}),
+				map[string][]string{"*": {"list"}}),
 			mock.NodePolicy(acl.PolicyRead),
 		}, "\n"))
 		req.Text = "o" // matches Job:my-job, Node:foobar, Plugin, and Variables

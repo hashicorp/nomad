@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package agent
 
@@ -409,7 +409,7 @@ func TestIsValidConfig(t *testing.T) {
 				Client: &ClientConfig{
 					Enabled: true,
 					HostNetworks: []*structs.ClientHostNetworkConfig{
-						&structs.ClientHostNetworkConfig{
+						{
 							Name:          "test",
 							ReservedPorts: "3-2147483647",
 						},
