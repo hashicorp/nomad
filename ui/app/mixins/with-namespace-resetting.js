@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import Mixin from '@ember/object/mixin';

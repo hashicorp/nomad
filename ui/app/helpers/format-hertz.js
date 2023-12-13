@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Helper from '@ember/component/helper';
 import { formatHertz } from 'nomad-ui/utils/units';
 

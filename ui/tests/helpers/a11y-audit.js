@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import a11yAudit from 'ember-a11y-testing/test-support/audit';
 
 function appendRuleOverrides(overriddenRules) {

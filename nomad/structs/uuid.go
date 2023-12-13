@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 // MaxUUIDsPerWriteRequest is the maximum number of UUIDs that can be included

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Component from '@ember/component';
 import { task, timeout } from 'ember-concurrency';
 import { classNames, classNameBindings } from '@ember-decorators/component';

@@ -1,3 +1,7 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+
 job "service_tagged_address" {
   type = "service"
 

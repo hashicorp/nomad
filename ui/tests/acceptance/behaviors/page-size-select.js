@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { pluralize } from 'ember-inflector';
 import { test } from 'qunit';
 import { selectChoose } from 'ember-power-select/test-support';

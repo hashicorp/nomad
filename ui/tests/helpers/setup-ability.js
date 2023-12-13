@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 export default (ability) => (hooks) => {
   hooks.beforeEach(function () {
     this.ability = this.owner.lookup(`ability:${ability}`);

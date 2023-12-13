@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
@@ -61,7 +64,8 @@ func (s *Search) FuzzySearch(text string, context contexts.Context, q *QueryOpti
 // ID.
 //
 // e.g. A Task-level service would have scope like,
-//   ["<namespace>", "<job>", "<group>", "<task>"]
+//
+//	["<namespace>", "<job>", "<group>", "<task>"]
 type FuzzyMatch struct {
 	ID    string   // ID is UUID or Name of object
 	Scope []string `json:",omitempty"` // IDs of parent objects

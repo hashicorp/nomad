@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 export default `job "parameterized-job" {
   // Specifies the datacenter where this job should be run
   // This can be omitted and it will default to ["*"]

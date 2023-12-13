@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # setup script for Ubuntu Linux 22.04. Assumes that Packer has placed
 # build-time config files at /tmp/linux
 

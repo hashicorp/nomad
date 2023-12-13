@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package testutil
 
 // TestServer is a test helper. It uses a fork/exec model to create

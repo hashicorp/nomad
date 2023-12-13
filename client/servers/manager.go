@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // Package servers provides an interface for choosing Servers to communicate
 // with from a Nomad Client perspective.  The package does not provide any API
 // guarantees and should be called only by `hashicorp/nomad`.

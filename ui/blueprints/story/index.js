@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable ember/no-string-prototype-extensions */
 const getPathOption = require('ember-cli-get-component-path-option');
 const stringUtil = require('ember-cli-string-utils');

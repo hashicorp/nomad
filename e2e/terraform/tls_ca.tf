@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # tls_ca.tf defines the certificate authority we use for mTLS
 
 resource "tls_private_key" "ca" {

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package mount
 
 // Mounter defines the set of methods to allow for mount operations on a system.

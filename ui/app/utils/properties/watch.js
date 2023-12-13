@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Ember from 'ember';
 import { get } from '@ember/object';
 import { assert } from '@ember/debug';

@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 {{#each this.annotatedDeployments key="deployment.id" as |record|}}
   {{#if record.meta.showDate}}
     <li data-test-deployment-time class="timeline-note">

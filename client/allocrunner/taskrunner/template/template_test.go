@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package template
 
 import (
@@ -2464,7 +2467,7 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 	templateMapping, err := parseTemplateConfigs(ttmConfig)
 	require.NoError(t, err)
 
-	for k, _ := range templateMapping {
+	for k := range templateMapping {
 		require.True(t, *k.Wait.Enabled)
 		require.Equal(t, 5*time.Second, *k.Wait.Min)
 		require.Equal(t, 10*time.Second, *k.Wait.Max)

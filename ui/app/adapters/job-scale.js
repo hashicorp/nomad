@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import classic from 'ember-classic-decorator';
 

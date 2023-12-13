@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { LinkComponent } from '@ember/legacy-built-in-components';
 import classic from 'ember-classic-decorator';
 

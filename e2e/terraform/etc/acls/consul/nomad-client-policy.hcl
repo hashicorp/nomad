@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 // The Nomad Client will be registering things into its buddy Consul Client.
 // Note: because we also test the use of Consul namespaces, this token must be
 // able to register services, read the keystore, and read node data for any

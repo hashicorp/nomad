@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { htmlSafe } from '@ember/template';
 import { click, find, findAll, render, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';

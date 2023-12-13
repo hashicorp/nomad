@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
 import { module, test } from 'qunit';
 import sinon from 'sinon';

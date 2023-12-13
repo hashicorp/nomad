@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "nomad_provider_service" {
   datacenters = ["dc1"]
   type        = "service"

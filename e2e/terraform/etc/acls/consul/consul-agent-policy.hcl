@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # TODO: because Nomad should own most of these interactions, I think
 # it might be possible to reduce this to:
 #

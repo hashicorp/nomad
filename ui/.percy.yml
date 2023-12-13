@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 version: 1
 snapshot:
   # Hide high-variability data from Percy snapshots; helps make sure that randomized data doesn't cause a visual diff.

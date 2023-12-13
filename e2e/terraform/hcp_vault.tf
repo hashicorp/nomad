@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # Note: the test environment must have the following values set:
 # export HCP_CLIENT_ID=
 # export HCP_CLIENT_SECRET=

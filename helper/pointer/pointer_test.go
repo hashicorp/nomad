@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package pointer
 
 import (
@@ -75,7 +78,7 @@ func Test_Compare(t *testing.T) {
 
 func Test_Merge(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	a := 1
 	b := 2
 

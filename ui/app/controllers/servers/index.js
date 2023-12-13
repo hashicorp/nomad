@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { alias } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import Sortable from 'nomad-ui/mixins/sortable';

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // Command ec2info provides a tool for generating a CPU performance lookup
 // table indexed by EC2 instance types.
 //

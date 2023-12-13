@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import EmberObject from '@ember/object';
 import { task, timeout } from 'ember-concurrency';
 import { decode } from 'nomad-ui/utils/stream-frames';

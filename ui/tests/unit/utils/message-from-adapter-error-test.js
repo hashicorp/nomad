@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { module, test } from 'qunit';
 import { ServerError, ForbiddenError } from '@ember-data/adapter/error';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';

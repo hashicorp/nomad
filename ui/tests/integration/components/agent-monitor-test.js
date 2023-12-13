@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable ember/no-string-prototype-extensions */
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';

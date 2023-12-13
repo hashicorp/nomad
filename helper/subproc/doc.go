@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // Package subproc provides helper utilities for executing the Nomad binary as
 // a child process of the Nomad agent.
 //

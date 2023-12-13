@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 id        = "ebs-vol[0]"
 name      = "idempotency-token" # CSIVolumeName tag, must be idempotent
 type      = "csi"

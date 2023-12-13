@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # Restarter fakes being a flaky service that crashes and restarts constantly.
 # Restarting the Nomad agent during task restarts was a known cause of state
 # corruption in v0.8.

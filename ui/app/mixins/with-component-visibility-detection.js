@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Ember from 'ember';
 import Mixin from '@ember/object/mixin';
 import { assert } from '@ember/debug';

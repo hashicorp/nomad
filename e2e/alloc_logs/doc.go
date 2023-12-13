@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // Package alloc_logs provides end-to-end tests for Nomads allocation logging
 // functionality.
 //

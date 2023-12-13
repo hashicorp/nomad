@@ -1,3 +1,7 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+
 description "Nomad by HashiCorp"
 
 start on runlevel [2345]

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { collection, text } from 'ember-cli-page-object';
 import TopoVizNode from './node';
 

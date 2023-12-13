@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # Dockerfile for building nomad binaries
 # that mimics Vagrant environment as far as required
 # for building the scripts and running provision scripts

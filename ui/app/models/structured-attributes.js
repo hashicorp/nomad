@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { set } from '@ember/object';
 import { get, computed } from '@ember/object';
 import { attr } from '@ember-data/model';

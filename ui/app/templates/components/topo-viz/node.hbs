@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <div data-test-topo-viz-node class="topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
   {{#unless @isDense}}
     <p data-test-label class="label">

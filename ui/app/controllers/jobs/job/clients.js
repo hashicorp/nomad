@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
