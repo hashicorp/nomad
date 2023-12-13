@@ -114,14 +114,30 @@
       }
 
       .messages {
+        width: 100%;
         overflow: hidden;
 
-        code > pre {
-          height: 200px;
+        code {
           background-color: #0a0a0a;
           color: whitesmoke;
+          display: block;
+          overflow: auto;
+          height: 200px;
           border-radius: 6px;
           resize: vertical;
+          pre {
+            background-color: transparent;
+            color: unset;
+            overflow-anchor: none;
+            min-height: 100%;
+            white-space: pre-wrap;
+          }
+          .anchor {
+            overflow-anchor: auto;
+            height: 1px;
+            margin-top: -1px;
+            visibility: hidden;
+          }
         }
       }
 
