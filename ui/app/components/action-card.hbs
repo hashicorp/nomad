@@ -71,7 +71,12 @@
       <code><pre>Error: {{this.instance.error}}</pre></code>
     {{/if}}
     {{#if this.instance.messages.length}}
-      <code><pre>{{this.instance.messages}}</pre></code>
+      <code tabindex="0">
+        <pre {{did-update this.anchorToBottom this.instance.messages}}>
+          {{this.instance.messages}}
+        </pre>
+        <div class="anchor" />
+      </code>
     {{else}}
       {{#if (eq this.instance.state "complete")}}
         <p class="no-messages">Action completed with no output</p>
