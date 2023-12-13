@@ -20,13 +20,45 @@
       </div>
       <div class="toolbar-item is-right-aligned is-mobile-full-width">
         <div class="button-bar">
-          <MultiSelectDropdown
-            data-test-state-facet
-            @label="State"
-            @options={{this.optionsState}}
-            @selection={{this.selectionState}}
-            @onSelect={{action this.setFacetQueryParam "qpState"}}
-          />
+          <Hds::Dropdown as |dd|>
+            <dd.ToggleButton @text="State" @color="secondary" />
+            <dd.Title @text="Status" />
+            {{#each this.clientFilterToggles.state as |option|}}
+              <dd.Checkbox
+                {{on "change" (toggle option.qp this)}}
+                @value={{option.label}}
+                @count={{get (filter (action option.filter) this.nodes) "length"}}
+                checked={{get this option.qp}}
+              >
+                {{capitalize option.label}}
+              </dd.Checkbox>
+            {{/each}}
+            <dd.Separator />
+            <dd.Title @text="Eligibility" />
+            {{#each this.clientFilterToggles.eligibility as |option|}}
+              <dd.Checkbox
+                {{on "change" (toggle option.qp this)}}
+                @value={{option.label}}
+                @count={{get (filter (action option.filter) this.nodes) "length"}}
+                checked={{get this option.qp}}
+              >
+                {{capitalize option.label}}
+              </dd.Checkbox>
+            {{/each}}
+            <dd.Separator />
+            <dd.Title @text="Drain Status" />
+            {{#each this.clientFilterToggles.drainStatus as |option|}}
+              <dd.Checkbox
+                {{on "change" (toggle option.qp this)}}
+                @value={{option.label}}
+                @count={{get (filter (action option.filter) this.nodes) "length"}}
+                checked={{get this option.qp}}
+              >
+                {{capitalize option.label}}
+              </dd.Checkbox>
+            {{/each}}
+          </Hds::Dropdown>
+
           <MultiSelectDropdown
             data-test-node-pool-facet
             @label="Node Pool"
