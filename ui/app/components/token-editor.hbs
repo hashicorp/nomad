@@ -83,7 +83,7 @@
 
   {{#unless @token.isNew}}
   <div>
-    <Hds::Form::MaskedInput::Field @isMasked={{false}} @hasCopyButton={{true}} @value={{@token.accessor}} readonly data-test-token-accessor as |F|>
+    <Hds::Form::MaskedInput::Field @isContentMasked={{false}} @hasCopyButton={{true}} @value={{@token.accessor}} readonly data-test-token-accessor as |F|>
       <F.Label>Token Accessor</F.Label>
     </Hds::Form::MaskedInput::Field>
   </div>
