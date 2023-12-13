@@ -222,22 +222,16 @@ func (s *Fallback) ScanSystem(top *Topology) {
 	switch {
 	case top.NodeIDs.Empty():
 		broken = true
-		break
-	case len(top.Distances) <= 0:
+	case len(top.Distances) == 0:
 		broken = true
-		break
 	case top.NumCores() <= 0:
 		broken = true
-		break
 	case top.TotalCompute() <= 0:
 		broken = true
-		break
 	case top.UsableCompute() <= 0:
 		broken = true
-		break
 	case top.UsableCores().Empty():
 		broken = true
-		break
 	}
 
 	if !broken {
