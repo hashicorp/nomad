@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where clients are unable to detect CPU topology in certain conditions
+```
