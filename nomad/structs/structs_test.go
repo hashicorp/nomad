@@ -2717,6 +2717,16 @@ func TestTask_Validate_CSIPluginConfig(t *testing.T) {
 			},
 			expectedErr: "CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"nonsense\"",
 		},
+		{
+			name: "requires staging publish base dir to not be a subdir of mountdir",
+			pc: &TaskCSIPluginConfig{
+				ID:                  "com.hashicorp.csi",
+				Type:                "monolith",
+				MountDir:            "/csi",
+				StagePublishBaseDir: "/csi/local",
+			},
+			expectedErr: "CSIPluginConfig StagePublishBaseDir must not be a subdirectory of MountDir, got: StagePublishBaseDir=\"/csi/local\" MountDir=\"/csi\"",
+		},
 	}
 
 	for _, tt := range table {
