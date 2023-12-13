@@ -59,36 +59,29 @@ sudo apt-get install -yq docker-ce docker-ce-cli containerd.io docker-buildx-plu
 if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then 
 
   # Install official NVIDIA driver package
-  ### Needs updating for 2204
+  ## https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#network-repo-installation-for-ubuntu
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+  sudo dpkg -i cuda-keyring_1.1-1_all.deb
+
+  echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" | sudo tee /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+  sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+
+  sudo apt-get update
+  sudo apt-get install cuda-toolkit
+  sudo apt-get install nvidia-gds
 
   # Install nvidia container support
+  ## https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#configuring-docker
   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
     && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-      sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-      sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 
   sudo apt-get update
   sudo apt-get install -y nvidia-container-toolkit
 
   sudo nvidia-ctk runtime configure --runtime=docker
   sudo systemctl restart docker
-
-#   # Install official NVIDIA driver package
-#   # This is why we added gnupg-curl, otherwise, the following fails with "gpgkeys: protocol `https' not supported"
-#   sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/3bf863cc.pub
-#   sudo sh -c 'echo "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/cuda.list'
-#   sudo apt-get update && sudo apt-get install -yq --no-install-recommends --allow-unauthenticated linux-headers-generic dkms cuda-drivers
-
-#   # Install nvidia-docker and nvidia-docker-plugin
-#   # from: https://github.com/NVIDIA/nvidia-docker#ubuntu-140416041804-debian-jessiestretch
-#   wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
-#   sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
-#   curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-#   distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-#   curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
-#     sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-
-#   sudo apt-get update
-#   sudo apt-get install -yq --allow-unauthenticated nvidia-docker2
-# fi
+fi
 
