@@ -7842,6 +7842,11 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"%s\"", t.CSIPluginConfig.Type))
 		}
 
+		if t.CSIPluginConfig.StagePublishBaseDir != "" && t.CSIPluginConfig.MountDir != "" &&
+			strings.HasPrefix(t.CSIPluginConfig.StagePublishBaseDir, t.CSIPluginConfig.MountDir) {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig StagePublishBaseDir must not be a subdirectory of MountDir, got: StagePublishBaseDir=\"%s\" MountDir=\"%s\"", t.CSIPluginConfig.StagePublishBaseDir, t.CSIPluginConfig.MountDir))
+		}
+
 		// TODO: Investigate validation of the PluginMountDir. Not much we can do apart from check IsAbs until after we understand its execution environment though :(
 	}
 
