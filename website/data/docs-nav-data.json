@@ -205,6 +205,10 @@
         "path": "configuration/plugin"
       },
       {
+        "title": "reporting",
+        "path": "configuration/reporting"
+      },
+      {
         "title": "sentinel",
         "path": "configuration/sentinel"
       },
