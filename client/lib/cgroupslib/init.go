@@ -142,24 +142,17 @@ func Init(log hclog.Logger, cores string) {
 		// the name of the cgroup subtree interface file
 		const subtreeFile = "cgroup.subtree_control"
 
-		// the name of the cgroup controllers interface file
-		const controllersFile = "cgroup.controllers"
-
 		//
 		// configuring root cgroup (/sys/fs/cgroup)
 		//
 
-		controllersRootPath := filepath.Join(root, controllersFile)
-		content, err := os.ReadFile(controllersRootPath)
-		if err != nil {
-			log.Error("failed to read cgroups controller file", "path", controllersRootPath, "error", err)
-		} else {
-			rootSubtreeControllers := strings.Split(strings.TrimSpace(string(content)), " ")
+		subtreeRootPath := filepath.Join(root, subtreeFile)
+		content, _ := os.ReadFile(subtreeRootPath)
+		rootSubtreeControllers := strings.Split(strings.TrimSpace(string(content)), " ")
 
-			for _, controller := range controllers {
-				if !slices.Contains(rootSubtreeControllers, controller) {
-					log.Error("controller not enabled in your system, check kernel build configuration and commandline (/proc/cmdline)", "controller", controller)
-				}
+		for _, controller := range controllers {
+			if !slices.Contains(rootSubtreeControllers, controller) {
+				log.Error("controller not enabled in your system, check kernel build configuration and commandline (/proc/cmdline)", "controller", controller)
 			}
 		}
 

@@ -9,10 +9,13 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"slices"
 	"strings"
+	"path/filepath"
 
 	"github.com/hashicorp/go-set/v2"
 )
+
 
 func detect() Mode {
 	if os.Geteuid() > 0 {
@@ -27,7 +30,30 @@ func detect() Mode {
 		_ = f.Close()
 	}()
 
-	return scan(f)
+	mode := scan(f)
+	if mode == CG2 && !functionalCgroups2() {
+		return OFF
+	}
+	return mode
+}
+
+func functionalCgroups2() bool {
+	const controllersFile = "cgroup.controllers"
+	requiredCgroup2Controllers := []string{"cpuset", "cpu", "io", "memory", "pids"}
+
+	controllersRootPath := filepath.Join(root, controllersFile)
+	content, err := os.ReadFile(controllersRootPath)
+	if err != nil {
+		return false
+	}
+	rootSubtreeControllers := strings.Split(strings.TrimSpace(string(content)), " ")
+
+	for _, controller := range requiredCgroup2Controllers {
+		if !slices.Contains(rootSubtreeControllers, controller) {
+			return false
+		}
+	}
+	return true
 }
 
 func scan(in io.Reader) Mode {
