@@ -2736,6 +2736,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								TaskName:               "task1",
 								SuccessBeforePassing:   2,
 								FailuresBeforeCritical: 3,
+								FailuresBeforeWarning:  2,
 							},
 						},
 						Connect: &api.ConsulConnect{
@@ -2836,6 +2837,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										InitialStatus:          "ok",
 										SuccessBeforePassing:   3,
 										FailuresBeforeCritical: 4,
+										FailuresBeforeWarning:  2,
 										CheckRestart: &api.CheckRestart{
 											Limit:          3,
 											IgnoreWarnings: true,
@@ -3167,6 +3169,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								OnUpdate:               structs.OnUpdateRequireHealthy,
 								SuccessBeforePassing:   2,
 								FailuresBeforeCritical: 3,
+								FailuresBeforeWarning:  2,
 							},
 						},
 						Connect: &structs.ConsulConnect{
@@ -3267,6 +3270,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										GRPCUseTLS:             true,
 										SuccessBeforePassing:   3,
 										FailuresBeforeCritical: 4,
+										FailuresBeforeWarning:  2,
 										CheckRestart: &structs.CheckRestart{
 											Limit:          3,
 											Grace:          11 * time.Second,
