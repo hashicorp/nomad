@@ -3306,33 +3306,26 @@ func TestFSM_DeleteNamespaces(t *testing.T) {
 }
 
 func TestFSM_DeleteNamespaces_ErrorSurfacing(t *testing.T) {
-	assert := assert.New(t)
 	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	ns1 := mock.Namespace()
 	// force a failure by making this the default
 	ns1.Name = "default"
-	assert.Nil(fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1}))
+	must.NoError(t, fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1}))
 
 	req := structs.NamespaceDeleteRequest{
 		Namespaces: []string{ns1.Name},
 	}
 
 	buf, err := structs.Encode(structs.NamespaceDeleteRequestType, req)
-	require.NoError(t, err)
-
+	must.NoError(t, err)
 	resp := fsm.Apply(makeLog(buf))
-	if resp == nil {
-		t.Fatalf("no resp: %v", resp)
-	}
+	must.NotNil(t, resp)
+
 	err, ok := resp.(error)
-	if !ok {
-		t.Fatalf("resp not of error type: %T %v", resp, resp)
-	}
-	if !strings.Contains(err.Error(), "default namespace can not be deleted") {
-		t.Fatalf("bad error: %v", err)
-	}
+	must.True(t, ok, must.Sprintf("resp not of error type: %T %v", resp, resp))
+	must.ErrorContains(t, err, "default namespace can not be deleted")
 }
 
 func TestFSM_SnapshotRestore_Namespaces(t *testing.T) {
