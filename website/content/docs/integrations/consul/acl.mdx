@@ -20,7 +20,9 @@ Nomad agents need access to Consul in order to register themselves in the
 service catalog and discover other Nomad agents via service discovery for
 automatic clustering. Nomad servers also create [configuration
 entries][consul_config_entry] for Consul Service Mesh, so the specific
-permissions vary slightly between Nomad servers and clients.
+permissions vary slightly between Nomad servers and clients. The following
+Consul ACL policies represent the minimal permissions Nomad servers and clients
+need.
 
 <Tabs>
 <Tab heading="Nomad Servers">
@@ -69,9 +71,10 @@ to the service or task. When using Nomad workload identities, you no longer
 need to pass in a Consul ACL token to submit a job.
 
 By default, Nomad does not generate workload identities for services, and tasks
-only receive an identity that is used to access data from Nomad itself, such as
-for reading [Variables][] from a [`template`][] block. To access Consul, jobs
-must have additional workload identities defined as [`identity`][] blocks.
+only receive an identity that can be used to access data from Nomad itself,
+such as for reading [Variables][] from a [`template`][] block. To access
+Consul, jobs must have additional workload identities defined as [`identity`][]
+blocks.
 
 To avoid having to add these additional identities to every job, you can
 configure Nomad servers with the [`consul.service_identity`][] and

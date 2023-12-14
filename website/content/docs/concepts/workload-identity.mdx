@@ -38,10 +38,11 @@ instead of the task name.
 }
 ```
 
-In Nomad Enterprise <EnterpriseAlert inline />, tasks and services with a
-[`consul`][jobspec_consul] block that defines a
-[`namespace`][jobspec_consul_ns] value, or inside a `group` block that does it,
-have an additional claim called `consul_namespace`.
+### Nomad Enterprise <EnterpriseAlert inline />
+
+In Nomad Enterprise, tasks and services with a [`consul`][jobspec_consul] block
+that defines a [`namespace`][jobspec_consul_ns] value, or inside a `group`
+block that does it, have an additional claim called `consul_namespace`.
 
 ```json
 {
@@ -50,6 +51,19 @@ have an additional claim called `consul_namespace`.
   "nomad_job_id": "example",
   "nomad_allocation_id": "8623ac7a-28ba-20c3-24a6-e615a39bbbf3",
   "nomad_service": "example-cache-redis"
+}
+```
+
+Similarly, tasks with a [`vault.namespace`][] value have the additional claim
+`vault_namespace`.
+
+```json
+{
+  "nomad_namespace": "default",
+  "nomad_job_id": "example",
+  "nomad_allocation_id": "8623ac7a-28ba-20c3-24a6-e615a39bbbf3",
+  "nomad_service": "example-cache-redis"
+  "vault_namespace": "prod",
 }
 ```
 
