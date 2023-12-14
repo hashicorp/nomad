@@ -12,28 +12,24 @@
 </td>
 <td data-test-client-id><LinkTo @route="clients.client" @model={{this.node.id}} class="is-primary">{{this.node.shortId}}</LinkTo></td>
 <td data-test-client-name class="is-200px is-truncatable" title="{{this.node.name}}">{{this.node.name}}</td>
-<td data-test-client-composite-status>
-  <span class="tooltip" aria-label="{{this.node.status}} / {{if this.node.isDraining "draining" "not draining"}} / {{if this.node.isEligible "eligible" "not eligible"}}">
-  </span>
+<td class="node-status-badges" data-test-client-composite-status>
   <Hds::Badge
-    @text={{capitalize this.node.compositeStatus}}
+    @text={{capitalize this.node.status}}
     @icon={{this.nodeStatusIcon}}
     @color={{this.nodeStatusColor}}
-    @size="large"
+    @size="small"
   />
 
   {{#if this.node.isEligible}}
     <Hds::Badge
       @text="Eligible"
-      @icon="check-circle"
-      @color="success"
+      @color="neutral"
       @size="small"
     />
   {{else}}
     <Hds::Badge
       @text="Ineligible"
-      @icon="skip"
-      @color="warning"
+      @color="neutral"
       @size="small"
     />
   {{/if}}
@@ -41,15 +37,13 @@
   {{#if this.node.isDraining}}
     <Hds::Badge
       @text="Draining"
-      @icon="minus-circle"
-      @color="warning"
+      @color="neutral"
       @size="small"
     />
   {{else}}
     <Hds::Badge
       @text="Not Draining"
-      @icon="skip"
-      @color="success"
+      @color="neutral"
       @size="small"
     />
   {{/if}}

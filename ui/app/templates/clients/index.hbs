@@ -21,7 +21,9 @@
       <div class="toolbar-item is-right-aligned is-mobile-full-width">
         <div class="button-bar">
           <Hds::Dropdown as |dd|>
-            <dd.ToggleButton @text="State" @color="secondary" @badge="{{this.activeToggles.length}} / {{this.allToggles.length}}" />
+            <dd.ToggleButton @text="State" @color="secondary"
+            @badgeIcon="filter-circle"
+            />
             <dd.Title @text="Status" />
             {{#each this.clientFilterToggles.state as |option|}}
               <dd.Checkbox
