@@ -9,13 +9,12 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
-	"path/filepath"
 
 	"github.com/hashicorp/go-set/v2"
 )
-
 
 func detect() Mode {
 	if os.Geteuid() > 0 {
