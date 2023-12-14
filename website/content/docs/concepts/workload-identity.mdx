@@ -53,7 +53,7 @@ have an additional claim called `consul_namespace`.
 }
 ```
 
-## Using Workload Identity
+## Workload Identity for Nomad
 
 While Nomad always creates and uses workload identities internally, the JWT is
 not exposed to tasks by default.
@@ -75,7 +75,7 @@ task "example" {
 }
 ```
 
-## Default Workload ACL Policy
+### Default Workload ACL Policy
 
 By default, a Workload Identity has access to a implicit ACL policy. This policy
 grants access to Nomad Variables associated with the job, group, and task, as
@@ -83,7 +83,7 @@ described in [Task Access to Variables][]. The implicit policy also allows
 access to list or read any Nomad service registration as with the [List Services
 API][] or [Read Service API][].
 
-## Workload Associated ACL Policies
+### Workload Associated ACL Policies
 
 You can associate additional ACL policies with workload identities by passing
 the `-job`, `-group`, and `-task` flags to `nomad acl policy apply`. When Nomad
@@ -130,10 +130,16 @@ nomad acl policy apply \
    redis-policy ./policy.hcl
 ```
 
-## Task API
+### Task API
 
 It can be convenient to combine workload identity with Nomad's [Task API]
 [taskapi] for  enabling tasks to access the Nomad API.
+
+## Workload Identity for Consul and Vault
+
+Consul and Vault can be configured to accept workload identities from Nomad for
+authentication. Refer to the [Consul][consul_int] and [Vault][vault_int]
+integration pages for more information.
 
 [allocation]: /nomad/docs/concepts/architecture#allocation
 [identity-block]: /nomad/docs/job-specification/identity
@@ -146,3 +152,5 @@ It can be convenient to combine workload identity with Nomad's [Task API]
 [Read Service API]: /nomad/api-docs/services#read-service
 [windows]: https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
 [taskapi]: /nomad/api-docs/task-api
+[consul_int]: /nomad/docs/integrations/consul-integration
+[vault_int]: /nomad/docs/integrations/vault-integration

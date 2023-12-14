@@ -1,186 +1,60 @@
 ---
 layout: docs
-page_title: Vault Integration
-description: >-
-  Learn how to integrate Nomad with HashiCorp Vault and retrieve Vault tokens
-  for tasks.
+page_title: Vault ACL
+description: Learn how to integrate Nomad with Vaul when ACL is enabled.
 ---
 
-# Vault Integration
-
-Many workloads require access to tokens, passwords, certificates, API keys, and
-other secrets. To enable secure, auditable and easy access to your secrets,
-Nomad integrates with HashiCorp's [Vault][]. Nomad servers and clients
-coordinate with Vault to derive a Vault token that has access to only the Vault
-policies the tasks needs. Nomad clients make the token available to the task and
-handle the tokens renewal. Further, Nomad's [`template` block][template] can
-retrieve secrets from Vault making it easier than ever to secure your
-infrastructure.
-
-Note that in order to use Vault with Nomad, you will need to configure and
-install Vault separately from Nomad. Nomad does not run Vault for you.
-
-## Agent Configuration
-
-To enable Vault integration, Nomad agents must be configured with
-[`vault`][config] blocks. Each block can be enabled or disabled and configures
-how Nomad connects to the Vault cluster.
-
-## Vault ACL
+# Vault ACL
 
 The Vault ACL system protects the cluster from unauthorized access. When
 enabled, both Vault and Nomad must be properly configured in order for their
 integrations to work.
 
-### Nomad Workload Identities
+## Nomad Workload Identities
 
-Starting in Nomad 1.7, Nomad clients will use a task's [Workload Identity][] to
-authenticate to Vault and obtain a Vault token specific to the task.
+Starting in Nomad 1.7, Nomad clients can use a task's [Workload Identity][] to
+authenticate to Vault and obtain a Vault ACL token specific to the task. When
+using Nomad workload identities, you no longer need to pass in a Vault ACL
+token to submit a job.
 
 By default, Nomad only generates a workload identity for tasks that is used to
-access Nomad itself. To access Vault, jobs must define additional workload
-identities suitable for Vault access.
+access Nomad itself, such as for reading [Variables][] from a [`template`][]
+block. To access Vault, jobs must have additional workload identities defined
+as [`identity`][] blocks.
 
-These additional identities can be defined as an [`identity`][] block inside
-tasks. The [`identity.name`][] value must follow the pattern
-`vault_<cluster name>`, where `<cluster name>` is the value for
-[`vault.cluster`][] of the `vault` block defined in the task or in the task
-parent group.
+To avoid having to add these additional identities to every job, you can
+configure the Nomad servers with the [`vault.default_identity`][] agent
+configuration. Upon job registration, the Nomad servers update tasks that have
+a [`vault`][] block with this default identity.
 
-Support for multiple Vault clusters is only available in Nomad Enterprise. For
-Nomad Community Edition the identity name should always be `vault_default`.
-Refer to the [Multiple Vault Clusters](#multiple-vault-clusters) section for
-more information.
+You can also specify identities for Vault directly in the job. When provided,
+they override the Nomad server configuration. Refer to the [Workload Identities
+for Vault][jobspec_identity_vault] section of the `identity` block
+documentation for more information.
 
-<Tabs>
-<Tab heading="Nomad Community Edition" group="ce">
-<CodeBlockConfig highlight="19-25">
-
-```hcl
-job "mongo" {
-  namespace = "default"
-
-  group "db" {
-    network {
-      port "db" {
-        to = 27017
-      }
-    }
-
-    task "mongo" {
-      driver = "docker"
-
-      config {
-        image = "mongo:7"
-        ports = ["db"]
-      }
-
-      vault {}
-
-      identity {
-        name = "vault_default"
-        aud  = ["vault.io"]
-        ttl  = "1h"
-      }
-
-      template {
-        data        = <<EOF
-{{with secret "kv/data/default/mongo/config"}}
-MONGO_INITDB_ROOT_USERNAME=root
-MONGO_INITDB_ROOT_PASSWORD={{.Data.data.root_password}}
-{{end}}
-EOF
-        destination = "secrets/env"
-        env         = true
-      }
-    }
-  }
-}
-```
-
-</CodeBlockConfig>
-</Tab>
-<Tab heading="Nomad Enterprise" group="ent">
-<CodeBlockConfig highlight="19-27">
-
-```hcl
-job "mongo" {
-  namespace = "default"
-
-  group "db" {
-    network {
-      port "db" {
-        to = 27017
-      }
-    }
-
-    task "mongo" {
-      driver = "docker"
-
-      config {
-        image = "mongo:7"
-        ports = ["db"]
-      }
-
-      vault {
-        cluster = "prod"
-      }
-
-      identity {
-        name = "vault_prod"
-        aud  = ["vault.io"]
-        ttl  = "1h"
-      }
-
-      template {
-        data        = <<EOF
-{{with secret "kv/data/default/mongo/config"}}
-MONGO_INITDB_ROOT_USERNAME=root
-MONGO_INITDB_ROOT_PASSWORD={{.Data.data.root_password}}
-{{end}}
-EOF
-        destination = "secrets/env"
-        env         = true
-      }
-    }
-  }
-}
-```
-
-</CodeBlockConfig>
-</Tab>
-</Tabs>
-
-To avoid having to add these additional identities to every job that needs
-access to Vault, you may configure the Nomad servers to automatically inject
-a default identity for Vault using the [`vault.default_identity`][]
-configuration.
-
-These default identities are only injected when not specified in the job. You
-may still defined them directly in the job to overwrite the default Nomad
-server configuration.
-
-#### Configuring Vault Authentication
+### Configuring Vault Authentication
 
 Vault must be configured to receive, validate, and trust these Nomad workload
-identities. Since they are encoded as [JSON Web Tokens (JWTs)][jwt], this is
-done via a [JWT ACL auth method][vault_jwt_auth_method], which creates an
-endpoint where Nomad workload identities can be exchanged for Vault ACL tokens.
+identities. Since they are encoded as [JSON Web Tokens (JWTs)][jwt], you must
+create a [JWT ACL auth method][vault_jwt_auth_method]. The auth method is an
+endpoint that Nomad can use to exchange workload identities for Vault ACL
+tokens.
+
 Refer to Vault's [Authentication][vault_auth] documentation for more
 information.
 
-##### Vault Auth Method
+#### Vault Auth Method
 
 The auth method configuration points to Nomad's [JSON Web Key Set (JWKS)
 URL][nomad_jwks_url]. Vault servers call this URL to retrieve the public keys
-Nomad used to sign the workload identities so they can validate their origin
-and confirm that they were created by Nomad.
+Nomad uses to sign workload identities. With these keys, Vault is able to
+validate their origin and confirm that they were actually created by Nomad.
 
 <CodeBlockConfig highlight="2" filename="auth-method.json">
 
 ```json
 {
-  "jwks_url": "http://nomad.example.com:4646/.well-known/jwks.json",
+  "jwks_url": "https://nomad.example.com:4646/.well-known/jwks.json",
   "jwt_supported_algs": ["RS256", "EdDSA"],
   "default_role": "nomad-workloads"
 }
@@ -188,38 +62,43 @@ and confirm that they were created by Nomad.
 
 </CodeBlockConfig>
 
-The `JWKSURL` address must be reachable by all Vault servers and should
+The `jwks_url` address must be reachable by all Vault servers and should
 resolve to multiple Nomad agents to avoid a single point of failure. Both Nomad
 servers and clients are able to handle this request.
 
+Refer to the [Important Considerations About the JWKS
+URL](#important-considerations-about-the-jwks-url) section for additional
+information on how to configure the `jwks_url` value.
+
 [![Vault Auth Method][img_vault_auth_method]][img_vault_auth_method]
 
-When Nomad is configured to use mTLS, [`tls.verify_https_client`][] must be set
-to `false` since it is not possible to provide client certificates to the
-Vault auth method. Alternatively, you may expose Nomad's JWKS URL from a proxy
-or load balancer that terminates the TLS connection.
-
-If the Vault servers are not able to reach Nomad's JWKS URL, the public keys
-may be read from Nomad's `/.well-known/jwks.json` and provided to the auth
-method directly using the [`jwt_validation_pubkeys`][] parameter. The keys must
-be converted from JWKS to PEM format and **are rotated periodically**, so this
-process must be done continually. The rotation frequency is controlled by the
-[`server.root_key_rotation_threshold`][] configuration of the Nomad servers.
-
 When an allocation that needs access access to Vault starts, the Nomad client
-running it exchanges Nomad workload identities for Vault for Vault ACL tokens.
+running it exchanges the Nomad workload identities for tasks for Vault ACL
+tokens.
 
 [![Vault JWT Login][img_vault_wid_acl_token]][img_vault_wid_acl_token]
-
-The auth method may define a default ACL role that is applied to the ACL tokens
-it generates. If no default role is set, the role must be provided in the job
-using the [`vault.role`][] parameter or in Nomad client configuration
-[`vault.create_from_role`][].
 
 #### Vault ACL Role
 
 A Vault [ACL role][vault_role] groups multiple ACL policies to apply to a token
 and determine the permissions it receives.
+
+The auth method may define a default ACL role that is applied to the ACL tokens
+it generates. If no default role is set, the role must be provided in the job
+using the [`vault.role`][] parameter or in the Nomad client configuration
+[`vault.create_from_role`][].
+
+<CodeBlockConfig highlight="4" filename="auth-method.json">
+
+```json
+{
+  "jwks_url": "https://nomad.example.com:4646/.well-known/jwks.json",
+  "jwt_supported_algs": ["RS256", "EdDSA"],
+  "default_role": "nomad-workloads"
+}
+```
+
+</CodeBlockConfig>
 
 The ACL role specifies the list of authorized audience values using the
 [`bound_audiences`][], which must have at least one match with the values
@@ -258,7 +137,7 @@ referenced in Vault ACL configuration. The ACL role uses the
 available to the rest of the configuration.
 
 The [`bound_claims`][] parameter restricts which workload identities are able
-to use the role based on its claims. Refer to Vault's [Bound
+to use the role based on their claims. Refer to Vault's [Bound
 Claims][vault_bound_claims] documentation for more information.
 
 <CodeBlockConfig highlight="4-7,10-14" filename="acl-role.json">
@@ -293,7 +172,7 @@ active. Nomad automatically renews the Vault ACL tokens it generates before
 they expire. To ensure the tokens can be renewed for as long as necessary,
 [`token_explicit_max_ttl`][] must be set to 0.
 
-<CodeBlockConfig highlight="15-18" filename="acl-role.json">
+<CodeBlockConfig highlight="16-18" filename="acl-role.json">
 
 ```json
 {
@@ -310,8 +189,8 @@ they expire. To ensure the tokens can be renewed for as long as necessary,
     "nomad_job_id": "nomad_job_id",
     "nomad_task": "nomad_task"
   },
-  "token_type": "service",
   "token_policies": ["nomad-workloads"],
+  "token_type": "service",
   "token_period": "30m",
   "token_explicit_max_ttl": 0
 }
@@ -321,28 +200,62 @@ they expire. To ensure the tokens can be renewed for as long as necessary,
 
 #### Vault ACL Policy
 
-Vault [ACL policies][vault_policies] define the permissions granted to an ACL
-token. ACL policies can reference dynamic values from Nomad workload
-identities claims exposed from the ACL role in [templated
-policies][vault_templated_policies]. The exact ACL policy rules will depend on
-the level of access required by the tasks.
+A Vault ACL role may have one or more ACL policies attached. Vault [ACL
+policies][vault_policies] define the permissions granted to an ACL
+token.
+
+<CodeBlockConfig highlight="15" filename="acl-role.json">
+
+```json
+{
+  "role_type": "jwt",
+  "bound_audiences": ["vault.io"],
+  "bound_claims": {
+     "nomad_namespace": "default",
+     "nomad_job_id": "mongo"
+  },
+  "user_claim": "/nomad_job_id",
+  "user_claim_json_pointer": true,
+  "claim_mappings": {
+    "nomad_namespace": "nomad_namespace",
+    "nomad_job_id": "nomad_job_id",
+    "nomad_task": "nomad_task"
+  },
+  "token_policies": ["nomad-workloads"],
+  "token_type": "service",
+  "token_period": "30m",
+  "token_explicit_max_ttl": 0
+}
+```
+
+</CodeBlockConfig>
+
+ACL policies can reference dynamic values from Nomad workload identities claims
+exposed from the ACL role in [templated policies][vault_templated_policies].
+The exact ACL policy rules will depend on the level of access required by
+tasks.
+
+The following example ACL policy automatically grants `read` permissions to
+secrets in the path `secret/data/<job namespace>/<job name>/*`, where `<job
+namespace>` and `<job name>` are read from the workload identity claims
+`nomad_namespace` and `nomad_job_id`.
 
 <CodeBlockConfig highlight="1,5,9" filename="acl-policy.hcl">
 
 ```hcl
-path "kv/data/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_namespace}}/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_job_id}}/*" {
+path "secret/data/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_namespace}}/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_job_id}}/*" {
   capabilities = ["read"]
 }
 
-path "kv/data/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_namespace}}/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_job_id}}" {
+path "secret/data/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_namespace}}/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_job_id}}" {
   capabilities = ["read"]
 }
 
-path "kv/metadata/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_namespace}}/*" {
+path "secret/metadata/{{identity.entity.aliases.auth_jwt_d34481ad.metadata.nomad_namespace}}/*" {
   capabilities = ["list"]
 }
 
-path "kv/metadata/*" {
+path "secret/metadata/*" {
   capabilities = ["list"]
 }
 ```
@@ -353,14 +266,51 @@ The overall configuration structure is illustrated in the following diagram.
 
 [![Vault Auth Overview][img_vault_auth_overview]][img_vault_auth_overview]
 
-##### Vault Namespaces <EnterpriseAlert inline />
+#### Vault Namespaces <EnterpriseAlert inline />
 
 Vault Enterprise supports multiple namespaces and jobs in Nomad Enterprise can
 use the [`vault.namespace`][] parameter to specify which namespace to use. In a
 multi-namespace environment, the authentication setup described must be applied
-to each namespace used by jobs.
+to each Vault namespace used by jobs.
 
-#### Additional References
+### Important Considerations About the JWKS URL
+
+The recommended configuration assumes Vault servers are able to connect to
+Nomad agents (either client or servers) to retrieve the JSON Web Key Set
+information.
+
+This section covers additional aspects you should consider depending on how
+your Vault and Nomad clusters are configured and deployed.
+
+#### Mutual TLS in Nomad
+
+It is highly recommended to use [mutual TLS][tutorial_mtls] in production
+deployments of Nomad. With mTLS enabled, the [`tls.verify_https_client`][]
+configuration must be set to `false` since it is not possible to provide client
+certificates to the Vault auth method.
+
+Alternatively, you may expose Nomad's JWKS URL from a proxy or a load balancer
+that handles the mutual TLS connection to Nomad and exposes the JWKS URL
+endpoint over standard TLS.
+
+#### Vault Servers Not Able to Connect to Nomad
+
+If the Vault servers are not able to reach Nomad's JWKS URL, you may read the
+public keys from Nomad's [`/.well-known/jwks.json`][nomad_jwks_url] endpoint
+and provide them to the auth method directly using the
+[`jwt_validation_pubkeys`][] parameter. The keys must be converted from JWKS to
+PEM format.
+
+You may also host the JWKS JSON response from Nomad in an external location
+that is reachable by the Vault servers, and use that address as the value for
+`jwks_url`.
+
+It is important to remember that the Nomad keys **are rotated periodically**,
+so both approaches should be automated and done continually. The rotation
+frequency is controlled by the [`server.root_key_rotation_threshold`][]
+configuration of the Nomad servers.
+
+### Additional References
 
 The [Vault ACL with Nomad Workload Identities][vault_tutorial_wid] tutorial
 provides guided instructions on how to configure Vault and Nomad for workload
@@ -368,10 +318,10 @@ identities.
 
 The [`nomad setup vault`][nomad_cli_setup_vault] command and the
 [`hashicorp-modules/nomad-setup/vault`][tf_nomad_setup_vault] Terraform
-module can help automate the process of applying configuration to a Vault
+module can help you automate the process of applying configuration to a Vault
 cluster.
 
-### Authentication Without Workload Identity (Legacy)
+## Authentication Without Workload Identity (Legacy)
 
 To use the legacy Vault integration, Nomad servers must be provided a Vault
 token. This token can either be a root token or a periodic token with
@@ -390,14 +340,14 @@ you will need to have configured authentication with Vault as described in
 
 See the [Enterprise specific section][ent] for configuring Vault Enterprise.
 
-#### Root Token Integration
+### Root Token Integration
 
 If Nomad is given a [root token](/vault/docs/concepts/tokens#root-tokens), no
 further configuration is needed as Nomad can derive a token for jobs using any
 Vault policies. Best practices recommend using a periodic token with the minimal
 permissions necessary instead of providing Nomad the root vault token.
 
-#### Token Role based Integration
+### Token Role based Integration
 
 Vault's [Token Authentication Backend][auth] supports a concept called "roles".
 Token roles allow policies to be grouped together and token creation to be
@@ -418,7 +368,7 @@ occur:
 4. Give Nomad servers a periodic token with the "nomad-server" policy created
    above.
 
-##### Required Vault Policies
+#### Required Vault Policies
 
 The token Nomad receives must have the capabilities listed below. An explanation
 for the use of each capability is given.
@@ -479,7 +429,7 @@ $ curl https://developer.hashicorp.com/nomad/data/vault/nomad-server-policy.hcl 
 $ vault policy write nomad-server nomad-server-policy.hcl
 ```
 
-##### Vault Token Role Configuration
+#### Vault Token Role Configuration
 
 A Vault token role must be created for use by Nomad. The token role can be used
 to manage what Vault policies are accessible by jobs submitted to Nomad. The
@@ -505,7 +455,7 @@ An example token role definition is given below:
 }
 ```
 
-###### Token Role Requirements
+##### Token Role Requirements
 
 Nomad checks that token role has an appropriate configuration for use by the
 cluster. Fields that are checked are documented below as well as descriptions of
@@ -573,7 +523,7 @@ $ curl https://developer.hashicorp.com/nomad/data/vault/nomad-cluster-role.json 
 $ vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
 ```
 
-##### Example Configuration
+#### Example Configuration
 
 To make getting started easy, the basic [`nomad-server`
 policy](https://developer.hashicorp.com/nomad/data/vault/nomad-server-policy.hcl) and
@@ -595,7 +545,7 @@ $ vault policy write nomad-server nomad-server-policy.hcl
 $ vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
 ```
 
-##### Retrieving the Token Role based Token
+#### Retrieving the Token Role based Token
 
 After the token role is created, a token suitable for the Nomad servers may be
 retrieved by issuing the following Vault command:
@@ -651,16 +601,16 @@ vault {
 }
 ```
 
-#### Troubleshooting Legacy Authentication
+### Troubleshooting Legacy Authentication
 
-##### Invalid Vault token
+#### Invalid Vault token
 
 Upon startup, Nomad will attempt to connect to the specified Vault server. Nomad
 will lookup the passed token and if the token is from a token role, the token
 role will be validated. Nomad will not shutdown if given an invalid Vault token,
 but will log the reasons the token is invalid and disable Vault integration.
 
-##### No Secret Exists
+#### No Secret Exists
 
 Vault has two APIs for secrets, [`v1` and `v2`][vault-secrets-version]. Each version
 has different paths, and Nomad does not abstract this for you. As such you will
@@ -677,7 +627,7 @@ You can see examples of `v1` and `v2` syntax in the
 Nomad Enterprise allows jobs to use multiple [Vault Namespaces][]. There are a
 few configuration settings to consider when using this functionality.
 
-#### Example Configuration
+### Example Configuration
 
 Below is an example for creating two Namespaces within Vault.
 
@@ -689,7 +639,7 @@ $ vault namespace create engineering
 $ vault namespace create -namespace=engineering frontend
 ```
 
-#### Required Vault Policies
+### Required Vault Policies
 
 Policies are configured per Vault namespace. We will apply the policy in the
 example above to each namespace—engineering and engineering/frontend.
@@ -815,61 +765,41 @@ specify a non-default role. To migrate:
 * (Optionally) add [`identity`][] blocks to your jobs if you want to use a
   different identity because of how your auth method and roles are configured.
 
-## Multiple Vault Clusters <EnterpriseAlert inline />
-
-Nomad Enterprise supports access to multiple Vault clusters. They can be
-configured using multiple [`vault`][nomad_config_vault] blocks with different
-`name` values. If a `name` is not provided, the cluster configuration is called
-`default`.
-
-Jobs that need access to Vault may specify which Vault cluster to use with the
-[`vault.cluster`][] parameter.
-
-## Compatibility
-
-* Nomad versions 1.4.0 and above are compatible with any currently supported
-  version of Vault.
-
-|              | Vault 1.13.0+ |
-|--------------|---------------|
-| Nomad 1.4.0+ | ✅            |
-
+[Variables]: /nomad/docs/concepts/variables
 [Vault Namespaces]: /vault/docs/enterprise/namespaces
-[Vault]:  https://www.vaultproject.io/ 'Vault by HashiCorp'
 [Workload Identity]: /nomad/docs/concepts/workload-identity
 [`aud`]: /nomad/docs/job-specification/identity#aud
 [`bound_audiences`]: /vault/api-docs/auth/jwt#bound_audiences
 [`bound_claims`]: /vault/api-docs/auth/jwt#bound_claims
 [`claim_mappings`]: /vault/api-docs/auth/jwt#claim_mappings
-[`identity.name`]: /nomad/docs/job-specification/identity#name
 [`identity`]: /nomad/docs/job-specification/identity
 [`jwt_validation_pubkeys`]: /vault/api-docs/auth/jwt#jwt_validation_pubkeys
 [`server.root_key_rotation_threshold`]: /nomad/docs/configuration/server#root_key_rotation_threshold
+[`template`]: /nomad/docs/job-specification/template
 [`tls.verify_https_client`]: /nomad/docs/configuration/tls#verify_https_client
 [`token_explicit_max_ttl`]: /vault/api-docs/auth/jwt#token_explicit_max_ttl
-[`vault.cluster`]: /nomad/docs/job-specification/vault#cluster
 [`vault.create_from_role`]: /nomad/docs/configuration/vault#create_from_role
 [`vault.default_identity`]: /nomad/docs/configuration/vault#default_identity
 [`vault.namespace`]: /nomad/docs/job-specification/vault#namespace
 [`vault.role`]: /nomad/docs/job-specification/vault#role
+[`vault`]: /nomad/docs/job-specification/vault
 [allow_unauth]: /nomad/docs/configuration/vault#allow_unauthenticated
 [auth]: /vault/docs/auth/token 'Vault Authentication Backend'
 [config]: /nomad/docs/configuration/vault 'Nomad Vault Configuration Block'
-[ent]: /nomad/docs/integrations/vault-integration#enterprise-configuration
+[ent]: #enterprise-configuration
 [img_vault_auth_method]: /img/vault-integration-auth-method.png
 [img_vault_auth_overview]: /img/vault-integration-auth-overview.png
 [img_vault_wid_acl_token]: /img/vault-integration-wid-acl-token.png
+[jobspec_identity_vault]: /nomad/docs/job-specification/identity#workload-identities-for-vault
 [jwt]: https://jwt.io/
 [nomad_cli_setup_vault]: /nomad/docs/commands/setup/vault
-[nomad_config_vault]: /nomad/docs/configuration/vault
 [nomad_jwks_url]: /nomad/api-docs/operator/keyring#list-active-public-keys
 [nomad_wid_claims]: /nomad/docs/concepts/workload-identity#workload-identity-claims
-[template]: /nomad/docs/job-specification/template 'Nomad template Job Specification'
 [tf_nomad_setup_vault]: https://registry.terraform.io/modules/hashicorp-modules/nomad-setup/vault
 [tokenhierarchy]: /vault/docs/concepts/tokens#token-hierarchies-and-orphan-tokens 'Vault Tokens - Token Hierarchies and Orphan Tokens'
+[tutorial_mtls]: /nomad/tutorials/transport-security/security-enable-tls
 [vault-kv-templates]: /nomad/docs/job-specification/template#vault-kv-api-v1 'Vault KV API v1'
 [vault-secrets-version]: /vault/docs/secrets/kv 'KV Secrets Engine'
-[vault-spec]: /nomad/docs/job-specification/vault 'Nomad Vault Job Specification'
 [vault_auth]: /vault/docs/concepts/auth
 [vault_bound_claims]: /vault/docs/auth/jwt#bound-claims
 [vault_jwt_auth_method]: /vault/api-docs/auth/jwt
