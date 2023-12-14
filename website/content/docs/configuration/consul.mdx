@@ -141,6 +141,12 @@ agents with [`client.enabled`][] set to `true`.
 - `client_http_check_name` `(string: "Nomad Client HTTP Check")` - Specifies the
   HTTP health check name in Consul for the Nomad clients.
 
+- `client_failures_before_critical` `(int: 0)` - Specifies the number of
+  consecutive failures before the Nomad client Consul health check is critical.
+
+- `client_failures_before_warning` `(int: 0)` - Specifies the number of
+  consecutive failures before the Nomad client Consul health check shows a warning.
+
 - `grpc_address` `(string: "127.0.0.1:8502")` - Specifies the address to the local
   Consul agent for `gRPC` requests, given in the format `host:port`. Note that
   Consul does not enable the [`grpc`][grpc_port] or [`grpc_tls`][grpctls_port]
@@ -185,6 +191,12 @@ agents with [`server.enabled`] set to `true`.
   automatically discover and join other Nomad servers by searching for the
   Consul service name defined in the `server_service_name` option. This search
   only happens if the server does not have a leader.
+
+- `server_failures_before_critical` `(int: 0)` - Specifies the number of
+  consecutive failures before the Nomad server Consul health check is critical.
+
+- `server_failures_before_warning` `(int: 0)` - Specifies the number of
+  consecutive failures before the Nomad server Consul health check shows a warning.
 
 - `service_identity` <code>([Identity](#service_identity-parameters): nil)</code> - Specifies
   a default Workload Identity to use when obtaining Service Identity tokens from

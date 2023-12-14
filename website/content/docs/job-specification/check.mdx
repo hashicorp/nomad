@@ -92,11 +92,15 @@ job "example" {
   until Nomad produces an initial check status result.
 
 - `success_before_passing` `(int:0)` - The number of consecutive successful checks
-  required before Consul will transition the service status to [`passing`][consul_passfail].
+  required before Consul will transition the service status to [`passing`][consul_success_before_passing].
   Only supported in the Consul service provider.
 
 - `failures_before_critical` `(int:0)` - The number of consecutive failing checks
-  required before Consul will transition the service status to [`critical`][consul_passfail].
+  required before Consul will transition the service status to [`critical`][consul_failure_before_critical].
+  Only supported in the Consul service provider.
+
+- `failures_before_warning` `(int:0)` - The number of consecutive failing checks
+  required before Consul will transition the service status to [`warning`][consul_failure_before_warning].
   Only supported in the Consul service provider.
 
 - `interval` `(string: <required>)` - Specifies the frequency of the health checks
@@ -464,7 +468,9 @@ Output     =  nomad: Get "http://:9999/": dial tcp :9999: connect: connection re
 </small>
 
 [check_restart_block]: /nomad/docs/job-specification/check_restart
-[consul_passfail]: /consul/docs/discovery/checks#success-failures-before-passing-critical
+[consul_success_before_passing]: /consul/api-docs/agent/check#successbeforepassing
+[consul_failure_before_critical]: /consul/api-docs/agent/check#failuresbeforecritical
+[consul_failure_before_warning]: /consul/api-docs/agent/check#failuresbeforewarning
 [network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'
 [service]: /nomad/docs/job-specification/service
 [service_task]: /nomad/docs/job-specification/service#task-1

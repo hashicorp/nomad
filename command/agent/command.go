@@ -149,10 +149,14 @@ func (c *Command) readConfig() *Config {
 	}), "consul-client-auto-join", "")
 	flags.StringVar(&defaultConsul.ClientServiceName, "consul-client-service-name", "", "")
 	flags.StringVar(&defaultConsul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
+	flags.IntVar(&defaultConsul.ClientFailuresBeforeCritical, "consul-client-failures-before-critical", 0, "")
+	flags.IntVar(&defaultConsul.ClientFailuresBeforeWarning, "consul-client-failures-before-warning", 0, "")
 	flags.StringVar(&defaultConsul.ServerServiceName, "consul-server-service-name", "", "")
 	flags.StringVar(&defaultConsul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
 	flags.StringVar(&defaultConsul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
 	flags.StringVar(&defaultConsul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
+	flags.IntVar(&defaultConsul.ServerFailuresBeforeCritical, "consul-server-failures-before-critical", 0, "")
+	flags.IntVar(&defaultConsul.ServerFailuresBeforeWarning, "consul-server-failures-before-warning", 0, "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
 		defaultConsul.ServerAutoJoin = &b
 		return nil
@@ -689,63 +693,67 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		complete.PredictFiles("*.hcl"))
 
 	return map[string]complete.Predictor{
-		"-dev":                           complete.PredictNothing,
-		"-dev-connect":                   complete.PredictNothing,
-		"-server":                        complete.PredictNothing,
-		"-client":                        complete.PredictNothing,
-		"-bootstrap-expect":              complete.PredictAnything,
-		"-encrypt":                       complete.PredictAnything,
-		"-raft-protocol":                 complete.PredictAnything,
-		"-rejoin":                        complete.PredictNothing,
-		"-join":                          complete.PredictAnything,
-		"-retry-join":                    complete.PredictAnything,
-		"-retry-max":                     complete.PredictAnything,
-		"-state-dir":                     complete.PredictDirs("*"),
-		"-alloc-dir":                     complete.PredictDirs("*"),
-		"-node-class":                    complete.PredictAnything,
-		"-node-pool":                     complete.PredictAnything,
-		"-servers":                       complete.PredictAnything,
-		"-meta":                          complete.PredictAnything,
-		"-config":                        configFilePredictor,
-		"-bind":                          complete.PredictAnything,
-		"-region":                        complete.PredictAnything,
-		"-data-dir":                      complete.PredictDirs("*"),
-		"-plugin-dir":                    complete.PredictDirs("*"),
-		"-dc":                            complete.PredictAnything,
-		"-log-level":                     complete.PredictAnything,
-		"-json-logs":                     complete.PredictNothing,
-		"-node":                          complete.PredictAnything,
-		"-consul-auth":                   complete.PredictAnything,
-		"-consul-auto-advertise":         complete.PredictNothing,
-		"-consul-ca-file":                complete.PredictAnything,
-		"-consul-cert-file":              complete.PredictAnything,
-		"-consul-key-file":               complete.PredictAnything,
-		"-consul-checks-use-advertise":   complete.PredictNothing,
-		"-consul-client-auto-join":       complete.PredictNothing,
-		"-consul-client-service-name":    complete.PredictAnything,
-		"-consul-client-http-check-name": complete.PredictAnything,
-		"-consul-server-service-name":    complete.PredictAnything,
-		"-consul-server-http-check-name": complete.PredictAnything,
-		"-consul-server-serf-check-name": complete.PredictAnything,
-		"-consul-server-rpc-check-name":  complete.PredictAnything,
-		"-consul-server-auto-join":       complete.PredictNothing,
-		"-consul-ssl":                    complete.PredictNothing,
-		"-consul-verify-ssl":             complete.PredictNothing,
-		"-consul-address":                complete.PredictAnything,
-		"-consul-token":                  complete.PredictAnything,
-		"-vault-enabled":                 complete.PredictNothing,
-		"-vault-allow-unauthenticated":   complete.PredictNothing,
-		"-vault-token":                   complete.PredictAnything,
-		"-vault-address":                 complete.PredictAnything,
-		"-vault-create-from-role":        complete.PredictAnything,
-		"-vault-ca-file":                 complete.PredictAnything,
-		"-vault-ca-path":                 complete.PredictAnything,
-		"-vault-cert-file":               complete.PredictAnything,
-		"-vault-key-file":                complete.PredictAnything,
-		"-vault-tls-skip-verify":         complete.PredictNothing,
-		"-vault-tls-server-name":         complete.PredictAnything,
-		"-acl-enabled":                   complete.PredictNothing,
-		"-acl-replication-token":         complete.PredictAnything,
+		"-dev":                         complete.PredictNothing,
+		"-dev-connect":                 complete.PredictNothing,
+		"-server":                      complete.PredictNothing,
+		"-client":                      complete.PredictNothing,
+		"-bootstrap-expect":            complete.PredictAnything,
+		"-encrypt":                     complete.PredictAnything,
+		"-raft-protocol":               complete.PredictAnything,
+		"-rejoin":                      complete.PredictNothing,
+		"-join":                        complete.PredictAnything,
+		"-retry-join":                  complete.PredictAnything,
+		"-retry-max":                   complete.PredictAnything,
+		"-state-dir":                   complete.PredictDirs("*"),
+		"-alloc-dir":                   complete.PredictDirs("*"),
+		"-node-class":                  complete.PredictAnything,
+		"-node-pool":                   complete.PredictAnything,
+		"-servers":                     complete.PredictAnything,
+		"-meta":                        complete.PredictAnything,
+		"-config":                      configFilePredictor,
+		"-bind":                        complete.PredictAnything,
+		"-region":                      complete.PredictAnything,
+		"-data-dir":                    complete.PredictDirs("*"),
+		"-plugin-dir":                  complete.PredictDirs("*"),
+		"-dc":                          complete.PredictAnything,
+		"-log-level":                   complete.PredictAnything,
+		"-json-logs":                   complete.PredictNothing,
+		"-node":                        complete.PredictAnything,
+		"-consul-auth":                 complete.PredictAnything,
+		"-consul-auto-advertise":       complete.PredictNothing,
+		"-consul-ca-file":              complete.PredictAnything,
+		"-consul-cert-file":            complete.PredictAnything,
+		"-consul-key-file":             complete.PredictAnything,
+		"-consul-checks-use-advertise": complete.PredictNothing,
+		"-consul-client-auto-join":     complete.PredictNothing,
+		"-consul-client-service-name":  complete.PredictAnything,
+		"-consul-client-failures-before-critical": complete.PredictAnything,
+		"-consul-client-failures-before-warning":  complete.PredictAnything,
+		"-consul-client-http-check-name":          complete.PredictAnything,
+		"-consul-server-service-name":             complete.PredictAnything,
+		"-consul-server-http-check-name":          complete.PredictAnything,
+		"-consul-server-serf-check-name":          complete.PredictAnything,
+		"-consul-server-rpc-check-name":           complete.PredictAnything,
+		"-consul-server-auto-join":                complete.PredictNothing,
+		"-consul-server-failures-before-critical": complete.PredictAnything,
+		"-consul-server-failures-before-warning":  complete.PredictAnything,
+		"-consul-ssl":                             complete.PredictNothing,
+		"-consul-verify-ssl":                      complete.PredictNothing,
+		"-consul-address":                         complete.PredictAnything,
+		"-consul-token":                           complete.PredictAnything,
+		"-vault-enabled":                          complete.PredictNothing,
+		"-vault-allow-unauthenticated":            complete.PredictNothing,
+		"-vault-token":                            complete.PredictAnything,
+		"-vault-address":                          complete.PredictAnything,
+		"-vault-create-from-role":                 complete.PredictAnything,
+		"-vault-ca-file":                          complete.PredictAnything,
+		"-vault-ca-path":                          complete.PredictAnything,
+		"-vault-cert-file":                        complete.PredictAnything,
+		"-vault-key-file":                         complete.PredictAnything,
+		"-vault-tls-skip-verify":                  complete.PredictNothing,
+		"-vault-tls-server-name":                  complete.PredictAnything,
+		"-acl-enabled":                            complete.PredictNothing,
+		"-acl-replication-token":                  complete.PredictAnything,
 	}
 }
 
@@ -1564,6 +1572,14 @@ Consul Options:
   -consul-client-http-check-name=<name>
     Specifies the HTTP health check name in Consul for the Nomad clients.
 
+  -consul-client-failures-before-critical
+    Specifies the number of consecutive failures before the Nomad client
+	Consul health check is critical. Defaults to 0.
+
+  -consul-client-failures-before-warning
+    Specifies the number of consecutive failures before the Nomad client
+    Consul health check shows a warning. Defaults to 0.
+
   -consul-key-file=<path>
     Specifies the path to the private key used for Consul communication. If this
     is set then you need to also set cert_file.
@@ -1585,6 +1601,14 @@ Consul Options:
     Nomad servers by searching for the Consul service name defined in the
     server_service_name option. This search only happens if the server does not
     have a leader.
+
+  -consul-server-failures-before-critical
+    Specifies the number of consecutive failures before the Nomad server
+	Consul health check is critical. Defaults to 0.
+
+  -consul-server-failures-before-warning
+    Specifies the number of consecutive failures before the Nomad server
+    Consul health check shows a warning. Defaults to 0.
 
   -consul-ssl
     Specifies if the transport scheme should use HTTPS to communicate with the

@@ -22,6 +22,7 @@ func TestServiceCheck_Hash(t *testing.T) {
 		Name:                   "check",
 		SuccessBeforePassing:   3,
 		FailuresBeforeCritical: 4,
+		FailuresBeforeWarning:  2,
 	}
 
 	type sc = ServiceCheck
@@ -56,6 +57,10 @@ func TestServiceCheck_Hash(t *testing.T) {
 
 	t.Run("failures_before_critical", func(t *testing.T) {
 		try(t, func(s *sc) { s.FailuresBeforeCritical = 99 })
+	})
+
+	t.Run("failures_before_warning", func(t *testing.T) {
+		try(t, func(s *sc) { s.FailuresBeforeWarning = 99 })
 	})
 }
 
@@ -136,6 +141,7 @@ func TestServiceCheck_validate_FailingTypes(t *testing.T) {
 				Interval:               1 * time.Second,
 				Timeout:                2 * time.Second,
 				FailuresBeforeCritical: 3,
+				FailuresBeforeWarning:  2,
 			}).validateConsul()
 			require.NoError(t, err)
 		}
@@ -152,6 +158,19 @@ func TestServiceCheck_validate_FailingTypes(t *testing.T) {
 			FailuresBeforeCritical: 3,
 		}).validateConsul()
 		require.EqualError(t, err, `failures_before_critical not supported for check of type "script"`)
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                   "check",
+			Type:                   "script",
+			Command:                "/nothing",
+			Interval:               1 * time.Second,
+			Timeout:                2 * time.Second,
+			SuccessBeforePassing:   0,
+			FailuresBeforeWarning:  3,
+		}).validateConsul()
+		require.EqualError(t, err, `failures_before_warning not supported for check of type "script"`)
 	})
 }
 
@@ -275,6 +294,16 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Timeout:                1 * time.Second,
 			},
 			exp: `failures_before_critical may only be set for Consul service checks`,
+		},
+		{
+			name: "failures_before_warning",
+			sc: &ServiceCheck{
+				Type:                   ServiceCheckTCP,
+				FailuresBeforeWarning:  3, // consul only
+				Interval:               3 * time.Second,
+				Timeout:                1 * time.Second,
+			},
+			exp: `failures_before_warning may only be set for Consul service checks`,
 		},
 		{
 			name: "check_restart",

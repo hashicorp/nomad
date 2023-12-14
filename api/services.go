@@ -222,6 +222,7 @@ type ServiceCheck struct {
 	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
 	SuccessBeforePassing   int                 `mapstructure:"success_before_passing" hcl:"success_before_passing,optional"`
 	FailuresBeforeCritical int                 `mapstructure:"failures_before_critical" hcl:"failures_before_critical,optional"`
+	FailuresBeforeWarning  int                 `mapstructure:"failures_before_warning" hcl:"failures_before_warning,optional"`
 	Body                   string              `hcl:"body,optional"`
 	OnUpdate               string              `mapstructure:"on_update" hcl:"on_update,optional"`
 }
@@ -318,6 +319,10 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 
 		if s.Checks[i].FailuresBeforeCritical < 0 {
 			s.Checks[i].FailuresBeforeCritical = 0
+		}
+
+		if s.Checks[i].FailuresBeforeWarning < 0 {
+			s.Checks[i].FailuresBeforeWarning = 0
 		}
 
 		// Inhert Service

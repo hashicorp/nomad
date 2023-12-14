@@ -1420,6 +1420,7 @@ func apiCheckRegistrationToCheck(r *api.AgentCheckRegistration) *api.AgentServic
 		GRPCUseTLS:             r.GRPCUseTLS,
 		SuccessBeforePassing:   r.SuccessBeforePassing,
 		FailuresBeforeCritical: r.FailuresBeforeCritical,
+		FailuresBeforeWarning:  r.FailuresBeforeWarning,
 	}
 }
 
@@ -1969,6 +1970,7 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 	chkReg.Interval = check.Interval.String()
 	chkReg.SuccessBeforePassing = check.SuccessBeforePassing
 	chkReg.FailuresBeforeCritical = check.FailuresBeforeCritical
+	chkReg.FailuresBeforeWarning = check.FailuresBeforeWarning
 
 	// Require an address for http or tcp checks
 	if port == 0 && check.RequiresPort() {

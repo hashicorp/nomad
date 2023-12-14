@@ -22,6 +22,7 @@ job "check_pass_fail" {
           initial_status           = "passing"
           success_before_passing   = 3
           failures_before_critical = 4
+          failures_before_warning  = 2
         }
       }
     }
