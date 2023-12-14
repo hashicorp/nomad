@@ -1028,6 +1028,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"task",
 			"success_before_passing",
 			"failures_before_critical",
+			"failures_before_warning",
 			"on_update",
 			"body",
 		}

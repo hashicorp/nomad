@@ -775,8 +775,10 @@ func TestAgent_HTTPCheck(t *testing.T) {
 				AdvertiseAddrs:  &AdvertiseAddrs{HTTP: "advertise:4646"},
 				normalizedAddrs: &NormalizedAddrs{HTTP: []string{"normalized:4646"}},
 				Consuls: []*config.ConsulConfig{{
-					Name:               "default",
-					ChecksUseAdvertise: pointer.Of(false),
+					Name:                         "default",
+					ChecksUseAdvertise:           pointer.Of(false),
+					ClientFailuresBeforeCritical: 2,
+					ClientFailuresBeforeWarning:  1,
 				}},
 				TLSConfig: &config.TLSConfig{EnableHTTP: false},
 			},
@@ -800,6 +802,12 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		}
 		if expected := a.config.normalizedAddrs.HTTP[0]; check.PortLabel != expected {
 			t.Errorf("expected normalized addr not %q", check.PortLabel)
+		}
+		if expected := 2; check.FailuresBeforeCritical != expected {
+			t.Errorf("expected failured before critical count not: %q", expected)
+		}
+		if expected := 1; check.FailuresBeforeWarning != expected {
+			t.Errorf("expected failured before warning count not: %q", expected)
 		}
 	})
 
@@ -851,6 +859,10 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 		config: DevConfig(nil),
 		logger: testlog.HCLogger(t),
 	}
+	// setting to ensure this does not get set for the server
+	a.config.Consuls[0].ServerFailuresBeforeCritical = 4
+	a.config.Consuls[0].ServerFailuresBeforeWarning = 3
+
 	if err := a.config.normalizeAddrs(); err != nil {
 		t.Fatalf("error normalizing config: %v", err)
 	}
@@ -863,6 +875,13 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	}
 	if expected := "/v1/agent/health?type=server"; check.Path != expected {
 		t.Errorf("expected server check path to be %q but found %q", expected, check.Path)
+	}
+	// ensure server failures before critical and warning are set
+	if expected := 4; check.FailuresBeforeCritical != expected {
+		t.Errorf("expected failured before critical count not: %q", expected)
+	}
+	if expected := 3; check.FailuresBeforeWarning != expected {
+		t.Errorf("expected failured before warning count not: %q", expected)
 	}
 
 	// Assert client check uses /v1/agent/health?type=client

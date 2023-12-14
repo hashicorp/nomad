@@ -1172,19 +1172,25 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}
 	check := structs.ServiceCheck{
-		Name:      defaultConsul.ClientHTTPCheckName,
-		Type:      "http",
-		Path:      "/v1/agent/health?type=client",
-		Protocol:  "http",
-		Interval:  agentHttpCheckInterval,
-		Timeout:   agentHttpCheckTimeout,
-		PortLabel: httpCheckAddr,
+		Name:                   defaultConsul.ClientHTTPCheckName,
+		Type:                   "http",
+		Path:                   "/v1/agent/health?type=client",
+		Protocol:               "http",
+		Interval:               agentHttpCheckInterval,
+		Timeout:                agentHttpCheckTimeout,
+		PortLabel:              httpCheckAddr,
+		FailuresBeforeWarning:  defaultConsul.ClientFailuresBeforeWarning,
+		FailuresBeforeCritical: defaultConsul.ClientFailuresBeforeCritical,
 	}
 	// Switch to endpoint that doesn't require a leader for servers
+	// and overwrite failures before x values
 	if server {
 		check.Name = defaultConsul.ServerHTTPCheckName
 		check.Path = "/v1/agent/health?type=server"
+		check.FailuresBeforeCritical = defaultConsul.ServerFailuresBeforeCritical
+		check.FailuresBeforeWarning = defaultConsul.ServerFailuresBeforeWarning
 	}
+
 	if !a.config.TLSConfig.EnableHTTP {
 		// No HTTPS, return a plain http check
 		return &check
@@ -1197,6 +1203,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// HTTPS enabled; skip verification
 	check.Protocol = "https"
 	check.TLSSkipVerify = true
+
 	return &check
 }
 
