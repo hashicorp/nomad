@@ -15,6 +15,22 @@ used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.7.0
 
+<Warning>
+
+Nomad 1.7.0 contains a critical bug in keyring replication. You should not
+install Nomad 1.7.0 and instead install Nomad 1.7.1.
+
+</Warning>
+
+#### Keyring Replication Failure After Leader Election
+
+Nomad 1.7.0 introduced new RSA keys to the keyring for use in signing workload
+identities. These keys were not correctly replicated from leader to
+followers. This results in all workload identity verification failing after a
+leader election.
+
+This bug was fixed in Nomad 1.7.1.
+
 #### Vault Integration Changes
 
 Starting in Nomad 1.7, Nomad clients will use a task's [Workload Identity][] to
