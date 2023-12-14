@@ -59,15 +59,33 @@
       },
       {
         "title": "Consul",
-        "path": "integrations/consul-integration"
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "integrations/consul"
+          },
+          {
+            "title": "ACL",
+            "path": "integrations/consul/acl"
+          },
+          {
+            "title": "Service Mesh",
+            "path": "integrations/consul/service-mesh"
+          }
+        ]
       },
       {
-        "title": "Consul Service Mesh",
-        "path": "integrations/consul-connect"
-      },
-      {
-        "title": "Vault Integration",
-        "path": "integrations/vault-integration"
+        "title": "Vault",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "integrations/vault"
+          },
+          {
+            "title": "ACL",
+            "path": "integrations/vault/acl"
+          }
+        ]
       }
     ]
   },

@@ -1,0 +1,71 @@
+---
+layout: docs
+page_title: Vault Integration
+description: >-
+  Learn how to integrate Nomad with HashiCorp Vault and retrieve Vault tokens
+  for tasks.
+---
+
+# Vault Integration
+
+Many workloads require access to tokens, passwords, certificates, API keys, and
+other secrets. To enable secure, auditable and easy access to your secrets,
+Nomad integrates with HashiCorp's [Vault][]. Nomad servers and clients
+coordinate with Vault to derive a Vault token that has access to only the Vault
+policies the tasks needs. Nomad clients make the token available to the task and
+handle the tokens renewal.
+
+## Configuration
+
+In order to use Vault with Nomad, you will need to configure and install Vault
+separately from Nomad. Nomad does not run Vault for you.
+
+## Agent Configuration
+
+To enable Vault integration, Nomad agents must be configured with
+[`vault`][] blocks. Each block can be enabled or disabled and configures how
+Nomad connects to the Vault cluster.
+
+## Dynamic Configuration with Secrets
+
+Nomad's job specification includes a [`template`][] block that uses a tool
+called [Consul Template][]. When used with Vault, this mechanism creates a
+convenient way to ship configuration files that are populated from Vault
+secrets.
+
+For more information on Nomad's template block please see the
+[`template` job specification documentation][].
+
+## Vault ACL
+
+The Vault ACL system protects the cluster from unauthorized access. When
+enabled, both Vault and Nomad must be properly configured in order for their
+integrations to work.
+
+Refer to the [Vault ACL integration page][int_vault_acl] for more information.
+
+## Multiple Vault Clusters <EnterpriseAlert inline />
+
+Nomad Enterprise supports access to multiple Vault clusters. They can be
+configured using multiple [`vault`][] blocks with different `name` values. If a
+`name` is not provided, the cluster configuration is called `default`.
+
+Jobs that need access to Vault may specify which Vault cluster to use with the
+[`vault.cluster`][] parameter.
+
+## Compatibility
+
+* Nomad versions 1.4.0 and above are compatible with any currently supported
+  version of Vault.
+
+|              | Vault 1.13.0+ |
+|--------------|---------------|
+| Nomad 1.4.0+ | ✅            |
+
+[Consul Template]: https://github.com/hashicorp/consul-template
+[Vault]:  https://www.vaultproject.io/ 'Vault by HashiCorp'
+[`template` job specification documentation]: /nomad/docs/job-specification/template#vault-integration
+[`template`]: /nomad/docs/job-specification/template
+[`vault.cluster`]: /nomad/docs/job-specification/vault#cluster
+[`vault`]: /nomad/docs/configuration/vault 'Nomad Vault Configuration Block'
+[int_vault_acl]: /nomad/docs/integrations/vault/acl
