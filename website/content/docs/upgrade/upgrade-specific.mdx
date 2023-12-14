@@ -104,6 +104,14 @@ upgrading to Nomad 1.7. Operators are encouraged to ensure planned capacity
 meets expectations before upgrading. The [cpu concepts][cpu] documentation
 contains guidance in understanding how Nomad detects CPU metrics.
 
+#### CPU EC2 Detection Changes
+
+Prior to Nomad 1.7, Nomad clients embedded a large lookup table of CPU
+performance data for every EC2 instance type. In 1.7 and later Nomad instead
+gathers this data by executing the `dmidecode` command. The `dmidecode` package
+must be installed manually on some Linux distributions before the Nomad agent
+is started.
+
 #### CPU Core Isolation
 
 Starting in Nomad 1.7, Nomad tasks that specify CPU resources using the `cores`
