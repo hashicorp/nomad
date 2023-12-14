@@ -123,6 +123,27 @@ export default class IndexController extends Controller.extend(
     ],
   };
 
+  @computed(
+    'state_initializing',
+    'state_ready',
+    'state_down',
+    'state_disconnected',
+    'eligibility_eligible',
+    'eligibility_ineligible',
+    'drain_status_draining',
+    'drain_status_not_draining'
+  )
+  get activeToggles() {
+    return this.allToggles.filter((t) => this[t.qp]);
+  }
+
+  get allToggles() {
+    return Object.values(this.clientFilterToggles).reduce(
+      (acc, filters) => acc.concat(filters),
+      []
+    );
+  }
+
   constructor() {
     super(...arguments);
     this.addDynamicQueryParams();
