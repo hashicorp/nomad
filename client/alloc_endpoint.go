@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -248,17 +249,26 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		return pointer.Of(int64(400)), taskNotPresentErr
 	}
 
+	if req.JobID != "" && req.JobID != alloc.JobID {
+		return pointer.Of(int64(http.StatusBadRequest)),
+			fmt.Errorf("job %s does not have allocation %s", req.JobID, req.AllocID)
+	}
+
 	// If an action is present, go find the command and args
 	if req.Action != "" {
-		alloc, _ := a.c.GetAlloc(req.AllocID)
-		jobAction, err := validateActionExists(req.Action, req.Task, alloc)
-		if err != nil {
-			return pointer.Of(int64(400)), err
+		task := alloc.LookupTask(req.Task)
+		if task == nil {
+			return pointer.Of(int64(http.StatusBadRequest)),
+				fmt.Errorf("task %s not found in allocation %s", req.Task, alloc.ID)
 		}
-		if jobAction != nil {
-			// append both Command and Args
-			req.Cmd = append([]string{jobAction.Command}, jobAction.Args...)
+		jobAction := task.GetAction(req.Action)
+		if jobAction == nil {
+			return pointer.Of(int64(http.StatusBadRequest)),
+				fmt.Errorf("action %s not found in task %s", req.Action, req.Task)
 		}
+
+		// append both Command and Args
+		req.Cmd = append([]string{jobAction.Command}, jobAction.Args...)
 	}
 
 	if len(req.Cmd) == 0 {
@@ -356,15 +366,4 @@ func (s *execStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
 	req := drivers.ExecTaskStreamingRequestMsg{}
 	err := s.decoder.Decode(&req)
 	return &req, err
-}
-
-func validateActionExists(actionName string, taskName string, alloc *nstructs.Allocation) (*nstructs.Action, error) {
-	t := alloc.LookupTask(taskName)
-
-	for _, action := range t.Actions {
-		if action.Name == actionName {
-			return action, nil
-		}
-	}
-	return nil, fmt.Errorf("action %s not found", actionName)
 }

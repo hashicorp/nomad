@@ -459,6 +459,7 @@ type TaskGroup struct {
 	MaxClientDisconnect       *time.Duration            `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
 	Consul                    *Consul                   `hcl:"consul,block"`
+	PreventRescheduleOnLost   *bool                     `hcl:"prevent_reschedule_on_lost,optional"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -577,7 +578,9 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
 	}
-
+	if g.PreventRescheduleOnLost == nil {
+		g.PreventRescheduleOnLost = pointerOf(false)
+	}
 }
 
 // These needs to be in sync with DefaultServiceJobRestartPolicy in
@@ -1162,12 +1165,14 @@ func (t *TaskCSIPluginConfig) Canonicalize() {
 // WorkloadIdentity is the jobspec block which determines if and how a workload
 // identity is exposed to tasks.
 type WorkloadIdentity struct {
-	Name        string        `hcl:"name,optional"`
-	Audience    []string      `mapstructure:"aud" hcl:"aud,optional"`
-	Env         bool          `hcl:"env,optional"`
-	File        bool          `hcl:"file,optional"`
-	ServiceName string        `hcl:"service_name,optional"`
-	TTL         time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
+	Name         string        `hcl:"name,optional"`
+	Audience     []string      `mapstructure:"aud" hcl:"aud,optional"`
+	ChangeMode   string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeSignal string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Env          bool          `hcl:"env,optional"`
+	File         bool          `hcl:"file,optional"`
+	ServiceName  string        `hcl:"service_name,optional"`
+	TTL          time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
 }
 
 type Action struct {

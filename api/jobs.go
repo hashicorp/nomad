@@ -1520,7 +1520,7 @@ type EvalOptions struct {
 // ActionExec is used to run a pre-defined command inside a running task.
 // The call blocks until command terminates (or an error occurs), and returns the exit code.
 func (j *Jobs) ActionExec(ctx context.Context,
-	alloc *Allocation, task string, tty bool, command []string,
+	alloc *Allocation, job string, task string, tty bool, command []string,
 	action string,
 	stdin io.Reader, stdout, stderr io.Writer,
 	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
@@ -1528,6 +1528,7 @@ func (j *Jobs) ActionExec(ctx context.Context,
 	s := &execSession{
 		client:  j.client,
 		alloc:   alloc,
+		job:     job,
 		task:    task,
 		tty:     tty,
 		command: command,

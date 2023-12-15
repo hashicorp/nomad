@@ -4,7 +4,8 @@
 package auth
 
 import (
-	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
@@ -20,7 +21,6 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -33,14 +33,14 @@ func TestAuthenticateDefault(t *testing.T) {
 	ci.Parallel(t)
 
 	testAuthenticator := func(t *testing.T, store *state.StateStore,
-		hasACLs, hasTLS bool) *Authenticator {
+		hasACLs, verifyTLS bool) *Authenticator {
 		leaderACL := uuid.Generate()
 		return NewAuthenticator(&AuthenticatorConfig{
 			StateFn:        func() *state.StateStore { return store },
 			Logger:         testlog.HCLogger(t),
 			GetLeaderACLFn: func() string { return leaderACL },
 			AclsEnabled:    hasACLs,
-			TLSEnabled:     hasTLS,
+			VerifyTLS:      verifyTLS,
 			Region:         "global",
 			Encrypter:      newTestEncrypter(),
 		})
@@ -367,14 +367,14 @@ func TestAuthenticateServerOnly(t *testing.T) {
 	ci.Parallel(t)
 
 	testAuthenticator := func(t *testing.T, store *state.StateStore,
-		hasACLs, hasTLS bool) *Authenticator {
+		hasACLs, verifyTLS bool) *Authenticator {
 		leaderACL := uuid.Generate()
 		return NewAuthenticator(&AuthenticatorConfig{
 			StateFn:        func() *state.StateStore { return store },
 			Logger:         testlog.HCLogger(t),
 			GetLeaderACLFn: func() string { return leaderACL },
 			AclsEnabled:    hasACLs,
-			TLSEnabled:     hasTLS,
+			VerifyTLS:      verifyTLS,
 			Region:         "global",
 			Encrypter:      nil,
 		})
@@ -388,6 +388,22 @@ func TestAuthenticateServerOnly(t *testing.T) {
 			name: "no mTLS",
 			testFn: func(t *testing.T) {
 				ctx := newTestContext(t, noTLSCtx, "192.168.1.1")
+				args := &structs.GenericRequest{}
+
+				store := testStateStore(t)
+				auth := testAuthenticator(t, store, true, false)
+
+				aclObj, err := auth.AuthenticateServerOnly(ctx, args)
+				must.NoError(t, err)
+				must.NotNil(t, aclObj)
+				must.Eq(t, ":192.168.1.1", args.GetIdentity().String())
+				must.True(t, aclObj.AllowServerOp())
+			},
+		},
+		{
+			name: "no mTLS but client cert",
+			testFn: func(t *testing.T) {
+				ctx := newTestContext(t, "client.global.nomad", "192.168.1.1")
 				args := &structs.GenericRequest{}
 
 				store := testStateStore(t)
@@ -446,7 +462,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 	ci.Parallel(t)
 
 	testAuthenticator := func(t *testing.T, store *state.StateStore,
-		hasACLs, hasTLS bool) *Authenticator {
+		hasACLs, verifyTLS bool) *Authenticator {
 		leaderACL := uuid.Generate()
 
 		return NewAuthenticator(&AuthenticatorConfig{
@@ -454,7 +470,7 @@ func TestAuthenticateClientOnly(t *testing.T) {
 			Logger:         testlog.HCLogger(t),
 			GetLeaderACLFn: func() string { return leaderACL },
 			AclsEnabled:    hasACLs,
-			TLSEnabled:     hasTLS,
+			VerifyTLS:      verifyTLS,
 			Region:         "global",
 			Encrypter:      nil,
 		})
@@ -894,7 +910,7 @@ func TestIdentityToACLClaim(t *testing.T) {
 		Logger:         testlog.HCLogger(t),
 		GetLeaderACLFn: func() string { return leaderACL },
 		AclsEnabled:    true,
-		TLSEnabled:     true,
+		VerifyTLS:      true,
 		Region:         "global",
 		Encrypter:      newTestEncrypter(),
 	})
@@ -1156,7 +1172,7 @@ func testDefaultAuthenticator(t *testing.T) *Authenticator {
 		Logger:         testlog.HCLogger(t),
 		GetLeaderACLFn: func() string { return leaderACL },
 		AclsEnabled:    true,
-		TLSEnabled:     true,
+		VerifyTLS:      true,
 		Region:         "global",
 		Encrypter:      nil,
 	})
@@ -1217,20 +1233,23 @@ func (ctx *testContext) Certificate() *x509.Certificate {
 }
 
 type testEncrypter struct {
-	key ed25519.PrivateKey
+	key *rsa.PrivateKey
 }
 
 func newTestEncrypter() *testEncrypter {
-	buf, _ := crypto.Bytes(32)
+	k, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		panic(err)
+	}
 	return &testEncrypter{
-		key: ed25519.NewKeyFromSeed(buf),
+		key: k,
 	}
 }
 
 func (te *testEncrypter) signClaim(claims *structs.IdentityClaims) (string, error) {
 
 	opts := (&jose.SignerOptions{}).WithType("JWT")
-	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: te.key}, opts)
+	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: te.key}, opts)
 	if err != nil {
 		return "", err
 	}

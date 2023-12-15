@@ -13,6 +13,14 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
+const (
+	// the name of the cpuset interface file
+	cpusetFile = "cpuset.cpus"
+
+	// the name of the cpuset mems interface file
+	memsFile = "cpuset.mems"
+)
+
 // Init will initialize the cgroup tree that the Nomad client will use for
 // isolating resources of tasks. cores is the cpuset granted for use by Nomad.
 func Init(log hclog.Logger, cores string) {
@@ -20,13 +28,6 @@ func Init(log hclog.Logger, cores string) {
 
 	switch GetMode() {
 	case CG1:
-		// the name of the cpuset interface file
-		const cpusetFile = "cpuset.cpus"
-
-		// the name of the cpuset mems interface file
-		const memsFile = "cpuset.mems"
-
-		const memsSet = "0" // TODO(shoenig) get from topology
 
 		// the value to disable inheriting values from parent cgroup
 		const noClone = "0"
@@ -43,6 +44,22 @@ func Init(log hclog.Logger, cores string) {
 				log.Error("failed to create nomad cgroup", "controller", ctrl, "error", err)
 				return
 			}
+		}
+
+		// determine the memset that will be set on the cgroup for each task
+		//
+		// nominally this will be all available but we have to read the root
+		// cgroup to actually know what those are
+		//
+		// additionally if the nomad cgroup parent already exists, we must
+		// use that memset instead, because it could have been setup out of
+		// band from nomad itself
+		var memsSet string
+		if mems, err := detectMemsCG1(); err != nil {
+			log.Error("failed to detect memset", "error", err)
+			return
+		} else {
+			memsSet = mems
 		}
 
 		//
@@ -122,9 +139,6 @@ func Init(log hclog.Logger, cores string) {
 		// the name of the cgroup subtree interface file
 		const subtreeFile = "cgroup.subtree_control"
 
-		// the name of the cpuset interface file
-		const cpusetFile = "cpuset.cpus"
-
 		//
 		// configuring root cgroup (/sys/fs/cgroup)
 		//
@@ -187,6 +201,38 @@ func Init(log hclog.Logger, cores string) {
 
 		log.Debug("partition member nomad.slice/reserve cgroup initialized")
 	}
+}
+
+// detectMemsCG1 will determine the cpuset.mems value to use for
+// Nomad managed cgroups.
+//
+// Copy the value from the root cgroup cpuset.mems file, unless the nomad
+// parent cgroup exists with a value set, in which case use the cpuset.mems
+// value from there.
+func detectMemsCG1() (string, error) {
+	// read root cgroup mems file
+	memsRootPath := filepath.Join(root, "cpuset", memsFile)
+	b, err := os.ReadFile(memsRootPath)
+	if err != nil {
+		return "", err
+	}
+	memsFromRoot := string(bytes.TrimSpace(b))
+
+	// read parent cgroup mems file (may not exist)
+	memsParentPath := filepath.Join(root, "cpuset", NomadCgroupParent, memsFile)
+	b2, err2 := os.ReadFile(memsParentPath)
+	if err2 != nil {
+		return memsFromRoot, nil
+	}
+	memsFromParent := string(bytes.TrimSpace(b2))
+
+	// we found a value in the parent cgroup file, use that
+	if memsFromParent != "" {
+		return memsFromParent, nil
+	}
+
+	// otherwise use the value from the root cgroup
+	return memsFromRoot, nil
 }
 
 func readRootCG2(filename string) (string, error) {

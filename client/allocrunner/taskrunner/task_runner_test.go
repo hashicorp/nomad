@@ -5,23 +5,27 @@ package taskrunner
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/golang/snappy"
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/config"
-	consulapi "github.com/hashicorp/nomad/client/consul"
+	consulclient "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -29,6 +33,9 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
+
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/client/widmgr"
@@ -122,7 +129,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	db := cstate.NewMemDB(logger)
 
 	if thisTask.Vault != nil {
-		clientConf.VaultConfigs[structs.VaultDefaultCluster].Enabled = pointer.Of(true)
+		clientConf.GetDefaultVault().Enabled = pointer.Of(true)
 	}
 
 	var vaultFunc vaultclient.VaultClientFunc
@@ -136,8 +143,8 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		Task:                  thisTask,
 		TaskDir:               taskDir,
 		Logger:                clientConf.Logger,
-		Consul:                consulRegMock,
-		ConsulSI:              consulapi.NewMockServiceIdentitiesClient(),
+		ConsulServices:        consulRegMock,
+		ConsulSI:              consulclient.NewMockServiceIdentitiesClient(),
 		VaultFunc:             vaultFunc,
 		StateDB:               cstate.NoopDB{},
 		StateUpdater:          NewMockTaskStateUpdater(),
@@ -152,6 +159,13 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		Wranglers:             proclib.MockWranglers(t),
 		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger),
 		AllocHookResources:    cstructs.NewAllocHookResources(),
+	}
+
+	// The alloc runner identity_hook is responsible for running the WIDMgr, so
+	// run it before returning to simulate that.
+	if err := conf.WIDMgr.Run(); err != nil {
+		trCleanup()
+		t.Fatalf("failed to run WIDMgr: %v", err)
 	}
 
 	return conf, trCleanup
@@ -1031,7 +1045,7 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	mockConsul := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	mockConsul := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
 
 	// Wait for the task to start
 	testWaitForTaskToStart(t, tr)
@@ -1119,7 +1133,7 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	mockConsul := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	mockConsul := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
 
 	testWaitForTaskToStart(t, tr)
 
@@ -1343,12 +1357,12 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	})
 	consulAgent.SetStatus("critical")
 	namespacesClient := agentconsul.NewNamespacesClient(agentconsul.NewMockNamespaces(nil), consulAgent)
-	consulClient := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
-	go consulClient.Run()
-	defer consulClient.Shutdown()
+	consulServices := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
+	go consulServices.Run()
+	defer consulServices.Shutdown()
 
-	conf.Consul = consulClient
-	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulClient, nil)
+	conf.ConsulServices = consulServices
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulServices, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -1433,7 +1447,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 
 	// set a consul token on the Nomad client's consul config, because that is
 	// what gates the action of requesting SI token(s)
-	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
 
 	// control when we get a Consul SI token
 	token := uuid.Generate()
@@ -1442,7 +1456,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 		<-waitCh
 		return map[string]string{task.Name: token}, nil
 	}
-	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
 	siClient.DeriveTokenFn = deriveFn
 
 	// start the task runner
@@ -1497,7 +1511,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 
 	// set a consul token on the Nomad client's consul config, because that is
 	// what gates the action of requesting SI token(s)
-	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
 
 	// control when we get a Consul SI token (recoverable failure on first call)
 	token := uuid.Generate()
@@ -1510,7 +1524,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 		deriveCount++
 		return nil, structs.NewRecoverableError(errors.New("try again later"), true)
 	}
-	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
 	siClient.DeriveTokenFn = deriveFn
 
 	// start the task runner
@@ -1557,10 +1571,10 @@ func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
 
 	// set a consul token on the Nomad client's consul config, because that is
 	// what gates the action of requesting SI token(s)
-	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
 
 	// SI token derivation suffers a non-retryable error
-	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
 	siClient.SetDeriveTokenError(alloc.ID, []string{task.Name}, errors.New("non-recoverable"))
 
 	tr, err := NewTaskRunner(trConfig)
@@ -1602,7 +1616,10 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "0s",
 	}
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	// Control when we get a Vault token
 	token := "1234"
@@ -1692,6 +1709,7 @@ func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
 		"run_for": "0s",
 	}
 	task.Vault = &structs.Vault{
+		Cluster:     structs.VaultDefaultCluster,
 		Policies:    []string{"default"},
 		DisableFile: true,
 	}
@@ -1741,7 +1759,10 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	ci.Parallel(t)
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	// Fail on the first attempt to derive a vault token
 	token := "1234"
@@ -1821,7 +1842,10 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "0s",
 	}
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	// Error the token derivation
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
@@ -2044,12 +2068,12 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 		Namespaces: false,
 	})
 	namespacesClient := agentconsul.NewNamespacesClient(agentconsul.NewMockNamespaces(nil), consulAgent)
-	consulClient := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
-	defer consulClient.Shutdown()
-	go consulClient.Run()
+	consulServices := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
+	defer consulServices.Shutdown()
+	go consulServices.Run()
 
-	conf.Consul = consulClient
-	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulClient, nil)
+	conf.ConsulServices = consulServices
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulServices, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -2135,7 +2159,10 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	}
 
 	// Use vault to block the start
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	// Control when we get a Vault token
 	waitCh := make(chan struct{}, 1)
@@ -2347,6 +2374,152 @@ func TestTaskRunner_Template_BlockingPreStart(t *testing.T) {
 	}
 }
 
+func TestTaskRunner_TemplateWorkloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	expectedConsulValue := "consul-value"
+	consulKVResp := fmt.Sprintf(`
+[
+    {
+        "LockIndex": 0,
+        "Key": "consul-key",
+        "Flags": 0,
+        "Value": "%s",
+        "CreateIndex": 57,
+        "ModifyIndex": 57
+    }
+]
+`, base64.StdEncoding.EncodeToString([]byte(expectedConsulValue)))
+
+	expectedVaultSecret := "vault-secret"
+	vaultSecretResp := fmt.Sprintf(`
+{
+  "data": {
+    "data": {
+      "secret": "%s"
+    },
+    "metadata": {
+      "created_time": "2023-10-18T15:58:29.65137Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 1
+    }
+  }
+}`, expectedVaultSecret)
+
+	// Start a test server for Consul and Vault.
+	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, vaultSecretResp)
+	}))
+	t.Cleanup(vaultServer.Close)
+
+	firstConsulRequest := &atomic.Bool{}
+	firstConsulRequest.Store(true)
+	consulServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !firstConsulRequest.Load() {
+			// Simulate a blocking query to avoid a tight loop in
+			// consul-template.
+			var wait time.Duration
+			if waitStr := r.FormValue("wait"); waitStr != "" {
+				wait, _ = time.ParseDuration(waitStr)
+			}
+
+			if wait != 0 {
+				doneCh := make(chan struct{})
+				t.Cleanup(func() { close(doneCh) })
+
+				timer, stop := helper.NewSafeTimer(wait)
+				t.Cleanup(stop)
+
+				select {
+				case <-timer.C:
+				case <-doneCh:
+					return
+				}
+			}
+		} else {
+			// Send response immediately if this is the first request.
+			firstConsulRequest.Store(true)
+		}
+
+		// Return an index so consul-template knows that the blocking query
+		// didn't timeout on first run.
+		// https://github.com/hashicorp/consul-template/blob/2d2654ffe96210db43306922aaefbb730a8e07f9/watch/view.go#L267-L272
+		w.Header().Set("X-Consul-Index", "57")
+		fmt.Fprintln(w, consulKVResp)
+	}))
+	t.Cleanup(consulServer.Close)
+
+	// Create allocation with a template that reads from Consul and Vault.
+	alloc := mock.BatchAlloc()
+	alloc.Job.TaskGroups[0].Count = 1
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "2s",
+	}
+	task.Consul = &structs.Consul{
+		Cluster: structs.ConsulDefaultCluster,
+	}
+	task.Vault = &structs.Vault{
+		Cluster: structs.VaultDefaultCluster,
+	}
+	task.Identities = []*structs.WorkloadIdentity{
+		{Name: task.Consul.IdentityName()},
+		{Name: task.Vault.IdentityName()},
+	}
+	task.Templates = []*structs.Template{
+		{
+			EmbeddedTmpl: `
+{{key "consul-key"}}
+{{with secret "secret/data/vault-key"}}{{.Data.data.secret}}{{end}}
+`,
+			DestPath: "local/out.txt",
+		},
+	}
+
+	// Create task runner with a Consul and Vault cluster configured.
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
+	conf.ClientConfig.ConsulConfigs = map[string]*structsc.ConsulConfig{
+		structs.ConsulDefaultCluster: {
+			Addr: consulServer.URL,
+		},
+	}
+	conf.ClientConfig.VaultConfigs = map[string]*structsc.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled: pointer.Of(true),
+			Addr:    vaultServer.URL,
+		},
+	}
+	conf.AllocHookResources.SetConsulTokens(map[string]map[string]*consulapi.ACLToken{
+		structs.ConsulDefaultCluster: {
+			task.Consul.IdentityName(): {SecretID: "consul-task-token"},
+		},
+	})
+	t.Cleanup(cleanup)
+
+	tr, err := NewTaskRunner(conf)
+	must.NoError(t, err)
+
+	// Run the task runner.
+	go tr.Run()
+	t.Cleanup(func() {
+		tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	})
+
+	// Wait for task to complete.
+	testWaitForTaskToStart(t, tr)
+
+	// Verify template was rendered with the expected content.
+	data, err := os.ReadFile(path.Join(conf.TaskDir.LocalDir, "out.txt"))
+	must.NoError(t, err)
+
+	renderedTmpl := string(data)
+	must.StrContains(t, renderedTmpl, expectedConsulValue)
+	must.StrContains(t, renderedTmpl, expectedVaultSecret)
+}
+
 // TestTaskRunner_Template_NewVaultToken asserts that a new vault token is
 // created when rendering template and that it is revoked on alloc completion
 func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
@@ -2361,7 +2534,10 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 			ChangeMode:   structs.TemplateChangeModeNoop,
 		},
 	}
-	task.Vault = &structs.Vault{Policies: []string{"default"}}
+	task.Vault = &structs.Vault{
+		Cluster:  structs.VaultDefaultCluster,
+		Policies: []string{"default"},
+	}
 
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
@@ -2440,6 +2616,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 		"run_for": "10s",
 	}
 	task.Vault = &structs.Vault{
+		Cluster:    structs.VaultDefaultCluster,
 		Policies:   []string{"default"},
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
@@ -2516,6 +2693,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 		"run_for": "10s",
 	}
 	task.Vault = &structs.Vault{
+		Cluster:      structs.VaultDefaultCluster,
 		Policies:     []string{"default"},
 		ChangeMode:   structs.VaultChangeModeSignal,
 		ChangeSignal: "SIGUSR1",
@@ -2606,8 +2784,8 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
 
-	consul := conf.Consul.(*regMock.ServiceRegistrationHandler)
-	consulOps := consul.GetOps()
+	consulServices := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
+	consulOps := consulServices.GetOps()
 	require.Len(t, consulOps, 4)
 
 	// Initial add

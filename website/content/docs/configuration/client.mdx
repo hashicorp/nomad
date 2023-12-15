@@ -163,7 +163,10 @@ client {
 - `bridge_network_hairpin_mode` `(bool: false)` - Specifies if hairpin mode
   is enabled on the network bridge created by Nomad for allocations running
   with bridge networking mode on this client. You may use the corresponding
-  node attribute `nomad.bridge.hairpin_mode` in constraints.
+  node attribute `nomad.bridge.hairpin_mode` in constraints. When hairpin mode
+  is enabled, allocations are able to reach their own IP and **all ports** bound
+  to it. Changing this value requires a reboot of the client host to take
+  effect.
 
 - `artifact` <code>([Artifact](#artifact-parameters): varied)</code> -
   Specifies controls on the behavior of task
@@ -234,7 +237,7 @@ client. To find the options supported by each individual Nomad driver, please
 see the [drivers documentation](/nomad/docs/drivers).
 
 - `"driver.allowlist"` `(string: "")` - Specifies a comma-separated list of
-  allowlisted drivers . If specified, drivers not in the allowlist will be
+  allowlisted drivers. If specified, drivers not in the allowlist will be
   disabled. If the allowlist is empty, all drivers are fingerprinted and enabled
   where applicable.
 
@@ -247,7 +250,7 @@ see the [drivers documentation](/nomad/docs/drivers).
   ```
 
 - `"driver.denylist"` `(string: "")` - Specifies a comma-separated list of
-  denylisted drivers . If specified, drivers in the denylist will be
+  denylisted drivers. If specified, drivers in the denylist will be
   disabled.
 
   ```hcl
@@ -368,7 +371,16 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `cpu` `(int: 0)` - Specifies the amount of CPU to reserve, in MHz.
 
-- `cores` `(int: 0)` - Specifies the number of CPU cores to reserve.
+- `cores` `(int: 0)` - Specifies the cpuset of CPU cores to reserve. Only
+  supported on Linux.
+
+  ```hcl
+    client {
+      reserved {
+        cores = "0-4"
+      }
+    }
+  ```
 
 - `memory` `(int: 0)` - Specifies the amount of memory to reserve, in MB.
 
@@ -568,7 +580,7 @@ and ACLs.
 ```hcl
 client {
   host_volume "ca-certificates" {
-    path = "/etc/ssl/certs"
+    path      = "/etc/ssl/certs"
     read_only = true
   }
 }
@@ -594,7 +606,7 @@ The key of the block corresponds to the name of the network used in the
 ```hcl
 client {
   host_network "public" {
-    cidr = "203.0.113.0/24"
+    cidr           = "203.0.113.0/24"
     reserved_ports = "22,80"
   }
 }
@@ -669,8 +681,8 @@ cluster.
 client {
   enabled = true
   server_join {
-    retry_join = [ "1.1.1.1", "2.2.2.2" ]
-    retry_max = 3
+    retry_join     = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max      = 3
     retry_interval = "15s"
   }
 }

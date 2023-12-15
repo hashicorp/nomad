@@ -45,4 +45,20 @@ module.exports = [
     destination: '/nomad/tools/autoscaling/concepts/policy-eval/node-selector-strategy',
     permanent: true,
   },
+  // Redirect Consul and Vault integrations page
+  {
+    source: '/nomad/docs/integrations/vault-integration',
+    destination: '/nomad/docs/integrations/vault',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/integrations/consul-integration',
+    destination: '/nomad/docs/integrations/consul',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/integrations/consul-connect',
+    destination: '/nomad/docs/integrations/consul/service-mesh',
+    permanent: true,
+  },
 ]

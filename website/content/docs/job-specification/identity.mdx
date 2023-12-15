@@ -10,16 +10,21 @@ description: |-
 
 <Placement
   groups={[
+    ['job', 'group', 'service', 'identity'],
     ['job', 'group', 'task', 'identity'],
+    ['job', 'group', 'task', 'service', 'identity'],
   ]}
 />
 
 The `identity` block allows a task access to its [Workload Identity][] via an
-environment variable or file. By default Nomad will create an identity for all
-workloads, but it is *not* exposed to a task.
+environment variable or file. Nomad will create a _default_ identity for all
+workloads, but it is *not* exposed to a task. You may also set additional
+identities intended for use with external applications such as Vault, Consul, or
+OIDC authentication.
 
-The following will expose the Workload Identity as an environment variable and
-file to the task:
+For example, the following will expose the default Workload Identity as an
+environment variable and file to the task, and a second Workload Identity
+configured for a third-party OIDC provider:
 
 ```hcl
 job "docs" {
@@ -27,8 +32,22 @@ job "docs" {
     task "api" {
 
       identity {
-        env  = true
-        file = true
+        env         = true
+        file        = true
+
+        # Restart on token renewal to get the new env var
+        change_mode = "restart"
+      }
+
+      identity {
+        name        = "example"
+        aud         = ["oidc.example.com"]
+        file        = true
+        ttl         = "1h"
+
+        # Send a HUP signal when the token file is updated
+        change_mode   = "signal"
+        change_signal = "SIGHUP"
       }
 
       # ...
@@ -39,6 +58,22 @@ job "docs" {
 
 ## `identity` Parameters
 
+- `name` `(string: "default")` - The name of the workload identity, which must
+  be unique per task. Only one `identity` block in a task can omit the `name`
+  field.
+- `aud` `([]string: nil)` - The audience field for the workload identity. This
+  should always be set for non-default identities.
+- `change_mode` `(string: "noop")` - Specifies the behavior Nomad should take when the token changes.
+
+  - `"noop"` - take no action. The default since tasks may choose to reload
+      tokens only when their current token gets rejected or implement their own
+      change detection.
+  - `"restart"` - restart the task.
+  - `"signal"` - send a configurable signal to the task. Must set `change_signal`.
+
+- `change_signal` `(string: "")` - Specifies the signal to send to the task as a
+  string like `"SIGHUP"` or `"SIGUSR1"`. This option is required if the
+  `change_mode` is `signal`.
 - `env` `(bool: false)` - If true the workload identity will be available in the
   task's `NOMAD_TOKEN` environment variable.
 - `file` `(bool: false)` - If true the workload identity will be available in
@@ -46,13 +81,277 @@ job "docs" {
   [`task.user`][taskuser] parameter is set, the token file will only be
   readable by that user. Otherwise the file is readable by everyone but is
   protected by parent directory permissions.
+- `ttl` `(string: "")` - The lifetime of the identity before it expires. The
+  client will renew the identity at roughly half the TTL. This is specified
+  using a label suffix like "30s" or "1h". You may not set a TTL on the default
+  identity. You should always set a TTL for non-default identities.
 
 ## Task API
 
 It can be convenient to combine workload identity with Nomad's [Task API]
 [taskapi] for  enabling tasks to access the Nomad API.
 
-[taskuser]: /nomad/docs/job-specification/task#user "Nomad task Block"
+## Workload Identities for Consul
+
+Jobs that need access to Consul can use Nomad workload identities for
+authentication. These identities are specified as additional `identity` blocks
+inside the task or service that will access Consul.
+
+You can configure Nomad servers to automatically add default identities for
+Consul using the [`consul.service_identity`][] and [`consul.task_identity`][]
+agent configuration. Upon job registration, the Nomad server updates tasks that
+have a [`consul`][] or [`template`][] block and services that use the Consul
+service provider to include the default identities.
+
+You can also specify these identities directly in the job. When provided, they
+override the default identities configured in the Nomad servers. Identities for
+tasks must have a [`name`](#name) that follows the pattern
+`consul_<cluster name>`. Identities for services do not need to specify a
+`name`.
+
+In Nomad Community Edition, `<cluster_name>` is always `default`, so the task
+identity name should be `consul_default`.
+
+<EnterpriseAlert>
+  Nomad Enterprise supports multiple Consul clusters. The value of <code>
+  &lt;cluster_name&gt;</code> must be the same as the <a href="/nomad/docs/job-specification/consul#cluster">
+  <code>consul.cluster</code></a> value for the task.
+</EnterpriseAlert>
+
+Refer to [Nomad Workload Identities][int_consul_wid] section of the Consul
+integration documentation for more information.
+
+<Tabs>
+<Tab heading="Nomad Community Edition" group="ce">
+<CodeBlockConfig highlight="3,14-17,30-34">
+
+```hcl
+job "httpd" {
+  group "httpd" {
+    consul {}
+
+    network {
+      port "http" {}
+    }
+
+    service {
+      provider = "consul"
+      name     = "httpd"
+      port     = "http"
+
+      identity {
+        aud = ["consul.io"]
+        ttl = "1h"
+      }
+    }
+
+    task "httpd" {
+      driver = "docker"
+
+      config {
+        image   = "busybox:1.36"
+        command = "httpd"
+        args    = ["-f", "-p", "${NOMAD_PORT_http}"]
+        ports   = ["http"]
+      }
+
+      identity {
+        name = "consul_default"
+        aud  = ["consul.io"]
+        ttl  = "1h"
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="Nomad Enterprise" group="ent">
+<CodeBlockConfig highlight="3-5,16-19,34-38">
+
+```hcl
+job "httpd" {
+  group "httpd" {
+    consul {
+      cluster = "prod"
+    }
+
+    network {
+      port "http" {}
+    }
+
+    service {
+      provider = "consul"
+      name     = "httpd"
+      port     = "http"
+
+      identity {
+        aud = ["consul.io"]
+        ttl = "1h"
+      }
+    }
+
+    task "httpd" {
+      driver = "docker"
+
+      config {
+        image   = "busybox:1.36"
+        command = "httpd"
+        args    = ["-f", "-p", "${NOMAD_PORT_http}"]
+        ports   = ["http"]
+      }
+
+      identity {
+        name = "consul_prod"
+        aud  = ["consul.io"]
+        ttl  = "1h"
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+</Tabs>
+
+## Workload Identities for Vault
+
+Jobs that need access to Vault can use Nomad workload identities for
+authentication. These identities are specified as additional `identity` blocks
+inside the task that will access Vault.
+
+You can configure Nomad servers to automatically add default identities for
+Vault using the [`vault.default_identity`][] agent configuration. Upon job
+registration, the Nomad server updates tasks that have a [`vault`][] block to
+include the default identity.
+
+You can also specify these identities directly in the job. When provided, they
+override the default identity configured in the Nomad servers. The identity
+[`name`](#name) must follow the pattern `vault_<cluster name>`.
+
+In Nomad Community Edition, `<cluster_name>` is always `default`, so the
+identity name should be `vault_default`.
+
+<EnterpriseAlert>
+  Nomad Enterprise supports multiple Vault clusters. The value of <code>
+  &lt;cluster_name&gt;</code> must be the same as the <a href="/nomad/docs/job-specification/vault#cluster">
+  <code>vault.cluster</code></a> value for the task.
+</EnterpriseAlert>
+
+Refer to [Nomad Workload Identities][int_vault_wid] section of the Vault
+integration documentation for more information.
+
+<Tabs>
+<Tab heading="Nomad Community Edition" group="ce">
+<CodeBlockConfig highlight="19,21-25">
+
+```hcl
+job "mongo" {
+  namespace = "default"
+
+  group "db" {
+    network {
+      port "db" {
+        to = 27017
+      }
+    }
+
+    task "mongo" {
+      driver = "docker"
+
+      config {
+        image = "mongo:7"
+        ports = ["db"]
+      }
+
+      vault {}
+
+      identity {
+        name = "vault_default"
+        aud  = ["vault.io"]
+        ttl  = "1h"
+      }
+
+      template {
+        data        = <<EOF
+{{with secret "kv/data/default/mongo/config"}}
+MONGO_INITDB_ROOT_USERNAME=root
+MONGO_INITDB_ROOT_PASSWORD={{.Data.data.root_password}}
+{{end}}
+EOF
+        destination = "secrets/env"
+        env         = true
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+<Tab heading="Nomad Enterprise" group="ent">
+<CodeBlockConfig highlight="19-21,23-27">
+
+```hcl
+job "mongo" {
+  namespace = "default"
+
+  group "db" {
+    network {
+      port "db" {
+        to = 27017
+      }
+    }
+
+    task "mongo" {
+      driver = "docker"
+
+      config {
+        image = "mongo:7"
+        ports = ["db"]
+      }
+
+      vault {
+        cluster = "prod"
+      }
+
+      identity {
+        name = "vault_prod"
+        aud  = ["vault.io"]
+        ttl  = "1h"
+      }
+
+      template {
+        data        = <<EOF
+{{with secret "kv/data/default/mongo/config"}}
+MONGO_INITDB_ROOT_USERNAME=root
+MONGO_INITDB_ROOT_PASSWORD={{.Data.data.root_password}}
+{{end}}
+EOF
+        destination = "secrets/env"
+        env         = true
+      }
+    }
+  }
+}
+```
+
+</CodeBlockConfig>
+</Tab>
+</Tabs>
+
 [Workload Identity]: /nomad/docs/concepts/workload-identity "Nomad Workload Identity"
-[windows]: https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
+[`consul.cluster`]: /nomad/docs/job-specification/consul#cluster
+[`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
+[`consul.task_identity`]: /nomad/docs/configuration/consul#task_identity
+[`consul`]: /nomad/docs/job-specification/consul
+[`template`]: /nomad/docs/job-specification/template
+[`vault.default_identity`]: /nomad/docs/configuration/vault#default_identity
+[`vault`]: /nomad/docs/job-specification/vault
+[int_consul_wid]: /nomad/docs/integrations/consul-integration#nomad-workload-identities
+[int_vault_wid]: /nomad/docs/integrations/vault-integration#nomad-workload-identities
 [taskapi]: /nomad/api-docs/task-api
+[taskuser]: /nomad/docs/job-specification/task#user "Nomad task Block"
+[windows]: https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/

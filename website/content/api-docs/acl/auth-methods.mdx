@@ -1,16 +1,16 @@
 ---
 layout: api
-page_title: ACL Auth Methods - HTTP API
+page_title: ACL auth methods - HTTP API
 description: The /acl/auth-methods endpoints are used to configure and manage ACL auth methods.
 ---
 
-# ACL Auth Methods HTTP API
+# ACL auth methods HTTP API
 
-The `/acl/auth-methods` and `/acl/auth-method` endpoints are used to manage ACL Auth Methods.
+The `/acl/auth-methods` and `/acl/auth-method` endpoints are used to manage ACL auth methods.
 
-## Create Auth Method
+## Create auth method
 
-This endpoint creates an ACL Auth Method. The request is always forwarded to the
+This endpoint creates an ACL auth method. The request is always forwarded to the
 authoritative region.
 
 | Method | Path               | Produces           |
@@ -27,15 +27,19 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `Name` `(string: <required>)` - Names is the identifier of the ACL Auth
-  Method.  The name can contain alphanumeric characters, dashes, and underscores.
+- `Name` `(string: <required>)` - Names is the identifier of the ACL auth
+  method.  The name can contain alphanumeric characters, dashes, and underscores.
   This name must be unique and must not exceed 128 characters.
 
-- `Type` `(string: <required>)` - ACL Auth Role SSO identifier.
+- `Type` `(string: <required>)` - ACL auth role SSO identifier.
 
-- `TokenLocality` `(string: <required>)` - Defines whether the ACL Auth Method
+- `TokenLocality` `(string: <required>)` - Defines whether the ACL auth method
   creates a local or global token when performing SSO login. This field must be
   set to either "local" or "global"
+
+- `TokenNameFormat` `(string <optional>)` - Defines the token name format for the
+  generated tokens This can be lightly templated using HIL '${foo}' syntax. 
+  Defaults to '${auth_method_type}-${auth_method_name}'
 
 - `MaxTokenTTL` `(duration: <required>)` - Defines the maximum life of a token created
   by this method. When set, it will initialize the `ExpirationTime` field on all
@@ -50,13 +54,13 @@ The table below shows this endpoint's support for
   the auth method. This parameter is part of the auth method configuration, not
   specific to Nomad.
 
-  - `OIDCDiscoveryURL` `(string: <required>)` - The OIDC Discovery URL, without
+  - `OIDCDiscoveryURL` `(string: <required>)` - The OIDC discovery URL, without
     any .well-known component (base path).
 
-  - `OIDCClientID` `(string: <required>)` - The OAuth Client ID configured with
+  - `OIDCClientID` `(string: <required>)` - The OAuth client ID configured with
     your OIDC provider.
 
-  - `OIDCClientSecret` `(string: <required>)` - The OAuth Client Secret
+  - `OIDCClientSecret` `(string: <required>)` - The OAuth client secret
     configured with your OIDC provider.
 
   - `OIDCScopes` `(array<string>)` - List of OIDC scopes.
@@ -68,7 +72,7 @@ The table below shows this endpoint's support for
     redirect_uri. Must be non-empty.
 
   - `DiscoveryCaPem` `(array<string>)` - PEM encoded CA certs for use by the TLS
-    client used to talk with the OIDC Discovery URL. If not set, system
+    client used to talk with the OIDC discovery URL. If not set, system
     certificates are used.
 
   - `SigningAlgs` `(array<string>)` - A list of supported signing algorithms.
@@ -85,13 +89,14 @@ The table below shows this endpoint's support for
     copied to a metadata field (value). Use this if the claim you are capturing is
     list-like (such as groups).
 
-### Sample Payload
+### Sample payload
 
 ```json
 {
   "Name": "example-acl-auth-method",
   "Type": "OIDC",
   "TokenLocality": "local",
+  "TokenNameFormat": "${auth_method_type}-${value.user}",
   "MaxTokenTTL": "1h0m0s",
   "Default": false,
   "Config": {
@@ -118,7 +123,7 @@ The table below shows this endpoint's support for
 }
 ```
 
-### Sample Request
+### Sample request
 
 ```shell-session
 $ curl \
@@ -128,7 +133,7 @@ $ curl \
     https://localhost:4646/v1/acl/auth-method
 ```
 
-### Sample Response
+### Sample response
 
 ```json
 {
@@ -136,6 +141,7 @@ $ curl \
     "Name": "example-acl-auth-method",
     "Type": "OIDC",
     "TokenLocality": "local",
+    "TokenNameFormat": "${auth_method_type}-${value.user}",
     "Default": false,
     "Config": {
         "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
@@ -167,9 +173,9 @@ $ curl \
 }
 ```
 
-## Update Auth Method
+## Update auth method
 
-This endpoint updates an existing ACL Auth Method. The request is always
+This endpoint updates an existing ACL auth method. The request is always
 forwarded to the authoritative region.
 
 | Method | Path                            | Produces           |
@@ -185,16 +191,20 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
 
 ### Parameters
 
-- `Name` `(string: <required>)` - Names is the identifier of the ACL Auth
-  Method.  The name can contain alphanumeric characters, dashes, and underscores.
+- `Name` `(string: <required>)` - Names is the identifier of the ACL auth
+  method.  The name can contain alphanumeric characters, dashes, and underscores.
   This name must be unique and must not exceed 128 characters.
 
-- `Type` `(string: <required>)` - ACL Auth Role SSO identifier. Currently, the
+- `Type` `(string: <required>)` - ACL auth role SSO identifier. Currently, the
   only supported Type is "OIDC."
 
-- `TokenLocality` `(string: "")` - Defines whether the ACL Auth Method
+- `TokenLocality` `(string: "")` - Defines whether the ACL auth method
   creates a local or global token when performing SSO login. This field must be
   set to either "local" or "global"
+
+- `TokenNameFormat` `(string <optional>)` - Defines the token name format for the
+  generated tokens This can be lightly templated using HIL '${foo}' syntax. 
+  Defaults to '${auth_method_type}-${auth_method_name}'
 
 - `MaxTokenTTL` `(duration: <required>)` - Defines the maximum life of a token created
   by this method. When set it will initialize the `ExpirationTime` field on all
@@ -202,20 +212,20 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
   not persisted beyond its initial use. Can be specified in the form of `"60s"` or
   `"5m"` (i.e., 60 seconds or 5 minutes, respectively).
 
-- `Default` `(bool: false)` - Defines whether this ACL Auth Method is to be
+- `Default` `(bool: false)` - Defines whether this ACL auth method is to be
   set as default when running `nomad login` command.
 
 - `Config` `(ACLAuthMethodConfig: nil)` - The raw configuration to use for
   the auth method. This parameter is part of the auth method configuration, not
   specific to Nomad.
 
-  - `OIDCDiscoveryURL` `(string: "")` - The OIDC Discovery URL, without
+  - `OIDCDiscoveryURL` `(string: "")` - The OIDC discovery URL, without
     any .well-known component (base path).
 
-  - `OIDCClientID` `(string: "")` - The OAuth Client ID configured with
+  - `OIDCClientID` `(string: "")` - The OAuth client ID configured with
     your OIDC provider.
 
-  - `OIDCClientSecret` `(string: "")` - The OAuth Client Secret
+  - `OIDCClientSecret` `(string: "")` - The OAuth client secret
     configured with your OIDC provider.
 
   - `OIDCScopes` `(array<string>)` - List of OIDC scopes.
@@ -227,7 +237,7 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
     redirect_uri. Must be non-empty.
 
   - `DiscoveryCaPem` `(array<string>)` - PEM encoded CA certs for use by the TLS
-    client used to talk with the OIDC Discovery URL. If not set, system
+    client used to talk with the OIDC discovery URL. If not set, system
     certificates are used.
 
   - `SigningAlgs` `(array<string>)` - A list of supported signing algorithms.
@@ -251,6 +261,7 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
   "Name": "example-acl-auth-method",
   "Type": "OIDC",
   "Tokenlocality": "global",
+  "TokenNameFormat": "${auth_method_type}-${value.user}",
   "Maxtokenttl": "1h0m0s",
   "Default": true,
   "Config": {
@@ -295,6 +306,7 @@ $ curl \
     "Name": "example-acl-auth-method",
     "Type": "OIDC",
     "TokenLocality": "global",
+    "TokenNameFormat": "${auth_method_type}-${value.user}",
     "Default": true,
     "Config": {
         "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
@@ -324,9 +336,9 @@ $ curl \
 }
 ```
 
-## List Auth Methods
+## List auth methods
 
-This endpoint lists all ACL Auth Methods. This lists the auth methods that have
+This endpoint lists all ACL auth methods. This lists the auth methods that have
 been replicated to the region, and may lag behind the authoritative region.
 
 | Method | Path                | Produces           |
@@ -342,7 +354,7 @@ The table below shows this endpoint's support for
 | ---------------- | ----------------- | ---- |
 | `YES`            | `all`             | None |
 
-### Sample Request
+### Sample request
 
 ```shell-session
 $ curl \
@@ -350,7 +362,7 @@ $ curl \
     https://localhost:4646/v1/acl/auth-methods
 ```
 
-### Sample Response
+### Sample response
 
 ```json
 [
@@ -364,7 +376,7 @@ $ curl \
 ]
 ```
 
-## Read Auth Method by Name
+## Read auth method by name
 
 This endpoint reads an ACL Auth Method with the given name. This queries the
 auth method that has been replicated to the region, and may lag behind the
@@ -385,10 +397,10 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:method_name` `(string: <required>)` - Specifies the name of the ACL Auth
-  Method. This is specified as part of the path.
+- `:method_name` `(string: <required>)` - Specifies the name of the ACL auth
+  method. This is specified as part of the path.
 
-### Sample Request
+### Sample request
 
 ```shell-session
 $ curl \
@@ -396,7 +408,7 @@ $ curl \
     https://localhost:4646/v1/acl/auth-method/example-acl-auth-method
 ```
 
-### Sample Response
+### Sample response
 
 ```json
 {
@@ -404,6 +416,7 @@ $ curl \
     "Name": "example-acl-auth-method",
     "Type": "OIDC",
     "TokenLocality": "global",
+    "TokenNameFormat": "${auth_method_type}-${value.user}",
     "Default": true,
     "Config": {
       "OIDCDiscoveryURL": "https://my-corp-app-name.auth0.com/",
@@ -433,9 +446,9 @@ $ curl \
 }
 ```
 
-## Delete Auth Method
+## Delete auth method
 
-This endpoint deletes the ACL Auth Method as identified by its name. This
+This endpoint deletes the ACL auth method as identified by its name. This
 request is always forwarded to the authoritative region.
 
 | Method   | Path                            | Produces       |

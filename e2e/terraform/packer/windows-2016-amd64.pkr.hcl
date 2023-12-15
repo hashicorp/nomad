@@ -14,7 +14,7 @@ locals {
 source "amazon-ebs" "latest_windows_2016" {
   ami_name       = "nomad-e2e-${local.version}-windows-2016-amd64-${local.timestamp}"
   communicator   = "ssh"
-  instance_type  = "t2.medium"
+  instance_type  = "m7a.large"
   region         = "us-east-1"
   user_data_file = "windows-2016-amd64/userdata.ps1" # enables ssh
   ssh_timeout    = "10m"

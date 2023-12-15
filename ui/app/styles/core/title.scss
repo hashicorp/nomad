@@ -23,3 +23,22 @@
     justify-content: space-between;
   }
 }
+
+// Job page header, actions bar
+.job-page-header {
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: $z-base - 1;
+  .hds-page-header__main {
+    flex-direction: unset;
+    .hds-page-header__actions {
+      align-items: stretch;
+    }
+  }
+  .exec-open-button,
+  .two-step-button {
+    & > button {
+      height: 100%;
+    }
+  }
+}

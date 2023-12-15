@@ -1,5 +1,5 @@
 ```release-note:breaking-change
-raft: The default raft protocol version is now 3 so you must follow the [Upgrading to Raft Protocol 3](https://www.nomadproject.io/docs/upgrade#upgrading-to-raft-protocol-3) guide when upgrading an existing cluster to Nomad 1.3.0. Downgrading the raft protocol version is not supported.
+raft: The default raft protocol version is now 3 so you must follow the [Upgrading to Raft Protocol 3](https://developer.hashicorp.com/nomad/docs/upgrade#upgrading-to-raft-protocol-3) guide when upgrading an existing cluster to Nomad 1.3.0. Downgrading the raft protocol version is not supported.
 ```
 
 ```release-note:improvement

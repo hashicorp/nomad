@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	github.com/hashicorp/go-set/v2 v2.0.0-alpha.1
+	github.com/hashicorp/go-set/v2 v2.1.0
 	github.com/shoenig/test v0.6.7
 )
 

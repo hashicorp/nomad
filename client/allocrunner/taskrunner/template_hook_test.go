@@ -6,9 +6,14 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"path"
 	"sync"
 	"testing"
+	"time"
 
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -16,10 +21,12 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 )
 
@@ -27,95 +34,236 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
-	// mock some consul tokens
-	hr := cstructs.NewAllocHookResources()
-	hr.SetConsulTokens(
-		map[string]map[string]string{
+	// Create some alloc hook resources, one with tokens and an empty one.
+	defaultToken := uuid.Generate()
+	hrTokens := cstructs.NewAllocHookResources()
+	hrTokens.SetConsulTokens(
+		map[string]map[string]*consulapi.ACLToken{
 			structs.ConsulDefaultCluster: {
-				fmt.Sprintf("consul_%s", structs.ConsulDefaultCluster): uuid.Generate(),
-			},
-			"test": {
-				"consul_test": uuid.Generate(),
+				fmt.Sprintf("consul_%s", structs.ConsulDefaultCluster): &consulapi.ACLToken{
+					SecretID: defaultToken,
+				},
 			},
 		},
 	)
-
-	a := mock.Alloc()
-	clientConfig := &config.Config{Region: "global"}
-	envBuilder := taskenv.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], clientConfig.Region)
-	taskHooks := trtesting.NewMockTaskHooks()
-
-	conf := &templateHookConfig{
-		logger:        logger,
-		lifecycle:     taskHooks,
-		events:        &trtesting.MockEmitter{},
-		clientConfig:  clientConfig,
-		envBuilder:    envBuilder,
-		hookResources: hr,
-	}
+	hrEmpty := cstructs.NewAllocHookResources()
 
 	tests := []struct {
-		name        string
-		req         *interfaces.TaskPrestartRequest
-		wantErr     bool
-		wantErrMsg  string
-		consulToken string
+		name            string
+		taskConsul      *structs.Consul
+		groupConsul     *structs.Consul
+		hr              *cstructs.AllocHookResources
+		wantErrMsg      string
+		wantConsulToken string
+		legacyFlow      bool
 	}{
 		{
-			"task with no Consul WI",
-			&interfaces.TaskPrestartRequest{
-				Task:    &structs.Task{},
-				TaskDir: &allocdir.TaskDir{Dir: "foo"},
-			},
-			false,
-			"",
-			"",
+			// COMPAT remove in 1.9+
+			name:            "legecy flow",
+			hr:              hrEmpty,
+			legacyFlow:      true,
+			wantConsulToken: "",
 		},
 		{
-			"task with Consul WI but no corresponding identity",
-			&interfaces.TaskPrestartRequest{
-				Task: &structs.Task{
-					Name:   "foo",
-					Consul: &structs.Consul{Cluster: "bar"},
-				},
-				TaskDir: &allocdir.TaskDir{Dir: "foo"},
-			},
-			true,
-			"consul tokens for cluster bar requested by task foo not found",
-			"",
+			name:       "task missing Consul token",
+			hr:         hrEmpty,
+			wantErrMsg: "not found",
 		},
 		{
-			"task with Consul WI",
-			&interfaces.TaskPrestartRequest{
-				Task: &structs.Task{
-					Name:   "foo",
-					Consul: &structs.Consul{Cluster: "default"},
-				},
-				TaskDir: &allocdir.TaskDir{Dir: "foo"},
+			name:            "task without consul blocks uses default cluster",
+			hr:              hrTokens,
+			wantConsulToken: defaultToken,
+		},
+		{
+			name: "task with consul block at task level",
+			hr:   hrTokens,
+			taskConsul: &structs.Consul{
+				Cluster: structs.ConsulDefaultCluster,
 			},
-			false,
-			"",
-			hr.GetConsulTokens()[structs.ConsulDefaultCluster]["consul_default"],
+			wantConsulToken: defaultToken,
+		},
+		{
+			name: "task with consul block at group level",
+			hr:   hrTokens,
+			groupConsul: &structs.Consul{
+				Cluster: structs.ConsulDefaultCluster,
+			},
+			wantConsulToken: defaultToken,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			a := mock.Alloc()
+
+			task := a.Job.TaskGroups[0].Tasks[0]
+			if !tt.legacyFlow {
+				task.Identities = []*structs.WorkloadIdentity{
+					{Name: fmt.Sprintf("%s_%s",
+						structs.ConsulTaskIdentityNamePrefix,
+						structs.ConsulDefaultCluster,
+					)},
+				}
+			}
+
+			clientConfig := &config.Config{Region: "global"}
+			envBuilder := taskenv.NewBuilder(mock.Node(), a, task, clientConfig.Region)
+			taskHooks := trtesting.NewMockTaskHooks()
+
+			conf := &templateHookConfig{
+				alloc:         a,
+				logger:        logger,
+				lifecycle:     taskHooks,
+				events:        &trtesting.MockEmitter{},
+				clientConfig:  clientConfig,
+				envBuilder:    envBuilder,
+				hookResources: tt.hr,
+			}
 			h := &templateHook{
 				config:       conf,
 				logger:       logger,
 				managerLock:  sync.Mutex{},
 				driverHandle: nil,
 			}
-
-			err := h.Prestart(context.Background(), tt.req, nil)
-			if tt.wantErr {
-				must.NotNil(t, err)
-				must.Eq(t, tt.wantErrMsg, err.Error())
-			} else {
-				must.Nil(t, err)
+			req := &interfaces.TaskPrestartRequest{
+				Task:    a.Job.TaskGroups[0].Tasks[0],
+				TaskDir: &allocdir.TaskDir{Dir: "foo"},
 			}
 
-			must.Eq(t, tt.consulToken, h.consulToken)
+			err := h.Prestart(context.Background(), req, nil)
+			if tt.wantErrMsg != "" {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tt.wantErrMsg)
+			} else {
+				must.NoError(t, err)
+			}
+
+			must.Eq(t, tt.wantConsulToken, h.consulToken)
+		})
+	}
+}
+
+func Test_templateHook_Prestart_Vault(t *testing.T) {
+	ci.Parallel(t)
+
+	secretsResp := `
+{
+  "data": {
+    "data": {
+      "secret": "secret"
+    },
+    "metadata": {
+      "created_time": "2023-10-18T15:58:29.65137Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 1
+    }
+  }
+}`
+
+	// Start test server to simulate Vault cluster responses.
+	reqCh := make(chan any)
+	defaultVaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqCh <- struct{}{}
+		fmt.Fprintln(w, secretsResp)
+	}))
+	t.Cleanup(defaultVaultServer.Close)
+
+	// Setup client with Vault config.
+	clientConfig := config.DefaultConfig()
+	clientConfig.TemplateConfig.DisableSandbox = true
+	clientConfig.VaultConfigs = map[string]*structsc.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Name:    structs.VaultDefaultCluster,
+			Enabled: pointer.Of(true),
+			Addr:    defaultVaultServer.URL,
+		},
+	}
+
+	testCases := []struct {
+		name            string
+		vault           *structs.Vault
+		expectedCluster string
+	}{
+		{
+			name: "use default cluster",
+			vault: &structs.Vault{
+				Cluster: structs.VaultDefaultCluster,
+			},
+			expectedCluster: structs.VaultDefaultCluster,
+		},
+		{
+			name:            "use default cluster if no vault block is provided",
+			vault:           nil,
+			expectedCluster: structs.VaultDefaultCluster,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Setup alloc and task to connect to Vault cluster.
+			alloc := mock.MinAlloc()
+			task := alloc.Job.TaskGroups[0].Tasks[0]
+			task.Vault = tc.vault
+
+			// Setup template hook.
+			taskDir := t.TempDir()
+			hookConfig := &templateHookConfig{
+				alloc:        alloc,
+				logger:       testlog.HCLogger(t),
+				lifecycle:    trtesting.NewMockTaskHooks(),
+				events:       &trtesting.MockEmitter{},
+				clientConfig: clientConfig,
+				envBuilder:   taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region),
+				templates: []*structs.Template{
+					{
+						EmbeddedTmpl: `{{with secret "secret/data/test"}}{{.Data.data.secret}}{{end}}`,
+						ChangeMode:   structs.TemplateChangeModeNoop,
+						DestPath:     path.Join(taskDir, "out.txt"),
+					},
+				},
+			}
+			hook := newTemplateHook(hookConfig)
+
+			// Start template hook with a timeout context to ensure it exists.
+			req := &interfaces.TaskPrestartRequest{
+				Task:    task,
+				TaskDir: &allocdir.TaskDir{Dir: taskDir},
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			t.Cleanup(cancel)
+
+			// Start in a goroutine because Prestart() blocks until first
+			// render.
+			hookErrCh := make(chan error)
+			go func() {
+				err := hook.Prestart(ctx, req, nil)
+				hookErrCh <- err
+			}()
+
+			var gotRequest bool
+		LOOP:
+			for {
+				select {
+				// Register mock Vault server received a request.
+				case <-reqCh:
+					gotRequest = true
+
+				// Verify test doesn't timeout.
+				case <-ctx.Done():
+					must.NoError(t, ctx.Err())
+					return
+
+				// Verify hook.Prestart() doesn't errors.
+				case err := <-hookErrCh:
+					must.NoError(t, err)
+					break LOOP
+				}
+			}
+
+			// Verify mock Vault server received a request.
+			must.True(t, gotRequest)
 		})
 	}
 }

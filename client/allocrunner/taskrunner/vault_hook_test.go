@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -23,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -70,6 +72,13 @@ func setupTestVaultHook(t *testing.T, config *vaultHookConfig) *vaultHook {
 	if config.vaultBlock == nil {
 		config.vaultBlock = config.task.Vault
 	}
+	if config.vaultConfigsFunc == nil {
+		config.vaultConfigsFunc = func(hclog.Logger) map[string]*sconfig.VaultConfig {
+			return map[string]*sconfig.VaultConfig{
+				"default": sconfig.DefaultVaultConfig(),
+			}
+		}
+	}
 	if config.clientFunc == nil {
 		config.clientFunc = func(cluster string) (vaultclient.VaultClient, error) {
 			return vaultclient.NewMockVaultClient(cluster)
@@ -105,6 +114,8 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 	testCases := []struct {
 		name         string
 		task         *structs.Task
+		configs      map[string]*sconfig.VaultConfig
+		expectRole   string
 		expectLegacy bool
 	}{
 		{
@@ -128,6 +139,61 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 			},
 		},
 		{
+			name: "jwt flow with role",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster: structs.VaultDefaultCluster,
+					Role:    "task-role",
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_default"},
+				},
+			},
+			configs: map[string]*sconfig.VaultConfig{
+				"default": {
+					Role: "client-role",
+				},
+			},
+			expectRole: "task-role",
+		},
+		{
+			name: "jwt flow with role from client",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster: structs.VaultDefaultCluster,
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_default"},
+				},
+			},
+			configs: map[string]*sconfig.VaultConfig{
+				"default": {
+					Role: "client-role",
+				},
+			},
+			expectRole: "client-role",
+		},
+		{
+			name: "jwt flow with role from client and non-default cluster",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster: "prod",
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_prod"},
+				},
+			},
+			configs: map[string]*sconfig.VaultConfig{
+				"default": {
+					Role: "client-role",
+				},
+				"prod": {
+					Role: "client-prod-role",
+				},
+			},
+			expectRole: "client-prod-role",
+		},
+		{
 			name: "disable file",
 			task: &structs.Task{
 				Vault: &structs.Vault{
@@ -149,6 +215,14 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 			hook := setupTestVaultHook(t, &vaultHookConfig{
 				task:  tc.task,
 				alloc: alloc,
+				vaultConfigsFunc: func(hclog.Logger) map[string]*sconfig.VaultConfig {
+					if tc.configs != nil {
+						return tc.configs
+					}
+					return map[string]*sconfig.VaultConfig{
+						"default": sconfig.DefaultVaultConfig(),
+					}
+				},
 			})
 
 			// Ensure Prestart() returns within a reasonable time.
@@ -189,6 +263,16 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 				token = tokens[swid.JWT]
 			}
 			must.NotEq(t, "", token)
+
+			// Token must be derived with correct role.
+			//
+			// MockVaultClient generates random UUIDv4 tokens, but append the
+			// role when requested.
+			if tc.expectRole != "" {
+				must.StrHasSuffix(t, tc.expectRole, token)
+			} else {
+				must.UUIDv4(t, token)
+			}
 
 			// Token must be set in token updater.
 			updater := (hook.updater).(*vaultTokenUpdaterMock)

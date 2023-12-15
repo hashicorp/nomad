@@ -568,7 +568,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	// Setup Consul discovery if enabled
-	if cfg.ConsulConfig.ClientAutoJoin != nil && *cfg.ConsulConfig.ClientAutoJoin {
+	if cfg.GetDefaultConsul().ClientAutoJoin != nil && *cfg.GetDefaultConsul().ClientAutoJoin {
 		c.shutdownGroup.Go(c.consulDiscovery)
 		if c.servers.NumServers() == 0 {
 			// No configured servers; trigger discovery manually
@@ -1206,43 +1206,35 @@ func (c *Client) restoreState() error {
 		return nil
 	}
 
-	//XXX REMOVED! make a note in backward compat / upgrading doc
-	// COMPAT: Remove in 0.7.0
-	// 0.6.0 transitioned from individual state files to a single bolt-db.
-	// The upgrade path is to:
-	// Check if old state exists
-	//   If so, restore from that and delete old state
-	// Restore using state database
-
 	// Restore allocations
 	allocs, allocErrs, err := c.stateDB.GetAllAllocations()
 	if err != nil {
 		return err
 	}
-
 	for allocID, err := range allocErrs {
+		// The boltdb values don't exist or didn't decode correctly. The state
+		// store is corrupt or there was a backwards incompatibility. Either way
+		// log it so we can debug it with operator client-state command.
 		c.logger.Error("error restoring alloc", "error", err, "alloc_id", allocID)
-		//TODO Cleanup
-		// Try to clean up alloc dir
-		// Remove boltdb entries?
-		// Send to server with clientstatus=failed
 	}
 
 	// Load each alloc back
 	for _, alloc := range allocs {
 
-		// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
-		// See hasLocalState for details.  Skipping suspicious allocs
-		// now.  If allocs should be run, they will be started when the client
-		// gets allocs from servers.
+		// If the alloc has no task state, we most likely stopped the client
+		// after the allocrunner was created but before tasks could
+		// start. Remove the client state so that we can start over with this
+		// alloc if the server still wants to place it here.
 		if !c.hasLocalState(alloc) {
-			c.logger.Warn("found an alloc without any local state, skipping restore", "alloc_id", alloc.ID)
+			c.logger.Warn(
+				"found an alloc without any local state, deleting from client state db",
+				"alloc_id", alloc.ID)
+			c.stateDB.DeleteAllocationBucket(alloc.ID, state.WithBatchMode())
 			continue
 		}
 
-		//XXX On Restore we give up on watching previous allocs because
-		//    we need the local AllocRunners initialized first. We could
-		//    add a second loop to initialize just the alloc watcher.
+		// On Restore we give up on watching previous allocs because we need the
+		// local AllocRunners initialized first.
 		prevAllocWatcher := allocwatcher.NoopPrevAlloc{}
 		prevAllocMigrator := allocwatcher.NoopPrevAlloc{}
 
@@ -1305,11 +1297,15 @@ func (c *Client) restoreState() error {
 }
 
 // hasLocalState returns true if we have any other associated state
-// with alloc beyond the task itself
+// with alloc beyond the task itself. We want to detect two possible scenarios:
 //
-// Useful for detecting if a potentially completed alloc got resurrected
-// after AR was destroyed.  In such cases, re-running the alloc lead to
-// unexpected reruns and may lead to process and task exhaustion on node.
+//  1. A potentially completed alloc got resurrected after AR was destroyed. In
+//     such cases, re-running the alloc leads to unexpected reruns and may lead
+//     to process and task exhaustion on node.
+//
+//  2. The client stopped after the allocrunner was persisted to disk but before
+//     tasks started. In this case, we don't restart the AR and instead wait until
+//     we get the desired state from the server.
 //
 // The heuristic used here is an alloc is suspect if we see no other information
 // and no other task/status info is found.
@@ -1321,8 +1317,6 @@ func (c *Client) restoreState() error {
 // See:
 //   - https://github.com/hashicorp/nomad/pull/6207
 //   - https://github.com/hashicorp/nomad/issues/5984
-//
-// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
 func (c *Client) hasLocalState(alloc *structs.Allocation) bool {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
@@ -2666,10 +2660,11 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 		return
 	}
 
+	alloc := ar.Alloc()
 	// Reconnect unknown allocations if they were updated and are not terminal.
 	reconnect := update.ClientStatus == structs.AllocClientStatusUnknown &&
-		update.AllocModifyIndex > ar.Alloc().AllocModifyIndex &&
-		!update.ServerTerminalStatus()
+		update.AllocModifyIndex > alloc.AllocModifyIndex &&
+		(!update.ServerTerminalStatus() || !alloc.PreventRescheduleOnLost())
 	if reconnect {
 		err = ar.Reconnect(update)
 		if err != nil {
@@ -2754,7 +2749,7 @@ func (c *Client) newAllocRunnerConfig(
 		CSIManager:          c.csimanager,
 		CheckStore:          c.checkStore,
 		ClientConfig:        c.GetConfig(),
-		Consul:              c.consulServices,
+		ConsulServices:      c.consulServices,
 		ConsulProxiesFunc:   c.consulProxiesFunc,
 		ConsulSI:            c.tokensClient,
 		DeviceManager:       c.devicemanager,
@@ -3014,7 +3009,7 @@ func taskIsPresent(taskName string, tasks []*structs.Task) bool {
 // triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
 	config := c.GetConfig()
-	if config.ConsulConfig.ClientAutoJoin != nil && *config.ConsulConfig.ClientAutoJoin {
+	if config.GetDefaultConsul() != nil && *config.GetDefaultConsul().ClientAutoJoin {
 		select {
 		case c.triggerDiscoveryCh <- struct{}{}:
 			// Discovery goroutine was released to execute
@@ -3059,7 +3054,7 @@ func (c *Client) consulDiscoveryImpl() error {
 		dcs = dcs[0:min(len(dcs), datacenterQueryLimit)]
 	}
 
-	serviceName := c.GetConfig().ConsulConfig.ServerServiceName
+	serviceName := c.GetConfig().GetDefaultConsul().ServerServiceName
 	var mErr multierror.Error
 	var nomadServers servers.Servers
 	consulLogger.Debug("bootstrap contacting Consul DCs", "consul_dcs", dcs)

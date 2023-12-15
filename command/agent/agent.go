@@ -507,24 +507,25 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.FailoverHeartbeatTTL = failoverTTL
 	}
 
-	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ServerServiceName == "" {
+	// Add the Consul and Vault configs
+	conf.ConsulConfigs = helper.SliceToMap[map[string]*config.ConsulConfig](
+		agentConfig.Consuls,
+		func(cfg *config.ConsulConfig) string { return cfg.Name },
+	)
+
+	consul := conf.ConsulConfigs[structs.ConsulDefaultCluster]
+	if *consul.AutoAdvertise && consul.ServerServiceName == "" {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
+
+	conf.VaultConfigs = helper.SliceToMap[map[string]*config.VaultConfig](
+		agentConfig.Vaults,
+		func(cfg *config.VaultConfig) string { return cfg.Name },
+	)
 
 	// handle system scheduler preemption default
 	if agentConfig.Server.DefaultSchedulerConfig != nil {
 		conf.DefaultSchedulerConfig = *agentConfig.Server.DefaultSchedulerConfig
-	}
-
-	// Add the Consul and Vault configs
-	conf.ConsulConfig = agentConfig.Consul
-	for _, consulConfig := range agentConfig.Consuls {
-		conf.ConsulConfigs[consulConfig.Name] = consulConfig
-	}
-
-	conf.VaultConfig = agentConfig.Vault
-	for _, vaultConfig := range agentConfig.Vaults {
-		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
 	}
 
 	// Set the TLS config
@@ -693,7 +694,7 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 	if len(invalidConsulKeys) > 0 {
 		a.logger.Warn("invalid consul keys", "keys", strings.Join(invalidConsulKeys, ","))
 		a.logger.Warn(`Nomad client ignores consul related configuration in client options.
-		Please refer to the guide https://www.nomadproject.io/docs/agent/configuration/consul.html
+		Please refer to the guide https://developer.hashicorp.com/nomad/docs/configuration/consul
 		to configure Nomad to work with Consul.`)
 	}
 
@@ -828,19 +829,22 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	conf.Version = agentConfig.Version
 
-	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ClientServiceName == "" {
+	// Set the Consul configurations
+	conf.ConsulConfigs = helper.SliceToMap[map[string]*config.ConsulConfig](
+		agentConfig.Consuls,
+		func(cfg *config.ConsulConfig) string { return cfg.Name },
+	)
+
+	consul := conf.ConsulConfigs[structs.ConsulDefaultCluster]
+	if *consul.AutoAdvertise && consul.ClientServiceName == "" {
 		return nil, fmt.Errorf("client_service_name must be set when auto_advertise is enabled")
 	}
 
-	conf.ConsulConfig = agentConfig.Consul
-	for _, consulConfig := range agentConfig.Consuls {
-		conf.ConsulConfigs[consulConfig.Name] = consulConfig
-	}
-
-	conf.VaultConfig = agentConfig.Vault
-	for _, vaultConfig := range agentConfig.Vaults {
-		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
-	}
+	// Set the Vault configurations
+	conf.VaultConfigs = helper.SliceToMap[map[string]*config.VaultConfig](
+		agentConfig.Vaults,
+		func(cfg *config.VaultConfig) string { return cfg.Name },
+	)
 
 	// Set up Telemetry configuration
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
@@ -938,29 +942,32 @@ func (a *Agent) setupServer() error {
 	// Consul check addresses default to bind but can be toggled to use advertise
 	rpcCheckAddr := a.config.normalizedAddrs.RPC
 	serfCheckAddr := a.config.normalizedAddrs.Serf
-	if *a.config.Consul.ChecksUseAdvertise {
+
+	defaultConsul := conf.ConsulConfigs[structs.ConsulDefaultCluster]
+
+	if *defaultConsul.ChecksUseAdvertise {
 		rpcCheckAddr = a.config.AdvertiseAddrs.RPC
 		serfCheckAddr = a.config.AdvertiseAddrs.Serf
 	}
 
 	// Create the Nomad Server services for Consul
-	if *a.config.Consul.AutoAdvertise {
+	if *defaultConsul.AutoAdvertise {
 		httpServ := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
+			Name:      defaultConsul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      append([]string{consul.ServiceTagHTTP}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagHTTP}, defaultConsul.Tags...),
 		}
 		const isServer = true
 		if check := a.agentHTTPCheck(isServer); check != nil {
 			httpServ.Checks = []*structs.ServiceCheck{check}
 		}
 		rpcServ := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
+			Name:      defaultConsul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.RPC,
-			Tags:      append([]string{consul.ServiceTagRPC}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagRPC}, defaultConsul.Tags...),
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      a.config.Consul.ServerRPCCheckName,
+					Name:      defaultConsul.ServerRPCCheckName,
 					Type:      "tcp",
 					Interval:  serverRpcCheckInterval,
 					Timeout:   serverRpcCheckTimeout,
@@ -969,12 +976,12 @@ func (a *Agent) setupServer() error {
 			},
 		}
 		serfServ := &structs.Service{
-			Name:      a.config.Consul.ServerServiceName,
+			Name:      defaultConsul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.Serf,
-			Tags:      append([]string{consul.ServiceTagSerf}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagSerf}, defaultConsul.Tags...),
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      a.config.Consul.ServerSerfCheckName,
+					Name:      defaultConsul.ServerSerfCheckName,
 					Type:      "tcp",
 					Interval:  serverSerfCheckInterval,
 					Timeout:   serverSerfCheckTimeout,
@@ -1132,11 +1139,12 @@ func (a *Agent) setupClient() error {
 	a.client = nomadClient
 
 	// Create the Nomad Client  services for Consul
-	if *a.config.Consul.AutoAdvertise {
+	defaultConsul := conf.ConsulConfigs[structs.ConsulDefaultCluster]
+	if *defaultConsul.AutoAdvertise {
 		httpServ := &structs.Service{
-			Name:      a.config.Consul.ClientServiceName,
+			Name:      defaultConsul.ClientServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      append([]string{consul.ServiceTagHTTP}, a.config.Consul.Tags...),
+			Tags:      append([]string{consul.ServiceTagHTTP}, defaultConsul.Tags...),
 		}
 		const isServer = false
 		if check := a.agentHTTPCheck(isServer); check != nil {
@@ -1155,23 +1163,34 @@ func (a *Agent) setupClient() error {
 func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// Resolve the http check address
 	httpCheckAddr := a.config.normalizedAddrs.HTTP[0]
-	if *a.config.Consul.ChecksUseAdvertise {
+
+	defaultConsul := a.config.defaultConsul()
+	if defaultConsul == nil {
+		return nil
+	}
+	if *defaultConsul.ChecksUseAdvertise {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}
 	check := structs.ServiceCheck{
-		Name:      a.config.Consul.ClientHTTPCheckName,
-		Type:      "http",
-		Path:      "/v1/agent/health?type=client",
-		Protocol:  "http",
-		Interval:  agentHttpCheckInterval,
-		Timeout:   agentHttpCheckTimeout,
-		PortLabel: httpCheckAddr,
+		Name:                   defaultConsul.ClientHTTPCheckName,
+		Type:                   "http",
+		Path:                   "/v1/agent/health?type=client",
+		Protocol:               "http",
+		Interval:               agentHttpCheckInterval,
+		Timeout:                agentHttpCheckTimeout,
+		PortLabel:              httpCheckAddr,
+		FailuresBeforeWarning:  defaultConsul.ClientFailuresBeforeWarning,
+		FailuresBeforeCritical: defaultConsul.ClientFailuresBeforeCritical,
 	}
 	// Switch to endpoint that doesn't require a leader for servers
+	// and overwrite failures before x values
 	if server {
-		check.Name = a.config.Consul.ServerHTTPCheckName
+		check.Name = defaultConsul.ServerHTTPCheckName
 		check.Path = "/v1/agent/health?type=server"
+		check.FailuresBeforeCritical = defaultConsul.ServerFailuresBeforeCritical
+		check.FailuresBeforeWarning = defaultConsul.ServerFailuresBeforeWarning
 	}
+
 	if !a.config.TLSConfig.EnableHTTP {
 		// No HTTPS, return a plain http check
 		return &check
@@ -1184,6 +1203,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// HTTPS enabled; skip verification
 	check.Protocol = "https"
 	check.TLSSkipVerify = true
+
 	return &check
 }
 
@@ -1413,7 +1433,7 @@ func (a *Agent) GetMetricsSink() *metrics.InmemSink {
 	return a.inmemSink
 }
 
-func (a *Agent) setupConsuls(cfgs map[string]*config.ConsulConfig) error {
+func (a *Agent) setupConsuls(cfgs []*config.ConsulConfig) error {
 
 	isClient := false
 	if a.config.Client != nil && a.config.Client.Enabled {
@@ -1424,7 +1444,8 @@ func (a *Agent) setupConsuls(cfgs map[string]*config.ConsulConfig) error {
 	consulProxies := map[string]*consul.ConnectProxies{}
 	consulConfigEntries := map[string]consul.ConfigAPI{}
 
-	for cluster, consulConfig := range cfgs {
+	for _, consulConfig := range cfgs {
+		cluster := consulConfig.Name
 		apiConf, err := consulConfig.ApiConfig()
 		if err != nil {
 			return err

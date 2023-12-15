@@ -1,0 +1,3 @@
+```release-note:improvement
+cgroupslib: Consider CGroups OFF when essential controllers are missing
+```

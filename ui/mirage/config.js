@@ -139,10 +139,16 @@ export default function () {
     const FailedTGAllocs =
       body.Job.Unschedulable && generateFailedTGAllocs(body.Job);
 
+    const jobPlanWarnings = body.Job.WithWarnings && generateWarnings();
+
     return new Response(
       200,
       {},
-      JSON.stringify({ FailedTGAllocs, Diff: generateDiff(req.params.id) })
+      JSON.stringify({
+        FailedTGAllocs,
+        Warnings: jobPlanWarnings,
+        Diff: generateDiff(req.params.id),
+      })
     );
   });
 
@@ -1223,4 +1229,8 @@ function generateFailedTGAllocs(job, taskGroups) {
     hash[tgName] = generateTaskGroupFailures();
     return hash;
   }, {});
+}
+
+function generateWarnings() {
+  return '2 warnings:\n\n* Group "yourtask" has warnings: 1 error occurred:\n\t* Task "yourtask" has warnings: 1 error occurred:\n\t* 2 errors occurred:\n\t* Identity[vault_default] identities without an audience are insecure\n\t* Identity[vault_default] identities without an expiration are insecure\n* Task yourtask has an identity called vault_default but no vault block';
 }

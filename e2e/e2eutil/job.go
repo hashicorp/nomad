@@ -128,49 +128,6 @@ func Dispatch(jobID string, meta map[string]string, payload string) error {
 	return nil
 }
 
-// JobInspectTemplate runs nomad job inspect and formats the output
-// using the specified go template
-func JobInspectTemplate(jobID, template string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "nomad", "job", "inspect", "-t", template, jobID)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("could not inspect job: %w\n%v", err, string(out))
-	}
-	outStr := string(out)
-	outStr = strings.TrimSuffix(outStr, "\n")
-	return outStr, nil
-}
-
-// RegisterFromJobspec registers a jobspec from a string, also with a unique
-// ID. The caller is responsible for recording that ID for later cleanup.
-func RegisterFromJobspec(jobID, jobspec string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "nomad", "job", "run", "-detach", "-")
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("could not open stdin?: %w", err)
-	}
-
-	// hack off the first line to replace with our unique ID
-	var re = regexp.MustCompile(`^job "\w+" \{`)
-	jobspec = re.ReplaceAllString(jobspec,
-		fmt.Sprintf("job \"%s\" {", jobID))
-
-	go func() {
-		defer stdin.Close()
-		io.WriteString(stdin, jobspec)
-	}()
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("could not register job: %w\n%v", err, string(out))
-	}
-	return nil
-}
-
 func ChildrenJobSummary(jobID string) ([]map[string]string, error) {
 	out, err := Command("nomad", "job", "status", jobID)
 	if err != nil {

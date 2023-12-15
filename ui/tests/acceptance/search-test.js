@@ -30,27 +30,27 @@ module('Acceptance | search', function (hooks) {
       id: 'vwxyz',
       namespaceId: 'default',
       groupsCount: 1,
-      groupTaskCount: 1,
+      groupAllocCount: 1,
     });
     server.create('job', {
       id: 'xyz',
       name: 'xyz job',
       namespaceId: 'default',
       groupsCount: 1,
-      groupTaskCount: 1,
+      groupAllocCount: 1,
     });
     server.create('job', {
       id: 'xyzw',
       name: 'xyzw job',
       namespaceId: 'dev',
       groupsCount: 1,
-      groupTaskCount: 1,
+      groupAllocCount: 1,
     });
     server.create('job', {
       id: 'abc',
       namespaceId: 'default',
       groupsCount: 1,
-      groupTaskCount: 1,
+      groupAllocCount: 1,
     });
 
     const firstAllocation = server.schema.allocations.all().models[0];

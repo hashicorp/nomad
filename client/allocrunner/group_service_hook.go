@@ -28,6 +28,7 @@ type groupServiceHook struct {
 	allocID          string
 	jobID            string
 	group            string
+	tg               *structs.TaskGroup
 	namespace        string
 	restarter        serviceregistration.WorkloadRestarter
 	prerun           bool
@@ -100,6 +101,7 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		logger:            cfg.logger.Named(groupServiceHookName),
 		serviceRegWrapper: cfg.serviceRegWrapper,
 		services:          tg.Services,
+		tg:                tg,
 		hookResources:     cfg.hookResources,
 		shutdownDelayCtx:  cfg.shutdownDelayCtx,
 	}
@@ -267,8 +269,9 @@ func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.Work
 
 	tokens := map[string]string{}
 	for _, service := range h.services {
-		if token, ok := allocTokens[service.Cluster][service.MakeUniqueIdentityName()]; ok {
-			tokens[service.Name] = token
+		cluster := service.GetConsulClusterName(h.tg)
+		if token, ok := allocTokens[cluster][service.MakeUniqueIdentityName()]; ok {
+			tokens[service.Name] = token.SecretID
 		}
 	}
 

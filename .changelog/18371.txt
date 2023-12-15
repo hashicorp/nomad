@@ -1,0 +1,7 @@
+```release-note:breaking-change
+client: the `unique.cgroup.mountpoint` node attribute has been removed
+```
+
+```release-note:breaking-change
+client: the `unique.cgroup.version` node attribute has been renamed to `os.cgroups.version`
+```

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"testing"
 
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
@@ -97,33 +98,42 @@ func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 
 	hook := consulHookTestHarness(t)
 	task := hook.alloc.LookupTask("web")
-	hashForDefaultCluster := md5.Sum([]byte("consul_default"))
+
+	wid := task.GetIdentity("consul_default")
+	ti := *task.IdentityHandle(wid)
+	jwt, err := hook.widmgr.Get(ti)
+	must.NoError(t, err)
+
+	hashJWT := md5.Sum([]byte(jwt.JWT))
 
 	tests := []struct {
 		name           string
 		task           *structs.Task
-		tokens         map[string]map[string]string
+		tokens         map[string]map[string]*consulapi.ACLToken
 		wantErr        bool
 		errMsg         string
-		expectedTokens map[string]map[string]string
+		expectedTokens map[string]map[string]*consulapi.ACLToken
 	}{
 		{
 			name:           "empty task",
 			task:           nil,
-			tokens:         map[string]map[string]string{},
+			tokens:         map[string]map[string]*consulapi.ACLToken{},
 			wantErr:        true,
 			errMsg:         "no task specified",
-			expectedTokens: map[string]map[string]string{},
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{},
 		},
 		{
 			name:    "task with signed identity",
 			task:    task,
-			tokens:  map[string]map[string]string{},
+			tokens:  map[string]map[string]*consulapi.ACLToken{},
 			wantErr: false,
 			errMsg:  "",
-			expectedTokens: map[string]map[string]string{
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{
 				"default": {
-					"consul_default": hex.EncodeToString(hashForDefaultCluster[:]),
+					"consul_default": &consulapi.ACLToken{
+						AccessorID: hex.EncodeToString(hashJWT[:]),
+						SecretID:   hex.EncodeToString(hashJWT[:]),
+					},
 				},
 			},
 		},
@@ -134,10 +144,10 @@ func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 					{Name: structs.ConsulTaskIdentityNamePrefix + "_default"}},
 				Name: "foo",
 			},
-			tokens:         map[string]map[string]string{},
+			tokens:         map[string]map[string]*consulapi.ACLToken{},
 			wantErr:        true,
 			errMsg:         "unable to find token for workload",
-			expectedTokens: map[string]map[string]string{},
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{},
 		},
 	}
 	for _, tt := range tests {
@@ -160,33 +170,45 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 	hook := consulHookTestHarness(t)
 	task := hook.alloc.LookupTask("web")
 	services := task.Services
-	hashForServiceCluster := md5.Sum([]byte("consul-service_webservice"))
+
+	hashedJWT := make(map[string]string)
+	for _, s := range services {
+		widHandle := *s.IdentityHandle()
+		jwt, err := hook.widmgr.Get(widHandle)
+		must.NoError(t, err)
+
+		hash := md5.Sum([]byte(jwt.JWT))
+		hashedJWT[s.Name] = hex.EncodeToString(hash[:])
+	}
 
 	tests := []struct {
 		name           string
 		services       []*structs.Service
-		tokens         map[string]map[string]string
+		tokens         map[string]map[string]*consulapi.ACLToken
 		wantErr        bool
 		errMsg         string
-		expectedTokens map[string]map[string]string
+		expectedTokens map[string]map[string]*consulapi.ACLToken
 	}{
 		{
 			name:           "empty services",
 			services:       nil,
-			tokens:         map[string]map[string]string{},
+			tokens:         map[string]map[string]*consulapi.ACLToken{},
 			wantErr:        false,
 			errMsg:         "",
-			expectedTokens: map[string]map[string]string{},
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{},
 		},
 		{
 			name:     "services with signed identity",
 			services: services,
-			tokens:   map[string]map[string]string{},
+			tokens:   map[string]map[string]*consulapi.ACLToken{},
 			wantErr:  false,
 			errMsg:   "",
-			expectedTokens: map[string]map[string]string{
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{
 				"default": {
-					"consul-service_webservice": hex.EncodeToString(hashForServiceCluster[:]),
+					"consul-service_webservice": {
+						AccessorID: hashedJWT["webservice"],
+						SecretID:   hashedJWT["webservice"],
+					},
 				},
 			},
 		},
@@ -195,16 +217,17 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 			services: []*structs.Service{
 				{
 					Provider: structs.ServiceProviderConsul,
-					Identity: &structs.WorkloadIdentity{Name: "consul-service_webservice", Audience: []string{"consul.io"}},
+					Identity: &structs.WorkloadIdentity{
+						Name: "consul-service_webservice", Audience: []string{"consul.io"}},
 					Cluster:  "default",
 					Name:     "foo",
 					TaskName: "web",
 				},
 			},
-			tokens:         map[string]map[string]string{},
+			tokens:         map[string]map[string]*consulapi.ACLToken{},
 			wantErr:        true,
 			errMsg:         "unable to find token for workload",
-			expectedTokens: map[string]map[string]string{},
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{},
 		},
 	}
 	for _, tt := range tests {
@@ -219,4 +242,28 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_consulHook_Postrun(t *testing.T) {
+	ci.Parallel(t)
+
+	// no-op must be safe
+	hook := consulHookTestHarness(t)
+	must.NoError(t, hook.Postrun())
+
+	task := hook.alloc.LookupTask("web")
+	tokens := map[string]map[string]*consulapi.ACLToken{}
+	must.NoError(t, hook.prepareConsulTokensForTask(task, nil, tokens))
+	hook.hookResources.SetConsulTokens(tokens)
+	must.MapLen(t, 1, tokens)
+
+	// gracefully handle wrong tokens
+	otherTokens := map[string]map[string]*consulapi.ACLToken{
+		"default": {"foo": &consulapi.ACLToken{AccessorID: "foo", SecretID: "foo"}}}
+	must.NoError(t, hook.revokeTokens(otherTokens))
+
+	// hook resources should be cleared
+	must.NoError(t, hook.Postrun())
+	tokens = hook.hookResources.GetConsulTokens()
+	must.MapEmpty(t, tokens["default"])
 }

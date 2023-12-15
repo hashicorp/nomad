@@ -37,7 +37,7 @@ func fakeConsul(payload string) (*httptest.Server, *config.Config) {
 	}))
 
 	cfg := config.DefaultConfig()
-	cfg.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, `http://`)
+	cfg.GetDefaultConsul().Addr = strings.TrimPrefix(ts.URL, `http://`)
 	return ts, cfg
 }
 
@@ -445,6 +445,52 @@ func TestConsulFingerprint_namespaces(t *testing.T) {
 	})
 }
 
+func TestConsulFingerprint_partition(t *testing.T) {
+	ci.Parallel(t)
+
+	cfs := consulFingerprintState{}
+
+	t.Run("oss", func(t *testing.T) {
+		p, ok := cfs.partition(agentconsul.Self{
+			"Config": {"Version": "v1.9.5"},
+		})
+		must.False(t, ok)
+		must.Eq(t, "", p)
+	})
+
+	t.Run("ent default partition", func(t *testing.T) {
+		p, ok := cfs.partition(agentconsul.Self{
+			"Config": {"Version": "v1.9.5+ent"},
+		})
+		must.True(t, ok)
+		must.Eq(t, "default", p)
+	})
+
+	t.Run("ent nondefault partition", func(t *testing.T) {
+		p, ok := cfs.partition(agentconsul.Self{
+			"Config": {"Version": "v1.9.5+ent", "Partition": "test"},
+		})
+		must.True(t, ok)
+		must.Eq(t, "test", p)
+	})
+
+	t.Run("missing", func(t *testing.T) {
+		p, ok := cfs.partition(agentconsul.Self{
+			"Config": {},
+		})
+		must.False(t, ok)
+		must.Eq(t, "", p)
+	})
+
+	t.Run("malformed", func(t *testing.T) {
+		p, ok := cfs.partition(agentconsul.Self{
+			"Config": {"Version": "***"},
+		})
+		must.False(t, ok)
+		must.Eq(t, "", p)
+	})
+}
+
 func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	ci.Parallel(t)
 
@@ -554,6 +600,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 		"consul.ft.namespaces": "true",
 		"consul.connect":       "true",
 		"consul.grpc":          "8502",
+		"consul.partition":     "default",
 		"unique.consul.name":   "HAL9000",
 	}, resp.Attributes)
 	must.True(t, resp.Detected)
@@ -602,6 +649,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 		"consul.ft.namespaces": "true",
 		"consul.connect":       "true",
 		"consul.grpc":          "8502",
+		"consul.partition":     "default",
 		"unique.consul.name":   "HAL9000",
 	}, resp3.Attributes)
 

@@ -18,10 +18,9 @@ import (
 )
 
 const (
-	// consulTokenFilePrefix is the begging of the name of the file holding the
-	// Consul SI token inside the task's secret directory. Full name of the file is
-	// always consulTokenFilePrefix_identityName
-	consulTokenFilePrefix = "nomad_consul"
+	// consulTokenFilename is the name of the file holding the Consul SI token
+	// inside the task's secret directory.
+	consulTokenFilename = "consul_token"
 
 	// consulTokenFilePerms is the level of file permissions granted on the file in
 	// the secrets directory for the task
@@ -32,14 +31,15 @@ type consulHook struct {
 	task          *structs.Task
 	tokenDir      string
 	hookResources *cstructs.AllocHookResources
-	logger        log.Logger
+
+	logger log.Logger
 }
 
-func newConsulHook(logger log.Logger, tr *TaskRunner, hookResources *cstructs.AllocHookResources) *consulHook {
+func newConsulHook(logger log.Logger, tr *TaskRunner) *consulHook {
 	h := &consulHook{
 		task:          tr.Task(),
 		tokenDir:      tr.taskDir.SecretsDir,
-		hookResources: hookResources,
+		hookResources: tr.allocHookResources,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -49,13 +49,13 @@ func (*consulHook) Name() string {
 	return "consul_task"
 }
 
-func (h *consulHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, *interfaces.TaskPrestartResponse) error {
+func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	mErr := multierror.Error{}
 
 	tokens := h.hookResources.GetConsulTokens()
 
 	// Write tokens to tasks' secret dirs
-	for cluster, t := range tokens {
+	for _, t := range tokens {
 		for identity, token := range t {
 			// do not write tokens that do not belong to any of this task's
 			// identities
@@ -66,11 +66,16 @@ func (h *consulHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, 
 				continue
 			}
 
-			filename := fmt.Sprintf("%s_%s_%s", consulTokenFilePrefix, cluster, identity)
-			tokenPath := filepath.Join(h.tokenDir, filename)
-			if err := os.WriteFile(tokenPath, []byte(token), consulTokenFilePerms); err != nil {
+			tokenPath := filepath.Join(h.tokenDir, consulTokenFilename)
+			if err := os.WriteFile(tokenPath, []byte(token.SecretID), consulTokenFilePerms); err != nil {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
 			}
+
+			env := map[string]string{
+				"CONSUL_TOKEN": token.SecretID,
+			}
+
+			resp.Env = env
 		}
 	}
 

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+$secondaryNavbarHeight: 4.5rem;
+
 .navbar {
   display: flex;
   align-items: center;
@@ -82,7 +84,7 @@
   &.is-secondary {
     background-color: $nomad-green-dark;
     padding: 1.25rem 20px 1.25rem 0;
-    height: 4.5rem;
+    height: $secondaryNavbarHeight;
     font-weight: $weight-semibold;
     color: $primary-invert;
 

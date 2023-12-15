@@ -176,6 +176,12 @@ func (e *UniversalExecutor) enterCG1(statsCgroup, cpusetCgroup string) func() {
 }
 
 func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
+
+	// some drivers like qemu entirely own resource management
+	if command.Resources == nil || command.Resources.LinuxResources == nil {
+		return
+	}
+
 	// write memory limits
 	memHard, memSoft := e.computeMemory(command)
 	ed := cgroupslib.OpenFromFreezerCG1(cgroup, "memory")
@@ -205,6 +211,12 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 }
 
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
+
+	// some drivers like qemu entirely own resource management
+	if command.Resources == nil || command.Resources.LinuxResources == nil {
+		return
+	}
+
 	// write memory cgroup files
 	memHard, memSoft := e.computeMemory(command)
 	ed := cgroupslib.OpenPath(cgroup)

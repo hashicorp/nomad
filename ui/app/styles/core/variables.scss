@@ -65,3 +65,7 @@ $control-padding-vertical: calc(0.375em - #{$control-border-width});
 $control-padding-horizontal: calc(0.625em - #{$control-border-width});
 $button-padding-vertical: calc(0.375em - #{$button-border-width});
 $button-padding-horizontal: 0.75em;
+
+$breakpoint-mobile: 'max-width: 768px';
+$breakpoint-tablet: 'min-width: 769px';
+$breakpoint-desktop: 'min-width: 1088px';

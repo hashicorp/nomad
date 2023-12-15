@@ -511,7 +511,9 @@ config {
   directly to [`--cap-add`][]. Effective capabilities (computed from `cap_add`
   and `cap_drop`) must be a subset of the allowed capabilities configured with
   the [`allow_caps`][allow_caps] plugin option key in the client node's
-  configuration. For example:
+  configuration. Note that `"all"` is not permitted here if the `allow_caps`
+  field in the driver configuration doesn't also allow all capabilities. For
+  example:
 
 ```hcl
 config {
@@ -1227,5 +1229,5 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
 [cores]: /nomad/docs/job-specification/resources#cores
 [runtime_env]: /nomad/docs/runtime/environment#job-related-variables
-[`--cap-add`][](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities)
-[`--cap-drop`][](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities)
+[`--cap-add`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[`--cap-drop`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities

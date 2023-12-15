@@ -206,6 +206,9 @@ func (m *WIDMgr) Shutdown() {
 			close(c)
 		}
 	}
+
+	// ensure it's safe to call Shutdown multiple times
+	m.watchers = map[structs.WIHandle][]chan *structs.SignedWorkloadIdentity{}
 }
 
 // restoreStoredIdentities recreates the state of the WIDMgr from a previously
@@ -374,7 +377,6 @@ func (m *WIDMgr) renew() {
 		}
 
 		// Renew all tokens together since its cheap
-		// FIXME this will have to be revisited once we support identity change modes
 		tokens, err := m.signer.SignIdentities(m.minIndex, reqs)
 		if err != nil {
 			retry++

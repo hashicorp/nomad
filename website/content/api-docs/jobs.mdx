@@ -329,8 +329,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 - `namespace` `(string: "default")` - Specifies the namespace of the job. If not specified,
   defaults to "default". This is specified as a URL query parameter.
 
@@ -639,8 +639,8 @@ The table below shows this endpoint's support for
 - `diffs` `(bool: false)` - Specifies if the Diffs field should be populated,
   containing the structured diff between the current and last job version.
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -1235,8 +1235,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `all` `(bool: false)` - Specifies whether the list of allocations should
   include allocations from a previously registered job with the same ID. This is
@@ -1408,8 +1408,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -1473,8 +1473,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `all` `(bool: false)` - Specifies whether the list of deployments should
   include deployments from a previously registered job with the same ID. This is
@@ -1565,8 +1565,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -1628,8 +1628,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -1685,8 +1685,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
 
@@ -1759,8 +1759,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified
-  in the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `IdempotencyToken` `(string: "")` - Optional identifier used to prevent more
   than one instance of the job from being dispatched. This is specified as a
@@ -1829,8 +1829,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `JobID` `(string: <required>)` - Specifies the ID of the job (as specified
-  in the job file during submission). This is specified as part of the path.
+- `JobID` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `JobVersion` `(integer: 0)` - Specifies the job version to revert to.
 
@@ -1894,8 +1894,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `JobID` `(string: <required>)` - Specifies the ID of the job (as specified
-  in the job file during submission). This is specified as part of the path.
+- `JobID` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `JobVersion` `(integer: 0)` - Specifies the job version to set the stability on.
 
@@ -1954,8 +1954,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `JobID` `(string: <required>)` - Specify the ID of the job in the JSON payload
 
@@ -2016,8 +2016,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-- the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `Job` `(string: <required>)` - Specifies the JSON definition of the job.
 
@@ -2227,8 +2227,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 ### Sample Request
 
@@ -2265,8 +2265,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `eval_priority` `(int: 0)` - Override the priority of the evaluations produced
   as a result of this job deregistration. By default, this is set to the priority
@@ -2282,6 +2282,11 @@ The table below shows this endpoint's support for
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
 access. This is specified as a query string parameter.
+
+- `no_shutdown_delay` `(bool: false)` - Ignore the group and task `shutdown_delay`
+  configuration so that there is no delay between service deregistration and task
+  shutdown. Note that using this flag will result in failed network connections
+  to the allocations being stopped.
 
 ### Sample Request
 
@@ -2319,8 +2324,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to
@@ -2375,8 +2380,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-  the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `Count` `(int: <optional>)` - Specifies the new task group count.
 
@@ -2461,8 +2466,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
-the job file during submission). This is specified as part of the path.
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
 
 - `namespace` `(string: "default")` - Specifies the target namespace.
 
@@ -2495,4 +2500,175 @@ $ curl \
     ]
   }
 ]
+```
+
+## List Job Actions
+
+This endpoint lists the actions available to tasks within a job.
+
+| Method | Path                      | Produces           |
+| ------ | ------------------------- | ------------------ |
+| `GET`  | `/v1/job/:job_id/actions` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `NO`             | `namespace:read-job` |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+  specified as part of the path.
+
+### Sample Request
+
+```shell-session
+$ nomad operator api '/v1/job/my-job/actions'
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "Args": [
+      "-s",
+      "wttr.in/Toronto?format=3"
+    ],
+    "Command": "/usr/bin/curl",
+    "Name": "weather",
+    "TaskGroupName": "group1",
+    "TaskName": "task"
+  },
+  {
+    "Args": [
+      "-c",
+      "nomad alloc status ${NOMAD_ALLOC_ID}"
+    ],
+    "Command": "/bin/sh",
+    "Name": "get-alloc-info",
+    "TaskGroupName": "group2",
+    "TaskName": "task"
+  },
+]
+```
+
+## Run Action
+
+This endpoint executes a predefined action from a job in the
+context of a specific task within an allocation. It opens a WebSocket to
+transmit output from the running action.
+
+
+| Method      | Path                     | Produces               |
+| ----------- | ------------------------ | ---------------------- |
+| `WebSocket` | `/v1/job/:job_id/action` | WebSocket JSON streams |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| `NO`             | `namespace:alloc-exec` (and `namespace:alloc-node-exec` if task driver does not support [file system isolation](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error)) |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - Specifies the ID of the job containing the
+  action. This is specified as part of the path.
+- `action` `(string: <required>)` - Specifies the name of the action to be
+  executed, as defined within the job's task. Specified as a query parameter.
+- `alloc_id` `(string: <required>)` - Specifies the UUID of the target
+  allocation. Specified as a query parameter.
+- `task` `(string: <required>)` - Specifies the task where the action is
+  defined. Specified as a query parameter.
+- `tty` `(bool: false)` - Specifies whether a TTY is allocated for this action.
+  Specified as a query parameter.
+- `ws_handshake` `(bool: false)` - Specifies whether to expect the
+  authentication token in the first frame, as a query parameter.
+
+### WebSocket Upgrade Request
+
+Actions are executed with a WebSocket upgrade request. The request headers
+must include the standard WebSocket upgrade parameters. Example:
+
+```shell-session
+$ curl \
+  -X GET \
+  -H 'Connection: Upgrade' \
+  -H 'Upgrade: websocket' \
+  -H 'Sec-Websocket-Version: 13' \
+  -H 'Sec-Websocket-Key: x3JJHMbDL1EzLkh9GBhXDw==' \
+  'http://127.0.0.1:4646/v1/job/actions-demo/action?action=weather&allocID=8614ed07-425f-889f-170d-dd2716e0e01f&task=task&tty=true'
+```
+or
+```shell-session
+$ nomad operator api \
+-H "Connection: Upgrade" \
+-H "Upgrade: websocket" \
+-H "Sec-WebSocket-Version: 13" \
+-H "Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==" \
+'/v1/job/actions-demo/action?action=weather&allocID=8614ed07-425f-889f-170d-dd2716e0e01f&task=task&tty=true'
+```
+
+### Request Frames
+
+Unlike [alloc exec](/nomad/api-docs/allocations#exec-allocation), Actions do
+not take input in the form of request frames using `stdin`. Instead, the name
+of the action is passed as a query parameter and the associated input is handled
+on the allocation apart from the stream.
+
+When `?ws_handshake=true`, the first request frame must contain the
+authentication token. Similarly, when `?tty=true`, a `tty_size` frame may be
+provided to indicate a resize.
+
+The following are valid input frames:
+
+```
+# sending authentication token
+{"version":1,"auth_token":"fc3c1968-8d31-5c50-9617-3db2e19ef32e"}
+
+# indicating that TTY was resized
+{"tty_size": {"height": <characters>, "width": <characters>}}
+```
+
+### Response Frames
+
+Response frames represent `stdout` and `stderr` output from the command as well
+as exit codes. Response frames encompass the full range of terminal emulator outputs, including
+the control characters necessary to render interactive applications.
+
+```
+# transferring stdout data
+{"stdout": {"data": "...base64 encoded string of bytes ..."}}
+
+# signaling that host closed stdout
+{"stdout": {"close": true}}
+{"exited":true,"result":{}}
+```
+
+The stdout data returned in the response frames from the job action endpoint is
+base64 encoded. This encoding is necessary to ensure that the data can be
+transmitted over WebSocket connections without issues, regardless of its content.
+
+### Sample Request and Response
+
+This example response includes instances of the ANSI "control sequence
+introducer" (CSI), which is ASCII code 27 followed by `[`. The second stdout
+frame includes the desired output from the Action in question, which prints
+the local weather.
+
+```
+# Sample WebSocket request to execute an action
+WebSocket Request: /v1/job/actions-demo/action?action=weather&allocID=8614ed07-425f-889f-170d-dd2716e0e01f&task=task&tty=true
+
+# "\x1b[H\x1b[2J$ ":
+# CSI-H (move cursor to top left corner), CSI-2J (clear entire screen), print "$ "
+{"stdout":{"data":"G1tIG1sySiQg"}}
+
+# Toronto: ⛅️  -1°C
+{"stdout":{"data":"VG9yb250bzog4puF77iPICAtMcKwQw0K"}}
 ```

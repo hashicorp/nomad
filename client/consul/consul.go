@@ -46,14 +46,17 @@ type SupportedProxiesAPIFunc func(string) SupportedProxiesAPI
 type JWTLoginRequest struct {
 	JWT            string
 	AuthMethodName string
+	Meta           map[string]string
 }
 
 // Client is the interface that the nomad client uses to interact with
 // Consul.
 type Client interface {
-	// DeriveSITokenWithJWT logs into Consul using JWT and retrieves a Consul
-	// SI ACL token.
-	DeriveSITokenWithJWT(map[string]JWTLoginRequest) (map[string]string, error)
+	// DeriveTokenWithJWT logs into Consul using JWT and retrieves a Consul ACL
+	// token.
+	DeriveTokenWithJWT(JWTLoginRequest) (*consulapi.ACLToken, error)
+
+	RevokeTokens([]*consulapi.ACLToken) error
 }
 
 type consulClient struct {
@@ -99,31 +102,26 @@ func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Client, 
 	return c, nil
 }
 
-// DeriveSITokenWithJWT takes a JWT from request and returns a consul token for
-// each identity in the request
-func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]string, error) {
-	tokens := make(map[string]string, len(reqs))
+// DeriveTokenWithJWT takes a JWT from request and returns a consul token.
+func (c *consulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLToken, error) {
+	t, _, err := c.client.ACL().Login(&consulapi.ACLLoginParams{
+		AuthMethod:  req.AuthMethodName,
+		BearerToken: req.JWT,
+		Meta:        req.Meta,
+	}, nil)
+	return t, err
+}
+
+func (c *consulClient) RevokeTokens(tokens []*consulapi.ACLToken) error {
 	var mErr *multierror.Error
-
-	for k, req := range reqs {
-		// login using the JWT and obtain a Consul ACL token for each workload
-		t, _, err := c.client.ACL().Login(&consulapi.ACLLoginParams{
-			AuthMethod:  req.AuthMethodName,
-			BearerToken: req.JWT,
-		}, &consulapi.WriteOptions{})
-		if err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf(
-				"failed to authenticate with consul for identity %s: %v", k, err,
-			))
-			continue
-		}
-
-		tokens[k] = t.SecretID
+	for _, token := range tokens {
+		_, err := c.client.ACL().Logout(&consulapi.WriteOptions{
+			Namespace: token.Namespace,
+			Partition: token.Partition,
+			Token:     token.SecretID,
+		})
+		mErr = multierror.Append(mErr, err)
 	}
 
-	if err := mErr.ErrorOrNil(); err != nil {
-		return tokens, err
-	}
-
-	return tokens, nil
+	return mErr.ErrorOrNil()
 }

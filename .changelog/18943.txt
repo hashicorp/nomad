@@ -1,0 +1,3 @@
+```release-note:improvement
+identity: Implement `change_mode` and `change_signal` for workload identities
+```

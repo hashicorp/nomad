@@ -82,7 +82,7 @@ func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestart
 	// We either need to acquire Consul's preferred Envoy version or fallback
 	// to the legacy default. Query Consul and use the (possibly empty) result.
 	//
-	// TODO: how do we select the right cluster here if we have multiple
+	// TODO(tgross): how do we select the right cluster here if we have multiple
 	// services which could have their own cluster field value?
 	proxies, err := h.proxiesClientFunc(structs.ConsulDefaultCluster).Proxies()
 	if err != nil {

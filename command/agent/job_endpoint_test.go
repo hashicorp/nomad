@@ -1276,9 +1276,9 @@ func TestHTTP_JobActions(t *testing.T) {
 		// Two actions by default, both in Task web and Group web
 		must.Len(t, 2, actionsResp, must.Sprint("expected 2 actions"))
 
-		must.Eq(t, "date test", actionsResp[0].Name)
+		must.Eq(t, "date-test", actionsResp[0].Name)
 
-		must.Eq(t, "echo test", actionsResp[1].Name)
+		must.Eq(t, "echo-test", actionsResp[1].Name)
 
 		// Both have Args lists length of 1
 		must.Len(t, 1, actionsResp[0].Args, must.Sprint("expected 1 arg"))
@@ -1351,9 +1351,9 @@ func TestHTTP_JobActions(t *testing.T) {
 		dateTestCount := 0
 		echoTestCount := 0
 		for _, action := range actionsResp3 {
-			if action.Name == "date test" {
+			if action.Name == "date-test" {
 				dateTestCount++
-			} else if action.Name == "echo test" {
+			} else if action.Name == "echo-test" {
 				echoTestCount++
 			}
 		}
@@ -2736,6 +2736,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								TaskName:               "task1",
 								SuccessBeforePassing:   2,
 								FailuresBeforeCritical: 3,
+								FailuresBeforeWarning:  2,
 							},
 						},
 						Connect: &api.ConsulConnect{
@@ -2777,6 +2778,16 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								RTarget: "b",
 								Operand: "c",
 								Weight:  pointer.Of(int8(50)),
+							},
+						},
+						Identities: []*api.WorkloadIdentity{
+							{
+								Name:         "aws",
+								Audience:     []string{"s3"},
+								Env:          true,
+								File:         true,
+								ChangeMode:   "signal",
+								ChangeSignal: "SIGHUP",
 							},
 						},
 						VolumeMounts: []*api.VolumeMount{
@@ -2826,6 +2837,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										InitialStatus:          "ok",
 										SuccessBeforePassing:   3,
 										FailuresBeforeCritical: 4,
+										FailuresBeforeWarning:  2,
 										CheckRestart: &api.CheckRestart{
 											Limit:          3,
 											IgnoreWarnings: true,
@@ -3048,6 +3060,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Operand: "z",
 					},
 				},
+				PreventRescheduleOnLost: false,
 				Affinities: []*structs.Affinity{
 					{
 						LTarget: "x",
@@ -3156,6 +3169,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								OnUpdate:               structs.OnUpdateRequireHealthy,
 								SuccessBeforePassing:   2,
 								FailuresBeforeCritical: 3,
+								FailuresBeforeWarning:  2,
 							},
 						},
 						Connect: &structs.ConsulConnect{
@@ -3194,6 +3208,16 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								RTarget: "b",
 								Operand: "c",
 								Weight:  50,
+							},
+						},
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:         "aws",
+								Audience:     []string{"s3"},
+								Env:          true,
+								File:         true,
+								ChangeMode:   "signal",
+								ChangeSignal: "SIGHUP",
 							},
 						},
 						Env: map[string]string{
@@ -3246,6 +3270,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										GRPCUseTLS:             true,
 										SuccessBeforePassing:   3,
 										FailuresBeforeCritical: 4,
+										FailuresBeforeWarning:  2,
 										CheckRestart: &structs.CheckRestart{
 											Limit:          3,
 											Grace:          11 * time.Second,
@@ -3532,8 +3557,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:  "group1",
-				Count: 5,
+				Name:                    "group1",
+				Count:                   5,
+				PreventRescheduleOnLost: false,
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "x",
@@ -4230,7 +4256,9 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 
 func Test_apiWorkloadIdentityToStructs(t *testing.T) {
 	ci.Parallel(t)
+
 	must.Nil(t, apiWorkloadIdentityToStructs(nil))
+
 	must.Eq(t, &structs.WorkloadIdentity{
 		Name:        "consul/test",
 		Audience:    []string{"consul.io"},
@@ -4243,5 +4271,23 @@ func Test_apiWorkloadIdentityToStructs(t *testing.T) {
 		Env:         false,
 		File:        false,
 		ServiceName: "web",
+	}))
+
+	must.Eq(t, &structs.WorkloadIdentity{
+		Name:         "aws",
+		Audience:     []string{"s3"},
+		Env:          true,
+		File:         true,
+		ChangeMode:   "signal",
+		ChangeSignal: "SIGHUP",
+		TTL:          2 * time.Hour,
+	}, apiWorkloadIdentityToStructs(&api.WorkloadIdentity{
+		Name:         "aws",
+		Audience:     []string{"s3"},
+		Env:          true,
+		File:         true,
+		ChangeMode:   "signal",
+		ChangeSignal: "SIGHUP",
+		TTL:          2 * time.Hour,
 	}))
 }

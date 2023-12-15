@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
 import Ember from 'ember';
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
@@ -15,6 +16,8 @@ import { tracked } from '@glimmer/tracking';
 export default class TaskSubRowComponent extends Component {
   @service store;
   @service router;
+  @service notifications;
+  @service nomadActions;
   @service('stats-trackers-registry') statsTrackersRegistry;
 
   constructor() {
@@ -94,4 +97,27 @@ export default class TaskSubRowComponent extends Component {
   }
 
   //#endregion Logs Sidebar
+
+  get namespace() {
+    return this.task.task?.taskGroup.job.namespace;
+  }
+
+  /**
+   * @param {string} action - The action to run
+   * @param {string} allocID - The allocation ID to run the action on
+   * @param {Event} ev - The event that triggered the action
+   */
+  @task(function* (action, allocID) {
+    try {
+      yield this.nomadActions.runAction({ action, allocID });
+    } catch (err) {
+      this.notifications.add({
+        title: `Error starting ${action.name}`,
+        message: err,
+        sticky: true,
+        color: 'critical',
+      });
+    }
+  })
+  runAction;
 }

@@ -23,6 +23,7 @@ func PlatformScanners() []SystemScanner {
 		new(Smbios),
 		new(Cgroups1),
 		new(Cgroups2),
+		new(Fallback),
 	}
 }
 
@@ -38,6 +39,10 @@ const (
 	cpuSiblingFile = sysRoot + "/cpu/cpu%d/topology/thread_siblings_list"
 )
 
+// pathReaderFn is a path reader function, injected into all value getters to
+// ease testing.
+type pathReaderFn func(string) ([]byte, error)
+
 // Sysfs implements SystemScanner for Linux by reading system topology data
 // from /sys/devices/system. This is the best source of truth on Linux and
 // should always be used first - additional scanners can provide more context
@@ -46,27 +51,31 @@ type Sysfs struct{}
 
 func (s *Sysfs) ScanSystem(top *Topology) {
 	// detect the online numa nodes
-	s.discoverOnline(top)
+	s.discoverOnline(top, os.ReadFile)
 
 	// detect cross numa node latency costs
-	s.discoverCosts(top)
+	s.discoverCosts(top, os.ReadFile)
 
 	// detect core performance data
-	s.discoverCores(top)
+	s.discoverCores(top, os.ReadFile)
 }
 
 func (*Sysfs) available() bool {
 	return true
 }
 
-func (*Sysfs) discoverOnline(st *Topology) {
-	ids, err := getIDSet[hw.NodeID](nodeOnline)
+func (*Sysfs) discoverOnline(st *Topology, readerFunc pathReaderFn) {
+	ids, err := getIDSet[hw.NodeID](nodeOnline, readerFunc)
 	if err == nil {
 		st.NodeIDs = ids
 	}
 }
 
-func (*Sysfs) discoverCosts(st *Topology) {
+func (*Sysfs) discoverCosts(st *Topology, readerFunc pathReaderFn) {
+	if st.NodeIDs.Empty() {
+		return
+	}
+
 	dimension := st.NodeIDs.Size()
 	st.Distances = make(SLIT, st.NodeIDs.Size())
 	for i := 0; i < dimension; i++ {
@@ -74,7 +83,7 @@ func (*Sysfs) discoverCosts(st *Topology) {
 	}
 
 	_ = st.NodeIDs.ForEach(func(id hw.NodeID) error {
-		s, err := getString(distanceFile, id)
+		s, err := getString(distanceFile, readerFunc, id)
 		if err != nil {
 			return err
 		}
@@ -87,45 +96,67 @@ func (*Sysfs) discoverCosts(st *Topology) {
 	})
 }
 
-func (*Sysfs) discoverCores(st *Topology) {
-	onlineCores, err := getIDSet[hw.CoreID](cpuOnline)
+func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
+	onlineCores, err := getIDSet[hw.CoreID](cpuOnline, readerFunc)
 	if err != nil {
 		return
 	}
 	st.Cores = make([]Core, onlineCores.Size())
 
-	_ = st.NodeIDs.ForEach(func(node hw.NodeID) error {
-		s, err := os.ReadFile(fmt.Sprintf(cpulistFile, node))
-		if err != nil {
-			return err
-		}
-
-		cores := idset.Parse[hw.CoreID](string(s))
-		_ = cores.ForEach(func(core hw.CoreID) error {
-			// best effort, zero values are defaults
-			socket, _ := getNumeric[hw.SocketID](cpuSocketFile, core)
-			max, _ := getNumeric[hw.KHz](cpuMaxFile, core)
-			base, _ := getNumeric[hw.KHz](cpuBaseFile, core)
-			siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, core)
-			st.insert(node, socket, core, gradeOf(siblings), max, base)
+	switch {
+	case st.NodeIDs == nil:
+		// We did not find node data, no node to associate with
+		_ = onlineCores.ForEach(func(core hw.CoreID) error {
+			st.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0})
+			const node = 0
+			const socket = 0
+			cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
+			base, _ := getNumeric[hw.KHz](cpuBaseFile, readerFunc, core)
+			st.insert(node, socket, core, Performance, cpuMax, base)
 			return nil
 		})
-		return nil
-	})
+	default:
+		// We found node data, associate cores to nodes
+		_ = st.NodeIDs.ForEach(func(node hw.NodeID) error {
+			s, err := readerFunc(fmt.Sprintf(cpulistFile, node))
+			if err != nil {
+				return err
+			}
+
+			cores := idset.Parse[hw.CoreID](string(s))
+			_ = cores.ForEach(func(core hw.CoreID) error {
+				// best effort, zero values are defaults
+				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, readerFunc, core)
+				cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
+				base, _ := getNumeric[hw.KHz](cpuBaseFile, readerFunc, core)
+				siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, readerFunc, core)
+
+				// if we get an incorrect core number, this means we're not getting the right
+				// data from SysFS. In this case we bail and set default values.
+				if int(core) >= len(st.Cores) {
+					return nil
+				}
+
+				st.insert(node, socket, core, gradeOf(siblings), cpuMax, base)
+				return nil
+			})
+			return nil
+		})
+	}
 }
 
-func getIDSet[T idset.ID](path string, args ...any) (*idset.Set[T], error) {
+func getIDSet[T idset.ID](path string, readerFunc pathReaderFn, args ...any) (*idset.Set[T], error) {
 	path = fmt.Sprintf(path, args...)
-	s, err := os.ReadFile(path)
+	s, err := readerFunc(path)
 	if err != nil {
 		return nil, err
 	}
 	return idset.Parse[T](string(s)), nil
 }
 
-func getNumeric[T int | idset.ID](path string, args ...any) (T, error) {
+func getNumeric[T int | idset.ID](path string, readerFunc pathReaderFn, args ...any) (T, error) {
 	path = fmt.Sprintf(path, args...)
-	s, err := os.ReadFile(path)
+	s, err := readerFunc(path)
 	if err != nil {
 		return 0, err
 	}
@@ -136,9 +167,9 @@ func getNumeric[T int | idset.ID](path string, args ...any) (T, error) {
 	return T(i), nil
 }
 
-func getString(path string, args ...any) (string, error) {
+func getString(path string, readerFunc pathReaderFn, args ...any) (string, error) {
 	path = fmt.Sprintf(path, args...)
-	s, err := os.ReadFile(path)
+	s, err := readerFunc(path)
 	if err != nil {
 		return "", err
 	}
@@ -189,4 +220,41 @@ func scanIDs(top *Topology, content string) {
 			cpu.Disable = true
 		}
 	}
+}
+
+// Fallback detects if the NUMA aware topology scanning was unable to construct
+// a valid model of the system. This will be common on Nomad clients running in
+// containers, erroneous hypervisors, or without root.
+type Fallback struct{}
+
+func (s *Fallback) ScanSystem(top *Topology) {
+	broken := false
+
+	switch {
+	case top.NodeIDs.Empty():
+		broken = true
+	case len(top.Distances) == 0:
+		broken = true
+	case top.NumCores() <= 0:
+		broken = true
+	case top.TotalCompute() <= 0:
+		broken = true
+	case top.UsableCompute() <= 0:
+		broken = true
+	case top.UsableCores().Empty():
+		broken = true
+	}
+
+	if !broken {
+		return
+	}
+
+	// we have a broken topology; reset it and fallback to the generic scanner
+	// basically treating this client like a windows / unsupported OS
+	top.NodeIDs = nil
+	top.Distances = nil
+	top.Cores = nil
+
+	// invoke the generic scanner
+	scanGeneric(top)
 }

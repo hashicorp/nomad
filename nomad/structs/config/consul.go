@@ -48,6 +48,14 @@ type ConsulConfig struct {
 	// to register the server RPC health check with Consul
 	ServerRPCCheckName string `mapstructure:"server_rpc_check_name"`
 
+	// ServerFailuresBeforeCritical is the number of failures before the
+	// server health check is marked as critical
+	ServerFailuresBeforeCritical int `mapstructure:"server_failures_before_critical"`
+
+	// ServerFailuresBeforeWarning is the number of failures before the
+	// server health check is marked as a warning
+	ServerFailuresBeforeWarning int `mapstructure:"server_failures_before_warning"`
+
 	// ClientServiceName is the name of the service that Nomad uses to register
 	// clients with Consul
 	ClientServiceName string `mapstructure:"client_service_name"`
@@ -55,6 +63,14 @@ type ConsulConfig struct {
 	// ClientHTTPCheckName is the name of the health check that Nomad uses
 	// to register the client HTTP health check with Consul
 	ClientHTTPCheckName string `mapstructure:"client_http_check_name"`
+
+	// ClientFailuresBeforeCritical is the number of failures before the
+	// client health check is marked as critical
+	ClientFailuresBeforeCritical int `mapstructure:"client_failures_before_critical"`
+
+	// ClientFailuresBeforeWarning is the number of failures before the
+	// client health check is marked as a warning
+	ClientFailuresBeforeWarning int `mapstructure:"client_failures_before_warning"`
 
 	// Tags are optional service tags that get registered with the service
 	// in Consul
@@ -194,8 +210,8 @@ func DefaultConsulConfig() *ConsulConfig {
 		ClientAutoJoin:            pointer.Of(true),
 		AllowUnauthenticated:      pointer.Of(true),
 		Timeout:                   5 * time.Second,
-		ServiceIdentityAuthMethod: structs.ConsulServicesDefaultAuthMethodName,
-		TaskIdentityAuthMethod:    structs.ConsulTasksDefaultAuthMethodName,
+		ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
+		TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
 
 		// From Consul api package defaults
 		Addr:      def.Address,
@@ -220,7 +236,7 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	result := c.Copy()
 
 	if b.Name != "" {
-		c.Name = b.Name
+		result.Name = b.Name
 	}
 	if b.ServerServiceName != "" {
 		result.ServerServiceName = b.ServerServiceName
@@ -234,11 +250,23 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.ServerRPCCheckName != "" {
 		result.ServerRPCCheckName = b.ServerRPCCheckName
 	}
+	if b.ServerFailuresBeforeCritical != 0 {
+		result.ServerFailuresBeforeCritical = b.ServerFailuresBeforeCritical
+	}
+	if b.ServerFailuresBeforeWarning != 0 {
+		result.ServerFailuresBeforeWarning = b.ServerFailuresBeforeWarning
+	}
 	if b.ClientServiceName != "" {
 		result.ClientServiceName = b.ClientServiceName
 	}
 	if b.ClientHTTPCheckName != "" {
 		result.ClientHTTPCheckName = b.ClientHTTPCheckName
+	}
+	if b.ClientFailuresBeforeCritical != 0 {
+		result.ClientFailuresBeforeCritical = b.ClientFailuresBeforeCritical
+	}
+	if b.ClientFailuresBeforeWarning != 0 {
+		result.ClientFailuresBeforeWarning = b.ClientFailuresBeforeWarning
 	}
 	result.Tags = append(result.Tags, b.Tags...)
 	if b.AutoAdvertise != nil {
@@ -391,37 +419,41 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 	}
 
 	return &ConsulConfig{
-		Name:                      c.Name,
-		ServerServiceName:         c.ServerServiceName,
-		ServerHTTPCheckName:       c.ServerHTTPCheckName,
-		ServerSerfCheckName:       c.ServerSerfCheckName,
-		ServerRPCCheckName:        c.ServerRPCCheckName,
-		ClientServiceName:         c.ClientServiceName,
-		ClientHTTPCheckName:       c.ClientHTTPCheckName,
-		Tags:                      slices.Clone(c.Tags),
-		AutoAdvertise:             c.AutoAdvertise,
-		ChecksUseAdvertise:        c.ChecksUseAdvertise,
-		Addr:                      c.Addr,
-		GRPCAddr:                  c.GRPCAddr,
-		Timeout:                   c.Timeout,
-		TimeoutHCL:                c.TimeoutHCL,
-		Token:                     c.Token,
-		AllowUnauthenticated:      c.AllowUnauthenticated,
-		Auth:                      c.Auth,
-		EnableSSL:                 c.EnableSSL,
-		ShareSSL:                  c.ShareSSL,
-		VerifySSL:                 c.VerifySSL,
-		GRPCCAFile:                c.GRPCCAFile,
-		CAFile:                    c.CAFile,
-		CertFile:                  c.CertFile,
-		KeyFile:                   c.KeyFile,
-		ServerAutoJoin:            c.ServerAutoJoin,
-		ClientAutoJoin:            c.ClientAutoJoin,
-		Namespace:                 c.Namespace,
-		ServiceIdentity:           c.ServiceIdentity.Copy(),
-		TaskIdentity:              c.TaskIdentity.Copy(),
-		ServiceIdentityAuthMethod: c.ServiceIdentityAuthMethod,
-		TaskIdentityAuthMethod:    c.TaskIdentityAuthMethod,
-		ExtraKeysHCL:              slices.Clone(c.ExtraKeysHCL),
+		Name:                         c.Name,
+		ServerServiceName:            c.ServerServiceName,
+		ServerHTTPCheckName:          c.ServerHTTPCheckName,
+		ServerSerfCheckName:          c.ServerSerfCheckName,
+		ServerRPCCheckName:           c.ServerRPCCheckName,
+		ServerFailuresBeforeCritical: c.ServerFailuresBeforeCritical,
+		ServerFailuresBeforeWarning:  c.ServerFailuresBeforeWarning,
+		ClientServiceName:            c.ClientServiceName,
+		ClientHTTPCheckName:          c.ClientHTTPCheckName,
+		ClientFailuresBeforeCritical: c.ClientFailuresBeforeCritical,
+		ClientFailuresBeforeWarning:  c.ClientFailuresBeforeWarning,
+		Tags:                         slices.Clone(c.Tags),
+		AutoAdvertise:                c.AutoAdvertise,
+		ChecksUseAdvertise:           c.ChecksUseAdvertise,
+		Addr:                         c.Addr,
+		GRPCAddr:                     c.GRPCAddr,
+		Timeout:                      c.Timeout,
+		TimeoutHCL:                   c.TimeoutHCL,
+		Token:                        c.Token,
+		AllowUnauthenticated:         c.AllowUnauthenticated,
+		Auth:                         c.Auth,
+		EnableSSL:                    c.EnableSSL,
+		ShareSSL:                     c.ShareSSL,
+		VerifySSL:                    c.VerifySSL,
+		GRPCCAFile:                   c.GRPCCAFile,
+		CAFile:                       c.CAFile,
+		CertFile:                     c.CertFile,
+		KeyFile:                      c.KeyFile,
+		ServerAutoJoin:               c.ServerAutoJoin,
+		ClientAutoJoin:               c.ClientAutoJoin,
+		Namespace:                    c.Namespace,
+		ServiceIdentity:              c.ServiceIdentity.Copy(),
+		TaskIdentity:                 c.TaskIdentity.Copy(),
+		ServiceIdentityAuthMethod:    c.ServiceIdentityAuthMethod,
+		TaskIdentityAuthMethod:       c.TaskIdentityAuthMethod,
+		ExtraKeysHCL:                 slices.Clone(c.ExtraKeysHCL),
 	}
 }

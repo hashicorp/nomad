@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -48,26 +50,46 @@ type consulGRPCSocketHook struct {
 
 	// mu synchronizes proxy and alloc which may be mutated and read concurrently
 	// via Prerun, Update, Postrun.
-	mu    sync.Mutex
-	alloc *structs.Allocation
-	proxy *grpcSocketProxy
+	mu      sync.Mutex
+	alloc   *structs.Allocation
+	proxies map[string]*grpcSocketProxy
 }
 
 func newConsulGRPCSocketHook(
 	logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir,
-	config *config.ConsulConfig, nodeAttrs map[string]string) *consulGRPCSocketHook {
+	configs map[string]*config.ConsulConfig, nodeAttrs map[string]string) *consulGRPCSocketHook {
 
-	// Attempt to find the gRPC port via the node attributes, otherwise use the
-	// default fallback.
-	consulGRPCPort, ok := nodeAttrs["consul.grpc"]
-	if !ok {
-		consulGRPCPort = consulGRPCFallbackPort
+	// Get the deduplicated set of Consul clusters that are needed by this
+	// alloc. For Nomad CE, this will always be just the default cluster.
+	clusterNames := set.New[string](1)
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	for _, s := range tg.Services {
+		clusterNames.Insert(s.GetConsulClusterName(tg))
 	}
+	proxies := map[string]*grpcSocketProxy{}
+
+	clusterNames.ForEach(func(clusterName string) bool {
+
+		// Attempt to find the gRPC port via the node attributes, otherwise use
+		// the default fallback.
+		attrName := "consul.grpc"
+		if clusterName != structs.ConsulDefaultCluster {
+			attrName = "consul." + clusterName + ".grpc"
+		}
+		consulGRPCPort, ok := nodeAttrs[attrName]
+		if !ok {
+			consulGRPCPort = consulGRPCFallbackPort
+		}
+
+		proxies[clusterName] = newGRPCSocketProxy(logger, allocDir,
+			configs[clusterName], consulGRPCPort)
+		return true
+	})
 
 	return &consulGRPCSocketHook{
-		alloc:  alloc,
-		proxy:  newGRPCSocketProxy(logger, allocDir, config, consulGRPCPort),
-		logger: logger.Named(consulGRPCSockHookName),
+		alloc:   alloc,
+		proxies: proxies,
+		logger:  logger.Named(consulGRPCSockHookName),
 	}
 }
 
@@ -102,7 +124,13 @@ func (h *consulGRPCSocketHook) Prerun() error {
 		return nil
 	}
 
-	return h.proxy.run(h.alloc)
+	var mErr *multierror.Error
+	for _, proxy := range h.proxies {
+		if err := proxy.run(h.alloc); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 // Update creates a gRPC socket file and proxy if there are any Connect
@@ -116,19 +144,31 @@ func (h *consulGRPCSocketHook) Update(req *interfaces.RunnerUpdateRequest) error
 	if !h.shouldRun() {
 		return nil
 	}
+	if len(h.proxies) == 0 {
+		return fmt.Errorf("cannot update alloc to Connect in-place")
+	}
 
-	return h.proxy.run(h.alloc)
+	var mErr *multierror.Error
+	for _, proxy := range h.proxies {
+		if err := proxy.run(h.alloc); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 func (h *consulGRPCSocketHook) Postrun() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if err := h.proxy.stop(); err != nil {
-		// Only log failures to stop proxies. Worst case scenario is a
-		// small goroutine leak.
-		h.logger.Debug("error stopping Consul proxy", "error", err)
+	for _, proxy := range h.proxies {
+		if err := proxy.stop(); err != nil {
+			// Only log failures to stop proxies. Worst case scenario is a small
+			// goroutine leak.
+			h.logger.Warn("error stopping Consul proxy", "error", err)
+		}
 	}
+
 	return nil
 }
 
@@ -186,7 +226,8 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 
 	// make sure either grpc or http consul address has been configured
 	if p.config.GRPCAddr == "" && p.config.Addr == "" {
-		return errors.New("consul address must be set on nomad client")
+		return fmt.Errorf("consul address for cluster %q must be set on nomad client",
+			p.config.Name)
 	}
 
 	destAddr := p.config.GRPCAddr
@@ -195,13 +236,17 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 		// default of 8502.
 		host, _, err := net.SplitHostPort(p.config.Addr)
 		if err != nil {
-			return fmt.Errorf("error parsing Consul address %q: %v",
-				p.config.Addr, err)
+			return fmt.Errorf("error parsing Consul address %q: %v", p.config.Addr, err)
 		}
 		destAddr = net.JoinHostPort(host, p.consulGRPCFallbackPort)
 	}
 
-	hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDir, allocdir.AllocGRPCSocket)
+	socketFile := allocdir.AllocGRPCSocket
+	if p.config.Name != structs.ConsulDefaultCluster && p.config.Name != "" {
+		socketFile = filepath.Join(allocdir.SharedAllocName, allocdir.TmpDirName,
+			"consul_"+p.config.Name+"_grpc.sock")
+	}
+	hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDir, socketFile)
 
 	// if the socket already exists we'll try to remove it, but if not then any
 	// other errors will bubble up to the caller here or when we try to listen

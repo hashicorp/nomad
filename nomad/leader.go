@@ -79,6 +79,11 @@ var minNomadServiceRegistrationVersion = version.Must(version.NewVersion("1.3.0"
 // prevent older versions of the server from crashing.
 var minNodePoolsVersion = version.Must(version.NewVersion("1.6.0"))
 
+// minVersionMultiIdentities is the Nomad version at which users can add
+// multiple identity blocks to tasks and workload identities can be
+// automatically added to jobs that need access to Consul or Vault
+var minVersionMultiIdentities = version.Must(version.NewVersion("1.7.0"))
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
@@ -2763,7 +2768,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 
 	err = s.encrypter.AddKey(rootKey)
 	if err != nil {
-		logger.Error("could not add initial key to keyring: %v", err)
+		logger.Error("could not add initial key to keyring", "error", err)
 		return
 	}
 
@@ -2771,7 +2776,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 		structs.KeyringUpdateRootKeyMetaRequest{
 			RootKeyMeta: rootKey.Meta,
 		}); err != nil {
-		logger.Error("could not initialize keyring: %v", err)
+		logger.Error("could not initialize keyring", "error", err)
 		return
 	}
 

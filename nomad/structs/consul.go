@@ -20,15 +20,10 @@ const (
 	// ConsulTaskIdentityNamePrefix is used in naming identities of consul tasks
 	ConsulTaskIdentityNamePrefix = "consul"
 
-	// ConsulServicesDefaultAuthMethodName is the default JWT auth method name
+	// ConsulWorkloadsDefaultAuthMethodName is the default JWT auth method name
 	// that has to be configured in Consul in order to authenticate Nomad
-	// services.
-	ConsulServicesDefaultAuthMethodName = "nomad-workloads"
-
-	// ConsulTasksDefaultAuthMethodName the default JWT auth method name that
-	// has to be configured in Consul in order to authenticate Nomad tasks (used
-	// by templates).
-	ConsulTasksDefaultAuthMethodName = "nomad-tasks"
+	// services and tasks.
+	ConsulWorkloadsDefaultAuthMethodName = "nomad-workloads"
 )
 
 // Consul represents optional per-group consul configuration.
@@ -143,13 +138,24 @@ func (j *Job) ConsulUsages() map[string]*ConsulUsage {
 
 		// Gather task services and KV usage
 		for _, task := range tg.Tasks {
+			taskNamespace := namespace
+			if task.Consul != nil && task.Consul.Namespace != "" {
+				taskNamespace = task.Consul.Namespace
+			}
+
 			for _, service := range task.Services {
 				if service.IsConsul() {
-					m[namespace].Services = append(m[namespace].Services, service.Name)
+					if _, exists := m[taskNamespace]; !exists {
+						m[taskNamespace] = new(ConsulUsage)
+					}
+					m[taskNamespace].Services = append(m[taskNamespace].Services, service.Name)
 				}
 			}
 			if len(task.Templates) > 0 {
-				m[namespace].KV = true
+				if _, exists := m[taskNamespace]; !exists {
+					m[taskNamespace] = new(ConsulUsage)
+				}
+				m[taskNamespace].KV = true
 			}
 		}
 	}

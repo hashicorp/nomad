@@ -246,7 +246,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	//   - reading kv store of each group
 	//   - establishing consul connect services
 	checkConsulToken := func(usages map[string]*structs.ConsulUsage) error {
-		if j.srv.config.ConsulConfig.AllowsUnauthenticated() {
+		if j.srv.config.GetDefaultConsul().AllowsUnauthenticated() {
 			// if consul.allow_unauthenticated is enabled (which is the default)
 			// just let the job through without checking anything
 			return nil
@@ -899,6 +899,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		reply.EvalID = eval.ID
 	}
 
+	args.SubmitTime = now
 	args.Eval = eval
 
 	// Commit the job update via Raft
@@ -998,6 +999,8 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		}
 		args.Evals = append(args.Evals, eval)
 	}
+
+	args.SubmitTime = time.Now().UnixNano()
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobBatchDeregisterRequestType, args)
@@ -1122,6 +1125,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 
 		// Update group count
 		group.Count = int(*args.Count)
+		job.SubmitTime = now
 
 		// Block scaling event if there's an active deployment
 		deployment, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
@@ -1720,11 +1724,12 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
-// jobActions is used to parse through a job's taskgroups' tasks and aggregate their actions, flattened
-func (j *Job) GetActions(args *structs.JobSpecificRequest, reply *structs.ActionListResponse) error {
+// GetActions is used to iterate through a job's taskgroups' tasks and
+// aggregate their actions, flattened.
+func (j *Job) GetActions(args *structs.JobActionListRequest, reply *structs.JobActionListResponse) error {
 	// authenticate, measure, and forward
 	authErr := j.srv.Authenticate(j.ctx, args)
-	if done, err := j.srv.forward("Job.GetActions", args, args, reply); done {
+	if done, err := j.srv.forward(structs.JobGetActionsRPCMethod, args, args, reply); done {
 		return err
 	}
 	j.srv.MeasureRPCRate("job", structs.RateMetricRead, args)
@@ -1770,6 +1775,7 @@ func (j *Job) GetActions(args *structs.JobSpecificRequest, reply *structs.Action
 	}
 
 	reply.Actions = jobActions
+	reply.Index = job.ModifyIndex
 
 	j.srv.setQueryMeta(&reply.QueryMeta)
 

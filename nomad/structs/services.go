@@ -78,6 +78,7 @@ type ServiceCheck struct {
 	TaskName               string              // What task to execute this check in
 	SuccessBeforePassing   int                 // Number of consecutive successes required before considered healthy
 	FailuresBeforeCritical int                 // Number of consecutive failures required before considered unhealthy
+	FailuresBeforeWarning  int                 // Number of consecutive failures required before showing warning
 	Body                   string              // Body to use in HTTP check
 	OnUpdate               string
 }
@@ -132,6 +133,10 @@ func (sc *ServiceCheck) Equal(o *ServiceCheck) bool {
 	}
 
 	if sc.FailuresBeforeCritical != o.FailuresBeforeCritical {
+		return false
+	}
+
+	if sc.FailuresBeforeWarning != o.FailuresBeforeWarning {
 		return false
 	}
 
@@ -383,6 +388,11 @@ func (sc *ServiceCheck) validateNomad() error {
 		return errors.New("failures_before_critical may only be set for Consul service checks")
 	}
 
+	// failures_before_warning is consul only
+	if sc.FailuresBeforeWarning != 0 {
+		return errors.New("failures_before_warning may only be set for Consul service checks")
+	}
+
 	// tls_server_name is consul only
 	if sc.TLSServerName != "" {
 		return errors.New("tls_server_name may only be set for Consul service checks")
@@ -436,6 +446,12 @@ func (sc *ServiceCheck) validateConsul() error {
 		return fmt.Errorf("failures_before_critical must be non-negative")
 	} else if sc.FailuresBeforeCritical > 0 && !slices.Contains(passFailCheckTypes, sc.Type) {
 		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
+	}
+
+	if sc.FailuresBeforeWarning < 0 {
+		return fmt.Errorf("failures_before_warning must be non-negative")
+	} else if sc.FailuresBeforeWarning > 0 && !slices.Contains(passFailCheckTypes, sc.Type) {
+		return fmt.Errorf("failures_before_warning not supported for check of type %q", sc.Type)
 	}
 
 	return nil
@@ -498,6 +514,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	// Only include pass/fail if non-zero to maintain ID stability with Nomad < 0.12
 	hashIntIfNonZero(h, "success", sc.SuccessBeforePassing)
 	hashIntIfNonZero(h, "failures", sc.FailuresBeforeCritical)
+	hashIntIfNonZero(h, "failures-before-warning", sc.FailuresBeforeWarning)
 
 	// Hash is used for diffing against the Consul check definition, which does
 	// not have an expose parameter. Instead we rely on implied changes to
@@ -775,10 +792,14 @@ func (s *Service) Validate() error {
 // MakeUniqueIdentityName returns a service identity name consisting of: task
 // name, service name and service port label.
 func (s *Service) MakeUniqueIdentityName() string {
-	if s.TaskName != "" {
-		return fmt.Sprintf("%v-%v-%v", s.TaskName, s.Name, s.PortLabel)
+	prefix := ConsulServiceIdentityNamePrefix
+	if s.Provider == ServiceProviderNomad {
+		prefix = "nomad-service"
 	}
-	return fmt.Sprintf("%v-%v", s.Name, s.PortLabel)
+	if s.TaskName != "" {
+		return fmt.Sprintf("%s_%v-%v-%v", prefix, s.TaskName, s.Name, s.PortLabel)
+	}
+	return fmt.Sprintf("%s_%v-%v", prefix, s.Name, s.PortLabel)
 }
 
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of service

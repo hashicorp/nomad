@@ -1,0 +1,39 @@
+---
+layout: docs
+page_title: reporting Block - Agent Configuration
+description: >-
+  The "reporting" block configures the Nomad agents automated license
+  utilization reporting.
+---
+
+# `reporting` Block
+
+<Placement groups={['reporting']} />
+
+The `reporting` block configures the Nomad agents automated license utilization
+reporting. This is an Enterprise-only feature and the configuration applies to
+agents running with [server mode enabled][server_mode_enabled].
+
+For more information about automated license utilization reporting, please see the
+[guide][automated_license_utilization_reporting].
+
+```hcl
+reporting {
+    license {
+      enabled = true
+    }
+}
+```
+
+## `reporting` Parameters
+
+- `license` <code>([license](#license-block): default)</code> - Configures
+  automated license utilization reporting.
+
+## `license` Block
+
+- `enabled` `(bool: true)` - Specifies whether automated license utilization
+  reporting should be enabled and run.
+
+[server_mode_enabled]: /nomad/docs/configuration/server#enabled
+[automated_license_utilization_reporting]: /nomad/docs/enterprise/license/utilization-reporting

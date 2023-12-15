@@ -44,7 +44,7 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.6.2
+LAST_RELEASE ?= v1.7.2
 
 default: help
 
@@ -139,8 +139,8 @@ deps:  ## Install build and development dependencies
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.1.12
-	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.5.0
-	go install github.com/shoenig/go-modtool@v0.1.1
+	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.6.1
+	go install github.com/shoenig/go-modtool@v0.2.0
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -165,7 +165,7 @@ check: ## Lint the source code
 	@hclogvet .
 
 	@echo "==> Spell checking website..."
-	@misspell -error -source=text website/pages/
+	@misspell -error -source=text website/content/
 
 	@echo "==> Checking for breaking changes in protos..."
 	@buf breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
@@ -178,13 +178,13 @@ check: ## Lint the source code
 	@$(MAKE) hclfmt
 	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'; exit 1; fi
 
-	@echo "==> Check API package is isolated from rest"
+	@echo "==> Check API package is isolated from rest..."
 	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
-	@echo "==> Check command package does not import structs"
+	@echo "==> Check command package does not import structs..."
 	@cd ./command && if go list -f '{{ join .Imports "\n" }}' . | grep github.com/hashicorp/nomad/nomad/structs; then echo "  /command package imports the structs pkg. Remove such import"; exit 1; fi
 
-	@echo "==> Checking Go mod.."
+	@echo "==> Checking Go mod..."
 	@GO111MODULE=on $(MAKE) tidy
 	@if (git status --porcelain | grep -Eq "go\.(mod|sum)"); then \
 		echo go.mod or go.sum needs updating; \
@@ -249,10 +249,7 @@ tidy: ## Tidy up the go mod files
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
 	@echo "==> Tidy nomad module"
-	@go-modtool \
-		--replace-comment="Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826." \
-		--subs-comment="Nomad is built using the current source of the API module." \
-		-w fmt go.mod
+	@go-modtool -config=ci/modtool.toml fmt go.mod
 	@go mod tidy
 
 .PHONY: dev
@@ -325,6 +322,17 @@ integration-test: dev ## Run Nomad integration tests
 		-count=1 \
 		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/vaultcompat
+
+.PHONY: integration-test-consul
+integration-test-consul: dev ## Run Nomad integration tests
+	@echo "==> Running Nomad integration test suite for Consul:"
+	NOMAD_E2E_CONSULCOMPAT=1 go test \
+		-v \
+		-race \
+		-timeout=900s \
+		-count=1 \
+		-tags "$(GO_TAGS)" \
+		github.com/hashicorp/nomad/e2e/consulcompat
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
@@ -439,3 +447,9 @@ copywriteheaders:
 	cd jobspec && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd jobspec2 && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd demo && $(CURDIR)/scripts/copywrite-exceptions.sh
+
+.PHONY: cni
+cni: ## Install CNI plugins. Run this as root.
+	mkdir -p /opt/cni/bin
+	curl --fail -LsO "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz"
+	tar -C /opt/cni/bin -xf cni-plugins-linux-amd64-v1.3.0.tgz

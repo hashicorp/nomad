@@ -160,11 +160,24 @@ export default class Job extends Model {
       return acc.concat(
         taskGroup.tasks
           .map((task) => {
-            return task.get('actions').toArray();
+            return task.get('actions')?.toArray() || [];
           })
           .reduce((taskAcc, taskActions) => taskAcc.concat(taskActions), [])
       );
     }, []);
+  }
+
+  /**
+   *
+   * @param {import('../models/action').default} action
+   * @param {string} allocID
+   * @param {import('../models/action-instance').default} actionInstance
+   * @returns
+   */
+  getActionSocketUrl(action, allocID, actionInstance) {
+    return this.store
+      .adapterFor('job')
+      .getActionSocketUrl(this, action, allocID, actionInstance);
   }
 
   @computed('taskGroups.@each.drivers')

@@ -129,7 +129,7 @@ func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
 		Name:                 "default",
 		Addr:                 "https://vault.service.consul:8200",
-		JWTAuthBackendPath:   "jwt",
+		JWTAuthBackendPath:   "jwt-nomad",
 		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
 		AllowUnauthenticated: pointer.Of(true),
 	}
@@ -151,7 +151,7 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	result := *c
 
 	if b.Name != "" {
-		c.Name = b.Name
+		result.Name = b.Name
 	}
 	if b.Enabled != nil {
 		result.Enabled = b.Enabled

@@ -15,7 +15,6 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/clientstate"
 	_ "github.com/hashicorp/nomad/e2e/connect"
 	_ "github.com/hashicorp/nomad/e2e/consul"
-	_ "github.com/hashicorp/nomad/e2e/consultemplate"
 	_ "github.com/hashicorp/nomad/e2e/csi"
 	_ "github.com/hashicorp/nomad/e2e/deployment"
 	_ "github.com/hashicorp/nomad/e2e/eval_priority"
@@ -31,7 +30,6 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/podman"
 	_ "github.com/hashicorp/nomad/e2e/quotas"
 	_ "github.com/hashicorp/nomad/e2e/remotetasks"
-	_ "github.com/hashicorp/nomad/e2e/rescheduling"
 	_ "github.com/hashicorp/nomad/e2e/scaling"
 	_ "github.com/hashicorp/nomad/e2e/scalingpolicies"
 	_ "github.com/hashicorp/nomad/e2e/scheduler_sysbatch"
@@ -42,9 +40,11 @@ import (
 
 	// these are no longer on the old framework but by importing them
 	// we get a quick check that they compile on every commit
+	_ "github.com/hashicorp/nomad/e2e/consultemplate"
 	_ "github.com/hashicorp/nomad/e2e/disconnectedclients"
 	_ "github.com/hashicorp/nomad/e2e/namespaces"
 	_ "github.com/hashicorp/nomad/e2e/nodedrain"
+	_ "github.com/hashicorp/nomad/e2e/rescheduling"
 	_ "github.com/hashicorp/nomad/e2e/volumes"
 )
 

@@ -63,6 +63,12 @@ type Topology struct {
 	OverrideWitholdCompute hw.MHz
 }
 
+// NewTopology is a constructor for the Topology object, only used in tests for
+// mocking.
+func NewTopology(nodeIDs *idset.Set[hw.NodeID], distances SLIT, cores []Core) *Topology {
+	return &Topology{NodeIDs: nodeIDs, Distances: distances, Cores: cores}
+}
+
 // A Core represents one logical (vCPU) core on a processor. Basically the slice
 // of cores detected should match up with the vCPU description in cloud providers.
 type Core struct {

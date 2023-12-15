@@ -16,7 +16,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
-	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -24,6 +23,9 @@ const (
 )
 
 type templateHookConfig struct {
+	// the allocation
+	alloc *structs.Allocation
+
 	// logger is used to log
 	logger log.Logger
 
@@ -126,25 +128,44 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	h.vaultToken = req.VaultToken
 	h.nomadToken = req.NomadToken
 
-	// Set the consul token if the task uses WI
+	// Set the consul token if the task uses WI.
+	tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
+	consulBlock := tg.Consul
 	if req.Task.Consul != nil {
-		consulTokens := h.config.hookResources.GetConsulTokens()
+		consulBlock = req.Task.Consul
+	}
+	consulWIDName := consulBlock.IdentityName()
 
-		var found bool
-		if _, found = consulTokens[req.Task.Consul.Cluster]; !found {
+	// Check if task has an identity for Consul and assume WI flow if it does.
+	// COMPAT simplify this logic and assume WI flow in 1.9+
+	hasConsulIdentity := false
+	for _, wid := range req.Task.Identities {
+		if wid.Name == consulWIDName {
+			hasConsulIdentity = true
+			break
+		}
+	}
+	if hasConsulIdentity {
+		consulCluster := req.Task.GetConsulClusterName(tg)
+		consulTokens := h.config.hookResources.GetConsulTokens()
+		clusterTokens := consulTokens[consulCluster]
+
+		if clusterTokens == nil {
 			return fmt.Errorf(
 				"consul tokens for cluster %s requested by task %s not found",
-				req.Task.Consul.Cluster, req.Task.Name,
+				consulCluster, req.Task.Name,
 			)
 		}
 
-		h.consulToken, found = consulTokens[req.Task.Consul.Cluster][req.Task.Consul.IdentityName()]
-		if !found {
+		consulToken := clusterTokens[consulWIDName]
+		if consulToken == nil {
 			return fmt.Errorf(
 				"consul tokens for cluster %s and identity %s requested by task %s not found",
-				req.Task.Consul.Cluster, req.Task.Consul.IdentityName(), req.Task.Name,
+				consulCluster, consulWIDName, req.Task.Name,
 			)
 		}
+
+		h.consulToken = consulToken.SecretID
 	}
 
 	// Set vault namespace if specified
@@ -190,15 +211,17 @@ func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPostst
 func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	unblock = make(chan struct{})
 
-	var vaultConfig *structsc.VaultConfig
-	if h.task.Vault != nil {
-		vaultCluster := h.task.Vault.Cluster
-		vaultConfig = h.config.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
+	vaultCluster := h.task.GetVaultClusterName()
+	vaultConfig := h.config.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
 
-		if vaultConfig == nil {
-			return nil, fmt.Errorf("Vault cluster %q is disabled or not configured", vaultCluster)
-		}
+	// Fail if task has a vault block but not client config was found.
+	if h.task.Vault != nil && vaultConfig == nil {
+		return nil, fmt.Errorf("Vault cluster %q is disabled or not configured", vaultCluster)
 	}
+
+	tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
+	consulCluster := h.task.GetConsulClusterName(tg)
+	consulConfig := h.config.clientConfig.GetConsulConfigs(h.logger)[consulCluster]
 
 	m, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
 		UnblockCh:            unblock,
@@ -208,6 +231,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		ClientConfig:         h.config.clientConfig,
 		ConsulNamespace:      h.config.consulNamespace,
 		ConsulToken:          h.consulToken,
+		ConsulConfig:         consulConfig,
 		VaultToken:           h.vaultToken,
 		VaultConfig:          vaultConfig,
 		VaultNamespace:       h.vaultNamespace,

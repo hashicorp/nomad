@@ -48,9 +48,11 @@ Significant major release features. Typically included in release blog announcem
 
 Improvements are incremental and quality of life enhancement that don't rise to the FEATURES level:
 
+~~~
 ```release-note:improvement
 cli: Added `-monitor` flag to `deployment status` command and automatically monitor deployments from `job run` command.
 ```
+~~~
 
 ### Bug
 

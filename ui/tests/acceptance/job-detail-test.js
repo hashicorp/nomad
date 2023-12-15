@@ -627,7 +627,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
       noActiveDeployment: true,
       createAllocations: true,
       groupsCount: 1,
-      groupTaskCount: 1,
+      groupAllocCount: 1,
       allocStatusDistribution: {
         running: 1,
       },
@@ -665,7 +665,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
       noActiveDeployment: true,
       createAllocations: true,
       groupsCount: 1,
-      groupTaskCount: 1,
+      groupAllocCount: 1,
       allocStatusDistribution: {
         running: 1,
       },

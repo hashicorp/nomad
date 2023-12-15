@@ -1420,6 +1420,7 @@ func apiCheckRegistrationToCheck(r *api.AgentCheckRegistration) *api.AgentServic
 		GRPCUseTLS:             r.GRPCUseTLS,
 		SuccessBeforePassing:   r.SuccessBeforePassing,
 		FailuresBeforeCritical: r.FailuresBeforeCritical,
+		FailuresBeforeWarning:  r.FailuresBeforeWarning,
 	}
 }
 
@@ -1760,6 +1761,15 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 					sreg.Checks = append(sreg.Checks, check)
 				}
 			}
+
+			if sidecarService := getNomadSidecar(serviceID, services); sidecarService != nil {
+				sreg.SidecarService = sidecarService
+				for _, check := range checks {
+					if check.ServiceID == sidecarService.ID {
+						sreg.SidecarChecks = append(sreg.SidecarChecks, check)
+					}
+				}
+			}
 		}
 	}
 
@@ -1960,6 +1970,7 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 	chkReg.Interval = check.Interval.String()
 	chkReg.SuccessBeforePassing = check.SuccessBeforePassing
 	chkReg.FailuresBeforeCritical = check.FailuresBeforeCritical
+	chkReg.FailuresBeforeWarning = check.FailuresBeforeWarning
 
 	// Require an address for http or tcp checks
 	if port == 0 && check.RequiresPort() {

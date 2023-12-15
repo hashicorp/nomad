@@ -269,7 +269,7 @@ job "ingress-demo" {
             # }
             #
             # Additional options are documented at
-            # https://www.nomadproject.io/docs/job-specification/gateway#proxy-parameters
+            # https://developer.hashicorp.com/nomad/docs/job-specification/gateway#proxy-parameters
           }
 
           # Consul Ingress Gateway Configuration Entry.
@@ -278,7 +278,7 @@ job "ingress-demo" {
             # given the parameters in the ingress block.
             #
             # Additional options are documented at
-            # https://www.nomadproject.io/docs/job-specification/gateway#ingress-parameters
+            # https://developer.hashicorp.com/nomad/docs/job-specification/gateway#ingress-parameters
             listener {
               port     = 8080
               protocol = "tcp"
@@ -386,7 +386,7 @@ job "countdash-terminating" {
             #   port    = <generated listener port>
             # }
             # Additional options are documented at
-            # https://www.nomadproject.io/docs/job-specification/gateway#proxy-parameters
+            # https://developer.hashicorp.com/nomad/docs/job-specification/gateway#proxy-parameters
           }
 
           # Consul Terminating Gateway Configuration Entry.
@@ -395,7 +395,7 @@ job "countdash-terminating" {
             # given the parameters in the terminating block.
             #
             # Additional options are documented at
-            # https://www.nomadproject.io/docs/job-specification/gateway#terminating-parameters
+            # https://developer.hashicorp.com/nomad/docs/job-specification/gateway#terminating-parameters
             service {
               name = "count-api"
             }
@@ -506,7 +506,7 @@ job "countdash-mesh-one" {
             #   port    = <configured service port>
             # }
             # Additional options are documented at
-            # https://www.nomadproject.io/docs/job-specification/gateway#proxy-parameters
+            # https://developer.hashicorp.com/nomad/docs/job-specification/gateway#proxy-parameters
           }
         }
       }
@@ -615,7 +615,7 @@ job "countdash-mesh-two" {
             #   port    = <configured service port>
             # }
             # Additional options are documented at
-            # https://www.nomadproject.io/docs/job-specification/gateway#proxy-parameters
+            # https://developer.hashicorp.com/nomad/docs/job-specification/gateway#proxy-parameters
           }
         }
       }

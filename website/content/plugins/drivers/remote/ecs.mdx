@@ -81,7 +81,7 @@ job "nomad-ecs-demo" {
 
     task "http-server" {
       driver       = "ecs"
-      kill_timeout = "1m" // increased from default to accomodate ECS.
+      kill_timeout = "1m" // increased from default to accommodate ECS.
 
       config {
         task {

@@ -18,7 +18,7 @@ variable "availability_zone" {
 
 variable "instance_type" {
   description = "The AWS instance type to use for both clients and servers."
-  default     = "t2.medium"
+  default     = "t3a.medium"
 }
 
 variable "server_count" {
@@ -33,7 +33,7 @@ variable "client_count_ubuntu_jammy_amd64" {
 
 variable "client_count_windows_2016_amd64" {
   description = "The number of windows 2016 clients to provision."
-  default     = "1"
+  default     = "0"
 }
 
 variable "restrict_ingress_cidrblock" {

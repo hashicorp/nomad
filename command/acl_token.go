@@ -20,7 +20,7 @@ Usage: nomad acl token <subcommand> [options] [args]
   This command groups subcommands for interacting with ACL tokens. Nomad's ACL
   system can be used to control access to data and APIs. ACL tokens are
   associated with one or more ACL policies which grant specific capabilities.
-  For a full guide see: https://www.nomadproject.io/guides/acl.html
+  For a full guide see: https://developer.hashicorp.com/nomad/tutorials/access-control
 
   Create an ACL token:
 

@@ -1,39 +1,15 @@
 name: test-ui
 on:
   pull_request:
-    paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.changelog/**'
-      - '.tours/**'
-      - 'contributing/**'
-      - 'demo/**'
-      - 'dev/**'
-      - 'e2e/**'
-      - 'integrations/**'
-      - 'pkg/**'
-      - 'scripts/**'
-      - 'terraform/**'
-      - 'website/**'
+    paths:
+      - 'ui/**'
   push:
     branches:
       - main
       - release/**
       - test-ui
-    paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.changelog/**'
-      - '.tours/**'
-      - 'contributing/**'
-      - 'demo/**'
-      - 'dev/**'
-      - 'e2e/**'
-      - 'integrations/**'
-      - 'pkg/**'
-      - 'scripts/**'
-      - 'terraform/**'
-      - 'website/**'
+    paths:
+      - 'ui/**'
 
 jobs:
   pre-test:

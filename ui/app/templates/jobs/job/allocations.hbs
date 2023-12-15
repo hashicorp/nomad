@@ -77,6 +77,9 @@
             <th>Volume</th>
             <th>CPU</th>
             <th>Memory</th>
+            {{#if this.job.actions.length}}
+              <th>Actions</th>
+            {{/if}}
           </t.head>
           <t.body as |row|>
             <AllocationRow
@@ -89,7 +92,7 @@
               @context="job"
               @onClick={{action "gotoAllocation" row.model}} />
               {{#each row.model.states as |task|}}
-                <TaskSubRow @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} @namespan="9" @taskState={{task}} />
+                <TaskSubRow @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} @namespan="9" @taskState={{task}} @jobHasActions={{this.job.actions.length}} />
               {{/each}}
 
           </t.body>

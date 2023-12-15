@@ -37,5 +37,5 @@ export default create({
   barBg: blackBis,
 
   brandTitle: 'Nomad Storybook',
-  brandUrl: 'https://www.nomadproject.io/',
+  brandUrl: 'https://developer.hashicorp.com/nomad/',
 });

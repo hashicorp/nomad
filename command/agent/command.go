@@ -61,26 +61,23 @@ type Command struct {
 }
 
 func (c *Command) readConfig() *Config {
-	var dev *devModeConfig
 	var configPath []string
 	var servers string
 	var meta []string
 
 	// Make a new, empty config.
 	cmdConfig := &Config{
-		Client: &ClientConfig{},
-		Consul: &config.ConsulConfig{},
-		Ports:  &Ports{},
+		Client:  &ClientConfig{},
+		Consuls: []*config.ConsulConfig{{Name: structs.ConsulDefaultCluster}},
+		Ports:   &Ports{},
 		Server: &ServerConfig{
 			ServerJoin: &ServerJoin{},
 		},
-		Vault:     &config.VaultConfig{},
+		Vaults:    []*config.VaultConfig{{Name: structs.VaultDefaultCluster}},
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
 		Reporting: &config.ReportingConfig{},
 	}
-	cmdConfig.Vaults = map[string]*config.VaultConfig{structs.VaultDefaultCluster: cmdConfig.Vault}
-	cmdConfig.Consuls = map[string]*config.ConsulConfig{structs.ConsulDefaultCluster: cmdConfig.Consul}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -88,8 +85,12 @@ func (c *Command) readConfig() *Config {
 	// Role options
 	var devMode bool
 	var devConnectMode bool
+	var devConsulMode bool
+	var devVaultMode bool
 	flags.BoolVar(&devMode, "dev", false, "")
 	flags.BoolVar(&devConnectMode, "dev-connect", false, "")
+	flags.BoolVar(&devConsulMode, "dev-consul", false, "")
+	flags.BoolVar(&devVaultMode, "dev-vault", false, "")
 	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
 	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
 
@@ -129,69 +130,75 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Consul options
-	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
+	defaultConsul := cmdConfig.defaultConsul()
+	flags.StringVar(&defaultConsul.Auth, "consul-auth", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.AutoAdvertise = &b
+		defaultConsul.AutoAdvertise = &b
 		return nil
 	}), "consul-auto-advertise", "")
-	flags.StringVar(&cmdConfig.Consul.CAFile, "consul-ca-file", "", "")
-	flags.StringVar(&cmdConfig.Consul.CertFile, "consul-cert-file", "", "")
-	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
+	flags.StringVar(&defaultConsul.CAFile, "consul-ca-file", "", "")
+	flags.StringVar(&defaultConsul.CertFile, "consul-cert-file", "", "")
+	flags.StringVar(&defaultConsul.KeyFile, "consul-key-file", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.ChecksUseAdvertise = &b
+		defaultConsul.ChecksUseAdvertise = &b
 		return nil
 	}), "consul-checks-use-advertise", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.ClientAutoJoin = &b
+		defaultConsul.ClientAutoJoin = &b
 		return nil
 	}), "consul-client-auto-join", "")
-	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
+	flags.StringVar(&defaultConsul.ClientServiceName, "consul-client-service-name", "", "")
+	flags.StringVar(&defaultConsul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
+	flags.IntVar(&defaultConsul.ClientFailuresBeforeCritical, "consul-client-failures-before-critical", 0, "")
+	flags.IntVar(&defaultConsul.ClientFailuresBeforeWarning, "consul-client-failures-before-warning", 0, "")
+	flags.StringVar(&defaultConsul.ServerServiceName, "consul-server-service-name", "", "")
+	flags.StringVar(&defaultConsul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
+	flags.StringVar(&defaultConsul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
+	flags.StringVar(&defaultConsul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
+	flags.IntVar(&defaultConsul.ServerFailuresBeforeCritical, "consul-server-failures-before-critical", 0, "")
+	flags.IntVar(&defaultConsul.ServerFailuresBeforeWarning, "consul-server-failures-before-warning", 0, "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.ServerAutoJoin = &b
+		defaultConsul.ServerAutoJoin = &b
 		return nil
 	}), "consul-server-auto-join", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.EnableSSL = &b
+		defaultConsul.EnableSSL = &b
 		return nil
 	}), "consul-ssl", "")
-	flags.StringVar(&cmdConfig.Consul.Token, "consul-token", "", "")
+	flags.StringVar(&defaultConsul.Token, "consul-token", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.VerifySSL = &b
+		defaultConsul.VerifySSL = &b
 		return nil
 	}), "consul-verify-ssl", "")
-	flags.StringVar(&cmdConfig.Consul.Addr, "consul-address", "", "")
+	flags.StringVar(&defaultConsul.Addr, "consul-address", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.AllowUnauthenticated = &b
+		defaultConsul.AllowUnauthenticated = &b
 		return nil
 	}), "consul-allow-unauthenticated", "")
 
 	// Vault options
+	defaultVault := cmdConfig.defaultVault()
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Vault.Enabled = &b
+		defaultVault.Enabled = &b
 		return nil
 	}), "vault-enabled", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Vault.AllowUnauthenticated = &b
+		defaultVault.AllowUnauthenticated = &b
 		return nil
 	}), "vault-allow-unauthenticated", "")
-	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
-	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
-	flags.StringVar(&cmdConfig.Vault.Namespace, "vault-namespace", "", "")
-	flags.StringVar(&cmdConfig.Vault.Role, "vault-create-from-role", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSCaFile, "vault-ca-file", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSCaPath, "vault-ca-path", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSCertFile, "vault-cert-file", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSKeyFile, "vault-key-file", "", "")
+	flags.StringVar(&defaultVault.Token, "vault-token", "", "")
+	flags.StringVar(&defaultVault.Addr, "vault-address", "", "")
+	flags.StringVar(&defaultVault.Namespace, "vault-namespace", "", "")
+	flags.StringVar(&defaultVault.Role, "vault-create-from-role", "", "")
+	flags.StringVar(&defaultVault.TLSCaFile, "vault-ca-file", "", "")
+	flags.StringVar(&defaultVault.TLSCaPath, "vault-ca-path", "", "")
+	flags.StringVar(&defaultVault.TLSCertFile, "vault-cert-file", "", "")
+	flags.StringVar(&defaultVault.TLSKeyFile, "vault-key-file", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Vault.TLSSkipVerify = &b
+		defaultVault.TLSSkipVerify = &b
 		return nil
 	}), "vault-tls-skip-verify", "")
-	flags.StringVar(&cmdConfig.Vault.TLSServerName, "vault-tls-server-name", "", "")
+	flags.StringVar(&defaultVault.TLSServerName, "vault-tls-server-name", "", "")
 
 	// ACL options
 	flags.BoolVar(&cmdConfig.ACL.Enabled, "acl-enabled", false, "")
@@ -221,14 +228,26 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Load the configuration
-	dev, err := newDevModeConfig(devMode, devConnectMode)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return nil
-	}
 	var config *Config
-	if dev != nil {
-		config = DevConfig(dev)
+
+	devConfig := &devModeConfig{
+		defaultMode: devMode,
+		connectMode: devConnectMode,
+		consulMode:  devConsulMode,
+		vaultMode:   devVaultMode,
+	}
+	if devConfig.enabled() {
+		err := devConfig.validate()
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return nil
+		}
+		err = devConfig.networkConfig()
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return nil
+		}
+		config = DevConfig(devConfig)
 	} else {
 		config = DefaultConfig()
 	}
@@ -278,14 +297,18 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}
 
+	// Read Vault configuration for the default cluster again after all
+	// configuration sources have been merged.
+	defaultVault = config.defaultVault()
+
 	// Check to see if we should read the Vault token from the environment
-	if config.Vault.Token == "" {
-		config.Vault.Token = os.Getenv("VAULT_TOKEN")
+	if defaultVault.Token == "" {
+		defaultVault.Token = os.Getenv("VAULT_TOKEN")
 	}
 
 	// Check to see if we should read the Vault namespace from the environment
-	if config.Vault.Namespace == "" {
-		config.Vault.Namespace = os.Getenv("VAULT_NAMESPACE")
+	if defaultVault.Namespace == "" {
+		defaultVault.Namespace = os.Getenv("VAULT_NAMESPACE")
 	}
 
 	// Default the plugin directory to be under that of the data directory if it
@@ -310,7 +333,6 @@ func (c *Command) readConfig() *Config {
 }
 
 func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
-
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
@@ -612,6 +634,12 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 	}
 	c.httpServers = httpServers
 
+	for _, vault := range config.Vaults {
+		if vault.Token != "" {
+			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.9. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
+		}
+	}
+
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
 	if config.DisableUpdateCheck != nil && !*config.DisableUpdateCheck {
@@ -665,63 +693,67 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		complete.PredictFiles("*.hcl"))
 
 	return map[string]complete.Predictor{
-		"-dev":                           complete.PredictNothing,
-		"-dev-connect":                   complete.PredictNothing,
-		"-server":                        complete.PredictNothing,
-		"-client":                        complete.PredictNothing,
-		"-bootstrap-expect":              complete.PredictAnything,
-		"-encrypt":                       complete.PredictAnything,
-		"-raft-protocol":                 complete.PredictAnything,
-		"-rejoin":                        complete.PredictNothing,
-		"-join":                          complete.PredictAnything,
-		"-retry-join":                    complete.PredictAnything,
-		"-retry-max":                     complete.PredictAnything,
-		"-state-dir":                     complete.PredictDirs("*"),
-		"-alloc-dir":                     complete.PredictDirs("*"),
-		"-node-class":                    complete.PredictAnything,
-		"-node-pool":                     complete.PredictAnything,
-		"-servers":                       complete.PredictAnything,
-		"-meta":                          complete.PredictAnything,
-		"-config":                        configFilePredictor,
-		"-bind":                          complete.PredictAnything,
-		"-region":                        complete.PredictAnything,
-		"-data-dir":                      complete.PredictDirs("*"),
-		"-plugin-dir":                    complete.PredictDirs("*"),
-		"-dc":                            complete.PredictAnything,
-		"-log-level":                     complete.PredictAnything,
-		"-json-logs":                     complete.PredictNothing,
-		"-node":                          complete.PredictAnything,
-		"-consul-auth":                   complete.PredictAnything,
-		"-consul-auto-advertise":         complete.PredictNothing,
-		"-consul-ca-file":                complete.PredictAnything,
-		"-consul-cert-file":              complete.PredictAnything,
-		"-consul-key-file":               complete.PredictAnything,
-		"-consul-checks-use-advertise":   complete.PredictNothing,
-		"-consul-client-auto-join":       complete.PredictNothing,
-		"-consul-client-service-name":    complete.PredictAnything,
-		"-consul-client-http-check-name": complete.PredictAnything,
-		"-consul-server-service-name":    complete.PredictAnything,
-		"-consul-server-http-check-name": complete.PredictAnything,
-		"-consul-server-serf-check-name": complete.PredictAnything,
-		"-consul-server-rpc-check-name":  complete.PredictAnything,
-		"-consul-server-auto-join":       complete.PredictNothing,
-		"-consul-ssl":                    complete.PredictNothing,
-		"-consul-verify-ssl":             complete.PredictNothing,
-		"-consul-address":                complete.PredictAnything,
-		"-consul-token":                  complete.PredictAnything,
-		"-vault-enabled":                 complete.PredictNothing,
-		"-vault-allow-unauthenticated":   complete.PredictNothing,
-		"-vault-token":                   complete.PredictAnything,
-		"-vault-address":                 complete.PredictAnything,
-		"-vault-create-from-role":        complete.PredictAnything,
-		"-vault-ca-file":                 complete.PredictAnything,
-		"-vault-ca-path":                 complete.PredictAnything,
-		"-vault-cert-file":               complete.PredictAnything,
-		"-vault-key-file":                complete.PredictAnything,
-		"-vault-tls-skip-verify":         complete.PredictNothing,
-		"-vault-tls-server-name":         complete.PredictAnything,
-		"-acl-enabled":                   complete.PredictNothing,
-		"-acl-replication-token":         complete.PredictAnything,
+		"-dev":                         complete.PredictNothing,
+		"-dev-connect":                 complete.PredictNothing,
+		"-server":                      complete.PredictNothing,
+		"-client":                      complete.PredictNothing,
+		"-bootstrap-expect":            complete.PredictAnything,
+		"-encrypt":                     complete.PredictAnything,
+		"-raft-protocol":               complete.PredictAnything,
+		"-rejoin":                      complete.PredictNothing,
+		"-join":                        complete.PredictAnything,
+		"-retry-join":                  complete.PredictAnything,
+		"-retry-max":                   complete.PredictAnything,
+		"-state-dir":                   complete.PredictDirs("*"),
+		"-alloc-dir":                   complete.PredictDirs("*"),
+		"-node-class":                  complete.PredictAnything,
+		"-node-pool":                   complete.PredictAnything,
+		"-servers":                     complete.PredictAnything,
+		"-meta":                        complete.PredictAnything,
+		"-config":                      configFilePredictor,
+		"-bind":                        complete.PredictAnything,
+		"-region":                      complete.PredictAnything,
+		"-data-dir":                    complete.PredictDirs("*"),
+		"-plugin-dir":                  complete.PredictDirs("*"),
+		"-dc":                          complete.PredictAnything,
+		"-log-level":                   complete.PredictAnything,
+		"-json-logs":                   complete.PredictNothing,
+		"-node":                        complete.PredictAnything,
+		"-consul-auth":                 complete.PredictAnything,
+		"-consul-auto-advertise":       complete.PredictNothing,
+		"-consul-ca-file":              complete.PredictAnything,
+		"-consul-cert-file":            complete.PredictAnything,
+		"-consul-key-file":             complete.PredictAnything,
+		"-consul-checks-use-advertise": complete.PredictNothing,
+		"-consul-client-auto-join":     complete.PredictNothing,
+		"-consul-client-service-name":  complete.PredictAnything,
+		"-consul-client-failures-before-critical": complete.PredictAnything,
+		"-consul-client-failures-before-warning":  complete.PredictAnything,
+		"-consul-client-http-check-name":          complete.PredictAnything,
+		"-consul-server-service-name":             complete.PredictAnything,
+		"-consul-server-http-check-name":          complete.PredictAnything,
+		"-consul-server-serf-check-name":          complete.PredictAnything,
+		"-consul-server-rpc-check-name":           complete.PredictAnything,
+		"-consul-server-auto-join":                complete.PredictNothing,
+		"-consul-server-failures-before-critical": complete.PredictAnything,
+		"-consul-server-failures-before-warning":  complete.PredictAnything,
+		"-consul-ssl":                             complete.PredictNothing,
+		"-consul-verify-ssl":                      complete.PredictNothing,
+		"-consul-address":                         complete.PredictAnything,
+		"-consul-token":                           complete.PredictAnything,
+		"-vault-enabled":                          complete.PredictNothing,
+		"-vault-allow-unauthenticated":            complete.PredictNothing,
+		"-vault-token":                            complete.PredictAnything,
+		"-vault-address":                          complete.PredictAnything,
+		"-vault-create-from-role":                 complete.PredictAnything,
+		"-vault-ca-file":                          complete.PredictAnything,
+		"-vault-ca-path":                          complete.PredictAnything,
+		"-vault-cert-file":                        complete.PredictAnything,
+		"-vault-key-file":                         complete.PredictAnything,
+		"-vault-tls-skip-verify":                  complete.PredictNothing,
+		"-vault-tls-server-name":                  complete.PredictAnything,
+		"-acl-enabled":                            complete.PredictNothing,
+		"-acl-replication-token":                  complete.PredictAnything,
 	}
 }
 
@@ -881,7 +913,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 
 	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
 		joiner := retryJoiner{
-			discover:      &discover.Discover{},
+			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
@@ -914,7 +946,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		len(config.Server.ServerJoin.RetryJoin) != 0 {
 
 		joiner := retryJoiner{
-			discover:      &discover.Discover{},
+			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
@@ -932,7 +964,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		config.Client.ServerJoin != nil &&
 		len(config.Client.ServerJoin.RetryJoin) != 0 {
 		joiner := retryJoiner{
-			discover:      &discover.Discover{},
+			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			clientJoin:    c.agent.client.SetServers,
@@ -1397,8 +1429,18 @@ General Options (clients and servers):
 
   -dev-connect
     Start the agent in development mode, but bind to a public network
-    interface rather than localhost for using Consul Connect. This
+    interface rather than localhost for using Consul Connect. It may be used
+    with -dev-consul to configure default workload identities for Consul. This
     mode is supported only on Linux as root.
+
+  -dev-consul
+    Starts the agent in development mode with a default Consul configuration
+    for Nomad workload identity. It may be used with -dev-connect to configure
+    the agent for Consul Service Mesh.
+
+  -dev-vault
+    Starts the agent in development mode with a default Vault configuration
+    for Nomad workload identity.
 
 Server Options:
 
@@ -1530,6 +1572,14 @@ Consul Options:
   -consul-client-http-check-name=<name>
     Specifies the HTTP health check name in Consul for the Nomad clients.
 
+  -consul-client-failures-before-critical
+    Specifies the number of consecutive failures before the Nomad client
+	Consul health check is critical. Defaults to 0.
+
+  -consul-client-failures-before-warning
+    Specifies the number of consecutive failures before the Nomad client
+    Consul health check shows a warning. Defaults to 0.
+
   -consul-key-file=<path>
     Specifies the path to the private key used for Consul communication. If this
     is set then you need to also set cert_file.
@@ -1551,6 +1601,14 @@ Consul Options:
     Nomad servers by searching for the Consul service name defined in the
     server_service_name option. This search only happens if the server does not
     have a leader.
+
+  -consul-server-failures-before-critical
+    Specifies the number of consecutive failures before the Nomad server
+	Consul health check is critical. Defaults to 0.
+
+  -consul-server-failures-before-warning
+    Specifies the number of consecutive failures before the Nomad server
+    Consul health check shows a warning. Defaults to 0.
 
   -consul-ssl
     Specifies if the transport scheme should use HTTPS to communicate with the

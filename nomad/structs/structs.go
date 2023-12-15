@@ -33,7 +33,7 @@ import (
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/lib/idset"
@@ -135,6 +135,7 @@ const (
 )
 
 const (
+
 	// SystemInitializationType is used for messages that initialize parts of
 	// the system, such as the state store. These messages are not included in
 	// the event stream.
@@ -782,6 +783,9 @@ type JobDeregisterRequest struct {
 	// Eval is the evaluation to create that's associated with job deregister
 	Eval *Evaluation
 
+	// SubmitTime is the time at which the job was requested to be stopped
+	SubmitTime int64
+
 	WriteRequest
 }
 
@@ -793,6 +797,9 @@ type JobBatchDeregisterRequest struct {
 
 	// Evals is the set of evaluations to create.
 	Evals []*Evaluation
+
+	// SubmitTime is the time at which the job was requested to be stopped
+	SubmitTime int64
 
 	WriteRequest
 }
@@ -3127,35 +3134,6 @@ type NodeResources struct {
 	MaxDynamicPort int
 }
 
-// Compatibility will translate the LegacyNodeCpuResources into NodeProcessor
-// Resources, or the other way around as needed.
-func (n *NodeResources) Compatibility() {
-	// If resources are not set there is nothing to do.
-	if n == nil {
-		return
-	}
-
-	// Copy values from n.Processors to n.Cpu for compatibility
-	//
-	// COMPAT: added in Nomad 1.7; can be removed in 1.9+
-	if n.Processors.Topology == nil && !n.Cpu.empty() {
-		// When we receive a node update from a pre-1.7 client it contains only
-		// the LegacyNodeCpuResources field, and so we synthesize a pseudo
-		// NodeProcessorResources field
-		n.Processors.Topology = topologyFromLegacy(n.Cpu)
-	} else if !n.Processors.empty() {
-		// When we receive a node update from a 1.7+ client it contains a
-		// NodeProcessorResources field, and we populate the LegacyNodeCpuResources
-		// field using that information.
-		n.Cpu.CpuShares = int64(n.Processors.TotalCompute())
-		n.Cpu.TotalCpuCores = uint16(n.Processors.Topology.UsableCores().Size())
-		cores := n.Processors.Topology.UsableCores().Slice()
-		n.Cpu.ReservableCpuCores = helper.ConvertSlice(cores, func(coreID hw.CoreID) uint16 {
-			return uint16(coreID)
-		})
-	}
-}
-
 func (n *NodeResources) Copy() *NodeResources {
 	if n == nil {
 		return nil
@@ -4480,8 +4458,8 @@ type Job struct {
 	// on each job register.
 	Version uint64
 
-	// SubmitTime is the time at which the job was submitted as a UnixNano in
-	// UTC
+	// SubmitTime is the time at which the job version was submitted as
+	// UnixNano in UTC
 	SubmitTime int64
 
 	// Raft Indexes
@@ -4693,6 +4671,13 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
 					tg.Name, tg.Count))
+		}
+
+		if tg.MaxClientDisconnect != nil &&
+			tg.ReschedulePolicy.Attempts > 0 &&
+			tg.PreventRescheduleOnLost {
+			err := fmt.Errorf("max_client_disconnect and prevent_reschedule_on_lost cannot be enabled when rechedule.attempts > 0")
+			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
 
@@ -6663,6 +6648,10 @@ type TaskGroup struct {
 	// MaxClientDisconnect, if set, configures the client to allow placed
 	// allocations for tasks in this group to attempt to resume running without a restart.
 	MaxClientDisconnect *time.Duration
+
+	// PreventRescheduleOnLost is used to signal that an allocation should not
+	// be rescheduled if its node goes down or is disconnected.
+	PreventRescheduleOnLost bool
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -7620,6 +7609,15 @@ func (t *Task) GetIdentity(name string) *WorkloadIdentity {
 	return nil
 }
 
+func (t *Task) GetAction(name string) *Action {
+	for _, a := range t.Actions {
+		if a.Name == name {
+			return a
+		}
+	}
+	return nil
+}
+
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of unique WI
 // name and task name.
 func (t *Task) IdentityHandle(identity *WorkloadIdentity) *WIHandle {
@@ -7660,7 +7658,7 @@ func (t *Task) Copy() *Task {
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
 	nt.Identities = helper.CopySlice(nt.Identities)
-	nt.Actions = CopySliceActions(nt.Actions)
+	nt.Actions = helper.CopySlice(nt.Actions)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -7872,6 +7870,22 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		}
 	}
 
+	// Validate actions.
+	actions := make(map[string]bool)
+	for _, action := range t.Actions {
+		if err := action.Validate(); err != nil {
+			outer := fmt.Errorf("Action %s validation failed: %s", action.Name, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+
+		if handled, seen := actions[action.Name]; seen && !handled {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Action %s defined multiple times", action.Name))
+			actions[action.Name] = true
+			continue
+		}
+		actions[action.Name] = false
+	}
+
 	// Validate the dispatch payload block if there
 	if t.DispatchPayload != nil {
 		if err := t.DispatchPayload.Validate(); err != nil {
@@ -7926,6 +7940,11 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 
 		if !CSIPluginTypeIsValid(t.CSIPluginConfig.Type) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"%s\"", t.CSIPluginConfig.Type))
+		}
+
+		if t.CSIPluginConfig.StagePublishBaseDir != "" && t.CSIPluginConfig.MountDir != "" &&
+			strings.HasPrefix(t.CSIPluginConfig.StagePublishBaseDir, t.CSIPluginConfig.MountDir) {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig StagePublishBaseDir must not be a subdirectory of MountDir, got: StagePublishBaseDir=\"%s\" MountDir=\"%s\"", t.CSIPluginConfig.StagePublishBaseDir, t.CSIPluginConfig.MountDir))
 		}
 
 		// TODO: Investigate validation of the PluginMountDir. Not much we can do apart from check IsAbs until after we understand its execution environment though :(
@@ -8868,7 +8887,7 @@ const (
 	// TaskPluginHealthy indicates that a plugin managed by Nomad became healthy
 	TaskPluginHealthy = "Plugin became healthy"
 
-	// TaskClientReconnected indicates that the client running the task disconnected.
+	// TaskClientReconnected indicates that the client running the task reconnected.
 	TaskClientReconnected = "Reconnected"
 
 	// TaskWaitingShuttingDownDelay indicates that the task is waiting for
@@ -10708,13 +10727,19 @@ func (a *Allocation) JobNamespacedID() NamespacedID {
 // Index returns the index of the allocation. If the allocation is from a task
 // group with count greater than 1, there will be multiple allocations for it.
 func (a *Allocation) Index() uint {
-	l := len(a.Name)
-	prefix := len(a.JobID) + len(a.TaskGroup) + 2
+	return AllocIndexFromName(a.Name, a.JobID, a.TaskGroup)
+}
+
+// AllocIndexFromName returns the index of an allocation given its name, the
+// jobID and the task group name.
+func AllocIndexFromName(allocName, jobID, taskGroup string) uint {
+	l := len(allocName)
+	prefix := len(jobID) + len(taskGroup) + 2
 	if l <= 3 || l <= prefix {
 		return uint(0)
 	}
 
-	strNum := a.Name[prefix : len(a.Name)-1]
+	strNum := allocName[prefix : len(allocName)-1]
 	num, _ := strconv.Atoi(strNum)
 	return uint(num)
 }
@@ -10895,6 +10920,12 @@ func (a *Allocation) MigrateStrategy() *MigrateStrategy {
 func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	failTime := a.LastEventTime()
 	reschedulePolicy := a.ReschedulePolicy()
+
+	//If reschedule is disabled, return early
+	if reschedulePolicy.Attempts == 0 && !reschedulePolicy.Unlimited {
+		return time.Time{}, false
+	}
+
 	if a.DesiredStatus == AllocDesiredStatusStop || a.ClientStatus != AllocClientStatusFailed || failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false
 	}
@@ -10914,16 +10945,16 @@ func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *Re
 	return nextRescheduleTime, rescheduleEligible
 }
 
-// NextRescheduleTimeByFailTime works like NextRescheduleTime but allows callers
+// NextRescheduleTimeByTime works like NextRescheduleTime but allows callers
 // specify a failure time. Useful for things like determining whether to reschedule
 // an alloc on a disconnected node.
-func (a *Allocation) NextRescheduleTimeByFailTime(failTime time.Time) (time.Time, bool) {
+func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	reschedulePolicy := a.ReschedulePolicy()
 	if reschedulePolicy == nil {
 		return time.Time{}, false
 	}
 
-	return a.nextRescheduleTime(failTime, reschedulePolicy)
+	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
 // ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
@@ -10979,7 +11010,6 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
 	timeout := tg.MaxClientDisconnect
-
 	if timeout == nil {
 		return now
 	}
@@ -10999,6 +11029,19 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
 			return tg.MaxClientDisconnect != nil
+		}
+	}
+
+	return false
+}
+
+// PreventRescheduleOnLost determines if an alloc allows to have a replacement
+// when lost.
+func (a *Allocation) PreventRescheduleOnLost() bool {
+	if a.Job != nil {
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+		if tg != nil {
+			return tg.PreventRescheduleOnLost
 		}
 	}
 
@@ -11218,12 +11261,12 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	if tg.MaxClientDisconnect == nil {
+	if tg.MaxClientDisconnect == nil && !tg.PreventRescheduleOnLost {
 		return false
 	}
 
 	expiry := lastUnknown.Add(*tg.MaxClientDisconnect)
-	return now.UTC().After(expiry) || now.UTC().Equal(expiry)
+	return expiry.Sub(now) <= 0
 }
 
 // LastUnknown returns the timestamp for the last time the allocation
@@ -11272,6 +11315,9 @@ type IdentityClaims struct {
 	TaskName     string `json:"nomad_task,omitempty"`
 	ServiceName  string `json:"nomad_service,omitempty"`
 
+	ConsulNamespace string `json:"consul_namespace,omitempty"`
+	VaultNamespace  string `json:"vault_namespace,omitempty"`
+
 	jwt.Claims
 }
 
@@ -11307,14 +11353,55 @@ func NewIdentityClaims(job *Job, alloc *Allocation, wihandle *WIHandle, wid *Wor
 		claims.JobID = job.ParentID
 	}
 
+	var taskName string
+
 	switch wihandle.WorkloadType {
 	case WorkloadTypeService:
-		claims.ServiceName = wihandle.WorkloadIdentifier
+		serviceName := wihandle.WorkloadIdentifier
+		claims.ServiceName = serviceName
+
+		// Find task name if this is a task service.
+		for _, t := range tg.Tasks {
+			for _, s := range t.Services {
+				if s.Name == serviceName {
+					taskName = t.Name
+					break
+				}
+			}
+			if taskName != "" {
+				break
+			}
+		}
+
 	case WorkloadTypeTask:
-		claims.TaskName = wihandle.WorkloadIdentifier
+		taskName = wihandle.WorkloadIdentifier
+		claims.TaskName = taskName
+
 	default:
 		// in case of an unknown workload type we quit
 		return nil
+	}
+
+	// Add ConsulNamespace and VaultNamespace claims if necessary.
+	if taskName != "" {
+		task := tg.LookupTask(taskName)
+		if task == nil {
+			return nil
+		}
+
+		if wid.IsConsul() {
+			if task.Consul != nil {
+				claims.ConsulNamespace = task.Consul.Namespace
+			} else if tg.Consul != nil {
+				claims.ConsulNamespace = tg.Consul.Namespace
+			}
+		}
+
+		if wid.IsVault() && task.Vault != nil {
+			claims.VaultNamespace = task.Vault.Namespace
+		}
+	} else if wid.IsConsul() && tg.Consul != nil {
+		claims.ConsulNamespace = tg.Consul.Namespace
 	}
 
 	claims.Audience = slices.Clone(wid.Audience)

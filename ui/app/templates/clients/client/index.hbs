@@ -564,6 +564,7 @@
               <th>
                 Memory
               </th>
+              <th>Actions</th>
             </t.head>
             <t.body as |row|>
               <AllocationRow
@@ -578,7 +579,7 @@
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} />
+                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} @jobHasActions={{true}} />
                 {{/each}}
               {{/if}}
             </t.body>

@@ -441,7 +441,6 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			// NodePool added
 			Old: &Job{},
@@ -510,7 +509,6 @@ func TestJobDiff(t *testing.T) {
 				Type: DiffTypeNone,
 			},
 		},
-
 		{
 			// Periodic added
 			Old: &Job{},
@@ -1253,32 +1251,38 @@ func TestJobDiff(t *testing.T) {
 			Old: &Job{
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  "foo",
-						Count: 1,
+						Name:                    "foo",
+						Count:                   1,
+						PreventRescheduleOnLost: true,
 					},
 					{
-						Name:  "bar",
-						Count: 1,
+						Name:                    "bar",
+						Count:                   1,
+						PreventRescheduleOnLost: false,
 					},
 					{
-						Name:  "baz",
-						Count: 1,
+						Name:                    "baz",
+						Count:                   1,
+						PreventRescheduleOnLost: true,
 					},
 				},
 			},
 			New: &Job{
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  "bar",
-						Count: 1,
+						Name:                    "bar",
+						Count:                   1,
+						PreventRescheduleOnLost: false,
 					},
 					{
-						Name:  "baz",
-						Count: 2,
+						Name:                    "baz",
+						Count:                   2,
+						PreventRescheduleOnLost: true,
 					},
 					{
-						Name:  "bam",
-						Count: 1,
+						Name:                    "bam",
+						Count:                   1,
+						PreventRescheduleOnLost: true,
 					},
 				},
 			},
@@ -1294,6 +1298,12 @@ func TestJobDiff(t *testing.T) {
 								Name: "Count",
 								Old:  "",
 								New:  "1",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PreventRescheduleOnLost",
+								Old:  "",
+								New:  "true",
 							},
 						},
 					},
@@ -1321,6 +1331,12 @@ func TestJobDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Count",
 								Old:  "1",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "PreventRescheduleOnLost",
+								Old:  "true",
 								New:  "",
 							},
 						},
@@ -1837,6 +1853,31 @@ func TestTaskGroupDiff(t *testing.T) {
 						Name: "Meta[foo]",
 						Old:  "bar",
 						New:  "baz",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Reschedule on lost diff",
+			Old: &TaskGroup{
+				Name:                    "foo",
+				Count:                   100,
+				PreventRescheduleOnLost: true,
+			},
+			New: &TaskGroup{
+				Name:                    "foo",
+				Count:                   100,
+				PreventRescheduleOnLost: false,
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Name: "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "PreventRescheduleOnLost",
+						Old:  "true",
+						New:  "false",
 					},
 				},
 			},
@@ -3115,6 +3156,7 @@ func TestTaskGroupDiff(t *testing.T) {
 								Timeout:                1 * time.Second,
 								SuccessBeforePassing:   3,
 								FailuresBeforeCritical: 4,
+								FailuresBeforeWarning:  2,
 							},
 						},
 						Connect: &ConsulConnect{
@@ -3198,6 +3240,7 @@ func TestTaskGroupDiff(t *testing.T) {
 								},
 								SuccessBeforePassing:   5,
 								FailuresBeforeCritical: 6,
+								FailuresBeforeWarning:  4,
 							},
 						},
 						Connect: &ConsulConnect{
@@ -3373,6 +3416,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "FailuresBeforeCritical",
 										Old:  "4",
 										New:  "6",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "FailuresBeforeWarning",
+										Old:  "2",
+										New:  "4",
 									},
 									{
 										Type: DiffTypeNone,
@@ -6723,6 +6772,7 @@ func TestTaskDiff(t *testing.T) {
 								},
 								SuccessBeforePassing:   1,
 								FailuresBeforeCritical: 1,
+								FailuresBeforeWarning:  1,
 							},
 							{
 								Name:                   "bar",
@@ -6735,6 +6785,7 @@ func TestTaskDiff(t *testing.T) {
 								Timeout:                1 * time.Second,
 								SuccessBeforePassing:   7,
 								FailuresBeforeCritical: 7,
+								FailuresBeforeWarning:  5,
 							},
 							{
 								Name:     "baz",
@@ -6766,6 +6817,7 @@ func TestTaskDiff(t *testing.T) {
 								Timeout:                1 * time.Second,
 								SuccessBeforePassing:   7,
 								FailuresBeforeCritical: 7,
+								FailuresBeforeWarning:  5,
 							},
 							{
 								Name:     "baz",
@@ -6791,6 +6843,7 @@ func TestTaskDiff(t *testing.T) {
 								Timeout:                1 * time.Second,
 								SuccessBeforePassing:   2,
 								FailuresBeforeCritical: 2,
+								FailuresBeforeWarning:  1,
 							},
 						},
 					},
@@ -6850,6 +6903,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "FailuresBeforeCritical",
 										Old:  "",
 										New:  "2",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "FailuresBeforeWarning",
+										Old:  "",
+										New:  "1",
 									},
 									{
 										Type: DiffTypeAdded,
@@ -6926,6 +6985,12 @@ func TestTaskDiff(t *testing.T) {
 									{
 										Type: DiffTypeDeleted,
 										Name: "FailuresBeforeCritical",
+										Old:  "1",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "FailuresBeforeWarning",
 										Old:  "1",
 										New:  "",
 									},
@@ -7027,6 +7092,7 @@ func TestTaskDiff(t *testing.T) {
 								},
 								SuccessBeforePassing:   4,
 								FailuresBeforeCritical: 5,
+								FailuresBeforeWarning:  4,
 								OnUpdate:               "require_healthy",
 							},
 						},
@@ -7158,6 +7224,12 @@ func TestTaskDiff(t *testing.T) {
 										Type: DiffTypeEdited,
 										Name: "FailuresBeforeCritical",
 										Old:  "5",
+										New:  "0",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "FailuresBeforeWarning",
+										Old:  "4",
 										New:  "0",
 									},
 									{

@@ -38,8 +38,8 @@ Usage: nomad alloc exec [options] <allocation> <command>
   When ACLs are enabled, this command requires a token with the 'alloc-exec',
   'read-job', and 'list-jobs' capabilities for the allocation's namespace. If
   the task driver does not have file system isolation (as with 'raw_exec'),
-  this command requires the 'alloc-node-exec', 'read-job', and 'list-jobs'
-  capabilities for the allocation's namespace.
+  this command requires the 'alloc-node-exec', 'alloc-exec', 'read-job',
+  and 'list-jobs' capabilities for the allocation's namespace.
 
 General Options:
 
@@ -299,13 +299,6 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 
 	return client.Allocations().Exec(ctx,
 		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
-}
-
-// isTty returns true if both stdin and stdout are a TTY
-func isTty() bool {
-	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
-	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
-	return isStdinTerminal && isStdoutTerminal
 }
 
 // setRawTerminal sets the stream terminal in raw mode, so process captures

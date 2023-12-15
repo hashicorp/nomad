@@ -49,8 +49,8 @@ type AllocRunnerConfig struct {
 	// StateDB is used to store and restore state.
 	StateDB cstate.StateDB
 
-	// Consul is the Consul client used to register task services and checks
-	Consul serviceregistration.Handler
+	// ConsulServices is used to register task services and checks
+	ConsulServices serviceregistration.Handler
 
 	// ConsulProxiesFunc gets a Consul client used to lookup supported envoy
 	// versions of the Consul agent.

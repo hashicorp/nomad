@@ -7,10 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib"
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
-	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -85,7 +82,7 @@ type LegacyNodeCpuResources struct {
 // partial struct serialization / copy / merge sadness means this struct can
 // exist with no data, which is a condition we must detect during the upgrade path
 func (r LegacyNodeCpuResources) empty() bool {
-	return r.CpuShares == 0 || r.TotalCpuCores == 0 || len(r.ReservableCpuCores) == 0
+	return r.CpuShares == 0 || r.TotalCpuCores == 0
 }
 
 // NomadProcessorResources captures the CPU hardware resources of the Nomad node.
@@ -140,42 +137,4 @@ func (r *NodeProcessorResources) TotalCompute() int {
 		return 0
 	}
 	return int(r.Topology.TotalCompute())
-}
-
-func topologyFromLegacy(old LegacyNodeCpuResources) *numalib.Topology {
-	// interpret per-core frequency given total compute and total core count
-	frequency := hw.MHz(old.CpuShares / (int64(len(old.ReservableCpuCores))))
-
-	cores := helper.ConvertSlice(
-		old.ReservableCpuCores,
-		func(id uint16) numalib.Core {
-			return numalib.Core{
-				ID:         hw.CoreID(id),
-				SocketID:   0, // legacy: assume single socket with id 0
-				NodeID:     0, // legacy: assume single numa node with id 0
-				Grade:      numalib.Performance,
-				Disable:    false, // only usable cores in the source
-				GuessSpeed: frequency,
-			}
-		},
-	)
-
-	withheld := (frequency * hw.MHz(old.TotalCpuCores)) - hw.MHz(old.CpuShares)
-
-	return &numalib.Topology{
-		// legacy: assume one node with id 0
-		NodeIDs: idset.From[hw.NodeID]([]hw.NodeID{0}),
-
-		// legacy: with one node the distance matrix is 1-D
-		Distances: numalib.SLIT{{10}},
-
-		// legacy: a pseudo representation of each actual core profile
-		Cores: cores,
-
-		// legacy: set since we have the value
-		OverrideTotalCompute: hw.MHz(old.CpuShares),
-
-		// legacy: set since we can compute the value
-		OverrideWitholdCompute: withheld,
-	}
 }

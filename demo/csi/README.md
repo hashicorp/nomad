@@ -16,4 +16,4 @@ in this directory. This folder should include:
   * Add an `Author: @<Github Username>` field at the top so you can be tagged
     on issues.
 * A Nomad job file for the plugin.
-* A [volume specification](https://www.nomadproject.io/docs/commands/volume/register#volume-specification) file.
+* A [volume specification](https://developer.hashicorp.com/nomad/docs/commands/volume/register#volume-specification) file.

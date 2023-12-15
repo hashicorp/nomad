@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<td data-test-task-group-name>
+<td data-test-task-group-name={{this.taskGroup.name}}>
   <LinkTo @route="jobs.job.task-group" @models={{array this.taskGroup.job this.taskGroup}} class="is-primary">
     {{this.taskGroup.name}}
   </LinkTo>

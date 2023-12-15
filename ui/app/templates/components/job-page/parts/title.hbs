@@ -3,8 +3,8 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<h1 class="title with-flex">
-  <div data-test-job-name>
+<Hds::PageHeader class="job-page-header" as |PH|>
+  <PH.Title data-test-job-name>
     {{or this.title this.job.name}}
     {{#if @job.meta.structured.pack}}
       <span data-test-pack-tag class="tag is-hollow">
@@ -13,12 +13,16 @@
       </span>
     {{/if}}
     {{yield}}
-  </div>
-  <div>
-    {{#if (not (eq this.job.status "dead"))}}
-      <div class="two-step-button">
-        <Exec::OpenButton @job={{this.job}} />
-      </div>
+  </PH.Title>
+  <PH.Actions>
+
+      {{#if (not (eq this.job.status "dead"))}}
+        {{#if (can "exec allocation" namespace=this.job.namespace)}}
+          {{#if (and this.job.actions.length this.job.allocations.length)}}
+            <ActionsDropdown @actions={{this.job.actions}} />
+          {{/if}}
+        {{/if}}
+      <Exec::OpenButton @job={{this.job}} />
       <TwoStepButton
         data-test-stop
         @alignRight={{true}}
@@ -65,5 +69,5 @@
         }}
         />
     {{/if}}
-  </div>
-</h1>
+  </PH.Actions>
+</Hds::PageHeader>

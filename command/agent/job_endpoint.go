@@ -116,7 +116,8 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 		jobID := strings.TrimSuffix(path, "/actions")
 		return s.jobActions(resp, req, jobID)
 	case strings.HasSuffix(path, "/action"):
-		return s.jobRunAction(resp, req)
+		jobID := strings.TrimSuffix(path, "/action")
+		return s.jobRunAction(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -342,18 +343,18 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 
 func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	if req.Method != http.MethodGet {
-		return nil, CodedError(405, ErrInvalidMethod)
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
-	args := structs.JobSpecificRequest{
+	args := structs.JobActionListRequest{
 		JobID: jobID,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
 
-	var out structs.ActionListResponse
-	if err := s.agent.RPC("Job.GetActions", &args, &out); err != nil {
+	var out structs.JobActionListResponse
+	if err := s.agent.RPC(structs.JobGetActionsRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 
@@ -362,16 +363,14 @@ func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, job
 	return out.Actions, nil
 }
 
-func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-
-	s.logger.Info("jobRunAction called")
-
-	// Build the request and parse the ACL token
+func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	task := req.URL.Query().Get("task")
 	action := req.URL.Query().Get("action")
 	allocID := req.URL.Query().Get("allocID")
+
+	// Build the request and parse the ACL token
+	var err error
 	isTTY := false
-	err := error(nil)
 	if tty := req.URL.Query().Get("tty"); tty != "" {
 		isTTY, err = strconv.ParseBool(tty)
 		if err != nil {
@@ -380,16 +379,15 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	args := cstructs.AllocExecRequest{
+		JobID:   jobID,
 		Task:    task,
 		Action:  action,
 		AllocID: allocID,
 		Tty:     isTTY,
 	}
-
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
 	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}
@@ -1137,6 +1135,12 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		RenderTemplates: *taskGroup.RestartPolicy.RenderTemplates,
 	}
 
+	if taskGroup.PreventRescheduleOnLost == nil {
+		tg.PreventRescheduleOnLost = false
+	} else {
+		tg.PreventRescheduleOnLost = *taskGroup.PreventRescheduleOnLost
+	}
+
 	if taskGroup.ShutdownDelay != nil {
 		tg.ShutdownDelay = taskGroup.ShutdownDelay
 	}
@@ -1276,30 +1280,17 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	// Nomad 1.5 CLIs and JSON jobs may set the default identity parameters in
 	// the Task.Identity field, so if it is non-nil use it.
 	if id := apiTask.Identity; id != nil {
-		structsTask.Identity = &structs.WorkloadIdentity{
-			Name:     id.Name,
-			Audience: slices.Clone(id.Audience),
-			Env:      id.Env,
-			File:     id.File,
-			TTL:      id.TTL,
-		}
+		structsTask.Identity = apiWorkloadIdentityToStructs(id)
 	}
 
 	if ids := apiTask.Identities; len(ids) > 0 {
-		structsTask.Identities = make([]*structs.WorkloadIdentity, len(ids))
-		for i, id := range ids {
+		structsTask.Identities = make([]*structs.WorkloadIdentity, 0, len(ids))
+		for _, id := range ids {
 			if id == nil {
 				continue
 			}
 
-			structsTask.Identities[i] = &structs.WorkloadIdentity{
-				Name:     id.Name,
-				Audience: slices.Clone(id.Audience),
-				Env:      id.Env,
-				File:     id.File,
-				TTL:      id.TTL,
-			}
-
+			structsTask.Identities = append(structsTask.Identities, apiWorkloadIdentityToStructs(id))
 		}
 	}
 
@@ -1617,6 +1608,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 					GRPCUseTLS:             check.GRPCUseTLS,
 					SuccessBeforePassing:   check.SuccessBeforePassing,
 					FailuresBeforeCritical: check.FailuresBeforeCritical,
+					FailuresBeforeWarning:  check.FailuresBeforeWarning,
 					OnUpdate:               onUpdate,
 				}
 
@@ -1653,11 +1645,14 @@ func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIde
 		return nil
 	}
 	return &structs.WorkloadIdentity{
-		Name:        in.Name,
-		Audience:    in.Audience,
-		Env:         in.Env,
-		File:        in.File,
-		ServiceName: in.ServiceName,
+		Name:         in.Name,
+		Audience:     slices.Clone(in.Audience),
+		ChangeMode:   in.ChangeMode,
+		ChangeSignal: in.ChangeSignal,
+		Env:          in.Env,
+		File:         in.File,
+		ServiceName:  in.ServiceName,
+		TTL:          in.TTL,
 	}
 }
 

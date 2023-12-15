@@ -226,6 +226,10 @@ func (c *JobPlanCommand) Run(args []string) int {
 		vaultToken = os.Getenv("VAULT_TOKEN")
 	}
 
+	if vaultToken != "" {
+		job.VaultToken = pointer.Of(vaultToken)
+	}
+
 	// Set the vault token.
 	if vaultToken != "" {
 		job.VaultToken = pointer.Of(vaultToken)

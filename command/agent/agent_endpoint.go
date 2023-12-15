@@ -84,9 +84,6 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 
 	self.Config = s.agent.GetConfig().Copy()
 
-	if self.Config != nil && self.Config.Vault != nil && self.Config.Vault.Token != "" {
-		self.Config.Vault.Token = "<redacted>"
-	}
 	for _, vaultConfig := range self.Config.Vaults {
 		if vaultConfig.Token != "" {
 			vaultConfig.Token = "<redacted>"
@@ -97,9 +94,6 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 		self.Config.ACL.ReplicationToken = "<redacted>"
 	}
 
-	if self.Config != nil && self.Config.Consul != nil && self.Config.Consul.Token != "" {
-		self.Config.Consul.Token = "<redacted>"
-	}
 	for _, consulConfig := range self.Config.Consuls {
 		if consulConfig.Token != "" {
 			consulConfig.Token = "<redacted>"
