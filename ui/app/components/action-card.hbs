@@ -72,6 +72,7 @@
     {{/if}}
     {{#if this.instance.messages.length}}
       <code tabindex="0">
+        <Hds::Copy::Button class="copy-button" @text="Copy" @isIconOnly={{true}} @textToCopy={{this.instance.messages}} />
         <pre {{did-update this.anchorToBottom this.instance.messages}}>
           {{this.instance.messages}}
         </pre>
