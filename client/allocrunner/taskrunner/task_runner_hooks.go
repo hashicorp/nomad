@@ -107,10 +107,12 @@ func (tr *TaskRunner) initHooks() {
 	// Get the consul namespace for the TG of the allocation.
 	consulNamespace := tr.alloc.ConsulNamespaceForTask(tr.taskName)
 
+	// Add the consul hook (populates task secret dirs and sets the environment if
+	// consul tokens are present for the task).
+	tr.runnerHooks = append(tr.runnerHooks, newConsulHook(hookLogger, tr))
+
 	// If there are templates is enabled, add the hook
 	if len(task.Templates) != 0 {
-		tr.runnerHooks = append(tr.runnerHooks, newConsulHook(hookLogger, tr))
-
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
 			alloc:               tr.Alloc(),
 			logger:              hookLogger,
