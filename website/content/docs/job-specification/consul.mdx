@@ -74,12 +74,11 @@ to Using Workload Identity with Consul</a>
 ### Access to Token
 
 The Nomad client will make the Consul token available to the task by writing it
-to the secret directory at
-`secrets/nomad_consul_{$consul_cluster}_{$task_identity_name}` and by injecting
-a `CONSUL_TOKEN` environment variable in the task. If the Nomad cluster is
+to the secret directory at `secrets/consul_token` and by injecting a
+`CONSUL_TOKEN` environment variable in the task. If the Nomad cluster is
 [configured][config_consul_namespace] to use [Consul Namespaces][], a
-`CONSUL_NAMESPACE` environment variable will be injected whenever
-`CONSUL_TOKEN` is set.
+`CONSUL_NAMESPACE` environment variable will be injected whenever `CONSUL_TOKEN`
+is set.
 
 The [`template`][template] block can use the Consul token as well.
 
