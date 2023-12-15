@@ -122,6 +122,8 @@ func (tr *TaskRunner) initHooks() {
 			nomadNamespace:      tr.alloc.Job.Namespace,
 			renderOnTaskRestart: task.RestartPolicy.RenderTemplates,
 		}))
+
+		tr.runnerHooks = append(tr.runnerHooks, newConsulHook(hookLogger, tr))
 	}
 
 	// Always add the service hook. A task with no services on initial registration

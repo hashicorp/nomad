@@ -35,11 +35,11 @@ type consulHook struct {
 	logger        log.Logger
 }
 
-func newConsulHook(logger log.Logger, tr *TaskRunner, hookResources *cstructs.AllocHookResources) *consulHook {
+func newConsulHook(logger log.Logger, tr *TaskRunner) *consulHook {
 	h := &consulHook{
 		task:          tr.Task(),
 		tokenDir:      tr.taskDir.SecretsDir,
-		hookResources: hookResources,
+		hookResources: tr.allocHookResources,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
