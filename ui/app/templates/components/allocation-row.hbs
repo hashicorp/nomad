@@ -137,4 +137,6 @@
     @error={{this.statsError}}
   />
 </td>
-<td class="job-actions-cell" />
+{{#if this.model.job.actions.length}}
+  <td class="job-actions-cell" />
+{{/if}}
