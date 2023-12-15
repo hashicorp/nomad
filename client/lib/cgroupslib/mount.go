@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/hashicorp/go-set/v2"
@@ -45,14 +44,9 @@ func functionalCgroups2() bool {
 	if err != nil {
 		return false
 	}
-	rootSubtreeControllers := strings.Split(strings.TrimSpace(string(content)), " ")
 
-	for _, controller := range requiredCgroup2Controllers {
-		if !slices.Contains(rootSubtreeControllers, controller) {
-			return false
-		}
-	}
-	return true
+	rootSubtreeControllers := set.From[string](strings.Fields(string(content)))
+	return rootSubtreeControllers.ContainsSlice(requiredCgroup2Controllers)
 }
 
 func scan(in io.Reader) Mode {
