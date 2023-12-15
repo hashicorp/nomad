@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix rendering of allocations table for jobs that don't have actions
+```
