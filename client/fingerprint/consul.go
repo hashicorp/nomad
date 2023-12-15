@@ -164,6 +164,7 @@ func (cfs *consulFingerprintState) initialize(cfg *config.ConsulConfig, logger h
 			"consul.connect":       cfs.connect,
 			"consul.grpc":          cfs.grpc(consulConfig.Scheme, logger),
 			"consul.ft.namespaces": cfs.namespaces,
+			"consul.partition":     cfs.partition,
 		}
 	} else {
 		cfs.extractors = map[string]consulExtractor{
@@ -176,6 +177,7 @@ func (cfs *consulFingerprintState) initialize(cfg *config.ConsulConfig, logger h
 			fmt.Sprintf("consul.%s.connect", cfg.Name):       cfs.connect,
 			fmt.Sprintf("consul.%s.grpc", cfg.Name):          cfs.grpc(consulConfig.Scheme, logger),
 			fmt.Sprintf("consul.%s.ft.namespaces", cfg.Name): cfs.namespaces,
+			fmt.Sprintf("consul.%s.partition", cfg.Name):     cfs.partition,
 		}
 	}
 
@@ -298,4 +300,16 @@ func (cfs *consulFingerprintState) grpcTLSPort(info agentconsul.Self) (string, b
 
 func (cfs *consulFingerprintState) namespaces(info agentconsul.Self) (string, bool) {
 	return strconv.FormatBool(agentconsul.Namespaces(info)), true
+}
+
+func (cfs *consulFingerprintState) partition(info agentconsul.Self) (string, bool) {
+	sku, ok := agentconsul.SKU(info)
+	if ok && sku == "ent" {
+		p, ok := info["Config"]["Partition"].(string)
+		if !ok {
+			p = "default"
+		}
+		return p, true
+	}
+	return "", false
 }
