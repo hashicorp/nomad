@@ -57,7 +57,7 @@ export default class ClientNodeRow extends Component.extend(
 
   @watchRelationship('allocations') watch;
 
-  @computed('node.compositeStatus')
+  @computed('node.status')
   get nodeStatusColor() {
     let status = this.get('node.status');
     if (status === 'disconnected') {
