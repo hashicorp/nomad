@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -29,10 +28,9 @@ const (
 )
 
 type consulHook struct {
-	task           *structs.Task
-	tokenDir       string
-	hookResources  *cstructs.AllocHookResources
-	taskEnvBuilder *taskenv.Builder
+	task          *structs.Task
+	tokenDir      string
+	hookResources *cstructs.AllocHookResources
 
 	logger log.Logger
 }
@@ -43,7 +41,6 @@ func newConsulHook(logger log.Logger, tr *TaskRunner) *consulHook {
 		tokenDir:      tr.taskDir.SecretsDir,
 		hookResources: tr.allocHookResources,
 	}
-	h.taskEnvBuilder = tr.envBuilder
 	h.logger = logger.Named(h.Name())
 	return h
 }
@@ -74,10 +71,11 @@ func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
 			}
 
-			envs := h.taskEnvBuilder.Build().Map()
-			envs["CONSUL_TOKEN"] = token.SecretID
+			env := map[string]string{
+				"CONSUL_TOKEN": token.SecretID,
+			}
 
-			resp.Env = envs
+			resp.Env = env
 		}
 	}
 
