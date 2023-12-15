@@ -32,6 +32,7 @@ type consulHook struct {
 	task          *structs.Task
 	tokenDir      string
 	hookResources *cstructs.AllocHookResources
+	taskEnv       map[string]string
 	logger        log.Logger
 }
 
@@ -41,6 +42,7 @@ func newConsulHook(logger log.Logger, tr *TaskRunner) *consulHook {
 		tokenDir:      tr.taskDir.SecretsDir,
 		hookResources: tr.allocHookResources,
 	}
+	h.taskEnv = tr.envBuilder.Build().Map()
 	h.logger = logger.Named(h.Name())
 	return h
 }
@@ -71,6 +73,8 @@ func (h *consulHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, 
 			if err := os.WriteFile(tokenPath, []byte(token.SecretID), consulTokenFilePerms); err != nil {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
 			}
+
+			h.taskEnv["CONSUL_TOKEN"] = token.SecretID
 		}
 	}
 
