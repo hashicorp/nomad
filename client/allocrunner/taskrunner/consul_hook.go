@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -28,11 +29,12 @@ const (
 )
 
 type consulHook struct {
-	task          *structs.Task
-	tokenDir      string
-	hookResources *cstructs.AllocHookResources
-	taskEnv       map[string]string
-	logger        log.Logger
+	task           *structs.Task
+	tokenDir       string
+	hookResources  *cstructs.AllocHookResources
+	taskEnvBuilder *taskenv.Builder
+
+	logger log.Logger
 }
 
 func newConsulHook(logger log.Logger, tr *TaskRunner) *consulHook {
@@ -41,7 +43,7 @@ func newConsulHook(logger log.Logger, tr *TaskRunner) *consulHook {
 		tokenDir:      tr.taskDir.SecretsDir,
 		hookResources: tr.allocHookResources,
 	}
-	h.taskEnv = tr.envBuilder.Build().Map()
+	h.taskEnvBuilder = tr.envBuilder
 	h.logger = logger.Named(h.Name())
 	return h
 }
@@ -50,7 +52,7 @@ func (*consulHook) Name() string {
 	return "consul_task"
 }
 
-func (h *consulHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, *interfaces.TaskPrestartResponse) error {
+func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	mErr := multierror.Error{}
 
 	tokens := h.hookResources.GetConsulTokens()
@@ -72,7 +74,10 @@ func (h *consulHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, 
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
 			}
 
-			h.taskEnv["CONSUL_TOKEN"] = token.SecretID
+			envs := h.taskEnvBuilder.Build().Map()
+			envs["CONSUL_TOKEN"] = token.SecretID
+
+			resp.Env = envs
 		}
 	}
 
