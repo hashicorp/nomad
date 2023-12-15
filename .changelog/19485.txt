@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: Add fingerprint for Consul Enterprise admin partitions
+```
