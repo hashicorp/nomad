@@ -16,6 +16,19 @@
     </div>
   </div>
 {{/if}}
+{{#if this.logsDisabled}}
+  <div data-test-connection-error class="notification is-error">
+    <div class="columns">
+      <div class="column">
+        <h3 class="title is-4">Cannot fetch logs</h3>
+        <p>Logs unavailable. Log collection may be disabled.</p>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button data-test-connection-error-dismiss class="button is-danger" onclick={{action (mut this.logsDisabled) false}} type="button">Okay</button>
+      </div>
+    </div>
+  </div>
+{{/if}}
 <div class="boxed-section-head task-log-head">
   <span>
     <button data-test-log-action="stdout" class="button {{if (eq this.mode "stdout") "is-info"}}" {{action "setMode" "stdout"}} type="button">stdout</button>
