@@ -77,7 +77,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(nodeRow.nodePool, node.nodePool, 'Node Pool');
     assert.equal(
       nodeRow.compositeStatus.text,
-      'Draining',
+      'Ready Ineligible Draining',
       'Combined status, draining, and eligbility'
     );
     assert.equal(nodeRow.address, node.httpAddr);
@@ -111,13 +111,13 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(
       nodeRow.compositeStatus.text,
-      'Ready',
+      'Ready Eligible Not Draining',
       'Combined status, draining, and eligbility'
     );
     assert.equal(nodeRow.allocations, running.length, '# Allocations');
   });
 
-  test('client status, draining, and eligibility are collapsed into one column that stays sorted', async function (assert) {
+  test('client status, draining, and eligibility are combined into one column that stays sorted on status', async function (assert) {
     server.createList('agent', 1);
 
     server.create('node', {
@@ -151,47 +151,71 @@ module('Acceptance | clients list', function (hooks) {
       drain: false,
     });
     server.create('node', 'draining', {
+      schedulingEligibility: 'eligible',
       modifyIndex: 0,
       status: 'ready',
     });
 
     await ClientsList.visit();
-    ClientsList.nodes[0].compositeStatus.as((readyClient) => {
-      assert.equal(readyClient.text, 'Ready');
-      console.log('readyClient', readyClient.text);
-      assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
-    });
-
-    assert.equal(ClientsList.nodes[1].compositeStatus.text, 'Initializing');
-    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'Down');
+    assert.equal(
+      ClientsList.nodes[0].compositeStatus.text,
+      'Ready Eligible Not Draining'
+    );
+    assert.equal(
+      ClientsList.nodes[1].compositeStatus.text,
+      'Initializing Eligible Not Draining'
+    );
     assert.equal(
       ClientsList.nodes[2].compositeStatus.text,
-      'Down',
-      'down takes priority over ineligible'
+      'Down Eligible Not Draining'
     );
-    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'Ineligible');
+    assert.equal(
+      ClientsList.nodes[3].compositeStatus.text,
+      'Down Ineligible Not Draining'
+    );
+    assert.equal(
+      ClientsList.nodes[4].compositeStatus.text,
+      'Ready Ineligible Not Draining'
+    );
+    assert.equal(
+      ClientsList.nodes[5].compositeStatus.text,
+      'Ready Eligible Draining'
+    );
 
-    assert.equal(ClientsList.nodes[5].compositeStatus.text, 'Draining');
-
-    await ClientsList.sortBy('compositeStatus');
+    await ClientsList.sortBy('status');
 
     assert.deepEqual(
       ClientsList.nodes.map((n) => n.compositeStatus.text),
-      ['Ready', 'Initializing', 'Ineligible', 'Draining', 'Down', 'Down']
+      [
+        'Ready Eligible Draining',
+        'Ready Ineligible Not Draining',
+        'Ready Eligible Not Draining',
+        'Initializing Eligible Not Draining',
+        'Down Ineligible Not Draining',
+        'Down Eligible Not Draining',
+      ],
+      'Nodes are sorted only by status, and otherwise default to modifyIndex'
     );
 
     // Simulate a client state change arriving through polling
-    let readyClient = this.owner
+    let discoClient = this.owner
       .lookup('service:store')
       .peekAll('node')
       .findBy('modifyIndex', 5);
-    readyClient.set('schedulingEligibility', 'ineligible');
+    discoClient.set('status', 'disconnected');
 
     await settled();
 
     assert.deepEqual(
       ClientsList.nodes.map((n) => n.compositeStatus.text),
-      ['Initializing', 'Ineligible', 'Ineligible', 'Draining', 'Down', 'Down']
+      [
+        'Ready Eligible Draining',
+        'Ready Ineligible Not Draining',
+        'Disconnected Eligible Not Draining',
+        'Initializing Eligible Not Draining',
+        'Down Ineligible Not Draining',
+        'Down Eligible Not Draining',
+      ]
     );
   });
 
@@ -400,9 +424,8 @@ module('Acceptance | clients list', function (hooks) {
     server.createList('node', 2, { status: 'ready' });
 
     await ClientsList.visit();
-
     await ClientsList.facets.state.toggle();
-    await ClientsList.facets.state.options.objectAt(0).toggle();
+    await ClientsList.facets.state.options.objectAt(1).toggle();
     assert.ok(ClientsList.isEmpty, 'There is an empty message');
     assert.equal(
       ClientsList.empty.headline,
@@ -441,7 +464,9 @@ module('Acceptance | clients list', function (hooks) {
       }
 
       assert.deepEqual(
-        facet.options.map((option) => option.label.trim()),
+        facet.options.map((option) => {
+          return option.key.trim();
+        }),
         expectation,
         'Options for facet are as expected'
       );
