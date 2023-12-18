@@ -7,7 +7,7 @@
   <div class="boxed-section-head">
     Allocations
   </div>
-  <div class="boxed-section-body {{if this.job.allocations.length "is-full-bleed"}}">
+  <div class="boxed-section-body {{if @deployment.allocations.length "is-full-bleed"}}">
     {{#if @deployment.allocations.length}}
       <ListTable @source={{@deployment.allocations}} @class="allocations" as |t|>
         <t.head>
