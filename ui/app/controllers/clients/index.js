@@ -62,7 +62,6 @@ export default class IndexController extends Controller.extend(
   ];
 
   filterFunc = (node) => {
-    console.log('--ff', node);
     return node.isEligible;
   };
 
@@ -143,6 +142,12 @@ export default class IndexController extends Controller.extend(
       (acc, filters) => acc.concat(filters),
       []
     );
+  }
+
+  // eslint-disable-next-line ember/classic-decorator-hooks
+  constructor() {
+    super(...arguments);
+    this.addDynamicQueryParams();
   }
 
   addDynamicQueryParams() {
@@ -348,6 +353,16 @@ export default class IndexController extends Controller.extend(
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
+  }
+
+  @action
+  handleFilterChange(queryParamValue, option, queryParamLabel) {
+    if (queryParamValue.includes(option)) {
+      queryParamValue.removeObject(option);
+    } else {
+      queryParamValue.addObject(option);
+    }
+    this.set(queryParamLabel, serialize(queryParamValue));
   }
 
   @action

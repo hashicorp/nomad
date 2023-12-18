@@ -4,7 +4,7 @@
 ~}}
 
 {{page-title "Clients"}}
-<section class="section" {{did-insert (action this.addDynamicQueryParams)}}>
+<section class="section">
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
@@ -22,7 +22,6 @@
       <Hds::SegmentedGroup as |S|>
         <S.Dropdown as |dd|>
           <dd.ToggleButton
-            class="solo-badge-button"
             @text="State"
             @color="secondary"
             @badge={{if (eq this.activeToggles.length this.allToggles.length) false this.activeToggles.length}}
@@ -63,41 +62,142 @@
             </dd.Checkbox>
           {{/each}}
         </S.Dropdown>
-        <MultiSelectDropdown
-          data-test-node-pool-facet
-          @label="Node Pool"
-          @options={{this.optionsNodePool}}
-          @selection={{this.selectionNodePool}}
-          @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
-        />
-        <MultiSelectDropdown
-          data-test-class-facet
-          @label="Class"
-          @options={{this.optionsClass}}
-          @selection={{this.selectionClass}}
-          @onSelect={{action this.setFacetQueryParam "qpClass"}}
-        />
-          <MultiSelectDropdown
+
+        <S.Dropdown as |dd|>
+          <dd.ToggleButton
+            data-test-node-pool-facet
+            @text="Node Pool"
+            @color="secondary"
+            @badge={{or this.selectionNodePool.length false}}
+          />
+          {{#each this.optionsNodePool key="label" as |option|}}
+            <dd.Checkbox
+              {{on "change" (action this.handleFilterChange
+                this.selectionNodePool
+                option.label
+                "qpNodePool"
+              )}}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionNodePool}}
+              @count={{get (filter-by 'nodePool' option.label this.nodes) "length"}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Node Pool filters
+            </dd.Generic>
+          {{/each}}
+        </S.Dropdown>
+
+        <S.Dropdown as |dd|>
+          <dd.ToggleButton
+            data-test-class-facet
+            @text="Class"
+            @color="secondary"
+            @badge={{or this.selectionClass.length false}}
+          />
+          {{#each this.optionsClass key="label" as |option|}}
+            <dd.Checkbox
+              {{on "change" (action this.handleFilterChange
+                this.selectionClass
+                option.label
+                "qpClass"
+              )}}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionClass}}
+              @count={{get (filter-by 'nodeClass' option.label this.nodes) "length"}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Class filters
+            </dd.Generic>
+          {{/each}}
+        </S.Dropdown>
+
+        <S.Dropdown as |dd|>
+          <dd.ToggleButton
             data-test-datacenter-facet
-            @label="Datacenter"
-            @options={{this.optionsDatacenter}}
-            @selection={{this.selectionDatacenter}}
-            @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
+            @text="Datacenter"
+            @color="secondary"
+            @badge={{or this.selectionDatacenter.length false}}
           />
-          <MultiSelectDropdown
+          {{#each this.optionsDatacenter key="label" as |option|}}
+            <dd.Checkbox
+              {{on "change" (action this.handleFilterChange
+                this.selectionDatacenter
+                option.label
+                "qpDatacenter"
+              )}}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionDatacenter}}
+              @count={{get (filter-by 'datacenter' option.label this.nodes) "length"}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Datacenter filters
+            </dd.Generic>
+          {{/each}}
+
+        </S.Dropdown>
+
+        <S.Dropdown as |dd|>
+          <dd.ToggleButton
             data-test-version-facet
-            @label="Version"
-            @options={{this.optionsVersion}}
-            @selection={{this.selectionVersion}}
-            @onSelect={{action this.setFacetQueryParam "qpVersion"}}
+            @text="Version"
+            @color="secondary"
+            @badge={{or this.selectionVersion.length false}}
           />
-          <MultiSelectDropdown
+          {{#each this.optionsVersion key="label" as |option|}}
+            <dd.Checkbox
+              {{on "change" (action this.handleFilterChange
+                this.selectionVersion
+                option.label
+                "qpVersion"
+              )}}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionVersion}}
+              @count={{get (filter-by 'version' option.label this.nodes) "length"}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Version filters
+            </dd.Generic>
+          {{/each}}
+        </S.Dropdown>
+
+        <S.Dropdown as |dd|>
+          <dd.ToggleButton
             data-test-volume-facet
-            @label="Volume"
-            @options={{this.optionsVolume}}
-            @selection={{this.selectionVolume}}
-            @onSelect={{action this.setFacetQueryParam "qpVolume"}}
+            @text="Volume"
+            @color="secondary"
+            @badge={{or this.selectionVolume.length false}}
           />
+          {{#each this.optionsVolume key="label" as |option|}}
+            <dd.Checkbox
+              {{on "change" (action this.handleFilterChange
+                this.selectionVolume
+                option.label
+                "qpVolume"
+              )}}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionVolume}}
+              @count={{get (filter-by 'volume' option.label this.nodes) "length"}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Volume filters
+            </dd.Generic>
+          {{/each}}
+        </S.Dropdown>
       </Hds::SegmentedGroup>
     </div>
     {{#if this.sortedNodes}}
