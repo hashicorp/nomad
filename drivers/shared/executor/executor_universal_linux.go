@@ -5,6 +5,7 @@ package executor
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"syscall"
@@ -111,6 +112,11 @@ func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {
 // pid: pid of the executor (i.e. ourself)
 func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid int) (func(), error) {
 	cgroup := command.StatsCgroup()
+
+	// children should not inherit Nomad agent oom_score_adj value
+	if err := os.WriteFile("/proc/self/oom_score_adj", []byte("0"), 0644); err != nil {
+		return nil, err
+	}
 
 	// cgCleanup will be called after the task has been launched
 	// v1: remove the executor process from the task's cgroups
