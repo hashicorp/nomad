@@ -251,7 +251,7 @@ type Service struct {
 	Provider string `hcl:"provider,optional"`
 
 	// Cluster is valid only for Nomad Enterprise with provider: consul
-	Cluster string `hcl:"cluster,optional`
+	Cluster string `hcl:"cluster,optional"`
 }
 
 const (
