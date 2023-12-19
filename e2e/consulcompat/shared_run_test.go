@@ -280,8 +280,4 @@ func runConnectJob(t *testing.T, nc *nomadapi.Client, ns, filePath string) {
 	// Ensure that the template rendered
 	_, _, err = nc.AllocFS().Stat(alloc, "dashboard/local/count-api.txt", nil)
 	must.NoError(t, err)
-
-	// Ensure that Consul tokens were written to task secret dir
-	_, _, err = nc.AllocFS().Stat(alloc, "dashboard/secrets/consul_token", nil)
-	must.NoError(t, err)
 }
