@@ -66,7 +66,7 @@ func (op *Operator) RaftGetConfiguration(q *QueryOptions) (*RaftConfiguration, e
 		return nil, err
 	}
 	r.setQueryOptions(q)
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (op *Operator) RaftRemovePeerByAddress(address string, q *WriteOptions) err
 
 	r.params.Set("address", address)
 
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (op *Operator) RaftRemovePeerByID(id string, q *WriteOptions) error {
 
 	r.params.Set("id", id)
 
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (op *Operator) RaftTransferLeadershipByAddress(address string, q *WriteOpti
 
 	r.params.Set("address", address)
 
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (op *Operator) RaftTransferLeadershipByID(id string, q *WriteOptions) error
 
 	r.params.Set("id", id)
 
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return err
 	}
@@ -262,18 +262,17 @@ func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
 		return nil, err
 	}
 	r.setQueryOptions(q)
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	digest := resp.Header.Get("Digest")
 
 	cr, err := newChecksumValidatingReader(resp.Body, digest)
 	if err != nil {
 		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-
 		return nil, err
 	}
 
@@ -355,7 +354,7 @@ func (op *Operator) ApplyLicense(license string, opts *ApplyLicenseOptions, q *W
 	r.setWriteOptions(q)
 	r.body = strings.NewReader(license)
 
-	rtt, resp, err := requireOK(op.c.doRequest(r))
+	rtt, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +374,7 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	req.setQueryOptions(q)
 
 	var reply LicenseReply
-	rtt, resp, err := op.c.doRequest(req)
+	rtt, resp, err := op.c.doRequest(req) //nolint:bodyclose
 	if err != nil {
 		return nil, nil, err
 	}
