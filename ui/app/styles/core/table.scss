@@ -110,6 +110,12 @@
       white-space: nowrap;
     }
 
+    &.node-status-badges {
+      .hds-badge__text {
+        white-space: nowrap;
+      }
+    }
+
     &.is-narrow {
       padding: 1.25em 0 1.25em 0.5em;
 

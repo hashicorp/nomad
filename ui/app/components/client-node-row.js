@@ -57,37 +57,31 @@ export default class ClientNodeRow extends Component.extend(
 
   @watchRelationship('allocations') watch;
 
-  @computed('node.compositeStatus')
+  @computed('node.status')
   get nodeStatusColor() {
-    let compositeStatus = this.get('node.compositeStatus');
-
-    if (compositeStatus === 'draining') {
-      return 'neutral';
-    } else if (compositeStatus === 'ineligible') {
+    let status = this.get('node.status');
+    if (status === 'disconnected') {
       return 'warning';
-    } else if (compositeStatus === 'down') {
+    } else if (status === 'down') {
       return 'critical';
-    } else if (compositeStatus === 'ready') {
+    } else if (status === 'ready') {
       return 'success';
-    } else if (compositeStatus === 'initializing') {
+    } else if (status === 'initializing') {
       return 'neutral';
     } else {
       return 'neutral';
     }
   }
-  @computed('node.compositeStatus')
+  @computed('node.status')
   get nodeStatusIcon() {
-    let compositeStatus = this.get('node.compositeStatus');
-
-    if (compositeStatus === 'draining') {
-      return 'minus-circle';
-    } else if (compositeStatus === 'ineligible') {
+    let status = this.get('node.status');
+    if (status === 'disconnected') {
       return 'skip';
-    } else if (compositeStatus === 'down') {
+    } else if (status === 'down') {
       return 'x-circle';
-    } else if (compositeStatus === 'ready') {
+    } else if (status === 'ready') {
       return 'check-circle';
-    } else if (compositeStatus === 'initializing') {
+    } else if (status === 'initializing') {
       return 'entry-point';
     } else {
       return '';

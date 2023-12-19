@@ -12,15 +12,41 @@
 </td>
 <td data-test-client-id><LinkTo @route="clients.client" @model={{this.node.id}} class="is-primary">{{this.node.shortId}}</LinkTo></td>
 <td data-test-client-name class="is-200px is-truncatable" title="{{this.node.name}}">{{this.node.name}}</td>
-<td data-test-client-composite-status>
-  <span class="tooltip" aria-label="{{this.node.status}} / {{if this.node.isDraining "draining" "not draining"}} / {{if this.node.isEligible "eligible" "not eligible"}}">
+<td class="node-status-badges" data-test-client-composite-status>
+  <Hds::Badge
+    @text={{capitalize this.node.status}}
+    @icon={{this.nodeStatusIcon}}
+    @color={{this.nodeStatusColor}}
+    @size="small"
+  />
+
+  {{#if this.node.isEligible}}
     <Hds::Badge
-      @text={{capitalize this.node.compositeStatus}}
-      @icon={{this.nodeStatusIcon}}
-      @color={{this.nodeStatusColor}}
-      @size="large"
+      @text="Eligible"
+      @color="neutral"
+      @size="small"
     />
-  </span>
+  {{else}}
+    <Hds::Badge
+      @text="Ineligible"
+      @color="neutral"
+      @size="small"
+    />
+  {{/if}}
+
+  {{#if this.node.isDraining}}
+    <Hds::Badge
+      @text="Draining"
+      @color="neutral"
+      @size="small"
+    />
+  {{else}}
+    <Hds::Badge
+      @text="Not Draining"
+      @color="neutral"
+      @size="small"
+    />
+  {{/if}}
 </td>
 <td data-test-client-address class="is-200px is-truncatable">{{this.node.httpAddr}}</td>
 <td data-test-client-node-pool title="{{this.node.nodePool}}">
