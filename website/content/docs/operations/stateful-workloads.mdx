@@ -85,7 +85,7 @@ Host volumes mount paths from the host (the Nomad client) into allocations. Noma
 
 Because you need to declare host volumes in the Nomad agent's configuration file, you must restart the Nomad client to reconfigure them. This makes host volumes impractical if you frequently change your storage configuration. Furthermore, it might require coordination between different [personnas](/nomad/docs/concepts/security#personas) to configure and consume host volumes. For example, a Nomad Administrator must modify Nomad's configuration file to add/update/remove host volumes to make them available for consumption by Nomad Operators. Or, with networked host volumes, a Storage Administrator will need to provision the volumes and make them available to the Nomad clients. A System Administrator will then mount them on the Nomad clients.
 
-Host volumes backed by local storage help persist data that is not critical, for example an on-disk cache that can be rebuilt if needed. When backed by networked storage such as NFS/CIFS-mounted volumes or distributed storage via GlusterFS/Ceph, host volumes provide a quick and easy option to consume highly available and reliable storage.
+Host volumes backed by local storage help persist data that is not critical, for example an on-disk cache that can be rebuilt if needed. When backed by networked storage such as NFS/CIFS-mounted volumes or distributed storage via GlusterFS/Ceph, host volumes provide a quick option to consume highly available and reliable storage.
 
 Refer to the [Stateful workloads with Nomad host volumes](/nomad/tutorials/stateful-workloads/stateful-workloads-host-volumes) tutorial to learn more about using host volumes with Nomad.
 
