@@ -299,12 +299,14 @@ module('Acceptance | clients list', function (hooks) {
     facet: ClientsList.facets.state,
     paramName: 'state',
     expectedOptions: [
-      'Initializing',
-      'Ready',
-      'Down',
-      'Ineligible',
-      'Draining',
-      'Disconnected',
+      'initializing',
+      'ready',
+      'down',
+      'disconnected',
+      'eligible',
+      'ineligible',
+      'draining',
+      'not draining',
     ],
     async beforeEach() {
       server.create('agent');
@@ -336,7 +338,7 @@ module('Acceptance | clients list', function (hooks) {
       )
         return false;
 
-      return selection.includes(node.status);
+      return !selection.includes(node.status);
     },
   });
 
@@ -536,11 +538,20 @@ module('Acceptance | clients list', function (hooks) {
       await option2.toggle();
       selection.push(option2.key);
 
+      // State is different from the other facets, in that it is an "exclusive" filter, whete others are "inclusive".
+      // Because of this, it doesn't pass "state" as a stringified-array query param; rather, exclusion is indicated
+      // for each option with a "${optionName}=false" query param.
+
+      const stateString = `/clients?${selection
+        .map((option) => `state_${option}=false`)
+        .join('&')}`;
+      const nonStateString = `/clients?${paramName}=${encodeURIComponent(
+        JSON.stringify(selection)
+      )}`;
+
       assert.equal(
         currentURL(),
-        `/clients?${paramName}=${encodeURIComponent(
-          JSON.stringify(selection)
-        )}`,
+        paramName === 'state' ? stateString : nonStateString,
         'URL has the correct query param key and value'
       );
     });
