@@ -1690,6 +1690,10 @@ The table below shows this endpoint's support for
 
 - `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
 
+- `Submission` `(JobSubmission: <optional>)` - Specifies the original HCL/HCL2/JSON
+  definition of the job. This data is useful for reference only, it is not considered
+  for the actual scheduling of `Job`.
+
 - `EnforceIndex` `(bool: false)` - If set, the job will only be registered if the
   passed `JobModifyIndex` matches the current job's index. If the index is zero,
   the register only occurs if the job is new. This paradigm allows check-and-set
