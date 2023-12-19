@@ -24,7 +24,7 @@ export default create({
   successMessage: isVisible('[data-test-token-success]'),
   managementMessage: isVisible('[data-test-token-management-message]'),
   ssoErrorMessage: isVisible('[data-test-sso-error]'),
-  clearSSOError: clickable('[data-test-sso-error-clear]'),
+  clearSSOError: clickable('[data-test-sso-error] .hds-dismiss-button'),
 
   policies: collection('[data-test-token-policy]', {
     name: text('[data-test-policy-name]'),
