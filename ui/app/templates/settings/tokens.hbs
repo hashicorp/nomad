@@ -8,13 +8,32 @@
   {{#if this.isValidatingToken}}
     <LoadingSpinner />
   {{else}}
-    <h1 class="title">
-      {{#if this.tokenRecord}}
-        Profile
-      {{else}}
-        Sign In
+
+    <Hds::PageHeader as |PH|>
+      <PH.Title>
+        {{#if this.tokenRecord}}
+          Profile
+        {{else}}
+          Sign In
+        {{/if}}
+      </PH.Title>
+      <PH.Actions>
+      {{#if this.shouldShowPolicies}}
+        {{#unless this.tokenRecord.isExpired}}
+
+          {{!-- <button data-test-token-clear class="button is-primary" {{action "clearTokenProperties"}} type="button">Sign Out</button> --}}
+          <Hds::Button
+            data-test-token-clear
+            @size="medium"
+            @text="Sign Out"
+            @color="critical"
+            {{on "click" this.clearTokenProperties}}
+          />
+
+        {{/unless}}
       {{/if}}
-    </h1>
+      </PH.Actions>
+    </Hds::PageHeader>
 
     <div class="status-notifications {{if this.canSignIn "is-half"}}">
 
@@ -155,17 +174,21 @@
             <div class="columns">
               <div class="column">
                 <h3 data-test-token-name class="title is-4">Token: {{this.tokenRecord.name}}</h3>
-                <div>AccessorID: <code>{{this.tokenRecord.accessor}}</code></div>
-                <div>SecretID: <code>{{this.tokenRecord.secret}}</code></div>
+                <div>
+                  <Hds::Form::MaskedInput::Field readonly @isContentMasked={{false}} @hasCopyButton={{true}} @value={{this.tokenRecord.accessor}} as |F|>
+                    <F.Label>AccessorID</F.Label>
+                  </Hds::Form::MaskedInput::Field>
+                </div>
+                <div>
+                  <Hds::Form::MaskedInput::Field readonly @hasCopyButton={{true}} @value={{this.tokenRecord.secret}} as |F|>
+                    <F.Label>SecretID</F.Label>
+                  </Hds::Form::MaskedInput::Field>
+                </div>
                 {{#if this.tokenRecord.expirationTime}}
                   <div data-test-token-expiry>Expires: {{moment-from-now this.tokenRecord.expirationTime interval=1000}} <span data-test-expiration-timestamp>({{this.tokenRecord.expirationTime}})</span></div>
                 {{/if}}
               </div>
-              <div class="column is-minimum">
-                <button data-test-token-clear class="button is-primary" {{action "clearTokenProperties"}} type="button">Sign Out</button>
-              </div>
             </div>
-
             {{#if this.tokenRecord.roles.length}}
               <h3 class="title is-4">Roles</h3>
                 {{#each this.tokenRecord.roles as |role|}}
