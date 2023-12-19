@@ -171,7 +171,7 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 		}
 	}
 
-	_, resp, err := requireOK(e.client.doRequest(r))
+	_, resp, err := requireOK(e.client.doRequest(r)) //nolint:bodyclose
 
 	if err != nil {
 		return nil, err
