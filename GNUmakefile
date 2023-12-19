@@ -160,6 +160,9 @@ check: ## Lint the source code
 	@echo "==> Linting source code..."
 	@golangci-lint run
 
+	@echo "==> Linting ./api source code..."
+	@cd ./api && golangci-lint run --config ../.golangci.yml
+
 	@echo "==> Linting hclog statements..."
 	@hclogvet .
 
