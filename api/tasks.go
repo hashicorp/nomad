@@ -195,7 +195,7 @@ func NewAffinity(lTarget string, operand string, rTarget string, weight int8) *A
 		LTarget: lTarget,
 		RTarget: rTarget,
 		Operand: operand,
-		Weight:  pointerOf(int8(weight)),
+		Weight:  pointerOf(weight),
 	}
 }
 
@@ -301,7 +301,7 @@ func NewSpreadTarget(value string, percent uint8) *SpreadTarget {
 func NewSpread(attribute string, weight int8, spreadTargets []*SpreadTarget) *Spread {
 	return &Spread{
 		Attribute:    attribute,
-		Weight:       pointerOf(int8(weight)),
+		Weight:       pointerOf(weight),
 		SpreadTarget: spreadTargets,
 	}
 }

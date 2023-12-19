@@ -100,11 +100,11 @@ func (s *execSession) startConnection() (*websocket.Conn, error) {
 	var conn *websocket.Conn
 
 	if nodeClient != nil {
-		conn, _, _ = nodeClient.websocket(reqPath, q)
+		conn, _, _ = nodeClient.websocket(reqPath, q) //nolint:bodyclose // gorilla/websocket Dialer.DialContext() does not require the body to be closed.
 	}
 
 	if conn == nil {
-		conn, _, err = s.client.websocket(reqPath, q)
+		conn, _, err = s.client.websocket(reqPath, q) //nolint:bodyclose // gorilla/websocket Dialer.DialContext() does not require the body to be closed.
 		if err != nil {
 			return nil, err
 		}

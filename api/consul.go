@@ -193,7 +193,6 @@ type ConsulMeshGateway struct {
 func (c *ConsulMeshGateway) Canonicalize() {
 	// Mode may be empty string, indicating behavior will defer to Consul
 	// service-defaults config entry.
-	return
 }
 
 func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
@@ -624,9 +623,7 @@ type ConsulMeshConfigEntry struct {
 	// nothing in here
 }
 
-func (e *ConsulMeshConfigEntry) Canonicalize() {
-	return
-}
+func (e *ConsulMeshConfigEntry) Canonicalize() {}
 
 func (e *ConsulMeshConfigEntry) Copy() *ConsulMeshConfigEntry {
 	if e == nil {
