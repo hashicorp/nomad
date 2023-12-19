@@ -287,7 +287,7 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Stream
 	}
 
 	r.setQueryOptions(q)
-	_, resp, err := requireOK(a.client.doRequest(r))
+	_, resp, err := requireOK(a.client.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		errCh <- err
 		return nil, errCh

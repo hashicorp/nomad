@@ -838,7 +838,7 @@ func (c *Client) rawQuery(endpoint string, q *QueryOptions) (io.ReadCloser, erro
 		return nil, err
 	}
 	r.setQueryOptions(q)
-	_, resp, err := requireOK(c.doRequest(r))
+	_, resp, err := requireOK(c.doRequest(r)) //nolint:bodyclose // Closing the body is the caller's responsibility.
 	if err != nil {
 		return nil, err
 	}
@@ -921,7 +921,7 @@ func (c *Client) query(endpoint string, out any, q *QueryOptions) (*QueryMeta, e
 		return nil, err
 	}
 	r.setQueryOptions(q)
-	rtt, resp, err := requireOK(c.doRequest(r))
+	rtt, resp, err := requireOK(c.doRequest(r)) //nolint:bodyclose // Closing the body is the caller's responsibility.
 	if err != nil {
 		return nil, err
 	}
@@ -946,7 +946,7 @@ func (c *Client) putQuery(endpoint string, in, out any, q *QueryOptions) (*Query
 	}
 	r.setQueryOptions(q)
 	r.obj = in
-	rtt, resp, err := requireOK(c.doRequest(r))
+	rtt, resp, err := requireOK(c.doRequest(r)) //nolint:bodyclose // Closing the body is the caller's responsibility.
 	if err != nil {
 		return nil, err
 	}
@@ -977,7 +977,7 @@ func (c *Client) postQuery(endpoint string, in, out any, q *QueryOptions) (*Quer
 	}
 	r.setQueryOptions(q)
 	r.obj = in
-	rtt, resp, err := requireOK(c.doRequest(r))
+	rtt, resp, err := requireOK(c.doRequest(r)) //nolint:bodyclose // Closing the body is the caller's responsibility.
 	if err != nil {
 		return nil, err
 	}
@@ -1010,7 +1010,7 @@ func (c *Client) write(verb, endpoint string, in, out any, q *WriteOptions) (*Wr
 	}
 	r.setWriteOptions(q)
 	r.obj = in
-	rtt, resp, err := requireOK(c.doRequest(r))
+	rtt, resp, err := requireOK(c.doRequest(r)) //nolint:bodyclose // Closing the body is the caller's responsibility.
 	if err != nil {
 		return nil, err
 	}
@@ -1036,7 +1036,7 @@ func (c *Client) delete(endpoint string, in, out any, q *WriteOptions) (*WriteMe
 	}
 	r.setWriteOptions(q)
 	r.obj = in
-	rtt, resp, err := requireOK(c.doRequest(r))
+	rtt, resp, err := requireOK(c.doRequest(r)) //nolint:bodyclose // Closing the body is the caller's responsibility.
 	if err != nil {
 		return nil, err
 	}
@@ -1134,7 +1134,7 @@ func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *h
 		}
 		return d, nil, e
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		var buf bytes.Buffer
 		_, _ = io.Copy(&buf, resp.Body)
 		_ = resp.Body.Close()
