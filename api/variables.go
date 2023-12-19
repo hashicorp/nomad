@@ -235,8 +235,8 @@ func (vars *Variables) readInternal(endpoint string, out **Variable, q *QueryOpt
 	}
 	r.setQueryOptions(q)
 
-	checkFn := requireStatusIn(http.StatusOK, http.StatusNotFound, http.StatusForbidden)
-	rtt, resp, err := checkFn(vars.client.doRequest(r))
+	checkFn := requireStatusIn(http.StatusOK, http.StatusNotFound, http.StatusForbidden) //nolint:bodyclose
+	rtt, resp, err := checkFn(vars.client.doRequest(r))                                  //nolint:bodyclose
 	if err != nil {
 		return nil, err
 	}
@@ -284,12 +284,12 @@ func (vars *Variables) deleteInternal(path string, q *WriteOptions) (*WriteMeta,
 	}
 	r.setWriteOptions(q)
 
-	checkFn := requireStatusIn(http.StatusOK, http.StatusNoContent)
-	rtt, resp, err := checkFn(vars.client.doRequest(r))
-
+	checkFn := requireStatusIn(http.StatusOK, http.StatusNoContent) //nolint:bodyclose
+	rtt, resp, err := checkFn(vars.client.doRequest(r))             //nolint:bodyclose
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	wm := &WriteMeta{RequestTime: rtt}
 	_ = parseWriteMeta(resp, wm)
@@ -305,11 +305,12 @@ func (vars *Variables) deleteChecked(path string, checkIndex uint64, q *WriteOpt
 		return nil, err
 	}
 	r.setWriteOptions(q)
-	checkFn := requireStatusIn(http.StatusOK, http.StatusNoContent, http.StatusConflict)
-	rtt, resp, err := checkFn(vars.client.doRequest(r))
+	checkFn := requireStatusIn(http.StatusOK, http.StatusNoContent, http.StatusConflict) //nolint:bodyclose
+	rtt, resp, err := checkFn(vars.client.doRequest(r))                                  //nolint:bodyclose
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	wm := &WriteMeta{RequestTime: rtt}
 	_ = parseWriteMeta(resp, wm)
@@ -341,8 +342,8 @@ func (vars *Variables) writeChecked(endpoint string, in *Variable, out *Variable
 	r.setWriteOptions(q)
 	r.obj = in
 
-	checkFn := requireStatusIn(http.StatusOK, http.StatusNoContent, http.StatusConflict)
-	rtt, resp, err := checkFn(vars.client.doRequest(r))
+	checkFn := requireStatusIn(http.StatusOK, http.StatusNoContent, http.StatusConflict) //nolint:bodyclose
+	rtt, resp, err := checkFn(vars.client.doRequest(r))                                  //nolint:bodyclose
 
 	if err != nil {
 		return nil, err

@@ -32,7 +32,7 @@ func List(executorPID int) *set.Set[ProcessID] {
 		nextPPID := stack.Pop()
 		result.Insert(ProcessID(nextPPID))
 
-		p, err := process.NewProcessWithContext(ctx, int32(nextPPID))
+		p, err := process.NewProcessWithContext(ctx, nextPPID)
 		if err != nil {
 			continue
 		}

@@ -39,7 +39,7 @@ func (c *Client) retryPut(ctx context.Context, endpoint string, in, out any, q *
 	var err error
 	var wm *WriteMeta
 
-	attemptDelay := time.Duration(100 * time.Second) // Avoid a tick before starting
+	attemptDelay := 100 * time.Second // Avoid a tick before starting
 	startTime := time.Now()
 
 	t := time.NewTimer(attemptDelay)
@@ -60,7 +60,7 @@ func (c *Client) retryPut(ctx context.Context, endpoint string, in, out any, q *
 		wm, err = c.put(endpoint, in, out, q)
 
 		// Maximum retry period is up, don't retry
-		if c.config.retryOptions.maxToLastCall != 0 && time.Now().Sub(startTime) > c.config.retryOptions.maxToLastCall {
+		if c.config.retryOptions.maxToLastCall != 0 && time.Since(startTime) > c.config.retryOptions.maxToLastCall {
 			break
 		}
 
