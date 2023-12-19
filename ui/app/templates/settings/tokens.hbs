@@ -20,8 +20,6 @@
       <PH.Actions>
       {{#if this.shouldShowPolicies}}
         {{#unless this.tokenRecord.isExpired}}
-
-          {{!-- <button data-test-token-clear class="button is-primary" {{action "clearTokenProperties"}} type="button">Sign Out</button> --}}
           <Hds::Button
             data-test-token-clear
             @size="medium"
@@ -35,96 +33,68 @@
       </PH.Actions>
     </Hds::PageHeader>
 
-    <div class="status-notifications {{if this.canSignIn "is-half"}}">
+    <div class="status-notifications">
 
       {{#if (eq this.signInStatus "failure")}}
-        <div data-test-token-error class="notification is-danger">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">Token Failed to Authenticate</h3>
-              <p>The token secret you have provided does not match an existing token, or has expired.</p>
-            </div>
-          </div>
-        </div>
+        <Hds::Alert data-test-token-error @type="inline" @color="critical" as |A|>
+          <A.Title>Token Failed to Authenticate</A.Title>
+          <A.Description>The token secret you have provided does not match an existing token, or has expired.</A.Description>
+        </Hds::Alert>
       {{/if}}
 
       {{#if (eq this.signInStatus "jwtFailure")}}
-        <div data-test-token-error class="notification is-danger">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">JWT Failed to Authenticate</h3>
-              <p>You passed in a JWT, but no JWT auth methods were found</p>
-            </div>
-          </div>
-        </div>
+        <Hds::Alert data-test-token-error @type="inline" @color="critical" as |A|>
+          <A.Title>JWT Failed to Authenticate</A.Title>
+          <A.Description>You passed in a JWT, but no JWT auth methods were found</A.Description>
+        </Hds::Alert>
       {{/if}}
 
       {{#if this.tokenRecord.isExpired}}
-        <div data-test-token-expired class="notification is-danger">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">Your authentication has expired</h3>
-              <p>Expired {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</p>
-            </div>
-            <div class="column is-centered is-minimum">
-              <button data-test-token-clear class="button" {{action "clearTokenProperties"}} type="button">Sign In Again</button>
-            </div>
-          </div>
-        </div>
+        <Hds::Alert data-test-token-expired @type="inline" @color="critical" as |A|>
+          <A.Title>Your authentication has expired</A.Title>
+          <A.Description>Expired {{moment-from-now this.tokenRecord.expirationTime interval=1000}} ({{this.tokenRecord.expirationTime}})</A.Description>
+          <A.Button data-test-token-clear @text="Sign In Again" @color="secondary" @size="medium" {{on "click" (action "clearTokenProperties")}} />
+        </Hds::Alert>
       {{else}}
         {{#if (eq this.signInStatus "success")}}
-          <div data-test-token-success class="notification is-success">
-            <div class="columns">
-              <div class="column">
-                <h3 class="title is-4">Token Authenticated!</h3>
-                <p>Your token is valid and authorized for the following policies.</p>
-              </div>
-            </div>
-          </div>
+          <Hds::Alert data-test-token-success @type="inline" @color="success" as |A|>
+            <A.Title>Token Authenticated!</A.Title>
+            <A.Description>Your token is valid and authorized for the following policies.</A.Description>
+          </Hds::Alert>
         {{/if}}
       {{/if}}
 
       {{#if this.token.tokenNotFound}}
-        <div data-test-token-not-found class="notification is-danger">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">Your token was not found</h3>
-              <p>It may have expired, or been entered incorrectly.</p>
-            </div>
-          </div>
-        </div>
+        <Hds::Alert data-test-token-not-found @type="inline" @color="critical" as |A|>
+          <A.Title>Token not found</A.Title>
+          <A.Description>It may have expired, or been entered incorrectly.</A.Description>
+        </Hds::Alert>
       {{/if}}
 
       {{#if this.SSOFailure}}
-        <div data-test-sso-error class="notification is-danger column">
-          <div class="columns">
-            <div class="column">
-              <h3 class="title is-4">Failed to sign in with SSO</h3>
-              <p>Your OIDC provider has failed on sign in; please try again or contact your SSO administrator.</p>
-            </div>
-            <div class="column is-centered is-minimum">
-              <button data-test-sso-error-clear class="button" {{action (mut this.state)}} type="button">Clear</button>
-            </div>
-          </div>
-        </div>
+        <Hds::Alert data-test-sso-error @type="inline" @color="critical" as |A|>
+          <A.Title>Failed to sign in with SSO</A.Title>
+          <A.Description>Your OIDC provider has failed on sign in; please try again or contact your SSO administrator.</A.Description>
+          <A.Button data-test-sso-error-clear @text="Clear" @color="secondary" @size="medium" {{on "click" (action (mut this.state) null)}} />
+        </Hds::Alert>
       {{/if}}
     </div>
 
     <div class="columns">
       {{#if this.canSignIn}}
-        <div class="column is-half sign-in-methods">
+        <div class="column sign-in-methods">
           {{#if this.nonTokenAuthMethods.length}}
             <h3 class="title is-4">Sign in with SSO</h3>
             <p>Sign in to Nomad using the configured authorization provider. After logging in, the policies and rules for the token will be listed.</p>
             <div class="sso-auth-methods">
               {{#each this.nonTokenAuthMethods as |method|}}
-                <button
+                <Hds::Button
                   data-test-auth-method
-                  class="button is-primary"
-                  onclick={{action "redirectToSSO" method}}
-                  type="button"
-                >Sign in with {{method.name}}
-                </button>
+                  @size="medium"
+                  @text="Sign in with {{method.name}}"
+                  @color="primary"
+                  {{on "click" (action this.redirectToSSO method)}}
+                />
               {{/each}}
             </div>
             <span class="or-divider"><span>Or</span></span>
@@ -158,13 +128,14 @@
             {{/if}}
           </div>
           <p class="help">Sent with every request to determine authorization</p>
-          <button disabled={{not this.secret}} data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">
-            {{#if this.currentSecretIsJWT}}
-              Sign in with JWT
-            {{else}}
-              Sign in with secret
-            {{/if}}
-          </button>
+          <Hds::Button
+            disabled={{not this.secret}}
+            data-test-token-submit
+            @size="medium"
+            @text={{if this.currentSecretIsJWT "Sign in with JWT" "Sign in with secret"}}
+            @color="primary"
+            {{on "click" this.verifyToken}}
+          />
         </div>
       {{/if}}
 
