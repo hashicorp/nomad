@@ -38,6 +38,23 @@ instead of the task name.
 }
 ```
 
+Workload identities for tasks that use Vault have an additional claim for
+[`vault.role`][jobspec_vault_role] if a role is specified in the job.
+
+-> **Note:** This claim will *not* be added if the role is inherited from
+the [agent configuration][vault_role_agent_config] and is not present
+in the Nomad job specification.
+
+```json
+{
+  "nomad_namespace": "default",
+  "nomad_job_id": "example",
+  "nomad_allocation_id": "8623ac7a-28ba-20c3-24a6-e615a39bbbf3",
+  "nomad_service": "example-cache-redis"
+  "vault_role": "nomad-jwt-login"
+}
+```
+
 ### Nomad Enterprise <EnterpriseAlert inline />
 
 In Nomad Enterprise, tasks and services with a [`consul`][jobspec_consul] block
@@ -54,7 +71,7 @@ block that does it, have an additional claim called `consul_namespace`.
 }
 ```
 
-Similarly, tasks with a [`vault.namespace`][] value have the additional claim
+Similarly, tasks with a [`vault.namespace`][jobspec_vault_ns] value have the additional claim
 `vault_namespace`.
 
 ```json
@@ -159,6 +176,9 @@ integration pages for more information.
 [identity-block]: /nomad/docs/job-specification/identity
 [jobspec_consul]: /nomad/docs/job-specification/consul
 [jobspec_consul_ns]: /nomad/docs/job-specification/consul#namespace
+[jobspec_vault_ns]: /nomad/docs/job-specification/vault#namespace
+[jobspec_vault_role]: /nomad/docs/job-specification/vault#role
+[vault_role_agent_config]: /nomad/docs/configuration/vault#create_from_role
 [plan applier]: /nomad/docs/concepts/scheduling/scheduling
 [JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519
 [Task Access to Variables]: /nomad/docs/concepts/variables#task-access-to-variables
