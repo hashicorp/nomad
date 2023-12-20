@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Hide token secret upon successful login
+```
