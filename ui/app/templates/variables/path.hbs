@@ -19,20 +19,18 @@
             @onSelect={{this.setNamespace}}
           />
         {{/if}}
-        <div class="button-bar">
           {{#if (can "write variable" path=(concat this.absolutePath "/") namespace=this.namespaceSelection)}}
-            <LinkTo
+            <Hds::Link::Standalone
+              @icon="edit"
+              @text="Create Variable"
               @route="variables.new"
               @query={{hash path=(concat this.absolutePath "/")}}
-              class="button is-primary"
               {{keyboard-shortcut
                 pattern=(array "n" "v")
                 action=(action this.goToNewVariable)
                 label="Create Variable"
               }}
-            >
-              Create Variable
-            </LinkTo>
+            />
           {{else}}
             <button
               class="button is-primary is-disabled tooltip is-right-aligned"
@@ -43,7 +41,6 @@
               Create Variable
             </button>
           {{/if}}
-        </div>
       </div>
     </div>
     {{#if this.isForbidden}}

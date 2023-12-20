@@ -25,38 +25,36 @@
       title="JSON"
     >JSON</Toggle>
   </div>
-  <div>
-    {{#unless this.isDeleting}}
-      {{#if (can "write variable" path=this.model.path namespace=this.model.namespace)}}
-      <div class="two-step-button">
-        <LinkTo
-          {{autofocus}}
-          data-test-edit-button
-          class="button is-info is-inverted is-small"
-          @model={{this.model}}
-          @route="variables.variable.edit"
-          @query={{hash view=this.view}}
-        >
-          Edit
-        </LinkTo>
-      </div>
+  <Hds::ButtonSet>
+      {{#unless this.isDeleting}}
+        {{#if (can "write variable" path=this.model.path namespace=this.model.namespace)}}
+          <Hds::Link::Standalone
+            @icon="edit"
+            @text="Edit"
+            @route="variables.variable.edit"
+            @model={{this.model}}
+            @query={{hash view=this.view}}
+            data-test-edit-button
+            {{autofocus}}
+          />
+        {{/if}}
+      {{/unless}}
+
+      {{#if (can "destroy variable" path=this.model.path namespace=this.model.namespace)}}
+        <TwoStepButton
+          data-test-delete-button
+          @alignRight={{true}}
+          @idleText="Delete"
+          @cancelText="Cancel"
+          @confirmText="Yes, delete"
+          @confirmationMessage="Are you sure you want to delete this variable and all its items?"
+          @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
+          @onConfirm={{perform this.deleteVariableFile}}
+          @onPrompt={{this.onDeletePrompt}}
+          @onCancel={{this.onDeleteCancel}}
+        />
       {{/if}}
-    {{/unless}}
-    {{#if (can "destroy variable" path=this.model.path namespace=this.model.namespace)}}
-      <TwoStepButton
-        data-test-delete-button
-        @alignRight={{true}}
-        @idleText="Delete"
-        @cancelText="Cancel"
-        @confirmText="Yes, delete"
-        @confirmationMessage="Are you sure you want to delete this variable and all its items?"
-        @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
-        @onConfirm={{perform this.deleteVariableFile}}
-        @onPrompt={{this.onDeletePrompt}}
-        @onCancel={{this.onDeleteCancel}}
-      />
-    {{/if}}
-  </div>
+  </Hds::ButtonSet>
 </h1>
 
 {{#if this.shouldShowLinkedEntities}}

@@ -116,7 +116,8 @@ module('Integration | Component | variable-form', function (hooks) {
       await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
       await click('[data-test-add-kv]'); // add a second variable
 
-      findAll('input.value-input').forEach((input, iter) => {
+      findAll('.value-label').forEach((label, iter) => {
+        const input = label.find('input');
         assert.equal(
           input.getAttribute('type'),
           'password',

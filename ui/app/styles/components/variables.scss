@@ -62,7 +62,7 @@
     display: grid;
     grid-template-columns: 1fr 4fr 130px;
     gap: 0 1rem;
-    align-items: end;
+    align-items: start;
 
     input.error {
       color: $red;
@@ -75,6 +75,15 @@
       & > span {
         grid-column: -1 / 1;
       }
+    }
+
+    $hdsLabelTopOffset: 26px;
+    $hdsInputHeight: 35px;
+
+    .delete-entry-button {
+      position: relative;
+      top: $hdsLabelTopOffset;
+      height: $hdsInputHeight;
     }
 
     button.show-hide-values {

@@ -180,6 +180,7 @@ export default class VariableFormComponent extends Component {
       delete entry.warnings.duplicateKeyError;
       entry.warnings.notifyPropertyChange('duplicateKeyError');
     }
+    set(entry, 'key', value);
   }
 
   @action appendRow() {
