@@ -28,11 +28,20 @@ export default class CodeMirrorModifier extends Modifier {
   element = null;
   args = {};
 
+  // A change to the element or args' properties on the {{code-mirror}} modifier will
+  // trigger modify() here; we can use this to set up the editor and make any other
+  // explicit changes needed.
   modify(element, positional, named) {
     if (!this.element) {
       this.element = element;
       this.args = { positional, named };
       this._setup();
+    }
+
+    if (this._editor) {
+      if (named.lineWrapping !== this._editor.getOption('lineWrapping')) {
+        this._editor.setOption('lineWrapping', named.lineWrapping);
+      }
     }
   }
 

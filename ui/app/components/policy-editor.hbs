@@ -19,6 +19,18 @@
 	<div class="boxed-section">
 		<div class="boxed-section-head">
 			Policy Definition
+			<div class="pull-right" style="display: flex">
+				<span class="header-toggle">
+					<Hds::Form::Toggle::Field
+						{{keyboard-shortcut label="Toggle word wrap" action=this.toggleWrap pattern=(array "w" "w") menuLevel=true }}
+						checked={{this.wrapped}}
+						{{on "change" this.toggleWrap}}
+					as |F|>
+						<F.Label>Word Wrap</F.Label>
+					</Hds::Form::Toggle::Field>
+				</span>
+			</div>
+
 		</div>
 		<div class="boxed-section-body is-full-bleed">
 
@@ -33,6 +45,7 @@
           onUpdate=this.updatePolicyRules
           autofocus=false
 					extraKeys=(hash Cmd-Enter=this.save)
+					lineWrapping=this.wrapped
 				}} />
 		</div>
 	</div>
