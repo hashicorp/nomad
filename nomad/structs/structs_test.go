@@ -8014,6 +8014,7 @@ func TestNewIdentityClaims(t *testing.T) {
 						},
 						Vault: &Vault{
 							Namespace: "vault-namespace",
+							Role:      "role-from-spec-group",
 						},
 						Identity: &WorkloadIdentity{
 							Name:     "default-identity",
@@ -8087,6 +8088,7 @@ func TestNewIdentityClaims(t *testing.T) {
 						},
 						Vault: &Vault{
 							Namespace: "vault-namespace",
+							Role:      "role-from-spec-consul-group",
 						},
 						Identity: &WorkloadIdentity{
 							Name:     "default-identity",
@@ -8166,6 +8168,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			Namespace:      "default",
 			JobID:          "job",
 			TaskName:       "task",
+			VaultRole:      "", // not specified in jobspec
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
@@ -8208,6 +8211,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			Namespace:      "default",
 			JobID:          "job",
 			TaskName:       "consul-vault-task",
+			VaultRole:      "role-from-spec-group",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
@@ -8272,6 +8276,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			Namespace: "default",
 			JobID:     "job",
 			TaskName:  "task",
+			VaultRole: "", // not specified in jobspec
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:consul-group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
@@ -8316,6 +8321,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			Namespace:      "default",
 			JobID:          "job",
 			TaskName:       "consul-vault-task",
+			VaultRole:      "role-from-spec-consul-group",
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:consul-group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
@@ -8365,6 +8371,7 @@ func TestNewIdentityClaims(t *testing.T) {
 
 		for _, s := range tg.Services {
 			path := path + "/services/" + s.Name
+
 			testCases = append(testCases, testCase{
 				name:           path,
 				group:          tg.Name,

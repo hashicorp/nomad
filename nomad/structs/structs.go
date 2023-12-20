@@ -11317,6 +11317,7 @@ type IdentityClaims struct {
 
 	ConsulNamespace string `json:"consul_namespace,omitempty"`
 	VaultNamespace  string `json:"vault_namespace,omitempty"`
+	VaultRole       string `json:"vault_role,omitempty"`
 
 	jwt.Claims
 }
@@ -11327,7 +11328,6 @@ type IdentityClaims struct {
 // ID claim is random (nondeterministic) so multiple calls with the same values
 // will not return equal claims by design. JWT IDs should never collide.
 func NewIdentityClaims(job *Job, alloc *Allocation, wihandle *WIHandle, wid *WorkloadIdentity, now time.Time) *IdentityClaims {
-
 	tg := job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		return nil
@@ -11399,7 +11399,9 @@ func NewIdentityClaims(job *Job, alloc *Allocation, wihandle *WIHandle, wid *Wor
 
 		if wid.IsVault() && task.Vault != nil {
 			claims.VaultNamespace = task.Vault.Namespace
+			claims.VaultRole = task.Vault.Role
 		}
+
 	} else if wid.IsConsul() && tg.Consul != nil {
 		claims.ConsulNamespace = tg.Consul.Namespace
 	}
