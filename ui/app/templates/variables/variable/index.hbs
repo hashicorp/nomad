@@ -85,47 +85,59 @@
     </div>
   </div>
 {{else}}
-  <ListTable class="variable-items" @source={{this.sortedKeyValues}} @sortProperty={{this.sortProperty}} @sortDescending={{this.sortDescending}} as |t|>
-    <t.head>
-      <t.sort-by @prop="key">Key</t.sort-by>
-      <t.sort-by @prop="value">Value</t.sort-by>
-    </t.head>
-    <t.body as |row|>
-      <tr data-test-var={{row.model.key}}>
-        <td>
-          {{row.model.key}}
-        </td>
-        <td colspan="3" class="value-cell">
+  <Hds::Table class="variable-items"
+  @model={{this.sortedKeyValues}}
+  @sortBy={{this.sortProperty}}
+  @sortOrder={{if this.sortDescending "desc" "asc"}}
+  @columns={{array
+    (hash
+      key="key"
+      label="Key"
+      isSortable=true
+      width="200px"
+    )
+    (hash
+      key="value"
+      label="Value"
+      isSortable=true
+    )
+  }}
+  >
+    <:body as |B|>
+      <B.Tr data-test-var={{B.data.key}}>
+        <B.Td>{{B.data.key}}</B.Td>
+        <B.Td class="value-cell">
           <div>
             <CopyButton
               @compact={{true}}
-              @clipboardText={{row.model.value}}
+              @clipboardText={{B.data.value}}
             />
             <button
               class="show-hide-values button is-borderless is-compact"
               type="button"
-              {{on "click" (action this.toggleRowVisibility row.model)}}
+              {{on "click" (action this.toggleRowVisibility B.data)}}
               {{keyboard-shortcut 
                 label="Toggle Variable Visibility"
                 pattern=(array "v")
-                action=(action this.toggleRowVisibility row.model)
+                action=(action this.toggleRowVisibility B.data)
               }}
 
             >
               <FlightIcon
-                @name={{if row.model.isVisible "eye" "eye-off"}}
-                @title={{if row.model.isVisible "Hide Value" "Show Value"}}
+                @name={{if B.data.isVisible "eye" "eye-off"}}
+                @title={{if B.data.isVisible "Hide Value" "Show Value"}}
               />
             </button>
 
-            {{#if row.model.isVisible}}
-              <code>{{row.model.value}}</code>
+            {{#if B.data.isVisible}}
+              <code>{{B.data.value}}</code>
             {{else}}
               ********
             {{/if}}
           </div>
-        </td>
-      </tr>
-    </t.body>
-  </ListTable>
+        </B.Td>
+      </B.Tr>
+    </:body>
+  </Hds::Table>
+
 {{/if}}
