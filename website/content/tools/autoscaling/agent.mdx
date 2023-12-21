@@ -17,7 +17,9 @@ The Nomad Autoscaler currently has limited support for
 [Nomad Namespaces][nomad_namespaces]. The `nomad` configuration below supports
 specifying a namespace; if configured with a namespace, the Autoscaler will
 retrieve scaling policies and perform autoscaling only for jobs in that
-namespace. A future version will include support for multiple namespaces.
+namespace. If the special wildcard namespace value `*` is used, the Autoscaler
+agent will retrieve scaling policies from all namespaces. A future version will
+include support for multiple namespaces.
 
 ## Nomad ACLs
 

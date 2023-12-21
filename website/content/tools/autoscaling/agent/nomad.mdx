@@ -26,7 +26,7 @@ nomad {
 - `region` `(string: "global")` - The region of the Nomad servers to connect with.
 
 - `namespace` `(string: "")` - The target namespace for queries and actions bound
-  to a namespace.
+  to a namespace. If set to `*` all namespaces are queried.
 
 - `token` `(string: "")` - The SecretID of an ACL token to use to authenticate
   API requests with.
