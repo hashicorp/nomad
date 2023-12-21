@@ -14,6 +14,9 @@
   }
 }
 
+$hdsLabelTopOffset: 26px;
+$hdsInputHeight: 35px;
+
 .variable-title {
   margin-bottom: 2rem;
 }
@@ -44,6 +47,14 @@
     display: grid;
     grid-template-columns: 6fr 1fr;
     gap: 0 1rem;
+    align-items: start;
+    .namespace-dropdown {
+      white-space: nowrap;
+      width: auto;
+      position: relative;
+      top: $hdsLabelTopOffset;
+      height: $hdsInputHeight;
+    }
   }
 
   .key-value {
@@ -64,9 +75,6 @@
         grid-column: -1 / 1;
       }
     }
-
-    $hdsLabelTopOffset: 26px;
-    $hdsInputHeight: 35px;
 
     .delete-entry-button {
       position: relative;

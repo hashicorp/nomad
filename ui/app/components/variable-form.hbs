@@ -50,22 +50,21 @@
   {{/if}}
 
   <div class={{if this.namespaceOptions "path-namespace"}}>
-    <label>
-      <span>
-        Path
-      </span>
-      <Input
-        @type="text"
-        @value={{this.path}}
-        placeholder="nomad/jobs/my-job/my-group/my-task"
-        class="input path-input {{if this.duplicatePathWarning "error"}}"
-        {{on "input" this.setModelPath}}
-        disabled={{not @model.isNew}}
-        {{autofocus}}
-        data-test-path-input
-      />
+
+		<Hds::Form::TextInput::Field
+			@isRequired={{true}}
+			@value={{this.path}}
+			placeholder="nomad/jobs/my-job/my-group/my-task"
+      @isInvalid={{this.duplicatePathWarning}}
+      {{on "input" (action this.setModelPath)}}
+      disabled={{not @model.isNew}}
+			{{autofocus}}
+      data-test-path-input
+		as |F|>
+			<F.Label>Path</F.Label>
+      
       {{#if this.duplicatePathWarning}}
-        <p class="duplicate-path-error help is-danger">
+        <F.Error>
           There is already a variable located at
           {{this.path}}
           .
@@ -78,19 +77,16 @@
             edit the existing variable
           </LinkTo>
           .
-        </p>
+        </F.Error>
       {{/if}}
       {{#if this.isJobTemplateVariable}}
-        <p class="help job-template-hint">
-          Use this variable to generate job templates with
-          <code>nomad job init -template={{this.jobTemplateName}}
-            <CopyButton
-              @clipboardText="nomad job init -template={{this.jobTemplateName}}"
-            />
-          </code>
-        </p>
+        <F.HelperText>
+          Use this variable to generate job templates with <Hds::Copy::Snippet @textToCopy="nomad job init -template={{this.jobTemplateName}}" />
+        </F.HelperText>
       {{/if}}
-    </label>
+		</Hds::Form::TextInput::Field>
+
+
     <VariableForm::NamespaceFilter 
       @data={{hash 
         disabled=(not @model.isNew)
@@ -142,6 +138,7 @@
           </Hds::Form::TextInput::Field>
           <VariableForm::InputGroup @entry={{entry}} />
           <Hds::Button @text="Delete" @color="critical" class="delete-entry-button"
+            disabled={{eq this.keyValues.length 1}}
             {{on "click" (action this.deleteRow entry)}}
           />
           {{#each-in entry.warnings as |k v|}}

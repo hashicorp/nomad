@@ -208,6 +208,7 @@ export default class VariableFormComponent extends Component {
    * @param {KeyboardEvent} e
    */
   @action setModelPath(e) {
+    set(this, 'path', e.target.value);
     set(this.args.model, 'path', e.target.value);
   }
 
