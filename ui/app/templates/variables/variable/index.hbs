@@ -3,7 +3,70 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<h1 class="variable-title title with-flex">
+<Hds::PageHeader class="variable-title" as |PH|>
+  <PH.Title>{{this.model.path}}</PH.Title>
+  <PH.IconTile @icon="file-text" />
+  <PH.Actions>
+    {{#unless this.isDeleting}}
+
+    <Hds::Form::Toggle::Field
+      @value="enable"
+      {{keyboard-shortcut 
+        label="Toggle View (JSON/List)"
+        pattern=(array "j")
+        action=(action this.toggleView)
+      }}
+      checked={{eq this.view "json"}}
+      data-test-memory-toggle
+      {{on "change" (action this.toggleView)}}
+    as |F|>
+      <F.Label>JSON</F.Label>
+    </Hds::Form::Toggle::Field>
+
+    <div
+      {{keyboard-shortcut 
+        label="Copy Variable"
+        pattern=(array "c" "v")
+        action=(action this.copyVariable)}}
+    >
+      <Hds::Copy::Button
+        @text="Copy"
+        @textToCopy={{stringify-object this.model.items}}
+      />
+    </div>
+
+      {{#if (can "write variable" path=this.model.path namespace=this.model.namespace)}}
+        <Hds::Button
+          @icon="edit"
+          @text="Edit"
+          @color="secondary"
+          @route="variables.variable.edit"
+          @model={{this.model}}
+          @query={{hash view=this.view}}
+          data-test-edit-button
+          {{autofocus}}
+        />
+      {{/if}}
+    {{/unless}}
+
+    {{#if (can "destroy variable" path=this.model.path namespace=this.model.namespace)}}
+      <TwoStepButton
+        data-test-delete-button
+        @alignRight={{true}}
+        @idleText="Delete"
+        @cancelText="Cancel"
+        @confirmText="Yes, delete"
+        @confirmationMessage="Are you sure you want to delete this variable and all its items?"
+        @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
+        @onConfirm={{perform this.deleteVariableFile}}
+        @onPrompt={{this.onDeletePrompt}}
+        @onCancel={{this.onDeleteCancel}}
+      />
+    {{/if}}
+  </PH.Actions>
+</Hds::PageHeader>
+
+{{!-- <h1 class="variable-title title with-flex">
   <div>
     <FlightIcon @name="file-text" />
     {{this.model.path}}
@@ -55,7 +118,7 @@
         />
       {{/if}}
   </Hds::ButtonSet>
-</h1>
+</h1> --}}
 
 {{#if this.shouldShowLinkedEntities}}
   <VariableForm::RelatedEntities

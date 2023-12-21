@@ -7,38 +7,43 @@
 <section class="section">
   <div class="toolbar">
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
+      <Hds::SegmentedGroup as |S|>
         {{#if this.namespaceOptions}}
-          <SingleSelectDropdown
-            data-test-variable-namespace-filter
-            @label="Namespace"
-            @options={{this.namespaceOptions}}
-            @selection={{this.namespaceSelection}}
-            @onSelect={{this.setNamespace}}
+          <S.Dropdown data-test-variable-namespace-filter as |dd|>
+            <dd.ToggleButton @text="Namespace" @color="secondary" />
+            {{#each this.namespaceOptions as |option|}}
+              <dd.Radio
+                name={{option.key}}
+                {{on "change" (action this.setNamespace option.key)}}
+                checked={{eq this.namespaceSelection option.key}}
+              >
+                {{option.label}}
+              </dd.Radio>
+            {{/each}}
+          </S.Dropdown>
+        {{/if}}
+
+        {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
+          <S.Button
+            @text="Create Variable"
+            @icon="edit"
+            @route="variables.new"
+            data-test-create-var
+            {{keyboard-shortcut
+              pattern=(array "n" "v")
+              action=(action this.goToNewVariable)
+              label="Create Variable"
+            }}
+          />
+        {{else}}
+          <S.Button
+            @text="Create Variable"
+            @icon="edit"
+            data-test-create-var
+            disabled
           />
         {{/if}}
-      {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
-        <Hds::Link::Standalone
-          @icon="edit"
-          @text="Create Variable"
-          @route="variables.new"
-          data-test-create-var
-          {{keyboard-shortcut
-            pattern=(array "n" "v")
-            action=(action this.goToNewVariable)
-            label="Create Variable"
-          }}
-        />
-      {{else}}
-        <button
-          class="button is-primary is-disabled tooltip is-right-aligned"
-          aria-label="You don’t have sufficient permissions"
-          disabled
-          type="button"
-          data-test-disabled-create-var
-        >
-          Create Variable
-        </button>
-      {{/if}}
+      </Hds::SegmentedGroup> 
     </div>
   </div>
   {{#if this.isForbidden}}

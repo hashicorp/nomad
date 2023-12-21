@@ -7,15 +7,24 @@
 <Breadcrumb @crumb={{hash label="New" args=(array "variables.new")}} />
 
 <section class="section">
-  <h1 class="title variable-title">
-    Create a Variable
-    <Toggle
-      data-test-memory-toggle
-      @isActive={{eq this.view "json"}}
-      @onToggle={{action this.toggleView}}
-      title="JSON"
-    >JSON</Toggle>
-  </h1>
+  <Hds::PageHeader class="variable-title" as |PH|>
+    <PH.Title>Create a Variable</PH.Title>
+    <PH.Actions>
+      <Hds::Form::Toggle::Field
+        @value="enable"
+        {{keyboard-shortcut 
+          label="Toggle View (JSON/List)"
+          pattern=(array "j")
+          action=(action this.toggleView)
+        }}
+        checked={{eq this.view "json"}}
+        data-test-memory-toggle
+        {{on "change" (action this.toggleView)}}
+      as |F|>
+        <F.Label>JSON</F.Label>
+      </Hds::Form::Toggle::Field>
+    </PH.Actions>
+  </Hds::PageHeader>
 
   <VariableForm
     @model={{this.model}}
