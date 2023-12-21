@@ -4,7 +4,7 @@ page_title: Considerations for Stateful Workloads
 description: |-
   Learn about persistent storage options for stateful workloads on Nomad.
 ---
-By default, HashiCorp Nomad's allocation storage is ephemeral and can be discarded at any moment (such as a new deployment, rescheduling, or losing a Nomad client). This is undesirable when running persistent workloads such as databases.
+By default, HashiCorp Nomad's allocation storage is ephemeral. Nomad can discard it during new deployments, when rescheduling jobs, or if it loses a client. This is undesirable when running persistent workloads such as databases.
 
 This document explores the options for persistent storage of workloads running in Nomad. The information provided is for practitioners familiar with Nomad and with a foundational understanding of storage basics. 
 
