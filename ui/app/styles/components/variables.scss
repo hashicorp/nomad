@@ -5,13 +5,6 @@
 
 .section.single-variable {
   margin-top: 1.5rem;
-
-  .back-link {
-    text-decoration: none;
-    color: #363636;
-    position: relative;
-    top: 4px;
-  }
 }
 
 $hdsLabelTopOffset: 26px;
@@ -19,6 +12,9 @@ $hdsInputHeight: 35px;
 
 .variable-title {
   margin-bottom: 2rem;
+  .copy-variable span {
+    color: var(--token-color-foreground-primary);
+  }
 }
 
 .new-variables {
