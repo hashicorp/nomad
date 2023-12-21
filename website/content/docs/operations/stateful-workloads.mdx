@@ -91,7 +91,7 @@ Refer to the [Stateful workloads with Nomad host volumes](/nomad/tutorials/state
 
 #### NFS caveats
 
-A few caveats to note with NFS-backed host volumes include ACLs, reliability, and performance. NFS mount options should be the same on all mounting Nomad clients.
+A few caveats with NFS-backed host volumes include ACLs, reliability, and performance. NFS mount options should be the same on all mounting Nomad clients.
 
 A significant factor in the performance of NFS-backed storage is the `wsize` and `rsize` mount options that determine the maximum read/write size of a block. Smaller sizes mean bigger operations will be split into smaller chunks, significantly impacting performance. The underlying storage system's vendor provides the optimal sizes. For example, [AWS EFS](https://docs.aws.amazon.com/efs/latest/ug/mounting-fs-mount-cmd-general.html) recommends a value of `1048576` bytes of data for both `wsize` and `rsize`.
 
