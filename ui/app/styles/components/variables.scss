@@ -149,20 +149,8 @@ table.path-tree {
   }
 }
 
-.section .notification.related-entities {
-  --blue: #1563ff;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  &.notification {
-    align-items: center;
-  }
-  a {
-    color: $blue;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
+.related-entities {
+  margin-bottom: 2rem;
 }
 
 .related-entities-hint {
