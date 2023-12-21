@@ -66,60 +66,6 @@
   </PH.Actions>
 </Hds::PageHeader>
 
-{{!-- <h1 class="variable-title title with-flex">
-  <div>
-    <FlightIcon @name="file-text" />
-    {{this.model.path}}
-      <CopyButton
-        @inset={{true}}
-        @compact={{true}}
-        @clipboardText={{this.model.path}}
-      />
-
-    <Toggle
-      {{keyboard-shortcut 
-        label="Toggle View (JSON/List)"
-        pattern=(array "j")
-        action=(action this.toggleView)
-      }}
-      data-test-memory-toggle
-      @isActive={{eq this.view "json"}}
-      @onToggle={{action this.toggleView}}
-      title="JSON"
-    >JSON</Toggle>
-  </div>
-  <Hds::ButtonSet>
-      {{#unless this.isDeleting}}
-        {{#if (can "write variable" path=this.model.path namespace=this.model.namespace)}}
-          <Hds::Link::Standalone
-            @icon="edit"
-            @text="Edit"
-            @route="variables.variable.edit"
-            @model={{this.model}}
-            @query={{hash view=this.view}}
-            data-test-edit-button
-            {{autofocus}}
-          />
-        {{/if}}
-      {{/unless}}
-
-      {{#if (can "destroy variable" path=this.model.path namespace=this.model.namespace)}}
-        <TwoStepButton
-          data-test-delete-button
-          @alignRight={{true}}
-          @idleText="Delete"
-          @cancelText="Cancel"
-          @confirmText="Yes, delete"
-          @confirmationMessage="Are you sure you want to delete this variable and all its items?"
-          @awaitingConfirmation={{this.deleteVariableFile.isRunning}}
-          @onConfirm={{perform this.deleteVariableFile}}
-          @onPrompt={{this.onDeletePrompt}}
-          @onCancel={{this.onDeleteCancel}}
-        />
-      {{/if}}
-  </Hds::ButtonSet>
-</h1> --}}
-
 {{#if this.shouldShowLinkedEntities}}
   <VariableForm::RelatedEntities
     @job={{this.model.pathLinkedEntities.job}}

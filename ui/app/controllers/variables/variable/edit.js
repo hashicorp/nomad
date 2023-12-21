@@ -33,8 +33,4 @@ export default class VariablesVariableEditController extends Controller {
   }
 
   //#endregion Code View
-
-  @action copyVariable() {
-    navigator.clipboard.writeText(JSON.stringify(this.model.items, null, 2));
-  }
 }
