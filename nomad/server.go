@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/goruntime"
+	"github.com/hashicorp/nomad/helper/group"
 	"github.com/hashicorp/nomad/helper/iterator"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -262,6 +263,10 @@ type Server struct {
 	workerLock       sync.RWMutex
 	workerConfigLock sync.RWMutex
 	workersEventCh   chan interface{}
+
+	// workerShutdownGroup tracks the running worker goroutines so that Shutdown()
+	// can wait on their completion
+	workerShutdownGroup group.Group
 
 	// oidcProviderCache maintains a cache of OIDC providers. This is useful as
 	// the provider performs background HTTP requests. When the Nomad server is
@@ -710,6 +715,11 @@ func (s *Server) Shutdown() error {
 
 	s.shutdown = true
 	s.shutdownCancel()
+
+	s.workerLock.Lock()
+	defer s.workerLock.Unlock()
+	s.stopOldWorkers(s.workers)
+	s.workerShutdownGroup.Wait()
 
 	if s.serf != nil {
 		s.serf.Shutdown()
@@ -1788,7 +1798,7 @@ func (s *Server) setupWorkersLocked(ctx context.Context, poolArgs SchedulerWorke
 			return err
 		} else {
 			s.logger.Debug("started scheduling worker", "id", w.ID(), "index", i+1, "of", s.config.NumSchedulers)
-
+			s.workerShutdownGroup.AddCh(w.ShutdownCh())
 			s.workers = append(s.workers, w)
 		}
 	}
