@@ -167,6 +167,26 @@ passed in via CLI arguments. The `agent` command accepts the following arguments
 - `-telemetry-circonus-broker-select-tag`: A tag which is used to select a broker
   ID when an explicit broker ID is not provided.
 
+- `-high-availability-enabled`: Specifies whether the Nomad Autoscaler agent will
+  start in high availability mode. If enabled, the agent instance attempts to
+  hold a lock over a Nomad variable and will only execute if the lock is
+  successfully acquired. It defaults to `false`.
+
+- `-high-availability-lock-path`: Defines the path of the Nomad variable that
+  will be used to sync the leader when running in high availability mode. This
+  parameter needs to be the same on all Nomad Autoscaler agents expected to
+  take part in the same leadership election process. Defaults to
+  `nomad-autoscaler/lock`.
+
+- `-high-availability-lock-ttl`: Defines the lease period or TTL of the lock used
+  to sync the leader when running on high availability mode. If the Nomad
+  Autoscaler agent does not renew the lock within this period, the lock is
+  considered lost. Defaults to `60s`.
+
+- `-high-availability-lock-delay`: Defines the period that the lock will be
+  blocked after the TTL expired without being renewed. This helps prevent split
+  brain situations. Defaults to `30s`.
+
 # Nomad Autoscaler Command: version
 
 The `version` command displays build information about the running binary,
