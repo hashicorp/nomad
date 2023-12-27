@@ -77,6 +77,10 @@
             "path": "autoscaling/agent/dynamic_application_sizing"
           },
           {
+            "title": "high_availability",
+            "path": "autoscaling/agent/high_availability"
+          },
+          {
             "title": "http",
             "path": "autoscaling/agent/http"
           },
