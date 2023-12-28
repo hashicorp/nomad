@@ -62,6 +62,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		"/bin/echo":         "/bin/echo",
 		"/bin/bash":         "/bin/bash",
 		"/bin/sleep":        "/bin/sleep",
+		"/bin/tail":         "/bin/tail",
 		"/foobar":           "/does/not/exist",
 	}
 
@@ -265,6 +266,42 @@ passwd`
 		}
 		return true, nil
 	}, func(err error) { t.Error(err) })
+}
+
+func TestExecutor_OOMKilled(t *testing.T) {
+	ci.Parallel(t)
+	testutil.ExecCompatible(t)
+	testutil.CgroupsCompatibleV1(t) // todo(shoenig): hard codes cgroups v1 lookup
+
+	r := require.New(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/tail"
+	execCmd.Args = []string{"/dev/zero"}
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+	execCmd.ModePID = "private"
+	execCmd.ModeIPC = "private"
+	execCmd.Resources.LinuxResources.MemoryLimitBytes = 10 * 1024 * 1024
+	execCmd.Resources.NomadResources.Memory.MemoryMB = 10
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	r.NoError(err)
+	r.NotZero(ps.Pid)
+
+	estate, err := executor.Wait(context.Background())
+	r.NoError(err)
+	r.NotZero(estate.ExitCode)
+	r.True(estate.OOMKilled)
+
+	// Shut down executor
+	r.NoError(executor.Shutdown("", 0))
+	executor.Wait(context.Background())
 }
 
 // TestExecutor_CgroupPaths asserts that process starts with independent cgroups
