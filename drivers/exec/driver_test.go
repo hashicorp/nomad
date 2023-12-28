@@ -788,6 +788,54 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 	require.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
+func TestExecDriver_OOMKilled(t *testing.T) {
+	ci.Parallel(t)
+	ctestutils.ExecCompatible(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := newExecDriverTest(t, ctx)
+	harness := dtestutil.NewDriverHarness(t, d)
+	allocID := uuid.Generate()
+	name := "oom-killed"
+	task := &drivers.TaskConfig{
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      name,
+		Resources: testResources(allocID, name),
+	}
+	task.Resources.LinuxResources.MemoryLimitBytes = 10 * 1024 * 1024
+	task.Resources.NomadResources.Memory.MemoryMB = 10
+
+	tc := &TaskConfig{
+		Command: "/bin/bash",
+		Args:    []string{"-c", `sleep 2 && x=a && while true; do x="$x$x"; done`},
+	}
+	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(t, err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(t, err)
+	result := <-ch
+	if result.Successful() {
+		t.Fatalf("expected error, but container exited successful")
+	}
+
+	if !result.OOMKilled {
+		t.Fatalf("not killed by OOM killer: %s %d", result.Err, result.ExitCode)
+	}
+
+	t.Logf("Successfully killed by OOM killer")
+
+	require.NoError(t, harness.DestroyTask(task.ID, true))
+}
+
 func TestDriver_Config_validate(t *testing.T) {
 	ci.Parallel(t)
 	t.Run("pid/ipc", func(t *testing.T) {
