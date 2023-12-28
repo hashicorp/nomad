@@ -320,9 +320,11 @@ type Server struct {
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) (*Server, error) {
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(
+		shutdownCtx,
 		config.EvalNackTimeout,
 		config.EvalNackInitialReenqueueDelay,
 		config.EvalNackSubsequentReenqueueDelay,
@@ -373,10 +375,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		workersEventCh:          make(chan interface{}, 1),
 		lockTTLTimer:            lock.NewTTLTimer(),
 		lockDelayTimer:          lock.NewDelayTimer(),
+		shutdownCtx:             shutdownCtx,
+		shutdownCancel:          shutdownCancel,
+		shutdownCh:              shutdownCtx.Done(),
 	}
-
-	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
-	s.shutdownCh = s.shutdownCtx.Done()
 
 	// Create the RPC handler
 	s.rpcHandler = newRpcHandler(s)
@@ -499,7 +501,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	// Start the eval broker notification system so any subscribers can get
 	// updates when the processes SetEnabled is triggered.
-	go s.evalBroker.enabledNotifier.Run(s.shutdownCh)
+	go s.evalBroker.enabledNotifier.Run()
 
 	// Setup the node drainer.
 	s.setupNodeDrainer()

@@ -4,6 +4,7 @@
 package broker
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -16,11 +17,11 @@ func TestGenericNotifier(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create the new notifier.
-	stopChan := make(chan struct{})
-	defer close(stopChan)
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
 
-	notifier := NewGenericNotifier()
-	go notifier.Run(stopChan)
+	notifier := NewGenericNotifier(ctx)
+	go notifier.Run()
 
 	// Ensure we have buffered channels.
 	require.Equal(t, 1, cap(notifier.publishCh))
