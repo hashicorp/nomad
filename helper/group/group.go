@@ -3,7 +3,10 @@
 
 package group
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
 // group wraps a func() in a goroutine and provides a way to block until it
 // exits. Inspired by https://godoc.org/golang.org/x/sync/errgroup
@@ -30,4 +33,18 @@ func (g *Group) AddCh(ch <-chan struct{}) {
 // complete.
 func (g *Group) Wait() {
 	g.wg.Wait()
+}
+
+// Wait for all goroutines to exit, or for the context to finish.
+// Must be called after all calls to Go complete.
+func (g *Group) WaitWithContext(ctx context.Context) {
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(doneCh)
+		g.Wait()
+	}()
+	select {
+	case <-doneCh:
+	case <-ctx.Done():
+	}
 }

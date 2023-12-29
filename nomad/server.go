@@ -87,6 +87,10 @@ const (
 	// to replicate to gracefully leave the cluster.
 	raftRemoveGracePeriod = 5 * time.Second
 
+	// workerShutdownGracePeriod is the maximum time we will wait for workers to stop
+	// gracefully when the server shuts down
+	workerShutdownGracePeriod = 5 * time.Second
+
 	// defaultConsulDiscoveryInterval is how often to poll Consul for new
 	// servers if there is no leader.
 	defaultConsulDiscoveryInterval time.Duration = 3 * time.Second
@@ -721,7 +725,9 @@ func (s *Server) Shutdown() error {
 	s.workerLock.Lock()
 	defer s.workerLock.Unlock()
 	s.stopOldWorkers(s.workers)
-	s.workerShutdownGroup.Wait()
+	workerShutdownTimeoutCtx, cancelWorkerShutdownTimeoutCtx := context.WithTimeout(context.Background(), workerShutdownGracePeriod)
+	defer cancelWorkerShutdownTimeoutCtx()
+	s.workerShutdownGroup.WaitWithContext(workerShutdownTimeoutCtx)
 
 	if s.serf != nil {
 		s.serf.Shutdown()
