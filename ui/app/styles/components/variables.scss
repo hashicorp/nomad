@@ -22,18 +22,6 @@ $hdsInputHeight: 35px;
     margin-bottom: 1rem;
   }
 
-  .path-input {
-    height: 2.25em;
-
-    &:disabled {
-      background-color: #f5f5f5;
-    }
-    &.error {
-      color: $red;
-      border-color: $red;
-    }
-  }
-
   .duplicate-path-error {
     position: relative;
     animation: slide-in 0.3s ease-out;
@@ -164,25 +152,6 @@ table.path-tree {
     border: 1px solid $grey-lighter;
     padding: 0 0.25rem;
     border-radius: 4px;
-  }
-}
-
-.job-template-hint {
-  margin-top: 0.5rem;
-  code {
-    background-color: #eee;
-    padding: 0.25rem;
-  }
-  .copy-button {
-    display: inline-block;
-    padding-left: 0;
-    position: relative;
-    top: -5px;
-    button,
-    .button {
-      background-color: transparent;
-      padding-right: 0.25rem;
-    }
   }
 }
 

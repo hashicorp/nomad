@@ -80,7 +80,7 @@
         </F.Error>
       {{/if}}
       {{#if this.isJobTemplateVariable}}
-        <F.HelperText>
+        <F.HelperText data-test-job-template-hint>
           Use this variable to generate job templates with <Hds::Copy::Snippet @textToCopy="nomad job init -template={{this.jobTemplateName}}" />
         </F.HelperText>
       {{/if}}

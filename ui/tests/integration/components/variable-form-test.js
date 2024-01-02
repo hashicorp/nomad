@@ -215,6 +215,7 @@ module('Integration | Component | variable-form', function (hooks) {
     variable.isNew = false;
     this.set('variable', variable);
     await render(hbs`<VariableForm @model={{this.variable}} />`);
+    // TODO: replace input.path-input with data-test-path-input across the board here
     assert.dom('input.path-input').hasValue('/baz/bat', 'Path is set');
     assert
       .dom('input.path-input')
