@@ -3,6 +3,11 @@
 
 job "example" {
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "example" {
     network {
       port "db" {
@@ -16,7 +21,7 @@ job "example" {
       config {
         image   = "busybox:1"
         command = "nc"
-        args    = ["-ll", "-p", "1234", "-e", "/bin/cat"]
+        args    = ["-ll", "-p", "5678", "-e", "/bin/cat"]
 
         ports = ["db"]
       }
