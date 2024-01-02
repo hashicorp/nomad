@@ -79,6 +79,10 @@ target "aws-asg" {
   for the cluster to stabilize after a scaling action. It may need to be tuned
   up if errors such as `failed to ensure all activities completed` occur.
 
+- `scale_in_protection` `(bool: false)` - If `true`, instances marked with
+  [scale-in protection][aws_scale_in_protection] are not considered for
+  removal. It may be overridden per policy.
+
 ### Nomad ACL
 
 When using a Nomad cluster with ACLs enabled, the plugin will require an ACL
@@ -134,8 +138,13 @@ check "hashistack-allocated-cpu" {
   selecting nodes for termination. Refer to the [node selector
   strategy][node_selector_strategy] documentation for more information.
 
+- `scale_in_protection` `(bool: false)` - If `true`, instances marked with
+  [scale-in protection][aws_scale_in_protection] are not considered for
+  removal. If set, it overrides the plugin configuration.
+
 [aws_autoscaling]: https://aws.amazon.com/autoscaling/
 [aws_region]: https://aws.amazon.com/about-aws/global-infrastructure/regions_az/
+[aws_scale_in_protection]: https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-instance-protection.html
 [nomad_datacenter]: /nomad/docs/configuration#datacenter
 [nomad_node_class]: /nomad/docs/configuration/client#node_class
 [nomad_node_pool]: /nomad/docs/configuration/client#node_pool
