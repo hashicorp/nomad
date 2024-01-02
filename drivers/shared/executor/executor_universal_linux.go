@@ -113,8 +113,8 @@ func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {
 func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid int) (func(), error) {
 	cgroup := command.StatsCgroup()
 
-	// children should not inherit Nomad agent oom_score_adj value
-	if err := os.WriteFile("/proc/self/oom_score_adj", []byte("0"), 0644); err != nil {
+	// ensure tasks do not inherit Nomad agent oom_score_adj value
+	if err := e.setOomAdj(); err != nil {
 		return nil, err
 	}
 
@@ -248,6 +248,14 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	// write cpuset cgroup file, if set
 	cpusetCpus := command.Resources.LinuxResources.CpusetCpus
 	_ = ed.Write("cpuset.cpus", cpusetCpus)
+}
+
+func (e *UniversalExecutor) setOomAdj() error {
+	// children should not inherit Nomad agent oom_score_adj value
+	//
+	// /proc/self/oom_score_adj should work on both cgroups v1 and v2 systems
+	// range is -1000 to 1000; 0 is the default
+	return os.WriteFile("/proc/self/oom_score_adj", []byte("0"), 0644)
 }
 
 func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {
