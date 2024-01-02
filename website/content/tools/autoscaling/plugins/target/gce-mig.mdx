@@ -82,6 +82,9 @@ check "hashistack-allocated-cpu" {
 - `node_class` `(string: "")` - The Nomad [client node class][nomad_node_class]
   identifier used to group nodes into a pool of resource.
 
+- `node_pool` `(string: "")` - The Nomad [client node pool][nomad_node_pool]
+  identifier used to group nodes into a pool of resource.
+
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain
   deadline][nomad_node_drain_deadline] to use when performing node draining
   actions. **Note that the default value for this setting differs from Nomad's
@@ -100,19 +103,12 @@ check "hashistack-allocated-cpu" {
   strategy][node_selector_strategy] documentation for more information.
 
 [gcp_credentials]: https://cloud.google.com/docs/authentication/production#providing_credentials_to_your_application
-
 [gcp_projects]: https://cloud.google.com/resource-manager/docs/creating-managing-projects
-
 [gce_migs]: https://cloud.google.com/compute/docs/instance-groups/
-
 [nomad_datacenter]: /nomad/docs/configuration#datacenter
-
 [nomad_node_class]: /nomad/docs/configuration/client#node_class
-
+[nomad_node_pool]: /nomad/docs/configuration/client#node_pool
 [nomad_node_drain_deadline]: /nomad/api-docs/nodes#deadline
-
 [nomad_node_purge]: /nomad/api-docs/nodes#purge-node
-
 [node_selector_strategy]: /nomad/tools/autoscaling/internals/node-selector-strategy
-
 [vault_gcp_backend]: /vault/docs/secrets/gcp
