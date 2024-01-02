@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <div data-test-annotations class="line-chart-annotations" style={{this.chartAnnotationsStyle}} ...attributes>
   {{#each this.processed key=@key as |annotation|}}
     <div data-test-annotation class="chart-vertical-annotation {{annotation.iconClass}} {{annotation.staggerClass}}" style={{annotation.style}}>

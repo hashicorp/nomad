@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -228,7 +231,7 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 		ID:     alloc.ID,
 		NodeID: alloc.NodeID,
 		TaskStates: map[string]*structs.TaskState{
-			"web": &structs.TaskState{
+			"web": {
 				State: structs.TaskStateDead,
 			},
 		},

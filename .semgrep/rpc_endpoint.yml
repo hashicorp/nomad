@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 rules:
   # Check potentially unauthenticated RPC endpoints. Technically more
   # authorization (authz) oriented than authn, but before Nomad 1.4/1.5 that

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { assign, createMachine, send } from 'xstate';
 
 // Docs on using statecharts:  https://xstate.js.org/docs/packages/xstate-fsm/#api

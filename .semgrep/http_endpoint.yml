@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 rules:
   - id: "http-endpoint-request-decode-error-code"
     patterns:

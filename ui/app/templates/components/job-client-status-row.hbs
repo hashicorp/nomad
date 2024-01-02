@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <tr data-test-client={{this.row.node.id}} class="job-client-status-row is-interactive" {{on "click" (fn @onClick this.row.node)}}>
   <td data-test-short-id>
     <LinkTo @route="allocations.allocation" @model={{this.allocation}} class="is-primary">

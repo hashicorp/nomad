@@ -1,3 +1,7 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+
 locals {
   # ClusterID: Is a unique ID per cluster that the CSI instance is serving and is restricted to
   # lengths that can be accommodated in the encoding scheme.

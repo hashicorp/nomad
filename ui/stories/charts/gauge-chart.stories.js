@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import hbs from 'htmlbars-inline-precompile';
 import DelayedArray from '../utils/delayed-array';
 import DelayedTruth from '../utils/delayed-truth';

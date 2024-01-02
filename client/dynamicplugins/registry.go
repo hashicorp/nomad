@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // dynamicplugins is a package that manages dynamic plugins in Nomad.
 // It exposes a registry that allows for plugins to be registered/deregistered
 // and also allows subscribers to receive real time updates of these events.

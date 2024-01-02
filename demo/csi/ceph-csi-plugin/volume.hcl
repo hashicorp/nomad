@@ -1,3 +1,7 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+
 id        = "testvolume"
 name      = "test1"
 type      = "csi"

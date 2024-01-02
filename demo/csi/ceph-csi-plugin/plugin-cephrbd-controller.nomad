@@ -1,3 +1,7 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+
 variable "cluster_id" {
   type = string
   # generated from uuid5(dns) with ceph.example.com as the seed

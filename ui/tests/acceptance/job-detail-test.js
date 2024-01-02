@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable ember/no-test-module-for */
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';

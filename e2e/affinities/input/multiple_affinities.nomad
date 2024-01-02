@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "test1" {
   datacenters = ["dc1", "dc2"]
   type        = "service"

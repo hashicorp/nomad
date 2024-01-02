@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { htmlSafe } from '@ember/template';
 
 // A decorator for transforming an object into an html

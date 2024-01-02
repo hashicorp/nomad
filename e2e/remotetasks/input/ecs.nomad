@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 variable "subnets" {
   type        = list(string)
   description = "Subnet IDs task will run in."

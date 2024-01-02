@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Service from '@ember/service';
 import config from 'nomad-ui/config/environment';
 import { getOwner } from '@ember/application';

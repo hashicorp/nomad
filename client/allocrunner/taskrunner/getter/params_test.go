@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package getter
 
 import (
@@ -117,15 +120,15 @@ func TestParameters_client(t *testing.T) {
 func TestParameters_Equal_headers(t *testing.T) {
 	p1 := &parameters{
 		Headers: map[string][]string{
-			"East": []string{"New York", "Florida"},
-			"West": []string{"California"},
+			"East": {"New York", "Florida"},
+			"West": {"California"},
 		},
 	}
 
 	p2 := &parameters{
 		Headers: map[string][]string{
-			"East": []string{"New York", "Florida"},
-			"West": []string{"California"},
+			"East": {"New York", "Florida"},
+			"West": {"California"},
 		},
 	}
 

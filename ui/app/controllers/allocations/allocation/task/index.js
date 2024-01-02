@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Controller from '@ember/controller';
 import { computed as overridable } from 'ember-overridable-computed';
 import { task } from 'ember-concurrency';

@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <div data-test-subnav="plugins" class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
   <ul>
     <li data-test-tab="overview"><LinkTo @route="csi.plugins.plugin.index" @model={{@plugin}} @activeClass="is-active">Overview</LinkTo></li>

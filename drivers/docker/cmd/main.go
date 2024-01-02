@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // This package provides a mechanism to build the Docker driver plugin as an
 // external binary. The binary has two entry points; the docker driver and the
 // docker plugin's logging child binary. An example of using this is `go build

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { base64DecodeString, base64EncodeString } from 'nomad-ui/utils/encode';
 import { module, test } from 'qunit';
 

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { alias, equal } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import { assert } from '@ember/debug';

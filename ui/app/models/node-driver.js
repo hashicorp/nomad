@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import classic from 'ember-classic-decorator';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { get, computed } from '@ember/object';

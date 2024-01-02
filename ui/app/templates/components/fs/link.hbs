@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 {{#if this.taskState}}
   {{#if this.path}}
     <LinkTo @route="allocations.allocation.task.fs" @models={{array this.allocation this.taskState this.path}} @activeClass="is-active">

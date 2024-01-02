@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import d3Format from 'd3-format';
 
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import EmberObject, { computed } from '@ember/object';
 import Service from '@ember/service';
 import { find, render, clearRender } from '@ember/test-helpers';

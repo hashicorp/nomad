@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Watchable from './watchable';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import classic from 'ember-classic-decorator';

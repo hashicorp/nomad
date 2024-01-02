@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package scheduler
 
 import (
@@ -63,14 +66,14 @@ func TestReadyNodesInDCs(t *testing.T) {
 			name:           "no wildcards",
 			datacenters:    []string{"dc1", "dc2"},
 			expectReady:    []*structs.Node{node1, node2},
-			expectNotReady: map[string]struct{}{node3.ID: struct{}{}, node4.ID: struct{}{}},
+			expectNotReady: map[string]struct{}{node3.ID: {}, node4.ID: {}},
 			expectIndex:    map[string]int{"dc1": 1, "dc2": 1},
 		},
 		{
 			name:           "with wildcard",
 			datacenters:    []string{"dc*"},
 			expectReady:    []*structs.Node{node1, node2},
-			expectNotReady: map[string]struct{}{node3.ID: struct{}{}, node4.ID: struct{}{}},
+			expectNotReady: map[string]struct{}{node3.ID: {}, node4.ID: {}},
 			expectIndex:    map[string]int{"dc1": 1, "dc2": 1},
 		},
 	}

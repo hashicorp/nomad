@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import helloWorld from './default_jobs/hello-world';
 import parameterized from './default_jobs/parameterized';
 import serviceDiscovery from './default_jobs/service-discovery';

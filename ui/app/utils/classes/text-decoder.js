@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 // This is a very incomplete polyfill for TextDecoder used only
 // by browsers that don't provide one but still provide a ReadableStream
 // interface for fetch.

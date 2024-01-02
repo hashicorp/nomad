@@ -1,3 +1,7 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+
 # This is a comma-separated list of SSH key ID's or fingerprints
 # available in your DigitalOcean account. These keys will be granted
 # SSH access to all of the deployed instances.

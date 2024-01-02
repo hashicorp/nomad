@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # tls_client.tf defines the mTLS certs that'll be used by the E2E test
 # runner
 

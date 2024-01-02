@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { clickable, hasClass, isPresent, text } from 'ember-cli-page-object';
 import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 

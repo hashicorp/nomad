@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "raw_exec" {
   datacenters = ["dc1"]
   type        = "batch"
