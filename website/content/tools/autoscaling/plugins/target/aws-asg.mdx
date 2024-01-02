@@ -75,6 +75,10 @@ target "aws-asg" {
   the [standard credential chain][aws_sdk_creds] will be followed. If set to
   "ec2_role" credentials will be retrieved from the EC2 instance role.
 
+- `retry_attempts` `(int: "15")` - The number of attempts to make while waiting
+  for the cluster to stabilize after a scaling action. It may need to be tuned
+  up if errors such as `failed to ensure all activities completed` occur.
+
 ### Nomad ACL
 
 When using a Nomad cluster with ACLs enabled, the plugin will require an ACL
