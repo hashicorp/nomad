@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -173,7 +173,7 @@ func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
 		alloc.Job = plan.Job
 
 		plan.NodeAllocation = map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc}}
+			node.ID: {alloc}}
 
 		plans = append(plans, plan)
 	}

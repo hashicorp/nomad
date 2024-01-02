@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 // semver is a Semver Constraints package copied from
 // github.com/hashicorp/go-version @ 2046c9d0f0b03c779670f5186a2a4b2c85493a71
