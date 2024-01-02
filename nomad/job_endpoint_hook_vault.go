@@ -38,7 +38,7 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 				return nil, fmt.Errorf("Vault %q not enabled but used in the job",
 					vaultBlock.Cluster)
 			}
-			if !vconf.AllowsUnauthenticated() {
+			if vconf.DefaultIdentity == nil && !vconf.AllowsUnauthenticated() {
 				requiresToken = true
 			}
 		}
