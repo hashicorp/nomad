@@ -57,10 +57,14 @@ policy {
 ```
 
 - `lower_bound` `(float: <optional>)` - The minimum value a metric must have
-  to be considered with bounds.
+  to be considered with bounds. This value is always **inclusive**, meaning a
+  metric with the exact same value as `lower_bound` is considered within
+  bounds.
 
 - `upper_bound` `(float: <optional>)` - The maximum value a metric must have
-  to be considered within bounds.
+  to be considered within bounds. This value is always **exclusive**, meaning a
+  metric with the exact same value as `upper_bound` is considered **out** of
+  bounds.
 
 - `delta` `(int: <optional>)` - Specifies the relative amount to add (positive
   value) or remove (negative value) from the current target count. Conflicts
@@ -79,8 +83,8 @@ policy {
 
 At least one of `lower_bound` or `upper_bound` must be defined. If
 `lower_bound` is not defined, any value below `upper_bound` is considered
-within bounds. Similarly, if `upper_bound` is not defined, any value above
-`lower_bound` will be considered within bounds.
+within bounds. Similarly, if `upper_bound` is not defined, any value above or
+equal to `lower_bound` will be considered within bounds.
 
 One, and only one, of `delta`, `percentage`, or `value` must be defined.
 
