@@ -17,6 +17,7 @@ LimitNPROC=infinity
 TasksMax=infinity
 Restart=on-failure
 RestartSec=2
+OOMScoreAdjust=-999
 
 [Install]
 WantedBy=multi-user.target
