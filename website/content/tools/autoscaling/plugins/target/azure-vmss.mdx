@@ -106,6 +106,9 @@ check "clients-azure-vmss" {
 - `node_class` `(string: "")` - The Nomad [client node class][nomad_node_class]
   identifier used to group nodes into a pool of resource.
 
+- `node_pool` `(string: "")` - The Nomad [client node pool][nomad_node_pool]
+  identifier used to group nodes into a pool of resource.
+
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain
   deadline][nomad_node_drain_deadline] to use when performing node draining
   actions. **Note that the default value for this setting differs from Nomad's
@@ -132,25 +135,15 @@ This can be retrieved programatically via the [Azure Instance Metadata
 service][azure_instance_metadata].
 
 [azure_instance_metadata]: https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service
-
 [azure_resource_group]: https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal#what-is-a-resource-group
-
 [azure_virtual_machine_scale_sets]: https://docs.microsoft.com/en-us/azure/virtual-machine-scale-sets/overview
-
 [azure_vm_identity]: https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/
-
 [client_meta_tag]: #client-meta-tag
-
 [node_selector_strategy]: /nomad/tools/autoscaling/internals/node-selector-strategy
-
 [nomad_datacenter]: /nomad/docs/configuration#datacenter
-
 [nomad_client_meta_tag]: /nomad/docs/configuration/client#meta
-
 [nomad_node_class]: /nomad/docs/configuration/client#node_class
-
+[nomad_node_pool]: /nomad/docs/configuration/client#node_pool
 [nomad_node_drain_deadline]: /nomad/api-docs/nodes#deadline
-
 [nomad_node_purge]: /nomad/api-docs/nodes#purge-node
-
 [vault_azure_backend]: /vault/docs/secrets/azure
