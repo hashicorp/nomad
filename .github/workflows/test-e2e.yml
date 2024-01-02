@@ -46,7 +46,7 @@ jobs:
       - name: Git config token
         if: endsWith(github.repository, '-enterprise')
         run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
-      - uses: hashicorp/setup-golang@v1
+      - uses: hashicorp/setup-golang@v2
       - run: make deps
       - name: Vault Compatability
         run: make integration-test
@@ -59,7 +59,7 @@ jobs:
       - name: Git config token
         if: endsWith(github.repository, '-enterprise')
         run: git config --global url.'https://${{ secrets.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
-      - uses: hashicorp/setup-golang@v1
+      - uses: hashicorp/setup-golang@v2
       - name: Consul Compatability
         run: |
           make deps
