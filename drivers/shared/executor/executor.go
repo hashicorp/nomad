@@ -259,10 +259,11 @@ func (c *ExecCommand) Close() {
 
 // ProcessState holds information about the state of a user process.
 type ProcessState struct {
-	Pid      int
-	ExitCode int
-	Signal   int
-	Time     time.Time
+	Pid       int
+	ExitCode  int
+	Signal    int
+	OOMKilled bool
+	Time      time.Time
 }
 
 // ExecutorVersion is the version of the executor

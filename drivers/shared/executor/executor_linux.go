@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -202,6 +203,23 @@ func (l *LibcontainerExecutor) Wait(ctx context.Context) (*ProcessState, error) 
 func (l *LibcontainerExecutor) wait() {
 	defer close(l.userProcExited)
 
+	// Best effort detection of OOMs. It's possible for us to miss OOM notifications in
+	// the event that the wait returns before we read from the OOM notification channel
+	var oomKilled atomic.Bool
+	go func() {
+		oomCh, err := l.container.NotifyOOM()
+		if err != nil {
+			l.logger.Error("failed to get OOM notification channel for container(%s): %v", l.id, err)
+			return
+		}
+
+		for range oomCh {
+			oomKilled.Store(true)
+			// We can terminate this goroutine as soon as we've seen the first OOM
+			return
+		}
+	}()
+
 	ps, err := l.userProc.Wait()
 	if err != nil {
 		// If the process has exited before we called wait an error is returned
@@ -229,10 +247,11 @@ func (l *LibcontainerExecutor) wait() {
 	}
 
 	l.exitState = &ProcessState{
-		Pid:      ps.Pid(),
-		ExitCode: exitCode,
-		Signal:   signal,
-		Time:     time.Now(),
+		Pid:       ps.Pid(),
+		ExitCode:  exitCode,
+		Signal:    signal,
+		OOMKilled: oomKilled.Load(),
+		Time:      time.Now(),
 	}
 }
 
