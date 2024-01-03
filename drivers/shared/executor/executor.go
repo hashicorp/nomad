@@ -129,11 +129,6 @@ type ExecCommand struct {
 	// executor.
 	ResourceLimits bool
 
-	// Cgroup marks whether we put the process in a cgroup. Setting this field
-	// doesn't enforce resource limits. To enforce limits, set ResourceLimits.
-	// Using the cgroup does allow more precise cleanup of processes.
-	BasicProcessCgroup bool
-
 	// NoPivotRoot disables using pivot_root for isolation, useful when the root
 	// partition is on a ramdisk which does not support pivot_root,
 	// see man 2 pivot_root

@@ -8,9 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -61,9 +59,6 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	if v, err := strconv.ParseBool(opts["driver.raw_exec.enable"]); err == nil {
 		conf["enabled"] = v
 	}
-	if v, err := strconv.ParseBool(opts["driver.raw_exec.no_cgroups"]); err == nil {
-		conf["no_cgroups"] = v
-	}
 	return conf, nil
 }
 
@@ -80,10 +75,6 @@ var (
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"enabled": hclspec.NewDefault(
 			hclspec.NewAttr("enabled", "bool", false),
-			hclspec.NewLiteral("false"),
-		),
-		"no_cgroups": hclspec.NewDefault(
-			hclspec.NewAttr("no_cgroups", "bool", false),
 			hclspec.NewLiteral("false"),
 		),
 	})
@@ -139,10 +130,6 @@ type Driver struct {
 
 // Config is the driver configuration set by the SetConfig RPC call
 type Config struct {
-	// NoCgroups tracks whether we should use a cgroup to manage the process
-	// tree
-	NoCgroups bool `codec:"no_cgroups"`
-
 	// Enabled is set to true to enable the raw_exec driver
 	Enabled bool `codec:"enabled"`
 }
@@ -336,21 +323,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
-	// Only use cgroups when running as root on linux - Doing so in other cases
-	// will cause an error.
-	useCgroups := !d.config.NoCgroups && runtime.GOOS == "linux" && syscall.Geteuid() == 0
-
 	execCmd := &executor.ExecCommand{
-		Cmd:                driverConfig.Command,
-		Args:               driverConfig.Args,
-		Env:                cfg.EnvList(),
-		User:               cfg.User,
-		BasicProcessCgroup: useCgroups,
-		TaskDir:            cfg.TaskDir().Dir,
-		StdoutPath:         cfg.StdoutPath,
-		StderrPath:         cfg.StderrPath,
-		NetworkIsolation:   cfg.NetworkIsolation,
-		Resources:          cfg.Resources.Copy(),
+		Cmd:              driverConfig.Command,
+		Args:             driverConfig.Args,
+		Env:              cfg.EnvList(),
+		User:             cfg.User,
+		TaskDir:          cfg.TaskDir().Dir,
+		StdoutPath:       cfg.StdoutPath,
+		StderrPath:       cfg.StderrPath,
+		NetworkIsolation: cfg.NetworkIsolation,
+		Resources:        cfg.Resources.Copy(),
 	}
 
 	ps, err := exec.Launch(execCmd)
