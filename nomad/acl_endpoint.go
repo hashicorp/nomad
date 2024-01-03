@@ -2182,6 +2182,16 @@ func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIRespo
 	}
 
 	reply.Identity = args.GetIdentity()
+
+	// COMPAT: originally these were time.Time objects but switching to go-jose
+	// changed them to int64 which aren't compatible with Nomad versions
+	// <1.7. These aren't used by any existing callers of this handler.
+	if reply.Identity.Claims != nil {
+		reply.Identity.Claims.Expiry = nil
+		reply.Identity.Claims.IssuedAt = nil
+		reply.Identity.Claims.NotBefore = nil
+	}
+
 	return nil
 }
 

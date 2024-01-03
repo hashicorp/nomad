@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Fixed a bug where 1.5 and 1.6 clients could not access Nomad Variables and Services via templates
+```
