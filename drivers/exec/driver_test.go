@@ -809,8 +809,8 @@ func TestExecDriver_OOMKilled(t *testing.T) {
 	task.Resources.NomadResources.Memory.MemoryMB = 10
 
 	tc := &TaskConfig{
-		Command: "/bin/bash",
-		Args:    []string{"-c", `sleep 2 && x=a && while true; do x="$x$x"; done`},
+		Command: "/bin/tail",
+		Args:    []string{"/dev/zero"},
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 
