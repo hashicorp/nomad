@@ -324,19 +324,6 @@ type Server struct {
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) (*Server, error) {
-	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
-
-	// Create an eval broker
-	evalBroker, err := NewEvalBroker(
-		shutdownCtx,
-		config.EvalNackTimeout,
-		config.EvalNackInitialReenqueueDelay,
-		config.EvalNackSubsequentReenqueueDelay,
-		config.EvalDeliveryLimit)
-	if err != nil {
-		return nil, err
-	}
-
 	// Configure TLS
 	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
 	if err != nil {
@@ -372,17 +359,30 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		reconcileCh:             make(chan serf.Member, 32),
 		readyForConsistentReads: &atomic.Bool{},
 		eventCh:                 make(chan serf.Event, 256),
-		evalBroker:              evalBroker,
 		reapCancelableEvalsCh:   make(chan struct{}),
-		blockedEvals:            NewBlockedEvals(evalBroker, logger),
 		rpcTLS:                  incomingTLS,
 		workersEventCh:          make(chan interface{}, 1),
 		lockTTLTimer:            lock.NewTTLTimer(),
 		lockDelayTimer:          lock.NewDelayTimer(),
-		shutdownCtx:             shutdownCtx,
-		shutdownCancel:          shutdownCancel,
-		shutdownCh:              shutdownCtx.Done(),
 	}
+
+	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
+	s.shutdownCh = s.shutdownCtx.Done()
+
+	// Create an eval broker
+	evalBroker, err := NewEvalBroker(
+		s.shutdownCtx,
+		config.EvalNackTimeout,
+		config.EvalNackInitialReenqueueDelay,
+		config.EvalNackSubsequentReenqueueDelay,
+		config.EvalDeliveryLimit)
+	if err != nil {
+		return nil, err
+	}
+	s.evalBroker = evalBroker
+
+	// Create the blocked evals
+	s.blockedEvals = NewBlockedEvals(s.evalBroker, s.logger)
 
 	// Create the RPC handler
 	s.rpcHandler = newRpcHandler(s)
