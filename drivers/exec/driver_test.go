@@ -32,6 +32,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -786,6 +787,48 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, handle)
 	require.NoError(t, harness.DestroyTask(task.ID, true))
+}
+
+func TestExecDriver_OOMKilled(t *testing.T) {
+	ci.Parallel(t)
+	ctestutils.ExecCompatible(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := newExecDriverTest(t, ctx)
+	harness := dtestutil.NewDriverHarness(t, d)
+	allocID := uuid.Generate()
+	name := "oom-killed"
+	task := &drivers.TaskConfig{
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      name,
+		Resources: testResources(allocID, name),
+	}
+	task.Resources.LinuxResources.MemoryLimitBytes = 10 * 1024 * 1024
+	task.Resources.NomadResources.Memory.MemoryMB = 10
+
+	tc := &TaskConfig{
+		Command: "/bin/tail",
+		Args:    []string{"/dev/zero"},
+	}
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	handle, _, err := harness.StartTask(task)
+	must.NoError(t, err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	must.NoError(t, err)
+	result := <-ch
+	must.False(t, result.Successful(), must.Sprint("container should OOM"))
+	must.True(t, result.OOMKilled, must.Sprintf("got non-OOM error, code: %d, err: %v", result.ExitCode, result.Err))
+
+	t.Logf("Successfully killed by OOM killer")
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestDriver_Config_validate(t *testing.T) {
