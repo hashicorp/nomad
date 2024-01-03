@@ -271,9 +271,7 @@ passwd`
 func TestExecutor_OOMKilled(t *testing.T) {
 	ci.Parallel(t)
 	testutil.ExecCompatible(t)
-	testutil.CgroupsCompatibleV1(t) // todo(shoenig): hard codes cgroups v1 lookup
-
-	r := require.New(t)
+	testutil.CgroupsCompatible(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -291,16 +289,16 @@ func TestExecutor_OOMKilled(t *testing.T) {
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
-	r.NoError(err)
-	r.NotZero(ps.Pid)
+	must.NoError(t, err)
+	must.Positive(t, ps.Pid)
 
 	estate, err := executor.Wait(context.Background())
-	r.NoError(err)
-	r.NotZero(estate.ExitCode)
-	r.True(estate.OOMKilled)
+	must.NoError(t, err)
+	must.Positive(t, estate.ExitCode)
+	must.True(t, estate.OOMKilled)
 
 	// Shut down executor
-	r.NoError(executor.Shutdown("", 0))
+	must.NoError(t, executor.Shutdown("", 0))
 	executor.Wait(context.Background())
 }
 
