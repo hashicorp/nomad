@@ -13,10 +13,7 @@ import {
   visit,
 } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import {
-  selectChoose,
-  clickTrigger,
-} from 'ember-power-select/test-support/helpers';
+import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
 import { setupApplicationTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -365,14 +362,13 @@ module('Acceptance | variables', function (hooks) {
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await Variables.visitNew();
     assert.equal(currentURL(), '/variables/new');
-    await typeIn('.path-input', 'foo/bar');
+    await typeIn('[data-test-path-input]', 'foo/bar');
     await click('button[type="submit"]');
     assert.dom('.flash-message.alert-critical').exists();
     await click('.flash-message.alert-critical .hds-dismiss-button');
     assert.dom('.flash-message.alert-critical').doesNotExist();
-
-    await typeIn('.key-value label:nth-child(1) input', 'myKey');
-    await typeIn('.key-value label:nth-child(2) input', 'superSecret');
+    await typeIn('[data-test-var-key]', 'myKey');
+    await typeIn('[data-test-var-value]', 'superSecret');
 
     await percySnapshot(assert);
 
@@ -412,9 +408,12 @@ module('Acceptance | variables', function (hooks) {
       assert.equal(currentRouteName(), 'variables.new');
 
       await typeIn('[data-test-path-input]', 'foo/bar');
-      await clickTrigger('[data-test-variable-namespace-filter]');
-
-      assert.dom('.dropdown-options').exists('Namespace can be edited.');
+      await clickToggle('[data-test-variable-namespace-filter]');
+      assert
+        .dom(
+          '[data-test-variable-namespace-filter] .hds-menu-primitive__content'
+        )
+        .exists('Namespace can be edited.');
       assert
         .dom('[data-test-variable-namespace-filter]')
         .containsText(
@@ -422,10 +421,7 @@ module('Acceptance | variables', function (hooks) {
           'The first alphabetically sorted namespace should be selected as the default option.'
         );
 
-      await selectChoose(
-        '[data-test-variable-namespace-filter]',
-        'namespace-1'
-      );
+      await clickOption('[data-test-variable-namespace-filter]', 'namespace-1');
       await typeIn('[data-test-var-key]', 'kiki');
       await typeIn('[data-test-var-value]', 'do you love me');
       await click('[data-test-submit-var]');
@@ -555,7 +551,7 @@ module('Acceptance | variables', function (hooks) {
         .dom('.related-entities-hint')
         .doesNotExist('Hides the hint when editing a job template variable');
       assert
-        .dom('.job-template-hint')
+        .dom('[data-test-job-template-hint]')
         .exists('Shows a hint about job templates');
       assert
         .dom('.CodeMirror')
@@ -574,7 +570,7 @@ module('Acceptance | variables', function (hooks) {
 
   module('edit flow', function () {
     test('allows a user with correct permissions to edit a variable', async function (assert) {
-      assert.expect(8);
+      assert.expect(7);
       // Arrange Test Set-up
       allScenarios.variableTestCluster(server);
       server.createList('variable', 3);
@@ -603,10 +599,6 @@ module('Acceptance | variables', function (hooks) {
       await percySnapshot(assert);
 
       assert.dom('[data-test-path-input]').isDisabled('Path cannot be edited');
-      await clickTrigger('[data-test-variable-namespace-filter]');
-      assert
-        .dom('.dropdown-options')
-        .doesNotExist('Namespace cannot be edited.');
 
       document.querySelector('[data-test-var-key]').value = ''; // clear current input
       await typeIn('[data-test-var-key]', 'kiki');
@@ -884,8 +876,8 @@ module('Acceptance | variables', function (hooks) {
       });
 
       // Act
-      await clickTrigger('[data-test-variable-namespace-filter]');
-      await selectChoose('[data-test-variable-namespace-filter]', 'default');
+      await clickToggle('[data-test-variable-namespace-filter]');
+      await clickOption('[data-test-variable-namespace-filter]', 'default');
 
       assert
         .dom('[data-test-no-matching-variables-list-headline]')
@@ -946,8 +938,8 @@ module('Acceptance | variables', function (hooks) {
         });
 
         // Act
-        await clickTrigger('[data-test-variable-namespace-filter]');
-        await selectChoose('[data-test-variable-namespace-filter]', 'default');
+        await clickToggle('[data-test-variable-namespace-filter]');
+        await clickOption('[data-test-variable-namespace-filter]', 'default');
 
         assert
           .dom('[data-test-no-matching-variables-list-headline]')

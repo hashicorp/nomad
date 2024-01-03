@@ -10,19 +10,18 @@
   {{#if trigger.data.isSuccess}}
     {{#if trigger.data.result}}
       {{#if @data.namespaceOptions}}
-        <label>
-          <span>
-            Namespace
-          </span>
-          <SingleSelectDropdown
-            data-test-variable-namespace-filter
-            @label="Namespace"
-            @disabled={{@data.disabled}}
-            @options={{@data.namespaceOptions}}
-            @selection={{@data.selection}}
-            @onSelect={{@fns.onSelect}}
-          />
-        </label>
+        <Hds::Dropdown class="namespace-dropdown" data-test-variable-namespace-filter as |dd|>
+          <dd.ToggleButton @text="{{@data.selection}}" @color="secondary" disabled={{@data.disabled}} @isFullWidth={{true}} />
+          {{#each @data.namespaceOptions as |option|}}
+            <dd.Radio
+              name={{option.key}}
+              {{on "change" (action @fns.onSelect option.key)}}
+              checked={{eq @data.selection option.key}}
+            >
+              {{option.label}}
+            </dd.Radio>
+          {{/each}}
+        </Hds::Dropdown>
       {{/if}}
     {{/if}}
   {{/if}}

@@ -3,22 +3,24 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<ListTable class="path-tree" @source={{@branch}} as |t|>
-  <t.head>
-    <th>
-      Path
-    </th>
-    <th>
-      Namespace
-    </th>
-    <th>
-      Last Modified
-    </th>
-  </t.head>
-  <tbody>
+<Hds::Table @caption="A list variables" class="path-tree">
+  <:head as |H|>
+    <H.Tr>
+      <H.Th>
+        Path
+      </H.Th>
+      <H.Th>
+        Namespace
+      </H.Th>
+      <H.Th>
+        Last Modified
+      </H.Th>
+    </H.Tr>
+  </:head>
+  <:body as |B|>
     {{#each this.folders as |folder|}}
-      <tr data-test-folder-row {{on "click" (fn this.handleFolderClick folder.data.absolutePath)}}>
-        <td colspan="3"
+      <B.Tr data-test-folder-row {{on "click" (fn this.handleFolderClick folder.data.absolutePath)}}>
+        <B.Td colspan="3"
           {{keyboard-shortcut 
             enumerated=true
             action=(fn this.handleFolderClick folder.data.absolutePath)
@@ -30,12 +32,13 @@
               {{trim-path folder.name}}
             </LinkTo>
           </span>
-        </td>
-      </tr>
+        </B.Td>
+      </B.Tr>
+
     {{/each}}
 
     {{#each this.files as |file|}}
-      <tr
+      <B.Tr
         data-test-file-row="{{file.name}}"
         {{on "click" (fn this.handleFileClick file)}}
         class={{if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace) "" "inaccessible"}}
@@ -44,7 +47,7 @@
           action=(fn this.handleFileClick file)
         }}
       >
-        <td>
+        <B.Td>
           <FlightIcon @name="file-text" />
           {{#if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace)}}
           <LinkTo
@@ -57,17 +60,16 @@
           {{else}}
             <span title="Your access policy does not allow you to view the contents of {{file.name}}">{{file.name}}</span>
           {{/if}}
-        </td>
-        <td>
+        </B.Td>
+        <B.Td>
           {{file.variable.namespace}}
-        </td>
-        <td>
+        </B.Td>
+        <B.Td>
           <span class="tooltip" aria-label="{{format-ts file.variable.modifyTime}}">
             {{moment-from-now file.variable.modifyTime}}
           </span>
-        </td>
-      </tr>
-    {{/each}}
-
-  </tbody>
-      </ListTable>
+        </B.Td>
+      </B.Tr>
+    {{/each}}              
+  </:body>
+</Hds::Table>

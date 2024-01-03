@@ -50,22 +50,21 @@
   {{/if}}
 
   <div class={{if this.namespaceOptions "path-namespace"}}>
-    <label>
-      <span>
-        Path
-      </span>
-      <Input
-        @type="text"
-        @value={{this.path}}
-        placeholder="nomad/jobs/my-job/my-group/my-task"
-        class="input path-input {{if this.duplicatePathWarning "error"}}"
-        {{on "input" this.setModelPath}}
-        disabled={{not @model.isNew}}
-        {{autofocus}}
-        data-test-path-input
-      />
+
+		<Hds::Form::TextInput::Field
+			@isRequired={{true}}
+			@value={{this.path}}
+			placeholder="nomad/jobs/my-job/my-group/my-task"
+      @isInvalid={{this.duplicatePathWarning}}
+      {{on "input" (action this.setModelPath)}}
+      disabled={{not @model.isNew}}
+			{{autofocus}}
+      data-test-path-input
+		as |F|>
+			<F.Label>Path</F.Label>
+      
       {{#if this.duplicatePathWarning}}
-        <p class="duplicate-path-error help is-danger">
+        <F.Error data-test-duplicate-variable-error>
           There is already a variable located at
           {{this.path}}
           .
@@ -78,19 +77,16 @@
             edit the existing variable
           </LinkTo>
           .
-        </p>
+        </F.Error>
       {{/if}}
       {{#if this.isJobTemplateVariable}}
-        <p class="help job-template-hint">
-          Use this variable to generate job templates with
-          <code>nomad job init -template={{this.jobTemplateName}}
-            <CopyButton
-              @clipboardText="nomad job init -template={{this.jobTemplateName}}"
-            />
-          </code>
-        </p>
+        <F.HelperText data-test-job-template-hint>
+          Use this variable to generate job templates with <Hds::Copy::Snippet @textToCopy="nomad job init -template={{this.jobTemplateName}}" />
+        </F.HelperText>
       {{/if}}
-    </label>
+		</Hds::Form::TextInput::Field>
+
+
     <VariableForm::NamespaceFilter 
       @data={{hash 
         disabled=(not @model.isNew)
@@ -131,28 +127,20 @@
     {{else}}
       {{#each this.keyValues as |entry iter|}}
         <div class="key-value">
-          <label>
-            <span>
-              Key
-            </span>
-            <Input
-              data-test-var-key
-              @type="text"
-              @value={{entry.key}}
-              class="input"
-              {{autofocus ignore=(eq iter 0)}}
-              {{on "input" (fn this.validateKey entry)}}
-            />
-          </label>
+          <Hds::Form::TextInput::Field
+            @value={{entry.key}}
+            data-test-var-key
+            class="input"
+            {{autofocus ignore=(eq iter 0)}}
+            {{on "input" (action this.validateKey entry)}}
+          as |F|>
+            <F.Label>Key</F.Label>
+          </Hds::Form::TextInput::Field>
           <VariableForm::InputGroup @entry={{entry}} />
-          <button
-            class="delete-row button is-danger is-inverted"
-            type="button"
-            {{on "click" (action this.deleteRow entry)}}
+          <Hds::Button @text="Delete" @color="critical" class="delete-entry-button"
             disabled={{eq this.keyValues.length 1}}
-          >
-            Delete
-          </button>
+            {{on "click" (action this.deleteRow entry)}}
+          />
           {{#each-in entry.warnings as |k v|}}
             <span class="key-value-error help is-danger">
               {{v}}
@@ -166,25 +154,23 @@
   <footer>
     {{#unless this.isJSONView}}
       {{#unless this.isJobTemplateVariable}}
-        <button
-          class="add-more button is-info is-inverted"
-          type="button"
-          disabled={{not (and this.keyValues.lastObject.key this.keyValues.lastObject.value)}}
-          {{on "click" this.appendRow}}
+        <Hds::Button
+          @text="Add More"
+          @color="secondary"
+          @size="medium"
+          @icon="plus"
+          {{!-- only enable if the last entry isn't empty --}}
+          disabled={{not (and this.keyValues.lastObject.key this.keyValues.lastObject.value)}} {{on "click" this.appendRow}}
           data-test-add-kv
-        >
-          Add More
-        </button>
+        />
       {{/unless}}
     {{/unless}}
-    <button
-      disabled={{this.shouldDisableSave}}
-      class="button is-primary save"
+    <Hds::Button
+      @text="Save {{pluralize "Variable" this.keyValues.length}}"
+      @color="primary"
       type="submit"
+      disabled={{this.shouldDisableSave}}
       data-test-submit-var
-    >
-      Save
-      {{pluralize "Variable" @this.keyValues.length}}
-    </button>
+    />
   </footer>
 </form>

@@ -3,45 +3,54 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<h1 class="variable-title title with-flex">
-  <div>
-    <FlightIcon @name="file-text" />
-    {{this.model.path}}
-      <CopyButton
-        @inset={{true}}
-        @compact={{true}}
-        @clipboardText={{this.model.path}}
-      />
+<Hds::PageHeader class="variable-title" as |PH|>
+  <PH.Title>{{this.model.path}}</PH.Title>
+  <PH.IconTile @icon="file-text" />
+  <PH.Actions>
+    {{#unless this.isDeleting}}
 
-    <Toggle
+    <Hds::Form::Toggle::Field
+      @value="enable"
       {{keyboard-shortcut 
         label="Toggle View (JSON/List)"
         pattern=(array "j")
         action=(action this.toggleView)
       }}
-      data-test-memory-toggle
-      @isActive={{eq this.view "json"}}
-      @onToggle={{action this.toggleView}}
-      title="JSON"
-    >JSON</Toggle>
-  </div>
-  <div>
-    {{#unless this.isDeleting}}
+      checked={{eq this.view "json"}}
+      data-test-json-toggle
+      {{on "change" (action this.toggleView)}}
+    as |F|>
+      <F.Label>JSON</F.Label>
+    </Hds::Form::Toggle::Field>
+
+    <div
+      {{keyboard-shortcut 
+        label="Copy Variable"
+        pattern=(array "c" "v")
+        action=(action this.copyVariable)}}
+    >
+      <Hds::Copy::Button
+        @text="Copy"
+        @textToCopy={{stringify-object this.model.items}}
+        @isIconOnly={{true}}
+        class="copy-variable"
+      />
+    </div>
+
       {{#if (can "write variable" path=this.model.path namespace=this.model.namespace)}}
-      <div class="two-step-button">
-        <LinkTo
-          {{autofocus}}
-          data-test-edit-button
-          class="button is-info is-inverted is-small"
-          @model={{this.model}}
+        <Hds::Button
+          @icon="edit"
+          @text="Edit"
+          @color="secondary"
           @route="variables.variable.edit"
+          @model={{this.model}}
           @query={{hash view=this.view}}
-        >
-          Edit
-        </LinkTo>
-      </div>
+          data-test-edit-button
+          {{autofocus}}
+        />
       {{/if}}
     {{/unless}}
+
     {{#if (can "destroy variable" path=this.model.path namespace=this.model.namespace)}}
       <TwoStepButton
         data-test-delete-button
@@ -56,8 +65,8 @@
         @onCancel={{this.onDeleteCancel}}
       />
     {{/if}}
-  </div>
-</h1>
+  </PH.Actions>
+</Hds::PageHeader>
 
 {{#if this.shouldShowLinkedEntities}}
   <VariableForm::RelatedEntities
@@ -72,59 +81,65 @@
   <div class="boxed-section">
     <div class="boxed-section-head">
       Key/Value Data
-      <CopyButton
-        class="pull-right"
-        @compact={{true}}
-        @border={{true}}
-        @clipboardText={{stringify-object this.model.items}}
-          />
     </div>
     <div class="boxed-section-body is-full-bleed">
       <JsonViewer @json={{this.model.items}} />
     </div>
   </div>
 {{else}}
-  <ListTable class="variable-items" @source={{this.sortedKeyValues}} @sortProperty={{this.sortProperty}} @sortDescending={{this.sortDescending}} as |t|>
-    <t.head>
-      <t.sort-by @prop="key">Key</t.sort-by>
-      <t.sort-by @prop="value">Value</t.sort-by>
-    </t.head>
-    <t.body as |row|>
-      <tr data-test-var={{row.model.key}}>
-        <td>
-          {{row.model.key}}
-        </td>
-        <td colspan="3" class="value-cell">
+  <Hds::Table class="variable-items"
+  @model={{this.sortedKeyValues}}
+  @sortBy={{this.sortProperty}}
+  @sortOrder={{if this.sortDescending "desc" "asc"}}
+  @columns={{array
+    (hash
+      key="key"
+      label="Key"
+      isSortable=true
+      width="200px"
+    )
+    (hash
+      key="value"
+      label="Value"
+      isSortable=true
+    )
+  }}
+  >
+    <:body as |B|>
+      <B.Tr data-test-var={{B.data.key}}>
+        <B.Td>{{B.data.key}}</B.Td>
+        <B.Td class="value-cell">
           <div>
             <CopyButton
               @compact={{true}}
-              @clipboardText={{row.model.value}}
+              @clipboardText={{B.data.value}}
             />
             <button
               class="show-hide-values button is-borderless is-compact"
               type="button"
-              {{on "click" (action this.toggleRowVisibility row.model)}}
+              {{on "click" (action this.toggleRowVisibility B.data)}}
               {{keyboard-shortcut 
                 label="Toggle Variable Visibility"
                 pattern=(array "v")
-                action=(action this.toggleRowVisibility row.model)
+                action=(action this.toggleRowVisibility B.data)
               }}
 
             >
               <FlightIcon
-                @name={{if row.model.isVisible "eye" "eye-off"}}
-                @title={{if row.model.isVisible "Hide Value" "Show Value"}}
+                @name={{if B.data.isVisible "eye" "eye-off"}}
+                @title={{if B.data.isVisible "Hide Value" "Show Value"}}
               />
             </button>
 
-            {{#if row.model.isVisible}}
-              <code>{{row.model.value}}</code>
+            {{#if B.data.isVisible}}
+              <code>{{B.data.value}}</code>
             {{else}}
               ********
             {{/if}}
           </div>
-        </td>
-      </tr>
-    </t.body>
-  </ListTable>
+        </B.Td>
+      </B.Tr>
+    </:body>
+  </Hds::Table>
+
 {{/if}}

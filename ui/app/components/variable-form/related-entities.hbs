@@ -3,18 +3,18 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<p class="related-entities notification">
-<FlightIcon @name="info-fill" @color="var(--blue)" />
-<span>
+<Hds::Alert @type="inline" @color="highlight" @icon="info" class="related-entities notification" as |A|>
+  <A.Title>Automatically-accessible variable</A.Title>
+  <A.Description>
     This variable {{#if @new}}will be{{else}}is{{/if}} accessible by 
     {{#if @task}}
-    task <strong>{{@task}}</strong> in group <LinkTo @route="jobs.job.task-group" @models={{array (concat @job "@" @namespace) @group}}>{{@group}} <FlightIcon @name="external-link" /></LinkTo>
+      task <strong>{{@task}}</strong> in group <Hds::Link::Inline @route="jobs.job.task-group" @models={{array (concat @job "@" @namespace) @group}} @icon="external-link">{{@group}}</Hds::Link::Inline>
     {{else if @group}}
-    group <LinkTo @route="jobs.job.task-group" @models={{array (concat @job "@" @namespace) @group}}>{{@group}} <FlightIcon @name="external-link" /></LinkTo>
+      group <Hds::Link::Inline @route="jobs.job.task-group" @models={{array (concat @job "@" @namespace) @group}} @icon="external-link">{{@group}}</Hds::Link::Inline>
     {{else if @job}}
-    job <LinkTo @route="jobs.job" @model={{concat @job "@" @namespace}}>{{@job}} <FlightIcon @name="external-link" /></LinkTo>
+      job <Hds::Link::Inline @route="jobs.job" @model={{concat @job "@" @namespace}} @icon="external-link">{{@job}}</Hds::Link::Inline>
     {{else}}
-    all nomad jobs in this namespace
-    {{/if}}
-</span>
-</p>
+      all nomad jobs in this namespace
+    {{/if}}    
+  </A.Description>
+</Hds::Alert>

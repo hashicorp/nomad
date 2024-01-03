@@ -5,46 +5,24 @@
 
 .section.single-variable {
   margin-top: 1.5rem;
-
-  .back-link {
-    text-decoration: none;
-    color: #363636;
-    position: relative;
-    top: 4px;
-  }
 }
 
+$hdsLabelTopOffset: 26px;
+$hdsInputHeight: 35px;
+
 .variable-title {
-  .toggle {
-    font-size: 0.8rem;
-    margin-left: 1rem;
-    position: relative;
-    top: -0.25rem;
-    .toggler {
-      margin-right: 0.25rem;
-    }
+  margin-bottom: 2rem;
+  .hds-page-header__main {
+    flex-direction: unset;
   }
-  .copy-button {
-    position: relative;
-    top: 3px;
+  .copy-variable span {
+    color: var(--token-color-foreground-primary);
   }
 }
 
 .new-variables {
   & > div {
     margin-bottom: 1rem;
-  }
-
-  .path-input {
-    height: 2.25em;
-
-    &:disabled {
-      background-color: #f5f5f5;
-    }
-    &.error {
-      color: $red;
-      border-color: $red;
-    }
   }
 
   .duplicate-path-error {
@@ -56,13 +34,21 @@
     display: grid;
     grid-template-columns: 6fr 1fr;
     gap: 0 1rem;
+    align-items: start;
+    .namespace-dropdown {
+      white-space: nowrap;
+      width: auto;
+      position: relative;
+      top: $hdsLabelTopOffset;
+      height: $hdsInputHeight;
+    }
   }
 
   .key-value {
     display: grid;
     grid-template-columns: 1fr 4fr 130px;
     gap: 0 1rem;
-    align-items: end;
+    align-items: start;
 
     input.error {
       color: $red;
@@ -75,6 +61,12 @@
       & > span {
         grid-column: -1 / 1;
       }
+    }
+
+    .delete-entry-button {
+      position: relative;
+      top: $hdsLabelTopOffset;
+      height: $hdsInputHeight;
     }
 
     button.show-hide-values {
@@ -131,11 +123,6 @@
     grid-auto-columns: max-content;
     grid-auto-flow: column;
     gap: 1rem;
-
-    .button.is-info.is-inverted.add-more[disabled] {
-      border-color: #dbdbdb;
-      box-shadow: 0 2px 0 0 rgb(122 122 122 / 20%);
-    }
   }
 }
 
@@ -152,20 +139,8 @@ table.path-tree {
   }
 }
 
-.section .notification.related-entities {
-  --blue: #1563ff;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  &.notification {
-    align-items: center;
-  }
-  a {
-    color: $blue;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
+.related-entities {
+  margin-bottom: 2rem;
 }
 
 .related-entities-hint {
@@ -175,25 +150,6 @@ table.path-tree {
     border: 1px solid $grey-lighter;
     padding: 0 0.25rem;
     border-radius: 4px;
-  }
-}
-
-.job-template-hint {
-  margin-top: 0.5rem;
-  code {
-    background-color: #eee;
-    padding: 0.25rem;
-  }
-  .copy-button {
-    display: inline-block;
-    padding-left: 0;
-    position: relative;
-    top: -5px;
-    button,
-    .button {
-      background-color: transparent;
-      padding-right: 0.25rem;
-    }
   }
 }
 

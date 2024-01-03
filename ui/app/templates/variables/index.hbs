@@ -5,46 +5,50 @@
 
 {{page-title "Variables"}}
 <section class="section">
-  <div class="toolbar">
-    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+
+  <Hds::PageHeader class="variable-title" as |PH|>
+    <PH.Actions>
         {{#if this.namespaceOptions}}
-          <SingleSelectDropdown
-            data-test-variable-namespace-filter
-            @label="Namespace"
-            @options={{this.namespaceOptions}}
-            @selection={{this.namespaceSelection}}
-            @onSelect={{this.setNamespace}}
+          <Hds::Dropdown data-test-variable-namespace-filter as |dd|>
+            <dd.ToggleButton @text="Namespace ({{this.namespaceSelection}})" @color="secondary" />
+            {{#each this.namespaceOptions as |option|}}
+              <dd.Radio
+                name={{option.key}}
+                {{on "change" (action this.setNamespace option.key)}}
+                checked={{eq this.namespaceSelection option.key}}
+              >
+                {{option.label}}
+              </dd.Radio>
+            {{/each}}
+          </Hds::Dropdown>
+        {{/if}}
+
+        {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
+          <div
+            {{keyboard-shortcut
+              pattern=(array "n" "v")
+              action=(action this.goToNewVariable)
+              label="Create Variable"
+            }}
+          >
+            <Hds::Button
+              @text="Create Variable"
+              @icon="plus"
+              @route="variables.new"
+              data-test-create-var
+            />
+          </div>
+        {{else}}
+          <Hds::Button
+            @text="Create Variable"
+            @icon="plus"
+            data-test-disabled-create-var
+            disabled
           />
         {{/if}}
-      <div class="button-bar">
-      {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
-        <LinkTo
-          @route="variables.new"
-          class="button is-primary"
-          data-test-create-var
-          {{keyboard-shortcut
-            pattern=(array "n" "v")
-            action=(action this.goToNewVariable)
-            label="Create Variable"
-          }}
-        >
-          Create Variable
-        </LinkTo>
-      {{else}}
-        <button
-          class="button is-primary is-disabled tooltip is-right-aligned"
-          aria-label="You don’t have sufficient permissions"
-          disabled
-          type="button"
-          data-test-disabled-create-var
-        >
-          Create Variable
-        </button>
-      {{/if}}
+    </PH.Actions>
+  </Hds::PageHeader>
 
-      </div>
-    </div>
-  </div>
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
