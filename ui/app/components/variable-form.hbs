@@ -154,9 +154,23 @@
   <footer>
     {{#unless this.isJSONView}}
       {{#unless this.isJobTemplateVariable}}
-        <Hds::Button @text="Add More" @color="secondary" @size="medium" @icon="plus" class="add-more" type="button" disabled={{not (and this.keyValues.lastObject.key this.keyValues.lastObject.value)}} {{on "click" this.appendRow}} data-test-add-kv />
+        <Hds::Button
+          @text="Add More"
+          @color="secondary"
+          @size="medium"
+          @icon="plus"
+          {{!-- only enable if the last entry isn't empty --}}
+          disabled={{not (and this.keyValues.lastObject.key this.keyValues.lastObject.value)}} {{on "click" this.appendRow}}
+          data-test-add-kv
+        />
       {{/unless}}
     {{/unless}}
-    <Hds::Button @text="Save {{pluralize "Variable" this.keyValues.length}}" @color="primary" type="submit" disabled={{this.shouldDisableSave}} data-test-submit-var />
+    <Hds::Button
+      @text="Save {{pluralize "Variable" this.keyValues.length}}"
+      @color="primary"
+      type="submit"
+      disabled={{this.shouldDisableSave}}
+      data-test-submit-var
+    />
   </footer>
 </form>

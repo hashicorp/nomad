@@ -12,6 +12,9 @@ $hdsInputHeight: 35px;
 
 .variable-title {
   margin-bottom: 2rem;
+  .hds-page-header__main {
+    flex-direction: unset;
+  }
   .copy-variable span {
     color: var(--token-color-foreground-primary);
   }
@@ -120,11 +123,6 @@ $hdsInputHeight: 35px;
     grid-auto-columns: max-content;
     grid-auto-flow: column;
     gap: 1rem;
-
-    .button.is-info.is-inverted.add-more[disabled] {
-      border-color: #dbdbdb;
-      box-shadow: 0 2px 0 0 rgb(122 122 122 / 20%);
-    }
   }
 }
 

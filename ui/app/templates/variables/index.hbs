@@ -7,11 +7,10 @@
 <section class="section">
 
   <Hds::PageHeader class="variable-title" as |PH|>
-    <PH.Title>Variables</PH.Title>
     <PH.Actions>
         {{#if this.namespaceOptions}}
           <Hds::Dropdown data-test-variable-namespace-filter as |dd|>
-            <dd.ToggleButton @text="Namespace" @color="secondary" />
+            <dd.ToggleButton @text="Namespace ({{this.namespaceSelection}})" @color="secondary" />
             {{#each this.namespaceOptions as |option|}}
               <dd.Radio
                 name={{option.key}}
