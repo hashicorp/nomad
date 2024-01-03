@@ -19,5 +19,5 @@ func TestConsul(t *testing.T) {
 
 	t.Run("testServiceReversion", testServiceReversion)
 	t.Run("testAllocRestart", testAllocRestart)
-	t.Run("testConsulWI", testConsulWI)
+	t.Run("testConsulWI", testConsulWI_Service_and_Task)
 }
