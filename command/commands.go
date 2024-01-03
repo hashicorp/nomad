@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/version"
 	colorable "github.com/mattn/go-colorable"
-	"github.com/mitchellh/cli"
 )
 
 const (

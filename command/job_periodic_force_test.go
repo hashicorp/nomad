@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
@@ -14,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"

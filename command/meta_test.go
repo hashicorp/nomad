@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/creack/pty"
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )

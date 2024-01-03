@@ -6,11 +6,11 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 )
 

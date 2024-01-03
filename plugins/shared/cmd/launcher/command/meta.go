@@ -7,8 +7,8 @@ import (
 	"flag"
 	"strings"
 
+	"github.com/hashicorp/cli"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/mitchellh/cli"
 )
 
 type Meta struct {

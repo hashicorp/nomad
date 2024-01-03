@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/mitchellh/cli"
 )
 
 func TestClientConfigCommand_Implements(t *testing.T) {

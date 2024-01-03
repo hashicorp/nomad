@@ -6,7 +6,7 @@
 
 package command
 
-import "github.com/mitchellh/cli"
+import "github.com/hashicorp/cli"
 
 func EntCommands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 	return map[string]cli.CommandFactory{}

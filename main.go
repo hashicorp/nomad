@@ -22,9 +22,9 @@ import (
 	_ "github.com/hashicorp/nomad/drivers/shared/executor"
 
 	// Don't move any other code imports above the import block above!
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/version"
-	"github.com/mitchellh/cli"
 )
 
 var (

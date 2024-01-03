@@ -8,7 +8,6 @@ replace (
 	github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20230509193637-d9ca9af9f1f9
 	github.com/hashicorp/consul/api => github.com/hashicorp/consul/api v1.10.1-0.20230925152502-e5f5fc9301c7
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
-	github.com/mitchellh/cli => github.com/hashicorp/cli v1.1.6
 )
 
 // Nomad is built using the current source of the API module.
@@ -46,6 +45,7 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/cap v0.2.0
+	github.com/hashicorp/cli v1.1.6
 	github.com/hashicorp/consul-template v0.35.0
 	github.com/hashicorp/consul/api v1.26.1
 	github.com/hashicorp/consul/sdk v0.15.0
@@ -93,7 +93,6 @@ require (
 	github.com/kr/text v0.2.0
 	github.com/mattn/go-colorable v0.1.13
 	github.com/miekg/dns v1.1.50
-	github.com/mitchellh/cli v1.1.5
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/go-glint v0.0.0-20210722152315-6515ceb4a127
@@ -232,6 +231,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
+	github.com/mitchellh/cli v1.1.5 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/moby/patternmatcher v0.5.0 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect

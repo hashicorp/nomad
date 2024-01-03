@@ -18,13 +18,13 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
 
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"

@@ -14,13 +14,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/hashicorp/cli"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/mitchellh/cli"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
 )

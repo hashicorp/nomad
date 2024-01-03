@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
 )

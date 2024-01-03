@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
 )
 
 func TestScalingPolicyInfoCommand_Run(t *testing.T) {
