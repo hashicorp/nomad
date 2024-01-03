@@ -111,4 +111,5 @@ message ProcessState {
     int32 exit_code = 2;
     int32 signal = 3;
     google.protobuf.Timestamp time = 4;
+    bool oom_killed = 5;
 }
