@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Replaced single-line variable value fields with multi-line textareas and updated the components to use newer styles, generally
+```
