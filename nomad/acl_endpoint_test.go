@@ -1913,6 +1913,51 @@ func TestACLEndpoint_ResolveToken(t *testing.T) {
 	assert.Nil(t, resp.Token)
 }
 
+func TestACLEndpoint_WhoAmI(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	t.Cleanup(cleanupS1)
+	codec := rpcClient(t, s1)
+	testutil.WaitForKeyring(t, s1.RPC, "global")
+
+	// Create the register request
+	token := mock.ACLToken()
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
+
+	// Lookup via token
+	get := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{Region: "global", AuthToken: token.SecretID},
+	}
+	var resp structs.ACLWhoAmIResponse
+	err := msgpackrpc.CallWithCodec(codec, "ACL.WhoAmI", get, &resp)
+	must.NoError(t, err)
+	must.Eq(t, token, resp.Identity.ACLToken)
+
+	// Lookup non-existing token
+	get.AuthToken = uuid.Generate()
+	var resp2 structs.ACLWhoAmIResponse
+	err = msgpackrpc.CallWithCodec(codec, "ACL.WhoAmI", get, &resp2)
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+	must.Nil(t, resp2.Identity)
+
+	// Lookup identity claim
+	alloc := mock.Alloc()
+	s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1500, []*structs.Allocation{alloc})
+	claims := structs.NewIdentityClaims(alloc.Job, alloc,
+		wiHandle, // see encrypter_test.go
+		alloc.LookupTask("web").Identity, time.Now().Add(-10*time.Minute))
+	jwtToken, _, err := s1.encrypter.SignClaims(claims)
+	must.NoError(t, err)
+
+	get.AuthToken = jwtToken
+	var resp3 structs.ACLWhoAmIResponse
+	err = msgpackrpc.CallWithCodec(codec, "ACL.WhoAmI", get, &resp3)
+	must.NoError(t, err)
+	must.NotNil(t, resp3.Identity.Claims)
+	must.Eq(t, alloc.ID, resp3.Identity.Claims.AllocationID)
+}
+
 func TestACLEndpoint_OneTimeToken(t *testing.T) {
 	ci.Parallel(t)
 
