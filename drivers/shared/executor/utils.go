@@ -114,7 +114,7 @@ func processStateToProto(ps *ProcessState) (*proto.ProcessState, error) {
 		Pid:       int32(ps.Pid),
 		ExitCode:  int32(ps.ExitCode),
 		Signal:    int32(ps.Signal),
-		OomKilled: bool(ps.OOMKilled),
+		OomKilled: ps.OOMKilled,
 		Time:      timestamp,
 	}
 
@@ -131,7 +131,7 @@ func processStateFromProto(pb *proto.ProcessState) (*ProcessState, error) {
 		Pid:       int(pb.Pid),
 		ExitCode:  int(pb.ExitCode),
 		Signal:    int(pb.Signal),
-		OOMKilled: bool(pb.OomKilled),
+		OOMKilled: pb.OomKilled,
 		Time:      timestamp,
 	}, nil
 }
