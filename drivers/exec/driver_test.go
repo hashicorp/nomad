@@ -32,6 +32,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -812,28 +813,22 @@ func TestExecDriver_OOMKilled(t *testing.T) {
 		Command: "/bin/tail",
 		Args:    []string{"/dev/zero"},
 	}
-	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
 	handle, _, err := harness.StartTask(task)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	result := <-ch
-	if result.Successful() {
-		t.Fatalf("expected error, but container exited successful")
-	}
-
-	if !result.OOMKilled {
-		t.Fatalf("not killed by OOM killer: %s %d", result.Err, result.ExitCode)
-	}
+	must.False(t, result.Successful(), must.Sprint("container should OOM"))
+	must.True(t, result.OOMKilled, must.Sprintf("got non-OOM error, code: %d, err: %v", result.ExitCode, result.Err))
 
 	t.Logf("Successfully killed by OOM killer")
-
-	require.NoError(t, harness.DestroyTask(task.ID, true))
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestDriver_Config_validate(t *testing.T) {
