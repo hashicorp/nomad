@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -204,7 +205,7 @@ func (l *LibcontainerExecutor) wait() {
 
 	// Best effort detection of OOMs. It's possible for us to miss OOM notifications in
 	// the event that the wait returns before we read from the OOM notification channel
-	var oomKilled bool
+	var oomKilled atomic.Bool
 	go func() {
 		oomCh, err := l.container.NotifyOOM()
 		if err != nil {
@@ -213,7 +214,9 @@ func (l *LibcontainerExecutor) wait() {
 		}
 
 		for range oomCh {
-			oomKilled = true
+			oomKilled.Store(true)
+			// We can terminate this goroutine as soon as we've seen the first OOM
+			return
 		}
 	}()
 
@@ -247,7 +250,7 @@ func (l *LibcontainerExecutor) wait() {
 		Pid:       ps.Pid(),
 		ExitCode:  exitCode,
 		Signal:    signal,
-		OOMKilled: oomKilled,
+		OOMKilled: oomKilled.Load(),
 		Time:      time.Now(),
 	}
 }
