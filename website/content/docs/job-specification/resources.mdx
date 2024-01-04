@@ -116,8 +116,9 @@ mechanism for memory pressure is specific to the task driver, operating system,
 and application runtime.
 
 The `memory_max` limit attribute is currently supported by the official
-`docker`, `exec`, and `java` task drivers.  Consult the documentation of
-community-supported task drivers for their memory oversubscription support.
+`raw_exec`, `docker`, `exec`, and `java` task drivers.  Consult the
+documentation of community-supported task drivers for their memory
+oversubscription support.
 
 Memory oversubscription is opt-in. Nomad operators can enable [Memory
 Oversubscription in the scheduler configuration][api_sched_config]. Enterprise
