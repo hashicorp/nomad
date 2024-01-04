@@ -147,6 +147,19 @@ configuration file is deprecated. Future versions of Nomad will only load
 plugins that have a corresponding [`plugin`](/nomad/docs/configuration/plugin)
 block in the agent configuration file.
 
+#### Changes to `raw_exec`
+
+The `raw_exec` task driver now enforces memory limits via cgroups on Linux
+platforms similar to the `exec` and `docker` task drivers. The driver does
+support memory [oversubscription][oversub], which can be configured in such a
+way to nearly replicate the previously unlimited behavior.
+
+The `no_cgroups` configuration option no longer has any effect. Previously,
+setting `no_cgroups` would disable the mechanism where Nomad used the freezer
+cgroup to halt the process group of a Task before issuing a kill signal to each
+process. Starting in Nomad 1.7.0 this behavior is always enabled (and a similar
+mechanism has always been enabled on cgroups v2 systems).
+
 ## Nomad 1.6.0
 
 #### Enterprise License Validation with BuildDate
@@ -1998,6 +2011,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [node pools]: /nomad/docs/concepts/node-pools
 [node_attributes]: /nomad/docs/runtime/interpolation#node-attributes
 [nvidia]: /nomad/plugins/devices/nvidia
+[oversub]: /nomad/docs/job-specification/resources#memory-oversubscription
 [pki]: /vault/docs/secrets/pki
 [plugin-block]: /nomad/docs/configuration/plugin
 [plugins]: /nomad/plugins/drivers/community
