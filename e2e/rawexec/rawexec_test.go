@@ -18,6 +18,7 @@ func TestRawExec(t *testing.T) {
 	)
 
 	t.Run("testOomAdj", testOomAdj)
+	t.Run("testOversubMemory", testOversubMemory)
 }
 
 func testOomAdj(t *testing.T) {
@@ -26,4 +27,12 @@ func testOomAdj(t *testing.T) {
 
 	logs := job.TaskLogs("group", "cat")
 	must.StrContains(t, logs.Stdout, "0")
+}
+
+func testOversubMemory(t *testing.T) {
+	job, cleanup := jobs3.Submit(t, "./input/oversub.hcl")
+	t.Cleanup(cleanup)
+
+	logs := job.TaskLogs("group", "cat")
+	must.StrContains(t, logs.Stdout, "134217728") // 128 mb memory_max
 }

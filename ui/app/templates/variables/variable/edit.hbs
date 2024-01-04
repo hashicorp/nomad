@@ -4,25 +4,30 @@
 ~}}
 
 {{page-title "Edit Variable"}}
-
-<h1 class="title variable-title">
-  <LinkTo class="back-link" @route="variables.variable.index">
-    <FlightIcon
-      @name="chevron-left"
-      @title="Back to {{this.model.path}}"
-      @size="24"
-      />
-  </LinkTo>
-  Edit
-  {{this.model.path}}
-  <Toggle
-    data-test-json-toggle
-    @isActive={{eq this.view "json"}}
-    @onToggle={{action this.toggleView}}
-    title="JSON"
-  >JSON</Toggle>
-
-</h1>
+<Hds::PageHeader class="variable-title" as |PH|>
+  <PH.Title>Editing {{this.model.path}}</PH.Title>
+  <PH.IconTile @icon="file-text" />
+  <PH.Actions>
+    <Hds::Form::Toggle::Field
+      @value="enable"
+      {{keyboard-shortcut 
+        label="Toggle View (JSON/List)"
+        pattern=(array "j")
+        action=(action this.toggleView)
+      }}
+      checked={{eq this.view "json"}}
+      data-test-json-toggle
+      {{on "change" (action this.toggleView)}}
+    as |F|>
+      <F.Label>JSON</F.Label>
+    </Hds::Form::Toggle::Field>
+  </PH.Actions>
+  <PH.Breadcrumb>
+    <Hds::Breadcrumb>
+      <Hds::Breadcrumb::Item @text="Back" @route="variables.variable.index" @icon="chevron-left" />
+    </Hds::Breadcrumb>
+  </PH.Breadcrumb>
+</Hds::PageHeader>
 
 <VariableForm
   @model={{this.model}}

@@ -12,10 +12,8 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 import percySnapshot from '@percy/ember';
-import {
-  selectChoose,
-  clickTrigger,
-} from 'ember-power-select/test-support/helpers';
+import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
+
 import faker from 'nomad-ui/mirage/faker';
 
 module('Integration | Component | variable-form', function (hooks) {
@@ -57,7 +55,7 @@ module('Integration | Component | variable-form', function (hooks) {
         'The "Add More" button is disabled until key and value are filled'
       );
 
-    await typeIn('.key-value label:nth-child(1) input', 'foo');
+    await typeIn('[data-test-var-key]', 'foo');
 
     assert
       .dom('[data-test-add-kv]')
@@ -65,7 +63,7 @@ module('Integration | Component | variable-form', function (hooks) {
         'The "Add More" button is still disabled with only key filled'
       );
 
-    await typeIn('.key-value label:nth-child(2) input', 'bar');
+    await typeIn('[data-test-var-value]', 'bar');
 
     assert
       .dom('[data-test-add-kv]')
@@ -81,9 +79,8 @@ module('Integration | Component | variable-form', function (hooks) {
       'A second KV row exists after adding a new one'
     );
 
-    await typeIn('.key-value:last-of-type label:nth-child(1) input', 'foo');
-    await typeIn('.key-value:last-of-type label:nth-child(2) input', 'bar');
-
+    await typeIn('.key-value:last-of-type [data-test-var-key]', 'foo');
+    await typeIn('.key-value:last-of-type [data-test-var-value]', 'bar');
     await click('[data-test-add-kv]');
 
     assert.equal(
@@ -92,7 +89,7 @@ module('Integration | Component | variable-form', function (hooks) {
       'A third KV row exists after adding a new one'
     );
 
-    await click('.key-value button.delete-row');
+    await click('.delete-entry-button');
 
     assert.equal(
       findAll('div.key-value').length,
@@ -116,37 +113,33 @@ module('Integration | Component | variable-form', function (hooks) {
       await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
       await click('[data-test-add-kv]'); // add a second variable
 
-      findAll('input.value-input').forEach((input, iter) => {
-        assert.equal(
-          input.getAttribute('type'),
-          'password',
+      findAll('.value-label').forEach((label, iter) => {
+        const maskedInput = label.querySelector('.hds-form-masked-input');
+        assert.ok(
+          maskedInput.classList.contains('hds-form-masked-input--is-masked'),
           `Value ${iter + 1} is hidden by default`
         );
       });
 
-      await click('.key-value button.show-hide-values');
-      const [firstRow, secondRow] = findAll('input.value-input');
+      await click('.hds-form-visibility-toggle');
+      const [firstRow, secondRow] = findAll('.hds-form-masked-input');
 
-      assert.equal(
-        firstRow.getAttribute('type'),
-        'text',
+      assert.ok(
+        firstRow.classList.contains('hds-form-masked-input--is-not-masked'),
         'Only the row that is clicked on toggles visibility'
       );
-      assert.equal(
-        secondRow.getAttribute('type'),
-        'password',
+      assert.ok(
+        secondRow.classList.contains('hds-form-masked-input--is-masked'),
         'Rows that are not clicked remain obscured'
       );
 
-      await click('.key-value button.show-hide-values');
-      assert.equal(
-        firstRow.getAttribute('type'),
-        'password',
+      await click('.hds-form-visibility-toggle');
+      assert.ok(
+        firstRow.classList.contains('hds-form-masked-input--is-masked'),
         'Only the row that is clicked on toggles visibility'
       );
-      assert.equal(
-        secondRow.getAttribute('type'),
-        'password',
+      assert.ok(
+        secondRow.classList.contains('hds-form-masked-input--is-masked'),
         'Rows that are not clicked remain obscured'
       );
       await percySnapshot(assert);
@@ -177,7 +170,7 @@ module('Integration | Component | variable-form', function (hooks) {
       'Shows 5 existing key values'
     );
     assert.equal(
-      findAll('button.delete-row').length,
+      findAll('.delete-entry-button').length,
       5,
       'Shows "delete" for all five rows'
     );
@@ -189,13 +182,13 @@ module('Integration | Component | variable-form', function (hooks) {
 
     findAll('div.key-value').forEach((row, idx) => {
       assert.equal(
-        row.querySelector(`label:nth-child(1) input`).value,
+        row.querySelector(`[data-test-var-key]`).value,
         keyValues[idx].key,
         `Key ${idx + 1} is correct`
       );
 
       assert.equal(
-        row.querySelector(`label:nth-child(2) input`).value,
+        row.querySelector(`[data-test-var-value]`).value,
         keyValues[idx].value,
         keyValues[idx].value
       );
@@ -214,9 +207,9 @@ module('Integration | Component | variable-form', function (hooks) {
     variable.isNew = false;
     this.set('variable', variable);
     await render(hbs`<VariableForm @model={{this.variable}} />`);
-    assert.dom('input.path-input').hasValue('/baz/bat', 'Path is set');
+    assert.dom('[data-test-path-input]').hasValue('/baz/bat', 'Path is set');
     assert
-      .dom('input.path-input')
+      .dom('[data-test-path-input]')
       .isDisabled('Existing variable is in disabled state');
 
     variable.isNew = true;
@@ -224,7 +217,7 @@ module('Integration | Component | variable-form', function (hooks) {
     this.set('variable', variable);
     await render(hbs`<VariableForm @model={{this.variable}} />`);
     assert
-      .dom('input.path-input')
+      .dom('[data-test-path-input]')
       .isNotDisabled('New variable is not in disabled state');
   });
 
@@ -254,27 +247,36 @@ module('Integration | Component | variable-form', function (hooks) {
         hbs`<VariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} />`
       );
 
-      await typeIn('.path-input', 'foo/bar');
-      assert.dom('.duplicate-path-error').doesNotExist();
-      assert.dom('.path-input').doesNotHaveClass('error');
+      await typeIn('[data-test-path-input]', 'foo/bar');
+      assert.dom('[data-test-duplicate-variable-error]').doesNotExist();
+      assert
+        .dom('[data-test-path-input]')
+        .doesNotHaveClass('hds-form-text-input--is-invalid');
 
-      document.querySelector('.path-input').value = ''; // clear current input
-      await typeIn('.path-input', 'baz/bat');
-      assert.dom('.duplicate-path-error').exists();
-      assert.dom('.path-input').hasClass('error');
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'baz/bat');
 
-      await clickTrigger('[data-test-variable-namespace-filter]');
-      await selectChoose(
+      assert.dom('[data-test-duplicate-variable-error]').exists();
+      assert
+        .dom('[data-test-path-input]')
+        .hasClass('hds-form-text-input--is-invalid');
+
+      await clickToggle('[data-test-variable-namespace-filter]');
+      await clickOption(
         '[data-test-variable-namespace-filter]',
         server.db.namespaces[2].id
       );
-      assert.dom('.duplicate-path-error').doesNotExist();
-      assert.dom('.path-input').doesNotHaveClass('error');
+      assert.dom('[data-test-duplicate-variable-error]').doesNotExist();
+      assert
+        .dom('[data-test-path-input]')
+        .doesNotHaveClass('hds-form-text-input--is-invalid');
 
-      document.querySelector('.path-input').value = ''; // clear current input
-      await typeIn('.path-input', 'baz/bat/qux');
-      assert.dom('.duplicate-path-error').exists();
-      assert.dom('.path-input').hasClass('error');
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'baz/bat/qux');
+      assert.dom('[data-test-duplicate-variable-error]').exists();
+      assert
+        .dom('[data-test-path-input]')
+        .hasClass('hds-form-text-input--is-invalid');
     });
 
     test('warns you when you set a key with . in it', async function (assert) {
@@ -424,11 +426,8 @@ module('Integration | Component | variable-form', function (hooks) {
 
       await click('[data-test-add-kv]');
 
-      await typeIn('.key-value:last-of-type label:nth-child(1) input', 'howdy');
-      await typeIn(
-        '.key-value:last-of-type label:nth-child(2) input',
-        'partner'
-      );
+      await typeIn('.key-value:last-of-type [data-test-var-key]', 'howdy');
+      await typeIn('.key-value:last-of-type [data-test-var-value]', 'partner');
 
       this.set('view', 'json');
 
@@ -459,13 +458,13 @@ module('Integration | Component | variable-form', function (hooks) {
       );
       this.set('view', 'table');
       assert.equal(
-        find(`.key-value:last-of-type label:nth-child(1) input`).value,
+        find(`.key-value:last-of-type [data-test-var-key]`).value,
         'golden',
         'Key persists from JSON to Table'
       );
 
       assert.equal(
-        find(`.key-value:last-of-type label:nth-child(2) input`).value,
+        find(`.key-value:last-of-type [data-test-var-value]`).value,
         'gate',
         'Value persists from JSON to Table'
       );

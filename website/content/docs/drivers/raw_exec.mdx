@@ -117,14 +117,6 @@ client {
 - `enabled` - Specifies whether the driver should be enabled or disabled.
   Defaults to `false`.
 
-- `no_cgroups` - Specifies whether the driver should not use
-  cgroups to manage the process group launched by the driver. By default,
-  cgroups are used to manage the process tree to ensure full cleanup of all
-  processes started by the task. The driver uses cgroups by default on
-  Linux and when `/sys/fs/cgroup/freezer/nomad` is writable for the
-  Nomad process. Using a cgroup significantly reduces Nomad's CPU
-  usage when collecting process metrics.
-
 ## Client Options
 
 ~> Note: client configuration options will soon be deprecated. Please use
@@ -132,12 +124,6 @@ client {
 
 - `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
   disabled. Defaults to `false`.
-
-- `driver.raw_exec.no_cgroups` - Specifies whether the driver should not use
-  cgroups to manage the process group launched by the driver. By default,
-  cgroups are used to manage the process tree to ensure full cleanup of all
-  processes started by the task. The driver only uses cgroups when Nomad is
-  launched as root, on Linux and when cgroups are detected.
 
 ## Client Attributes
 
@@ -147,14 +133,14 @@ The `raw_exec` driver will set the following client attributes:
 
 ## Resource Isolation
 
-The `raw_exec` driver provides no isolation.
+The `raw_exec` driver provides no filesystem isolation.
 
-If the launched process creates a new process group, it is possible that Nomad
-will leak processes on shutdown unless the application forwards signals
-properly. Nomad will not leak any processes if cgroups are being used to manage
-the process tree. Cgroups are used on Linux when Nomad is being run with
-appropriate privileges, the cgroup system is mounted and the operator hasn't
-disabled cgroups for the driver.
+If the launched process creates a new process group, it is possible that
+Nomad will leak processes on shutdown unless the application forwards signals
+properly. Nomad will not leak any processes if cgroups are being used to
+manage the process tree. Cgroups are used on Linux when Nomad is being run with
+appropriate privileges, and the cgroup system is mounted.
+
 
 [hardening]: /nomad/docs/install/production/requirements#user-permissions
 [plugin-options]: #plugin-options
