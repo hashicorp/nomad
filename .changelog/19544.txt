@@ -1,0 +1,6 @@
+```release-note:improvement
+ui: Replaced single-line variable value fields with multi-line textarea blocks
+```
+```release-note:improvement
+ui: Updated the style of components in the Variables web ui
+```
