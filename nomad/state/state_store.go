@@ -1894,6 +1894,64 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return err
 	}
 
+	// Delete job deployments
+	deployments, err := s.DeploymentsByJobID(nil, namespace, job.ID, true)
+	if err != nil {
+		return fmt.Errorf("deployment lookup for job %s failed: %v", job.ID, err)
+	}
+
+	deploymentIDs := []string{}
+	for _, d := range deployments {
+		deploymentIDs = append(deploymentIDs, d.ID)
+	}
+
+	for _, deploymentID := range deploymentIDs {
+		// Lookup the deployment
+		existing, err := txn.First("deployment", "id", deploymentID)
+		if err != nil {
+			return fmt.Errorf("deployment lookup failed: %v", err)
+		}
+		if existing == nil {
+			return fmt.Errorf("deployment not found")
+		}
+
+		// Delete the deployment
+		if err := txn.Delete("deployment", existing); err != nil {
+			return fmt.Errorf("deployment delete failed: %v", err)
+		}
+	}
+
+	// Mark all evals for this job as "complete"
+	pendingEvals, err := s.EvalsByJob(nil, namespace, job.ID)
+	if err != nil {
+		return fmt.Errorf("eval lookup for job %s failed: %v", job.ID, err)
+	}
+
+	for _, eval := range pendingEvals {
+		existing, err := txn.First("evals", "id", eval.ID)
+		if err != nil {
+			return fmt.Errorf("eval lookup failed: %v", err)
+		}
+		if existing == nil {
+			continue
+		}
+
+		eval := existing.(*structs.Evaluation).Copy()
+		eval.Status = structs.EvalStatusComplete
+
+		// Insert the eval
+		if err := txn.Insert("evals", eval); err != nil {
+			return fmt.Errorf("eval insert failed: %v", err)
+		}
+		if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+
+		if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+
 	// Cleanup plugins registered by this job, before we delete the summary
 	err = s.deleteJobFromPlugins(index, txn, job)
 	if err != nil {
