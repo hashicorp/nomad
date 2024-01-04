@@ -6,6 +6,7 @@
 package numalib
 
 import (
+	"io"
 	"os"
 	"testing"
 
@@ -202,4 +203,39 @@ func TestSysfs_discoverCores(t *testing.T) {
 			must.Eq(t, tt.expectedTopology, st)
 		})
 	}
+}
+
+func TestCpuinfo_ScanSystem(t *testing.T) {
+	f, err := os.CreateTemp("", "")
+	must.NoError(t, err)
+	t.Cleanup(func() { _ = os.Remove(f.Name()) })
+
+	io.WriteString(f, `
+processor   : 0
+vendor_id   : GenuineIntel
+model name  : 13th Gen Intel(R) Core(TM) i9-13900
+cpu MHz     : 899.373
+power management:
+
+processor   : 1
+vendor_id   : GenuineIntel
+model name  : 13th Gen Intel(R) Core(TM) i9-13900
+cpu MHz     : 2001.333
+power management:
+		`)
+	must.NoError(t, f.Sync())
+	must.Close(t, f)
+
+	s := &Cpuinfo{cpuinfo: f.Name()}
+	top := &Topology{
+		Cores: []Core{
+			{ID: 1},
+			{ID: 2},
+		},
+	}
+	s.ScanSystem(top)
+
+	// (899 + 2001) / 2 = 1450
+	must.Eq(t, hw.MHz(1450), top.Cores[0].GuessSpeed)
+	must.Eq(t, hw.MHz(1450), top.Cores[1].GuessSpeed)
 }

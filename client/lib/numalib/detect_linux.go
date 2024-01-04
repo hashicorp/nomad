@@ -6,8 +6,11 @@
 package numalib
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -21,6 +24,7 @@ func PlatformScanners() []SystemScanner {
 	return []SystemScanner{
 		new(Sysfs),
 		new(Smbios),
+		new(Cpuinfo),
 		new(Cgroups1),
 		new(Cgroups2),
 		new(Fallback),
@@ -47,6 +51,9 @@ type pathReaderFn func(string) ([]byte, error)
 // from /sys/devices/system. This is the best source of truth on Linux and
 // should always be used first - additional scanners can provide more context
 // on top of what is initiallly detected here.
+//
+// Any data from Sysfs takes priority over Smbios.
+// Any data from Smbios takes priority over Cpuinfo.
 type Sysfs struct{}
 
 func (s *Sysfs) ScanSystem(top *Topology) {
@@ -218,6 +225,73 @@ func scanIDs(top *Topology, content string) {
 	for _, cpu := range top.Cores {
 		if !ids.Contains(cpu.ID) {
 			cpu.Disable = true
+		}
+	}
+}
+
+// Cpuinfo implements SystemScanner for Linux by reading CPU speeds out of
+// /proc/cpuinfo. Note that these values are unreliable and represent the current
+// CPU speeds, not the base or max speed. We take the average speed of all cores
+// and set that as the guess speed for all cores, which is hopefully in the
+// ballpark of the true base speed.
+type Cpuinfo struct {
+	cpuinfo string
+}
+
+func (s *Cpuinfo) ScanSystem(top *Topology) {
+	if s.cpuinfo == "" {
+		// the real special file
+		s.cpuinfo = "/proc/cpuinfo"
+	}
+
+	f, err := os.Open(s.cpuinfo)
+	if err != nil {
+		return
+	}
+	defer func() { _ = f.Close() }()
+	s.discoverSpeeds(top, f)
+}
+
+var (
+	// cpu MHz     : 2000.000
+	cpuinfoRe = regexp.MustCompile(`cpu MHz\s+:\s+(\d+)`)
+)
+
+func (s *Cpuinfo) discoverSpeeds(top *Topology, reader io.Reader) {
+	count := 0
+	sum := hw.MHz(0)
+
+	// scan lines of /proc/cpuinfo looking for current MHz values, so we can
+	// tally them up and take an average
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		line := scanner.Text()
+		matches := cpuinfoRe.FindStringSubmatch(line)
+		if len(matches) == 2 {
+			if value, err := strconv.Atoi(matches[1]); err == nil {
+				sum += hw.MHz(value)
+				count += 1
+			}
+		}
+	}
+	if scanner.Err() != nil {
+		// if the scanner failed just bail
+		return
+	}
+
+	if count == 0 {
+		// if we found no values just bail
+		return
+	}
+
+	// compute the average speed
+	avg := sum / hw.MHz(count)
+
+	// set the guess speed for each core but only if the value has not yet
+	// been set by other means
+	for i := 0; i < len(top.Cores); i++ {
+		if top.Cores[i].GuessSpeed == 0 {
+			top.Cores[i].GuessSpeed = avg
 		}
 	}
 }

@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where cpu fingerprinter would not consider /proc/cpuinfo
+```
