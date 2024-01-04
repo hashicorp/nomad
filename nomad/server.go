@@ -1306,6 +1306,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	_ = server.Register(NewDeploymentEndpoint(s, ctx))
 	_ = server.Register(NewEvalEndpoint(s, ctx))
 	_ = server.Register(NewJobEndpoints(s, ctx))
+	_ = server.Register(NewJobsEndpoint(s, ctx))
 	_ = server.Register(NewKeyringEndpoint(s, ctx, s.encrypter))
 	_ = server.Register(NewNamespaceEndpoint(s, ctx))
 	_ = server.Register(NewNodeEndpoint(s, ctx))

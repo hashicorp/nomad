@@ -382,6 +382,7 @@ func (s *HTTPServer) ResolveToken(req *http.Request) (*acl.ACL, error) {
 func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
 	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
+	s.mux.HandleFunc("/v1/jobs/statuses", s.wrap(s.JobsStatusesRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
 
 	s.mux.HandleFunc("/v1/nodes", s.wrap(s.NodesRequest))

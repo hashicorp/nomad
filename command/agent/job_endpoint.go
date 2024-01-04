@@ -2042,3 +2042,33 @@ func validateEvalPriorityOpt(priority int) HTTPCodedError {
 	}
 	return nil
 }
+
+func (s *HTTPServer) JobsStatusesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	var in api.JobsStatusesRequest
+	if err := decodeBody(req, &in); err != nil {
+		return nil, err
+	}
+
+	args := structs.JobsStatusesRequest{}
+	for _, j := range in.Jobs {
+		if j.Namespace == "" {
+			j.Namespace = "default"
+		}
+		args.Jobs = append(args.Jobs, structs.NamespacedID{
+			ID: j.ID,
+			// note: can't just use QueryOptions.Namespace, because each job may have a different NS
+			Namespace: j.Namespace,
+		})
+	}
+
+	var out structs.JobsStatusesResponse
+	if err := s.agent.RPC("Jobs.Statuses", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out, nil
+}
