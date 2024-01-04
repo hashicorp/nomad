@@ -2047,12 +2047,17 @@ func (s *HTTPServer) JobsStatusesRequest(resp http.ResponseWriter, req *http.Req
 	if req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
+
+	args := structs.JobsStatusesRequest{}
+	if parseWait(resp, req, &args.QueryOptions) {
+		return nil, nil // seems whack.
+	}
+
 	var in api.JobsStatusesRequest
 	if err := decodeBody(req, &in); err != nil {
 		return nil, err
 	}
 
-	args := structs.JobsStatusesRequest{}
 	for _, j := range in.Jobs {
 		if j.Namespace == "" {
 			j.Namespace = "default"

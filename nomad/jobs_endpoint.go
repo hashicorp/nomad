@@ -36,7 +36,6 @@ func (j *Jobs) Statuses(
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// TODO: make this block properly
 			var idx uint64
 
 			for _, j := range args.Jobs {
