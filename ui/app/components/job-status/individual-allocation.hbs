@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 <Hds::TooltipButton
-  @text={{this.tooltipText}}
+  @text={{or this.tooltipText ""}}
   aria-label="Allocation"
   @extraTippyOptions={{hash trigger=(if (eq @status "unplaced") "manual")}}
 >
