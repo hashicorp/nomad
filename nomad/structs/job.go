@@ -16,6 +16,35 @@ const (
 	JobServiceRegistrationsRPCMethod = "Job.GetServiceRegistrations"
 )
 
+type JobsStatusesRequest struct {
+	Jobs []NamespacedID
+	QueryOptions
+}
+
+type JobsStatusesResponse struct {
+	Jobs map[string]JobStatus
+	QueryMeta
+}
+
+type JobStatus struct {
+	ID           string
+	Namespace    string
+	Allocs       []JobStatusAlloc
+	DeploymentID string
+}
+
+type JobStatusAlloc struct {
+	ID               string
+	Group            string
+	ClientStatus     string
+	DeploymentStatus JobStatusDeployment
+}
+
+type JobStatusDeployment struct {
+	Canary  bool
+	Healthy bool
+}
+
 // JobServiceRegistrationsRequest is the request object used to list all
 // service registrations belonging to the specified Job.ID.
 type JobServiceRegistrationsRequest struct {
