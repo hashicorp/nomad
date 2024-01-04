@@ -5,6 +5,7 @@ package consul
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
@@ -13,12 +14,16 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+type ConsulWITest struct {
+	nomadAddress string
+}
+
 // testConsulWI_Service_and_Task asserts we can
-// - consigure Consul correctly with setup consul -y command
+// - configure Consul correctly with setup consul -y command
 // - run a job with a service and a task
 // - make sure the expected service is registered in Consul
 // - get Consul token written to a task secret directory
-func testConsulWI_Service_and_Task(t *testing.T) {
+func (tc *ConsulWITest) testConsulWIServiceAndTask(t *testing.T) {
 	const jobFile = "./input/consul_wi_example.nomad"
 	jobID := "consul-wi-" + uuid.Short()
 	jobIDs := []string{jobID}
@@ -31,7 +36,8 @@ func testConsulWI_Service_and_Task(t *testing.T) {
 
 	// Run the setup helper that should configure Consul ACL with default
 	// policies, roles, auth method and binding rules.
-	_, err := e2eutil.Command("nomad", "setup", "consul", "-y")
+	jwksURL := fmt.Sprintf("%s/.well-known/jwks.json", tc.nomadAddress)
+	_, err := e2eutil.Command("nomad", "setup", "consul", "-y", "-jwks-url", jwksURL)
 	must.NoError(t, err)
 
 	// register a job
