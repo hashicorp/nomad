@@ -275,3 +275,12 @@ func (r *StateRestore) ACLBindingRuleRestore(aclBindingRule *structs.ACLBindingR
 	}
 	return nil
 }
+
+// JobSubmissionRestore is used to restore a single job submission into the
+// job_submission table.
+func (r *StateRestore) JobSubmissionRestore(jobSubmission *structs.JobSubmission) error {
+	if err := r.txn.Insert(TableJobSubmission, jobSubmission); err != nil {
+		return fmt.Errorf("job submission insert failed: %v", err)
+	}
+	return nil
+}
