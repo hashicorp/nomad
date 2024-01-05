@@ -2936,6 +2936,60 @@ func TestFSM_SnapshotRestore_ACLBindingRules(t *testing.T) {
 	must.SliceContainsAll(t, restoredACLBindingRules, mockedACLBindingRoles)
 }
 
+func TestFSM_SnapshotRestore_JobSubmissions(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create our initial FSM which will be snapshotted.
+	fsm := testFSM(t)
+	testState := fsm.State()
+
+	// Create a non-default namespace, so we can later create jobs and
+	// submissions within it.
+	mockNamespace := mock.Namespace()
+	mockNamespace.Name = "platform"
+
+	must.NoError(t, testState.UpsertNamespaces(10, []*structs.Namespace{mockNamespace}))
+
+	// Generate a some mocked jobs and submissions to insert directly into
+	// state.
+	mockJob1 := mock.Job()
+	mockJobSubmission1 := &structs.JobSubmission{
+		Source:         "job{}",
+		Namespace:      mockJob1.Namespace,
+		JobID:          mockJob1.ID,
+		Version:        mockJob1.Version,
+		JobModifyIndex: mockJob1.JobModifyIndex,
+	}
+
+	must.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, mockJob1.ModifyIndex, mockJobSubmission1, mockJob1))
+
+	mockJob2 := mock.Job()
+	mockJob2.Namespace = mockNamespace.Name
+	mockJobSubmission2 := &structs.JobSubmission{
+		Source:         "job{}",
+		Namespace:      mockJob2.Namespace,
+		JobID:          mockJob2.ID,
+		Version:        mockJob2.Version,
+		JobModifyIndex: mockJob2.JobModifyIndex,
+	}
+
+	must.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, mockJob2.ModifyIndex, mockJobSubmission2, mockJob2))
+
+	// Perform a snapshot restore.
+	restoredFSM := testSnapshotRestore(t, fsm)
+	restoredState := restoredFSM.State()
+
+	jobSubmission1Resp, err := restoredState.JobSubmission(
+		nil, mockJobSubmission1.Namespace, mockJobSubmission1.JobID, mockJobSubmission1.Version)
+	must.NoError(t, err)
+	must.Eq(t, mockJobSubmission1, jobSubmission1Resp)
+
+	jobSubmission2Resp, err := restoredState.JobSubmission(
+		nil, mockJobSubmission2.Namespace, mockJobSubmission2.JobID, mockJobSubmission2.Version)
+	must.NoError(t, err)
+	must.Eq(t, mockJobSubmission2, jobSubmission2Resp)
+}
+
 func TestFSM_ReconcileSummaries(t *testing.T) {
 	ci.Parallel(t)
 	// Add some state

@@ -2566,6 +2566,54 @@ func TestStateStore_UpsertJob_submission(t *testing.T) {
 	must.Eq(t, 1007, sub.JobModifyIndex)
 }
 
+func TestStateStore_GetJobSubmissions(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	// Generate some job submissions and upsert these into state.
+	mockJobSubmissions := []*structs.JobSubmission{
+		{
+			Source:         "job{}",
+			Namespace:      "default",
+			JobID:          "example",
+			Version:        10,
+			JobModifyIndex: 20,
+		},
+		{
+			Source:         "job{}",
+			Namespace:      "platform",
+			JobID:          "example",
+			Version:        20,
+			JobModifyIndex: 20,
+		},
+	}
+
+	txn := state.db.WriteTxn(20)
+
+	for _, mockSubmission := range mockJobSubmissions {
+		must.NoError(t, state.updateJobSubmission(
+			20, mockSubmission, mockSubmission.Namespace, mockSubmission.JobID, mockSubmission.Version, txn))
+	}
+
+	must.NoError(t, txn.Commit())
+
+	// List out all the job submissions in state and ensure they match the
+	// items we previously wrote.
+	ws := memdb.NewWatchSet()
+	iter, err := state.GetJobSubmissions(ws)
+	must.NoError(t, err)
+
+	var submissions []*structs.JobSubmission
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		submissions = append(submissions, raw.(*structs.JobSubmission))
+	}
+
+	must.SliceLen(t, 2, submissions)
+	must.Eq(t, mockJobSubmissions, submissions)
+}
+
 func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	ci.Parallel(t)
 
