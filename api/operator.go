@@ -227,13 +227,13 @@ func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	digest := resp.Header.Get("Digest")
 
 	cr, err := newChecksumValidatingReader(resp.Body, digest)
 	if err != nil {
 		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
 		return nil, err
 	}
 
