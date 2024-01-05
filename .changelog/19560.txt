@@ -1,0 +1,3 @@
+```release-note:bug
+server: Fix server not waiting for workers to submit nacks for dequeued evaluations before shutting down
+```

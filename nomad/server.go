@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
+	"github.com/hashicorp/nomad/helper/group"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -82,6 +83,10 @@ const (
 	// raftRemoveGracePeriod is how long we wait to allow a RemovePeer
 	// to replicate to gracefully leave the cluster.
 	raftRemoveGracePeriod = 5 * time.Second
+
+	// workerShutdownGracePeriod is the maximum time we will wait for workers to stop
+	// gracefully when the server shuts down
+	workerShutdownGracePeriod = 5 * time.Second
 
 	// defaultConsulDiscoveryInterval is how often to poll Consul for new
 	// servers if there is no leader.
@@ -265,6 +270,10 @@ type Server struct {
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *structs.ACLCache[*acl.ACL]
 
+	// workerShutdownGroup tracks the running worker goroutines so that Shutdown()
+	// can wait on their completion
+	workerShutdownGroup group.Group
+
 	// oidcProviderCache maintains a cache of OIDC providers. This is useful as
 	// the provider performs background HTTP requests. When the Nomad server is
 	// shutting down, the oidcProviderCache.Shutdown() function must be called.
@@ -299,16 +308,6 @@ type Server struct {
 // configuration, potentially returning an error
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) (*Server, error) {
 
-	// Create an eval broker
-	evalBroker, err := NewEvalBroker(
-		config.EvalNackTimeout,
-		config.EvalNackInitialReenqueueDelay,
-		config.EvalNackSubsequentReenqueueDelay,
-		config.EvalDeliveryLimit)
-	if err != nil {
-		return nil, err
-	}
-
 	// Configure TLS
 	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
 	if err != nil {
@@ -342,9 +341,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		reconcileCh:             make(chan serf.Member, 32),
 		readyForConsistentReads: &atomic.Bool{},
 		eventCh:                 make(chan serf.Event, 256),
-		evalBroker:              evalBroker,
 		reapCancelableEvalsCh:   make(chan struct{}),
-		blockedEvals:            NewBlockedEvals(evalBroker, logger),
 		rpcTLS:                  incomingTLS,
 		aclCache:                aclCache,
 		workersEventCh:          make(chan interface{}, 1),
@@ -352,6 +349,21 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
 	s.shutdownCh = s.shutdownCtx.Done()
+
+	// Create an eval broker
+	evalBroker, err := NewEvalBroker(
+		s.shutdownCtx,
+		config.EvalNackTimeout,
+		config.EvalNackInitialReenqueueDelay,
+		config.EvalNackSubsequentReenqueueDelay,
+		config.EvalDeliveryLimit)
+	if err != nil {
+		return nil, err
+	}
+	s.evalBroker = evalBroker
+
+	// Create the blocked evals
+	s.blockedEvals = NewBlockedEvals(s.evalBroker, s.logger)
 
 	// Create the RPC handler
 	s.rpcHandler = newRpcHandler(s)
@@ -451,7 +463,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Start the eval broker notification system so any subscribers can get
 	// updates when the processes SetEnabled is triggered.
-	go s.evalBroker.enabledNotifier.Run(s.shutdownCh)
+	go s.evalBroker.enabledNotifier.Run()
 
 	// Setup the node drainer.
 	s.setupNodeDrainer()
@@ -667,6 +679,13 @@ func (s *Server) Shutdown() error {
 
 	s.shutdown = true
 	s.shutdownCancel()
+
+	s.workerLock.Lock()
+	defer s.workerLock.Unlock()
+	s.stopOldWorkers(s.workers)
+	workerShutdownTimeoutCtx, cancelWorkerShutdownTimeoutCtx := context.WithTimeout(context.Background(), workerShutdownGracePeriod)
+	defer cancelWorkerShutdownTimeoutCtx()
+	s.workerShutdownGroup.WaitWithContext(workerShutdownTimeoutCtx)
 
 	if s.serf != nil {
 		s.serf.Shutdown()
@@ -1733,7 +1752,7 @@ func (s *Server) setupWorkersLocked(ctx context.Context, poolArgs SchedulerWorke
 			return err
 		} else {
 			s.logger.Debug("started scheduling worker", "id", w.ID(), "index", i+1, "of", s.config.NumSchedulers)
-
+			s.workerShutdownGroup.AddCh(w.ShutdownCh())
 			s.workers = append(s.workers, w)
 		}
 	}
