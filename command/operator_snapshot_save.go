@@ -134,13 +134,13 @@ func (c *OperatorSnapshotSaveCommand) Run(args []string) int {
 
 	_, err = io.Copy(tmpFile, snapIn)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Filed to download snapshot file: %v", err))
+		c.Ui.Error(fmt.Sprintf("Failed to download snapshot file: %v", err))
 		return 1
 	}
 
 	err = os.Rename(tmpFile.Name(), filename)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Filed to finalize snapshot file: %v", err))
+		c.Ui.Error(fmt.Sprintf("Failed to finalize snapshot file: %v", err))
 		return 1
 	}
 
