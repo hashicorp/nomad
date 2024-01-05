@@ -90,6 +90,10 @@ func dummyFSM(logger hclog.Logger) (nomadFSM, error) {
 		Blocked:    blockedEvals,
 		Logger:     logger,
 		Region:     "default",
+		// This is the copied default value, and while this is configurable on
+		// running agents, it does not impact the creation of the FSM for this
+		// dummy implementation.
+		JobTrackedVersions: 6,
 	}
 
 	return nomad.NewFSM(fsmConfig)
