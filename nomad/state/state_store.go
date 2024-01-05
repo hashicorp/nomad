@@ -2093,6 +2093,22 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 	return nil
 }
 
+// GetJobSubmissions returns an iterator that contains all job submissions
+// stored within state. This is not currently exposed via RPC and is only used
+// for snapshot persist and restore functionality.
+func (s *StateStore) GetJobSubmissions(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire table to get all job submissions.
+	iter, err := txn.Get(TableJobSubmission, indexID)
+	if err != nil {
+		return nil, fmt.Errorf("job submissions lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // JobSubmission returns the original HCL/Variables context of a job, if available.
 //
 // Note: it is a normal case for the submission context to be unavailable, in which case
