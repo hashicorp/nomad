@@ -555,3 +555,27 @@ func TestStateStore_ACLBindingRuleRestore(t *testing.T) {
 	must.NoError(t, err)
 	must.Eq(t, aclBindingRule, out)
 }
+
+func TestStateStore_JobSubmissionRestore(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Set up our test job submissions.
+	jobSubmission := structs.JobSubmission{
+		Source:    "{job{}}",
+		Namespace: "default",
+		JobID:     "example",
+	}
+
+	restore, err := testState.Restore()
+	must.NoError(t, err)
+	must.NoError(t, restore.JobSubmissionRestore(&jobSubmission))
+	must.NoError(t, restore.Commit())
+
+	// Check the state is now populated as we expect and that we can find the
+	// restored job submission.
+	ws := memdb.NewWatchSet()
+	out, err := testState.JobSubmission(ws, jobSubmission.Namespace, jobSubmission.JobID, jobSubmission.Version)
+	must.NoError(t, err)
+	must.Eq(t, jobSubmission, *out)
+}

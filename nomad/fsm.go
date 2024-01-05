@@ -65,6 +65,7 @@ const (
 	ACLAuthMethodSnapshot                SnapshotType = 26
 	ACLBindingRuleSnapshot               SnapshotType = 27
 	NodePoolSnapshot                     SnapshotType = 28
+	JobSubmissionSnapshot                SnapshotType = 29
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -1883,6 +1884,18 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
+		case JobSubmissionSnapshot:
+			jobSubmissions := new(structs.JobSubmission)
+
+			if err := dec.Decode(jobSubmissions); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.JobSubmissionRestore(jobSubmissions); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -2451,6 +2464,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLBindingRules(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistJobSubmissions(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -3164,6 +3181,27 @@ func (s *nomadSnapshot) persistACLBindingRules(sink raft.SnapshotSink, encoder *
 		// write the snapshot
 		sink.Write([]byte{byte(ACLBindingRuleSnapshot)})
 		if err := encoder.Encode(bindingRule); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistJobSubmissions(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+
+	// Get all the job submissions.
+	ws := memdb.NewWatchSet()
+	jobSubmissionsIter, err := s.snap.GetJobSubmissions(ws)
+	if err != nil {
+		return err
+	}
+
+	for raw := jobSubmissionsIter.Next(); raw != nil; raw = jobSubmissionsIter.Next() {
+		jobSubmission := raw.(*structs.JobSubmission)
+
+		// write the snapshot
+		sink.Write([]byte{byte(JobSubmissionSnapshot)})
+		if err := encoder.Encode(jobSubmission); err != nil {
 			return err
 		}
 	}
