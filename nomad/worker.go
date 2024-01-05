@@ -98,6 +98,9 @@ type Worker struct {
 	workloadStatus SchedulerWorkerStatus
 	statusLock     sync.RWMutex
 
+	// shutdownCh is closed when the run function has exited
+	shutdownCh chan struct{}
+
 	pauseFlag bool
 	pauseLock sync.Mutex
 	pauseCond *sync.Cond
@@ -134,6 +137,7 @@ func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) *
 		srv:               srv,
 		start:             time.Now(),
 		status:            WorkerStarting,
+		shutdownCh:        make(chan struct{}),
 		enabledSchedulers: make([]string, len(args.EnabledSchedulers)),
 		failureBackoff:    time.Duration(0),
 	}
@@ -393,6 +397,7 @@ func (w *Worker) workerShuttingDown() bool {
 func (w *Worker) run(raftSyncLimit time.Duration) {
 	defer func() {
 		w.markStopped()
+		close(w.shutdownCh)
 	}()
 	w.setStatuses(WorkerStarted, WorkloadRunning)
 	w.logger.Debug("running")
@@ -893,4 +898,8 @@ func (w *Worker) backoffErr(base, limit time.Duration) bool {
 // exponential backoff
 func (w *Worker) backoffReset() {
 	w.failures = 0
+}
+
+func (w *Worker) ShutdownCh() <-chan struct{} {
+	return w.shutdownCh
 }

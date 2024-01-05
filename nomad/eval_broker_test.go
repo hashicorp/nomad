@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"container/heap"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -54,7 +55,7 @@ func testBroker(t *testing.T, timeout time.Duration) *EvalBroker {
 }
 
 func testBrokerFromConfig(t *testing.T, c *Config) *EvalBroker {
-	b, err := NewEvalBroker(c.EvalNackTimeout, c.EvalNackInitialReenqueueDelay, c.EvalNackSubsequentReenqueueDelay, 3)
+	b, err := NewEvalBroker(context.Background(), c.EvalNackTimeout, c.EvalNackInitialReenqueueDelay, c.EvalNackSubsequentReenqueueDelay, 3)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
