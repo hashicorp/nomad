@@ -25,6 +25,7 @@ const (
 	TableACLAuthMethods       = "acl_auth_methods"
 	TableACLBindingRules      = "acl_binding_rules"
 	TableAllocs               = "allocs"
+	TableJobSubmission        = "job_submission"
 )
 
 const (
@@ -323,7 +324,7 @@ func jobVersionSchema() *memdb.TableSchema {
 // which contain the original source material of each job, per version.
 func jobSubmissionSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "job_submission",
+		Name: TableJobSubmission,
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": {
 				Name:         "id",
