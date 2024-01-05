@@ -52,6 +52,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/goruntime"
+	"github.com/hashicorp/nomad/helper/group"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -259,7 +260,7 @@ type Client struct {
 
 	// shutdownGroup are goroutines that exit when shutdownCh is closed.
 	// Shutdown() blocks on Wait() after closing shutdownCh.
-	shutdownGroup group
+	shutdownGroup group.Group
 
 	// tokensClient is Nomad Client's custom Consul client for requesting Consul
 	// Service Identity tokens through Nomad Server.
@@ -876,7 +877,7 @@ func (c *Client) Shutdown() error {
 	// Stop Garbage collector
 	c.garbageCollector.Stop()
 
-	arGroup := group{}
+	arGroup := group.Group{}
 	if c.GetConfig().DevMode {
 		// In DevMode destroy all the running allocations.
 		for _, ar := range c.getAllocRunners() {
@@ -3388,33 +3389,6 @@ func (c *Client) GetTaskEventHandler(allocID, taskName string) drivermanager.Eve
 		return ar.GetTaskEventHandler(taskName)
 	}
 	return nil
-}
-
-// group wraps a func() in a goroutine and provides a way to block until it
-// exits. Inspired by https://godoc.org/golang.org/x/sync/errgroup
-type group struct {
-	wg sync.WaitGroup
-}
-
-// Go starts f in a goroutine and must be called before Wait.
-func (g *group) Go(f func()) {
-	g.wg.Add(1)
-	go func() {
-		defer g.wg.Done()
-		f()
-	}()
-}
-
-func (g *group) AddCh(ch <-chan struct{}) {
-	g.Go(func() {
-		<-ch
-	})
-}
-
-// Wait for all goroutines to exit. Must be called after all calls to Go
-// complete.
-func (g *group) Wait() {
-	g.wg.Wait()
 }
 
 // pendingClientUpdates are the set of allocation updates that the client is
