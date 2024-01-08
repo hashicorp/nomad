@@ -470,6 +470,39 @@ func TestJob_ValidateNullChar(t *testing.T) {
 	assert.Error(job.Validate(), "null character in task name should not validate")
 }
 
+func TestJob_Validate_DisconnectRescheduleLost(t *testing.T) {
+	ci.Parallel(t)
+
+	// Craft our speciality jobspec to test this particular use-case.
+	testDisconnectRescheduleLostJob := &Job{
+		ID:     "gh19644",
+		Name:   "gh19644",
+		Region: "global",
+		Type:   JobTypeSystem,
+		TaskGroups: []*TaskGroup{
+			{
+				Name:                    "cache",
+				MaxClientDisconnect:     pointer.Of(1 * time.Hour),
+				PreventRescheduleOnLost: true,
+				Tasks: []*Task{
+					{
+						Name:   "redis",
+						Driver: "docker",
+						Config: map[string]interface{}{
+							"image": "redis:7",
+						},
+						LogConfig: DefaultLogConfig(),
+					},
+				},
+			},
+		},
+	}
+
+	testDisconnectRescheduleLostJob.Canonicalize()
+
+	must.NoError(t, testDisconnectRescheduleLostJob.Validate())
+}
+
 func TestJob_Warnings(t *testing.T) {
 	ci.Parallel(t)
 
