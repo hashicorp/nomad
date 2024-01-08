@@ -5397,7 +5397,9 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 		hasSummaryChanged = true
 	}
 
+	var totalCount int64
 	for _, tg := range job.TaskGroups {
+		totalCount += int64(tg.Count)
 		if _, ok := summary.Summary[tg.Name]; !ok {
 			newSummary := structs.TaskGroupSummary{
 				Complete: 0,
@@ -5409,6 +5411,7 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 			hasSummaryChanged = true
 		}
 	}
+	summary.Children.Desired = totalCount
 
 	// The job summary has changed, so update the modify index.
 	if hasSummaryChanged {
@@ -5766,6 +5769,12 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if jobSummary.CreateIndex != alloc.Job.CreateIndex {
 		return nil
 	}
+
+	var totalCount int64
+	for _, tg := range alloc.Job.TaskGroups {
+		totalCount += int64(tg.Count)
+	}
+	jobSummary.Children.Desired = totalCount
 
 	tgSummary, ok := jobSummary.Summary[alloc.TaskGroup]
 	if !ok {
