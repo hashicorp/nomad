@@ -83,9 +83,9 @@ export default class NamespaceEditorComponent extends Component {
         );
       }
     } catch (err) {
-      let title = this.namespace.isNew
-        ? `Error creating Namespace ${this.namespace.name}`
-        : `Error updating Namespace ${this.namespace.name}`;
+      let title = `Error ${
+        this.namespace.isNew ? 'creating' : 'updating'
+      } Namespace ${this.namespace.name}`;
 
       let message = err.errors?.length
         ? messageFromAdapterError(err)

@@ -49,6 +49,8 @@ export default class AccessControlNamespacesNewRoute extends Route {
     if (isExiting) {
       // If user didn't save, delete the freshly created model
       if (controller.model.isNew) {
+        controller.model.capabilities?.destroyRecord();
+        controller.model.nodePoolConfiguration?.destroyRecord();
         controller.model.destroyRecord();
       }
     }

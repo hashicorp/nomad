@@ -22,7 +22,7 @@
 		</div>
 		<div class="boxed-section-body is-full-bleed">
 			<div
-				class="editor-wrapper boxed-section-body is-full-bleed
+				class="namespace-editor-wrapper boxed-section-body is-full-bleed
 				{{if this.JSONError 'error'}}"
 			>
 				<div
@@ -35,6 +35,7 @@
 						content=this.definitionString
 						onUpdate=this.updateNamespaceDefinition
 						autofocus=false
+						extraKeys=(hash Cmd-Enter=this.save)
 					}}
 				/>
 				{{#if this.JSONError}}
