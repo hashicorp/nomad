@@ -353,13 +353,13 @@ same time requires that [rescheduling is disabled entirely][`disable_reschedulin
 group "first" {
   max_client_disconnect = "12h"
   prevent_reschedule_on_lost = true
+
+  reschedule {
+    attempts  = 0
+    unlimited = false
+  }
+
   task "first-task" {
-
-    reschedule {
-      attempts  = 0
-      unlimited = false
-    }
-
     ...
   }
 }
