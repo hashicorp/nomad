@@ -63,14 +63,14 @@ job "docs" {
   rescheduling strategy. Nomad will then attempt to schedule the task on another
   node if any of the group allocation statuses become "failed".
 
-- `prevent_reschedule_on_lost` `(bool: false)` - Defines the reschedule behaviour 
-  of an allocation when the node it is running on misses heartbeats. 
-  When enabled, if the node it is running on becomes disconnected 
+- `prevent_reschedule_on_lost` `(bool: false)` - Defines the reschedule behaviour
+  of an allocation when the node it is running on misses heartbeats.
+  When enabled, if the node it is running on becomes disconnected
   or goes down, this allocations wont be rescheduled and will show up as `unknown`
-  until the node comes back up or it is manually restarted. 
-  
+  until the node comes back up or it is manually restarted.
+
   This behaviour will only modify the reschedule process on the server.
-  To modify the allocation behaviour on the client, see 
+  To modify the allocation behaviour on the client, see
   [`stop_after_client_disconnect`](#stop_after_client_disconnect).
 
   The `unknown` allocation has to be manually stopped to run it again.
@@ -79,7 +79,7 @@ job "docs" {
   `nomad alloc stop  <alloc ID>`
   ```
 
-  Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the 
+  Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the
   same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
 
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
@@ -344,31 +344,31 @@ group "second" {
 
 #### Max Client Disconnect and Prevent Reschedule On Lost
 
-Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the 
+Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the
 same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
 
 ```hcl
 # jobspec.nomad
 
 group "first" {
-  max_client_disconnect = "12h"
+  max_client_disconnect      = "12h"
   prevent_reschedule_on_lost = true
+
+  reschedule {
+    attempts  = 0
+    unlimited = false
+  }
+
   task "first-task" {
-
-    reschedule {
-      attempts  = 0
-      unlimited = false
-    }
-
     ...
   }
 }
 ```
 
-If [`max_client_disconnect`](#max_client_disconnect) is set and 
+If [`max_client_disconnect`](#max_client_disconnect) is set and
 `prevent_reschedule_on_lost = true`, allocations on disconnected nodes will be
-`unknown` until the `max_client_disconnect` window expires, at which point 
-the node will be transition from `disconnected` to `down`. The allocation 
+`unknown` until the `max_client_disconnect` window expires, at which point
+the node will be transition from `disconnected` to `down`. The allocation
 will remain as `unknown` and won't be rescheduled.
 
 
