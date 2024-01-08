@@ -218,6 +218,11 @@ running as root, many of these mechanisms cannot be used.
 As a baseline, the Java jars will be run inside a Java Virtual Machine,
 providing a minimum amount of isolation.
 
+Nomad can only use cgroups to control resources if all the required controllers
+are available. If one or more required cgroups are unavailable, Nomad will
+disable resource controls that require cgroups entirely. See the documentation
+on [cgroup controller requirements][] for more details.
+
 ### Chroot
 
 The chroot created on Linux is populated with data in the following
@@ -251,3 +256,4 @@ This list is configurable through the agent client
 [no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
 [allow_caps]: /nomad/docs/drivers/java#allow_caps
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[cgroup controller requirements]: /nomad/docs/install/production/requirements#hardening-nomad
