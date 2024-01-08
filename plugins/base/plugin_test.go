@@ -52,7 +52,7 @@ func TestBasePlugin_PluginInfo_GRPC(t *testing.T) {
 		PluginInfoF: knownType,
 	}
 
-	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+	client, server := plugin.TestPluginGRPCConn(t, true, map[string]plugin.Plugin{
 		PluginTypeBase: &PluginBase{Impl: mock},
 	})
 	defer server.Stop()
@@ -92,7 +92,7 @@ func TestBasePlugin_ConfigSchema(t *testing.T) {
 		},
 	}
 
-	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+	client, server := plugin.TestPluginGRPCConn(t, true, map[string]plugin.Plugin{
 		PluginTypeBase: &PluginBase{Impl: mock},
 	})
 	defer server.Stop()
@@ -131,7 +131,7 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 		},
 	}
 
-	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+	client, server := plugin.TestPluginGRPCConn(t, true, map[string]plugin.Plugin{
 		PluginTypeBase: &PluginBase{Impl: mock},
 	})
 	defer server.Stop()
