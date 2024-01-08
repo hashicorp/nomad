@@ -1900,14 +1900,9 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("deployment lookup for job %s failed: %v", job.ID, err)
 	}
 
-	deploymentIDs := []string{}
-	for _, d := range deployments {
-		deploymentIDs = append(deploymentIDs, d.ID)
-	}
-
-	for _, deploymentID := range deploymentIDs {
+	for _, deployment := range deployments {
 		// Lookup the deployment
-		existing, err := txn.First("deployment", "id", deploymentID)
+		existing, err := txn.First("deployment", "id", deployment.ID)
 		if err != nil {
 			return fmt.Errorf("deployment lookup failed: %v", err)
 		}
@@ -1949,6 +1944,27 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 
 		if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+
+	allocs, err := s.AllocsByJob(nil, namespace, job.ID, true)
+	if err != nil {
+		return fmt.Errorf("alloc lookup for job %s failed: %v", job.ID, err)
+	}
+
+	for _, alloc := range allocs {
+		// Lookup the alloc
+		existing, err := txn.First("allocs", "id", alloc.ID)
+		if err != nil {
+			return fmt.Errorf("alloc lookup failed: %v", err)
+		}
+		if existing == nil {
+			return fmt.Errorf("alloc not found")
+		}
+
+		// Delete the alloc
+		if err := txn.Delete("allocs", existing); err != nil {
+			return fmt.Errorf("deployment delete failed: %v", err)
 		}
 	}
 
