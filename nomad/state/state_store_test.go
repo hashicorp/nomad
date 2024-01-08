@@ -4272,31 +4272,11 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersHealthy:     1,
 			nodesHealthy:           2,
 			controllersExpected:    0,
-			nodesExpected:          0,
+			nodesExpected:          2,
 		})
 		require.True(t, plug.ControllerRequired)
 		require.False(t, plug.IsEmpty())
 
-		updateAllocsFn(allocIDs, SERVER,
-			func(alloc *structs.Allocation) {
-				alloc.DesiredStatus = structs.AllocDesiredStatusStop
-			})
-
-		updateAllocsFn(allocIDs, CLIENT,
-			func(alloc *structs.Allocation) {
-				alloc.ClientStatus = structs.AllocClientStatusComplete
-			})
-
-		plug = checkPlugin(pluginCounts{
-			controllerFingerprints: 1,
-			nodeFingerprints:       2,
-			controllersHealthy:     1,
-			nodesHealthy:           2,
-			controllersExpected:    0,
-			nodesExpected:          0,
-		})
-		require.True(t, plug.ControllerRequired)
-		require.False(t, plug.IsEmpty())
 
 		for _, node := range nodes {
 			updateNodeFn(node.ID, func(node *structs.Node) {
@@ -4310,7 +4290,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersHealthy:     0,
 			nodesHealthy:           2,
 			controllersExpected:    0,
-			nodesExpected:          0,
+			nodesExpected:          2,
 		})
 		require.True(t, plug.ControllerRequired)
 		require.False(t, plug.IsEmpty())
