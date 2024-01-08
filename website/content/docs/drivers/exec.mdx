@@ -220,6 +220,11 @@ hugetlb 1
 pids 1
 ```
 
+Nomad can only use cgroups to control resources if all the required controllers
+are available. If one or more required cgroups are unavailable, Nomad will
+disable resource controls that require cgroups entirely. See the documentation
+on [cgroup controller requirements][] for more details.
+
 ### Chroot
 
 The chroot is populated with data in the following directories from the host
@@ -272,3 +277,4 @@ is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
 [volume_mount]: /nomad/docs/job-specification/volume_mount
 [cores]: /nomad/docs/job-specification/resources#cores
 [runtime_env]: /nomad/docs/runtime/environment#job-related-variables
+[cgroup controller requirements]: /nomad/docs/install/production/requirements#hardening-nomad
