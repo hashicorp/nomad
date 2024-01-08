@@ -546,7 +546,6 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 			stoppedAlloc, lostAlloc,
 			activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc,
 			stoppedJobStoppedAlloc, stoppedJobLostAlloc,
-			purgedJobCompleteAlloc,
 		},
 		[]*structs.Allocation{},
 	)
@@ -576,7 +575,6 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 			stoppedAlloc, lostAlloc,
 			activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc,
 			stoppedJobStoppedAlloc, stoppedJobLostAlloc,
-			purgedJobCompleteAlloc,
 		},
 		[]*structs.Allocation{},
 	)
@@ -609,7 +607,6 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		[]*structs.Allocation{
 			activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc,
 			stoppedJobLostAlloc, stoppedJobLostAlloc,
-			purgedJobCompleteAlloc,
 		})
 }
 
