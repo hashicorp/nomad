@@ -47,6 +47,7 @@ func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	pd := drivers.NewDriverPlugin(d, logger)
 
 	client, server := plugin.TestPluginGRPCConn(t,
+		true,
 		map[string]plugin.Plugin{
 			base.PluginTypeDriver: pd,
 			base.PluginTypeBase:   &base.PluginBase{Impl: d},
