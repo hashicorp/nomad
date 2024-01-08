@@ -229,6 +229,21 @@ net.bridge.bridge-nf-call-iptables = 1
 ```
 
 </CodeBlockConfig>
+
+<h3>Verify cgroup controllers</h3>
+
+On Linux, Nomad uses cgroups to control resource usage of tasks. If one or more
+required cgroups are unavailable, Nomad will disable resource controls that
+require cgroups entirely. With cgroups v2, you can verify that you have all
+required controllers as follows:
+
+```shell-session
+$ cat /sys/fs/cgroup/cgroup.controllers
+cpuset cpu io memory pids
+```
+
+See the documentation on [cgroup controller requirements][] for more details.
+
 </Tab>
 
 <Tab heading="macOS">
@@ -306,8 +321,24 @@ net.bridge.bridge-nf-call-iptables = 1
 ```
 
 </CodeBlockConfig>
+
+<h3>Verify cgroup controllers</h3>
+
+On Linux, Nomad uses cgroups to control resource usage of tasks. If one or more
+required cgroups are unavailable, Nomad will disable resource controls that
+require cgroups entirely. With cgroups v2, you can verify that you have all
+required controllers as follows:
+
+```shell-session
+$ cat /sys/fs/cgroup/cgroup.controllers
+cpuset cpu io memory pids
+```
+
+See the documentation on [cgroup controller requirements][] for more details.
+
 </Tab>
 </Tabs>
+
 
 ## Verify the Installation
 
@@ -403,3 +434,4 @@ and ensuring `GOPATH/bin` is within your `PATH`. A copy of
 
 [gpg-key]: https://apt.releases.hashicorp.com/gpg "HashiCorp GPG key"
 [go-version]: https://github.com/hashicorp/nomad/blob/main/.go-version
+[cgroup controller requirements]: /nomad/docs/install/production/requirements#hardening-nomad

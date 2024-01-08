@@ -121,6 +121,35 @@ net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-iptables = 1
 ```
 
+## Cgroup Controllers
+
+On Linux, Nomad uses cgroups to control access to resources like CPU and
+memory. Nomad can support both [cgroups v2][] and the legacy [cgroups
+v1][]. When Nomad clients start, they will determine the available cgroup
+controllers and include the attribute `os.cgroups.version` in their
+fingerprint.
+
+Nomad can only use cgroups to control resources if all the required controllers
+are available. If one or more required cgroups are unavailable, Nomad will
+disable resource controls that require cgroups entirely. You will most often see
+missing controllers on platforms used outside of datacenters, such as Raspberry
+Pi or similar hobbyist computers.
+
+On cgroups v2, you can verify that you have all required controllers as follows:
+
+```shell-session
+$ cat /sys/fs/cgroup/cgroup.controllers
+cpuset cpu io memory pids
+```
+
+On legacy cgroups v1, you can look for this same list of required controllers as
+directories under the directory `/sys/fs/cgroup`.
+
+To enable missing cgroups, add the appropriate boot command line arguments. For
+example, to enable the `cpuset` cgroup, you'll need to add `cgroup_cpuset=1
+cgroup_enable=cpuset`. These arguments should be added wherever specified by
+your bootloader.
+
 ## Hardening Nomad
 
 As noted in the [Security Model][] guide, Nomad is not **secure-by-default**.
@@ -230,4 +259,6 @@ in automated pipelines for [CLI operations][docs_cli], such as
 [`nomad job plan`]: /nomad/docs/commands/job/plan
 [`nomad fmt`]: /nomad/docs/commands/fmt
 [mTLS]: /nomad/tutorials/transport-security/security-enable-tls
-[ephemeral disk migration]: /nomad/docs/job-specification/ephemeral_disk#migrate
+[ephemeral disk migration]: /nomad/docs/job-specification/ephemeral_disk#migrat
+[cgroups v1]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/cgroups.html
+[cgroups v2]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
