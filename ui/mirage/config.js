@@ -731,10 +731,6 @@ export default function () {
     });
   });
 
-  this.get('/namespaces', function ({ namespaces }, req) {
-    return this.serialize(namespaces.all());
-  });
-
   this.get('/namespaces/:id', function ({ namespaces }, req) {
     const namespace = namespaces.findBy({ name: req.params.id });
     return this.serialize(namespace);
