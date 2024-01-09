@@ -822,6 +822,8 @@ type ACLAuthMethodConfig struct {
 	OIDCClientID string
 	// The OAuth Client Secret configured with the OIDC provider
 	OIDCClientSecret string
+	// Disable claims from the OIDC UserInfo endpoint
+	OIDCDisableUserInfo bool
 	// List of OIDC scopes
 	OIDCScopes []string
 	// List of auth claims that are valid for login
