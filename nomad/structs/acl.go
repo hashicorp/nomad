@@ -775,11 +775,19 @@ func (a *ACLAuthMethod) SetHash() []byte {
 	_, _ = hash.Write([]byte(strconv.FormatBool(a.Default)))
 
 	if a.Config != nil {
+		_, _ = hash.Write([]byte(a.Config.JWKSURL))
+		_, _ = hash.Write([]byte(a.Config.JWKSCACert))
 		_, _ = hash.Write([]byte(a.Config.OIDCDiscoveryURL))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientID))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientSecret))
+		_, _ = hash.Write([]byte(a.Config.ExpirationLeeway.String()))
+		_, _ = hash.Write([]byte(a.Config.NotBeforeLeeway.String()))
+		_, _ = hash.Write([]byte(a.Config.ClockSkewLeeway.String()))
 		for _, ba := range a.Config.BoundAudiences {
 			_, _ = hash.Write([]byte(ba))
+		}
+		for _, bi := range a.Config.BoundIssuer {
+			_, _ = hash.Write([]byte(bi))
 		}
 		for _, uri := range a.Config.AllowedRedirectURIs {
 			_, _ = hash.Write([]byte(uri))
@@ -787,8 +795,14 @@ func (a *ACLAuthMethod) SetHash() []byte {
 		for _, pem := range a.Config.DiscoveryCaPem {
 			_, _ = hash.Write([]byte(pem))
 		}
+		for _, scope := range a.Config.OIDCScopes {
+			_, _ = hash.Write([]byte(scope))
+		}
 		for _, sa := range a.Config.SigningAlgs {
 			_, _ = hash.Write([]byte(sa))
+		}
+		for _, key := range a.Config.JWTValidationPubKeys {
+			_, _ = hash.Write([]byte(key))
 		}
 		for k, v := range a.Config.ClaimMappings {
 			_, _ = hash.Write([]byte(k))
