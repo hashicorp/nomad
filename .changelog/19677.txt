@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Fixed auth method hashing which meant changing some fields would be silently ignored
+```
