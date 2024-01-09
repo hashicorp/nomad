@@ -120,13 +120,16 @@ of `capabilities`. This includes:
 
 - `deny` - When multiple policies are associated with a token, deny will take
   precedence and prevent any capabilities.
-- `list-jobs` - Allows listing the jobs and seeing coarse grain status.
+- `list-jobs` - Allows listing the jobs and seeing coarse grain status. This
+  implicitly grants `csi-list-volume`.
 - `parse-job` - Allows parsing a job from HCL to JSON.
-- `read-job` - Allows inspecting a job and seeing fine grain status.
+- `read-job` - Allows inspecting a job and seeing fine grain status. This
+  implicitly grants `csi-read-volume`.
 - `submit-job` - Allows jobs to be submitted, updated, or stopped.
 - `dispatch-job` - Allows jobs to be dispatched
 - `read-logs` - Allows the logs associated with a job to be viewed.
-- `read-fs` - Allows the filesystem of allocations associated to be viewed.
+- `read-fs` - Allows the filesystem of allocations associated to be
+  viewed. Implicitly grants `read-logs`.
 - `alloc-exec` - Allows an operator to connect and run commands in running
   allocations.
 - `alloc-node-exec` - Allows an operator to connect and run commands in
@@ -135,11 +138,15 @@ of `capabilities`. This includes:
   manually.
 - `csi-register-plugin` - Allows jobs to be submitted that register themselves
   as CSI plugins.
-- `csi-write-volume` - Allows CSI volumes to be registered or deregistered.
-- `csi-read-volume` - Allows inspecting a CSI volume and seeing fine grain
-  status.
-- `csi-list-volume` - Allows listing CSI volumes and seeing coarse grain status.
-- `csi-mount-volume` - Allows jobs to be submitted that claim a CSI volume.
+- `csi-write-volume` - Allows CSI volumes to be registered or deregistered. This
+  implicitly grants `csi-read-volume`.
+- `csi-read-volume` - Allows inspecting a CSI volume, seeing fine grain status,
+  and listing external volumes and snapshots. This implicitly grants
+  `csi-list-volume`.
+- `csi-list-volume` - Allows listing CSI volumes, seeing coarse grain status,
+  and listing external volumes and snapshots.
+- `csi-mount-volume` - Allows jobs to be submitted that claim a CSI volume. This
+  implicitly grants `csi-read-volume`.
 - `list-scaling-policies` - Allows listing scaling policies.
 - `read-scaling-policy` - Allows inspecting a scaling policy.
 - `read-job-scaling` - Allows inspecting the current scaling of a job.
