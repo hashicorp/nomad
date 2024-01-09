@@ -15,7 +15,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/aneustroev/systemdexpr"
 	"hash"
 	"hash/crc32"
 	"maps"
@@ -29,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aneustroev/systemdexpr"
 
 	jwt "github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/cronexpr"
