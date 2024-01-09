@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/aneustroev/systemdexpr"
 	"hash"
 	"hash/crc32"
 	"maps"
@@ -5580,6 +5581,9 @@ const (
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
 
+	// PeriodicSpecCron is used for a cron spec.
+	PeriodicSpecSystemd = "systemd"
+
 	// PeriodicSpecTest is only used by unit tests. It is a sorted, comma
 	// separated list of unix timestamps at which to launch.
 	PeriodicSpecTest = "_internal_test"
@@ -5658,11 +5662,24 @@ func (p *PeriodicConfig) Validate() error {
 				_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", spec, err))
 			}
 		}
+	case PeriodicSpecSystemd:
+		// Validate the cron spec
+		if p.Spec != "" {
+			if _, err := systemdexpr.Parse(p.Spec); err != nil {
+				_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
+			}
+		}
+		// Validate the cron specs
+		for _, spec := range p.Specs {
+			if _, err := systemdexpr.Parse(spec); err != nil {
+				_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", spec, err))
+			}
+		}
 
 	case PeriodicSpecTest:
 		// No-op
 	default:
-		_ = multierror.Append(&mErr, fmt.Errorf("Unknown periodic specification type %q", p.SpecType))
+		_ = multierror.Append(&mErr, fmt.Errorf("Unknown periodic time_format %q", p.SpecType))
 	}
 
 	return mErr.ErrorOrNil()
@@ -5680,18 +5697,28 @@ func (p *PeriodicConfig) Canonicalize() {
 
 // CronParseNext is a helper that parses the next time for the given expression
 // but captures any panic that may occur in the underlying library.
-func CronParseNext(fromTime time.Time, spec string) (t time.Time, err error) {
+func CronParseNext(fromTime time.Time, spec string, specType string) (t time.Time, err error) {
 	defer func() {
 		if recover() != nil {
 			t = time.Time{}
 			err = fmt.Errorf("failed parsing cron expression: %q", spec)
 		}
 	}()
-	exp, err := cronexpr.Parse(spec)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("failed parsing cron expression: %s: %v", spec, err)
+	switch specType {
+	case PeriodicSpecCron:
+		exp, err := cronexpr.Parse(spec)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed parsing cron expression: %s: %v", spec, err)
+		}
+		return exp.Next(fromTime), nil
+	case PeriodicSpecSystemd:
+		exp, err := systemdexpr.Parse(spec)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed parsing systemd expression: %s: %v", spec, err)
+		}
+		return exp.Next(fromTime), nil
 	}
-	return exp.Next(fromTime), nil
+	return time.Time{}, fmt.Errorf("unknown specFormat: %q", specType)
 }
 
 // Next returns the closest time instant matching the spec that is after the
@@ -5700,16 +5727,16 @@ func CronParseNext(fromTime time.Time, spec string) (t time.Time, err error) {
 // passed time.
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
-	case PeriodicSpecCron:
+	case PeriodicSpecCron, PeriodicSpecSystemd:
 		// Single spec parsing
 		if p.Spec != "" {
-			return CronParseNext(fromTime, p.Spec)
+			return CronParseNext(fromTime, p.Spec, p.SpecType)
 		}
 
 		// multiple specs parsing
 		var nextTime time.Time
 		for _, spec := range p.Specs {
-			t, err := CronParseNext(fromTime, spec)
+			t, err := CronParseNext(fromTime, spec, p.SpecType)
 			if err != nil {
 				return time.Time{}, fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
 			}

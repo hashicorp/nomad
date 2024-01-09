@@ -22,14 +22,16 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 	require.NoError(t, err)
 
 	cases := []struct {
-		name     string
-		pattern  string
-		initTime time.Time
-		expected []time.Time
+		name           string
+		patternCron    string
+		patternSystemd string
+		initTime       time.Time
+		expected       []time.Time
 	}{
 		{
 			"normal time",
 			"0 2 * * * 2019",
+			"2019-*-* 02:00",
 			time.Date(2019, time.February, 7, 1, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.February, 7, 2, 0, 0, 0, loc),
@@ -40,6 +42,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Spring forward but not in switch time",
 			"0 4 * * * 2019",
+			"2019-*-* 04:00",
 			time.Date(2019, time.March, 9, 1, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.March, 9, 4, 0, 0, 0, loc),
@@ -50,6 +53,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Spring forward at a skipped time odd",
 			"2 2 * * * 2019",
+			"2019-*-* 02:02",
 			time.Date(2019, time.March, 9, 1, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.March, 9, 2, 2, 0, 0, loc),
@@ -61,6 +65,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Spring forward at a skipped time",
 			"1 2 * * * 2019",
+			"2019-*-* 02:01",
 			time.Date(2019, time.March, 9, 1, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.March, 9, 2, 1, 0, 0, loc),
@@ -72,6 +77,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Spring forward at a skipped time boundary",
 			"0 2 * * * 2019",
+			"2019-*-* 02:00",
 			time.Date(2019, time.March, 9, 1, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.March, 9, 2, 0, 0, 0, loc),
@@ -83,6 +89,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Spring forward at a boundary of repeating time",
 			"0 1 * * * 2019",
+			"2019-*-* 01:00",
 			time.Date(2019, time.March, 9, 0, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.March, 9, 1, 0, 0, 0, loc),
@@ -94,6 +101,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: before transition",
 			"30 0 * * * 2019",
+			"2019-*-* 00:30",
 			time.Date(2019, time.November, 3, 0, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.November, 3, 0, 30, 0, 0, loc),
@@ -105,6 +113,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: after transition",
 			"30 3 * * * 2019",
+			"2019-*-* 03:30",
 			time.Date(2019, time.November, 3, 0, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.November, 3, 3, 30, 0, 0, loc),
@@ -116,6 +125,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: after transition starting in repeated span before",
 			"30 3 * * * 2019",
+			"2019-*-* 03:30",
 			time.Date(2019, time.November, 3, 0, 10, 0, 0, loc).Add(1 * time.Hour),
 			[]time.Time{
 				time.Date(2019, time.November, 3, 3, 30, 0, 0, loc),
@@ -127,6 +137,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: after transition starting in repeated span after",
 			"30 3 * * * 2019",
+			"2019-*-* 03:30",
 			time.Date(2019, time.November, 3, 0, 10, 0, 0, loc).Add(2 * time.Hour),
 			[]time.Time{
 				time.Date(2019, time.November, 3, 3, 30, 0, 0, loc),
@@ -138,6 +149,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: in repeated region",
 			"30 1 * * * 2019",
+			"2019-*-* 01:30",
 			time.Date(2019, time.November, 3, 0, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.November, 3, 0, 30, 0, 0, loc).Add(1 * time.Hour),
@@ -150,6 +162,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: in repeated region boundary",
 			"0 1 * * * 2019",
+			"2019-*-* 01:00",
 			time.Date(2019, time.November, 3, 0, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.November, 3, 0, 0, 0, 0, loc).Add(1 * time.Hour),
@@ -162,6 +175,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: in repeated region boundary 2",
 			"0 2 * * * 2019",
+			"2019-*-* 02:00",
 			time.Date(2019, time.November, 3, 0, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.November, 3, 0, 0, 0, 0, loc).Add(3 * time.Hour),
@@ -173,6 +187,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: in repeated region, starting from within region",
 			"30 1 * * * 2019",
+			"2019-*-* 01:30",
 			time.Date(2019, time.November, 3, 0, 40, 0, 0, loc).Add(1 * time.Hour),
 			[]time.Time{
 				time.Date(2019, time.November, 3, 0, 30, 0, 0, loc).Add(2 * time.Hour),
@@ -184,6 +199,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: in repeated region, starting from within region 2",
 			"30 1 * * * 2019",
+			"2019-*-* 01:30",
 			time.Date(2019, time.November, 3, 0, 40, 0, 0, loc).Add(2 * time.Hour),
 			[]time.Time{
 				time.Date(2019, time.November, 4, 1, 30, 0, 0, loc),
@@ -194,6 +210,7 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 		{
 			"Fall back: wildcard",
 			"30 * * * * 2019",
+			"2019-*-* *:30",
 			time.Date(2019, time.November, 3, 0, 0, 0, 0, loc),
 			[]time.Time{
 				time.Date(2019, time.November, 3, 0, 30, 0, 0, loc),
@@ -209,7 +226,27 @@ func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
 			p := &PeriodicConfig{
 				Enabled:  true,
 				SpecType: PeriodicSpecCron,
-				Spec:     c.pattern,
+				Spec:     c.patternCron,
+				TimeZone: locName,
+			}
+			p.Canonicalize()
+
+			starting := c.initTime
+			for _, next := range c.expected {
+				n, err := p.Next(starting)
+				assert.NoError(t, err)
+				assert.Equalf(t, next, n, "next time of %v", starting)
+
+				starting = next
+			}
+		})
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p := &PeriodicConfig{
+				Enabled:  true,
+				SpecType: PeriodicSpecSystemd,
+				Spec:     c.patternSystemd,
 				TimeZone: locName,
 			}
 			p.Canonicalize()

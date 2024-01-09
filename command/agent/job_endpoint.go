@@ -1074,6 +1074,10 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 			j.Periodic.Spec = *job.Periodic.Spec
 		}
 
+		if job.Periodic.SpecType != nil {
+			j.Periodic.SpecType = *job.Periodic.SpecType
+		}
+
 		if job.Periodic.Specs != nil {
 			j.Periodic.Specs = job.Periodic.Specs
 		}

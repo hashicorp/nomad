@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/aneustroev/systemdexpr"
 	"github.com/hashicorp/cronexpr"
 	"golang.org/x/exp/maps"
 )
@@ -36,6 +37,9 @@ const (
 
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
+
+	// PeriodicSpecSystemd is used for a cron spec.
+	PeriodicSpecSystemd = "systemd"
 
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace = "default"
@@ -826,9 +830,9 @@ type PeriodicConfig struct {
 	Enabled         *bool    `hcl:"enabled,optional"`
 	Spec            *string  `hcl:"cron,optional"`
 	Specs           []string `hcl:"crons,optional"`
-	SpecType        *string
-	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap" hcl:"prohibit_overlap,optional"`
-	TimeZone        *string `mapstructure:"time_zone" hcl:"time_zone,optional"`
+	SpecType        *string  `hcl:"time_format,optional"`
+	ProhibitOverlap *bool    `mapstructure:"prohibit_overlap" hcl:"prohibit_overlap,optional"`
+	TimeZone        *string  `mapstructure:"time_zone" hcl:"time_zone,optional"`
 }
 
 func (p *PeriodicConfig) Canonicalize() {
@@ -858,18 +862,18 @@ func (p *PeriodicConfig) Canonicalize() {
 // passed time.
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	// Single spec parsing
-	if p != nil && *p.SpecType == PeriodicSpecCron {
+	if p != nil && (*p.SpecType == PeriodicSpecCron || *p.SpecType == PeriodicSpecSystemd) {
 		if p.Spec != nil && *p.Spec != "" {
-			return cronParseNext(fromTime, *p.Spec)
+			return cronParseNext(fromTime, *p.Spec, *p.SpecType)
 		}
 	}
 
 	// multiple specs parsing
 	var nextTime time.Time
 	for _, spec := range p.Specs {
-		t, err := cronParseNext(fromTime, spec)
+		t, err := cronParseNext(fromTime, spec, *p.SpecType)
 		if err != nil {
-			return time.Time{}, fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
+			return time.Time{}, fmt.Errorf("failed parsing time expression %s: %v", spec, err)
 		}
 		if nextTime.IsZero() || t.Before(nextTime) {
 			nextTime = t
@@ -882,18 +886,29 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 // but captures any panic that may occur in the underlying library.
 // ---  THIS FUNCTION IS REPLICATED IN nomad/structs/structs.go
 // and should be kept in sync.
-func cronParseNext(fromTime time.Time, spec string) (t time.Time, err error) {
+func cronParseNext(fromTime time.Time, spec string, specType string) (t time.Time, err error) {
 	defer func() {
 		if recover() != nil {
 			t = time.Time{}
 			err = fmt.Errorf("failed parsing cron expression: %q", spec)
 		}
 	}()
-	exp, err := cronexpr.Parse(spec)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("failed parsing cron expression: %s: %v", spec, err)
+	switch specType {
+	case "cron":
+		exp, err := cronexpr.Parse(spec)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed parsing cron expression: %s: %v", spec, err)
+		}
+		return exp.Next(fromTime), nil
+	case "systemd":
+		exp, err := systemdexpr.Parse(spec)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed parsing systemd expression: %s: %v", spec, err)
+		}
+		return exp.Next(fromTime), nil
+	default:
+		return time.Time{}, fmt.Errorf("unknown time_format: %q", specType)
 	}
-	return exp.Next(fromTime), nil
 }
 
 func (p *PeriodicConfig) GetLocation() (*time.Location, error) {
