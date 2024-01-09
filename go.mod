@@ -11,7 +11,9 @@ replace (
 )
 
 // Nomad is built using the current source of the API module.
-replace github.com/hashicorp/nomad/api => ./api
+replace (
+	github.com/hashicorp/nomad/api => ./api
+)
 
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
@@ -293,3 +295,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	kernel.org/pub/linux/libs/security/libcap/psx v1.2.69 // indirect
 )
+
