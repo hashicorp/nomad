@@ -239,6 +239,7 @@ func ACLOIDCAuthMethod() *structs.ACLAuthMethod {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCDisableUserInfo: false,
 			OIDCScopes:          []string{"groups"},
 			BoundAudiences:      []string{"sales", "engineering"},
 			AllowedRedirectURIs: []string{"foo", "bar"},

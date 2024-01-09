@@ -2737,9 +2737,11 @@ func (a *ACL) OIDCCompleteAuth(
 	}
 
 	var userClaims map[string]interface{}
-	if userTokenSource := oidcToken.StaticTokenSource(); userTokenSource != nil {
-		if err := oidcProvider.UserInfo(ctx, userTokenSource, idTokenClaims["sub"].(string), &userClaims); err != nil {
-			return fmt.Errorf("failed to retrieve the user info claims: %v", err)
+	if !authMethod.Config.OIDCDisableUserInfo {
+		if userTokenSource := oidcToken.StaticTokenSource(); userTokenSource != nil {
+			if err := oidcProvider.UserInfo(ctx, userTokenSource, idTokenClaims["sub"].(string), &userClaims); err != nil {
+				return fmt.Errorf("failed to retrieve the user info claims: %v", err)
+			}
 		}
 	}
 

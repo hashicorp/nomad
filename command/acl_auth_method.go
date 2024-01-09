@@ -92,6 +92,7 @@ func formatAuthMethodConfig(config *api.ACLAuthMethodConfig) string {
 		fmt.Sprintf("OIDC Discovery URL|%s", config.OIDCDiscoveryURL),
 		fmt.Sprintf("OIDC Client ID|%s", config.OIDCClientID),
 		fmt.Sprintf("OIDC Client Secret|%s", config.OIDCClientSecret),
+		fmt.Sprintf("OIDC Disable UserInfo|%t", config.OIDCDisableUserInfo),
 		fmt.Sprintf("OIDC Scopes|%s", strings.Join(config.OIDCScopes, ",")),
 		fmt.Sprintf("Bound audiences|%s", strings.Join(config.BoundAudiences, ",")),
 		fmt.Sprintf("Bound issuer|%s", strings.Join(config.BoundIssuer, ",")),

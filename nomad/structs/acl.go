@@ -777,6 +777,7 @@ func (a *ACLAuthMethod) SetHash() []byte {
 		_, _ = hash.Write([]byte(a.Config.OIDCDiscoveryURL))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientID))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientSecret))
+		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.OIDCDisableUserInfo)))
 		_, _ = hash.Write([]byte(a.Config.ExpirationLeeway.String()))
 		_, _ = hash.Write([]byte(a.Config.NotBeforeLeeway.String()))
 		_, _ = hash.Write([]byte(a.Config.ClockSkewLeeway.String()))
@@ -977,6 +978,9 @@ type ACLAuthMethodConfig struct {
 
 	// The OAuth Client Secret configured with the OIDC provider
 	OIDCClientSecret string
+
+	// Disable claims from the OIDC UserInfo endpoint
+	OIDCDisableUserInfo bool
 
 	// List of OIDC scopes
 	OIDCScopes []string
