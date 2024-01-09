@@ -1,0 +1,3 @@
+```release-note:bug
+auth: Added new optional OIDCDisableUserInfo setting for OIDC auth provider
+```
