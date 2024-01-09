@@ -98,6 +98,14 @@ func (h jobConsulHook) validateCluster(name string) error {
 	return nil
 }
 
+func consulPartitionConstraint(partition string) *structs.Constraint {
+	return &structs.Constraint{
+		LTarget: "${attr.consul.partition}",
+		RTarget: partition,
+		Operand: "=",
+	}
+}
+
 // Mutate ensures that the job's Consul cluster has been configured to be the
 // default Consul cluster if unset
 func (j jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
@@ -108,7 +116,7 @@ func (j jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 			}
 			if group.Consul.Partition != "" {
 				group.Constraints = append(group.Constraints,
-					consulPartitionConstraint(group.Consul.Cluster, group.Consul.Partition))
+					consulPartitionConstraint(group.Consul.Partition))
 			}
 		}
 
@@ -125,7 +133,7 @@ func (j jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 				}
 				if task.Consul.Partition != "" {
 					task.Constraints = append(task.Constraints,
-						consulPartitionConstraint(task.Consul.Cluster, task.Consul.Partition))
+						consulPartitionConstraint(task.Consul.Partition))
 				}
 			}
 			for _, service := range task.Services {
