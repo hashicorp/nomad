@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
@@ -17,6 +18,13 @@ import (
 type NoopVault struct {
 	l      sync.Mutex
 	config *config.VaultConfig
+	logger log.Logger
+}
+
+func NewNoopVault(logger log.Logger) *NoopVault {
+	return &NoopVault{
+		logger: logger.Named("vault-noop"),
+	}
 }
 
 func (v *NoopVault) SetActive(_ bool) {}
@@ -37,19 +45,25 @@ func (v *NoopVault) GetConfig() *config.VaultConfig {
 }
 
 func (v *NoopVault) CreateToken(_ context.Context, _ *structs.Allocation, _ string) (*vapi.Secret, error) {
-	return nil, errors.New("Vault client not able to create tokens")
+	return nil, errors.New("Nomad server is not configured to create tokens")
 }
 
 func (v *NoopVault) LookupToken(_ context.Context, _ string) (*vapi.Secret, error) {
-	return nil, errors.New("Vault client not able to lookup tokens")
+	return nil, errors.New("Nomad server is not configured to lookup tokens")
 }
 
-func (v *NoopVault) RevokeTokens(_ context.Context, _ []*structs.VaultAccessor, _ bool) error {
-	return errors.New("Vault client not able to revoke tokens")
+func (v *NoopVault) RevokeTokens(_ context.Context, tokens []*structs.VaultAccessor, _ bool) error {
+	for _, t := range tokens {
+		v.logger.Debug("Vault token is no longer used, but Nomad is not able to revoke it. The token may need to be revoked manually or will expire once its TTL reaches zero.", "accessor", t.Accessor, "ttl", t.CreationTTL)
+	}
+	return nil
 }
 
-func (v *NoopVault) MarkForRevocation(accessors []*structs.VaultAccessor) error {
-	return errors.New("Vault client not able to revoke tokens")
+func (v *NoopVault) MarkForRevocation(tokens []*structs.VaultAccessor) error {
+	for _, t := range tokens {
+		v.logger.Debug("Vault token is no longer used, but Nomad is not able to mark it for revocation. The token may need to be revoked manually or will expire once its TTL reaches zero.", "accessor", t.Accessor, "ttl", t.CreationTTL)
+	}
+	return nil
 }
 
 func (v *NoopVault) Stop() {}
