@@ -937,14 +937,15 @@ func (tmpl *Template) Canonicalize() {
 }
 
 type Vault struct {
-	Policies     []string `hcl:"policies,optional"`
-	Role         string   `hcl:"role,optional"`
-	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
-	Cluster      string   `hcl:"cluster,optional"`
-	Env          *bool    `hcl:"env,optional"`
-	DisableFile  *bool    `mapstructure:"disable_file" hcl:"disable_file,optional"`
-	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
-	ChangeSignal *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Policies             []string `hcl:"policies,optional"`
+	Role                 string   `hcl:"role,optional"`
+	Namespace            *string  `mapstructure:"namespace" hcl:"namespace,optional"`
+	Cluster              string   `hcl:"cluster,optional"`
+	Env                  *bool    `hcl:"env,optional"`
+	DisableFile          *bool    `mapstructure:"disable_file" hcl:"disable_file,optional"`
+	ChangeMode           *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeSignal         *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	AllowTokenExpiration *bool    `mapstructure:"allow_token_expiration" hcl:"allow_token_expiration,optional"`
 }
 
 func (v *Vault) Canonicalize() {
@@ -965,6 +966,9 @@ func (v *Vault) Canonicalize() {
 	}
 	if v.ChangeSignal == nil {
 		v.ChangeSignal = pointerOf("SIGHUP")
+	}
+	if v.AllowTokenExpiration == nil {
+		v.AllowTokenExpiration = pointerOf(false)
 	}
 }
 

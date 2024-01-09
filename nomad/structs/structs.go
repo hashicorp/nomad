@@ -9963,6 +9963,9 @@ type Vault struct {
 	// ChangeSignal is the signal sent to the task when a new token is
 	// retrieved. This is only valid when using the signal change mode.
 	ChangeSignal string
+
+	// AllowTokenExpiration disables the Vault token refresh loop on the client
+	AllowTokenExpiration bool
 }
 
 // IdentityName returns the name of the workload identity to be used to access
@@ -9991,6 +9994,8 @@ func (v *Vault) Equal(o *Vault) bool {
 	case v.ChangeMode != o.ChangeMode:
 		return false
 	case v.ChangeSignal != o.ChangeSignal:
+		return false
+	case v.AllowTokenExpiration != o.AllowTokenExpiration:
 		return false
 	}
 	return true

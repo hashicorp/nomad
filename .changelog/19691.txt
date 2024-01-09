@@ -1,0 +1,7 @@
+```release-note:improvement
+vault: Add `allow_token_expiration` field to allow Vault tokens to expire without renewal for short-lived tasks
+```
+
+```release-note:improvement
+vault: Nomad clients will no longer attempt to renew Vault tokens that cannot be renewed
+```

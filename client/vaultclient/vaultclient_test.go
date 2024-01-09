@@ -217,12 +217,13 @@ func TestVaultClient_DeriveTokenWithJWT(t *testing.T) {
 
 	// Derive Vault token using signed JWT.
 	jwtStr := signedWIDs[0].JWT
-	token, err := c.DeriveTokenWithJWT(context.Background(), JWTLoginRequest{
+	token, renewable, err := c.DeriveTokenWithJWT(context.Background(), JWTLoginRequest{
 		JWT:       jwtStr,
 		Namespace: "default",
 	})
 	must.NoError(t, err)
 	must.NotEq(t, "", token)
+	must.True(t, renewable)
 
 	// Verify token has expected properties.
 	v.Client.SetToken(token)
@@ -257,7 +258,7 @@ func TestVaultClient_DeriveTokenWithJWT(t *testing.T) {
 	must.Eq(t, []any{"deny"}, (s.Data[pathDenied]).([]any))
 
 	// Derive Vault token with non-existing role.
-	token, err = c.DeriveTokenWithJWT(context.Background(), JWTLoginRequest{
+	token, _, err = c.DeriveTokenWithJWT(context.Background(), JWTLoginRequest{
 		JWT:       jwtStr,
 		Role:      "test",
 		Namespace: "default",

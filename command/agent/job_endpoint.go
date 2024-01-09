@@ -1350,14 +1350,15 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
-			Role:         apiTask.Vault.Role,
-			Policies:     apiTask.Vault.Policies,
-			Namespace:    *apiTask.Vault.Namespace,
-			Cluster:      apiTask.Vault.Cluster,
-			Env:          *apiTask.Vault.Env,
-			DisableFile:  *apiTask.Vault.DisableFile,
-			ChangeMode:   *apiTask.Vault.ChangeMode,
-			ChangeSignal: *apiTask.Vault.ChangeSignal,
+			Role:                 apiTask.Vault.Role,
+			Policies:             apiTask.Vault.Policies,
+			Namespace:            *apiTask.Vault.Namespace,
+			Cluster:              apiTask.Vault.Cluster,
+			Env:                  *apiTask.Vault.Env,
+			DisableFile:          *apiTask.Vault.DisableFile,
+			ChangeMode:           *apiTask.Vault.ChangeMode,
+			ChangeSignal:         *apiTask.Vault.ChangeSignal,
+			AllowTokenExpiration: *apiTask.Vault.AllowTokenExpiration,
 		}
 	}
 
