@@ -53,6 +53,10 @@ export default class JobStatusSerializer extends ApplicationSerializer {
             type: 'allocation',
             attributes: {
               clientStatus: alloc.ClientStatus,
+              deploymentStatus: {
+                Healthy: alloc.DeploymentStatus.Healthy,
+                Canary: alloc.DeploymentStatus.Canary,
+              },
             },
             relationships: {
               jobStatus: {

@@ -42,6 +42,12 @@
     {{this.job.status}}
   </span>
 </td>
+<td data-test-job-status>
+  <Hds::Badge @text="{{capitalize this.job.aggregateAllocStatus.label}}" @color={{this.job.aggregateAllocStatus.state}} @size="medium" />
+  {{!-- <span class="tag {{this.job.statusClass}}">
+    {{this.job.aggregateAllocStatus}}
+  </span> --}}
+</td>
 {{#if (not (eq @context "child"))}}
   <td data-test-job-type>
     {{this.job.displayType.type}}
@@ -55,10 +61,6 @@
 {{/if}}
 <td data-test-job-allocations>
   <div class="inline-chart">
-    Running allocs: 
-    {{get (filter-by "clientStatus" "running" this.job.jobStatus.allocs) "length"}}
-    / {{this.job.jobStatus.allocs.length}}
-    {{!-- TODO: use the desiredCount --}}
     {{#if this.job.hasChildren}}
       {{#if (gt this.job.totalChildren 0)}}
         <ChildrenStatusBar @job={{this.job}} @isNarrow={{true}} />
@@ -68,6 +70,10 @@
         </em>
       {{/if}}
     {{else}}
+      <JobStatus::SummaryViz
+        @job={{this.job}}
+      />
+      <hr />
       <AllocationStatusBar
         @allocationContainer={{this.job}}
         @isNarrow={{true}}

@@ -1,0 +1,10 @@
+Running (and healthy) allocs: 
+{{get
+  (filter-by "isHealthy" true
+    (filter-by "clientStatus" "running" @job.jobStatus.allocs)
+  )
+"length"}}
+/ {{@job.desiredChildren}}
+{{!-- TODO: Desired placement in flux --}}
+
+{{yield}}
