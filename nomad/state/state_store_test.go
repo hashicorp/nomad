@@ -7107,7 +7107,7 @@ func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	expected := len(allocs) + len(allocs1)
+	expected := len(allocs1) // state.DeleteJob corresponds to stop -purge, so all allocs from the original job should be gone
 	if len(out) != expected {
 		t.Fatalf("expected: %v, actual: %v", expected, len(out))
 	}
