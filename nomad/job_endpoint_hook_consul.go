@@ -34,7 +34,7 @@ func (jobConsulHook) validateTaskPartitionMatchesGroup(groupPartition string, ta
 // mutateImpl ensures that the job's Consul blocks have been configured with the
 // correct Consul cluster if unset, and sets constraints on the Consul admin
 // partition if set. This should be called by the Mutate method.
-func (jobConsulHook) mutateImpl(job *structs.Job, defaultCluster string) (*structs.Job, []error, error) {
+func (jobConsulHook) mutateImpl(job *structs.Job, defaultCluster string) *structs.Job {
 	for _, group := range job.TaskGroups {
 		if group.Consul != nil {
 			if group.Consul.Cluster == "" {
@@ -70,7 +70,7 @@ func (jobConsulHook) mutateImpl(job *structs.Job, defaultCluster string) (*struc
 		}
 	}
 
-	return job, nil, nil
+	return job
 }
 
 // newConsulPartitionConstraint produces a constraint on the Consul admin
