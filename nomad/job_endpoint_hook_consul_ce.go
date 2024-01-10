@@ -30,10 +30,10 @@ func (h jobConsulHook) Validate(job *structs.Job) ([]error, error) {
 
 	for _, group := range job.TaskGroups {
 
-		partition := ""
+		groupPartition := ""
 
 		if group.Consul != nil {
-			partition = group.Consul.Partition
+			groupPartition = group.Consul.Partition
 			if err := h.validateCluster(group.Consul.Cluster); err != nil {
 				return nil, err
 			}
@@ -62,8 +62,8 @@ func (h jobConsulHook) Validate(job *structs.Job) ([]error, error) {
 
 			if task.Consul != nil {
 				if task.Consul.Partition != "" {
-					if partition != "" && task.Consul.Partition != partition {
-						return nil, fmt.Errorf("task.consul.partition %q must match group.consul.partition %q if both are set", task.Consul.Partition, partition)
+					if groupPartition != "" && task.Consul.Partition != groupPartition {
+						return nil, fmt.Errorf("task.consul.partition %q must match group.consul.partition %q if both are set", task.Consul.Partition, groupPartition)
 					}
 				}
 
