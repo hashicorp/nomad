@@ -11,9 +11,7 @@ replace (
 )
 
 // Nomad is built using the current source of the API module.
-replace (
-	github.com/hashicorp/nomad/api => ./api
-)
+replace github.com/hashicorp/nomad/api => ./api
 
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
@@ -70,7 +68,6 @@ require (
 	github.com/hashicorp/go-plugin v1.6.0
 	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.4
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
-	github.com/hashicorp/go-set v0.1.14
 	github.com/hashicorp/go-set/v2 v2.1.0
 	github.com/hashicorp/go-sockaddr v1.0.2
 	github.com/hashicorp/go-syslog v1.0.0
@@ -295,4 +292,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	kernel.org/pub/linux/libs/security/libcap/psx v1.2.69 // indirect
 )
-
