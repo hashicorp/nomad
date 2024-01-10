@@ -96,6 +96,7 @@ export default class Watchable extends ApplicationAdapter {
     additionalParams = {}
   ) {
     const url = this.buildURL(type.modelName, null, null, 'query', query);
+    const method = get(options, 'adapterOptions.method') || 'GET';
     let [urlPath, params] = url.split('?');
     params = assign(
       queryString.parse(params) || {},
@@ -113,7 +114,7 @@ export default class Watchable extends ApplicationAdapter {
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
-    return this.ajax(urlPath, 'GET', {
+    return this.ajax(urlPath, method, {
       signal,
       data: params,
     }).then((payload) => {

@@ -31,6 +31,7 @@ export default class Allocation extends Model {
   @shortUUIDProperty('id') shortId;
   @belongsTo('job') job;
   @belongsTo('node') node;
+  @belongsTo('job-status') jobStatus;
   @attr('string') namespace;
   @attr('string') nodeID;
   @attr('string') name;
@@ -41,6 +42,7 @@ export default class Allocation extends Model {
 
   @attr('number') modifyIndex;
   @attr('date') modifyTime;
+  @attr('string') beep;
 
   @attr('number') createIndex;
   @attr('date') createTime;

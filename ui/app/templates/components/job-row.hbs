@@ -55,6 +55,10 @@
 {{/if}}
 <td data-test-job-allocations>
   <div class="inline-chart">
+    Running allocs: 
+    {{get (filter-by "clientStatus" "running" this.job.jobStatus.allocs) "length"}}
+    / {{this.job.jobStatus.allocs.length}}
+    {{!-- TODO: use the desiredCount --}}
     {{#if this.job.hasChildren}}
       {{#if (gt this.job.totalChildren 0)}}
         <ChildrenStatusBar @job={{this.job}} @isNarrow={{true}} />
