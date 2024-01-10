@@ -751,18 +751,26 @@ $ VAULT_TOKEN=s.H39hfS7eHSbb1GpkdzOQLTmz.fvuLy nomad job run vault.nomad
 ## Migrating to Using Workload Identity with Vault
 
 Migrating from the legacy (pre-1.7) workflow where workloads use the agent's
-Vault token requires configuation on your Vault cluster and your Nomad server
+Vault token requires configuration on your Vault cluster and your Nomad server
 agents. It does not require updating your running Nomad jobs unless you wish to
 specify a non-default role. To migrate:
 
 * Create the Vault auth method, default role, and policies on your Vault
   cluster.
 * Enable [`vault.default_identity`][] blocks in your Nomad server agent
-  configurations.
-* (Optionally) Add [`vault.role`][] fields to any Nomad jobs that will not use
-  the default role.
-* (Optionally) add [`identity`][] blocks to your jobs if you want to use a
-  different identity because of how your auth method and roles are configured.
+  configurations, but **do not modify any of the existing Vault
+  configuration**.
+* Upgrade your cluster following the documented [Upgrade
+  Process][docs_upgrade].
+* Resubmit Nomad jobs that need access to Vault to redeploy them with a new
+  workload identity for Vault.
+  * (Optionally) Add [`vault.role`][] fields to any Nomad jobs that will not
+    use the default role.
+  * (Optionally) add [`identity`][] blocks to your jobs if you want to use a
+    different identity because of how your auth method and roles are
+    configured.
+* Once all jobs have been resubmitted, you may remove parameters no longer used
+  by the Nomad server agents from the [`vault`][config] configuration block.
 
 [Variables]: /nomad/docs/concepts/variables
 [Vault Namespaces]: /vault/docs/enterprise/namespaces
@@ -785,6 +793,7 @@ specify a non-default role. To migrate:
 [allow_unauth]: /nomad/docs/configuration/vault#allow_unauthenticated
 [auth]: /vault/docs/auth/token 'Vault Authentication Backend'
 [config]: /nomad/docs/configuration/vault 'Nomad Vault Configuration Block'
+[docs_upgrade]: /nomad/docs/upgrade#upgrade-process
 [ent]: #enterprise-configuration
 [img_vault_auth_method]: /img/vault-integration-auth-method.png
 [img_vault_auth_overview]: /img/vault-integration-auth-overview.png
