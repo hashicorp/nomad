@@ -3362,14 +3362,15 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						Vault: &structs.Vault{
-							Role:         "nomad-task",
-							Namespace:    "ns1",
-							Cluster:      structs.VaultDefaultCluster,
-							Policies:     []string{"a", "b", "c"},
-							Env:          true,
-							DisableFile:  false,
-							ChangeMode:   "c",
-							ChangeSignal: "sighup",
+							Role:                 "nomad-task",
+							Namespace:            "ns1",
+							Cluster:              structs.VaultDefaultCluster,
+							Policies:             []string{"a", "b", "c"},
+							Env:                  true,
+							DisableFile:          false,
+							ChangeMode:           "c",
+							ChangeSignal:         "sighup",
+							AllowTokenExpiration: false,
 						},
 						Templates: []*structs.Template{
 							{

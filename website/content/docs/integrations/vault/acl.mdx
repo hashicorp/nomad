@@ -165,11 +165,20 @@ Claims][vault_bound_claims] documentation for more information.
 
 </CodeBlockConfig>
 
-Vault has different [types of ACL tokens][vault_token_types]. Nomad uses tokens
-of type `service` since they can be renewed for as long as the workload is
-active. Nomad automatically renews the Vault ACL tokens it generates before
-they expire. To ensure the tokens can be renewed for as long as necessary,
-[`token_explicit_max_ttl`][] must be set to 0.
+Vault has different [types of ACL tokens][vault_token_types]. Nomad typically
+uses tokens of type `service` since they can be renewed for as long as the
+workload is active. Nomad automatically renews the Vault ACL tokens it generates
+before they expire. To ensure the tokens can be renewed for as long as
+necessary, [`token_explicit_max_ttl`][] must be set to 0.
+
+Alternately, you may use `batch` tokens. This should only be used when a secret
+is requested from Vault once at the start of a task or in a short-lived prestart
+task. Long-running tasks should never set `allow_token_expiration=true` if they
+obtain Vault secrets via `template` blocks, as the Vault token will expire and
+the template runner will continue to make failing requests to Vault until its
+[`vault_retry`][] attempts are exhausted, at which point the task will
+fail. Vault's `batch` tokens cannot be renewed, and Nomad will not attempt to
+renew them when configured to use Workload Identity.
 
 <CodeBlockConfig highlight="16-18" filename="acl-role.json">
 
@@ -508,8 +517,10 @@ documentation for all possible fields and more complete documentation.
   (259200 seconds) to avoid a large renewal request rate to Vault. **Must be set
   to a positive value**.
 
-- `renewable` - Specifies whether created tokens are renewable. **Must be set to
-  `true`**. This allows Nomad to renew tokens for tasks.
+- `renewable` - Specifies whether created tokens are renewable. This allows
+  Nomad to renew tokens for tasks. Nomad clients will automatically detect when
+  tokens cannot be renewed and will not attempt to renew them (see
+  [`vault.allow_token_expiration`][]).
 
 The above [`nomad-cluster` token role](https://nomadproject.io/data/vault/nomad-cluster-role.json) is
 available for download. Below is an example of writing this role to Vault:
@@ -807,3 +818,4 @@ specify a non-default role. To migrate:
 [vault_templated_policies]: /vault/tutorials/policies/policy-templating
 [vault_token_types]: /vault/tutorials/tokens/tokens#token-types
 [vault_tutorial_wid]: /nomad/tutorials/integrate-vault/vault-acl
+[`vault.allow_token_expiration`]: /nomad/docs/job-specification/vault#allow_token_expiration
