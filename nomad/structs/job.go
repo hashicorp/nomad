@@ -16,6 +16,27 @@ const (
 	JobServiceRegistrationsRPCMethod = "Job.GetServiceRegistrations"
 )
 
+type JobsStatuses2Request struct {
+	QueryOptions
+}
+
+type JobsStatuses2Response struct {
+	Jobs map[string]UIJob
+	QueryMeta
+}
+
+type UIJob struct {
+	NamespacedID
+	Name          string
+	Type          string
+	NodePool      string
+	Priority      int
+	Allocs        []JobStatusAlloc
+	GroupCountSum int
+	DeploymentID  string
+	Version       uint64
+}
+
 type JobsStatusesRequest struct {
 	Jobs []NamespacedID
 	QueryOptions
