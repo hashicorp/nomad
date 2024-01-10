@@ -41,6 +41,7 @@ export default class JobSummary extends Model {
   @attr('number') pendingChildren;
   @attr('number') runningChildren;
   @attr('number') deadChildren;
+  @attr('number') desiredChildren; // TODO: desired placement in flux
 
   @collect('pendingChildren', 'runningChildren', 'deadChildren') childrenList;
 

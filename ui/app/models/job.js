@@ -62,7 +62,6 @@ export default class Job extends Model {
 
   @belongsTo('job', { inverse: 'children' }) parent;
   @hasMany('job', { inverse: 'parent' }) children;
-  @attr('job-status') jobStatus;
 
   // The parent job name is prepended to child launch job names
   @computed('name', 'parent.content')
@@ -142,7 +141,78 @@ export default class Job extends Model {
   @alias('summary.runningChildren') runningChildren;
   @alias('summary.deadChildren') deadChildren;
   @alias('summary.totalChildren') totalChildren;
+  @alias('summary.desiredChildren') desiredChildren; // TODO: desired placement in flux
 
+  @attr('job-status') jobStatus;
+
+  /**
+   * @typedef {Object} CurrentStatus
+   * @property {"Healthy"|"Failed"|"Degraded"|"Recovering"|"Complete"|"Running"} label - The current status of the job
+   * @property {"highlight"|"success"|"warning"|"critical"} state -
+   */
+
+  /**
+   * A general assessment for how a job is going, in a non-deployment state
+   * @returns {CurrentStatus}
+   */
+  get aggregateAllocStatus() {
+    console.log('ahum, status?', this.jobStatus);
+    // If all allocs are running, the job is Healthy
+    const totalAllocs = this.desiredChildren;
+
+    // if (this.type === 'batch' || this.type === 'sysbatch') {
+    //   // If all the allocs are complete, the job is Complete
+    //   const completeAllocs = this.allocBlocks.complete?.healthy?.nonCanary;
+    //   if (completeAllocs?.length === totalAllocs) {
+    //     return { label: 'Complete', state: 'success' };
+    //   }
+
+    //   // If any allocations are running the job is "Running"
+    //   const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
+    //   if (healthyAllocs?.length + completeAllocs?.length === totalAllocs) {
+    //     return { label: 'Running', state: 'success' };
+    //   }
+    // }
+
+    // const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
+    const healthyAllocs = this.jobStatus.allocs.filter(
+      (a) => a.clientStatus === 'running' && a.isHealthy
+    );
+    console.log('healthyAllocs', healthyAllocs);
+    if (healthyAllocs?.length === totalAllocs) {
+      return { label: 'Healthy', state: 'success' };
+    }
+
+    // If any allocations are pending the job is "Recovering"
+    // const pendingAllocs = this.allocBlocks.pending?.healthy?.nonCanary;
+    const pendingAllocs = this.jobStatus.allocs.filter(
+      (a) => a.clientStatus === 'pending'
+    );
+    if (pendingAllocs?.length > 0) {
+      return { label: 'Recovering', state: 'highlight' };
+    }
+
+    // If any allocations are failed, lost, or unplaced in a steady state, the job is "Degraded"
+    // const failedOrLostAllocs = [
+    //   ...this.allocBlocks.failed?.healthy?.nonCanary,
+    //   ...this.allocBlocks.lost?.healthy?.nonCanary,
+    //   ...this.allocBlocks.unplaced?.healthy?.nonCanary,
+    // ];
+    const failedOrLostAllocs = this.jobStatus.allocs.filter(
+      (a) =>
+        a.clientStatus === 'failed' ||
+        a.clientStatus === 'lost' ||
+        a.clientStatus === 'unplaced'
+    );
+    console.log('numFailedAllocs', failedOrLostAllocs.length);
+    // if (failedOrLostAllocs.length === totalAllocs) {
+    if (failedOrLostAllocs.length >= totalAllocs) {
+      // TODO: when totalAllocs only cares about latest version, change back to ===
+      return { label: 'Failed', state: 'critical' };
+    } else {
+      return { label: 'Degraded', state: 'warning' };
+    }
+  }
   @attr('number') version;
 
   @hasMany('job-versions') versions;
