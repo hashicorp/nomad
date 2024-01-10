@@ -458,7 +458,7 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 	// If the token cannot be renewed, it doesn't matter if the user set
 	// allow_token_expiration or not, so override the requested behavior
 	if !renewable {
-		h.allowTokenExpiration = false
+		h.allowTokenExpiration = true
 	}
 
 	return token, nil

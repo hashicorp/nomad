@@ -112,12 +112,13 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name          string
-		task          *structs.Task
-		configs       map[string]*sconfig.VaultConfig
-		expectRole    string
-		expectLegacy  bool
-		expectNoRenew bool
+		name               string
+		task               *structs.Task
+		configs            map[string]*sconfig.VaultConfig
+		configNonrenewable bool
+		expectRole         string
+		expectLegacy       bool
+		expectNoRenew      bool
 	}{
 		{
 			name: "legacy flow",
@@ -207,7 +208,7 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 			},
 		},
 		{
-			name: "no renewal",
+			name: "job requests no renewal",
 			task: &structs.Task{
 				Vault: &structs.Vault{
 					Cluster:              structs.VaultDefaultCluster,
@@ -219,6 +220,19 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 			},
 			expectNoRenew: true,
 		},
+		{
+			name: "tokens are not renewable",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster: structs.VaultDefaultCluster,
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_default"},
+				},
+			},
+			configNonrenewable: true,
+			expectNoRenew:      true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -226,7 +240,7 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 			alloc := mock.MinAlloc()
 			alloc.Job.TaskGroups[0].Tasks[0] = tc.task
 
-			hook := setupTestVaultHook(t, &vaultHookConfig{
+			hookConfig := &vaultHookConfig{
 				task:  tc.task,
 				alloc: alloc,
 				vaultConfigsFunc: func(hclog.Logger) map[string]*sconfig.VaultConfig {
@@ -237,7 +251,17 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 						"default": sconfig.DefaultVaultConfig(),
 					}
 				},
-			})
+			}
+
+			if tc.configNonrenewable {
+				hookConfig.clientFunc = func(cluster string) (vaultclient.VaultClient, error) {
+					client := &vaultclient.MockVaultClient{}
+					client.SetRenewable(false)
+					return client, nil
+				}
+			}
+
+			hook := setupTestVaultHook(t, hookConfig)
 
 			// Ensure Prestart() returns within a reasonable time.
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
