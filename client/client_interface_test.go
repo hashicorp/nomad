@@ -151,7 +151,7 @@ func (ar *emptyAllocRunner) GetTaskDriverCapabilities(taskName string) (*drivers
 
 func (ar *emptyAllocRunner) StatsReporter() interfaces.AllocStatsReporter { return ar }
 func (ar *emptyAllocRunner) Listener() *cstructs.AllocListener            { return nil }
-func (ar *emptyAllocRunner) GetAllocDir() *allocdir.AllocDir              { return nil }
+func (ar *emptyAllocRunner) GetAllocDir() allocdir.Interface              { return nil }
 
 // LatestAllocStats lets this empty runner implement AllocStatsReporter
 func (ar *emptyAllocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error) {
