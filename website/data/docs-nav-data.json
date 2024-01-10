@@ -1933,7 +1933,7 @@
             "href": "/plugins/drivers/community/iis"
           },
           {
-            "title": "Windows IIS (Alternative)",
+            "title": "Windows IIS",
             "href": "/plugins/drivers/community/nomad-iis"
           }
         ]
