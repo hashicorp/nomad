@@ -65,9 +65,14 @@ with Vault as well.
   `allow_token_expiration=true` if they obtain Vault secrets via `template`
   blocks, as the Vault token will expire and the template runner will continue
   to make failing requests to Vault until its [`vault_retry`][] attempts are
-  exhausted, at which point the task will fail. This field is valid only when
-  Nomad has been configured to use [Workload Identity with Vault][] and will be
-  ignored when using the [legacy Vault authentication workflow][].
+  exhausted, at which point the task will fail.
+
+  When Nomad has been configured to use [Workload Identity with Vault][], Nomad
+  clients will automatically detect when tokens cannot be refreshed (for
+  example, when the Vault auth method is configured to issue batch tokens). In
+  this case, the `allow_token_expiration` option will be implicitly set to
+  `true` by the client. The [legacy Vault authentication workflow][] cannot
+  automatically detect this.
 
 - `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
   if the Vault token changes. The possible values are:

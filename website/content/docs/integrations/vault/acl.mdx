@@ -508,8 +508,10 @@ documentation for all possible fields and more complete documentation.
   (259200 seconds) to avoid a large renewal request rate to Vault. **Must be set
   to a positive value**.
 
-- `renewable` - Specifies whether created tokens are renewable. **Must be set to
-  `true`**. This allows Nomad to renew tokens for tasks.
+- `renewable` - Specifies whether created tokens are renewable. This allows
+  Nomad to renew tokens for tasks. Nomad clients will automatically detect that
+  `renewable` has been set and will not renew these tokens (see
+  [`vault.allow_token_expiration`][]).
 
 The above [`nomad-cluster` token role](https://nomadproject.io/data/vault/nomad-cluster-role.json) is
 available for download. Below is an example of writing this role to Vault:
@@ -807,3 +809,4 @@ specify a non-default role. To migrate:
 [vault_templated_policies]: /vault/tutorials/policies/policy-templating
 [vault_token_types]: /vault/tutorials/tokens/tokens#token-types
 [vault_tutorial_wid]: /nomad/tutorials/integrate-vault/vault-acl
+[`vault.allow_token_expiration`]: /nomad/docs/job-specification/vault#allow_token_expiration
