@@ -59,7 +59,7 @@ export default class IndexRoute extends Route.extend(
     });
   }
 
-  startWatchers(controller) {
+  startWatchers(controller, model) {
     controller.set('namespacesWatch', this.watchNamespaces.perform());
     controller.set(
       'modelWatch',
@@ -69,12 +69,12 @@ export default class IndexRoute extends Route.extend(
     controller.set(
       'jobStatusWatch',
       this.watchStatuses.perform({
-        jobs: [
-          {
-            id: 'actions-demo-service',
-            namespace: 'default',
-          },
-        ],
+        jobs: model.jobs.map((job) => {
+          return {
+            id: job.plainId,
+            namespace: job.belongsTo('namespace').id(),
+          };
+        }),
       })
     );
   }
