@@ -28,6 +28,7 @@ job "docs" {
       consul {
         cluster   = "default"
         namespace = "default"
+        partition = "default"
       }
     }
   }
@@ -94,6 +95,13 @@ The [`template`][template] block can use the Consul token as well.
   of `template` to access Consul KV will read from the specified Consul
   namespace.  Specifying `namespace` takes precedence over the
   [`-consul-namespace`][flag_consul_namespace] command line argument in `job run`.
+
+- `partition` `(string: "")` - When this field is set, a constraint will be
+  added to the group or task to ensure that the allocation is placed on a Nomad
+  client that has a Consul Enterprise agent in the specified Consul [admin
+  partition][]. Note that Consul Community Edition agents are not assigned to
+  any admin partition, so this field should not be used without Consul
+  Enterprise.
 
 ## `consul` Examples
 
@@ -238,3 +246,4 @@ job "docs" {
 [`consul.name`]: /nomad/docs/configuration/consul#name
 [flag_consul_namespace]: /nomad/docs/commands/job/run#consul-namespace
 [Connect]: /nomad/docs/job-specification/connect
+[admin partition]: /consul/docs/enterprise/admin-partitions
