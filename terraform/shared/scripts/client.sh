@@ -45,6 +45,11 @@ sudo systemctl enable consul.service --now
 sleep 10
 
 # Nomad
+## Install CNI binaries
+curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v1.0.0.tgz && \
+  sudo mkdir -p /opt/cni/bin && \
+  sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
+
 
 ## Replace existing Nomad binary if remote file exists
 if [[ `wget -S --spider $NOMAD_BINARY  2>&1 | grep 'HTTP/1.1 200 OK'` ]]; then
@@ -61,7 +66,6 @@ sleep 10
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
 
 # Consul Template
-
 sudo cp $CONFIGDIR/consul-template.hcl $CONSULTEMPLATECONFIGDIR/consul-template.hcl
 sudo cp $CONFIGDIR/consul-template.service /etc/systemd/system/consul-template.service
 
