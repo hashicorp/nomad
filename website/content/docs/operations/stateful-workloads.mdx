@@ -103,7 +103,8 @@ There are three CSI plugin subtypes:
 	lifecycle. 
 - **Node**: Runs on all Nomad clients and handles all local
 	operations (for example, mounting/unmounting volumes in allocations). The
-	node must be `privileged` to perform those operations. - **Monolithic**:
+	node must be `privileged` to perform those operations. 
+- **Monolithic**:
 	Combines both the above roles.
 
 All types can and should be run as Nomad jobs - `system` jobs for Node and
