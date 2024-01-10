@@ -2294,6 +2294,10 @@
       {
         "title": "Key Management",
         "path": "operations/key-management"
+      },
+      {
+        "title": "Considerations for Stateful Workloads",
+        "path": "operations/stateful-workloads"
       }
     ]
   },
