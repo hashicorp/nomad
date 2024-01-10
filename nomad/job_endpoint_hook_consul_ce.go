@@ -8,7 +8,6 @@ package nomad
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -61,10 +60,9 @@ func (h jobConsulHook) Validate(job *structs.Job) ([]error, error) {
 			}
 
 			if task.Consul != nil {
-				if task.Consul.Partition != "" {
-					if groupPartition != "" && task.Consul.Partition != groupPartition {
-						return nil, fmt.Errorf("task.consul.partition %q must match group.consul.partition %q if both are set", task.Consul.Partition, groupPartition)
-					}
+				err := h.validateTaskPartitionMatchesGroup(groupPartition, task.Consul)
+				if err != nil {
+					return nil, err
 				}
 
 				if err := h.validateCluster(task.Consul.Cluster); err != nil {
