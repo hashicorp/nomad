@@ -62,8 +62,8 @@ type VaultClient interface {
 	DeriveToken(*structs.Allocation, []string) (map[string]string, error)
 
 	// DeriveTokenWithJWT returns a Vault ACL token using the JWT login
-	// endpoint.
-	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, error)
+	// endpoint, along with whether or not the token is renewable.
+	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, bool, error)
 
 	// GetConsulACL fetches the Consul ACL token required for the task
 	GetConsulACL(string, string) (*vaultapi.Secret, error)
@@ -293,12 +293,12 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 }
 
 // DeriveTokenWithJWT returns a Vault ACL token using the JWT login endpoint.
-func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, error) {
+func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, bool, error) {
 	if !c.config.IsEnabled() {
-		return "", fmt.Errorf("vault client not enabled")
+		return "", false, fmt.Errorf("vault client not enabled")
 	}
 	if !c.isRunning() {
-		return "", fmt.Errorf("vault client is not running")
+		return "", false, fmt.Errorf("vault client is not running")
 	}
 
 	c.lock.Lock()
@@ -319,20 +319,20 @@ func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginReques
 		},
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to login with JWT: %v", err)
+		return "", false, fmt.Errorf("failed to login with JWT: %v", err)
 	}
 	if s == nil {
-		return "", errors.New("JWT login returned an empty secret")
+		return "", false, errors.New("JWT login returned an empty secret")
 	}
 	if s.Auth == nil {
-		return "", errors.New("JWT login did not return a token")
+		return "", false, errors.New("JWT login did not return a token")
 	}
 
 	for _, w := range s.Warnings {
 		c.logger.Warn("JWT login warning", "warning", w)
 	}
 
-	return s.Auth.ClientToken, nil
+	return s.Auth.ClientToken, s.Auth.Renewable, nil
 }
 
 // GetConsulACL creates a vault API client and reads from vault a consul ACL

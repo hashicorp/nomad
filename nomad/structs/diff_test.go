@@ -7583,6 +7583,12 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeAdded,
+								Name: "AllowTokenExpiration",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "ChangeMode",
 								Old:  "",
 								New:  "signal",
@@ -7657,6 +7663,12 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeDeleted,
+								Name: "AllowTokenExpiration",
+								Old:  "false",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
 								Name: "ChangeMode",
 								Old:  "signal",
 								New:  "",
@@ -7708,24 +7720,26 @@ func TestTaskDiff(t *testing.T) {
 			Name: "Vault edited",
 			Old: &Task{
 				Vault: &Vault{
-					Role:         "nomad-task",
-					Namespace:    "ns1",
-					Policies:     []string{"foo", "bar"},
-					Env:          true,
-					DisableFile:  true,
-					ChangeMode:   "signal",
-					ChangeSignal: "SIGUSR1",
+					Role:                 "nomad-task",
+					Namespace:            "ns1",
+					Policies:             []string{"foo", "bar"},
+					Env:                  true,
+					DisableFile:          true,
+					ChangeMode:           "signal",
+					ChangeSignal:         "SIGUSR1",
+					AllowTokenExpiration: false,
 				},
 			},
 			New: &Task{
 				Vault: &Vault{
-					Role:         "nomad-task-2",
-					Namespace:    "ns2",
-					Policies:     []string{"bar", "baz"},
-					Env:          false,
-					DisableFile:  false,
-					ChangeMode:   "restart",
-					ChangeSignal: "foo",
+					Role:                 "nomad-task-2",
+					Namespace:            "ns2",
+					Policies:             []string{"bar", "baz"},
+					Env:                  false,
+					DisableFile:          false,
+					ChangeMode:           "restart",
+					ChangeSignal:         "foo",
+					AllowTokenExpiration: true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -7735,6 +7749,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Vault",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "AllowTokenExpiration",
+								Old:  "false",
+								New:  "true",
+							},
 							{
 								Type: DiffTypeEdited,
 								Name: "ChangeMode",
@@ -7801,26 +7821,28 @@ func TestTaskDiff(t *testing.T) {
 			Contextual: true,
 			Old: &Task{
 				Vault: &Vault{
-					Role:         "nomad-task",
-					Namespace:    "ns1",
-					Cluster:      VaultDefaultCluster,
-					Policies:     []string{"foo", "bar"},
-					Env:          true,
-					DisableFile:  true,
-					ChangeMode:   "signal",
-					ChangeSignal: "SIGUSR1",
+					Role:                 "nomad-task",
+					Namespace:            "ns1",
+					Cluster:              VaultDefaultCluster,
+					Policies:             []string{"foo", "bar"},
+					Env:                  true,
+					DisableFile:          true,
+					ChangeMode:           "signal",
+					ChangeSignal:         "SIGUSR1",
+					AllowTokenExpiration: true,
 				},
 			},
 			New: &Task{
 				Vault: &Vault{
-					Role:         "nomad-task",
-					Namespace:    "ns1",
-					Cluster:      VaultDefaultCluster,
-					Policies:     []string{"bar", "baz"},
-					Env:          true,
-					DisableFile:  true,
-					ChangeMode:   "signal",
-					ChangeSignal: "SIGUSR1",
+					Role:                 "nomad-task",
+					Namespace:            "ns1",
+					Cluster:              VaultDefaultCluster,
+					Policies:             []string{"bar", "baz"},
+					Env:                  true,
+					DisableFile:          true,
+					ChangeMode:           "signal",
+					ChangeSignal:         "SIGUSR1",
+					AllowTokenExpiration: true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -7830,6 +7852,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Vault",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "AllowTokenExpiration",
+								Old:  "true",
+								New:  "true",
+							},
 							{
 								Type: DiffTypeNone,
 								Name: "ChangeMode",
