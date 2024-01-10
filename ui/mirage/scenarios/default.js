@@ -582,11 +582,15 @@ function policiesTestCluster(server) {
 function rolesTestCluster(server) {
   faker.seed(1);
 
+  server.create('namespace', {
+    id: 'default',
+    name: 'default',
+  });
+  server.createList('namespace', 4);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node-pool', 2);
   server.createList('node', 5);
   server.createList('job', 5);
-  server.createList('namespace', 5);
 
   // createTokens(server);
 

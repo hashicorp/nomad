@@ -429,20 +429,6 @@ export default function () {
     return this.serialize(volume);
   });
 
-  this.get('/namespaces', function ({ namespaces }) {
-    const records = namespaces.all();
-
-    if (records.length) {
-      return this.serialize(records);
-    }
-
-    return this.serialize([{ Name: 'default' }]);
-  });
-
-  this.get('/namespace/:id', function ({ namespaces }, { params }) {
-    return this.serialize(namespaces.find(params.id));
-  });
-
   this.get('/agent/members', function ({ agents, regions }) {
     const firstRegion = regions.first();
     return {
@@ -731,9 +717,18 @@ export default function () {
     });
   });
 
-  this.get('/namespaces/:id', function ({ namespaces }, req) {
-    const namespace = namespaces.findBy({ name: req.params.id });
-    return this.serialize(namespace);
+  this.get('/namespaces', function ({ namespaces }) {
+    const records = namespaces.all();
+
+    if (records.length) {
+      return this.serialize(records);
+    }
+
+    return this.serialize([{ Name: 'default' }]);
+  });
+
+  this.get('/namespace/:id', function ({ namespaces }, { params }) {
+    return this.serialize(namespaces.find(params.id));
   });
 
   this.post('/namespace/:id', function (schema, request) {

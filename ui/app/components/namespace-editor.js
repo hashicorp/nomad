@@ -128,7 +128,7 @@ export default class NamespaceEditorComponent extends Component {
     this.namespace.set('capabilities', capabilities);
 
     if (this.can.can('configure-in-namespace node-pool')) {
-      let npConfig = definitionHash['NodePoolConfiguration'];
+      let npConfig = definitionHash['NodePoolConfiguration'] || {};
       this.store.create;
 
       // If we don't manually set this to null, removing
