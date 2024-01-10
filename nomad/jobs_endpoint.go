@@ -40,7 +40,22 @@ func (j *Jobs) Statuses(
 
 			for _, j := range args.Jobs {
 				ns := j.Namespace
-				js := structs.JobStatus{ID: j.ID, Namespace: j.Namespace}
+				job, err := state.JobByID(ws, ns, j.ID)
+				if err != nil {
+					return err
+				}
+				if job == nil {
+					continue
+				}
+
+				js := structs.JobStatus{
+					ID:        j.ID,
+					Namespace: j.Namespace,
+				}
+				js.Type = job.Type
+				for _, tg := range job.TaskGroups {
+					js.GroupCountSum += tg.Count
+				}
 
 				allocs, err := state.AllocsByJob(ws, ns, j.ID, false)
 				if err != nil {
@@ -54,7 +69,9 @@ func (j *Jobs) Statuses(
 					}
 					if a.DeploymentStatus != nil {
 						alloc.DeploymentStatus.Canary = a.DeploymentStatus.Canary
-						alloc.DeploymentStatus.Healthy = *a.DeploymentStatus.Healthy
+						if a.DeploymentStatus.Healthy != nil {
+							alloc.DeploymentStatus.Healthy = *a.DeploymentStatus.Healthy
+						}
 					}
 					js.Allocs = append(js.Allocs, alloc)
 					if a.ModifyIndex > idx {
