@@ -2077,3 +2077,22 @@ func (s *HTTPServer) JobsStatusesRequest(resp http.ResponseWriter, req *http.Req
 	setMeta(resp, &out.QueryMeta)
 	return out, nil
 }
+
+func (s *HTTPServer) JobsStatuses2Request(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.JobsStatuses2Request{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil // seems whack
+	}
+
+	var out structs.JobsStatuses2Response
+	if err := s.agent.RPC("Jobs.Statuses2", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out, nil
+}
