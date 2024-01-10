@@ -11,9 +11,6 @@ import (
 )
 
 const (
-	// DefaultVaultAddr is the default address used to configure Vault.
-	DefaultVaultAddr = "https://vault.service.consul:8200"
-
 	// DefaultVaultConnectRetryIntv is the retry interval between trying to
 	// connect to Vault
 	DefaultVaultConnectRetryIntv = 30 * time.Second
@@ -131,7 +128,7 @@ type VaultConfig struct {
 func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
 		Name:                 "default",
-		Addr:                 DefaultVaultAddr,
+		Addr:                 "https://vault.service.consul:8200",
 		JWTAuthBackendPath:   "jwt-nomad",
 		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
 		AllowUnauthenticated: pointer.Of(true),
