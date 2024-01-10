@@ -384,6 +384,10 @@ func consulUpdated(consulA, consulB *structs.Consul) comparison {
 		if a, b := consulA.Cluster, consulB.Cluster; a != b {
 			return difference("consul cluster", a, b)
 		}
+
+		if a, b := consulA.Partition, consulB.Partition; a != b {
+			return difference("consul partition", a, b)
+		}
 	}
 
 	return same

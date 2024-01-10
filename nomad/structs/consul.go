@@ -33,6 +33,11 @@ type Consul struct {
 
 	// Cluster (by name) to send API requests to
 	Cluster string
+
+	// Partition is the Consul admin partition where the workload should
+	// run. Note that this should never be defaulted to "default" because
+	// non-ENT Consul clusters don't have admin partitions
+	Partition string
 }
 
 // Copy the Consul block.
@@ -43,6 +48,7 @@ func (c *Consul) Copy() *Consul {
 	return &Consul{
 		Namespace: c.Namespace,
 		Cluster:   c.Cluster,
+		Partition: c.Partition,
 	}
 }
 
@@ -55,6 +61,9 @@ func (c *Consul) Equal(o *Consul) bool {
 		return false
 	}
 	if c.Cluster != o.Cluster {
+		return false
+	}
+	if c.Partition != o.Partition {
 		return false
 	}
 
