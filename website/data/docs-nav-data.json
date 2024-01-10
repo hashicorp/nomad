@@ -1953,6 +1953,10 @@
           {
             "title": "Windows IIS",
             "href": "/plugins/drivers/community/iis"
+          },
+          {
+            "title": "Windows IIS",
+            "href": "/plugins/drivers/community/nomad-iis"
           }
         ]
       },
