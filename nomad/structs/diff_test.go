@@ -2160,6 +2160,8 @@ func TestTaskGroupDiff(t *testing.T) {
 			New: &TaskGroup{
 				Consul: &Consul{
 					Namespace: "team2",
+					Cluster:   "us-east-1",
+					Partition: "us-east-1a",
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -2170,10 +2172,22 @@ func TestTaskGroupDiff(t *testing.T) {
 						Name: "Consul",
 						Fields: []*FieldDiff{
 							{
+								Type: DiffTypeAdded,
+								Name: "Cluster",
+								Old:  "",
+								New:  "us-east-1",
+							},
+							{
 								Type: DiffTypeEdited,
 								Name: "Namespace",
 								Old:  "team1",
 								New:  "team2",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Partition",
+								Old:  "",
+								New:  "us-east-1a",
 							},
 						},
 					},

@@ -1943,6 +1943,7 @@ func apiConsulToStructs(in *api.Consul) *structs.Consul {
 	return &structs.Consul{
 		Namespace: in.Namespace,
 		Cluster:   in.Cluster,
+		Partition: in.Partition,
 	}
 }
 

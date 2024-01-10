@@ -16,6 +16,10 @@ type Consul struct {
 
 	// (Enterprise-only) Cluster represents a specific Consul cluster.
 	Cluster string `mapstructure:"cluster" hcl:"cluster,optional"`
+
+	// Partition is the Consul admin partition where the workload should
+	// run. This is available in Nomad CE but only works with Consul ENT
+	Partition string `mapstructure:"partition" hcl:"partition,optional"`
 }
 
 // Canonicalize Consul into a canonical form. The Canonicalize structs containing
@@ -29,6 +33,9 @@ func (c *Consul) Canonicalize() {
 	// we should inherit from higher up (i.e. job<-group). Likewise, if
 	// Namespace is set but empty, that is a choice to use the default consul
 	// namespace.
+
+	// Partition should never be defaulted to "default" because non-ENT Consul
+	// clusters don't have admin partitions
 }
 
 // Copy creates a deep copy of c.
@@ -36,6 +43,7 @@ func (c *Consul) Copy() *Consul {
 	return &Consul{
 		Namespace: c.Namespace,
 		Cluster:   c.Cluster,
+		Partition: c.Partition,
 	}
 }
 

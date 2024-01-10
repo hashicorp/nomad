@@ -39,6 +39,9 @@ func TestJobEndpointHook_ConsulCE(t *testing.T) {
 	job.TaskGroups[0].Services[0].Cluster = ""
 	job.TaskGroups[0].Services[1].Cluster = "infra"
 
+	// assign to a specific partition
+	job.TaskGroups[0].Consul = &structs.Consul{Partition: "foo"}
+
 	hook := jobConsulHook{srv}
 
 	_, _, err := hook.Mutate(job)
@@ -47,6 +50,13 @@ func TestJobEndpointHook_ConsulCE(t *testing.T) {
 	test.Eq(t, structs.ConsulDefaultCluster, job.TaskGroups[0].Services[0].Cluster)
 	test.Eq(t, "infra", job.TaskGroups[0].Services[1].Cluster)
 	test.Eq(t, "nondefault", job.TaskGroups[0].Tasks[0].Services[0].Cluster)
+
+	test.SliceContains(t, job.TaskGroups[0].Constraints,
+		&structs.Constraint{
+			LTarget: "${attr.consul.partition}",
+			RTarget: "foo",
+			Operand: "=",
+		})
 
 	_, err = hook.Validate(job)
 	must.EqError(t, err, "non-default Consul cluster requires Nomad Enterprise")
