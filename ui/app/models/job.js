@@ -62,6 +62,7 @@ export default class Job extends Model {
 
   @belongsTo('job', { inverse: 'children' }) parent;
   @hasMany('job', { inverse: 'parent' }) children;
+  @attr('job-status') jobStatus;
 
   // The parent job name is prepended to child launch job names
   @computed('name', 'parent.content')
