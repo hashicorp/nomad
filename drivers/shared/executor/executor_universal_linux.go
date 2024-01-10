@@ -1,6 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
+//go:build linux
+
 package executor
 
 import (
@@ -18,6 +20,12 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"golang.org/x/sys/unix"
+)
+
+const (
+	// memoryNoLimit is a sentinel value for memory_max that indicates the
+	// raw_exec driver should not enforce a maximum memory limit
+	memoryNoLimit = -1
 )
 
 // setCmdUser takes a user id as a string and looks up the user, and sets the command
@@ -226,7 +234,11 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	// write memory cgroup files
 	memHard, memSoft := e.computeMemory(command)
 	ed := cgroupslib.OpenPath(cgroup)
-	_ = ed.Write("memory.max", strconv.FormatInt(memHard, 10))
+	if memHard == memoryNoLimit {
+		_ = ed.Write("memory.max", "max")
+	} else {
+		_ = ed.Write("memory.max", strconv.FormatInt(memHard, 10))
+	}
 	if memSoft > 0 {
 		ed = cgroupslib.OpenPath(cgroup)
 		_ = ed.Write("memory.low", strconv.FormatInt(memSoft, 10))
@@ -264,17 +276,29 @@ func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {
 	return cpuWeight
 }
 
+func mbToBytes(n int64) int64 {
+	return n * 1024 * 1024
+}
+
 // computeMemory returns the hard and soft memory limits for the task
 func (*UniversalExecutor) computeMemory(command *ExecCommand) (int64, int64) {
 	mem := command.Resources.NomadResources.Memory
 	memHard, memSoft := mem.MemoryMaxMB, mem.MemoryMB
-	if memHard <= 0 {
+
+	switch memHard {
+	case 0:
+		// typical case where 'memory' is the hard limit
 		memHard = mem.MemoryMB
-		memSoft = 0
+		return mbToBytes(memHard), 0
+	case memoryNoLimit:
+		// special oversub case where 'memory' is soft limit and there is no
+		// hard limit - helping re-create old raw_exec behavior
+		return memoryNoLimit, mbToBytes(memSoft)
+	default:
+		// typical oversub case where 'memory' is soft limit and 'memory_max'
+		// is hard limit
+		return mbToBytes(memHard), mbToBytes(memSoft)
 	}
-	memHardBytes := memHard * 1024 * 1024
-	memSoftBytes := memSoft * 1024 * 1024
-	return memHardBytes, memSoftBytes
 }
 
 // withNetworkIsolation calls the passed function the network namespace `spec`

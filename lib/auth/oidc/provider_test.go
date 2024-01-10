@@ -35,6 +35,7 @@ func TestProviderCache(t *testing.T) {
 			OIDCDiscoveryURL:    oidcTestProvider.Addr(),
 			OIDCClientID:        "alice",
 			OIDCClientSecret:    "ssshhhh",
+			OIDCDisableUserInfo: false,
 			AllowedRedirectURIs: []string{"http://example.com"},
 			DiscoveryCaPem:      []string{oidcTestProvider.CACert()},
 			SigningAlgs:         []string{string(tpAlg)},

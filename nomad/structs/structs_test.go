@@ -2138,6 +2138,14 @@ func TestTask_Validate_Resources(t *testing.T) {
 			},
 			err: "MemoryMaxMB value (10) should be larger than MemoryMB value (200",
 		},
+		{
+			name: "memory max no limit",
+			res: &Resources{
+				CPU:         100,
+				MemoryMB:    200,
+				MemoryMaxMB: -1,
+			},
+		},
 	}
 
 	for i := range cases {
