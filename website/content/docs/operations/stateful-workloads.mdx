@@ -26,8 +26,9 @@ group of disks fails, data loss and service interruption will occur.
 A geographically distributed networked storage with multiple redundancies,
 including disks, controllers, and network paths, provides higher availability
 and resilience, and can tolerate multiple hardware failures before risking data
-loss. But, it relies on network performance, can have higher latency, be
-lower-throughput, and need more maintenance.
+loss. But the performance and reliability of networked storage depends 
+on the network. It can have higher latency and lower throughput than local
+storage, and may require more maintenance.
 
 Consider whether Nomad is running in the public cloud or on-premises, and what
 storage options are available in that environment. From there, the most optimal
@@ -99,7 +100,8 @@ plugin documentation from the storage provider for more information.
 There are three CSI plugin subtypes:
 
 - **Controller**: Communicates with the storage provider to manage the volume
-	lifecycle. - **Node**: Runs on all Nomad clients and handles all local
+	lifecycle. 
+- **Node**: Runs on all Nomad clients and handles all local
 	operations (for example, mounting/unmounting volumes in allocations). The
 	node must be `privileged` to perform those operations. - **Monolithic**:
 	Combines both the above roles.
@@ -108,13 +110,13 @@ All types can and should be run as Nomad jobs - `system` jobs for Node and
 Monolithic, `service` for Controllers. More information can be found on the CSI
 concepts [documentation page](/nomad/docs/concepts/plugins/csi).
 
-CSI plugins are useful when storage requirements are quickly and constantly
-evolving due to their dynamic nature - for instance, new workloads that
-frequently need persistent storage added or removed. However, they present some
-challenges in terms of maintenance - most notably, they need to run constantly,
-be configured (including authentication and connectivity to the storage
-platform), and updated to keep track with new features and bug fixes and keep
-compatibility with the underlying storage platform. They also introduce a couple
+CSI plugins are useful when storage requirements are quickly and constantly 
+evolving due to their dynamic nature. As an example, an environment that sees
+new workloads with persistent storage added or removed frequently is well suited for CSI.
+However, they present some challenges in terms of maintenance - most notably, 
+they need to run constantly, be configured (including authentication and connectivity 
+to the storage platform), and updated to keep track with new features and bug fixes and
+keep compatibility with the underlying storage platform. They also introduce a couple
 of moving parts, can be difficult to troubleshoot, and have a complex security
 profile (due to needing to run as `privileged` containers in order to be able to
 mount volumes).
@@ -164,14 +166,6 @@ tutorial to learn more about using host volumes with Nomad.
 A few caveats with NFS-backed host volumes include ACLs, reliability, and
 performance. NFS mount options should be the same on all mounting Nomad clients.
 
-A significant factor in the performance of NFS-backed storage is the `wsize` and
-`rsize` mount options that determine the maximum read/write size of a block.
-Smaller sizes mean bigger operations will be split into smaller chunks,
-significantly impacting performance. The underlying storage system's vendor
-provides the optimal sizes. For example, [AWS
-EFS](https://docs.aws.amazon.com/efs/latest/ug/mounting-fs-mount-cmd-general.html)
-recommends a value of `1048576` bytes of data for both `wsize` and `rsize`.
-
 Depending on your NFS version, the UID/GID (user/group IDs) can differ between
 the different Nomad clients, leading to issues when an allocation on another
 host tries to access the volume. The only way to ensure this isn't an issue is
@@ -181,7 +175,15 @@ synchronize between hosts. You should use hard mounts to prevent data loss,
 optionally with `intr` to enable the option to interrupt NFS requests, which
 prevents the whole system from locking up in case of NFS server unavailability. 
 
-To learn more about hard mounts and soft mounts, visit Red Hat's [NFS
+A significant factor in the performance of NFS-backed storage is the `wsize` and
+`rsize` mount options that determine the maximum read/write size of a block.
+Smaller sizes mean bigger operations will be split into smaller chunks,
+significantly impacting performance. The underlying storage system's vendor
+provides the optimal sizes. For example, [AWS
+EFS](https://docs.aws.amazon.com/efs/latest/ug/mounting-fs-mount-cmd-general.html)
+recommends a value of `1048576` bytes of data for both `wsize` and `rsize`.
+
+To learn more about NFS mount options, visit Red Hat's [NFS
 documentation](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/5/html/deployment_guide/s1-nfs-client-config-options).
 
 ### Ephemeral disks
@@ -226,5 +228,5 @@ following resources:
 - [Portworx on
   Nomad](https://docs.portworx.com/portworx-enterprise/install-portworx/install-with-other/nomad#operate-and-utilize-portworx-on-nomad)
 - [JuiceFS CSI with Nomad](https://juicefs.com/docs/csi/csi-in-nomad/)
-- [Hetzner
-  CSI](https://github.com/hetznercloud/csi-driver/blob/main/docs/nomad/README.md)
+- [Hetzner CSI](https://github.com/hetznercloud/csi-driver/blob/main/docs/nomad/README.md)
+- [NFS CSI Plugin](https://gitlab.com/rocketduck/csi-plugin-nfs)
