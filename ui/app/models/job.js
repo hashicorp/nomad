@@ -215,6 +215,8 @@ export default class Job extends Model {
   }
   @attr('number') version;
 
+  @attr('number') groupCountSum;
+
   @hasMany('job-versions') versions;
   @hasMany('allocations') allocations;
   @hasMany('deployments') deployments;

@@ -4,7 +4,7 @@ Running (and healthy) allocs:
     (filter-by "clientStatus" "running" @job.allocations)
   )
 "length"}}
-/ {{@job.desiredChildren}}
+/ {{@job.groupCountSum}}
 {{!-- TODO: Desired placement in flux --}}
 
 {{yield}}

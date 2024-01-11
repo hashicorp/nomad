@@ -18,7 +18,20 @@ export default class JobSerializer extends ApplicationSerializer {
 
   normalizeQueryResponse(store, primaryModelClass, payload, id, requestType) {
     const jobs = Object.values(payload.Jobs);
-    console.log('ah heck', jobs);
+    // Signal that it's a query response at individual normalization level for allocation placement
+    jobs.forEach((job) => {
+      if (job.Allocs) {
+        job.relationships = {
+          allocations: {
+            data: job.Allocs.map((alloc) => ({
+              id: alloc.id,
+              type: 'allocation',
+            })),
+          },
+        };
+      }
+      job._aggregate = true;
+    });
     return super.normalizeQueryResponse(
       store,
       primaryModelClass,
@@ -29,19 +42,11 @@ export default class JobSerializer extends ApplicationSerializer {
   }
 
   normalize(typeHash, hash) {
-    console.log('nermalizing', typeHash, hash);
     hash.NamespaceID = hash.Namespace;
 
     // ID is a composite of both the job ID and the namespace the job is in
     hash.PlainId = hash.ID;
     hash.ID = JSON.stringify([hash.ID, hash.NamespaceID || 'default']);
-
-    // TODO: see if this doesnt hose things up
-    if (hash.Allocs) {
-      console.log('has allocs', hash.Allocs);
-      hash.Allocations = hash.Allocs;
-      delete hash.Allocs;
-    }
 
     // ParentID comes in as "" instead of null
     if (!hash.ParentID) {
@@ -77,8 +82,6 @@ export default class JobSerializer extends ApplicationSerializer {
       });
     }
 
-    console.log('hashy', typeHash, hash);
-
     return super.normalize(typeHash, hash);
   }
 
@@ -102,8 +105,32 @@ export default class JobSerializer extends ApplicationSerializer {
       ? JSON.parse(hash.ParentID)[0]
       : hash.PlainId;
 
+    if (hash._aggregate) {
+      // Manually push allocations to store
+      hash.Allocs.forEach((alloc) => {
+        this.store.push({
+          data: {
+            id: alloc.ID,
+            type: 'allocation',
+            attributes: {
+              clientStatus: alloc.ClientStatus,
+              deploymentStatus: {
+                Healthy: alloc.DeploymentStatus.Healthy,
+                Canary: alloc.DeploymentStatus.Canary,
+              },
+            },
+          },
+        });
+      });
+
+      delete hash._aggregate;
+    }
     return assign(super.extractRelationships(...arguments), {
       allocations: {
+        data: hash.Allocs?.map((alloc) => ({
+          id: alloc.ID,
+          type: 'allocation',
+        })),
         links: {
           related: buildURL(`${jobURL}/allocations`, { namespace }),
         },
