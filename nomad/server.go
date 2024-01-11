@@ -1210,7 +1210,7 @@ func (s *Server) setupConsul(consulConfigFunc consul.ConfigAPIFunc, consulACLs c
 func (s *Server) setupVaultClient() error {
 	vconfig := s.config.GetDefaultVault()
 	if vconfig != nil && vconfig.Token == "" {
-		s.vault = NewNoopVault(s.logger)
+		s.vault = NewNoopVault(vconfig, s.logger, s.purgeVaultAccessors)
 		return nil
 	}
 

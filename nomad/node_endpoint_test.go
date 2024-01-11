@@ -717,6 +717,13 @@ func TestClientEndpoint_Deregister_Vault_WorkloadIdentity(t *testing.T) {
 	var resp2 structs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg, &resp2)
 	must.NoError(t, err)
+
+	// Verify accessors are removed from state.
+	for _, va := range accessors {
+		got, err := state.VaultAccessor(nil, va.Accessor)
+		must.NoError(t, err)
+		must.Nil(t, got)
+	}
 }
 
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
@@ -900,6 +907,13 @@ func TestClientEndpoint_UpdateStatus_Vault_WorkloadIdentity(t *testing.T) {
 	var resp2 structs.NodeUpdateResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", updateReq, &resp2)
 	must.NoError(t, err)
+
+	// Verify accessors are removed from state.
+	for _, va := range accessors {
+		got, err := state.VaultAccessor(nil, va.Accessor)
+		must.NoError(t, err)
+		must.Nil(t, got)
+	}
 }
 
 func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
@@ -3371,6 +3385,13 @@ func TestClientEndpoint_UpdateAlloc_VaultWorkloadIdentity(t *testing.T) {
 	var resp2 structs.NodeAllocsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2)
 	must.NoError(t, err)
+
+	// Verify accessors are removed from state.
+	for _, va := range accessors {
+		got, err := state.VaultAccessor(nil, va.Accessor)
+		must.NoError(t, err)
+		must.Nil(t, got)
+	}
 }
 
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {

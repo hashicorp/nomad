@@ -16,14 +16,18 @@ import (
 )
 
 type NoopVault struct {
-	l      sync.Mutex
-	config *config.VaultConfig
-	logger log.Logger
+	l sync.Mutex
+
+	config  *config.VaultConfig
+	logger  log.Logger
+	purgeFn PurgeVaultAccessorFn
 }
 
-func NewNoopVault(logger log.Logger) *NoopVault {
+func NewNoopVault(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVaultAccessorFn) *NoopVault {
 	return &NoopVault{
-		logger: logger.Named("vault-noop"),
+		config:  c,
+		logger:  logger.Named("vault-noop"),
+		purgeFn: purgeFn,
 	}
 }
 
@@ -56,6 +60,11 @@ func (v *NoopVault) RevokeTokens(_ context.Context, tokens []*structs.VaultAcces
 	for _, t := range tokens {
 		v.logger.Debug("Vault token is no longer used, but Nomad is not able to revoke it. The token may need to be revoked manually or will expire once its TTL reaches zero.", "accessor", t.Accessor, "ttl", t.CreationTTL)
 	}
+
+	if err := v.purgeFn(tokens); err != nil {
+		v.logger.Error("failed to purge Vault accessors", "error", err)
+	}
+
 	return nil
 }
 
@@ -63,6 +72,11 @@ func (v *NoopVault) MarkForRevocation(tokens []*structs.VaultAccessor) error {
 	for _, t := range tokens {
 		v.logger.Debug("Vault token is no longer used, but Nomad is not able to mark it for revocation. The token may need to be revoked manually or will expire once its TTL reaches zero.", "accessor", t.Accessor, "ttl", t.CreationTTL)
 	}
+
+	if err := v.purgeFn(tokens); err != nil {
+		v.logger.Error("failed to purge Vault accessors", "error", err)
+	}
+
 	return nil
 }
 
