@@ -30,6 +30,7 @@ type UIJob struct {
 	Name          string
 	Type          string
 	NodePool      string
+	Datacenters   []string
 	Priority      int
 	Allocs        []JobStatusAlloc
 	GroupCountSum int
