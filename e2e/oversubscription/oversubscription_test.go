@@ -39,8 +39,8 @@ func TestOversubscription(t *testing.T) {
 
 	t.Run("testDocker", testDocker)
 	t.Run("testExec", testExec)
-	t.Run("testOversubMemory", testOversubMemory)
-	t.Run("testOversubMemoryUnlimited", testOversubMemoryUnlimited)
+	t.Run("testRawExec", testRawExec)
+	t.Run("testRawExecMax", testRawExecMax)
 }
 
 func testDocker(t *testing.T) {
@@ -76,16 +76,16 @@ func testExec(t *testing.T) {
 	))
 }
 
-func testOversubMemory(t *testing.T) {
-	job, cleanup := jobs3.Submit(t, "./input/oversub.hcl")
+func testRawExec(t *testing.T) {
+	job, cleanup := jobs3.Submit(t, "./input/rawexec.hcl")
 	t.Cleanup(cleanup)
 
 	logs := job.TaskLogs("group", "cat")
 	must.StrContains(t, logs.Stdout, "134217728") // 128 mb memory_max
 }
 
-func testOversubMemoryUnlimited(t *testing.T) {
-	job, cleanup := jobs3.Submit(t, "./input/oversubmax.hcl")
+func testRawExecMax(t *testing.T) {
+	job, cleanup := jobs3.Submit(t, "./input/rawexecmax.hcl")
 	t.Cleanup(cleanup)
 
 	// will print memory.low then memory.max
