@@ -681,6 +681,7 @@ func TestOperator_UpgradeCheckRequest_VaultWorkloadIdentity(t *testing.T) {
 		}
 		var resp structs.JobRegisterResponse
 		err := s.Agent.RPC("Job.Register", &args, &resp)
+		must.NoError(t, err)
 
 		// Make HTTP request to retrieve
 		req, err := http.NewRequest(http.MethodGet, "/v1/operator/upgrade-check/vault-workload-identity", nil)
