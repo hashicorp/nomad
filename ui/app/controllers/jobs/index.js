@@ -233,6 +233,11 @@ export default class IndexController extends Controller.extend(
   */
   @computed('model.jobs.@each.parent')
   get visibleJobs() {
+    console.log(
+      '--visibleJobs recompute',
+      this.model.jobs.length,
+      this.model.jobs.mapBy('name')
+    );
     if (!this.model || !this.model.jobs) return [];
     return this.model.jobs
       .compact()

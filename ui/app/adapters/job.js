@@ -203,10 +203,10 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return wsUrl;
   }
 
-  query(store, type, query) {
-    const url = this.urlForQuery(query, type.modelName);
-    return this.ajax(url, 'GET');
-  }
+  // query(store, type, query) {
+  //   const url = this.urlForQuery(query, type.modelName);
+  //   return this.ajax(url, 'GET');
+  // }
 
   urlForQuery(query, modelName) {
     let baseUrl = this.buildURL(modelName);

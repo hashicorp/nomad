@@ -104,7 +104,12 @@ export default class Watchable extends ApplicationAdapter {
       additionalParams,
       query
     );
-
+    console.log(
+      'hm watch',
+      snapshotRecordArray,
+      urlPath,
+      queryString.stringify(query)
+    );
     if (get(options, 'adapterOptions.watch')) {
       // The intended query without additional blocking query params is used
       // to track the appropriate query index.

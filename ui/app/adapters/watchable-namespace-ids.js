@@ -22,10 +22,16 @@ export default class WatchableNamespaceIDs extends Watchable {
 
   query(store, type, { namespace }) {
     return super.query(...arguments).then((data) => {
-      data.forEach((record) => {
-        if (!record.Namespace) record.Namespace = namespace;
-      });
-      return data;
+      // TODO: temp changes while the query response is an obj instead of a list
+      if (Array.isArray(data)) {
+        data.forEach((record) => {
+          if (!record.Namespace) record.Namespace = namespace;
+        });
+        return data;
+      } else {
+        if (!data.Namespace) data.Namespace = namespace;
+        return data;
+      }
     });
   }
 

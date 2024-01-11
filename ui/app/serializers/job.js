@@ -105,7 +105,7 @@ export default class JobSerializer extends ApplicationSerializer {
       ? JSON.parse(hash.ParentID)[0]
       : hash.PlainId;
 
-    if (hash._aggregate) {
+    if (hash._aggregate && hash.Allocs) {
       // Manually push allocations to store
       hash.Allocs.forEach((alloc) => {
         this.store.push({
