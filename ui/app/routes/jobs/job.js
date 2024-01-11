@@ -44,7 +44,7 @@ export default class JobRoute extends Route.extend(WithWatchers) {
         const relatedModelsQueries = [
           job.get('allocations'),
           job.get('evaluations'),
-          this.store.query('job', { namespace, meta: true }),
+          this.store.query('job', { namespace, meta: true }), // TODO: what's all this now?
           this.store.findAll('namespace'),
         ];
 

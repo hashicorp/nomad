@@ -16,12 +16,32 @@ export default class JobSerializer extends ApplicationSerializer {
 
   separateNanos = ['SubmitTime'];
 
+  normalizeQueryResponse(store, primaryModelClass, payload, id, requestType) {
+    const jobs = Object.values(payload.Jobs);
+    console.log('ah heck', jobs);
+    return super.normalizeQueryResponse(
+      store,
+      primaryModelClass,
+      jobs,
+      id,
+      requestType
+    );
+  }
+
   normalize(typeHash, hash) {
+    console.log('nermalizing', typeHash, hash);
     hash.NamespaceID = hash.Namespace;
 
     // ID is a composite of both the job ID and the namespace the job is in
     hash.PlainId = hash.ID;
     hash.ID = JSON.stringify([hash.ID, hash.NamespaceID || 'default']);
+
+    // TODO: see if this doesnt hose things up
+    if (hash.Allocs) {
+      console.log('has allocs', hash.Allocs);
+      hash.Allocations = hash.Allocs;
+      delete hash.Allocs;
+    }
 
     // ParentID comes in as "" instead of null
     if (!hash.ParentID) {
@@ -56,6 +76,8 @@ export default class JobSerializer extends ApplicationSerializer {
         'job-summary': [hash.JobSummary],
       });
     }
+
+    console.log('hashy', typeHash, hash);
 
     return super.normalize(typeHash, hash);
   }

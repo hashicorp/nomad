@@ -175,7 +175,7 @@ export default class Job extends Model {
     // }
 
     // const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
-    const healthyAllocs = this.jobStatus.allocs.filter(
+    const healthyAllocs = this.allocations.filter(
       (a) => a.clientStatus === 'running' && a.isHealthy
     );
     console.log('healthyAllocs', healthyAllocs);
@@ -185,7 +185,7 @@ export default class Job extends Model {
 
     // If any allocations are pending the job is "Recovering"
     // const pendingAllocs = this.allocBlocks.pending?.healthy?.nonCanary;
-    const pendingAllocs = this.jobStatus.allocs.filter(
+    const pendingAllocs = this.allocations.filter(
       (a) => a.clientStatus === 'pending'
     );
     if (pendingAllocs?.length > 0) {
@@ -198,7 +198,7 @@ export default class Job extends Model {
     //   ...this.allocBlocks.lost?.healthy?.nonCanary,
     //   ...this.allocBlocks.unplaced?.healthy?.nonCanary,
     // ];
-    const failedOrLostAllocs = this.jobStatus.allocs.filter(
+    const failedOrLostAllocs = this.allocations.filter(
       (a) =>
         a.clientStatus === 'failed' ||
         a.clientStatus === 'lost' ||
