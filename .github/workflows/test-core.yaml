@@ -60,7 +60,7 @@ jobs:
       - name: Git config token
         if: endsWith(github.repository, '-enterprise')
         run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
-      - uses: hashicorp/setup-golang@915cbca7b66738f9072154ec95e5ee2dfee2c956
+      - uses: hashicorp/setup-golang@v3
       - name: Get Go modules
         run: |
           make bootstrap
@@ -78,7 +78,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: hashicorp/setup-golang@915cbca7b66738f9072154ec95e5ee2dfee2c956
+      - uses: hashicorp/setup-golang@v3
       - name: Run make dev
         run: |
           make bootstrap
@@ -89,7 +89,7 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: hashicorp/setup-golang@915cbca7b66738f9072154ec95e5ee2dfee2c956
+      - uses: hashicorp/setup-golang@v3
       - name: Run API tests
         env:
           GOTEST_MOD: api
@@ -113,7 +113,7 @@ jobs:
           - quick
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: hashicorp/setup-golang@915cbca7b66738f9072154ec95e5ee2dfee2c956
+      - uses: hashicorp/setup-golang@v3
       - name: Run Matrix Tests
         env:
           GOTEST_GROUP: ${{matrix.groups}}
