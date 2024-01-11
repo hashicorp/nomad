@@ -148,7 +148,7 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	config := &Config{NoCgroups: false, Enabled: true}
+	config := &Config{Enabled: true}
 	var data []byte
 	require.NoError(base.MsgPackEncode(&data, config))
 	bconfig := &base.Config{

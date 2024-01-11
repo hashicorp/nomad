@@ -40,7 +40,7 @@ message LaunchRequest {
     string user = 7;
     string task_dir = 8;
     bool resource_limits = 9;
-    bool basic_process_cgroup = 10;
+    bool basic_process_cgroup = 10 [deprecated=true];
     repeated hashicorp.nomad.plugins.drivers.proto.Mount mounts = 11;
     repeated hashicorp.nomad.plugins.drivers.proto.Device devices = 12;
     hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec network_isolation = 13;

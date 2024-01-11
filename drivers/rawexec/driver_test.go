@@ -118,15 +118,6 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 
 	// Enable raw_exec, but disable cgroups.
 	config.Enabled = true
-	config.NoCgroups = true
-	data = []byte{}
-	require.NoError(basePlug.MsgPackEncode(&data, config))
-	bconfig.PluginConfig = data
-	require.NoError(harness.SetConfig(bconfig))
-	require.Exactly(config, d.(*Driver).config)
-
-	// Enable raw_exec, enable cgroups.
-	config.NoCgroups = false
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
@@ -254,8 +245,7 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	// Disable cgroups so test works without root
-	config := &Config{NoCgroups: true, Enabled: true}
+	config := &Config{Enabled: true}
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
 	bconfig := &basePlug.Config{

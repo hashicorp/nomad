@@ -13,6 +13,14 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.8.0
+
+#### Removal of `raw_exec` option `no_cgroups`
+
+In Nomad 1.7.0 the `raw_exec` plugin option for `no_cgroups` became ineffective.
+Starting in Nomad 1.8.0 attempting to set the `no_cgroups` in `raw_exec` plugin
+configuration will result in an error when starting the agent.
+
 ## Nomad 1.7.2
 
 Nomad 1.7.2 fixes a critical bug in CPU fingerprinting in Nomad 1.7.0 and
