@@ -150,7 +150,7 @@ func (j *Jobs) Statuses2(
 			if err == structs.ErrPermissionDenied {
 				// return empty jobs if token isn't authorized for any
 				// namespace, matching other endpoints
-				reply.Jobs = make(map[string]structs.UIJob)
+				reply.Jobs = make([]structs.UIJob, 0)
 			} else if err != nil {
 				return err
 			} else {
@@ -178,7 +178,7 @@ func (j *Jobs) Statuses2(
 					},
 				}
 
-				jobs := make(map[string]structs.UIJob)
+				var jobs []structs.UIJob
 				pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 					func(raw interface{}) error {
 						job := raw.(*structs.Job)
@@ -237,8 +237,7 @@ func (j *Jobs) Statuses2(
 							}
 						}
 
-						nsID := fmt.Sprintf("%s@%s", job.ID, job.Namespace)
-						jobs[nsID] = uiJob
+						jobs = append(jobs, uiJob)
 						return nil
 					})
 				if err != nil {
