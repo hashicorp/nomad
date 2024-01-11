@@ -1984,7 +1984,7 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 			continue
 		}
 		eval.Status = structs.EvalStatusComplete
-		eval.StatusDescription = fmt.Sprintf("evaluation deleted while purging job %s", job.ID)
+		eval.StatusDescription = fmt.Sprintf("job %s deleted", job.ID)
 
 		// Insert the eval
 		if err := txn.Insert("evals", eval); err != nil {
