@@ -21,7 +21,7 @@ type JobsStatuses2Request struct {
 }
 
 type JobsStatuses2Response struct {
-	Jobs map[string]UIJob
+	Jobs []UIJob
 	QueryMeta
 }
 
