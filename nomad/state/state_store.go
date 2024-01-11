@@ -1901,7 +1901,6 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 	}
 
 	for _, deployment := range deployments {
-		// Lookup the deployment
 		existing, err := txn.First("deployment", "id", deployment.ID)
 		if err != nil {
 			return fmt.Errorf("deployment lookup failed: %v", err)
@@ -1914,15 +1913,18 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		if err := txn.Delete("deployment", existing); err != nil {
 			return fmt.Errorf("deployment delete failed: %v", err)
 		}
+		if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 
-	// Mark all evals for this job as "complete"
-	pendingEvals, err := s.EvalsByJob(nil, namespace, job.ID)
+	// Mark all "pending" evals for this job as "complete"
+	evals, err := s.EvalsByJob(nil, namespace, job.ID)
 	if err != nil {
 		return fmt.Errorf("eval lookup for job %s failed: %v", job.ID, err)
 	}
 
-	for _, eval := range pendingEvals {
+	for _, eval := range evals {
 		existing, err := txn.First("evals", "id", eval.ID)
 		if err != nil {
 			return fmt.Errorf("eval lookup failed: %v", err)
@@ -1932,6 +1934,9 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		}
 
 		eval := existing.(*structs.Evaluation).Copy()
+		if eval.Status != structs.EvalStatusPending {
+			continue
+		}
 		eval.Status = structs.EvalStatusComplete
 
 		// Insert the eval
@@ -1941,19 +1946,15 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
 		}
-
-		if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
-			return fmt.Errorf("index update failed: %v", err)
-		}
 	}
 
+	// Delete job allocs
 	allocs, err := s.AllocsByJob(nil, namespace, job.ID, true)
 	if err != nil {
 		return fmt.Errorf("alloc lookup for job %s failed: %v", job.ID, err)
 	}
 
 	for _, alloc := range allocs {
-		// Lookup the alloc
 		existing, err := txn.First("allocs", "id", alloc.ID)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
@@ -1965,6 +1966,9 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		// Delete the alloc
 		if err := txn.Delete("allocs", existing); err != nil {
 			return fmt.Errorf("deployment delete failed: %v", err)
+		}
+		if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
 		}
 	}
 
