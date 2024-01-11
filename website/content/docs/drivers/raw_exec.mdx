@@ -141,6 +141,18 @@ properly. Nomad will not leak any processes if cgroups are being used to
 manage the process tree. Cgroups are used on Linux when Nomad is being run with
 appropriate privileges, and the cgroup system is mounted.
 
+If the cluster is configured with memory oversubscription enabled, a task using
+the `raw_exec` driver can be configured to have no maximum memory limit by 
+setting `memory_max = -1`.
+
+```hcl
+resources {
+  cpu        = 500
+  memory     = 128
+  memory_max = -1 # no limit
+}
+```
+
 
 [hardening]: /nomad/docs/install/production/requirements#user-permissions
 [plugin-options]: #plugin-options
