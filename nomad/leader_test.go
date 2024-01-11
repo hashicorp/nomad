@@ -836,6 +836,11 @@ func TestLeader_revokeVaultAccessorsOnRestore_workloadIdentity(t *testing.T) {
 	// Do a restore
 	err = s1.revokeVaultAccessorsOnRestore()
 	must.NoError(t, err)
+
+	// Verify accessor was removed from state.
+	got, err := fsmState.VaultAccessor(nil, va.Accessor)
+	must.NoError(t, err)
+	must.Nil(t, got)
 }
 
 func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
