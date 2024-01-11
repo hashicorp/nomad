@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 

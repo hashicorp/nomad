@@ -15,13 +15,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
-	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )

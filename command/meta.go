@@ -10,10 +10,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
 	colorable "github.com/mattn/go-colorable"
-	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
 	"golang.org/x/crypto/ssh/terminal"

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 

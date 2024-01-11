@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/mitchellh/cli"
 )
 
 func TestOperator_Autopilot_GetConfig_Implements(t *testing.T) {

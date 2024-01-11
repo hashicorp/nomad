@@ -7,8 +7,8 @@ import (
 	"encoding/base64"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/mitchellh/cli"
 )
 
 func TestGossipKeyringGenerateCommand(t *testing.T) {

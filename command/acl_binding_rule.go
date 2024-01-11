@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	"github.com/mitchellh/cli"
 )
 
 // Ensure ACLBindingRuleCommand satisfies the cli.Command interface.

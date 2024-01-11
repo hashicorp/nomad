@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 )
 
 type TLSCommand struct {

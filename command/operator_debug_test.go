@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/cli"
 	consulapi "github.com/hashicorp/consul/api"
 	consultest "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/api"
@@ -25,7 +26,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/asset"
-	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )

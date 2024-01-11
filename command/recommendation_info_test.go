@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/api"

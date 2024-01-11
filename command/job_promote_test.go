@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
 )

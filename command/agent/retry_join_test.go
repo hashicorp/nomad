@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/go-netaddrs"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
