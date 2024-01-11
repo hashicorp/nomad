@@ -521,3 +521,32 @@ func (s *HTTPServer) snapshotRestoreRequest(resp http.ResponseWriter, req *http.
 
 	return nil, codedErr
 }
+
+func (s *HTTPServer) UpgradeCheckRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
+	path := strings.TrimPrefix(req.URL.Path, "/v1/operator/upgrade-check")
+	switch {
+	case strings.HasSuffix(path, "/vault-workload-identity"):
+		return s.upgradeCheckVaultWorkloadIdentity(resp, req)
+	default:
+		return nil, CodedError(http.StatusNotFound, fmt.Sprintf("Path %s not found", req.URL.Path))
+	}
+}
+
+func (s *HTTPServer) upgradeCheckVaultWorkloadIdentity(resp http.ResponseWriter, req *http.Request) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.UpgradeCheckVaultWorkloadIdentityRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.UpgradeCheckVaultWorkloadIdentityResponse
+	if err := s.agent.RPC("Operator.UpgradeCheckVaultWorkloadIdentity", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out, nil
+}

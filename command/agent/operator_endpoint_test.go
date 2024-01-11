@@ -661,3 +661,41 @@ func TestOperator_SnapshotRequests(t *testing.T) {
 		require.True(t, jobExists())
 	})
 }
+
+func TestOperator_UpgradeCheckRequest_VaultWorkloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, func(c *Config) {
+		c.Vaults[0].Enabled = pointer.Of(true)
+		c.Vaults[0].Name = "default"
+	}, func(s *TestAgent) {
+		// Create a test job with a Vault block but without an identity.
+		job := mock.Job()
+		job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+			Cluster:  "default",
+			Policies: []string{"test"},
+		}
+
+		args := structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.JobRegisterResponse
+		err := s.Agent.RPC("Job.Register", &args, &resp)
+
+		// Make HTTP request to retrieve
+		req, err := http.NewRequest(http.MethodGet, "/v1/operator/upgrade-check/vault-workload-identity", nil)
+		must.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		obj, err := s.Server.UpgradeCheckRequest(respW, req)
+		must.NoError(t, err)
+		must.NotEq(t, "", respW.Header().Get("X-Nomad-Index"))
+		must.NotEq(t, "", respW.Header().Get("X-Nomad-LastContact"))
+		must.Eq(t, "true", respW.Header().Get("X-Nomad-KnownLeader"))
+
+		upgradeCheck := obj.(structs.UpgradeCheckVaultWorkloadIdentityResponse)
+		must.Len(t, 1, upgradeCheck.JobsWithoutVaultIdentity)
+		must.Len(t, 0, upgradeCheck.VaultTokens)
+		must.Eq(t, job.ID, upgradeCheck.JobsWithoutVaultIdentity[0].ID)
+	})
+}

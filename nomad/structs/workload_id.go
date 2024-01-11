@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
 )
 
 const (
@@ -52,6 +53,10 @@ var (
 	// validIdentityName is used to validate workload identity Name fields. Must
 	// be safe to use in filenames.
 	validIdentityName = regexp.MustCompile("^[a-zA-Z0-9-_]{1,128}$")
+
+	// MinNomadVersionVaultWID is the minimum version of Nomad that supports
+	// workload identities for Vault.
+	MinNomadVersionVaultWID = version.Must(version.NewVersion("1.7.0-a"))
 )
 
 // WorkloadIdentity is the jobspec block which determines if and how a workload
