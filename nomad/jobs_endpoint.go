@@ -256,7 +256,7 @@ func (j *Jobs) Statuses2(
 			}
 
 			var idx uint64
-			for _, table := range []string{"jobs, allocs", "deployment"} {
+			for _, table := range []string{"jobs", "allocs", "deployment"} {
 				i, err := state.Index(table)
 				if err != nil {
 					return err
