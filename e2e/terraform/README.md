@@ -17,6 +17,12 @@ HCP. This Terraform stack assumes that an appropriate instance role
 has been configured elsewhere and that you have the ability to
 `AssumeRole` into the AWS account.
 
+If you're trying to provision the cluster from macOS on Apple Silicon hardware,
+you will also need Nomad Linux binaries for x86_64 architecture. Since it's
+currently impossible to cross-compile Nomad for Linux on macOS, you need to grab
+a Nomad binary from [releases page](https://releases.hashicorp.com/nomad/) and
+put it in `../pkg/linux_amd64` directory before running Terraform.
+
 Configure the following environment variables. For HashiCorp Nomad
 developers, this configuration can be found in 1Pass in the Nomad
 team's vault under `nomad-e2e`.
