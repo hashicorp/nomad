@@ -645,7 +645,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     await settled();
 
     // User should be booted off the page
-    assert.equal(currentURL(), '/jobs?namespace=*');
+    assert.equal(currentURL(), '/jobs');
 
     // A notification should be present
     assert
@@ -684,7 +684,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     await settled();
 
     // User should be booted off the page
-    assert.equal(currentURL(), '/jobs?namespace=*');
+    assert.equal(currentURL(), '/jobs');
 
     // A notification should be present
     assert

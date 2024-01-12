@@ -11,6 +11,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
+import percySnapshot from '@percy/ember';
 
 const jobTypesWithStatusPanel = ['service', 'system', 'batch', 'sysbatch'];
 async function switchToHistorical() {
@@ -169,6 +170,11 @@ export default function moduleForJob(
         const legendItem = find(
           '.legend li.is-clickable:not([data-test-legend-label="queued"]) a'
         );
+
+        // TODO: TEMP
+        await percySnapshot(assert);
+        console.log('legendItem', legendItem);
+        console.log('legendItem.parentElement', legendItem.parentElement);
 
         const status = legendItem.parentElement.getAttribute(
           'data-test-legend-label'

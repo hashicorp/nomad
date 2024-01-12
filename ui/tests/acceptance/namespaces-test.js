@@ -42,7 +42,7 @@ module('Acceptance | namespaces', function (hooks) {
     allScenarios.namespacesTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[1].secretId;
     await visit('/access-control/namespaces');
-    assert.equal(currentURL(), '/jobs?namespace=*');
+    assert.equal(currentURL(), '/jobs');
     assert.dom('[data-test-gutter-link="access-control"]').doesNotExist();
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
