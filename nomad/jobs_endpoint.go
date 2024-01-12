@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -33,16 +32,10 @@ func (j *Jobs) Statuses(
 	reply *structs.JobsStatusesResponse) error {
 	// TODO: auth, rate limiting, etc...
 
-	if reply.Jobs == nil {
-		reply.Jobs = make(map[string]structs.JobStatus)
-	}
-
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			var idx uint64
-
 			for _, j := range args.Jobs {
 				ns := j.Namespace
 				job, err := state.JobByID(ws, ns, j.ID)
@@ -52,59 +45,26 @@ func (j *Jobs) Statuses(
 				if job == nil {
 					continue
 				}
-
-				js := structs.JobStatus{
-					ID:        j.ID,
-					Namespace: j.Namespace,
-				}
-				js.Type = job.Type
-				for _, tg := range job.TaskGroups {
-					js.GroupCountSum += tg.Count
-				}
-
-				allocs, err := state.AllocsByJob(ws, ns, j.ID, false)
+				uiJob, err := UIJobFromJob(ws, state, job)
 				if err != nil {
 					return err
 				}
-				for _, a := range allocs {
-					alloc := structs.JobStatusAlloc{
-						ID:           a.ID,
-						Group:        a.TaskGroup,
-						ClientStatus: a.ClientStatus,
-					}
-					if a.DeploymentStatus != nil {
-						alloc.DeploymentStatus.Canary = a.DeploymentStatus.Canary
-						if a.DeploymentStatus.Healthy != nil {
-							alloc.DeploymentStatus.Healthy = *a.DeploymentStatus.Healthy
-						}
-					}
-					js.Allocs = append(js.Allocs, alloc)
-					if a.ModifyIndex > idx {
-						idx = a.ModifyIndex
-					}
-				}
+				reply.Jobs = append(reply.Jobs, uiJob)
+			}
 
-				deploys, err := state.DeploymentsByJobID(ws, ns, j.ID, false)
+			var idx uint64
+			for _, table := range []string{"jobs", "allocs", "deployment"} {
+				i, err := state.Index(table)
 				if err != nil {
 					return err
 				}
-				for _, d := range deploys {
-					if d.Active() {
-						js.DeploymentID = d.ID
-						break
-					}
-					if d.ModifyIndex > idx {
-						idx = d.ModifyIndex
-					}
+				if i > idx {
+					idx = i
 				}
-
-				nsid := fmt.Sprintf("%s@%s", j.ID, j.Namespace)
-				reply.Jobs[nsid] = js
 			}
 			reply.Index = idx
 			j.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
-
 		}}
 	return j.srv.blockingRPC(&opts)
 }
@@ -186,55 +146,9 @@ func (j *Jobs) Statuses2(
 						//if err != nil || summary == nil {
 						//	return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 						//}
-						uiJob := structs.UIJob{
-							NamespacedID: structs.NamespacedID{
-								ID:        job.ID,
-								Namespace: job.Namespace,
-							},
-							Name:        job.Name,
-							Type:        job.Type,
-							NodePool:    job.NodePool,
-							Datacenters: job.Datacenters,
-							Priority:    job.Priority,
-							Version:     job.Version,
-							// included here for completeness, populated below.
-							Allocs:        nil,
-							GroupCountSum: 0,
-							DeploymentID:  "",
-						}
-
-						for _, tg := range job.TaskGroups {
-							uiJob.GroupCountSum += tg.Count
-						}
-
-						allocs, err := state.AllocsByJob(ws, namespace, job.ID, false)
+						uiJob, err := UIJobFromJob(ws, state, job)
 						if err != nil {
 							return err
-						}
-						for _, a := range allocs {
-							alloc := structs.JobStatusAlloc{
-								ID:           a.ID,
-								Group:        a.TaskGroup,
-								ClientStatus: a.ClientStatus,
-							}
-							if a.DeploymentStatus != nil {
-								alloc.DeploymentStatus.Canary = a.DeploymentStatus.Canary
-								if a.DeploymentStatus.Healthy != nil {
-									alloc.DeploymentStatus.Healthy = *a.DeploymentStatus.Healthy
-								}
-							}
-							uiJob.Allocs = append(uiJob.Allocs, alloc)
-						}
-
-						deploys, err := state.DeploymentsByJobID(ws, namespace, job.ID, false)
-						if err != nil {
-							return err
-						}
-						for _, d := range deploys {
-							if d.Active() {
-								uiJob.DeploymentID = d.ID
-								break
-							}
 						}
 
 						jobs = append(jobs, uiJob)
@@ -272,4 +186,58 @@ func (j *Jobs) Statuses2(
 			return nil
 		}}
 	return j.srv.blockingRPC(&opts)
+}
+
+func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) (structs.UIJob, error) {
+	uiJob := structs.UIJob{
+		NamespacedID: structs.NamespacedID{
+			ID:        job.ID,
+			Namespace: job.Namespace,
+		},
+		Name:        job.Name,
+		Type:        job.Type,
+		NodePool:    job.NodePool,
+		Datacenters: job.Datacenters,
+		Priority:    job.Priority,
+		Version:     job.Version,
+		// included here for completeness, populated below.
+		Allocs:        nil,
+		GroupCountSum: 0,
+		DeploymentID:  "",
+	}
+	for _, tg := range job.TaskGroups {
+		uiJob.GroupCountSum += tg.Count
+	}
+
+	allocs, err := state.AllocsByJob(ws, job.Namespace, job.ID, false)
+	if err != nil {
+		return uiJob, err
+	}
+	for _, a := range allocs {
+		alloc := structs.JobStatusAlloc{
+			ID:           a.ID,
+			Group:        a.TaskGroup,
+			ClientStatus: a.ClientStatus,
+		}
+		// TODO: use methods instead of fields directly?
+		if a.DeploymentStatus != nil {
+			alloc.DeploymentStatus.Canary = a.DeploymentStatus.Canary
+			if a.DeploymentStatus.Healthy != nil {
+				alloc.DeploymentStatus.Healthy = *a.DeploymentStatus.Healthy
+			}
+		}
+		uiJob.Allocs = append(uiJob.Allocs, alloc)
+	}
+
+	deploys, err := state.DeploymentsByJobID(ws, job.Namespace, job.ID, false)
+	if err != nil {
+		return uiJob, err
+	}
+	for _, d := range deploys {
+		if d.Active() {
+			uiJob.DeploymentID = d.ID
+			break
+		}
+	}
+	return uiJob, nil
 }
