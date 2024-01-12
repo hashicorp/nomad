@@ -546,7 +546,6 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 			stoppedAlloc, lostAlloc,
 			activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc,
 			stoppedJobStoppedAlloc, stoppedJobLostAlloc,
-			purgedJobCompleteAlloc,
 		},
 		[]*structs.Allocation{},
 	)
@@ -576,7 +575,6 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 			stoppedAlloc, lostAlloc,
 			activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc,
 			stoppedJobStoppedAlloc, stoppedJobLostAlloc,
-			purgedJobCompleteAlloc,
 		},
 		[]*structs.Allocation{},
 	)
@@ -598,7 +596,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	//    than that of the job).
 	//	3. The active job remains since it is active, even though the allocations are otherwise
 	//      eligible for GC. However, the inactive allocation is GCed for it.
-	//	4. The eval and allocation for the purged job are GCed.
+	//	4. The eval and allocation for the purged job are deleted.
 	assertCorrectJobEvalAlloc(
 		memdb.NewWatchSet(),
 		[]*structs.Job{deadJob, activeJob, stoppedJob},
