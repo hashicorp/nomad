@@ -194,7 +194,10 @@ export default class IndexController extends Controller.extend(
     });
 
     // Unset the namespace selection if it was server-side deleted
-    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+    if (
+      this.qpNamespace &&
+      !availableNamespaces.mapBy('key').includes(this.qpNamespace)
+    ) {
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
         this.set('qpNamespace', '*');

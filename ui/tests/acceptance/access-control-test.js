@@ -32,14 +32,14 @@ module('Acceptance | access control', function (hooks) {
 
     assert.equal(
       currentURL(),
-      '/jobs?namespace=*',
+      '/jobs',
       'redirected to the jobs page if a non-management token on /access-control'
     );
 
     await AccessControl.visitTokens();
     assert.equal(
       currentURL(),
-      '/jobs?namespace=*',
+      '/jobs',
       'redirected to the jobs page if a non-management token on /tokens'
     );
 
