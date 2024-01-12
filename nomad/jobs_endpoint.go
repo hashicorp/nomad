@@ -139,12 +139,15 @@ func (j *Jobs) Statuses2(
 						//if err != nil || summary == nil {
 						//	return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 						//}
-						uiJob, _, err := UIJobFromJob(ws, state, job)
+						uiJob, idx, err := UIJobFromJob(ws, state, job)
 						if err != nil {
 							return err
 						}
 
 						jobs = append(jobs, uiJob)
+						if idx > reply.Index {
+							reply.Index = idx
+						}
 						return nil
 					})
 				if err != nil {
@@ -161,18 +164,6 @@ func (j *Jobs) Statuses2(
 				reply.QueryMeta.NextToken = nextToken
 				reply.Jobs = jobs
 			}
-
-			var idx uint64
-			for _, table := range []string{"jobs", "allocs", "deployment"} {
-				i, err := state.Index(table)
-				if err != nil {
-					return err
-				}
-				if i > idx {
-					idx = i
-				}
-			}
-			reply.Index = idx
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)
