@@ -44,18 +44,18 @@ type JobsStatusesRequest struct {
 }
 
 type JobsStatusesResponse struct {
-	Jobs map[string]JobStatus
+	Jobs []UIJob
 	QueryMeta
 }
 
-type JobStatus struct {
-	ID            string
-	Namespace     string
-	Type          string
-	Allocs        []JobStatusAlloc
-	GroupCountSum int
-	DeploymentID  string
-}
+//type JobStatus struct {
+//	ID            string
+//	Namespace     string
+//	Type          string
+//	Allocs        []JobStatusAlloc
+//	GroupCountSum int
+//	DeploymentID  string
+//}
 
 type JobStatusAlloc struct {
 	ID               string
