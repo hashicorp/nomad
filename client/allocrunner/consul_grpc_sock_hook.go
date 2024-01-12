@@ -56,8 +56,12 @@ type consulGRPCSocketHook struct {
 }
 
 func newConsulGRPCSocketHook(
-	logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir,
-	configs map[string]*config.ConsulConfig, nodeAttrs map[string]string) *consulGRPCSocketHook {
+	logger hclog.Logger,
+	alloc *structs.Allocation,
+	allocDir allocdir.Interface,
+	configs map[string]*config.ConsulConfig,
+	nodeAttrs map[string]string,
+) *consulGRPCSocketHook {
 
 	// Get the deduplicated set of Consul clusters that are needed by this
 	// alloc. For Nomad CE, this will always be just the default cluster.
@@ -81,8 +85,12 @@ func newConsulGRPCSocketHook(
 			consulGRPCPort = consulGRPCFallbackPort
 		}
 
-		proxies[clusterName] = newGRPCSocketProxy(logger, allocDir,
-			configs[clusterName], consulGRPCPort)
+		proxies[clusterName] = newGRPCSocketProxy(
+			logger,
+			allocDir,
+			configs[clusterName],
+			consulGRPCPort,
+		)
 		return true
 	})
 
@@ -174,7 +182,7 @@ func (h *consulGRPCSocketHook) Postrun() error {
 
 type grpcSocketProxy struct {
 	logger   hclog.Logger
-	allocDir *allocdir.AllocDir
+	allocDir allocdir.Interface
 	config   *config.ConsulConfig
 
 	// consulGRPCFallbackPort is the port to use if the operator did not
@@ -188,8 +196,11 @@ type grpcSocketProxy struct {
 }
 
 func newGRPCSocketProxy(
-	logger hclog.Logger, allocDir *allocdir.AllocDir, config *config.ConsulConfig,
-	consulGRPCFallbackPort string) *grpcSocketProxy {
+	logger hclog.Logger,
+	allocDir allocdir.Interface,
+	config *config.ConsulConfig,
+	consulGRPCFallbackPort string,
+) *grpcSocketProxy {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &grpcSocketProxy{
@@ -246,7 +257,7 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 		socketFile = filepath.Join(allocdir.SharedAllocName, allocdir.TmpDirName,
 			"consul_"+p.config.Name+"_grpc.sock")
 	}
-	hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDir, socketFile)
+	hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDirPath(), socketFile)
 
 	// if the socket already exists we'll try to remove it, but if not then any
 	// other errors will bubble up to the caller here or when we try to listen

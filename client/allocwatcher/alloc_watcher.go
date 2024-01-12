@@ -44,7 +44,7 @@ type terminated interface {
 // AllocRunnerMeta provides metadata about an AllocRunner such as its alloc and
 // alloc dir.
 type AllocRunnerMeta interface {
-	GetAllocDir() *allocdir.AllocDir
+	GetAllocDir() allocdir.Interface
 	Listener() *cstructs.AllocListener
 	Alloc() *structs.Allocation
 }
@@ -192,7 +192,7 @@ type localPrevAlloc struct {
 	sticky bool
 
 	// prevAllocDir is the alloc dir for the previous alloc
-	prevAllocDir *allocdir.AllocDir
+	prevAllocDir allocdir.Interface
 
 	// prevListener allows blocking for updates to the previous alloc
 	prevListener *cstructs.AllocListener
@@ -262,7 +262,7 @@ func (p *localPrevAlloc) Wait(ctx context.Context) error {
 }
 
 // Migrate from previous local alloc dir to destination alloc dir.
-func (p *localPrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) error {
+func (p *localPrevAlloc) Migrate(ctx context.Context, dest allocdir.Interface) error {
 	if !p.sticky {
 		// Not a sticky volume, nothing to migrate
 		return nil
@@ -425,7 +425,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 
 // Migrate alloc data from a remote node if the new alloc has migration enabled
 // and the old alloc hasn't been GC'd.
-func (p *remotePrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) error {
+func (p *remotePrevAlloc) Migrate(ctx context.Context, dest allocdir.Interface) error {
 	if !p.migrate {
 		// Volume wasn't configured to be migrated, return early
 		return nil
@@ -677,7 +677,7 @@ type NoopPrevAlloc struct{}
 func (NoopPrevAlloc) Wait(context.Context) error { return nil }
 
 // Migrate returns nil immediately.
-func (NoopPrevAlloc) Migrate(context.Context, *allocdir.AllocDir) error { return nil }
+func (NoopPrevAlloc) Migrate(context.Context, allocdir.Interface) error { return nil }
 
 func (NoopPrevAlloc) IsWaiting() bool   { return false }
 func (NoopPrevAlloc) IsMigrating() bool { return false }

@@ -141,5 +141,5 @@ type PrevAllocMigrator interface {
 	IsMigrating() bool
 
 	// Migrate data from previous alloc
-	Migrate(ctx context.Context, dest *allocdir.AllocDir) error
+	Migrate(ctx context.Context, dest allocdir.Interface) error
 }

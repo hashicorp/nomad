@@ -48,7 +48,7 @@ type AllocRunner interface {
 	GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error)
 	StatsReporter() AllocStatsReporter
 	Listener() *cstructs.AllocListener
-	GetAllocDir() *allocdir.AllocDir
+	GetAllocDir() allocdir.Interface
 }
 
 // TaskStateHandler exposes a handler to be called when a task's state changes

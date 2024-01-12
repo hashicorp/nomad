@@ -132,7 +132,7 @@ type allocRunner struct {
 	stateDB cstate.StateDB
 
 	// allocDir is used to build the allocations directory structure.
-	allocDir *allocdir.AllocDir
+	allocDir allocdir.Interface
 
 	// runnerHooks are alloc runner lifecycle hooks that should be run on state
 	// transitions.
@@ -264,7 +264,14 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
 
 	// Create alloc dir
-	ar.allocDir = allocdir.NewAllocDir(ar.logger, config.ClientConfig.AllocDir, alloc.ID)
+	//
+	// TODO(shoenig): need to decide what version of alloc dir to use, and the
+	// return value should probably now be an interface
+	ar.allocDir = allocdir.NewAllocDir(
+		ar.logger,
+		config.ClientConfig.AllocDir,
+		alloc.ID,
+	)
 
 	ar.taskCoordinator = tasklifecycle.NewCoordinator(ar.logger, tg.Tasks, ar.waitCh)
 
@@ -432,7 +439,7 @@ func (ar *allocRunner) setAlloc(updated *structs.Allocation) {
 }
 
 // GetAllocDir returns the alloc dir which is safe for concurrent use.
-func (ar *allocRunner) GetAllocDir() *allocdir.AllocDir {
+func (ar *allocRunner) GetAllocDir() allocdir.Interface {
 	return ar.allocDir
 }
 
