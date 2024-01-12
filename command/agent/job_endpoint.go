@@ -2141,7 +2141,7 @@ func (s *HTTPServer) JobsStatusesRequest(resp http.ResponseWriter, req *http.Req
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	return out, nil
+	return out.Jobs, nil
 }
 
 func (s *HTTPServer) JobsStatuses2Request(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
