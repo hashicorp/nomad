@@ -411,3 +411,63 @@ type LeadershipTransferResponse struct {
 
 	WriteMeta
 }
+
+// VaultWorkloadIdentityUpgradeCheck is the result of verifying if the cluster
+// is ready to switch to workload identities for Vault.
+type VaultWorkloadIdentityUpgradeCheck struct {
+	// JobsWithoutVaultIdentity is the list of jobs that have a `vault` block
+	// but do not have an `identity` for Vault.
+	JobsWithoutVaultIdentity []*JobListStub
+
+	// OutdatedNodes is the list of nodes running a version of Nomad that does
+	// not support workload identities for Vault.
+	OutdatedNodes []*NodeListStub
+
+	// VaultTokens is the list of Vault ACL token accessors that Nomad created
+	// and will no longer manage after the cluster is migrated to workload
+	// identities.
+	VaultTokens []*VaultAccessor
+}
+
+// Ready returns true if the cluster is ready to migrate to workload identities
+// with Vault.
+func (v *VaultWorkloadIdentityUpgradeCheck) Ready() bool {
+	return v != nil &&
+		len(v.VaultTokens) == 0 &&
+		len(v.OutdatedNodes) == 0 &&
+		len(v.JobsWithoutVaultIdentity) == 0
+}
+
+// VaultAccessor is a Vault ACL token created by Nomad for a task to access
+// Vault using the legacy authentication flow.
+type VaultAccessor struct {
+	// AllocID is the ID of the allocation that requested this token.
+	AllocID string
+
+	// Task is the name of the task that requested this token.
+	Task string
+
+	// NodeID is the ID of the node running the allocation that requested this
+	// token.
+	NodeID string
+
+	// Accessor is the Vault ACL token accessor ID.
+	Accessor string
+
+	// CreationTTL is the TTL set when the token was created.
+	CreationTTL int
+
+	// CreateIndex is the Raft index when the token was created.
+	CreateIndex uint64
+}
+
+// UpgradeCheckVaultWorkloadIdentity retrieves the cluster status for migrating
+// to workload identities with Vault.
+func (op *Operator) UpgradeCheckVaultWorkloadIdentity(q *QueryOptions) (*VaultWorkloadIdentityUpgradeCheck, *QueryMeta, error) {
+	var resp VaultWorkloadIdentityUpgradeCheck
+	qm, err := op.c.query("/v1/operator/upgrade-check/vault-workload-identity", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}

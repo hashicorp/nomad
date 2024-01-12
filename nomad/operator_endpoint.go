@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-msgpack/codec"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 
@@ -785,6 +787,99 @@ func (op *Operator) snapshotRestore(conn io.ReadWriteCloser) {
 	reply.Index, _ = op.srv.State().LatestIndex()
 	op.srv.setQueryMeta(&reply.QueryMeta)
 	encoder.Encode(reply)
+}
+
+func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
+	args *structs.UpgradeCheckVaultWorkloadIdentityRequest,
+	reply *structs.UpgradeCheckVaultWorkloadIdentityResponse,
+) error {
+	authErr := op.srv.Authenticate(op.ctx, args)
+	if done, err := op.srv.forward("Operator.UpgradeCheckVaultWorkloadIdentity", args, args, reply); done {
+		return err
+	}
+	op.srv.MeasureRPCRate("operator", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	// This action requires operator read access.
+	rule, err := op.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	} else if rule != nil && !rule.AllowOperatorRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	state := op.srv.fsm.State()
+	ws := memdb.NewWatchSet()
+
+	// Check for jobs that use Vault but don't have an identity for Vault.
+	jobsIter, err := state.Jobs(ws)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve jobs: %w", err)
+	}
+
+	jobs := []*structs.JobListStub{}
+	for raw := jobsIter.Next(); raw != nil; raw = jobsIter.Next() {
+		job := raw.(*structs.Job)
+
+	TG_LOOP:
+		for _, tg := range job.TaskGroups {
+			for _, t := range tg.Tasks {
+				if t.Vault == nil {
+					continue
+				}
+
+				foundWID := false
+				for _, wid := range t.Identities {
+					if wid.IsVault() {
+						foundWID = true
+						break
+					}
+				}
+				if !foundWID {
+					jobs = append(jobs, job.Stub(nil, nil))
+					break TG_LOOP
+				}
+			}
+		}
+	}
+	reply.JobsWithoutVaultIdentity = jobs
+
+	// Find nodes that don't support workload identities for Vault.
+	nodesIter, err := state.Nodes(ws)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve nodes: %w", err)
+	}
+
+	nodes := []*structs.NodeListStub{}
+	for raw := nodesIter.Next(); raw != nil; raw = nodesIter.Next() {
+		node := raw.(*structs.Node)
+
+		v, err := version.NewVersion(node.Attributes["nomad.version"])
+		if err != nil || v.LessThan(structs.MinNomadVersionVaultWID) {
+			nodes = append(nodes, node.Stub(nil))
+			continue
+		}
+	}
+	reply.OutdatedNodes = nodes
+
+	// Retrieve Vault tokens that were created by Nomad servers.
+	vaultTokensIter, err := state.VaultAccessors(ws)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve Vault token accessors: %w", err)
+	}
+
+	vaultTokens := []*structs.VaultAccessor{}
+	for raw := vaultTokensIter.Next(); raw != nil; raw = vaultTokensIter.Next() {
+		vaultTokens = append(vaultTokens, raw.(*structs.VaultAccessor))
+	}
+	reply.VaultTokens = vaultTokens
+
+	reply.QueryMeta.Index, _ = op.srv.State().LatestIndex()
+	op.srv.setQueryMeta(&reply.QueryMeta)
+
+	return nil
 }
 
 func decodeStreamOutput(decoder *codec.Decoder) (io.Reader, <-chan error) {
