@@ -67,6 +67,8 @@ export default class IndexController extends Controller.extend(
     },
   ];
 
+  qpNamespace = '*';
+
   currentPage = 1;
   @readOnly('userSettings.pageSize') pageSize;
 

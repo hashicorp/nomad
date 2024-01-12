@@ -172,9 +172,11 @@ export default function moduleForJob(
         );
 
         // TODO: TEMP
-        await percySnapshot(assert);
-        console.log('legendItem', legendItem);
-        console.log('legendItem.parentElement', legendItem.parentElement);
+        // if parameterized job, take snapshot
+        if (job.parameterized) {
+          await percySnapshot('TEST DEBUGGING SNAPSHOT');
+          console.log('legendItem', legendItem);
+        }
 
         const status = legendItem.parentElement.getAttribute(
           'data-test-legend-label'
