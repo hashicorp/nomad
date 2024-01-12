@@ -1,10 +1,5 @@
-Running (and healthy) allocs: 
 {{get
-  (filter-by "isHealthy" true
-    (filter-by "clientStatus" "running" @job.allocations)
-  )
+  (filter-by "clientStatus" "running" @job.allocations)
 "length"}}
 / {{@job.groupCountSum}}
-{{!-- TODO: Desired placement in flux --}}
-
 {{yield}}
