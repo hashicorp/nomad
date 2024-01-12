@@ -45,7 +45,7 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/cap v0.2.0
-	github.com/hashicorp/consul-template v0.35.0
+	github.com/hashicorp/consul-template v0.36.1-0.20240205193627-e15d61bb21ae
 	github.com/hashicorp/consul/api v1.26.1
 	github.com/hashicorp/consul/sdk v0.15.0
 	github.com/hashicorp/cronexpr v1.1.2
