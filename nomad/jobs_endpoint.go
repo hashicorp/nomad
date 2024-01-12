@@ -36,6 +36,7 @@ func (j *Jobs) Statuses(
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			var jobs []structs.UIJob
 			for _, j := range args.Jobs {
 				ns := j.Namespace
 				job, err := state.JobByID(ws, ns, j.ID)
@@ -45,24 +46,16 @@ func (j *Jobs) Statuses(
 				if job == nil {
 					continue
 				}
-				uiJob, err := UIJobFromJob(ws, state, job)
+				uiJob, idx, err := UIJobFromJob(ws, state, job)
 				if err != nil {
 					return err
 				}
-				reply.Jobs = append(reply.Jobs, uiJob)
-			}
-
-			var idx uint64
-			for _, table := range []string{"jobs", "allocs", "deployment"} {
-				i, err := state.Index(table)
-				if err != nil {
-					return err
-				}
-				if i > idx {
-					idx = i
+				jobs = append(jobs, uiJob)
+				if idx > reply.Index {
+					reply.Index = idx
 				}
 			}
-			reply.Index = idx
+			reply.Jobs = jobs
 			j.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
@@ -146,7 +139,7 @@ func (j *Jobs) Statuses2(
 						//if err != nil || summary == nil {
 						//	return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 						//}
-						uiJob, err := UIJobFromJob(ws, state, job)
+						uiJob, _, err := UIJobFromJob(ws, state, job)
 						if err != nil {
 							return err
 						}
@@ -188,7 +181,9 @@ func (j *Jobs) Statuses2(
 	return j.srv.blockingRPC(&opts)
 }
 
-func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) (structs.UIJob, error) {
+func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) (structs.UIJob, uint64, error) {
+	idx := job.ModifyIndex
+
 	uiJob := structs.UIJob{
 		NamespacedID: structs.NamespacedID{
 			ID:        job.ID,
@@ -211,7 +206,7 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) 
 
 	allocs, err := state.AllocsByJob(ws, job.Namespace, job.ID, false)
 	if err != nil {
-		return uiJob, err
+		return uiJob, idx, err
 	}
 	for _, a := range allocs {
 		alloc := structs.JobStatusAlloc{
@@ -227,17 +222,23 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) 
 			}
 		}
 		uiJob.Allocs = append(uiJob.Allocs, alloc)
+		if a.ModifyIndex > idx {
+			idx = a.ModifyIndex
+		}
 	}
 
 	deploys, err := state.DeploymentsByJobID(ws, job.Namespace, job.ID, false)
 	if err != nil {
-		return uiJob, err
+		return uiJob, idx, err
 	}
 	for _, d := range deploys {
+		if d.ModifyIndex > idx {
+			idx = d.ModifyIndex
+		}
 		if d.Active() {
 			uiJob.DeploymentID = d.ID
 			break
 		}
 	}
-	return uiJob, nil
+	return uiJob, idx, nil
 }
