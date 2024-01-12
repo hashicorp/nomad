@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
@@ -1185,6 +1186,186 @@ func TestOperator_SnapshotRestore_ACL(t *testing.T) {
 			require.NotZero(t, resp.Index)
 
 			io.Copy(io.Discard, p1)
+		})
+	}
+}
+
+func TestOperator_UpgradeCheckRequest_VaultWorkloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	codec := rpcClient(t, s1)
+	state := s1.fsm.State()
+
+	// Register mock nodes, one pre-1.7.
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "1.7.2"
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
+	must.NoError(t, err)
+
+	outdatedNode := mock.Node()
+	outdatedNode.Attributes["nomad.version"] = "1.6.4"
+	err = state.UpsertNode(structs.MsgTypeTestSetup, 1001, outdatedNode)
+	must.NoError(t, err)
+
+	// Create non-default namespace.
+	ns := mock.Namespace()
+	state.UpsertNamespaces(1002, []*structs.Namespace{ns})
+
+	// Register Vault jobs, one with and another without workload identity.
+	jobNoWID := mock.Job()
+	jobNoWID.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Cluster:  "default",
+		Policies: []string{"test"},
+	}
+	// Add multiple tasks and groups to make sure we don't have duplicate jobs
+	// in the result.
+	jobNoWID.TaskGroups[0].Tasks = append(jobNoWID.TaskGroups[0].Tasks, jobNoWID.TaskGroups[0].Tasks[0].Copy())
+	jobNoWID.TaskGroups[0].Tasks[1].Name = "task-1"
+	jobNoWID.TaskGroups = append(jobNoWID.TaskGroups, jobNoWID.TaskGroups[0].Copy())
+	jobNoWID.TaskGroups[1].Name = "tg-1"
+
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, jobNoWID)
+	must.NoError(t, err)
+
+	jobNoWIDNonDefaultNS := mock.Job()
+	jobNoWIDNonDefaultNS.Namespace = ns.Name
+	jobNoWIDNonDefaultNS.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Cluster:  "default",
+		Policies: []string{"test"},
+	}
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1004, nil, jobNoWIDNonDefaultNS)
+	must.NoError(t, err)
+
+	jobWithWID := mock.Job()
+	jobWithWID.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Cluster: "default",
+	}
+	jobWithWID.TaskGroups[0].Tasks[0].Identities = []*structs.WorkloadIdentity{{
+		Name: "vault_default",
+	}}
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1005, nil, jobWithWID)
+	must.NoError(t, err)
+
+	// Create allocs for the jobs.
+	allocJobNoWID := mock.Alloc()
+	allocJobNoWID.Job = jobNoWID
+	allocJobNoWID.JobID = jobNoWID.ID
+	allocJobNoWID.NodeID = node.ID
+
+	allocJobWithWID := mock.Alloc()
+	allocJobWithWID.Job = jobWithWID
+	allocJobWithWID.JobID = jobWithWID.ID
+	allocJobWithWID.NodeID = node.ID
+
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1006, []*structs.Allocation{allocJobNoWID, allocJobWithWID})
+	must.NoError(t, err)
+
+	// Create Vault token accessor for job without Vault identity and one that
+	// is no longer used.
+	tokenJobNoWID := mock.VaultAccessor()
+	tokenJobNoWID.AllocID = allocJobNoWID.ID
+	tokenJobNoWID.NodeID = node.ID
+
+	tokenUnused := mock.VaultAccessor()
+	err = state.UpsertVaultAccessor(1007, []*structs.VaultAccessor{tokenJobNoWID, tokenUnused})
+	must.NoError(t, err)
+
+	// Make request.
+	args := &structs.UpgradeCheckVaultWorkloadIdentityRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: node.SecretID,
+		},
+	}
+	var resp structs.UpgradeCheckVaultWorkloadIdentityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Operator.UpgradeCheckVaultWorkloadIdentity", args, &resp)
+	must.NoError(t, err)
+	must.Eq(t, 1007, resp.Index)
+
+	// Verify only jobs without Vault identity are returned.
+	must.Len(t, 2, resp.JobsWithoutVaultIdentity)
+	must.SliceContains(t, resp.JobsWithoutVaultIdentity, jobNoWID.Stub(nil, nil), must.Cmp(cmpopts.IgnoreFields(
+		structs.JobListStub{},
+		"Status",
+		"ModifyIndex",
+	)))
+	must.SliceContains(t, resp.JobsWithoutVaultIdentity, jobNoWIDNonDefaultNS.Stub(nil, nil), must.Cmp(cmpopts.IgnoreFields(
+		structs.JobListStub{},
+		"Status",
+		"ModifyIndex",
+	)))
+
+	// Verify only outdated nodes are returned.
+	must.Len(t, 1, resp.OutdatedNodes)
+	must.SliceContains(t, resp.OutdatedNodes, outdatedNode.Stub(nil))
+
+	// Verify Vault ACL tokens are returned.
+	must.Len(t, 2, resp.VaultTokens)
+	must.SliceContains(t, resp.VaultTokens, tokenJobNoWID)
+	must.SliceContains(t, resp.VaultTokens, tokenUnused)
+}
+
+func TestOperator_UpgradeCheckRequest_VaultWorkloadIdentity_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	codec := rpcClient(t, s1)
+	state := s1.fsm.State()
+
+	// Create test tokens and policies.
+	allowed := mock.CreatePolicyAndToken(t, state, 1000, "allowed", `operator {policy = "read"}`)
+	notAllowed := mock.CreatePolicyAndToken(t, state, 1002, "not-allowed", mock.NamespacePolicy("default", "write", nil))
+
+	testCases := []struct {
+		name        string
+		token       string
+		expectedErr string
+	}{
+		{
+			name:        "root token is allowed",
+			token:       root.SecretID,
+			expectedErr: "",
+		},
+		{
+			name:        "operator read token is allowed",
+			token:       allowed.SecretID,
+			expectedErr: "",
+		},
+		{
+			name:        "token not allowed",
+			token:       notAllowed.SecretID,
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:        "missing token not allowed",
+			token:       "",
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Make request.
+			args := &structs.UpgradeCheckVaultWorkloadIdentityRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token,
+				},
+			}
+			var resp structs.UpgradeCheckVaultWorkloadIdentityResponse
+			err := msgpackrpc.CallWithCodec(codec, "Operator.UpgradeCheckVaultWorkloadIdentity", args, &resp)
+			if tc.expectedErr == "" {
+				must.NoError(t, err)
+			} else {
+				must.ErrorContains(t, err, tc.expectedErr)
+			}
 		})
 	}
 }

@@ -132,6 +132,10 @@
       {
         "title": "Snapshot",
         "path": "operator/snapshot"
+      },
+      {
+        "title": "Upgrade Check",
+        "path": "operator/upgrade-check"
       }
     ]
   },
