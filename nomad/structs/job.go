@@ -62,6 +62,7 @@ type JobStatusAlloc struct {
 	Group            string
 	ClientStatus     string
 	DeploymentStatus JobStatusDeployment
+	JobVersion       uint64
 }
 
 type JobStatusDeployment struct {
