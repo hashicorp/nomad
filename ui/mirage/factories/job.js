@@ -56,6 +56,8 @@ export default Factory.extend({
   priority: () => faker.random.number(100),
   allAtOnce: faker.random.boolean,
   status: () => faker.helpers.randomize(JOB_STATUSES),
+  namespace: () => 'default',
+  namespaceId: () => 'default',
   datacenters: () =>
     faker.helpers
       .shuffle(DATACENTERS)
