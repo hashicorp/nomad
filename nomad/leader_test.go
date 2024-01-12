@@ -818,6 +818,31 @@ func TestLeader_revokeVaultAccessorsOnRestore(t *testing.T) {
 	}
 }
 
+func TestLeader_revokeVaultAccessorsOnRestore_workloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Insert a Vault accessor that should be revoked
+	fsmState := s1.fsm.State()
+	va := mock.VaultAccessor()
+	err := fsmState.UpsertVaultAccessor(100, []*structs.VaultAccessor{va})
+	must.NoError(t, err)
+
+	// Do a restore
+	err = s1.revokeVaultAccessorsOnRestore()
+	must.NoError(t, err)
+
+	// Verify accessor was removed from state.
+	got, err := fsmState.VaultAccessor(nil, va.Accessor)
+	must.NoError(t, err)
+	must.Nil(t, got)
+}
+
 func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 	ci.Parallel(t)
 	r := require.New(t)

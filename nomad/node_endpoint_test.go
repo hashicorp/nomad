@@ -676,6 +676,56 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_Deregister_Vault_WorkloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		// Enable Vault config and don't set any connection info to use the
+		// workload identity flow.
+		c.VaultConfigs[structs.VaultDefaultCluster].Enabled = pointer.Of(true)
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register mock node.
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp)
+	must.NoError(t, err)
+
+	// Put some Vault accessors in the state store for that node
+	var accessors []*structs.VaultAccessor
+	for i := 0; i < 3; i++ {
+		va := mock.VaultAccessor()
+		va.NodeID = node.ID
+		accessors = append(accessors, va)
+	}
+	state := s1.fsm.State()
+	state.UpsertVaultAccessor(100, accessors)
+
+	// Deregister the mock node and verify no error happens when Vault tokens
+	// are revoked.
+	dereg := &structs.NodeDeregisterRequest{
+		NodeID:       node.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg, &resp2)
+	must.NoError(t, err)
+
+	// Verify accessors are removed from state.
+	for _, va := range accessors {
+		got, err := state.VaultAccessor(nil, va.Accessor)
+		must.NoError(t, err)
+		must.Nil(t, got)
+	}
+}
+
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
@@ -812,6 +862,57 @@ func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 	// Check that the endpoint revoked the tokens
 	if l := len(tvc.RevokedTokens); l != 2 {
 		t.Fatalf("Deregister revoked %d tokens; want 2", l)
+	}
+}
+
+func TestClientEndpoint_UpdateStatus_Vault_WorkloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		// Enable Vault config and don't set any connection info to use the
+		// workload identity flow.
+		c.VaultConfigs[structs.VaultDefaultCluster].Enabled = pointer.Of(true)
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register mock node.
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.NodeUpdateResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp)
+	must.NoError(t, err)
+
+	// Put some Vault accessors in the state store for the node.
+	var accessors []*structs.VaultAccessor
+	for i := 0; i < 3; i++ {
+		va := mock.VaultAccessor()
+		va.NodeID = node.ID
+		accessors = append(accessors, va)
+	}
+	state := s1.fsm.State()
+	state.UpsertVaultAccessor(100, accessors)
+
+	// Update the status to be down and verify no error when Vault tokens are
+	// revoked.
+	updateReq := &structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusDown,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeUpdateResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", updateReq, &resp2)
+	must.NoError(t, err)
+
+	// Verify accessors are removed from state.
+	for _, va := range accessors {
+		got, err := state.VaultAccessor(nil, va.Accessor)
+		must.NoError(t, err)
+		must.Nil(t, got)
 	}
 }
 
@@ -3222,6 +3323,74 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 
 	if l := len(tvc.RevokedTokens); l != 1 {
 		t.Fatalf("Deregister revoked %d tokens; want 1", l)
+	}
+}
+
+func TestClientEndpoint_UpdateAlloc_VaultWorkloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		// Enable Vault config and don't set any connection info to use the
+		// workload identity flow.
+		c.VaultConfigs[structs.VaultDefaultCluster].Enabled = pointer.Of(true)
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the node register request.
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp)
+	must.NoError(t, err)
+
+	// Inject allocation and a few Vault accessors.
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
+	must.NoError(t, err)
+
+	var accessors []*structs.VaultAccessor
+	for i := 0; i < 3; i++ {
+		va := mock.VaultAccessor()
+		va.NodeID = node.ID
+		va.AllocID = alloc.ID
+		accessors = append(accessors, va)
+	}
+	err = state.UpsertVaultAccessor(101, accessors)
+	must.NoError(t, err)
+
+	// Inject mock job.
+	job := mock.Job()
+	job.ID = alloc.JobID
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job)
+	must.NoError(t, err)
+
+	// Update alloc status and verify no error happens when the orphaned Vault
+	// tokens are revoked.
+	clientAlloc := new(structs.Allocation)
+	*clientAlloc = *alloc
+	clientAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+	update := &structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{clientAlloc},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeAllocsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2)
+	must.NoError(t, err)
+
+	// Verify accessors are removed from state.
+	for _, va := range accessors {
+		got, err := state.VaultAccessor(nil, va.Accessor)
+		must.NoError(t, err)
+		must.Nil(t, got)
 	}
 }
 

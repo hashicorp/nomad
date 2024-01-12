@@ -893,7 +893,24 @@ func (s *Server) Reload(newConfig *Config) error {
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
-		if err := s.vault.SetConfig(newConfig.GetDefaultVault()); err != nil {
+		vconfig := newConfig.GetDefaultVault()
+
+		// Verify if the new configuration would cause the client type to
+		// change.
+		var err error
+		switch s.vault.(type) {
+		case *NoopVault:
+			if vconfig != nil && vconfig.Token != "" {
+				err = fmt.Errorf("setting a Vault token requires restarting the Nomad agent")
+			}
+		case *vaultClient:
+			if vconfig != nil && vconfig.Token == "" {
+				err = fmt.Errorf("removing the Vault token requires restarting the Nomad agent")
+			}
+		}
+		if err != nil {
+			_ = multierror.Append(&mErr, err)
+		} else if err := s.vault.SetConfig(newConfig.GetDefaultVault()); err != nil {
 			_ = multierror.Append(&mErr, err)
 		}
 	}
@@ -1192,8 +1209,8 @@ func (s *Server) setupConsul(consulConfigFunc consul.ConfigAPIFunc, consulACLs c
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
 	vconfig := s.config.GetDefaultVault()
-	if vconfig != nil && vconfig.DefaultIdentity != nil {
-		s.vault = &NoopVault{}
+	if vconfig != nil && vconfig.Token == "" {
+		s.vault = NewNoopVault(vconfig, s.logger, s.purgeVaultAccessors)
 		return nil
 	}
 

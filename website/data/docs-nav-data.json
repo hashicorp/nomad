@@ -1953,6 +1953,10 @@
           {
             "title": "Windows IIS",
             "href": "/plugins/drivers/community/iis"
+          },
+          {
+            "title": "Windows IIS",
+            "href": "/plugins/drivers/community/nomad-iis"
           }
         ]
       },
@@ -2294,6 +2298,10 @@
       {
         "title": "Key Management",
         "path": "operations/key-management"
+      },
+      {
+        "title": "Considerations for Stateful Workloads",
+        "path": "operations/stateful-workloads"
       }
     ]
   },
