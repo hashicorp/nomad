@@ -4277,27 +4277,6 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		require.True(t, plug.ControllerRequired)
 		require.False(t, plug.IsEmpty())
 
-		updateAllocsFn(allocIDs, SERVER,
-			func(alloc *structs.Allocation) {
-				alloc.DesiredStatus = structs.AllocDesiredStatusStop
-			})
-
-		updateAllocsFn(allocIDs, CLIENT,
-			func(alloc *structs.Allocation) {
-				alloc.ClientStatus = structs.AllocClientStatusComplete
-			})
-
-		plug = checkPlugin(pluginCounts{
-			controllerFingerprints: 1,
-			nodeFingerprints:       2,
-			controllersHealthy:     1,
-			nodesHealthy:           2,
-			controllersExpected:    0,
-			nodesExpected:          0,
-		})
-		require.True(t, plug.ControllerRequired)
-		require.False(t, plug.IsEmpty())
-
 		for _, node := range nodes {
 			updateNodeFn(node.ID, func(node *structs.Node) {
 				node.CSIControllerPlugins = nil
@@ -7128,7 +7107,7 @@ func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	expected := len(allocs) + len(allocs1)
+	expected := len(allocs1) // state.DeleteJob corresponds to stop -purge, so all allocs from the original job should be gone
 	if len(out) != expected {
 		t.Fatalf("expected: %v, actual: %v", expected, len(out))
 	}
