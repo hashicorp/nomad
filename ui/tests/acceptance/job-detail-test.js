@@ -278,6 +278,8 @@ moduleForJob(
       allocStatusDistribution: {
         running: 1,
       },
+      // Child's gotta be non-queued to be able to run
+      status: 'running', //  TODO: TEMP
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }

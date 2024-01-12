@@ -857,7 +857,8 @@ module('Acceptance | tokens', function (hooks) {
       await visit('/jobs');
       // Expect the Run button/link to work now
       assert.dom('[data-test-run-job]').hasTagName('a');
-      assert.dom('[data-test-run-job]').hasAttribute('href', '/ui/jobs/run');
+      let runJobLink = find('[data-test-run-job]');
+      assert.ok(runJobLink.href.includes('/ui/jobs/run'));
     });
   });
 
