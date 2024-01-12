@@ -127,8 +127,8 @@ func (a *AllocDir) ShareDirPath() string {
 }
 
 func (a *AllocDir) GetTaskDir(task string) *TaskDir {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	return a.TaskDirs[task]
 }
 
