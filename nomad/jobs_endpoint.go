@@ -213,6 +213,7 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) 
 			ID:           a.ID,
 			Group:        a.TaskGroup,
 			ClientStatus: a.ClientStatus,
+			JobVersion:   a.Job.Version,
 		}
 		// TODO: use methods instead of fields directly?
 		if a.DeploymentStatus != nil {
