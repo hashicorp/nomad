@@ -56,6 +56,8 @@ var (
 
 	// MinNomadVersionVaultWID is the minimum version of Nomad that supports
 	// workload identities for Vault.
+	// "-a" is used here so that it is "less than" all pre-release versions of
+	// Nomad 1.7.0 as well
 	MinNomadVersionVaultWID = version.Must(version.NewVersion("1.7.0-a"))
 )
 

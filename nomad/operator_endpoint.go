@@ -856,13 +856,8 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	for raw := nodesIter.Next(); raw != nil; raw = nodesIter.Next() {
 		node := raw.(*structs.Node)
 
-		nv, err := version.NewVersion(node.Attributes["nomad.version"])
-		if err != nil {
-			nodes = append(nodes, node.Stub(nil))
-			continue
-		}
-
-		if nv.LessThan(structs.MinNomadVersionVaultWID) {
+		v, err := version.NewVersion(node.Attributes["nomad.version"])
+		if err != nil || v.LessThan(structs.MinNomadVersionVaultWID) {
 			nodes = append(nodes, node.Stub(nil))
 			continue
 		}

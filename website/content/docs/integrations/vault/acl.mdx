@@ -772,10 +772,8 @@ the legacy workflow, such as generating and revoking Vault ACL tokens.
 
 Before removing Vault connectivity configuration from Nomad servers, you must
 make sure the rest of the cluster is ready to support workload identities for
-Vault.
-
-You can run the [`nomad setup vault -check`][nomad_cli_setup_vault] command to
-verify what changes are still necessary.
+Vault. You can run the [`nomad setup vault -check`][nomad_cli_setup_vault]
+command to verify what changes are still necessary.
 
 Before removing Nomad servers access to Vault you must:
 
