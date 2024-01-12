@@ -1979,10 +1979,11 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 			continue
 		}
 
-		eval := existing.(*structs.Evaluation).Copy()
-		if eval.Status != structs.EvalStatusPending {
+		if existing.(*structs.Evaluation).Status != structs.EvalStatusPending {
 			continue
 		}
+
+		eval := existing.(*structs.Evaluation).Copy()
 		eval.Status = structs.EvalStatusComplete
 		eval.StatusDescription = fmt.Sprintf("job %s deleted", job.ID)
 
