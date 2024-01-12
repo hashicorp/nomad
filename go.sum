@@ -602,8 +602,8 @@ github.com/grpc-ecosystem/go-grpc-middleware v1.4.0/go.mod h1:g5qyo/la0ALbONm6Vb
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/hashicorp/cap v0.2.0 h1:Cgr1iDczX17y0PNF5VG+bWTtDiimYL8F18izMPbWNy4=
 github.com/hashicorp/cap v0.2.0/go.mod h1:zb3VvIFA0lM2lbmO69NjowV9dJzJnZS89TaM9blXPJA=
-github.com/hashicorp/consul-template v0.35.0 h1:wLlninL3h31ftATB31Evo0QbzGrQS9T775mWl3JSy28=
-github.com/hashicorp/consul-template v0.35.0/go.mod h1:vM3cOhA+7pbu+esuIU1HzbPttG5RENs69d2hfDnx4xM=
+github.com/hashicorp/consul-template v0.36.1-0.20240205193627-e15d61bb21ae h1:ehZNpVWpoWtMrxFE/FKvJyfjDGY384iaBccpYu13yCw=
+github.com/hashicorp/consul-template v0.36.1-0.20240205193627-e15d61bb21ae/go.mod h1:bvidXKwpfXzJ1X4wDw68OXnVxy5k7HLOHhOf5gnQr3M=
 github.com/hashicorp/consul/api v1.26.1 h1:5oSXOO5fboPZeW5SN+TdGFP/BILDgBm19OrPZ/pICIM=
 github.com/hashicorp/consul/api v1.26.1/go.mod h1:B4sQTeaSO16NtynqrAdwOlahJ7IUDZM9cj2420xYL8A=
 github.com/hashicorp/consul/sdk v0.15.0 h1:2qK9nDrr4tiJKRoxPGhm6B7xJjLVIQqkjiab2M4aKjU=

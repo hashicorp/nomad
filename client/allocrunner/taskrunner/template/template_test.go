@@ -6,12 +6,14 @@ package template
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,6 +40,19 @@ import (
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
+
+// TestMain overrides the normal top-level test runner for this package. When
+// template-render subprocesses are run, they use os.Executable to find their
+// own binary, which is the template.test binary when these tests are
+// running. That causes the template-render subprocess to run all these tests!
+// Bail out early if we know we're in the subprocess.
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if slices.Contains(flag.Args(), "template-render") {
+		return
+	}
+	os.Exit(m.Run())
+}
 
 const (
 	// TestTaskName is the name of the injected task. It should appear in the
@@ -153,6 +168,7 @@ type testHarness struct {
 // newTestHarness returns a harness starting a dev consul and vault server,
 // building the appropriate config and creating a TaskTemplateManager
 func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault bool) *testHarness {
+	t.Helper()
 	region := "global"
 	mockNode := mock.Node()
 
@@ -205,6 +221,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 }
 
 func (h *testHarness) start(t *testing.T) {
+	t.Helper()
 	if err := h.startWithErr(); err != nil {
 		t.Fatalf("failed to build task template manager: %v", err)
 	}
@@ -222,6 +239,7 @@ func (h *testHarness) startWithErr() error {
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.envBuilder,
 		MaxTemplateEventRate: h.emitRate,
+		TaskID:               uuid.Generate(),
 	})
 	return err
 }
@@ -250,7 +268,7 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 	ci.Parallel(t)
 	hooks := NewMockTaskHooks()
 	clientConfig := &config.Config{Region: "global"}
-	taskDir := "foo"
+	taskDir := t.TempDir()
 	a := mock.Alloc()
 	envBuilder := taskenv.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], clientConfig.Region)
 
@@ -273,6 +291,7 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 				TaskDir:              taskDir,
 				EnvBuilder:           envBuilder,
 				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+				Logger:               testlog.HCLogger(t),
 			},
 			expectedErr: "lifecycle hooks",
 		},
@@ -373,6 +392,10 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			if c.config != nil {
+				c.config.TaskID = c.name
+				c.config.Logger = testlog.HCLogger(t)
+			}
 			_, err := NewTaskTemplateManager(c.config)
 			if err != nil {
 				if c.expectedErr == "" {
@@ -466,17 +489,15 @@ func TestTaskTemplateManager_HostPath(t *testing.T) {
 			harness.taskDir, template.SourcePath, err)
 	}
 
-	// Test with desination too
+	// Test with destination too
 	template.SourcePath = f.Name()
 	template.DestPath = "../../../../../../" + file
 	harness = newTestHarness(t, []*structs.Template{template}, false, false)
 	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
 	err = harness.startWithErr()
-	if err == nil || !strings.Contains(err.Error(), "escapes alloc directory") {
-		t.Fatalf("Expected directory traversal out of %q via interpolation disallowed for %q: %v",
-			harness.taskDir, template.SourcePath, err)
-	}
-
+	must.ErrorContains(t, err, "escapes alloc directory", must.Sprintf(
+		"Expected directory traversal out of %q via interpolation disallowed for %q: %v",
+		harness.taskDir, template.SourcePath, err))
 }
 
 func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
@@ -490,7 +511,13 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
 
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = TestTaskName
+
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
+	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 	harness.start(t)
 	defer harness.stop()
 
@@ -525,7 +552,13 @@ func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
 
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = TestTaskName
+
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
+	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 	harness.start(t)
 	defer harness.stop()
 
@@ -559,13 +592,17 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
 
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = TestTaskName
+
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
+	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 
 	// Write the contents
 	path := filepath.Join(harness.taskDir, file)
-	if err := os.WriteFile(path, []byte(content), 0777); err != nil {
-		t.Fatalf("Failed to write data: %v", err)
-	}
+	must.NoError(t, os.WriteFile(path, []byte(content), 0777))
 
 	harness.start(t)
 	defer harness.stop()
@@ -580,13 +617,10 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 	// Check the file is there
 	path = filepath.Join(harness.taskDir, file)
 	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
-	}
+	must.NoError(t, err, must.Sprintf(
+		"Failed to read rendered template from %q", path))
 
-	if s := string(raw); s != content {
-		t.Fatalf("Unexpected template data; got %q, want %q", s, content)
-	}
+	must.Eq(t, content, string(raw), must.Sprint("Unexpected template data"))
 }
 
 func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
@@ -822,7 +856,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	case <-harness.mockHooks.RestartCh:
 		t.Fatal("should not have restarted", harness.mockHooks)
 	case <-harness.mockHooks.SignalCh:
-		t.Fatal("should not have restarted", harness.mockHooks)
+		t.Fatal("should not have received signal", harness.mockHooks)
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
@@ -1107,6 +1141,7 @@ func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.config.TemplateConfig.DisableSandbox = true // no real alloc in this test
 	harness.start(t)
 	defer harness.stop()
 
@@ -1468,10 +1503,10 @@ COMMON={{key "common"}}
 	})
 }
 
-// TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
+// TestTaskTemplateManager_FiltersEnvVars asserts that we only render
 // environment variables found in task env-vars and not read the nomad host
-// process environment variables.  nomad host process environment variables
-// are to be treated the same as not found environment variables.
+// process environment variables.  nomad host process environment variables are
+// to be treated the same as not found environment variables.
 func TestTaskTemplateManager_FiltersEnvVars(t *testing.T) {
 
 	t.Setenv("NOMAD_TASK_NAME", "should be overridden by task")
@@ -1493,6 +1528,7 @@ TEST_ENV_NOT_FOUND: {{env "` + testenv + `_NOTFOUND" }}`
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.config.TemplateConfig.DisableSandbox = true // no real alloc in this test
 	harness.start(t)
 	defer harness.stop()
 
@@ -1530,6 +1566,7 @@ ANYTHING_goes=Spaces are=ok!
 		Envvars:    true,
 	}
 	harness := newTestHarness(t, []*structs.Template{template}, true, false)
+	harness.config.TemplateConfig.DisableSandbox = true // no real alloc in this test
 	harness.start(t)
 	defer harness.stop()
 
@@ -1763,6 +1800,7 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
+		TaskID:       uuid.Generate(),
 	}
 	ctconf, err := newRunnerConfig(config, nil)
 	if err != nil {
@@ -1794,6 +1832,7 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 		ClientConfig: c,
 		VaultToken:   "token",
 		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+		TaskID:       uuid.Generate(),
 	}
 
 	ctmplMapping, err := parseTemplateConfigs(config)
@@ -1828,6 +1867,7 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 		VaultToken:     "token",
 		VaultNamespace: overriddenNS,
 		EnvBuilder:     taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+		TaskID:         uuid.Generate(),
 	}
 
 	ctmplMapping, err := parseTemplateConfigs(config)
@@ -1848,7 +1888,7 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 	clienttestutil.RequireNotWindows(t)
 
 	clientConf := config.DefaultConfig()
-	must.False(t, clientConf.TemplateConfig.DisableSandbox, must.Sprint("expected sandbox to be disabled"))
+	must.False(t, clientConf.TemplateConfig.DisableSandbox, must.Sprint("expected sandbox to be enabled"))
 
 	// Set a fake alloc dir to make test output more realistic
 	clientConf.AllocDir = "/fake/allocdir"
@@ -2071,6 +2111,7 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 		tc := cases[i]
 		t.Run(tc.Name, func(t *testing.T) {
 			config := tc.Config()
+			config.TaskID = uuid.Generate()
 			mapping, err := parseTemplateConfigs(config)
 			if tc.Err == nil {
 				// Ok path
@@ -2369,6 +2410,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 		t.Run(_case.Name, func(t *testing.T) {
 			// monkey patch the client config with the version of the ClientTemplateConfig we want to test.
 			_case.TTMConfig.ClientConfig.TemplateConfig = _case.ClientTemplateConfig
+			_case.TTMConfig.TaskID = uuid.Generate()
 			templateMapping, err := parseTemplateConfigs(_case.TTMConfig)
 			must.NoError(t, err)
 
@@ -2433,6 +2475,7 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 				},
 			},
 		},
+		TaskID: uuid.Generate(),
 	}
 
 	templateMapping, err := parseTemplateConfigs(ttmConfig)
@@ -2470,6 +2513,7 @@ func TestTaskTemplateManager_Template_ErrMissingKey_Set(t *testing.T) {
 				ErrMissingKey: true,
 			},
 		},
+		TaskID: uuid.Generate(),
 	}
 
 	templateMapping, err := parseTemplateConfigs(ttmConfig)
