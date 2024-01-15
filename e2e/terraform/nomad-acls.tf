@@ -15,11 +15,11 @@ locals {
 resource "null_resource" "bootstrap_nomad_acls" {
   depends_on = [module.nomad_server]
   triggers = {
-    script = "${local.nomad_env} ./scripts/bootstrap-nomad.sh"
+    command = aws_instance.server.0.public_ip != "" ? local.nomad_env : "echo 'Nomad server not ready yet, skipping bootstrap'"
   }
 
   provisioner "local-exec" {
-    command = aws_instance.server.0.public_ip != "" ? local.nomad_env : "echo 'Nomad server not ready yet, skipping bootstrap'"
+    command = "${local.nomad_env} ./scripts/bootstrap-nomad.sh"
   }
 }
 
