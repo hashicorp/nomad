@@ -56,14 +56,16 @@ moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
 
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch)',
-  () =>
-    server.create('job', {
+  () => {
+    server.create('namespace', { id: 'test' });
+    return server.create('job', {
       status: 'running',
       datacenters: ['dc1'],
       type: 'sysbatch',
       createAllocations: false,
       noActiveDeployment: true,
-    })
+    });
+  }
 );
 
 moduleForJobWithClientStatus(
@@ -113,6 +115,7 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch child)',
   () => {
+    server.create('namespace', { id: 'test' });
     const parent = server.create('job', 'periodicSysbatch', {
       childrenCount: 1,
       shallow: true,
