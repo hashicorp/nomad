@@ -17,4 +17,12 @@ export default class NamespaceAdapter extends Watchable {
       }
     });
   }
+
+  urlForCreateRecord(_modelName, model) {
+    return this.urlForUpdateRecord(model.attr('name'), 'namespace');
+  }
+
+  urlForDeleteRecord(id) {
+    return this.urlForUpdateRecord(id, 'namespace');
+  }
 }

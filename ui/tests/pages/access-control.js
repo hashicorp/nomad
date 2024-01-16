@@ -10,4 +10,5 @@ export default create({
   visitTokens: visitable('/access-control/tokens'),
   visitPolicies: visitable('/access-control/policies'),
   visitRoles: visitable('/access-control/roles'),
+  visitNamespaces: visitable('/access-control/namespaces'),
 });

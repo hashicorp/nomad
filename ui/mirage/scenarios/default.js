@@ -27,6 +27,7 @@ export const allScenarios = {
   servicesTestCluster,
   policiesTestCluster,
   rolesTestCluster,
+  namespacesTestCluster,
   ...topoScenarios,
   ...sysbatchScenarios,
 };
@@ -581,6 +582,11 @@ function policiesTestCluster(server) {
 function rolesTestCluster(server) {
   faker.seed(1);
 
+  server.create('namespace', {
+    id: 'default',
+    name: 'default',
+  });
+  server.createList('namespace', 4);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node-pool', 2);
   server.createList('node', 5);
@@ -786,6 +792,30 @@ function rolesTestCluster(server) {
   logTokens(server);
 
   server.create('auth-method', { name: 'vault' });
+
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+}
+
+function namespacesTestCluster(server, opts = { enterprise: true }) {
+  faker.seed(1);
+  createTokens(server);
+
+  if (opts.enterprise) {
+    server.create('feature', { name: 'Node Pools Governance' });
+    server.create('feature', { name: 'Resource Quotas' });
+  }
+
+  createNamespaces(server);
+
+  let nsWithVariable = server.create('namespace', {
+    name: 'with-variables',
+    id: 'with-variables',
+  });
+
+  server.create('variable', {
+    id: `some/variable/path`,
+    namespace: nsWithVariable.id,
+  });
 
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
 }

@@ -10,10 +10,17 @@
 			Edit Role
 		</div>
 		{{#if (can "destroy role")}}
-      <Hds::Button @text="Delete Role" @color="critical"
-        {{on "click" (perform this.deleteRole)}}
-        data-test-delete-role
-      />
+      <TwoStepButton
+          data-test-delete-role
+          @alignRight={{true}}
+          @idleText="Delete Role"
+          @cancelText="Cancel"
+          @confirmText="Yes, Delete Role"
+          @confirmationMessage="Are you sure?"
+          @awaitingConfirmation={{this.deleteRole.isRunning}}
+          @disabled={{this.deleteRole.isRunning}}
+          @onConfirm={{perform this.deleteRole}}
+        />
 		{{/if}}
 	</h1>
 	<RoleEditor

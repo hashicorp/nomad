@@ -1,0 +1,58 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<form class="acl-form namespace-editor" autocomplete="off" {{on "submit" this.save}}>
+	{{#if this.namespace.isNew }}
+		<Hds::Form::TextInput::Field
+			@isRequired={{true}}
+			data-test-namespace-name-input
+			@value={{@namespace.name}}
+			{{on "input" this.updateNamespaceName}}
+			{{autofocus ignore=(not @namespace.isNew)}}
+		as |F|>
+			<F.Label>Name</F.Label>
+		</Hds::Form::TextInput::Field>
+	{{/if}}
+
+	<div class="boxed-section">
+		<div class="boxed-section-head">
+			Definition
+		</div>
+		<div class="boxed-section-body is-full-bleed">
+			<div
+				class="namespace-editor-wrapper boxed-section-body is-full-bleed
+				{{if this.JSONError 'error'}}"
+			>
+				<div
+					class="namespace-editor"
+					data-test-namespace-editor
+					{{code-mirror
+						screenReaderLabel="Namespace definition"
+						theme="hashi"
+						mode="javascript"
+						content=this.definitionString
+						onUpdate=this.updateNamespaceDefinition
+						autofocus=false
+						extraKeys=(hash Cmd-Enter=this.save)
+					}}
+				/>
+				{{#if this.JSONError}}
+				<p class="help is-danger">
+					{{this.JSONError}}
+				</p>
+				{{/if}}
+			</div>
+		</div>
+	</div>
+
+	<footer>
+		{{#if (can "update namespace")}}
+      <Hds::Button @text="Save Namespace" @color="primary" disabled={{this.JSONError}}
+        {{on "click" this.save}}
+		data-test-save-namespace
+      />
+		{{/if}}
+	</footer>
+</form>
