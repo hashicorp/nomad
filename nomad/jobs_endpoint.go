@@ -312,11 +312,6 @@ func (j *Jobs) Statuses3(
 			} else {
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
 					iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
-
-				} else if len(args.Jobs) > 0 {
-					// new experiment: only fetch specific jobs if requested
-					iter, err = state.JobsByIDs2(ws, args.Jobs)
-
 				} else if namespace != structs.AllNamespacesSentinel {
 					iter, err = state.JobsByNamespace(ws, namespace)
 				} else {
@@ -337,6 +332,16 @@ func (j *Jobs) Statuses3(
 					paginator.NamespaceFilter{
 						AllowableNamespaces: allowableNamespaces,
 					},
+				}
+				// only provide specific jobs if requested.
+				if len(args.Jobs) > 0 {
+					jobSet := set.From[structs.NamespacedID](args.Jobs)
+					filters = append(filters, paginator.GenericFilter{
+						Allow: func(i interface{}) (bool, error) {
+							job := i.(*structs.Job)
+							return jobSet.Contains(job.NamespacedID()), nil
+						},
+					})
 				}
 
 				jobs := make([]structs.UIJob, 0)
