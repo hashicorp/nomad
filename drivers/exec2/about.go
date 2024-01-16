@@ -22,10 +22,14 @@ var info = &base.PluginInfoResponse{
 	Name:              name,
 }
 
+// driverConfigSpec is the HCL configuration set for the plugin on the client
 var driverConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 	// TODO
+	// will probably have some default unveil paths()
+	// .. and some allowable unveil paths? that gets tricky though
 })
 
+// taskConfigSpec is the HCL configuration set for the task on the jobspec
 var taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 	"command": hclspec.NewAttr("command", "string", true),
 	"args":    hclspec.NewAttr("args", "list(string)", false),
@@ -35,7 +39,7 @@ var taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 var capabilities = &drivers.Capabilities{
 	SendSignals:         true,
 	Exec:                false,
-	FSIsolation:         drivers.FSIsolationNone,
+	FSIsolation:         drivers.FSIsolationUnveil,
 	MustInitiateNetwork: false,
 	MountConfigs:        drivers.MountConfigSupportNone,
 	RemoteTasks:         false,

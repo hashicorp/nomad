@@ -136,7 +136,7 @@ type Fingerprint struct {
 // a driver supports.
 type FSIsolation string
 
-var (
+const (
 	// FSIsolationNone means no isolation. The host filesystem is used.
 	FSIsolationNone = FSIsolation("none")
 
@@ -146,6 +146,11 @@ var (
 
 	// FSIsolationImage means the driver uses an image.
 	FSIsolationImage = FSIsolation("image")
+
+	// FSIsolationUnveil means the driver and client will work together using
+	// unveil() syscall semantics (i.e. landlock on linux) isolate the host
+	// filesytem from workloads.
+	FSIsolationUnveil = FSIsolation("unveil")
 )
 
 type Capabilities struct {
