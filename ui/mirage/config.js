@@ -429,20 +429,6 @@ export default function () {
     return this.serialize(volume);
   });
 
-  this.get('/namespaces', function ({ namespaces }) {
-    const records = namespaces.all();
-
-    if (records.length) {
-      return this.serialize(records);
-    }
-
-    return this.serialize([{ Name: 'default' }]);
-  });
-
-  this.get('/namespace/:id', function ({ namespaces }, { params }) {
-    return this.serialize(namespaces.find(params.id));
-  });
-
   this.get('/agent/members', function ({ agents, regions }) {
     const firstRegion = regions.first();
     return {
@@ -729,6 +715,48 @@ export default function () {
       description: Description,
       rules: Rules,
     });
+  });
+
+  this.get('/namespaces', function ({ namespaces }) {
+    const records = namespaces.all();
+
+    if (records.length) {
+      return this.serialize(records);
+    }
+
+    return this.serialize([{ Name: 'default' }]);
+  });
+
+  this.get('/namespace/:id', function ({ namespaces }, { params }) {
+    return this.serialize(namespaces.find(params.id));
+  });
+
+  this.post('/namespace/:id', function (schema, request) {
+    const { Name, Description } = JSON.parse(request.requestBody);
+
+    return server.create('namespace', {
+      id: Name,
+      name: Name,
+      description: Description,
+    });
+  });
+
+  this.put('/namespace/:id', function () {
+    return new Response(200, {}, {});
+  });
+
+  this.delete('/namespace/:id', function (schema, request) {
+    const { id } = request.params;
+
+    // If any variables exist for the namespace, error
+    const variables =
+      server.db.variables.where((v) => v.namespace === id) || [];
+    if (variables.length) {
+      return new Response(403, {}, 'Namespace has variables');
+    }
+
+    server.db.namespaces.remove(id);
+    return '';
   });
 
   this.get('/regions', function ({ regions }) {

@@ -9,6 +9,7 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
+import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
 export default class TokenEditorComponent extends Component {
   @service notifications;
@@ -108,10 +109,14 @@ export default class TokenEditorComponent extends Component {
           this.activeToken.id
         );
       }
-    } catch (error) {
+    } catch (err) {
+      let message = err.errors?.length
+        ? messageFromAdapterError(err)
+        : err.message;
+
       this.notifications.add({
         title: `Error creating Token ${this.activeToken.name}`,
-        message: error,
+        message,
         color: 'critical',
         sticky: true,
       });

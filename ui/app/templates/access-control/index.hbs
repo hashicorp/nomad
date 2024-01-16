@@ -39,6 +39,15 @@
       <p>Sets of rules defining the capabilities granted to adhering tokens.</p>
       <Hds::Button @text="Create Policy" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.policies.new" />
     </Hds::Card::Container>
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} data-test-namespaces-card>
+      <LinkTo
+        @route="access-control.namespaces"
+      >
+        {{this.model.namespaces.length}} {{pluralize "Namespace" this.model.namespaces.length}}
+      </LinkTo>
+      <p>Namespaces allow jobs and other objects to be segmented from each other.</p>
+      <Hds::Button @text="Create Namespace" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.namespaces.new" />
+    </Hds::Card::Container>
   </div>
 </section>
 {{outlet}}
