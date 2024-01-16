@@ -2096,3 +2096,43 @@ func (s *HTTPServer) JobsStatuses2Request(resp http.ResponseWriter, req *http.Re
 	setMeta(resp, &out.QueryMeta)
 	return out.Jobs, nil
 }
+
+func (s *HTTPServer) JobsStatuses3Request(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	args := structs.JobsStatusesRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil // seems whack
+	}
+	switch req.Method {
+	case http.MethodGet:
+		// GET requests will be treated as "get all jobs" but also with filtering and pagination and such
+	case http.MethodPost:
+		// POST requests expect a list of Jobs in the request body, which will then be filtered/paginated, etc.
+		var in api.JobsStatusesRequest
+		if err := decodeBody(req, &in); err != nil {
+			return nil, err
+		}
+		if len(in.Jobs) == 0 {
+			return nil, CodedError(http.StatusBadRequest, "no jobs in request")
+		}
+		for _, j := range in.Jobs {
+			if j.Namespace == "" {
+				j.Namespace = "default"
+			}
+			args.Jobs = append(args.Jobs, structs.NamespacedID{
+				ID: j.ID,
+				// note: can't just use QueryOptions.Namespace, because each job may have a different NS
+				Namespace: j.Namespace,
+			})
+		}
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var out structs.JobsStatusesResponse
+	if err := s.agent.RPC("Jobs.Statuses3", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Jobs, nil
+}
