@@ -211,6 +211,11 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 func WaitForJobStopped(t *testing.T, nomadClient *api.Client, job string) {
 	_, _, err := nomadClient.Jobs().Deregister(job, true, nil)
 	require.NoError(t, err, "error deregistering job %q", job)
+
+	// sleep for 3 seconds to make sure things any related events (like Consul
+	// service de-registration) has enough time to happen, because there are
+	// tests that assert such things after stopping jobs.
+	time.Sleep(3 * time.Second)
 }
 
 func WaitForAllocsStopped(t *testing.T, nomadClient *api.Client, allocIDs []string) {
