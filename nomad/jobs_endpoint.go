@@ -7,6 +7,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -32,14 +33,18 @@ func (j *Jobs) Statuses(
 	reply *structs.JobsStatusesResponse) error {
 	// TODO: auth, rate limiting, etc...
 
+	// compare between state unblocks to see if the RPC should unblock (namely, if any jobs have gone away)
+	prevJobs := set.New[structs.NamespacedID](0)
+
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			var jobs []structs.UIJob
+			var err error
+			jobs := make([]structs.UIJob, 0)
+			newJobs := set.New[structs.NamespacedID](0)
 			for _, j := range args.Jobs {
-				ns := j.Namespace
-				job, err := state.JobByID(ws, ns, j.ID)
+				job, err := state.JobByID(ws, j.Namespace, j.ID)
 				if err != nil {
 					return err
 				}
@@ -51,10 +56,19 @@ func (j *Jobs) Statuses(
 					return err
 				}
 				jobs = append(jobs, uiJob)
+				newJobs.Insert(job.NamespacedID())
 				if idx > reply.Index {
 					reply.Index = idx
 				}
 			}
+			// mainly for if a job goes away
+			if !newJobs.Equal(prevJobs) {
+				reply.Index, err = state.Index("jobs")
+				if err != nil {
+					return err
+				}
+			}
+			prevJobs = newJobs
 			reply.Jobs = jobs
 			j.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
@@ -88,6 +102,9 @@ func (j *Jobs) Statuses2(
 		return structs.ErrPermissionDenied
 	}
 	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
+
+	// compare between state unblocks to see if the RPC should unblock (namely, if any jobs have gone away)
+	prevJobs := set.New[structs.NamespacedID](0)
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -131,7 +148,8 @@ func (j *Jobs) Statuses2(
 					},
 				}
 
-				var jobs []structs.UIJob
+				jobs := make([]structs.UIJob, 0)
+				newJobs := set.New[structs.NamespacedID](0)
 				pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 					func(raw interface{}) error {
 						job := raw.(*structs.Job)
@@ -145,6 +163,8 @@ func (j *Jobs) Statuses2(
 						}
 
 						jobs = append(jobs, uiJob)
+						newJobs.Insert(job.NamespacedID())
+
 						if idx > reply.Index {
 							reply.Index = idx
 						}
@@ -160,6 +180,14 @@ func (j *Jobs) Statuses2(
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to read result page: %v", err)
 				}
+
+				if !newJobs.Equal(prevJobs) {
+					reply.Index, err = state.Index("jobs")
+					if err != nil {
+						return err
+					}
+				}
+				prevJobs = newJobs
 
 				reply.QueryMeta.NextToken = nextToken
 				reply.Jobs = jobs
@@ -214,7 +242,7 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) 
 			}
 		}
 		uiJob.Allocs = append(uiJob.Allocs, alloc)
-		if a.ModifyIndex > idx {
+		if a.ModifyIndex > idx { // TODO: unblock if an alloc goes away (like GC)
 			idx = a.ModifyIndex
 		}
 	}
@@ -224,12 +252,11 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) 
 		return uiJob, idx, err
 	}
 	for _, d := range deploys {
-		if d.ModifyIndex > idx {
-			idx = d.ModifyIndex
-		}
 		if d.Active() {
 			uiJob.DeploymentID = d.ID
-			break
+		}
+		if d.ModifyIndex > idx {
+			idx = d.ModifyIndex
 		}
 	}
 	return uiJob, idx, nil
