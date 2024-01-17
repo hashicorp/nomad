@@ -209,13 +209,26 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 
 // WaitForJobStopped stops a job and waits for all of its allocs to terminate.
 func WaitForJobStopped(t *testing.T, nomadClient *api.Client, job string) {
-	_, _, err := nomadClient.Jobs().Deregister(job, true, nil)
+	evalID, _, err := nomadClient.Jobs().Deregister(job, true, nil)
 	require.NoError(t, err, "error deregistering job %q", job)
 
-	// sleep for 3 seconds to make sure things any related events (like Consul
-	// service de-registration) has enough time to happen, because there are
-	// tests that assert such things after stopping jobs.
-	time.Sleep(3 * time.Second)
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(time.Millisecond * 100)
+		eval, _, err := nomadClient.Evaluations().Info(evalID, nil)
+		if err != nil {
+			return false, err
+		}
+		switch eval.Status {
+		case api.EvalStatusComplete:
+			return true, nil
+		case api.EvalStatusFailed:
+			return true, nil
+		default:
+			return false, fmt.Errorf("expected stopped eval, but was: %s", eval.Status)
+		}
+	}, func(err error) {
+		require.NoError(t, err, "failed to wait for eval")
+	})
 }
 
 func WaitForAllocsStopped(t *testing.T, nomadClient *api.Client, allocIDs []string) {
