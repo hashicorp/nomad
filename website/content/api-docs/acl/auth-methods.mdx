@@ -223,13 +223,6 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
   creates a local or global token when performing SSO login. This field must be
   set to either "local" or "global"
 
-<<<<<<< HEAD
-=======
-- `TokenNameFormat` `(string <optional>)` - Defines the token name format for the
-  generated tokens This can be lightly templated using HIL '${foo}' syntax.
-  Defaults to '${auth_method_type}-${auth_method_name}'
-
->>>>>>> 8f99ba6b2c (docs: add missing JWT auth method API documentation (#19757))
 - `MaxTokenTTL` `(duration: <required>)` - Defines the maximum life of a token created
   by this method. When set it will initialize the `ExpirationTime` field on all
   tokens to a value of `Token.CreateTime + AuthMethod.MaxTokenTTL`. This field is
