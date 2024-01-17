@@ -25,8 +25,11 @@ export default class Watchable extends ApplicationAdapter {
   // It's either this weird side-effecting thing that also requires a change
   // to ajaxOptions or overriding ajax completely.
   ajax(url, type, options) {
+    console.log('jax1', url, type, options);
     const hasParams = hasNonBlockingQueryParams(options);
-    if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
+    // TODO: TEMP. PROBLEM APPEARS TO BE THIS !GET RETURN
+    // if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
+    if (!hasParams) return super.ajax(url, type, options);
 
     const params = { ...options.data };
     delete params.index;
@@ -35,8 +38,19 @@ export default class Watchable extends ApplicationAdapter {
     // In order to prevent doubling params, data should only include index
     // at this point since everything else is added to the URL in advance.
     options.data = options.data.index ? { index: options.data.index } : {};
-
-    return super.ajax(`${url}?${queryString.stringify(params)}`, type, options);
+    console.log('AJAXING', url, queryString.stringify(params));
+    // TODO: TEMP HACK
+    if (url === '/v1/jobs/statuses') {
+      console.log('options then', options);
+      options.data.index = 3528;
+      return super.ajax(`${url}?index=3528`, type, options);
+    } else {
+      return super.ajax(
+        `${url}?${queryString.stringify(params)}`,
+        type,
+        options
+      );
+    }
   }
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
@@ -95,7 +109,13 @@ export default class Watchable extends ApplicationAdapter {
     options,
     additionalParams = {}
   ) {
-    const url = this.buildURL(type.modelName, null, null, 'query', query);
+    const builtURL = this.buildURL(type.modelName, null, null, 'query', query);
+    const url = options.url || builtURL;
+    console.log(
+      'building URL from query in watchable adapter',
+      options.url,
+      builtURL
+    );
     const method = get(options, 'adapterOptions.method') || 'GET';
     let [urlPath, params] = url.split('?');
     params = assign(
@@ -104,17 +124,31 @@ export default class Watchable extends ApplicationAdapter {
       additionalParams,
       query
     );
-    console.log(
-      'hm watch',
-      snapshotRecordArray,
-      urlPath,
-      queryString.stringify(query)
-    );
+    console.log('+++ params', params);
     if (get(options, 'adapterOptions.watch')) {
       // The intended query without additional blocking query params is used
       // to track the appropriate query index.
-      params.index = this.watchList.getIndexFor(
-        `${urlPath}?${queryString.stringify(query)}`
+      // Is there a known index?
+      console.log(
+        'known index? +++',
+        get(options, 'adapterOptions.knownIndex')
+      );
+      if (get(options, 'adapterOptions.knownIndex')) {
+        this.watchList.setIndexFor(
+          urlPath,
+          get(options, 'adapterOptions.knownIndex')
+        );
+        params.index = this.watchList.getIndexFor(
+          `${urlPath}?${queryString.stringify(query)}`
+        );
+      } else {
+        params.index = this.watchList.getIndexFor(
+          `${urlPath}?${queryString.stringify(query)}`
+        );
+      }
+      console.log(
+        '+++ adapterOptions.watch is true, params.index is',
+        params.index
       );
     }
 
@@ -136,13 +170,20 @@ export default class Watchable extends ApplicationAdapter {
 
       // Remove existing records that match this query. This way if server-side
       // deletes have occurred, the store won't have stale records.
+
+      // TODO: NOTE: MAYBE JUST DOESNT WORK ??
+      // console.log('about to peek and eventually qPTA / removeRecord', {
+      //   type,
+      //   queryParamsToAttrs,
+      //   query,
+      // });
       store
         .peekAll(type.modelName)
-        .filter((record) =>
-          queryParamsToAttrs.some(
+        .filter((record) => {
+          return queryParamsToAttrs.some(
             (mapping) => get(record, mapping.attr) === query[mapping.queryParam]
-          )
-        )
+          );
+        })
         .forEach((record) => {
           removeRecord(store, record);
         });
@@ -215,7 +256,9 @@ export default class Watchable extends ApplicationAdapter {
     // Some browsers lowercase all headers. Others keep them
     // case sensitive.
     const newIndex = headers['x-nomad-index'] || headers['X-Nomad-Index'];
+    // console.log('handling response with index of', newIndex);
     if (newIndex) {
+      // console.log('+++new index, setting on watchlist', newIndex, requestData.url);
       this.watchList.setIndexFor(requestData.url, newIndex);
     }
 

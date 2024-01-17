@@ -135,7 +135,7 @@ export function watchAll(modelName) {
 }
 
 export function watchQuery(modelName) {
-  return task(function* (params, throttle = 1000) {
+  return task(function* (params, throttle = 5000) {
     assert(
       'To watch a query, the adapter for the type being queried MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable

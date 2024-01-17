@@ -17,7 +17,9 @@ export default class JobSerializer extends ApplicationSerializer {
   separateNanos = ['SubmitTime'];
 
   normalizeQueryResponse(store, primaryModelClass, payload, id, requestType) {
-    const jobs = Object.values(payload.Jobs);
+    // const jobs = Object.values(payload.Jobs);
+    console.log({ payload });
+    const jobs = payload;
     // Signal that it's a query response at individual normalization level for allocation placement
     jobs.forEach((job) => {
       if (job.Allocs) {

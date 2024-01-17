@@ -227,19 +227,26 @@ export default class IndexController extends Controller.extend(
     }));
   }
 
+  get storedJobs() {
+    return this.store.peekAll('job');
+  }
+
   /**
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('model.jobs.@each.parent')
+  @computed('model.jobs.@each.parent', 'storedJobs.@each.parent')
   get visibleJobs() {
-    console.log(
-      '--visibleJobs recompute',
-      this.model.jobs.length,
-      this.model.jobs.mapBy('name')
-    );
+    // console.log(
+    //   '--visibleJobs recompute',
+    //   this.model.jobs.length,
+    //   this.storedJobs,
+    //   this.model.jobs.mapBy('name')
+    // );
+    // console.log('whats watchjobs all about', this.modelWatch);
     if (!this.model || !this.model.jobs) return [];
-    return this.model.jobs
+    // return this.model.jobs
+    return this.storedJobs
       .compact()
       .filter((job) => !job.isNew)
       .filter((job) => !job.get('parent.content'));

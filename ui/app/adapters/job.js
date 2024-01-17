@@ -203,13 +203,46 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return wsUrl;
   }
 
-  // query(store, type, query) {
-  //   const url = this.urlForQuery(query, type.modelName);
-  //   return this.ajax(url, 'GET');
-  // }
+  query(store, type, query, snapshotRecordArray, options) {
+    console.log('querying', query);
+    let { queryType } = query;
+    options = options || {};
+    options.adapterOptions = options.adapterOptions || {};
+    console.log('testing out and');
+    if (queryType === 'initialize') {
+      console.log('+++ initialize type');
+      options.url = this.urlForQuery(query, type.modelName);
+      console.log('url is therefore', options.url);
+      options.adapterOptions.method = 'GET';
+      return super.query(store, type, query, snapshotRecordArray, options);
+    } else if (queryType === 'update') {
+      console.log('++++ update type');
 
+      options.url = this.urlForUpdateQuery(query, type.modelName);
+      console.log('url is therefore', options.url);
+      options.adapterOptions.method = 'POST';
+      options.adapterOptions.watch = true;
+      options.adapterOptions.knownIndex = '3528'; //TODO: TEMP
+      // return this.ajax(url, 'POST', {
+      //   data: JSON.stringify({jobs: [
+      //     {
+      //       id: query.jobs[0].id,
+      //     }
+      //   ]})
+      // });
+      return super.query(store, type, query, snapshotRecordArray, options);
+    } else {
+      console.log('++++++ hidden third thing???');
+    }
+  }
+
+  /**
+   * Differentiates between initialize and update queries, which currently have different endpoints. TODO: maybe consolidate.
+   */
   urlForQuery(query, modelName) {
-    let baseUrl = this.buildURL(modelName);
     return `/${this.namespace}/jobs/statuses2`;
+  }
+  urlForUpdateQuery(query, modelName) {
+    return `/${this.namespace}/jobs/statuses`;
   }
 }

@@ -44,7 +44,7 @@ export default class JobRoute extends Route.extend(WithWatchers) {
         const relatedModelsQueries = [
           job.get('allocations'),
           job.get('evaluations'),
-          this.store.query('job', { namespace, meta: true }), // TODO: what's all this now?
+          // this.store.query('job', { namespace, meta: true }), // TODO: what's going on here? parent/child relationship fetching? If so, conditionalize it?
           this.store.findAll('namespace'),
         ];
 

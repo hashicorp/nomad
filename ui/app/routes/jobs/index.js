@@ -29,9 +29,14 @@ export default class IndexRoute extends Route.extend(
       .query('job', {
         namespace: params.qpNamespace,
         meta: true,
-        aggregate: true,
+        queryType: 'initialize',
       })
       .catch(notifyForbidden(this));
+
+    // console.log('jobs, what are their ids');
+    // ddddddddd(jobs.map(j => j.id));
+    // this.controllerFor(this.routeName).set('jobIds', jobs.map(job => job.id));
+
     return RSVP.hash({
       jobs,
       namespaces: this.store.findAll('namespace'),
@@ -43,12 +48,31 @@ export default class IndexRoute extends Route.extend(
     controller.set('namespacesWatch', this.watchNamespaces.perform());
     controller.set(
       'modelWatch',
-      this.watchJobs.perform({ namespace: controller.qpNamespace, meta: true })
+      this.watchJobs.perform({
+        namespace: controller.qpNamespace,
+        meta: true,
+        queryType: 'update',
+        jobs: model.jobs.map((job) => {
+          // TODO: maybe this should be set on controller for user-controlled updates?
+          return {
+            id: job.plainId,
+            namespace: job.belongsTo('namespace').id(),
+          };
+        }),
+      })
     );
+    // controller.set(
+    //   'modelWatch2',
+    //   this.watchJobs.perform({
+    //     namespace: controller.qpNamespace,
+    //     meta: true,
+    //     queryType: "initialize",
+    //   })
+    // );
   }
 
   @watchQuery('job') watchJobs;
-  // @watchQuery('jobStatus') watchStatuses;
+  // @watchQuery('jobs') watchStatuses;
   @watchAll('namespace') watchNamespaces;
-  @collect('watchJobs', 'watchNamespaces', 'watchStatuses') watchers;
+  @collect('watchJobs', 'watchNamespaces') watchers;
 }
