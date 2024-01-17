@@ -55,9 +55,9 @@ The table below shows this endpoint's support for
   specific to Nomad.
 
   - `OIDCDiscoveryURL` `(string: <required>)` - The OIDC discovery URL, without
-    any .well-known component (base path). Required for `OIDC` method type.
-    Either this, the `JWKSURL` or the `OIDCDiscoverURL` is required for `JWT` method
-    type.
+    any `.well-known` component (base path). Required for `OIDC` method type.
+    Either this, the `JWKSURL` or the `JWTValidationPubKeys` is required for
+    `JWT` method type.
 
   - `OIDCClientID` `(string: <required>)` - The OAuth client ID configured with
     your OIDC provider. Required for `OIDC` method type.
@@ -73,12 +73,12 @@ The table below shows this endpoint's support for
   - `OIDCScopes` `(array<string>)` - List of OIDC scopes.
 
   - `JWTValidationPubKeys` `(array<string>)` - A list of PEM-encoded public keys
-    to use to authenticate JWT signatures locally. Either this, the `JWKSURL` or the
-    `OIDCDiscoverURL` is required for `JWT` method type.
+    to use to validate JWT signatures locally. Either this, the `JWKSURL` or the
+    `OIDCDiscoveryURL` is required for `JWT` method type.
 
   - `JWKSURL` `(string)` - JSON Web Key Sets url for authenticating JWT
-    signatures. Either this, the `JWKSURL` or the `OIDCDiscoverURL` is required for
-    `JWT` method type.
+    signatures. Either this, the `JWTValidationPubKeys` or the
+    `OIDCDiscoverURL` is required for `JWT` method type.
 
   - `BoundAudiences` `(array<string>)` - List of aud claims that are valid for
     login; any match is sufficient.
