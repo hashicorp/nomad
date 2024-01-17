@@ -273,7 +273,7 @@ services will be called %q.
 
 	s.Ui.Output(`
 Consul uses binding rules to map claims between Nomad's JWTs to Consul service
-identities and ACL roles, so we need to create a two binding rules for the auth
+identities and ACL roles, so we need to create two binding rules for the auth
 method we created above: one for services, and one for tasks.
 `)
 
@@ -354,7 +354,7 @@ with the policy above.
 `,
 			consulRoleTasks))
 
-		if !s.autoYes && !s.askQuestion("Create role in your Consul cluster? [Y/n]") {
+		if !s.autoYes && !s.askQuestion("Create the role in your Consul cluster? [Y/n]") {
 			s.handleNo()
 		}
 
