@@ -27,15 +27,15 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `Name` `(string: <required>)` - Names is the identifier of the ACL auth
-  method.  The name can contain alphanumeric characters, dashes, and underscores.
-  This name must be unique and must not exceed 128 characters.
+- `Name` `(string: <required>)` - Name is the identifier of the ACL auth method.
+  The name can contain alphanumeric characters, dashes, and underscores. This
+  name must be unique and must not exceed 128 characters.
 
-- `Type` `(string: <required>)` - ACL auth role SSO identifier.
+- `Type` `(string: <required>)` - ACL auth method type, supports `OIDC` and `JWT`.
 
 - `TokenLocality` `(string: <required>)` - Defines whether the ACL auth method
   creates a local or global token when performing SSO login. This field must be
-  set to either "local" or "global"
+  set to either `local` or `global`.
 
 - `MaxTokenTTL` `(duration: <required>)` - Defines the maximum life of a token created
   by this method. When set, it will initialize the `ExpirationTime` field on all
@@ -51,20 +51,30 @@ The table below shows this endpoint's support for
   specific to Nomad.
 
   - `OIDCDiscoveryURL` `(string: <required>)` - The OIDC discovery URL, without
-    any .well-known component (base path).
+    any `.well-known` component (base path). Required for `OIDC` method type.
+    Either this, the `JWKSURL` or the `JWTValidationPubKeys` is required for
+    `JWT` method type.
 
   - `OIDCClientID` `(string: <required>)` - The OAuth client ID configured with
-    your OIDC provider.
+    your OIDC provider. Required for `OIDC` method type.
 
   - `OIDCClientSecret` `(string: <required>)` - The OAuth client secret
-    configured with your OIDC provider.
+    configured with your OIDC provider. Required for `OIDC` method type.
 
-  - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not make 
+  - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not make
     a request to the identity provider to get OIDC UserInfo. You may wish to set this
     if your identity provider doesn't send any additional claims from the UserInfo
     endpoint.
 
   - `OIDCScopes` `(array<string>)` - List of OIDC scopes.
+
+  - `JWTValidationPubKeys` `(array<string>)` - A list of PEM-encoded public keys
+    to use to validate JWT signatures locally. Either this, the `JWKSURL` or the
+    `OIDCDiscoveryURL` is required for `JWT` method type.
+
+  - `JWKSURL` `(string)` - JSON Web Key Sets url for authenticating JWT
+    signatures. Either this, the `JWTValidationPubKeys` or the
+    `OIDCDiscoverURL` is required for `JWT` method type.
 
   - `BoundAudiences` `(array<string>)` - List of aud claims that are valid for
     login; any match is sufficient.
@@ -76,8 +86,20 @@ The table below shows this endpoint's support for
     client used to talk with the OIDC discovery URL. If not set, system
     certificates are used.
 
+  - `JWKSCACert` `(string)` - PEM encoded CA cert for use by the TLS client used
+    to talk with the JWKS server.
+
   - `SigningAlgs` `(array<string>)` - A list of supported signing algorithms.
     Defaults to `RS256`.
+
+  - `ExpirationLeeway` `(duration)` - Duration in seconds of leeway when
+    validating expiration of a JWT to account for clock skew.
+
+  - `NotBeforeLeeway` `(duration)` - Duration in seconds of leeway when
+    validating not before values of a JWT to account for clock skew.
+
+  - `ClockSkewLeeway` `(duration)` - Duration in seconds of leeway when
+    validating all JWT claims to account for clock skew.
 
   - `ClaimMappings` `(map[string]string)` - Mappings of claims (key) that will
     be copied to a metadata field (value). Use this if the claim you are capturing
@@ -201,6 +223,13 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
   creates a local or global token when performing SSO login. This field must be
   set to either "local" or "global"
 
+<<<<<<< HEAD
+=======
+- `TokenNameFormat` `(string <optional>)` - Defines the token name format for the
+  generated tokens This can be lightly templated using HIL '${foo}' syntax.
+  Defaults to '${auth_method_type}-${auth_method_name}'
+
+>>>>>>> 8f99ba6b2c (docs: add missing JWT auth method API documentation (#19757))
 - `MaxTokenTTL` `(duration: <required>)` - Defines the maximum life of a token created
   by this method. When set it will initialize the `ExpirationTime` field on all
   tokens to a value of `Token.CreateTime + AuthMethod.MaxTokenTTL`. This field is
@@ -223,7 +252,7 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
   - `OIDCClientSecret` `(string: "")` - The OAuth client secret
     configured with your OIDC provider.
 
-  - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not make 
+  - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not make
     a request to the identity provider to get OIDC UserInfo. You may wish to set this
     if your identity provider doesn't send any additional claims from the UserInfo
     endpoint.
