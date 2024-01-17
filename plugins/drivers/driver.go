@@ -183,6 +183,12 @@ type Capabilities struct {
 	// DisableLogCollection indicates this driver has disabled log collection
 	// and the client should not start a logmon process.
 	DisableLogCollection bool
+
+	// AnonymousUsers indicates the this driver is capable of making use of
+	// UID/GID not backed by any user declared to the Operating System. The
+	// allocation of UID/GID is managed by the Nomad client so that more than
+	// one task driver may consume from the same pool without overlap.
+	AnonymousUsers bool
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {

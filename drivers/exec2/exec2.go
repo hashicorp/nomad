@@ -228,10 +228,9 @@ func (e *exe) constrain() error {
 }
 
 func (e *exe) Wait() error {
-	// exit := e.waiter.Wait()
-	// e.code = exit.Code
-	// return exit.Err
-	return nil
+	exit := e.waiter.Wait()
+	e.code = exit.Code
+	return exit.Err
 }
 
 func (e *exe) Result() int {

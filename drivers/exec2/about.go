@@ -1,11 +1,13 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-//go:build linux
-
 package exec2
 
 import (
+	"context"
+
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -16,6 +18,20 @@ const (
 	version       = "v2.0.0"
 	handleVersion = 1
 )
+
+// PluginID is the exec plugin metadata registered in the plugin
+// catalog.
+var PluginID = loader.PluginID{
+	Name:       name,
+	PluginType: base.PluginTypeDriver,
+}
+
+// PluginConfig is the exec driver factory function registered in the
+// plugin catalog.
+var PluginConfig = &loader.InternalPluginConfig{
+	Config:  map[string]interface{}{},
+	Factory: func(_ context.Context, l hclog.Logger) interface{} { return New(l) },
+}
 
 var info = &base.PluginInfoResponse{
 	Type:              base.PluginTypeDriver,
@@ -39,6 +55,7 @@ var taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 })
 
 var capabilities = &drivers.Capabilities{
+	AnonymousUsers:      true,
 	SendSignals:         true,
 	Exec:                false,
 	FSIsolation:         drivers.FSIsolationUnveil,

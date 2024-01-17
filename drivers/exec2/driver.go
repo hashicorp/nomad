@@ -36,7 +36,7 @@ type Plugin struct {
 	// driverConfig *base.ClientDriverConfig
 
 	// tasks is the in-memory datastore mapping IDs to handles
-	tasks task.Store // TODO
+	tasks task.Store
 
 	// ctx is used to coordinate shutdown across subsystems
 	ctx context.Context
@@ -56,6 +56,7 @@ func New(log hclog.Logger) drivers.DriverPlugin {
 	return &Plugin{
 		ctx:    ctx,
 		cancel: cancel,
+		logger: log.Named("exec2"),
 	}
 }
 
@@ -150,8 +151,9 @@ func (p *Plugin) doFingerprint() *drivers.Fingerprint {
 	return &drivers.Fingerprint{
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: drivers.DriverHealthy,
-		Attributes:        map[string]*structs.Attribute{
+		Attributes: map[string]*structs.Attribute{
 			// TODO: any attributes to add?
+			"driver.exec2.hello": structs.NewBoolAttribute(true),
 		},
 	}
 }
