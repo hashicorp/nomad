@@ -93,15 +93,15 @@ job "example" {
 
 - `success_before_passing` `(int:0)` - The number of consecutive successful checks
   required before Consul will transition the service status to [`passing`][consul_success_before_passing].
-  Only supported in the Consul service provider.
+  Only supported by the Consul service provider and not applicable for health checks of type "script".
 
 - `failures_before_critical` `(int:0)` - The number of consecutive failing checks
   required before Consul will transition the service status to [`critical`][consul_failure_before_critical].
-  Only supported in the Consul service provider.
+  Only supported by the Consul service provider and not applicable for health checks of type "script".
 
 - `failures_before_warning` `(int:0)` - The number of consecutive failing checks
   required before Consul will transition the service status to [`warning`][consul_failure_before_warning].
-  Only supported in the Consul service provider.
+  Only supported by the Consul service provider and not applicable for health checks of type "script".
 
 - `interval` `(string: <required>)` - Specifies the frequency of the health checks
   that Consul or Nomad service provider will perform. This is specified using a label
