@@ -24,25 +24,47 @@ export default class IndexRoute extends Route.extend(
     },
   };
 
-  model(params) {
+  async model(params) {
+    const jobs = await this.store
+      .query('job', {
+        namespace: params.qpNamespace,
+        meta: true,
+        queryType: 'initialize',
+      })
+      .catch(notifyForbidden(this));
+
     return RSVP.hash({
-      jobs: this.store
-        .query('job', { namespace: params.qpNamespace, meta: true })
-        .catch(notifyForbidden(this)),
+      jobs,
       namespaces: this.store.findAll('namespace'),
       nodePools: this.store.findAll('node-pool'),
     });
   }
 
-  startWatchers(controller) {
+  startWatchers(controller, model) {
     controller.set('namespacesWatch', this.watchNamespaces.perform());
+    // controller.set(
+    //   'modelWatch',
+    //   this.watchJobs.perform({ namespace: controller.qpNamespace, meta: true })
+    // );
     controller.set(
-      'modelWatch',
-      this.watchJobs.perform({ namespace: controller.qpNamespace, meta: true })
+      'jobsWatch',
+      this.watchJobs.perform({
+        namespace: controller.qpNamespace,
+        meta: true,
+        queryType: 'update',
+        jobs: model.jobs.map((job) => {
+          // TODO: maybe this should be set on controller for user-controlled updates?
+          return {
+            id: job.plainId,
+            namespace: job.belongsTo('namespace').id(),
+          };
+        }),
+      })
     );
   }
 
   @watchQuery('job') watchJobs;
+  // @watchQuery('job', { queryType: 'update' }) watchJobsUpdate;
   @watchAll('namespace') watchNamespaces;
   @collect('watchJobs', 'watchNamespaces') watchers;
 }

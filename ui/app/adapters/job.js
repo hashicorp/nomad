@@ -202,4 +202,30 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     return wsUrl;
   }
+
+  query(store, type, query, snapshotRecordArray, options) {
+    console.log('querying', query);
+    let { queryType } = query;
+    options = options || {};
+    options.adapterOptions = options.adapterOptions || {};
+    if (queryType === 'initialize') {
+      // options.url = this.urlForQuery(query, type.modelName);
+      options.adapterOptions.method = 'GET';
+    } else if (queryType === 'update') {
+      // options.url = this.urlForUpdateQuery(query, type.modelName);
+      options.adapterOptions.method = 'POST';
+      options.adapterOptions.watch = true;
+      // TODO: probably use watchList to get the index of "/v1/jobs/statuses3?meta=true&queryType=initialize" presuming it's already been set there.
+      // TODO: a direct lookup like this is the wrong way to do it. Gotta getIndexFor os something.
+      // options.adapterOptions.knownIndex =
+      //   this.watchList.list[
+      //     '/v1/jobs/statuses3?meta=true&queryType=initialize'
+      //   ];
+    }
+    return super.query(store, type, query, snapshotRecordArray, options);
+  }
+
+  urlForQuery(query, modelName) {
+    return `/${this.namespace}/jobs/statuses3`;
+  }
 }
