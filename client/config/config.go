@@ -74,6 +74,14 @@ var (
 	DefaultTemplateMaxStale = 87600 * time.Hour
 
 	DefaultTemplateFunctionDenylist = []string{"plugin", "writeToFile"}
+
+	// DefaultAnonymousUserMin is the default lowest UID/GID in the pool of
+	// user/group ID's Nomad will consume from for ephemeral anonymous users.
+	DefaultAnonymousUserMin = 80_000
+
+	// DefaultAnonymousUserMax is the default highest UID/GID in the pool of
+	// user/group ID's Nomad will consume from for ephemeral anonymous users.
+	DefaultAnonymousUserMax = 89_999
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -156,6 +164,14 @@ type Config struct {
 
 	// MinDynamicPort is the smallest dynamic port generated
 	MinDynamicPort int
+
+	// AnonymousUserMin is the lowest UID/GID in the pool of user/group ID's
+	// Nomad will consume from for ephemeral anonymous users.
+	AnonymousUserMin int
+
+	// AnonymousUserMax is the highest UID/GID in the pool of user/group ID's
+	// Nomad will consume from for ephemeral anonymous users.
+	AnonymousUserMax int
 
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
@@ -805,6 +821,8 @@ func DefaultConfig() *Config {
 		CgroupParent:       "nomad.slice", // SETH todo
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
+		AnonymousUserMin:   DefaultAnonymousUserMin,
+		AnonymousUserMax:   DefaultAnonymousUserMax,
 	}
 
 	return cfg

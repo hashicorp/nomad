@@ -714,10 +714,16 @@ func (c *Client) init() error {
 		// agent package, but don't risk a panic just for a long line.
 		reserved = conf.Node.ReservedResources.Networks.ReservedHostPorts
 	}
+
 	c.logger.Info("using dynamic ports",
 		"min", conf.MinDynamicPort,
 		"max", conf.MaxDynamicPort,
 		"reserved", reserved,
+	)
+
+	c.logger.Info("using anonymous UID/GID range",
+		"min", conf.AnonymousUserMin,
+		"max", conf.AnonymousUserMax,
 	)
 
 	// setup the nsd check store
