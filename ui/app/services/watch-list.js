@@ -28,6 +28,8 @@ export default class WatchListService extends Service {
   }
 
   setIndexFor(url, value) {
+    // console.log('setting index for url', url, value);
     list[url] = +value;
+    // console.log('list after set is', list);
   }
 }

@@ -14,6 +14,7 @@ import { getOwner } from '@ember/application';
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
   @service system;
+  @service watchList;
 
   relationshipFallbackLinks = {
     summary: '/summary',
@@ -222,7 +223,13 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       console.log('url is therefore', options.url);
       options.adapterOptions.method = 'POST';
       options.adapterOptions.watch = true;
-      options.adapterOptions.knownIndex = '3528'; //TODO: TEMP
+      // TODO: probably use watchList to get the index of "/v1/jobs/statuses3?meta=true&queryType=initialize" presuming it's already been set there.
+      // TODO: a direct lookup like this is the wrong way to do it. Gotta getIndexFor os something.
+      options.adapterOptions.knownIndex =
+        this.watchList.list[
+          '/v1/jobs/statuses3?meta=true&queryType=initialize'
+        ];
+      // options.adapterOptions.knownIndex = 261; //TODO: TEMP
       // return this.ajax(url, 'POST', {
       //   data: JSON.stringify({jobs: [
       //     {
@@ -239,10 +246,11 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   /**
    * Differentiates between initialize and update queries, which currently have different endpoints. TODO: maybe consolidate.
    */
+  // TODO: both are statuses3 now, only need to diff on method, not url.
   urlForQuery(query, modelName) {
-    return `/${this.namespace}/jobs/statuses2`;
+    return `/${this.namespace}/jobs/statuses3`;
   }
   urlForUpdateQuery(query, modelName) {
-    return `/${this.namespace}/jobs/statuses`;
+    return `/${this.namespace}/jobs/statuses3`;
   }
 }

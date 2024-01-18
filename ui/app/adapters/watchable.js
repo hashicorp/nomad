@@ -27,6 +27,7 @@ export default class Watchable extends ApplicationAdapter {
   ajax(url, type, options) {
     console.log('jax1', url, type, options);
     const hasParams = hasNonBlockingQueryParams(options);
+    console.log('ajax and hasParamas', hasParams, options);
     // TODO: TEMP. PROBLEM APPEARS TO BE THIS !GET RETURN
     // if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
     if (!hasParams) return super.ajax(url, type, options);
@@ -37,13 +38,23 @@ export default class Watchable extends ApplicationAdapter {
     // Options data gets appended as query params as part of ajaxOptions.
     // In order to prevent doubling params, data should only include index
     // at this point since everything else is added to the URL in advance.
-    options.data = options.data.index ? { index: options.data.index } : {};
+    // ^--- TODO: this is suitable for GETs but not POSTs!
+    if (type === 'GET') {
+      options.data = options.data.index ? { index: options.data.index } : {};
+    }
     console.log('AJAXING', url, queryString.stringify(params));
     // TODO: TEMP HACK
-    if (url === '/v1/jobs/statuses') {
-      console.log('options then', options);
-      options.data.index = 3528;
-      return super.ajax(`${url}?index=3528`, type, options);
+    if (url === '/v1/jobs/statuses3' && type === 'POST') {
+      const params = { index: options.data.index };
+      console.log('options then', options, url, params);
+      // Only keep the index param in params
+      // options.data.index = 3528;
+      // return super.ajax(`${url}?index=${options.data.index}`, type, options);
+      return super.ajax(
+        `${url}?${queryString.stringify(params)}`,
+        type,
+        options
+      );
     } else {
       return super.ajax(
         `${url}?${queryString.stringify(params)}`,
@@ -109,6 +120,7 @@ export default class Watchable extends ApplicationAdapter {
     options,
     additionalParams = {}
   ) {
+    console.log('watchlist', this.watchList);
     const builtURL = this.buildURL(type.modelName, null, null, 'query', query);
     const url = options.url || builtURL;
     console.log(
@@ -133,26 +145,57 @@ export default class Watchable extends ApplicationAdapter {
         'known index? +++',
         get(options, 'adapterOptions.knownIndex')
       );
-      if (get(options, 'adapterOptions.knownIndex')) {
-        this.watchList.setIndexFor(
-          urlPath,
-          get(options, 'adapterOptions.knownIndex')
-        );
-        params.index = this.watchList.getIndexFor(
-          `${urlPath}?${queryString.stringify(query)}`
-        );
+      // TODO: TEMP HACKY
+      // If there's an index in the watchlist for this url, use it.
+      // Otherwise, check for knownIndex or possibly for the initialize one here
+      // and use that.
+
+      // TODO: queryString.stringify(query) has more than I need. I dont need it to include jobs for example.
+      console.log('queryString', query, queryString.stringify(query));
+      let watchListIndex = this.watchList.getIndexFor(
+        `${urlPath}?${queryString.stringify(query)}`
+      );
+      console.log(
+        'iii urlpath, watchListIndex',
+        `${urlPath}?${queryString.stringify(query)}`,
+        watchListIndex
+      );
+      if (watchListIndex > 1) {
+        console.log('xxx if condition', watchListIndex);
+        params.index = watchListIndex;
+      } else if (get(options, 'adapterOptions.knownIndex')) {
+        params.index = get(options, 'adapterOptions.knownIndex');
+        console.log('xxx else condition', params.index);
       } else {
-        params.index = this.watchList.getIndexFor(
-          `${urlPath}?${queryString.stringify(query)}`
-        );
+        params.index = 1;
       }
+      // if (get(options, 'adapterOptions.knownIndex')) {
+      //   console.log('so there should be already something at /v1/jobs/statuses3?meta=true&queryType=initialize');
+      //   console.log(this.watchList.getIndexFor('/v1/jobs/statuses3?meta=true&queryType=initialize'));
+      //   params.index = get(options, 'adapterOptions.knownIndex');
+      //   // this.watchList.setIndexFor(
+      //   //   `${urlPath}?${queryString.stringify(query)}`,
+      //   //   get(options, 'adapterOptions.knownIndex')
+      //   // );
+      //   // params.index = this.watchList.getIndexFor(
+      //   //   `${urlPath}?${queryString.stringify(query)}`
+      //   // );
+      //   // console.log('+++', params.index);
+      //   params.jobs = [{ id: query.jobs[0].id }];
+      // } else {
+      //   params.index = this.watchList.getIndexFor(
+      //     `${urlPath}?${queryString.stringify(query)}`
+      //   );
+      // }
       console.log(
         '+++ adapterOptions.watch is true, params.index is',
-        params.index
+        params.index,
+        params.jobs
       );
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
+    console.log('+++ SIGNAL SET AND PARAMS?', params);
     return this.ajax(urlPath, method, {
       signal,
       data: params,
@@ -258,8 +301,16 @@ export default class Watchable extends ApplicationAdapter {
     const newIndex = headers['x-nomad-index'] || headers['X-Nomad-Index'];
     // console.log('handling response with index of', newIndex);
     if (newIndex) {
+      console.log(
+        'iii response handled! new index!',
+        requestData.url,
+        newIndex
+      );
       // console.log('+++new index, setting on watchlist', newIndex, requestData.url);
       this.watchList.setIndexFor(requestData.url, newIndex);
+      // console.log('ok set new item on watchlist', this.watchList.list, this.watchList._list);
+      // console.log("but what if I fetch?", this.watchList.getIndexFor(requestData.url));
+      // debugger;
     }
 
     return super.handleResponse(...arguments);
