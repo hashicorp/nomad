@@ -25,18 +25,46 @@ export default class Watchable extends ApplicationAdapter {
   // It's either this weird side-effecting thing that also requires a change
   // to ajaxOptions or overriding ajax completely.
   ajax(url, type, options) {
+    console.log('ajaxing', url, type, options);
     const hasParams = hasNonBlockingQueryParams(options);
-    if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
+    console.log('hasParams', hasParams);
+    // if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
+    console.log('LATCHING ON', url, options.data.index);
+    if (!hasParams) return super.ajax(url, type, options);
+    let params = { ...options.data };
+    // delete params.queryType;
+    // TODO: TEMP;
+    if (type === 'POST') {
+      console.log(
+        'ummm, maybe affect url here?',
+        url,
+        params,
+        queryString.stringify(params),
+        queryString
+      );
+      let index = params.index;
+      delete params.index;
+      // Delete everything but index from params
+      // params = { index: params.index };
+      // delete params.jobs;
+      // delete params.index;
+      // params = {};
+      // url = `${url}?${queryString.stringify(params)}`;
+      url = `${url}?hash=${btoa(JSON.stringify(params))}&index=${index}`;
+      console.log('xxx url on the way out is', url);
+      console.log('xxx atob, ', JSON.stringify(params));
+    } else {
+      // Options data gets appended as query params as part of ajaxOptions.
+      // In order to prevent doubling params, data should only include index
+      // at this point since everything else is added to the URL in advance.
+      options.data = options.data.index ? { index: options.data.index } : {};
 
-    const params = { ...options.data };
-    delete params.index;
+      delete params.index;
+      url = `${url}?${queryString.stringify(params)}`;
+    }
+    // debugger;
 
-    // Options data gets appended as query params as part of ajaxOptions.
-    // In order to prevent doubling params, data should only include index
-    // at this point since everything else is added to the URL in advance.
-    options.data = options.data.index ? { index: options.data.index } : {};
-
-    return super.ajax(`${url}?${queryString.stringify(params)}`, type, options);
+    return super.ajax(url, type, options);
   }
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
@@ -96,6 +124,7 @@ export default class Watchable extends ApplicationAdapter {
     additionalParams = {}
   ) {
     const url = this.buildURL(type.modelName, null, null, 'query', query);
+    const method = get(options, 'adapterOptions.method') || 'GET';
     let [urlPath, params] = url.split('?');
     params = assign(
       queryString.parse(params) || {},
@@ -107,13 +136,43 @@ export default class Watchable extends ApplicationAdapter {
     if (get(options, 'adapterOptions.watch')) {
       // The intended query without additional blocking query params is used
       // to track the appropriate query index.
-      params.index = this.watchList.getIndexFor(
-        `${urlPath}?${queryString.stringify(query)}`
-      );
+
+      // if POST, dont get whole queryString, just the index
+      if (method === 'POST') {
+        // TODO: THURSDAY MORNING: THE CLUE IS ABOUT HERE. If I hardcode the index with meta value, it works.
+        // What I think I probably ought to be doing is, for posts, setIndexFor should take a signature of the body, rather than just the url.
+        // Even after I do that, though, I'm worried about the index "sticking" right.
+
+        // params.index = this.watchList.getIndexFor(urlPath);
+        // TODO: TEMP HARDCODE
+        // If the hashed version already exists, use it:
+        let hashifiedURL = `${urlPath}?hash=${btoa(JSON.stringify(params))}`;
+        console.log(
+          'xxx urlPath',
+          hashifiedURL,
+          this.watchList.getIndexFor(hashifiedURL),
+          { params }
+        );
+        // debugger;
+        if (this.watchList.getIndexFor(hashifiedURL) > 1) {
+          console.log('xxx HASHIFIED INDEX FOUND');
+          params.index = this.watchList.getIndexFor(hashifiedURL);
+        } else {
+          console.log('xxx NO HASHIFIED INDEX FOUND. WHAT ABOUT STATUSES3?');
+          params.index = this.watchList.getIndexFor(
+            '/v1/jobs/statuses3?meta=true&queryType=initialize'
+          );
+          console.log('xxx params.index', params.index);
+        }
+      } else {
+        params.index = this.watchList.getIndexFor(
+          `${urlPath}?${queryString.stringify(query)}`
+        );
+      }
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
-    return this.ajax(urlPath, 'GET', {
+    return this.ajax(urlPath, method, {
       signal,
       data: params,
     }).then((payload) => {
@@ -206,11 +265,23 @@ export default class Watchable extends ApplicationAdapter {
   }
 
   handleResponse(status, headers, payload, requestData) {
+    console.log('handling response', requestData, payload);
     // Some browsers lowercase all headers. Others keep them
     // case sensitive.
     const newIndex = headers['x-nomad-index'] || headers['X-Nomad-Index'];
     if (newIndex) {
-      this.watchList.setIndexFor(requestData.url, newIndex);
+      if (requestData.method === 'POST') {
+        // without the last &index= bit
+        this.watchList.setIndexFor(requestData.url.split('&')[0], newIndex);
+        console.log(
+          'watchlist updated for',
+          requestData.url.split('&')[0],
+          newIndex
+        );
+      } else {
+        this.watchList.setIndexFor(requestData.url, newIndex);
+        console.log('watchlist updated for', requestData.url, newIndex);
+      }
     }
 
     return super.handleResponse(...arguments);
