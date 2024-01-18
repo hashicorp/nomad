@@ -19,10 +19,11 @@ and actions.
 
 ```hcl
 high_availability {
-  enabled      = true
-  lock_path    = "custom/lock/path"
-  lock_ttl     = "30s"
-  lock_delay   = "15s"
+  enabled        = true
+  lock_namespace = "prod"
+  lock_path      = "custom/lock/path"
+  lock_ttl       = "30s"
+  lock_delay     = "15s"
 }
 ```
 
@@ -32,6 +33,12 @@ high_availability {
   start in high availability mode. If enabled, the agent instance attempts to
   hold a lock over a Nomad variable and will only execute if the lock is
   successfully acquired.
+
+- `lock_namespace` `(string: "default")` - Defines the namespace of the Nomad
+  variable that will be used to sync the leader when running in high
+  availability mode. This parameter needs to be the same on all Nomad
+  Autoscaler agents expected to take part in the same leadership election
+  process.
 
 - `lock_path` `(string: "nomad-autoscaler/lock")` - Defines the path of the Nomad
   variable that will be used to sync the leader when running in high
