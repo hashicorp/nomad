@@ -14,12 +14,14 @@ job to be customized without altering the job's own source code.
 When you declare variables in the same file as the job specification, you
 can set their values using CLI options and environment variables.
 
--> **Note:** For brevity, input variables are often referred to as just
-"variables" or "Nomad variables" when it is clear from context what sort of
-variable is being discussed. Other kinds of variables in Nomad include
-_environment variables_ (set by the shell where Nomad runs) and _expression
-variables_ (used to indirectly represent a value in an
-[expression](/nomad/docs/job-specification/hcl2/expressions)).
+-> **Note:** For brevity, input variables are sometimes referred to as just
+"variables" when it is clear from context what sort of variable is being discussed
+(related to HCL job files). They should not be confused with [Nomad Variables]
+(/nomad/docs/concepts/variables), which are useful for storing small pieces of configuration or 
+secret data accessible from Jobs at runtime.
+Other kinds of variables in Nomad include [_environment variables_](https://developer.hashicorp.com/nomad/docs/runtime/environment) 
+(set by the shell where Nomad runs) and _expression variables_ (used to indirectly represent a
+value in an [expression](/nomad/docs/job-specification/hcl2/expressions)).
 
 ## Declaring an Input Variable
 
