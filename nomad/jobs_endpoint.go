@@ -216,11 +216,33 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) 
 		Version:     job.Version,
 		// included here for completeness, populated below.
 		Allocs:        nil,
+		ChildStatuses: nil,
 		GroupCountSum: 0,
 		DeploymentID:  "",
 	}
 	for _, tg := range job.TaskGroups {
 		uiJob.GroupCountSum += tg.Count
+	}
+
+	if job.IsParameterized() || job.IsPeriodic() {
+		children, err := state.JobsByIDPrefix(ws, job.Namespace, job.ID)
+		if err != nil {
+			return uiJob, idx, err
+		}
+		for {
+			child := children.Next()
+			if child == nil {
+				break
+			}
+			j := child.(*structs.Job)
+			if j.ParentID != job.ID {
+				continue
+			}
+			if j.ModifyIndex > idx {
+				idx = j.ModifyIndex
+			}
+			uiJob.ChildStatuses = append(uiJob.ChildStatuses, j.Status)
+		}
 	}
 
 	allocs, err := state.AllocsByJob(ws, job.Namespace, job.ID, false)
@@ -332,6 +354,11 @@ func (j *Jobs) Statuses3(
 					paginator.NamespaceFilter{
 						AllowableNamespaces: allowableNamespaces,
 					},
+					// don't include child jobs; we'll look them up later, per parent.
+					paginator.GenericFilter{Allow: func(i interface{}) (bool, error) {
+						job := i.(*structs.Job)
+						return job.ParentID == "", nil
+					}},
 				}
 				// only provide specific jobs if requested.
 				if len(args.Jobs) > 0 {

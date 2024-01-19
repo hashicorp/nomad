@@ -33,6 +33,7 @@ type UIJob struct {
 	Datacenters   []string
 	Priority      int
 	Allocs        []JobStatusAlloc
+	ChildStatuses []string
 	GroupCountSum int
 	DeploymentID  string
 	Version       uint64
