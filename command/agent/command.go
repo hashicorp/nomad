@@ -28,6 +28,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/client/anonymous"
 	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
@@ -451,11 +452,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
-	if config.Client.AnonymousUserMax < structs.MinValidUser || config.Client.AnonymousUserMax > structs.MaxValidUser {
+	if config.Client.AnonymousUserMax < anonymous.SystemMin || config.Client.AnonymousUserMax > anonymous.SystemMax {
 		c.Ui.Error(fmt.Sprintf("Invalid anonymous user range: max_anonymous_user=%d", config.Client.AnonymousUserMax))
 		return false
 	}
-	if config.Client.AnonymousUserMin < structs.MinValidUser || config.Client.AnonymousUserMin > structs.MaxValidUser {
+	if config.Client.AnonymousUserMin < anonymous.SystemMin || config.Client.AnonymousUserMin > anonymous.SystemMax {
 		c.Ui.Error(fmt.Sprintf("Invalid anonymous user range: min_anonymous_user=%d", config.Client.AnonymousUserMin))
 		return false
 	}

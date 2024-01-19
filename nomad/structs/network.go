@@ -27,16 +27,6 @@ const (
 
 	// MaxValidPort is the max valid port number
 	MaxValidPort = 65536
-
-	// MaxValidUser is that maximum allowable UID/GID for anonymous users.
-	//
-	// https://systemd.io/UIDS-GIDS/
-	MaxValidUser = 4294967295 // (2^32)-1
-
-	// MinValidUser is the minimum allowable UID/GID for anonymous users.
-	//
-	// https://systemd.io/UIDS-GIDS/
-	MinValidUser = 65536 // first unused by systemd
 )
 
 var (
