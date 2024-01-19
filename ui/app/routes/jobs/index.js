@@ -29,6 +29,7 @@ export default class IndexRoute extends Route.extend(
       .query('job', {
         namespace: params.qpNamespace,
         meta: true,
+        per_page: 10,
         queryType: 'initialize',
       })
       .catch(notifyForbidden(this));
@@ -42,13 +43,18 @@ export default class IndexRoute extends Route.extend(
 
   startWatchers(controller, model) {
     controller.set('namespacesWatch', this.watchNamespaces.perform());
-    // controller.set(
-    //   'modelWatch',
-    //   this.watchJobs.perform({ namespace: controller.qpNamespace, meta: true })
-    // );
+    controller.set(
+      'modelWatch',
+      this.watchJobs.perform({
+        namespace: controller.qpNamespace,
+        per_page: 10,
+        meta: true,
+        queryType: 'initialize',
+      })
+    );
     controller.set(
       'jobsWatch',
-      this.watchJobs.perform({
+      this.watchJobsAllocs.perform({
         namespace: controller.qpNamespace,
         meta: true,
         queryType: 'update',
@@ -64,7 +70,8 @@ export default class IndexRoute extends Route.extend(
   }
 
   @watchQuery('job') watchJobs;
+  @watchQuery('job', { queryType: 'update' }) watchJobsAllocs;
   // @watchQuery('job', { queryType: 'update' }) watchJobsUpdate;
   @watchAll('namespace') watchNamespaces;
-  @collect('watchJobs', 'watchNamespaces') watchers;
+  @collect('watchJobs', 'watchJobsAllocs', 'watchNamespaces') watchers;
 }
