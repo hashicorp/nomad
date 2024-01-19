@@ -399,6 +399,12 @@ EOH
 
 ### Nomad Variables
 
+  ~> **Warning:** Using the Nomad integration results in an implicit dependency 
+  on the Nomad servers. If the control plane is unavailable (e.g. a client becoming isolated),
+  after some retries, running allocations will be stopped. Refer to the
+  [`nomad_retry`](/nomad/docs/configuration/client#nomad_retry)client configuration option
+  for more details and to adjust the retry behaviour.
+
 Nomad [variables] can be queried using the `nomadVar`, `nomadVarList`,
 `nomadVarListSafe`, and `nomadVarExists` functions.
 
@@ -568,6 +574,11 @@ EOH
 
 ## Consul Integration
 
+  ~> **Warning:** Using the Consul integration results in an implicit dependency 
+  on Consul. If Consul is unavailable, the job will fail to start, and after some 
+  retries, running allocations will be stopped. Refer to the [`consul_retry`](/nomad/docs/configuration/client#consul_retry)
+  client configuration option for more details and to adjust the retry behaviour.
+
 ### Consul KV
 
 Consul KV values can be accessed using the [`key`][ct_api_key] function to
@@ -622,6 +633,11 @@ upstream {{ .Name | toLower }} {
 ```
 
 ## Vault Integration
+
+  ~> **Warning:** Using the Vault integration results in an implicit dependency 
+  on Vault. If Vault is unavailable, the job will fail to start, and after some 
+  retries, running allocations will be stopped. Refer to the [`vault_retry`](/nomad/docs/configuration/client#vault_retry)
+  client configuration option for more details and to adjust the retry behaviour.
 
 ### PKI Certificate
 
