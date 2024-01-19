@@ -62,7 +62,6 @@ export default class JobSerializer extends ApplicationSerializer {
 
   normalizeQueryResponse(store, primaryModelClass, payload, id, requestType) {
     // const jobs = Object.values(payload.Jobs);
-    console.log('normalized', payload);
     const jobs = payload;
     // Signal that it's a query response at individual normalization level for allocation placement
     jobs.forEach((job) => {

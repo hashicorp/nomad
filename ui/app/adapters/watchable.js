@@ -25,34 +25,15 @@ export default class Watchable extends ApplicationAdapter {
   // It's either this weird side-effecting thing that also requires a change
   // to ajaxOptions or overriding ajax completely.
   ajax(url, type, options) {
-    console.log('ajaxing', url, type, options);
     const hasParams = hasNonBlockingQueryParams(options);
-    console.log('hasParams', hasParams);
     // if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
-    console.log('LATCHING ON', url, options?.data.index);
     if (!hasParams) return super.ajax(url, type, options);
     let params = { ...options?.data };
-    // delete params.queryType;
-    // TODO: TEMP;
+    // TODO: Creating a hash of the params as watchList key feels a little hacky
     if (type === 'POST') {
-      console.log(
-        'ummm, maybe affect url here?',
-        url,
-        params,
-        queryString.stringify(params),
-        queryString
-      );
       let index = params.index;
       delete params.index;
-      // Delete everything but index from params
-      // params = { index: params.index };
-      // delete params.jobs;
-      // delete params.index;
-      // params = {};
-      // url = `${url}?${queryString.stringify(params)}`;
       url = `${url}?hash=${btoa(JSON.stringify(params))}&index=${index}`;
-      console.log('xxx url on the way out is', url);
-      console.log('xxx atob, ', JSON.stringify(params));
     } else {
       // Options data gets appended as query params as part of ajaxOptions.
       // In order to prevent doubling params, data should only include index
@@ -139,30 +120,15 @@ export default class Watchable extends ApplicationAdapter {
 
       // if POST, dont get whole queryString, just the index
       if (method === 'POST') {
-        // TODO: THURSDAY MORNING: THE CLUE IS ABOUT HERE. If I hardcode the index with meta value, it works.
-        // What I think I probably ought to be doing is, for posts, setIndexFor should take a signature of the body, rather than just the url.
-        // Even after I do that, though, I'm worried about the index "sticking" right.
-
-        // params.index = this.watchList.getIndexFor(urlPath);
-        // TODO: TEMP HARDCODE
         // If the hashed version already exists, use it:
         let hashifiedURL = `${urlPath}?hash=${btoa(JSON.stringify(params))}`;
-        console.log(
-          'xxx urlPath',
-          hashifiedURL,
-          this.watchList.getIndexFor(hashifiedURL),
-          { params }
-        );
-        // debugger;
         if (this.watchList.getIndexFor(hashifiedURL) > 1) {
-          console.log('xxx HASHIFIED INDEX FOUND');
           params.index = this.watchList.getIndexFor(hashifiedURL);
         } else {
-          console.log('xxx NO HASHIFIED INDEX FOUND. WHAT ABOUT STATUSES3?');
+          // TODO: De-hardcode the initialize query, identify it in watchlist somehow?
           params.index = this.watchList.getIndexFor(
             '/v1/jobs/statuses3?meta=true&queryType=initialize'
           );
-          console.log('xxx params.index', params.index);
         }
       } else {
         params.index = this.watchList.getIndexFor(
@@ -265,22 +231,16 @@ export default class Watchable extends ApplicationAdapter {
   }
 
   handleResponse(status, headers, payload, requestData) {
-    console.log('handling response', requestData, payload);
     // Some browsers lowercase all headers. Others keep them
     // case sensitive.
     const newIndex = headers['x-nomad-index'] || headers['X-Nomad-Index'];
     if (newIndex) {
       if (requestData.method === 'POST') {
         // without the last &index= bit
+        // TODO: this is a weird way to save key.
         this.watchList.setIndexFor(requestData.url.split('&')[0], newIndex);
-        console.log(
-          'watchlist updated for',
-          requestData.url.split('&')[0],
-          newIndex
-        );
       } else {
         this.watchList.setIndexFor(requestData.url, newIndex);
-        console.log('watchlist updated for', requestData.url, newIndex);
       }
     }
 
