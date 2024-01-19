@@ -411,7 +411,7 @@ func TestIsValidConfig(t *testing.T) {
 				Client: &ClientConfig{
 					Enabled: true,
 					HostNetworks: []*structs.ClientHostNetworkConfig{
-						&structs.ClientHostNetworkConfig{
+						{
 							Name:          "test",
 							ReservedPorts: "3-2147483647",
 						},
@@ -484,6 +484,57 @@ func TestIsValidConfig(t *testing.T) {
 				},
 			},
 			err: "missing protocol scheme",
+		},
+		{
+			name: "min_anonymous_user below system minimum",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled:          true,
+					AnonymousUserMin: 60_000,
+				},
+			},
+			err: "Invalid anonymous user range: min_anonymous_user=60000",
+		},
+		{
+			name: "min_anonymous_user above system maximum",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled:          true,
+					AnonymousUserMin: (1 << 32),
+				},
+			},
+			err: "Invalid anonymous user range: min_anonymous_user=4294967296",
+		},
+		{
+			name: "max_anonymous_user below system minimum",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled:          true,
+					AnonymousUserMax: 60_000,
+				},
+			},
+			err: "Invalid anonymous user range: max_anonymous_user=60000",
+		},
+		{
+			name: "max_anonymous_user above system maximum",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled:          true,
+					AnonymousUserMax: (1 << 32),
+				},
+			},
+			err: "Invalid anonymous user range: max_anonymous_user=4294967296",
+		},
+		{
+			name: "min_anonymous_user above max_anonymous_user",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled:          true,
+					AnonymousUserMin: 90_300,
+					AnonymousUserMax: 90_100,
+				},
+			},
+			err: "Invalid anonymous user range: min_anonymous_user=90300 and max_anonymous_user=90100",
 		},
 	}
 
