@@ -15,13 +15,13 @@ When you declare variables in the same file as the job specification, you
 can set their values using CLI options and environment variables.
 
 -> **Note:** For brevity, input variables are sometimes referred to as just
-"variables" when it is clear from context what sort of variable is being discussed
-(related to HCL job files). They should not be confused with [Nomad Variables]
-(/nomad/docs/concepts/variables), which are useful for storing small pieces of configuration or 
-secret data accessible from Jobs at runtime.
-Other kinds of variables in Nomad include [_environment variables_](https://developer.hashicorp.com/nomad/docs/runtime/environment) 
-(set by the shell where Nomad runs) and _expression variables_ (used to indirectly represent a
-value in an [expression](/nomad/docs/job-specification/hcl2/expressions)).
+"variables" when it is clear from context what sort of variable is being
+discussed (related to HCL job files). They should not be confused with [Nomad
+Variables][], which are useful for storing small pieces of configuration or
+secret data accessible from Jobs at runtime.  Other kinds of variables in Nomad
+include [_environment variables_][] (set by the shell where Nomad runs) and
+_expression variables_ (used to indirectly represent a value in an
+[expression][]).
 
 ## Declaring an Input Variable
 
@@ -329,3 +329,8 @@ this behavior optional :
 |             var.foo             | error, "foo needs to be set" |       null       |        xy        |
 | `NOMAD_VAR_foo=yz`<br />var.foo |              yz              |        yz        |        yz        |
 |   `-var foo=yz`<br />var.foo    |              yz              |        yz        |        yz        |
+
+
+[Nomad Variables]: /nomad/docs/concepts/variables
+[_environment variables_]: /nomad/docs/runtime/environment
+[expression]: /nomad/docs/job-specification/hcl2/expressions

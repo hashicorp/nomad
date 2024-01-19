@@ -69,7 +69,7 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
 
 - `destination` `(string: <required>)` - Specifies the location where the
   resulting template should be rendered, relative to the [task working
-  directory]. Only drivers without filesystem isolation (ex. `raw_exec`) or
+  directory][]. Only drivers without filesystem isolation (ex. `raw_exec`) or
   that build a chroot in the task working directory (ex. `exec`) can render
   templates outside of the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, or
   `NOMAD_SECRETS_DIR`. For more details on how `destination` interacts with
@@ -123,11 +123,11 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   different delimiter that does not conflict with the output file itself.
 
 - `source` `(string: "")` - Specifies the path to the template to be rendered.
-  One of `source` or `data` must be specified, but not both. This source can
-  be fetched using an [`artifact`][artifact] resource. The template must exist in the
-  [task working directory](/nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads)
-  prior to starting the task; it is not possible to reference a template whose source is inside 
-  a Docker container, for example.
+  One of `source` or `data` must be specified, but not both. This source can be
+  fetched using an [`artifact`][artifact] resource. The template must exist in
+  the [task working directory][] prior to starting the task; it is not possible
+  to reference a template whose source is inside a Docker container, for
+  example.
 
 - `splay` `(string: "5s")` - Specifies a random amount of time to wait between
   0 ms and the given splay value before invoking the change mode. This is
@@ -399,13 +399,17 @@ EOH
 
 ### Nomad Variables
 
-  ~> **Warning:** Using the Nomad integration results in an implicit dependency 
-  on the Nomad servers. If the control plane is unavailable (e.g. a client becoming isolated),
-  after some retries, running allocations will be stopped. Refer to the
-  [`nomad_retry`](/nomad/docs/configuration/client#nomad_retry) client configuration option
-  for more details and to adjust the retry behaviour.
+<Warning>
 
-Nomad [variables] can be queried using the `nomadVar`, `nomadVarList`,
+Using the Nomad integration results in an implicit dependency on the Nomad
+servers. If the Nomad servers are unavailable (for example, a client is
+disconnected), then after some retries, running allocations will be
+stopped. Refer to the [`template.nomad_retry`][] client configuration option for
+more details and to adjust the retry behaviour.
+
+</Warning>
+
+Nomad [variables][] can be queried using the `nomadVar`, `nomadVarList`,
 `nomadVarListSafe`, and `nomadVarExists` functions.
 
 #### `nomadVarList` and `nomadVarListSafe`
@@ -574,10 +578,14 @@ EOH
 
 ## Consul Integration
 
-  ~> **Warning:** Using the Consul integration results in an implicit dependency 
-  on Consul. If Consul is unavailable, the job will fail to start, and after some 
-  retries, running allocations will be stopped. Refer to the [`consul_retry`](/nomad/docs/configuration/client#consul_retry)
-  client configuration option for more details and to adjust the retry behaviour.
+<Warning>
+
+Using the Consul integration results in an implicit dependency on Consul. If
+Consul is unavailable, then after some retries, running allocations will be
+stopped. Refer to the [`template.consul_retry`][] client configuration option
+for more details and to adjust the retry behaviour.
+
+</Warning>
 
 ### Consul KV
 
@@ -634,10 +642,14 @@ upstream {{ .Name | toLower }} {
 
 ## Vault Integration
 
-  ~> **Warning:** Using the Vault integration results in an implicit dependency 
-  on Vault. If Vault is unavailable, the job will fail to start, and after some 
-  retries, running allocations will be stopped. Refer to the [`vault_retry`](/nomad/docs/configuration/client#vault_retry)
-  client configuration option for more details and to adjust the retry behaviour.
+<Warning>
+
+Using the Vault integration results in an implicit dependency on Vault. If
+Vault is unavailable, then after some retries, running allocations will be
+stopped. Refer to the [`template.vault_retry`][] client configuration option
+for more details and to adjust the retry behaviour.
+
+</Warning>
 
 ### PKI Certificate
 
@@ -802,3 +814,6 @@ options](/nomad/docs/configuration/client#options):
 [variables]: /nomad/docs/concepts/variables
 [workload identity]: /nomad/docs/concepts/workload-identity
 [`time.Time`]: https://pkg.go.dev/time#Time
+[`template.nomad_retry`]: /nomad/docs/configuration/client#nomad_retry
+[`template.consul_retry`]: /nomad/docs/configuration/client#consul_retry
+[`template.vault_retry`]: /nomad/docs/configuration/client#vault_retry
