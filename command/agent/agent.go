@@ -759,6 +759,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
 	conf.MaxDynamicPort = agentConfig.Client.MaxDynamicPort
 	conf.MinDynamicPort = agentConfig.Client.MinDynamicPort
+	conf.AnonymousUserMax = agentConfig.Client.AnonymousUserMax
+	conf.AnonymousUserMin = agentConfig.Client.AnonymousUserMin
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
 
 	if agentConfig.Client.TemplateConfig != nil {

@@ -451,6 +451,19 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	if config.Client.AnonymousUserMax < structs.MinValidUser || config.Client.AnonymousUserMax > structs.MaxValidUser {
+		c.Ui.Error(fmt.Sprintf("Invalid anonymous user range: max_anonymous_user=%d", config.Client.AnonymousUserMax))
+		return false
+	}
+	if config.Client.AnonymousUserMin < structs.MinValidUser || config.Client.AnonymousUserMin > structs.MaxValidUser {
+		c.Ui.Error(fmt.Sprintf("Invalid anonymous user range: min_anonymous_user=%d", config.Client.AnonymousUserMin))
+		return false
+	}
+	if config.Client.AnonymousUserMax < config.Client.AnonymousUserMin {
+		c.Ui.Error(fmt.Sprintf("Invalid anonymous user range: min_anonymous_user=%d and max_anonymous_user=%d", config.Client.AnonymousUserMin, config.Client.AnonymousUserMax))
+		return false
+	}
+
 	if config.Client.Reserved == nil {
 		// Coding error; should always be set by DefaultConfig()
 		c.Ui.Error("client.reserved must be initialized. Please report a bug.")

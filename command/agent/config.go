@@ -291,6 +291,14 @@ type ClientConfig struct {
 	// uses for allocations
 	MinDynamicPort int `hcl:"min_dynamic_port"`
 
+	// AnonymousUserMax is the highest UID/GID in the pool of user/group ID's
+	// Nomad will consume from for ephemeral anonymous users.
+	AnonymousUserMax int `hcl:"max_anonymous_user"`
+
+	//AnonymousUserMin is the highest UID/GID in the pool of user/group ID's
+	// Nomad will consume from for ephemeral anonymous users.
+	AnonymousUserMin int `hcl:"min_anonymous_user"`
+
 	// Reserved is used to reserve resources from being used by Nomad. This can
 	// be used to target a certain utilization or to prevent Nomad from using a
 	// particular set of ports.
@@ -1282,6 +1290,8 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Client.NomadServiceDiscovery = pointer.Of(true)
 	conf.Client.ReservableCores = "" // inherit all the cores
+	conf.Client.AnonymousUserMin = client.DefaultAnonymousUserMin
+	conf.Client.AnonymousUserMax = client.DefaultAnonymousUserMax
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
@@ -1333,6 +1343,8 @@ func DefaultConfig() *Config {
 			ClientMaxPort:         14512,
 			MinDynamicPort:        20000,
 			MaxDynamicPort:        32000,
+			AnonymousUserMin:      client.DefaultAnonymousUserMin,
+			AnonymousUserMax:      client.DefaultAnonymousUserMax,
 			Reserved:              &Resources{},
 			GCInterval:            1 * time.Minute,
 			GCParallelDestroys:    2,
@@ -2244,6 +2256,12 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.MinDynamicPort != 0 {
 		result.MinDynamicPort = b.MinDynamicPort
+	}
+	if b.AnonymousUserMax != 0 {
+		result.AnonymousUserMax = b.AnonymousUserMax
+	}
+	if b.AnonymousUserMin != 0 {
+		result.AnonymousUserMin = b.AnonymousUserMin
 	}
 	if result.Reserved == nil && b.Reserved != nil {
 		reserved := *b.Reserved
