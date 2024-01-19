@@ -124,9 +124,10 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
 
 - `source` `(string: "")` - Specifies the path to the template to be rendered.
   One of `source` or `data` must be specified, but not both. This source can
-  optionally be fetched using an [`artifact`][artifact] resource. This template
-  must exist on the machine prior to starting the task; it is not possible to
-  reference a template that's source is inside a Docker container, for example.
+  be fetched using an [`artifact`][artifact] resource. The template must exist in the
+  [task working directory](/nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads)
+  prior to starting the task; it is not possible to reference a template whose source is inside 
+  a Docker container, for example.
 
 - `splay` `(string: "5s")` - Specifies a random amount of time to wait between
   0 ms and the given splay value before invoking the change mode. This is
