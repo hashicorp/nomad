@@ -29,9 +29,9 @@ export default class Watchable extends ApplicationAdapter {
     const hasParams = hasNonBlockingQueryParams(options);
     console.log('hasParams', hasParams);
     // if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
-    console.log('LATCHING ON', url, options.data.index);
+    console.log('LATCHING ON', url, options?.data.index);
     if (!hasParams) return super.ajax(url, type, options);
-    let params = { ...options.data };
+    let params = { ...options?.data };
     // delete params.queryType;
     // TODO: TEMP;
     if (type === 'POST') {
