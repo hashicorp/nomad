@@ -60,6 +60,33 @@ export default class JobSerializer extends ApplicationSerializer {
     return super.normalize(typeHash, hash);
   }
 
+  normalizeQueryResponse(store, primaryModelClass, payload, id, requestType) {
+    // const jobs = Object.values(payload.Jobs);
+    console.log('normalized', payload);
+    const jobs = payload;
+    // Signal that it's a query response at individual normalization level for allocation placement
+    jobs.forEach((job) => {
+      if (job.Allocs) {
+        job.relationships = {
+          allocations: {
+            data: job.Allocs.map((alloc) => ({
+              id: alloc.id,
+              type: 'allocation',
+            })),
+          },
+        };
+      }
+      job._aggregate = true;
+    });
+    return super.normalizeQueryResponse(
+      store,
+      primaryModelClass,
+      jobs,
+      id,
+      requestType
+    );
+  }
+
   extractRelationships(modelClass, hash) {
     const namespace =
       !hash.NamespaceID || hash.NamespaceID === 'default'
@@ -80,8 +107,33 @@ export default class JobSerializer extends ApplicationSerializer {
       ? JSON.parse(hash.ParentID)[0]
       : hash.PlainId;
 
+    if (hash._aggregate && hash.Allocs) {
+      // Manually push allocations to store
+      hash.Allocs.forEach((alloc) => {
+        this.store.push({
+          data: {
+            id: alloc.ID,
+            type: 'allocation',
+            attributes: {
+              clientStatus: alloc.ClientStatus,
+              deploymentStatus: {
+                Healthy: alloc.DeploymentStatus.Healthy,
+                Canary: alloc.DeploymentStatus.Canary,
+              },
+            },
+          },
+        });
+      });
+
+      delete hash._aggregate;
+    }
+
     return assign(super.extractRelationships(...arguments), {
       allocations: {
+        data: hash.Allocs?.map((alloc) => ({
+          id: alloc.ID,
+          type: 'allocation',
+        })),
         links: {
           related: buildURL(`${jobURL}/allocations`, { namespace }),
         },
