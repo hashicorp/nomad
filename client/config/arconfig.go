@@ -9,6 +9,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	arinterfaces "github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/anonymous"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -119,6 +120,9 @@ type AllocRunnerConfig struct {
 
 	// WIDMgr manages workload identities
 	WIDMgr widmgr.IdentityManager
+
+	// AnonPool manages ephermeral anonymous users.
+	AnonPool anonymous.Pool
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to

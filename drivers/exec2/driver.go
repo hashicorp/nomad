@@ -7,9 +7,11 @@ package exec2
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -21,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/shoenig/netlog"
 	"golang.org/x/sys/unix"
 )
 
@@ -43,9 +46,6 @@ type Plugin struct {
 
 	// cancel is used to shutdown the plugin and its subsystems
 	cancel context.CancelFunc
-
-	// users looks up system users
-	// users util.Users // TODO
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
@@ -165,10 +165,20 @@ func failure(state drivers.HealthState, desc string) *drivers.Fingerprint {
 	}
 }
 
+var (
+	anonymousRe = regexp.MustCompile(`nomad:[\d]+`)
+)
+
 func (p *Plugin) StartTask(config *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if config.User == "" {
-		panic("anonymous users not yet implemented")
+		// if no user is provided in task configuration, nomad should have
+		// allocated an anonymous user and set it in the driver task config
+		return nil, nil, errors.New("user must be set")
 	}
+
+	netlog.Yellow("Plugin", "user", config.User)
+
+	// YOU ARE HERE!
 
 	if _, exists := p.tasks.Get(config.ID); exists {
 		// TODO

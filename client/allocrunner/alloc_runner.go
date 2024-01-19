@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
+	"github.com/hashicorp/nomad/client/anonymous"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
@@ -211,6 +212,9 @@ type allocRunner struct {
 
 	// widmgr manages workload identity signatures
 	widmgr widmgr.IdentityManager
+
+	// anaon manages the pool of ephemeral anonymous users
+	anon anonymous.Pool
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -255,6 +259,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		partitions:               config.Partitions,
 		hookResources:            cstructs.NewAllocHookResources(),
 		widsigner:                config.WIDSigner,
+		anon:                     config.AnonPool,
 	}
 
 	// Create the logger based on the allocation ID
@@ -324,6 +329,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Wranglers:           ar.wranglers,
 			AllocHookResources:  ar.hookResources,
 			WIDMgr:              ar.widmgr,
+			AnonPool:            ar.anon,
 		}
 
 		// Create, but do not Run, the task runner

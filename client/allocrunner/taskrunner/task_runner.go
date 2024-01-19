@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
+	"github.com/hashicorp/nomad/client/anonymous"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
@@ -270,6 +271,9 @@ type TaskRunner struct {
 
 	// widmgr manages workload identities
 	widmgr widmgr.IdentityManager
+
+	// anon manages the pool of ephemeral anonymous users
+	anon anonymous.Pool
 }
 
 type Config struct {
@@ -345,6 +349,9 @@ type Config struct {
 
 	// WIDMgr manages workload identities
 	WIDMgr widmgr.IdentityManager
+
+	// AnonPool manages the pool of ephermeral anonymous users
+	AnonPool anonymous.Pool
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -407,6 +414,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		getter:                  config.Getter,
 		wranglers:               config.Wranglers,
 		widmgr:                  config.WIDMgr,
+		anon:                    config.AnonPool,
 	}
 
 	// Create the logger based on the allocation ID
@@ -1117,7 +1125,7 @@ func (tr *TaskRunner) persistLocalState() error {
 func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	task := tr.Task()
 	alloc := tr.Alloc()
-	invocationid := uuid.Generate()[:8]
+	invocationid := uuid.Short()
 	taskResources := tr.taskResources
 	ports := tr.Alloc().AllocatedResources.Shared.Ports
 	env := tr.envBuilder.Build()

@@ -188,6 +188,12 @@ func (tr *TaskRunner) initHooks() {
 	if tr.driverCapabilities.RemoteTasks {
 		tr.runnerHooks = append(tr.runnerHooks, newRemoteTaskHook(tr, hookLogger))
 	}
+
+	// If this task drver has anonymous user capabilities, load up the anonymous
+	// users task hook.
+	if tr.driverCapabilities.AnonymousUsers {
+		tr.runnerHooks = append(tr.runnerHooks, newAnonymousHook(tr.killCtx, tr.logger, tr.anon))
+	}
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {

@@ -26,6 +26,7 @@ import (
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/allocwatcher"
+	"github.com/hashicorp/nomad/client/anonymous"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
@@ -339,6 +340,10 @@ type Client struct {
 
 	// widsigner signs workload identities
 	widsigner widmgr.IdentitySigner
+
+	// anons is a pool of Anonymous UID/GID for use with task drivers that
+	// support ephemeral users not known to the operating system
+	anons anonymous.Pool
 }
 
 var (
@@ -471,17 +476,19 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		c.topology = numalib.NoImpl(ir.Topology)
 	}
 
+	// Create the anonymous users pool
+	c.anons = anonymous.New(cfg.AnonymousUserMin, cfg.AnonymousUserMax)
+
 	// Create the cpu core partition manager
 	c.partitions = cgroupslib.GetPartition(
 		c.topology.UsableCores(),
 	)
 
 	// Create the process wranglers
-	wranglers := proclib.New(&proclib.Configs{
+	c.wranglers = proclib.New(&proclib.Configs{
 		UsableCores: c.topology.UsableCores(),
 		Logger:      c.logger.Named("proclib"),
 	})
-	c.wranglers = wranglers
 
 	// Build the allow/denylists of drivers.
 	// COMPAT(1.0) uses inclusive language. white/blacklist are there for backward compatible reasons only.
@@ -2775,6 +2782,7 @@ func (c *Client) newAllocRunnerConfig(
 		WIDSigner:           c.widsigner,
 		Wranglers:           c.wranglers,
 		Partitions:          c.partitions,
+		AnonPool:            c.anons,
 	}
 }
 

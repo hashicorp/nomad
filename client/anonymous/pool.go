@@ -8,6 +8,8 @@
 package anonymous
 
 import (
+	"github.com/shoenig/netlog"
+
 	"errors"
 	"math/rand"
 	"strconv"
@@ -20,6 +22,7 @@ import (
 var (
 	ErrPoolExhausted = errors.New("anonymous: user credentials exhausted")
 	ErrReleaseUnused = errors.New("anonymous: release of unused user credentials")
+	ErrCannotParse   = errors.New("anonymous: unable to parse ugid from username")
 )
 
 // none indicates no anonymous user
@@ -49,10 +52,11 @@ type Pool interface {
 //
 // Typically this should be a large range so as to decrease the likelyhood of
 // rapid UID/GID reuse.
-func New(low, high UGID) Pool {
+func New(low, high int) Pool {
+	netlog.Yellow("New()", "low", low, "high", high)
 	return &pool{
-		low:  low,
-		high: high,
+		low:  UGID(low),
+		high: UGID(high),
 		lock: new(sync.Mutex),
 		used: set.New[UGID](32),
 	}
@@ -94,6 +98,7 @@ func (p *pool) Acquire() (UGID, error) {
 		}
 	}
 
+	// if we get here there is a bug in the optimize case
 	panic("bug: pool exhausted ugids")
 }
 
