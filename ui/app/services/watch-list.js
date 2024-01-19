@@ -29,6 +29,5 @@ export default class WatchListService extends Service {
 
   setIndexFor(url, value) {
     list[url] = +value;
-    console.log('total list is now', list);
   }
 }
