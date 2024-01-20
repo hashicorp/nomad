@@ -358,8 +358,8 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 
 		// Command succeeded, exit.
 		if cmdErr == nil {
-			// Bootstrap written. Mark as done and move on.
-			resp.Done = true
+			// Bootstrap written. Move on without marking as Done as Prestart needs
+			// to rerun after node reboots.
 			return false, nil
 		}
 
