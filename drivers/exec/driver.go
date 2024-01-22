@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -86,11 +85,11 @@ var (
 			hclspec.NewLiteral(capabilities.HCLSpecLiteral),
 		),
 		"denied_host_uids": hclspec.NewDefault(
-			hclspec.NewAttr("denied_host_uids", "list(string)", false),
+			hclspec.NewAttr("denied_host_uids", "list(map(number))", false),
 			hclspec.NewLiteral("[]"),
 		),
 		"denied_host_gids": hclspec.NewDefault(
-			hclspec.NewAttr("denied_host_gids", "list(string)", false),
+			hclspec.NewAttr("denied_host_gids", "list(map(number))", false),
 			hclspec.NewLiteral("[]"),
 		),
 	})
@@ -152,6 +151,11 @@ type Driver struct {
 	compute cpustats.Compute
 }
 
+type IDRange struct {
+	LowerBound *uint64 `codec:"from"`
+	UpperBound *uint64 `codec:"to"`
+}
+
 // Config is the driver configuration set by the SetConfig RPC call
 type Config struct {
 	// NoPivotRoot disables the use of pivot_root, useful when the root partition
@@ -171,12 +175,10 @@ type Config struct {
 	AllowCaps []string `codec:"allow_caps"`
 
 	// DeniedHostUids configured which host uids are disallowed
-	// each range should be in the format "X-Y" where X and Y are integers
-	DeniedHostUids []string `codec:"denied_host_uids"`
+	DeniedHostUids []IDRange `codec:"denied_host_uids"`
 
-	// DeniedHostGids configured which host uids are disallowed
-	// each range should be in the format "X-Y" where X and Y are integers
-	DeniedHostGids []string `codec:"denied_host_gids"`
+	// DeniedHostGids configured which host gids are disallowed
+	DeniedHostGids []IDRange `codec:"denied_host_gids"`
 }
 
 func (c *Config) validate() error {
@@ -197,15 +199,15 @@ func (c *Config) validate() error {
 		return fmt.Errorf("allow_caps configured with capabilities not supported by system: %s", badCaps)
 	}
 
-	for _, uidRangeString := range c.DeniedHostUids {
-		_, _, err := parseIdRangeString(uidRangeString)
+	for _, uidRange := range c.DeniedHostUids {
+		_, _, err := parseIdRange(uidRange)
 		if err != nil {
 			return fmt.Errorf("invalid uid range %q", err)
 		}
 	}
 
-	for _, gidRangeString := range c.DeniedHostGids {
-		_, _, err := parseIdRangeString(gidRangeString)
+	for _, gidRange := range c.DeniedHostGids {
+		_, _, err := parseIdRange(gidRange)
 		if err != nil {
 			return fmt.Errorf("invalid gid range %q", err)
 		}
@@ -276,8 +278,8 @@ func (tc *TaskConfig) validate(driverCofig Config, cfg *drivers.TaskConfig) erro
 		return fmt.Errorf("unable to convert userid to uint32: %s", err)
 	}
 
-	for _, uidRangeString := range driverCofig.DeniedHostUids {
-		lowerBound, upperBound, err := parseIdRangeString(uidRangeString)
+	for _, uidRange := range driverCofig.DeniedHostUids {
+		lowerBound, upperBound, err := parseIdRange(uidRange)
 		if err != nil {
 			return fmt.Errorf("invalid uid range %q", err)
 		}
@@ -302,8 +304,8 @@ func (tc *TaskConfig) validate(driverCofig Config, cfg *drivers.TaskConfig) erro
 		gids = append(gids, uint64(u))
 	}
 
-	for _, gidRangeString := range driverCofig.DeniedHostGids {
-		lowerBound, upperBound, err := parseIdRangeString(gidRangeString)
+	for _, gidRange := range driverCofig.DeniedHostGids {
+		lowerBound, upperBound, err := parseIdRange(gidRange)
 		if err != nil {
 			return fmt.Errorf("invalid gid range %q", err)
 		}
@@ -318,33 +320,20 @@ func (tc *TaskConfig) validate(driverCofig Config, cfg *drivers.TaskConfig) erro
 	return nil
 }
 
-func parseIdRangeString(boundsString string) (*uint64, *uint64, error) {
-	if boundsString == "" {
-		return nil, nil, fmt.Errorf("range cannot be empty, invalid range: \"%q\" ", boundsString)
+func parseIdRange(bounds IDRange) (*uint64, *uint64, error) {
+	if bounds.LowerBound == nil {
+		return nil, nil, fmt.Errorf("must have lower bound")
 	}
 
-	uidDenyRangeParts := strings.Split(boundsString, "-")
-	if len(uidDenyRangeParts) != 2 {
-		return nil, nil, fmt.Errorf("range must have two integers separated by a \"-\", invalid range: \"%q\" ", boundsString)
+	if bounds.UpperBound == nil {
+		return nil, nil, fmt.Errorf("must have upper bound")
 	}
 
-	boundAStr := uidDenyRangeParts[0]
-	boundBStr := uidDenyRangeParts[1]
-
-	boundAInt, err := strconv.ParseUint(boundAStr, 10, 64)
-	if err != nil {
-		return nil, nil, fmt.Errorf("range bound not valid, invalid bound: \"%q\" ", boundAStr)
+	if *bounds.LowerBound > *bounds.UpperBound {
+		return nil, nil, fmt.Errorf("lower bound cannot be greater than upper bound")
 	}
 
-	boundBInt, err := strconv.ParseUint(boundBStr, 10, 64)
-	if err != nil {
-		return nil, nil, fmt.Errorf("range bound not valid, invalid bound: \"%q\" ", boundBStr)
-	}
-
-	lowerBound := min(boundAInt, boundBInt)
-	upperBound := max(boundAInt, boundBInt)
-
-	return &lowerBound, &upperBound, nil
+	return bounds.LowerBound, bounds.UpperBound, nil
 }
 
 // TaskState is the state which is encoded in the handle returned in
