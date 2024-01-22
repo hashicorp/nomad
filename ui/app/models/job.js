@@ -82,7 +82,7 @@ export default class Job extends Model {
    *                            for each clientStatus.
    */
   get allocBlocks() {
-    let availableSlotsToFill = this.totalAllocs;
+    let availableSlotsToFill = this.groupCountSum;
 
     // Initialize allocationsOfShowableType with empty arrays for each clientStatus
     /**
@@ -139,11 +139,11 @@ export default class Job extends Model {
 
       const status = alloc.clientStatus;
       // If the alloc has another clientStatus, add it to the corresponding list
-      // as long as we haven't reached the totalAllocs limit for that clientStatus
+      // as long as we haven't reached the groupCountSum limit for that clientStatus
       if (
         this.allocTypes.map(({ label }) => label).includes(status) &&
         allocationsOfShowableType[status].healthy.nonCanary.length <
-          this.totalAllocs
+          this.groupCountSum
       ) {
         allocationsOfShowableType[status].healthy.nonCanary.push(alloc);
         availableSlotsToFill--;
@@ -186,7 +186,7 @@ export default class Job extends Model {
    */
   get aggregateAllocStatus() {
     // If all allocs are running, the job is Healthy
-    const totalAllocs = this.totalAllocs;
+    const totalAllocs = this.groupCountSum;
     console.log('groupCountSum is', totalAllocs);
     console.log('ablocks are', this.allocBlocks);
 
@@ -210,11 +210,14 @@ export default class Job extends Model {
     }
 
     const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
+    console.log('healthyAllocs', this.name, healthyAllocs, totalAllocs);
     if (healthyAllocs?.length === totalAllocs) {
       return { label: 'Healthy', state: 'success' };
     }
 
     // If any allocations are pending the job is "Recovering"
+    // TODO: weird, but batch jobs (which do not have deployments!) go into "recovering" right away, since some of their statuses are "pending" as they come online.
+    // This feels a little wrong.
     const pendingAllocs = this.allocBlocks.pending?.healthy?.nonCanary;
     if (pendingAllocs?.length > 0) {
       return { label: 'Recovering', state: 'highlight' };
@@ -226,6 +229,9 @@ export default class Job extends Model {
       ...this.allocBlocks.lost?.healthy?.nonCanary,
       ...this.allocBlocks.unplaced?.healthy?.nonCanary,
     ];
+    // TODO: GroupCountSum for a parameterized parent job is the count present at group level, but that's not quite true, as the parent job isn't expecting any allocs, its children are. Chat with BFF about this.
+    // TODO: handle garbage collected cases not showing "failed" for batch jobs here maybe?
+
     console.log('numFailedAllocs', failedOrLostAllocs.length);
     // if (failedOrLostAllocs.length === totalAllocs) {
     if (failedOrLostAllocs.length >= totalAllocs) {
