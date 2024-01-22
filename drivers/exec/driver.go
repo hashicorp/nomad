@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
@@ -86,6 +89,13 @@ var (
 		"no_chroot": hclspec.NewDefault(
 			hclspec.NewAttr("no_chroot", "bool", false),
 			hclspec.NewLiteral("false"),
+		"denied_host_uids": hclspec.NewDefault(
+			hclspec.NewAttr("denied_host_uids", "list(string)", false),
+			hclspec.NewLiteral("[]"),
+		),
+		"denied_host_gids": hclspec.NewDefault(
+			hclspec.NewAttr("denied_host_gids", "list(string)", false),
+			hclspec.NewLiteral("[]"),
 		),
 	})
 
@@ -167,6 +177,13 @@ type Config struct {
 
 	// NoChroot disables the use of chroot. TODO: Warn about this
 	NoChroot bool `codec:"no_chroot"`
+	// DeniedHostUids configured which host uids are disallowed
+	// each range should be in the format "X-Y" where X and Y are integers
+	DeniedHostUids []string `codec:"denied_host_uids"`
+
+	// DeniedHostGids configured which host uids are disallowed
+	// each range should be in the format "X-Y" where X and Y are integers
+	DeniedHostGids []string `codec:"denied_host_gids"`
 }
 
 func (c *Config) validate() error {
@@ -185,6 +202,20 @@ func (c *Config) validate() error {
 	badCaps := capabilities.Supported().Difference(capabilities.New(c.AllowCaps))
 	if !badCaps.Empty() {
 		return fmt.Errorf("allow_caps configured with capabilities not supported by system: %s", badCaps)
+	}
+
+	for _, uidRangeString := range c.DeniedHostUids {
+		_, _, err := parseIdRangeString(uidRangeString)
+		if err != nil {
+			return fmt.Errorf("invalid uid range %q", err)
+		}
+	}
+
+	for _, gidRangeString := range c.DeniedHostGids {
+		_, _, err := parseIdRangeString(gidRangeString)
+		if err != nil {
+			return fmt.Errorf("invalid gid range %q", err)
+		}
 	}
 
 	return nil
@@ -216,7 +247,7 @@ type TaskConfig struct {
 	CGroupOverride string `codec:"cgroup_override"`
 }
 
-func (tc *TaskConfig) validate() error {
+func (tc *TaskConfig) validate(driverCofig Config, cfg *drivers.TaskConfig) error {
 	switch tc.ModePID {
 	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
 	default:
@@ -239,7 +270,91 @@ func (tc *TaskConfig) validate() error {
 		return fmt.Errorf("cap_drop configured with capabilities not supported by system: %s", badDrops)
 	}
 
+	usernameToLookup := cfg.User
+	if cfg.User == "" {
+		usernameToLookup = "nobody"
+	}
+
+	u, err := users.Lookup(usernameToLookup)
+	if err != nil {
+		return fmt.Errorf("failed to identify user %v: %v", usernameToLookup, err)
+	}
+
+	// Convert the uid and gid
+	uid, err := strconv.ParseUint(u.Uid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("unable to convert userid to uint32: %s", err)
+	}
+
+	for _, uidRangeString := range driverCofig.DeniedHostUids {
+		lowerBound, upperBound, err := parseIdRangeString(uidRangeString)
+		if err != nil {
+			return fmt.Errorf("invalid uid range %q", err)
+		}
+
+		if uid >= *lowerBound && uid <= *upperBound {
+			return fmt.Errorf("running as uid %d is disallowed", uid)
+		}
+	}
+
+	gidStrings, err := u.GroupIds()
+	if err != nil {
+		return fmt.Errorf("unable to lookup user's group membership: %v", err)
+	}
+	gids := make([]uint64, len(gidStrings))
+
+	for _, gidString := range gidStrings {
+		u, err := strconv.ParseUint(gidString, 10, 32)
+		if err != nil {
+			return fmt.Errorf("unable to convert user's group to uint64 %s: %v", gidString, err)
+		}
+
+		gids = append(gids, uint64(u))
+	}
+
+	for _, gidRangeString := range driverCofig.DeniedHostGids {
+		lowerBound, upperBound, err := parseIdRangeString(gidRangeString)
+		if err != nil {
+			return fmt.Errorf("invalid gid range %q", err)
+		}
+
+		for _, gid := range gids {
+			if gid >= *lowerBound && gid <= *upperBound {
+				return fmt.Errorf("running as gid %d is disallowed", gid)
+			}
+		}
+	}
+
 	return nil
+}
+
+func parseIdRangeString(boundsString string) (*uint64, *uint64, error) {
+	if boundsString == "" {
+		return nil, nil, fmt.Errorf("range cannot be empty, invalid range: \"%q\" ", boundsString)
+	}
+
+	uidDenyRangeParts := strings.Split(boundsString, "-")
+	if len(uidDenyRangeParts) != 2 {
+		return nil, nil, fmt.Errorf("range must have two integers separated by a \"-\", invalid range: \"%q\" ", boundsString)
+	}
+
+	boundAStr := uidDenyRangeParts[0]
+	boundBStr := uidDenyRangeParts[1]
+
+	boundAInt, err := strconv.ParseUint(boundAStr, 10, 64)
+	if err != nil {
+		return nil, nil, fmt.Errorf("range bound not valid, invalid bound: \"%q\" ", boundAStr)
+	}
+
+	boundBInt, err := strconv.ParseUint(boundBStr, 10, 64)
+	if err != nil {
+		return nil, nil, fmt.Errorf("range bound not valid, invalid bound: \"%q\" ", boundBStr)
+	}
+
+	lowerBound := min(boundAInt, boundBInt)
+	upperBound := max(boundAInt, boundBInt)
+
+	return &lowerBound, &upperBound, nil
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -453,7 +568,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	if err := driverConfig.validate(); err != nil {
+	if err := driverConfig.validate(d.config, cfg); err != nil {
 		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
 	}
 
@@ -493,6 +608,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	caps, err := capabilities.Calculate(
 		capabilities.NomadDefaults(), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
 	)
+
 	if err != nil {
 		return nil, nil, err
 	}
