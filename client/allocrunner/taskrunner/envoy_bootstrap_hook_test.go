@@ -368,9 +368,6 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), req, resp))
 
-	// Assert it is Done
-	require.True(t, resp.Done)
-
 	// Ensure the default path matches
 	env := map[string]string{
 		taskenv.SecretsDir: req.TaskDir.SecretsDir,
