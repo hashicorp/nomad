@@ -460,9 +460,6 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), req, resp))
 
-	// Assert it is Done
-	require.True(t, resp.Done)
-
 	require.NotNil(t, resp.Env)
 	require.Equal(t, "127.0.0.2:19001", resp.Env[envoyAdminBindEnvPrefix+"foo"])
 
@@ -544,7 +541,6 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	require.NoError(t, h.Prestart(context.Background(), req, &resp))
 
 	// Assert the hook is Done
-	require.True(t, resp.Done)
 	require.NotNil(t, resp.Env)
 
 	// Read the Envoy Config file
@@ -592,9 +588,6 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), req, resp))
-
-	// Assert it is Done
-	require.True(t, resp.Done)
 
 	// Assert no file was written
 	_, err := os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
@@ -673,9 +666,6 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	err := h.Prestart(context.Background(), req, resp)
 	require.ErrorIs(t, err, errEnvoyBootstrapError)
 	require.True(t, structs.IsRecoverable(err))
-
-	// Assert it is not Done
-	require.False(t, resp.Done)
 
 	// Assert no file was written
 	_, err = os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
