@@ -46,7 +46,7 @@
             <B.Td>{{B.data.nodepool}}</B.Td>
           {{/if}}
           <B.Td>
-            <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="medium" />
+            <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
           </B.Td>
           <B.Td>
             {{B.data.type}}
@@ -58,6 +58,10 @@
             {{get (filter-by 'clientStatus' 'running' B.data.allocations) "length"}} running <br />
             {{B.data.allocations.length}} total <br />
             {{B.data.groupCountSum}} desired
+            <hr />
+            <div class="job-status-panel">
+              <JobStatus::AllocationStatusRow @allocBlocks={{B.data.allocBlocks}} @steady={{true}} />
+            </div>
           </B.Td>
         </B.Tr>
       </:body>
