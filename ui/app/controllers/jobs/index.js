@@ -12,7 +12,7 @@ import { action } from '@ember/object';
 const ALL_NAMESPACE_WILDCARD = '*';
 
 export default class JobsIndexController extends Controller {
-  // @service router;
+  @service router;
   // @service store;
   @service system;
 
@@ -38,5 +38,10 @@ export default class JobsIndexController extends Controller {
 
   get jobs() {
     return this.model.jobs;
+  }
+
+  @action
+  gotoJob(job) {
+    this.router.transitionTo('jobs.job.index', job.idWithNamespace);
   }
 }
