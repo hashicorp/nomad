@@ -87,6 +87,43 @@ config {
 }
 ```
 
+- `denied_host_uids` - (Optional) Range of host uids to deny. If a "user"
+  value is specified in task configuration and that user has a user id in
+  the given ranges, the task will error before starting.
+
+```hcl
+config {
+  denied_host_uids {
+      from = 0
+      to   = 100
+    }
+
+  denied_host_uids {
+    from = 500
+    to   = 509
+  }
+}
+```
+
+- `denied_host_gids` - (Optional) Range of host gids to deny. If a "user"
+  value is specified in task configuration and that user has is part of
+  any groups with gid's in the specified ranges, the task will error before
+  starting.
+
+```hcl
+config {
+  denied_host_gids {
+      from = 2
+      to   = 10
+    }
+
+  denied_host_gids {
+    from = 56
+    to   = 63
+  }
+}
+```
+
 ## Examples
 
 To run a binary present on the Node:

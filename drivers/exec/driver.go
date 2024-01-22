@@ -209,14 +209,14 @@ func (c *Config) validate() error {
 	for _, uidRange := range c.DeniedHostUids {
 		_, _, err := parseIdRange(uidRange)
 		if err != nil {
-			return fmt.Errorf("invalid uid range %q", err)
+			return fmt.Errorf("invalid uid range: %q", err)
 		}
 	}
 
 	for _, gidRange := range c.DeniedHostGids {
 		_, _, err := parseIdRange(gidRange)
 		if err != nil {
-			return fmt.Errorf("invalid gid range %q", err)
+			return fmt.Errorf("invalid gid range: %q", err)
 		}
 	}
 
