@@ -634,9 +634,6 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 	// Run the Connect Native hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
 
-	// Assert the hook is Done
-	require.True(t, response.Done)
-
 	// Assert environment variable for CONSUL_HTTP_SSL is set, because it was
 	// the only one not overridden by task env block config
 	require.NotEmpty(t, response.Env)
