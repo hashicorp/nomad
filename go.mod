@@ -127,7 +127,7 @@ require (
 	go.uber.org/goleak v1.2.1
 	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
-	golang.org/x/sync v0.4.0
+	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.15.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.59.0
