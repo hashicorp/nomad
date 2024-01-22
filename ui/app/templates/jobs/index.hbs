@@ -14,11 +14,31 @@
       @columns={{this.tableColumns}}
     >
       <:body as |B|>
-        <B.Tr>
+      {{!-- TODO: use <JobRow> --}}
+        <B.Tr
+          {{keyboard-shortcut
+            enumerated=true
+            action=(action "gotoJob" B.data)
+          }}
+        >
           {{!-- {{#each this.tableColumns as |column|}}
             <B.Td>{{get B.data (lowercase column.label)}}</B.Td>
           {{/each}} --}}
-          <B.Td>{{B.data.name}}</B.Td>
+          <B.Td>
+            <LinkTo
+              @route="jobs.job.index"
+              @model={{B.data.idWithNamespace}}
+              class="is-primary"
+            >
+              {{B.data.name}}
+              {{#if B.data.meta.structured.pack}}
+                <span data-test-pack-tag class="tag is-pack">
+                  {{x-icon "box" class= "test"}}
+                  <span>Pack</span>
+                </span>
+              {{/if}}
+            </LinkTo>
+          </B.Td>
           {{#if this.system.shouldShowNamespaces}}
             <B.Td>{{B.data.namespace}}</B.Td>
           {{/if}}
@@ -26,7 +46,7 @@
             <B.Td>{{B.data.nodepool}}</B.Td>
           {{/if}}
           <B.Td>
-            STATUS PLACEHOLDER
+            <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="medium" />
           </B.Td>
           <B.Td>
             {{B.data.type}}
@@ -35,8 +55,9 @@
             {{B.data.priority}}
           </B.Td>
           <B.Td>
-            {{get (filter-by 'clientStatus' 'running' B.data.allocations) "length"}}running <br />
-            {{B.data.allocations.length}} total
+            {{get (filter-by 'clientStatus' 'running' B.data.allocations) "length"}} running <br />
+            {{B.data.allocations.length}} total <br />
+            {{B.data.groupCountSum}} desired
           </B.Td>
         </B.Tr>
       </:body>
