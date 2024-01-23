@@ -174,7 +174,7 @@ func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
 		return false, err
 	}
 
-	iter, err := snap.JobsByNamespace(nil, namespace)
+	iter, err := snap.JobsByNamespace(nil, namespace, state.SortDefault)
 	if err != nil {
 		return false, err
 	}
