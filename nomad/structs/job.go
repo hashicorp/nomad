@@ -33,14 +33,16 @@ type UIJob struct {
 	Datacenters   []string
 	Priority      int
 	Allocs        []JobStatusAlloc
-	ChildStatuses []string
+	SmartAlloc    map[string]int
 	GroupCountSum int
+	ChildStatuses []string
 	DeploymentID  string
 	Version       uint64
 }
 
 type JobsStatusesRequest struct {
-	Jobs []NamespacedID
+	Jobs      []NamespacedID
+	SmartOnly bool
 	QueryOptions
 }
 

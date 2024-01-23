@@ -51,7 +51,7 @@ func (j *Jobs) Statuses(
 				if job == nil {
 					continue
 				}
-				uiJob, idx, err := UIJobFromJob(ws, state, job)
+				uiJob, idx, err := UIJobFromJob(ws, state, job, false)
 				if err != nil {
 					return err
 				}
@@ -153,11 +153,12 @@ func (j *Jobs) Statuses2(
 				pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 					func(raw interface{}) error {
 						job := raw.(*structs.Job)
+
 						//summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
 						//if err != nil || summary == nil {
 						//	return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 						//}
-						uiJob, idx, err := UIJobFromJob(ws, state, job)
+						uiJob, idx, err := UIJobFromJob(ws, state, job, false)
 						if err != nil {
 							return err
 						}
@@ -200,7 +201,7 @@ func (j *Jobs) Statuses2(
 	return j.srv.blockingRPC(&opts)
 }
 
-func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) (structs.UIJob, uint64, error) {
+func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job, smartOnly bool) (structs.UIJob, uint64, error) {
 	idx := job.ModifyIndex
 
 	uiJob := structs.UIJob{
@@ -216,8 +217,9 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) 
 		Version:     job.Version,
 		// included here for completeness, populated below.
 		Allocs:        nil,
-		ChildStatuses: nil,
+		SmartAlloc:    make(map[string]int),
 		GroupCountSum: 0,
+		ChildStatuses: nil,
 		DeploymentID:  "",
 	}
 	for _, tg := range job.TaskGroups {
@@ -249,7 +251,17 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job) 
 	if err != nil {
 		return uiJob, idx, err
 	}
+
 	for _, a := range allocs {
+		uiJob.SmartAlloc["total"]++
+		uiJob.SmartAlloc[a.ClientStatus]++
+		if a.DeploymentStatus.Canary {
+			uiJob.SmartAlloc["canary"]++
+		}
+		if smartOnly {
+			continue
+		}
+
 		alloc := structs.JobStatusAlloc{
 			ID:           a.ID,
 			Group:        a.TaskGroup,
@@ -392,7 +404,7 @@ func (j *Jobs) Statuses3(
 							return nil
 						}
 
-						uiJob, idx, err := UIJobFromJob(ws, state, job)
+						uiJob, idx, err := UIJobFromJob(ws, state, job, args.SmartOnly)
 						if err != nil {
 							return err
 						}
