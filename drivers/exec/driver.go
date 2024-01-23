@@ -82,6 +82,10 @@ var (
 			hclspec.NewAttr("allow_caps", "list(string)", false),
 			hclspec.NewLiteral(capabilities.HCLSpecLiteral),
 		),
+		"no_chroot": hclspec.NewDefault(
+			hclspec.NewAttr("no_chroot", "bool", false),
+			hclspec.NewLiteral("false"),
+		),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -158,6 +162,9 @@ type Config struct {
 	// AllowCaps configures which Linux Capabilities are enabled for tasks
 	// running on this node.
 	AllowCaps []string `codec:"allow_caps"`
+
+	// NoChroot disables the use of chroot. TODO: Warn about this
+	NoChroot bool `codec:"no_chroot"`
 }
 
 func (c *Config) validate() error {
@@ -298,6 +305,14 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		d.nomadConfig = cfg.AgentConfig.Driver
 		d.compute = cfg.AgentConfig.Compute()
 	}
+
+	// TODO: Is this the right place to overwrite this?
+	if config.NoChroot {
+		// TODO: Why did this run 3 times?
+		fmt.Println("SETTING FSIsolation to NONE")
+		driverCapabilities.FSIsolation = drivers.FSIsolationNone
+	}
+
 	return nil
 }
 
@@ -441,10 +456,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	handle.Config = cfg
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")
+
 	executorConfig := &executor.ExecutorConfig{
 		LogFile:     pluginLogFile,
 		LogLevel:    "debug",
-		FSIsolation: true,
+		FSIsolation: !d.config.NoChroot,
 		Compute:     d.compute,
 	}
 
