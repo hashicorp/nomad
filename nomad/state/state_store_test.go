@@ -2985,7 +2985,7 @@ func TestStateStore_Jobs(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.Jobs(ws)
+	iter, err := state.Jobs(ws, SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3065,7 +3065,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.JobsByIDPrefix(ws, job.Namespace, job.ID)
+	iter, err := state.JobsByIDPrefix(ws, job.Namespace, job.ID, SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3087,7 +3087,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "re")
+	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "re", SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3112,7 +3112,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	}
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "r")
+	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "r", SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3122,7 +3122,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "ri")
+	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "ri", SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3172,9 +3172,9 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 
 	// Try full match
 	ws := memdb.NewWatchSet()
-	iter1, err := state.JobsByIDPrefix(ws, ns1.Name, jobID)
+	iter1, err := state.JobsByIDPrefix(ws, ns1.Name, jobID, SortDefault)
 	require.NoError(t, err)
-	iter2, err := state.JobsByIDPrefix(ws, ns2.Name, jobID)
+	iter2, err := state.JobsByIDPrefix(ws, ns2.Name, jobID, SortDefault)
 	require.NoError(t, err)
 
 	jobsNs1 := gatherJobs(iter1)
@@ -3184,9 +3184,9 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 	require.Len(t, jobsNs2, 1)
 
 	// Try prefix
-	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "re")
+	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "re", SortDefault)
 	require.NoError(t, err)
-	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "re")
+	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "re", SortDefault)
 	require.NoError(t, err)
 
 	jobsNs1 = gatherJobs(iter1)
@@ -3201,9 +3201,9 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 	require.True(t, watchFired(ws))
 
 	ws = memdb.NewWatchSet()
-	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "r")
+	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "r", SortDefault)
 	require.NoError(t, err)
-	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "r")
+	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "r", SortDefault)
 	require.NoError(t, err)
 
 	jobsNs1 = gatherJobs(iter1)
@@ -3211,7 +3211,7 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 	require.Len(t, jobsNs1, 2)
 	require.Len(t, jobsNs2, 1)
 
-	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "ri")
+	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "ri", SortDefault)
 	require.NoError(t, err)
 
 	jobsNs1 = gatherJobs(iter1)
@@ -3241,9 +3241,9 @@ func TestStateStore_JobsByNamespace(t *testing.T) {
 
 	// Create watchsets so we can test that update fires the watch
 	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
-	_, err := state.JobsByNamespace(watches[0], ns1.Name)
+	_, err := state.JobsByNamespace(watches[0], ns1.Name, SortDefault)
 	require.NoError(t, err)
-	_, err = state.JobsByNamespace(watches[1], ns2.Name)
+	_, err = state.JobsByNamespace(watches[1], ns2.Name, SortDefault)
 	require.NoError(t, err)
 
 	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job1))
@@ -3254,9 +3254,9 @@ func TestStateStore_JobsByNamespace(t *testing.T) {
 	require.True(t, watchFired(watches[1]))
 
 	ws := memdb.NewWatchSet()
-	iter1, err := state.JobsByNamespace(ws, ns1.Name)
+	iter1, err := state.JobsByNamespace(ws, ns1.Name, SortDefault)
 	require.NoError(t, err)
-	iter2, err := state.JobsByNamespace(ws, ns2.Name)
+	iter2, err := state.JobsByNamespace(ws, ns2.Name, SortDefault)
 	require.NoError(t, err)
 
 	var out1 []*structs.Job

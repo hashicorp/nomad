@@ -1438,13 +1438,13 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 			return
 		case <-timer.C:
 			timer.Reset(s.config.StatsCollectionInterval)
-			state, err := s.State().Snapshot()
+			snap, err := s.State().Snapshot()
 			if err != nil {
 				s.logger.Error("failed to get state", "error", err)
 				continue
 			}
 			ws := memdb.NewWatchSet()
-			iter, err := state.Jobs(ws)
+			iter, err := snap.Jobs(ws, state.SortDefault)
 			if err != nil {
 				s.logger.Error("failed to get job statuses", "error", err)
 				continue
