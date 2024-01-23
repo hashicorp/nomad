@@ -171,6 +171,9 @@ able to make use of IPC features, like sending unexpected POSIX signals.
   for file system isolation without `pivot_root`. This is useful for systems
   where the root is on a ramdisk.
 
+- `no_chroot` `(bool: optional)` - Defaults to `false`. When `true`, the driver does not
+  use chroot for file system isolation. This is an experimental option.
+
 - `allow_caps` - A list of allowed Linux capabilities. Defaults to
 
 ```hcl
@@ -178,11 +181,11 @@ able to make use of IPC features, like sending unexpected POSIX signals.
  "net_bind_service", "setfcap", "setgid", "setpcap", "setuid", "sys_chroot"]
 ```
 
-  which is modeled after the capabilities allowed by [docker by default][docker_caps]
-  (without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities
-  can be obtained by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options.
-  Supports the value `"all"` as a shortcut for allow-listing all capabilities supported
-  by the operating system.
+which is modeled after the capabilities allowed by [docker by default][docker_caps]
+(without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities
+can be obtained by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options.
+Supports the value `"all"` as a shortcut for allow-listing all capabilities supported
+by the operating system.
 
 !> **Warning:** Allowing more capabilities beyond the default may lead to
 undesirable consequences, including untrusted tasks being able to compromise the
