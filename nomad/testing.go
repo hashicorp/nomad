@@ -40,7 +40,7 @@ func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, f
 	return server, token, cleanup
 }
 
-func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
+func TestServer(t testing.TB, cb func(*Config)) (*Server, func()) {
 	s, c, err := TestServerErr(t, cb)
 	must.NoError(t, err, must.Sprint("failed to start test server"))
 	return s, c
@@ -48,7 +48,7 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 
 // TestConfigForServer provides a fully functional Config to pass to NewServer()
 // It can be changed beforehand to induce different behavior such as specific errors.
-func TestConfigForServer(t testing.T) *Config {
+func TestConfigForServer(t testing.TB) *Config {
 	t.Helper()
 
 	// Setup the default settings
@@ -121,7 +121,7 @@ func TestConfigForServer(t testing.T) *Config {
 	return config
 }
 
-func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
+func TestServerErr(t testing.TB, cb func(*Config)) (*Server, func(), error) {
 	config := TestConfigForServer(t)
 	// Invoke the callback if any
 	if cb != nil {
