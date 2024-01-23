@@ -300,6 +300,18 @@ func (j *Jobs) Statuses3(
 	defer metrics.MeasureSince([]string{"nomad", "jobs", "statuses"}, time.Now())
 
 	namespace := args.RequestNamespace()
+	// The ns from the UI by default is "*" which scans the whole "jobs" table.
+	// If specific jobs are requested, all with the same namespace,
+	// we may get some extra efficiency, especially for non-contiguous job IDs.
+	if len(args.Jobs) > 0 {
+		nses := set.New[string](0)
+		for _, j := range args.Jobs {
+			nses.Insert(j.Namespace)
+		}
+		if nses.Size() == 1 {
+			namespace = nses.Slice()[0]
+		}
+	}
 
 	// Check for list-job permissions
 	aclObj, err := j.srv.ResolveACL(args)
