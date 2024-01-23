@@ -35,6 +35,8 @@ func CreateExecutor(
 	executorConfig *ExecutorConfig,
 ) (Executor, *plugin.Client, error) {
 
+	fmt.Println("NOMITCH CreateExecutor")
+
 	c, err := json.Marshal(executorConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create executor config: %v", err)

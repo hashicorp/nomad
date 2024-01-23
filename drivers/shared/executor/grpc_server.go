@@ -24,6 +24,7 @@ type grpcExecutorServer struct {
 }
 
 func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchRequest) (*proto.LaunchResponse, error) {
+	fmt.Println("WHAT IS HAPPENING HERE")
 	ps, err := s.impl.Launch(&ExecCommand{
 		Cmd:              req.Cmd,
 		Args:             req.Args,
@@ -41,6 +42,7 @@ func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchReques
 		ModePID:          req.DefaultPidMode,
 		ModeIPC:          req.DefaultIpcMode,
 		Capabilities:     req.Capabilities,
+		CGroupOverride:   req.CGroupOverride,
 	})
 
 	if err != nil {

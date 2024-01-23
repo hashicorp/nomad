@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/shoenig/netlog"
 	"golang.org/x/sys/unix"
 )
 
@@ -76,9 +77,20 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 	return nil
 }
 
+// TODO Nomitch: Is this the best spot?!?!
 // setSubCmdCgroup sets the cgroup for non-Task child processes of the
 // executor.Executor (since in cg2 it lives outside the task's cgroup)
 func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(), error) {
+
+	// fmt.Println("=====")
+	// fmt.Println("=====")
+	// fmt.Println("setSubCmdCgroup group:", cgroup)
+	// fmt.Println("=====")
+	// fmt.Println("=====")
+
+	log := netlog.New("hi")
+	log.Info("setSubCmdCgroup group:", cgroup)
+
 	if cgroup == "" {
 		panic("cgroup must be set")
 	}
@@ -119,7 +131,11 @@ func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {
 //
 // pid: pid of the executor (i.e. ourself)
 func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid int) (func(), error) {
+	// TODO: Overwrite cgroup with own if given
 	cgroup := command.StatsCgroup()
+
+	log := netlog.New("hi")
+	log.Info("The cgroup I am using (I think!):", cgroup)
 
 	// ensure tasks do not inherit Nomad agent oom_score_adj value
 	if err := e.setOomAdj(); err != nil {
@@ -189,7 +205,10 @@ func (e *UniversalExecutor) enterCG1(statsCgroup, cpusetCgroup string) func() {
 	}
 }
 
+// TODO NOMITCH: OKAY THIS ONE REALLY?
 func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
+
+	// TODO: Short circuit this somehow?
 
 	// some drivers like qemu entirely own resource management
 	if command.Resources == nil || command.Resources.LinuxResources == nil {
@@ -224,7 +243,12 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 	}
 }
 
+// TODO NOMITCH: OKAY THIS ONE REALLY?
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
+	log := netlog.New("u-linux")
+	log.Info("using CG2")
+
+	// TODO: Short circuit this somehow?
 
 	// some drivers like qemu entirely own resource management
 	if command.Resources == nil || command.Resources.LinuxResources == nil {

@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/shoenig/netlog"
 )
 
 const (
@@ -87,12 +88,13 @@ var (
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"command":  hclspec.NewAttr("command", "string", true),
-		"args":     hclspec.NewAttr("args", "list(string)", false),
-		"pid_mode": hclspec.NewAttr("pid_mode", "string", false),
-		"ipc_mode": hclspec.NewAttr("ipc_mode", "string", false),
-		"cap_add":  hclspec.NewAttr("cap_add", "list(string)", false),
-		"cap_drop": hclspec.NewAttr("cap_drop", "list(string)", false),
+		"command":         hclspec.NewAttr("command", "string", true),
+		"args":            hclspec.NewAttr("args", "list(string)", false),
+		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
+		"ipc_mode":        hclspec.NewAttr("ipc_mode", "string", false),
+		"cap_add":         hclspec.NewAttr("cap_add", "list(string)", false),
+		"cap_drop":        hclspec.NewAttr("cap_drop", "list(string)", false),
+		"cgroup_override": hclspec.NewAttr("cgroup_override", "string", false),
 	})
 
 	// driverCapabilities represents the RPC response for what features are
@@ -202,6 +204,9 @@ type TaskConfig struct {
 
 	// CapDrop is a set of linux capabilities to disable.
 	CapDrop []string `codec:"cap_drop"`
+
+	// CGroupOverride is the cgroup to run as. TODO
+	CGroupOverride string `codec:"cgroup_override"`
 }
 
 func (tc *TaskConfig) validate() error {
@@ -423,6 +428,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 }
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
+	fmt.Println("NOMITCH - START!!")
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
@@ -476,6 +482,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 	d.logger.Debug("task capabilities", "capabilities", caps)
 
+	log := netlog.New("start")
+	log.Info("making exec cmd with driverConfig.CGroupOverride:", driverConfig.CGroupOverride)
+
 	execCmd := &executor.ExecCommand{
 		Cmd:              driverConfig.Command,
 		Args:             driverConfig.Args,
@@ -493,7 +502,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		ModePID:          executor.IsolationMode(d.config.DefaultModePID, driverConfig.ModePID),
 		ModeIPC:          executor.IsolationMode(d.config.DefaultModeIPC, driverConfig.ModeIPC),
 		Capabilities:     caps,
+		CGroupOverride:   driverConfig.CGroupOverride,
 	}
+
+	fmt.Println("NOMITCHM!!")
+	fmt.Println("EXEC LAUNCH!!")
 
 	ps, err := exec.Launch(execCmd)
 	if err != nil {
@@ -644,6 +657,7 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 }
 
 func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
+	fmt.Println("EXEC TASK!!")
 	if len(cmd) == 0 {
 		return nil, fmt.Errorf("error cmd must have at least one value")
 	}

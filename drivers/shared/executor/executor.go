@@ -27,6 +27,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/shoenig/netlog"
 	"github.com/syndtr/gocapability/capability"
 )
 
@@ -151,6 +152,10 @@ type ExecCommand struct {
 
 	// Capabilities are the linux capabilities to be enabled by the task driver.
 	Capabilities []string
+
+	// CGroupOverride is the cgroup path to use for the task.
+	// If the cgroup does not already exist, the task will error.
+	CGroupOverride string
 }
 
 // CpusetCgroup returns the path to the cgroup in which the Nomad client will
@@ -177,10 +182,21 @@ func (c *ExecCommand) CpusetCgroup() string {
 // On cgroups v2 systems this just returns the unified cgroup.
 //
 // On non-Linux systems this returns the empty string and has no meaning.
+// TODO: QUESTION - Under which contexts is this used?
+// Why is it only returning the CpusetCgroup?
 func (c *ExecCommand) StatsCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
+
+	// TODO NOMITCH: IS *THIS* THE SPOT?
+	if c.CGroupOverride != "" {
+		// log := netlog.New("foo")
+		// log.Info("Using CGroupOverride", c.CGroupOverride)
+
+		return c.CGroupOverride
+	}
+
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
 		taskName := filepath.Base(c.TaskDir)
@@ -309,7 +325,11 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 // Launch launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	e.logger.Trace("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	fmt.Println("LAUNCH!!")
+	log := netlog.New("foo")
+	log.Info("l2")
+
+	e.logger.Debug("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	e.command = command
 
@@ -329,6 +349,8 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, err
 	}
 
+	fmt.Println("NOMITCH: setting up process isolation")
+	e.logger.Debug("NOMITCH: setting up process isolation")
 	// setup containment (i.e. cgroups on linux)
 	if cleanup, err := e.configureResourceContainer(command, os.Getpid()); err != nil {
 		// keep going; some folks run nomad as non-root and expect this driver to still work
@@ -377,6 +399,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 
 // Exec a command inside a container for exec and java drivers.
 func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
+	fmt.Println("EXEC!!")
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
@@ -430,6 +453,8 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 
 func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string, tty bool,
 	stream drivers.ExecTaskStream) error {
+
+	fmt.Println("EXEC STREAMING")
 
 	if len(command) == 0 {
 		return fmt.Errorf("command is required")

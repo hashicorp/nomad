@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
+	"github.com/shoenig/netlog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -34,6 +35,9 @@ type grpcExecutorClient struct {
 }
 
 func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
+	log := netlog.New("bar")
+	log.Info("WAT!!", cmd.CGroupOverride)
+
 	ctx := context.Background()
 	req := &proto.LaunchRequest{
 		Cmd:              cmd.Cmd,
@@ -52,6 +56,7 @@ func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
 		DefaultPidMode:   cmd.ModePID,
 		DefaultIpcMode:   cmd.ModeIPC,
 		Capabilities:     cmd.Capabilities,
+		CGroupOverride:   cmd.CGroupOverride,
 	}
 	resp, err := c.client.Launch(ctx, req)
 	if err != nil {

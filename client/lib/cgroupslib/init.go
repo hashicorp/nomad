@@ -21,6 +21,8 @@ const (
 	memsFile = "cpuset.mems"
 )
 
+// TODO: NOMITCH GROK THIS
+
 // Init will initialize the cgroup tree that the Nomad client will use for
 // isolating resources of tasks. cores is the cpuset granted for use by Nomad.
 func Init(log hclog.Logger, cores string) {

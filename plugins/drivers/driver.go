@@ -407,6 +407,7 @@ type LinuxResources struct {
 
 	CpusetCpus       string
 	CpusetCgroupPath string
+	// CgroupOverride   string
 
 	// PrecentTicks is used to calculate the CPUQuota, currently the docker
 	// driver exposes cpu period and quota through the driver configuration

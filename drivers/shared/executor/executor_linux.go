@@ -40,6 +40,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/shoenig/netlog"
 	"golang.org/x/sys/unix"
 )
 
@@ -92,7 +93,11 @@ func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
 
 // Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	l.logger.Trace("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	log := netlog.New("baz")
+	log.Info("LibcontainerExecutor.Launch Linux - NOMITCH!!")
+
+	fmt.Println("LibcontainerExecutor.Launch Linux - NOMITCH")
+	l.logger.Debug("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	if command.Resources == nil {
 		command.Resources = &drivers.Resources{
@@ -665,15 +670,29 @@ func configureIsolation(cfg *runc.Config, command *ExecCommand) error {
 
 func (l *LibcontainerExecutor) configureCgroups(cfg *runc.Config, command *ExecCommand) error {
 	// note: an alloc TR hook pre-creates the cgroup(s) in both v1 and v2
+	fmt.Println("LibcontainerExecutor.configureCgroups Linux - NOMITCH")
+
+	log := netlog.New("cgroupy")
+	log.Info("command.CGroupOverride - ", command.CGroupOverride)
 
 	if !command.ResourceLimits {
 		return nil
 	}
 
-	cg := command.StatsCgroup()
+	var cg string
+
+	overridingCgroup := command.CGroupOverride != ""
+	if overridingCgroup {
+		cg = command.CGroupOverride
+	} else {
+		cg = command.StatsCgroup()
+	}
+
 	if cg == "" {
 		return errors.New("cgroup must be set")
 	}
+
+	log.Info("cg", cg)
 
 	// // set the libcontainer hook for writing the PID to cgroup.procs file
 	// TODO: this can be cg1 only, right?
@@ -685,9 +704,11 @@ func (l *LibcontainerExecutor) configureCgroups(cfg *runc.Config, command *ExecC
 	// set cgroup v1/v2 specific attributes (cpu, path)
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
-		return l.configureCG1(cfg, command, cg)
+		log.Info("using CG1")
+		return l.configureCG1(cfg, command, cg, overridingCgroup)
 	default:
-		return l.configureCG2(cfg, command, cg)
+		log.Info("using CG2")
+		return l.configureCG2(cfg, command, cg, overridingCgroup)
 	}
 }
 
@@ -715,7 +736,7 @@ func (l *LibcontainerExecutor) configureCgroupMemory(cfg *runc.Config, command *
 	cfg.Cgroups.Resources.MemorySwappiness = cgroupslib.MaybeDisableMemorySwappiness()
 }
 
-func (l *LibcontainerExecutor) configureCG1(cfg *runc.Config, command *ExecCommand, cgroup string) error {
+func (l *LibcontainerExecutor) configureCG1(cfg *runc.Config, command *ExecCommand, cgroup string, overridingCgroup bool) error {
 
 	cpuShares := command.Resources.LinuxResources.CPUShares
 	cpusetPath := command.Resources.LinuxResources.CpusetCgroupPath
@@ -723,7 +744,13 @@ func (l *LibcontainerExecutor) configureCG1(cfg *runc.Config, command *ExecComma
 
 	// Set the v1 parent relative path (i.e. /nomad/<scope>) for the NON-cpuset cgroups
 	scope := filepath.Base(cgroup)
-	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
+	if overridingCgroup {
+		cfg.Cgroups.Path = cgroup
+	} else {
+		cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
+	}
+
+	fmt.Println("LibcontainerExecutor.configureCG1 Linux - NOMITCH - ", cfg.Cgroups.Path)
 
 	// set cpu resources
 	cfg.Cgroups.Resources.CpuShares = uint64(cpuShares)
@@ -748,7 +775,10 @@ func (l *LibcontainerExecutor) cpusetCG1(cpusetCgroupPath, cores string) error {
 	return ed.Write("cpuset.cpus", cores)
 }
 
-func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecCommand, cg string) error {
+func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecCommand, cg string, overridingCgroup bool) error {
+	log := netlog.New("e-linux")
+	log.Info("using CG2")
+
 	cpuShares := command.Resources.LinuxResources.CPUShares
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
 
@@ -761,9 +791,21 @@ func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecComma
 	cpuWeight := cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
 	cfg.Cgroups.Resources.CpuWeight = cpuWeight
 
+	// TODO NEXT NOMITCH: THIS IS RIPPING OFF THE BASE
+	// AND THEN APPLYING IT TO THE GROUP UNDER HERE
+	// DO A HARD OVERRIDE!!!
+
 	// finally set the path of the cgroup in which to run the task
 	scope := filepath.Base(cg)
-	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, partition, scope)
+
+	if overridingCgroup {
+		cfg.Cgroups.Path = cg
+	} else {
+		cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, partition, scope)
+	}
+
+	log.Info("PATH: ", cfg.Cgroups.Path)
+	fmt.Println("LibcontainerExecutor.configureCG2 Linux - NOMITCH - ", cfg.Cgroups.Path)
 
 	// todo(shoenig): we will also want to set cpu bandwidth (i.e. cpu_hard_limit)
 	// hopefully for 1.7
