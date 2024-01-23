@@ -105,6 +105,7 @@ func (j *Jobs) Statuses2(
 
 	// compare between state unblocks to see if the RPC should unblock (namely, if any jobs have gone away)
 	prevJobs := set.New[structs.NamespacedID](0)
+	sort := state.SortDefault
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -125,11 +126,11 @@ func (j *Jobs) Statuses2(
 				return err
 			} else {
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
+					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.JobsByNamespace(ws, namespace)
+					iter, err = state.JobsByNamespace(ws, namespace, sort)
 				} else {
-					iter, err = state.Jobs(ws)
+					iter, err = state.Jobs(ws, sort)
 				}
 				if err != nil {
 					return err
@@ -201,7 +202,7 @@ func (j *Jobs) Statuses2(
 	return j.srv.blockingRPC(&opts)
 }
 
-func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job, smartOnly bool) (structs.UIJob, uint64, error) {
+func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, smartOnly bool) (structs.UIJob, uint64, error) {
 	idx := job.ModifyIndex
 
 	uiJob := structs.UIJob{
@@ -227,7 +228,7 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job, 
 	}
 
 	if job.IsParameterized() || job.IsPeriodic() {
-		children, err := state.JobsByIDPrefix(ws, job.Namespace, job.ID)
+		children, err := store.JobsByIDPrefix(ws, job.Namespace, job.ID, state.SortDefault)
 		if err != nil {
 			return uiJob, idx, err
 		}
@@ -247,7 +248,7 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job, 
 		}
 	}
 
-	allocs, err := state.AllocsByJob(ws, job.Namespace, job.ID, false)
+	allocs, err := store.AllocsByJob(ws, job.Namespace, job.ID, true) // TODO: anyCreateIndex?
 	if err != nil {
 		return uiJob, idx, err
 	}
@@ -281,7 +282,7 @@ func UIJobFromJob(ws memdb.WatchSet, state *state.StateStore, job *structs.Job, 
 		}
 	}
 
-	deploys, err := state.DeploymentsByJobID(ws, job.Namespace, job.ID, false)
+	deploys, err := store.DeploymentsByJobID(ws, job.Namespace, job.ID, true)
 	if err != nil {
 		return uiJob, idx, err
 	}
@@ -339,6 +340,8 @@ func (j *Jobs) Statuses3(
 	// i.e. if new job(s) shift the page, or when job(s) go away.
 	prevJobs := set.New[structs.NamespacedID](0)
 
+	sort := state.QueryOptionSort(args.QueryOptions)
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -357,11 +360,11 @@ func (j *Jobs) Statuses3(
 				return err
 			} else {
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
+					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.JobsByNamespace(ws, namespace)
+					iter, err = state.JobsByNamespace(ws, namespace, sort)
 				} else {
-					iter, err = state.Jobs(ws)
+					iter, err = state.Jobs(ws, sort)
 				}
 				if err != nil {
 					return err
