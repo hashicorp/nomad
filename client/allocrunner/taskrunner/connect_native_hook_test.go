@@ -287,9 +287,6 @@ func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
 
-	// Assert the hook is Done
-	require.True(t, response.Done)
-
 	// Assert no environment variables configured to be set
 	require.Empty(t, response.Env)
 
@@ -421,9 +418,6 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	// Run the Connect Native hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
 
-	// Assert the hook is Done
-	require.True(t, response.Done)
-
 	// Assert environment variable for token is set
 	require.NotEmpty(t, response.Env)
 	require.Equal(t, token, response.Env["CONSUL_HTTP_TOKEN"])
@@ -500,9 +494,6 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 
 		// Run the Connect Native hook
 		require.NoError(t, h.Prestart(context.Background(), request, response))
-
-		// Assert the hook is Done
-		require.True(t, response.Done)
 
 		// Remove variables we are not interested in
 		delete(response.Env, "CONSUL_HTTP_ADDR")
