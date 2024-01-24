@@ -100,13 +100,13 @@ query parameter. Prior to Nomad 1.0 namespaces were Enterprise-only.
 Here is an example using curl to query the `qa` namespace:
 
 ```shell-session
-$ curl localhost:4646/v1/jobs?namespace=qa
+$ curl 'localhost:4646/v1/jobs?namespace=qa'
 ```
 
 Use a wildcard (`*`) to query all namespaces:
 
 ```shell-session
-$ curl localhost:4646/v1/jobs?namespace=*
+$ curl 'localhost:4646/v1/jobs?namespace=*'
 ```
 
 ## Filtering
