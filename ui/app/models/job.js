@@ -36,6 +36,23 @@ export default class Job extends Model {
   @attr('number') groupCountSum;
   @attr('string') deploymentID;
 
+  @attr() childStatuses;
+
+  get childStatusBreakdown() {
+    // child statuses is something like ['dead', 'dead', 'complete', 'running', 'running', 'dead'].
+    // Return an object counting by status, like {dead: 3, complete: 1, running: 2}
+    const breakdown = {};
+    this.childStatuses.forEach((status) => {
+      if (breakdown[status]) {
+        breakdown[status]++;
+      } else {
+        breakdown[status] = 1;
+      }
+    });
+    console.log('breakdown', breakdown);
+    return breakdown;
+  }
+
   get allocTypes() {
     return jobAllocStatuses[this.type].map((type) => {
       return {
@@ -166,7 +183,7 @@ export default class Job extends Model {
       };
     }
 
-    console.log('allocBlocks for', this.name, 'is', allocationsOfShowableType);
+    // console.log('allocBlocks for', this.name, 'is', allocationsOfShowableType);
 
     return allocationsOfShowableType;
   }
@@ -190,8 +207,8 @@ export default class Job extends Model {
   get aggregateAllocStatus() {
     // If all allocs are running, the job is Healthy
     const totalAllocs = this.groupCountSum;
-    console.log('groupCountSum is', totalAllocs);
-    console.log('ablocks are', this.allocBlocks);
+    // console.log('groupCountSum is', totalAllocs);
+    // console.log('ablocks are', this.allocBlocks);
 
     // If deploying:
     if (this.deploymentID) {
@@ -214,7 +231,7 @@ export default class Job extends Model {
     }
 
     const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
-    console.log('healthyAllocs', this.name, healthyAllocs, totalAllocs);
+    // console.log('healthyAllocs', this.name, healthyAllocs, totalAllocs);
     if (healthyAllocs?.length === totalAllocs) {
       return { label: 'Healthy', state: 'success' };
     }
@@ -236,12 +253,12 @@ export default class Job extends Model {
     // TODO: GroupCountSum for a parameterized parent job is the count present at group level, but that's not quite true, as the parent job isn't expecting any allocs, its children are. Chat with BFF about this.
     // TODO: handle garbage collected cases not showing "failed" for batch jobs here maybe?
 
-    console.log(
-      'numFailedAllocs',
-      failedOrLostAllocs.length,
-      failedOrLostAllocs,
-      totalAllocs
-    );
+    // console.log(
+    //   'numFailedAllocs',
+    //   failedOrLostAllocs.length,
+    //   failedOrLostAllocs,
+    //   totalAllocs
+    // );
     // if (failedOrLostAllocs.length === totalAllocs) {
     if (failedOrLostAllocs.length >= totalAllocs) {
       // TODO: when totalAllocs only cares about latest version, change back to ===

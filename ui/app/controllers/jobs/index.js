@@ -9,6 +9,7 @@ import Controller, { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { alias } from '@ember/object/computed';
 
 const ALL_NAMESPACE_WILDCARD = '*';
 
@@ -37,20 +38,18 @@ export default class JobsIndexController extends Controller {
       'status',
       'type',
       'priority',
-      'summary',
+      'running allocations',
     ]
       .filter((c) => !!c)
       .map((c) => {
         return {
           label: c.charAt(0).toUpperCase() + c.slice(1),
-          width: c === 'summary' ? '200px' : undefined,
+          width: c === 'running allocations' ? '200px' : undefined,
         };
       });
   }
 
-  get jobs() {
-    return this.model.jobs;
-  }
+  @alias('model.jobs') jobs;
 
   @action
   gotoJob(job) {
@@ -74,10 +73,6 @@ export default class JobsIndexController extends Controller {
   @tracked initialNextToken;
   @tracked nextToken;
   @tracked previousTokens = [null];
-
-  @action someFunc(a, b, c) {
-    console.log('someFunc called', a, b, c);
-  }
 
   /**
    *
