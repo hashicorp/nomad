@@ -256,7 +256,7 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 	for _, a := range allocs {
 		uiJob.SmartAlloc["total"]++
 		uiJob.SmartAlloc[a.ClientStatus]++
-		if a.DeploymentStatus.Canary {
+		if a.DeploymentStatus != nil && a.DeploymentStatus.Canary {
 			uiJob.SmartAlloc["canary"]++
 		}
 		if smartOnly {
