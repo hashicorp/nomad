@@ -88,6 +88,7 @@ var (
 		"no_chroot": hclspec.NewDefault(
 			hclspec.NewAttr("no_chroot", "bool", false),
 			hclspec.NewLiteral("false"),
+		),
 		"denied_host_uids": hclspec.NewDefault(
 			hclspec.NewAttr("denied_host_uids", "list(map(number))", false),
 			hclspec.NewLiteral("[]"),
