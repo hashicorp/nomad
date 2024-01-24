@@ -41,12 +41,6 @@ export default class IndexRoute extends Route.extend(
       })
       .catch(notifyForbidden(this));
 
-    console.log('did my header return a nextToken header?');
-    console.log(this.store.adapterFor('job').headers);
-    console.log('what about meta', jobs.meta);
-    console.log('what about', params.nextToken);
-    // debugger;
-
     return RSVP.hash({
       jobs,
       namespaces: this.store.findAll('namespace'),
@@ -58,12 +52,16 @@ export default class IndexRoute extends Route.extend(
     controller.set('namespacesWatch', this.watchNamespaces.perform());
     controller.set(
       'modelWatch',
-      this.watchJobs.perform({
-        namespace: controller.qpNamespace,
-        per_page: this.perPage,
-        meta: true,
-        queryType: 'initialize',
-      })
+      this.watchJobs.perform(
+        {
+          namespace: controller.qpNamespace,
+          per_page: this.perPage,
+          meta: true,
+          queryType: 'initialize',
+        },
+        1000,
+        { model }
+      ) // TODO: VERY HACKY WAY TO PASS MODEL
     );
     controller.set(
       'jobsWatch',
