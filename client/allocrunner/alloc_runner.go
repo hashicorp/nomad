@@ -213,7 +213,7 @@ type allocRunner struct {
 	// widmgr manages workload identity signatures
 	widmgr widmgr.IdentityManager
 
-	// anaon manages the pool of ephemeral anonymous users
+	// anon manages the pool of ephemeral anonymous users
 	anon anonymous.Pool
 }
 
