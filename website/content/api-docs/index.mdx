@@ -97,10 +97,16 @@ to be segmented from each other and other users of the cluster. When using
 non-default namespace, the API request must pass the target namespace as an API
 query parameter. Prior to Nomad 1.0 namespaces were Enterprise-only.
 
-Here is an example using curl:
+Here is an example using curl to query the `qa` namespace:
 
 ```shell-session
-$ curl https://localhost:4646/v1/jobs?namespace=qa
+$ curl localhost:4646/v1/jobs?namespace=qa
+```
+
+Use a wildcard (`*`) to query all namespaces:
+
+```shell-session
+$ curl localhost:4646/v1/jobs?namespace=*
 ```
 
 ## Filtering
