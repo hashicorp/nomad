@@ -405,6 +405,24 @@
     }
   }
 
+  .allocation-status-row.compact {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    max-width: 400px;
+    .alloc-status-summaries {
+      height: 6px;
+      gap: 6px;
+      .represented-allocation {
+        height: 6px;
+        .rest-count {
+          display: none;
+        }
+      }
+    }
+  }
+
   .legend-item .represented-allocation .flight-icon {
     animation: none;
   }
