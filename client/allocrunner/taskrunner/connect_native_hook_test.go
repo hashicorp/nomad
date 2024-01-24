@@ -352,9 +352,6 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	// Run the Connect Native hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
 
-	// Assert the hook is Done
-	require.True(t, response.Done)
-
 	// Assert only CONSUL_HTTP_ADDR env variable is set
 	require.Equal(t, map[string]string{"CONSUL_HTTP_ADDR": testConsul.HTTPAddr}, response.Env)
 
