@@ -5,13 +5,12 @@
 
 {{page-title "Jobs"}}
 <section class="section">
-  {{#if this.isForbidden}}
-    <ForbiddenMessage />
-  {{else if this.jobs.length}}
-
+  Next token is {{this.model.jobs.meta.nextToken}}<br />
+  Previous tokens ({{this.previousTokens.length}}) are {{this.previousTokens}}<br />
     <Hds::Table
       @model={{this.jobs}}
       @columns={{this.tableColumns}}
+      @valign="middle"
     >
       <:body as |B|>
       {{!-- TODO: use <JobRow> --}}
@@ -55,12 +54,19 @@
             {{B.data.priority}}
           </B.Td>
           <B.Td>
-            {{get (filter-by 'clientStatus' 'running' B.data.allocations) "length"}} running <br />
+            {{!-- {{get (filter-by 'clientStatus' 'running' B.data.allocations) "length"}} running <br />
             {{B.data.allocations.length}} total <br />
             {{B.data.groupCountSum}} desired
-            <hr />
+            <hr /> --}}
             <div class="job-status-panel">
-              <JobStatus::AllocationStatusRow @allocBlocks={{B.data.allocBlocks}} @steady={{true}} />
+              <JobStatus::AllocationStatusRow
+                @allocBlocks={{B.data.allocBlocks}}
+                @steady={{true}}
+                @compact={{true}}
+                {{!-- @runningAllocs={{B.data.runningAllocs}} --}}
+                @runningAllocs={{B.data.allocBlocks.running.healthy.nonCanary.length}}
+                @groupCountSum={{B.data.groupCountSum}}
+              />
             </div>
           </B.Td>
         </B.Tr>
@@ -68,13 +74,9 @@
     </Hds::Table>
 
     <Hds::Pagination::Compact
-      @route={{this.demoRouteName}}
-      @queryFunction={{this.demoQueryFunctionCompact}}
-      @isDisabledPrev={{this.demoIsDisabledPrev}}
-      @isDisabledNext={{this.demoIsDisabledNext}}
+      @onPageChange={{action this.handlePageChange}}
+      @isDisabledPrev={{eq this.previousTokens.length 0}}
+      @isDisabledNext={{not this.model.jobs.meta.nextToken}}
     />
 
-  {{else}}
-    No jobs :
-  {{/if}}
 </section>

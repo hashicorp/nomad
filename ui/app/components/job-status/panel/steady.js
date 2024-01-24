@@ -141,7 +141,12 @@ export default class JobStatusPanelSteadyComponent extends Component {
   }
 
   get totalAllocs() {
+    console.log('ahum what is type here', this.args.job.type);
     if (this.args.job.type === 'service' || this.args.job.type === 'batch') {
+      console.log(
+        'totalAllocs tally',
+        this.args.job.taskGroups.map((tg) => tg.count)
+      );
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
     } else if (this.atMostOneAllocPerNode) {
       return this.args.job.allocations.uniqBy('nodeID').length;
@@ -214,6 +219,11 @@ export default class JobStatusPanelSteadyComponent extends Component {
    * @returns {CurrentStatus}
    */
   get currentStatus() {
+    console.log('determine status for', this.job.name);
+    console.log(
+      this.totalAllocs,
+      this.allocBlocks.complete?.healthy?.nonCanary
+    );
     // If all allocs are running, the job is Healthy
     const totalAllocs = this.totalAllocs;
 
