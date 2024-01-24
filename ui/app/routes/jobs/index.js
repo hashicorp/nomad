@@ -18,8 +18,13 @@ export default class IndexRoute extends Route.extend(
 ) {
   @service store;
 
+  perPage = 10;
+
   queryParams = {
     qpNamespace: {
+      refreshModel: true,
+    },
+    nextToken: {
       refreshModel: true,
     },
   };
@@ -29,10 +34,18 @@ export default class IndexRoute extends Route.extend(
       .query('job', {
         namespace: params.qpNamespace,
         meta: true,
-        per_page: 10,
+        per_page: this.perPage,
+        next_token: params.nextToken || '000',
+
         queryType: 'initialize',
       })
       .catch(notifyForbidden(this));
+
+    console.log('did my header return a nextToken header?');
+    console.log(this.store.adapterFor('job').headers);
+    console.log('what about meta', jobs.meta);
+    console.log('what about', params.nextToken);
+    // debugger;
 
     return RSVP.hash({
       jobs,
@@ -47,7 +60,7 @@ export default class IndexRoute extends Route.extend(
       'modelWatch',
       this.watchJobs.perform({
         namespace: controller.qpNamespace,
-        per_page: 10,
+        per_page: this.perPage,
         meta: true,
         queryType: 'initialize',
       })
