@@ -28,180 +28,6 @@ type Jobs struct {
 	logger hclog.Logger
 }
 
-func (j *Jobs) Statuses(
-	args *structs.JobsStatusesRequest,
-	reply *structs.JobsStatusesResponse) error {
-	// TODO: auth, rate limiting, etc...
-
-	// compare between state unblocks to see if the RPC should unblock (namely, if any jobs have gone away)
-	prevJobs := set.New[structs.NamespacedID](0)
-
-	opts := blockingOptions{
-		queryOpts: &args.QueryOptions,
-		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			var err error
-			jobs := make([]structs.UIJob, 0)
-			newJobs := set.New[structs.NamespacedID](0)
-			for _, j := range args.Jobs {
-				job, err := state.JobByID(ws, j.Namespace, j.ID)
-				if err != nil {
-					return err
-				}
-				if job == nil {
-					continue
-				}
-				uiJob, idx, err := UIJobFromJob(ws, state, job, false)
-				if err != nil {
-					return err
-				}
-				jobs = append(jobs, uiJob)
-				newJobs.Insert(job.NamespacedID())
-				if idx > reply.Index {
-					reply.Index = idx
-				}
-			}
-			// mainly for if a job goes away
-			if !newJobs.Equal(prevJobs) {
-				reply.Index, err = state.Index("jobs")
-				if err != nil {
-					return err
-				}
-			}
-			prevJobs = newJobs
-			reply.Jobs = jobs
-			j.srv.setQueryMeta(&reply.QueryMeta)
-			return nil
-		}}
-	return j.srv.blockingRPC(&opts)
-}
-
-func (j *Jobs) Statuses2(
-	args *structs.JobsStatuses2Request,
-	reply *structs.JobsStatuses2Response) error {
-
-	// totally lifted from Job.List
-	authErr := j.srv.Authenticate(j.ctx, args)
-	if done, err := j.srv.forward("Jobs.Statuses2", args, args, reply); done {
-		return err
-	}
-	j.srv.MeasureRPCRate("jobs", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-	defer metrics.MeasureSince([]string{"nomad", "jobs", "statuses"}, time.Now())
-
-	namespace := args.RequestNamespace()
-
-	// Check for list-job permissions
-	aclObj, err := j.srv.ResolveACL(args)
-	if err != nil {
-		return err
-	}
-	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs) {
-		return structs.ErrPermissionDenied
-	}
-	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
-
-	// compare between state unblocks to see if the RPC should unblock (namely, if any jobs have gone away)
-	prevJobs := set.New[structs.NamespacedID](0)
-	sort := state.SortDefault
-
-	// Setup the blocking query
-	opts := blockingOptions{
-		queryOpts: &args.QueryOptions,
-		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Capture all the jobs
-			var err error
-			var iter memdb.ResultIterator
-
-			// Get the namespaces the user is allowed to access.
-			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
-			if err == structs.ErrPermissionDenied {
-				// return empty jobs if token isn't authorized for any
-				// namespace, matching other endpoints
-				reply.Jobs = make([]structs.UIJob, 0)
-			} else if err != nil {
-				return err
-			} else {
-				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
-				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.JobsByNamespace(ws, namespace, sort)
-				} else {
-					iter, err = state.Jobs(ws, sort)
-				}
-				if err != nil {
-					return err
-				}
-
-				tokenizer := paginator.NewStructsTokenizer(
-					iter,
-					paginator.StructsTokenizerOptions{
-						WithNamespace: true,
-						WithID:        true,
-					},
-				)
-				filters := []paginator.Filter{
-					paginator.NamespaceFilter{
-						AllowableNamespaces: allowableNamespaces,
-					},
-				}
-
-				jobs := make([]structs.UIJob, 0)
-				newJobs := set.New[structs.NamespacedID](0)
-				pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-					func(raw interface{}) error {
-						job := raw.(*structs.Job)
-
-						//summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
-						//if err != nil || summary == nil {
-						//	return fmt.Errorf("unable to look up summary for job: %v", job.ID)
-						//}
-						uiJob, idx, err := UIJobFromJob(ws, state, job, false)
-						if err != nil {
-							return err
-						}
-
-						jobs = append(jobs, uiJob)
-						newJobs.Insert(job.NamespacedID())
-
-						if idx > reply.Index {
-							reply.Index = idx
-						}
-						return nil
-					})
-				if err != nil {
-					return structs.NewErrRPCCodedf(
-						http.StatusBadRequest, "failed to create result paginator: %v", err)
-				}
-
-				nextToken, err := pager.Page()
-				if err != nil {
-					return structs.NewErrRPCCodedf(
-						http.StatusBadRequest, "failed to read result page: %v", err)
-				}
-
-				if !newJobs.Equal(prevJobs) {
-					reply.Index, err = state.Index("jobs")
-					if err != nil {
-						return err
-					}
-				}
-				prevJobs = newJobs
-
-				reply.QueryMeta.NextToken = nextToken
-				reply.Jobs = jobs
-			}
-
-			// Set the query response
-			j.srv.setQueryMeta(&reply.QueryMeta)
-			return nil
-		}}
-	return j.srv.blockingRPC(&opts)
-}
-
 func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, smartOnly bool) (structs.UIJob, uint64, error) {
 	idx := job.ModifyIndex
 
@@ -297,13 +123,13 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 	return uiJob, idx, nil
 }
 
-func (j *Jobs) Statuses3(
+func (j *Jobs) Statuses(
 	args *structs.JobsStatusesRequest,
 	reply *structs.JobsStatusesResponse) error {
 
 	// totally lifted from Job.List
 	authErr := j.srv.Authenticate(j.ctx, args)
-	if done, err := j.srv.forward("Jobs.Statuses3", args, args, reply); done {
+	if done, err := j.srv.forward("Jobs.Statuses", args, args, reply); done {
 		return err
 	}
 	j.srv.MeasureRPCRate("jobs", structs.RateMetricList, args)
@@ -443,9 +269,6 @@ func (j *Jobs) Statuses3(
 				reply.QueryMeta.NextToken = nextToken
 				reply.Jobs = jobs
 			}
-
-			// Set the query response
-			j.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
 	return j.srv.blockingRPC(&opts)
