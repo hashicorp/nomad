@@ -108,7 +108,7 @@ export default class Job extends Model {
       allocationsOfShowableType[status].healthy.nonCanary.push(alloc);
       availableSlotsToFill--;
     }
-
+    // TODO: return early here if !availableSlotsToFill
     // Sort all allocs by jobVersion in descending order
     const sortedAllocs = this.allocations
       .filter(
@@ -120,6 +120,9 @@ export default class Job extends Model {
         if (a.jobVersion < b.jobVersion) return -1;
 
         // If jobVersion is the same, sort by status order
+        // For example, we may have some allocBlock slots to fill, and need to determine
+        // if the user expects to see, from non-running/non-pending allocs, some old "failed" ones
+        // or "lost" or "complete" ones, etc. jobAllocStatuses give us this order.
         if (a.jobVersion === b.jobVersion) {
           return (
             jobAllocStatuses[this.type].indexOf(b.clientStatus) -
@@ -196,6 +199,7 @@ export default class Job extends Model {
     }
 
     if (this.type === 'batch' || this.type === 'sysbatch') {
+      // TODO: showing as failed when long-complete
       // If all the allocs are complete, the job is Complete
       const completeAllocs = this.allocBlocks.complete?.healthy?.nonCanary;
       if (completeAllocs?.length === totalAllocs) {
@@ -232,7 +236,12 @@ export default class Job extends Model {
     // TODO: GroupCountSum for a parameterized parent job is the count present at group level, but that's not quite true, as the parent job isn't expecting any allocs, its children are. Chat with BFF about this.
     // TODO: handle garbage collected cases not showing "failed" for batch jobs here maybe?
 
-    console.log('numFailedAllocs', failedOrLostAllocs.length);
+    console.log(
+      'numFailedAllocs',
+      failedOrLostAllocs.length,
+      failedOrLostAllocs,
+      totalAllocs
+    );
     // if (failedOrLostAllocs.length === totalAllocs) {
     if (failedOrLostAllocs.length >= totalAllocs) {
       // TODO: when totalAllocs only cares about latest version, change back to ===

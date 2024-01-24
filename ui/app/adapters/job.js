@@ -218,6 +218,20 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return super.query(store, type, query, snapshotRecordArray, options);
   }
 
+  handleResponse(status, headers) {
+    /**
+     * @type {Object}
+     */
+    const result = super.handleResponse(...arguments);
+    if (result) {
+      result.meta = result.meta || {};
+      if (headers['x-nomad-nexttoken']) {
+        result.meta.nextToken = headers['x-nomad-nexttoken'];
+      }
+    }
+    return result;
+  }
+
   urlForQuery(query, modelName) {
     return `/${this.namespace}/jobs/statuses3`;
   }

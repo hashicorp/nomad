@@ -3,8 +3,8 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div class="allocation-status-row">
-  {{#if this.showSummaries}}
+<div class="allocation-status-row  {{if @compact "compact"}}">
+  {{#if (or this.showSummaries @compact)}}
     <div class="alloc-status-summaries"
       {{did-insert this.captureElement}}
       {{window-resize this.reflow}}
@@ -16,10 +16,14 @@
               <JobStatus::AllocationStatusBlock
                 @status={{status}}
                 @health={{health}}
+
                 @canary={{canary}}
                 @steady={{@steady}}
                 @count={{allocsByCanary.length}}
-                @width={{compute (action this.calcPerc) allocsByCanary.length}}
+                @width={{compute
+                  (action this.calcPerc) allocsByCanary.length
+                }}
+                @compact={{@compact}}
                 @allocs={{allocsByCanary}} />
             {{/if}}
           {{/each-in}}
@@ -49,6 +53,10 @@
         {{/each-in}}
       {{/each-in}}
     </div>
+  {{/if}}
+  {{#if @compact}}
+    {{!-- TODO: @runningAllocs using the wrong thing --}}
+    {{@runningAllocs}}/{{@groupCountSum}}
   {{/if}}
 </div>
        
