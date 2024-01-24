@@ -2044,60 +2044,6 @@ func validateEvalPriorityOpt(priority int) HTTPCodedError {
 }
 
 func (s *HTTPServer) JobsStatusesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodPost {
-		return nil, CodedError(405, ErrInvalidMethod)
-	}
-
-	args := structs.JobsStatusesRequest{}
-	if parseWait(resp, req, &args.QueryOptions) {
-		return nil, nil // seems whack.
-	}
-
-	var in api.JobsStatusesRequest
-	if err := decodeBody(req, &in); err != nil {
-		return nil, err
-	}
-
-	for _, j := range in.Jobs {
-		if j.Namespace == "" {
-			j.Namespace = "default"
-		}
-		args.Jobs = append(args.Jobs, structs.NamespacedID{
-			ID: j.ID,
-			// note: can't just use QueryOptions.Namespace, because each job may have a different NS
-			Namespace: j.Namespace,
-		})
-	}
-
-	var out structs.JobsStatusesResponse
-	if err := s.agent.RPC("Jobs.Statuses", &args, &out); err != nil {
-		return nil, err
-	}
-
-	setMeta(resp, &out.QueryMeta)
-	return out.Jobs, nil
-}
-
-func (s *HTTPServer) JobsStatuses2Request(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodGet {
-		return nil, CodedError(405, ErrInvalidMethod)
-	}
-
-	args := structs.JobsStatuses2Request{}
-	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, nil // seems whack
-	}
-
-	var out structs.JobsStatuses2Response
-	if err := s.agent.RPC("Jobs.Statuses2", &args, &out); err != nil {
-		return nil, err
-	}
-
-	setMeta(resp, &out.QueryMeta)
-	return out.Jobs, nil
-}
-
-func (s *HTTPServer) JobsStatuses3Request(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	args := structs.JobsStatusesRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil // seems whack
@@ -2134,7 +2080,7 @@ func (s *HTTPServer) JobsStatuses3Request(resp http.ResponseWriter, req *http.Re
 	}
 
 	var out structs.JobsStatusesResponse
-	if err := s.agent.RPC("Jobs.Statuses3", &args, &out); err != nil {
+	if err := s.agent.RPC("Jobs.Statuses", &args, &out); err != nil {
 		return nil, err
 	}
 

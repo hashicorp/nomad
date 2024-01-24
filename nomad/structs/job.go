@@ -16,15 +16,6 @@ const (
 	JobServiceRegistrationsRPCMethod = "Job.GetServiceRegistrations"
 )
 
-type JobsStatuses2Request struct {
-	QueryOptions
-}
-
-type JobsStatuses2Response struct {
-	Jobs []UIJob
-	QueryMeta
-}
-
 type UIJob struct {
 	NamespacedID
 	Name          string
@@ -50,15 +41,6 @@ type JobsStatusesResponse struct {
 	Jobs []UIJob
 	QueryMeta
 }
-
-//type JobStatus struct {
-//	ID            string
-//	Namespace     string
-//	Type          string
-//	Allocs        []JobStatusAlloc
-//	GroupCountSum int
-//	DeploymentID  string
-//}
 
 type JobStatusAlloc struct {
 	ID               string
