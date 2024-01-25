@@ -51,3 +51,6 @@ nomad {
 
 - `skip_verify` `(bool: false)` - Do not verify TLS certificates. This is strongly
   discouraged.
+
+- `block_query_wait_time` `(string: "5m")` - How long applicable Nomad API
+  requests supporting blocking queries are held open. Defaults to `5m`.
