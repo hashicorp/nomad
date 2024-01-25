@@ -2,9 +2,16 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 )
+
+// make tyoe for job scheduling rules
+type JobStatusMap map[string]string
+type JobMeta map[string]string
+type JobSchedulingRules map[string]JobMeta
 
 func main() {
 	fmt.Println("Hello, world.")
@@ -40,6 +47,31 @@ func main() {
 		nodeId = node.ID
 	}
 
+	jobSchedulingRules := make(JobSchedulingRules)
+	updatedScheduleRules(client, nodeId, jobSchedulingRules)
+
+	ticker := time.NewTicker(1 * time.Second)
+
+	go func() {
+		for t := range ticker.C {
+			log.Printf("Tick at: %v\n", t.UTC())
+			for key, value := range jobSchedulingRules {
+				fmt.Println("Job ID:", key, "Schedule:", value["schedule"])
+			}
+		}
+	}()
+
+	// time.Sleep(10 * time.Second)
+	// ticker.Stop()
+	for {
+		fmt.Println("I am aline")
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func updatedScheduleRules(client *api.Client, nodeId string, schedulesMap JobSchedulingRules) {
+	jobNameMap := make(JobStatusMap)
+
 	// TODO: This doesn't work... why?
 	allocFilter := "DesiredStatus == \"no\""
 	allocQueryOpts := &api.QueryOptions{
@@ -49,10 +81,6 @@ func main() {
 	if err != nil {
 		fmt.Printf("nomad-watcher: error retrieving allocations: %v", err)
 	}
-
-	jobNameMap := make(map[string]string)
-	jobSchedulingRules := make(map[string]map[string]string)
-
 	for _, alloc := range allocs {
 		// fmt.Println("Alloc Name:", alloc.Name)
 		// fmt.Println("Job for Alloc:", alloc.JobID)
@@ -64,24 +92,21 @@ func main() {
 	}
 
 	for key, _ := range jobNameMap {
-		fmt.Println("nomad-watcher: Getting meta for job: ", key)
+		// fmt.Println("nomad-watcher: Getting meta for job: ", key)
 
 		job, _, err := client.Jobs().Info(key, nil)
 		if err != nil {
-			fmt.Println("nomad-watcher: error retrieving job ", key, err)
+			// fmt.Println("nomad-watcher: error retrieving job ", key, err)
 			continue
 		}
 
 		fmt.Println("Meta:", job.Meta)
 
 		if job.Meta["schedule"] != "" {
-			fmt.Println("Job ID:", key, "Schedule:", job.Meta["schedule"])
-			jobSchedulingRules[key] = job.Meta
+			// fmt.Println("Job ID:", key, "Schedule:", job.Meta["schedule"])
+			schedulesMap[key] = job.Meta
 		}
 	}
-}
-
-func getUpdatedScheduleRules() {
 }
 
 func createNomadClient() (*api.Client, error) {
