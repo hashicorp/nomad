@@ -539,6 +539,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	// Register enterprise endpoints.
 	s.registerEnterpriseHandlers()
+
+	// Sneak the fun stuff in at the end 🤫
+	s.mux.HandleFunc("/v1/portland", s.wrap(s.Portland))
 }
 
 // builtinAPI is a wrapper around serving the HTTP API to arbitrary listeners

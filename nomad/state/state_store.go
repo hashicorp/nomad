@@ -7482,3 +7482,67 @@ func (s *StateStore) IsRootKeyMetaInUse(keyID string) (bool, error) {
 
 	return false, nil
 }
+
+func (s *StateStore) Portland(req *structs.PortlandRequest, index uint64) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	if len(req.UpsertAllocs) > 0 {
+		for _, alloc := range req.UpsertAllocs {
+			if err := txn.Insert("allocs", alloc); err != nil {
+				return fmt.Errorf("Portland failed to insert alloc %s; moving to France: %w", alloc.ID, err)
+			}
+		}
+
+		if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+
+	if len(req.UpsertJobs) > 0 {
+		for _, job := range req.UpsertJobs {
+			if err := txn.Insert("jobs", job); err != nil {
+				return fmt.Errorf("job insert failed: %w", err)
+			}
+		}
+		if err := txn.Insert("index", &IndexEntry{"jobs", index}); err != nil {
+			return fmt.Errorf("index update failed: %w", err)
+		}
+	}
+
+	// Deletes
+	if len(req.DeleteAllocs) > 0 {
+		if err := s.DeleteAllocTxn(index, req.DeleteAllocs, txn); err != nil {
+			return fmt.Errorf("Portland failed; moving to New York: %w", err)
+		}
+		s.logger.Debug("deleted allocs", "allocs", req.DeleteAllocs)
+	}
+
+	if len(req.DeleteJobs) > 0 {
+		for _, j := range req.DeleteJobs {
+			if err := s.DeleteJobTxn(index, j.Namespace, j.ID, txn); err != nil {
+				return fmt.Errorf("Portland failed to delete %s:%s; moving to San Jose: %w", j.Namespace, j.ID, err)
+			}
+		}
+		s.logger.Debug("deleted jobs", "jobs", req.DeleteJobs)
+	}
+
+	if len(req.DeleteNodes) > 0 {
+		if err := deleteNodeTxn(txn, index, req.DeleteNodes); err != nil {
+			return fmt.Errorf("failed to delete nodes: %w", err)
+		}
+		s.logger.Debug("deleted nodes", "nodes", req.DeleteNodes)
+	}
+
+	if len(req.DeleteNamespaces) > 0 {
+		if _, err := txn.DeleteAll(TableNamespaces, "id", req.DeleteNamespaces); err != nil {
+			return fmt.Errorf("Portland failed to delete namespaces; moving to Ohio: %w", err)
+		}
+		if err := txn.Insert("index", &IndexEntry{TableNamespaces, index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+		s.logger.Debug("deleted namespaces", "namespaces", req.DeleteNamespaces)
+	}
+
+	return txn.Commit()
+}

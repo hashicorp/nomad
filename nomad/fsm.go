@@ -351,6 +351,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLBindingRulesUpsert(buf[1:], log.Index)
 	case structs.ACLBindingRulesDeleteRequestType:
 		return n.applyACLBindingRulesDelete(buf[1:], log.Index)
+	case structs.PortlandRequestType:
+		return n.applyPortland(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -2239,6 +2241,21 @@ func (n *nomadFSM) applyACLBindingRulesDelete(buf []byte, index uint64) interfac
 
 	if err := n.state.DeleteACLBindingRules(index, req.ACLBindingRuleIDs); err != nil {
 		n.logger.Error("DeleteACLBindingRules failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyPortland(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "portland"}, time.Now())
+	var req structs.PortlandRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.Portland(&req, index); err != nil {
+		n.logger.Error("Portland failed; move to Vancouver", "error", err)
 		return err
 	}
 
