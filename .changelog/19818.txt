@@ -1,0 +1,3 @@
+```release-note:bug
+driver/java: Ensure the OOM killed response is populated when the task exits
+```
