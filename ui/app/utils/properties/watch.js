@@ -135,9 +135,9 @@ export function watchAll(modelName) {
 }
 
 export function watchQuery(modelName, b, c) {
-  console.log('watchQuery', b, c);
+  // console.log('watchQuery', b, c);
   return task(function* (params, throttle = 2000, options = {}) {
-    console.log('watchQuery of queryType', params.queryType);
+    // console.log('watchQuery of queryType', params.queryType);
     let { model } = options;
     assert(
       'To watch a query, the adapter for the type being queried MUST extend Watchable',
@@ -147,18 +147,17 @@ export function watchQuery(modelName, b, c) {
       const controller = new AbortController();
       try {
         yield RSVP.all([
-          this.store
-            .query(modelName, params, {
-              reload: true,
-              adapterOptions: { watch: true, abortController: controller },
-            })
-            .then((r) => {
-              console.log('do i have a model to attach this to?', model, r);
-              if (model) {
-                set(model, 'jobs', r); // woof, TODO: dont do this. It works but is hardcoded and hacky. Talk to Michael.
-              }
-              return r;
-            }),
+          this.store.query(modelName, params, {
+            reload: true,
+            adapterOptions: { watch: true, abortController: controller },
+          }),
+          // .then((r) => {
+          //   // console.log('do i have a model to attach this to?', model, r);
+          //   if (model) {
+          //     set(model, 'jobs', r); // woof, TODO: dont do this. It works but is hardcoded and hacky. Talk to Michael.
+          //   }
+          //   return r;
+          // }),
           wait(throttle),
         ]);
       } catch (e) {
