@@ -9,7 +9,8 @@ import Controller, { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
-import { alias } from '@ember/object/computed';
+// import { alias } from '@ember/object/computed';
+import { computed } from '@ember/object';
 
 const ALL_NAMESPACE_WILDCARD = '*';
 
@@ -49,7 +50,12 @@ export default class JobsIndexController extends Controller {
       });
   }
 
-  @alias('model.jobs') jobs;
+  // @alias('model.jobs') jobs;
+  // @computed('model.jobs.[]')
+  // get jobs() {
+  //   return this.model.jobs;
+  // }
+  jobs = [];
 
   @action
   gotoJob(job) {
