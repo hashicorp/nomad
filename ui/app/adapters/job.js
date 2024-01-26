@@ -10,10 +10,13 @@ import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
+import { get } from '@ember/object';
+import queryString from 'query-string';
 
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
   @service system;
+  @service watchList;
 
   relationshipFallbackLinks = {
     summary: '/summary',
@@ -204,35 +207,118 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   query(store, type, query, snapshotRecordArray, options) {
-    let { queryType } = query;
+    // let { queryType } = query;
     options = options || {};
     options.adapterOptions = options.adapterOptions || {};
-    if (queryType === 'initialize') {
-      // options.url = this.urlForQuery(query, type.modelName);
-      options.adapterOptions.method = 'GET';
-    } else if (queryType === 'update') {
-      // options.url = this.urlForUpdateQuery(query, type.modelName);
-      options.adapterOptions.method = 'POST';
-      options.adapterOptions.watch = true;
+
+    // const url = this.buildURL(type.modelName, null, null, 'query', query);
+    const method = get(options, 'adapterOptions.method') || 'GET';
+    const url = this.urlForQuery(query, type.modelName, method);
+    console.log('url, method', url, method, options);
+
+    // if (queryType === 'initialize') {
+    // //   // options.url = this.urlForQuery(query, type.modelName);
+    //   options.adapterOptions.method = 'GET';
+    // } else {
+    //   options.adapterOptions.watch = true;
+    // }
+    // if (queryType === 'update') {
+    //   options.adapterOptions.method = 'POST';
+    //   options.adapterOptions.watch = true; // TODO: probably?
+    //   delete query.queryType;
+    // }
+
+    // Let's establish the index, via watchList.getIndexFor.
+
+    // url needs to have stringified params on it
+    let index = this.watchList.getIndexFor(url);
+    console.log('index for', url, 'is', index);
+    if (this.watchList.getIndexFor(url)) {
+      query.index = index;
     }
-    return super.query(store, type, query, snapshotRecordArray, options);
+
+    // console.log('so then uh', query);
+    // } else if (queryType === 'update') {
+    //   // options.url = this.urlForUpdateQuery(query, type.modelName);
+    //   options.adapterOptions.method = 'POST';
+    //   options.adapterOptions.watch = true;
+    // }
+    // return super.query(store, type, query, snapshotRecordArray, options);
+    // let superQuery = super.query(store, type, query, snapshotRecordArray, options);
+    // console.log('superquery', superQuery);
+    // return superQuery;
+
+    const signal = get(options, 'adapterOptions.abortController.signal');
+    return this.ajax(url, method, {
+      signal,
+      data: query,
+      skipURLModification: true,
+    });
   }
 
-  handleResponse(status, headers) {
+  handleResponse(status, headers, payload, requestData) {
+    // console.log('jobadapter handleResponse', status, headers, payload, requestData);
     /**
      * @type {Object}
      */
     const result = super.handleResponse(...arguments);
+    // console.log('response', result, headers);
     if (result) {
       result.meta = result.meta || {};
       if (headers['x-nomad-nexttoken']) {
         result.meta.nextToken = headers['x-nomad-nexttoken'];
       }
     }
+
+    // If the url contains the urlForQuery, we should fire a new method that handles index tracking
+    if (requestData.url.includes(this.urlForQuery())) {
+      this.updateQueryIndex(headers['x-nomad-index']);
+    }
+
     return result;
   }
 
-  urlForQuery(query, modelName) {
-    return `/${this.namespace}/jobs/statuses3`;
+  // urlForQuery(query, modelName) {
+  //   return `/${this.namespace}/jobs/statuses3`;
+  // }
+
+  urlForQuery(query, modelName, method) {
+    let baseUrl = `/${this.namespace}/jobs/statuses3`;
+    // let queryString = Object.keys(query).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`).join('&');
+    if (method === 'POST') {
+      return `${baseUrl}?hash=${btoa(JSON.stringify(query))}`;
+    } else {
+      return `${baseUrl}?${queryString.stringify(query)}`;
+    }
+  }
+
+  // urlForQuery(query, modelName) {
+  //   let baseUrl = `/${this.namespace}/jobs/statuses3`;
+  //   // let queryString = Object.keys(query).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`).join('&');
+  //   // Only include non-empty query params
+  //   let queryString = Object.keys(query).filter(key => !!query[key]).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`).join('&');
+  //   console.log('+++ querystring', queryString)
+  //   return `${baseUrl}?${queryString}`;
+  // }
+
+  ajaxOptions(url, type, options) {
+    let hash = super.ajaxOptions(url, type, options);
+    console.log('+++ ajaxOptions', url, type, options, hash);
+    // debugger;
+    // console.log('options', options, hash);
+
+    // Custom handling for POST requests to append 'index' as a query parameter
+    if (type === 'POST' && options.data && options.data.index) {
+      let index = encodeURIComponent(options.data.index);
+      hash.url = `${hash.url}&index=${index}`;
+    }
+
+    return hash;
+  }
+
+  updateQueryIndex(index) {
+    console.log('setQueryIndex', index);
+    // Is there an established index for jobs
+    // this.watchList.setIndexFor(url, index);
   }
 }

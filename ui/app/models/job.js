@@ -49,7 +49,6 @@ export default class Job extends Model {
         breakdown[status] = 1;
       }
     });
-    console.log('breakdown', breakdown);
     return breakdown;
   }
 

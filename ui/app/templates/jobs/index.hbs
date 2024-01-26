@@ -9,6 +9,7 @@
   Previous tokens ({{this.previousTokens.length}}) are {{this.previousTokens}}<br />
   Model.jobs length: {{this.model.jobs.length}}<br />
   Controller.jobs length: {{this.jobs.length}}<br />
+  Job IDs to watch for ({{this.jobIDs.length}}): {{#each this.jobIDs as |id|}}{{id.id}} | {{/each}}<br />
     <Hds::Table
       @model={{this.jobs}}
       @columns={{this.tableColumns}}
