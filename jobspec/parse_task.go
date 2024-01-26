@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -494,7 +493,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			ChangeMode:    stringToPtr("restart"),
 			Splay:         timeToPtr(5 * time.Second),
 			Perms:         stringToPtr("0644"),
-			ErrMissingKey: pointer.Of(false),
+			ErrMissingKey: boolToPtr(false),
 		}
 
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
