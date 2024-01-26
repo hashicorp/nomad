@@ -107,6 +107,9 @@ type Config struct {
 	// AllocDir is where we store data for allocations
 	AllocDir string
 
+	// AllocDir2 is where we store data for allocations v2
+	AllocDir2 string
+
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger
 

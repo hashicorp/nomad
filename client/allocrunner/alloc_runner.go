@@ -268,15 +268,18 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	// Create alloc broadcaster
 	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
 
+	// Create allocation directory (original or v2)
+	ar.allocDir = allocdir.New(config.Alloc, ar.logger, config.ClientConfig.AllocDir2)
+
 	// Create alloc dir
 	//
 	// TODO(shoenig): need to decide what version of alloc dir to use, and the
 	// return value should probably now be an interface
-	ar.allocDir = allocdir.NewAllocDir(
-		ar.logger,
-		config.ClientConfig.AllocDir,
-		alloc.ID,
-	)
+	// ar.allocDir = allocdir.NewAllocDir(
+	// 	ar.logger,
+	// 	config.ClientConfig.AllocDir,
+	// 	alloc.ID,
+	// )
 
 	ar.taskCoordinator = tasklifecycle.NewCoordinator(ar.logger, tg.Tasks, ar.waitCh)
 
