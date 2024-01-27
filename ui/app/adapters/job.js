@@ -231,7 +231,22 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     // Let's establish the index, via watchList.getIndexFor.
 
     // url needs to have stringified params on it
+
     let index = this.watchList.getIndexFor(url);
+
+    // In the case that this is of queryType update,
+    // and its index is found to be 1,
+    // check for the initialize query's index and use that instead
+    if (options.adapterOptions.queryType === 'update' && index === 1) {
+      let initializeQueryIndex = this.watchList.getIndexFor(
+        '/v1/jobs/statuses3?meta=true&per_page=10'
+      ); // TODO: fickle!
+      if (initializeQueryIndex) {
+        console.log('initializeQUeryIndex', initializeQueryIndex);
+        index = initializeQueryIndex;
+      }
+    }
+
     console.log('index for', url, 'is', index);
     if (this.watchList.getIndexFor(url)) {
       query.index = index;
