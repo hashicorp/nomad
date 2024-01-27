@@ -84,6 +84,8 @@ export default class IndexRoute extends Route.extend(
       }));
       this.controller.set('jobIDs', jobIDs);
       // BIG TODO: MAKE ANY jobIDs UPDATES TRIGGER A NEW WATCHJOBS TASK
+      // And also cancel the current watchJobs! It may be watching for a different list than the new jobIDs and wouldn't naturally unblock.
+
       this.watchJobs.perform({}, 500);
 
       yield timeout(throttle); // Moved to the end of the loop
@@ -129,6 +131,12 @@ export default class IndexRoute extends Route.extend(
 
       if (jobIDs && jobIDs.length > 0) {
         let jobDetails = yield this.jobAllocsQuery(jobIDs);
+        console.log(
+          'jobDetails fetched, about to set on controller',
+          jobDetails,
+          this.controller
+        );
+        // debugger;
         this.controller.set('jobs', jobDetails);
       }
       // TODO: might need an else condition here for if there are no jobIDs,
