@@ -9,6 +9,14 @@ import (
 	"strconv"
 )
 
+const (
+	// Home is the non-existent directory path to associate with anonymous
+	// users. Any operation on this path should cause an error.
+	//
+	// The path /nonexistent is consistent with what systemd uses.
+	Home = "/nonexistent"
+)
+
 // String creates a faux username encoding the given ugid.
 func String(ugid UGID) string {
 	return fmt.Sprintf("nomad:%d", ugid)

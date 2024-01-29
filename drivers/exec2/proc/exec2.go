@@ -22,6 +22,8 @@ import (
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/drivers/exec2/resources"
 	"github.com/hashicorp/nomad/drivers/exec2/resources/process"
+	"github.com/hashicorp/nomad/drivers/exec2/util"
+	"github.com/shoenig/netlog"
 	"golang.org/x/sys/unix"
 )
 
@@ -116,7 +118,40 @@ type exe struct {
 }
 
 func (e *exe) Start(ctx context.Context) error {
-	// TODO lols
+	uid, gid, home, err := util.LookupUser(e.env.User)
+	if err != nil {
+		return fmt.Errorf("failed to lookup user: %w", err)
+	}
+
+	//
+
+	// find out cgroup file descriptor
+	fd, cleanup, err := e.openCG()
+	if err != nil {
+		return fmt.Errorf("failed to open cgroup for descriptor: %w", err)
+	}
+
+	// set resource constraints
+	if err = e.constrain(); err != nil {
+		return fmt.Errorf("failed to write cgroup constraints: %w", err)
+	}
+
+	// create sandbox using nsenter, unshare, and our cgroup
+	// TODO probably landlock here too
+	cmd := e.isolation(ctx, home, fd, uid, gid)
+	if err = cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	// close the cgroup descriptor after start
+	// avoid using defer because we do not need this open during Wait()
+	cleanup()
+
+	// attach to the underlying unix process
+	e.pid = cmd.Process.Pid
+	e.waiter = process.WaitOnChild(cmd.Process)
+	e.signal = process.Interrupts(cmd.Process.Pid)
+
 	return nil
 }
 
@@ -130,12 +165,20 @@ func (e *exe) Wait() error {
 	return exit.Err
 }
 
-func (e *exe) Signal(string) error {
-	return nil
+func (e *exe) Signal(s string) error {
+	return e.signal.Signal(s)
 }
 
-func (e *exe) Stop(s string, ttl time.Duration) error {
-	return nil
+func (e *exe) Stop(signal string, timeout time.Duration) error {
+	// politely ask the group to terminate via user specified signal
+	err := e.Signal(signal)
+	if e.blockPIDs(timeout) {
+		// no more mr. nice guy, kill the whole cgroup
+		_ = e.writeCG("cgroup.kill", "1")
+		_ = e.env.Out.Close()
+		_ = e.env.Err.Close()
+	}
+	return err
 }
 
 func (e *exe) Result() int {
@@ -218,7 +261,7 @@ func flatten(user, home string, env map[string]string) []string {
 	return result
 }
 
-func (e *exe) parameters(uid, gid uint32) []string {
+func (e *exe) parameters(uid, gid int) []string {
 	var result []string
 
 	// start with nsenter if using bridge mode
@@ -240,18 +283,10 @@ func (e *exe) parameters(uid, gid uint32) []string {
 		"--mount-proc",
 		"--fork",
 		"--kill-child=SIGKILL",
-		"--setuid", strconv.Itoa(int(uid)),
-		"--setgid", strconv.Itoa(int(gid)),
+		"--setuid", strconv.Itoa(uid),
+		"--setgid", strconv.Itoa(gid),
 		"--",
 	)
-
-	// append the list of unveils
-	for _, u := range e.opts.Unveil {
-		result = append(result, "-v", u)
-	}
-
-	// separate user command and args
-	result = append(result, "--")
 
 	// append the user command
 	result = append(result, e.opts.Command)
@@ -264,8 +299,9 @@ func (e *exe) parameters(uid, gid uint32) []string {
 }
 
 // setup the process to be run
-func (e *exe) isolation(ctx context.Context, home string, fd int, uid, gid uint32) *exec.Cmd {
+func (e *exe) isolation(ctx context.Context, home string, fd, uid, gid int) *exec.Cmd {
 	params := e.parameters(uid, gid)
+	netlog.Blue("exe", "params", params)
 	cmd := exec.CommandContext(ctx, params[0], params[1:]...)
 	cmd.Stdout = e.env.Out
 	cmd.Stderr = e.env.Err
@@ -333,4 +369,49 @@ func extractCPU(s string) (user, system, total resources.MicroSecond) {
 		}
 	}
 	return
+}
+
+// blockPIDs blocks until there are no more live processes in the cgroup, and returns true
+// if the timeout is exceeded or an error occurs.
+func (e *exe) blockPIDs(timeout time.Duration) bool {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	abort := time.After(timeout)
+
+	for {
+		select {
+		case <-ticker.C:
+			count := e.currentPIDs()
+			switch count {
+			case 0:
+				// processes are no longer running
+				return false
+			case -1:
+				// failed to read cgroups file, issue force kill
+				return true
+			default:
+				// processes are still running, wait longer
+			}
+		case <-abort:
+			// timeout exceeded, issue force kill
+			return true
+		}
+	}
+}
+
+// currentPIDs returns the number of live processes in the cgroup.
+func (e *exe) currentPIDs() int {
+	s, err := e.readCG("pids.current")
+	if err != nil {
+		return -1
+	}
+	if s == "" {
+		return 0
+	}
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return -1
+	}
+	return i
 }
