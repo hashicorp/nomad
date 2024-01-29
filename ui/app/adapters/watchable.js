@@ -25,29 +25,11 @@ export default class Watchable extends ApplicationAdapter {
   // It's either this weird side-effecting thing that also requires a change
   // to ajaxOptions or overriding ajax completely.
   ajax(url, type, options) {
-    console.log('+++ watchable ajax', url, type, options);
     const hasParams = hasNonBlockingQueryParams(options);
-    // console.log('hasParams', url, hasParams, options)
-    // if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
     if (!hasParams || options.skipURLModification)
       return super.ajax(url, type, options);
     let params = { ...options?.data };
     delete params.index;
-    // // TODO: Creating a hash of the params as watchList key feels a little hacky
-    // if (type === 'POST') {
-    //   // TODO: check that dispatch still works!
-    //   // console.log('hashing params', params);
-    //   url = `${url}?hash=${btoa(JSON.stringify(params))}`;
-    // } else {
-    //   // Options data gets appended as query params as part of ajaxOptions.
-    //   // In order to prevent doubling params, data should only include index
-    //   // at this point since everything else is added to the URL in advance.
-    //   options.data = options.data.index ? { index: options.data.index } : {};
-
-    //   delete params.index;
-    // url = `${url}?${queryString.stringify(params)}`;
-    // }
-
     return super.ajax(`${url}?${queryString.stringify(params)}`, type, options);
   }
 
@@ -118,48 +100,9 @@ export default class Watchable extends ApplicationAdapter {
     );
 
     if (get(options, 'adapterOptions.watch')) {
-      // The intended query without additional blocking query params is used
-      // to track the appropriate query index.
-
-      // // if POST, dont get whole queryString, just the index
-      // if (method === 'POST') {
-      //   // If the hashed version already exists, use it:
-      //   let hashifiedURL = `${urlPath}?hash=${btoa(JSON.stringify(params))}`;
-      //   if (this.watchList.getIndexFor(hashifiedURL) > 1) {
-      //     params.index = this.watchList.getIndexFor(hashifiedURL);
-      //   } else {
-      //     // TODO: De-hardcode the initialize query, identify it in watchlist somehow?
-      //     params.index = this.watchList.getIndexFor(
-      //       '/v1/jobs/statuses3?meta=true&queryType=initialize'
-      //     );
-      //   }
-      // } else {
-      //   params.index = this.watchList.getIndexFor(
-      //     `${urlPath}?${queryString.stringify(query)}`
-      //   );
-      // }
-
-      // if (method === 'POST') {
-      //   // If the hashed version already exists, use it:
-      //   let hashifiedURL = `${urlPath}?hash=${btoa(JSON.stringify(params))}`;
-      //   console.log('hashifiedURL', hashifiedURL)
-      //   if (this.watchList.getIndexFor(hashifiedURL) > 1) {
-      //     console.log('+++1 found index for hashifiedURL', this.watchList.getIndexFor(hashifiedURL));
-      //     params.index = this.watchList.getIndexFor(hashifiedURL);
-      //   } else {
-      //     console.log('+++2 didnt find index for hashifiedURL, checking initialize', this.watchList.getIndexFor(hashifiedURL));
-      //     // otherwise, try to get the index from the initialize query
-      //     params.index = this.watchList.getIndexFor(
-      //       '/v1/jobs/statuses3?meta=true&per_page=10&queryType=initialize' // TODO: fickle!
-      //     );
-      //   }
-      // } else {
       params.index = this.watchList.getIndexFor(
         `${urlPath}?${queryString.stringify(query)}`
       );
-      // }
-      //   console.log('paramsindex', params.index);
-      //   // debugger;
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
@@ -256,18 +199,11 @@ export default class Watchable extends ApplicationAdapter {
   }
 
   handleResponse(status, headers, payload, requestData) {
-    // console.log('handling response', requestData);
     // Some browsers lowercase all headers. Others keep them
     // case sensitive.
     const newIndex = headers['x-nomad-index'] || headers['X-Nomad-Index'];
     if (newIndex) {
-      // if (requestData.method === 'POST') {
-      //   // without the last &index= bit
-      //   // TODO: this is a weird way to save key.
-      //   this.watchList.setIndexFor(requestData.url.split('&')[0], newIndex);
-      // } else {
       this.watchList.setIndexFor(requestData.url, newIndex);
-      // }
     }
 
     return super.handleResponse(...arguments);
