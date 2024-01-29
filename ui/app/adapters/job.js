@@ -207,31 +207,13 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   query(store, type, query, snapshotRecordArray, options) {
-    // let { queryType } = query;
     options = options || {};
     options.adapterOptions = options.adapterOptions || {};
 
-    // const url = this.buildURL(type.modelName, null, null, 'query', query);
     const method = get(options, 'adapterOptions.method') || 'GET';
     const url = this.urlForQuery(query, type.modelName, method);
-    console.log('url, method', url, method, options);
-
-    // if (queryType === 'initialize') {
-    // //   // options.url = this.urlForQuery(query, type.modelName);
-    //   options.adapterOptions.method = 'GET';
-    // } else {
-    //   options.adapterOptions.watch = true;
-    // }
-    // if (queryType === 'update') {
-    //   options.adapterOptions.method = 'POST';
-    //   options.adapterOptions.watch = true; // TODO: probably?
-    //   delete query.queryType;
-    // }
 
     // Let's establish the index, via watchList.getIndexFor.
-
-    // url needs to have stringified params on it
-
     let index = this.watchList.getIndexFor(url);
 
     // In the case that this is of queryType update,
@@ -242,7 +224,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
         '/v1/jobs/statuses3?meta=true&per_page=10'
       ); // TODO: fickle!
       if (initializeQueryIndex) {
-        console.log('initializeQUeryIndex', initializeQueryIndex);
         index = initializeQueryIndex;
       }
     }
@@ -251,22 +232,13 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     // You could be holding open a POST on jobs AB and ABC at the same time.
 
     console.log('index for', url, 'is', index);
-    if (this.watchList.getIndexFor(url)) {
+
+    if (index && index > 1) {
       query.index = index;
     }
 
-    // console.log('so then uh', query);
-    // } else if (queryType === 'update') {
-    //   // options.url = this.urlForUpdateQuery(query, type.modelName);
-    //   options.adapterOptions.method = 'POST';
-    //   options.adapterOptions.watch = true;
-    // }
-    // return super.query(store, type, query, snapshotRecordArray, options);
-    // let superQuery = super.query(store, type, query, snapshotRecordArray, options);
-    // console.log('superquery', superQuery);
-    // return superQuery;
-
     const signal = get(options, 'adapterOptions.abortController.signal');
+    // TODO: use this signal to abort the request in the case of multiple update requests
     return this.ajax(url, method, {
       signal,
       data: query,
@@ -275,12 +247,12 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   handleResponse(status, headers, payload, requestData) {
-    // console.log('jobadapter handleResponse', status, headers, payload, requestData);
+    // watchList.setIndexFor() happens in the watchable adapter, super'd here
+
     /**
      * @type {Object}
      */
     const result = super.handleResponse(...arguments);
-    // console.log('response', result, headers);
     if (result) {
       result.meta = result.meta || {};
       if (headers['x-nomad-nexttoken']) {
@@ -288,42 +260,24 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       }
     }
 
-    // If the url contains the urlForQuery, we should fire a new method that handles index tracking
-    if (requestData.url.includes(this.urlForQuery())) {
-      this.updateQueryIndex(headers['x-nomad-index']);
-    }
-
     return result;
   }
 
-  // urlForQuery(query, modelName) {
-  //   return `/${this.namespace}/jobs/statuses3`;
-  // }
-
   urlForQuery(query, modelName, method) {
     let baseUrl = `/${this.namespace}/jobs/statuses3`;
-    // let queryString = Object.keys(query).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`).join('&');
     if (method === 'POST') {
+      // Setting a base64 hash to represent the body of the POST request
+      // (which is otherwise not represented in the URL)
+      // because the watchList uses the URL as a key for index lookups.
       return `${baseUrl}?hash=${btoa(JSON.stringify(query))}`;
     } else {
       return `${baseUrl}?${queryString.stringify(query)}`;
     }
   }
 
-  // urlForQuery(query, modelName) {
-  //   let baseUrl = `/${this.namespace}/jobs/statuses3`;
-  //   // let queryString = Object.keys(query).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`).join('&');
-  //   // Only include non-empty query params
-  //   let queryString = Object.keys(query).filter(key => !!query[key]).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`).join('&');
-  //   console.log('+++ querystring', queryString)
-  //   return `${baseUrl}?${queryString}`;
-  // }
-
   ajaxOptions(url, type, options) {
     let hash = super.ajaxOptions(url, type, options);
     console.log('+++ ajaxOptions', url, type, options, hash);
-    // debugger;
-    // console.log('options', options, hash);
 
     // Custom handling for POST requests to append 'index' as a query parameter
     if (type === 'POST' && options.data && options.data.index) {
@@ -332,11 +286,5 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     }
 
     return hash;
-  }
-
-  updateQueryIndex(index) {
-    console.log('setQueryIndex', index);
-    // Is there an established index for jobs
-    // this.watchList.setIndexFor(url, index);
   }
 }

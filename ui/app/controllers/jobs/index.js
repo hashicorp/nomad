@@ -9,20 +9,16 @@ import Controller, { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
-// import { alias } from '@ember/object/computed';
-import { computed } from '@ember/object';
 
 const ALL_NAMESPACE_WILDCARD = '*';
 
 export default class JobsIndexController extends Controller {
   @service router;
-  // @service store;
   @service system;
 
   queryParams = [
     'nextToken',
     'pageSize',
-    'foo',
     // 'status',
     { qpNamespace: 'namespace' },
     // 'type',
@@ -50,12 +46,7 @@ export default class JobsIndexController extends Controller {
       });
   }
 
-  // @alias('model.jobs') jobs;
-  // @computed('model.jobs.[]')
-  // get jobs() {
-  //   return this.model.jobs;
-  // }
-  jobs = [];
+  @tracked jobs = [];
 
   @action
   gotoJob(job) {
@@ -63,19 +54,6 @@ export default class JobsIndexController extends Controller {
   }
 
   // #region pagination
-  // @action
-  // onNext(nextToken) {
-  //   this.previousTokens = [...this.previousTokens, this.nextToken];
-  //   this.nextToken = nextToken;
-  // }
-
-  // get getPrevToken() {
-  //   return "beep";
-  // }
-  // get getNextToken() {
-  //   return "boop";
-  // }
-
   @tracked initialNextToken;
   @tracked nextToken;
   @tracked previousTokens = [null];
@@ -94,33 +72,8 @@ export default class JobsIndexController extends Controller {
     } else if (page === 'next') {
       console.log('next page', this.model.jobs.meta);
       this.previousTokens = [...this.previousTokens, this.nextToken];
-      // this.nextToken = "boop";
-      // random
-      // this.nextToken = Math.random().toString(36).substring(7);
       this.nextToken = this.model.jobs.meta.nextToken;
-      // this.foo = "bar";
     }
   }
-
-  // get paginate() {
-  //   console.log('paginating');
-  //   return (page,b,c) => {
-  //     return {
-  //       // nextToken: this.nextToken,
-  //       nextToken: "boop",
-  //     }
-  //   }
-  // }
-
-  // get demoQueryFunctionCompact() {
-  //   return (page,b,c) => {
-  //     console.log('demoQueryFunctionCompact', page, b,c);
-  //     return {
-  //       // demoCurrentToken: page === 'prev' ? this.getPrevToken : this.getNextToken,
-  //       // demoExtraParam: 'hello',
-  //       nextToken: page === 'prev' ? this.getPrevToken : this.getNextToken,
-  //     };
-  //   };
-  // }
   // #endregion pagination
 }
