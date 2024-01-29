@@ -134,7 +134,7 @@ export function watchAll(modelName) {
   }).drop();
 }
 
-export function watchQuery(modelName, b, c) {
+export function watchQuery(modelName) {
   return task(function* (params, throttle = 2000, options = {}) {
     assert(
       'To watch a query, the adapter for the type being queried MUST extend Watchable',

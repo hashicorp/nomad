@@ -219,13 +219,18 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     // In the case that this is of queryType update,
     // and its index is found to be 1,
     // check for the initialize query's index and use that instead
-    if (options.adapterOptions.queryType === 'update' && index === 1) {
-      let initializeQueryIndex = this.watchList.getIndexFor(
-        '/v1/jobs/statuses3?meta=true&per_page=10'
-      ); // TODO: fickle!
-      if (initializeQueryIndex) {
-        index = initializeQueryIndex;
-      }
+    // if (options.adapterOptions.queryType === 'update' && index === 1) {
+    //   let initializeQueryIndex = this.watchList.getIndexFor(
+    //     '/v1/jobs/statuses3?meta=true&per_page=10'
+    //   ); // TODO: fickle!
+    //   if (initializeQueryIndex) {
+    //     index = initializeQueryIndex;
+    //   }
+    // }
+
+    // Disregard the index if this is an initialize query
+    if (options.adapterOptions.queryType === 'initialize') {
+      index = null;
     }
 
     // TODO: adding a new job hash will not necessarily cancel the old one.
@@ -238,7 +243,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
-    // TODO: use this signal to abort the request in the case of multiple update requests
+
     return this.ajax(url, method, {
       signal,
       data: query,
