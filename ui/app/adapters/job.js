@@ -247,6 +247,9 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       }
     }
 
+    // TODO: adding a new job hash will not necessarily cancel the old one.
+    // You could be holding open a POST on jobs AB and ABC at the same time.
+
     console.log('index for', url, 'is', index);
     if (this.watchList.getIndexFor(url)) {
       query.index = index;
