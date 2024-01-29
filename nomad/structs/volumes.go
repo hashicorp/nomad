@@ -19,6 +19,11 @@ const (
 	VolumeMountPropagationBidirectional = "bidirectional"
 )
 
+const (
+	SELinuxSharedVolume = "z"
+	SELinuxPrivateVolume = "Z"
+)
+
 func MountPropagationModeIsValid(propagationMode string) bool {
 	switch propagationMode {
 	case "", VolumeMountPropagationPrivate, VolumeMountPropagationHostToTask, VolumeMountPropagationBidirectional:
@@ -265,8 +270,11 @@ func (v *VolumeMount) Equal(o *VolumeMount) bool {
 	case v.ReadOnly != o.ReadOnly:
 		return false
 	case v.PropagationMode != o.PropagationMode:
+		return false			
+	case v.SELinuxLabel != o.SELinuxLabel:
 		return false
 	}
+
 	return true
 }
 
@@ -279,6 +287,17 @@ func (v *VolumeMount) Copy() *VolumeMount {
 	*nv = *v
 	return nv
 }
+
+func (v *VolumeMount) Validate() bool{
+	if v.SELinuxLabel != "" &&
+	v.SELinuxLabel != SELinuxSharedVolume &&
+	v.SELinuxLabel != SELinuxPrivateVolume {
+		return false
+	}
+
+	return true
+}
+
 
 func CopySliceVolumeMount(s []*VolumeMount) []*VolumeMount {
 	l := len(s)

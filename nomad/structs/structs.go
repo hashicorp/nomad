@@ -7938,6 +7938,10 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		} else if _, ok := tg.Volumes[vm.Volume]; !ok {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) references undefined volume %s", idx, vm.Volume))
 		}
+
+		if !vm.Validate(){
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) has an invalid SELinux label: \"%s\"", idx, vm.SELinuxLabel))
+		}
 	}
 
 	// Validate CSI Plugin Config

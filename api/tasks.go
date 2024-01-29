@@ -433,9 +433,11 @@ func (vm *VolumeMount) Canonicalize() {
 	if vm.PropagationMode == nil {
 		vm.PropagationMode = pointerOf(VolumeMountPropagationPrivate)
 	}
+
 	if vm.ReadOnly == nil {
 		vm.ReadOnly = pointerOf(false)
 	}
+
 	if vm.SELinuxLabel == nil {
 		vm.SELinuxLabel = pointerOf("")
 	}
