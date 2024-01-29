@@ -15,6 +15,7 @@ const ALL_NAMESPACE_WILDCARD = '*';
 export default class JobsIndexController extends Controller {
   @service router;
   @service system;
+  @service watchList; // TODO: temp
 
   queryParams = [
     'nextToken',

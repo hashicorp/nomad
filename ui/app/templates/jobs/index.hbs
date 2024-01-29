@@ -10,6 +10,14 @@
   Model.jobs length: {{this.model.jobs.length}}<br />
   Controller.jobs length: {{this.jobs.length}}<br />
   Job IDs to watch for ({{this.jobIDs.length}}): {{#each this.jobIDs as |id|}}{{id.id}} | {{/each}}<br />
+  <hr />
+  Watchlist:
+  <ul>
+  {{#each-in this.watchList.list as |key value|}}
+    <li><strong>{{key}}:</strong> {{value}}</li>
+  {{/each-in}}
+  </ul>
+  <hr />
     <Hds::Table
       @model={{this.jobs}}
       @columns={{this.tableColumns}}
