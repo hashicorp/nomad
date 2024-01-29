@@ -9,11 +9,12 @@ import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import { collect } from '@ember/object/computed';
-import { watchAll, watchQuery } from 'nomad-ui/utils/properties/watch';
+import { watchAll } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import { task, restartableTask, timeout } from 'ember-concurrency';
+import { action } from '@ember/object';
 
 export default class IndexRoute extends Route.extend(
   WithWatchers,
@@ -22,7 +23,7 @@ export default class IndexRoute extends Route.extend(
   @service store;
   @service watchList;
 
-  perPage = 10;
+  perPage = 1;
 
   queryParams = {
     qpNamespace: {
@@ -44,17 +45,23 @@ export default class IndexRoute extends Route.extend(
   }
 
   jobQuery(params, options = {}) {
+    this.watchList.jobsIndexIDsController.abort();
+    this.watchList.jobsIndexIDsController = new AbortController();
+
     return this.store
       .query('job', params, {
         adapterOptions: {
           method: 'GET', // TODO: default
           queryType: options.queryType,
+          abortController: this.watchList.jobsIndexIDsController,
         },
       })
       .catch(notifyForbidden(this));
   }
 
   jobAllocsQuery(jobIDs) {
+    this.watchList.jobsIndexDetailsController.abort();
+    this.watchList.jobsIndexDetailsController = new AbortController();
     return this.store
       .query(
         'job',
@@ -65,6 +72,7 @@ export default class IndexRoute extends Route.extend(
           adapterOptions: {
             method: 'POST',
             queryType: 'update',
+            abortController: this.watchList.jobsIndexDetailsController,
           },
         }
       )
@@ -82,19 +90,27 @@ export default class IndexRoute extends Route.extend(
         id: job.plainId,
         namespace: job.belongsTo('namespace').id(),
       }));
+
       this.controller.set('jobIDs', jobIDs);
       // BIG TODO: MAKE ANY jobIDs UPDATES TRIGGER A NEW WATCHJOBS TASK
       // And also cancel the current watchJobs! It may be watching for a different list than the new jobIDs and wouldn't naturally unblock.
 
-      this.watchJobs.perform({}, 500);
+      // this.watchJobs.perform({}, 500);
+      this.watchList.jobsIndexDetailsController.abort();
+      console.log(
+        'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
+        jobIDs
+      );
+      this.watchList.jobsIndexDetailsController = new AbortController();
+      this.watchJobs.perform(jobIDs, 500);
 
       yield timeout(throttle); // Moved to the end of the loop
     }
   }
 
-  @restartableTask *watchJobs(params, throttle = 2000) {
+  @restartableTask *watchJobs(jobIDs, throttle = 2000) {
     while (true) {
-      let jobIDs = this.controller.jobIDs;
+      // let jobIDs = this.controller.jobIDs;
       if (jobIDs && jobIDs.length > 0) {
         let jobDetails = yield this.jobAllocsQuery(jobIDs);
         console.log(
@@ -133,12 +149,22 @@ export default class IndexRoute extends Route.extend(
       })
     );
 
+    // Now that we've set the jobIDs, immediately start watching them
+    this.watchJobs.perform(controller.jobIDs, 500);
+
+    // And also watch for any changes to the jobIDs list
     this.watchJobIDs.perform({}, 2000);
-    this.watchJobs.perform({}, 500); // Start watchJobs independently with its own throttle
   }
 
   startWatchers(controller, model) {
     controller.set('namespacesWatch', this.watchNamespaces.perform());
+  }
+
+  @action
+  willTransition() {
+    console.log('willtra');
+    this.watchList.jobsIndexDetailsController.abort();
+    this.watchList.jobsIndexIDsController.abort();
   }
 
   @watchAll('namespace') watchNamespaces;

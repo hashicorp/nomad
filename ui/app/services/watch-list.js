@@ -7,29 +7,35 @@ import { computed } from '@ember/object';
 import { readOnly } from '@ember/object/computed';
 import { copy } from 'ember-copy';
 import Service from '@ember/service';
+import { tracked } from '@glimmer/tracking';
 
-let list = {};
+// let list = {};
 
 export default class WatchListService extends Service {
-  @computed
-  get _list() {
-    return copy(list, true);
-  }
+  // @computed
+  // get _list() {
+  //   return copy(list, true);
+  // }
 
-  @readOnly('_list') list;
+  jobsIndexIDsController = new AbortController();
+  jobsIndexDetailsController = new AbortController();
 
-  constructor() {
-    super(...arguments);
-    list = {};
-  }
+  // @readOnly('_list') list;
+  @tracked list = {};
+
+  // constructor() {
+  //   super(...arguments);
+  //   list = {};
+  // }
 
   getIndexFor(url) {
-    return list[url] || 1;
+    return this.list[url] || 1;
   }
 
   setIndexFor(url, value) {
-    list[url] = +value;
-    console.log('total list is now', list);
+    this.list[url] = +value;
+    this.list = { ...this.list };
+    console.log('total list is now', this.list);
     console.log('===================');
   }
 }
