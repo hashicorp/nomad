@@ -24,6 +24,29 @@ func Lookup(username string) (*user.User, error) {
 	return globalCache.GetUser(username)
 }
 
+// LookupUnix returns the UID, GID, and home directory for username or returns
+// an error. ID values are int to work well with Go library functions.
+//
+// Will always fail on Windows and Plan 9.
+func LookupUnix(username string) (int, int, string, error) {
+	u, err := Lookup(username)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("error looking up user %q: %w", username, err)
+	}
+
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("error parsing uid: %w", err)
+	}
+
+	gid, err := strconv.Atoi(u.Gid)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("error parsing gid: %w", err)
+	}
+
+	return uid, gid, u.HomeDir, nil
+}
+
 // lock is used to serialize all user lookup at the process level, because
 // some NSS implementations are not concurrency safe
 var lock sync.Mutex
@@ -41,23 +64,6 @@ func Current() (*user.User, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	return user.Current()
-}
-
-// UIDforUser returns the UID for the specified username or returns an error.
-//
-// Will always fail on Windows and Plan 9.
-func UIDforUser(username string) (int, error) {
-	u, err := Lookup(username)
-	if err != nil {
-		return 0, err
-	}
-
-	uid, err := strconv.Atoi(u.Uid)
-	if err != nil {
-		return 0, fmt.Errorf("error parsing uid: %w", err)
-	}
-
-	return uid, nil
 }
 
 // WriteFileFor is like os.WriteFile except if possible it chowns the file to
@@ -98,7 +104,7 @@ func WriteFileFor(path string, contents []byte, username string) error {
 }
 
 func writeFileFor(path string, contents []byte, username string) error {
-	uid, err := UIDforUser(username)
+	uid, _, _, err := LookupUnix(username)
 	if err != nil {
 		return err
 	}
@@ -154,7 +160,7 @@ func SocketFileFor(logger hclog.Logger, path, username string) (net.Listener, er
 }
 
 func setSocketOwner(path, username string) error {
-	uid, err := UIDforUser(username)
+	uid, _, _, err := LookupUnix(username)
 	if err != nil {
 		return err
 	}
