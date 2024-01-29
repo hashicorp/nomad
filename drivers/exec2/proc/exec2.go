@@ -3,7 +3,7 @@
 
 //go:build linux
 
-package exec2
+package proc
 
 import (
 	"bufio"
@@ -63,7 +63,7 @@ type ExecTwo interface {
 	// Stats returns current resource utilization.
 	//
 	// Must only be called after Start.
-	// Stats() resources.Utilization
+	Stats() resources.Utilization
 
 	// Signal [kill()] the process.
 	//
@@ -81,8 +81,25 @@ type ExecTwo interface {
 	Result() int // exit code
 }
 
-func Create() ExecTwo {
-	return nil
+// New an ExecTwo, an instantiation of the exec2 driver.
+func New(env *Environment, opts *Options) ExecTwo {
+	return &exe{
+		env:  env,
+		opts: opts,
+		cpu:  new(resources.TrackCPU),
+	}
+}
+
+// Recover an ExecTwo, an already running instance of the execc2 driver.
+func Recover(pid int, env *Environment) ExecTwo {
+	return &exe{
+		pid:    pid,
+		env:    env,
+		opts:   nil, // already started, no use
+		waiter: process.WaitOnOrphan(pid),
+		signal: process.Interrupts(pid),
+		cpu:    new(resources.TrackCPU),
+	}
 }
 
 type exe struct {
@@ -98,8 +115,62 @@ type exe struct {
 	code   int
 }
 
+func (e *exe) Start(ctx context.Context) error {
+	// TODO lols
+	return nil
+}
+
 func (e *exe) PID() int {
 	return e.pid
+}
+
+func (e *exe) Wait() error {
+	exit := e.waiter.Wait()
+	e.code = exit.Code
+	return exit.Err
+}
+
+func (e *exe) Signal(string) error {
+	return nil
+}
+
+func (e *exe) Stop(s string, ttl time.Duration) error {
+	return nil
+}
+
+func (e *exe) Result() int {
+	return e.code
+}
+
+func (e *exe) Stats() resources.Utilization {
+	memCurrentS, _ := e.readCG("memory.current")
+	memCurrent, _ := strconv.Atoi(memCurrentS)
+
+	swapCurrentS, _ := e.readCG("memory.swap.current")
+	swapCurrent, _ := strconv.Atoi(swapCurrentS)
+
+	memStatS, _ := e.readCG("memory.stat")
+	memCache := extractRe(memStatS, memCacheRe)
+
+	cpuStatsS, _ := e.readCG("cpu.stat")
+	usr, system, total := extractCPU(cpuStatsS)
+	userPct, systemPct, totalPct := e.cpu.Percent(usr, system, total)
+
+	specs, _ := resources.Get()
+	ticks := (.01 * totalPct) * resources.Percent(specs.Ticks()/specs.Cores)
+
+	return resources.Utilization{
+		// memory stats
+		Memory: uint64(memCurrent),
+		Swap:   uint64(swapCurrent),
+		Cache:  memCache,
+
+		// cpu stats
+		System:  systemPct,
+		User:    userPct,
+		Percent: totalPct,
+		Ticks:   ticks,
+	}
 }
 
 func (e *exe) openCG() (int, func(), error) {
@@ -225,47 +296,6 @@ func (e *exe) constrain() error {
 	}
 
 	return nil
-}
-
-func (e *exe) Wait() error {
-	exit := e.waiter.Wait()
-	e.code = exit.Code
-	return exit.Err
-}
-
-func (e *exe) Result() int {
-	return e.code
-}
-
-func (e *exe) Stats() resources.Utilization {
-	memCurrentS, _ := e.readCG("memory.current")
-	memCurrent, _ := strconv.Atoi(memCurrentS)
-
-	swapCurrentS, _ := e.readCG("memory.swap.current")
-	swapCurrent, _ := strconv.Atoi(swapCurrentS)
-
-	memStatS, _ := e.readCG("memory.stat")
-	memCache := extractRe(memStatS, memCacheRe)
-
-	cpuStatsS, _ := e.readCG("cpu.stat")
-	usr, system, total := extractCPU(cpuStatsS)
-	userPct, systemPct, totalPct := e.cpu.Percent(usr, system, total)
-
-	specs, _ := resources.Get()
-	ticks := (.01 * totalPct) * resources.Percent(specs.Ticks()/specs.Cores)
-
-	return resources.Utilization{
-		// memory stats
-		Memory: uint64(memCurrent),
-		Swap:   uint64(swapCurrent),
-		Cache:  memCache,
-
-		// cpu stats
-		System:  systemPct,
-		User:    userPct,
-		Percent: totalPct,
-		Ticks:   ticks,
-	}
 }
 
 var (

@@ -5,8 +5,10 @@ package exec2
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/drivers/exec2/proc"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -83,4 +85,14 @@ type TaskConfig struct {
 	Unveil  []string `codec:"unveil"`
 }
 
-// probably no need for a parseOptions; the exec task config is fairly simple
+func parseOptions(driverTaskConfig *drivers.TaskConfig) (*proc.Options, error) {
+	var taskConfig TaskConfig
+	if err := driverTaskConfig.DecodeDriverConfig(&taskConfig); err != nil {
+		return nil, fmt.Errorf("failed to decode driver task config: %w", err)
+	}
+	return &proc.Options{
+		Command:   taskConfig.Command,
+		Arguments: taskConfig.Args,
+		Unveil:    taskConfig.Unveil,
+	}, nil
+}
