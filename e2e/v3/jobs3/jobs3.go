@@ -40,6 +40,8 @@ type Submission struct {
 
 	// jobspec mutator funcs
 	mutators []func(string) string
+	// preCleanup funcs to run before deregistering the job
+	preCleanup []func(*Submission)
 
 	vars         *set.Set[string] // key=value
 	waitComplete *set.Set[string] // groups to wait until complete
@@ -52,6 +54,45 @@ func (sub *Submission) queryOptions() *nomadapi.QueryOptions {
 		Namespace: sub.inNamespace,
 		AuthToken: sub.authToken,
 	}
+}
+
+func (sub *Submission) Evals() []*nomadapi.Evaluation {
+	sub.t.Helper()
+	evals, _, err := sub.nomadClient.Jobs().
+		Evaluations(sub.JobID(), sub.queryOptions())
+	must.NoError(sub.t, err)
+	return evals
+}
+
+func (sub *Submission) Allocs() []*nomadapi.AllocationListStub {
+	sub.t.Helper()
+	allocs, _, err := sub.nomadClient.Jobs().
+		Allocations(sub.jobID, true, sub.queryOptions())
+	must.NoError(sub.t, err, must.Sprint("could not get allocs"))
+	return allocs
+}
+
+type TaskEvents struct {
+	Group  string
+	Task   string
+	Events []*nomadapi.TaskEvent
+}
+
+// AllocEvents returns a map of TaskEvents with alloc ID keys
+func (sub *Submission) AllocEvents() map[string]TaskEvents {
+	sub.t.Helper()
+	allocs := sub.Allocs()
+	events := make(map[string]TaskEvents)
+	for _, alloc := range allocs {
+		for task, state := range alloc.TaskStates {
+			events[alloc.ID] = TaskEvents{
+				Group:  alloc.TaskGroup,
+				Task:   task,
+				Events: state.Events,
+			}
+		}
+	}
+	return events
 }
 
 type Logs struct {
@@ -273,6 +314,14 @@ func (sub *Submission) run() {
 		sub.t.Cleanup(sub.cleanup)
 	}
 
+	// pre-cleanup callbacks run before main cleanup (reverse order of their
+	// addition with t.Cleanup())
+	for _, f := range sub.preCleanup {
+		sub.t.Cleanup(func() {
+			f(sub)
+		})
+	}
+
 	evalID := regResp.EvalID
 
 	queryOpts := &nomadapi.QueryOptions{
@@ -470,6 +519,7 @@ func initialize(t *testing.T, filename string) *Submission {
 		timeout:      20 * time.Second,
 		vars:         set.New[string](0),
 		waitComplete: set.New[string](0),
+		preCleanup:   []func(*Submission){defaultPreCleanup},
 	}
 }
 
@@ -528,6 +578,40 @@ func Var(key, value string) Option {
 func WaitComplete(group string) Option {
 	return func(sub *Submission) {
 		sub.waitComplete.Insert(group)
+	}
+}
+
+// PreCleanup runs a function after run has completed, before cleanup.
+func PreCleanup(cb func(*Submission)) Option {
+	return func(sub *Submission) {
+		sub.preCleanup = append(sub.preCleanup, cb)
+	}
+}
+
+// defaultPreCleanup looks for blocked evals, alloc errors, and task events
+// only when the test has failed.
+func defaultPreCleanup(job *Submission) {
+	if !job.t.Failed() {
+		return
+	}
+
+	for _, eval := range job.Evals() {
+		for group, block := range eval.FailedTGAllocs {
+			job.t.Logf("eval for tg '%s' failed; constraints: %+v",
+				group, block.ConstraintFiltered)
+		}
+	}
+
+	for _, alloc := range job.Allocs() {
+		job.t.Logf("tg '%s' alloc status '%s': %s",
+			alloc.TaskGroup, alloc.ClientStatus, alloc.ClientDescription)
+	}
+
+	for _, ae := range job.AllocEvents() {
+		for _, event := range ae.Events {
+			job.t.Logf("tg '%s' task '%s' event: %s",
+				ae.Group, ae.Task, event.DisplayMessage)
+		}
 	}
 }
 
