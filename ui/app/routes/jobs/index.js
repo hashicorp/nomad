@@ -16,7 +16,7 @@ import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import { task, restartableTask, timeout } from 'ember-concurrency';
 
 export default class IndexRoute extends Route.extend(
-  // WithWatchers,
+  WithWatchers,
   WithForbiddenState
 ) {
   @service store;
@@ -92,43 +92,9 @@ export default class IndexRoute extends Route.extend(
     }
   }
 
-  // @restartableTask *watchJobIDs(params, throttle = 2000) {
-  //   while (true) {
-  //     // let currentParams = this.getCurrentParams();
-  //     // const jobs = yield this.jobQuery(currentParams);
-  //     // yield timeout(throttle);
-  //     let currentParams = this.getCurrentParams();
-  //     currentParams.queryType = 'update_ids';
-  //     const newJobs = yield this.jobQuery(currentParams);
-
-  //     const jobIDs = newJobs.map((job) => {
-  //       return {
-  //         id: job.plainId,
-  //         namespace: job.belongsTo('namespace').id(),
-  //       };
-  //     });
-  //     this.controller.set('jobIDs', jobIDs);
-
-  //     yield timeout(throttle);
-
-  //     // this.watchJobs.perform(params, 2000); // TODO mismatched throttle
-  //   }
-  // }
-
   @restartableTask *watchJobs(params, throttle = 2000) {
-    // TODO: THURSDAY MORNING:
-    // Most of the ordering stuff feels disjointed!
-    // use the index from the watchList of the initial query here, too
-
     while (true) {
       let jobIDs = this.controller.jobIDs;
-      console.log('watchJobs called', jobIDs);
-      // console.log('jobids in watchjobs', jobIDs);
-      // console.log('watchList list', this.watchList.list);
-
-      // Either get index from watchlist entry for this particular hash, or
-      // get index from watchlist entry for the initial query
-
       if (jobIDs && jobIDs.length > 0) {
         let jobDetails = yield this.jobAllocsQuery(jobIDs);
         console.log(
@@ -136,7 +102,6 @@ export default class IndexRoute extends Route.extend(
           jobDetails,
           this.controller
         );
-        // debugger;
         this.controller.set('jobs', jobDetails);
       }
       // TODO: might need an else condition here for if there are no jobIDs,
@@ -146,10 +111,7 @@ export default class IndexRoute extends Route.extend(
   }
 
   async model(params) {
-    // console.log('model firing');
-    // console.log('sending off params', params);
     let currentParams = this.getCurrentParams();
-    // currentParams.queryType = 'initialize';
 
     return RSVP.hash({
       jobs: await this.jobQuery(currentParams, { queryType: 'initialize' }),
@@ -175,51 +137,10 @@ export default class IndexRoute extends Route.extend(
     this.watchJobs.perform({}, 500); // Start watchJobs independently with its own throttle
   }
 
-  // afterModel(model, transition) {
-  //   console.log('afterModel firing', model, transition);
-  //   // let jobs = this.watchJobsTask.perform(params);
-  //   let params = this.getCurrentParams();
-  //   let jobs = this.watchJobsTask.perform(params, 200);
+  startWatchers(controller, model) {
+    controller.set('namespacesWatch', this.watchNamespaces.perform());
+  }
 
-  //   console.log('jobs', jobs);
-  //   // model.jobs = jobs;
-  // }
-
-  // startWatchers(controller, model) {
-  //   controller.set('namespacesWatch', this.watchNamespaces.perform());
-  //   controller.set(
-  //     'modelWatch',
-  //     this.watchJobs.perform(
-  //       {
-  //         namespace: controller.qpNamespace,
-  //         per_page: this.perPage,
-  //         meta: true,
-  //         queryType: 'initialize',
-  //       },
-  //       1000,
-  //       { model }
-  //     ) // TODO: VERY HACKY WAY TO PASS MODEL
-  //   );
-  //   controller.set(
-  //     'jobsWatch',
-  //     this.watchJobsAllocs.perform({
-  //       namespace: controller.qpNamespace,
-  //       meta: true,
-  //       queryType: 'update',
-  //       jobs: model.jobs.map((job) => {
-  //         // TODO: maybe this should be set on controller for user-controlled updates?
-  //         return {
-  //           id: job.plainId,
-  //           namespace: job.belongsTo('namespace').id(),
-  //         };
-  //       }),
-  //     })
-  //   );
-  // }
-
-  // @watchQuery('job') watchJobs;
-  // @watchQuery('job', { queryType: 'update' }) watchJobsAllocs;
-  // // @watchQuery('job', { queryType: 'update' }) watchJobsUpdate;
-  // @watchAll('namespace') watchNamespaces;
-  // @collect('watchJobs', 'watchJobsAllocs', 'watchNamespaces') watchers;
+  @watchAll('namespace') watchNamespaces;
+  @collect('watchNamespaces') watchers;
 }
