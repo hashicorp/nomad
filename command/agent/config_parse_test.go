@@ -47,6 +47,7 @@ var basicConfig = &Config{
 		Enabled:   true,
 		StateDir:  "/tmp/client-state",
 		AllocDir:  "/tmp/alloc",
+		MountsDir: "/tmp/mounts",
 		Servers:   []string{"a.b.c:80", "127.0.0.1:1234"},
 		NodeClass: "linux-medium-64bit",
 		ServerJoin: &ServerJoin{

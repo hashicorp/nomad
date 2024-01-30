@@ -223,6 +223,9 @@ type ClientConfig struct {
 	// AllocDir is the directory for storing allocation data
 	AllocDir string `hcl:"alloc_dir"`
 
+	// MountsDir is the directory for storing mounts into allocation data
+	MountsDir string `hcl:"mounts_dir"`
+
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
 
@@ -2217,6 +2220,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.AllocDir != "" {
 		result.AllocDir = b.AllocDir
+	}
+	if b.MountsDir != "" {
+		result.MountsDir = b.MountsDir
 	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass

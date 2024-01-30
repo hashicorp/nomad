@@ -64,6 +64,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/v3/host"
+	"github.com/shoenig/netlog"
 	"golang.org/x/exp/maps"
 )
 
@@ -686,10 +687,20 @@ func (c *Client) init() error {
 
 	c.stateDB = db
 
+	netlog.Yellow("Client", "mounts_dir", conf.MountsDir, "alloc_dir", conf.AllocDir)
+
+	// Ensure the mounts dir exists if we have one. If we do not (i.e. dev mode),
+	// we will double up on the tmpdir below made for alloc/
+	if conf.MountsDir != "" {
+		if err := os.MkdirAll(conf.MountsDir, 0755); err != nil {
+			return fmt.Errorf("failed creating mounts dir: %w", err)
+		}
+	}
+
 	// Ensure the alloc dir exists if we have one
 	if conf.AllocDir != "" {
 		if err := os.MkdirAll(conf.AllocDir, 0711); err != nil {
-			return fmt.Errorf("failed creating alloc dir: %s", err)
+			return fmt.Errorf("failed creating alloc dir: %w", err)
 		}
 	} else {
 		// Otherwise make a temp directory to use.
@@ -697,6 +708,8 @@ func (c *Client) init() error {
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the AllocDir: %v", err)
 		}
+
+		netlog.Yellow("dev", "NomadClient", p)
 
 		p, err = filepath.EvalSymlinks(p)
 		if err != nil {
@@ -709,11 +722,12 @@ func (c *Client) init() error {
 		}
 
 		conf = c.UpdateConfig(func(c *config.Config) {
-			c.AllocDir = p
+			c.AllocDir = p  // use as alloc_dir
+			c.MountsDir = p // use as mounts_dir
 		})
 	}
 
-	c.logger.Info("using alloc directory", "alloc_dir", conf.AllocDir)
+	c.logger.Info("using alloc directory", "alloc_dir", conf.AllocDir, "mounts_dir", conf.MountsDir)
 
 	reserved := "<none>"
 	if conf.Node != nil && conf.Node.ReservedResources != nil {

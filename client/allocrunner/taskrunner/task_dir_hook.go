@@ -88,6 +88,9 @@ func setEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 
 	// Set driver-specific environment variables
 	switch fsi {
+	// TODO: drivers.FSIsolationUnveil
+	// not quite host paths; we want the hardlinks
+
 	case drivers.FSIsolationNone:
 		// Use host paths
 		envBuilder.SetAllocDir(taskDir.SharedAllocDir)

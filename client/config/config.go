@@ -104,8 +104,16 @@ type Config struct {
 	// StateDir is where we store our state
 	StateDir string
 
-	// AllocDir is where we store data for allocations
+	// AllocDir is where we store data for allocations.
+	//
+	// In a production environment this should be owned by root with file
+	// mode 0700.
 	AllocDir string
+
+	// AllocMountsDir is where we bind mount paths from AllocDir for tasks making
+	// use of the unveil file isolation mode. In a production environment this
+	// should be owned  by root with file mode 0755.
+	MountsDir string
 
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger

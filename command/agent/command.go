@@ -111,6 +111,7 @@ func (c *Command) readConfig() *Config {
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.MountsDir, "mounts-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
 	flags.StringVar(&servers, "servers", "", "")
@@ -381,6 +382,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		"data-dir":   config.DataDir,
 		"plugin-dir": config.PluginDir,
 		"alloc-dir":  config.Client.AllocDir,
+		"mounts-dir": config.Client.MountsDir,
 		"state-dir":  config.Client.StateDir,
 	}
 	for k, dir := range dirs {
@@ -499,11 +501,21 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 			return false
 		}
 
-		// The config is valid if the top-level data-dir is set or if both
-		// alloc-dir and state-dir are set.
+		// The config is valid if the top-level data-dir is set or if all four of
+		// of alloc-dir, mounts-dir, state-dir, and plugin-dir are set.
 		if config.Client.Enabled && config.DataDir == "" {
-			if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
-				c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+			switch {
+			case config.Client.AllocDir == "":
+				c.Ui.Error("Must specify alloc-dir if data-dir is omitted.")
+				return false
+			case config.Client.StateDir == "":
+				c.Ui.Error("Must specify state-dir if data-dir is omitted.")
+				return false
+			case config.Client.MountsDir == "":
+				c.Ui.Error("Must specify mounts-dir if data-dir is omitted.")
+				return false
+			case config.PluginDir == "":
+				c.Ui.Error("Must specify plugin-dir if data-dir is omitted.")
 				return false
 			}
 		}
