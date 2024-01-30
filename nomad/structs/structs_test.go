@@ -2043,6 +2043,24 @@ func TestTask_Validate(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
+	tg.Volumes = map[string]*VolumeRequest{
+		"foo": {
+			Name: "foo",
+		},
+	}
+
+	task.VolumeMounts = []*VolumeMount{
+		{
+			Volume: "blah",
+		},
+	}
+
+	err = task.Validate(JobTypeBatch, tg)
+	requireErrors(t, err,
+		"Volume Mount (0) references undefined volume blah",
+	)
+	task.VolumeMounts = nil
+
 	task.Constraints = append(task.Constraints,
 		&Constraint{
 			Operand: ConstraintDistinctHosts,
