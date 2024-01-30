@@ -7930,9 +7930,7 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 	for idx, vm := range t.VolumeMounts {
 		if _, ok := tg.Volumes[vm.Volume]; !ok {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) references undefined volume %s", idx, vm.Volume))
-		}
-
-		if err := vm.Validate(); err != nil {
+		} else if err := vm.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) is invalid: \"%w\"", idx, err))
 		}
 	}

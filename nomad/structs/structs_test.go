@@ -1625,7 +1625,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 				},
 			},
 			expErr: []string{
-				`Volume Mount (0) references an empty volume`,
+				`Volume Mount (0) references undefined volume`,
 				`Volume Mount (0) references undefined volume foob`,
 			},
 			jobType: JobTypeService,
