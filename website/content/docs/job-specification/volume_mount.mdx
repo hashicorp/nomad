@@ -64,6 +64,14 @@ updates to remove a volume that it depends on.
     and cause problems in the host operating system if a task creates a mount
     but does not clean it up properly before exiting.
 
+- `selinux_label``(string: "")` - Specifies the SELinux label for the mount.
+  This is only supported on Linux hosts running containerized tasks. Possible 
+  values are:
+
+  - `Z` -  Specifies that the volume content is private and unshared between 
+    containers.
+  - `z` - Specifies that the volume content is shared among containers.
+
 For examples of how to use [HCL2] interpolation for fine-grained control of
 volumes, see [Volume Interpolation].
 
