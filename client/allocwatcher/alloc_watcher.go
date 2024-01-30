@@ -513,7 +513,7 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 // Destroy on the returned allocdir if no error occurs.
 func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) (*allocdir.AllocDir, error) {
 	// Create the previous alloc dir
-	prevAllocDir := allocdir.NewAllocDir(p.logger, p.config.AllocDir, p.prevAllocID)
+	prevAllocDir := allocdir.NewAllocDir(p.logger, p.config.AllocDir, p.config.MountsDir, p.prevAllocID)
 	if err := prevAllocDir.Build(); err != nil {
 		return nil, fmt.Errorf("error building alloc dir for previous alloc %q: %v", p.prevAllocID, err)
 	}

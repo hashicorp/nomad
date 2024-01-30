@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/nomad/client/anonymous"
 	"github.com/hashicorp/nomad/drivers/exec2/resources"
 	"github.com/hashicorp/nomad/drivers/exec2/resources/process"
-	"github.com/hashicorp/nomad/drivers/exec2/util"
 	"github.com/shoenig/netlog"
 	"golang.org/x/sys/unix"
 )
@@ -118,12 +118,10 @@ type exe struct {
 }
 
 func (e *exe) Start(ctx context.Context) error {
-	uid, gid, home, err := util.LookupUser(e.env.User)
+	uid, gid, home, err := anonymous.LookupUser(e.env.User)
 	if err != nil {
 		return fmt.Errorf("failed to lookup user: %w", err)
 	}
-
-	//
 
 	// find out cgroup file descriptor
 	fd, cleanup, err := e.openCG()

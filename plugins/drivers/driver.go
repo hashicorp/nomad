@@ -17,6 +17,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers/fs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -132,27 +133,6 @@ type Fingerprint struct {
 	Err error
 }
 
-// FSIsolation is an enumeration to describe what kind of filesystem isolation
-// a driver supports.
-type FSIsolation string
-
-const (
-	// FSIsolationNone means no isolation. The host filesystem is used.
-	FSIsolationNone = FSIsolation("none")
-
-	// FSIsolationChroot means the driver will use a chroot on the host
-	// filesystem.
-	FSIsolationChroot = FSIsolation("chroot")
-
-	// FSIsolationImage means the driver uses an image.
-	FSIsolationImage = FSIsolation("image")
-
-	// FSIsolationUnveil means the driver and client will work together using
-	// unveil() syscall semantics (i.e. landlock on linux) isolate the host
-	// filesytem from workloads.
-	FSIsolationUnveil = FSIsolation("unveil")
-)
-
 type Capabilities struct {
 	// SendSignals marks the driver as being able to send signals
 	SendSignals bool
@@ -162,7 +142,7 @@ type Capabilities struct {
 	Exec bool
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
-	FSIsolation FSIsolation
+	FSIsolation fs.Isolation
 
 	//NetIsolationModes lists the set of isolation modes supported by the driver
 	NetIsolationModes []NetIsolationMode

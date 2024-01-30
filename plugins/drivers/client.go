@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers/fs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -66,13 +67,13 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 
 		switch resp.Capabilities.FsIsolation {
 		case proto.DriverCapabilities_NONE:
-			caps.FSIsolation = FSIsolationNone
+			caps.FSIsolation = fs.IsolationNone
 		case proto.DriverCapabilities_CHROOT:
-			caps.FSIsolation = FSIsolationChroot
+			caps.FSIsolation = fs.IsolationChroot
 		case proto.DriverCapabilities_IMAGE:
-			caps.FSIsolation = FSIsolationImage
+			caps.FSIsolation = fs.IsolationImage
 		default:
-			caps.FSIsolation = FSIsolationNone
+			caps.FSIsolation = fs.IsolationNone
 		}
 
 		caps.MountConfigs = MountConfigSupport(resp.Capabilities.MountConfigs)

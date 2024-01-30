@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fs"
 )
 
 // csiPluginSupervisorHook manages supervising plugins that are running as Nomad
@@ -186,7 +187,7 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 
 	if _, ok := h.task.Env["CSI_ENDPOINT"]; !ok {
 		switch h.caps.FSIsolation {
-		case drivers.FSIsolationNone:
+		case fs.IsolationNone:
 			// Plugin tasks with no filesystem isolation won't have the
 			// plugin dir bind-mounted to their alloc dir, but we can
 			// provide them the path to the socket. These Nomad-only

@@ -11,13 +11,13 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/go-plugin"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/fs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	dstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type driverPluginServer struct {
@@ -53,11 +53,11 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 	}
 
 	switch caps.FSIsolation {
-	case FSIsolationNone:
+	case fs.IsolationNone:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
-	case FSIsolationChroot:
+	case fs.IsolationChroot:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_CHROOT
-	case FSIsolationImage:
+	case fs.IsolationImage:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_IMAGE
 	default:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE

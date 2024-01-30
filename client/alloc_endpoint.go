@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fs"
 )
 
 // Allocations endpoint is used for interacting with client allocations
@@ -286,7 +287,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	}
 
 	// check node access
-	if capabilities.FSIsolation == drivers.FSIsolationNone {
+	if capabilities.FSIsolation == fs.IsolationNone {
 		exec := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocNodeExec)
 		if !exec {
 			return nil, nstructs.ErrPermissionDenied

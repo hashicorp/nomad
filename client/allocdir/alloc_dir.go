@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
+	"github.com/shoenig/netlog"
 	tomb "gopkg.in/tomb.v1"
 )
 
@@ -83,7 +84,7 @@ var (
 type Interface interface {
 	AllocDirFS
 
-	NewTaskDir(string) *TaskDir
+	NewTaskDir(string, string) *TaskDir
 	AllocDirPath() string
 	ShareDirPath() string
 	GetTaskDir(string) *TaskDir
@@ -109,6 +110,10 @@ type AllocDir struct {
 	// clientAllocDir is the client agent's root alloc directory. It must
 	// be excluded from chroots and is configured via client.alloc_dir.
 	clientAllocDir string
+
+	// clientMountsDir is the client agent's mounts directory. It must be excluded
+	// from chroots and is configured via client.mounts_dir.
+	clientMountsDir string
 
 	// built is true if Build has successfully run
 	built bool
@@ -144,26 +149,29 @@ type AllocDirFS interface {
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
 // the allocation directory.
-func NewAllocDir(logger hclog.Logger, clientAllocDir, allocID string) *AllocDir {
+func NewAllocDir(logger hclog.Logger, clientAllocDir, clientMountsDir, allocID string) *AllocDir {
 	logger = logger.Named("alloc_dir")
 	allocDir := filepath.Join(clientAllocDir, allocID)
 	shareDir := filepath.Join(allocDir, SharedAllocName)
 
 	return &AllocDir{
-		clientAllocDir: clientAllocDir,
-		AllocDir:       allocDir,
-		SharedDir:      shareDir,
-		TaskDirs:       make(map[string]*TaskDir),
-		logger:         logger,
+		clientAllocDir:  clientAllocDir,
+		clientMountsDir: clientMountsDir,
+		AllocDir:        allocDir,
+		SharedDir:       shareDir,
+		TaskDirs:        make(map[string]*TaskDir),
+		logger:          logger,
 	}
 }
 
 // NewTaskDir creates a new TaskDir and adds it to the AllocDirs TaskDirs map.
-func (d *AllocDir) NewTaskDir(name string) *TaskDir {
+func (d *AllocDir) NewTaskDir(name, user string) *TaskDir {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	td := newTaskDir(d.logger, d.clientAllocDir, d.AllocDir, name)
+	netlog.Yellow("AllocDir.NewTaskDir", "name", name, "user", user)
+
+	td := d.newTaskDir(name, user)
 	d.TaskDirs[name] = td
 	return td
 }

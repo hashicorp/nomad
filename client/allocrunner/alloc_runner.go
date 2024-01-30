@@ -269,12 +269,10 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
 
 	// Create alloc dir
-	//
-	// TODO(shoenig): need to decide what version of alloc dir to use, and the
-	// return value should probably now be an interface
 	ar.allocDir = allocdir.NewAllocDir(
 		ar.logger,
 		config.ClientConfig.AllocDir,
+		config.ClientConfig.MountsDir,
 		alloc.ID,
 	)
 
@@ -308,7 +306,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Alloc:               ar.alloc,
 			ClientConfig:        ar.clientConfig,
 			Task:                task,
-			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
+			TaskDir:             ar.allocDir.NewTaskDir(task.Name, task.User),
 			Logger:              ar.logger,
 			StateDB:             ar.stateDB,
 			StateUpdater:        ar,

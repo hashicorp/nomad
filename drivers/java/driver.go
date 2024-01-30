@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fs"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -104,7 +105,7 @@ var (
 	driverCapabilities = &drivers.Capabilities{
 		SendSignals: false,
 		Exec:        false,
-		FSIsolation: drivers.FSIsolationNone,
+		FSIsolation: fs.IsolationNone,
 		NetIsolationModes: []drivers.NetIsolationMode{
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
@@ -117,7 +118,7 @@ var (
 
 func init() {
 	if runtime.GOOS == "linux" {
-		driverCapabilities.FSIsolation = drivers.FSIsolationChroot
+		driverCapabilities.FSIsolation = fs.IsolationChroot
 		driverCapabilities.MountConfigs = drivers.MountConfigSupportAll
 	}
 }
@@ -455,7 +456,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	executorConfig := &executor.ExecutorConfig{
 		LogFile:     pluginLogFile,
 		LogLevel:    "debug",
-		FSIsolation: driverCapabilities.FSIsolation == drivers.FSIsolationChroot,
+		FSIsolation: driverCapabilities.FSIsolation == fs.IsolationChroot, // TODO: rename to UsesChroot?
 		Compute:     d.nomadConfig.Topology.Compute(),
 	}
 

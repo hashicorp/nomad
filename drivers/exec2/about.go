@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fs"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
@@ -60,7 +61,7 @@ var capabilities = &drivers.Capabilities{
 	AnonymousUsers:      true,
 	SendSignals:         true,
 	Exec:                false,
-	FSIsolation:         drivers.FSIsolationUnveil,
+	FSIsolation:         fs.IsolationUnveil,
 	MustInitiateNetwork: false,
 	MountConfigs:        drivers.MountConfigSupportNone,
 	RemoteTasks:         false,

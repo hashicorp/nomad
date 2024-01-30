@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fs"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -63,7 +64,7 @@ var (
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"fs_isolation": hclspec.NewDefault(
 			hclspec.NewAttr("fs_isolation", "string", false),
-			hclspec.NewLiteral(fmt.Sprintf("%q", drivers.FSIsolationNone)),
+			hclspec.NewLiteral(fmt.Sprintf("%q", fs.IsolationNone)),
 		),
 		"shutdown_periodic_after": hclspec.NewDefault(
 			hclspec.NewAttr("shutdown_periodic_after", "bool", false),
@@ -154,7 +155,7 @@ func NewMockDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugi
 	capabilities := &drivers.Capabilities{
 		SendSignals:  true,
 		Exec:         true,
-		FSIsolation:  drivers.FSIsolationNone,
+		FSIsolation:  fs.IsolationNone,
 		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
@@ -300,7 +301,7 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 
 	isolation := config.FSIsolation
 	if isolation != "" {
-		d.capabilities.FSIsolation = drivers.FSIsolation(isolation)
+		d.capabilities.FSIsolation = fs.Isolation(isolation)
 	}
 
 	return nil
