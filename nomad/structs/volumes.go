@@ -290,7 +290,7 @@ func (v *VolumeMount) Validate() error {
 	}
 
 	if !v.MountPropagationModeIsValid() {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("%w: \"%s\"", errVolMountInvalidPropagationMode, v.PropagationMode))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("%w: %q", errVolMountInvalidPropagationMode, v.PropagationMode))
 	}
 
 	if !v.SELinuxLabelIsValid() {
