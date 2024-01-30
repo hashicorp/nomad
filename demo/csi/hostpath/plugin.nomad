@@ -8,7 +8,7 @@ job "csi-plugin" {
   group "csi" {
 
     task "plugin" {
-      driver = "podman"
+      driver = "docker"
 
       config {
         image = "registry.k8s.io/sig-storage/hostpathplugin:v1.9.0"
