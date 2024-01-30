@@ -282,8 +282,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
   ajaxOptions(url, type, options) {
     let hash = super.ajaxOptions(url, type, options);
-    console.log('+++ ajaxOptions', url, type, options, hash);
-
     // Custom handling for POST requests to append 'index' as a query parameter
     if (type === 'POST' && options.data && options.data.index) {
       let index = encodeURIComponent(options.data.index);
