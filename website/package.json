@@ -4,21 +4,16 @@
   "version": "1.0.0",
   "author": "HashiCorp",
   "engines": {
-    "npm": ">=7.0.0",
-    "node": ">=16.x <=18.x"
+    "npm": ">=9.6.7",
+    "node": ">=18.x <=20.x"
   },
   "devDependencies": {
-    "@hashicorp/platform-cli": "^2.6.0",
+    "@hashicorp/platform-cli": "^2.7.3",
     "@hashicorp/platform-content-conformance": "^0.0.12",
     "dart-linkcheck": "^2.0.15",
-    "husky": "4.3.8",
-    "next": "^14.0.1",
-    "prettier": "2.8.8"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "next-hashicorp precommit"
-    }
+    "husky": "^9.0.7",
+    "next": "14.0.4",
+    "prettier": "^3.2.4"
   },
   "scripts": {
     "build": "./scripts/website-build.sh",
@@ -28,6 +23,7 @@
     "lint": "next-hashicorp lint",
     "start": "./scripts/website-start.sh",
     "linkcheck": "linkcheck https://developer.hashicorp.com/nomad",
-    "content-check": "hc-content --config base-docs"
+    "content-check": "hc-content --config base-docs",
+    "prepare": "cd .. && husky website/.husky"
   }
 }
