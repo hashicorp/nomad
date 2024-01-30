@@ -7,7 +7,7 @@
 
 import Controller, { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { action } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
 const ALL_NAMESPACE_WILDCARD = '*';
@@ -75,6 +75,33 @@ export default class JobsIndexController extends Controller {
       this.previousTokens = [...this.previousTokens, this.cursorAt];
       this.cursorAt = this.nextToken;
     }
+  }
+
+  /**
+   * If job_ids are different from jobs, it means our GET summaries has returned
+   * some new jobs. Instead of jostling the list for the user, give them the option
+   * to refresh the list.
+   */
+  @computed('jobs.[]', 'jobIDs.[]')
+  get jobListChangePending() {
+    const stringifiedJobsEntries = JSON.stringify(this.jobs.map((j) => j.id));
+    const stringifiedJobIDsEntries = JSON.stringify(
+      this.jobIDs.map((j) => JSON.stringify(Object.values(j)))
+    );
+    console.log(
+      'checking jobs list pending',
+      this.jobs,
+      this.jobIDs,
+      stringifiedJobsEntries,
+      stringifiedJobIDsEntries
+    );
+    return stringifiedJobsEntries !== stringifiedJobIDsEntries;
+    // return this.jobs.map((j) => j.id).join() !== this.jobIDs.join();
+    // return true;
+  }
+
+  @action updateJobList() {
+    console.log('updating jobs list');
   }
   // #endregion pagination
 }

@@ -10,6 +10,13 @@
   Model.jobs length: {{this.model.jobs.length}}<br />
   Controller.jobs length: {{this.jobs.length}}<br />
   Job IDs to watch for ({{this.jobIDs.length}}): {{#each this.jobIDs as |id|}}{{id.id}} | {{/each}}<br />
+  {{#if this.jobListChangePending}}
+  <Hds::Alert @type="inline" @title="Job list change pending" as |A|>
+    <A.Title>Changes pending</A.Title>
+    <A.Description>There are changes to yer list of jobs!  Click the button below to update yer list.</A.Description>
+    <A.Button @type="primary" @text="Update job list" @onClick={{action this.updateJobList}} />
+  </Hds::Alert>
+  {{/if}}
   <hr />
   Watchlist:
   <ul>

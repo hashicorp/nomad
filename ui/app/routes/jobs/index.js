@@ -97,18 +97,14 @@ export default class IndexRoute extends Route.extend(
       }));
 
       this.controller.set('jobIDs', jobIDs);
-      // BIG TODO: MAKE ANY jobIDs UPDATES TRIGGER A NEW WATCHJOBS TASK
-      // And also cancel the current watchJobs! It may be watching for a different list than the new jobIDs and wouldn't naturally unblock.
-
-      // this.watchJobs.perform({}, 500);
-      this.watchList.jobsIndexDetailsController.abort();
-      console.log(
-        'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
-        jobIDs
-      );
-      // ^--- TODO: bad assumption!
-      this.watchList.jobsIndexDetailsController = new AbortController();
-      this.watchJobs.perform(jobIDs, 500);
+      // this.watchList.jobsIndexDetailsController.abort();
+      // console.log(
+      //   'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
+      //   jobIDs
+      // );
+      // // ^--- TODO: bad assumption!
+      // this.watchList.jobsIndexDetailsController = new AbortController();
+      // this.watchJobs.perform(jobIDs, 500);
 
       yield timeout(throttle); // Moved to the end of the loop
     }
