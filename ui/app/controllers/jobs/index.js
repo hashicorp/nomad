@@ -18,7 +18,7 @@ export default class JobsIndexController extends Controller {
   @service watchList; // TODO: temp
 
   queryParams = [
-    'nextToken',
+    'cursorAt',
     'pageSize',
     // 'status',
     { qpNamespace: 'namespace' },
@@ -55,9 +55,9 @@ export default class JobsIndexController extends Controller {
   }
 
   // #region pagination
-  @tracked initialNextToken;
-  @tracked nextToken;
-  @tracked previousTokens = [null];
+  @tracked cursorAt;
+  @tracked nextToken; // route sets this when new data is fetched
+  @tracked previousTokens = [];
 
   /**
    *
@@ -68,12 +68,12 @@ export default class JobsIndexController extends Controller {
     // event.preventDefault();
     if (page === 'prev') {
       console.log('prev page');
-      this.nextToken = this.previousTokens.pop();
+      this.cursorAt = this.previousTokens.pop();
       this.previousTokens = [...this.previousTokens];
     } else if (page === 'next') {
-      console.log('next page', this.model.jobs.meta);
-      this.previousTokens = [...this.previousTokens, this.nextToken];
-      this.nextToken = this.model.jobs.meta.nextToken;
+      console.log('next page', this.nextToken);
+      this.previousTokens = [...this.previousTokens, this.cursorAt];
+      this.cursorAt = this.nextToken;
     }
   }
   // #endregion pagination

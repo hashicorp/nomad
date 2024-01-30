@@ -23,13 +23,13 @@ export default class IndexRoute extends Route.extend(
   @service store;
   @service watchList;
 
-  perPage = 1;
+  perPage = 2;
 
   queryParams = {
     qpNamespace: {
       refreshModel: true,
     },
-    nextToken: {
+    cursorAt: {
       refreshModel: true,
     },
   };
@@ -41,6 +41,8 @@ export default class IndexRoute extends Route.extend(
 
   getCurrentParams() {
     let queryParams = this.paramsFor(this.routeName); // Get current query params
+    queryParams.next_token = queryParams.cursorAt;
+    delete queryParams.cursorAt; // TODO: hacky, should be done in the serializer/adapter?
     return { ...this.defaultParams, ...queryParams };
   }
 
@@ -85,6 +87,9 @@ export default class IndexRoute extends Route.extend(
       const newJobs = yield this.jobQuery(currentParams, {
         queryType: 'update_ids',
       });
+      if (newJobs.meta.nextToken) {
+        this.controller.set('nextToken', newJobs.meta.nextToken);
+      }
 
       const jobIDs = newJobs.map((job) => ({
         id: job.plainId,
@@ -101,6 +106,7 @@ export default class IndexRoute extends Route.extend(
         'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
         jobIDs
       );
+      // ^--- TODO: bad assumption!
       this.watchList.jobsIndexDetailsController = new AbortController();
       this.watchJobs.perform(jobIDs, 500);
 
@@ -113,11 +119,6 @@ export default class IndexRoute extends Route.extend(
       // let jobIDs = this.controller.jobIDs;
       if (jobIDs && jobIDs.length > 0) {
         let jobDetails = yield this.jobAllocsQuery(jobIDs);
-        console.log(
-          'jobDetails fetched, about to set on controller',
-          jobDetails,
-          this.controller
-        );
         this.controller.set('jobs', jobDetails);
       }
       // TODO: might need an else condition here for if there are no jobIDs,
@@ -139,6 +140,7 @@ export default class IndexRoute extends Route.extend(
   setupController(controller, model) {
     super.setupController(controller, model);
     controller.set('jobs', model.jobs);
+    controller.set('nextToken', model.jobs.meta.nextToken);
     controller.set(
       'jobIDs',
       model.jobs.map((job) => {
@@ -161,10 +163,11 @@ export default class IndexRoute extends Route.extend(
   }
 
   @action
-  willTransition() {
-    console.log('willtra');
-    this.watchList.jobsIndexDetailsController.abort();
-    this.watchList.jobsIndexIDsController.abort();
+  willTransition(transition) {
+    if (transition.intent.name.startsWith(this.routeName)) {
+      this.watchList.jobsIndexDetailsController.abort();
+      this.watchList.jobsIndexIDsController.abort();
+    }
   }
 
   @watchAll('namespace') watchNamespaces;
