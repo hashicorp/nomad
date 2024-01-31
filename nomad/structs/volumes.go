@@ -294,7 +294,7 @@ func (v *VolumeMount) Validate() error {
 	}
 
 	if !v.SELinuxLabelIsValid() {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("%w: %q"", errVolMountInvalidSELinuxLabel, v.SELinuxLabel))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("%w: %q", errVolMountInvalidSELinuxLabel, v.SELinuxLabel))
 	}
 
 	return mErr.ErrorOrNil()
