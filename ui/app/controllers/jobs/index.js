@@ -9,6 +9,8 @@ import Controller, { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { restartableTask } from 'ember-concurrency';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 const ALL_NAMESPACE_WILDCARD = '*';
 
@@ -77,31 +79,56 @@ export default class JobsIndexController extends Controller {
     }
   }
 
-  /**
-   * If job_ids are different from jobs, it means our GET summaries has returned
-   * some new jobs. Instead of jostling the list for the user, give them the option
-   * to refresh the list.
-   */
-  @computed('jobs.[]', 'jobIDs.[]')
-  get jobListChangePending() {
-    const stringifiedJobsEntries = JSON.stringify(this.jobs.map((j) => j.id));
-    const stringifiedJobIDsEntries = JSON.stringify(
-      this.jobIDs.map((j) => JSON.stringify(Object.values(j)))
+  // /**
+  //  * If job_ids are different from jobs, it means our GET summaries has returned
+  //  * some new jobs. Instead of jostling the list for the user, give them the option
+  //  * to refresh the list.
+  //  */
+  // @computed('jobs.[]', 'jobIDs.[]')
+  // get jobListChangePending() {
+  //   const stringifiedJobsEntries = JSON.stringify(this.jobs.map((j) => j.id));
+  //   const stringifiedJobIDsEntries = JSON.stringify(
+  //     this.jobIDs.map((j) => JSON.stringify(Object.values(j)))
+  //   );
+  //   console.log(
+  //     'checking jobs list pending',
+  //     this.jobs,
+  //     this.jobIDs,
+  //     stringifiedJobsEntries,
+  //     stringifiedJobIDsEntries
+  //   );
+  //   return stringifiedJobsEntries !== stringifiedJobIDsEntries;
+  //   // return this.jobs.map((j) => j.id).join() !== this.jobIDs.join();
+  //   // return true;
+  // }
+
+  @tracked pendingJobs = null;
+  @tracked pendingJobIDs = null;
+
+  get pendingJobIDDiff() {
+    console.log('pending job IDs', this.pendingJobIDs, this.jobIDs);
+    return (
+      this.pendingJobIDs &&
+      JSON.stringify(
+        this.pendingJobIDs.map((j) => `${j.namespace}.${j.id}`)
+      ) !== JSON.stringify(this.jobIDs.map((j) => `${j.namespace}.${j.id}`))
     );
-    console.log(
-      'checking jobs list pending',
-      this.jobs,
-      this.jobIDs,
-      stringifiedJobsEntries,
-      stringifiedJobIDsEntries
-    );
-    return stringifiedJobsEntries !== stringifiedJobIDsEntries;
-    // return this.jobs.map((j) => j.id).join() !== this.jobIDs.join();
-    // return true;
   }
 
-  @action updateJobList() {
+  @restartableTask *updateJobList() {
     console.log('updating jobs list');
+    this.jobs = this.pendingJobs;
+    this.pendingJobs = null;
+    this.jobIDs = this.pendingJobIDs;
+    this.pendingJobIDs = null;
+    // TODO: need to re-kick-off the watchJobs task with updated jobIDs
   }
+
+  @localStorageProperty('nomadLiveUpdateJobsIndex', false) liveUpdatesEnabled;
+
+  // @action updateJobList() {
+  //   console.log('updating jobs list');
+  //   this.jobs = this.pendingJobs;
+  // }
   // #endregion pagination
 }

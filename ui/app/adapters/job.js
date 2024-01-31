@@ -248,6 +248,13 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       signal,
       data: query,
       skipURLModification: true,
+    }).then((payload) => {
+      console.log('thenner', payload, query);
+      // If there was a request body, append it to my payload
+      if (query.jobs) {
+        payload._requestBody = query;
+      }
+      return payload;
     });
   }
 

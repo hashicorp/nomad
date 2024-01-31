@@ -35,6 +35,36 @@
 
     <div class="status-notifications">
 
+  <Hds::Alert @type="inline" @title="Local Storage Settings" as |A|>
+    <A.Title>User Settings</A.Title>
+    <A.Description>These settings will be saved to your browser settings via Local Storage.</A.Description>
+    <A.Generic>
+      <Hds::Separator/>
+      <Hds::Form::Toggle::Group as |G|>
+        <G.Legend>UI</G.Legend>
+        <G.Toggle::Field
+          name="word-wrap"
+          @id="word-wrap"
+          checked={{this.wordWrap}}
+          {{on "change" (action (mut this.wordWrap) (not this.wordWrap))}}
+        as |F|>
+          <F.Label>Word Wrap</F.Label>
+          <F.HelperText>Wrap lines of text in logs and exec terminals in the UI</F.HelperText>
+        </G.Toggle::Field>
+        <G.Toggle::Field
+          name="jostle"
+          @id="jostle"
+          checked={{this.liveUpdateJobsIndex}}
+          {{on "change" (action (mut this.liveUpdateJobsIndex) (not this.liveUpdateJobsIndex))}}
+        as |F|>
+          <F.Label>Live Updates to <LinkTo @route="jobs.index">Jobs Index</LinkTo></F.Label>
+          <F.HelperText>When enabled, new or removed jobs will pop into and out of view on your jobs page. When disabled, you will be notified that changes are pending.</F.HelperText>
+        </G.Toggle::Field>
+      </Hds::Form::Toggle::Group>
+    </A.Generic>
+  </Hds::Alert>
+
+
       {{#if (eq this.signInStatus "failure")}}
         <Hds::Alert data-test-token-error @type="inline" @color="critical"
           @onDismiss={{action (mut this.signInStatus) null}}
