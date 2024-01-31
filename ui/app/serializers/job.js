@@ -61,7 +61,52 @@ export default class JobSerializer extends ApplicationSerializer {
   }
 
   normalizeQueryResponse(store, primaryModelClass, payload, id, requestType) {
-    // const jobs = Object.values(payload.Jobs);
+    // What jobs did we ask for?
+    console.log('normalizeQueryResponse', payload, id, requestType);
+    if (payload._requestBody?.jobs) {
+      let requestedJobIDs = payload._requestBody.jobs;
+      // If they dont match the jobIDs we got back, we need to create an empty one
+      // for the ones we didnt get back.
+      payload.forEach((job) => {
+        job.AssumeGC = false;
+      });
+      let missingJobIDs = requestedJobIDs.filter(
+        (j) =>
+          !payload.find((p) => p.ID === j.id && p.Namespace === j.namespace)
+      );
+      missingJobIDs.forEach((job) => {
+        payload.push({
+          ID: job.id,
+          Namespace: job.namespace,
+          Allocs: [],
+          AssumeGC: true,
+        });
+
+        job.relationships = {
+          allocations: {
+            data: [],
+          },
+        };
+      });
+      console.log('missingJobIDs', missingJobIDs);
+
+      // If any were missing, sort them in the order they were requested
+      if (missingJobIDs.length > 0) {
+        payload.sort((a, b) => {
+          return (
+            requestedJobIDs.findIndex(
+              (j) => j.id === a.ID && j.namespace === a.Namespace
+            ) -
+            requestedJobIDs.findIndex(
+              (j) => j.id === b.ID && j.namespace === b.Namespace
+            )
+          );
+        });
+      }
+
+      delete payload._requestBody;
+    }
+
     const jobs = payload;
     // Signal that it's a query response at individual normalization level for allocation placement
     jobs.forEach((job) => {
