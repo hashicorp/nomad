@@ -14,10 +14,11 @@ import (
 
 type JobStatusMap map[string]string
 type JobSchedulingRules struct {
-	END_AT   string
-	START_AT string
-	SCHEDULE string
-	ALLOC_ID string
+	END_AT            string
+	START_AT          string
+	SCHEDULE          string
+	ALLOC_ID          string
+	CURRENTLY_RUNNING bool
 }
 type NodeSchedulingRules map[string]JobSchedulingRules
 
@@ -40,6 +41,9 @@ func main() {
 	} else if initialArg == "block-local" {
 		fmt.Println("Running as: local blocker")
 		runAsLocalBlocker(restOfArgs)
+	} else if initialArg == "bound" {
+		fmt.Println("Running as: bound sidecar")
+		runAsBoundSidecar(restOfArgs)
 	} else {
 		fmt.Println("Running as: watcher")
 		runAsWatcher()
@@ -118,6 +122,33 @@ func runAsLocalBlocker(argsList []string) {
 	}
 
 	os.Exit(0)
+}
+
+func runAsBoundSidecar(argsList []string) {
+	startAtString := argsList[0]
+	endAtString := argsList[1]
+
+	for {
+		// TODO: This does extra work in the loop!
+		outOfRange, timeUntilStart, _, err := parseTimes(startAtString, endAtString)
+		if err != nil {
+			fmt.Println("Error parsing times:", err)
+			os.Exit(1)
+		}
+
+		if !(*outOfRange) {
+			fmt.Println("Allowing task to run as it is in the schedule")
+			fmt.Println("Killing in:", timeUntilStart.String())
+			fmt.Println("=====")
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		fmt.Println("Reached end of time range. Killing task.")
+		break
+	}
+
+	os.Exit(1)
 }
 
 func runAsWatcher() {
@@ -286,12 +317,13 @@ func runAsSystemWatcher() {
 		for range ticker.C {
 			handleSchedule(client, nodeSchedulingRules)
 			updatedScheduleRules(client, nodeId, nodeSchedulingRules)
+			time.Sleep(3 * time.Second)
 		}
 	}()
 
 	for {
-		fmt.Println("Watcher alive")
-		time.Sleep(10 * time.Second)
+		fmt.Println("Watching jobs...")
+		time.Sleep(3 * time.Second)
 	}
 }
 
@@ -317,28 +349,31 @@ func handleSchedule(client *api.Client, schedulesMap NodeSchedulingRules) {
 		}
 
 		if *outOfRange {
-			// if *timeUntilStart < 0 {
-			// 	fmt.Println("Main task should be stopped as it is before start time")
-			// }
-			// if *timeUntilEnd < 0 {
-			// 	fmt.Println("Main task should be stopped as it after end time")
-			// }
-			_, _, err := client.Jobs().Deregister(jobId, false, &api.WriteOptions{})
-			if err != nil {
-				fmt.Println("Error deregistering job:", err)
+			fmt.Println("Job: ", jobId, " is out of scheduled range.")
+			fmt.Println("jobRules.START_AT ", jobRules.START_AT)
+			fmt.Println("jobRules.END_AT ", jobRules.END_AT)
+
+			if jobRules.CURRENTLY_RUNNING {
+				fmt.Println("Deregistering job")
+				_, _, err := client.Jobs().Deregister(jobId, false, &api.WriteOptions{})
+				if err != nil {
+					fmt.Println("Error deregistering job:", err)
+				}
+
+				// fmt.Println("PAUSING JOB...")
+				// q := &api.QueryOptions{}
+				// alloc, _, err := client.Allocations().Info(jobRules.ALLOC_ID, q)
+				// if err != nil {
+				// 	fmt.Println("Error getting alloc info to signal:", err)
+				// }
+
+				// err = client.Allocations().Signal(alloc, q, "", "SIGSTOP")
+				// if err != nil {
+				// 	fmt.Println("Error signaling alloc:", err)
+				// }
+			} else {
+				fmt.Println("Job is not running. Noop.")
 			}
-
-			// fmt.Println("PAUSING JOB...")
-			// q := &api.QueryOptions{}
-			// alloc, _, err := client.Allocations().Info(jobRules.ALLOC_ID, q)
-			// if err != nil {
-			// 	fmt.Println("Error getting alloc info to signal:", err)
-			// }
-
-			// err = client.Allocations().Signal(alloc, q, "", "SIGSTOP")
-			// if err != nil {
-			// 	fmt.Println("Error signaling alloc:", err)
-			// }
 		} else {
 			fmt.Println("Job " + jobId + " is running and all is well")
 
@@ -368,9 +403,8 @@ func updatedScheduleRules(client *api.Client, nodeId string, schedulesMap NodeSc
 	if err != nil {
 		fmt.Printf("nomad-watcher: error retrieving allocations: %v", err)
 	}
+
 	for _, alloc := range allocs {
-		fmt.Println("Alloc Name:", alloc.Name)
-		fmt.Println("Job for Alloc:", alloc.JobID)
 		if alloc.DesiredStatus == "run" {
 			fmt.Println("Alloc is running")
 			jobNameMap[alloc.JobID] = alloc.ID
@@ -386,10 +420,11 @@ func updatedScheduleRules(client *api.Client, nodeId string, schedulesMap NodeSc
 
 		if job.Meta["END_AT"] != "" {
 			jobSchedule := JobSchedulingRules{
-				END_AT:   job.Meta["END_AT"],
-				START_AT: job.Meta["START_AT"],
-				SCHEDULE: job.Meta["SCHEDULE"],
-				ALLOC_ID: allocId,
+				END_AT:            job.Meta["END_AT"],
+				START_AT:          job.Meta["START_AT"],
+				SCHEDULE:          job.Meta["SCHEDULE"],
+				ALLOC_ID:          allocId,
+				CURRENTLY_RUNNING: *job.Status == "running",
 			}
 
 			schedulesMap[*job.ID] = jobSchedule

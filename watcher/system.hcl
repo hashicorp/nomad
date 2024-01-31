@@ -1,6 +1,6 @@
 job "schedule-watcher" {
     meta {
-        Tick = "4"
+        Tick = "6"
     }
 
     type = "system"

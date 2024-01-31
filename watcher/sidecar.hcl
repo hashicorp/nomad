@@ -1,7 +1,7 @@
 job "sidecar-trader" {
     meta {
-        START_AT = "11:36:50"
-        END_AT = "11:37:10"
+        START_AT = "11:40:40"
+        END_AT = "11:40:55"
     }
 
     group "g" {
