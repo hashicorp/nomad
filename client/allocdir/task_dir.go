@@ -75,10 +75,6 @@ type TaskDir struct {
 	// client.alloc_dir and client.mounts_dir recursively.
 	skip *set.Set[string]
 
-	// username is the task.User value associated with the task that will be
-	// making use of this TaskDir
-	username string
-
 	// logger specific to this task
 	logger hclog.Logger
 }
@@ -87,7 +83,7 @@ type TaskDir struct {
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func (d *AllocDir) newTaskDir(taskName, username string) *TaskDir {
+func (d *AllocDir) newTaskDir(taskName string) *TaskDir {
 	taskDir := filepath.Join(d.AllocDir, taskName)
 	taskUnique := filepath.Base(d.AllocDir) + "-" + taskName
 
@@ -103,7 +99,6 @@ func (d *AllocDir) newTaskDir(taskName, username string) *TaskDir {
 		MountsTaskDir:  filepath.Join(d.clientMountsDir, taskUnique, "task"),
 		MountsAllocDir: filepath.Join(d.clientMountsDir, taskUnique, "alloc"),
 		skip:           set.From[string]([]string{d.clientAllocDir, d.clientMountsDir}),
-		username:       username,
 		logger:         d.logger.Named("task_dir").With("task_name", taskName),
 	}
 }
@@ -111,7 +106,7 @@ func (d *AllocDir) newTaskDir(taskName, username string) *TaskDir {
 // Build default directories and permissions in a task directory. chrootCreated
 // allows skipping chroot creation if the caller knows it has already been
 // done. client.alloc_dir will be skipped.
-func (t *TaskDir) Build(fsi fs.Isolation, chroot map[string]string) error {
+func (t *TaskDir) Build(fsi fs.Isolation, chroot map[string]string, username string) error {
 
 	if err := os.MkdirAll(t.Dir, 0777); err != nil {
 		return err
@@ -187,7 +182,7 @@ func (t *TaskDir) Build(fsi fs.Isolation, chroot map[string]string) error {
 
 	// Only bind mount the task alloc/task dirs to the client.mounts_dir/<task>
 	if fsi == fs.IsolationUnveil {
-		uid, gid, _, err := anonymous.LookupUser(t.username)
+		uid, gid, _, err := anonymous.LookupUser(username)
 		if err != nil {
 			return fmt.Errorf("Failed to lookup user: %v", err)
 		}

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/shoenig/netlog"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -62,11 +63,14 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 		chroot = cc.ChrootEnv
 	}
 
+	user := req.Task.User
+	netlog.Yellow("taskDirHook.Prestart", "user", user)
+
 	// Emit the event that we are going to be building the task directory
 	h.runner.EmitEvent(structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir))
 
 	// Build the task directory structure
-	err := h.runner.taskDir.Build(fsi, chroot)
+	err := h.runner.taskDir.Build(fsi, chroot, user)
 	if err != nil {
 		return err
 	}

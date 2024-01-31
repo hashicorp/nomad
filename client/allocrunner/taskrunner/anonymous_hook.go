@@ -23,17 +23,19 @@ const (
 type anonymousHook struct {
 	shutdownCtx context.Context
 	logger      hclog.Logger
+	usable      bool
 
 	lock *sync.Mutex
 	pool anonymous.Pool
 }
 
-func newAnonymousHook(ctx context.Context, logger hclog.Logger, pool anonymous.Pool) *anonymousHook {
+func newAnonymousHook(ctx context.Context, usable bool, logger hclog.Logger, pool anonymous.Pool) *anonymousHook {
 	return &anonymousHook{
 		shutdownCtx: ctx,
 		logger:      logger.Named(anonymousHookName),
 		lock:        new(sync.Mutex),
 		pool:        pool,
+		usable:      usable,
 	}
 }
 
@@ -43,6 +45,11 @@ func (*anonymousHook) Name() string {
 
 // Prestart runs on both initial start and on restart.
 func (h *anonymousHook) Prestart(_ context.Context, request *interfaces.TaskPrestartRequest, response *interfaces.TaskPrestartResponse) error {
+	// If the driver does not support the anonymous user capability, do nothing.
+	if !h.usable {
+		return nil
+	}
+
 	// If the task has a service user set, do nothing.
 	if request.Task.User != "" {
 		return nil

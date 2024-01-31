@@ -306,7 +306,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Alloc:               ar.alloc,
 			ClientConfig:        ar.clientConfig,
 			Task:                task,
-			TaskDir:             ar.allocDir.NewTaskDir(task.Name, task.User),
+			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
 			Logger:              ar.logger,
 			StateDB:             ar.stateDB,
 			StateUpdater:        ar,

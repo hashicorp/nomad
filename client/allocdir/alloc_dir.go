@@ -78,13 +78,10 @@ var (
 )
 
 // Interface is implemented by AllocDir.
-//
-// TODO(shoenig) soon to be implemented by AllocDir2 in support of the exec2
-// driver and perhaps other drivers with landlock or unveil capabilities.
 type Interface interface {
 	AllocDirFS
 
-	NewTaskDir(string, string) *TaskDir
+	NewTaskDir(string) *TaskDir
 	AllocDirPath() string
 	ShareDirPath() string
 	GetTaskDir(string) *TaskDir
@@ -165,15 +162,15 @@ func NewAllocDir(logger hclog.Logger, clientAllocDir, clientMountsDir, allocID s
 }
 
 // NewTaskDir creates a new TaskDir and adds it to the AllocDirs TaskDirs map.
-func (d *AllocDir) NewTaskDir(name, user string) *TaskDir {
+func (d *AllocDir) NewTaskDir(name string) *TaskDir {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	td := d.newTaskDir(name, user)
+	td := d.newTaskDir(name)
 
 	netlog.Cyan(
 		"AllocDir.NewTaskDir",
-		"name", name, "user", user,
+		"name", name,
 		"AllocDir", td.AllocDir,
 		"Dir", td.Dir,
 		"MountsAllocDir", td.MountsAllocDir,
