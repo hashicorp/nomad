@@ -15,6 +15,7 @@ import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import { task, restartableTask, timeout } from 'ember-concurrency';
 import { action } from '@ember/object';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 export default class IndexRoute extends Route.extend(
   WithWatchers,
@@ -23,7 +24,7 @@ export default class IndexRoute extends Route.extend(
   @service store;
   @service watchList;
 
-  perPage = 2;
+  perPage = 3;
 
   queryParams = {
     qpNamespace: {
@@ -81,6 +82,8 @@ export default class IndexRoute extends Route.extend(
       .catch(notifyForbidden(this));
   }
 
+  @localStorageProperty('nomadLiveUpdateJobsIndex', false) liveUpdatesEnabled;
+
   @restartableTask *watchJobIDs(params, throttle = 2000) {
     while (true) {
       let currentParams = this.getCurrentParams();
@@ -96,7 +99,34 @@ export default class IndexRoute extends Route.extend(
         namespace: job.belongsTo('namespace').id(),
       }));
 
-      this.controller.set('jobIDs', jobIDs);
+      const okayToJostle = this.controller.get('liveUpdatesEnabled');
+      console.log('okay to jostle?', okayToJostle);
+      if (okayToJostle) {
+        // this.controller.set('jobs', newJobs);
+        this.controller.set('jobIDs', jobIDs);
+        this.watchList.jobsIndexDetailsController.abort();
+        console.log(
+          'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
+          jobIDs
+        );
+        this.watchList.jobsIndexDetailsController = new AbortController();
+        this.watchJobs.perform(jobIDs, 500);
+      } else {
+        this.controller.set('pendingJobIDs', jobIDs);
+        this.controller.set('pendingJobs', newJobs);
+      }
+
+      // const stringifiedJobsEntries = JSON.stringify(jobDetails.map(j => j.id));
+      // const stringifiedJobIDsEntries = JSON.stringify(jobIDs.map(j => JSON.stringify(Object.values(j))));
+      // console.log('checking jobs list pending', this.jobs, this.jobIDs, stringifiedJobsEntries, stringifiedJobIDsEntries);
+      // if (stringifiedJobsEntries !== stringifiedJobIDsEntries) {
+      //   this.controller.set('jobListChangePending', true);
+      //   this.controller.set('pendingJobs', jobDetails);
+      // } else {
+      //   this.controller.set('jobListChangePending', false);
+      //   this.controller.set('jobs', jobDetails);
+      // }
+
       // this.watchList.jobsIndexDetailsController.abort();
       // console.log(
       //   'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
@@ -115,7 +145,20 @@ export default class IndexRoute extends Route.extend(
       // let jobIDs = this.controller.jobIDs;
       if (jobIDs && jobIDs.length > 0) {
         let jobDetails = yield this.jobAllocsQuery(jobIDs);
+
+        // // Just a sec: what if the user doesnt want their list jostled?
+        // console.log('xxx jobIds and jobDetails', jobIDs, jobDetails);
+
+        // const stringifiedJobsEntries = JSON.stringify(jobDetails.map(j => j.id));
+        // const stringifiedJobIDsEntries = JSON.stringify(jobIDs.map(j => JSON.stringify(Object.values(j))));
+        // console.log('checking jobs list pending', this.jobs, this.jobIDs, stringifiedJobsEntries, stringifiedJobIDsEntries);
+        // if (stringifiedJobsEntries !== stringifiedJobIDsEntries) {
+        //   this.controller.set('jobListChangePending', true);
+        //   this.controller.set('pendingJobs', jobDetails);
+        // } else {
+        //   this.controller.set('jobListChangePending', false);
         this.controller.set('jobs', jobDetails);
+        // }
       }
       // TODO: might need an else condition here for if there are no jobIDs,
       // which would indicate no jobs, but the updater above might not fire.

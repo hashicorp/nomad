@@ -5,26 +5,54 @@
 
 {{page-title "Jobs"}}
 <section class="section">
-  Next token is {{this.nextToken}}<br />
-  Previous tokens ({{this.previousTokens.length}}) are {{this.previousTokens}}<br />
-  Model.jobs length: {{this.model.jobs.length}}<br />
-  Controller.jobs length: {{this.jobs.length}}<br />
-  Job IDs to watch for ({{this.jobIDs.length}}): {{#each this.jobIDs as |id|}}{{id.id}} | {{/each}}<br />
-  {{#if this.jobListChangePending}}
-  <Hds::Alert @type="inline" @title="Job list change pending" as |A|>
+    <Hds::PageHeader as |PH|>
+      <PH.Title>
+        Jobs <em>(soft J, like "yobs")</em>
+      </PH.Title>
+      <PH.Actions>
+          <Hds::ButtonSet style="white-space: nowrap;">
+
+<Hds::Form::TextInput::Base
+  @type="search"
+  @value=""
+  aria-label="Job Search"
+  placeholder="eg. Hello World"
+  @icon="search"
+/>
+
+{{!-- <Hds::Form::TextInput::Field @type="search" placeholder="Job name" @width="200px" as |F|>
+  <F.Label>Search Jobs:</F.Label>
+</Hds::Form::TextInput::Field>
+ --}}
+  {{#if this.pendingJobIDDiff}}
+
+          <Hds::Button
+            @size="medium"
+            @text="Updates Pending"
+            @color="primary"
+            @icon="sync"
+            {{on "click" (perform this.updateJobList)}}
+          />
+
+  {{!-- <Hds::Alert @type="inline" @title="Job list change pending" as |A|>
     <A.Title>Changes pending</A.Title>
     <A.Description>There are changes to yer list of jobs!  Click the button below to update yer list.</A.Description>
-    <A.Button @type="primary" @text="Update job list" @onClick={{action this.updateJobList}} />
-  </Hds::Alert>
+    <A.Button @type="primary" @text="Update job list" {{on "click" (perform this.updateJobList)}} />
+  </Hds::Alert> --}}
   {{/if}}
-  <hr />
-  Watchlist:
-  <ul>
-  {{#each-in this.watchList.list as |key value|}}
-    <li><strong>{{key}}:</strong> {{value}}</li>
-  {{/each-in}}
-  </ul>
-  <hr />
+
+        {{!-- {{#unless this.tokenRecord.isExpired}}
+          <Hds::Button
+            data-test-token-clear
+            @size="medium"
+            @text="Sign Out"
+            @color="critical"
+            {{on "click" this.clearTokenProperties}}
+          />
+        {{/unless}} --}}
+</Hds::ButtonSet>
+      </PH.Actions>
+    </Hds::PageHeader>
     <Hds::Table
       @model={{this.jobs}}
       @columns={{this.tableColumns}}
@@ -37,11 +65,15 @@
             enumerated=true
             action=(action "gotoJob" B.data)
           }}
+          class="{{if B.data.assumeGC "assume-gc"}}"
         >
           {{!-- {{#each this.tableColumns as |column|}}
             <B.Td>{{get B.data (lowercase column.label)}}</B.Td>
           {{/each}} --}}
           <B.Td>
+            {{#if B.data.assumeGC}}
+              {{B.data.name}}
+            {{else}}
             <LinkTo
               @route="jobs.job.index"
               @model={{B.data.idWithNamespace}}
@@ -55,6 +87,7 @@
                 </span>
               {{/if}}
             </LinkTo>
+            {{/if}}
           </B.Td>
           {{#if this.system.shouldShowNamespaces}}
             <B.Td>{{B.data.namespace}}</B.Td>
@@ -79,21 +112,23 @@
             {{B.data.groupCountSum}} desired
             <hr /> --}}
             <div class="job-status-panel">
-              {{#if B.data.childStatuses}}
-              {{B.data.childStatuses.length}} child jobs;<br />
-                {{#each-in B.data.childStatusBreakdown as |status count|}}
-                  {{count}} {{status}}<br />
-                {{/each-in}}
-              {{else}}
-                <JobStatus::AllocationStatusRow
-                  @allocBlocks={{B.data.allocBlocks}}
-                  @steady={{true}}
-                  @compact={{true}}
-                  {{!-- @runningAllocs={{B.data.runningAllocs}} --}}
-                  @runningAllocs={{B.data.allocBlocks.running.healthy.nonCanary.length}}
-                  @groupCountSum={{B.data.groupCountSum}}
-                />
-              {{/if}}
+              {{#unless B.data.assumeGC}}
+                {{#if B.data.childStatuses}}
+                  {{B.data.childStatuses.length}} child jobs;<br />
+                  {{#each-in B.data.childStatusBreakdown as |status count|}}
+                    {{count}} {{status}}<br />
+                  {{/each-in}}
+                {{else}}
+                  <JobStatus::AllocationStatusRow
+                    @allocBlocks={{B.data.allocBlocks}}
+                    @steady={{true}}
+                    @compact={{true}}
+                    {{!-- @runningAllocs={{B.data.runningAllocs}} --}}
+                    @runningAllocs={{B.data.allocBlocks.running.healthy.nonCanary.length}}
+                    @groupCountSum={{B.data.groupCountSum}}
+                  />
+                {{/if}}
+              {{/unless}}
             </div>
           </B.Td>
         </B.Tr>
@@ -105,5 +140,32 @@
       @isDisabledPrev={{eq this.previousTokens.length 0}}
       @isDisabledNext={{not this.model.jobs.meta.nextToken}}
     />
+
+  <hr />
+  Next token is {{this.nextToken}}<br />
+  Previous tokens ({{this.previousTokens.length}}) are {{this.previousTokens}}<br />
+  Model.jobs length: {{this.model.jobs.length}}<br />
+  Controller.jobs length: {{this.jobs.length}}<br />
+  Job IDs to watch for ({{this.jobIDs.length}}): {{#each this.jobIDs as |id|}}{{id.id}} | {{/each}}<br />
+  Pending Job IDs to watch for ({{this.pendingJobIDs.length}}): {{#each this.pendingJobIDs as |id|}}{{id.id}} | {{/each}}<br />
+  <Hds::Form::Toggle::Field
+    name="jostle"
+    @id="jostle"
+    checked={{this.liveUpdatesEnabled}}
+    {{on "change" (action (mut this.liveUpdatesEnabled) (not this.liveUpdatesEnabled))}}
+    as |F|>
+    <F.Label>Live update new/removed jobs?</F.Label>
+  </Hds::Form::Toggle::Field>
+  {{this.liveUpdatesEnabled}}<br />
+
+  <hr />
+  Watchlist:
+  <ul>
+  {{#each-in this.watchList.list as |key value|}}
+    <li><strong>{{key}}:</strong> {{value}}</li>
+  {{/each-in}}
+  </ul>
+  <hr />
+
 
 </section>
