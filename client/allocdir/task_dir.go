@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/anonymous"
 	"github.com/hashicorp/nomad/plugins/drivers/fs"
-	"github.com/shoenig/netlog"
 )
 
 // TaskDir contains all of the paths relevant to a task. All paths are on the
@@ -193,11 +192,18 @@ func (t *TaskDir) Build(fsi fs.Isolation, chroot map[string]string) error {
 			return fmt.Errorf("Failed to lookup user: %v", err)
 		}
 
-		// YOU ARE HERE
-		// run again, see what happens
+		// create the task unique directory under the client mounts path
+		parent := filepath.Dir(t.MountsAllocDir)
+		if err = os.MkdirAll(parent, 0o710); err != nil {
+			return fmt.Errorf("Failed to create task mount directory: %v", err)
+		}
+		if err = os.Chown(parent, uid, gid); err != nil {
+			return fmt.Errorf("Failed to chown task mount directory: %v", err)
+		}
+
+		// create the task and alloc mount points
 		mountDir(t.AllocDir, t.MountsAllocDir, uid, gid, 0o710)
 		mountDir(t.Dir, t.MountsTaskDir, uid, gid, 0o710)
-		netlog.Yellow("FS", "uid", uid, "user", t.username)
 	}
 
 	return nil

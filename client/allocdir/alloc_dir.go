@@ -169,9 +169,23 @@ func (d *AllocDir) NewTaskDir(name, user string) *TaskDir {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	netlog.Yellow("AllocDir.NewTaskDir", "name", name, "user", user)
-
 	td := d.newTaskDir(name, user)
+
+	netlog.Cyan(
+		"AllocDir.NewTaskDir",
+		"name", name, "user", user,
+		"AllocDir", td.AllocDir,
+		"Dir", td.Dir,
+		"MountsAllocDir", td.MountsAllocDir,
+		"MountsTaskDir", td.MountsTaskDir,
+		"SharedAllocDir", td.SharedAllocDir,
+		"SharedTaskDir", td.SharedTaskDir,
+		"LocalDir", td.LocalDir,
+		"LogDir", td.LogDir,
+		"SecretsDir", td.SecretsDir,
+		"PrivateDir", td.PrivateDir,
+	)
+
 	d.TaskDirs[name] = td
 	return td
 }
@@ -332,7 +346,7 @@ func (d *AllocDir) UnmountAll() error {
 
 	var mErr multierror.Error
 	for _, dir := range d.TaskDirs {
-		// Check if the directory has the shared alloc mounted.
+
 		if pathExists(dir.SharedTaskDir) {
 			if err := unlinkDir(dir.SharedTaskDir); err != nil {
 				mErr.Errors = append(mErr.Errors,
@@ -354,6 +368,18 @@ func (d *AllocDir) UnmountAll() error {
 			if err := removeSecretDir(dir.PrivateDir); err != nil {
 				mErr.Errors = append(mErr.Errors,
 					fmt.Errorf("failed to remove the private dir %q: %v", dir.PrivateDir, err))
+			}
+		}
+
+		if pathExists(dir.MountsAllocDir) {
+			if err := unlinkDir(dir.MountsAllocDir); err != nil {
+				netlog.Purple("AllocDir.UnmountAll", "MountsAllocDir", err)
+			}
+		}
+
+		if pathExists(dir.MountsTaskDir) {
+			if err := unlinkDir(dir.MountsTaskDir); err != nil {
+				netlog.Purple("AllocDir.UnmountAll", "MountsTaskDir", err)
 			}
 		}
 

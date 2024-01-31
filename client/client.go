@@ -692,7 +692,7 @@ func (c *Client) init() error {
 	// Ensure the mounts dir exists if we have one. If we do not (i.e. dev mode),
 	// we will double up on the tmpdir below made for alloc/
 	if conf.MountsDir != "" {
-		if err := os.MkdirAll(conf.MountsDir, 0755); err != nil {
+		if err := os.MkdirAll(conf.MountsDir, 0755); err != nil { // TODO: can be 0711?
 			return fmt.Errorf("failed creating mounts dir: %w", err)
 		}
 	}

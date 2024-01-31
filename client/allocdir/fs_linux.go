@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/shoenig/netlog"
 	"golang.org/x/sys/unix"
 )
 
@@ -33,6 +34,8 @@ func linkDir(src, dst string) error {
 
 // mountDir bind mounts old to next using the given file mode.
 func mountDir(old, next string, uid, gid int, mode os.FileMode) error {
+	netlog.Yellow("mountDir", "next", next, "mode", fmt.Sprintf("%o", mode))
+
 	if err := os.MkdirAll(next, mode); err != nil {
 		return err
 	}

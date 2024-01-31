@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 
 	log "github.com/hashicorp/go-hclog"
@@ -88,8 +89,11 @@ func setEnvvars(envBuilder *taskenv.Builder, fsi fs.Isolation, taskDir *allocdir
 
 	// Set driver-specific environment variables
 	switch fsi {
-	// TODO: drivers.FSIsolationUnveil
-	// not quite host paths; we want the hardlinks
+	case fs.IsolationUnveil:
+		// Use mount paths
+		envBuilder.SetAllocDir(filepath.Join(taskDir.MountsAllocDir, "alloc"))
+		envBuilder.SetTaskLocalDir(filepath.Join(taskDir.MountsTaskDir, "local"))
+		// TODO: secrets dir
 
 	case fs.IsolationNone:
 		// Use host paths
