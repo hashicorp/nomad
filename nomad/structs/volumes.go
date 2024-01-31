@@ -282,19 +282,19 @@ func (v *VolumeMount) Copy() *VolumeMount {
 }
 
 func (v *VolumeMount) Validate() error {
-	var mErr multierror.Error
+	var mErr *multierror.Error
 
 	// Validate the task does not reference undefined volume mounts
 	if v.Volume == "" {
-		mErr.Errors = append(mErr.Errors, errVolMountEmptyVol)
+		mErr = multierror.Append(mErr, errVolMountEmptyVol)
 	}
 
 	if !v.MountPropagationModeIsValid() {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("%w: %q", errVolMountInvalidPropagationMode, v.PropagationMode))
+		mErr = multierror.Append(mErr, fmt.Errorf("%w: %q", errVolMountInvalidPropagationMode, v.PropagationMode))
 	}
 
 	if !v.SELinuxLabelIsValid() {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("%w: %q", errVolMountInvalidSELinuxLabel, v.SELinuxLabel))
+		mErr = multierror.Append(mErr, fmt.Errorf("%w: \"%s\"", errVolMountInvalidSELinuxLabel, v.SELinuxLabel))
 	}
 
 	return mErr.ErrorOrNil()
