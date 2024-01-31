@@ -16,7 +16,7 @@ sudo apt-get install -yq  apt-utils
 # Install HashiCorp products
 CONSULVERSION=1.17.0
 VAULTVERSION=1.15.4
-NOMADVERSION=1.7.1
+NOMADVERSION=1.7.3
 CONSULTEMPLATEVERSION=0.35.0
 
 sudo apt-get update && sudo apt-get install gpg
