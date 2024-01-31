@@ -9,14 +9,13 @@ import Controller, { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
-import { restartableTask } from 'ember-concurrency';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
-
-const ALL_NAMESPACE_WILDCARD = '*';
+import { restartableTask, timeout } from 'ember-concurrency';
 
 export default class JobsIndexController extends Controller {
   @service router;
   @service system;
+  @service store;
   @service watchList; // TODO: temp
 
   queryParams = [
@@ -50,6 +49,9 @@ export default class JobsIndexController extends Controller {
   }
 
   @tracked jobs = [];
+  @tracked jobIDs = [];
+  @tracked pendingJobs = null;
+  @tracked pendingJobIDs = null;
 
   @action
   gotoJob(job) {
@@ -79,32 +81,6 @@ export default class JobsIndexController extends Controller {
     }
   }
 
-  // /**
-  //  * If job_ids are different from jobs, it means our GET summaries has returned
-  //  * some new jobs. Instead of jostling the list for the user, give them the option
-  //  * to refresh the list.
-  //  */
-  // @computed('jobs.[]', 'jobIDs.[]')
-  // get jobListChangePending() {
-  //   const stringifiedJobsEntries = JSON.stringify(this.jobs.map((j) => j.id));
-  //   const stringifiedJobIDsEntries = JSON.stringify(
-  //     this.jobIDs.map((j) => JSON.stringify(Object.values(j)))
-  //   );
-  //   console.log(
-  //     'checking jobs list pending',
-  //     this.jobs,
-  //     this.jobIDs,
-  //     stringifiedJobsEntries,
-  //     stringifiedJobIDsEntries
-  //   );
-  //   return stringifiedJobsEntries !== stringifiedJobIDsEntries;
-  //   // return this.jobs.map((j) => j.id).join() !== this.jobIDs.join();
-  //   // return true;
-  // }
-
-  @tracked pendingJobs = null;
-  @tracked pendingJobIDs = null;
-
   get pendingJobIDDiff() {
     console.log('pending job IDs', this.pendingJobIDs, this.jobIDs);
     return (
@@ -121,14 +97,132 @@ export default class JobsIndexController extends Controller {
     this.pendingJobs = null;
     this.jobIDs = this.pendingJobIDs;
     this.pendingJobIDs = null;
-    // TODO: need to re-kick-off the watchJobs task with updated jobIDs
+    this.watchJobs.perform(this.jobIDs, 500);
   }
 
   @localStorageProperty('nomadLiveUpdateJobsIndex', false) liveUpdatesEnabled;
 
-  // @action updateJobList() {
-  //   console.log('updating jobs list');
-  //   this.jobs = this.pendingJobs;
-  // }
   // #endregion pagination
+
+  //#region querying
+
+  jobQuery(params, options = {}) {
+    this.watchList.jobsIndexIDsController.abort();
+    this.watchList.jobsIndexIDsController = new AbortController();
+
+    return this.store
+      .query('job', params, {
+        adapterOptions: {
+          method: 'GET', // TODO: default
+          queryType: options.queryType,
+          abortController: this.watchList.jobsIndexIDsController,
+        },
+      })
+      .catch((e) => {
+        console.error('error fetching job ids', e);
+      });
+  }
+
+  jobAllocsQuery(jobIDs) {
+    this.watchList.jobsIndexDetailsController.abort();
+    this.watchList.jobsIndexDetailsController = new AbortController();
+    return this.store
+      .query(
+        'job',
+        {
+          jobs: jobIDs,
+        },
+        {
+          adapterOptions: {
+            method: 'POST',
+            queryType: 'update',
+            abortController: this.watchList.jobsIndexDetailsController,
+          },
+        }
+      )
+      .catch((e) => {
+        console.error('error fetching job allocs', e);
+      });
+  }
+
+  perPage = 3;
+  defaultParams = {
+    meta: true,
+    per_page: this.perPage,
+  };
+
+  // TODO: this is a pretty hacky way of handling params-grabbing. Can probably iterate over this.queryParams instead.
+  getCurrentParams() {
+    let currentRouteName = this.router.currentRouteName;
+    let currentRoute = this.router.currentRoute;
+    let params = currentRoute.params[currentRouteName] || {};
+    console.log('GCP', params, currentRoute, currentRouteName);
+    return { ...this.defaultParams, ...params };
+  }
+
+  @restartableTask *watchJobIDs(params, throttle = 2000) {
+    while (true) {
+      let currentParams = this.getCurrentParams();
+      console.log('xxx watchJobIDs', this.queryParams);
+      const newJobs = yield this.jobQuery(currentParams, {
+        queryType: 'update_ids',
+      });
+      if (newJobs.meta.nextToken) {
+        this.nextToken = newJobs.meta.nextToken;
+      }
+
+      const jobIDs = newJobs.map((job) => ({
+        id: job.plainId,
+        namespace: job.belongsTo('namespace').id(),
+      }));
+
+      const okayToJostle = this.liveUpdatesEnabled;
+      console.log('okay to jostle?', okayToJostle);
+      if (okayToJostle) {
+        this.jobIDs = jobIDs;
+        this.watchList.jobsIndexDetailsController.abort();
+        console.log(
+          'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
+          jobIDs
+        );
+        this.watchList.jobsIndexDetailsController = new AbortController();
+        this.watchJobs.perform(jobIDs, 500);
+      } else {
+        // this.controller.set('pendingJobIDs', jobIDs);
+        // this.controller.set('pendingJobs', newJobs);
+        this.pendingJobIDs = jobIDs;
+        this.pendingJobs = newJobs;
+      }
+      yield timeout(throttle); // Moved to the end of the loop
+    }
+  }
+
+  @restartableTask *watchJobs(jobIDs, throttle = 2000) {
+    while (true) {
+      // let jobIDs = this.controller.jobIDs;
+      if (jobIDs && jobIDs.length > 0) {
+        let jobDetails = yield this.jobAllocsQuery(jobIDs);
+
+        // // Just a sec: what if the user doesnt want their list jostled?
+        // console.log('xxx jobIds and jobDetails', jobIDs, jobDetails);
+
+        // const stringifiedJobsEntries = JSON.stringify(jobDetails.map(j => j.id));
+        // const stringifiedJobIDsEntries = JSON.stringify(jobIDs.map(j => JSON.stringify(Object.values(j))));
+        // console.log('checking jobs list pending', this.jobs, this.jobIDs, stringifiedJobsEntries, stringifiedJobIDsEntries);
+        // if (stringifiedJobsEntries !== stringifiedJobIDsEntries) {
+        //   this.controller.set('jobListChangePending', true);
+        //   this.controller.set('pendingJobs', jobDetails);
+        // } else {
+        //   this.controller.set('jobListChangePending', false);
+        // this.controller.set('jobs', jobDetails);
+        this.jobs = jobDetails;
+        // }
+      }
+      // TODO: might need an else condition here for if there are no jobIDs,
+      // which would indicate no jobs, but the updater above might not fire.
+      yield timeout(throttle);
+    }
+  }
+
+  //#endregion querying
 }
