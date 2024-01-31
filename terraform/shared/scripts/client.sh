@@ -25,7 +25,7 @@ else
   IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
 fi
 
-# Systemd-resolved config
+# Systemd-resolved config to enable .consul domain lookups using the local Consul agent
 mkdir -p /etc/systemd/resolved.conf.d/
 cat <<EOT > /etc/systemd/resolved.conf.d/consul.conf
 [Resolve]
