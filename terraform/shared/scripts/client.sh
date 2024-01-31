@@ -26,6 +26,7 @@ else
 fi
 
 # Systemd-resolved config to enable .consul domain lookups using the local Consul agent
+# https://developer.hashicorp.com/consul/tutorials/networking/dns-forwarding#systemd-resolved-setup
 mkdir -p /etc/systemd/resolved.conf.d/
 cat <<EOT > /etc/systemd/resolved.conf.d/consul.conf
 [Resolve]
