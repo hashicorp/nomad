@@ -52,6 +52,11 @@ export default class Job extends Model {
     return breakdown;
   }
 
+  // When we detect the deletion/purge of a job from within that job page, we kick the user out to the jobs index.
+  // But what about when that purge is detected from the jobs index?
+  // We set this flag to true to let the user know that the job has been removed without simply nixing it from view.
+  @attr('boolean', { defaultValue: false }) assumeGC;
+
   get allocTypes() {
     return jobAllocStatuses[this.type].map((type) => {
       return {
@@ -212,6 +217,10 @@ export default class Job extends Model {
     // If deploying:
     if (this.deploymentID) {
       return { label: 'Deploying', state: 'highlight' };
+    }
+
+    if (this.assumeGC) {
+      return { label: 'Removed', state: 'neutral' };
     }
 
     if (this.type === 'batch' || this.type === 'sysbatch') {

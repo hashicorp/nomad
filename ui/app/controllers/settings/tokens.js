@@ -12,6 +12,7 @@ import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';
 import { tracked } from '@glimmer/tracking';
 import Ember from 'ember';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 /**
  * @type {RegExp}
@@ -279,4 +280,9 @@ export default class Tokens extends Controller {
   get shouldShowPolicies() {
     return this.tokenRecord;
   }
+
+  // #region settings
+  @localStorageProperty('nomadShouldWrapCode', false) wordWrap;
+  @localStorageProperty('nomadLiveUpdateJobsIndex', false) liveUpdateJobsIndex;
+  // #endregion settings
 }
