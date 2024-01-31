@@ -239,14 +239,20 @@ func (e *exe) writeCG(file, content string) error {
 }
 
 func flatten(user, home string, env map[string]string) []string {
-	useless := set.From([]string{"LS_COLORS", "XAUTHORITY", "DISPLAY", "COLORTERM", "MAIL", "TMPDIR"})
 	result := make([]string, 0, len(env))
+
+	// override and remove some variables
+	useless := set.From([]string{"LS_COLORS", "XAUTHORITY", "DISPLAY", "COLORTERM", "MAIL"})
+	env["USER"] = user
+	env["HOME"] = home
+
+	// set the tmp directory to the one made for the task
+	parent := filepath.Dir(env["NOMAD_TASK_DIR"])
+	tmp := filepath.Join(parent, "tmp")
+	env["TMPDIR"] = tmp
+
 	for k, v := range env {
 		switch {
-		case k == "USER": // set correct $USER
-			result = append(result, "USER="+user)
-		case k == "HOME": // set correct $HOME
-			result = append(result, "HOME="+home)
 		case useless.Contains(k): // purge useless vars
 			continue
 		case v == "":
@@ -255,7 +261,7 @@ func flatten(user, home string, env map[string]string) []string {
 			result = append(result, k+"="+v)
 		}
 	}
-	result = append(result, "TMPDIR="+os.TempDir())
+
 	return result
 }
 
