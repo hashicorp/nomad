@@ -164,6 +164,7 @@ export default class JobSerializer extends ApplicationSerializer {
                 Healthy: alloc.DeploymentStatus.Healthy,
                 Canary: alloc.DeploymentStatus.Canary,
               },
+              nodeID: alloc.NodeID,
             },
           },
         });
