@@ -125,7 +125,7 @@
                     @compact={{true}}
                     {{!-- @runningAllocs={{B.data.runningAllocs}} --}}
                     @runningAllocs={{B.data.allocBlocks.running.healthy.nonCanary.length}}
-                    @groupCountSum={{B.data.groupCountSum}}
+                    @groupCountSum={{B.data.expectedRunningAllocCount}}
                   />
                 {{/if}}
               {{/unless}}

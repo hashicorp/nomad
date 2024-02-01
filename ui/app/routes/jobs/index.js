@@ -47,6 +47,7 @@ export default class IndexRoute extends Route.extend(
 
   async model(params) {
     let currentParams = this.getCurrentParams(); // TODO: how do these differ from passed params?
+    this.watchList.jobsIndexIDsController = new AbortController();
     let jobs = await this.store
       .query('job', currentParams, {
         adapterOptions: {
