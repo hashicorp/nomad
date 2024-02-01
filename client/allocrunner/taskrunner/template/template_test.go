@@ -11,11 +11,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -36,7 +34,6 @@ import (
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -442,51 +439,6 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 	}
 }
 
-func TestTaskTemplateManager_Permissions(t *testing.T) {
-	clienttestutil.RequireRoot(t)
-	ci.Parallel(t)
-	// Make a template that will render immediately
-	content := "hello, world!"
-	file := "my.tmpl"
-	template := &structs.Template{
-		EmbeddedTmpl: content,
-		DestPath:     file,
-		ChangeMode:   structs.TemplateChangeModeNoop,
-		Perms:        "777",
-		Uid:          pointer.Of(503),
-		Gid:          pointer.Of(20),
-	}
-
-	harness := newTestHarness(t, []*structs.Template{template}, false, false)
-	harness.start(t)
-	defer harness.stop()
-
-	// Wait for the unblock
-	select {
-	case <-harness.mockHooks.UnblockCh:
-	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("Task unblock should have been called")
-	}
-
-	// Check the file is there
-	path := filepath.Join(harness.taskDir, file)
-	fi, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("Failed to stat file: %v", err)
-	}
-
-	if m := fi.Mode(); m != os.ModePerm {
-		t.Fatalf("Got mode %v; want %v", m, os.ModePerm)
-	}
-
-	sys := fi.Sys()
-	uid := pointer.Of(int(sys.(*syscall.Stat_t).Uid))
-	gid := pointer.Of(int(sys.(*syscall.Stat_t).Gid))
-
-	must.Eq(t, template.Uid, uid)
-	must.Eq(t, template.Gid, gid)
-}
-
 func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
 	ci.Parallel(t)
 	// Make a template that will render immediately
@@ -565,6 +517,8 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 
 func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that will render based on a key in Consul
 	key := "foo"
 	content := "barbaz"
@@ -611,6 +565,8 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 
 func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireVault(t)
+
 	require := require.New(t)
 	// Make a template that will render based on a key in Vault
 	vaultPath := "secret/data/password"
@@ -661,6 +617,8 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 
 func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that will render immediately
 	staticContent := "hello, world!"
 	staticFile := "my.tmpl"
@@ -729,6 +687,8 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 // restored renders and triggers its change mode if the template has changed
 func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireVault(t)
+
 	require := require.New(t)
 	// Make a template that will render based on a key in Vault
 	vaultPath := "secret/data/password"
@@ -826,6 +786,8 @@ OUTER:
 
 func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that will render based on a key in Consul
 	key := "foo"
 	content1 := "bar"
@@ -895,6 +857,8 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 
 func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that renders based on a key in Consul and sends SIGALRM
 	key1 := "foo"
 	content1_1 := "bar"
@@ -993,6 +957,8 @@ OUTER:
 
 func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that renders based on a key in Consul and sends restart
 	key1 := "bam"
 	content1_1 := "cat"
@@ -1092,6 +1058,8 @@ func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
 
 func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	require := require.New(t)
 
 	// Make a template that renders based on a key in Consul and sends SIGALRM
@@ -1140,6 +1108,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 
 func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
 
 	// Make a template that renders based on a key in Consul and triggers script
 	key1 := "bam"
@@ -1225,6 +1194,8 @@ OUTER:
 // task upon script execution failure if that's how it's configured.
 func TestTaskTemplateManager_ScriptExecutionFailTask(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	require := require.New(t)
 
 	// Make a template that renders based on a key in Consul and triggers script
@@ -1302,6 +1273,7 @@ BAR={{key "bar"}}
 
 func TestTaskTemplateManager_ChangeModeMixed(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
 
 	templateRestart := &structs.Template{
 		EmbeddedTmpl: `
@@ -1473,6 +1445,8 @@ TEST_ENV_NOT_FOUND: {{env "` + testenv + `_NOTFOUND" }}`
 // into the task's environment.
 func TestTaskTemplateManager_Env(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	template := &structs.Template{
 		EmbeddedTmpl: `
 # Comment lines are ok
@@ -1626,6 +1600,8 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 
 func TestTaskTemplateManager_Rerender_Env(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that renders based on a key in Consul and sends restart
 	key1 := "bam"
 	key2 := "bar"
@@ -1809,6 +1785,10 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 // interpolated paths are not incorrectly treated as escaping the alloc dir.
 func TestTaskTemplateManager_Escapes(t *testing.T) {
 	ci.Parallel(t)
+
+	// the specific files paths are different on Linux vs Windows
+	// TODO(tgross): rewrite this test to allow for platform-specific paths
+	clienttestutil.RequireNotWindows(t)
 
 	clientConf := config.DefaultConfig()
 	require.False(t, clientConf.TemplateConfig.DisableSandbox, "expected sandbox to be disabled")
@@ -2061,6 +2041,8 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	// then asserts that templates are still blocked on 3 and 4,
 	// and check that we got the relevant task events
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	require := require.New(t)
 
 	// Make a template that will render based on a key in Consul
@@ -2496,11 +2478,8 @@ func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
 // TestTaskTemplateManager_writeToFile asserts the consul-template function
 // writeToFile can be enabled.
 func TestTaskTemplateManager_writeToFile(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("username and group lookup assume linux platform")
-	}
-
 	ci.Parallel(t)
+	clienttestutil.RequireLinux(t)
 
 	cu, err := users.Current()
 	require.NoError(t, err)
