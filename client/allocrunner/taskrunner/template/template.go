@@ -938,6 +938,11 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 				return nil, err
 			}
 		}
+
+		// Set the Vault-specific MaxConnsPerHost
+		if cc.TemplateConfig.MaxConnectionsPerHost != 0 {
+			conf.Vault.Transport.MaxConnsPerHost = &cc.TemplateConfig.MaxConnectionsPerHost
+		}
 	}
 
 	// Set up Nomad

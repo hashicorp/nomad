@@ -27,7 +27,7 @@ var (
 	VersionPrerelease = "dev"
 
 	// VersionMetadata is metadata further describing the build type.
-	VersionMetadata = ""
+	VersionMetadata = "consul-template-36-maxconns-10" // TODO: DKM: Revert to "" after testing
 )
 
 // VersionInfo
