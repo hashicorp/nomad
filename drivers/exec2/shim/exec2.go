@@ -3,7 +3,7 @@
 
 //go:build linux
 
-package proc
+package shim
 
 import (
 	"bufio"
@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/anonymous"
 	"github.com/hashicorp/nomad/drivers/exec2/resources"
 	"github.com/hashicorp/nomad/drivers/exec2/resources/process"
+	"github.com/hashicorp/nomad/helper/subproc"
 	"github.com/shoenig/netlog"
 	"golang.org/x/sys/unix"
 )
@@ -135,7 +136,7 @@ func (e *exe) Start(ctx context.Context) error {
 	}
 
 	// create sandbox using nsenter, unshare, and our cgroup
-	// TODO probably landlock here too
+	// TODO make use of landlock
 	cmd := e.isolation(ctx, home, fd, uid, gid)
 	if err = cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start command: %w", err)
@@ -268,7 +269,7 @@ func flatten(user, home string, env map[string]string) []string {
 func (e *exe) parameters(uid, gid int) []string {
 	var result []string
 
-	// start with nsenter if using bridge mode
+	// setup nsenter if using bridge mode
 	if net := e.env.Net; net != "" {
 		result = append(
 			result,
@@ -291,6 +292,14 @@ func (e *exe) parameters(uid, gid int) []string {
 		"--setgid", strconv.Itoa(gid),
 		"--",
 	)
+
+	// TODO remove
+	e.opts.Unveil = []string{"/etc/passwd:r", "/usr/bin:rx"}
+
+	// setup ourself 'nomad exec2-shim' for unveil
+	result = append(result, subproc.Self(), SubCommand)
+	result = append(result, e.opts.Unveil...)
+	result = append(result, "--")
 
 	// append the user command
 	result = append(result, e.opts.Command)

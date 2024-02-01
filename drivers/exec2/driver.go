@@ -17,8 +17,8 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/drivers/exec2/proc"
 	"github.com/hashicorp/nomad/drivers/exec2/resources"
+	"github.com/hashicorp/nomad/drivers/exec2/shim"
 	"github.com/hashicorp/nomad/drivers/exec2/task"
 	"github.com/hashicorp/nomad/drivers/exec2/util"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
@@ -226,7 +226,7 @@ func (p *Plugin) StartTask(config *drivers.TaskConfig) (*drivers.TaskHandle, *dr
 	cgroup := config.Resources.LinuxResources.CpusetCgroupPath
 
 	// set the task execution environment
-	env := &proc.Environment{
+	env := &shim.Environment{
 		Out:          stdout,
 		Err:          stderr,
 		Env:          config.Env,
@@ -255,7 +255,7 @@ func (p *Plugin) StartTask(config *drivers.TaskConfig) (*drivers.TaskHandle, *dr
 	)
 
 	// create the runner and start it
-	runner := proc.New(env, opts)
+	runner := shim.New(env, opts)
 	if err = runner.Start(p.ctx); err != nil {
 		return nil, nil, fmt.Errorf("failed to start task: %w", err)
 	}
@@ -299,7 +299,7 @@ func (p *Plugin) RecoverTask(handle *drivers.TaskHandle) error {
 	cgroup := taskState.TaskConfig.Resources.LinuxResources.CpusetCgroupPath
 
 	// re-create the environment for pledge
-	env := &proc.Environment{
+	env := &shim.Environment{
 		Out:     util.NullCloser(nil),
 		Err:     util.NullCloser(nil),
 		Env:     handle.Config.Env,
@@ -309,7 +309,7 @@ func (p *Plugin) RecoverTask(handle *drivers.TaskHandle) error {
 	}
 
 	// re-establish task handle by locating the unix process of the PID
-	runner := proc.Recover(taskState.PID, env)
+	runner := shim.Recover(taskState.PID, env)
 	recHandle := task.RecreateHandle(runner, taskState.TaskConfig, taskState.StartedAt)
 	p.tasks.Set(taskState.TaskConfig.ID, recHandle)
 	return nil

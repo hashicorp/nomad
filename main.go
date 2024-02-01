@@ -19,6 +19,7 @@ import (
 	_ "github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	_ "github.com/hashicorp/nomad/client/logmon"
 	_ "github.com/hashicorp/nomad/drivers/docker/docklog"
+	_ "github.com/hashicorp/nomad/drivers/exec2/shim"
 	_ "github.com/hashicorp/nomad/drivers/shared/executor"
 
 	// Don't move any other code imports above the import block above!

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/drivers/exec2/proc"
 	"github.com/hashicorp/nomad/drivers/exec2/resources"
+	"github.com/hashicorp/nomad/drivers/exec2/shim"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"oss.indeed.com/go/libtime"
 )
@@ -20,7 +20,7 @@ import (
 type Handle struct {
 	lock sync.RWMutex
 
-	runner    proc.ExecTwo
+	runner    shim.ExecTwo
 	config    *drivers.TaskConfig
 	state     drivers.TaskState
 	started   time.Time
@@ -30,7 +30,7 @@ type Handle struct {
 	pid       int
 }
 
-func NewHandle(runner proc.ExecTwo, config *drivers.TaskConfig) (*Handle, time.Time) {
+func NewHandle(runner shim.ExecTwo, config *drivers.TaskConfig) (*Handle, time.Time) {
 	clock := libtime.SystemClock()
 	now := clock.Now()
 	return &Handle{
@@ -44,7 +44,7 @@ func NewHandle(runner proc.ExecTwo, config *drivers.TaskConfig) (*Handle, time.T
 	}, now
 }
 
-func RecreateHandle(runner proc.ExecTwo, config *drivers.TaskConfig, started time.Time) *Handle {
+func RecreateHandle(runner shim.ExecTwo, config *drivers.TaskConfig, started time.Time) *Handle {
 	clock := libtime.SystemClock()
 	return &Handle{
 		pid:     runner.PID(),
