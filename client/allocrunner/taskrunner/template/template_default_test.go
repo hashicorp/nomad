@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
