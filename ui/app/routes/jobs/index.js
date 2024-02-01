@@ -90,11 +90,12 @@ export default class IndexRoute extends Route.extend(
 
   @action
   willTransition(transition) {
-    console.log('WILLTRA', transition, transition.intent.name, this.routeName);
     // TODO: Something is preventing jobs -> job -> jobs -> job.
     if (!transition.intent.name.startsWith(this.routeName)) {
       this.watchList.jobsIndexDetailsController.abort();
       this.watchList.jobsIndexIDsController.abort();
+      this.controller.watchJobs.cancelAll();
+      this.controller.watchJobIDs.cancelAll();
     }
     this.cancelAllWatchers();
     return true;

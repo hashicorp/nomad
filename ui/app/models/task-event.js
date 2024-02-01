@@ -17,6 +17,7 @@ export default class TaskEvent extends Fragment {
   @attr('date') time;
   @attr('number') timeNanos;
   @attr('string') displayMessage;
+  @attr() message;
 
   get message() {
     let message = simplifyTimeMessage(this.displayMessage);
