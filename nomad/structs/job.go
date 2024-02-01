@@ -46,6 +46,7 @@ type JobStatusAlloc struct {
 	ID               string
 	Group            string
 	ClientStatus     string
+	NodeID           string
 	DeploymentStatus JobStatusDeployment
 	JobVersion       uint64
 }
