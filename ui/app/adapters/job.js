@@ -276,7 +276,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   urlForQuery(query, modelName, method) {
-    let baseUrl = `/${this.namespace}/jobs/statuses3`;
+    let baseUrl = `/${this.namespace}/jobs/statuses`;
     if (method === 'POST') {
       // Setting a base64 hash to represent the body of the POST request
       // (which is otherwise not represented in the URL)
@@ -298,3 +298,5 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return hash;
   }
 }
+
+// TODO: First query (0 jobs to 1 job) doesnt seem to kick off POST
