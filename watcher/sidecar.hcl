@@ -1,66 +1,66 @@
 job "sidecar-trader" {
-    meta {
-        START_AT = "11:40:40"
-        END_AT = "11:40:55"
+  meta {
+    START_AT = "11:40:40"
+    END_AT   = "11:40:55"
+  }
+
+  group "g" {
+    task "trader" {
+      driver = "raw_exec"
+
+      config {
+        command = "/Users/mike/code/nomad/watcher/nomad-watcher"
+        args    = ["block", "watch", "-t", "date"]
+      }
+
+      env {
+        ALLOC_DIR = "${NOMAD_ALLOC_DIR}"
+      }
+
+      restart {
+        attempts = 100
+        delay    = "1s"
+        interval = "1s"
+        mode     = "fail"
+      }
     }
 
-    group "g" {
-        task "trader" {
-            driver = "raw_exec"
+    task "watcher" {
+      driver = "raw_exec"
+      config {
+        command = "/Users/mike/code/nomad/watcher/nomad-watcher"
+        args    = ["watch"]
+      }
 
-            config {
-                command = "/Users/mike/code/nomad/watcher/nomad-watcher"
-                args    = ["block", "watch", "-t", "date"]
-            }
+      lifecycle {
+        hook    = "prestart"
+        sidecar = true
+      }
 
-            env {
-                ALLOC_DIR = "${NOMAD_ALLOC_DIR}"
-            }
+      identity {
+        env         = true
+        change_mode = "restart"
+      }
 
-            restart {
-                attempts = 100
-                delay    = "1s"
-                interval = "1s"
-                mode     = "fail"
-            }
-        }
+      restart {
+        attempts = 100
+        delay    = "1s"
+        interval = "1s"
+        mode     = "fail"
+      }
 
-        task "watcher" {
-            driver = "raw_exec"
-            config {
-                command = "/Users/mike/code/nomad/watcher/nomad-watcher"
-                args    = ["watch"]
-            }
-
-            lifecycle {
-                hook = "prestart"
-                sidecar = true
-            }
-
-            identity {
-                env         = true
-                change_mode = "restart"
-            }
-
-            restart {
-                attempts = 100
-                delay    = "1s"
-                interval = "1s"
-                mode     = "fail"
-            }
-
-            env {
-                START_AT = "${NOMAD_META_START_AT}"
-                END_AT = "${NOMAD_META_END_AT}"
-                ALLOC_DIR = "${NOMAD_ALLOC_DIR}"
-            }
-        }
+      env {
+        START_AT  = "${NOMAD_META_START_AT}"
+        END_AT    = "${NOMAD_META_END_AT}"
+        ALLOC_DIR = "${NOMAD_ALLOC_DIR}"
+      }
     }
+  }
 }
 
 # Nomad alloc signal is a client API call
 # Look at SIGSTOP, SIGCONT
 # Client caches tokens, so disconnected should be okay
-    # While disconnected, you should use it 4eva
+# While disconnected, you should use it 4eva
 # (part of )
 
