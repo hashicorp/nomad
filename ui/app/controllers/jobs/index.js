@@ -92,7 +92,6 @@ export default class JobsIndexController extends Controller {
   }
 
   @restartableTask *updateJobList() {
-    console.log('updating jobs list');
     this.jobs = this.pendingJobs;
     this.pendingJobs = null;
     this.jobIDs = this.pendingJobIDs;
@@ -119,7 +118,8 @@ export default class JobsIndexController extends Controller {
         },
       })
       .catch((e) => {
-        console.error('error fetching job ids', e);
+        console.log('error fetching job ids', e);
+        return;
       });
   }
 
@@ -141,7 +141,8 @@ export default class JobsIndexController extends Controller {
         }
       )
       .catch((e) => {
-        console.error('error fetching job allocs', e);
+        console.log('error fetching job allocs', e);
+        return;
       });
   }
 
@@ -150,6 +151,8 @@ export default class JobsIndexController extends Controller {
     meta: true,
     per_page: this.perPage,
   };
+
+  // TODO: set up isEnabled to check blockingQueries rather than just use while (true)
 
   // TODO: this is a pretty hacky way of handling params-grabbing. Can probably iterate over this.queryParams instead.
   getCurrentParams() {
@@ -163,7 +166,6 @@ export default class JobsIndexController extends Controller {
   @restartableTask *watchJobIDs(params, throttle = 2000) {
     while (true) {
       let currentParams = this.getCurrentParams();
-      console.log('xxx watchJobIDs', this.queryParams);
       const newJobs = yield this.jobQuery(currentParams, {
         queryType: 'update_ids',
       });
@@ -202,24 +204,8 @@ export default class JobsIndexController extends Controller {
       // let jobIDs = this.controller.jobIDs;
       if (jobIDs && jobIDs.length > 0) {
         let jobDetails = yield this.jobAllocsQuery(jobIDs);
-
-        // // Just a sec: what if the user doesnt want their list jostled?
-        // console.log('xxx jobIds and jobDetails', jobIDs, jobDetails);
-
-        // const stringifiedJobsEntries = JSON.stringify(jobDetails.map(j => j.id));
-        // const stringifiedJobIDsEntries = JSON.stringify(jobIDs.map(j => JSON.stringify(Object.values(j))));
-        // console.log('checking jobs list pending', this.jobs, this.jobIDs, stringifiedJobsEntries, stringifiedJobIDsEntries);
-        // if (stringifiedJobsEntries !== stringifiedJobIDsEntries) {
-        //   this.controller.set('jobListChangePending', true);
-        //   this.controller.set('pendingJobs', jobDetails);
-        // } else {
-        //   this.controller.set('jobListChangePending', false);
-        // this.controller.set('jobs', jobDetails);
         this.jobs = jobDetails;
-        // }
       }
-      // TODO: might need an else condition here for if there are no jobIDs,
-      // which would indicate no jobs, but the updater above might not fire.
       yield timeout(throttle);
     }
   }
