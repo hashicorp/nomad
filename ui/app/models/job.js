@@ -34,6 +34,15 @@ export default class Job extends Model {
   @attr('string') nodePool; // Jobs are related to Node Pools either directly or via its Namespace, but no relationship.
 
   @attr('number') groupCountSum;
+  // if it's a system/sysbatch job, groupCountSum is allocs uniqued by nodeID
+  get expectedRunningAllocCount() {
+    if (this.type === 'system' || this.type === 'sysbatch') {
+      return this.allocations.filterBy('nodeID').uniqBy('nodeID').length;
+    } else {
+      return this.groupCountSum;
+    }
+  }
+
   @attr('string') deploymentID;
 
   @attr() childStatuses;
@@ -103,7 +112,7 @@ export default class Job extends Model {
    *                            for each clientStatus.
    */
   get allocBlocks() {
-    let availableSlotsToFill = this.groupCountSum;
+    let availableSlotsToFill = this.expectedRunningAllocCount;
 
     // Initialize allocationsOfShowableType with empty arrays for each clientStatus
     /**
@@ -163,11 +172,11 @@ export default class Job extends Model {
 
       const status = alloc.clientStatus;
       // If the alloc has another clientStatus, add it to the corresponding list
-      // as long as we haven't reached the groupCountSum limit for that clientStatus
+      // as long as we haven't reached the expectedRunningAllocCount limit for that clientStatus
       if (
         this.allocTypes.map(({ label }) => label).includes(status) &&
         allocationsOfShowableType[status].healthy.nonCanary.length <
-          this.groupCountSum
+          this.expectedRunningAllocCount
       ) {
         allocationsOfShowableType[status].healthy.nonCanary.push(alloc);
         availableSlotsToFill--;
@@ -210,8 +219,10 @@ export default class Job extends Model {
    */
   get aggregateAllocStatus() {
     // If all allocs are running, the job is Healthy
-    const totalAllocs = this.groupCountSum;
-    // console.log('groupCountSum is', totalAllocs);
+
+    let totalAllocs = this.expectedRunningAllocCount;
+
+    // console.log('expectedRunningAllocCount is', totalAllocs);
     // console.log('ablocks are', this.allocBlocks);
 
     // If deploying:
