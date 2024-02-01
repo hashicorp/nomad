@@ -96,6 +96,7 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 			ID:           a.ID,
 			Group:        a.TaskGroup,
 			ClientStatus: a.ClientStatus,
+			NodeID:       a.NodeID,
 			JobVersion:   a.Job.Version,
 		}
 		// TODO: use methods instead of fields directly?
