@@ -76,6 +76,10 @@ var (
 	DefaultTemplateFunctionDenylist = []string{"plugin", "writeToFile"}
 
 	DefaultTemplateMaxConnectionsPerHost = 10
+
+	DefaultTemplateMaxIdleConnectionsPerHost = 5
+
+	DefaultTemplateIdleConnTimeout = 90 * time.Second
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -418,6 +422,15 @@ type ClientTemplateConfig struct {
 	// allowed by Consul Template.  This setting can help prevent overloading a
 	// client with a large number of templated connections to Vault.
 	MaxConnectionsPerHost int `hcl:"max_connections_per_host"`
+
+	// MaxIdleConnectionsPerHost controls the maximum number of connections doing nothing per host
+	// allowed by Consul Template.  This setting will close the remaining connections
+	// and release the resources.
+	MaxIdleConnectionsPerHost int `hcl:"max_idle_connections_per_host"`
+
+	// IdleConnTimeout controls the maximum amount of time an idle connection
+	// will remain open until it is closed.
+	IdleConnTimeout *time.Duration `hcl:"idle_conn_timeout"`
 }
 
 // Copy returns a deep copy of a ClientTemplateConfig
@@ -803,7 +816,9 @@ func DefaultConfig() *Config {
 			NomadRetry: &RetryConfig{
 				Attempts: pointer.Of(0), // unlimited
 			},
-			MaxConnectionsPerHost: DefaultTemplateMaxConnectionsPerHost, // match Vault default
+			MaxConnectionsPerHost:     DefaultTemplateMaxConnectionsPerHost, // match Vault default
+			MaxIdleConnectionsPerHost: DefaultTemplateMaxIdleConnectionsPerHost,
+			IdleConnTimeout:           pointer.Of(DefaultTemplateIdleConnTimeout),
 		},
 		RPCHoldTimeout:     5 * time.Second,
 		CNIPath:            "/opt/cni/bin",

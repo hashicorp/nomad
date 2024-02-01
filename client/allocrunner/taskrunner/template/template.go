@@ -943,6 +943,14 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		if cc.TemplateConfig.MaxConnectionsPerHost != 0 {
 			conf.Vault.Transport.MaxConnsPerHost = &cc.TemplateConfig.MaxConnectionsPerHost
 		}
+
+		if cc.TemplateConfig.MaxIdleConnectionsPerHost != 0 {
+			conf.Vault.Transport.MaxIdleConnsPerHost = &cc.TemplateConfig.MaxIdleConnectionsPerHost
+		}
+
+		if cc.TemplateConfig.IdleConnTimeout != nil {
+			conf.Vault.Transport.IdleConnTimeout = cc.TemplateConfig.IdleConnTimeout
+		}
 	}
 
 	// Set up Nomad

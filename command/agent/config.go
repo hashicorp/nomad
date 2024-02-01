@@ -1275,9 +1275,11 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
 	conf.Client.TemplateConfig = &client.ClientTemplateConfig{
-		FunctionDenylist:      client.DefaultTemplateFunctionDenylist,
-		DisableSandbox:        false,
-		MaxConnectionsPerHost: client.DefaultTemplateMaxConnectionsPerHost,
+		FunctionDenylist:          client.DefaultTemplateFunctionDenylist,
+		DisableSandbox:            false,
+		MaxConnectionsPerHost:     client.DefaultTemplateMaxConnectionsPerHost,
+		MaxIdleConnectionsPerHost: client.DefaultTemplateMaxIdleConnectionsPerHost,
+		IdleConnTimeout:           pointer.Of(client.DefaultTemplateIdleConnTimeout),
 	}
 	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
@@ -1348,9 +1350,11 @@ func DefaultConfig() *Config {
 				RetryMaxAttempts: 0,
 			},
 			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist:      client.DefaultTemplateFunctionDenylist,
-				DisableSandbox:        false,
-				MaxConnectionsPerHost: client.DefaultTemplateMaxConnectionsPerHost,
+				FunctionDenylist:          client.DefaultTemplateFunctionDenylist,
+				DisableSandbox:            false,
+				MaxConnectionsPerHost:     client.DefaultTemplateMaxConnectionsPerHost,
+				MaxIdleConnectionsPerHost: client.DefaultTemplateMaxIdleConnectionsPerHost,
+				IdleConnTimeout:           pointer.Of(client.DefaultTemplateIdleConnTimeout),
 			},
 			BindWildcardDefaultHostNetwork: true,
 			CNIPath:                        "/opt/cni/bin",
