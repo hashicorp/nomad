@@ -20,7 +20,7 @@ export default class JobsIndexController extends Controller {
 
   queryParams = [
     'cursorAt',
-    'pageSize',
+    'perPage',
     // 'status',
     { qpNamespace: 'namespace' },
     // 'type',
@@ -61,22 +61,34 @@ export default class JobsIndexController extends Controller {
   // #region pagination
   @tracked cursorAt;
   @tracked nextToken; // route sets this when new data is fetched
-  @tracked previousTokens = [];
 
   /**
    *
    * @param {"prev"|"next"} page
    */
-  @action handlePageChange(page, event, c) {
-    console.log('hPC', page, event, c);
-    // event.preventDefault();
+  @action async handlePageChange(page, event, c) {
     if (page === 'prev') {
-      console.log('prev page');
-      this.cursorAt = this.previousTokens.pop();
-      this.previousTokens = [...this.previousTokens];
+      // Note (and TODO:) this isn't particularly efficient!
+      // We're making an extra full request to get the nextToken we need,
+      // but actually the results of that request are the reverse order, plus one job,
+      // of what we actually want to show on the page!
+      // I should investigate whether I can use the results of this query to
+      // overwrite this controller's jobIDs, leverage its index, and
+      // restart a blocking watchJobIDs here.
+      let prevPageToken = await this.loadPreviousPageToken();
+      if (prevPageToken.length > 1) {
+        // if there's only one result, it'd be the job you passed into it as your nextToken (and the first shown on your current page)
+        const [id, namespace] = JSON.parse(prevPageToken.lastObject.id);
+        // If there's no nextToken, we're at the "start" of our list and can drop the cursorAt
+        if (!prevPageToken.meta.nextToken) {
+          this.cursorAt = null;
+        } else {
+          this.cursorAt = `${namespace}.${id}`;
+        }
+      }
     } else if (page === 'next') {
       console.log('next page', this.nextToken);
-      this.previousTokens = [...this.previousTokens, this.cursorAt];
+      // this.previousTokens = [...this.previousTokens, this.cursorAt];
       this.cursorAt = this.nextToken;
     }
   }
@@ -123,6 +135,24 @@ export default class JobsIndexController extends Controller {
       });
   }
 
+  async loadPreviousPageToken() {
+    let prevPageToken = await this.store.query(
+      'job',
+      {
+        next_token: this.cursorAt,
+        per_page: this.perPage + 1,
+        reverse: true,
+      },
+      {
+        adapterOptions: {
+          method: 'GET',
+          queryType: 'initialize',
+        },
+      }
+    );
+    return prevPageToken;
+  }
+
   jobAllocsQuery(jobIDs) {
     this.watchList.jobsIndexDetailsController.abort();
     this.watchList.jobsIndexDetailsController = new AbortController();
@@ -153,19 +183,9 @@ export default class JobsIndexController extends Controller {
   };
 
   // TODO: set up isEnabled to check blockingQueries rather than just use while (true)
-
-  // TODO: this is a pretty hacky way of handling params-grabbing. Can probably iterate over this.queryParams instead.
-  getCurrentParams() {
-    let currentRouteName = this.router.currentRouteName;
-    let currentRoute = this.router.currentRoute;
-    let params = currentRoute.params[currentRouteName] || {};
-    console.log('GCP', params, currentRoute, currentRouteName);
-    return { ...this.defaultParams, ...params };
-  }
-
   @restartableTask *watchJobIDs(params, throttle = 2000) {
     while (true) {
-      let currentParams = this.getCurrentParams();
+      let currentParams = params;
       const newJobs = yield this.jobQuery(currentParams, {
         queryType: 'update_ids',
       });
