@@ -38,52 +38,51 @@ func split(args []string) ([]string, []string) {
 	return paths, commands
 }
 
-func lockdown(defaults bool, paths []string) error {
-	elements, err := convert(paths)
+func lockdown(defaults bool, elements []string) error {
+	paths, err := convert(elements)
 	if err != nil {
 		return err
 	}
 
 	if defaults {
-		elements = append(elements, landlock.Shared())
-		elements = append(elements, landlock.Stdio())
-		elements = append(elements, landlock.Tmp())
-		elements = append(elements, landlock.DNS())
-		elements = append(elements, landlock.Certs())
-		elements = append(elements,
+		paths = append(paths, landlock.Shared())
+		paths = append(paths, landlock.Stdio())
+		paths = append(paths, landlock.Tmp())
+		paths = append(paths, landlock.DNS())
+		paths = append(paths, landlock.Certs())
+		paths = append(paths,
 			landlock.Dir("/bin", "rx"),
 			landlock.Dir("/usr/bin", "rx"),
 			landlock.Dir("/usr/local/bin", "rx"),
 		)
 	}
 
-	return landlock.New(elements...).Lock(landlock.Mandatory)
+	return landlock.New(paths...).Lock(landlock.Mandatory)
 }
 
-func convert(paths []string) ([]*landlock.Path, error) {
-	conversions := make([]*landlock.Path, 0, len(paths))
+func convert(elements []string) ([]*landlock.Path, error) {
+	paths := make([]*landlock.Path, 0, len(elements))
 
-	for _, path := range paths {
+	for _, path := range elements {
 		idx := strings.LastIndex(path, ":")
 		if idx == -1 {
 			return nil, fmt.Errorf("path %q does not contain mode prefix", path)
 		}
+
 		mode := path[0:idx]
 		filepath := path[idx+1:]
-
-		fmt.Println("PATH", path, "FILEPATH", filepath, "MODE", mode)
 
 		info, err := os.Stat(filepath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to stat unveil path: %w", err)
 		}
+
 		if info.IsDir() {
-			conversions = append(conversions, landlock.Dir(filepath, mode))
+			paths = append(paths, landlock.Dir(filepath, mode))
 		} else {
-			conversions = append(conversions, landlock.File(filepath, mode))
+			paths = append(paths, landlock.File(filepath, mode))
 		}
 	}
 
-	fmt.Println("CONVERSIONS", conversions)
-	return conversions, nil
+	return paths, nil
 }

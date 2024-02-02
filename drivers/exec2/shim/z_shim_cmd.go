@@ -6,7 +6,6 @@
 package shim
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"time"
@@ -30,53 +29,57 @@ const (
 //
 // The argument format is as follows,
 //
-// 1. nomad <- the executable name
-// 2. e2e-shim <- this subcommand
-// 3. true/false <- include default unveil paths
+// 1. nomad            <- the executable name
+// 2. e2e-shim         <- this subcommand
+// 3. true/false       <- include default unveil paths
 // 4. [mode:path, ...] <- list of additional unveil paths
+// 5. --               <- sentinel between following commands
 func init() {
 	subproc.Do(SubCommand, func() int {
-		fmt.Println("INIT")
-
 		ctx, cancel := subproc.Context(deadline)
 		defer cancel()
 
 		// ensure we die in a timely manner
 		subproc.SetExpiration(ctx)
 
+		if n := len(os.Args); n <= 4 {
+			subproc.Print("failed to invoke e2e-shim with sufficient args: %d", n)
+			return subproc.ExitFailure
+		}
+
 		// get the unveil paths and the rest of the command(s) to run
 		// from our command arguments
-		args := os.Args[3:] // chop off 'nomad e2e-shim bool'
+		args := os.Args[3:] // chop off 'nomad e2e-shim <defaults>'
 		defaults := os.Args[2] == "true"
-		fmt.Println("ARGS", args, "DEFAULTS", defaults)
 		paths, commands := split(args)
-		fmt.Println("PATHS", paths, "COMMANDS", commands)
 
 		// use landlock to isolate this process and child processes to the
 		// set of given filepaths
 		if err := lockdown(defaults, paths); err != nil {
-			fmt.Println("LOCK FAIL", err)
+			subproc.Print("failed to issue lockdown: %v", err)
 			return subproc.ExitFailure
 		}
-
-		fmt.Println("CMD", commands[0], "CMD_args", commands[1:])
 
 		// locate the absolute path for the task command, as this must be
 		// the first argument to the execve(2) call that follows
 		cmdpath, err := exec.LookPath(commands[0])
 		if err != nil {
-			fmt.Println("LOOKPATH failure:", err)
+			subproc.Print("failed to locate command %q: %v", commands[0], err)
 			return subproc.ExitFailure
 		}
 
 		// invoke the following commands (nsenter, unshare, the task ...)
 		// the environment has already been set for us by the exec2 driver
-		fmt.Println("CMDPATH", cmdpath, "CMDARGS", commands)
+		//
+		// this should never return because this process becomes the
+		// invoked command (it is not a child)
 		err = unix.Exec(cmdpath, commands, os.Environ())
+		if err != nil {
+			subproc.Print("failed to exec command %q: %v", cmdpath, err)
+			return subproc.ExitFailure
+		}
 
-		fmt.Println("EXEC error:", err)
-
-		// the exec did not work and there is nothing to do but die
-		panic("bug: failed to exec sandbox commands")
+		// should not be possible
+		panic("bug: return from exec without error")
 	})
 }

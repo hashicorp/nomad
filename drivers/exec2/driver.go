@@ -161,8 +161,8 @@ func (p *Plugin) doFingerprint() *drivers.Fingerprint {
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: drivers.DriverHealthy,
 		Attributes: map[string]*structs.Attribute{
-			// TODO: any attributes to add?
-			"driver.exec2.hello": structs.NewBoolAttribute(true),
+			"driver.exec2.unveil.tasks":    structs.NewBoolAttribute(p.config.UnveilByTask),
+			"driver.exec2.unveil.defaults": structs.NewBoolAttribute(p.config.UnveilDefaults),
 		},
 	}
 }
