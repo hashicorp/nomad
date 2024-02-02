@@ -496,10 +496,16 @@ func (p *Plugin) setOptions(driverTaskConfig *drivers.TaskConfig) (*shim.Options
 
 	unveil := slices.Clone(p.config.UnveilPaths)
 
-	if len(taskConfig.Unveil) > 0 {
+	if len(taskConfig.Unveil) == 0 {
+		// by default, enable all permissions in the task and alloc directories
+		unveil = append(unveil, "rwxc:"+driverTaskConfig.Env["NOMAD_TASK_DIR"])
+		unveil = append(unveil, "rwxc:"+driverTaskConfig.Env["NOMAD_ALLOC_DIR"])
+	} else if len(taskConfig.Unveil) > 0 {
 		if !p.config.UnveilByTask {
+			// if task.config.unveil is set, the plugin config must allow it
 			return nil, fmt.Errorf("task set unveil paths but driver config does not allow this")
 		}
+		// use the user specified unveil paths from task.config.unveil
 		unveil = append(unveil, taskConfig.Unveil...)
 	}
 
