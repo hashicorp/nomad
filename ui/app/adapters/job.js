@@ -283,7 +283,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       // because the watchList uses the URL as a key for index lookups.
       return `${baseUrl}?hash=${btoa(JSON.stringify(query))}`;
     } else {
-      return `${baseUrl}?${queryString.stringify(query)}`;
+      return `${baseUrl}?${queryString.stringify(query)}`; // TODO: maybe nix this, it's doubling up QPs
     }
   }
 

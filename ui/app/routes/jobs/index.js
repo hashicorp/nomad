@@ -31,12 +31,17 @@ export default class IndexRoute extends Route.extend(
     cursorAt: {
       refreshModel: true,
     },
+    reverse: {
+      refreshModel: true,
+    },
   };
 
   defaultParams = {
     meta: true,
     per_page: this.perPage,
   };
+
+  hasBeenInitialized = false;
 
   getCurrentParams() {
     let queryParams = this.paramsFor(this.routeName); // Get current query params
@@ -47,6 +52,7 @@ export default class IndexRoute extends Route.extend(
 
   async model(params) {
     let currentParams = this.getCurrentParams(); // TODO: how do these differ from passed params?
+    this.watchList.jobsIndexIDsController.abort();
     this.watchList.jobsIndexIDsController = new AbortController();
     let jobs = await this.store
       .query('job', currentParams, {
@@ -57,6 +63,7 @@ export default class IndexRoute extends Route.extend(
         },
       })
       .catch(notifyForbidden(this));
+    this.hasBeenInitialized = true;
     return RSVP.hash({
       jobs,
       namespaces: this.store.findAll('namespace'),
@@ -82,7 +89,7 @@ export default class IndexRoute extends Route.extend(
     // Now that we've set the jobIDs, immediately start watching them
     this.controller.watchJobs.perform(controller.jobIDs, 500);
     // And also watch for any changes to the jobIDs list
-    this.controller.watchJobIDs.perform({}, 2000);
+    this.controller.watchJobIDs.perform(this.getCurrentParams(), 2000);
   }
 
   startWatchers(controller, model) {
@@ -100,6 +107,15 @@ export default class IndexRoute extends Route.extend(
     }
     this.cancelAllWatchers();
     return true;
+  }
+
+  // Determines if we should be put into a loading state (jobs/loading.hbs)
+  // This is a useful page for when you're first initializing your jobs list,
+  // but overkill when we paginate / change our queryParams. We should handle that
+  // with in-compnent loading/skeleton states instead.
+  @action
+  loading() {
+    return !this.hasBeenInitialized; // allows the loading template to be shown
   }
 
   @watchAll('namespace') watchNamespaces;
