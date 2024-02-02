@@ -66,7 +66,7 @@ func convert(paths []string) ([]*landlock.Path, error) {
 	for _, path := range paths {
 		idx := strings.LastIndex(path, ":")
 		if idx == -1 {
-			return nil, fmt.Errorf("path %q does not contain mode suffix", path)
+			return nil, fmt.Errorf("path %q does not contain mode prefix", path)
 		}
 		mode := path[0:idx]
 		filepath := path[idx+1:]
