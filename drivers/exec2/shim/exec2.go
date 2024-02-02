@@ -30,9 +30,10 @@ import (
 
 // Options represent Task configuration options.
 type Options struct {
-	Command   string
-	Arguments []string
-	Unveil    []string
+	Command        string
+	Arguments      []string
+	UnveilPaths    []string
+	UnveilDefaults bool
 }
 
 // Environment represents runtime configuration.
@@ -252,10 +253,11 @@ func flatten(user, home string, env map[string]string) []string {
 	tmp := filepath.Join(parent, "tmp")
 	env["TMPDIR"] = tmp
 
+	// copy environment variables into list form
 	for k, v := range env {
 		switch {
-		case useless.Contains(k): // purge useless vars
-			continue
+		case useless.Contains(k):
+			continue // purge some useless variables
 		case v == "":
 			result = append(result, k)
 		default:
@@ -293,12 +295,10 @@ func (e *exe) parameters(uid, gid int) []string {
 		"--",
 	)
 
-	// TODO remove
-	e.opts.Unveil = []string{"/etc/passwd:r", "/usr/bin:rx"}
-
 	// setup ourself 'nomad exec2-shim' for unveil
 	result = append(result, subproc.Self(), SubCommand)
-	result = append(result, e.opts.Unveil...)
+	result = append(result, strconv.FormatBool(e.opts.UnveilDefaults))
+	result = append(result, e.opts.UnveilPaths...)
 	result = append(result, "--")
 
 	// append the user command

@@ -38,13 +38,26 @@ func split(args []string) ([]string, []string) {
 	return paths, commands
 }
 
-func lockdown(paths []string) error {
-	conversions, err := convert(paths)
+func lockdown(defaults bool, paths []string) error {
+	elements, err := convert(paths)
 	if err != nil {
 		return err
 	}
-	conversions = append(conversions, landlock.Shared())
-	return landlock.New(conversions...).Lock(landlock.Mandatory)
+
+	if defaults {
+		elements = append(elements, landlock.Shared())
+		elements = append(elements, landlock.Stdio())
+		elements = append(elements, landlock.Tmp())
+		elements = append(elements, landlock.DNS())
+		elements = append(elements, landlock.Certs())
+		elements = append(elements,
+			landlock.Dir("/bin", "rx"),
+			landlock.Dir("/usr/bin", "rx"),
+			landlock.Dir("/usr/local/bin", "rx"),
+		)
+	}
+
+	return landlock.New(elements...).Lock(landlock.Mandatory)
 }
 
 func convert(paths []string) ([]*landlock.Path, error) {
@@ -55,8 +68,8 @@ func convert(paths []string) ([]*landlock.Path, error) {
 		if idx == -1 {
 			return nil, fmt.Errorf("path %q does not contain mode suffix", path)
 		}
-		filepath := path[0:idx]
-		mode := path[idx+1:]
+		mode := path[0:idx]
+		filepath := path[idx+1:]
 
 		fmt.Println("PATH", path, "FILEPATH", filepath, "MODE", mode)
 

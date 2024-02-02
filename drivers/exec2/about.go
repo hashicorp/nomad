@@ -5,10 +5,8 @@ package exec2
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/drivers/exec2/shim"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -45,9 +43,15 @@ var info = &base.PluginInfoResponse{
 
 // driverConfigSpec is the HCL configuration set for the plugin on the client
 var driverConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-	// TODO
-	// will probably have some default unveil paths()
-	// .. and some allowable unveil paths? that gets tricky though
+	"unveil_defaults": hclspec.NewDefault(
+		hclspec.NewAttr("unveil_defaults", "bool", false),
+		hclspec.NewLiteral("true"),
+	),
+	"unveil_by_task": hclspec.NewDefault(
+		hclspec.NewAttr("unveil_by_task", "bool", false),
+		hclspec.NewLiteral("false"),
+	),
+	"unveil_paths": hclspec.NewAttr("unveil_paths", "list(string)", false),
 })
 
 // taskConfigSpec is the HCL configuration set for the task on the jobspec
@@ -75,7 +79,9 @@ var capabilities = &drivers.Capabilities{
 // Config represents the exec2 driver plugin configuration that gets set in
 // the Nomad client configuration file.
 type Config struct {
-	// TODO
+	UnveilDefaults bool     `codec:"unveil_defaults"`
+	UnveilPaths    []string `codec:"unveil_paths"`
+	UnveilByTask   bool     `codec:"unveil_by_task"`
 }
 
 // TaskConfig represents the exec2 driver task configuration that gets set in
@@ -84,16 +90,4 @@ type TaskConfig struct {
 	Command string   `codec:"command"`
 	Args    []string `codec:"args"`
 	Unveil  []string `codec:"unveil"`
-}
-
-func parseOptions(driverTaskConfig *drivers.TaskConfig) (*shim.Options, error) {
-	var taskConfig TaskConfig
-	if err := driverTaskConfig.DecodeDriverConfig(&taskConfig); err != nil {
-		return nil, fmt.Errorf("failed to decode driver task config: %w", err)
-	}
-	return &shim.Options{
-		Command:   taskConfig.Command,
-		Arguments: taskConfig.Args,
-		Unveil:    taskConfig.Unveil,
-	}, nil
 }

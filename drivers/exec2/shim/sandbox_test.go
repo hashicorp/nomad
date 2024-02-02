@@ -24,6 +24,12 @@ func Test_split(t *testing.T) {
 			paths: nil,
 			cmds:  []string{"env"},
 		},
+		{
+			name:  "cat",
+			args:  []string{"/etc/passwd:r", "--", "cat", "/etc/passwd"},
+			paths: []string{"/etc/passwd:r"},
+			cmds:  []string{"cat", "/etc/passwd"},
+		},
 	}
 
 	for _, tc := range cases {

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -85,9 +86,8 @@ func (p *Plugin) SetConfig(c *base.Config) error {
 		}
 	}
 	p.config = &config
-
-	// TODO: validation on plugin configuration
-	// currently there is no configuration, so yeah
+	// currently not much to validate on the plugin config, but if there was
+	// that step would go here
 	return nil
 }
 
@@ -240,18 +240,19 @@ func (p *Plugin) StartTask(config *drivers.TaskConfig) (*drivers.TaskHandle, *dr
 	}
 
 	// set the task execution runtime options
-	opts, err := parseOptions(config)
+	opts, err := p.setOptions(config)
 	if err != nil {
 		p.logger.Error("failed to parse options: %v", err)
 		return nil, nil, err
 	}
 
-	// buckle up, here we go!
+	// what is about to happen
 	p.logger.Info(
 		"exec2 runner",
 		"cmd", opts.Command,
 		"args", opts.Arguments,
-		"unveil", opts.Unveil,
+		"unveil_paths", opts.UnveilPaths,
+		"unveil_defaults", opts.UnveilDefaults,
 	)
 
 	// create the runner and start it
@@ -485,4 +486,27 @@ func (p *Plugin) stats(ctx context.Context, ch chan<- *drivers.TaskResourceUsage
 			Pids:      nil,
 		}
 	}
+}
+
+func (p *Plugin) setOptions(driverTaskConfig *drivers.TaskConfig) (*shim.Options, error) {
+	var taskConfig TaskConfig
+	if err := driverTaskConfig.DecodeDriverConfig(&taskConfig); err != nil {
+		return nil, fmt.Errorf("failed to decode driver task config: %w", err)
+	}
+
+	unveil := slices.Clone(p.config.UnveilPaths)
+
+	if len(taskConfig.Unveil) > 0 {
+		if !p.config.UnveilByTask {
+			return nil, fmt.Errorf("task set unveil paths but driver config does not allow this")
+		}
+		unveil = append(unveil, taskConfig.Unveil...)
+	}
+
+	return &shim.Options{
+		Command:        taskConfig.Command,
+		Arguments:      taskConfig.Args,
+		UnveilPaths:    unveil,
+		UnveilDefaults: p.config.UnveilDefaults,
+	}, nil
 }

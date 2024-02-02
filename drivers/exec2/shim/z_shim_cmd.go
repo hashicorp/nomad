@@ -26,6 +26,14 @@ const (
 	deadline = 1 * time.Second
 )
 
+// init is the entrypoint for the 'nomad e2e-shim' invocation of nomad
+//
+// The argument format is as follows,
+//
+// 1. nomad <- the executable name
+// 2. e2e-shim <- this subcommand
+// 3. true/false <- include default unveil paths
+// 4. [mode:path, ...] <- list of additional unveil paths
 func init() {
 	subproc.Do(SubCommand, func() int {
 		fmt.Println("INIT")
@@ -38,14 +46,15 @@ func init() {
 
 		// get the unveil paths and the rest of the command(s) to run
 		// from our command arguments
-		args := os.Args[2:] // chop off 'nomad e2e-shim'
-		fmt.Println("ARGS", args)
+		args := os.Args[3:] // chop off 'nomad e2e-shim bool'
+		defaults := os.Args[2] == "true"
+		fmt.Println("ARGS", args, "DEFAULTS", defaults)
 		paths, commands := split(args)
 		fmt.Println("PATHS", paths, "COMMANDS", commands)
 
 		// use landlock to isolate this process and child processes to the
 		// set of given filepaths
-		if err := lockdown(paths); err != nil {
+		if err := lockdown(defaults, paths); err != nil {
 			fmt.Println("LOCK FAIL", err)
 			return subproc.ExitFailure
 		}
