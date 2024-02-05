@@ -4,14 +4,18 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
 )
 
@@ -221,6 +225,107 @@ func TestMonitor_Monitor(t *testing.T) {
 	if !strings.Contains(out, "finished with status") {
 		t.Fatalf("missing final status\n\n%s", out)
 	}
+}
+
+func TestMonitor_MonitorBlockedEval(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, client, _ := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	mon := newMonitor(ui, client, fullId)
+
+	// Submit a service job.
+	// Since there are no clients this will create a blocked eval.
+	job := testJob("job1")
+	job.Type = pointer.Of("service")
+	job.TaskGroups[0].Tasks[0].Config["run_for"] = "300s"
+
+	resp, _, err := client.Jobs().Register(job, nil)
+	must.NoError(t, err)
+
+	// Start monitoring the eval and collect return code.
+	var code int
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(doneCh)
+		code = mon.monitor(resp.EvalID)
+	}()
+
+	// Helper function to check for eval and deployment status.
+	waitForEvalDeploymentStatusFunc := func(evalStatus string, deploymentStatus string) func() error {
+		return func() error {
+			// Verify most recent job eval is blocked.
+			evals, _, err := client.Jobs().Evaluations(*job.ID, nil)
+			if err != nil {
+				return fmt.Errorf("failed to fetch job evals: %w", err)
+			}
+			if len(evals) < 1 {
+				return fmt.Errorf("expected at least one eval, got %d", len(evals))
+			}
+
+			eval := evals[0]
+			if eval.Status != evalStatus {
+				return fmt.Errorf("expected eval to be %q, got %q", evalStatus, eval.Status)
+			}
+
+			// Verify job deployment is running.
+			ds, _, err := client.Jobs().Deployments(*job.ID, false, nil)
+			if err != nil {
+				return fmt.Errorf("failed to fetch job deployments: %w", err)
+			}
+			if len(ds) != 1 {
+				return fmt.Errorf("expected 1 deployment, found %d", len(ds))
+			}
+
+			d := ds[0]
+			if d.Status != deploymentStatus {
+				return fmt.Errorf("expected deployment to be %q, got %q", deploymentStatus, d.Status)
+			}
+			return nil
+		}
+	}
+
+	// Wait until job eval is blocked and deployment is running.
+	must.Wait(t,
+		wait.InitialSuccess(
+			wait.ErrorFunc(waitForEvalDeploymentStatusFunc(
+				api.EvalStatusBlocked,
+				api.DeploymentStatusRunning,
+			)),
+			wait.Timeout(3*time.Second),
+			wait.Gap(1*time.Second),
+		),
+		must.Sprintf("failed to wait for blocked deployment"),
+	)
+
+	// Add client to provide the necessary capacity and unblock the eval.
+	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
+	testClient(t, "client1", newClientAgentConfigFunc("global", "classA", srvRPCAddr))
+
+	// Wait until job eval is complete and deployment is successful.
+	must.Wait(t,
+		wait.InitialSuccess(
+			wait.ErrorFunc(waitForEvalDeploymentStatusFunc(
+				api.EvalStatusComplete,
+				api.DeploymentStatusSuccessful,
+			)),
+			wait.Timeout(30*time.Second),
+			wait.Gap(1*time.Second),
+		),
+		must.Sprintf("failed to wait for blocked deployment"),
+	)
+
+	// Wait for command to complete.
+	select {
+	case <-doneCh:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("eval monitor took too long")
+	}
+
+	// Verify status code is 0 since deployment was succesful.
+	must.Zero(t, code)
 }
 
 func TestMonitor_formatAllocMetric(t *testing.T) {
