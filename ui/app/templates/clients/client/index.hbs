@@ -180,13 +180,14 @@
           >
             Eligible
           </Toggle>
-          <span
-            class="tooltip"
-            aria-label="Only eligible clients can receive allocations"
-          >
-            {{x-icon "info-circle-outline" class="is-faded"}}
-          </span>
         </label>
+        <Hds::TooltipButton
+          @text="Only eligible clients can receive allocations"
+          aria-label="More information"
+          class="is-faded"
+        >
+          <FlightIcon @name="info" />
+        </Hds::TooltipButton>
         <span
           data-test-node-id
           class="tag is-hollow is-small no-text-transform"
@@ -434,12 +435,14 @@
   <div class="boxed-section">
     <div class="boxed-section-head is-hollow">
       Host Resource Utilization
-      <span
-        class="tooltip multiline pad-left"
-        aria-label="All allocation and system processes aggregated"
+      <Hds::TooltipButton
+        @text="All allocation and system processes aggregated"
+        aria-label="More information"
+        class="is-faded"
       >
-        {{x-icon "info-circle-outline" class="is-faded"}}
-      </span>
+        <FlightIcon @name="info" />
+      </Hds::TooltipButton>
+
     </div>
     <div class="boxed-section-body">
       <div class="columns">

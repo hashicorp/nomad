@@ -8,9 +8,12 @@
   @model={{@allocation.id}}
   @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
   @label="View allocation"
-  @tooltip={{hash
-    text=(or this.tooltipText '')
-    extraTippyOptions=(hash trigger=(if (eq @status "unplaced") "manual"))
+  @tooltip={{if this.tooltipText
+    (hash
+      text=(or this.tooltipText '')
+      extraTippyOptions=(hash trigger=(if (eq @status "unplaced") "manual"))
+    )
+    null
   }}
 >
   {{#unless @steady}}
