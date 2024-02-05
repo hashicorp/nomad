@@ -49,6 +49,7 @@
     <Hds::Form::Toggle::Field
       {{on "change" this.toggleListener}}
       data-test-enable-shortcuts-toggle
+      class={{if this.keyboard.enabled "is-active"}}
       checked={{this.keyboard.enabled}}
       as |F|
     >

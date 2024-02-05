@@ -2,33 +2,31 @@
   Copyright (c) HashiCorp, Inc.
   SPDX-License-Identifier: BUSL-1.1
 ~}}
-<Hds::TooltipButton
-  @text={{or this.tooltipText ""}}
-  aria-label="Allocation"
-  @extraTippyOptions={{hash trigger=(if (eq @status "unplaced") "manual")}}
+<ConditionalLinkTo
+  @condition={{not (eq @status "unplaced")}}
+  @route="allocations.allocation"
+  @model={{@allocation.id}}
+  @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
+  @label="View allocation"
+  @tooltip={{hash
+    text=(or this.tooltipText '')
+    extraTippyOptions=(hash trigger=(if (eq @status "unplaced") "manual"))
+  }}
 >
-  <ConditionalLinkTo
-    @condition={{not (eq @status "unplaced")}}
-    @route="allocations.allocation"
-    @model={{@allocation.id}}
-    @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
-    @label="View allocation"
-  >
-    {{#unless @steady}}
-      {{#if (eq @canary "canary")}}
-        <span class="alloc-canary-indicator" />
-      {{/if}}
-      {{#if (eq @status "running")}}
-        <span class="alloc-health-indicator">
-          {{#if (eq @health "healthy")}}
-            <FlightIcon @name="check" @color="white" />
-          {{else if (eq @health "unhealthy")}}
-            <FlightIcon @name="x" @color="white" />
-          {{else}}
-            <FlightIcon @name="running" @color="white" />
-          {{/if}}
-        </span>
-      {{/if}}
-    {{/unless}}
-  </ConditionalLinkTo>
-</Hds::TooltipButton>
+  {{#unless @steady}}
+    {{#if (eq @canary "canary")}}
+      <span class="alloc-canary-indicator" />
+    {{/if}}
+    {{#if (eq @status "running")}}
+      <span class="alloc-health-indicator">
+        {{#if (eq @health "healthy")}}
+          <FlightIcon @name="check" @color="white" />
+        {{else if (eq @health "unhealthy")}}
+          <FlightIcon @name="x" @color="white" />
+        {{else}}
+          <FlightIcon @name="running" @color="white" />
+        {{/if}}
+      </span>
+    {{/if}}
+  {{/unless}}
+</ConditionalLinkTo>
