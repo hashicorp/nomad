@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -167,4 +168,64 @@ func TestVolumeMount_Equal(t *testing.T) {
 		Field: "PropogationMode",
 		Apply: func(vm *VolumeMount) { vm.PropagationMode = "mode2" },
 	}})
+}
+
+func TestVolumeMount_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name        string
+		expectedErr error
+		volMount    *VolumeMount
+	}{
+		{
+			name: "valid volume mount",
+			volMount: &VolumeMount{
+				Volume: "vol",
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "empty volume reference",
+			volMount: &VolumeMount{
+				Volume: "",
+			},
+			expectedErr: errVolMountEmptyVol,
+		},
+		{
+			name: "invalid propagation mode",
+			volMount: &VolumeMount{
+				Volume:          "vol",
+				PropagationMode: "very invalid propagation mode",
+			},
+			expectedErr: errVolMountInvalidPropagationMode,
+		},
+		{
+			name: "invalid selinux label",
+			volMount: &VolumeMount{
+				Volume:          "vol",
+				PropagationMode: VolumeMountPropagationPrivate,
+				SELinuxLabel:    "very invalid selinux label",
+			},
+			expectedErr: errVolMountInvalidSELinuxLabel,
+		},
+		{
+			name: "full valid volume mont",
+			volMount: &VolumeMount{
+				Volume:          "vol",
+				PropagationMode: VolumeMountPropagationPrivate,
+				SELinuxLabel:    SELinuxPrivateVolume,
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.volMount.Validate()
+			if !errors.Is(err, tc.expectedErr) {
+				t.Fatalf("expected error %v, got %v", tc.expectedErr, err)
+			}
+		})
+	}
 }
