@@ -3747,7 +3747,7 @@
     resolve "^1.20.0"
     semver "^7.3.2"
 
-"@embroider/macros@^1.13.3", "@embroider/macros@^1.8.3":
+"@embroider/macros@^1.13.3":
   version "1.13.3"
   resolved "https://registry.yarnpkg.com/@embroider/macros/-/macros-1.13.3.tgz#e1ff584e01bcdebb9fa9f6982ecc2ea89886867f"
   integrity sha512-JUC1aHRLIN2LNy1l+gz7gWkw9JmnsE20GL3LduCzNvCAnEQpMTJhW5BUbEWqdCnAWBPte/M2ofckqBXyTZioTQ==
@@ -4159,14 +4159,6 @@
     "@glimmer/env" "^0.1.7"
     "@glimmer/validator" "^0.44.0"
 
-"@glimmer/tracking@^1.1.2":
-  version "1.1.2"
-  resolved "https://registry.yarnpkg.com/@glimmer/tracking/-/tracking-1.1.2.tgz#74e71be07b0a7066518d24044d2665d0cf8281eb"
-  integrity sha512-cyV32zsHh+CnftuRX84ALZpd2rpbDrhLhJnTXn9W//QpqdRZ5rdMsxSY9fOsj0CKEc706tmEU299oNnDc0d7tA==
-  dependencies:
-    "@glimmer/env" "^0.1.7"
-    "@glimmer/validator" "^0.44.0"
-
 "@glimmer/util@0.65.1":
   version "0.65.1"
   resolved "https://registry.yarnpkg.com/@glimmer/util/-/util-0.65.1.tgz#c85ebc13344739c123e0ec6551ae740cf5fd62bf"
@@ -4227,20 +4219,19 @@
   resolved "https://registry.yarnpkg.com/@handlebars/parser/-/parser-1.1.0.tgz#d6dbc7574774b238114582410e8fee0dc3532bdf"
   integrity sha512-rR7tJoSwJ2eooOpYGxGGW95sLq6GXUaS1UtWvN7pei6n2/okYvCGld9vsUTvkl2migxbkszsycwtMf/GEc1k1A==
 
-"@hashicorp/design-system-components@^3.3.0":
-  version "3.3.0"
-  resolved "https://registry.yarnpkg.com/@hashicorp/design-system-components/-/design-system-components-3.3.0.tgz#06b15fac07ffc55611c83f862f057a7be423e487"
-  integrity sha512-bwBQOb1/+HQXQIWp0E+QHSwW1mFtOuGgw1gwfUpVLc7chaR4X85esLme5A62ySI5huNHzWEDgFRdXu7TLJrEyw==
+"@hashicorp/design-system-components@^3.6.0":
+  version "3.6.0"
+  resolved "https://registry.yarnpkg.com/@hashicorp/design-system-components/-/design-system-components-3.6.0.tgz#e678123f9d88eef7df2edfdf1666997214fe3273"
+  integrity sha512-HV8Wa9fTFCfwCCze7gzg2+U3oSmwNkwYtnrrxln7MXzEKRWl1E2p4BM7ZdyaXu3n092R3wcjy04VwaVSmQqrLw==
   dependencies:
     "@ember/render-modifiers" "^2.0.5"
     "@ember/string" "^3.1.1"
     "@ember/test-waiters" "^3.1.0"
-    "@hashicorp/design-system-tokens" "^1.9.0"
-    "@hashicorp/ember-flight-icons" "^4.0.4"
+    "@hashicorp/design-system-tokens" "^1.11.0"
+    "@hashicorp/ember-flight-icons" "^4.1.0"
     dialog-polyfill "^0.5.6"
     ember-a11y-refocus "^3.0.2"
     ember-auto-import "^2.6.3"
-    ember-cached-decorator-polyfill "^1.0.2"
     ember-cli-babel "^8.2.0"
     ember-cli-htmlbars "^6.3.0"
     ember-cli-sass "^11.0.1"
@@ -4255,10 +4246,10 @@
     sass "^1.69.5"
     tippy.js "^6.3.7"
 
-"@hashicorp/design-system-tokens@^1.9.0":
-  version "1.9.0"
-  resolved "https://registry.yarnpkg.com/@hashicorp/design-system-tokens/-/design-system-tokens-1.9.0.tgz#1cfd2627d838214c609f25ff6696b3f3d516d9e5"
-  integrity sha512-zmMpnKv4vulhVFVCpqf3oAAR5fQeDDnMxbeJIZllLFCgF2JFoL6C/Irghx4WnBAG8GkLs8CbxjPVtFjSYq+V8w==
+"@hashicorp/design-system-tokens@^1.11.0":
+  version "1.11.0"
+  resolved "https://registry.yarnpkg.com/@hashicorp/design-system-tokens/-/design-system-tokens-1.11.0.tgz#0ae68d06d4297e891ce4ba63465d1f6e742e5554"
+  integrity sha512-LPj8IAznpEEhKrrosg3+sW9ss6fVKt8zOC9Ic4Kt5/KZPWLFaP6S8pff5ytvede+cZrAzY3UzZF55u+ev5J9GQ==
 
 "@hashicorp/ember-flight-icons@^4.0.4":
   version "4.0.4"
@@ -4271,10 +4262,26 @@
     ember-cli-htmlbars "^6.3.0"
     ember-get-config "^2.1.1"
 
+"@hashicorp/ember-flight-icons@^4.1.0":
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/@hashicorp/ember-flight-icons/-/ember-flight-icons-4.1.0.tgz#4f73fc6145c94ecd46ef38802722ea2d1fe0e876"
+  integrity sha512-X1AL475EPuGu6UkZiS/zqRFgymnIhGfgpY1HwPdavePARmgMr9CcPSwsTeZeV+OXq6yUxMzidijSJUAfEpLb5Q==
+  dependencies:
+    "@hashicorp/flight-icons" "^3.0.0"
+    ember-auto-import "^2.6.3"
+    ember-cli-babel "^8.2.0"
+    ember-cli-htmlbars "^6.3.0"
+    ember-get-config "^2.1.1"
+
 "@hashicorp/flight-icons@^2.23.0":
   version "2.23.0"
   resolved "https://registry.yarnpkg.com/@hashicorp/flight-icons/-/flight-icons-2.23.0.tgz#594308a77d6887864b89f792147bd408df64c6cb"
   integrity sha512-q0ZYE9wj6dUOqYQ+EXeclf/v0wj7v3PgIioNUO6pK4+KYAmeD5M9LW/BA4FKd0NdJEqnaTbHvN7iRVvKHarNQA==
+
+"@hashicorp/flight-icons@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@hashicorp/flight-icons/-/flight-icons-3.0.0.tgz#164185caae1e1fd0ca3b605550b435d440bf90a2"
+  integrity sha512-gjI24oDuJQ3w1Obn6oghcopv7xsX/YcjjYaffhsN2BAYEQ83ywT1IiyN13RKdFG8Ufa+9h+o6Yi2e+jBVNNU/w==
 
 "@hashicorp/structure-icons@^1.3.0":
   version "1.9.2"
@@ -7148,11 +7155,6 @@ babel-import-util@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/babel-import-util/-/babel-import-util-1.1.0.tgz#4156b16ef090c4f0d3cdb869ff799202f24aeb93"
   integrity sha512-sfzgAiJsUT1es9yrHAuJZuJfBkkOE7Og6rovAIwK/gNJX6MjDfWTprbPngdJZTd5ye4F3FvpvpQmvKXObRzVYA==
-
-babel-import-util@^1.2.2:
-  version "1.4.1"
-  resolved "https://registry.yarnpkg.com/babel-import-util/-/babel-import-util-1.4.1.tgz#1df6fd679845df45494bac9ca12461d49497fdd4"
-  integrity sha512-TNdiTQdPhXlx02pzG//UyVPSKE7SNWjY0n4So/ZnjQpWwaM5LvWBLkWa1JKll5u06HNscHD91XZPuwrMg1kadQ==
 
 babel-import-util@^1.3.0:
   version "1.3.0"
@@ -11102,28 +11104,6 @@ ember-basic-dropdown@^3.0.21:
     ember-maybe-in-element "^2.0.3"
     ember-style-modifier "^0.7.0"
     ember-truth-helpers "^2.1.0 || ^3.0.0"
-
-ember-cache-primitive-polyfill@^1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/ember-cache-primitive-polyfill/-/ember-cache-primitive-polyfill-1.0.1.tgz#a27075443bd87e5af286c1cd8a7df24e3b9f6715"
-  integrity sha512-hSPcvIKarA8wad2/b6jDd/eU+OtKmi6uP+iYQbzi5TQpjsqV6b4QdRqrLk7ClSRRKBAtdTuutx+m+X+WlEd2lw==
-  dependencies:
-    ember-cli-babel "^7.22.1"
-    ember-cli-version-checker "^5.1.1"
-    ember-compatibility-helpers "^1.2.1"
-    silent-error "^1.1.1"
-
-ember-cached-decorator-polyfill@^1.0.2:
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/ember-cached-decorator-polyfill/-/ember-cached-decorator-polyfill-1.0.2.tgz#26445056ebee3776c340e28652ce59be73dd3958"
-  integrity sha512-hUX6OYTKltAPAu8vsVZK02BfMTV0OUXrPqvRahYPhgS7D0I6joLjlskd7mhqJMcaXLywqceIy8/s+x8bxF8bpQ==
-  dependencies:
-    "@embroider/macros" "^1.8.3"
-    "@glimmer/tracking" "^1.1.2"
-    babel-import-util "^1.2.2"
-    ember-cache-primitive-polyfill "^1.0.1"
-    ember-cli-babel "^7.26.11"
-    ember-cli-babel-plugin-helpers "^1.1.1"
 
 ember-can@^4.1.0:
   version "4.1.0"
