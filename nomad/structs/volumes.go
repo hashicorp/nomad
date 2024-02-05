@@ -11,22 +11,20 @@ import (
 
 const (
 	VolumeTypeHost = "host"
-)
 
-const (
 	VolumeMountPropagationPrivate       = "private"
 	VolumeMountPropagationHostToTask    = "host-to-task"
 	VolumeMountPropagationBidirectional = "bidirectional"
+
+	SELinuxSharedVolume  = "z"
+	SELinuxPrivateVolume = "Z"
 )
 
-func MountPropagationModeIsValid(propagationMode string) bool {
-	switch propagationMode {
-	case "", VolumeMountPropagationPrivate, VolumeMountPropagationHostToTask, VolumeMountPropagationBidirectional:
-		return true
-	default:
-		return false
-	}
-}
+var (
+	errVolMountInvalidPropagationMode = fmt.Errorf("volume mount has an invalid propagation mode")
+	errVolMountInvalidSELinuxLabel    = fmt.Errorf("volume mount has an invalid SELinux label")
+	errVolMountEmptyVol               = fmt.Errorf("volume mount references an empty volume")
+)
 
 // ClientHostVolumeConfig is used to configure access to host paths on a Nomad Client
 type ClientHostVolumeConfig struct {
@@ -250,6 +248,7 @@ type VolumeMount struct {
 	Destination     string
 	ReadOnly        bool
 	PropagationMode string
+	SELinuxLabel    string
 }
 
 func (v *VolumeMount) Equal(o *VolumeMount) bool {
@@ -265,7 +264,10 @@ func (v *VolumeMount) Equal(o *VolumeMount) bool {
 		return false
 	case v.PropagationMode != o.PropagationMode:
 		return false
+	case v.SELinuxLabel != o.SELinuxLabel:
+		return false
 	}
+
 	return true
 }
 
@@ -277,6 +279,43 @@ func (v *VolumeMount) Copy() *VolumeMount {
 	nv := new(VolumeMount)
 	*nv = *v
 	return nv
+}
+
+func (v *VolumeMount) Validate() error {
+	var mErr *multierror.Error
+
+	// Validate the task does not reference undefined volume mounts
+	if v.Volume == "" {
+		mErr = multierror.Append(mErr, errVolMountEmptyVol)
+	}
+
+	if !v.MountPropagationModeIsValid() {
+		mErr = multierror.Append(mErr, fmt.Errorf("%w: %q", errVolMountInvalidPropagationMode, v.PropagationMode))
+	}
+
+	if !v.SELinuxLabelIsValid() {
+		mErr = multierror.Append(mErr, fmt.Errorf("%w: \"%s\"", errVolMountInvalidSELinuxLabel, v.SELinuxLabel))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (v *VolumeMount) MountPropagationModeIsValid() bool {
+	switch v.PropagationMode {
+	case "", VolumeMountPropagationPrivate, VolumeMountPropagationHostToTask, VolumeMountPropagationBidirectional:
+		return true
+	default:
+		return false
+	}
+}
+
+func (v *VolumeMount) SELinuxLabelIsValid() bool {
+	switch v.SELinuxLabel {
+	case "", SELinuxSharedVolume, SELinuxPrivateVolume:
+		return true
+	default:
+		return false
+	}
 }
 
 func CopySliceVolumeMount(s []*VolumeMount) []*VolumeMount {
