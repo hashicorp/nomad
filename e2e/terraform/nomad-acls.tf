@@ -15,19 +15,12 @@ locals {
 resource "null_resource" "bootstrap_nomad_acls" {
   depends_on = [module.nomad_server]
   triggers = {
-    script = data.template_file.bootstrap_nomad_script.rendered
+    command = aws_instance.server.0.public_ip != "" ? local.nomad_env : "echo 'Nomad server not ready yet, skipping bootstrap'"
   }
 
   provisioner "local-exec" {
-    command = data.template_file.bootstrap_nomad_script.rendered
+    command = "${local.nomad_env} ./scripts/bootstrap-nomad.sh"
   }
-}
-
-# write the bootstrap token to the keys/ directory (where the ssh key is)
-# so that we can read it into the data.local_file later. If not set,
-# ensure that it's empty.
-data "template_file" "bootstrap_nomad_script" {
-  template = "${local.nomad_env} ./scripts/bootstrap-nomad.sh"
 }
 
 data "local_sensitive_file" "nomad_token" {

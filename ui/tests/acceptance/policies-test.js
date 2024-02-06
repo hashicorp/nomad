@@ -4,7 +4,14 @@
  */
 
 import { module, test } from 'qunit';
-import { visit, currentURL, click, typeIn, findAll } from '@ember/test-helpers';
+import {
+  visit,
+  currentURL,
+  click,
+  typeIn,
+  findAll,
+  find,
+} from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -137,7 +144,15 @@ module('Acceptance | policies', function (hooks) {
     )[0];
     await click(firstPolicyLink);
     assert.equal(currentURL(), `/access-control/policies/${firstPolicyName}`);
-    await click('[data-test-delete-policy]');
+
+    const deleteButton = find('[data-test-delete-policy] button');
+    assert.dom(deleteButton).exists('delete button is present');
+    await click(deleteButton);
+    assert
+      .dom('[data-test-confirmation-message]')
+      .exists('confirmation message is present');
+    await click(find('[data-test-confirm-button]'));
+
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(currentURL(), '/access-control/policies');
     assert.dom(`[data-test-policy-name="${firstPolicyName}"]`).doesNotExist();

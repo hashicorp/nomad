@@ -1,0 +1,37 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+<Breadcrumb @crumb={{hash label=this.model.name args=(array "access-control.namespaces.acl-namespace" this.model.name)}} />
+{{page-title "Namespace"}}
+
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		<div>
+			{{this.model.name}}
+		</div>
+		{{#if (and (not (eq this.model.name "default"))  (can "destroy namespace"))}}
+			<TwoStepButton
+          data-test-delete-namespace
+          @alignRight={{true}}
+          @idleText="Delete Namespace"
+          @cancelText="Cancel"
+          @confirmText="Yes, Delete Namespace"
+          @confirmationMessage="Are you sure?"
+          @awaitingConfirmation={{this.deleteNamespace.isRunning}}
+          @disabled={{this.deleteNamespace.isRunning}}
+          @onConfirm={{perform this.deleteNamespace}}
+        />
+		{{/if}}
+	</h1>
+
+<Hds::Alert @type="inline" @color="highlight" @icon="info" class="related-entities notification" as |A|>
+  <A.Title>Related Resources</A.Title>
+  <A.Description>
+    View this namespace's <<Hds::Link::Inline @route="jobs" @query={{hash namespace=this.model.name}}>jobs</<Hds::Link::Inline>
+      or <<Hds::Link::Inline @route="variables" @query={{hash namespace=this.model.name}}>variables</<Hds::Link::Inline>.
+  </A.Description>
+</Hds::Alert>
+
+<NamespaceEditor @namespace={{this.model}} />
+</section>

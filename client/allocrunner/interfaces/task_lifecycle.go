@@ -87,6 +87,15 @@ type TaskPrestartResponse struct {
 
 	// Done lets the hook indicate that it completed successfully and
 	// should not be run again.
+	//
+	// Use sparringly! In general hooks should be idempotent and therefore Done
+	// is unneeded. You never know at what point an agent might crash, and it can
+	// be hard to reason about how Done=true impacts agent restarts and node
+	// reboots. See #19787 for example.
+	//
+	// Done is useful for expensive operations such as downloading artifacts, or
+	// for operations which might fail needlessly if rerun while a node is
+	// disconnected.
 	Done bool
 }
 

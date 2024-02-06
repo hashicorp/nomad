@@ -806,6 +806,18 @@ func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) erro
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
+	err := s.DeleteDeploymentTxn(index, deploymentIDs, txn)
+	if err == nil {
+		return txn.Commit()
+	}
+
+	return err
+}
+
+// DeleteDeploymentTxn is used to delete a set of deployments by ID, like
+// DeleteDeployment but in a transaction. Useful when making multiple
+// modifications atomically.
+func (s *StateStore) DeleteDeploymentTxn(index uint64, deploymentIDs []string, txn Txn) error {
 	if len(deploymentIDs) == 0 {
 		return nil
 	}
@@ -817,7 +829,7 @@ func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) erro
 			return fmt.Errorf("deployment lookup failed: %v", err)
 		}
 		if existing == nil {
-			return fmt.Errorf("deployment not found")
+			continue
 		}
 
 		// Delete the deployment
@@ -830,7 +842,50 @@ func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) erro
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	return txn.Commit()
+	return nil
+}
+
+// DeleteAlloc is used to delete a set of allocations by ID
+func (s *StateStore) DeleteAlloc(index uint64, allocIDs []string) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	err := s.DeleteAllocTxn(index, allocIDs, txn)
+	if err == nil {
+		return txn.Commit()
+	}
+
+	return err
+}
+
+// DeleteAllocTxn is used to delete a set of allocs by ID, like DeleteALloc but
+// in a transaction. Useful when making multiple modifications atomically.
+func (s *StateStore) DeleteAllocTxn(index uint64, allocIDs []string, txn Txn) error {
+	if len(allocIDs) == 0 {
+		return nil
+	}
+
+	for _, allocID := range allocIDs {
+		// Lookup the alloc
+		existing, err := txn.First("allocs", "id", allocID)
+		if err != nil {
+			return fmt.Errorf("alloc lookup failed: %v", err)
+		}
+		if existing == nil {
+			continue
+		}
+
+		// Delete the alloc
+		if err := txn.Delete("allocs", existing); err != nil {
+			return fmt.Errorf("alloc delete failed: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
 }
 
 // UpsertScalingEvent is used to insert a new scaling event.
@@ -1891,6 +1946,68 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 
 	// Delete the job versions
 	if err := s.deleteJobVersions(index, job, txn); err != nil {
+		return err
+	}
+
+	// Delete job deployments
+	deployments, err := s.DeploymentsByJobID(nil, namespace, job.ID, true)
+	if err != nil {
+		return fmt.Errorf("deployment lookup for job %s failed: %v", job.ID, err)
+	}
+
+	deploymentIDs := []string{}
+	for _, d := range deployments {
+		deploymentIDs = append(deploymentIDs, d.ID)
+	}
+
+	if err := s.DeleteDeploymentTxn(index, deploymentIDs, txn); err != nil {
+		return err
+	}
+
+	// Mark all "pending" evals for this job as "complete"
+	evals, err := s.EvalsByJob(nil, namespace, job.ID)
+	if err != nil {
+		return fmt.Errorf("eval lookup for job %s failed: %v", job.ID, err)
+	}
+
+	for _, eval := range evals {
+		existing, err := txn.First("evals", "id", eval.ID)
+		if err != nil {
+			return fmt.Errorf("eval lookup failed: %v", err)
+		}
+		if existing == nil {
+			continue
+		}
+
+		if existing.(*structs.Evaluation).Status != structs.EvalStatusPending {
+			continue
+		}
+
+		eval := existing.(*structs.Evaluation).Copy()
+		eval.Status = structs.EvalStatusComplete
+		eval.StatusDescription = fmt.Sprintf("job %s deleted", job.ID)
+
+		// Insert the eval
+		if err := txn.Insert("evals", eval); err != nil {
+			return fmt.Errorf("eval insert failed: %v", err)
+		}
+		if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+
+	// Delete job allocs
+	allocs, err := s.AllocsByJob(nil, namespace, job.ID, true)
+	if err != nil {
+		return fmt.Errorf("alloc lookup for job %s failed: %v", job.ID, err)
+	}
+
+	allocIDs := []string{}
+	for _, a := range allocs {
+		allocIDs = append(allocIDs, a.ID)
+	}
+
+	if err := s.DeleteAllocTxn(index, allocIDs, txn); err != nil {
 		return err
 	}
 

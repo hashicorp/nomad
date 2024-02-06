@@ -1318,6 +1318,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 						Destination:     *mount.Destination,
 						ReadOnly:        *mount.ReadOnly,
 						PropagationMode: *mount.PropagationMode,
+						SELinuxLabel:    *mount.SELinuxLabel,
 					})
 			}
 		}

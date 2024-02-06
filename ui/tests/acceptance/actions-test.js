@@ -309,7 +309,6 @@ module('Acceptance | actions', function (hooks) {
 
     // Global button should be present
     assert.ok(Actions.globalButton.isPresent, 'Global button is present');
-
     // click it
     await Actions.globalButton.click();
 

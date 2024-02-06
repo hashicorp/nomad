@@ -19,7 +19,7 @@ import (
 
 type consulHook struct {
 	alloc                   *structs.Allocation
-	allocdir                *allocdir.AllocDir
+	allocdir                allocdir.Interface
 	widmgr                  widmgr.IdentityManager
 	consulConfigs           map[string]*structsc.ConsulConfig
 	consulClientConstructor func(*structsc.ConsulConfig, log.Logger) (consul.Client, error)
@@ -30,7 +30,7 @@ type consulHook struct {
 
 type consulHookConfig struct {
 	alloc    *structs.Allocation
-	allocdir *allocdir.AllocDir
+	allocdir allocdir.Interface
 	widmgr   widmgr.IdentityManager
 
 	// consulConfigs is a map of cluster names to Consul configs

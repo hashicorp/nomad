@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/dustin/go-humanize/english"
 	"github.com/hashicorp/vault/api"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -48,6 +49,12 @@ type SetupVaultCommand struct {
 
 	destroy bool
 	autoYes bool
+
+	// Options for -check.
+	check   bool
+	json    bool
+	tmpl    string
+	verbose bool
 }
 
 // Help satisfies the cli.Command Help function.
@@ -61,6 +68,10 @@ Usage: nomad setup vault [options]
   This command requires acl:write permissions for Vault and respects
   VAULT_TOKEN, VAULT_ADDR, and other Vault-related environment variables
   as documented in https://developer.hashicorp.com/vault/docs/commands#environment-variables.
+
+  The -check option can be used to verify if the Nomad cluster is ready to
+  migrate to use Workload Identities with Vault. This option requires
+  operator:read permission for Nomad.
 
   WARNING: This command is an experimental feature and may change its behavior
   in future versions of Nomad.
@@ -79,7 +90,22 @@ Setup Vault options:
     Automatically answers "yes" to all the questions, making the setup
     non-interactive. Defaults to "false".
 
-`
+  -check
+    Verify if the Nomad cluster is ready to migrate to Workload Identities.
+
+Setup Vault options when using -check:
+
+  -json
+    Output migration status information in its JSON format.
+
+  -t
+    Format and display migration status information using a Go template.
+
+  -verbose
+    Display full information.
+
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
+
 	return strings.TrimSpace(helpText)
 }
 
@@ -89,6 +115,12 @@ func (s *SetupVaultCommand) AutocompleteFlags() complete.Flags {
 			"-jwks-url": complete.PredictAnything,
 			"-destroy":  complete.PredictSet("true", "false"),
 			"-y":        complete.PredictSet("true", "false"),
+
+			// Options for -check.
+			"-check":   complete.PredictSet("true", "false"),
+			"-json":    complete.PredictSet("true", "false"),
+			"-verbose": complete.PredictSet("true", "false"),
+			"-t":       complete.PredictAnything,
 		})
 }
 
@@ -110,6 +142,13 @@ func (s *SetupVaultCommand) Run(args []string) int {
 	flags.BoolVar(&s.destroy, "destroy", false, "")
 	flags.BoolVar(&s.autoYes, "y", false, "")
 	flags.StringVar(&s.jwksURL, "jwks-url", "http://localhost:4646/.well-known/jwks.json", "")
+
+	// Options for -check.
+	flags.BoolVar(&s.check, "check", false, "")
+	flags.BoolVar(&s.json, "json", false, "")
+	flags.BoolVar(&s.verbose, "verbose", false, "")
+	flags.StringVar(&s.tmpl, "t", "", "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -119,6 +158,32 @@ func (s *SetupVaultCommand) Run(args []string) int {
 		s.Ui.Error("This command takes no arguments")
 		s.Ui.Error(commandErrorText(s))
 		return 1
+	}
+
+	if s.check {
+		return s.checkUpgrade()
+	} else {
+		// Verify that -check flags are not set.
+		var invalid []string
+		if s.json {
+			invalid = append(invalid, "-json")
+		}
+		if s.verbose {
+			invalid = append(invalid, "-verbose")
+		}
+		if s.tmpl != "" {
+			invalid = append(invalid, "-t")
+		}
+
+		if len(invalid) > 0 {
+			s.Ui.Error(fmt.Sprintf(
+				"The %s %s can only be used with -check",
+				english.OxfordWordSeries(invalid, "and"),
+				english.PluralWord(len(invalid), "option", "options"),
+			))
+			s.Ui.Error(commandErrorText(s))
+			return 1
+		}
 	}
 
 	if !isTty() && !s.autoYes {
@@ -216,7 +281,7 @@ a namespace %q and create all configuration within that namespace.
 	*/
 	s.Ui.Output(`
 We will now enable the JWT credential backend and create a JWT auth method that
-Nomad workloads will use. 
+Nomad workloads will use.
 `)
 
 	if s.authMethodExists() {
@@ -604,6 +669,117 @@ func (s *SetupVaultCommand) removeConfiguredComponents() int {
 	}
 
 	return exitCode
+}
+
+func (s *SetupVaultCommand) checkUpgrade() int {
+	length := shortId
+	if s.verbose {
+		length = fullId
+	}
+
+	client, err := s.Meta.Client()
+	if err != nil {
+		s.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		return 1
+	}
+
+	resp, _, err := client.Operator().UpgradeCheckVaultWorkloadIdentity(nil)
+	if err != nil {
+		s.Ui.Error(fmt.Sprintf("Error querying scheduler configuration: %s", err))
+		return 1
+	}
+
+	// Output formatted option if requested.
+	if s.json || len(s.tmpl) > 0 {
+		out, err := Format(s.json, s.tmpl, resp)
+		if err != nil {
+			s.Ui.Error(err.Error())
+			return 1
+		}
+
+		s.Ui.Output(out)
+		return 0
+	}
+
+	if resp.Ready() {
+		s.Ui.Output("Nomad cluster is ready to use workload identities with Vault.")
+		return 0
+	}
+
+	if len(resp.JobsWithoutVaultIdentity) != 0 {
+		s.Ui.Output(s.Colorize().Color(`
+[bold]Jobs Without Workload Identity for Vault[reset]
+The following jobs access Vault but are not configured for workload identity.
+
+You should redeploy them before fully migrating to workload identities with
+Vault to prevent unexpected errors if their tokens need to be recreated.
+
+Refer to https://developer.hashicorp.com/nomad/s/vault-workload-identity-migration
+for more information.
+`))
+		out := make([]string, len(resp.JobsWithoutVaultIdentity)+1)
+		out[0] = "ID|Namespace|Type|Status"
+		for i, job := range resp.JobsWithoutVaultIdentity {
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
+				limit(job.ID, length),
+				job.Namespace,
+				job.Type,
+				job.Status,
+			)
+		}
+		s.Ui.Output(formatList(out))
+	}
+
+	if len(resp.OutdatedNodes) != 0 {
+		s.Ui.Output(s.Colorize().Color(`
+[bold]Outdated Nodes[reset]
+The following nodes are running a version of Nomad that does not support using
+workload identities with Vault.
+
+You should upgrade them to Nomad 1.7 before fully migrating to workload
+identities with Vault to prevent unexpected errors if they receive allocations
+for jobs that use Vault.
+
+Refer to https://developer.hashicorp.com/nomad/s/vault-workload-identity-migration
+for more information.
+`))
+		out := make([]string, len(resp.OutdatedNodes)+1)
+		out[0] = "ID|Name|Address|Version|Drain|Eligibility|Status"
+		for i, node := range resp.OutdatedNodes {
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%s",
+				limit(node.ID, length),
+				node.Name,
+				node.Address,
+				node.Version,
+				node.Drain,
+				node.SchedulingEligibility,
+				node.Status,
+			)
+		}
+		s.Ui.Output(formatList(out))
+	}
+
+	if len(resp.VaultTokens) != 0 {
+		s.Ui.Output(s.Colorize().Color(`
+[bold]Vault Tokens[reset]
+The following Vault ACL tokens were created by Nomad but will not be
+automatically revoked after migrating to workload identities. They will expire
+once their TTL reaches zero.
+`))
+		out := make([]string, len(resp.VaultTokens)+1)
+		out[0] = "Accessor ID|Allocation ID|Node ID|Configured TTL"
+		for i, token := range resp.VaultTokens {
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%d",
+				token.Accessor,
+				limit(token.AllocID, length),
+				limit(token.NodeID, length),
+				token.CreationTTL,
+			)
+		}
+		s.Ui.Output(formatList(out))
+	}
+
+	return 0
 }
 
 func printMapOfStrings(m map[string]string) string {

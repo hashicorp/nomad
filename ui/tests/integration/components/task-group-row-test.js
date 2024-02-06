@@ -25,6 +25,9 @@ let clientToken;
 const makeJob = (server, props = {}) => {
   // These tests require a job with particular task groups. This requires
   // mild Mirage surgery.
+  server.create('namespace', {
+    id: 'default',
+  });
   const job = server.create('job', {
     id: jobName,
     groupCount: 0,

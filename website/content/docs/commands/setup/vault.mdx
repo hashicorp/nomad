@@ -14,6 +14,13 @@ This command requires `acl:write` permissions for Vault and respects
 `VAULT_TOKEN`, `VAULT_ADDR`, and other [Vault-related environment
 variables][vaultenv].
 
+The `-check` option can be used to verify if the Nomad cluster is ready to
+migrate to use Workload Identities with Vault. This option requires
+`operator:read` permission for Nomad.
+
+Refer to [Migrating to Using Workload Identity with
+Vault][nomad_acl_vault_wid_migrate] for more information.
+
 <Warning>
 
 This command is an experimental feature and may change its behavior in future
@@ -37,6 +44,19 @@ nomad setup vault [options]
 
 - `-y`: Automatically answers `yes` to all the questions, making the setup
   non-interactive. Defaults to `false`.
+
+- `-check`: Verify if the Nomad cluster is ready to migrate to Workload
+  Identities.
+
+### Setup Vault Options When Using `-check`:
+
+- `-json`: Output migration status information in its JSON format.
+
+- `-t`: Format and display migration status information using a Go template.
+
+- `-verbose`: Display full information.
+
+@include 'general_options_no_namespace.mdx'
 
 ## Examples
 
@@ -145,4 +165,46 @@ services using workload identities.
 Run the command again to finish the configuration process.
 ```
 
+The `-check` option can use to verify if a cluster is ready to migrate to using
+workload identities with Vault.
+
+```
+$ nomad setup vault -check
+
+Jobs Without Workload Identity for Vault
+The following jobs access Vault but are not configured for workload identity.
+
+You should redeploy them before fully migrating to workload identities with
+Vault to prevent unexpected errors if their tokens need to be recreated.
+
+Refer to https://developer.hashicorp.com/nomad/s/vault-workload-identity-migration
+for more information.
+
+ID       Namespace  Type     Status
+example  default    service  running
+
+Outdated Nodes
+The following nodes are running a version of Nomad that does not support using
+workload identities with Vault.
+
+You should upgrade them to Nomad 1.7 before fully migrating to workload
+identities with Vault to prevent unexpected errors if they receive allocations
+for jobs that use Vault.
+
+Refer to https://developer.hashicorp.com/nomad/s/vault-workload-identity-migration
+for more information.
+
+ID        Name      Address        Version  Drain  Eligibility  Status
+049f7683  client-1  192.168.0.186  1.6.4    false  eligible     ready
+
+Vault Tokens
+The following Vault ACL tokens were created by Nomad but will not be
+automatically revoked after migrating to workload identities. They will expire
+once their TTL reaches zero.
+
+Accessor ID               Allocation ID  Node ID   Configured TTL
+czh9MPcRXzAhxBL9XKyb3Kh1  f00893d4       049f7683  60
+```
+
 [vaultenv]: /vault/docs/commands#environment-variables
+[nomad_acl_vault_wid_migrate]: /nomad/docs/integrations/vault/acl#migrating-to-using-workload-identity-with-vault

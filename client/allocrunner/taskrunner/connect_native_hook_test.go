@@ -287,9 +287,6 @@ func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
 
-	// Assert the hook is Done
-	require.True(t, response.Done)
-
 	// Assert no environment variables configured to be set
 	require.Empty(t, response.Env)
 
@@ -351,9 +348,6 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 
 	// Run the Connect Native hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
-
-	// Assert the hook is Done
-	require.True(t, response.Done)
 
 	// Assert only CONSUL_HTTP_ADDR env variable is set
 	require.Equal(t, map[string]string{"CONSUL_HTTP_ADDR": testConsul.HTTPAddr}, response.Env)
@@ -423,9 +417,6 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 
 	// Run the Connect Native hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
-
-	// Assert the hook is Done
-	require.True(t, response.Done)
 
 	// Assert environment variable for token is set
 	require.NotEmpty(t, response.Env)
@@ -503,9 +494,6 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 
 		// Run the Connect Native hook
 		require.NoError(t, h.Prestart(context.Background(), request, response))
-
-		// Assert the hook is Done
-		require.True(t, response.Done)
 
 		// Remove variables we are not interested in
 		delete(response.Env, "CONSUL_HTTP_ADDR")
@@ -633,9 +621,6 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 
 	// Run the Connect Native hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
-
-	// Assert the hook is Done
-	require.True(t, response.Done)
 
 	// Assert environment variable for CONSUL_HTTP_SSL is set, because it was
 	// the only one not overridden by task env block config

@@ -21,7 +21,8 @@ export default class AccessControlRoute extends Route.extend(
     if (
       this.can.cannot('list policies') ||
       this.can.cannot('list roles') ||
-      this.can.cannot('list tokens')
+      this.can.cannot('list tokens') ||
+      this.can.cannot('list namespaces')
     ) {
       this.router.transitionTo('/jobs');
     }
@@ -33,6 +34,7 @@ export default class AccessControlRoute extends Route.extend(
       policies: this.store.findAll('policy', { reload: true }),
       roles: this.store.findAll('role', { reload: true }),
       tokens: this.store.findAll('token', { reload: true }),
+      namespaces: this.store.findAll('namespace', { reload: true }),
     });
   }
 

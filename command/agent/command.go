@@ -1574,7 +1574,7 @@ Consul Options:
 
   -consul-client-failures-before-critical
     Specifies the number of consecutive failures before the Nomad client
-	Consul health check is critical. Defaults to 0.
+    Consul health check is critical. Defaults to 0.
 
   -consul-client-failures-before-warning
     Specifies the number of consecutive failures before the Nomad client
@@ -1604,7 +1604,7 @@ Consul Options:
 
   -consul-server-failures-before-critical
     Specifies the number of consecutive failures before the Nomad server
-	Consul health check is critical. Defaults to 0.
+    Consul health check is critical. Defaults to 0.
 
   -consul-server-failures-before-warning
     Specifies the number of consecutive failures before the Nomad server

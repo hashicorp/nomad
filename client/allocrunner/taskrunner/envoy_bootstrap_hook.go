@@ -235,8 +235,6 @@ func (h *envoyBootstrapHook) lookupService(svcKind, svcName string, taskEnv *tas
 // Must be aware of both launching envoy as a sidecar proxy, as well as a connect gateway.
 func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestartRequest, resp *ifs.TaskPrestartResponse) error {
 	if !req.Task.Kind.IsConnectProxy() && !req.Task.Kind.IsAnyConnectGateway() {
-		// Not a Connect proxy sidecar
-		resp.Done = true
 		return nil
 	}
 
@@ -358,8 +356,8 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 
 		// Command succeeded, exit.
 		if cmdErr == nil {
-			// Bootstrap written. Mark as done and move on.
-			resp.Done = true
+			// Bootstrap written. Move on without marking as Done as Prestart needs
+			// to rerun after node reboots.
 			return false, nil
 		}
 
