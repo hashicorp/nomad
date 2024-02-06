@@ -338,6 +338,11 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, uDiff)
 	}
 
+	// Disconnect diff
+	if uDiff := primitiveObjectDiff(tg.Disconnect, other.Disconnect, nil, "Disconnect", contextual); uDiff != nil {
+		diff.Objects = append(diff.Objects, uDiff)
+	}
+
 	// Network Resources diff
 	if nDiffs := networkResourceDiffs(tg.Networks, other.Networks, contextual); nDiffs != nil {
 		diff.Objects = append(diff.Objects, nDiffs...)

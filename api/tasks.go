@@ -11,9 +11,6 @@ import (
 	"time"
 )
 
-// ReconcileOption is used to specify the behavior of the reconciliation process
-// between the original allocations and the replacements when a previously
-// disconnected client comes back online.
 type ReconcileOption = string
 
 const (
@@ -25,10 +22,13 @@ const (
 	// attempts are reached within an interval.
 	RestartPolicyModeFail = "fail"
 
-	KeepOriginal    ReconcileOption = "keep_original"
-	KeepReplacement ReconcileOption = "keep_replacement"
-	BestScore       ReconcileOption = "best_score"
-	LongestRunning  ReconcileOption = "longest_running"
+	// ReconcileOption is used to specify the behavior of the reconciliation process
+	// between the original allocations and the replacements when a previously
+	// disconnected client comes back online.
+	ReconcileOptionKeepOriginal    = "keep_original"
+	ReconcileOptionKeepReplacement = "keep_replacement"
+	ReconcileOptionBestScore       = "best_score"
+	ReconcileOptionLongestRunning  = "longest_running"
 )
 
 // MemoryStats holds memory usage related stats
@@ -131,7 +131,7 @@ type DisconnectStrategy struct {
 	LostAfter *time.Duration `mapstructure:"lost_after" hcl:"lost_after,optional"`
 
 	// Defines for how long a disconnected client will keep its allocations running.
-	StopAfterOnClient *time.Duration `mapstructure:"stop_after" hcl:"stop_after_client"`
+	StopAfterOnClient *time.Duration `mapstructure:"stop_after_on_client" hcl:"stop_after_on_client,optional"`
 
 	// A boolean field used to define if the allocations should be replaced while
 	// its  considered disconnected.
@@ -259,7 +259,7 @@ func NewDefaultDisconnectStrategy() *DisconnectStrategy {
 	return &DisconnectStrategy{
 		LostAfter: pointerOf(0 * time.Minute),
 		Replace:   pointerOf(true),
-		Reconcile: pointerOf(BestScore),
+		Reconcile: pointerOf(ReconcileOptionBestScore),
 	}
 }
 
@@ -503,28 +503,31 @@ func (vm *VolumeMount) Canonicalize() {
 
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
-	Name                      *string                   `hcl:"name,label"`
-	Count                     *int                      `hcl:"count,optional"`
-	Constraints               []*Constraint             `hcl:"constraint,block"`
-	Affinities                []*Affinity               `hcl:"affinity,block"`
-	Tasks                     []*Task                   `hcl:"task,block"`
-	Spreads                   []*Spread                 `hcl:"spread,block"`
-	Volumes                   map[string]*VolumeRequest `hcl:"volume,block"`
-	RestartPolicy             *RestartPolicy            `hcl:"restart,block"`
-	Disconnect                *DisconnectStrategy       `hcl:"disconnect,block"`
-	ReschedulePolicy          *ReschedulePolicy         `hcl:"reschedule,block"`
-	EphemeralDisk             *EphemeralDisk            `hcl:"ephemeral_disk,block"`
-	Update                    *UpdateStrategy           `hcl:"update,block"`
-	Migrate                   *MigrateStrategy          `hcl:"migrate,block"`
-	Networks                  []*NetworkResource        `hcl:"network,block"`
-	Meta                      map[string]string         `hcl:"meta,block"`
-	Services                  []*Service                `hcl:"service,block"`
-	ShutdownDelay             *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
-	StopAfterClientDisconnect *time.Duration            `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
-	MaxClientDisconnect       *time.Duration            `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
-	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
-	Consul                    *Consul                   `hcl:"consul,block"`
-	PreventRescheduleOnLost   *bool                     `hcl:"prevent_reschedule_on_lost,optional"`
+	Name             *string                   `hcl:"name,label"`
+	Count            *int                      `hcl:"count,optional"`
+	Constraints      []*Constraint             `hcl:"constraint,block"`
+	Affinities       []*Affinity               `hcl:"affinity,block"`
+	Tasks            []*Task                   `hcl:"task,block"`
+	Spreads          []*Spread                 `hcl:"spread,block"`
+	Volumes          map[string]*VolumeRequest `hcl:"volume,block"`
+	RestartPolicy    *RestartPolicy            `hcl:"restart,block"`
+	Disconnect       *DisconnectStrategy       `hcl:"disconnect,block"`
+	ReschedulePolicy *ReschedulePolicy         `hcl:"reschedule,block"`
+	EphemeralDisk    *EphemeralDisk            `hcl:"ephemeral_disk,block"`
+	Update           *UpdateStrategy           `hcl:"update,block"`
+	Migrate          *MigrateStrategy          `hcl:"migrate,block"`
+	Networks         []*NetworkResource        `hcl:"network,block"`
+	Meta             map[string]string         `hcl:"meta,block"`
+	Services         []*Service                `hcl:"service,block"`
+	ShutdownDelay    *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
+	// To be deprecated after 1.8.0 infavour of Disconnect.StopAfterOnClient
+	StopAfterClientDisconnect *time.Duration `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
+	// To be deprecated after 1.8.0 infavour of Disconnect.LostAfter
+	MaxClientDisconnect *time.Duration `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
+	Scaling             *ScalingPolicy `hcl:"scaling,block"`
+	Consul              *Consul        `hcl:"consul,block"`
+	// To be deprecated after 1.8.0 infavour of Disconnect.Replace
+	PreventRescheduleOnLost *bool `hcl:"prevent_reschedule_on_lost,optional"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -651,8 +654,6 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 
 	if g.Disconnect != nil {
 		g.Disconnect.Canonicalize()
-	} else {
-		g.Disconnect = NewDefaultDisconnectStrategy()
 	}
 }
 

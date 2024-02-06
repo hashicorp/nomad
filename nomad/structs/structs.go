@@ -66,10 +66,10 @@ var (
 	errNegativeLostAfter   = errors.New("lost_after cannot be a negative duration")
 	errNegativeStopAfter   = errors.New("stop_after cannot be a negative duration")
 	errStopAfterNonService = errors.New("stop_after can only be used with service or batch job types")
+	errInvalidReconcile    = errors.New("reconcile option is invalid")
 )
 
 type MessageType uint8
-type ReconcileOption = string
 
 // note: new raft message types need to be added to the end of this
 // list of contents
@@ -216,10 +216,13 @@ const (
 	RateMetricList  = "list"
 	RateMetricWrite = "write"
 
-	KeepOriginal    ReconcileOption = "keep_original"
-	KeepReplacement ReconcileOption = "keep_replacement"
-	BestScore       ReconcileOption = "best_score"
-	LongestRunning  ReconcileOption = "longest_running"
+	// ReconcileOption is used to specify the behavior of the reconciliation process
+	// between the original allocations and the replacements when a previously
+	// disconnected client comes back online.
+	ReconcileOptionKeepOriginal    = "keep_original"
+	ReconcileOptionKeepReplacement = "keep_replacement"
+	ReconcileOptionBestScore       = "best_score"
+	ReconcileOptionLongestRunning  = "longest_running"
 )
 
 var (
@@ -6267,8 +6270,8 @@ type ScalingPolicyListStub struct {
 
 func NewDisconnectStrategy() *DisconnectStrategy {
 	return &DisconnectStrategy{
-		Replace:   true,
-		Reconcile: BestScore,
+		Replace:   pointer.Of(true),
+		Reconcile: ReconcileOptionBestScore,
 	}
 }
 
@@ -6284,13 +6287,13 @@ type DisconnectStrategy struct {
 
 	// A boolean field used to define if the allocations should be replaced while
 	// its  considered disconnected.
-	Replace bool `mapstructure:"replace" hcl:"replace,optional"`
+	Replace *bool `mapstructure:"replace" hcl:"replace,optional"`
 
 	// Once the disconnected node starts reporting again, it will define which
 	// instances to keep: the original allocations, the replacement, the one
 	// running on the node with the best score as it is currently implemented,
 	// or the allocation that has been running continuously the longest.
-	Reconcile ReconcileOption `mapstructure:"reconcile" hcl:"reconcile,optional"`
+	Reconcile string `mapstructure:"reconcile" hcl:"reconcile,optional"`
 }
 
 func (ds *DisconnectStrategy) Validate(job *Job) error {
@@ -6314,6 +6317,14 @@ func (ds *DisconnectStrategy) Validate(job *Job) error {
 		return multierror.Append(mErr, errStopAndLost)
 	}
 
+	if ds.Reconcile != "" &&
+		ds.Reconcile != ReconcileOptionBestScore &&
+		ds.Reconcile != ReconcileOptionLongestRunning &&
+		ds.Reconcile != ReconcileOptionKeepOriginal &&
+		ds.Reconcile != ReconcileOptionKeepReplacement {
+		return multierror.Append(mErr, fmt.Errorf("%w: %s", errInvalidReconcile, ds.Reconcile))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -6329,7 +6340,7 @@ func (ds *DisconnectStrategy) Copy() *DisconnectStrategy {
 
 func (ds *DisconnectStrategy) Canonicalize() {
 	cds := NewDisconnectStrategy()
-	if ds.LostAfter != 0 {
+	if ds.LostAfter == 0 {
 		ds.LostAfter = cds.LostAfter
 	}
 
@@ -6337,11 +6348,11 @@ func (ds *DisconnectStrategy) Canonicalize() {
 		ds.StopAfterOnClient = cds.StopAfterOnClient
 	}
 
-	if ds.Replace == false {
-		ds.Replace = true
+	if ds.Replace == nil {
+		ds.Replace = cds.Replace
 	}
 
-	if ds.Reconcile != BestScore {
+	if ds.Reconcile != ReconcileOptionBestScore {
 		ds.Reconcile = cds.Reconcile
 	}
 }
@@ -6751,14 +6762,18 @@ type TaskGroup struct {
 
 	// StopAfterClientDisconnect, if set, configures the client to stop the task group
 	// after this duration since the last known good heartbeat
+	// To be deprecated after 1.8.0 infavor of Disconnect.StopAfterOnClient
 	StopAfterClientDisconnect *time.Duration
 
 	// MaxClientDisconnect, if set, configures the client to allow placed
 	// allocations for tasks in this group to attempt to resume running without a restart.
+	// To be deprecated after 1.8.0 infavor of Disconnect.LostAfter
 	MaxClientDisconnect *time.Duration
 
 	// PreventRescheduleOnLost is used to signal that an allocation should not
 	// be rescheduled if its node goes down or is disconnected.
+	// To be deprecated after 1.8.0
+	// To be deprecated after 1.8.0 infavor of Disconnect.Replace
 	PreventRescheduleOnLost bool
 }
 
@@ -6841,22 +6856,20 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.ReschedulePolicy = NewReschedulePolicy(job.Type)
 	}
 
-	if tg.Disconnect == nil {
-		tg.Disconnect = NewDisconnectStrategy()
-	} else {
+	if tg.Disconnect != nil {
 		tg.Disconnect.Canonicalize()
-	}
 
-	if tg.MaxClientDisconnect != nil && tg.Disconnect.LostAfter == 0 {
-		tg.Disconnect.LostAfter = *tg.MaxClientDisconnect
-	}
+		if tg.MaxClientDisconnect != nil && tg.Disconnect.LostAfter == 0 {
+			tg.Disconnect.LostAfter = *tg.MaxClientDisconnect
+		}
 
-	if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopAfterOnClient == nil {
-		tg.Disconnect.StopAfterOnClient = tg.StopAfterClientDisconnect
-	}
+		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopAfterOnClient == nil {
+			tg.Disconnect.StopAfterOnClient = tg.StopAfterClientDisconnect
+		}
 
-	if tg.PreventRescheduleOnLost && tg.Disconnect.Replace == true {
-		tg.Disconnect.Replace = false
+		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace == nil {
+			tg.Disconnect.Replace = pointer.Of(false)
+		}
 	}
 
 	// Canonicalize Migrate for service jobs
@@ -6949,17 +6962,15 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	if tg.Disconnect != nil {
-		if tg.MaxClientDisconnect != nil && tg.Disconnect.LostAfter > 0 &&
-			*tg.MaxClientDisconnect != tg.Disconnect.LostAfter {
+		if tg.MaxClientDisconnect != nil && tg.Disconnect.LostAfter > 0 {
 			return multierror.Append(mErr, errors.New("using both lost_after and max_client_disconnect is not allowed"))
 		}
 
-		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopAfterOnClient != nil &&
-			*tg.StopAfterClientDisconnect != *tg.Disconnect.StopAfterOnClient {
+		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopAfterOnClient != nil {
 			return multierror.Append(mErr, errors.New("using both stop_after_client_disconnect and stop_after_on_client is not allowed"))
 		}
 
-		if tg.PreventRescheduleOnLost == true && tg.Disconnect.Replace == true {
+		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace != nil {
 			return multierror.Append(mErr, errors.New("using both prevent_reschedule_on_lost and replace is not allowed"))
 		}
 
@@ -7414,6 +7425,12 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 				fmt.Errorf("Update max parallel count is greater than task group count (%d > %d). "+
 					"A destructive change would result in the simultaneous replacement of all allocations.", u.MaxParallel, tg.Count))
 		}
+	}
+
+	if tg.MaxClientDisconnect != nil ||
+		tg.StopAfterClientDisconnect != nil ||
+		tg.PreventRescheduleOnLost {
+		mErr.Errors = append(mErr.Errors, errors.New("MaxClientDisconnect, StopAfterClientDisconnect and PreventRescheduleOnLost will be deprecated favor of Disconnect"))
 	}
 
 	// Check for mbits network field
@@ -11127,23 +11144,26 @@ func getDisconnectLostTimeout(tg *TaskGroup) time.Duration {
 // This helper is meant to simplify the future depracation of
 // StopAfterClientDisconnect in favor of Disconnect.StopAfterOnClient
 // introduced in 1.8.0.
-func getDisconnectStopTimeout(tg *TaskGroup) time.Duration {
+func getDisconnectStopTimeout(tg *TaskGroup) *time.Duration {
 	if tg.StopAfterClientDisconnect != nil {
-		return *tg.StopAfterClientDisconnect
+		return tg.StopAfterClientDisconnect
 	}
 
 	if tg.Disconnect != nil && tg.Disconnect.StopAfterOnClient != nil {
-		return *tg.Disconnect.StopAfterOnClient
+		return tg.Disconnect.StopAfterOnClient
 	}
 
-	return 0
+	return nil
 }
 
 // ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
 func (a *Allocation) ShouldClientStop() bool {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	timeout := getDisconnectStopTimeout(tg)
+
 	if tg == nil ||
-		getDisconnectStopTimeout(tg) == 0*time.Nanosecond {
+		timeout == nil ||
+		(timeout != nil && *timeout == 0*time.Nanosecond) {
 		return false
 	}
 	return true
@@ -11178,7 +11198,7 @@ func (a *Allocation) WaitClientStop() time.Time {
 		}
 	}
 
-	return t.Add(getDisconnectStopTimeout(tg) + kill)
+	return t.Add(*getDisconnectStopTimeout(tg) + kill)
 }
 
 // DisconnectTimeout uses the MaxClientDisconnect to compute when the allocation
@@ -11209,7 +11229,7 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return tg.MaxClientDisconnect != nil
+			return getDisconnectLostTimeout(tg) != 0
 		}
 	}
 
@@ -11217,12 +11237,14 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 }
 
 // PreventRescheduleOnLost determines if an alloc allows to have a replacement
-// when lost.
-func (a *Allocation) PreventRescheduleOnLost() bool {
+// when Disconnected.
+func (a *Allocation) PreventRescheduleOnDisconnect() bool {
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return tg.PreventRescheduleOnLost
+			return (tg.Disconnect != nil && tg.Disconnect.Replace != nil &&
+				!*tg.Disconnect.Replace) ||
+				tg.PreventRescheduleOnLost
 		}
 	}
 

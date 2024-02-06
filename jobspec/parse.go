@@ -451,6 +451,42 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 	return dec.Decode(m)
 }
 
+func parseDisconnect(result **api.DisconnectStrategy, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'disconnect' block allowed")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"lost_after",
+		"replace",
+		"reconcile",
+		"stop_after_on_client",
+	}
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           result,
+	})
+	if err != nil {
+		return err
+	}
+	return dec.Decode(m)
+}
+
 func parseMigrate(result **api.MigrateStrategy, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {

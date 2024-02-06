@@ -43,11 +43,26 @@ func newHeartbeatStop(
 	return h
 }
 
+// This helper is meant to simplify the future depracation of
+// StopAfterClientDisconnect in favor of Disconnect.StopAfterOnClient
+// introduced in 1.8.0.
+func getDisconnectStopTimeout(tg *structs.TaskGroup) *time.Duration {
+	if tg.StopAfterClientDisconnect != nil {
+		return tg.StopAfterClientDisconnect
+	}
+
+	if tg.Disconnect != nil && tg.Disconnect.StopAfterOnClient != nil {
+		return tg.Disconnect.StopAfterOnClient
+	}
+
+	return nil
+}
+
 // allocHook is called after (re)storing a new AllocRunner in the client. It registers the
 // allocation to be stopped if the taskgroup is configured appropriately
 func (h *heartbeatStop) allocHook(alloc *structs.Allocation) {
 	tg := allocTaskGroup(alloc)
-	if tg.Disconnect.StopAfterOnClient != nil {
+	if getDisconnectStopTimeout(tg) != nil {
 		h.allocHookCh <- alloc
 	}
 }
@@ -56,8 +71,9 @@ func (h *heartbeatStop) allocHook(alloc *structs.Allocation) {
 // past that it should be prevented from restarting
 func (h *heartbeatStop) shouldStop(alloc *structs.Allocation) bool {
 	tg := allocTaskGroup(alloc)
-	if tg.Disconnect.StopAfterOnClient != nil {
-		return h.shouldStopAfter(time.Now(), *tg.Disconnect.StopAfterOnClient)
+	timeout := getDisconnectStopTimeout(tg)
+	if timeout != nil {
+		return h.shouldStopAfter(time.Now(), *timeout)
 	}
 	return false
 }
@@ -103,8 +119,9 @@ func (h *heartbeatStop) watch() {
 
 		case alloc := <-h.allocHookCh:
 			tg := allocTaskGroup(alloc)
-			if tg.Disconnect.StopAfterOnClient != nil {
-				h.allocInterval[alloc.ID] = *tg.Disconnect.StopAfterOnClient
+			timeout := getDisconnectStopTimeout(tg)
+			if timeout != nil {
+				h.allocInterval[alloc.ID] = *timeout
 			}
 
 		case <-timeout:

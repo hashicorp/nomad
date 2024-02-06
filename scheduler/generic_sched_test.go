@@ -3640,6 +3640,8 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	}
 }
 
+// Test using stop_after_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.StopAfterOnClient introduced in 1.8.0.
 func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 	ci.Parallel(t)
 
@@ -3679,7 +3681,172 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			// Job with allocations and stop_after_client_disconnect
 			job := mock.Job()
 			job.TaskGroups[0].Count = 1
-			job.TaskGroups[0].Disconnect.StopAfterOnClient = &tc.stop
+			job.TaskGroups[0].StopAfterClientDisconnect = &tc.stop
+			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+			// Alloc for the running group
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = node.ID
+			alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+			alloc.DesiredStatus = structs.AllocDesiredStatusRun
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+			if !tc.when.IsZero() {
+				alloc.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: structs.AllocClientStatusLost,
+					Time:  tc.when,
+				}}
+			}
+			allocs := []*structs.Allocation{alloc}
+			require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+			// Create a mock evaluation to deal with drain
+			evals := []*structs.Evaluation{{
+				Namespace:   structs.DefaultNamespace,
+				ID:          uuid.Generate(),
+				Priority:    50,
+				TriggeredBy: structs.EvalTriggerNodeDrain,
+				JobID:       job.ID,
+				NodeID:      node.ID,
+				Status:      structs.EvalStatusPending,
+			}}
+			eval := evals[0]
+			require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), evals))
+
+			// Process the evaluation
+			err := h.Process(NewServiceScheduler, eval)
+			require.NoError(t, err)
+			require.Equal(t, h.Evals[0].Status, structs.EvalStatusComplete)
+			require.Len(t, h.Plans, 1, "plan")
+
+			// One followup eval created, either delayed or blocked
+			require.Len(t, h.CreateEvals, 1)
+			e := h.CreateEvals[0]
+			require.Equal(t, eval.ID, e.PreviousEval)
+
+			if tc.rescheduled {
+				require.Equal(t, "blocked", e.Status)
+			} else {
+				require.Equal(t, "pending", e.Status)
+				require.NotEmpty(t, e.WaitUntil)
+			}
+
+			// This eval is still being inserted in the state store
+			ws := memdb.NewWatchSet()
+			testutil.WaitForResult(func() (bool, error) {
+				found, err := h.State.EvalByID(ws, e.ID)
+				if err != nil {
+					return false, err
+				}
+				if found == nil {
+					return false, nil
+				}
+				return true, nil
+			}, func(err error) {
+				require.NoError(t, err)
+			})
+
+			alloc, err = h.State.AllocByID(ws, alloc.ID)
+			require.NoError(t, err)
+
+			// Allocations have been transitioned to lost
+			require.Equal(t, structs.AllocDesiredStatusStop, alloc.DesiredStatus)
+			require.Equal(t, structs.AllocClientStatusLost, alloc.ClientStatus)
+			// At least 1, 2 if we manually set the tc.when
+			require.NotEmpty(t, alloc.AllocStates)
+
+			if tc.rescheduled {
+				// Register a new node, leave it up, process the followup eval
+				node = mock.Node()
+				require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+				require.NoError(t, h.Process(NewServiceScheduler, eval))
+
+				as, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+				require.NoError(t, err)
+
+				testutil.WaitForResult(func() (bool, error) {
+					as, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+					if err != nil {
+						return false, err
+					}
+					return len(as) == 2, nil
+				}, func(err error) {
+					require.NoError(t, err)
+				})
+
+				a2 := as[0]
+				if a2.ID == alloc.ID {
+					a2 = as[1]
+				}
+
+				require.Equal(t, structs.AllocClientStatusPending, a2.ClientStatus)
+				require.Equal(t, structs.AllocDesiredStatusRun, a2.DesiredStatus)
+				require.Equal(t, node.ID, a2.NodeID)
+
+				// No blocked evals
+				require.Empty(t, h.ReblockEvals)
+				require.Len(t, h.CreateEvals, 1)
+				require.Equal(t, h.CreateEvals[0].ID, e.ID)
+			} else {
+				// No new alloc was created
+				as, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+				require.NoError(t, err)
+
+				require.Len(t, as, 1)
+				old := as[0]
+
+				require.Equal(t, alloc.ID, old.ID)
+				require.Equal(t, structs.AllocClientStatusLost, old.ClientStatus)
+				require.Equal(t, structs.AllocDesiredStatusStop, old.DesiredStatus)
+			}
+		})
+	}
+}
+
+func TestServiceSched_StopAfterClient_Disconnect(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		stop        time.Duration
+		when        time.Time
+		rescheduled bool
+	}{
+		{
+			rescheduled: true,
+		},
+		{
+			stop:        1 * time.Second,
+			rescheduled: false,
+		},
+		{
+			stop:        1 * time.Second,
+			when:        time.Now().UTC().Add(-10 * time.Second),
+			rescheduled: true,
+		},
+		{
+			stop:        1 * time.Second,
+			when:        time.Now().UTC().Add(10 * time.Minute),
+			rescheduled: false,
+		},
+	}
+
+	for i, tc := range cases {
+		t.Run(fmt.Sprintf(""), func(t *testing.T) {
+			h := NewHarness(t)
+
+			// Node, which is down
+			node := mock.Node()
+			node.Status = structs.NodeStatusDown
+			require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+			// Job with allocations and stop_after_client_disconnect
+			job := mock.Job()
+			job.TaskGroups[0].Count = 1
+			job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+				StopAfterOnClient: &tc.stop,
+			}
 			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 			// Alloc for the running group
@@ -7216,6 +7383,8 @@ func TestPropagateTaskState(t *testing.T) {
 }
 
 // Tests that a client disconnect generates attribute updates and follow up evals.
+// Test using max_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.LostAfter introduced in 1.8.0.
 func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) {
 	h := NewHarness(t)
 	count := 1
@@ -7325,6 +7494,8 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 	}
 }
 
+// Test using max_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.LostAfter introduced in 1.8.0.
 func initNodeAndAllocs(t *testing.T, h *Harness, allocCount int,
 	maxClientDisconnect time.Duration, nodeStatus, clientStatus string) (*structs.Node, *structs.Job, []*structs.Allocation) {
 	// Node, which is ready
@@ -7336,6 +7507,149 @@ func initNodeAndAllocs(t *testing.T, h *Harness, allocCount int,
 	job := mock.Job()
 	job.TaskGroups[0].Count = allocCount
 	job.TaskGroups[0].MaxClientDisconnect = &maxClientDisconnect
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	allocs := make([]*structs.Allocation, allocCount)
+	for i := 0; i < allocCount; i++ {
+		// Alloc for the running group
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.DesiredStatus = structs.AllocDesiredStatusRun
+		alloc.ClientStatus = clientStatus
+
+		allocs[i] = alloc
+	}
+
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+	return node, job, allocs
+}
+
+// Tests that a client disconnect generates attribute updates and follow up evals.
+func TestServiceSched_Client_Creates_Updates_and_Evals_Disconnect(t *testing.T) {
+	h := NewHarness(t)
+	count := 1
+	maxClientDisconnect := 10 * time.Minute
+
+	disconnectedNode, job, unknownAllocs := initNodeAndAllocs(t, h, count, maxClientDisconnect,
+		structs.NodeStatusReady, structs.AllocClientStatusRunning)
+
+	// Now disconnect the node
+	disconnectedNode.Status = structs.NodeStatusDisconnected
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), disconnectedNode))
+
+	// Create an evaluation triggered by the disconnect
+	evals := []*structs.Evaluation{{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      disconnectedNode.ID,
+		Status:      structs.EvalStatusPending,
+	}}
+
+	nodeStatusUpdateEval := evals[0]
+	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), evals))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, nodeStatusUpdateEval)
+	require.NoError(t, err)
+	require.Equal(t, structs.EvalStatusComplete, h.Evals[0].Status)
+	require.Len(t, h.Plans, 1, "plan")
+
+	// Two followup delayed eval created
+	require.Len(t, h.CreateEvals, 2)
+	followUpEval1 := h.CreateEvals[0]
+	require.Equal(t, nodeStatusUpdateEval.ID, followUpEval1.PreviousEval)
+	require.Equal(t, "pending", followUpEval1.Status)
+	require.NotEmpty(t, followUpEval1.WaitUntil)
+
+	followUpEval2 := h.CreateEvals[1]
+	require.Equal(t, nodeStatusUpdateEval.ID, followUpEval2.PreviousEval)
+	require.Equal(t, "pending", followUpEval2.Status)
+	require.NotEmpty(t, followUpEval2.WaitUntil)
+
+	// Insert eval1 in the state store
+	testutil.WaitForResult(func() (bool, error) {
+		found, err := h.State.EvalByID(nil, followUpEval1.ID)
+		if err != nil {
+			return false, err
+		}
+		if found == nil {
+			return false, nil
+		}
+
+		require.Equal(t, nodeStatusUpdateEval.ID, found.PreviousEval)
+		require.Equal(t, "pending", found.Status)
+		require.NotEmpty(t, found.WaitUntil)
+
+		return true, nil
+	}, func(err error) {
+
+		require.NoError(t, err)
+	})
+
+	// Insert eval2 in the state store
+	testutil.WaitForResult(func() (bool, error) {
+		found, err := h.State.EvalByID(nil, followUpEval2.ID)
+		if err != nil {
+			return false, err
+		}
+		if found == nil {
+			return false, nil
+		}
+
+		require.Equal(t, nodeStatusUpdateEval.ID, found.PreviousEval)
+		require.Equal(t, "pending", found.Status)
+		require.NotEmpty(t, found.WaitUntil)
+
+		return true, nil
+	}, func(err error) {
+
+		require.NoError(t, err)
+	})
+
+	// Validate that the ClientStatus updates are part of the plan.
+	require.Len(t, h.Plans[0].NodeAllocation[disconnectedNode.ID], count)
+	// Pending update should have unknown status.
+
+	for _, nodeAlloc := range h.Plans[0].NodeAllocation[disconnectedNode.ID] {
+		require.Equal(t, nodeAlloc.ClientStatus, structs.AllocClientStatusUnknown)
+	}
+
+	// Simulate that NodeAllocation got processed.
+	err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), h.Plans[0].NodeAllocation[disconnectedNode.ID])
+	require.NoError(t, err, "plan.NodeUpdate")
+
+	// Validate that the StateStore Upsert applied the ClientStatus we specified.
+
+	for _, alloc := range unknownAllocs {
+		alloc, err = h.State.AllocByID(nil, alloc.ID)
+		require.NoError(t, err)
+		require.Equal(t, alloc.ClientStatus, structs.AllocClientStatusUnknown)
+
+		// Allocations have been transitioned to unknown
+		require.Equal(t, structs.AllocDesiredStatusRun, alloc.DesiredStatus)
+		require.Equal(t, structs.AllocClientStatusUnknown, alloc.ClientStatus)
+	}
+}
+
+func initNodeAndAllocs_Disconnect(t *testing.T, h *Harness, allocCount int,
+	maxClientDisconnect time.Duration, nodeStatus, clientStatus string) (*structs.Node, *structs.Job, []*structs.Allocation) {
+	// Node, which is ready
+	node := mock.Node()
+	node.Status = nodeStatus
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Job with allocations and max_client_disconnect
+	job := mock.Job()
+	job.TaskGroups[0].Count = allocCount
+	job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+		LostAfter: maxClientDisconnect,
+	}
 	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	allocs := make([]*structs.Allocation, allocCount)

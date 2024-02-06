@@ -139,8 +139,10 @@ func TestParse(t *testing.T) {
 					},
 
 					{
-						Name:  stringToPtr("binsl"),
-						Count: intToPtr(5),
+						Name:                      stringToPtr("binsl"),
+						Count:                     intToPtr(5),
+						StopAfterClientDisconnect: timeToPtr(120 * time.Second),
+						MaxClientDisconnect:       timeToPtr(120 * time.Hour),
 						Constraints: []*api.Constraint{
 							{
 								LTarget: "kernel.os",
@@ -220,8 +222,12 @@ func TestParse(t *testing.T) {
 								},
 							},
 						},
-						StopAfterClientDisconnect: timeToPtr(120 * time.Second),
-						MaxClientDisconnect:       timeToPtr(120 * time.Hour),
+						Disconnect: &api.DisconnectStrategy{
+							StopAfterOnClient: timeToPtr(120 * time.Second),
+							LostAfter:         timeToPtr(120 * time.Hour),
+							Replace:           boolToPtr(true),
+							Reconcile:         stringToPtr("best_score"),
+						},
 						ReschedulePolicy: &api.ReschedulePolicy{
 							Interval: timeToPtr(12 * time.Hour),
 							Attempts: intToPtr(5),

@@ -485,7 +485,7 @@ func TestJob_Validate_DisconnectRescheduleLost(t *testing.T) {
 				Name: "cache",
 				Disconnect: &DisconnectStrategy{
 					LostAfter: 1 * time.Hour,
-					Replace:   false,
+					Replace:   pointer.Of(false),
 				},
 				Tasks: []*Task{
 					{
@@ -8814,6 +8814,83 @@ func TestNewIdentityClaims(t *testing.T) {
 			must.Eq(t, alloc.ID, got.AllocationID)
 			must.Eq(t, jwt.NewNumericDate(now), got.IssuedAt)
 			must.Eq(t, jwt.NewNumericDate(now), got.NotBefore)
+		})
+	}
+}
+
+func TestDisconnectStategy_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		strategy *DisconnectStrategy
+		jobType  string
+		err      error
+	}{
+		{
+			name: "negative-stop-after",
+			strategy: &DisconnectStrategy{
+				StopAfterOnClient: pointer.Of(-1 * time.Second),
+			},
+			jobType: JobTypeService,
+			err:     errNegativeStopAfter,
+		},
+		{
+			name: "stop-after-on-system",
+			strategy: &DisconnectStrategy{
+				StopAfterOnClient: pointer.Of(1 * time.Second),
+			},
+			jobType: JobTypeSystem,
+			err:     errStopAfterNonService,
+		},
+		{
+			name: "negative-lost-after",
+			strategy: &DisconnectStrategy{
+				LostAfter: -1 * time.Second,
+			},
+			jobType: JobTypeService,
+			err:     errNegativeLostAfter,
+		},
+		{
+			name: "lost-after-and-stop-after-enabled",
+			strategy: &DisconnectStrategy{
+				LostAfter:         1 * time.Second,
+				StopAfterOnClient: pointer.Of(1 * time.Second),
+			},
+			jobType: JobTypeService,
+			err:     errStopAndLost,
+		},
+		{
+			name: "invalid-reconcile",
+			strategy: &DisconnectStrategy{
+				LostAfter: 1 * time.Second,
+				Reconcile: "invalid",
+			},
+			jobType: JobTypeService,
+			err:     errInvalidReconcile,
+		},
+		{
+			name: "valid-configuration",
+			strategy: &DisconnectStrategy{
+				LostAfter:         1 * time.Second,
+				Reconcile:         ReconcileOptionKeepOriginal,
+				Replace:           pointer.Of(true),
+				StopAfterOnClient: nil,
+			},
+			jobType: JobTypeService,
+			err:     nil,
+		},
+	}
+
+	job := testJob()
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			job.Type = c.jobType
+			err := c.strategy.Validate(job)
+			if !errors.Is(err, c.err) {
+				t.Errorf("expected error %v, got %v", c.err, err)
+			}
 		})
 	}
 }

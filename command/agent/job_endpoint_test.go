@@ -2755,6 +2755,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Disconnect: &api.DisconnectStrategy{
 					LostAfter: pointer.Of(30 * time.Second),
 				},
+				MaxClientDisconnect: pointer.Of(30 * time.Second),
 				Tasks: []*api.Task{
 					{
 						Name:   "task1",
@@ -3189,7 +3190,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Disconnect: &structs.DisconnectStrategy{
 					LostAfter: 30 * time.Second,
+					Replace:   pointer.Of(true),
+					Reconcile: structs.ReconcileOptionBestScore,
 				},
+				MaxClientDisconnect: pointer.Of(30 * time.Second),
 				Tasks: []*structs.Task{
 					{
 						Name:   "task1",
@@ -3669,6 +3673,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 	systemStructsJob := ApiJobToStructJob(systemAPIJob)
 	require.Equal(t, expectedSystemJob, systemStructsJob)
+
 }
 
 func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
