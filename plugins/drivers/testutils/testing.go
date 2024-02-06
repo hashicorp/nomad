@@ -255,6 +255,7 @@ func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 
 	envBuilder.SetClientTaskRoot(taskDir.Dir)
 	envBuilder.SetClientSharedAllocDir(taskDir.SharedAllocDir)
+	envBuilder.SetClientSharedAllocSecretsDir(taskDir.SharedAllocSecretsDir)
 	envBuilder.SetClientTaskLocalDir(taskDir.LocalDir)
 	envBuilder.SetClientTaskSecretsDir(taskDir.SecretsDir)
 
@@ -263,11 +264,13 @@ func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 	case drivers.FSIsolationNone:
 		// Use host paths
 		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
+		envBuilder.SetAllocSecretsDir(taskDir.SharedAllocSecretsDir)
 		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
 		envBuilder.SetSecretsDir(taskDir.SecretsDir)
 	default:
 		// filesystem isolation; use container paths
 		envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
+		envBuilder.SetAllocSecretsDir(allocdir.SharedAllocSecretsContainerPath)
 		envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
 		envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
 	}
