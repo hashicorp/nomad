@@ -859,6 +859,7 @@ func TestTaskEnv_ClientPath(t *testing.T) {
 	builder := testEnvBuilder()
 	builder.SetAllocDir("/tmp/testAlloc")
 	builder.SetClientSharedAllocDir("/tmp/testAlloc/alloc")
+	builder.SetClientSharedAllocSecretsDir("/tmp/testAlloc/alloc/secrets")
 	builder.SetClientTaskRoot("/tmp/testAlloc/testTask")
 	builder.SetClientTaskLocalDir("/tmp/testAlloc/testTask/local")
 	builder.SetClientTaskSecretsDir("/tmp/testAlloc/testTask/secrets")
@@ -925,6 +926,13 @@ func TestTaskEnv_ClientPath(t *testing.T) {
 			input:        "${NOMAD_SECRETS_DIR}/somefile",
 			joinOnEscape: false,
 			expected:     "/tmp/testAlloc/testTask/secrets/somefile",
+			escapes:      false,
+		},
+		{
+			label:        "interpolate alloc secrets dir",
+			input:        "${NOMAD_ALLOC_SECRETS_DIR}/somefile",
+			joinOnEscape: false,
+			expected:     "/tmp/testAlloc/alloc/secrets/somefile",
 			escapes:      false,
 		},
 	}
