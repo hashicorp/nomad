@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/shoenig/test/must"
 )
 
 // TestPrevAlloc_StreamAllocDir_Ok asserts that streaming a tar to an alloc dir
@@ -32,46 +33,89 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 
 	// Create foo/
 	fooDir := filepath.Join(dir, "foo")
-	if err := os.Mkdir(fooDir, 0777); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, os.Mkdir(fooDir, 0777))
 
 	// Change ownership of foo/ to test #3702 (any non-root user is fine)
 	const uid, gid = 1, 1
-	if err := os.Chown(fooDir, uid, gid); err != nil {
-		t.Fatalf("err : %v", err)
-	}
+	must.NoError(t, os.Chown(fooDir, uid, gid))
 
 	dirInfo, err := os.Stat(fooDir)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Create foo/bar
 	f, err := os.Create(filepath.Join(fooDir, "bar"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if _, err := f.WriteString("123"); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := f.Chmod(0644); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
+
+	_, err = f.WriteString("123")
+	must.NoError(t, err)
+
+	err = f.Chmod(0644)
+	must.NoError(t, err)
+
 	fInfo, err := f.Stat()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 	f.Close()
 
 	// Create foo/baz -> bar symlink
-	if err := os.Symlink("bar", filepath.Join(dir, "foo", "baz")); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err = os.Symlink("bar", filepath.Join(dir, "foo", "baz"))
+	must.NoError(t, err)
+
 	linkInfo, err := os.Lstat(filepath.Join(dir, "foo", "baz"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	must.NoError(t, err)
+
+	buf, err := testTar(dir)
+
+	dir1 := t.TempDir()
+
+	rc := io.NopCloser(buf)
+	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
+	err = prevAlloc.streamAllocDir(context.Background(), rc, dir1)
+	must.NoError(t, err)
+
+	// Ensure foo is present
+	fi, err := os.Stat(filepath.Join(dir1, "foo"))
+	must.NoError(t, err)
+	must.Eq(t, dirInfo.Mode(), fi.Mode(), must.Sprintf("unexpected file mode"))
+
+	stat := fi.Sys().(*syscall.Stat_t)
+	if stat.Uid != uid || stat.Gid != gid {
+		t.Fatalf("foo/ has incorrect ownership: expected %d:%d found %d:%d",
+			uid, gid, stat.Uid, stat.Gid)
 	}
+
+	fi1, err := os.Stat(filepath.Join(dir1, "bar"))
+	must.NoError(t, err)
+	must.Eq(t, fInfo.Mode(), fi1.Mode(), must.Sprintf("unexpected file mode"))
+
+	fi2, err := os.Lstat(filepath.Join(dir1, "baz"))
+	must.NoError(t, err)
+	must.Eq(t, linkInfo.Mode(), fi2.Mode(), must.Sprintf("unexpected file mode"))
+}
+
+func TestPrevAlloc_StreamAllocDir_BadSymlink(t *testing.T) {
+	ci.Parallel(t)
+
+	dir := t.TempDir()
+	sensitiveDir := t.TempDir()
+
+	fooDir := filepath.Join(dir, "foo")
+	err := os.Mkdir(fooDir, 0777)
+	must.NoError(t, err)
+
+	// Create sensitive -> foo/bar symlink
+	err = os.Symlink(sensitiveDir, filepath.Join(dir, "foo", "baz"))
+	must.NoError(t, err)
+
+	buf, err := testTar(dir)
+	rc := io.NopCloser(buf)
+
+	dir1 := t.TempDir()
+	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
+	err = prevAlloc.streamAllocDir(context.Background(), rc, dir1)
+	must.EqError(t, err, "archive contains symlink that escapes alloc dir")
+}
+
+func testTar(dir string) (*bytes.Buffer, error) {
 
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
@@ -118,45 +162,9 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 	}
 
 	if err := filepath.Walk(dir, walkFn); err != nil {
-		t.Fatalf("err: %v", err)
+		return nil, err
 	}
 	tw.Close()
 
-	dir1 := t.TempDir()
-
-	rc := io.NopCloser(buf)
-	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
-	if err := prevAlloc.streamAllocDir(context.Background(), rc, dir1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Ensure foo is present
-	fi, err := os.Stat(filepath.Join(dir1, "foo"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if fi.Mode() != dirInfo.Mode() {
-		t.Fatalf("mode: %v", fi.Mode())
-	}
-	stat := fi.Sys().(*syscall.Stat_t)
-	if stat.Uid != uid || stat.Gid != gid {
-		t.Fatalf("foo/ has incorrect ownership: expected %d:%d found %d:%d",
-			uid, gid, stat.Uid, stat.Gid)
-	}
-
-	fi1, err := os.Stat(filepath.Join(dir1, "bar"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if fi1.Mode() != fInfo.Mode() {
-		t.Fatalf("mode: %v", fi1.Mode())
-	}
-
-	fi2, err := os.Lstat(filepath.Join(dir1, "baz"))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if fi2.Mode() != linkInfo.Mode() {
-		t.Fatalf("mode: %v", fi2.Mode())
-	}
+	return buf, nil
 }
