@@ -1839,10 +1839,12 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 		// Set{Alloc,Task,Secrets}Dir logic in taskrunner/task_dir_hook.go
 		b := taskenv.NewBuilder(clientConf.Node, alloc, task, clientConf.Region)
 		b.SetAllocDir(allocdir.SharedAllocContainerPath)
+		b.SetAllocSecretsDir(allocdir.SharedAllocSecretsContainerPath)
 		b.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
 		b.SetSecretsDir(allocdir.TaskSecretsContainerPath)
 		b.SetClientTaskRoot(taskDir.Dir)
 		b.SetClientSharedAllocDir(taskDir.SharedAllocDir)
+		b.SetClientSharedAllocSecretsDir(taskDir.SharedAllocSecretsDir)
 		b.SetClientTaskLocalDir(taskDir.LocalDir)
 		b.SetClientTaskSecretsDir(taskDir.SecretsDir)
 		return b
@@ -1853,10 +1855,12 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 		// Set{Alloc,Task,Secrets}Dir logic in taskrunner/task_dir_hook.go
 		b := taskenv.NewBuilder(clientConf.Node, alloc, task, clientConf.Region)
 		b.SetAllocDir(taskDir.SharedAllocDir)
+		b.SetAllocSecretsDir(taskDir.SharedAllocSecretsDir)
 		b.SetTaskLocalDir(taskDir.LocalDir)
 		b.SetSecretsDir(taskDir.SecretsDir)
 		b.SetClientTaskRoot(taskDir.Dir)
 		b.SetClientSharedAllocDir(taskDir.SharedAllocDir)
+		b.SetClientSharedAllocDir(taskDir.SharedAllocSecretsDir)
 		b.SetClientTaskLocalDir(taskDir.LocalDir)
 		b.SetClientTaskSecretsDir(taskDir.SecretsDir)
 		return b
