@@ -3679,7 +3679,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			// Job with allocations and stop_after_client_disconnect
 			job := mock.Job()
 			job.TaskGroups[0].Count = 1
-			job.TaskGroups[0].StopAfterClientDisconnect = &tc.stop
+			job.TaskGroups[0].Disconnect.StopAfterOnClient = &tc.stop
 			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 			// Alloc for the running group

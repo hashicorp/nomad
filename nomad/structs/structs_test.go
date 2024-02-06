@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -481,9 +482,11 @@ func TestJob_Validate_DisconnectRescheduleLost(t *testing.T) {
 		Type:   JobTypeSystem,
 		TaskGroups: []*TaskGroup{
 			{
-				Name:                    "cache",
-				MaxClientDisconnect:     pointer.Of(1 * time.Hour),
-				PreventRescheduleOnLost: true,
+				Name: "cache",
+				Disconnect: &DisconnectStrategy{
+					LostAfter: 1 * time.Hour,
+					Replace:   false,
+				},
 				Tasks: []*Task{
 					{
 						Name:   "redis",
@@ -5820,6 +5823,8 @@ func TestAllocation_NextDelay(t *testing.T) {
 
 }
 
+// Test using stop_after_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.StopAfterOnClient introduced in 1.8.0.
 func TestAllocation_WaitClientStop(t *testing.T) {
 	ci.Parallel(t)
 	type testCase struct {
@@ -5880,6 +5885,115 @@ func TestAllocation_WaitClientStop(t *testing.T) {
 	}
 }
 
+func TestAllocation_WaitClientStop_Disconnect(t *testing.T) {
+	ci.Parallel(t)
+	type testCase struct {
+		desc                   string
+		stop                   time.Duration
+		status                 string
+		expectedShould         bool
+		expectedRescheduleTime time.Time
+	}
+	now := time.Now().UTC()
+	testCases := []testCase{
+		{
+			desc:           "running",
+			stop:           2 * time.Second,
+			status:         AllocClientStatusRunning,
+			expectedShould: true,
+		},
+		{
+			desc:           "no stop_after_client_disconnect",
+			status:         AllocClientStatusLost,
+			expectedShould: false,
+		},
+		{
+			desc:                   "stop",
+			status:                 AllocClientStatusLost,
+			stop:                   2 * time.Second,
+			expectedShould:         true,
+			expectedRescheduleTime: now.Add((2 + 5) * time.Second),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			j := testJob()
+			a := &Allocation{
+				ClientStatus: tc.status,
+				Job:          j,
+				TaskStates:   map[string]*TaskState{},
+			}
+
+			if tc.status == AllocClientStatusLost {
+				a.AppendState(AllocStateFieldClientStatus, AllocClientStatusLost)
+			}
+
+			j.TaskGroups[0].Disconnect = &DisconnectStrategy{
+				StopAfterOnClient: &tc.stop,
+			}
+
+			a.TaskGroup = j.TaskGroups[0].Name
+
+			require.Equal(t, tc.expectedShould, a.ShouldClientStop())
+
+			if !tc.expectedShould || tc.status != AllocClientStatusLost {
+				return
+			}
+
+			// the reschedTime is close to the expectedRescheduleTime
+			reschedTime := a.WaitClientStop()
+			e := reschedTime.Unix() - tc.expectedRescheduleTime.Unix()
+			require.Less(t, e, int64(2))
+		})
+	}
+}
+
+func TestAllocation_Timeout_Disconnect(t *testing.T) {
+	type testCase struct {
+		desc          string
+		maxDisconnect time.Duration
+	}
+
+	testCases := []testCase{
+		{
+			desc:          "has lost_after",
+			maxDisconnect: 30 * time.Second,
+		},
+		{
+			desc:          "zero lost_after",
+			maxDisconnect: 0 * time.Second,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			j := testJob()
+			a := &Allocation{
+				Job: j,
+			}
+
+			j.TaskGroups[0].Disconnect = &DisconnectStrategy{
+				LostAfter: tc.maxDisconnect,
+			}
+
+			a.TaskGroup = j.TaskGroups[0].Name
+
+			now := time.Now()
+
+			reschedTime := a.DisconnectTimeout(now)
+
+			if tc.maxDisconnect == 0 {
+				require.Equal(t, now, reschedTime, "expected to be now")
+			} else {
+				difference := reschedTime.Sub(now)
+				require.Equal(t, tc.maxDisconnect, difference, "expected durations to be equal")
+			}
+
+		})
+	}
+}
+
+// Test using max_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.LostAfter introduced in 1.8.0.
 func TestAllocation_DisconnectTimeout(t *testing.T) {
 	type testCase struct {
 		desc          string
@@ -5900,6 +6014,7 @@ func TestAllocation_DisconnectTimeout(t *testing.T) {
 			maxDisconnect: pointer.Of(0 * time.Second),
 		},
 	}
+
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			j := testJob()
@@ -5920,11 +6035,12 @@ func TestAllocation_DisconnectTimeout(t *testing.T) {
 				difference := reschedTime.Sub(now)
 				require.Equal(t, *tc.maxDisconnect, difference, "expected durations to be equal")
 			}
-
 		})
 	}
 }
 
+// Test using max_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.LostAfter introduced in 1.8.0.
 func TestAllocation_Expired(t *testing.T) {
 	type testCase struct {
 		name             string
@@ -6016,6 +6132,145 @@ func TestAllocation_Expired(t *testing.T) {
 				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
 				require.NoError(t, err)
 				alloc.Job.TaskGroups[0].MaxClientDisconnect = &maxDisconnect
+			}
+
+			if tc.nilJob {
+				alloc.Job = nil
+			}
+
+			if tc.badTaskGroup {
+				alloc.TaskGroup = "bad"
+			}
+
+			alloc.ClientStatus = AllocClientStatusUnknown
+			if tc.status != "" {
+				alloc.ClientStatus = tc.status
+			}
+
+			alloc.AllocStates = []*AllocState{{
+				Field: AllocStateFieldClientStatus,
+				Value: AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}}
+
+			require.NoError(t, err)
+			now := time.Now().UTC()
+			if tc.mixedUTC {
+				now = time.Now()
+			}
+
+			if !tc.noReconnectEvent {
+				event := NewTaskEvent(TaskClientReconnected)
+				event.Time = now.UnixNano()
+
+				alloc.TaskStates = map[string]*TaskState{
+					"web": {
+						Events: []*TaskEvent{event},
+					},
+				}
+			}
+
+			ellapsedDuration := time.Duration(tc.ellapsed) * time.Second
+			now = now.Add(ellapsedDuration)
+
+			require.Equal(t, tc.expected, alloc.Expired(now))
+		})
+	}
+}
+
+func TestAllocation_Expired_Disconnected(t *testing.T) {
+	type testCase struct {
+		name             string
+		maxDisconnect    string
+		ellapsed         int
+		expected         bool
+		nilJob           bool
+		badTaskGroup     bool
+		mixedUTC         bool
+		noReconnectEvent bool
+		status           string
+	}
+
+	testCases := []testCase{
+		{
+			name:          "has-expired",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			expected:      true,
+		},
+		{
+			name:          "has-not-expired",
+			maxDisconnect: "5s",
+			ellapsed:      3,
+			expected:      false,
+		},
+		{
+			name:          "are-equal",
+			maxDisconnect: "5s",
+			ellapsed:      5,
+			expected:      true,
+		},
+		{
+			name:          "nil-job",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			expected:      false,
+			nilJob:        true,
+		},
+		{
+			name:          "wrong-status",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			expected:      false,
+			status:        AllocClientStatusRunning,
+		},
+		{
+			name:          "bad-task-group",
+			maxDisconnect: "",
+			badTaskGroup:  true,
+			ellapsed:      10,
+			expected:      false,
+		},
+		{
+			name:          "no-max-disconnect",
+			maxDisconnect: "",
+			ellapsed:      10,
+			expected:      false,
+		},
+		{
+			name:          "mixed-utc-has-expired",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			mixedUTC:      true,
+			expected:      true,
+		},
+		{
+			name:          "mixed-utc-has-not-expired",
+			maxDisconnect: "5s",
+			ellapsed:      3,
+			mixedUTC:      true,
+			expected:      false,
+		},
+		{
+			name:             "no-reconnect-event",
+			maxDisconnect:    "5s",
+			ellapsed:         2,
+			expected:         false,
+			noReconnectEvent: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := MockAlloc()
+			var err error
+			var maxDisconnect time.Duration
+
+			if tc.maxDisconnect != "" {
+				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
+				require.NoError(t, err)
+				alloc.Job.TaskGroups[0].Disconnect = &DisconnectStrategy{
+					LostAfter: maxDisconnect,
+				}
 			}
 
 			if tc.nilJob {
@@ -6344,6 +6599,8 @@ func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
 	}
 }
 
+// Test using stop_after_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.StopAfterOnClient introduced in 1.8.0.
 func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 	ci.Parallel(t)
 	// Setup a system Job with stop_after_client_disconnect set, which is invalid
@@ -6372,6 +6629,42 @@ func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestJobConfig_Validate_StopAferClient_Disconnect(t *testing.T) {
+	ci.Parallel(t)
+	// Setup a system Job with Disconnect.StopAfterOnClient set, which is invalid
+	job := testJob()
+	job.Type = JobTypeSystem
+	stop := 1 * time.Minute
+	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
+		StopAfterOnClient: &stop,
+	}
+
+	err := job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), errStopAfterNonService.Error())
+
+	// Modify the job to a batch job with an invalid Disconnect.StopAfterOnClient value
+	job.Type = JobTypeBatch
+	invalid := -1 * time.Minute
+	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
+		StopAfterOnClient: &invalid,
+	}
+
+	err = job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), errNegativeStopAfter.Error())
+
+	// Modify the job to a batch job with a valid Disconnect.StopAfterOnClient value
+	job.Type = JobTypeBatch
+	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
+		StopAfterOnClient: &stop,
+	}
+	err = job.Validate()
+	require.NoError(t, err)
+}
+
+// Test using max_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.LostAfter introduced in 1.8.0.
 func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
 	// Set up a job with an invalid max_client_disconnect value
 	job := testJob()
@@ -6388,6 +6681,33 @@ func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
 	timeout = 1 * time.Minute
 	job.TaskGroups[0].MaxClientDisconnect = &timeout
 	job.TaskGroups[0].StopAfterClientDisconnect = nil
+	err = job.Validate()
+	require.NoError(t, err)
+}
+
+func TestJobConfig_Validate_LostAfter_Disconnect(t *testing.T) {
+	// Set up a job with an invalid Disconnect.LostAfter value
+	job := testJob()
+	timeout := -1 * time.Minute
+	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
+		LostAfter:         timeout,
+		StopAfterOnClient: &timeout,
+	}
+
+	err := job.Validate()
+	require.Error(t, err)
+	err = errors.Unwrap(err)
+
+	require.Contains(t, err.Error(), errNegativeLostAfter.Error())
+	require.Contains(t, err.Error(), errNegativeStopAfter.Error())
+	require.Contains(t, err.Error(), errStopAndLost.Error())
+
+	// Modify the job with a valid Disconnect.LostAfter value
+	timeout = 1 * time.Minute
+	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
+		LostAfter:         timeout,
+		StopAfterOnClient: nil,
+	}
 	err = job.Validate()
 	require.NoError(t, err)
 }

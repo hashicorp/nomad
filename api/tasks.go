@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+// ReconcileOption is used to specify the behavior of the reconciliation process
+// between the original allocations and the replacements when a previously
+// disconnected client comes back online.
+type ReconcileOption = string
+
 const (
 	// RestartPolicyModeDelay causes an artificial delay till the next interval is
 	// reached when the specified attempts have been reached in the interval.
@@ -19,6 +24,11 @@ const (
 	// RestartPolicyModeFail causes a job to fail if the specified number of
 	// attempts are reached within an interval.
 	RestartPolicyModeFail = "fail"
+
+	KeepOriginal    ReconcileOption = "keep_original"
+	KeepReplacement ReconcileOption = "keep_replacement"
+	BestScore       ReconcileOption = "best_score"
+	LongestRunning  ReconcileOption = "longest_running"
 )
 
 // MemoryStats holds memory usage related stats
@@ -113,6 +123,46 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 	}
 }
 
+// Disconnect strategy defines how both clients and server should behave in case of
+// disconnection between them.
+type DisconnectStrategy struct {
+	// Defines for how long the server will consider the unresponsive node as
+	// disconnected but alive instead of lost.
+	LostAfter *time.Duration `mapstructure:"lost_after" hcl:"lost_after,optional"`
+
+	// Defines for how long a disconnected client will keep its allocations running.
+	StopAfterOnClient *time.Duration `mapstructure:"stop_after" hcl:"stop_after_client"`
+
+	// A boolean field used to define if the allocations should be replaced while
+	// its  considered disconnected.
+	Replace *bool `mapstructure:"replace" hcl:"replace,optional"`
+
+	// Once the disconnected node starts reporting again, it will define which
+	// instances to keep: the original allocations, the replacement, the one
+	// running on the node with the best score as it is currently implemented,
+	// or the allocation that has been running continuously the longest.
+	Reconcile *ReconcileOption `mapstructure:"reconcile" hcl:"reconcile,optional"`
+}
+
+func (ds *DisconnectStrategy) Canonicalize() {
+	cds := NewDefaultDisconnectStrategy()
+	if ds.LostAfter == nil {
+		ds.LostAfter = cds.LostAfter
+	}
+
+	if ds.StopAfterOnClient == nil {
+		ds.StopAfterOnClient = cds.StopAfterOnClient
+	}
+
+	if ds.Replace == nil {
+		ds.Replace = cds.Replace
+	}
+
+	if ds.Reconcile == nil {
+		ds.Reconcile = cds.Reconcile
+	}
+}
+
 // Reschedule configures how Tasks are rescheduled  when they crash or fail.
 type ReschedulePolicy struct {
 	// Attempts limits the number of rescheduling attempts that can occur in an interval.
@@ -202,6 +252,14 @@ func NewAffinity(lTarget string, operand string, rTarget string, weight int8) *A
 func (a *Affinity) Canonicalize() {
 	if a.Weight == nil {
 		a.Weight = pointerOf(int8(50))
+	}
+}
+
+func NewDefaultDisconnectStrategy() *DisconnectStrategy {
+	return &DisconnectStrategy{
+		LostAfter: pointerOf(0 * time.Minute),
+		Replace:   pointerOf(true),
+		Reconcile: pointerOf(BestScore),
 	}
 }
 
@@ -453,6 +511,7 @@ type TaskGroup struct {
 	Spreads                   []*Spread                 `hcl:"spread,block"`
 	Volumes                   map[string]*VolumeRequest `hcl:"volume,block"`
 	RestartPolicy             *RestartPolicy            `hcl:"restart,block"`
+	Disconnect                *DisconnectStrategy       `hcl:"disconnect,block"`
 	ReschedulePolicy          *ReschedulePolicy         `hcl:"reschedule,block"`
 	EphemeralDisk             *EphemeralDisk            `hcl:"ephemeral_disk,block"`
 	Update                    *UpdateStrategy           `hcl:"update,block"`
@@ -537,6 +596,7 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	if g.ReschedulePolicy != nil {
 		g.ReschedulePolicy.Canonicalize(*job.Type)
 	}
+
 	// Merge the migrate strategy from the job
 	if jm, tm := job.Migrate != nil, g.Migrate != nil; jm && tm {
 		jobMigrate := job.Migrate.Copy()
@@ -584,8 +644,15 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
 	}
+
 	if g.PreventRescheduleOnLost == nil {
 		g.PreventRescheduleOnLost = pointerOf(false)
+	}
+
+	if g.Disconnect != nil {
+		g.Disconnect.Canonicalize()
+	} else {
+		g.Disconnect = NewDefaultDisconnectStrategy()
 	}
 }
 

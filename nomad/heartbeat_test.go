@@ -294,36 +294,36 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 	ci.Parallel(t)
 
 	type testCase struct {
-		name                string
-		now                 time.Time
-		maxClientDisconnect *time.Duration
-		expectedNodeStatus  string
+		name                  string
+		now                   time.Time
+		lostAfterOnDisconnect *time.Duration
+		expectedNodeStatus    string
 	}
 
 	testCases := []testCase{
 		{
-			name:                "has-pending-reconnects",
-			now:                 time.Now().UTC(),
-			maxClientDisconnect: pointer.Of(5 * time.Second),
-			expectedNodeStatus:  structs.NodeStatusDisconnected,
+			name:                  "has-pending-reconnects",
+			now:                   time.Now().UTC(),
+			lostAfterOnDisconnect: pointer.Of(5 * time.Second),
+			expectedNodeStatus:    structs.NodeStatusDisconnected,
 		},
 		{
-			name:                "has-expired-reconnects",
-			maxClientDisconnect: pointer.Of(5 * time.Second),
-			now:                 time.Now().UTC().Add(-10 * time.Second),
-			expectedNodeStatus:  structs.NodeStatusDown,
+			name:                  "has-expired-reconnects",
+			lostAfterOnDisconnect: pointer.Of(5 * time.Second),
+			now:                   time.Now().UTC().Add(-10 * time.Second),
+			expectedNodeStatus:    structs.NodeStatusDown,
 		},
 		{
-			name:                "has-expired-reconnects-equal-timestamp",
-			maxClientDisconnect: pointer.Of(5 * time.Second),
-			now:                 time.Now().UTC().Add(-5 * time.Second),
-			expectedNodeStatus:  structs.NodeStatusDown,
+			name:                  "has-expired-reconnects-equal-timestamp",
+			lostAfterOnDisconnect: pointer.Of(5 * time.Second),
+			now:                   time.Now().UTC().Add(-5 * time.Second),
+			expectedNodeStatus:    structs.NodeStatusDown,
 		},
 		{
-			name:                "has-no-reconnects",
-			now:                 time.Now().UTC(),
-			maxClientDisconnect: nil,
-			expectedNodeStatus:  structs.NodeStatusDown,
+			name:                  "has-no-reconnects",
+			now:                   time.Now().UTC(),
+			lostAfterOnDisconnect: nil,
+			expectedNodeStatus:    structs.NodeStatusDown,
 		},
 	}
 
@@ -340,7 +340,7 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 
 			alloc := mock.Alloc()
 			alloc.NodeID = node.ID
-			alloc.Job.TaskGroups[0].MaxClientDisconnect = tc.maxClientDisconnect
+			alloc.Job.TaskGroups[0].Disconnect.LostAfter = *tc.lostAfterOnDisconnect
 			alloc.ClientStatus = structs.AllocClientStatusUnknown
 			alloc.AllocStates = []*structs.AllocState{{
 				Field: structs.AllocStateFieldClientStatus,

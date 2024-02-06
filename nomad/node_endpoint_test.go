@@ -977,7 +977,7 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 	job := mock.Job()
 	job.Constraints = []*structs.Constraint{}
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].MaxClientDisconnect = pointer.Of(time.Hour)
+	job.TaskGroups[0].Disconnect.LostAfter = time.Hour
 	job.TaskGroups[0].Constraints = []*structs.Constraint{}
 	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{

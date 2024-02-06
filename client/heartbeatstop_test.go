@@ -35,8 +35,10 @@ func TestHeartbeatStop_allocHook(t *testing.T) {
 		Job: &structs.Job{
 			TaskGroups: []*structs.TaskGroup{
 				{
-					Name:                      "foo",
-					StopAfterClientDisconnect: &d,
+					Name: "foo",
+					Disconnect: &structs.DisconnectStrategy{
+						StopAfterOnClient: &d,
+					},
 				},
 			},
 		},

@@ -60,9 +60,16 @@ var (
 
 	// b32 is a lowercase base32 encoding for use in URL friendly service hashes
 	b32 = base32.NewEncoding(strings.ToLower("abcdefghijklmnopqrstuvwxyz234567"))
+
+	// Disconnect strategy validation errors
+	errStopAndLost         = errors.New("Disconnect cannot be configured with both lost_after and stop_after")
+	errNegativeLostAfter   = errors.New("lost_after cannot be a negative duration")
+	errNegativeStopAfter   = errors.New("stop_after cannot be a negative duration")
+	errStopAfterNonService = errors.New("stop_after can only be used with service or batch job types")
 )
 
 type MessageType uint8
+type ReconcileOption = string
 
 // note: new raft message types need to be added to the end of this
 // list of contents
@@ -208,6 +215,11 @@ const (
 	RateMetricRead  = "read"
 	RateMetricList  = "list"
 	RateMetricWrite = "write"
+
+	KeepOriginal    ReconcileOption = "keep_original"
+	KeepReplacement ReconcileOption = "keep_replacement"
+	BestScore       ReconcileOption = "best_score"
+	LongestRunning  ReconcileOption = "longest_running"
 )
 
 var (
@@ -6253,6 +6265,87 @@ type ScalingPolicyListStub struct {
 	ModifyIndex uint64
 }
 
+func NewDisconnectStrategy() *DisconnectStrategy {
+	return &DisconnectStrategy{
+		Replace:   true,
+		Reconcile: BestScore,
+	}
+}
+
+// Disconnect strategy defines how both clients and server should behave in case of
+// disconnection between them.
+type DisconnectStrategy struct {
+	// Defines for how long the server will consider the unresponsive node as
+	// disconnected but alive instead of lost.
+	LostAfter time.Duration `mapstructure:"lost_after" hcl:"lost_after,optional"`
+
+	// Defines for how long a disconnected client will keep its allocations running.
+	StopAfterOnClient *time.Duration `mapstructure:"stop_after" hcl:"stop_after_client"`
+
+	// A boolean field used to define if the allocations should be replaced while
+	// its  considered disconnected.
+	Replace bool `mapstructure:"replace" hcl:"replace,optional"`
+
+	// Once the disconnected node starts reporting again, it will define which
+	// instances to keep: the original allocations, the replacement, the one
+	// running on the node with the best score as it is currently implemented,
+	// or the allocation that has been running continuously the longest.
+	Reconcile ReconcileOption `mapstructure:"reconcile" hcl:"reconcile,optional"`
+}
+
+func (ds *DisconnectStrategy) Validate(job *Job) error {
+	var mErr *multierror.Error
+
+	if ds.StopAfterOnClient != nil {
+		if *ds.StopAfterOnClient < 0 {
+			mErr = multierror.Append(mErr, errNegativeStopAfter)
+		}
+
+		if job.Type != JobTypeService && job.Type != JobTypeBatch {
+			mErr = multierror.Append(mErr, errStopAfterNonService)
+		}
+	}
+
+	if ds.LostAfter < 0 {
+		mErr = multierror.Append(mErr, errNegativeLostAfter)
+	}
+
+	if ds.StopAfterOnClient != nil && ds.LostAfter != 0 {
+		return multierror.Append(mErr, errStopAndLost)
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (ds *DisconnectStrategy) Copy() *DisconnectStrategy {
+	if ds == nil {
+		return nil
+	}
+
+	nds := new(DisconnectStrategy)
+	*nds = *ds
+	return nds
+}
+
+func (ds *DisconnectStrategy) Canonicalize() {
+	cds := NewDisconnectStrategy()
+	if ds.LostAfter != 0 {
+		ds.LostAfter = cds.LostAfter
+	}
+
+	if ds.StopAfterOnClient != nil {
+		ds.StopAfterOnClient = cds.StopAfterOnClient
+	}
+
+	if ds.Replace == false {
+		ds.Replace = true
+	}
+
+	if ds.Reconcile != BestScore {
+		ds.Reconcile = cds.Reconcile
+	}
+}
+
 // RestartPolicy configures how Tasks are restarted when they crash or fail.
 type RestartPolicy struct {
 	// Attempts is the number of restart that will occur in an interval.
@@ -6613,6 +6706,10 @@ type TaskGroup struct {
 	// RestartPolicy of a TaskGroup
 	RestartPolicy *RestartPolicy
 
+	// Disconnect strategy defines how both clients and server should behave in case of
+	// disconnection between them.
+	Disconnect *DisconnectStrategy
+
 	// Tasks are the collection of tasks that this task group needs to run
 	Tasks []*Task
 
@@ -6674,6 +6771,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Update = ntg.Update.Copy()
 	ntg.Constraints = CopySliceConstraints(ntg.Constraints)
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
+	ntg.Disconnect = ntg.Disconnect.Copy()
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
@@ -6743,6 +6841,24 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.ReschedulePolicy = NewReschedulePolicy(job.Type)
 	}
 
+	if tg.Disconnect == nil {
+		tg.Disconnect = NewDisconnectStrategy()
+	} else {
+		tg.Disconnect.Canonicalize()
+	}
+
+	if tg.MaxClientDisconnect != nil && tg.Disconnect.LostAfter == 0 {
+		tg.Disconnect.LostAfter = *tg.MaxClientDisconnect
+	}
+
+	if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopAfterOnClient == nil {
+		tg.Disconnect.StopAfterOnClient = tg.StopAfterClientDisconnect
+	}
+
+	if tg.PreventRescheduleOnLost && tg.Disconnect.Replace == true {
+		tg.Disconnect.Replace = false
+	}
+
 	// Canonicalize Migrate for service jobs
 	if job.Type == JobTypeService && tg.Migrate == nil {
 		tg.Migrate = DefaultMigrateStrategy()
@@ -6807,88 +6923,111 @@ func (tg *TaskGroup) filterServices(f func(s *Service) bool) []*Service {
 
 // Validate is used to check a task group for reasonable configuration
 func (tg *TaskGroup) Validate(j *Job) error {
-	var mErr multierror.Error
+	var mErr *multierror.Error
+
 	if tg.Name == "" {
-		mErr.Errors = append(mErr.Errors, errors.New("Missing task group name"))
+		mErr = multierror.Append(mErr, errors.New("Missing task group name"))
 	} else if strings.Contains(tg.Name, "\000") {
-		mErr.Errors = append(mErr.Errors, errors.New("Task group name contains null character"))
+		mErr = multierror.Append(mErr, errors.New("Task group name contains null character"))
 	}
+
 	if tg.Count < 0 {
-		mErr.Errors = append(mErr.Errors, errors.New("Task group count can't be negative"))
+		mErr = multierror.Append(mErr, errors.New("Task group count can't be negative"))
 	}
+
 	if len(tg.Tasks) == 0 {
 		// could be a lone consul gateway inserted by the connect mutator
-		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
+		mErr = multierror.Append(mErr, errors.New("Missing tasks for task group"))
 	}
 
 	if tg.MaxClientDisconnect != nil && tg.StopAfterClientDisconnect != nil {
-		mErr.Errors = append(mErr.Errors, errors.New("Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect"))
+		mErr = multierror.Append(mErr, errors.New("Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect"))
 	}
 
 	if tg.MaxClientDisconnect != nil && *tg.MaxClientDisconnect < 0 {
-		mErr.Errors = append(mErr.Errors, errors.New("max_client_disconnect cannot be negative"))
+		mErr = multierror.Append(mErr, errors.New("max_client_disconnect cannot be negative"))
+	}
+
+	if tg.Disconnect != nil {
+		if tg.MaxClientDisconnect != nil && tg.Disconnect.LostAfter > 0 &&
+			*tg.MaxClientDisconnect != tg.Disconnect.LostAfter {
+			return multierror.Append(mErr, errors.New("using both lost_after and max_client_disconnect is not allowed"))
+		}
+
+		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopAfterOnClient != nil &&
+			*tg.StopAfterClientDisconnect != *tg.Disconnect.StopAfterOnClient {
+			return multierror.Append(mErr, errors.New("using both stop_after_client_disconnect and stop_after_on_client is not allowed"))
+		}
+
+		if tg.PreventRescheduleOnLost == true && tg.Disconnect.Replace == true {
+			return multierror.Append(mErr, errors.New("using both prevent_reschedule_on_lost and replace is not allowed"))
+		}
+
+		if err := tg.Disconnect.Validate(j); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
 	}
 
 	for idx, constr := range tg.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
-			mErr.Errors = append(mErr.Errors, outer)
+			mErr = multierror.Append(mErr, outer)
 		}
 	}
 	if j.Type == JobTypeSystem {
 		if tg.Affinities != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have an affinity block"))
+			mErr = multierror.Append(mErr, fmt.Errorf("System jobs may not have an affinity block"))
 		}
 	} else {
 		for idx, affinity := range tg.Affinities {
 			if err := affinity.Validate(); err != nil {
 				outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
-				mErr.Errors = append(mErr.Errors, outer)
+				mErr = multierror.Append(mErr, outer)
 			}
 		}
 	}
 
 	if tg.RestartPolicy != nil {
 		if err := tg.RestartPolicy.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 		}
 	} else {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
+		mErr = multierror.Append(mErr, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
 	}
 
 	if j.Type == JobTypeSystem {
 		if tg.Spreads != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have a spread block"))
+			mErr = multierror.Append(mErr, fmt.Errorf("System jobs may not have a spread block"))
 		}
 	} else {
 		for idx, spread := range tg.Spreads {
 			if err := spread.Validate(); err != nil {
 				outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
-				mErr.Errors = append(mErr.Errors, outer)
+				mErr = multierror.Append(mErr, outer)
 			}
 		}
 	}
 
 	if j.Type == JobTypeSystem {
 		if tg.ReschedulePolicy != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs should not have a reschedule policy"))
+			mErr = multierror.Append(mErr, fmt.Errorf("System jobs should not have a reschedule policy"))
 		}
 	} else {
 		if tg.ReschedulePolicy != nil {
 			if err := tg.ReschedulePolicy.Validate(); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
+				mErr = multierror.Append(mErr, err)
 			}
 		} else {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a reschedule policy", tg.Name))
+			mErr = multierror.Append(mErr, fmt.Errorf("Task Group %v should have a reschedule policy", tg.Name))
 		}
 	}
 
 	if tg.EphemeralDisk != nil {
 		if err := tg.EphemeralDisk.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 		}
 	} else {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have an ephemeral disk object", tg.Name))
+		mErr = multierror.Append(mErr, fmt.Errorf("Task Group %v should have an ephemeral disk object", tg.Name))
 	}
 
 	// Validate the update strategy
@@ -6896,10 +7035,10 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		switch j.Type {
 		case JobTypeService, JobTypeSystem:
 		default:
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow update block", j.Type))
+			mErr = multierror.Append(mErr, fmt.Errorf("Job type %q does not allow update block", j.Type))
 		}
 		if err := u.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 		}
 	}
 
@@ -6908,12 +7047,12 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	case JobTypeService:
 		if tg.Migrate != nil {
 			if err := tg.Migrate.Validate(); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
+				mErr = multierror.Append(mErr, err)
 			}
 		}
 	default:
 		if tg.Migrate != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow migrate block", j.Type))
+			mErr = multierror.Append(mErr, fmt.Errorf("Job type %q does not allow migrate block", j.Type))
 		}
 	}
 
@@ -6922,9 +7061,9 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	leaderTasks := 0
 	for idx, task := range tg.Tasks {
 		if task.Name == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d missing name", idx+1))
+			mErr = multierror.Append(mErr, fmt.Errorf("Task %d missing name", idx+1))
 		} else if existing, ok := tasks[task.Name]; ok {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d redefines '%s' from task %d", idx+1, task.Name, existing+1))
+			mErr = multierror.Append(mErr, fmt.Errorf("Task %d redefines '%s' from task %d", idx+1, task.Name, existing+1))
 		} else {
 			tasks[task.Name] = idx
 		}
@@ -6935,7 +7074,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	if leaderTasks > 1 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
+		mErr = multierror.Append(mErr, fmt.Errorf("Only one task may be marked as leader"))
 	}
 
 	// Validate the volume requests
@@ -6945,7 +7084,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 	for name, volReq := range tg.Volumes {
 		if err := volReq.Validate(j.Type, tg.Count, canaries); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+			mErr = multierror.Append(mErr, fmt.Errorf(
 				"Task group volume validation for %s failed: %v", name, err))
 		}
 	}
@@ -6953,32 +7092,32 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	// Validate task group and task network resources
 	if err := tg.validateNetworks(); err != nil {
 		outer := fmt.Errorf("Task group network validation failed: %v", err)
-		mErr.Errors = append(mErr.Errors, outer)
+		mErr = multierror.Append(mErr, outer)
 	}
 
 	// Validate task group and task services
 	if err := tg.validateServices(); err != nil {
 		outer := fmt.Errorf("Task group service validation failed: %v", err)
-		mErr.Errors = append(mErr.Errors, outer)
+		mErr = multierror.Append(mErr, outer)
 	}
 
 	// Validate group service script-checks
 	if err := tg.validateScriptChecksInGroupServices(); err != nil {
 		outer := fmt.Errorf("Task group service check validation failed: %v", err)
-		mErr.Errors = append(mErr.Errors, outer)
+		mErr = multierror.Append(mErr, outer)
 	}
 
 	// Validate the scaling policy
 	if err := tg.validateScalingPolicy(j); err != nil {
 		outer := fmt.Errorf("Task group scaling policy validation failed: %v", err)
-		mErr.Errors = append(mErr.Errors, outer)
+		mErr = multierror.Append(mErr, outer)
 	}
 
 	// Validate the tasks
 	for _, task := range tg.Tasks {
 		if err := task.Validate(j.Type, tg); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
-			mErr.Errors = append(mErr.Errors, outer)
+			mErr = multierror.Append(mErr, outer)
 		}
 	}
 
@@ -10970,12 +11109,41 @@ func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
-// ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
+// This helper is meant to simplify the future depracation of
+// MaxClientDisconnect in favor of Disconnect.LostAfter
+// introduced in 1.8.0.
+func getDisconnectLostTimeout(tg *TaskGroup) time.Duration {
+	if tg.MaxClientDisconnect != nil {
+		return *tg.MaxClientDisconnect
+	}
+
+	if tg.Disconnect != nil {
+		return tg.Disconnect.LostAfter
+	}
+
+	return 0
+}
+
+// This helper is meant to simplify the future depracation of
+// StopAfterClientDisconnect in favor of Disconnect.StopAfterOnClient
+// introduced in 1.8.0.
+func getDisconnectStopTimeout(tg *TaskGroup) time.Duration {
+	if tg.StopAfterClientDisconnect != nil {
+		return *tg.StopAfterClientDisconnect
+	}
+
+	if tg.Disconnect != nil && tg.Disconnect.StopAfterOnClient != nil {
+		return *tg.Disconnect.StopAfterOnClient
+	}
+
+	return 0
+}
+
+// ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
 func (a *Allocation) ShouldClientStop() bool {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 	if tg == nil ||
-		tg.StopAfterClientDisconnect == nil ||
-		*tg.StopAfterClientDisconnect == 0*time.Nanosecond {
+		getDisconnectStopTimeout(tg) == 0*time.Nanosecond {
 		return false
 	}
 	return true
@@ -11010,7 +11178,7 @@ func (a *Allocation) WaitClientStop() time.Time {
 		}
 	}
 
-	return t.Add(*tg.StopAfterClientDisconnect + kill)
+	return t.Add(getDisconnectStopTimeout(tg) + kill)
 }
 
 // DisconnectTimeout uses the MaxClientDisconnect to compute when the allocation
@@ -11022,12 +11190,12 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
-	timeout := tg.MaxClientDisconnect
-	if timeout == nil {
+	timeout := getDisconnectLostTimeout(tg)
+	if timeout == 0 {
 		return now
 	}
 
-	return now.Add(*timeout)
+	return now.Add(timeout)
 }
 
 // SupportsDisconnectedClients determines whether both the server and the task group
@@ -11252,7 +11420,7 @@ func (a *Allocation) AllocationDiff() *AllocationDiff {
 	return (*AllocationDiff)(a)
 }
 
-// Expired determines whether an allocation has exceeded its MaxClientDisonnect
+// Expired determines whether an allocation has exceeded its Disconnect.LostAfter
 // duration relative to the passed time stamp.
 func (a *Allocation) Expired(now time.Time) bool {
 	if a == nil || a.Job == nil {
@@ -11274,11 +11442,12 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	if tg.MaxClientDisconnect == nil && !tg.PreventRescheduleOnLost {
+	timeout := getDisconnectLostTimeout(tg)
+	if timeout == 0 && !tg.PreventRescheduleOnLost {
 		return false
 	}
 
-	expiry := lastUnknown.Add(*tg.MaxClientDisconnect)
+	expiry := lastUnknown.Add(timeout)
 	return expiry.Sub(now) <= 0
 }
 

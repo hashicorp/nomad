@@ -2752,7 +2752,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 					},
 				},
-				MaxClientDisconnect: pointer.Of(30 * time.Second),
+				Disconnect: &api.DisconnectStrategy{
+					LostAfter: pointer.Of(30 * time.Second),
+				},
 				Tasks: []*api.Task{
 					{
 						Name:   "task1",
@@ -3185,7 +3187,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 					},
 				},
-				MaxClientDisconnect: pointer.Of(30 * time.Second),
+				Disconnect: &structs.DisconnectStrategy{
+					LostAfter: 30 * time.Second,
+				},
 				Tasks: []*structs.Task{
 					{
 						Name:   "task1",

@@ -1164,6 +1164,15 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		}
 	}
 
+	if taskGroup.Disconnect != nil {
+		tg.Disconnect = &structs.DisconnectStrategy{
+			LostAfter:         *taskGroup.Disconnect.LostAfter,
+			StopAfterOnClient: taskGroup.Disconnect.StopAfterOnClient,
+			Replace:           *taskGroup.Disconnect.Replace,
+			Reconcile:         *taskGroup.Disconnect.Reconcile,
+		}
+	}
+
 	if taskGroup.Migrate != nil {
 		tg.Migrate = &structs.MigrateStrategy{
 			MaxParallel:     *taskGroup.Migrate.MaxParallel,
