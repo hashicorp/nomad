@@ -830,7 +830,7 @@ type PeriodicConfig struct {
 	Enabled         *bool    `hcl:"enabled,optional"`
 	Spec            *string  `hcl:"cron,optional"`
 	Specs           []string `hcl:"crons,optional"`
-	SpecType        *string  `hcl:"time_format,optional"`
+	SpecType        *string  `hcl:"format,optional"`
 	ProhibitOverlap *bool    `mapstructure:"prohibit_overlap" hcl:"prohibit_overlap,optional"`
 	TimeZone        *string  `mapstructure:"time_zone" hcl:"time_zone,optional"`
 }

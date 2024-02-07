@@ -5672,16 +5672,16 @@ func (p *PeriodicConfig) Validate() error {
 			}
 		}
 	case PeriodicSpecSystemd:
-		// Validate the cron spec
+		// Validate the systemd spec
 		if p.Spec != "" {
 			if _, err := systemdexpr.Parse(p.Spec); err != nil {
-				_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
+				_ = multierror.Append(&mErr, fmt.Errorf("Invalid systemd spec %q: %v", p.Spec, err))
 			}
 		}
-		// Validate the cron specs
+		// Validate the systemd specs
 		for _, spec := range p.Specs {
 			if _, err := systemdexpr.Parse(spec); err != nil {
-				_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", spec, err))
+				_ = multierror.Append(&mErr, fmt.Errorf("Invalid systemd spec %q: %v", spec, err))
 			}
 		}
 
