@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix an issue where a same-named task from a different group could be selected when the user clicks Exec from a task group page where multiple allocations would be valid
+```
