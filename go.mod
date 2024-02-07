@@ -16,8 +16,8 @@ replace github.com/hashicorp/nomad/api => ./api
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/aneustroev/systemdexpr v0.0.0-20240109132914-4928fa90f50c
 	github.com/Microsoft/go-winio v0.6.1
+	github.com/aneustroev/systemdexpr v0.0.0-20240109132914-4928fa90f50c
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.44.184
