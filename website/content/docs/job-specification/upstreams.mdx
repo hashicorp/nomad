@@ -92,9 +92,6 @@ job "countdash" {
   connections for the upstream on.
 - `mesh_gateway` <code>([mesh_gateway][mesh_gateway_param]: nil)</code> - Configures the mesh gateway
   behavior for connecting to this upstream.
-- `config` `(map: nil)` - Upstream configuration that is opaque to Nomad and passed
-  directly to Consul. See [Consul Connect documentation](/consul/docs/connect/registration/service-registration#upstream-configuration-reference)
-  for details. Keys and values support [runtime variable interpolation][interpolation].
 
 ### `mesh_gateway` Parameters
 
