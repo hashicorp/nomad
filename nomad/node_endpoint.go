@@ -58,6 +58,21 @@ const (
 	NodeWaitingForNodePool = "Node registered but waiting for node pool to be created"
 )
 
+// NodeStubIterator wraps an iterator for *structs.Node and returns their
+// *structs.NodeListStub representation.
+type NodeStubIterator struct {
+	source paginator.Iterator
+	fields *structs.NodeStubFields
+}
+
+func (iter *NodeStubIterator) Next() any {
+	raw := iter.source.Next()
+	if raw == nil {
+		return nil
+	}
+	return raw.(*structs.Node).Stub(iter.fields)
+}
+
 // Node endpoint is used for client interactions
 type Node struct {
 	srv    *Server
@@ -1619,18 +1634,26 @@ func (n *Node) List(args *structs.NodeListRequest,
 				return err
 			}
 
+			// Convert to stubs before passing it through the paginator so that
+			// filtering is applied to the stub fields, not the original
+			// struct.
+			stubIter := &NodeStubIterator{
+				source: iter,
+				fields: args.Fields,
+			}
+
 			// Generate the tokenizer to use for pagination using the populated
 			// paginatorOpts object. The ID of a node must be unique within the
 			// region, therefore we only need WithID on the paginator options.
-			tokenizer := paginator.NewStructsTokenizer(iter, paginator.StructsTokenizerOptions{WithID: true})
+			tokenizer := paginator.NewStructsTokenizer(stubIter, paginator.StructsTokenizerOptions{WithID: true})
 
 			var nodes []*structs.NodeListStub
 
 			// Build the paginator. This includes the function that is
 			// responsible for appending a node to the nodes array.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+			paginatorImpl, err := paginator.NewPaginator(stubIter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
-					nodes = append(nodes, raw.(*structs.Node).Stub(args.Fields))
+					nodes = append(nodes, raw.(*structs.NodeListStub))
 					return nil
 				})
 			if err != nil {

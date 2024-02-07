@@ -2412,6 +2412,15 @@ type NodeListStub struct {
 	ModifyIndex           uint64
 }
 
+// GetID is a helper for getting the ID when the object may be nil and is
+// required for pagination.
+func (n *NodeListStub) GetID() string {
+	if n == nil {
+		return ""
+	}
+	return n.ID
+}
+
 // NodeStubFields defines which fields are included in the NodeListStub.
 type NodeStubFields struct {
 	Resources bool
@@ -11481,6 +11490,33 @@ type AllocListStub struct {
 	ModifyIndex           uint64
 	CreateTime            int64
 	ModifyTime            int64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (a *AllocListStub) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination and filtering namespaces in endpoints that support glob namespace
+// requests using tokens with limited access.
+func (a *AllocListStub) GetNamespace() string {
+	if a == nil {
+		return ""
+	}
+	return a.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *AllocListStub) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
 }
 
 // SetEventDisplayMessages populates the display message if its not already

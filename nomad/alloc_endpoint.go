@@ -20,6 +20,21 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// AllocStubIterator wraps an iterator for *structs.Allocation and returns
+// their *structs.AllocListStub representation.
+type AllocStubIterator struct {
+	source paginator.Iterator
+	fields *structs.AllocStubFields
+}
+
+func (iter *AllocStubIterator) Next() any {
+	raw := iter.source.Next()
+	if raw == nil {
+		return nil
+	}
+	return raw.(*structs.Allocation).Stub(iter.fields)
+}
+
 // Alloc endpoint is used for manipulating allocations
 type Alloc struct {
 	srv    *Server
@@ -97,7 +112,15 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 					return err
 				}
 
-				tokenizer := paginator.NewStructsTokenizer(iter, opts)
+				// Convert to stubs before passing it through the paginator so that
+				// filtering is applied to the stub fields, not the original
+				// struct.
+				stubIter := &AllocStubIterator{
+					source: iter,
+					fields: args.Fields,
+				}
+
+				tokenizer := paginator.NewStructsTokenizer(stubIter, opts)
 				filters := []paginator.Filter{
 					paginator.NamespaceFilter{
 						AllowableNamespaces: allowableNamespaces,
@@ -105,10 +128,10 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 				}
 
 				var stubs []*structs.AllocListStub
-				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+				paginator, err := paginator.NewPaginator(stubIter, tokenizer, filters, args.QueryOptions,
 					func(raw interface{}) error {
-						allocation := raw.(*structs.Allocation)
-						stubs = append(stubs, allocation.Stub(args.Fields))
+						allocation := raw.(*structs.AllocListStub)
+						stubs = append(stubs, allocation)
 						return nil
 					})
 				if err != nil {

@@ -4843,6 +4843,15 @@ func TestNode_List_PaginationFiltering(t *testing.T) {
 			},
 		},
 		{
+			name:              "filter on stub field",
+			pageSize:          1,
+			expectedNextToken: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			filter:            `Version == "0.5.0"`,
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
 			name:              "filter and pagination",
 			filter:            `Status != "ready"`,
 			pageSize:          2,
