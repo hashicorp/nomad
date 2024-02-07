@@ -123,7 +123,16 @@ parameter with the URL encoded expression when sending requests to HTTP API
 endpoints that support it.
 
 ```shell-session
-$ curl --get https://localhost:4646/v1/<path> --data-urlencode 'filter=<filter expression>'
+$ curl --get https://localhost:4646/v1/<path> \
+    --data-urlencode 'filter=<filter expression>'
+```
+
+The filter expression can also be specified in the
+[`-filter`][cli_operator_api_filter] flag of the
+[`nomad operator api`][cli_operator_api] command.
+
+```shell-session
+$ nomad operator api -filter '<filter expression>' /v1/<path>
 ```
 
 Some endpoints may have other query parameters that are used for filtering, but
@@ -145,7 +154,7 @@ node addresses should use the `HTTPAddr` field of the full node definition
 instead of `Address` field present in the stub.
 
 ```shell-session
-$ curl --get https://localhost:4646/v1/nodes --data-urlencode 'filter=HTTPAddr matches "10.0.0..+"'
+$ nomad operator api -filter 'HTTPAddr matches "10.0.0..+"' /v1/nodes
 ```
 
 ### Creating Expressions
@@ -265,7 +274,7 @@ is executed on the leader.
 Command (Unfiltered)
 
 ```shell-session
-$ curl --request GET https://localhost:4646/v1/jobs
+$ nomad operator api /v1/jobs
 ```
 
 Response (Unfiltered)
@@ -370,9 +379,8 @@ Response (Unfiltered)
 
 Command (Filtered)
 
-```shell
-curl --get https://localhost:4646/v1/jobs \
-    --data-urlencode 'filter=Datacenters contains "dc2"'
+```shell-session
+$ nomad operator api -filter 'Datacenters contains "dc2"' /v1/jobs
 ```
 
 Response (Filtered)
@@ -438,7 +446,7 @@ Response (Filtered)
 Command (Unfiltered)
 
 ```shell-session
-$ curl --request GET https://localhost:4646/v1/deployments
+$ nomad operator api /v1/deployments
 ```
 
 Response (Unfiltered)
@@ -523,9 +531,8 @@ Response (Unfiltered)
 
 Command (Filtered)
 
-```shell
-curl --get https://localhost:4646/v1/deployments \
-    --data-urlencode 'filter=Status != "successful"'
+```shell-session
+$ nomad operator api -filter 'Status != "successful"' /v1/deployments
 ```
 
 Response (Filtered)
@@ -719,3 +726,6 @@ specific response codes are returned but all clients should handle the following
 - 403 marks that the client isn't authenticated for the request.
 - 404 indicates an unknown resource.
 - 5xx means that the client should not expect the request to succeed if retried.
+
+[cli_operator_api]: /nomad/docs/commands/operator/api
+[cli_operator_api_filter]: /nomad/docs/commands/operator/api#filter
