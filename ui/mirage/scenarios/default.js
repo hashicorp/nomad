@@ -102,7 +102,7 @@ function smallCluster(server) {
   const actionsJob = server.create('job', {
     createAllocations: true,
     resourceSpec: Array(2).fill('M: 257, C: 500'),
-    groupAllocCount: 5,
+    groupAllocCount: 10,
     groupTaskCount: 2,
     shallow: false,
     name: 'actionable-job',
