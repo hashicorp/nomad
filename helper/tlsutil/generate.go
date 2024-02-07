@@ -88,17 +88,17 @@ type CertOpts struct {
 	ExtKeyUsage []x509.ExtKeyUsage
 }
 
-// IsNotCustom checks whether any of CAOpts parameters have been populated with
+// IsCustom checks whether any of CAOpts parameters have been populated with
 // non-default values.
-func (c *CAOpts) IsNotCustom() bool {
-	return c.Country == "" &&
-		c.PostalCode == "" &&
-		c.Province == "" &&
-		c.Locality == "" &&
-		c.StreetAddress == "" &&
-		c.Organization == "" &&
-		c.OrganizationalUnit == "" &&
-		c.Name == ""
+func (c *CAOpts) IsCustom() bool {
+	return c.Country != "" ||
+		c.PostalCode != "" ||
+		c.Province != "" ||
+		c.Locality != "" ||
+		c.StreetAddress != "" ||
+		c.Organization != "" ||
+		c.OrganizationalUnit != "" ||
+		c.Name != ""
 }
 
 // GenerateCA generates a new CA for agent TLS (not to be confused with Connect TLS)
@@ -131,19 +131,11 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 		}
 	}
 
-	if opts.IsNotCustom() {
-		opts.Name = fmt.Sprintf("Nomad Agent CA %d", sn)
-		if opts.Days == 0 {
-			opts.Days = 1825
-		}
-		opts.Country = "US"
-		opts.PostalCode = "94105"
-		opts.Province = "CA"
-		opts.Locality = "San Francisco"
-		opts.StreetAddress = "101 Second Street"
-		opts.Organization = "HashiCorp Inc."
-		opts.OrganizationalUnit = "Nomad"
-	} else {
+	if opts.Days == 0 {
+		opts.Days = 1825
+	}
+
+	if opts.IsCustom() {
 		if opts.Name == "" {
 			return "", "", errors.New("common name value not provided")
 		} else {
@@ -160,6 +152,15 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 		if opts.OrganizationalUnit == "" {
 			return "", "", errors.New("organizational unit value not provided")
 		}
+	} else {
+		opts.Name = fmt.Sprintf("Nomad Agent CA %d", sn)
+		opts.Country = "US"
+		opts.PostalCode = "94105"
+		opts.Province = "CA"
+		opts.Locality = "San Francisco"
+		opts.StreetAddress = "101 Second Street"
+		opts.Organization = "HashiCorp Inc."
+		opts.OrganizationalUnit = "Nomad"
 	}
 
 	// Create the CA cert

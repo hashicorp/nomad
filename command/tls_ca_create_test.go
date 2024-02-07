@@ -40,6 +40,17 @@ func TestCACreateCommand(t *testing.T) {
 				require.Len(t, cert.PermittedDNSDomains, 0)
 			},
 		},
+		{"ca custom domain",
+			[]string{
+				"-name-constraint=true",
+				"-domain=foo.com",
+			},
+			"foo.com-agent-ca.pem",
+			"foo.com-agent-ca-key.pem",
+			func(t *testing.T, cert *x509.Certificate) {
+				require.ElementsMatch(t, cert.PermittedDNSDomains, []string{"nomad", "foo.com", "localhost"})
+			},
+		},
 		{"ca options",
 			[]string{
 				"-days=365",
