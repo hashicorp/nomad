@@ -711,7 +711,7 @@ module('Acceptance | variables', function (hooks) {
       assert.ok(confirmFired, 'Confirm fired when leaving with unsaved form');
       assert.equal(
         currentURL(),
-        '/jobs?namespace=*',
+        '/jobs',
         'Opted to leave, ended up on desired page'
       );
 
@@ -999,7 +999,7 @@ module('Acceptance | variables', function (hooks) {
       await visit(
         `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}/variables`
       );
-      assert.equal(currentURL(), '/jobs?namespace=*');
+      assert.equal(currentURL(), '/jobs');
 
       window.localStorage.nomadTokenSecret = null; // Reset Token
     });

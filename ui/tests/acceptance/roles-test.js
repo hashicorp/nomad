@@ -255,7 +255,13 @@ module('Acceptance | roles', function (hooks) {
     const role = server.db.roles.findBy((r) => r.name === 'reader');
     await click('[data-test-role-name="reader"] a');
     assert.equal(currentURL(), `/access-control/roles/${role.id}`);
-    await click('[data-test-delete-role]');
+    const deleteButton = find('[data-test-delete-role] button');
+    assert.dom(deleteButton).exists('delete button is present');
+    await click(deleteButton);
+    assert
+      .dom('[data-test-confirmation-message]')
+      .exists('confirmation message is present');
+    await click(find('[data-test-confirm-button]'));
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(currentURL(), '/access-control/roles');
     assert.dom('[data-test-role-row="reader"]').doesNotExist();

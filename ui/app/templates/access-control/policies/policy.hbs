@@ -12,9 +12,16 @@
 		</div>
 		{{#if (can "destroy policy")}}
 			<div>
-        <Hds::Button @text="Delete Policy" @color="critical"
+        <TwoStepButton
           data-test-delete-policy
-          {{on "click" (perform this.deletePolicy)}}
+          @alignRight={{true}}
+          @idleText="Delete Policy"
+          @cancelText="Cancel"
+          @confirmText="Yes, Delete Policy"
+          @confirmationMessage="Are you sure?"
+          @awaitingConfirmation={{this.deletePolicy.isRunning}}
+          @disabled={{this.deletePolicy.isRunning}}
+          @onConfirm={{perform this.deletePolicy}}
         />
 			</div>
 		{{/if}}

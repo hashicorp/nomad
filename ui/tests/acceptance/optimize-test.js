@@ -422,7 +422,7 @@ module('Acceptance | optimize', function (hooks) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
     await Optimize.visit();
 
-    assert.equal(currentURL(), '/jobs?namespace=*');
+    assert.equal(currentURL(), '/jobs');
     assert.ok(Layout.gutter.optimize.isHidden);
   });
 

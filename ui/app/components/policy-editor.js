@@ -7,6 +7,7 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
+import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
 export default class PolicyEditorComponent extends Component {
   @service notifications;
@@ -63,10 +64,14 @@ export default class PolicyEditorComponent extends Component {
           this.policy.id
         );
       }
-    } catch (error) {
+    } catch (err) {
+      let message = err.errors?.length
+        ? messageFromAdapterError(err)
+        : err.message || 'Unknown Error';
+
       this.notifications.add({
         title: `Error creating Policy ${this.policy.name}`,
-        message: error,
+        message,
         color: 'critical',
         sticky: true,
       });

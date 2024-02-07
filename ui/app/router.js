@@ -130,6 +130,14 @@ Router.map(function () {
         path: '/:id',
       });
     });
+    this.route('namespaces', function () {
+      this.route('new');
+      // Note, this needs the "acl-" portion due to
+      // "namespace" being a magic string in Ember
+      this.route('acl-namespace', {
+        path: '/:name',
+      });
+    });
   });
   // Mirage-only route for testing OIDC flow
   if (config['ember-cli-mirage']) {
