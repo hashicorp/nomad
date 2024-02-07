@@ -1575,7 +1575,7 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 		map[string]string{"NOMAD_META_path": "exists"},
 		map[string]string{},
 		map[string]string{},
-		d, "")
+		d, "", "")
 
 	vars, err := loadTemplateEnv(templates, taskEnv)
 	must.NoError(t, err)
@@ -1987,7 +1987,7 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
 			DestPath:   filepath.Join(taskDir.Dir, "..", "escapes"),
 		},
-		//TODO: Fix this test. I *think* it should pass. The double
+		// TODO: Fix this test. I *think* it should pass. The double
 		//      joining of the task dir onto the destination seems like
 		//      a bug. https://github.com/hashicorp/nomad/issues/9389
 		{
