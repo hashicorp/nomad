@@ -4836,7 +4836,7 @@ func TestNode_List_PaginationFiltering(t *testing.T) {
 		},
 		{
 			name:   "filter no pagination",
-			filter: `Datacenter == "dc3"`,
+			filter: `Node.Datacenter == "dc3"`,
 			expectedIDs: []string{
 				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
