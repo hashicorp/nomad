@@ -11,23 +11,28 @@
 >
   <td class="task-cell" data-test-name colspan="2">{{@task.name}}</td>
   <td class="toggle-cell">
-    <Toggle
-      data-test-cpu-toggle
-      @isActive={{@cpu.isActive}}
-      @onToggle={{action @toggleRecommendation @cpu.recommendation}}
-      @isDisabled={{not @cpu.recommendation}}
-      title={{concat 'CPU for ' @task.name}}
-    />
+    <label>
+      <Toggle
+        data-test-cpu-toggle
+        @isActive={{@cpu.isActive}}
+        @onToggle={{action @toggleRecommendation @cpu.recommendation}}
+        @isDisabled={{not @cpu.recommendation}}
+        title={{concat 'CPU for ' @task.name}}
+        aria-label="CPU for {{@task.name}}"
+      />
+    </label>
   </td>
   <td class="toggle-cell">
-    <Toggle
-      data-test-memory-toggle
-      @isActive={{@memory.isActive}}
-      @onToggle={{action @toggleRecommendation @memory.recommendation}}
-      @isDisabled={{not @memory.recommendation}}
-      title={{concat 'Memory for ' @task.name}}
-    />
-
+    <label>
+      <Toggle
+        data-test-memory-toggle
+        @isActive={{@memory.isActive}}
+        @onToggle={{action @toggleRecommendation @memory.recommendation}}
+        @isDisabled={{not @memory.recommendation}}
+        title={{concat 'Memory for ' @task.name}}
+        aria-label="Memory for {{@task.name}}"
+      />
+    </label>
     {{#if (and @active this.height)}}
       <svg width={{this.height}} height={{this.height}}>
         <rect class="border-cover" x="0" y="1" height={{this.borderCoverHeight}} />
