@@ -132,6 +132,22 @@ they can't be used with the `filter` query parameter. Doing so will result in a
 database index, so they may be prefereable over an equivalent simple `filter`
 expression due to better resource usage and performance.
 
+### List Stubs
+
+Some list endpoints return a reduced version of the resource being queried.
+This smaller version is called a _stub_ and may have different fields than the
+full resource definition. To allow more expressive filtering operations, the
+filter is applied to the full version, not the stub.
+
+If a request returns an error such as `error finding value in datum` the field
+used in filter expression may need to be adjusted. For example, filtering on
+node addresses should use the `HTTPAddr` field of the full node definition
+instead of `Address` field present in the stub.
+
+```shell-session
+$ curl --get https://localhost:4646/v1/nodes --data-urlencode 'filter=HTTPAddr matches "10.0.0..+"'
+```
+
 ### Creating Expressions
 
 A single expression is a matching operator with a selector and value and they
