@@ -60,38 +60,42 @@
               <th>Task</th>
               <th class="toggle-all">Toggle All</th>
               <th class="toggle-cell">
-                <Toggle
-                  data-test-cpu-toggle
-                  @isActive={{and
-                    this.allCpuToggleActive
-                    (not this.allCpuToggleDisabled)
-                  }}
-                  @isDisabled={{this.allCpuToggleDisabled}}
-                  @onToggle={{action
-                    this.toggleAllRecommendationsForResource
-                    "CPU"
-                  }}
-                  title="Toggle CPU recommendations for all tasks"
-                >
-                  <div class="label-wrapper">CPU</div>
-                </Toggle>
+                <label>
+                  <Toggle
+                    data-test-cpu-toggle
+                    @isActive={{and
+                      this.allCpuToggleActive
+                      (not this.allCpuToggleDisabled)
+                    }}
+                    @isDisabled={{this.allCpuToggleDisabled}}
+                    @onToggle={{action
+                      this.toggleAllRecommendationsForResource
+                      "CPU"
+                    }}
+                    title="Toggle CPU recommendations for all tasks"
+                  >
+                    <div class="label-wrapper">CPU</div>
+                  </Toggle>
+                </label>
               </th>
               <th class="toggle-cell">
-                <Toggle
-                  data-test-memory-toggle
-                  @isActive={{and
-                    this.allMemoryToggleActive
-                    (not this.allMemoryToggleDisabled)
-                  }}
-                  @isDisabled={{this.allMemoryToggleDisabled}}
-                  @onToggle={{action
-                    this.toggleAllRecommendationsForResource
-                    "MemoryMB"
-                  }}
-                  title="Toggle memory recommendations for all tasks"
-                >
-                  <div class="label-wrapper">Mem</div>
-                </Toggle>
+                <label>
+                  <Toggle
+                    data-test-memory-toggle
+                    @isActive={{and
+                      this.allMemoryToggleActive
+                      (not this.allMemoryToggleDisabled)
+                    }}
+                    @isDisabled={{this.allMemoryToggleDisabled}}
+                    @onToggle={{action
+                      this.toggleAllRecommendationsForResource
+                      "MemoryMB"
+                    }}
+                    title="Toggle memory recommendations for all tasks"
+                  >
+                    <div class="label-wrapper">Mem</div>
+                  </Toggle>
+                </label>
               </th>
             {{else}}
               <th colspan="2">Task</th>

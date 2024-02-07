@@ -178,7 +178,7 @@
   },
   "dependencies": {
     "@babel/helper-string-parser": "^7.19.4",
-    "@hashicorp/design-system-components": "^3.3.0",
+    "@hashicorp/design-system-components": "^3.6.0",
     "@hashicorp/ember-flight-icons": "^4.0.4",
     "@percy/cli": "^1.6.1",
     "@percy/ember": "^3.0.0",

@@ -14,8 +14,6 @@ module('Integration | Component | Service Status Bar', function (hooks) {
 
   test('Visualizes aggregate status of a service', async function (assert) {
     assert.expect(2);
-    const component = this;
-    await componentA11yAudit(component, assert);
 
     const serviceStatus = {
       success: 1,
@@ -34,6 +32,7 @@ module('Integration | Component | Service Status Bar', function (hooks) {
       </div>
     `);
 
+    await componentA11yAudit(this.element, assert);
     const bars = findAll('g > g').length;
 
     assert.equal(bars, 3, 'It visualizes services by status');
