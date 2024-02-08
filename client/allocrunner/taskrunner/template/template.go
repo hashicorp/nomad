@@ -956,6 +956,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		}
 	}
 
+	conf.Once = cc.TemplateConfig.RenderTemplatesOnce
+
 	conf.Finalize()
 	return conf, nil
 }
