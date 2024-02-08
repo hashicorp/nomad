@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -515,7 +516,7 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	// Create the previous alloc dir
 	prevAllocDir := allocdir.NewAllocDir(p.logger, p.config.AllocDir, p.prevAllocID)
 	if err := prevAllocDir.Build(); err != nil {
-		return nil, fmt.Errorf("error building alloc dir for previous alloc %q: %v", p.prevAllocID, err)
+		return nil, fmt.Errorf("error building alloc dir for previous alloc %q: %w", p.prevAllocID, err)
 	}
 
 	// Create an API client
@@ -537,7 +538,7 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	resp, err := apiClient.Raw().Response(url, qo)
 	if err != nil {
 		prevAllocDir.Destroy()
-		return nil, fmt.Errorf("error getting snapshot from previous alloc %q: %v", p.prevAllocID, err)
+		return nil, fmt.Errorf("error getting snapshot from previous alloc %q: %w", p.prevAllocID, err)
 	}
 
 	if err := p.streamAllocDir(ctx, resp, prevAllocDir.AllocDir); err != nil {
@@ -582,7 +583,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		}
 
 		if err != nil {
-			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %v",
+			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %w",
 				p.prevAllocID, p.allocID, err)
 		}
 
@@ -591,7 +592,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 			// the message out of the file and return it.
 			errBuf := make([]byte, int(hdr.Size))
 			if _, err := tr.Read(errBuf); err != nil && err != io.EOF {
-				return fmt.Errorf("error streaming previous alloc %q for new alloc %q; failed reading error message: %v",
+				return fmt.Errorf("error streaming previous alloc %q for new alloc %q; failed reading error message: %w",
 					p.prevAllocID, p.allocID, err)
 			}
 			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %s",
@@ -606,7 +607,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 			// Can't change owner if not root or on Windows.
 			if euid == 0 {
 				if err := os.Chown(name, hdr.Uid, hdr.Gid); err != nil {
-					return fmt.Errorf("error chowning directory %v", err)
+					return fmt.Errorf("error chowning directory %w", err)
 				}
 			}
 			continue
@@ -614,28 +615,37 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		// If the header is for a symlink we create the symlink
 		if hdr.Typeflag == tar.TypeSymlink {
 			if err = os.Symlink(hdr.Linkname, filepath.Join(dest, hdr.Name)); err != nil {
-				return fmt.Errorf("error creating symlink: %v", err)
+				return fmt.Errorf("error creating symlink: %w", err)
 			}
+
+			escapes, err := escapingfs.PathEscapesAllocDir(dest, "", hdr.Name)
+			if err != nil {
+				return fmt.Errorf("error evaluating symlink: %w", err)
+			}
+			if escapes {
+				return fmt.Errorf("archive contains symlink that escapes alloc dir")
+			}
+
 			continue
 		}
 		// If the header is a file, we write to a file
 		if hdr.Typeflag == tar.TypeReg {
 			f, err := os.Create(filepath.Join(dest, hdr.Name))
 			if err != nil {
-				return fmt.Errorf("error creating file: %v", err)
+				return fmt.Errorf("error creating file: %w", err)
 			}
 
 			// Setting the permissions of the file as the origin.
 			if err := f.Chmod(os.FileMode(hdr.Mode)); err != nil {
 				f.Close()
-				return fmt.Errorf("error chmoding file %v", err)
+				return fmt.Errorf("error chmoding file %w", err)
 			}
 
 			// Can't change owner if not root or on Windows.
 			if euid == 0 {
 				if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
 					f.Close()
-					return fmt.Errorf("error chowning file %v", err)
+					return fmt.Errorf("error chowning file %w", err)
 				}
 			}
 
@@ -646,14 +656,14 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 				if n > 0 && (err == nil || err == io.EOF) {
 					if _, err := f.Write(buf[:n]); err != nil {
 						f.Close()
-						return fmt.Errorf("error writing to file %q: %v", f.Name(), err)
+						return fmt.Errorf("error writing to file %q: %w", f.Name(), err)
 					}
 				}
 
 				if err != nil {
 					f.Close()
 					if err != io.EOF {
-						return fmt.Errorf("error reading snapshot: %v", err)
+						return fmt.Errorf("error reading snapshot: %w", err)
 					}
 					break
 				}
