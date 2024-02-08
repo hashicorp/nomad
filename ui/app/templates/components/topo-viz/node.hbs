@@ -7,19 +7,39 @@
   {{#unless @isDense}}
     <p data-test-label class="label">
       {{#if @node.node.isDraining}}
-        <span data-test-status-icon class="tooltip" aria-label="Client is draining">{{x-icon "clock-outline" class="is-info"}}</span>
+        <Hds::TooltipButton
+          data-test-status-icon
+          @text="Client is draining"
+          aria-label="Client is draining"
+        >
+          <FlightIcon @name="clock" />
+        </Hds::TooltipButton>
       {{else if (not @node.node.isEligible)}}
-        <span data-test-status-icon class="tooltip" aria-label="Client is ineligible">{{x-icon "lock-closed" class="is-warning"}}</span>
+        <Hds::TooltipButton
+          data-test-status-icon
+          @text="Client is ineligible"
+          aria-label="Client is ineligible"
+        >
+          <FlightIcon @name="lock" />
+        </Hds::TooltipButton>
       {{/if}}
-      <span class="tooltip" aria-label="Node Name"><strong><LinkTo @route="clients.client" @model={{@node.node.id}}>{{@node.node.name}}</LinkTo></strong></span>
-      <span class="bumper-left tooltip" aria-label="Number of Allocations">{{this.count}} Allocs</span>
-      <span class="bumper-left is-faded tooltip" aria-label="Node Pool">{{@node.node.nodePool}}</span>
-      <span class="bumper-left is-faded">
-        <span class="tooltip" aria-label="Node Memory">{{format-scheduled-bytes @node.memory start="MiB"}}</span>,
-        <span class="tooltip" aria-label="Node CPU">{{format-scheduled-hertz @node.cpu}}</span>
-      </span>
-      <span class="bumper-left is-faded tooltip" aria-label="Node Status">{{@node.node.status}}</span>
-      <span class="bumper-left is-faded tooltip" aria-label="Nomad Version">{{@node.node.version}}</span>
+      <LinkTo @route="clients.client" @model={{@node.node.id}} {{hds-tooltip "Node Name"}}>{{@node.node.name}}</LinkTo>
+      <Hds::TooltipButton @text="Number of Allocations" class="bumper-left">{{this.count}} Allocs</Hds::TooltipButton>
+      {{#if @node.node.nodePool}}
+        <Hds::TooltipButton @text="Node Pool" class="bumper-left is-faded">{{@node.node.nodePool}}</Hds::TooltipButton>
+      {{/if}}
+      {{#if @node.memory}}
+        <Hds::TooltipButton @text="Node Memory" class="bumper-left is-faded">{{format-scheduled-bytes @node.memory start="MiB"}}</Hds::TooltipButton>
+      {{/if}}
+      {{#if @node.cpu}}
+        <Hds::TooltipButton @text="Node CPU" class="bumper-left is-faded">{{format-scheduled-hertz @node.cpu}}</Hds::TooltipButton>
+      {{/if}}
+      {{#if @node.node.status}}
+        <Hds::TooltipButton @text="Node Status" class="bumper-left is-faded">{{@node.node.status}}</Hds::TooltipButton>
+      {{/if}}
+      {{#if @node.node.version}}
+        <Hds::TooltipButton @text="Nomad Version" class="bumper-left is-faded">{{@node.node.version}}</Hds::TooltipButton>
+      {{/if}}
     </p>
   {{/unless}}
   <svg
