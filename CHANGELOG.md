@@ -1,3 +1,11 @@
+## 1.5.14 (February 08, 2024)
+
+SECURITY:
+
+* deps: Updated runc to 1.1.12 to address CVE-2024-21626 [[GH-19851](https://github.com/hashicorp/nomad/issues/19851)]
+* migration: Fixed a bug where archives used for migration were not checked for symlinks that escaped the allocation directory [[GH-19887](https://github.com/hashicorp/nomad/issues/19887)]
+* template: Fixed a bug where symlinks could force templates to read and write to arbitrary locations (CVE-2024-1329) [[GH-19888](https://github.com/hashicorp/nomad/issues/19888)]
+
 ## 1.5.13 (January 15, 2024)
 
 IMPROVEMENTS:
