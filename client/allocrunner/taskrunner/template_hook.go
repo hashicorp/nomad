@@ -94,6 +94,10 @@ type templateHook struct {
 
 	// taskDir is the task directory
 	taskDir string
+
+	// taskID is a unique identifier for this templateHook, for use in
+	// downstream platform-specific template runner consumers
+	taskID string
 }
 
 func newTemplateHook(config *templateHookConfig) *templateHook {
@@ -127,6 +131,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
 	h.nomadToken = req.NomadToken
+	h.taskID = req.Alloc.ID + "-" + req.Task.Name
 
 	// Set the consul token if the task uses WI.
 	tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
@@ -240,6 +245,8 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
 		NomadNamespace:       h.config.nomadNamespace,
 		NomadToken:           h.nomadToken,
+		TaskID:               h.taskID,
+		Logger:               h.logger,
 	})
 	if err != nil {
 		h.logger.Error("failed to create template manager", "error", err)
