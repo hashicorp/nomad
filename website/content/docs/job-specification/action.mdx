@@ -12,6 +12,9 @@ The `action` block allows job authors to define custom commands. These commands
 can be executed by operators with the necessary permissions on a running
 allocation, offering a controlled way to interact with tasks.
 
+The name of the action can contain alphanumeric characters and dashes. This
+name must be unique within its task and must not exceed 128 characters.
+
 ## `action` Parameters
 
 - `command` `(string: <required>)` - Specifies the command to be executed.
