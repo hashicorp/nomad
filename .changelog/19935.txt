@@ -1,3 +1,3 @@
 ```release-note:bug
-client: Ensure the value for CPU weight is within the allowed range
+client: Ensure the value for CPU shares are within the allowed range
 ```
