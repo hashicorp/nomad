@@ -43,6 +43,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	// CPU shares limits are defined by the Linux kernel.
+	// https://github.com/torvalds/linux/blob/0dd3ee31125508cd67f7e7172247f05b7fd1753a/kernel/sched/sched.h#L409-L418
+	MinCPUShares = 2
+	MaxCPUShares = 262_144
+)
+
 var (
 	// ExecutorCgroupV1MeasuredMemStats is the list of memory stats captured by the executor with cgroup-v1
 	ExecutorCgroupV1MeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
@@ -717,7 +724,7 @@ func (l *LibcontainerExecutor) configureCgroupMemory(cfg *runc.Config, command *
 
 func (l *LibcontainerExecutor) configureCG1(cfg *runc.Config, command *ExecCommand, cgroup string) error {
 
-	cpuShares := command.Resources.LinuxResources.CPUShares
+	cpuShares := l.clampCpuShares(command.Resources.LinuxResources.CPUShares)
 	cpusetPath := command.Resources.LinuxResources.CpusetCgroupPath
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
 
@@ -749,7 +756,7 @@ func (l *LibcontainerExecutor) cpusetCG1(cpusetCgroupPath, cores string) error {
 }
 
 func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecCommand, cg string) error {
-	cpuShares := command.Resources.LinuxResources.CPUShares
+	cpuShares := l.clampCpuShares(command.Resources.LinuxResources.CPUShares)
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
 
 	// Set the v2 specific unified path
@@ -799,6 +806,24 @@ func (l *LibcontainerExecutor) newLibcontainerConfig(command *ExecCommand) (*run
 	}
 
 	return cfg, nil
+}
+
+func (l *LibcontainerExecutor) clampCpuShares(shares int64) int64 {
+	if shares < MinCPUShares {
+		l.logger.Warn(
+			"task CPU is lower than minimum allowed, using minimum value instead",
+			"task_cpu", shares, "min", MinCPUShares,
+		)
+		return MinCPUShares
+	}
+	if shares > MaxCPUShares {
+		l.logger.Warn(
+			"task CPU is greater than maximum allowed, using maximum value instead",
+			"task_cpu", shares, "max", MaxCPUShares,
+		)
+		return MaxCPUShares
+	}
+	return shares
 }
 
 // cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
