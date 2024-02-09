@@ -1,60 +1,74 @@
-Nomad
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-yellow.svg)](LICENSE)
-[![Discuss](https://img.shields.io/badge/discuss-nomad-00BC7F?style=flat)](https://discuss.hashicorp.com/c/nomad)
-===
+# Apply ONMO changes and compile Nomad
 
-<p align="center" style="text-align:center;">
-  <a href="https://developer.hashicorp.com/nomad">
-    <img alt="HashiCorp Nomad logo" src="website/public/img/logo-hashicorp.svg" width="500" />
-  </a>
-</p>
+Follow these step for easier patching a new version of nomad
 
-Nomad is a simple and flexible workload orchestrator to deploy and manage containers ([docker](https://developer.hashicorp.com/nomad/docs/drivers/docker), [podman](https://developer.hashicorp.com/nomad/plugins/drivers/podman)), non-containerized applications ([executable](https://developer.hashicorp.com/nomad/docs/drivers/exec), [Java](https://developer.hashicorp.com/nomad/docs/drivers/java)), and virtual machines ([qemu](https://developer.hashicorp.com/nomad/docs/drivers/qemu)) across on-prem and clouds at scale.
+Clone our repo:
 
-Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, [Nomad Enterprise](https://developer.hashicorp.com/nomad/docs/enterprise), is also available.
+```bash
+git clone git@github.com:B2tGame/nomad.git
+cd nomad
+```
 
-* Website: https://developer.hashicorp.com/nomad
-* Tutorials: [HashiCorp Developer](https://developer.hashicorp.com/nomad/tutorials)
-* Forum: [Discuss](https://discuss.hashicorp.com/c/nomad)
+Find the wanted release branch in HC nomad, example: *`release/1.6.2`*
 
-Nomad provides several key features:
+Sync the remote repo
 
-* **Deploy Containers and Legacy Applications**: Nomad’s flexibility as an orchestrator enables an organization to run containers, legacy, and batch applications together on the same infrastructure.  Nomad brings core orchestration benefits to legacy applications without needing to containerize via pluggable task drivers.
+```bash
+git remote add hcnomad https://github.com/hashicorp/nomad.git
+git fetch upstream release/1.6.2
+git checkout -b v1.6.2-onmo hcnomad/release/1.6.2
+git push --set-upstream origin v1.6.2-onmo
+git remote remove hcnomad
+```
 
-* **Simple & Reliable**:  Nomad runs as a single binary and is entirely self contained - combining resource management and scheduling into a single system.  Nomad does not require any external services for storage or coordination.  Nomad automatically handles application, node, and driver failures.  Nomad is distributed and resilient, using leader election and state replication to provide high availability in the event of failures.
+Find the commit hash from the previous release in our repo and Apply the patch with cherry-pick and fix the merge conflict.
 
-* **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI).  Nomad uses device plugins to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
+```bash
+git cherry-pick de6a2d40e9b25ae4c78b0eaf8f88100244ad48ee
+```
 
-* **Federation for Multi-Region, Multi-Cloud**: Nomad was designed to support infrastructure at a global scale.  Nomad supports federation out-of-the-box and can deploy applications across multiple regions and clouds.
+Check the required Go version in `go.mod` and install. Then export to PATH
 
-* **Proven Scalability**: Nomad is optimistically concurrent, which increases throughput and reduces latency for workloads.  Nomad has been proven to scale to clusters of 10K+ nodes in real-world production environments.
+```bash
+sudo apt update
+sudo apt install gcc gcc-8-aarch64-linux-gnu
+npm install -g yarn # required for Ember
+# install go
+https://go.dev/doc/install
 
-* **HashiCorp Ecosystem**: Nomad integrates seamlessly with Terraform, Consul, Vault for provisioning, service discovery, and secrets management.
+export PATH=$PATH:/usr/local/go/bin/:$(/usr/local/go/bin/go env GOPATH)/bin
+```
 
-Quick Start
----
+Ember uses a lot of heap memory, increase it by
 
-#### Testing
-See [Developer: Getting Started](https://developer.hashicorp.com/nomad/tutorials/get-started) for instructions on setting up a local Nomad cluster for non-production use.
+```bash
+sudo sysctl -w vm.max_map_count=655300
+```
 
-Optionally, find Terraform manifests for bringing up a development Nomad cluster on a public cloud in the [`terraform`](terraform/) directory.
+For testing nomad, run the following
 
-#### Production
-See [Developer: Nomad Reference Architecture](https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul) for recommended practices and a reference architecture for production deployments.
+```bash
+# these are needed to be ran only one time
+make bootstrap
+make dev-ui # rerun this command if you made change in the nomad ui
 
-Documentation
----
-Full, comprehensive documentation is available on the Nomad website: https://developer.hashicorp.com/nomad/docs
+# This needs to be re-run everytime you make change to nomad code
+./dev-build.sh
+```
 
-Guides are available on [HashiCorp Developer](https://developer.hashicorp.com/nomad/tutorials).
+Compile nomad and uploaded it to s3
 
-Roadmap
----
+Prerequisite: Install the following package to enable windows builds
+```bash
+sudo apt-get install gcc-mingw-w64
+```
 
-A timeline of major features expected for the next release or two can be found in the [Public Roadmap](https://github.com/orgs/hashicorp/projects/202/views/1).
+To compile:
 
-This roadmap is a best guess at any given point, and both release dates and projects in each release are subject to change. Do not take any of these items as commitments, especially ones later than one major release away.
+```bash
+./compile-nomad # the output will be in ./pkg/linux_amd64/nomad
+```
 
-Contributing
---------------------
-See the [`contributing`](contributing/) directory for more developer documentation.
+```bash
+s3 cp ./pkg/linux_amd64/nomad s3://docs.appland-stream.com/streaming/bin/nomad/v1.6.2/nomad.amd64
+```

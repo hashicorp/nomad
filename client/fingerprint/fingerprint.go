@@ -45,6 +45,7 @@ var (
 		"signal":      NewSignalFingerprint,
 		"storage":     NewStorageFingerprint,
 		"vault":       NewVaultFingerprint,
+		"ipresolver":  NewIpResolverFingerprint,
 	}
 
 	// envFingerprinters contains the fingerprints that are environment specific.

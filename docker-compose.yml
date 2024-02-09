@@ -1,0 +1,9 @@
+version: '3'
+
+services:
+  nomad-compiler:
+    image: custom-nomad
+    build: Dockerfile.compile
+    network_mode: host
+    volumes:
+      - ./pkg:/app/nomad/pkg

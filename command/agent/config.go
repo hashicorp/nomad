@@ -382,6 +382,8 @@ type ClientConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	IpResolverEndpoint string `hcl:"ip_resolver_endpoint"`
 }
 
 func (c *ClientConfig) Copy() *ClientConfig {
@@ -2361,6 +2363,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	result.Artifact = a.Artifact.Merge(b.Artifact)
 	result.Drain = a.Drain.Merge(b.Drain)
+
+	if b.IpResolverEndpoint != "" {
+		result.IpResolverEndpoint = b.IpResolverEndpoint
+	}
 
 	return &result
 }

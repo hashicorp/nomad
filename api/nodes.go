@@ -914,6 +914,7 @@ type NodeListStub struct {
 	Attributes            map[string]string `json:",omitempty"`
 	Datacenter            string
 	Name                  string
+	Meta                  map[string]string
 	NodeClass             string
 	NodePool              string
 	Version               string
@@ -921,6 +922,7 @@ type NodeListStub struct {
 	SchedulingEligibility string
 	Status                string
 	StatusDescription     string
+	StatusUpdatedAt       int64
 	Drivers               map[string]*DriverInfo
 	NodeResources         *NodeResources         `json:",omitempty"`
 	ReservedResources     *NodeReservedResources `json:",omitempty"`

@@ -902,6 +902,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.Drain = drainConfig
 
+	conf.IpResolverEndpoint = agentConfig.Client.IpResolverEndpoint
+
 	return conf, nil
 }
 

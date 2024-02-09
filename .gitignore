@@ -135,3 +135,5 @@ e2e/remotetasks/input/ecs.vars
 
 # Tools files
 tools/missing/missing
+
+command/agent/bindata_assetfs.go

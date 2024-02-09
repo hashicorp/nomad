@@ -125,7 +125,7 @@
             @model={{this.model.node}}
             data-test-client-link
           >
-            {{this.model.node.shortId}}
+            {{this.model.node.nodeClass}}
           </LinkTo>
         </Tooltip>
       </span>
@@ -304,7 +304,7 @@
           <t.body as |row|>
             <tr data-test-service class="is-interactive {{if (eq this.activeService row.model) "is-active"}}"
               {{on "click" (fn this.handleServiceClick row.model)}}
-              {{keyboard-shortcut 
+              {{keyboard-shortcut
                 enumerated=true
                 action=(fn this.handleServiceClick row.model)
               }}
@@ -414,7 +414,7 @@
                   @model={{this.preempter.node}}
                   data-test-client-link
                 >
-                  {{this.preempter.node.shortId}}
+                  {{this.preempter.node.nodeClass}}
                 </LinkTo>
               </span>
               <span class="pair">

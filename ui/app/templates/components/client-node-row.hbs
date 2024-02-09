@@ -11,7 +11,7 @@
   {{/if}}
 </td>
 <td data-test-client-id><LinkTo @route="clients.client" @model={{this.node.id}} class="is-primary">{{this.node.shortId}}</LinkTo></td>
-<td data-test-client-name class="is-200px is-truncatable" title="{{this.node.name}}">{{this.node.name}}</td>
+<td data-test-client-name class="is-200px is-truncatable" title="{{this.node.nodeClass}}">{{this.node.nodeClass}}</td>
 <td class="node-status-badges" data-test-client-composite-status>
   <Hds::Badge
     @text={{capitalize this.node.status}}

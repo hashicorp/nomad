@@ -49,12 +49,7 @@ LAST_RELEASE ?= v1.7.3
 default: help
 
 ifeq (Linux,$(THIS_OS))
-ALL_TARGETS = linux_386 \
-	linux_amd64 \
-	linux_arm \
-	linux_arm64 \
-	linux_s390x \
-	windows_386 \
+ALL_TARGETS = linux_amd64 \
 	windows_amd64
 endif
 
@@ -85,6 +80,7 @@ CGO_ENABLED = 1
 
 pkg/%/nomad: GO_OUT ?= $@
 pkg/%/nomad: CC ?= $(shell go env CC)
+pkg/%/nomad: CXX ?= $(shell go env CXX)
 pkg/%/nomad: ## Build Nomad for GOOS_GOARCH, e.g. pkg/linux_amd64/nomad
 ifeq (,$(findstring $(THIS_OS),$(SUPPORTED_OSES)))
 	$(warning WARNING: Building Nomad is only supported on $(SUPPORTED_OSES); not $(THIS_OS))
@@ -110,6 +106,8 @@ endif
 
 pkg/windows_%/nomad: GO_OUT = $@.exe
 pkg/windows_%/nomad: GO_TAGS += timetzdata
+pkg/windows_%/nomad: CXX = x86_64-w64-mingw32-g++
+pkg/windows_%/nomad: CC = x86_64-w64-mingw32-gcc
 
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
