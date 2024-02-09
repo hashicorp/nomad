@@ -2476,6 +2476,90 @@ func TestJobRegister_ACL_RejectedBySchedulerConfig(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_PortCollistion(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		configFn func(c *Config)
+	}{
+		{
+			name: "no preemption",
+			configFn: func(c *Config) {
+				c.DefaultSchedulerConfig = structs.SchedulerConfiguration{
+					PreemptionConfig: structs.PreemptionConfig{
+						ServiceSchedulerEnabled: false,
+					},
+				}
+			},
+		},
+		{
+			name: "with preemption",
+			configFn: func(c *Config) {
+				c.DefaultSchedulerConfig = structs.SchedulerConfiguration{
+					PreemptionConfig: structs.PreemptionConfig{
+						ServiceSchedulerEnabled: true,
+					},
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s1, cleanupS1 := TestServer(t, tc.configFn)
+			defer cleanupS1()
+			state := s1.fsm.State()
+
+			// Create test node.
+			node := mock.Node()
+			must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+
+			// Create test job with a static port.
+			job := mock.Job()
+			job.TaskGroups[0].Count = 1
+			job.TaskGroups[0].Networks[0].DynamicPorts = nil
+			job.TaskGroups[0].Networks[0].ReservedPorts = []structs.Port{
+				{Label: "http", Value: 80},
+			}
+			job.TaskGroups[0].Tasks[0].Services = nil
+
+			testutil.RegisterJob(t, s1.RPC, job)
+			testutil.WaitForJobAllocStatus(t, s1.RPC, job, map[string]int{
+				structs.AllocClientStatusPending: 1,
+			})
+
+			// Register second job with port conflict.
+			job2 := job.Copy()
+			job2.ID = fmt.Sprintf("conflict-%s", uuid.Generate())
+			job2.Name = job2.ID
+
+			testutil.RegisterJob(t, s1.RPC, job2)
+
+			// Wait for job registration eval to complete.
+			evals := testutil.WaitForJobEvalStatus(t, s1.RPC, job2, map[string]int{
+				structs.EvalStatusComplete: 1,
+				structs.EvalStatusBlocked:  1,
+			})
+
+			var blockedEval *structs.Evaluation
+			for _, e := range evals {
+				if e.Status == structs.EvalStatusBlocked {
+					blockedEval = e
+					break
+				}
+			}
+
+			// Ensure blocked eval is properly annotated.
+			must.MapLen(t, 1, blockedEval.FailedTGAllocs)
+			must.NotNil(t, blockedEval.FailedTGAllocs["web"])
+			must.Eq(t, map[string]int{
+				"network: reserved port collision http=80": 1,
+			}, blockedEval.FailedTGAllocs["web"].DimensionExhausted)
+		})
+	}
+}
+
 func TestJobEndpoint_Revert(t *testing.T) {
 	ci.Parallel(t)
 
