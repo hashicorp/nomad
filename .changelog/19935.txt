@@ -1,0 +1,3 @@
+```release-note:bug
+client: Ensure the value for CPU weight is within the allowed range
+```
