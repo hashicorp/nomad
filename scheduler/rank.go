@@ -313,6 +313,8 @@ OUTER:
 				netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 				if netPreemptions == nil {
 					iter.ctx.Logger().Named("binpack").Debug("preemption not possible ", "network_resource", ask)
+					iter.ctx.Metrics().ExhaustedNode(option.Node,
+						fmt.Sprintf("network: %s", err))
 					netIdx.Release()
 					continue OUTER
 				}
@@ -330,6 +332,8 @@ OUTER:
 				offer, err = netIdx.AssignPorts(ask)
 				if err != nil {
 					iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create network offer after considering preemption", "error", err)
+					iter.ctx.Metrics().ExhaustedNode(option.Node,
+						fmt.Sprintf("network: %s", err))
 					netIdx.Release()
 					continue OUTER
 				}
@@ -383,6 +387,8 @@ OUTER:
 					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 					if netPreemptions == nil {
 						iter.ctx.Logger().Named("binpack").Debug("preemption not possible ", "network_resource", ask)
+						iter.ctx.Metrics().ExhaustedNode(option.Node,
+							fmt.Sprintf("network: %s", err))
 						netIdx.Release()
 						continue OUTER
 					}
@@ -400,6 +406,8 @@ OUTER:
 					offer, err = netIdx.AssignTaskNetwork(ask)
 					if offer == nil {
 						iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create network offer after considering preemption", "error", err)
+						iter.ctx.Metrics().ExhaustedNode(option.Node,
+							fmt.Sprintf("network: %s", err))
 						netIdx.Release()
 						continue OUTER
 					}
