@@ -454,7 +454,7 @@ func TestConsulFingerprint_partition(t *testing.T) {
 		p, ok := cfs.partition(agentconsul.Self{
 			"Config": {"Version": "v1.9.5"},
 		})
-		must.False(t, ok)
+		must.True(t, ok)
 		must.Eq(t, "", p)
 	})
 
@@ -478,7 +478,7 @@ func TestConsulFingerprint_partition(t *testing.T) {
 		p, ok := cfs.partition(agentconsul.Self{
 			"Config": {},
 		})
-		must.False(t, ok)
+		must.True(t, ok)
 		must.Eq(t, "", p)
 	})
 
@@ -486,7 +486,7 @@ func TestConsulFingerprint_partition(t *testing.T) {
 		p, ok := cfs.partition(agentconsul.Self{
 			"Config": {"Version": "***"},
 		})
-		must.False(t, ok)
+		must.True(t, ok)
 		must.Eq(t, "", p)
 	})
 }

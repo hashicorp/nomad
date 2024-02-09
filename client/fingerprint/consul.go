@@ -98,7 +98,7 @@ func (f *ConsulFingerprint) fingerprintImpl(cfg *config.ConsulConfig, resp *Fing
 	for attr, extractor := range state.extractors {
 		if s, ok := extractor(info); !ok {
 			logger.Warn("unable to fingerprint consul", "attribute", attr)
-		} else {
+		} else if s != "" {
 			resp.AddAttribute(attr, s)
 		}
 	}
@@ -311,5 +311,5 @@ func (cfs *consulFingerprintState) partition(info agentconsul.Self) (string, boo
 		}
 		return p, true
 	}
-	return "", false
+	return "", true // prevent warnings on Consul CE
 }
