@@ -37,30 +37,24 @@ func mountedPaths() (disks []string) {
 }
 
 type df struct {
-	size       *uint64 // "systemFree" less quotas
-	avail      *uint64
-	systemFree *uint64
+	size       uint64 // "systemFree" less quotas
+	avail      uint64
+	systemFree uint64
 }
 
 func makeDf(path string) (*df, error) {
 	df := &df{}
 	err := windows.GetDiskFreeSpaceEx(
 		syscall.StringToUTF16Ptr(path),
-		df.avail, df.size, df.systemFree)
+		&df.avail, &df.size, &df.systemFree)
 
 	return df, err
 }
 
 func (d *df) total() uint64 {
-	if d.size == nil {
-		return 0
-	}
-	return *d.size
+	return d.size
 }
 
 func (d *df) available() uint64 {
-	if d.avail == nil {
-		return 0
-	}
-	return *d.avail
+	return d.avail
 }
