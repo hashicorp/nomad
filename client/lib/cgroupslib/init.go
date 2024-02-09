@@ -7,6 +7,7 @@ package cgroupslib
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -23,7 +24,7 @@ const (
 
 // Init will initialize the cgroup tree that the Nomad client will use for
 // isolating resources of tasks. cores is the cpuset granted for use by Nomad.
-func Init(log hclog.Logger, cores string) {
+func Init(log hclog.Logger, cores string) error {
 	log.Info("initializing nomad cgroups", "cores", cores)
 
 	switch GetMode() {
@@ -41,8 +42,7 @@ func Init(log hclog.Logger, cores string) {
 		for _, ctrl := range controllers {
 			p := filepath.Join(root, ctrl, NomadCgroupParent)
 			if err := os.MkdirAll(p, 0755); err != nil {
-				log.Error("failed to create nomad cgroup", "controller", ctrl, "error", err)
-				return
+				return fmt.Errorf("failed to create nomad cgroup %s: %w", ctrl, err)
 			}
 		}
 
@@ -56,8 +56,7 @@ func Init(log hclog.Logger, cores string) {
 		// band from nomad itself
 		var memsSet string
 		if mems, err := detectMemsCG1(); err != nil {
-			log.Error("failed to detect memset", "error", err)
-			return
+			return fmt.Errorf("failed to detect memset: %w", err)
 		} else {
 			memsSet = mems
 		}
@@ -78,18 +77,15 @@ func Init(log hclog.Logger, cores string) {
 		//      def456.task/{cgroup.procs, cpuset.cpus, cpuset.mems}
 
 		if err := writeCG(noClone, "cpuset", NomadCgroupParent, cloneFile); err != nil {
-			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to set clone_children on nomad cpuset cgroup: %w", err)
 		}
 
 		if err := writeCG(memsSet, "cpuset", NomadCgroupParent, memsFile); err != nil {
-			log.Error("failed to set cpuset.mems on nomad cpuset cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to set cpuset.mems on nomad cpuset cgroup: %w", err)
 		}
 
 		if err := writeCG(cores, "cpuset", NomadCgroupParent, cpusetFile); err != nil {
-			log.Error("failed to write cores to nomad cpuset cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to write cores to nomad cpuset cgroup: %w", err)
 		}
 
 		//
@@ -97,18 +93,15 @@ func Init(log hclog.Logger, cores string) {
 		//
 
 		if err := mkCG("cpuset", NomadCgroupParent, SharePartition()); err != nil {
-			log.Error("failed to create share cpuset partition", "error", err)
-			return
+			return fmt.Errorf("failed to create share cpuset partition: %w", err)
 		}
 
 		if err := writeCG(noClone, "cpuset", NomadCgroupParent, SharePartition(), cloneFile); err != nil {
-			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to set clone_children on nomad cpuset cgroup: %w", err)
 		}
 
 		if err := writeCG(memsSet, "cpuset", NomadCgroupParent, SharePartition(), memsFile); err != nil {
-			log.Error("failed to set cpuset.mems on share cpuset partition", "error", err)
-			return
+			return fmt.Errorf("failed to set cpuset.mems on share cpuset partition: %w", err)
 		}
 
 		//
@@ -116,18 +109,15 @@ func Init(log hclog.Logger, cores string) {
 		//
 
 		if err := mkCG("cpuset", NomadCgroupParent, ReservePartition()); err != nil {
-			log.Error("failed to create reserve cpuset partition", "error", err)
-			return
+			return fmt.Errorf("failed to create reserve cpuset partition: %w", err)
 		}
 
 		if err := writeCG(noClone, "cpuset", NomadCgroupParent, ReservePartition(), cloneFile); err != nil {
-			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to set clone_children on nomad cpuset cgroup: %w", err)
 		}
 
 		if err := writeCG(memsSet, "cpuset", NomadCgroupParent, ReservePartition(), memsFile); err != nil {
-			log.Error("failed to set cpuset.mems on reserve cpuset partition", "error", err)
-			return
+			return fmt.Errorf("failed to set cpuset.mems on reserve cpuset partition: %w", err)
 		}
 
 		log.Debug("nomad cpuset partitions initialized", "cores", cores)
@@ -144,8 +134,7 @@ func Init(log hclog.Logger, cores string) {
 		//
 
 		if err := writeCG(activation, subtreeFile); err != nil {
-			log.Error("failed to create nomad cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to create nomad cgroup: %w", err)
 		}
 
 		//
@@ -153,18 +142,15 @@ func Init(log hclog.Logger, cores string) {
 		//
 
 		if err := mkCG(NomadCgroupParent); err != nil {
-			log.Error("failed to create nomad cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to create nomad cgroup: %w", err)
 		}
 
 		if err := writeCG(activation, NomadCgroupParent, subtreeFile); err != nil {
-			log.Error("failed to set subtree control on nomad cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to set subtree control on nomad cgroup: %w", err)
 		}
 
 		if err := writeCG(cores, NomadCgroupParent, cpusetFile); err != nil {
-			log.Error("failed to write root partition cpuset", "error", err)
-			return
+			return fmt.Errorf("failed to write root partition cpuset: %w", err)
 		}
 
 		log.Debug("top level partition root nomad.slice cgroup initialized")
@@ -174,13 +160,11 @@ func Init(log hclog.Logger, cores string) {
 		//
 
 		if err := mkCG(NomadCgroupParent, SharePartition()); err != nil {
-			log.Error("failed to create share cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to create share cgroup: %w", err)
 		}
 
 		if err := writeCG(activation, NomadCgroupParent, SharePartition(), subtreeFile); err != nil {
-			log.Error("failed to set subtree control on cpuset share partition", "error", err)
-			return
+			return fmt.Errorf("failed to set subtree control on cpuset share partition: %w", err)
 		}
 
 		log.Debug("partition member nomad.slice/share cgroup initialized")
@@ -190,17 +174,17 @@ func Init(log hclog.Logger, cores string) {
 		//
 
 		if err := mkCG(NomadCgroupParent, ReservePartition()); err != nil {
-			log.Error("failed to create share cgroup", "error", err)
-			return
+			return fmt.Errorf("failed to create share cgroup: %w", err)
 		}
 
 		if err := writeCG(activation, NomadCgroupParent, ReservePartition(), subtreeFile); err != nil {
-			log.Error("failed to set subtree control on cpuset reserve partition", "error", err)
-			return
+			return fmt.Errorf("failed to set subtree control on cpuset reserve partition: %w", err)
 		}
 
 		log.Debug("partition member nomad.slice/reserve cgroup initialized")
 	}
+
+	return nil
 }
 
 // detectMemsCG1 will determine the cpuset.mems value to use for

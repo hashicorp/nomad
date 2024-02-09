@@ -477,10 +477,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	)
 
 	// Create the process wranglers
-	wranglers := proclib.New(&proclib.Configs{
+	wranglers, err := proclib.New(&proclib.Configs{
 		UsableCores: c.topology.UsableCores(),
 		Logger:      c.logger.Named("proclib"),
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize process manager: %w", err)
+	}
 	c.wranglers = wranglers
 
 	// Build the allow/denylists of drivers.
