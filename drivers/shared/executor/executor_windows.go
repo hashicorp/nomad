@@ -46,7 +46,7 @@ func (e *UniversalExecutor) killProcessTree(proc *os.Process) error {
 	}
 }
 
-// Send a Ctrl-Break signal for shutting down the process,
+// Send a Ctrl-C signal for shutting down the process,
 func sendCtrlC(pid int) error {
 	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(pid))
 	if err != nil {
