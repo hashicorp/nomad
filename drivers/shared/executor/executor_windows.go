@@ -47,21 +47,21 @@ func (e *UniversalExecutor) killProcessTree(proc *os.Process) error {
 }
 
 // Send a Ctrl-Break signal for shutting down the process,
-func sendCtrlBreak(pid int) error {
-	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, uint32(pid))
+func sendCtrlC(pid int) error {
+	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(pid))
 	if err != nil {
 		return fmt.Errorf("Error sending ctrl-break event: %v", err)
 	}
 	return nil
 }
 
-// Send the process a Ctrl-Break event, allowing it to shutdown by itself
+// Send the process a Ctrl-C event, allowing it to shutdown by itself
 // before being Terminate.
 func (e *UniversalExecutor) shutdownProcess(_ os.Signal, proc *os.Process) error {
-	if err := sendCtrlBreak(proc.Pid); err != nil {
+	if err := sendCtrlC(proc.Pid); err != nil {
 		return fmt.Errorf("executor shutdown error: %v", err)
 	}
-	e.logger.Debug("sent Ctrl-Break to process", "pid", proc.Pid)
+	e.logger.Debug("sent Ctrl-C to process", "pid", proc.Pid)
 
 	return nil
 }
