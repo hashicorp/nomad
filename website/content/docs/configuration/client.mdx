@@ -344,12 +344,14 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `"fingerprint.denylist"` `(string: "")` - Specifies a comma-separated list of
   denylisted fingerprinters. If specified, any fingerprinters in the denylist
-  will be disabled.
+  will be disabled. A common use-case for the fingerprint denylist is to disable
+  fingerprinters of irrelevant cloud environments, which can slow down client
+  agent startup time.
 
   ```hcl
   client {
     options = {
-      "fingerprint.denylist" = "network"
+      "fingerprint.denylist" = "env_aws,env_gce,env_azure,env_digitalocean"
     }
   }
   ```
