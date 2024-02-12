@@ -191,6 +191,8 @@ export default class JobsIndexController extends Controller {
       });
       if (newJobs.meta.nextToken) {
         this.nextToken = newJobs.meta.nextToken;
+      } else {
+        this.nextToken = null;
       }
 
       const jobIDs = newJobs.map((job) => ({
