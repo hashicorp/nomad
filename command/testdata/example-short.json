@@ -91,7 +91,7 @@
                 "Meta": null,
                 "Services": null,
                 "ShutdownDelay": null,
-                "Desconnect": null,
+                "Disconnect": null,
                 "Scaling": null,
                 "Consul": null
             }
