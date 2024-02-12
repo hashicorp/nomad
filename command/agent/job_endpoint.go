@@ -398,7 +398,7 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 		return nil, err
 	}
 
-	return s.execStreamImpl(conn, &args)
+	return s.execStream(conn, &args)
 }
 
 func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
