@@ -31,7 +31,7 @@ var (
 	errInvalidReconcile    = errors.New("reconcile option is invalid")
 )
 
-func NewDisconnectStrategy() *DisconnectStrategy {
+func NewDefaultDisconnectStrategy() *DisconnectStrategy {
 	return &DisconnectStrategy{
 		Replace:   pointer.Of(true),
 		Reconcile: ReconcileOptionBestScore,
@@ -46,10 +46,15 @@ type DisconnectStrategy struct {
 	LostAfter time.Duration `mapstructure:"lost_after" hcl:"lost_after,optional"`
 
 	// Defines for how long a disconnected client will keep its allocations running.
-	StopAfterOnClient *time.Duration `mapstructure:"stop_after" hcl:"stop_after_client"`
+	// This option has a different behavior for nil, the default, and time.Duration(0),
+	// and needs to be intentionally set/unset.
+	StopAfterOnClient *time.Duration `mapstructure:"stop_after_client" hcl:"stop_after_client, optional"`
 
 	// A boolean field used to define if the allocations should be replaced while
 	// its  considered disconnected.
+	// This option has a different behavior for nil, the default, and false,
+	// and needs to be intentionally set/unset. It needs to be set to true
+	// for compatibility.
 	Replace *bool `mapstructure:"replace" hcl:"replace,optional"`
 
 	// Once the disconnected node starts reporting again, it will define which
@@ -102,20 +107,16 @@ func (ds *DisconnectStrategy) Copy() *DisconnectStrategy {
 }
 
 func (ds *DisconnectStrategy) Canonicalize() {
-	cds := NewDisconnectStrategy()
+	cds := NewDefaultDisconnectStrategy()
 	if ds.LostAfter == 0 {
 		ds.LostAfter = cds.LostAfter
-	}
-
-	if ds.StopAfterOnClient != nil {
-		ds.StopAfterOnClient = cds.StopAfterOnClient
 	}
 
 	if ds.Replace == nil {
 		ds.Replace = cds.Replace
 	}
 
-	if ds.Reconcile != ReconcileOptionBestScore {
+	if ds.Reconcile == "" {
 		ds.Reconcile = cds.Reconcile
 	}
 }
