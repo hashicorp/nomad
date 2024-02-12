@@ -498,7 +498,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		// If MaxClientDisconnect is enabled as well as tg.PreventRescheduleOnLost,
 		// the reschedule policy won't be enabled and the lost allocations
 		// wont be rescheduled, and PreventRescheduleOnLost is ignored.
-		if tg.MaxClientDisconnect != nil {
+		if tg.GetDisconnectLostTimeout() != 0 {
 			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
 			rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)

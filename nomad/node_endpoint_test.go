@@ -916,382 +916,223 @@ func TestClientEndpoint_UpdateStatus_Vault_WorkloadIdentity(t *testing.T) {
 	}
 }
 
-// Test using max_client_disconnect, remove after its deprecated  in favor
-// of Disconnect.LostAfter introduced in 1.8.0.
 func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 	ci.Parallel(t)
 
-	// Setup server with tighter heartbeat so we don't have to wait so long
-	// for nodes to go down.
-	heartbeatTTL := time.Duration(500*testutil.TestMultiplier()) * time.Millisecond
-	s, cleanupS := TestServer(t, func(c *Config) {
-		c.MinHeartbeatTTL = heartbeatTTL
-		c.HeartbeatGrace = 2 * heartbeatTTL
-	})
-	codec := rpcClient(t, s)
-	defer cleanupS()
-	testutil.WaitForLeader(t, s.RPC)
+	jobVersions := []struct {
+		name    string
+		jobSpec func(time.Duration) *structs.Job
+	}{
+		// Test using max_client_disconnect, remove after its deprecated  in favor
+		// of Disconnect.LostAfter introduced in 1.8.0.
+		{
+			name: "job-with-max-client-disconnect-deprecated",
+			jobSpec: func(maxClientDisconnect time.Duration) *structs.Job {
+				job := mock.Job()
+				job.TaskGroups[0].MaxClientDisconnect = &maxClientDisconnect
 
-	// Register node.
-	node := mock.Node()
-	reg := &structs.NodeRegisterRequest{
-		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-	var nodeUpdateResp structs.NodeUpdateResponse
-	err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &nodeUpdateResp)
-	must.NoError(t, err)
-
-	// Start heartbeat.
-	heartbeat := func(ctx context.Context) {
-		ticker := time.NewTicker(heartbeatTTL / 2)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if t.Failed() {
-					return
+				return job
+			},
+		},
+		{
+			name: "job-with-disconnect-block",
+			jobSpec: func(lostAfter time.Duration) *structs.Job {
+				job := mock.Job()
+				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+					LostAfter: lostAfter,
 				}
+				return job
+			},
+		},
+	}
 
-				req := &structs.NodeUpdateStatusRequest{
-					NodeID:       node.ID,
-					Status:       structs.NodeStatusReady,
-					WriteRequest: structs.WriteRequest{Region: "global"},
+	for _, version := range jobVersions {
+		t.Run(version.name, func(t *testing.T) {
+
+			// Setup server with tighter heartbeat so we don't have to wait so long
+			// for nodes to go down.
+			heartbeatTTL := time.Duration(500*testutil.TestMultiplier()) * time.Millisecond
+			s, cleanupS := TestServer(t, func(c *Config) {
+				c.MinHeartbeatTTL = heartbeatTTL
+				c.HeartbeatGrace = 2 * heartbeatTTL
+			})
+			codec := rpcClient(t, s)
+			defer cleanupS()
+			testutil.WaitForLeader(t, s.RPC)
+
+			// Register node.
+			node := mock.Node()
+			reg := &structs.NodeRegisterRequest{
+				Node:         node,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+			var nodeUpdateResp structs.NodeUpdateResponse
+			err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &nodeUpdateResp)
+			must.NoError(t, err)
+
+			// Start heartbeat.
+			heartbeat := func(ctx context.Context) {
+				ticker := time.NewTicker(heartbeatTTL / 2)
+				defer ticker.Stop()
+
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-ticker.C:
+						if t.Failed() {
+							return
+						}
+
+						req := &structs.NodeUpdateStatusRequest{
+							NodeID:       node.ID,
+							Status:       structs.NodeStatusReady,
+							WriteRequest: structs.WriteRequest{Region: "global"},
+						}
+						var resp structs.NodeUpdateResponse
+						// Ignore errors since an unexpected failed heartbeat will cause
+						// the test conditions to fail.
+						msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp)
+					}
 				}
-				var resp structs.NodeUpdateResponse
-				// Ignore errors since an unexpected failed heartbeat will cause
-				// the test conditions to fail.
-				msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp)
 			}
-		}
-	}
-	heartbeatCtx, cancelHeartbeat := context.WithCancel(context.Background())
-	defer cancelHeartbeat()
-	go heartbeat(heartbeatCtx)
+			heartbeatCtx, cancelHeartbeat := context.WithCancel(context.Background())
+			defer cancelHeartbeat()
+			go heartbeat(heartbeatCtx)
 
-	// Wait for node to be ready.
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
+			// Wait for node to be ready.
+			testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
 
-	// Register job with max_client_disconnect.
-	job := mock.Job()
-	job.Constraints = []*structs.Constraint{}
-	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].MaxClientDisconnect = pointer.Of(time.Hour)
-	job.TaskGroups[0].Constraints = []*structs.Constraint{}
-	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "10m",
-	}
-
-	jobReq := &structs.JobRegisterRequest{
-		Job: job,
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			Namespace: job.Namespace,
-		},
-	}
-	var jobResp structs.JobRegisterResponse
-	err = msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
-	must.NoError(t, err)
-
-	// Wait for alloc to be pending in the server.
-	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
-		structs.AllocClientStatusPending: 1,
-	})
-
-	// Get allocs that node should run.
-	allocsReq := &structs.NodeSpecificRequest{
-		NodeID: node.ID,
-		QueryOptions: structs.QueryOptions{
-			Region: "global",
-		},
-	}
-	var allocsResp structs.NodeAllocsResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", allocsReq, &allocsResp)
-	must.NoError(t, err)
-	must.Len(t, 1, allocsResp.Allocs)
-
-	// Tell server the alloc is running.
-	// Save the alloc so we can reuse the request later.
-	alloc := allocsResp.Allocs[0].Copy()
-	alloc.ClientStatus = structs.AllocClientStatusRunning
-
-	allocUpdateReq := &structs.AllocUpdateRequest{
-		Alloc: []*structs.Allocation{alloc},
-		WriteRequest: structs.WriteRequest{
-			Region: "global",
-		},
-	}
-	var resp structs.GenericResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
-	must.NoError(t, err)
-
-	// Wait for alloc to be running in the server.
-	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
-		structs.AllocClientStatusRunning: 1,
-	})
-
-	// Stop heartbeat and wait for the client to be disconnected and the alloc
-	// to be unknown.
-	cancelHeartbeat()
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusDisconnected)
-	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
-		structs.AllocClientStatusUnknown: 1,
-	})
-
-	// Restart heartbeat to reconnect node.
-	heartbeatCtx, cancelHeartbeat = context.WithCancel(context.Background())
-	defer cancelHeartbeat()
-	go heartbeat(heartbeatCtx)
-
-	// Wait a few heartbeats and check that the node is still initializing.
-	//
-	// The heartbeat should not update the node to ready until it updates its
-	// allocs status with the server so the scheduler have the necessary
-	// information to avoid unnecessary placements.
-	time.Sleep(3 * heartbeatTTL)
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusInit)
-
-	// Get allocs that node should run.
-	// The node should only have one alloc assigned until it updates its allocs
-	// status with the server.
-	allocsReq = &structs.NodeSpecificRequest{
-		NodeID: node.ID,
-		QueryOptions: structs.QueryOptions{
-			Region: "global",
-		},
-	}
-	err = msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", allocsReq, &allocsResp)
-	must.NoError(t, err)
-	must.Len(t, 1, allocsResp.Allocs)
-
-	// Tell server the alloc is still running.
-	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
-	must.NoError(t, err)
-
-	// The client must end in the same state as before it disconnected:
-	// - client status is ready.
-	// - only 1 alloc and the alloc is running.
-	// - all evals are terminal, so cluster is in a stable state.
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
-	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
-		structs.AllocClientStatusRunning: 1,
-	})
-	testutil.WaitForResult(func() (bool, error) {
-		state := s.fsm.State()
-		ws := memdb.NewWatchSet()
-		evals, err := state.EvalsByJob(ws, job.Namespace, job.ID)
-		if err != nil {
-			return false, fmt.Errorf("failed to read evals: %v", err)
-		}
-		for _, eval := range evals {
-			// TODO: remove this check once the disconnect process stops
-			// leaking a max-disconnect-timeout eval.
-			// https://github.com/hashicorp/nomad/issues/12809
-			if eval.TriggeredBy == structs.EvalTriggerMaxDisconnectTimeout {
-				continue
+			// Register job with Disconnect.LostAfter
+			job := version.jobSpec(time.Hour)
+			job.Constraints = []*structs.Constraint{}
+			job.TaskGroups[0].Count = 1
+			job.TaskGroups[0].Constraints = []*structs.Constraint{}
+			job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+			job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+				"run_for": "10m",
 			}
 
-			if !eval.TerminalStatus() {
-				return false, fmt.Errorf("found %s eval", eval.Status)
+			jobReq := &structs.JobRegisterRequest{
+				Job: job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: job.Namespace,
+				},
 			}
-		}
-		return true, nil
-	}, func(err error) {
-		must.NoError(t, err)
-	})
-}
+			var jobResp structs.JobRegisterResponse
+			err = msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
+			must.NoError(t, err)
 
-func TestClientEndpoint_UpdateStatus_Disconnect_Reconnect(t *testing.T) {
-	ci.Parallel(t)
+			// Wait for alloc to be pending in the server.
+			testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+				structs.AllocClientStatusPending: 1,
+			})
 
-	// Setup server with tighter heartbeat so we don't have to wait so long
-	// for nodes to go down.
-	heartbeatTTL := time.Duration(500*testutil.TestMultiplier()) * time.Millisecond
-	s, cleanupS := TestServer(t, func(c *Config) {
-		c.MinHeartbeatTTL = heartbeatTTL
-		c.HeartbeatGrace = 2 * heartbeatTTL
-	})
-	codec := rpcClient(t, s)
-	defer cleanupS()
-	testutil.WaitForLeader(t, s.RPC)
+			// Get allocs that node should run.
+			allocsReq := &structs.NodeSpecificRequest{
+				NodeID: node.ID,
+				QueryOptions: structs.QueryOptions{
+					Region: "global",
+				},
+			}
+			var allocsResp structs.NodeAllocsResponse
+			err = msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", allocsReq, &allocsResp)
+			must.NoError(t, err)
+			must.Len(t, 1, allocsResp.Allocs)
 
-	// Register node.
-	node := mock.Node()
-	reg := &structs.NodeRegisterRequest{
-		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-	var nodeUpdateResp structs.NodeUpdateResponse
-	err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &nodeUpdateResp)
-	must.NoError(t, err)
+			// Tell server the alloc is running.
+			// Save the alloc so we can reuse the request later.
+			alloc := allocsResp.Allocs[0].Copy()
+			alloc.ClientStatus = structs.AllocClientStatusRunning
 
-	// Start heartbeat.
-	heartbeat := func(ctx context.Context) {
-		ticker := time.NewTicker(heartbeatTTL / 2)
-		defer ticker.Stop()
+			allocUpdateReq := &structs.AllocUpdateRequest{
+				Alloc: []*structs.Allocation{alloc},
+				WriteRequest: structs.WriteRequest{
+					Region: "global",
+				},
+			}
+			var resp structs.GenericResponse
+			err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
+			must.NoError(t, err)
 
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if t.Failed() {
-					return
+			// Wait for alloc to be running in the server.
+			testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+				structs.AllocClientStatusRunning: 1,
+			})
+
+			// Stop heartbeat and wait for the client to be disconnected and the alloc
+			// to be unknown.
+			cancelHeartbeat()
+			testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusDisconnected)
+			testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+				structs.AllocClientStatusUnknown: 1,
+			})
+
+			// Restart heartbeat to reconnect node.
+			heartbeatCtx, cancelHeartbeat = context.WithCancel(context.Background())
+			defer cancelHeartbeat()
+			go heartbeat(heartbeatCtx)
+
+			// Wait a few heartbeats and check that the node is still initializing.
+			//
+			// The heartbeat should not update the node to ready until it updates its
+			// allocs status with the server so the scheduler have the necessary
+			// information to avoid unnecessary placements.
+			time.Sleep(3 * heartbeatTTL)
+			testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusInit)
+
+			// Get allocs that node should run.
+			// The node should only have one alloc assigned until it updates its allocs
+			// status with the server.
+			allocsReq = &structs.NodeSpecificRequest{
+				NodeID: node.ID,
+				QueryOptions: structs.QueryOptions{
+					Region: "global",
+				},
+			}
+			err = msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", allocsReq, &allocsResp)
+			must.NoError(t, err)
+			must.Len(t, 1, allocsResp.Allocs)
+
+			// Tell server the alloc is still running.
+			err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
+			must.NoError(t, err)
+
+			// The client must end in the same state as before it disconnected:
+			// - client status is ready.
+			// - only 1 alloc and the alloc is running.
+			// - all evals are terminal, so cluster is in a stable state.
+			testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
+			testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+				structs.AllocClientStatusRunning: 1,
+			})
+			testutil.WaitForResult(func() (bool, error) {
+				state := s.fsm.State()
+				ws := memdb.NewWatchSet()
+				evals, err := state.EvalsByJob(ws, job.Namespace, job.ID)
+				if err != nil {
+					return false, fmt.Errorf("failed to read evals: %v", err)
 				}
+				for _, eval := range evals {
+					// TODO: remove this check once the disconnect process stops
+					// leaking a max-disconnect-timeout eval.
+					// https://github.com/hashicorp/nomad/issues/12809
+					if eval.TriggeredBy == structs.EvalTriggerMaxDisconnectTimeout {
+						continue
+					}
 
-				req := &structs.NodeUpdateStatusRequest{
-					NodeID:       node.ID,
-					Status:       structs.NodeStatusReady,
-					WriteRequest: structs.WriteRequest{Region: "global"},
+					if !eval.TerminalStatus() {
+						return false, fmt.Errorf("found %s eval", eval.Status)
+					}
 				}
-				var resp structs.NodeUpdateResponse
-				// Ignore errors since an unexpected failed heartbeat will cause
-				// the test conditions to fail.
-				msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp)
-			}
-		}
+				return true, nil
+			}, func(err error) {
+				must.NoError(t, err)
+			})
+
+		})
 	}
-	heartbeatCtx, cancelHeartbeat := context.WithCancel(context.Background())
-	defer cancelHeartbeat()
-	go heartbeat(heartbeatCtx)
-
-	// Wait for node to be ready.
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
-
-	// Register job with max_client_disconnect.
-	job := mock.Job()
-	job.Constraints = []*structs.Constraint{}
-	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
-		LostAfter: time.Hour,
-	}
-	job.TaskGroups[0].Constraints = []*structs.Constraint{}
-	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "10m",
-	}
-
-	jobReq := &structs.JobRegisterRequest{
-		Job: job,
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			Namespace: job.Namespace,
-		},
-	}
-	var jobResp structs.JobRegisterResponse
-	err = msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
-	must.NoError(t, err)
-
-	// Wait for alloc to be pending in the server.
-	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
-		structs.AllocClientStatusPending: 1,
-	})
-
-	// Get allocs that node should run.
-	allocsReq := &structs.NodeSpecificRequest{
-		NodeID: node.ID,
-		QueryOptions: structs.QueryOptions{
-			Region: "global",
-		},
-	}
-	var allocsResp structs.NodeAllocsResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", allocsReq, &allocsResp)
-	must.NoError(t, err)
-	must.Len(t, 1, allocsResp.Allocs)
-
-	// Tell server the alloc is running.
-	// Save the alloc so we can reuse the request later.
-	alloc := allocsResp.Allocs[0].Copy()
-	alloc.ClientStatus = structs.AllocClientStatusRunning
-
-	allocUpdateReq := &structs.AllocUpdateRequest{
-		Alloc: []*structs.Allocation{alloc},
-		WriteRequest: structs.WriteRequest{
-			Region: "global",
-		},
-	}
-	var resp structs.GenericResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
-	must.NoError(t, err)
-
-	// Wait for alloc to be running in the server.
-	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
-		structs.AllocClientStatusRunning: 1,
-	})
-
-	// Stop heartbeat and wait for the client to be disconnected and the alloc
-	// to be unknown.
-	cancelHeartbeat()
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusDisconnected)
-	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
-		structs.AllocClientStatusUnknown: 1,
-	})
-
-	// Restart heartbeat to reconnect node.
-	heartbeatCtx, cancelHeartbeat = context.WithCancel(context.Background())
-	defer cancelHeartbeat()
-	go heartbeat(heartbeatCtx)
-
-	// Wait a few heartbeats and check that the node is still initializing.
-	//
-	// The heartbeat should not update the node to ready until it updates its
-	// allocs status with the server so the scheduler have the necessary
-	// information to avoid unnecessary placements.
-	time.Sleep(3 * heartbeatTTL)
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusInit)
-
-	// Get allocs that node should run.
-	// The node should only have one alloc assigned until it updates its allocs
-	// status with the server.
-	allocsReq = &structs.NodeSpecificRequest{
-		NodeID: node.ID,
-		QueryOptions: structs.QueryOptions{
-			Region: "global",
-		},
-	}
-	err = msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", allocsReq, &allocsResp)
-	must.NoError(t, err)
-	must.Len(t, 1, allocsResp.Allocs)
-
-	// Tell server the alloc is still running.
-	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &resp)
-	must.NoError(t, err)
-
-	// The client must end in the same state as before it disconnected:
-	// - client status is ready.
-	// - only 1 alloc and the alloc is running.
-	// - all evals are terminal, so cluster is in a stable state.
-	testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
-	testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
-		structs.AllocClientStatusRunning: 1,
-	})
-	testutil.WaitForResult(func() (bool, error) {
-		state := s.fsm.State()
-		ws := memdb.NewWatchSet()
-		evals, err := state.EvalsByJob(ws, job.Namespace, job.ID)
-		if err != nil {
-			return false, fmt.Errorf("failed to read evals: %v", err)
-		}
-		for _, eval := range evals {
-			// TODO: remove this check once the disconnect process stops
-			// leaking a max-disconnect-timeout eval.
-			// https://github.com/hashicorp/nomad/issues/12809
-			if eval.TriggeredBy == structs.EvalTriggerMaxDisconnectTimeout {
-				continue
-			}
-
-			if !eval.TerminalStatus() {
-				return false, fmt.Errorf("found %s eval", eval.Status)
-			}
-		}
-		return true, nil
-	}, func(err error) {
-		must.NoError(t, err)
-	})
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
