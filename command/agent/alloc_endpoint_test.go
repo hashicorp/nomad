@@ -5,6 +5,7 @@ package agent
 
 import (
 	"archive/tar"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,16 +15,22 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/snappy"
+	"github.com/gorilla/websocket"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1121,5 +1128,110 @@ func TestHTTP_ReadWsHandshake(t *testing.T) {
 			require.Equal(t, c.token, q.AuthToken)
 			require.Equal(t, c.handshake, called)
 		})
+	}
+}
+
+// TestHTTP_AllocsExecStream_SafeClose verifies that we are safely closing the
+// AllocExec stream when we're done without making concurrent writes to the
+// websocket that can cause a panic
+func TestHTTP_AllocsExecStream_SafeClose(t *testing.T) {
+	httpTest(t,
+		func(c *Config) { c.Server.NumSchedulers = pointer.Of(0) },
+		func(s *TestAgent) {
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			t.Cleanup(cancel)
+
+			rpcHandler := mockStreamingRpcHandler(t, [][]byte{
+				[]byte("one"), []byte("two"), []byte("done!")})
+
+			// This replaces the top-level HTTP handler, which is not under test
+			// here. It will call execStreamImpl using the mock streaming RPC
+			// handler defined above.
+			wsHandler := func(w http.ResponseWriter, r *http.Request) {
+				var upgrader = websocket.Upgrader{}
+				conn, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					must.NoError(t, err, must.Sprint("during ws upgrade"))
+					return
+				}
+				defer conn.Close()
+
+				args := cstructs.AllocExecRequest{
+					AllocID: uuid.Generate(),
+					Task:    "foo",
+					Cmd:     []string{"bar"},
+				}
+
+				_, err = s.Server.execStreamImpl(conn, &args, rpcHandler)
+				must.NoError(t, err)
+			}
+
+			// Spin up a HTTP server that only handles our websocket
+			srv := httptest.NewServer(http.HandlerFunc(wsHandler))
+			t.Cleanup(srv.Close)
+			u := strings.Replace(srv.URL, "http://", "ws://", 1)
+			conn, _, err := websocket.DefaultDialer.Dial(u, nil)
+			must.NoError(t, err, must.Sprint("failed to dial"))
+			defer conn.Close()
+
+			drainResp := func() []string {
+				resp := []string{}
+				for {
+					select {
+					case <-ctx.Done():
+						return resp
+					default:
+						_, message, err := conn.ReadMessage()
+						if err != nil {
+							if !isClosedError(err) {
+								resp = append(resp, err.Error())
+								return resp
+							}
+							return resp
+						}
+						resp = append(resp, string(message))
+					}
+				}
+			}
+
+			must.Eq(t, []string{"one", "two", "done!"}, drainResp())
+		})
+}
+
+// mockStreamingRpcHandler returns a function that can stand in for any
+// structs.StreamingRpcHandler and streams the slice of payloads before
+// closing. It marks a test failure if we get a non-close error.
+func mockStreamingRpcHandler(t *testing.T, payloads [][]byte) func(io.ReadWriteCloser) {
+
+	return func(conn io.ReadWriteCloser) {
+
+		decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+		encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// drain any incoming requests
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				var res cstructs.StreamErrWrapper
+				err := decoder.Decode(&res)
+				if !isClosedError(err) {
+					test.NoError(t, err, test.Sprint("unexpected non-close error"))
+				}
+			}
+		}()
+
+		for _, payload := range payloads {
+			err := encoder.Encode(cstructs.StreamErrWrapper{Payload: payload})
+			test.NoError(t, err, test.Sprint("could not send RPC payload"))
+		}
+		test.NoError(t, conn.Close())
 	}
 }
