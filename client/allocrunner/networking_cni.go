@@ -99,7 +99,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	// in one of them to fail. This rety attempts to overcome those erroneous failures.
 	const retry = 3
 	var firstError error
-	var res *cni.CNIResult
+	var res *cni.Result
 	for attempt := 1; ; attempt++ {
 		var err error
 		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
@@ -127,10 +127,10 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 
 }
 
-// cniToAllocNet converts a CNIResult to an AllocNetworkStatus or returns an
+// cniToAllocNet converts a cni.Result to an AllocNetworkStatus or returns an
 // error. The first interface and IP with a sandbox and address set are
 // preferred. Failing that the first interface with an IP is selected.
-func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.CNIResult) (*structs.AllocNetworkStatus, error) {
+func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.Result) (*structs.AllocNetworkStatus, error) {
 	if len(res.Interfaces) == 0 {
 		return nil, fmt.Errorf("failed to configure network: no interfaces found")
 	}
