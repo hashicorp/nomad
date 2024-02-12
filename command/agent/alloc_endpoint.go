@@ -597,7 +597,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 	}()
 
 	// Create a channel for the final result
-	resultCh := make(chan HTTPCodedError)
+	resultCh := make(chan HTTPCodedError, 1)
 
 	// stream response back to the websocket: this should be the only goroutine
 	// that writes to this websocket connection
@@ -661,7 +661,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 }
 
 // execStreamHandleError writes a CloseMessage to the websocket if we get an
-// error that isn't a ""close error" caused by the RPC pipe finishing up. Note
+// error that isn't a "close error" caused by the RPC pipe finishing up. Note
 // that this should *only* ever be called in the same goroutine as we're
 // streaming the responses
 func (s *HTTPServer) execStreamHandleError(ws *websocket.Conn, codedErr HTTPCodedError) HTTPCodedError {
