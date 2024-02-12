@@ -138,7 +138,7 @@
     <Hds::Pagination::Compact
       @onPageChange={{action this.handlePageChange}}
       @isDisabledPrev={{not this.cursorAt}}
-      @isDisabledNext={{not this.model.jobs.meta.nextToken}}
+      @isDisabledNext={{not this.nextToken}}
     />
 
   <hr />
