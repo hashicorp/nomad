@@ -127,12 +127,12 @@ func TestCNI_forceCleanup(t *testing.T) {
 	})
 }
 
-// TestCNI_cniToAllocNet_NoInterfaces asserts an error is returned if CNIResult
+// TestCNI_cniToAllocNet_NoInterfaces asserts an error is returned if cni.Result
 // contains no interfaces.
 func TestCNI_cniToAllocNet_NoInterfaces(t *testing.T) {
 	ci.Parallel(t)
 
-	cniResult := &cni.CNIResult{}
+	cniResult := &cni.Result{}
 
 	// Only need a logger
 	c := &cniNetworkConfigurator{
@@ -150,7 +150,7 @@ func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
 
 	// Calico's CNI plugin v3.12.3 has been observed to return the
 	// following:
-	cniResult := &cni.CNIResult{
+	cniResult := &cni.Result{
 		Interfaces: map[string]*cni.Config{
 			"cali39179aa3-74": {},
 			"eth0": {
@@ -181,7 +181,7 @@ func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
 func TestCNI_cniToAllocNet_Invalid(t *testing.T) {
 	ci.Parallel(t)
 
-	cniResult := &cni.CNIResult{
+	cniResult := &cni.Result{
 		Interfaces: map[string]*cni.Config{
 			"eth0": {},
 			"veth1": {
