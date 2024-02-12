@@ -7395,6 +7395,36 @@ func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
 
+// GetDisconnectLostTimeout is a helper meant to simplify the future depracation of
+// MaxClientDisconnect in favor of Disconnect.LostAfter
+// introduced in 1.8.0.
+func (tg *TaskGroup) GetDisconnectLostTimeout() time.Duration {
+	if tg.MaxClientDisconnect != nil {
+		return *tg.MaxClientDisconnect
+	}
+
+	if tg.Disconnect != nil {
+		return tg.Disconnect.LostAfter
+	}
+
+	return 0
+}
+
+// GetDisconnectStopTimeout is a helper meant to simplify the future depracation of
+// StopAfterClientDisconnect in favor of Disconnect.StopAfterOnClient
+// introduced in 1.8.0.
+func (tg *TaskGroup) GetDisconnectStopTimeout() *time.Duration {
+	if tg.StopAfterClientDisconnect != nil {
+		return tg.StopAfterClientDisconnect
+	}
+
+	if tg.Disconnect != nil && tg.Disconnect.StopAfterOnClient != nil {
+		return tg.Disconnect.StopAfterOnClient
+	}
+
+	return nil
+}
+
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
@@ -11022,40 +11052,10 @@ func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
-// This helper is meant to simplify the future depracation of
-// MaxClientDisconnect in favor of Disconnect.LostAfter
-// introduced in 1.8.0.
-func getDisconnectLostTimeout(tg *TaskGroup) time.Duration {
-	if tg.MaxClientDisconnect != nil {
-		return *tg.MaxClientDisconnect
-	}
-
-	if tg.Disconnect != nil {
-		return tg.Disconnect.LostAfter
-	}
-
-	return 0
-}
-
-// This helper is meant to simplify the future depracation of
-// StopAfterClientDisconnect in favor of Disconnect.StopAfterOnClient
-// introduced in 1.8.0.
-func getDisconnectStopTimeout(tg *TaskGroup) *time.Duration {
-	if tg.StopAfterClientDisconnect != nil {
-		return tg.StopAfterClientDisconnect
-	}
-
-	if tg.Disconnect != nil && tg.Disconnect.StopAfterOnClient != nil {
-		return tg.Disconnect.StopAfterOnClient
-	}
-
-	return nil
-}
-
 // ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
 func (a *Allocation) ShouldClientStop() bool {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	timeout := getDisconnectStopTimeout(tg)
+	timeout := tg.GetDisconnectStopTimeout()
 
 	if tg == nil ||
 		timeout == nil ||
@@ -11094,7 +11094,7 @@ func (a *Allocation) WaitClientStop() time.Time {
 		}
 	}
 
-	return t.Add(*getDisconnectStopTimeout(tg) + kill)
+	return t.Add(*tg.GetDisconnectStopTimeout() + kill)
 }
 
 // DisconnectTimeout uses the MaxClientDisconnect to compute when the allocation
@@ -11106,7 +11106,7 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
-	timeout := getDisconnectLostTimeout(tg)
+	timeout := tg.GetDisconnectLostTimeout()
 	if timeout == 0 {
 		return now
 	}
@@ -11125,7 +11125,7 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return getDisconnectLostTimeout(tg) != 0
+			return tg.GetDisconnectLostTimeout() != 0
 		}
 	}
 
@@ -11360,7 +11360,7 @@ func (a *Allocation) Expired(now time.Time) bool {
 		return false
 	}
 
-	timeout := getDisconnectLostTimeout(tg)
+	timeout := tg.GetDisconnectLostTimeout()
 	if timeout == 0 && !tg.PreventRescheduleOnLost {
 		return false
 	}
