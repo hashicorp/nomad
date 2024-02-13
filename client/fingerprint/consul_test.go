@@ -491,6 +491,77 @@ func TestConsulFingerprint_partition(t *testing.T) {
 	})
 }
 
+func TestConsulFingerprint_dns(t *testing.T) {
+	ci.Parallel(t)
+
+	cfs := consulFingerprintState{}
+
+	t.Run("dns port not enabled", func(t *testing.T) {
+		port, ok := cfs.dnsPort(agentconsul.Self{
+			"DebugConfig": {"DNSPort": -1.0}, // JSON numbers are floats
+		})
+		must.True(t, ok)
+		must.Eq(t, "-1", port)
+	})
+
+	t.Run("non-default port value", func(t *testing.T) {
+		port, ok := cfs.dnsPort(agentconsul.Self{
+			"DebugConfig": {"DNSPort": 8601.0}, // JSON numbers are floats
+		})
+		must.True(t, ok)
+		must.Eq(t, "8601", port)
+	})
+
+	t.Run("missing port", func(t *testing.T) {
+		port, ok := cfs.dnsPort(agentconsul.Self{
+			"DebugConfig": {},
+		})
+		must.False(t, ok)
+		must.Eq(t, "0", port)
+	})
+
+	t.Run("malformed port", func(t *testing.T) {
+		port, ok := cfs.dnsPort(agentconsul.Self{
+			"DebugConfig": {"DNSPort": "A"},
+		})
+		must.False(t, ok)
+		must.Eq(t, "0", port)
+	})
+
+	t.Run("bind on 0.0.0.0", func(t *testing.T) {
+		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
+			"DebugConfig": {
+				"DNSAddrs": []string{"tcp://0.0.0.0:8601", "udp://0.0.0.0:8601"},
+				"BindAddr": "0.0.0.0",
+			},
+		})
+		must.True(t, ok)
+		must.Eq(t, "", addr)
+	})
+
+	t.Run("get first IP", func(t *testing.T) {
+		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
+			"DebugConfig": {
+				"DNSAddrs": []string{"tcp://192.168.1.170:8601", "udp://192.168.1.171:8601"},
+				"BindAddr": "192.168.1.172",
+			},
+		})
+		must.True(t, ok)
+		must.Eq(t, "192.168.1.170", addr)
+	})
+
+	t.Run("fallback to bind_addr", func(t *testing.T) {
+		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
+			"DebugConfig": {
+				"DNSAddrs": []string{"tcp://0.0.0.0:8601", "udp://0.0.0.0:8601"},
+				"BindAddr": "192.168.1.172",
+			},
+		})
+		must.True(t, ok)
+		must.Eq(t, "192.168.1.172", addr)
+	})
+}
+
 func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	ci.Parallel(t)
 
@@ -510,6 +581,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	must.NoError(t, err)
 	must.Eq(t, map[string]string{
 		"consul.datacenter":    "dc1",
+		"consul.dns_port":      "8600",
 		"consul.revision":      "3c1c22679",
 		"consul.segment":       "seg1",
 		"consul.server":        "true",
@@ -564,6 +636,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 		"consul.version":       "1.9.5",
 		"consul.connect":       "true",
 		"consul.grpc":          "8502",
+		"consul.dns_port":      "8600",
 		"consul.ft.namespaces": "false",
 		"unique.consul.name":   "HAL9000",
 	}, resp3.Attributes)
@@ -600,6 +673,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 		"consul.ft.namespaces": "true",
 		"consul.connect":       "true",
 		"consul.grpc":          "8502",
+		"consul.dns_port":      "8600",
 		"consul.partition":     "default",
 		"unique.consul.name":   "HAL9000",
 	}, resp.Attributes)
@@ -649,6 +723,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 		"consul.ft.namespaces": "true",
 		"consul.connect":       "true",
 		"consul.grpc":          "8502",
+		"consul.dns_port":      "8600",
 		"consul.partition":     "default",
 		"unique.consul.name":   "HAL9000",
 	}, resp3.Attributes)
