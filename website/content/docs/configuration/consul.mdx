@@ -156,6 +156,14 @@ agents with [`client.enabled`][] set to `true`.
   certificate used for communication between Connect sidecar proxies and Consul
   agents. Will default to the `CONSUL_GRPC_CACERT` environment variable if set.
 
+  <Warning>
+    Consul does not support incoming TLS verification of Envoy
+    sidecars. You should set <code>tls.grpc.verify_incoming = false</code> in your
+    Consul configuration when using Connect. See <a
+    href="https://github.com/hashicorp/consul/issues/13088">Consul/#13088</a> for
+    more details.
+  </Warning>
+
 - `share_ssl` `(bool: true)` - Specifies whether the Nomad client should share
   its Consul SSL configuration with Connect Native applications. Includes values
   of `ca_file`, `cert_file`, `key_file`, `ssl`, and `verify_ssl`. Does not
