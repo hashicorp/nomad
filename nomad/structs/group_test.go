@@ -24,7 +24,7 @@ func TestJobConfig_Validate_LostAfter_Disconnect(t *testing.T) {
 	}
 
 	err := job.Validate()
-	require.Error(t, err)
+	must.Error(t, err)
 	err = errors.Unwrap(err)
 
 	require.Contains(t, err.Error(), errNegativeLostAfter.Error())
