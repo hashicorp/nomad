@@ -195,6 +195,7 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 			}
 
 			m["Operand"] = api.ConstraintDistinctHosts
+			m["RTarget"] = strconv.FormatBool(enabled)
 		}
 
 		if property, ok := m[api.ConstraintDistinctProperty]; ok {
