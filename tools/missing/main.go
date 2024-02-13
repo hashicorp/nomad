@@ -125,8 +125,8 @@ func isCoveredOne(p string, pkg string) bool {
 	}
 
 	if strings.HasSuffix(p, "/...") {
-		prefix := strings.TrimSuffix(p, "/...")
-		if strings.HasPrefix(pkg, prefix) {
+		prefix := strings.TrimSuffix(p, "...")
+		if strings.HasPrefix(pkg+"/", prefix) {
 			return true
 		}
 	}
