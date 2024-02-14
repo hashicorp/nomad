@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-version"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -313,16 +314,8 @@ func (cfs *consulFingerprintState) dnsPort(info agentconsul.Self) (string, bool)
 func (cfs *consulFingerprintState) dnsAddr(logger hclog.Logger) func(info agentconsul.Self) (string, bool) {
 	return func(info agentconsul.Self) (string, bool) {
 
-		// only addresses we can use for an iptables rule from a container to the
-		// host will be fingerprinted
-		isValidForTaskUse := func(addr netip.Addr) (string, bool) {
-			if !addr.IsLoopback() && !addr.IsUnspecified() && addr.IsValid() {
-				return addr.String(), true
-			}
-			return "", false
-		}
+		var listenOnEveryIP bool
 
-		// first try to find an explicitly configured address
 		dnsAddrs, ok := info["DebugConfig"]["DNSAddrs"].([]string)
 		if ok {
 			for _, dnsAddr := range dnsAddrs {
@@ -330,30 +323,50 @@ func (cfs *consulFingerprintState) dnsAddr(logger hclog.Logger) func(info agentc
 				dnsAddr = strings.TrimPrefix(dnsAddr, "udp://")
 
 				parsed, err := netip.ParseAddrPort(dnsAddr)
-				if err != nil {
+				if err != nil || !parsed.IsValid() {
 					logger.Warn("could not parse Consul addresses.dns config", "value", dnsAddr)
-					return "", false
+					return "", false // response is somehow malformed
 				}
-				if val, ok := isValidForTaskUse(parsed.Addr()); ok {
-					return val, true
+
+				// only addresses we can use for an iptables rule from a
+				// container to the host will be fingerprinted
+				if parsed.Addr().IsUnspecified() {
+					listenOnEveryIP = true
+					break
+				}
+				if !parsed.Addr().IsLoopback() {
+					return parsed.Addr().String(), true
 				}
 			}
 		}
 
-		// fallback to the bind address
-		bindAddr, ok := info["DebugConfig"]["BindAddr"].(string)
-		if ok {
-			parsed, err := netip.ParseAddr(bindAddr)
+		// if Consul DNS is bound on 0.0.0.0, we want to fingerprint the private
+		// IP (or at worst, the public IP) of the host so that we have a valid
+		// IP address for the iptables rule
+		if listenOnEveryIP {
+
+			privateIP, err := sockaddr.GetPrivateIP()
 			if err != nil {
-				logger.Warn("could not parse Consul bind_addr config", "value", bindAddr)
-				return "", false
+				logger.Warn("could not query network interfaces", "error", err)
+				return "", false // something is very wrong, so bail out
 			}
-			if val, ok := isValidForTaskUse(parsed); ok {
-				return val, true
+			if privateIP != "" {
+				return privateIP, true
+			}
+			publicIP, err := sockaddr.GetPublicIP()
+			if err != nil {
+				logger.Warn("could not query network interfaces", "error", err)
+				return "", false // something is very wrong, so bail out
+			}
+			if publicIP != "" {
+				return publicIP, true
 			}
 		}
 
-		return "", true // we can't fingerprint a useful value
+		// if we've hit here, Consul is bound on localhost and we won't be able
+		// to configure container DNS to use it, but we also don't want to have
+		// the fingerprinter return an error
+		return "", true
 	}
 }
 

@@ -528,37 +528,24 @@ func TestConsulFingerprint_dns(t *testing.T) {
 		must.Eq(t, "0", port)
 	})
 
-	t.Run("bind on 0.0.0.0", func(t *testing.T) {
-		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
-			"DebugConfig": {
-				"DNSAddrs": []string{"tcp://0.0.0.0:8601", "udp://0.0.0.0:8601"},
-				"BindAddr": "0.0.0.0",
-			},
-		})
-		must.True(t, ok)
-		must.Eq(t, "", addr)
-	})
-
 	t.Run("get first IP", func(t *testing.T) {
 		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
 			"DebugConfig": {
 				"DNSAddrs": []string{"tcp://192.168.1.170:8601", "udp://192.168.1.171:8601"},
-				"BindAddr": "192.168.1.172",
 			},
 		})
 		must.True(t, ok)
 		must.Eq(t, "192.168.1.170", addr)
 	})
 
-	t.Run("fallback to bind_addr", func(t *testing.T) {
+	t.Run("fallback to private or public IP", func(t *testing.T) {
 		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
 			"DebugConfig": {
 				"DNSAddrs": []string{"tcp://0.0.0.0:8601", "udp://0.0.0.0:8601"},
-				"BindAddr": "192.168.1.172",
 			},
 		})
 		must.True(t, ok)
-		must.Eq(t, "192.168.1.172", addr)
+		must.NotEq(t, "", addr)
 	})
 }
 
