@@ -108,10 +108,6 @@ func (ds *DisconnectStrategy) Copy() *DisconnectStrategy {
 
 func (ds *DisconnectStrategy) Canonicalize() {
 	cds := NewDefaultDisconnectStrategy()
-	if ds.LostAfter == 0 {
-		ds.LostAfter = cds.LostAfter
-	}
-
 	if ds.Replace == nil {
 		ds.Replace = cds.Replace
 	}
