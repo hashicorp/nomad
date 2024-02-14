@@ -9,12 +9,12 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestAllocServiceRegistrationsRequest_StaleReadSupport(t *testing.T) {
 	req := &AllocServiceRegistrationsRequest{}
-	require.True(t, req.IsRead())
+	must.True(t, req.IsRead())
 }
 
 func Test_Allocation_ServiceProviderNamespace(t *testing.T) {
@@ -142,7 +142,7 @@ func Test_Allocation_ServiceProviderNamespace(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := tc.inputAllocation.ServiceProviderNamespace()
-			require.Equal(t, tc.expectedOutput, actualOutput)
+			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
 }
@@ -195,7 +195,7 @@ func TestAllocation_WaitClientStop(t *testing.T) {
 			j.TaskGroups[0].StopAfterClientDisconnect = &tc.stop
 			a.TaskGroup = j.TaskGroups[0].Name
 
-			require.Equal(t, tc.expectedShould, a.ShouldClientStop())
+			must.Eq(t, tc.expectedShould, a.ShouldClientStop())
 
 			if !tc.expectedShould || tc.status != AllocClientStatusLost {
 				return
@@ -204,7 +204,7 @@ func TestAllocation_WaitClientStop(t *testing.T) {
 			// the reschedTime is close to the expectedRescheduleTime
 			reschedTime := a.WaitClientStop()
 			e := reschedTime.Unix() - tc.expectedRescheduleTime.Unix()
-			require.Less(t, e, int64(2))
+			must.Less(t, e, int64(2))
 		})
 	}
 }
@@ -258,7 +258,7 @@ func TestAllocation_WaitClientStop_Disconnect(t *testing.T) {
 
 			a.TaskGroup = j.TaskGroups[0].Name
 
-			require.Equal(t, tc.expectedShould, a.ShouldClientStop())
+			must.Eq(t, tc.expectedShould, a.ShouldClientStop())
 
 			if !tc.expectedShould || tc.status != AllocClientStatusLost {
 				return
@@ -267,7 +267,7 @@ func TestAllocation_WaitClientStop_Disconnect(t *testing.T) {
 			// the reschedTime is close to the expectedRescheduleTime
 			reschedTime := a.WaitClientStop()
 			e := reschedTime.Unix() - tc.expectedRescheduleTime.Unix()
-			require.Less(t, e, int64(2))
+			must.Less(t, e, int64(2))
 		})
 	}
 }
@@ -306,10 +306,10 @@ func TestAllocation_Timeout_Disconnect(t *testing.T) {
 			reschedTime := a.DisconnectTimeout(now)
 
 			if tc.maxDisconnect == 0 {
-				require.Equal(t, now, reschedTime, "expected to be now")
+				must.Equal(t, now, reschedTime, must.Sprint("expected to be now"))
 			} else {
 				difference := reschedTime.Sub(now)
-				require.Equal(t, tc.maxDisconnect, difference, "expected durations to be equal")
+				must.Eq(t, tc.maxDisconnect, difference, must.Sprint("expected durations to be equal"))
 			}
 
 		})
@@ -354,10 +354,10 @@ func TestAllocation_DisconnectTimeout(t *testing.T) {
 			reschedTime := a.DisconnectTimeout(now)
 
 			if tc.maxDisconnect == nil {
-				require.Equal(t, now, reschedTime, "expected to be now")
+				must.Equal(t, now, reschedTime, must.Sprint("expected to be now"))
 			} else {
 				difference := reschedTime.Sub(now)
-				require.Equal(t, *tc.maxDisconnect, difference, "expected durations to be equal")
+				must.Eq(t, *tc.maxDisconnect, difference, must.Sprint("expected durations to be equal"))
 			}
 		})
 	}
@@ -454,7 +454,7 @@ func TestAllocation_Expired(t *testing.T) {
 
 			if tc.maxDisconnect != "" {
 				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
-				require.NoError(t, err)
+				must.NoError(t, err)
 				alloc.Job.TaskGroups[0].MaxClientDisconnect = &maxDisconnect
 			}
 
@@ -477,7 +477,7 @@ func TestAllocation_Expired(t *testing.T) {
 				Time:  time.Now(),
 			}}
 
-			require.NoError(t, err)
+			must.NoError(t, err)
 			now := time.Now().UTC()
 			if tc.mixedUTC {
 				now = time.Now()
@@ -497,7 +497,7 @@ func TestAllocation_Expired(t *testing.T) {
 			ellapsedDuration := time.Duration(tc.ellapsed) * time.Second
 			now = now.Add(ellapsedDuration)
 
-			require.Equal(t, tc.expected, alloc.Expired(now))
+			must.Eq(t, tc.expected, alloc.Expired(now))
 		})
 	}
 }
@@ -591,7 +591,7 @@ func TestAllocation_Expired_Disconnected(t *testing.T) {
 
 			if tc.maxDisconnect != "" {
 				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
-				require.NoError(t, err)
+				must.NoError(t, err)
 				alloc.Job.TaskGroups[0].Disconnect = &DisconnectStrategy{
 					LostAfter: maxDisconnect,
 				}
@@ -616,7 +616,7 @@ func TestAllocation_Expired_Disconnected(t *testing.T) {
 				Time:  time.Now(),
 			}}
 
-			require.NoError(t, err)
+			must.NoError(t, err)
 			now := time.Now().UTC()
 			if tc.mixedUTC {
 				now = time.Now()
@@ -636,7 +636,7 @@ func TestAllocation_Expired_Disconnected(t *testing.T) {
 			ellapsedDuration := time.Duration(tc.ellapsed) * time.Second
 			now = now.Add(ellapsedDuration)
 
-			require.Equal(t, tc.expected, alloc.Expired(now))
+			must.Eq(t, tc.expected, alloc.Expired(now))
 		})
 	}
 }

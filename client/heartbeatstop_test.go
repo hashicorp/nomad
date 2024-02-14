@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestHeartbeatStop_allocHook(t *testing.T) {
@@ -107,12 +106,12 @@ func TestHeartbeatStop_allocHook_Disconnect(t *testing.T) {
 
 	// alloc added to heartbeatStop.allocs
 	err := client.addAlloc(alloc, "")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	testutil.WaitForResult(func() (bool, error) {
 		_, ok := client.heartbeatStop.allocInterval[alloc.ID]
 		return ok, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	// the tiny lease causes the watch loop to destroy it
@@ -120,8 +119,8 @@ func TestHeartbeatStop_allocHook_Disconnect(t *testing.T) {
 		_, ok := client.heartbeatStop.allocInterval[alloc.ID]
 		return !ok, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
-	require.Empty(t, client.allocs[alloc.ID])
+	must.Nil(t, client.allocs[alloc.ID])
 }

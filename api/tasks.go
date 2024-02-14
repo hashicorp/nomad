@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 type ReconcileOption = string
@@ -145,21 +147,12 @@ type DisconnectStrategy struct {
 }
 
 func (ds *DisconnectStrategy) Canonicalize() {
-	cds := NewDefaultDisconnectStrategy()
-	if ds.LostAfter == nil {
-		ds.LostAfter = cds.LostAfter
-	}
-
-	if ds.StopOnClientAfter == nil {
-		ds.StopOnClientAfter = cds.StopOnClientAfter
-	}
-
 	if ds.Replace == nil {
-		ds.Replace = cds.Replace
+		ds.Replace = pointer.Of(true)
 	}
 
 	if ds.Reconcile == nil {
-		ds.Reconcile = cds.Reconcile
+		ds.Reconcile = pointer.Of(ReconcileOptionBestScore)
 	}
 }
 

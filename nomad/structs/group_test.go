@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJobConfig_Validate_LostAfter_Disconnect(t *testing.T) {
@@ -28,9 +27,9 @@ func TestJobConfig_Validate_LostAfter_Disconnect(t *testing.T) {
 	must.Error(t, err)
 	err = errors.Unwrap(err)
 
-	require.Contains(t, err.Error(), errNegativeLostAfter.Error())
-	require.Contains(t, err.Error(), errNegativeStopAfter.Error())
-	require.Contains(t, err.Error(), errStopAndLost.Error())
+	must.StrContains(t, err.Error(), errNegativeLostAfter.Error())
+	must.StrContains(t, err.Error(), errNegativeStopAfter.Error())
+	must.StrContains(t, err.Error(), errStopAndLost.Error())
 
 	// Modify the job with a valid Disconnect.LostAfter value
 	timeout = 1 * time.Minute
@@ -39,7 +38,7 @@ func TestJobConfig_Validate_LostAfter_Disconnect(t *testing.T) {
 		StopOnClientAfter: nil,
 	}
 	err = job.Validate()
-	require.NoError(t, err)
+	must.NoError(t, err)
 }
 
 func TestDisconnectStategy_Validate(t *testing.T) {
@@ -129,8 +128,8 @@ func TestJobConfig_Validate_StopAferClient_Disconnect(t *testing.T) {
 	}
 
 	err := job.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), errStopAfterNonService.Error())
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), errStopAfterNonService.Error())
 
 	// Modify the job to a batch job with an invalid Disconnect.StopOnClientAfter value
 	job.Type = JobTypeBatch
@@ -140,8 +139,8 @@ func TestJobConfig_Validate_StopAferClient_Disconnect(t *testing.T) {
 	}
 
 	err = job.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), errNegativeStopAfter.Error())
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), errNegativeStopAfter.Error())
 
 	// Modify the job to a batch job with a valid Disconnect.StopOnClientAfter value
 	job.Type = JobTypeBatch
@@ -149,7 +148,7 @@ func TestJobConfig_Validate_StopAferClient_Disconnect(t *testing.T) {
 		StopOnClientAfter: &stop,
 	}
 	err = job.Validate()
-	require.NoError(t, err)
+	must.NoError(t, err)
 }
 
 // Test using stop_after_client_disconnect, remove after its deprecated  in favor
@@ -163,8 +162,8 @@ func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 	job.TaskGroups[0].StopAfterClientDisconnect = &stop
 
 	err := job.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "stop_after_client_disconnect can only be set in batch and service jobs")
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "stop_after_client_disconnect can only be set in batch and service jobs")
 
 	// Modify the job to a batch job with an invalid stop_after_client_disconnect value
 	job.Type = JobTypeBatch
@@ -172,14 +171,14 @@ func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 	job.TaskGroups[0].StopAfterClientDisconnect = &invalid
 
 	err = job.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "stop_after_client_disconnect must be a positive value")
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "stop_after_client_disconnect must be a positive value")
 
 	// Modify the job to a batch job with a valid stop_after_client_disconnect value
 	job.Type = JobTypeBatch
 	job.TaskGroups[0].StopAfterClientDisconnect = &stop
 	err = job.Validate()
-	require.NoError(t, err)
+	must.NoError(t, err)
 }
 
 func TestJob_Validate_DisconnectRescheduleLost(t *testing.T) {
@@ -227,15 +226,15 @@ func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
 	job.TaskGroups[0].StopAfterClientDisconnect = &timeout
 
 	err := job.Validate()
-	require.Error(t, errors.Unwrap(err))
+	must.Error(t, errors.Unwrap(err))
 	fmt.Println("what?", err.Error(), "what?")
-	require.Contains(t, err.Error(), "max_client_disconnect cannot be negative")
-	require.Contains(t, err.Error(), "Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect")
+	must.StrContains(t, err.Error(), "max_client_disconnect cannot be negative")
+	must.StrContains(t, err.Error(), "Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect")
 
 	// Modify the job with a valid max_client_disconnect value
 	timeout = 1 * time.Minute
 	job.TaskGroups[0].MaxClientDisconnect = &timeout
 	job.TaskGroups[0].StopAfterClientDisconnect = nil
 	err = job.Validate()
-	require.NoError(t, err)
+	must.NoError(t, err)
 }

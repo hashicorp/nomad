@@ -329,7 +329,7 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 			// Create a node
 			node := mock.Node()
 			state := s1.fsm.State()
-			require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+			must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 			alloc := mock.Alloc()
 			alloc.NodeID = node.ID
@@ -402,7 +402,7 @@ func TestHeartbeat_InvalidateHeartbeatDisconnectedClient(t *testing.T) {
 			// Create a node
 			node := mock.Node()
 			state := s1.fsm.State()
-			require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+			must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 			alloc := mock.Alloc()
 			alloc.NodeID = node.ID
@@ -413,13 +413,13 @@ func TestHeartbeat_InvalidateHeartbeatDisconnectedClient(t *testing.T) {
 				Value: structs.AllocClientStatusUnknown,
 				Time:  tc.now,
 			}}
-			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
 
 			// Trigger status update
 			s1.invalidateHeartbeat(node.ID)
 			out, err := state.NodeByID(nil, node.ID)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedNodeStatus, out.Status)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedNodeStatus, out.Status)
 		})
 	}
 }
