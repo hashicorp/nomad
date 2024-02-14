@@ -113,6 +113,6 @@ func (ds *DisconnectStrategy) Canonicalize() {
 	}
 
 	if ds.Reconcile == "" {
-		ds.Reconcile = cds.Reconcile
+		ds.Reconcile = ReconcileOptionBestScore
 	}
 }
