@@ -65,6 +65,16 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
    certificate used for communication between Connect sidecar proxies and Consul
    agents. Will default to the `CONSUL_GRPC_CACERT` environment variable if set.
 
+   <Warning>
+
+    Consul does not support incoming TLS verification of Envoy
+    sidecars. You should set `tls.grpc.verify_incoming = false` in your
+    Consul configuration when using Connect. See
+    [Consul/#13088](https://github.com/hashicorp/consul/issues/13088) for
+    more details.
+
+  </Warning>
+
 - `ca_file` `(string: "")` - Specifies an optional path to the CA certificate
   used for Consul communication. This defaults to the system bundle if
   unspecified. Will default to the `CONSUL_CACERT` environment variable if set.
