@@ -531,22 +531,63 @@ func TestConsulFingerprint_dns(t *testing.T) {
 	t.Run("get first IP", func(t *testing.T) {
 		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
 			"DebugConfig": {
-				"DNSAddrs": []string{"tcp://192.168.1.170:8601", "udp://192.168.1.171:8601"},
+				"DNSAddrs": []any{"tcp://192.168.1.170:8601", "udp://192.168.1.171:8601"},
 			},
 		})
 		must.True(t, ok)
 		must.Eq(t, "192.168.1.170", addr)
+
+		addr, ok = cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
+			"DebugConfig": {"DNSAddrs": []any{"tcp://[2001:0db8:85a3::8a2e:0370:7334]:8601"}},
+		})
+		must.True(t, ok)
+		must.Eq(t, "2001:db8:85a3::8a2e:370:7334", addr)
+	})
+
+	t.Run("loopback address", func(t *testing.T) {
+		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
+			"DebugConfig": {
+				"DNSAddrs": []any{"tcp://127.0.0.1:8601", "udp://127.0.0.1:8601"},
+			},
+		})
+		must.True(t, ok)
+		must.Eq(t, "", addr)
+
+		addr, ok = cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
+			"DebugConfig": {"DNSAddrs": []any{"tcp://[::1]:8601"}},
+		})
+		must.True(t, ok)
+		must.Eq(t, "", addr)
+
 	})
 
 	t.Run("fallback to private or public IP", func(t *testing.T) {
 		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
 			"DebugConfig": {
-				"DNSAddrs": []string{"tcp://0.0.0.0:8601", "udp://0.0.0.0:8601"},
+				"DNSAddrs": []any{"tcp://0.0.0.0:8601", "udp://0.0.0.0:8601"},
 			},
 		})
 		must.True(t, ok)
 		must.NotEq(t, "", addr)
 	})
+
+	t.Run("malformed DNSAddrs", func(t *testing.T) {
+		addr, ok := cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
+			"DebugConfig": {"DNSAddrs": []int{0}}})
+		must.False(t, ok)
+		must.Eq(t, "", addr)
+
+		addr, ok = cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
+			"DebugConfig": {"DNSAddrs": []any{0}}})
+		must.False(t, ok)
+		must.Eq(t, "", addr)
+
+		addr, ok = cfs.dnsAddr(testlog.HCLogger(t))(agentconsul.Self{
+			"DebugConfig": {"DNSAddrs": []any{"tcp://XXXXX"}}})
+		must.False(t, ok)
+		must.Eq(t, "", addr)
+	})
+
 }
 
 func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {

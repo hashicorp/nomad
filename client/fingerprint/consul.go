@@ -316,27 +316,39 @@ func (cfs *consulFingerprintState) dnsAddr(logger hclog.Logger) func(info agentc
 
 		var listenOnEveryIP bool
 
-		dnsAddrs, ok := info["DebugConfig"]["DNSAddrs"].([]string)
-		if ok {
-			for _, dnsAddr := range dnsAddrs {
-				dnsAddr = strings.TrimPrefix(dnsAddr, "tcp://")
-				dnsAddr = strings.TrimPrefix(dnsAddr, "udp://")
+		dnsAddrs, ok := info["DebugConfig"]["DNSAddrs"].([]any)
+		if !ok {
+			logger.Warn("Consul returned invalid addresses.dns config",
+				"value", info["DebugConfig"]["DNSAddrs"])
+			return "", false
+		}
 
-				parsed, err := netip.ParseAddrPort(dnsAddr)
-				if err != nil || !parsed.IsValid() {
-					logger.Warn("could not parse Consul addresses.dns config", "value", dnsAddr)
-					return "", false // response is somehow malformed
-				}
+		for _, d := range dnsAddrs {
+			dnsAddr, ok := d.(string)
+			if !ok {
+				logger.Warn("Consul returned invalid addresses.dns config",
+					"value", info["DebugConfig"]["DNSAddrs"])
+				return "", false
 
-				// only addresses we can use for an iptables rule from a
-				// container to the host will be fingerprinted
-				if parsed.Addr().IsUnspecified() {
-					listenOnEveryIP = true
-					break
-				}
-				if !parsed.Addr().IsLoopback() {
-					return parsed.Addr().String(), true
-				}
+			}
+			dnsAddr = strings.TrimPrefix(dnsAddr, "tcp://")
+			dnsAddr = strings.TrimPrefix(dnsAddr, "udp://")
+
+			parsed, err := netip.ParseAddrPort(dnsAddr)
+			if err != nil {
+				logger.Warn("could not parse Consul addresses.dns config",
+					"value", dnsAddr, "error", err)
+				return "", false // response is somehow malformed
+			}
+
+			// only addresses we can use for an iptables rule from a
+			// container to the host will be fingerprinted
+			if parsed.Addr().IsUnspecified() {
+				listenOnEveryIP = true
+				break
+			}
+			if !parsed.Addr().IsLoopback() {
+				return parsed.Addr().String(), true
 			}
 		}
 
