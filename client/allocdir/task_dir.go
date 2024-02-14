@@ -122,7 +122,7 @@ func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 		empty, _ := pathEmpty(t.SharedTaskDir)
 		if !pathExists(t.SharedTaskDir) || empty {
 			if err := linkDir(t.SharedAllocDir, t.SharedTaskDir); err != nil {
-				return fmt.Errorf("Failed to mount shared directory for task: %v", err)
+				return fmt.Errorf("Failed to mount shared directory for task: %w", err)
 			}
 		}
 	}
@@ -180,7 +180,7 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 		// Embedding a single file
 		if !s.IsDir() {
 			if err := createDir(t.Dir, filepath.Dir(dest)); err != nil {
-				return fmt.Errorf("Couldn't create destination directory %v: %v", dest, err)
+				return fmt.Errorf("Couldn't create destination directory %v: %w", dest, err)
 			}
 
 			// Copy the file.
@@ -197,19 +197,19 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 		destDir := filepath.Join(t.Dir, dest)
 
 		if err := createDir(t.Dir, dest); err != nil {
-			return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
+			return fmt.Errorf("Couldn't create destination directory %v: %w", destDir, err)
 		}
 
 		// Enumerate the files in source.
 		dirEntries, err := os.ReadDir(source)
 		if err != nil {
-			return fmt.Errorf("Couldn't read directory %v: %v", source, err)
+			return fmt.Errorf("Couldn't read directory %v: %w", source, err)
 		}
 
 		for _, fileEntry := range dirEntries {
 			entry, err := fileEntry.Info()
 			if err != nil {
-				return fmt.Errorf("Couldn't read the file information %v: %v", entry, err)
+				return fmt.Errorf("Couldn't read the file information %v: %w", entry, err)
 			}
 			hostEntry := filepath.Join(source, entry.Name())
 			taskEntry := filepath.Join(destDir, filepath.Base(hostEntry))
@@ -232,13 +232,13 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 
 				link, err := os.Readlink(hostEntry)
 				if err != nil {
-					return fmt.Errorf("Couldn't resolve symlink for %v: %v", source, err)
+					return fmt.Errorf("Couldn't resolve symlink for %v: %w", source, err)
 				}
 
 				if err := os.Symlink(link, taskEntry); err != nil {
 					// Symlinking twice
 					if err.(*os.LinkError).Err.Error() != "file exists" {
-						return fmt.Errorf("Couldn't create symlink: %v", err)
+						return fmt.Errorf("Couldn't create symlink: %w", err)
 					}
 				}
 				continue
@@ -276,14 +276,14 @@ func (t *TaskDir) Unmount() error {
 	if pathExists(t.SecretsDir) {
 		if err := removeSecretDir(t.SecretsDir); err != nil {
 			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("failed to remove the secret dir %q: %v", t.SecretsDir, err))
+				fmt.Errorf("failed to remove the secret dir %q: %w", t.SecretsDir, err))
 		}
 	}
 
 	if pathExists(t.PrivateDir) {
 		if err := removeSecretDir(t.PrivateDir); err != nil {
 			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("failed to remove the private dir %q: %v", t.PrivateDir, err))
+				fmt.Errorf("failed to remove the private dir %q: %w", t.PrivateDir, err))
 		}
 	}
 

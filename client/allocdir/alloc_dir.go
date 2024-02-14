@@ -208,7 +208,7 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 		}
 		hdr, err := tar.FileInfoHeader(fileInfo, link)
 		if err != nil {
-			return fmt.Errorf("error creating file header: %v", err)
+			return fmt.Errorf("error creating file header: %w", err)
 		}
 		hdr.Name = relPath
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -246,7 +246,7 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 				// anyway.
 				d.logger.Warn("snapshotting failed and unable to write error marker", "error", writeErr)
 			}
-			return fmt.Errorf("failed to snapshot %s: %v", path, err)
+			return fmt.Errorf("failed to snapshot %s: %w", path, err)
 		}
 	}
 
@@ -271,7 +271,7 @@ func (d *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 	if fileInfo, err := os.Stat(otherDataDir); fileInfo != nil && err == nil {
 		os.Remove(dataDir) // remove an empty data dir if it exists
 		if err := os.Rename(otherDataDir, dataDir); err != nil {
-			return fmt.Errorf("error moving data dir: %v", err)
+			return fmt.Errorf("error moving data dir: %w", err)
 		}
 	}
 
@@ -285,12 +285,12 @@ func (d *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 			// TaskDirs haven't been built yet, so create it
 			newTaskDir := filepath.Join(d.AllocDir, task.Name)
 			if err := os.MkdirAll(newTaskDir, 0777); err != nil {
-				return fmt.Errorf("error creating task %q dir: %v", task.Name, err)
+				return fmt.Errorf("error creating task %q dir: %w", task.Name, err)
 			}
 			localDir := filepath.Join(newTaskDir, TaskLocal)
 			os.Remove(localDir) // remove an empty local dir if it exists
 			if err := os.Rename(otherTaskLocal, localDir); err != nil {
-				return fmt.Errorf("error moving task %q local dir: %v", task.Name, err)
+				return fmt.Errorf("error moving task %q local dir: %w", task.Name, err)
 			}
 		}
 	}
@@ -307,7 +307,7 @@ func (d *AllocDir) Destroy() error {
 	}
 
 	if err := os.RemoveAll(d.AllocDir); err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to remove alloc dir %q: %v", d.AllocDir, err))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to remove alloc dir %q: %w", d.AllocDir, err))
 	}
 
 	// Unset built since the alloc dir has been destroyed.
@@ -336,7 +336,7 @@ func (d *AllocDir) UnmountAll() error {
 func (d *AllocDir) Build() error {
 	// Make the alloc directory, owned by the nomad process.
 	if err := os.MkdirAll(d.AllocDir, 0755); err != nil {
-		return fmt.Errorf("Failed to make the alloc directory %v: %v", d.AllocDir, err)
+		return fmt.Errorf("Failed to make the alloc directory %v: %w", d.AllocDir, err)
 	}
 
 	// Make the shared directory and make it available to all user/groups.
@@ -370,7 +370,7 @@ func (d *AllocDir) Build() error {
 // List returns the list of files at a path relative to the alloc dir
 func (d *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
 	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
+		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
 	}
@@ -400,7 +400,7 @@ func (d *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
 // Stat returns information about the file at a path relative to the alloc dir
 func (d *AllocDir) Stat(path string) (*cstructs.AllocFileInfo, error) {
 	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
+		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
 	}
@@ -450,7 +450,7 @@ func detectContentType(fileInfo os.FileInfo, path string) string {
 // ReadAt returns a reader for a file at the path relative to the alloc dir
 func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
+		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
 	}
@@ -476,7 +476,7 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 		return nil, err
 	}
 	if _, err := f.Seek(offset, 0); err != nil {
-		return nil, fmt.Errorf("can't seek to offset %q: %v", offset, err)
+		return nil, fmt.Errorf("can't seek to offset %q: %w", offset, err)
 	}
 	return f, nil
 }
@@ -485,7 +485,7 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 // directory exists. The block can be cancelled with the passed context.
 func (d *AllocDir) BlockUntilExists(ctx context.Context, path string) (chan error, error) {
 	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
+		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
 	}
@@ -511,7 +511,7 @@ func (d *AllocDir) BlockUntilExists(ctx context.Context, path string) (chan erro
 // used to clean up the watch.
 func (d *AllocDir) ChangeEvents(ctx context.Context, path string, curOffset int64) (*watch.FileChanges, error) {
 	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
+		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
 	}
@@ -539,23 +539,23 @@ func fileCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 	// Do a simple copy.
 	srcFile, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("Couldn't open src file %v: %v", src, err)
+		return fmt.Errorf("Couldn't open src file %v: %w", src, err)
 	}
 	defer srcFile.Close()
 
 	dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE, perm)
 	if err != nil {
-		return fmt.Errorf("Couldn't create destination file %v: %v", dst, err)
+		return fmt.Errorf("Couldn't create destination file %v: %w", dst, err)
 	}
 	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("Couldn't copy %q to %q: %v", src, dst, err)
+		return fmt.Errorf("Couldn't copy %q to %q: %w", src, dst, err)
 	}
 
 	if uid != idUnsupported && gid != idUnsupported {
 		if err := dstFile.Chown(uid, gid); err != nil {
-			return fmt.Errorf("Couldn't copy %q to %q: %v", src, dst, err)
+			return fmt.Errorf("Couldn't copy %q to %q: %w", src, dst, err)
 		}
 	}
 
