@@ -60,15 +60,16 @@ func (j *Jobs) Statuses(
 		}
 	}
 
-	// Check for list-job permissions
+	// Check for read-job permissions, since this endpoint includes alloc info
+	// and possibly a deployment ID, and those APIs require read-job.
 	aclObj, err := j.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs) {
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
-	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
 
 	// compare between state run() unblocks to see if the RPC should unblock.
 	// i.e. if new job(s) shift the page, or when job(s) go away.
