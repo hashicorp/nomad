@@ -3673,7 +3673,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 	systemStructsJob := ApiJobToStructJob(systemAPIJob)
 	require.Equal(t, expectedSystemJob, systemStructsJob)
-
 }
 
 func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
