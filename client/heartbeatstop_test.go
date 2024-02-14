@@ -68,7 +68,7 @@ func TestHeartbeatStop_allocHook(t *testing.T) {
 		must.NoError(t, err)
 	})
 
-	must.Empty(t, client.allocs[alloc.ID])
+	must.Nil(t, client.allocs[alloc.ID])
 }
 
 // Test using stop_after_client_disconnect, remove after its deprecated  in favor
