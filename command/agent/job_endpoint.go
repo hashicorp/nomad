@@ -1166,7 +1166,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 
 	if taskGroup.Disconnect != nil {
 		tg.Disconnect = &structs.DisconnectStrategy{
-			StopAfterOnClient: taskGroup.Disconnect.StopAfterOnClient,
+			StopOnClientAfter: taskGroup.Disconnect.StopOnClientAfter,
 			Replace:           taskGroup.Disconnect.Replace,
 		}
 

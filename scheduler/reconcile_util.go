@@ -554,7 +554,7 @@ func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
 }
 
 // delayByStopAfterClientDisconnect returns a delay for any lost allocation that's got a
-// disconnect.stop_after_on_client configured
+// disconnect.stop_on_client_after configured
 func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedRescheduleInfo) {
 	now := time.Now().UTC()
 	for _, a := range a {

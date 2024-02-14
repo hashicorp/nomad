@@ -131,7 +131,7 @@ type DisconnectStrategy struct {
 	LostAfter *time.Duration `mapstructure:"lost_after" hcl:"lost_after,optional"`
 
 	// Defines for how long a disconnected client will keep its allocations running.
-	StopAfterOnClient *time.Duration `mapstructure:"stop_after_on_client" hcl:"stop_after_on_client,optional"`
+	StopOnClientAfter *time.Duration `mapstructure:"stop_on_client_after" hcl:"stop_on_client_after,optional"`
 
 	// A boolean field used to define if the allocations should be replaced while
 	// it's considered disconnected.
@@ -150,8 +150,8 @@ func (ds *DisconnectStrategy) Canonicalize() {
 		ds.LostAfter = cds.LostAfter
 	}
 
-	if ds.StopAfterOnClient == nil {
-		ds.StopAfterOnClient = cds.StopAfterOnClient
+	if ds.StopOnClientAfter == nil {
+		ds.StopOnClientAfter = cds.StopOnClientAfter
 	}
 
 	if ds.Replace == nil {
@@ -520,7 +520,7 @@ type TaskGroup struct {
 	Meta             map[string]string         `hcl:"meta,block"`
 	Services         []*Service                `hcl:"service,block"`
 	ShutdownDelay    *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
-	// Deprecated: StopAfterClientDisconnect is deprecated in Nomad 1.8. Use Disconnect.StopAfterOnClient instead.
+	// Deprecated: StopAfterClientDisconnect is deprecated in Nomad 1.8. Use Disconnect.StopOnClientAfter instead.
 	StopAfterClientDisconnect *time.Duration `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
 	// To be deprecated after 1.8.0 infavour of Disconnect.LostAfter
 	MaxClientDisconnect *time.Duration `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`

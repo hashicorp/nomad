@@ -20,7 +20,7 @@ func TestJobConfig_Validate_LostAfter_Disconnect(t *testing.T) {
 	timeout := -1 * time.Minute
 	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
 		LostAfter:         timeout,
-		StopAfterOnClient: &timeout,
+		StopOnClientAfter: &timeout,
 	}
 
 	err := job.Validate()
@@ -35,7 +35,7 @@ func TestJobConfig_Validate_LostAfter_Disconnect(t *testing.T) {
 	timeout = 1 * time.Minute
 	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
 		LostAfter:         timeout,
-		StopAfterOnClient: nil,
+		StopOnClientAfter: nil,
 	}
 	err = job.Validate()
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestDisconnectStategy_Validate(t *testing.T) {
 		{
 			name: "negative-stop-after",
 			strategy: &DisconnectStrategy{
-				StopAfterOnClient: pointer.Of(-1 * time.Second),
+				StopOnClientAfter: pointer.Of(-1 * time.Second),
 			},
 			jobType: JobTypeService,
 			err:     errNegativeStopAfter,
@@ -61,7 +61,7 @@ func TestDisconnectStategy_Validate(t *testing.T) {
 		{
 			name: "stop-after-on-system",
 			strategy: &DisconnectStrategy{
-				StopAfterOnClient: pointer.Of(1 * time.Second),
+				StopOnClientAfter: pointer.Of(1 * time.Second),
 			},
 			jobType: JobTypeSystem,
 			err:     errStopAfterNonService,
@@ -78,7 +78,7 @@ func TestDisconnectStategy_Validate(t *testing.T) {
 			name: "lost-after-and-stop-after-enabled",
 			strategy: &DisconnectStrategy{
 				LostAfter:         1 * time.Second,
-				StopAfterOnClient: pointer.Of(1 * time.Second),
+				StopOnClientAfter: pointer.Of(1 * time.Second),
 			},
 			jobType: JobTypeService,
 			err:     errStopAndLost,
@@ -98,7 +98,7 @@ func TestDisconnectStategy_Validate(t *testing.T) {
 				LostAfter:         1 * time.Second,
 				Reconcile:         ReconcileOptionKeepOriginal,
 				Replace:           pointer.Of(true),
-				StopAfterOnClient: nil,
+				StopOnClientAfter: nil,
 			},
 			jobType: JobTypeService,
 			err:     nil,
@@ -120,40 +120,40 @@ func TestDisconnectStategy_Validate(t *testing.T) {
 
 func TestJobConfig_Validate_StopAferClient_Disconnect(t *testing.T) {
 	ci.Parallel(t)
-	// Setup a system Job with Disconnect.StopAfterOnClient set, which is invalid
+	// Setup a system Job with Disconnect.StopOnClientAfter set, which is invalid
 	job := testJob()
 	job.Type = JobTypeSystem
 	stop := 1 * time.Minute
 	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
-		StopAfterOnClient: &stop,
+		StopOnClientAfter: &stop,
 	}
 
 	err := job.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), errStopAfterNonService.Error())
 
-	// Modify the job to a batch job with an invalid Disconnect.StopAfterOnClient value
+	// Modify the job to a batch job with an invalid Disconnect.StopOnClientAfter value
 	job.Type = JobTypeBatch
 	invalid := -1 * time.Minute
 	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
-		StopAfterOnClient: &invalid,
+		StopOnClientAfter: &invalid,
 	}
 
 	err = job.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), errNegativeStopAfter.Error())
 
-	// Modify the job to a batch job with a valid Disconnect.StopAfterOnClient value
+	// Modify the job to a batch job with a valid Disconnect.StopOnClientAfter value
 	job.Type = JobTypeBatch
 	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
-		StopAfterOnClient: &stop,
+		StopOnClientAfter: &stop,
 	}
 	err = job.Validate()
 	require.NoError(t, err)
 }
 
 // Test using stop_after_client_disconnect, remove after its deprecated  in favor
-// of Disconnect.StopAfterOnClient introduced in 1.8.0.
+// of Disconnect.StopOnClientAfter introduced in 1.8.0.
 func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 	ci.Parallel(t)
 	// Setup a system Job with stop_after_client_disconnect set, which is invalid

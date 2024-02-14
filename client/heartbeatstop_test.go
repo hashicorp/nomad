@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,7 +38,7 @@ func TestHeartbeatStop_allocHook(t *testing.T) {
 				{
 					Name: "foo",
 					Disconnect: &structs.DisconnectStrategy{
-						StopAfterOnClient: &d,
+						StopOnClientAfter: &d,
 					},
 				},
 			},
@@ -71,7 +72,7 @@ func TestHeartbeatStop_allocHook(t *testing.T) {
 }
 
 // Test using stop_after_client_disconnect, remove after its deprecated  in favor
-// of Disconnect.StopAfterOnClient introduced in 1.8.0.
+// of Disconnect.StopOnClientAfter introduced in 1.8.0.
 func TestHeartbeatStop_allocHook_Disconnect(t *testing.T) {
 	ci.Parallel(t)
 

@@ -48,7 +48,7 @@ type DisconnectStrategy struct {
 	// Defines for how long a disconnected client will keep its allocations running.
 	// This option has a different behavior for nil, the default, and time.Duration(0),
 	// and needs to be intentionally set/unset.
-	StopAfterOnClient *time.Duration `mapstructure:"stop_after_client" hcl:"stop_after_client, optional"`
+	StopOnClientAfter *time.Duration `mapstructure:"stop_on_client_after" hcl:"stop_on_client_after, optional"`
 
 	// A boolean field used to define if the allocations should be replaced while
 	// its  considered disconnected.
@@ -67,8 +67,8 @@ type DisconnectStrategy struct {
 func (ds *DisconnectStrategy) Validate(job *Job) error {
 	var mErr *multierror.Error
 
-	if ds.StopAfterOnClient != nil {
-		if *ds.StopAfterOnClient < 0 {
+	if ds.StopOnClientAfter != nil {
+		if *ds.StopOnClientAfter < 0 {
 			mErr = multierror.Append(mErr, errNegativeStopAfter)
 		}
 
@@ -81,7 +81,7 @@ func (ds *DisconnectStrategy) Validate(job *Job) error {
 		mErr = multierror.Append(mErr, errNegativeLostAfter)
 	}
 
-	if ds.StopAfterOnClient != nil && ds.LostAfter != 0 {
+	if ds.StopOnClientAfter != nil && ds.LostAfter != 0 {
 		return multierror.Append(mErr, errStopAndLost)
 	}
 

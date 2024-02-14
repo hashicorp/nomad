@@ -223,7 +223,7 @@ func TestParse(t *testing.T) {
 							},
 						},
 						Disconnect: &api.DisconnectStrategy{
-							StopAfterOnClient: timeToPtr(120 * time.Second),
+							StopOnClientAfter: timeToPtr(120 * time.Second),
 							LostAfter:         timeToPtr(120 * time.Hour),
 							Replace:           boolToPtr(true),
 							Reconcile:         stringToPtr("best_score"),

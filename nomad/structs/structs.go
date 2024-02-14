@@ -6658,7 +6658,7 @@ type TaskGroup struct {
 
 	// StopAfterClientDisconnect, if set, configures the client to stop the task group
 	// after this duration since the last known good heartbeat
-	// To be deprecated after 1.8.0 infavor of Disconnect.StopAfterOnClient
+	// To be deprecated after 1.8.0 infavor of Disconnect.StopOnClientAfter
 	StopAfterClientDisconnect *time.Duration
 
 	// MaxClientDisconnect, if set, configures the client to allow placed
@@ -6759,8 +6759,8 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 			tg.Disconnect.LostAfter = *tg.MaxClientDisconnect
 		}
 
-		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopAfterOnClient == nil {
-			tg.Disconnect.StopAfterOnClient = tg.StopAfterClientDisconnect
+		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopOnClientAfter == nil {
+			tg.Disconnect.StopOnClientAfter = tg.StopAfterClientDisconnect
 		}
 
 		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace == nil {
@@ -6862,8 +6862,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			return multierror.Append(mErr, errors.New("using both lost_after and max_client_disconnect is not allowed"))
 		}
 
-		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopAfterOnClient != nil {
-			return multierror.Append(mErr, errors.New("using both stop_after_client_disconnect and stop_after_on_client is not allowed"))
+		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopOnClientAfter != nil {
+			return multierror.Append(mErr, errors.New("using both stop_after_client_disconnect and stop_on_client_after is not allowed"))
 		}
 
 		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace != nil {
@@ -7411,15 +7411,15 @@ func (tg *TaskGroup) GetDisconnectLostTimeout() time.Duration {
 }
 
 // GetDisconnectStopTimeout is a helper meant to simplify the future depracation of
-// StopAfterClientDisconnect in favor of Disconnect.StopAfterOnClient
+// StopAfterClientDisconnect in favor of Disconnect.StopOnClientAfter
 // introduced in 1.8.0.
 func (tg *TaskGroup) GetDisconnectStopTimeout() *time.Duration {
 	if tg.StopAfterClientDisconnect != nil {
 		return tg.StopAfterClientDisconnect
 	}
 
-	if tg.Disconnect != nil && tg.Disconnect.StopAfterOnClient != nil {
-		return tg.Disconnect.StopAfterOnClient
+	if tg.Disconnect != nil && tg.Disconnect.StopOnClientAfter != nil {
+		return tg.Disconnect.StopOnClientAfter
 	}
 
 	return nil

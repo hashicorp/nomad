@@ -148,7 +148,7 @@ func Test_Allocation_ServiceProviderNamespace(t *testing.T) {
 }
 
 // Test using stop_after_client_disconnect, remove after its deprecated  in favor
-// of Disconnect.StopAfterOnClient introduced in 1.8.0.
+// of Disconnect.StopOnClientAfter introduced in 1.8.0.
 func TestAllocation_WaitClientStop(t *testing.T) {
 	ci.Parallel(t)
 	type testCase struct {
@@ -253,7 +253,7 @@ func TestAllocation_WaitClientStop_Disconnect(t *testing.T) {
 			}
 
 			j.TaskGroups[0].Disconnect = &DisconnectStrategy{
-				StopAfterOnClient: &tc.stop,
+				StopOnClientAfter: &tc.stop,
 			}
 
 			a.TaskGroup = j.TaskGroups[0].Name

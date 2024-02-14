@@ -3649,7 +3649,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 		rescheduled bool
 	}{
 		// Test using stop_after_client_disconnect, remove after its deprecated  in favor
-		// of Disconnect.StopAfterOnClient introduced in 1.8.0.
+		// of Disconnect.StopOnClientAfter introduced in 1.8.0.
 		{
 			rescheduled: true,
 			jobSpec: func() *structs.Job {
@@ -3695,7 +3695,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 				job := mock.Job()
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
-					StopAfterOnClient: nil,
+					StopOnClientAfter: nil,
 				}
 				return job
 			},
@@ -3705,7 +3705,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 				job := mock.Job()
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
-					StopAfterOnClient: pointer.Of(1 * time.Second),
+					StopOnClientAfter: pointer.Of(1 * time.Second),
 				}
 				return job
 			},
@@ -3716,7 +3716,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 				job := mock.Job()
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
-					StopAfterOnClient: pointer.Of(1 * time.Second),
+					StopOnClientAfter: pointer.Of(1 * time.Second),
 				}
 				return job
 			},
@@ -3728,7 +3728,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 				job := mock.Job()
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
-					StopAfterOnClient: pointer.Of(1 * time.Second),
+					StopOnClientAfter: pointer.Of(1 * time.Second),
 				}
 				return job
 			},

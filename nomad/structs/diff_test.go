@@ -2977,7 +2977,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					LostAfter:         1 * time.Second,
 					Replace:           pointer.Of(true),
 					Reconcile:         ReconcileOptionLongestRunning,
-					StopAfterOnClient: pointer.Of(1 * time.Second),
+					StopOnClientAfter: pointer.Of(1 * time.Second),
 				},
 			},
 			New: &TaskGroup{},
@@ -3013,7 +3013,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					LostAfter:         time.Second,
 					Replace:           pointer.Of(true),
 					Reconcile:         ReconcileOptionLongestRunning,
-					StopAfterOnClient: pointer.Of(1 * time.Second),
+					StopOnClientAfter: pointer.Of(1 * time.Second),
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -3047,7 +3047,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					LostAfter:         time.Second,
 					Replace:           pointer.Of(false),
 					Reconcile:         ReconcileOptionLongestRunning,
-					StopAfterOnClient: pointer.Of(1 * time.Second),
+					StopOnClientAfter: pointer.Of(1 * time.Second),
 				},
 			},
 			New: &TaskGroup{
@@ -3055,7 +3055,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					LostAfter:         time.Minute,
 					Replace:           pointer.Of(true),
 					Reconcile:         ReconcileOptionBestScore,
-					StopAfterOnClient: pointer.Of(1 * time.Second),
+					StopOnClientAfter: pointer.Of(1 * time.Second),
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -3090,7 +3090,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					LostAfter:         time.Second,
 					Replace:           pointer.Of(false),
 					Reconcile:         ReconcileOptionLongestRunning,
-					StopAfterOnClient: pointer.Of(1 * time.Second),
+					StopOnClientAfter: pointer.Of(1 * time.Second),
 				},
 			},
 			New: &TaskGroup{
@@ -3098,7 +3098,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					LostAfter:         time.Minute,
 					Replace:           pointer.Of(true),
 					Reconcile:         ReconcileOptionBestScore,
-					StopAfterOnClient: pointer.Of(1 * time.Second),
+					StopOnClientAfter: pointer.Of(1 * time.Second),
 				},
 			},
 			Expected: &TaskGroupDiff{

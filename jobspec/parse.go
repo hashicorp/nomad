@@ -470,7 +470,7 @@ func parseDisconnect(result **api.DisconnectStrategy, list *ast.ObjectList) erro
 		"lost_after",
 		"replace",
 		"reconcile",
-		"stop_after_on_client",
+		"stop_on_client_after",
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
