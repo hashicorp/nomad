@@ -3644,7 +3644,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		jobSpec     func() *structs.Job
+		jobSpecFn     func(*structs.Job)
 		when        time.Time
 		rescheduled bool
 	}{
