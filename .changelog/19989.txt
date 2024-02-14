@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Improve error and warning messages for invalid variable and job template paths/names
+```
