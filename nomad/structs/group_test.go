@@ -5,6 +5,7 @@ package structs
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -104,8 +105,6 @@ func TestDisconnectStategy_Validate(t *testing.T) {
 			err:     nil,
 		},
 	}
-
-
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -228,7 +227,8 @@ func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
 	job.TaskGroups[0].StopAfterClientDisconnect = &timeout
 
 	err := job.Validate()
-	require.Error(t, err)
+	require.Error(t, errors.Unwrap(err))
+	fmt.Println("what?", err.Error(), "what?")
 	require.Contains(t, err.Error(), "max_client_disconnect cannot be negative")
 	require.Contains(t, err.Error(), "Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect")
 

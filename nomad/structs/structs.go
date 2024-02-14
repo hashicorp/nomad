@@ -4596,6 +4596,7 @@ func (j *Job) Validate() error {
 	} else if strings.Contains(j.Name, "\000") {
 		mErr.Errors = append(mErr.Errors, errors.New("Job Name contains a null character"))
 	}
+
 	if j.Namespace == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
 	}
@@ -4669,9 +4670,9 @@ func (j *Job) Validate() error {
 		if tg.StopAfterClientDisconnect != nil && *tg.StopAfterClientDisconnect != 0 {
 			if *tg.StopAfterClientDisconnect > 0 &&
 				!(j.Type == JobTypeBatch || j.Type == JobTypeService) {
-				mErr.Errors = append(mErr.Errors, errors.New("stop_on_client_after_disconnect can only be set in batch and service jobs"))
+				mErr.Errors = append(mErr.Errors, errors.New("stop_after_client_disconnect can only be set in batch and service jobs"))
 			} else if *tg.StopAfterClientDisconnect < 0 {
-				mErr.Errors = append(mErr.Errors, errors.New("stop_on_client_after_disconnect must be a positive value"))
+				mErr.Errors = append(mErr.Errors, errors.New("stop_after_client_disconnect must be a positive value"))
 			}
 		}
 
@@ -6850,7 +6851,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	if tg.MaxClientDisconnect != nil && tg.StopAfterClientDisconnect != nil {
-		mErr = multierror.Append(mErr, errors.New("Task group cannot be configured with both max_client_disconnect and stop_on_client_after_disconnect"))
+		mErr = multierror.Append(mErr, errors.New("Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect"))
 	}
 
 	if tg.MaxClientDisconnect != nil && *tg.MaxClientDisconnect < 0 {
@@ -6863,7 +6864,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 
 		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopOnClientAfter != nil {
-			return multierror.Append(mErr, errors.New("using both stop_on_client_after_disconnect and stop_on_client_after is not allowed"))
+			return multierror.Append(mErr, errors.New("using both stop_after_client_disconnect and stop_on_client_after is not allowed"))
 		}
 
 		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace != nil {
