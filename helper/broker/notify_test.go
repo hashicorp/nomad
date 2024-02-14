@@ -46,12 +46,12 @@ func TestGenericNotifier(t *testing.T) {
 	var notifiedWG sync.WaitGroup
 
 	for i := 0; i < 6; i++ {
-		go func(wg *sync.WaitGroup) {
-			wg.Add(1)
+		notifiedWG.Add(1)
+		go func() {
 			msg := notifier.WaitForChange(3 * time.Second)
 			require.Equal(t, "we got an update and not a timeout", msg)
-			wg.Done()
-		}(&notifiedWG)
+			notifiedWG.Done()
+		}()
 	}
 
 	// Ensure the routines have had time to start before sending the notify
