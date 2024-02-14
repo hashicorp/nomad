@@ -520,7 +520,7 @@ type TaskGroup struct {
 	Meta             map[string]string         `hcl:"meta,block"`
 	Services         []*Service                `hcl:"service,block"`
 	ShutdownDelay    *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
-	// To be deprecated after 1.8.0 infavour of Disconnect.StopAfterOnClient
+	// Deprecated: StopAfterClientDisconnect is deprecated in Nomad 1.8. Use Disconnect.StopAfterOnClient instead.
 	StopAfterClientDisconnect *time.Duration `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
 	// To be deprecated after 1.8.0 infavour of Disconnect.LostAfter
 	MaxClientDisconnect *time.Duration `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
