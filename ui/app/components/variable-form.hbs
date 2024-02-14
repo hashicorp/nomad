@@ -79,6 +79,11 @@
           .
         </F.Error>
       {{/if}}
+      {{#if this.hasInvalidPath}}
+        <F.Error data-test-invalid-path-error>
+          Path must contain only alphanumeric or "-", "_", "~", or "/" characters, and be fewer than 128 characters in length.
+        </F.Error>
+      {{/if}}
       {{#if this.isJobTemplateVariable}}
         <F.HelperText data-test-job-template-hint>
           Use this variable to generate job templates with <Hds::Copy::Snippet @textToCopy="nomad job init -template={{this.jobTemplateName}}" />

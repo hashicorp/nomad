@@ -154,6 +154,11 @@ export default class VariableFormComponent extends Component {
     }
   }
 
+  get hasInvalidPath() {
+    let pathNameRegex = new RegExp('^[a-zA-Z0-9-_~/]{1,128}$');
+    return !pathNameRegex.test(trimPath([this.path]));
+  }
+
   @action
   validateKey(entry, e) {
     const value = e.target.value;
@@ -269,18 +274,27 @@ export default class VariableFormComponent extends Component {
 
       this.removeExitHandler();
       this.router.transitionTo('variables.variable', this.args.model.id);
-    } catch (error) {
-      notifyConflict(this)(error);
+    } catch (e) {
+      notifyConflict(this)(e);
       if (!this.hasConflict) {
+        let errorMessage = e;
+        if (e.errors && e.errors.length > 0) {
+          const nameInvalidError = e.errors.find((err) => err.status === 400);
+          if (nameInvalidError) {
+            errorMessage = nameInvalidError.detail;
+          }
+        }
+
+        console.log('caught an error', e);
         this.notifications.add({
           title: `Error saving ${this.path}`,
-          message: error,
+          message: errorMessage,
           color: 'critical',
           sticky: true,
         });
       } else {
-        if (error.errors[0]?.detail) {
-          set(this, 'conflictingVariable', error.errors[0].detail);
+        if (e.errors[0]?.detail) {
+          set(this, 'conflictingVariable', e.errors[0].detail);
         }
         window.scrollTo(0, 0); // because the k/v list may be long, ensure the user is snapped to top to read error
       }
