@@ -279,6 +279,47 @@ module('Integration | Component | variable-form', function (hooks) {
         .hasClass('hds-form-text-input--is-invalid');
     });
 
+    test('warns when you try to create a path with invalid characters', async function (assert) {
+      this.server.createList('namespace', 3);
+
+      this.set(
+        'mockedModel',
+        server.create('variable', {
+          path: '',
+          keyValues: [{ key: '', value: '' }],
+        })
+      );
+
+      await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
+
+      await typeIn('[data-test-path-input]', 'foo-bar');
+      assert.dom('[data-test-invalid-path-error]').doesNotExist();
+      assert
+        .dom('[data-test-path-input]')
+        .doesNotHaveClass('hds-form-text-input--is-invalid');
+
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', 'foo bar');
+
+      assert
+        .dom('[data-test-invalid-path-error]')
+        .exists('Space makes path invalid');
+      assert
+        .dom('[data-test-path-input]')
+        .hasClass('hds-form-text-input--is-invalid');
+
+      document.querySelector('[data-test-path-input]').value = ''; // clear current input
+      await typeIn('[data-test-path-input]', '_');
+      assert.dom('[data-test-invalid-path-error]').doesNotExist();
+
+      // Try 129 characters
+      let longString = 'a'.repeat(129);
+      await typeIn('[data-test-path-input]', longString);
+      assert
+        .dom('[data-test-invalid-path-error]')
+        .exists('Long name makes path invalid');
+    });
+
     test('warns you when you set a key with . in it', async function (assert) {
       this.set(
         'mockedModel',

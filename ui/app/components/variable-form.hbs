@@ -55,7 +55,7 @@
 			@isRequired={{true}}
 			@value={{this.path}}
 			placeholder="nomad/jobs/my-job/my-group/my-task"
-      @isInvalid={{this.duplicatePathWarning}}
+      @isInvalid={{or this.duplicatePathWarning this.hasInvalidPath}}
       {{on "input" (action this.setModelPath)}}
       disabled={{not @model.isNew}}
 			{{autofocus}}
