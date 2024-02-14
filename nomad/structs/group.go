@@ -85,12 +85,11 @@ func (ds *DisconnectStrategy) Validate(job *Job) error {
 		return multierror.Append(mErr, errStopAndLost)
 	}
 
-	if ds.Reconcile != "" &&
-		ds.Reconcile != ReconcileOptionBestScore &&
-		ds.Reconcile != ReconcileOptionLongestRunning &&
-		ds.Reconcile != ReconcileOptionKeepOriginal &&
-		ds.Reconcile != ReconcileOptionKeepReplacement {
-		return multierror.Append(mErr, fmt.Errorf("%w: %s", errInvalidReconcile, ds.Reconcile))
+	switch ds.Reconcile {
+		case "", ReconcileOptionBestScore, ReconcileOptionLongestRunning, ReconcileOptionKeepOriginal, ReconcileOptionKeepReplacement:
+		default:
+			return multierror.Append(mErr, fmt.Errorf("%w: %s", errInvalidReconcile, ds.Reconcile))
+		}
 	}
 
 	return mErr.ErrorOrNil()
