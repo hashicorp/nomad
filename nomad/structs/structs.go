@@ -7323,10 +7323,16 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 		}
 	}
 
-	if tg.MaxClientDisconnect != nil ||
-		tg.StopAfterClientDisconnect != nil ||
-		tg.PreventRescheduleOnLost {
-		mErr.Errors = append(mErr.Errors, errors.New("MaxClientDisconnect, StopAfterClientDisconnect and PreventRescheduleOnLost will be deprecated favor of Disconnect"))
+	if tg.MaxClientDisconnect != nil {
+		mErr.Errors = append(mErr.Errors, errors.New("MaxClientDisconnect will be deprecated favor of Disconnect.LostAfter"))
+	}
+
+	if tg.StopAfterClientDisconnect != nil {
+		mErr.Errors = append(mErr.Errors, errors.New("StopAfterClientDisconnect will be deprecated favor of Disconnect.StopOnClientAfter"))
+	}
+
+	if tg.PreventRescheduleOnLost {
+		mErr.Errors = append(mErr.Errors, errors.New("PreventRescheduleOnLost will be deprecated favor of Disconnect.Replace"))
 	}
 
 	// Check for mbits network field

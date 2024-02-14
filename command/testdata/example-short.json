@@ -91,6 +91,8 @@
                 "Meta": null,
                 "Services": null,
                 "ShutdownDelay": null,
+                "StopAfterClientDisconnect": null,
+                "MaxClientDisconnect": null,
                 "Disconnect": null,
                 "Scaling": null,
                 "Consul": null

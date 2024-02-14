@@ -88,6 +88,8 @@
                 "Meta": null,
                 "Services": null,
                 "ShutdownDelay": null,
+                "StopAfterClientDisconnect": null,
+                "MaxClientDisconnect": null,
                 "Disconnect":{
                     "StopAfterClient": null,
                     "LostAfter": null
