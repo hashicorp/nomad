@@ -310,13 +310,13 @@ func (d *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 // Destroy tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
 	// Unmount all mounted shared alloc dirs.
-	var mErr multierror.Error
+	mErr := new(multierror.Error)
 	if err := d.UnmountAll(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+		mErr = multierror.Append(mErr, err)
 	}
 
 	if err := os.RemoveAll(d.AllocDir); err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to remove alloc dir %q: %w", d.AllocDir, err))
+		mErr = multierror.Append(mErr, fmt.Errorf("failed to remove alloc dir %q: %w", d.AllocDir, err))
 	}
 
 	// Unset built since the alloc dir has been destroyed.
@@ -331,10 +331,10 @@ func (d *AllocDir) UnmountAll() error {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	var mErr multierror.Error
+	mErr := new(multierror.Error)
 	for _, dir := range d.TaskDirs {
 		if err := dir.Unmount(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = multierror.Append(mErr, err)
 		}
 	}
 

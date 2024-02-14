@@ -15,13 +15,13 @@ import (
 // error is returned if the directories do not exist or have already been
 // unmounted.
 func (t *TaskDir) unmountSpecialDirs() error {
-	errs := new(multierror.Error)
+	mErr := new(multierror.Error)
 	dev := filepath.Join(t.Dir, "dev")
 	if pathExists(dev) {
 		if err := unlinkDir(dev); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount dev %q: %w", dev, err))
+			mErr = multierror.Append(mErr, fmt.Errorf("Failed to unmount dev %q: %w", dev, err))
 		} else if err := os.RemoveAll(dev); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to delete dev directory %q: %w", dev, err))
+			mErr = multierror.Append(mErr, fmt.Errorf("Failed to delete dev directory %q: %w", dev, err))
 		}
 	}
 
@@ -29,11 +29,11 @@ func (t *TaskDir) unmountSpecialDirs() error {
 	proc := filepath.Join(t.Dir, "proc")
 	if pathExists(proc) {
 		if err := unlinkDir(proc); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to unmount proc %q: %w", proc, err))
+			mErr = multierror.Append(mErr, fmt.Errorf("Failed to unmount proc %q: %w", proc, err))
 		} else if err := os.RemoveAll(proc); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("Failed to delete proc directory %q: %w", dev, err))
+			mErr = multierror.Append(mErr, fmt.Errorf("Failed to delete proc directory %q: %w", dev, err))
 		}
 	}
 
-	return errs.ErrorOrNil()
+	return mErr.ErrorOrNil()
 }

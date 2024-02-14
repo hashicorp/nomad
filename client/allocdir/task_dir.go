@@ -260,36 +260,36 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 }
 
 func (t *TaskDir) Unmount() error {
-	var mErr multierror.Error
+	mErr := new(multierror.Error)
 
 	// Check if the directory has the shared alloc mounted.
 	if pathExists(t.SharedTaskDir) {
 		if err := unlinkDir(t.SharedTaskDir); err != nil {
-			mErr.Errors = append(mErr.Errors,
+			mErr = multierror.Append(mErr,
 				fmt.Errorf("failed to unmount shared alloc dir %q: %w", t.SharedTaskDir, err))
 		} else if err := os.RemoveAll(t.SharedTaskDir); err != nil {
-			mErr.Errors = append(mErr.Errors,
+			mErr = multierror.Append(mErr,
 				fmt.Errorf("failed to delete shared alloc dir %q: %w", t.SharedTaskDir, err))
 		}
 	}
 
 	if pathExists(t.SecretsDir) {
 		if err := removeSecretDir(t.SecretsDir); err != nil {
-			mErr.Errors = append(mErr.Errors,
+			mErr = multierror.Append(mErr,
 				fmt.Errorf("failed to remove the secret dir %q: %w", t.SecretsDir, err))
 		}
 	}
 
 	if pathExists(t.PrivateDir) {
 		if err := removeSecretDir(t.PrivateDir); err != nil {
-			mErr.Errors = append(mErr.Errors,
+			mErr = multierror.Append(mErr,
 				fmt.Errorf("failed to remove the private dir %q: %w", t.PrivateDir, err))
 		}
 	}
 
 	// Unmount dev/ and proc/ have been mounted.
 	if err := t.unmountSpecialDirs(); err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+		mErr = multierror.Append(mErr, err)
 	}
 	return mErr.ErrorOrNil()
 }
