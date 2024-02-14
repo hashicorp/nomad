@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 )
 
 // TaskDir contains all of the paths relevant to a task. All paths are on the
@@ -256,4 +257,39 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 	}
 
 	return nil
+}
+
+func (t *TaskDir) Unmount() error {
+	var mErr multierror.Error
+
+	// Check if the directory has the shared alloc mounted.
+	if pathExists(t.SharedTaskDir) {
+		if err := unlinkDir(t.SharedTaskDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to unmount shared alloc dir %q: %w", t.SharedTaskDir, err))
+		} else if err := os.RemoveAll(t.SharedTaskDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to delete shared alloc dir %q: %w", t.SharedTaskDir, err))
+		}
+	}
+
+	if pathExists(t.SecretsDir) {
+		if err := removeSecretDir(t.SecretsDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the secret dir %q: %v", t.SecretsDir, err))
+		}
+	}
+
+	if pathExists(t.PrivateDir) {
+		if err := removeSecretDir(t.PrivateDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the private dir %q: %v", t.PrivateDir, err))
+		}
+	}
+
+	// Unmount dev/ and proc/ have been mounted.
+	if err := t.unmountSpecialDirs(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	return mErr.ErrorOrNil()
 }
