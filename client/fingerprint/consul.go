@@ -167,8 +167,8 @@ func (cfs *consulFingerprintState) initialize(cfg *config.ConsulConfig, logger h
 			"consul.grpc":          cfs.grpc(consulConfig.Scheme, logger),
 			"consul.ft.namespaces": cfs.namespaces,
 			"consul.partition":     cfs.partition,
-			"consul.dns_port":      cfs.dnsPort,
-			"consul.dns_addr":      cfs.dnsAddr(logger),
+			"consul.dns.port":      cfs.dnsPort,
+			"consul.dns.addr":      cfs.dnsAddr(logger),
 		}
 	} else {
 		cfs.extractors = map[string]consulExtractor{
@@ -182,8 +182,8 @@ func (cfs *consulFingerprintState) initialize(cfg *config.ConsulConfig, logger h
 			fmt.Sprintf("consul.%s.grpc", cfg.Name):          cfs.grpc(consulConfig.Scheme, logger),
 			fmt.Sprintf("consul.%s.ft.namespaces", cfg.Name): cfs.namespaces,
 			fmt.Sprintf("consul.%s.partition", cfg.Name):     cfs.partition,
-			fmt.Sprintf("consul.%s.dns_port", cfg.Name):      cfs.dnsPort,
-			fmt.Sprintf("consul.%s.dns_addr", cfg.Name):      cfs.dnsAddr(logger),
+			fmt.Sprintf("consul.%s.dns.port", cfg.Name):      cfs.dnsPort,
+			fmt.Sprintf("consul.%s.dns.addr", cfg.Name):      cfs.dnsAddr(logger),
 		}
 	}
 

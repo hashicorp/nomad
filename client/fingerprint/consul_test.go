@@ -609,7 +609,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	must.NoError(t, err)
 	must.Eq(t, map[string]string{
 		"consul.datacenter":    "dc1",
-		"consul.dns_port":      "8600",
+		"consul.dns.port":      "8600",
 		"consul.revision":      "3c1c22679",
 		"consul.segment":       "seg1",
 		"consul.server":        "true",
@@ -664,7 +664,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 		"consul.version":       "1.9.5",
 		"consul.connect":       "true",
 		"consul.grpc":          "8502",
-		"consul.dns_port":      "8600",
+		"consul.dns.port":      "8600",
 		"consul.ft.namespaces": "false",
 		"unique.consul.name":   "HAL9000",
 	}, resp3.Attributes)
@@ -701,7 +701,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 		"consul.ft.namespaces": "true",
 		"consul.connect":       "true",
 		"consul.grpc":          "8502",
-		"consul.dns_port":      "8600",
+		"consul.dns.port":      "8600",
 		"consul.partition":     "default",
 		"unique.consul.name":   "HAL9000",
 	}, resp.Attributes)
@@ -751,7 +751,7 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 		"consul.ft.namespaces": "true",
 		"consul.connect":       "true",
 		"consul.grpc":          "8502",
-		"consul.dns_port":      "8600",
+		"consul.dns.port":      "8600",
 		"consul.partition":     "default",
 		"unique.consul.name":   "HAL9000",
 	}, resp3.Attributes)
