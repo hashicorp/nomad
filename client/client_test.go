@@ -1881,7 +1881,7 @@ func TestClient_hasLocalState(t *testing.T) {
 		alloc.Job = nil
 		c.stateDB.PutAllocation(alloc)
 
-		require.False(t, c.hasLocalState(alloc))
+		must.False(t, c.hasLocalState(alloc))
 	})
 
 	t.Run("plain alloc", func(t *testing.T) {
