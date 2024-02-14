@@ -11059,7 +11059,7 @@ func (a *Allocation) ShouldClientStop() bool {
 
 	if tg == nil ||
 		timeout == nil ||
-		(timeout != nil && *timeout == 0*time.Nanosecond) {
+		*timeout == 0*time.Nanosecond {
 		return false
 	}
 	return true
