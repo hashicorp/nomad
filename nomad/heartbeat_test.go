@@ -341,13 +341,13 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 				Value: structs.AllocClientStatusUnknown,
 				Time:  tc.now,
 			}}
-			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
 
 			// Trigger status update
 			s1.invalidateHeartbeat(node.ID)
 			out, err := state.NodeByID(nil, node.ID)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedNodeStatus, out.Status)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedNodeStatus, out.Status)
 		})
 	}
 }
