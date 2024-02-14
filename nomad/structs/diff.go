@@ -339,8 +339,8 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 	}
 
 	// Disconnect diff
-	if uDiff := primitiveObjectDiff(tg.Disconnect, other.Disconnect, nil, "Disconnect", contextual); uDiff != nil {
-		diff.Objects = append(diff.Objects, uDiff)
+	if discoDiff := primitiveObjectDiff(tg.Disconnect, other.Disconnect, nil, "Disconnect", contextual); discoDiff != nil {
+		diff.Objects = append(diff.Objects, discoDiff)
 	}
 
 	// Network Resources diff
