@@ -1876,6 +1876,14 @@ func TestClient_hasLocalState(t *testing.T) {
 
 	c.stateDB = cstate.NewMemDB(c.logger)
 
+	t.Run("nil Job", func(t *testing.T) {
+		alloc := mock.BatchAlloc()
+		alloc.Job = nil
+		c.stateDB.PutAllocation(alloc)
+
+		must.False(t, c.hasLocalState(alloc))
+	})
+
 	t.Run("plain alloc", func(t *testing.T) {
 		alloc := mock.BatchAlloc()
 		c.stateDB.PutAllocation(alloc)
