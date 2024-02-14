@@ -349,22 +349,14 @@ func (d *AllocDir) Build() error {
 	}
 
 	// Make the shared directory and make it available to all user/groups.
-	if err := os.MkdirAll(d.SharedDir, fileMode777); err != nil {
-		return err
-	}
-
-	// Make the shared directory have non-root permissions.
-	if err := dropDirPermissions(d.SharedDir, fileMode777); err != nil {
+	if err := allocMkdirAll(d.SharedDir, fileMode755); err != nil {
 		return err
 	}
 
 	// Create shared subdirs
 	for _, dir := range SharedAllocDirs {
 		p := filepath.Join(d.SharedDir, dir)
-		if err := os.MkdirAll(p, fileMode777); err != nil {
-			return err
-		}
-		if err := dropDirPermissions(p, fileMode777); err != nil {
+		if err := allocMkdirAll(p, fileMode777); err != nil {
 			return err
 		}
 	}
@@ -700,4 +692,33 @@ func writeError(tw *tar.Writer, allocID string, err error) error {
 
 	_, err = tw.Write(contents)
 	return err
+}
+
+// allocMkdirAll creates a directory and sets the permissions to the passed
+// value. It also sets the owner of the directory to "nobody" on systems that
+// allow.
+func allocMkdirAll(path string, perms os.FileMode) error {
+	// Create the directory
+	if err := os.MkdirAll(path, perms); err != nil {
+		return err
+	}
+	// Update the access permissions on the directory
+	if err := dropDirPermissions(path, perms); err != nil {
+		return err
+	}
+	return nil
+}
+
+// allocMakeSecretsDir creates a directory for sensitive items such as secrets.
+// When possible it uses a tmpfs or some other method to prevent it from
+// persisting to actual disk.
+func allocMakeSecretsDir(path string, perms os.FileMode) error {
+	// Create the private directory
+	if err := createSecretDir(path); err != nil {
+		return err
+	}
+	if err := dropDirPermissions(path, perms); err != nil {
+		return err
+	}
+	return nil
 }

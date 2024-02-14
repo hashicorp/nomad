@@ -83,32 +83,19 @@ func newTaskDir(logger hclog.Logger, clientAllocDir, allocDir, taskName string) 
 // allows skipping chroot creation if the caller knows it has already been
 // done. client.alloc_dir will be skipped.
 func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
-	if err := os.MkdirAll(t.Dir, fileMode777); err != nil {
+	if err := allocMkdirAll(t.Dir, fileMode777); err != nil {
 		return err
 	}
 
-	// Make the task directory have non-root permissions.
-	if err := dropDirPermissions(t.Dir, fileMode777); err != nil {
-		return err
-	}
-
-	// Create a local directory that each task can use.
-	if err := os.MkdirAll(t.LocalDir, fileMode777); err != nil {
-		return err
-	}
-
-	if err := dropDirPermissions(t.LocalDir, fileMode777); err != nil {
+	if err := allocMkdirAll(t.LocalDir, fileMode777); err != nil {
 		return err
 	}
 
 	// Create the directories that should be in every task.
 	for dir, perms := range TaskDirs {
 		absdir := filepath.Join(t.Dir, dir)
-		if err := os.MkdirAll(absdir, perms); err != nil {
-			return err
-		}
 
-		if err := dropDirPermissions(absdir, perms); err != nil {
+		if err := allocMkdirAll(absdir, perms); err != nil {
 			return err
 		}
 	}
@@ -128,20 +115,12 @@ func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 	}
 
 	// Create the secret directory
-	if err := createSecretDir(t.SecretsDir); err != nil {
-		return err
-	}
-
-	if err := dropDirPermissions(t.SecretsDir, fileMode777); err != nil {
+	if err := allocMakeSecretsDir(t.SecretsDir, fileMode777); err != nil {
 		return err
 	}
 
 	// Create the private directory
-	if err := createSecretDir(t.PrivateDir); err != nil {
-		return err
-	}
-
-	if err := dropDirPermissions(t.PrivateDir, fileMode777); err != nil {
+	if err := allocMakeSecretsDir(t.PrivateDir, fileMode777); err != nil {
 		return err
 	}
 
