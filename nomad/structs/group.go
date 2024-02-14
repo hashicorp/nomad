@@ -107,7 +107,6 @@ func (ds *DisconnectStrategy) Copy() *DisconnectStrategy {
 }
 
 func (ds *DisconnectStrategy) Canonicalize() {
-	cds := NewDefaultDisconnectStrategy()
 	if ds.Replace == nil {
 		ds.Replace = pointer.Of(true)
 	}
