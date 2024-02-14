@@ -21,7 +21,7 @@ func unlinkDir(dir string) error {
 // createSecretDir creates the secrets dir folder at the given path
 func createSecretDir(dir string) error {
 	// TODO solaris has support for tmpfs so use that
-	return os.MkdirAll(dir, 0777)
+	return os.MkdirAll(dir, fileMode777)
 }
 
 // removeSecretDir removes the secrets dir folder

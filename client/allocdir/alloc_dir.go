@@ -28,6 +28,15 @@ const (
 	// idUnsupported is what the uid/gid will be set to on platforms (eg
 	// Windows) that don't support integer ownership identifiers.
 	idUnsupported = -1
+
+	// fileMode777 is a constant that represents the file mode rwxrwxrwx
+	fileMode777 = os.FileMode(0o777)
+
+	// fileMode755 is a constant that represents the file mode rwxr-xr-x
+	fileMode755 = os.FileMode(0o755)
+
+	// fileMode644 is a constant that represents the file mode rw-r--r--
+	fileMode666 = os.FileMode(0o666)
 )
 
 var (
@@ -65,7 +74,7 @@ var (
 	TaskPrivate = "private"
 
 	// TaskDirs is the set of directories created in each tasks directory.
-	TaskDirs = map[string]os.FileMode{TmpDirName: os.ModeSticky | 0777}
+	TaskDirs = map[string]os.FileMode{TmpDirName: os.ModeSticky | fileMode777}
 
 	// AllocGRPCSocket is the path relative to the task dir root for the
 	// unix socket connected to Consul's gRPC endpoint.
@@ -284,7 +293,7 @@ func (d *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 		if fileInfo != nil && err == nil {
 			// TaskDirs haven't been built yet, so create it
 			newTaskDir := filepath.Join(d.AllocDir, task.Name)
-			if err := os.MkdirAll(newTaskDir, 0777); err != nil {
+			if err := os.MkdirAll(newTaskDir, fileMode777); err != nil {
 				return fmt.Errorf("error creating task %q dir: %w", task.Name, err)
 			}
 			localDir := filepath.Join(newTaskDir, TaskLocal)
@@ -335,27 +344,27 @@ func (d *AllocDir) UnmountAll() error {
 // Build the directory tree for an allocation.
 func (d *AllocDir) Build() error {
 	// Make the alloc directory, owned by the nomad process.
-	if err := os.MkdirAll(d.AllocDir, 0755); err != nil {
+	if err := os.MkdirAll(d.AllocDir, fileMode755); err != nil {
 		return fmt.Errorf("Failed to make the alloc directory %v: %w", d.AllocDir, err)
 	}
 
 	// Make the shared directory and make it available to all user/groups.
-	if err := os.MkdirAll(d.SharedDir, 0777); err != nil {
+	if err := os.MkdirAll(d.SharedDir, fileMode777); err != nil {
 		return err
 	}
 
 	// Make the shared directory have non-root permissions.
-	if err := dropDirPermissions(d.SharedDir, os.ModePerm); err != nil {
+	if err := dropDirPermissions(d.SharedDir, fileMode777); err != nil {
 		return err
 	}
 
 	// Create shared subdirs
 	for _, dir := range SharedAllocDirs {
 		p := filepath.Join(d.SharedDir, dir)
-		if err := os.MkdirAll(p, 0777); err != nil {
+		if err := os.MkdirAll(p, fileMode777); err != nil {
 			return err
 		}
-		if err := dropDirPermissions(p, os.ModePerm); err != nil {
+		if err := dropDirPermissions(p, fileMode777); err != nil {
 			return err
 		}
 	}
@@ -635,7 +644,7 @@ func splitPath(path string) ([]fileInfo, error) {
 	// flexible permission.
 	uid, gid := idUnsupported, idUnsupported
 	if err != nil {
-		mode = os.ModePerm
+		mode = fileMode777
 	} else {
 		uid, gid = getOwner(fi)
 		mode = fi.Mode()
@@ -654,7 +663,7 @@ func splitPath(path string) ([]fileInfo, error) {
 		uid, gid := idUnsupported, idUnsupported
 		fi, err := os.Stat(dir)
 		if err != nil {
-			mode = os.ModePerm
+			mode = fileMode777
 		} else {
 			uid, gid = getOwner(fi)
 			mode = fi.Mode()
@@ -677,7 +686,7 @@ func writeError(tw *tar.Writer, allocID string, err error) error {
 	contents := []byte(fmt.Sprintf("Error snapshotting: %v", err))
 	hdr := tar.Header{
 		Name:       SnapshotErrorFilename(allocID),
-		Mode:       0666,
+		Mode:       int64(fileMode666),
 		Size:       int64(len(contents)),
 		AccessTime: SnapshotErrorTime,
 		ChangeTime: SnapshotErrorTime,

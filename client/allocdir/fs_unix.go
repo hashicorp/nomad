@@ -34,7 +34,7 @@ var (
 // dropDirPermissions gives full access to a directory to all users and sets
 // the owner to nobody.
 func dropDirPermissions(path string, desired os.FileMode) error {
-	if err := os.Chmod(path, desired|0777); err != nil {
+	if err := os.Chmod(path, desired|fileMode777); err != nil {
 		return fmt.Errorf("Chmod(%v) failed: %w", path, err)
 	}
 

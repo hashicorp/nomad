@@ -24,7 +24,7 @@ const (
 // linkDir bind mounts src to dst as Linux doesn't support hardlinking
 // directories.
 func linkDir(src, dst string) error {
-	if err := os.MkdirAll(dst, 0777); err != nil {
+	if err := os.MkdirAll(dst, fileMode777); err != nil {
 		return err
 	}
 
@@ -48,7 +48,7 @@ func unlinkDir(dir string) error {
 func createSecretDir(dir string) error {
 	// Only mount the tmpfs if we are root
 	if unix.Geteuid() == 0 {
-		if err := os.MkdirAll(dir, 0777); err != nil {
+		if err := os.MkdirAll(dir, fileMode777); err != nil {
 			return err
 		}
 
@@ -65,7 +65,7 @@ func createSecretDir(dir string) error {
 		}
 
 		// Create the marker file so we don't try to mount more than once
-		f, err := os.OpenFile(marker, os.O_RDWR|os.O_CREATE, 0666)
+		f, err := os.OpenFile(marker, os.O_RDWR|os.O_CREATE, fileMode666)
 		if err != nil {
 			// Hard fail since if this fails something is really wrong
 			return err
@@ -74,7 +74,7 @@ func createSecretDir(dir string) error {
 		return nil
 	}
 
-	return os.MkdirAll(dir, 0777)
+	return os.MkdirAll(dir, fileMode777)
 }
 
 // createSecretDir removes the secrets dir folder

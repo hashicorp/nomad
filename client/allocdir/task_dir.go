@@ -83,21 +83,21 @@ func newTaskDir(logger hclog.Logger, clientAllocDir, allocDir, taskName string) 
 // allows skipping chroot creation if the caller knows it has already been
 // done. client.alloc_dir will be skipped.
 func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
-	if err := os.MkdirAll(t.Dir, 0777); err != nil {
+	if err := os.MkdirAll(t.Dir, fileMode777); err != nil {
 		return err
 	}
 
 	// Make the task directory have non-root permissions.
-	if err := dropDirPermissions(t.Dir, os.ModePerm); err != nil {
+	if err := dropDirPermissions(t.Dir, fileMode777); err != nil {
 		return err
 	}
 
 	// Create a local directory that each task can use.
-	if err := os.MkdirAll(t.LocalDir, 0777); err != nil {
+	if err := os.MkdirAll(t.LocalDir, fileMode777); err != nil {
 		return err
 	}
 
-	if err := dropDirPermissions(t.LocalDir, os.ModePerm); err != nil {
+	if err := dropDirPermissions(t.LocalDir, fileMode777); err != nil {
 		return err
 	}
 
@@ -132,7 +132,7 @@ func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 		return err
 	}
 
-	if err := dropDirPermissions(t.SecretsDir, os.ModePerm); err != nil {
+	if err := dropDirPermissions(t.SecretsDir, fileMode777); err != nil {
 		return err
 	}
 
@@ -141,7 +141,7 @@ func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 		return err
 	}
 
-	if err := dropDirPermissions(t.PrivateDir, os.ModePerm); err != nil {
+	if err := dropDirPermissions(t.PrivateDir, fileMode777); err != nil {
 		return err
 	}
 
