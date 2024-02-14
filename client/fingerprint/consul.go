@@ -5,6 +5,7 @@ package fingerprint
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-version"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -165,6 +167,8 @@ func (cfs *consulFingerprintState) initialize(cfg *config.ConsulConfig, logger h
 			"consul.grpc":          cfs.grpc(consulConfig.Scheme, logger),
 			"consul.ft.namespaces": cfs.namespaces,
 			"consul.partition":     cfs.partition,
+			"consul.dns.port":      cfs.dnsPort,
+			"consul.dns.addr":      cfs.dnsAddr(logger),
 		}
 	} else {
 		cfs.extractors = map[string]consulExtractor{
@@ -178,6 +182,8 @@ func (cfs *consulFingerprintState) initialize(cfg *config.ConsulConfig, logger h
 			fmt.Sprintf("consul.%s.grpc", cfg.Name):          cfs.grpc(consulConfig.Scheme, logger),
 			fmt.Sprintf("consul.%s.ft.namespaces", cfg.Name): cfs.namespaces,
 			fmt.Sprintf("consul.%s.partition", cfg.Name):     cfs.partition,
+			fmt.Sprintf("consul.%s.dns.port", cfg.Name):      cfs.dnsPort,
+			fmt.Sprintf("consul.%s.dns.addr", cfg.Name):      cfs.dnsAddr(logger),
 		}
 	}
 
@@ -191,7 +197,7 @@ func (cfs *consulFingerprintState) query(logger hclog.Logger) agentconsul.Self {
 	if err != nil {
 		// indicate consul no longer available
 		if cfs.isAvailable {
-			logger.Info("consul agent is unavailable: %v", err)
+			logger.Info("consul agent is unavailable", "error", err)
 		}
 		cfs.isAvailable = false
 		cfs.nextCheck = time.Time{} // force check on next interval
@@ -296,6 +302,84 @@ func (cfs *consulFingerprintState) grpcPort(info agentconsul.Self) (string, bool
 func (cfs *consulFingerprintState) grpcTLSPort(info agentconsul.Self) (string, bool) {
 	p, ok := info["DebugConfig"]["GRPCTLSPort"].(float64)
 	return fmt.Sprintf("%d", int(p)), ok
+}
+
+func (cfs *consulFingerprintState) dnsPort(info agentconsul.Self) (string, bool) {
+	p, ok := info["DebugConfig"]["DNSPort"].(float64)
+	return fmt.Sprintf("%d", int(p)), ok
+}
+
+// dnsAddr fingerprints the Consul DNS address, but only if Nomad can use it
+// usefully to provide an iptables rule to a task
+func (cfs *consulFingerprintState) dnsAddr(logger hclog.Logger) func(info agentconsul.Self) (string, bool) {
+	return func(info agentconsul.Self) (string, bool) {
+
+		var listenOnEveryIP bool
+
+		dnsAddrs, ok := info["DebugConfig"]["DNSAddrs"].([]any)
+		if !ok {
+			logger.Warn("Consul returned invalid addresses.dns config",
+				"value", info["DebugConfig"]["DNSAddrs"])
+			return "", false
+		}
+
+		for _, d := range dnsAddrs {
+			dnsAddr, ok := d.(string)
+			if !ok {
+				logger.Warn("Consul returned invalid addresses.dns config",
+					"value", info["DebugConfig"]["DNSAddrs"])
+				return "", false
+
+			}
+			dnsAddr = strings.TrimPrefix(dnsAddr, "tcp://")
+			dnsAddr = strings.TrimPrefix(dnsAddr, "udp://")
+
+			parsed, err := netip.ParseAddrPort(dnsAddr)
+			if err != nil {
+				logger.Warn("could not parse Consul addresses.dns config",
+					"value", dnsAddr, "error", err)
+				return "", false // response is somehow malformed
+			}
+
+			// only addresses we can use for an iptables rule from a
+			// container to the host will be fingerprinted
+			if parsed.Addr().IsUnspecified() {
+				listenOnEveryIP = true
+				break
+			}
+			if !parsed.Addr().IsLoopback() {
+				return parsed.Addr().String(), true
+			}
+		}
+
+		// if Consul DNS is bound on 0.0.0.0, we want to fingerprint the private
+		// IP (or at worst, the public IP) of the host so that we have a valid
+		// IP address for the iptables rule
+		if listenOnEveryIP {
+
+			privateIP, err := sockaddr.GetPrivateIP()
+			if err != nil {
+				logger.Warn("could not query network interfaces", "error", err)
+				return "", false // something is very wrong, so bail out
+			}
+			if privateIP != "" {
+				return privateIP, true
+			}
+			publicIP, err := sockaddr.GetPublicIP()
+			if err != nil {
+				logger.Warn("could not query network interfaces", "error", err)
+				return "", false // something is very wrong, so bail out
+			}
+			if publicIP != "" {
+				return publicIP, true
+			}
+		}
+
+		// if we've hit here, Consul is bound on localhost and we won't be able
+		// to configure container DNS to use it, but we also don't want to have
+		// the fingerprinter return an error
+		return "", true
+	}
 }
 
 func (cfs *consulFingerprintState) namespaces(info agentconsul.Self) (string, bool) {
