@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -293,7 +294,7 @@ func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 	ci.Parallel(t)
 
-	testCases := []struct{
+	testCases := []struct {
 		name                  string
 		now                   time.Time
 		lostAfterOnDisconnect time.Duration
@@ -341,6 +342,7 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 				Value: structs.AllocClientStatusUnknown,
 				Time:  tc.now,
 			}}
+
 			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
 
 			// Trigger status update
