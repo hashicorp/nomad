@@ -65,6 +65,10 @@ type DisconnectStrategy struct {
 }
 
 func (ds *DisconnectStrategy) Validate(job *Job) error {
+	if ds == nil {
+		return nil
+	}
+
 	var mErr *multierror.Error
 
 	if ds.StopOnClientAfter != nil {
@@ -82,13 +86,14 @@ func (ds *DisconnectStrategy) Validate(job *Job) error {
 	}
 
 	if ds.StopOnClientAfter != nil && ds.LostAfter != 0 {
-		return multierror.Append(mErr, errStopAndLost)
+		mErr = multierror.Append(mErr, errStopAndLost)
 	}
 
 	switch ds.Reconcile {
-	case "", ReconcileOptionBestScore, ReconcileOptionLongestRunning, ReconcileOptionKeepOriginal, ReconcileOptionKeepReplacement:
+	case "", ReconcileOptionBestScore, ReconcileOptionLongestRunning,
+		ReconcileOptionKeepOriginal, ReconcileOptionKeepReplacement:
 	default:
-		return multierror.Append(mErr, fmt.Errorf("%w: %s", errInvalidReconcile, ds.Reconcile))
+		mErr = multierror.Append(mErr, fmt.Errorf("%w: %s", errInvalidReconcile, ds.Reconcile))
 	}
 
 	return mErr.ErrorOrNil()
@@ -101,6 +106,15 @@ func (ds *DisconnectStrategy) Copy() *DisconnectStrategy {
 
 	nds := new(DisconnectStrategy)
 	*nds = *ds
+
+	if ds.StopOnClientAfter != nil {
+		nds.StopOnClientAfter = pointer.Of(*ds.StopOnClientAfter)
+	}
+
+	if ds.Replace != nil {
+		nds.Replace = pointer.Of(*ds.Replace)
+	}
+
 	return nds
 }
 
