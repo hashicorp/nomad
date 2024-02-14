@@ -293,14 +293,12 @@ func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 	ci.Parallel(t)
 
-	type testCase struct {
+	testCases := []struct{
 		name                  string
 		now                   time.Time
 		lostAfterOnDisconnect time.Duration
 		expectedNodeStatus    string
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name:                  "has-pending-reconnects",
 			now:                   time.Now().UTC(),
