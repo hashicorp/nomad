@@ -134,7 +134,7 @@ type DisconnectStrategy struct {
 	StopAfterOnClient *time.Duration `mapstructure:"stop_after_on_client" hcl:"stop_after_on_client,optional"`
 
 	// A boolean field used to define if the allocations should be replaced while
-	// its  considered disconnected.
+	// it's considered disconnected.
 	Replace *bool `mapstructure:"replace" hcl:"replace,optional"`
 
 	// Once the disconnected node starts reporting again, it will define which
