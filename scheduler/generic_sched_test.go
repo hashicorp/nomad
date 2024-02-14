@@ -3644,7 +3644,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		jobSpecFn     func(*structs.Job)
+		jobSpecFn   func(*structs.Job)
 		when        time.Time
 		rescheduled bool
 	}{
@@ -3652,38 +3652,30 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 		// of Disconnect.StopOnClientAfter introduced in 1.8.0.
 		{
 			rescheduled: true,
-			jobSpec: func() *structs.Job {
-				job := mock.Job()
+			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].StopAfterClientDisconnect = nil
-				return job
 			},
 		},
 		{
-			jobSpec: func() *structs.Job {
-				job := mock.Job()
+			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].StopAfterClientDisconnect = pointer.Of(1 * time.Second)
-				return job
 			},
 			rescheduled: false,
 		},
 		{
-			jobSpec: func() *structs.Job {
-				job := mock.Job()
+			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].StopAfterClientDisconnect = pointer.Of(1 * time.Second)
-				return job
 			},
 			when:        time.Now().UTC().Add(-10 * time.Second),
 			rescheduled: true,
 		},
 		{
-			jobSpec: func() *structs.Job {
-				job := mock.Job()
+			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].StopAfterClientDisconnect = pointer.Of(1 * time.Second)
-				return job
 			},
 			when:        time.Now().UTC().Add(10 * time.Minute),
 			rescheduled: false,
@@ -3691,46 +3683,38 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 		// Tests using the new disconnect block
 		{
 			rescheduled: true,
-			jobSpec: func() *structs.Job {
-				job := mock.Job()
+			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
 					StopOnClientAfter: nil,
 				}
-				return job
 			},
 		},
 		{
-			jobSpec: func() *structs.Job {
-				job := mock.Job()
+			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
 					StopOnClientAfter: pointer.Of(1 * time.Second),
 				}
-				return job
 			},
 			rescheduled: false,
 		},
 		{
-			jobSpec: func() *structs.Job {
-				job := mock.Job()
+			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
 					StopOnClientAfter: pointer.Of(1 * time.Second),
 				}
-				return job
 			},
 			when:        time.Now().UTC().Add(-10 * time.Second),
 			rescheduled: true,
 		},
 		{
-			jobSpec: func() *structs.Job {
-				job := mock.Job()
+			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
 					StopOnClientAfter: pointer.Of(1 * time.Second),
 				}
-				return job
 			},
 			when:        time.Now().UTC().Add(10 * time.Minute),
 			rescheduled: false,
@@ -3746,8 +3730,9 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			node.Status = structs.NodeStatusDown
 			require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
-			// Job with allocations and stop_after_client_disconnect
-			job := tc.jobSpec()
+			job := mock.Job()
+
+			tc.jobSpecFn(job)
 			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 			// Alloc for the running group

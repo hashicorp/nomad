@@ -4669,9 +4669,9 @@ func (j *Job) Validate() error {
 		if tg.StopAfterClientDisconnect != nil && *tg.StopAfterClientDisconnect != 0 {
 			if *tg.StopAfterClientDisconnect > 0 &&
 				!(j.Type == JobTypeBatch || j.Type == JobTypeService) {
-				mErr.Errors = append(mErr.Errors, errors.New("stop_after_client_disconnect can only be set in batch and service jobs"))
+				mErr.Errors = append(mErr.Errors, errors.New("stop_on_client_after_disconnect can only be set in batch and service jobs"))
 			} else if *tg.StopAfterClientDisconnect < 0 {
-				mErr.Errors = append(mErr.Errors, errors.New("stop_after_client_disconnect must be a positive value"))
+				mErr.Errors = append(mErr.Errors, errors.New("stop_on_client_after_disconnect must be a positive value"))
 			}
 		}
 
@@ -6850,7 +6850,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	if tg.MaxClientDisconnect != nil && tg.StopAfterClientDisconnect != nil {
-		mErr = multierror.Append(mErr, errors.New("Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect"))
+		mErr = multierror.Append(mErr, errors.New("Task group cannot be configured with both max_client_disconnect and stop_on_client_after_disconnect"))
 	}
 
 	if tg.MaxClientDisconnect != nil && *tg.MaxClientDisconnect < 0 {
@@ -6863,7 +6863,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 
 		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopOnClientAfter != nil {
-			return multierror.Append(mErr, errors.New("using both stop_after_client_disconnect and stop_on_client_after is not allowed"))
+			return multierror.Append(mErr, errors.New("using both stop_on_client_after_disconnect and stop_on_client_after is not allowed"))
 		}
 
 		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace != nil {
@@ -7393,6 +7393,21 @@ func (tg *TaskGroup) UsesConnectGateway() bool {
 
 func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
+}
+
+// Replace is a helper meant to simplify the future depracation of
+// PreventRescheduleOnLost in favor of Disconnect.Replace
+// introduced in 1.8.0.
+func (tg *TaskGroup) Replace() bool {
+	if tg.PreventRescheduleOnLost {
+		return false
+	}
+
+	if tg.Disconnect == nil || tg.Disconnect.Replace == nil {
+		return true
+	}
+
+	return *tg.Disconnect.Replace
 }
 
 // GetDisconnectLostTimeout is a helper meant to simplify the future depracation of
@@ -11361,7 +11376,7 @@ func (a *Allocation) Expired(now time.Time) bool {
 	}
 
 	timeout := tg.GetDisconnectLostTimeout()
-	if timeout == 0 && !tg.PreventRescheduleOnLost {
+	if timeout == 0 && tg.Replace() {
 		return false
 	}
 
