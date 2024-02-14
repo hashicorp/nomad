@@ -4815,6 +4815,9 @@ func (j *Job) Warnings() error {
 
 // LookupTaskGroup finds a task group by name
 func (j *Job) LookupTaskGroup(name string) *TaskGroup {
+	if j == nil {
+		return nil
+	}
 	for _, tg := range j.TaskGroups {
 		if tg.Name == name {
 			return tg
