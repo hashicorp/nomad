@@ -105,10 +105,11 @@ func TestDisconnectStategy_Validate(t *testing.T) {
 		},
 	}
 
-	job := testJob()
+
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			job := testJob()
 			job.Type = c.jobType
 			err := c.strategy.Validate(job)
 			if !errors.Is(err, c.err) {
