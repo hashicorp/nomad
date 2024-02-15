@@ -7,9 +7,9 @@
   <td>
     <Fs::Link @allocation={{this.allocation}} @taskState={{this.taskState}} @path={{this.pathToEntry}}>
       {{#if this.entry.IsDir}}
-        <FlightIcon @name="folder-outline" />
+        <FlightIcon @name="folder" />
       {{else}}
-        <FlightIcon @name="file-outline" />
+        <FlightIcon @name="file" />
       {{/if}}
 
       <span class="name" data-test-name>{{this.entry.Name}}</span>

@@ -7,10 +7,10 @@
 {{#if (eq this.state 'success')}}
   <div data-test-copy-success class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
     {{#if @inset}}
-      <span aria-label="Copied!"><FlightIcon @name='copy-success' /></span>
+      <span aria-label="Copied!"><FlightIcon @name='clipboard-checked' /></span>
     {{else}}
       <span class="tooltip text-center always-active" role="tooltip" aria-label="Copied!">
-        <FlightIcon @name='copy-success' />
+        <FlightIcon @name='clipboard-checked' />
       </span>
     {{/if}}
     {{yield}}
@@ -34,7 +34,7 @@
     @onSuccess={{perform this.indicateSuccess}}
     @onError={{action (mut this.state) "error"}}
   >
-    <FlightIcon @name='copy-action' />
+    <FlightIcon @name='clipboard-copy' />
     {{yield}}
   </AddonCopyButton>
 {{/if}}
