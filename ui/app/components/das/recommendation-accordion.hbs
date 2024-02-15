@@ -24,7 +24,7 @@
     {{else}}
       <a.head @buttonLabel={{unless a.isOpen "Show"}}>
         <section class="left">
-          {{x-icon "info-circle-fill"}}
+          <FlightIcon @name="info-circle-fill" />
           <span>Resource Recommendation</span>
           <span data-test-group class="group">{{@summary.taskGroup.name}}</span>
         </section>

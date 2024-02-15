@@ -18,7 +18,7 @@
             data-test-error={{a.item.error}}
           >
             {{#if a.item.error}}
-              {{x-icon "cancel-circle-fill" class="is-danger"}}
+              <FlightIcon @name="cancel-circle-fill" class="is-danger" />
             {{/if}}
           </span>
           <span data-test-time title="{{format-ts a.item.time}}">

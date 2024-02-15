@@ -33,7 +33,7 @@
 				type="button"
 				{{on "click" @fns.closeSidebar}}
 			>
-				{{x-icon "cancel"}}
+				<FlightIcon @name="cancel" />
 			</button>
 		</header>
 		{{#if @task.events.length}}
@@ -99,7 +99,7 @@
 			{{else}}
 				{{keyboard-commands (array this.widenCommand)}}
 			{{/if}}
-			{{x-icon (if this.wide "arrow-right" "arrow-left")}}
+			<FlightIcon @name={{if this.wide "arrow-right" "arrow-left"}} />
 		</button>
 	</div>
 </Portal>

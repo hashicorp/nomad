@@ -11,7 +11,7 @@
       role="tooltip"
       aria-label="Allocation depends on unhealthy drivers"
     >
-      {{x-icon "alert-triangle" class="is-warning"}}
+      <FlightIcon @name="alert-triangle" class="is-warning" />
     </span>
   {{/if}}
   {{#if this.allocation.nextAllocation}}
@@ -21,7 +21,7 @@
       role="tooltip"
       aria-label="Allocation was rescheduled"
     >
-      {{x-icon "history" class="is-faded"}}
+      <FlightIcon @name="history" class="is-faded" />
     </span>
   {{/if}}
   {{#if this.allocation.wasPreempted}}
@@ -31,7 +31,7 @@
       role="tooltip"
       aria-label="Allocation was preempted"
     >
-      {{x-icon "boot" class="is-faded"}}
+      <FlightIcon @name="boot" class="is-faded" />
     </span>
   {{/if}}
 </td>

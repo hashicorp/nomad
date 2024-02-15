@@ -23,7 +23,7 @@
         disabled={{or this.isMinimum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
         onclick={{action "countDown"}}
         type="button">
-        {{x-icon "minus-plain" class="is-text"}}
+        <FlightIcon @name="minus-plain" class="is-text" />
       </button>
       <button
         data-test-scale-controls-increment
@@ -34,7 +34,7 @@
         disabled={{or this.isMaximum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
         onclick={{action "countUp"}}
         type="button">
-        {{x-icon "plus-plain" class="is-text"}}
+        <FlightIcon @name="plus-plain" class="is-text" />
       </button>
     </div>
   {{/if}}

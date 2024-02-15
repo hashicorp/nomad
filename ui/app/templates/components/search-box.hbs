@@ -4,7 +4,7 @@
 ~}}
 
 <div class="control">
-  <span class="prefix-icon">{{x-icon "search"}}</span>
+  <span class="prefix-icon"><FlightIcon @name="search" /></span>
   <input
     class="input {{this.inputClass}}"
     type="text"
@@ -13,5 +13,5 @@
     value={{this._searchTerm}}
     oninput={{action "setSearchTerm"}}
     size="1">
-  <button class="suffix-icon" onclick={{action "clear"}} type="button" title="Clear search">{{x-icon "cancel"}}</button>
+  <button class="suffix-icon" onclick={{action "clear"}} type="button" title="Clear search"><FlightIcon @name="cancel" /></button>
 </div>

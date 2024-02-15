@@ -7,17 +7,17 @@
   <td data-test-indicators class="is-narrow">
     {{#if this.allocation.unhealthyDrivers.length}}
       <span data-test-icon="unhealthy-driver" class="tooltip text-center" role="tooltip" aria-label="Allocation depends on unhealthy drivers">
-        {{x-icon "alert-triangle" class="is-warning"}}
+        <FlightIcon @name="alert-triangle" class="is-warning" />
       </span>
     {{/if}}
     {{#if this.allocation.nextAllocation}}
       <span data-test-icon="reschedule" class="tooltip text-center" role="tooltip" aria-label="Allocation was rescheduled">
-        {{x-icon "history" class="is-faded"}}
+        <FlightIcon @name="history" class="is-faded" />
       </span>
     {{/if}}
     {{#if this.allocation.wasPreempted}}
       <span data-test-icon="preemption" class="tooltip text-center" role="tooltip" aria-label="Allocation was preempted">
-        {{x-icon "boot" class="is-faded"}}
+        <FlightIcon @name="boot" class="is-faded" />
       </span>
     {{/if}}
   </td>

@@ -263,7 +263,7 @@
           Drivers
         </span>
         {{#if this.model.unhealthyDrivers.length}}
-          {{x-icon "alert-triangle" class="is-text is-warning"}}
+          <FlightIcon @name="alert-triangle" class="is-text is-warning" />
           {{this.model.unhealthyDrivers.length}}
           of
           {{this.model.detectedDrivers.length}}
@@ -341,7 +341,7 @@
                 Force Drain
               </span>
               {{#if this.model.drainStrategy.isForced}}
-                {{x-icon "alert-triangle" class="is-text is-warning"}}Yes
+                <FlightIcon @name="alert-triangle" class="is-text is-warning" />Yes
               {{else}}
                 No
               {{/if}}

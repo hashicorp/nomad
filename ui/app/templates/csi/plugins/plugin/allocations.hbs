@@ -62,8 +62,8 @@
           <div class="pagination-numbers">
             {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedAllocations.length}}
           </div>
-          <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
-          <p.next @class="pagination-next">{{x-icon "chevron-right"}}</p.next>
+          <p.prev @class="pagination-previous"><FlightIcon @name="chevron-left" /></p.prev>
+          <p.next @class="pagination-next"><FlightIcon @name="chevron-right" /></p.next>
           <ul class="pagination-list"></ul>
         </nav>
       </div>
