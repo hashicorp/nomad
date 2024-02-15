@@ -204,7 +204,7 @@ func TestAllocation_WaitClientStop(t *testing.T) {
 			// the reschedTime is close to the expectedRescheduleTime
 			reschedTime := a.WaitClientStop()
 			e := reschedTime.Unix() - tc.expectedRescheduleTime.Unix()
-			must.Less(t, e, int64(2))
+			must.Less(t, int64(2), e)
 		})
 	}
 }
@@ -267,7 +267,7 @@ func TestAllocation_WaitClientStop_Disconnect(t *testing.T) {
 			// the reschedTime is close to the expectedRescheduleTime
 			reschedTime := a.WaitClientStop()
 			e := reschedTime.Unix() - tc.expectedRescheduleTime.Unix()
-			must.Less(t, e, int64(2))
+			must.Less(t, int64(2), e)
 		})
 	}
 }

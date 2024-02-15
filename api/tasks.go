@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 type ReconcileOption = string
@@ -148,11 +146,11 @@ type DisconnectStrategy struct {
 
 func (ds *DisconnectStrategy) Canonicalize() {
 	if ds.Replace == nil {
-		ds.Replace = pointer.Of(true)
+		ds.Replace = pointerOf(true)
 	}
 
 	if ds.Reconcile == nil {
-		ds.Reconcile = pointer.Of(ReconcileOptionBestScore)
+		ds.Reconcile = pointerOf(ReconcileOptionBestScore)
 	}
 }
 
