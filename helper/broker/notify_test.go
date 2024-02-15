@@ -48,9 +48,9 @@ func TestGenericNotifier(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		notifiedWG.Add(1)
 		go func() {
+			defer notifiedWG.Done()
 			msg := notifier.WaitForChange(3 * time.Second)
 			require.Equal(t, "we got an update and not a timeout", msg)
-			notifiedWG.Done()
 		}()
 	}
 
