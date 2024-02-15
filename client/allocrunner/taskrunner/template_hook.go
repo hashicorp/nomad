@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -49,6 +50,15 @@ type templateHookConfig struct {
 	// renderOnTaskRestart is flag to explicitly render templates on task restart
 	renderOnTaskRestart bool
 }
+
+var (
+	callsPrestart    int32
+	callsPoststart   int32
+	callsUpdate      int32
+	callsStop        int32
+	callsNewManager  int32
+	callsStopManager int32
+)
 
 type templateHook struct {
 	config *templateHookConfig
@@ -102,12 +112,19 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
+	prestartVal := atomic.AddInt32(&callsPrestart, 1)
+	fmt.Println("templateHook.Prestart()", "taskID", h.taskID, "prestart_calls", prestartVal)
+
 	// If we have already run prerun before exit early.
 	if h.templateManager != nil {
 		if !h.config.renderOnTaskRestart {
+			fmt.Println("templateHook.Prestart()", "no render on task restart")
 			return nil
 		}
 		h.logger.Info("re-rendering templates on task restart")
+
+		stopVal := atomic.AddInt32(&callsStopManager, 1)
+		fmt.Println("templateHook.Prestart()", "do rerender on task restart, stopping old template manager", "calls_stopmanager", stopVal)
 		h.templateManager.Stop()
 		h.templateManager = nil
 	}
@@ -131,7 +148,9 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	// Wait for the template to render
 	select {
 	case <-ctx.Done():
+		fmt.Println("templateHook.Prestart()", "template render cancelled")
 	case <-unblockCh:
+		fmt.Println("templateHook.Prestart()", "template render done")
 	}
 
 	return nil
@@ -140,6 +159,9 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, resp *interfaces.TaskPoststartResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
+
+	poststartVal := atomic.AddInt32(&callsPoststart, 1)
+	fmt.Println("templateHook.Poststart", "taskID", h.taskID, "calls_poststart", poststartVal)
 
 	if h.templateManager == nil {
 		return nil
@@ -159,6 +181,9 @@ func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPostst
 }
 
 func (h *templateHook) newManager() (unblock chan struct{}, err error) {
+	newManagerVal := atomic.AddInt32(&callsNewManager, 1)
+	fmt.Println("templateHook.newManager()", "taskID", h.taskID, "calls_newmanager", newManagerVal)
+
 	unblock = make(chan struct{})
 	m, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
 		UnblockCh:            unblock,
@@ -190,21 +215,34 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 }
 
 func (h *templateHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
+
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
+	stopVal := atomic.AddInt32(&callsStop, 1)
+	fmt.Println("templateHook.Stop()", "enter", "taskID", h.taskID, "calls_stop", stopVal)
+
 	// Shutdown any created template
 	if h.templateManager != nil {
+		stopManVal := atomic.AddInt32(&callsStopManager, 1)
+		fmt.Println("templateHook.Stop()", "stopping template manager", "calls_stopmanager", stopManVal)
 		h.templateManager.Stop()
+	} else {
+		fmt.Println("templateHook.Stop()", "there is a nil templateManager")
 	}
 
+	fmt.Println("templateHook.Stop()", "exit", "taskID", h.taskID)
 	return nil
 }
 
 // Update is used to handle updates to vault and/or nomad tokens.
 func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, resp *interfaces.TaskUpdateResponse) error {
+
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
+
+	updateVal := atomic.AddInt32(&callsUpdate, 1)
+	fmt.Println("templateHook.Update()", "enter", "taskID", h.taskID, "calls_update", updateVal)
 
 	// no template manager to manage
 	if h.templateManager == nil {
@@ -220,6 +258,8 @@ func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateReq
 	}
 
 	// shutdown the old template
+	stopManVal := atomic.AddInt32(&callsStopManager, 1)
+	fmt.Println("templateHook.Update()", "stopping template manager", "calls_stopmanager", stopManVal)
 	h.templateManager.Stop()
 	h.templateManager = nil
 

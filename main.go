@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	// These packages have init() funcs which check os.Args and drop directly
 	// into their command logic. This is because they are run as separate
@@ -79,7 +81,17 @@ var (
 )
 
 func main() {
+	go dumps()
+
 	os.Exit(Run(os.Args[1:]))
+}
+
+func dumps() {
+	for {
+		count := runtime.NumGoroutine()
+		fmt.Println("Main", "num_goroutines", count)
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func Run(args []string) int {
