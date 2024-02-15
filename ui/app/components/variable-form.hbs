@@ -55,7 +55,7 @@
 			@isRequired={{true}}
 			@value={{this.path}}
 			placeholder="nomad/jobs/my-job/my-group/my-task"
-      @isInvalid={{or this.duplicatePathWarning this.hasInvalidPath}}
+      @isInvalid={{or this.duplicatePathWarning (and @model.isNew this.hasInvalidPath)}}
       {{on "input" (action this.setModelPath)}}
       disabled={{not @model.isNew}}
 			{{autofocus}}
@@ -79,10 +79,12 @@
           .
         </F.Error>
       {{/if}}
-      {{#if this.hasInvalidPath}}
-        <F.Error data-test-invalid-path-error>
-          Path must contain only alphanumeric or "-", "_", "~", or "/" characters, and be fewer than 128 characters in length.
-        </F.Error>
+      {{#if @model.isNew}}
+        {{#if this.hasInvalidPath}}
+          <F.Error data-test-invalid-path-error>
+            Path must contain only alphanumeric or "-", "_", "~", or "/" characters, and be fewer than 128 characters in length.
+          </F.Error>
+        {{/if}}
       {{/if}}
       {{#if this.isJobTemplateVariable}}
         <F.HelperText data-test-job-template-hint>
