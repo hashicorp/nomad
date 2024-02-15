@@ -11,7 +11,7 @@
         title={{annotation.label}}
         class="indicator {{if annotation.isActive "is-active"}}"
         {{on "click" (fn this.selectAnnotation annotation.annotation)}}>
-        {{x-icon annotation.icon}}
+        <FlightIcon @name={{annotation.icon}} />
       </button>
       <div class="line" />
     </div>

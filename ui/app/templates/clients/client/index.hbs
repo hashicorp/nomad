@@ -157,7 +157,7 @@
           data-test-node-status="{{this.model.compositeStatus}}"
           class="node-status-light {{this.model.compositeStatus}}"
         >
-          {{x-icon this.model.compositeStatusIcon}}
+          <FlightIcon @name={{this.model.compositeStatusIcon}} />
         </span>
       </span>
     </div>

@@ -26,3 +26,5 @@ export function xIcon(params, options) {
 }
 
 export default helper(xIcon);
+
+// TODO: delete file

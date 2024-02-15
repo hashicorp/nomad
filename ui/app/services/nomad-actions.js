@@ -213,6 +213,11 @@ export default class NomadActionsService extends Service {
   establishInstanceSocket(actionInstance, wsURL) {
     let socket = this.createWebSocket(wsURL);
     actionInstance.set('socket', socket);
+    console.log('socket set on', socket);
+    // simulate an error
+    // socket.error = () => {
+    //   socket.onerror();
+    // };
 
     socket.addEventListener('open', () =>
       this.handleSocketOpen(actionInstance, socket)

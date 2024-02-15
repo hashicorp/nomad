@@ -16,7 +16,11 @@
       <span class="ember-power-select-prefix">Level: </span>{{capitalize level}}
     </PowerSelect>
     <button data-test-toggle class="button is-white is-compact pull-right" {{action this.toggleStream}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
-      {{x-icon (if this.logger.isStreaming "media-pause" "media-play") class="is-text"}}
+      {{#if this.logger.isStreaming}}
+        <FlightIcon @name="pause" />
+      {{else}}
+        <FlightIcon @name="play" />
+      {{/if}}
     </button>
   </div>
   <div data-test-log-box class="boxed-section-body is-dark is-full-bleed">

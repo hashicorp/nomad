@@ -127,9 +127,9 @@ export default class Node extends Model {
     if (this.isDraining || !this.isEligible) {
       return 'alert-circle-fill';
     } else if (this.status === 'down') {
-      return 'cancel-circle-fill';
+      return 'x-circle-fill';
     } else if (this.status === 'initializing') {
-      return 'node-init-circle-fill';
+      return 'server';
     }
     return 'check-circle-fill';
   }
