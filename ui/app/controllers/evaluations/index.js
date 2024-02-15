@@ -68,6 +68,7 @@ export default class EvaluationsController extends Controller {
 
   @action
   async handleEvaluationClick(evaluation, e) {
+    console.log('handle evaluation click', evaluation, e);
     if (
       e instanceof MouseEvent ||
       (e instanceof KeyboardEvent &&
