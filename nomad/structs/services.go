@@ -168,7 +168,7 @@ func (sc *ServiceCheck) Equal(o *ServiceCheck) bool {
 		return false
 	}
 
-	if sc.PortLabel != o.Path {
+	if sc.PortLabel != o.PortLabel {
 		return false
 	}
 

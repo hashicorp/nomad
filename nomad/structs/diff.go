@@ -1556,6 +1556,10 @@ func consulProxyDiff(old, new *ConsulProxy, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, upDiffs...)
 	}
 
+	if exposeDiff := consulProxyExposeDiff(old.Expose, new.Expose, contextual); exposeDiff != nil {
+		diff.Objects = append(diff.Objects, exposeDiff)
+	}
+
 	// diff the config blob
 	if cDiff := configDiff(old.Config, new.Config, contextual); cDiff != nil {
 		diff.Objects = append(diff.Objects, cDiff)
@@ -1627,6 +1631,40 @@ func consulProxyUpstreamDiff(prev, next ConsulUpstream, contextual bool) *Object
 	// diff the mesh gateway primitive object
 	if mDiff := primitiveObjectDiff(prev.MeshGateway, next.MeshGateway, nil, "MeshGateway", contextual); mDiff != nil {
 		diff.Objects = append(diff.Objects, mDiff)
+	}
+
+	return diff
+}
+
+func consulProxyExposeDiff(prev, next *ConsulExposeConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Expose"}
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil || prev.Equal(&ConsulExposeConfig{}) {
+		prev = &ConsulExposeConfig{}
+		diff.Type = DiffTypeAdded
+	} else if next == nil || next.Equal(&ConsulExposeConfig{}) {
+		next = &ConsulExposeConfig{}
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
+	var prevPaths, nextPaths []any
+	if prev != nil {
+		prevPaths = interfaceSlice(prev.Paths)
+	}
+	if next != nil {
+		nextPaths = interfaceSlice(next.Paths)
+	}
+
+	if pathDiff := primitiveObjectSetDiff(
+		prevPaths,
+		nextPaths,
+		nil, "Paths",
+		contextual); pathDiff != nil {
+		diff.Objects = append(diff.Objects, pathDiff...)
 	}
 
 	return diff
