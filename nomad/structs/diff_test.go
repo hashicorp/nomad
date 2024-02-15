@@ -2800,6 +2800,14 @@ func TestTaskGroupDiff(t *testing.T) {
 											},
 										},
 									},
+									Expose: &ConsulExposeConfig{
+										Paths: []ConsulExposePath{{
+											Path:          "/health",
+											Protocol:      "http",
+											LocalPathPort: 9001,
+											ListenerPort:  "api_expose_healthcheck",
+										}},
+									},
 									Config: map[string]interface{}{
 										"foo": "qux",
 									},
@@ -3148,6 +3156,42 @@ func TestTaskGroupDiff(t *testing.T) {
 																		Name: "Mode",
 																		Old:  "",
 																		New:  "remote",
+																	},
+																},
+															},
+														},
+													},
+													{
+														Type: DiffTypeAdded,
+														Name: "Expose",
+														Objects: []*ObjectDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "Paths",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ListenerPort",
+																		Old:  "",
+																		New:  "api_expose_healthcheck",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "LocalPathPort",
+																		Old:  "",
+																		New:  "9001",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "Path",
+																		Old:  "",
+																		New:  "/health",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "Protocol",
+																		Old:  "",
+																		New:  "http",
 																	},
 																},
 															},
