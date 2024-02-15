@@ -28,6 +28,11 @@
                         There is already a templated named {{this.templateName}}.
                     </p>
                 {{/if}}
+                {{#if this.hasInvalidName}}
+                  <p class="help is-danger" data-test-invalid-name-error>
+                    Template name must contain only alphanumeric or "-", "_", "~", or "/" characters, and be fewer than 128 characters in length.
+                  </p>
+                {{/if}}
             </label>
             {{#if this.system.shouldShowNamespaces}}
                 <label>
