@@ -43,7 +43,7 @@ type bridgeNetworkConfigurator struct {
 	logger hclog.Logger
 }
 
-func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool) (*bridgeNetworkConfigurator, error) {
+func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, bridgeName, ipRange string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool, node *structs.Node) (*bridgeNetworkConfigurator, error) {
 	b := &bridgeNetworkConfigurator{
 		bridgeName:  bridgeName,
 		allocSubnet: ipRange,
@@ -59,7 +59,20 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange string, 
 		b.allocSubnet = defaultNomadAllocSubnet
 	}
 
-	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, buildNomadBridgeNetConfig(*b))
+	var netCfg []byte
+
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	for _, svc := range tg.Services {
+		if svc.Connect.HasTransparentProxy() {
+			netCfg = buildNomadBridgeNetConfigForTProxy(*b)
+			break
+		}
+	}
+	if netCfg == nil {
+		netCfg = buildNomadBridgeNetConfig(*b)
+	}
+
+	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, netCfg, node)
 	if err != nil {
 		return nil, err
 	}
@@ -147,6 +160,14 @@ func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator) []byte {
 		cniAdminChainName))
 }
 
+func buildNomadBridgeNetConfigForTProxy(b bridgeNetworkConfigurator) []byte {
+	return []byte(fmt.Sprintf(nomadCNIConfigTemplateForTProxy,
+		b.bridgeName,
+		b.hairpinMode,
+		b.allocSubnet,
+		cniAdminChainName))
+}
+
 // Update website/content/docs/networking/cni.mdx when the bridge configuration
 // is modified.
 const nomadCNIConfigTemplate = `{
@@ -186,6 +207,52 @@ const nomadCNIConfigTemplate = `{
 			"type": "portmap",
 			"capabilities": {"portMappings": true},
 			"snat": true
+		}
+	]
+}
+`
+
+const nomadCNIConfigTemplateForTProxy = `{
+	"cniVersion": "0.4.0",
+	"name": "nomad",
+	"plugins": [
+		{
+			"type": "loopback"
+		},
+		{
+			"type": "bridge",
+			"bridge": %q,
+			"ipMasq": true,
+			"isGateway": true,
+			"forceAddress": true,
+			"hairpinMode": %v,
+			"ipam": {
+				"type": "host-local",
+				"ranges": [
+					[
+						{
+							"subnet": %q
+						}
+					]
+				],
+				"routes": [
+					{ "dst": "0.0.0.0/0" }
+				]
+			}
+		},
+		{
+			"type": "firewall",
+			"backend": "iptables",
+			"iptablesAdminChainName": %q
+		},
+		{
+			"type": "portmap",
+			"capabilities": {"portMappings": true},
+			"snat": true
+		},
+		{
+			"type": "consul-cni",
+			"log_level": "debug"
 		}
 	]
 }
