@@ -10,7 +10,7 @@ import styleString from 'nomad-ui/utils/properties/glimmer-style-string';
 
 const iconFor = {
   error: 'x-circle-fill',
-  info: 'info-circle-fill',
+  info: 'info-fill',
 };
 
 const iconClassFor = {

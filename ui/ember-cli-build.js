@@ -12,15 +12,6 @@ const isTest = environment === 'test';
 
 module.exports = function (defaults) {
   let app = new EmberApp(defaults, {
-    svg: {
-      paths: [
-        'node_modules/@hashicorp/structure-icons/dist',
-        'public/images/icons',
-      ],
-      optimize: {
-        plugins: [{ removeViewBox: false }],
-      },
-    },
     codemirror: {
       modes: ['javascript', 'ruby'],
     },

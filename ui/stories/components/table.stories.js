@@ -726,7 +726,7 @@ export let CellIcons = () => {
             <tr>
               <td class="is-narrow">
                 {{#if (lt row.model.growth 0)}}
-                  {{x-icon "alert-triangle" class="is-warning"}}
+                  <FlightIcon @name="alert-triangle" />
                 {{/if}}
               </td>
               <td>{{row.model.rank}}</td>

@@ -27,7 +27,11 @@ export let LogStream = () => {
             <button class="button is-white">Head</button>
             <button class="button is-white">Tail</button>
             <button class="button is-white" onclick={{toggle "isPlaying1" this}}>
-              {{x-icon (if isPlaying1 "media-play" "media-pause") class="is-text"}}
+              {{#if isPlaying1}}
+                <FlightIcon @name="play" />
+              {{else}}
+                <FlightIcon @name="pause" />
+              {{/if}}
             </button>
           </span>
         </div>
