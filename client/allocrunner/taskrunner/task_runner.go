@@ -1135,6 +1135,22 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 				Options:  interpolatedNetworks[0].DNS.Options,
 			}
 		}
+
+		// merge in the DNS set by any CNI plugins
+		netStatus := tr.allocHookResources.GetAllocNetworkStatus()
+		if netStatus != nil && netStatus.DNS != nil {
+			if dns == nil {
+				dns = &drivers.DNSConfig{
+					Servers:  netStatus.DNS.Servers,
+					Searches: netStatus.DNS.Searches,
+					Options:  netStatus.DNS.Options,
+				}
+			} else {
+				dns.Servers = append(netStatus.DNS.Servers, dns.Servers...)
+				dns.Searches = append(netStatus.DNS.Searches, dns.Searches...)
+				dns.Options = append(netStatus.DNS.Options, dns.Options...)
+			}
+		}
 	}
 
 	memoryLimit := taskResources.Memory.MemoryMB

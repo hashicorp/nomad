@@ -909,6 +909,7 @@ func (ar *allocRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
 	ar.stateLock.Lock()
 	defer ar.stateLock.Unlock()
 	ar.state.NetworkStatus = s.Copy()
+	ar.hookResources.SetAllocNetworkStatus(s) // will copy in getter
 }
 
 func (ar *allocRunner) NetworkStatus() *structs.AllocNetworkStatus {

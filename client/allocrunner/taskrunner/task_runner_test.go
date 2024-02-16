@@ -2931,3 +2931,92 @@ func TestTaskRunner_IdentityHook_Disabled(t *testing.T) {
 	taskEnv := tr.envBuilder.Build()
 	must.MapNotContainsKey(t, taskEnv.EnvMap, "NOMAD_TOKEN")
 }
+
+func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
+	ci.Parallel(t)
+
+	// Mock task with group network
+	alloc1 := mock.Alloc()
+	task1 := alloc1.Job.TaskGroups[0].Tasks[0]
+	alloc1.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Device: "eth0",
+			IP:     "192.168.0.100",
+			DNS: &structs.DNSConfig{
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{},
+			},
+			ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+			DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+		}}
+	task1.Driver = "mock_driver"
+	task1.Config = map[string]interface{}{"run_for": "2s"}
+
+	// Mock task with task networking only
+	alloc2 := mock.Alloc()
+	task2 := alloc2.Job.TaskGroups[0].Tasks[0]
+	task2.Driver = "mock_driver"
+	task2.Config = map[string]interface{}{"run_for": "2s"}
+
+	testCases := []struct {
+		name   string
+		alloc  *structs.Allocation
+		task   *structs.Task
+		expect *drivers.DNSConfig
+	}{
+		{
+			name:  "task with group networking",
+			alloc: alloc1,
+			task:  task1,
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"10.37.105.17", "1.1.1.1", "8.8.8.8"},
+				Searches: []string{"node.consul", "test.local"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+		{
+			name:   "task without group networking",
+			alloc:  alloc2,
+			task:   task2,
+			expect: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			conf, cleanup := testTaskRunnerConfig(t, tc.alloc, tc.task.Name, nil)
+			t.Cleanup(cleanup)
+
+			// note this will never actually be set if we don't have group/CNI
+			// networking, but it's a good validation no-group/CNI code path
+			conf.AllocHookResources.SetAllocNetworkStatus(&structs.AllocNetworkStatus{
+				InterfaceName: "",
+				Address:       "",
+				DNS: &structs.DNSConfig{
+					Servers:  []string{"10.37.105.17"},
+					Searches: []string{"node.consul"},
+					Options:  []string{"ndots:2", "edns0"},
+				},
+			})
+
+			tr, err := NewTaskRunner(conf)
+			must.NoError(t, err)
+
+			// Run the task runner.
+			go tr.Run()
+			t.Cleanup(func() {
+				tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+			})
+
+			// Wait for task to complete.
+			testWaitForTaskToStart(t, tr)
+
+			tr.stateLock.RLock()
+			t.Cleanup(tr.stateLock.RUnlock)
+
+			must.Eq(t, tc.expect, tr.localState.TaskHandle.Config.DNS)
+		})
+	}
+}
