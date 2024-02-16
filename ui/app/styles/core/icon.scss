@@ -57,3 +57,13 @@ $icon-dimensions-large: 2rem;
     color: $grey;
   }
 }
+
+// Flight Icons general override: notes:
+// When the Nomad UI was original built, we worked with svg icons that
+// generally matched a slightly larger height than our 16x16 flight icons
+// now occupy. In order to maintain vertical alignment with text,
+// we apply a blanket rule to FlightIcons to bump them down a few pixels.
+.flight-icon {
+  position: relative;
+  top: 3px;
+}

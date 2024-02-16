@@ -42,9 +42,11 @@
 
   <td data-test-health>
     <span class="nowrap">
-      {{x-icon
-        (if this.pluginAllocation.healthy "check-circle-outline" "minus-circle-outline")
-        class=(if this.pluginAllocation.healthy "is-success" "is-danger")}}
+      {{#if this.pluginAllocation.healthy}}
+        <FlightIcon @name="check-circle" @color="hsl(141, 53%, 53%)" />
+      {{else}}
+        <FlightIcon @name="minus-circle" @color="hsl(348, 100%, 61%)" />
+      {{/if}}
       {{if this.pluginAllocation.healthy "Healthy" "Unhealthy"}}
     </span>
   </td>

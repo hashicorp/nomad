@@ -22,7 +22,11 @@
     {{/if}}
     {{#if this.isStreamable}}
       <button data-test-log-action="toggle-stream" class="button is-white is-compact" onclick={{action "toggleStream"}} type="button" title="{{if this.logger.isStreaming "Pause" "Start"}} streaming">
-        {{x-icon (if this.logger.isStreaming "media-pause" "media-play") class="is-text"}}
+        {{#if this.logger.isStreaming}}
+          <FlightIcon @name="pause" />
+        {{else}}
+          <FlightIcon @name="play" />
+        {{/if}}
       </button>
     {{/if}}
   </span>
