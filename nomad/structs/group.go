@@ -48,7 +48,7 @@ type DisconnectStrategy struct {
 	// Defines for how long a disconnected client will keep its allocations running.
 	// This option has a different behavior for nil, the default, and time.Duration(0),
 	// and needs to be intentionally set/unset.
-	StopOnClientAfter *time.Duration `mapstructure:"stop_on_client_after" hcl:"stop_on_client_after, optional"`
+	StopOnClientAfter *time.Duration `mapstructure:"stop_on_client_after" hcl:"stop_on_client_after,optional"`
 
 	// A boolean field used to define if the allocations should be replaced while
 	// its  considered disconnected.
