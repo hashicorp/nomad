@@ -32,9 +32,9 @@
     <div class="event">
       <div data-test-type class="type">
         {{#if this.activeEvent.event.error}}
-          <FlightIcon @name="x-circle-fill" class="is-danger" />
+          <FlightIcon @name="x-circle-fill" @color="hsl(348, 100%, 61%)" />
         {{else}}
-          <FlightIcon @name="info" class="is-grey" />
+          <FlightIcon @name="info" @color="hsl(0, 0%, 71%)" />
         {{/if}}
       </div>
       <div>

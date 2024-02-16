@@ -178,7 +178,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
    * @returns {string}
    */
   getActionSocketUrl(job, action, allocID) {
-    console.log('grabbing params', job, action, allocID);
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const region = this.system.activeRegion;
 

@@ -129,7 +129,7 @@ export default class Node extends Model {
     } else if (this.status === 'down') {
       return 'x-circle-fill';
     } else if (this.status === 'initializing') {
-      return 'server';
+      return 'entry-point';
     }
     return 'check-circle-fill';
   }

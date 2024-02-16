@@ -11,7 +11,7 @@
       role="tooltip"
       aria-label="Allocation depends on unhealthy drivers"
     >
-      <FlightIcon @name="alert-triangle" class="is-warning" />
+      <FlightIcon @name="alert-triangle-fill" @color="#fa8e23" />
     </span>
   {{/if}}
   {{#if this.allocation.nextAllocation}}
@@ -31,7 +31,7 @@
       role="tooltip"
       aria-label="Allocation was preempted"
     >
-      <FlightIcon @name="stop-circle" class="is-faded" />
+      <FlightIcon @name="serverless" class="is-faded" />
     </span>
   {{/if}}
 </td>

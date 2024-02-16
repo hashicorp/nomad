@@ -8,7 +8,7 @@
     &hellip;
   {{else if this.error}}
     <span class="tooltip is-small text-center" role="tooltip" aria-label="Couldn't collect stats">
-      <FlightIcon @name="alert-triangle" class="is-warning" />
+      <FlightIcon @name="alert-triangle-fill" @color="#fa8e23" />
     </span>
   {{else}}
     <div class="inline-chart tooltip" role="tooltip" aria-label="{{this.formattedStat}} / {{this.formattedReserved}}">

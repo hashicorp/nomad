@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-@use "sass:math";
+@use 'sass:math';
 
 $size: 1.6rem;
 
@@ -13,7 +13,6 @@ $size: 1.6rem;
   width: $size;
   border-radius: math.div($size, 2);
   vertical-align: middle;
-  align-items: center;
   justify-content: center;
 
   // Compensate for the padding within the SVG
@@ -33,7 +32,8 @@ $size: 1.6rem;
     color: $grey-light;
 
     .blinking {
-      animation: node-status-light-initializing 0.7s infinite alternate ease-in-out;
+      animation: node-status-light-initializing 0.7s infinite alternate
+        ease-in-out;
     }
   }
 
