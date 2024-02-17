@@ -30,6 +30,13 @@ type JobStatusCommand struct {
 	tmpl      string
 }
 
+type JobJson struct {
+	Summary          *api.JobSummary
+	Allocations      []*api.AllocationListStub
+	LatestDeployment *api.Deployment
+	Evaluations      []*api.Evaluation
+}
+
 func (c *JobStatusCommand) Help() string {
 	helpText := `
 Usage: nomad job status [options] <job>
@@ -148,7 +155,13 @@ func (c *JobStatusCommand) Run(args []string) int {
 			c.Ui.Output("No running jobs")
 		} else {
 			if c.json || len(c.tmpl) > 0 {
-				out, err := Format(true, c.tmpl, jobs)
+				ids := make([]string, len(jobs))
+
+				for i, j := range jobs {
+					ids[i] = j.ID
+				}
+
+				out, err := c.createJsonJobsOutput(client, ids...)
 
 				if err != nil {
 					c.Ui.Error(err.Error())
@@ -188,7 +201,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 	}
 
 	if c.json || len(c.tmpl) > 0 {
-		out, err := Format(true, c.tmpl, job)
+		out, err := c.createJsonJobsOutput(client, *job.ID)
 
 		if err != nil {
 			c.Ui.Error(err.Error())
@@ -692,6 +705,56 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 		trunc := fmt.Sprintf("\nPlacement failures truncated. To see remainder run:\nnomad eval-status %s", failedEval.ID)
 		c.Ui.Output(trunc)
 	}
+}
+
+func (c *JobStatusCommand) createJsonJobsOutput(client *api.Client, jobIds ...string) (string, error) {
+	jsonJobs := make([]JobJson, len(jobIds))
+
+	for i, id := range jobIds {
+		job, _, err := client.Jobs().Info(id, &api.QueryOptions{})
+
+		if err != nil {
+			return "", fmt.Errorf("Error querying job info: %s", err)
+		}
+
+		var q *api.QueryOptions
+		if job.Namespace != nil {
+			q = &api.QueryOptions{Namespace: *job.Namespace}
+		}
+
+		summary, _, err := client.Jobs().Summary(id, q)
+
+		if err != nil {
+			return "", fmt.Errorf("Error querying job summary: %s", err)
+		}
+
+		allocations, _, err := client.Jobs().Allocations(id, c.allAllocs, q)
+
+		if err != nil {
+			return "", fmt.Errorf("Error querying job allocations: %s", err)
+		}
+
+		latestDeployment, _, err := client.Jobs().LatestDeployment(id, q)
+
+		if err != nil {
+			return "", fmt.Errorf("Error querying latest job deployment: %s", err)
+		}
+
+		evals, _, err := client.Jobs().Evaluations(id, q)
+
+		if err != nil {
+			return "", fmt.Errorf("Error querying job evaluations: %s", err)
+		}
+
+		jsonJobs[i] = JobJson{
+			Summary:          summary,
+			Allocations:      allocations,
+			LatestDeployment: latestDeployment,
+			Evaluations:      evals,
+		}
+	}
+
+	return Format(true, c.tmpl, jsonJobs)
 }
 
 // list general information about a list of jobs
