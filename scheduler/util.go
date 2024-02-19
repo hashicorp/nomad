@@ -334,6 +334,18 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 			return difference("task log disabled", at.LogConfig.Disabled, bt.LogConfig.Disabled)
 		}
 
+		// Check volume mount updates
+		bVMMap := helper.SliceToMap[map[string]*structs.VolumeMount](bt.VolumeMounts,
+			func(vm *structs.VolumeMount) string {
+				return vm.Volume
+			})
+
+		for _, atvm := range at.VolumeMounts {
+			if c := volumeMountUpdated(atvm, bVMMap[atvm.Volume]); c.modified {
+				return c
+			}
+		}
+
 		// Check if restart.render_templates is updated
 		if c := renderTemplatesUpdated(at.RestartPolicy, bt.RestartPolicy,
 			"task restart render_templates"); c.modified {
@@ -421,6 +433,17 @@ func connectServiceUpdated(servicesA, servicesB []*structs.Service) comparison {
 			}
 		}
 	}
+	return same
+}
+
+// volumeMountUpdated returns true if the definition of the volume mount
+// has been updated in a manner that will requires the task to be recreated.
+func volumeMountUpdated(mountA, mountB *structs.VolumeMount) comparison {
+	if mountA != nil && mountB != nil &&
+		mountA.SELinuxLabel != mountB.SELinuxLabel {
+		return difference("volume mount selinux label", mountA.SELinuxLabel, mountB.SELinuxLabel)
+	}
+
 	return same
 }
 
