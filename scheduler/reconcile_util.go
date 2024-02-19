@@ -277,7 +277,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				}
 
 			} else {
-				if alloc.PreventRescheduleOnLost() {
+				if alloc.PreventRescheduleOnDisconnect() {
 					if alloc.ClientStatus == structs.AllocClientStatusRunning {
 						disconnecting[alloc.ID] = alloc
 						continue
@@ -364,7 +364,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		// Allocs on terminal nodes that can't be rescheduled need to be treated
 		// differently than those that can.
 		if taintedNode.TerminalStatus() {
-			if alloc.PreventRescheduleOnLost() {
+			if alloc.PreventRescheduleOnDisconnect() {
 				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
 					untainted[alloc.ID] = alloc
 					continue
@@ -554,7 +554,7 @@ func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
 }
 
 // delayByStopAfterClientDisconnect returns a delay for any lost allocation that's got a
-// stop_after_client_disconnect configured
+// disconnect.stop_on_client_after configured
 func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedRescheduleInfo) {
 	now := time.Now().UTC()
 	for _, a := range a {

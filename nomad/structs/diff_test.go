@@ -2971,6 +2971,209 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 		},
 		{
+			TestCase: "Disconnect strategy deleted",
+			Old: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         1 * time.Second,
+					Replace:           pointer.Of(true),
+					Reconcile:         ReconcileOptionLongestRunning,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Disconnect",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "LostAfter",
+								Old:  "1000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Reconcile",
+								Old:  ReconcileOptionLongestRunning,
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Replace",
+								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "StopOnClientAfter",
+								Old:  "1000000000",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Disconnect strategy added",
+			Old:      &TaskGroup{},
+			New: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Second,
+					Replace:           pointer.Of(true),
+					Reconcile:         ReconcileOptionLongestRunning,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Disconnect",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "LostAfter",
+								Old:  "",
+								New:  "1000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Reconcile",
+								Old:  "",
+								New:  ReconcileOptionLongestRunning,
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Replace",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "StopOnClientAfter",
+								Old:  "",
+								New:  "1000000000",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Disconnect strategy edited",
+			Old: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Second,
+					Replace:           pointer.Of(false),
+					Reconcile:         ReconcileOptionLongestRunning,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			New: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Minute,
+					Replace:           pointer.Of(true),
+					Reconcile:         ReconcileOptionBestScore,
+					StopOnClientAfter: pointer.Of(1 * time.Minute),
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Disconnect",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "LostAfter",
+								Old:  "1000000000",
+								New:  "60000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Reconcile",
+								Old:  ReconcileOptionLongestRunning,
+								New:  ReconcileOptionBestScore,
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Replace",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "StopOnClientAfter",
+								Old:  "1000000000",
+								New:  "60000000000",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase:   "Disconnect strategy edited with context",
+			Contextual: true,
+			Old: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Second,
+					Replace:           pointer.Of(false),
+					Reconcile:         ReconcileOptionLongestRunning,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			New: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Minute,
+					Replace:           pointer.Of(true),
+					Reconcile:         ReconcileOptionBestScore,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Disconnect",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "LostAfter",
+								Old:  "1000000000",
+								New:  "60000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Reconcile",
+								Old:  ReconcileOptionLongestRunning,
+								New:  ReconcileOptionBestScore,
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Replace",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "StopOnClientAfter",
+								Old:  "1000000000",
+								New:  "1000000000",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			TestCase: "EphemeralDisk added",
 			Old:      &TaskGroup{},
 			New: &TaskGroup{

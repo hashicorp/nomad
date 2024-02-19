@@ -338,6 +338,11 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, uDiff)
 	}
 
+	// Disconnect diff
+	if disconnectDiff := disconectStrategyDiffs(tg.Disconnect, other.Disconnect, contextual); disconnectDiff != nil {
+		diff.Objects = append(diff.Objects, disconnectDiff)
+	}
+
 	// Network Resources diff
 	if nDiffs := networkResourceDiffs(tg.Networks, other.Networks, contextual); nDiffs != nil {
 		diff.Objects = append(diff.Objects, nDiffs...)
@@ -2393,6 +2398,30 @@ func (d *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
 
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	return diff
+}
+
+func disconectStrategyDiffs(old, new *DisconnectStrategy, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Disconnect"}
+	var oldDisconnectFlat, newDisconnectFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		diff.Type = DiffTypeAdded
+		newDisconnectFlat = flatmap.Flatten(new, nil, false)
+	} else if new == nil {
+		diff.Type = DiffTypeDeleted
+		oldDisconnectFlat = flatmap.Flatten(old, nil, false)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldDisconnectFlat = flatmap.Flatten(old, nil, false)
+		newDisconnectFlat = flatmap.Flatten(new, nil, false)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldDisconnectFlat, newDisconnectFlat, contextual)
 
 	return diff
 }

@@ -893,6 +893,8 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 // PreventRescheduleOnLost, MaxClientDisconnect and ReschedulePolicy.
 // Having the 3 configurations enabled is not a valid option and is not
 // included in the test.
+// Test using max_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.LostAfter introduced in 1.8.0.
 func TestReconciler_LostNode_PreventRescheduleOnLost(t *testing.T) {
 	disabledReschedulePolicy := &structs.ReschedulePolicy{
 		Attempts:  0,

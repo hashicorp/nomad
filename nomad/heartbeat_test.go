@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -293,6 +294,71 @@ func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 	ci.Parallel(t)
 
+	testCases := []struct {
+		name                  string
+		now                   time.Time
+		lostAfterOnDisconnect time.Duration
+		expectedNodeStatus    string
+	}{
+		{
+			name:                  "has-pending-reconnects",
+			now:                   time.Now().UTC(),
+			lostAfterOnDisconnect: 5 * time.Second,
+			expectedNodeStatus:    structs.NodeStatusDisconnected,
+		},
+		{
+			name:                  "has-expired-reconnects",
+			lostAfterOnDisconnect: 5 * time.Second,
+			now:                   time.Now().UTC().Add(-10 * time.Second),
+			expectedNodeStatus:    structs.NodeStatusDown,
+		},
+		{
+			name:                  "has-expired-reconnects-equal-timestamp",
+			lostAfterOnDisconnect: 5 * time.Second,
+			now:                   time.Now().UTC().Add(-5 * time.Second),
+			expectedNodeStatus:    structs.NodeStatusDown,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s1, cleanupS1 := TestServer(t, nil)
+			defer cleanupS1()
+			testutil.WaitForLeader(t, s1.RPC)
+
+			// Create a node
+			node := mock.Node()
+			state := s1.fsm.State()
+			must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+
+			alloc := mock.Alloc()
+			alloc.NodeID = node.ID
+			alloc.Job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+				LostAfter: tc.lostAfterOnDisconnect,
+			}
+			alloc.ClientStatus = structs.AllocClientStatusUnknown
+			alloc.AllocStates = []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+				Time:  tc.now,
+			}}
+
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
+
+			// Trigger status update
+			s1.invalidateHeartbeat(node.ID)
+			out, err := state.NodeByID(nil, node.ID)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedNodeStatus, out.Status)
+		})
+	}
+}
+
+// Test using max_client_disconnect, remove after its deprecated  in favor
+// of Disconnect.LostAfter introduced in 1.8.0.
+func TestHeartbeat_InvalidateHeartbeatDisconnectedClient(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCase struct {
 		name                string
 		now                 time.Time
@@ -336,7 +402,7 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 			// Create a node
 			node := mock.Node()
 			state := s1.fsm.State()
-			require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+			must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 			alloc := mock.Alloc()
 			alloc.NodeID = node.ID
@@ -347,13 +413,13 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 				Value: structs.AllocClientStatusUnknown,
 				Time:  tc.now,
 			}}
-			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
 
 			// Trigger status update
 			s1.invalidateHeartbeat(node.ID)
 			out, err := state.NodeByID(nil, node.ID)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedNodeStatus, out.Status)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedNodeStatus, out.Status)
 		})
 	}
 }

@@ -4,6 +4,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,9 +15,76 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+func testJob_Deprecated() *structs.Job {
+	testJob := mock.Job()
+	testJob.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
+
+	return testJob
+}
+
+func testJobSingle_Deprecated() *structs.Job {
+	testJobSingle := mock.Job()
+	testJobSingle.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
+	testJobSingle.TaskGroups[0].PreventRescheduleOnLost = true
+
+	return testJobSingle
+}
+
+func testJobNoMaxDisconnect_Deprecated() *structs.Job {
+	testJobNoMaxDisconnect := mock.Job()
+	testJobNoMaxDisconnect.TaskGroups[0].MaxClientDisconnect = nil
+
+	return testJobNoMaxDisconnect
+}
+
+func testJobNoMaxDisconnectSingle_Deprecated() *structs.Job {
+	testJobNoMaxDisconnectSingle := mock.Job()
+	testJobNoMaxDisconnectSingle.TaskGroups[0].MaxClientDisconnect = nil
+	testJobNoMaxDisconnectSingle.TaskGroups[0].PreventRescheduleOnLost = true
+
+	return testJobNoMaxDisconnectSingle
+}
+
+func testJob_Disconnected() *structs.Job {
+	testJob := mock.Job()
+	testJob.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+		LostAfter: 5 * time.Second,
+		Replace:   pointer.Of(true),
+	}
+
+	return testJob
+}
+
+func testJobSingle_Disconnected() *structs.Job {
+	testJobSingle := mock.Job()
+	testJobSingle.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+		LostAfter: 5 * time.Second,
+		Replace:   pointer.Of(true),
+	}
+	return testJobSingle
+}
+
+func testJobNoMaxDisconnect_Disconnected() *structs.Job {
+	testJobNoMaxDisconnect := mock.Job()
+	testJobNoMaxDisconnect.TaskGroups[0].Disconnect = nil
+
+	return testJobNoMaxDisconnect
+}
+
+func testJobNoMaxDisconnectSingle_Disconnected() *structs.Job {
+	testJobNoMaxDisconnectSingle := mock.Job()
+	testJobNoMaxDisconnectSingle.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+		LostAfter: 0 * time.Second,
+		Replace:   pointer.Of(false),
+	}
+
+	return testJobNoMaxDisconnectSingle
+}
+
 func TestAllocSet_filterByTainted(t *testing.T) {
 	ci.Parallel(t)
 
+	now := time.Now()
 	nodes := map[string]*structs.Node{
 		"draining": {
 			ID:            "draining",
@@ -36,21 +104,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			Status: structs.NodeStatusDisconnected,
 		},
 	}
-
-	testJob := mock.Job()
-	testJob.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
-	now := time.Now()
-
-	testJobSingle := mock.Job()
-	testJobSingle.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
-	testJobSingle.TaskGroups[0].PreventRescheduleOnLost = true
-
-	testJobNoMaxDisconnect := mock.Job()
-	testJobNoMaxDisconnect.TaskGroups[0].MaxClientDisconnect = nil
-
-	testJobNoMaxDisconnectSingle := mock.Job()
-	testJobNoMaxDisconnectSingle.TaskGroups[0].MaxClientDisconnect = nil
-	testJobNoMaxDisconnectSingle.TaskGroups[0].PreventRescheduleOnLost = true
 
 	unknownAllocState := []*structs.AllocState{{
 		Field: structs.AllocStateFieldClientStatus,
@@ -76,1255 +129,1287 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			Time:  now,
 		},
 	}
+	fmt.Println(unknownAllocState, expiredAllocState, reconnectedAllocState)
 
-	type testCase struct {
-		name                        string
-		all                         allocSet
-		taintedNodes                map[string]*structs.Node
-		supportsDisconnectedClients bool
-		skipNilNodeTest             bool
-		now                         time.Time
-		PreventRescheduleOnLost     bool
-		// expected results
-		untainted     allocSet
-		migrate       allocSet
-		lost          allocSet
-		disconnecting allocSet
-		reconnecting  allocSet
-		ignore        allocSet
-		expiring      allocSet
-	}
-
-	testCases := []testCase{
-		// These two cases test that we maintain parity with pre-disconnected-clients behavior.
+	jobDefinitions := []struct {
+		name                         string
+		testJob                      func() *structs.Job
+		testJobSingle                func() *structs.Job
+		testJobNoMaxDisconnect       func() *structs.Job
+		testJobNoMaxDisconnectSingle func() *structs.Job
+	}{
+		// Test using max_client_disconnect, remove after its deprecated in favor
+		// of Disconnect.LostAfter introduced in 1.8.0.
 		{
-			name:                        "lost-client",
-			supportsDisconnectedClients: false,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					NodeID:       "normal",
-				},
-				// Terminal allocs are always untainted
-				"untainted2": {
-					ID:           "untainted2",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJob,
-					NodeID:       "normal",
-				},
-				// Terminal allocs are always untainted, even on draining nodes
-				"untainted3": {
-					ID:           "untainted3",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJob,
-					NodeID:       "draining",
-				},
-				// Terminal allocs are always untainted, even on lost nodes
-				"untainted4": {
-					ID:           "untainted4",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJob,
-					NodeID:       "lost",
-				},
-				// Non-terminal alloc with migrate=true should migrate on a draining node
-				"migrating1": {
-					ID:                "migrating1",
-					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
-					Job:               testJob,
-					NodeID:            "draining",
-				},
-				// Non-terminal alloc with migrate=true should migrate on an unknown node
-				"migrating2": {
-					ID:                "migrating2",
-					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
-					Job:               testJob,
-					NodeID:            "nil",
-				},
-			},
-			untainted: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					NodeID:       "normal",
-				},
-				// Terminal allocs are always untainted
-				"untainted2": {
-					ID:           "untainted2",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJob,
-					NodeID:       "normal",
-				},
-				// Terminal allocs are always untainted, even on draining nodes
-				"untainted3": {
-					ID:           "untainted3",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJob,
-					NodeID:       "draining",
-				},
-				// Terminal allocs are always untainted, even on lost nodes
-				"untainted4": {
-					ID:           "untainted4",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJob,
-					NodeID:       "lost",
-				},
-			},
-			migrate: allocSet{
-				// Non-terminal alloc with migrate=true should migrate on a draining node
-				"migrating1": {
-					ID:                "migrating1",
-					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
-					Job:               testJob,
-					NodeID:            "draining",
-				},
-				// Non-terminal alloc with migrate=true should migrate on an unknown node
-				"migrating2": {
-					ID:                "migrating2",
-					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
-					Job:               testJob,
-					NodeID:            "nil",
-				},
-			},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost:          allocSet{},
-			expiring:      allocSet{},
+			name:                         "old_definitions_deprecated",
+			testJob:                      testJob_Deprecated,
+			testJobSingle:                testJobSingle_Deprecated,
+			testJobNoMaxDisconnect:       testJobNoMaxDisconnect_Deprecated,
+			testJobNoMaxDisconnectSingle: testJobNoMaxDisconnectSingle_Deprecated,
 		},
 		{
-			name:                        "lost-client-only-tainted-nodes",
-			supportsDisconnectedClients: false,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			// The logic associated with this test case can only trigger if there
-			// is a tainted node. Therefore, testing with a nil node set produces
-			// false failures, so don't perform that test if in this case.
-			skipNilNodeTest: true,
-			all: allocSet{
-				// Non-terminal allocs on lost nodes are lost
-				"lost1": {
-					ID:           "lost1",
-					ClientStatus: structs.AllocClientStatusPending,
-					Job:          testJob,
-					NodeID:       "lost",
-				},
-				// Non-terminal allocs on lost nodes are lost
-				"lost2": {
-					ID:           "lost2",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					NodeID:       "lost",
-				},
-			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost: allocSet{
-				// Non-terminal allocs on lost nodes are lost
-				"lost1": {
-					ID:           "lost1",
-					ClientStatus: structs.AllocClientStatusPending,
-					Job:          testJob,
-					NodeID:       "lost",
-				},
-				// Non-terminal allocs on lost nodes are lost
-				"lost2": {
-					ID:           "lost2",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					NodeID:       "lost",
-				},
-			},
-			expiring: allocSet{},
-		},
-		{
-			name:                        "disco-client-disconnect-unset-max-disconnect",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             true,
-			all: allocSet{
-				// Non-terminal allocs on disconnected nodes w/o max-disconnect are lost
-				"lost-running": {
-					ID:            "lost-running",
-					Name:          "lost-running",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnect,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost: allocSet{
-				"lost-running": {
-					ID:            "lost-running",
-					Name:          "lost-running",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnect,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-			},
-			expiring: allocSet{},
-		},
-		// Everything below this line tests the disconnected client mode.
-		{
-			name:                        "disco-client-untainted-reconnect-failed-and-replaced",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "failed-original",
-				},
-				// Failed and replaced allocs on reconnected nodes
-				// that are still desired-running are reconnected so
-				// we can stop them
-				"failed-original": {
-					ID:            "failed-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusFailed,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			untainted: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "failed-original",
-				},
-			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
-				"failed-original": {
-					ID:            "failed-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusFailed,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			ignore:   allocSet{},
-			lost:     allocSet{},
-			expiring: allocSet{},
-		},
-		{
-			name:                        "disco-client-reconnecting-running-no-replacement",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				// Running allocs on reconnected nodes with no replacement are reconnecting.
-				// Node.UpdateStatus has already handled syncing client state so this
-				// should be a noop.
-				"reconnecting-running-no-replacement": {
-					ID:            "reconnecting-running-no-replacement",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
-				"reconnecting-running-no-replacement": {
-					ID:            "reconnecting-running-no-replacement",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			ignore:   allocSet{},
-			lost:     allocSet{},
-			expiring: allocSet{},
-		},
-		{
-			name:                        "disco-client-terminal",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				// Allocs on reconnected nodes that are complete are ignored
-				"ignored-reconnect-complete": {
-					ID:            "ignored-reconnect-complete",
-					Name:          "ignored-reconnect-complete",
-					ClientStatus:  structs.AllocClientStatusComplete,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				// Failed allocs on reconnected nodes are in reconnecting so that
-				// they be marked with desired status stop at the server.
-				"reconnecting-failed": {
-					ID:            "reconnecting-failed",
-					Name:          "reconnecting-failed",
-					ClientStatus:  structs.AllocClientStatusFailed,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				// Lost allocs on reconnected nodes don't get restarted
-				"ignored-reconnect-lost": {
-					ID:            "ignored-reconnect-lost",
-					Name:          "ignored-reconnect-lost",
-					ClientStatus:  structs.AllocClientStatusLost,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				// Replacement allocs that are complete are ignored
-				"ignored-reconnect-complete-replacement": {
-					ID:                 "ignored-reconnect-complete-replacement",
-					Name:               "ignored-reconnect-complete",
-					ClientStatus:       structs.AllocClientStatusComplete,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					AllocStates:        unknownAllocState,
-					PreviousAllocation: "untainted-reconnect-complete",
-				},
-				// Replacement allocs on reconnected nodes that are failed are ignored
-				"ignored-reconnect-failed-replacement": {
-					ID:                 "ignored-reconnect-failed-replacement",
-					Name:               "ignored-reconnect-failed",
-					ClientStatus:       structs.AllocClientStatusFailed,
-					DesiredStatus:      structs.AllocDesiredStatusStop,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "reconnecting-failed",
-				},
-				// Lost replacement allocs on reconnected nodes don't get restarted
-				"ignored-reconnect-lost-replacement": {
-					ID:                 "ignored-reconnect-lost-replacement",
-					Name:               "ignored-reconnect-lost",
-					ClientStatus:       structs.AllocClientStatusLost,
-					DesiredStatus:      structs.AllocDesiredStatusStop,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					AllocStates:        unknownAllocState,
-					PreviousAllocation: "untainted-reconnect-lost",
-				},
-			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
-				"reconnecting-failed": {
-					ID:            "reconnecting-failed",
-					Name:          "reconnecting-failed",
-					ClientStatus:  structs.AllocClientStatusFailed,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			ignore: allocSet{
-				"ignored-reconnect-complete": {
-					ID:            "ignored-reconnect-complete",
-					Name:          "ignored-reconnect-complete",
-					ClientStatus:  structs.AllocClientStatusComplete,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				"ignored-reconnect-lost": {
-					ID:            "ignored-reconnect-lost",
-					Name:          "ignored-reconnect-lost",
-					ClientStatus:  structs.AllocClientStatusLost,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				"ignored-reconnect-complete-replacement": {
-					ID:                 "ignored-reconnect-complete-replacement",
-					Name:               "ignored-reconnect-complete",
-					ClientStatus:       structs.AllocClientStatusComplete,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					AllocStates:        unknownAllocState,
-					PreviousAllocation: "untainted-reconnect-complete",
-				},
-				"ignored-reconnect-failed-replacement": {
-					ID:                 "ignored-reconnect-failed-replacement",
-					Name:               "ignored-reconnect-failed",
-					ClientStatus:       structs.AllocClientStatusFailed,
-					DesiredStatus:      structs.AllocDesiredStatusStop,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "reconnecting-failed",
-				},
-				"ignored-reconnect-lost-replacement": {
-					ID:                 "ignored-reconnect-lost-replacement",
-					Name:               "ignored-reconnect-lost",
-					ClientStatus:       structs.AllocClientStatusLost,
-					DesiredStatus:      structs.AllocDesiredStatusStop,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					AllocStates:        unknownAllocState,
-					PreviousAllocation: "untainted-reconnect-lost",
-				},
-			},
-			lost:     allocSet{},
-			expiring: allocSet{},
-		},
-		{
-			name:                        "disco-client-disconnect",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             true,
-			all: allocSet{
-				// Non-terminal allocs on disconnected nodes are disconnecting
-				"disconnect-running": {
-					ID:            "disconnect-running",
-					Name:          "disconnect-running",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-				// Unknown allocs on disconnected nodes are acknowledge, so they wont be rescheduled again
-				"untainted-unknown": {
-					ID:            "untainted-unknown",
-					Name:          "untainted-unknown",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				// Unknown allocs on disconnected nodes are lost when expired
-				"expiring-unknown": {
-					ID:            "expiring-unknown",
-					Name:          "expiring-unknown",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   expiredAllocState,
-				},
-				// Pending allocs on disconnected nodes are lost
-				"lost-pending": {
-					ID:            "lost-pending",
-					Name:          "lost-pending",
-					ClientStatus:  structs.AllocClientStatusPending,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-				// Expired allocs on reconnected clients are lost
-				"expiring-expired": {
-					ID:            "expiring-expired",
-					Name:          "expiring-expired",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   expiredAllocState,
-				},
-				// Failed and stopped allocs on disconnected nodes are ignored
-				"ignore-reconnected-failed-stopped": {
-					ID:            "ignore-reconnected-failed-stopped",
-					Name:          "ignore-reconnected-failed-stopped",
-					ClientStatus:  structs.AllocClientStatusFailed,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			untainted: allocSet{
-				// Unknown allocs on disconnected nodes are acknowledge, so they wont be rescheduled again
-				"untainted-unknown": {
-					ID:            "untainted-unknown",
-					Name:          "untainted-unknown",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			migrate: allocSet{},
-			disconnecting: allocSet{
-				"disconnect-running": {
-					ID:            "disconnect-running",
-					Name:          "disconnect-running",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-			},
-			reconnecting: allocSet{},
-			ignore: allocSet{
-				"ignore-reconnected-failed-stopped": {
-					ID:            "ignore-reconnected-failed-stopped",
-					Name:          "ignore-reconnected-failed-stopped",
-					ClientStatus:  structs.AllocClientStatusFailed,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			lost: allocSet{
-				"lost-pending": {
-					ID:            "lost-pending",
-					Name:          "lost-pending",
-					ClientStatus:  structs.AllocClientStatusPending,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-			},
-			expiring: allocSet{
-				"expiring-unknown": {
-					ID:            "expiring-unknown",
-					Name:          "expiring-unknown",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   expiredAllocState,
-				},
-				"expiring-expired": {
-					ID:            "expiring-expired",
-					Name:          "expiring-expired",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   expiredAllocState,
-				},
-			},
-		},
-		{
-			name:                        "disco-client-reconnect",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				// Expired allocs on reconnected clients are lost
-				"expired-reconnect": {
-					ID:            "expired-reconnect",
-					Name:          "expired-reconnect",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   expiredAllocState,
-				},
-			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost:          allocSet{},
-			expiring: allocSet{
-				"expired-reconnect": {
-					ID:            "expired-reconnect",
-					Name:          "expired-reconnect",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   expiredAllocState,
-				},
-			},
-		},
-		{
-			name:                        "disco-client-running-reconnecting-and-replacement-untainted",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "running-original",
-				},
-				// Running and replaced allocs on reconnected nodes are reconnecting
-				"running-original": {
-					ID:            "running-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			untainted: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJob,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "running-original",
-				},
-			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
-				"running-original": {
-					ID:            "running-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			ignore:   allocSet{},
-			lost:     allocSet{},
-			expiring: allocSet{},
-		},
-		{
-			// After an alloc is reconnected, it should be considered
-			// "untainted" instead of "reconnecting" to allow changes such as
-			// job updates to be applied properly.
-			name:                        "disco-client-reconnected-alloc-untainted",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				"running-reconnected": {
-					ID:            "running-reconnected",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   reconnectedAllocState,
-				},
-			},
-			untainted: allocSet{
-				"running-reconnected": {
-					ID:            "running-reconnected",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJob,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   reconnectedAllocState,
-				},
-			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost:          allocSet{},
-			expiring:      allocSet{},
-		},
-		// Everything below this line tests the single instance on lost mode.
-		{
-			name:                        "lost-client-single-instance-on",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJobSingle,
-					NodeID:       "normal",
-				},
-				// Terminal allocs are always untainted
-				"untainted2": {
-					ID:           "untainted2",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJobSingle,
-					NodeID:       "normal",
-				},
-				// Terminal allocs are always untainted, even on draining nodes
-				"untainted3": {
-					ID:           "untainted3",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJobSingle,
-					NodeID:       "draining",
-				},
-				// Terminal allocs are always untainted, even on lost nodes
-				"untainted4": {
-					ID:           "untainted4",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJobSingle,
-					NodeID:       "lost",
-				},
-				// Non-terminal alloc with migrate=true should migrate on a draining node
-				"migrating1": {
-					ID:                "migrating1",
-					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
-					Job:               testJobSingle,
-					NodeID:            "draining",
-				},
-				// Non-terminal alloc with migrate=true should migrate on an unknown node
-				"migrating2": {
-					ID:                "migrating2",
-					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
-					Job:               testJobSingle,
-					NodeID:            "nil",
-				},
-			},
-			untainted: allocSet{
-				"untainted1": {
-					ID:           "untainted1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJobSingle,
-					NodeID:       "normal",
-				},
-				// Terminal allocs are always untainted
-				"untainted2": {
-					ID:           "untainted2",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJobSingle,
-					NodeID:       "normal",
-				},
-				// Terminal allocs are always untainted, even on draining nodes
-				"untainted3": {
-					ID:           "untainted3",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJobSingle,
-					NodeID:       "draining",
-				},
-				// Terminal allocs are always untainted, even on lost nodes
-				"untainted4": {
-					ID:           "untainted4",
-					ClientStatus: structs.AllocClientStatusComplete,
-					Job:          testJobSingle,
-					NodeID:       "lost",
-				},
-			},
-			migrate: allocSet{
-				// Non-terminal alloc with migrate=true should migrate on a draining node
-				"migrating1": {
-					ID:                "migrating1",
-					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
-					Job:               testJobSingle,
-					NodeID:            "draining",
-				},
-				// Non-terminal alloc with migrate=true should migrate on an unknown node
-				"migrating2": {
-					ID:                "migrating2",
-					ClientStatus:      structs.AllocClientStatusRunning,
-					DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
-					Job:               testJobSingle,
-					NodeID:            "nil",
-				},
-			},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost:          allocSet{},
-			expiring:      allocSet{},
-		},
-		{
-			name:                        "lost-client-only-tainted-nodes-single-instance-on",
-			supportsDisconnectedClients: false,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			// The logic associated with this test case can only trigger if there
-			// is a tainted node. Therefore, testing with a nil node set produces
-			// false failures, so don't perform that test if in this case.
-			skipNilNodeTest: true,
-			all: allocSet{
-				// Non-terminal allocs on lost nodes are lost
-				"lost1": {
-					ID:           "lost1",
-					ClientStatus: structs.AllocClientStatusPending,
-					Job:          testJobSingle,
-					NodeID:       "lost",
-				},
-				// Non-terminal allocs on lost nodes are lost
-				"lost2": {
-					ID:           "lost2",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJobSingle,
-					NodeID:       "lost",
-				},
-			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost: allocSet{
-				// Non-terminal allocs on lost nodes are lost
-				"lost1": {
-					ID:           "lost1",
-					ClientStatus: structs.AllocClientStatusPending,
-					Job:          testJobSingle,
-					NodeID:       "lost",
-				},
-				// Non-terminal allocs on lost nodes are lost
-				"lost2": {
-					ID:           "lost2",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJobSingle,
-					NodeID:       "lost",
-				},
-			},
-			expiring: allocSet{},
-		},
-		{
-			name:                        "disco-client-disconnect-unset-max-disconnect-single-instance-on",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             true,
-			all: allocSet{
-				// Non-terminal allocs on disconnected nodes w/o max-disconnect are lost
-				"disconnecting-running": {
-					ID:            "disconnecting-running",
-					Name:          "disconnecting-running",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnectSingle,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-			},
-			untainted: allocSet{},
-			migrate:   allocSet{},
-			disconnecting: allocSet{"disconnecting-running": {
-				ID:            "disconnecting-running",
-				Name:          "disconnecting-running",
-				ClientStatus:  structs.AllocClientStatusRunning,
-				DesiredStatus: structs.AllocDesiredStatusRun,
-				Job:           testJobNoMaxDisconnectSingle,
-				NodeID:        "disconnected",
-				TaskGroup:     "web",
-			}},
-			reconnecting: allocSet{},
-			ignore:       allocSet{},
-			lost:         allocSet{},
-			expiring:     allocSet{},
-		},
-		{
-			name:                        "disco-client-untainted-reconnect-failed-and-replaced-single-instance-on",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJobSingle,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "failed-original",
-				},
-				// Failed and replaced allocs on reconnected nodes
-				// that are still desired-running are reconnected so
-				// we can stop them
-				"failed-original": {
-					ID:            "failed-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusFailed,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobSingle,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			untainted: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJobSingle,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "failed-original",
-				},
-			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
-				"failed-original": {
-					ID:            "failed-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusFailed,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobSingle,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			ignore:   allocSet{},
-			lost:     allocSet{},
-			expiring: allocSet{},
-		},
-		{
-			name:                        "disco-client-reconnect-single-instance-on",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				// Expired allocs on reconnected clients are lost
-				"expired-reconnect": {
-					ID:            "expired-reconnect",
-					Name:          "expired-reconnect",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobSingle,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   expiredAllocState,
-				},
-			},
-			untainted:     allocSet{},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost:          allocSet{},
-			expiring: allocSet{
-				"expired-reconnect": {
-					ID:            "expired-reconnect",
-					Name:          "expired-reconnect",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobSingle,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   expiredAllocState,
-				},
-			},
-		},
-		{
-			name:                        "disco-client-running-reconnecting-and-replacement-untainted-single-instance-on",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJobSingle,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "running-original",
-				},
-				// Running and replaced allocs on reconnected nodes are reconnecting
-				"running-original": {
-					ID:            "running-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobSingle,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			untainted: allocSet{
-				"running-replacement": {
-					ID:                 "running-replacement",
-					Name:               "web",
-					ClientStatus:       structs.AllocClientStatusRunning,
-					DesiredStatus:      structs.AllocDesiredStatusRun,
-					Job:                testJobSingle,
-					NodeID:             "normal",
-					TaskGroup:          "web",
-					PreviousAllocation: "running-original",
-				},
-			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting: allocSet{
-				"running-original": {
-					ID:            "running-original",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobSingle,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			ignore:   allocSet{},
-			lost:     allocSet{},
-			expiring: allocSet{},
-		},
-		{
-			// After an alloc is reconnected, it should be considered
-			// "untainted" instead of "reconnecting" to allow changes such as
-			// job updates to be applied properly.
-			name:                        "disco-client-reconnected-alloc-untainted",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             false,
-			all: allocSet{
-				"running-reconnected": {
-					ID:            "running-reconnected",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobSingle,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   reconnectedAllocState,
-				},
-			},
-			untainted: allocSet{
-				"running-reconnected": {
-					ID:            "running-reconnected",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobSingle,
-					NodeID:        "normal",
-					TaskGroup:     "web",
-					AllocStates:   reconnectedAllocState,
-				},
-			},
-			migrate:       allocSet{},
-			disconnecting: allocSet{},
-			reconnecting:  allocSet{},
-			ignore:        allocSet{},
-			lost:          allocSet{},
-			expiring:      allocSet{},
-		},
-		{
-			name:                        "disco-client-reconnected-alloc-untainted-single-instance-on",
-			supportsDisconnectedClients: true,
-			now:                         time.Now(),
-			taintedNodes:                nodes,
-			skipNilNodeTest:             true,
-			all: allocSet{
-				"untainted-unknown": {
-					ID:            "untainted-unknown",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnectSingle,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				"disconnecting-running": {
-					ID:            "disconnecting-running",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnectSingle,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-				"lost-running": {
-					ID:            "lost-running",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnect,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-				"untainted-unknown-on-down-node": {
-					ID:            "untainted-unknown-on-down-node",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnectSingle,
-					NodeID:        "down",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			untainted: allocSet{
-				"untainted-unknown": {
-					ID:            "untainted-unknown",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnectSingle,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-				"untainted-unknown-on-down-node": {
-					ID:            "untainted-unknown-on-down-node",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnectSingle,
-					NodeID:        "down",
-					TaskGroup:     "web",
-					AllocStates:   unknownAllocState,
-				},
-			},
-			migrate: allocSet{},
-			disconnecting: allocSet{
-				"disconnecting-running": {
-					ID:            "disconnecting-running",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnectSingle,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-			},
-			reconnecting: allocSet{},
-			ignore:       allocSet{},
-			lost: allocSet{
-				"lost-running": {
-					ID:            "lost-running",
-					Name:          "web",
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					Job:           testJobNoMaxDisconnect,
-					NodeID:        "disconnected",
-					TaskGroup:     "web",
-				},
-			},
-			expiring: allocSet{},
+			name:                         "new_definitions_using_disconnect_block",
+			testJob:                      testJob_Deprecated,
+			testJobSingle:                testJobSingle_Deprecated,
+			testJobNoMaxDisconnect:       testJobNoMaxDisconnect_Deprecated,
+			testJobNoMaxDisconnectSingle: testJobNoMaxDisconnectSingle_Deprecated,
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// With tainted nodes
-			untainted, migrate, lost, disconnecting, reconnecting, ignore, expired := tc.all.filterByTainted(tc.taintedNodes, tc.supportsDisconnectedClients, tc.now)
-			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
-			must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
-			must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
-			must.Eq(t, tc.disconnecting, disconnecting, must.Sprintf("with-nodes: disconnecting"))
-			must.Eq(t, tc.reconnecting, reconnecting, must.Sprintf("with-nodes: reconnecting"))
-			must.Eq(t, tc.ignore, ignore, must.Sprintf("with-nodes: ignore"))
-			must.Eq(t, tc.expiring, expired, must.Sprintf("with-nodes: expiring"))
+	for _, jd := range jobDefinitions {
+		testJob := jd.testJob()
+		testJobSingle := jd.testJobSingle()
+		testJobNoMaxDisconnect := jd.testJobNoMaxDisconnect()
+		testJobNoMaxDisconnectSingle := jd.testJobNoMaxDisconnectSingle()
 
-			if tc.skipNilNodeTest {
-				return
+		t.Run(jd.name, func(t *testing.T) {
+			testCases := []struct {
+				name                        string
+				all                         allocSet
+				taintedNodes                map[string]*structs.Node
+				supportsDisconnectedClients bool
+				skipNilNodeTest             bool
+				now                         time.Time
+				PreventRescheduleOnLost     bool
+				// expected results
+				untainted     allocSet
+				migrate       allocSet
+				lost          allocSet
+				disconnecting allocSet
+				reconnecting  allocSet
+				ignore        allocSet
+				expiring      allocSet
+			}{ // These two cases test that we maintain parity with pre-disconnected-clients behavior.
+				{
+					name:                        "lost-client",
+					supportsDisconnectedClients: false,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						"untainted1": {
+							ID:           "untainted1",
+							ClientStatus: structs.AllocClientStatusRunning,
+							Job:          testJob,
+							NodeID:       "normal",
+						},
+						// Terminal allocs are always untainted
+						"untainted2": {
+							ID:           "untainted2",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJob,
+							NodeID:       "normal",
+						},
+						// Terminal allocs are always untainted, even on draining nodes
+						"untainted3": {
+							ID:           "untainted3",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJob,
+							NodeID:       "draining",
+						},
+						// Terminal allocs are always untainted, even on lost nodes
+						"untainted4": {
+							ID:           "untainted4",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJob,
+							NodeID:       "lost",
+						},
+						// Non-terminal alloc with migrate=true should migrate on a draining node
+						"migrating1": {
+							ID:                "migrating1",
+							ClientStatus:      structs.AllocClientStatusRunning,
+							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							Job:               testJob,
+							NodeID:            "draining",
+						},
+						// Non-terminal alloc with migrate=true should migrate on an unknown node
+						"migrating2": {
+							ID:                "migrating2",
+							ClientStatus:      structs.AllocClientStatusRunning,
+							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							Job:               testJob,
+							NodeID:            "nil",
+						},
+					},
+					untainted: allocSet{
+						"untainted1": {
+							ID:           "untainted1",
+							ClientStatus: structs.AllocClientStatusRunning,
+							Job:          testJob,
+							NodeID:       "normal",
+						},
+						// Terminal allocs are always untainted
+						"untainted2": {
+							ID:           "untainted2",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJob,
+							NodeID:       "normal",
+						},
+						// Terminal allocs are always untainted, even on draining nodes
+						"untainted3": {
+							ID:           "untainted3",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJob,
+							NodeID:       "draining",
+						},
+						// Terminal allocs are always untainted, even on lost nodes
+						"untainted4": {
+							ID:           "untainted4",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJob,
+							NodeID:       "lost",
+						},
+					},
+					migrate: allocSet{
+						// Non-terminal alloc with migrate=true should migrate on a draining node
+						"migrating1": {
+							ID:                "migrating1",
+							ClientStatus:      structs.AllocClientStatusRunning,
+							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							Job:               testJob,
+							NodeID:            "draining",
+						},
+						// Non-terminal alloc with migrate=true should migrate on an unknown node
+						"migrating2": {
+							ID:                "migrating2",
+							ClientStatus:      structs.AllocClientStatusRunning,
+							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							Job:               testJob,
+							NodeID:            "nil",
+						},
+					},
+					disconnecting: allocSet{},
+					reconnecting:  allocSet{},
+					ignore:        allocSet{},
+					lost:          allocSet{},
+					expiring:      allocSet{},
+				},
+				{
+					name:                        "lost-client-only-tainted-nodes",
+					supportsDisconnectedClients: false,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					// The logic associated with this test case can only trigger if there
+					// is a tainted node. Therefore, testing with a nil node set produces
+					// false failures, so don't perform that test if in this case.
+					skipNilNodeTest: true,
+					all: allocSet{
+						// Non-terminal allocs on lost nodes are lost
+						"lost1": {
+							ID:           "lost1",
+							ClientStatus: structs.AllocClientStatusPending,
+							Job:          testJob,
+							NodeID:       "lost",
+						},
+						// Non-terminal allocs on lost nodes are lost
+						"lost2": {
+							ID:           "lost2",
+							ClientStatus: structs.AllocClientStatusRunning,
+							Job:          testJob,
+							NodeID:       "lost",
+						},
+					},
+					untainted:     allocSet{},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting:  allocSet{},
+					ignore:        allocSet{},
+					lost: allocSet{
+						// Non-terminal allocs on lost nodes are lost
+						"lost1": {
+							ID:           "lost1",
+							ClientStatus: structs.AllocClientStatusPending,
+							Job:          testJob,
+							NodeID:       "lost",
+						},
+						// Non-terminal allocs on lost nodes are lost
+						"lost2": {
+							ID:           "lost2",
+							ClientStatus: structs.AllocClientStatusRunning,
+							Job:          testJob,
+							NodeID:       "lost",
+						},
+					},
+					expiring: allocSet{},
+				},
+				{
+					name:                        "disco-client-disconnect-unset-max-disconnect",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             true,
+					all: allocSet{
+						// Non-terminal allocs on disconnected nodes w/o max-disconnect are lost
+						"lost-running": {
+							ID:            "lost-running",
+							Name:          "lost-running",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnect,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+					},
+					untainted:     allocSet{},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting:  allocSet{},
+					ignore:        allocSet{},
+					lost: allocSet{
+						"lost-running": {
+							ID:            "lost-running",
+							Name:          "lost-running",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnect,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+					},
+					expiring: allocSet{},
+				},
+				// Everything below this line tests the disconnected client mode.
+				{
+					name:                        "disco-client-untainted-reconnect-failed-and-replaced",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						"running-replacement": {
+							ID:                 "running-replacement",
+							Name:               "web",
+							ClientStatus:       structs.AllocClientStatusRunning,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "failed-original",
+						},
+						// Failed and replaced allocs on reconnected nodes
+						// that are still desired-running are reconnected so
+						// we can stop them
+						"failed-original": {
+							ID:            "failed-original",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusFailed,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					untainted: allocSet{
+						"running-replacement": {
+							ID:                 "running-replacement",
+							Name:               "web",
+							ClientStatus:       structs.AllocClientStatusRunning,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "failed-original",
+						},
+					},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting: allocSet{
+						"failed-original": {
+							ID:            "failed-original",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusFailed,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					ignore:   allocSet{},
+					lost:     allocSet{},
+					expiring: allocSet{},
+				},
+				{
+					name:                        "disco-client-reconnecting-running-no-replacement",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						// Running allocs on reconnected nodes with no replacement are reconnecting.
+						// Node.UpdateStatus has already handled syncing client state so this
+						// should be a noop.
+						"reconnecting-running-no-replacement": {
+							ID:            "reconnecting-running-no-replacement",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					untainted:     allocSet{},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting: allocSet{
+						"reconnecting-running-no-replacement": {
+							ID:            "reconnecting-running-no-replacement",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					ignore:   allocSet{},
+					lost:     allocSet{},
+					expiring: allocSet{},
+				},
+				{
+					name:                        "disco-client-terminal",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						// Allocs on reconnected nodes that are complete are ignored
+						"ignored-reconnect-complete": {
+							ID:            "ignored-reconnect-complete",
+							Name:          "ignored-reconnect-complete",
+							ClientStatus:  structs.AllocClientStatusComplete,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+						// Failed allocs on reconnected nodes are in reconnecting so that
+						// they be marked with desired status stop at the server.
+						"reconnecting-failed": {
+							ID:            "reconnecting-failed",
+							Name:          "reconnecting-failed",
+							ClientStatus:  structs.AllocClientStatusFailed,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+						// Lost allocs on reconnected nodes don't get restarted
+						"ignored-reconnect-lost": {
+							ID:            "ignored-reconnect-lost",
+							Name:          "ignored-reconnect-lost",
+							ClientStatus:  structs.AllocClientStatusLost,
+							DesiredStatus: structs.AllocDesiredStatusStop,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+						// Replacement allocs that are complete are ignored
+						"ignored-reconnect-complete-replacement": {
+							ID:                 "ignored-reconnect-complete-replacement",
+							Name:               "ignored-reconnect-complete",
+							ClientStatus:       structs.AllocClientStatusComplete,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							AllocStates:        unknownAllocState,
+							PreviousAllocation: "untainted-reconnect-complete",
+						},
+						// Replacement allocs on reconnected nodes that are failed are ignored
+						"ignored-reconnect-failed-replacement": {
+							ID:                 "ignored-reconnect-failed-replacement",
+							Name:               "ignored-reconnect-failed",
+							ClientStatus:       structs.AllocClientStatusFailed,
+							DesiredStatus:      structs.AllocDesiredStatusStop,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "reconnecting-failed",
+						},
+						// Lost replacement allocs on reconnected nodes don't get restarted
+						"ignored-reconnect-lost-replacement": {
+							ID:                 "ignored-reconnect-lost-replacement",
+							Name:               "ignored-reconnect-lost",
+							ClientStatus:       structs.AllocClientStatusLost,
+							DesiredStatus:      structs.AllocDesiredStatusStop,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							AllocStates:        unknownAllocState,
+							PreviousAllocation: "untainted-reconnect-lost",
+						},
+					},
+					untainted:     allocSet{},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting: allocSet{
+						"reconnecting-failed": {
+							ID:            "reconnecting-failed",
+							Name:          "reconnecting-failed",
+							ClientStatus:  structs.AllocClientStatusFailed,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					ignore: allocSet{
+						"ignored-reconnect-complete": {
+							ID:            "ignored-reconnect-complete",
+							Name:          "ignored-reconnect-complete",
+							ClientStatus:  structs.AllocClientStatusComplete,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+						"ignored-reconnect-lost": {
+							ID:            "ignored-reconnect-lost",
+							Name:          "ignored-reconnect-lost",
+							ClientStatus:  structs.AllocClientStatusLost,
+							DesiredStatus: structs.AllocDesiredStatusStop,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+						"ignored-reconnect-complete-replacement": {
+							ID:                 "ignored-reconnect-complete-replacement",
+							Name:               "ignored-reconnect-complete",
+							ClientStatus:       structs.AllocClientStatusComplete,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							AllocStates:        unknownAllocState,
+							PreviousAllocation: "untainted-reconnect-complete",
+						},
+						"ignored-reconnect-failed-replacement": {
+							ID:                 "ignored-reconnect-failed-replacement",
+							Name:               "ignored-reconnect-failed",
+							ClientStatus:       structs.AllocClientStatusFailed,
+							DesiredStatus:      structs.AllocDesiredStatusStop,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "reconnecting-failed",
+						},
+						"ignored-reconnect-lost-replacement": {
+							ID:                 "ignored-reconnect-lost-replacement",
+							Name:               "ignored-reconnect-lost",
+							ClientStatus:       structs.AllocClientStatusLost,
+							DesiredStatus:      structs.AllocDesiredStatusStop,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							AllocStates:        unknownAllocState,
+							PreviousAllocation: "untainted-reconnect-lost",
+						},
+					},
+					lost:     allocSet{},
+					expiring: allocSet{},
+				},
+				{
+					name:                        "disco-client-disconnect",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             true,
+					all: allocSet{
+						// Non-terminal allocs on disconnected nodes are disconnecting
+						"disconnect-running": {
+							ID:            "disconnect-running",
+							Name:          "disconnect-running",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+						// Unknown allocs on disconnected nodes are acknowledge, so they wont be rescheduled again
+						"untainted-unknown": {
+							ID:            "untainted-unknown",
+							Name:          "untainted-unknown",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+						// Unknown allocs on disconnected nodes are lost when expired
+						"expiring-unknown": {
+							ID:            "expiring-unknown",
+							Name:          "expiring-unknown",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+							AllocStates:   expiredAllocState,
+						},
+						// Pending allocs on disconnected nodes are lost
+						"lost-pending": {
+							ID:            "lost-pending",
+							Name:          "lost-pending",
+							ClientStatus:  structs.AllocClientStatusPending,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+						// Expired allocs on reconnected clients are lost
+						"expiring-expired": {
+							ID:            "expiring-expired",
+							Name:          "expiring-expired",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   expiredAllocState,
+						},
+						// Failed and stopped allocs on disconnected nodes are ignored
+						"ignore-reconnected-failed-stopped": {
+							ID:            "ignore-reconnected-failed-stopped",
+							Name:          "ignore-reconnected-failed-stopped",
+							ClientStatus:  structs.AllocClientStatusFailed,
+							DesiredStatus: structs.AllocDesiredStatusStop,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					untainted: allocSet{
+						// Unknown allocs on disconnected nodes are acknowledge, so they wont be rescheduled again
+						"untainted-unknown": {
+							ID:            "untainted-unknown",
+							Name:          "untainted-unknown",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					migrate: allocSet{},
+					disconnecting: allocSet{
+						"disconnect-running": {
+							ID:            "disconnect-running",
+							Name:          "disconnect-running",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+					},
+					reconnecting: allocSet{},
+					ignore: allocSet{
+						"ignore-reconnected-failed-stopped": {
+							ID:            "ignore-reconnected-failed-stopped",
+							Name:          "ignore-reconnected-failed-stopped",
+							ClientStatus:  structs.AllocClientStatusFailed,
+							DesiredStatus: structs.AllocDesiredStatusStop,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					lost: allocSet{
+						"lost-pending": {
+							ID:            "lost-pending",
+							Name:          "lost-pending",
+							ClientStatus:  structs.AllocClientStatusPending,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+					},
+					expiring: allocSet{
+						"expiring-unknown": {
+							ID:            "expiring-unknown",
+							Name:          "expiring-unknown",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+							AllocStates:   expiredAllocState,
+						},
+						"expiring-expired": {
+							ID:            "expiring-expired",
+							Name:          "expiring-expired",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   expiredAllocState,
+						},
+					},
+				},
+				{
+					name:                        "disco-client-reconnect",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						// Expired allocs on reconnected clients are lost
+						"expired-reconnect": {
+							ID:            "expired-reconnect",
+							Name:          "expired-reconnect",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   expiredAllocState,
+						},
+					},
+					untainted:     allocSet{},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting:  allocSet{},
+					ignore:        allocSet{},
+					lost:          allocSet{},
+					expiring: allocSet{
+						"expired-reconnect": {
+							ID:            "expired-reconnect",
+							Name:          "expired-reconnect",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   expiredAllocState,
+						},
+					},
+				},
+				{
+					name:                        "disco-client-running-reconnecting-and-replacement-untainted",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						"running-replacement": {
+							ID:                 "running-replacement",
+							Name:               "web",
+							ClientStatus:       structs.AllocClientStatusRunning,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "running-original",
+						},
+						// Running and replaced allocs on reconnected nodes are reconnecting
+						"running-original": {
+							ID:            "running-original",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					untainted: allocSet{
+						"running-replacement": {
+							ID:                 "running-replacement",
+							Name:               "web",
+							ClientStatus:       structs.AllocClientStatusRunning,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJob,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "running-original",
+						},
+					},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting: allocSet{
+						"running-original": {
+							ID:            "running-original",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					ignore:   allocSet{},
+					lost:     allocSet{},
+					expiring: allocSet{},
+				},
+				{
+					// After an alloc is reconnected, it should be considered
+					// "untainted" instead of "reconnecting" to allow changes such as
+					// job updates to be applied properly.
+					name:                        "disco-client-reconnected-alloc-untainted",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						"running-reconnected": {
+							ID:            "running-reconnected",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   reconnectedAllocState,
+						},
+					},
+					untainted: allocSet{
+						"running-reconnected": {
+							ID:            "running-reconnected",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJob,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   reconnectedAllocState,
+						},
+					},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting:  allocSet{},
+					ignore:        allocSet{},
+					lost:          allocSet{},
+					expiring:      allocSet{},
+				},
+				// Everything below this line tests the single instance on lost mode.
+				{
+					name:                        "lost-client-single-instance-on",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						"untainted1": {
+							ID:           "untainted1",
+							ClientStatus: structs.AllocClientStatusRunning,
+							Job:          testJobSingle,
+							NodeID:       "normal",
+						},
+						// Terminal allocs are always untainted
+						"untainted2": {
+							ID:           "untainted2",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJobSingle,
+							NodeID:       "normal",
+						},
+						// Terminal allocs are always untainted, even on draining nodes
+						"untainted3": {
+							ID:           "untainted3",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJobSingle,
+							NodeID:       "draining",
+						},
+						// Terminal allocs are always untainted, even on lost nodes
+						"untainted4": {
+							ID:           "untainted4",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJobSingle,
+							NodeID:       "lost",
+						},
+						// Non-terminal alloc with migrate=true should migrate on a draining node
+						"migrating1": {
+							ID:                "migrating1",
+							ClientStatus:      structs.AllocClientStatusRunning,
+							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							Job:               testJobSingle,
+							NodeID:            "draining",
+						},
+						// Non-terminal alloc with migrate=true should migrate on an unknown node
+						"migrating2": {
+							ID:                "migrating2",
+							ClientStatus:      structs.AllocClientStatusRunning,
+							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							Job:               testJobSingle,
+							NodeID:            "nil",
+						},
+					},
+					untainted: allocSet{
+						"untainted1": {
+							ID:           "untainted1",
+							ClientStatus: structs.AllocClientStatusRunning,
+							Job:          testJobSingle,
+							NodeID:       "normal",
+						},
+						// Terminal allocs are always untainted
+						"untainted2": {
+							ID:           "untainted2",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJobSingle,
+							NodeID:       "normal",
+						},
+						// Terminal allocs are always untainted, even on draining nodes
+						"untainted3": {
+							ID:           "untainted3",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJobSingle,
+							NodeID:       "draining",
+						},
+						// Terminal allocs are always untainted, even on lost nodes
+						"untainted4": {
+							ID:           "untainted4",
+							ClientStatus: structs.AllocClientStatusComplete,
+							Job:          testJobSingle,
+							NodeID:       "lost",
+						},
+					},
+					migrate: allocSet{
+						// Non-terminal alloc with migrate=true should migrate on a draining node
+						"migrating1": {
+							ID:                "migrating1",
+							ClientStatus:      structs.AllocClientStatusRunning,
+							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							Job:               testJobSingle,
+							NodeID:            "draining",
+						},
+						// Non-terminal alloc with migrate=true should migrate on an unknown node
+						"migrating2": {
+							ID:                "migrating2",
+							ClientStatus:      structs.AllocClientStatusRunning,
+							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							Job:               testJobSingle,
+							NodeID:            "nil",
+						},
+					},
+					disconnecting: allocSet{},
+					reconnecting:  allocSet{},
+					ignore:        allocSet{},
+					lost:          allocSet{},
+					expiring:      allocSet{},
+				},
+				{
+					name:                        "lost-client-only-tainted-nodes-single-instance-on",
+					supportsDisconnectedClients: false,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					// The logic associated with this test case can only trigger if there
+					// is a tainted node. Therefore, testing with a nil node set produces
+					// false failures, so don't perform that test if in this case.
+					skipNilNodeTest: true,
+					all: allocSet{
+						// Non-terminal allocs on lost nodes are lost
+						"lost1": {
+							ID:           "lost1",
+							ClientStatus: structs.AllocClientStatusPending,
+							Job:          testJobSingle,
+							NodeID:       "lost",
+						},
+						// Non-terminal allocs on lost nodes are lost
+						"lost2": {
+							ID:           "lost2",
+							ClientStatus: structs.AllocClientStatusRunning,
+							Job:          testJobSingle,
+							NodeID:       "lost",
+						},
+					},
+					untainted:     allocSet{},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting:  allocSet{},
+					ignore:        allocSet{},
+					lost: allocSet{
+						// Non-terminal allocs on lost nodes are lost
+						"lost1": {
+							ID:           "lost1",
+							ClientStatus: structs.AllocClientStatusPending,
+							Job:          testJobSingle,
+							NodeID:       "lost",
+						},
+						// Non-terminal allocs on lost nodes are lost
+						"lost2": {
+							ID:           "lost2",
+							ClientStatus: structs.AllocClientStatusRunning,
+							Job:          testJobSingle,
+							NodeID:       "lost",
+						},
+					},
+					expiring: allocSet{},
+				},
+				{
+					name:                        "disco-client-disconnect-unset-max-disconnect-single-instance-on",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             true,
+					all: allocSet{
+						// Non-terminal allocs on disconnected nodes w/o max-disconnect are lost
+						"disconnecting-running": {
+							ID:            "disconnecting-running",
+							Name:          "disconnecting-running",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnectSingle,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+					},
+					untainted: allocSet{},
+					migrate:   allocSet{},
+					disconnecting: allocSet{"disconnecting-running": {
+						ID:            "disconnecting-running",
+						Name:          "disconnecting-running",
+						ClientStatus:  structs.AllocClientStatusRunning,
+						DesiredStatus: structs.AllocDesiredStatusRun,
+						Job:           testJobNoMaxDisconnectSingle,
+						NodeID:        "disconnected",
+						TaskGroup:     "web",
+					}},
+					reconnecting: allocSet{},
+					ignore:       allocSet{},
+					lost:         allocSet{},
+					expiring:     allocSet{},
+				},
+				{
+					name:                        "disco-client-untainted-reconnect-failed-and-replaced-single-instance-on",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						"running-replacement": {
+							ID:                 "running-replacement",
+							Name:               "web",
+							ClientStatus:       structs.AllocClientStatusRunning,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJobSingle,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "failed-original",
+						},
+						// Failed and replaced allocs on reconnected nodes
+						// that are still desired-running are reconnected so
+						// we can stop them
+						"failed-original": {
+							ID:            "failed-original",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusFailed,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobSingle,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					untainted: allocSet{
+						"running-replacement": {
+							ID:                 "running-replacement",
+							Name:               "web",
+							ClientStatus:       structs.AllocClientStatusRunning,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJobSingle,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "failed-original",
+						},
+					},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting: allocSet{
+						"failed-original": {
+							ID:            "failed-original",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusFailed,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobSingle,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					ignore:   allocSet{},
+					lost:     allocSet{},
+					expiring: allocSet{},
+				},
+				{
+					name:                        "disco-client-reconnect-single-instance-on",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						// Expired allocs on reconnected clients are lost
+						"expired-reconnect": {
+							ID:            "expired-reconnect",
+							Name:          "expired-reconnect",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobSingle,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   expiredAllocState,
+						},
+					},
+					untainted:     allocSet{},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting:  allocSet{},
+					ignore:        allocSet{},
+					lost:          allocSet{},
+					expiring: allocSet{
+						"expired-reconnect": {
+							ID:            "expired-reconnect",
+							Name:          "expired-reconnect",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobSingle,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   expiredAllocState,
+						},
+					},
+				},
+				{
+					name:                        "disco-client-running-reconnecting-and-replacement-untainted-single-instance-on",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						"running-replacement": {
+							ID:                 "running-replacement",
+							Name:               "web",
+							ClientStatus:       structs.AllocClientStatusRunning,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJobSingle,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "running-original",
+						},
+						// Running and replaced allocs on reconnected nodes are reconnecting
+						"running-original": {
+							ID:            "running-original",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobSingle,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					untainted: allocSet{
+						"running-replacement": {
+							ID:                 "running-replacement",
+							Name:               "web",
+							ClientStatus:       structs.AllocClientStatusRunning,
+							DesiredStatus:      structs.AllocDesiredStatusRun,
+							Job:                testJobSingle,
+							NodeID:             "normal",
+							TaskGroup:          "web",
+							PreviousAllocation: "running-original",
+						},
+					},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting: allocSet{
+						"running-original": {
+							ID:            "running-original",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobSingle,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					ignore:   allocSet{},
+					lost:     allocSet{},
+					expiring: allocSet{},
+				},
+				{
+					// After an alloc is reconnected, it should be considered
+					// "untainted" instead of "reconnecting" to allow changes such as
+					// job updates to be applied properly.
+					name:                        "disco-client-reconnected-alloc-untainted",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             false,
+					all: allocSet{
+						"running-reconnected": {
+							ID:            "running-reconnected",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobSingle,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   reconnectedAllocState,
+						},
+					},
+					untainted: allocSet{
+						"running-reconnected": {
+							ID:            "running-reconnected",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobSingle,
+							NodeID:        "normal",
+							TaskGroup:     "web",
+							AllocStates:   reconnectedAllocState,
+						},
+					},
+					migrate:       allocSet{},
+					disconnecting: allocSet{},
+					reconnecting:  allocSet{},
+					ignore:        allocSet{},
+					lost:          allocSet{},
+					expiring:      allocSet{},
+				},
+				{
+					name:                        "disco-client-reconnected-alloc-untainted-single-instance-on",
+					supportsDisconnectedClients: true,
+					now:                         time.Now(),
+					taintedNodes:                nodes,
+					skipNilNodeTest:             true,
+					all: allocSet{
+						"untainted-unknown": {
+							ID:            "untainted-unknown",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnectSingle,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+						"disconnecting-running": {
+							ID:            "disconnecting-running",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnectSingle,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+						"lost-running": {
+							ID:            "lost-running",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnect,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+						"untainted-unknown-on-down-node": {
+							ID:            "untainted-unknown-on-down-node",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnectSingle,
+							NodeID:        "down",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					untainted: allocSet{
+						"untainted-unknown": {
+							ID:            "untainted-unknown",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnectSingle,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+						"untainted-unknown-on-down-node": {
+							ID:            "untainted-unknown-on-down-node",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusUnknown,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnectSingle,
+							NodeID:        "down",
+							TaskGroup:     "web",
+							AllocStates:   unknownAllocState,
+						},
+					},
+					migrate: allocSet{},
+					disconnecting: allocSet{
+						"disconnecting-running": {
+							ID:            "disconnecting-running",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnectSingle,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+					},
+					reconnecting: allocSet{},
+					ignore:       allocSet{},
+					lost: allocSet{
+						"lost-running": {
+							ID:            "lost-running",
+							Name:          "web",
+							ClientStatus:  structs.AllocClientStatusRunning,
+							DesiredStatus: structs.AllocDesiredStatusRun,
+							Job:           testJobNoMaxDisconnect,
+							NodeID:        "disconnected",
+							TaskGroup:     "web",
+						},
+					},
+					expiring: allocSet{},
+				},
 			}
 
-			// Now again with nodes nil
-			untainted, migrate, lost, disconnecting, reconnecting, ignore, expired = tc.all.filterByTainted(nil, tc.supportsDisconnectedClients, tc.now)
-			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
-			must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
-			must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
-			must.Eq(t, tc.disconnecting, disconnecting, must.Sprintf("with-nodes: disconnecting"))
-			must.Eq(t, tc.reconnecting, reconnecting, must.Sprintf("with-nodes: reconnecting"))
-			must.Eq(t, tc.ignore, ignore, must.Sprintf("with-nodes: ignore"))
-			must.Eq(t, tc.ignore, ignore, must.Sprintf("with-nodes: expiring"))
-			must.Eq(t, tc.expiring, expired, must.Sprintf("with-nodes: expiring"))
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					// With tainted nodes
+					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired := tc.all.filterByTainted(tc.taintedNodes, tc.supportsDisconnectedClients, tc.now)
+					must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
+					must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
+					must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
+					must.Eq(t, tc.disconnecting, disconnecting, must.Sprintf("with-nodes: disconnecting"))
+					must.Eq(t, tc.reconnecting, reconnecting, must.Sprintf("with-nodes: reconnecting"))
+					must.Eq(t, tc.ignore, ignore, must.Sprintf("with-nodes: ignore"))
+					must.Eq(t, tc.expiring, expired, must.Sprintf("with-nodes: expiring"))
+
+					if tc.skipNilNodeTest {
+						return
+					}
+
+					// Now again with nodes nil
+					untainted, migrate, lost, disconnecting, reconnecting, ignore, expired = tc.all.filterByTainted(nil, tc.supportsDisconnectedClients, tc.now)
+					must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
+					must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
+					must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
+					must.Eq(t, tc.disconnecting, disconnecting, must.Sprintf("with-nodes: disconnecting"))
+					must.Eq(t, tc.reconnecting, reconnecting, must.Sprintf("with-nodes: reconnecting"))
+					must.Eq(t, tc.ignore, ignore, must.Sprintf("with-nodes: ignore"))
+					must.Eq(t, tc.ignore, ignore, must.Sprintf("with-nodes: expiring"))
+					must.Eq(t, tc.expiring, expired, must.Sprintf("with-nodes: expiring"))
+				})
+			}
 		})
 	}
 }
