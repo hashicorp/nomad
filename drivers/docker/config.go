@@ -310,6 +310,8 @@ var (
 		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
 
+		"new_networking": hclspec.NewAttr("new_networking", "bool", false),
+
 		// windows_allow_insecure_container_admin indicates that on windows,
 		// docker checks the task.user field or, if unset, the container image
 		// manifest after pulling the container, to see if it's running as
@@ -675,6 +677,7 @@ type DriverConfig struct {
 	infraImagePullTimeoutDuration      time.Duration `codec:"-"`
 	ContainerExistsAttempts            uint64        `codec:"container_exists_attempts"`
 	DisableLogCollection               bool          `codec:"disable_log_collection"`
+	NewNetworking                      bool          `codec:"new_networking"`
 	PullActivityTimeout                string        `codec:"pull_activity_timeout"`
 	PidsLimit                          int64         `codec:"pids_limit"`
 	pullActivityTimeoutDuration        time.Duration `codec:"-"`
@@ -828,5 +831,8 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 // features this driver supports.
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	driverCapabilities.DisableLogCollection = d.config != nil && d.config.DisableLogCollection
+	if d.config != nil {
+		driverCapabilities.MustInitiateNetwork = !d.config.NewNetworking
+	}
 	return driverCapabilities, nil
 }

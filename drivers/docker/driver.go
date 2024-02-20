@@ -990,6 +990,13 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if _, ok := d.config.allowRuntimes[containerRuntime]; !ok && containerRuntime != "" {
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
+	if d.config.NewNetworking {
+		if containerRuntime == "" {
+			containerRuntime = "nomad"
+		} else {
+			return c, fmt.Errorf("new-style networking not compatible with custom runtimess")
+		}
+	}
 
 	// Validate isolation modes on windows
 	if runtime.GOOS != "windows" {
@@ -1038,6 +1045,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 		Runtime:  containerRuntime,
 		GroupAdd: driverConfig.GroupAdd,
+
+		Annotations: map[string]string{},
 	}
 
 	hostConfig.Resources = containerapi.Resources{
@@ -1285,10 +1294,16 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// shared alloc network
 	if hostConfig.NetworkMode == "" {
 		if task.NetworkIsolation != nil && task.NetworkIsolation.Path != "" {
-			// find the previously created parent container to join networks with
-			netMode := fmt.Sprintf("container:%s", task.NetworkIsolation.Labels[dockerNetSpecLabelKey])
-			logger.Debug("configuring network mode for task group", "network_mode", netMode)
-			hostConfig.NetworkMode = containerapi.NetworkMode(netMode)
+			if d.config.NewNetworking {
+				// "host" is not actually true here, it will cause joining the existing namespace
+				hostConfig.NetworkMode = "host"
+				hostConfig.Annotations["network_ns"] = task.NetworkIsolation.Path
+			} else {
+				// find the previously created parent container to join networks with
+				netMode := fmt.Sprintf("container:%s", task.NetworkIsolation.Labels[dockerNetSpecLabelKey])
+				logger.Debug("configuring network mode for task group", "network_mode", netMode)
+				hostConfig.NetworkMode = containerapi.NetworkMode(netMode)
+			}
 		} else {
 			// docker default
 			logger.Debug("networking mode not specified; using default")
