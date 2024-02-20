@@ -88,8 +88,7 @@ All other operating systems use the `host` networking mode.
   configuration for the allocations. By default all task drivers will inherit
   DNS configuration from the client host. DNS configuration is only supported on
   Linux clients at this time. Note that if you are using a `mode="cni/*`, these
-  values will be appended to any DNS configuration the CNI plugins return; you
-  will need to ensure they cannot conflict.
+  values will override any DNS configuration the CNI plugins return.
 
 ### `port` Parameters
 

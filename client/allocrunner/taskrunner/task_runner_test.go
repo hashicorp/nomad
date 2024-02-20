@@ -2945,7 +2945,7 @@ func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
 			DNS: &structs.DNSConfig{
 				Servers:  []string{"1.1.1.1", "8.8.8.8"},
 				Searches: []string{"test.local"},
-				Options:  []string{},
+				Options:  []string{"ndots:1"},
 			},
 			ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
 			DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
@@ -2960,26 +2960,59 @@ func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
 	task2.Config = map[string]interface{}{"run_for": "2s"}
 
 	testCases := []struct {
-		name   string
-		alloc  *structs.Allocation
-		task   *structs.Task
-		expect *drivers.DNSConfig
+		name    string
+		alloc   *structs.Allocation
+		task    *structs.Task
+		fromCNI *structs.DNSConfig
+		expect  *drivers.DNSConfig
 	}{
 		{
-			name:  "task with group networking",
+			name:  "task with group networking overrides CNI",
 			alloc: alloc1,
 			task:  task1,
+			fromCNI: &structs.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
 			expect: &drivers.DNSConfig{
-				Servers:  []string{"10.37.105.17", "1.1.1.1", "8.8.8.8"},
-				Searches: []string{"node.consul", "test.local"},
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{"ndots:1"},
+			},
+		},
+		{
+			name:  "task with CNI alone",
+			alloc: alloc2,
+			task:  task1,
+			fromCNI: &structs.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
 				Options:  []string{"ndots:2", "edns0"},
 			},
 		},
 		{
-			name:   "task without group networking",
-			alloc:  alloc2,
-			task:   task2,
-			expect: nil,
+			name:    "task with group networking alone",
+			alloc:   alloc1,
+			task:    task1,
+			fromCNI: nil,
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{"ndots:1"},
+			},
+		},
+		{
+			name:    "task without group networking",
+			alloc:   alloc2,
+			task:    task2,
+			fromCNI: nil,
+			expect:  nil,
 		},
 	}
 
@@ -2994,11 +3027,7 @@ func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
 			conf.AllocHookResources.SetAllocNetworkStatus(&structs.AllocNetworkStatus{
 				InterfaceName: "",
 				Address:       "",
-				DNS: &structs.DNSConfig{
-					Servers:  []string{"10.37.105.17"},
-					Searches: []string{"node.consul"},
-					Options:  []string{"ndots:2", "edns0"},
-				},
+				DNS:           tc.fromCNI,
 			})
 
 			tr, err := NewTaskRunner(conf)

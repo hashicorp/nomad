@@ -1125,6 +1125,18 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	defer tr.networkIsolationLock.Unlock()
 
 	var dns *drivers.DNSConfig
+
+	// set DNS from any CNI plugins
+	netStatus := tr.allocHookResources.GetAllocNetworkStatus()
+	if netStatus != nil && netStatus.DNS != nil {
+		dns = &drivers.DNSConfig{
+			Servers:  netStatus.DNS.Servers,
+			Searches: netStatus.DNS.Searches,
+			Options:  netStatus.DNS.Options,
+		}
+	}
+
+	// override DNS if set by job submitter
 	if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 {
 		allocDNS := alloc.AllocatedResources.Shared.Networks[0].DNS
 		if allocDNS != nil {
@@ -1133,22 +1145,6 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 				Servers:  interpolatedNetworks[0].DNS.Servers,
 				Searches: interpolatedNetworks[0].DNS.Searches,
 				Options:  interpolatedNetworks[0].DNS.Options,
-			}
-		}
-
-		// merge in the DNS set by any CNI plugins
-		netStatus := tr.allocHookResources.GetAllocNetworkStatus()
-		if netStatus != nil && netStatus.DNS != nil {
-			if dns == nil {
-				dns = &drivers.DNSConfig{
-					Servers:  netStatus.DNS.Servers,
-					Searches: netStatus.DNS.Searches,
-					Options:  netStatus.DNS.Options,
-				}
-			} else {
-				dns.Servers = append(netStatus.DNS.Servers, dns.Servers...)
-				dns.Searches = append(netStatus.DNS.Searches, dns.Searches...)
-				dns.Options = append(netStatus.DNS.Options, dns.Options...)
 			}
 		}
 	}
