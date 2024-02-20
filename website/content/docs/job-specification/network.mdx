@@ -84,9 +84,11 @@ All other operating systems use the `host` networking mode.
   [mode](#mode) is set to [`bridge`](#bridge). This parameter supports
   [interpolation](/nomad/docs/runtime/interpolation).
 
-- `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS configuration
-  for the allocations. By default all DNS configuration is inherited from the client host.
-  DNS configuration is only supported on Linux clients at this time.
+- `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS
+  configuration for the allocations. By default all task drivers will inherit
+  DNS configuration from the client host. DNS configuration is only supported on
+  Linux clients at this time. Note that if you are using a `mode="cni/*`, these
+  values will override any DNS configuration the CNI plugins return.
 
 ### `port` Parameters
 
