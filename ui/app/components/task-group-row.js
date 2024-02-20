@@ -18,7 +18,7 @@ import { lazyClick } from '../helpers/lazy-click';
 
 @classic
 @tagName('tr')
-@classNames('task-group-row', 'is-interactive')
+@classNames('task-group-row')
 @attributeBindings('data-test-task-group')
 export default class TaskGroupRow extends Component {
   @service can;

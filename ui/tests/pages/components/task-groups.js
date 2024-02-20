@@ -21,7 +21,7 @@ export default function (
       mem: text('[data-test-task-group-mem]'),
       disk: text('[data-test-task-group-disk]'),
       visit: clickable('[data-test-task-group-name] a'),
-      visitRow: clickable(),
+      visitRow: clickable('a.is-primary'),
     }),
 
     [lookupKey]: function (name) {
