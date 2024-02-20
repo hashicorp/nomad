@@ -20,7 +20,7 @@ export default (scope) => ({
 
   isPresent: isPresent(),
   label: text('[data-test-popover-trigger]'),
-  labelHasIcon: isPresent('[data-test-popover-trigger] svg.icon'),
+  labelHasIcon: isPresent('[data-test-popover-trigger] svg.flight-icon'),
 
   toggle: clickable('[data-test-popover-trigger]'),
   focus: focusable('[data-test-popover-trigger]'),
