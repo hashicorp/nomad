@@ -21,6 +21,7 @@ import (
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -169,6 +170,7 @@ func TestConsul_Integration(t *testing.T) {
 		DriverManager:       drivermanager.TestDriverManager(t),
 		StartConditionMetCh: closedCh,
 		ServiceRegWrapper:   wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
+		AllocHookResources:  cstructs.NewAllocHookResources(),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)
