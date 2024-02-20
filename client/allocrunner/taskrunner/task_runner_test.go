@@ -34,6 +34,7 @@ import (
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
@@ -152,6 +153,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
+		AllocHookResources:    cstructs.NewAllocHookResources(),
 	}
 
 	// Set the cgroup path getter if we are in v2 mode
@@ -2651,4 +2653,122 @@ func TestTaskRunner_IdentityHook_Disabled(t *testing.T) {
 	// Assert the token is built into the task env
 	taskEnv := tr.envBuilder.Build()
 	must.MapNotContainsKey(t, taskEnv.EnvMap, "NOMAD_TOKEN")
+}
+
+func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
+	ci.Parallel(t)
+
+	// Mock task with group network
+	alloc1 := mock.Alloc()
+	task1 := alloc1.Job.TaskGroups[0].Tasks[0]
+	alloc1.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Device: "eth0",
+			IP:     "192.168.0.100",
+			DNS: &structs.DNSConfig{
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{"ndots:1"},
+			},
+			ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+			DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+		}}
+	task1.Driver = "mock_driver"
+	task1.Config = map[string]interface{}{"run_for": "2s"}
+
+	// Mock task with task networking only
+	alloc2 := mock.Alloc()
+	task2 := alloc2.Job.TaskGroups[0].Tasks[0]
+	task2.Driver = "mock_driver"
+	task2.Config = map[string]interface{}{"run_for": "2s"}
+
+	testCases := []struct {
+		name    string
+		alloc   *structs.Allocation
+		task    *structs.Task
+		fromCNI *structs.DNSConfig
+		expect  *drivers.DNSConfig
+	}{
+		{
+			name:  "task with group networking overrides CNI",
+			alloc: alloc1,
+			task:  task1,
+			fromCNI: &structs.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{"ndots:1"},
+			},
+		},
+		{
+			name:  "task with CNI alone",
+			alloc: alloc2,
+			task:  task1,
+			fromCNI: &structs.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+		{
+			name:    "task with group networking alone",
+			alloc:   alloc1,
+			task:    task1,
+			fromCNI: nil,
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{"ndots:1"},
+			},
+		},
+		{
+			name:    "task without group networking",
+			alloc:   alloc2,
+			task:    task2,
+			fromCNI: nil,
+			expect:  nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			conf, cleanup := testTaskRunnerConfig(t, tc.alloc, tc.task.Name)
+			t.Cleanup(cleanup)
+
+			// note this will never actually be set if we don't have group/CNI
+			// networking, but it's a good validation no-group/CNI code path
+			conf.AllocHookResources.SetAllocNetworkStatus(&structs.AllocNetworkStatus{
+				InterfaceName: "",
+				Address:       "",
+				DNS:           tc.fromCNI,
+			})
+
+			tr, err := NewTaskRunner(conf)
+			must.NoError(t, err)
+
+			// Run the task runner.
+			go tr.Run()
+			t.Cleanup(func() {
+				tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+			})
+
+			// Wait for task to complete.
+			testWaitForTaskToStart(t, tr)
+
+			tr.stateLock.RLock()
+			t.Cleanup(tr.stateLock.RUnlock)
+
+			must.Eq(t, tc.expect, tr.localState.TaskHandle.Config.DNS)
+		})
+	}
 }

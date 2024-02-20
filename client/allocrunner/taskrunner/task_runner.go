@@ -1117,6 +1117,18 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	defer tr.networkIsolationLock.Unlock()
 
 	var dns *drivers.DNSConfig
+
+	// set DNS from any CNI plugins
+	netStatus := tr.allocHookResources.GetAllocNetworkStatus()
+	if netStatus != nil && netStatus.DNS != nil {
+		dns = &drivers.DNSConfig{
+			Servers:  netStatus.DNS.Servers,
+			Searches: netStatus.DNS.Searches,
+			Options:  netStatus.DNS.Options,
+		}
+	}
+
+	// override DNS if set by job submitter
 	if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 {
 		allocDNS := alloc.AllocatedResources.Shared.Networks[0].DNS
 		if allocDNS != nil {
