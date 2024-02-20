@@ -23,8 +23,7 @@ module('Integration | Component | copy-button', function (hooks) {
     assert.expect(2);
 
     await render(hbs`<CopyButton />`);
-
-    assert.dom('.copy-button .icon-is-copy-action').exists();
+    assert.dom('.copy-button .flight-icon-clipboard-copy').exists();
     await componentA11yAudit(this.element, assert);
   });
 
@@ -44,7 +43,7 @@ module('Integration | Component | copy-button', function (hooks) {
     clock.runAll();
 
     assert.dom('[data-test-copy-success]').doesNotExist();
-    assert.dom('.copy-button .icon-is-copy-action').exists();
+    assert.dom('.copy-button .flight-icon-clipboard-copy').exists();
 
     clock.restore();
   });
@@ -57,7 +56,7 @@ module('Integration | Component | copy-button', function (hooks) {
     await click('.copy-button button');
     await triggerCopyError('.copy-button button');
 
-    assert.dom('.copy-button .icon-is-alert-triangle').exists();
+    assert.dom('.copy-button .flight-icon-alert-triangle').exists();
     await componentA11yAudit(this.element, assert);
   });
 });
