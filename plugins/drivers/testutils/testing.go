@@ -25,7 +25,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	testing "github.com/mitchellh/go-testing-interface"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 type DriverHarness struct {
@@ -55,7 +55,7 @@ func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	)
 
 	raw, err := client.Dispense(base.PluginTypeDriver)
-	require.NoError(t, err, "failed to dispense plugin")
+	must.NoError(t, err)
 
 	dClient := raw.(drivers.DriverPlugin)
 	return &DriverHarness{
@@ -80,21 +80,21 @@ func (h *DriverHarness) Kill() {
 // between tests.
 func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func() {
 	dir, err := os.MkdirTemp("", "nomad_driver_harness-")
-	require.NoError(h.t, err)
+	must.NoError(h.t, err)
 
 	allocDir := allocdir.NewAllocDir(h.logger, dir, t.AllocID)
-	require.NoError(h.t, allocDir.Build())
+	must.NoError(h.t, allocDir.Build())
 
 	t.AllocDir = allocDir.AllocDir
 
 	taskDir := allocDir.NewTaskDir(t.Name)
 
 	caps, err := h.Capabilities()
-	require.NoError(h.t, err)
+	must.NoError(h.t, err)
 
 	fsi := caps.FSIsolation
 	h.logger.Trace("FS isolation", "fsi", fsi)
-	require.NoError(h.t, taskDir.Build(fsi == drivers.FSIsolationChroot, ci.TinyChroot))
+	must.NoError(h.t, taskDir.Build(fsi == drivers.FSIsolationChroot, ci.TinyChroot))
 
 	task := &structs.Task{
 		Name: t.Name,
@@ -142,7 +142,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
 		})
-		require.NoError(h.t, err)
+		must.NoError(h.t, err)
 
 		return func() {
 			lm.Stop()
