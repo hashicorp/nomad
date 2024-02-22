@@ -4,6 +4,7 @@
 package jobspec2
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -203,6 +204,17 @@ job "example" {
 		require.Error(t, err)
 		require.Nil(t, out)
 	})
+
+	t.Run("var-file does not exist diagnostic", func(t *testing.T) {
+		out, err := ParseJobFile(&ParseConfig{
+			Path:     "input.hcl",
+			Body:     []byte(hcl),
+			VarFiles: []string{"does-not-exist.hcl"},
+			AllowFS:  true,
+		})
+		require.Error(t, err)
+		require.Nil(t, out)
+	})
 }
 
 // TestParse_UnknownVariables asserts that unknown variables are left intact for further processing
@@ -253,6 +265,16 @@ job "example" {
 `
 
 	_, err := ParseWithConfig(&ParseConfig{
+		Path:    "input.hcl",
+		Body:    []byte(hcl),
+		ArgVars: []string{},
+		AllowFS: true,
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Unset variable")
+
+	_, err = ParseJobFile(&ParseConfig{
 		Path:    "input.hcl",
 		Body:    []byte(hcl),
 		ArgVars: []string{},
@@ -347,6 +369,17 @@ job "example" {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "filesystem function disabled")
 	})
+
+	t.Run("disabled diagnostic", func(t *testing.T) {
+		_, err := ParseJobFile(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: nil,
+			AllowFS: false,
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "filesystem function disabled")
+	})
 }
 
 func TestParseDynamic(t *testing.T) {
@@ -427,6 +460,18 @@ func TestParse_InvalidHCL(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("invalid body diagnostic", func(t *testing.T) {
+		hcl := `invalid{hcl`
+
+		_, err := ParseJobFile(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{},
+			AllowFS: true,
+		})
+		require.Error(t, err)
+	})
+
 	t.Run("invalid vars file", func(t *testing.T) {
 		tmp, err := os.CreateTemp("", "nomad-jobspec2-")
 		require.NoError(t, err)
@@ -447,6 +492,15 @@ job "example" {
 `
 
 		_, err = ParseWithConfig(&ParseConfig{
+			Path:     "input.hcl",
+			Body:     []byte(hcl),
+			VarFiles: []string{tmp.Name()},
+			ArgVars:  []string{},
+			AllowFS:  true,
+		})
+		require.Error(t, err)
+
+		_, err = ParseJobFile(&ParseConfig{
 			Path:     "input.hcl",
 			Body:     []byte(hcl),
 			VarFiles: []string{tmp.Name()},
@@ -608,6 +662,19 @@ job "example" {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			_, err := ParseWithConfig(&ParseConfig{
+				Path:    c.name + ".hcl",
+				Body:    []byte(c.hcl),
+				AllowFS: false,
+			})
+			if c.expectedErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.expectedErr)
+			}
+		})
+		t.Run(fmt.Sprintf("%s diagnostics", c.name), func(t *testing.T) {
 			_, err := ParseWithConfig(&ParseConfig{
 				Path:    c.name + ".hcl",
 				Body:    []byte(c.hcl),
@@ -847,10 +914,14 @@ job "example" {
   }
 }`
 
-	_, err := ParseWithConfig(&ParseConfig{
+	jobConfig := &ParseConfig{
 		Path: "input.hcl",
 		Body: []byte(hcl),
-	})
+	}
+	_, err := ParseWithConfig(jobConfig)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Duplicate env block")
+	_, err = ParseJobFile(jobConfig)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Duplicate env block")
 }

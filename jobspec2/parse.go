@@ -43,9 +43,22 @@ func ParseWithConfig(args *ParseConfig) (*api.Job, error) {
 	args.normalize()
 
 	c := newJobConfig(args)
-	err := decode(c)
+	_, err := decode(c)
 	if err != nil {
 		return nil, err
+	}
+
+	normalizeJob(c)
+	return c.Job, nil
+}
+
+func ParseJobFile(args *ParseConfig) (*api.Job, hcl.Diagnostics) {
+	args.normalize()
+
+	c := newJobConfig(args)
+	diags, _ := decode(c)
+	if diags.HasErrors() {
+		return nil, diags
 	}
 
 	normalizeJob(c)
@@ -88,7 +101,7 @@ func (c *ParseConfig) normalize() {
 	}
 }
 
-func decode(c *jobConfig) error {
+func decode(c *jobConfig) (hcl.Diagnostics, error) {
 	config := c.ParseConfig
 
 	file, diags := parseHCLOrJSON(config.Body, config.Path)
@@ -96,7 +109,7 @@ func decode(c *jobConfig) error {
 	for _, varFile := range config.VarFiles {
 		parsedVarFile, ds := parseFile(varFile)
 		if parsedVarFile == nil || ds.HasErrors() {
-			return fmt.Errorf("unable to parse var file: %v", ds.Error())
+			return ds, fmt.Errorf("unable to parse var file: %v", ds.Error())
 		}
 
 		config.parsedVarFiles = append(config.parsedVarFiles, parsedVarFile)
@@ -106,7 +119,7 @@ func decode(c *jobConfig) error {
 	if config.VarContent != "" {
 		hclFile, hclDiagnostics := parseHCLOrJSON([]byte(config.VarContent), "input.hcl")
 		if hclDiagnostics.HasErrors() {
-			return fmt.Errorf("unable to parse var content: %v", hclDiagnostics.Error())
+			return hclDiagnostics, fmt.Errorf("unable to parse var content: %v", hclDiagnostics.Error())
 		}
 		config.parsedVarFiles = append(config.parsedVarFiles, hclFile)
 	}
@@ -114,7 +127,7 @@ func decode(c *jobConfig) error {
 	// Return early if the input job or variable files are not valid.
 	// Decoding and evaluating invalid files may result in unexpected results.
 	if diags.HasErrors() {
-		return diags
+		return diags, diags
 	}
 
 	diags = append(diags, c.decodeBody(file.Body)...)
@@ -127,7 +140,7 @@ func decode(c *jobConfig) error {
 			}
 			str.WriteString(diag.Error())
 		}
-		return errors.New(str.String())
+		return diags, errors.New(str.String())
 	}
 
 	diags = append(diags, decodeMapInterfaceType(&c.Job, c.EvalContext())...)
@@ -135,10 +148,10 @@ func decode(c *jobConfig) error {
 	diags = append(diags, decodeMapInterfaceType(&c.Vault, c.EvalContext())...)
 
 	if diags.HasErrors() {
-		return diags
+		return diags, diags
 	}
 
-	return nil
+	return nil, nil
 }
 
 func parseFile(path string) (*hcl.File, hcl.Diagnostics) {
