@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestAttribute_Validate(t *testing.T) {
@@ -77,7 +77,7 @@ func TestAttribute_Validate(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Input.GoString(), func(t *testing.T) {
 			if err := c.Input.Validate(); err != nil && !c.Fail {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}
@@ -538,7 +538,7 @@ func testComparison(t *testing.T, cases []*compareTestCase) {
 			if !ok && !c.NotComparable {
 				t.Fatal("should be comparable")
 			} else if ok {
-				require.Equal(t, c.Expected, v)
+				must.Eq(t, c.Expected, v)
 			}
 		})
 	}
@@ -662,8 +662,8 @@ func TestAttribute_ParseAndValidate(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Input, func(t *testing.T) {
 			a := ParseAttribute(c.Input)
-			require.Equal(t, c.Expected, a)
-			require.NoError(t, a.Validate())
+			must.Eq(t, c.Expected, a)
+			must.NoError(t, a.Validate())
 		})
 	}
 }
