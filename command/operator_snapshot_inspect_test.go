@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestOperatorSnapshotInspect_Works(t *testing.T) {
@@ -24,7 +24,7 @@ func TestOperatorSnapshotInspect_Works(t *testing.T) {
 	cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{snapPath})
-	require.Zero(t, code)
+	must.Zero(t, code)
 
 	output := ui.OutputWriter.String()
 	for _, key := range []string{
@@ -34,7 +34,7 @@ func TestOperatorSnapshotInspect_Works(t *testing.T) {
 		"Term",
 		"Version",
 	} {
-		require.Contains(t, output, key)
+		must.StrContains(t, output, key)
 	}
 }
 
@@ -47,15 +47,15 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 		filepath.Join(tmpDir, "invalid.snap"),
 		[]byte("invalid data"),
 		0600)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	t.Run("not found", func(t *testing.T) {
 		ui := cli.NewMockUi()
 		cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 		code := cmd.Run([]string{filepath.Join(tmpDir, "foo")})
-		require.NotZero(t, code)
-		require.Contains(t, ui.ErrorWriter.String(), "no such file")
+		must.Positive(t, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "no such file")
 	})
 
 	t.Run("invalid file", func(t *testing.T) {
@@ -63,8 +63,8 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 		cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 		code := cmd.Run([]string{filepath.Join(tmpDir, "invalid.snap")})
-		require.NotZero(t, code)
-		require.Contains(t, ui.ErrorWriter.String(), "Error verifying snapshot")
+		must.Positive(t, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "Error verifying snapshot")
 	})
 }
 
@@ -94,7 +94,7 @@ func generateSnapshotFile(t *testing.T, prepare func(srv *agent.TestAgent, clien
 		"--address=" + url,
 		dest,
 	})
-	require.Zero(t, code)
+	must.Zero(t, code)
 
 	return dest
 }

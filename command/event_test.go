@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestEventCommand_BaseCommand(t *testing.T) {
@@ -22,5 +22,5 @@ func TestEventCommand_BaseCommand(t *testing.T) {
 
 	code := cmd.Run([]string{"-address=" + url})
 
-	require.Equal(t, -18511, code)
+	must.Eq(t, -18511, code)
 }

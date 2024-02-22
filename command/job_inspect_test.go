@@ -15,7 +15,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestInspectCommand_Implements(t *testing.T) {
@@ -69,7 +68,6 @@ func TestInspectCommand_Fails(t *testing.T) {
 
 func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -79,15 +77,15 @@ func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(j.ID, res[0])
+	must.SliceLen(t, 1, res)
+	must.Eq(t, j.ID, res[0])
 }
 
 func TestJobInspectCommand_ACL(t *testing.T) {

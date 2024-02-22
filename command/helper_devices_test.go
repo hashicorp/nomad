@@ -9,18 +9,15 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestDeviceQualifiedID(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
-	require.Equal("vendor/type/name[id]", deviceQualifiedID("vendor", "type", "name", "id"))
-	require.Equal("vendor/type[id]", deviceQualifiedID("vendor", "type", "", "id"))
-	require.Equal("vendor[id]", deviceQualifiedID("vendor", "", "", "id"))
+	must.Eq(t, "vendor/type/name[id]", deviceQualifiedID("vendor", "type", "name", "id"))
+	must.Eq(t, "vendor/type[id]", deviceQualifiedID("vendor", "type", "", "id"))
+	must.Eq(t, "vendor[id]", deviceQualifiedID("vendor", "", "", "id"))
 }
 
 func TestBuildDeviceStatsSummaryMap(t *testing.T) {
@@ -77,7 +74,9 @@ func TestBuildDeviceStatsSummaryMap(t *testing.T) {
 		},
 	}
 
-	require.EqualValues(t, expected, buildDeviceStatsSummaryMap(hostDeviceStats))
+	must.Eq(t, expected, buildDeviceStatsSummaryMap(hostDeviceStats))
+	// TODO(shoenig) figure out why the below does not compile
+	// must.MapContainsValues[map[string]*api.StatValue](t, expected, buildDeviceStatsSummaryMap(hostDeviceStats))
 }
 
 func TestFormatDeviceStats(t *testing.T) {
@@ -120,7 +119,7 @@ func TestFormatDeviceStats(t *testing.T) {
 	result := formatDeviceStats("TestDeviceID", stat)
 
 	// check that device id always appears first
-	require.Equal(t, "Device|TestDeviceID", result[0])
+	must.Eq(t, "Device|TestDeviceID", result[0])
 
 	// check rest of values
 	expected := []string{
@@ -134,7 +133,7 @@ func TestFormatDeviceStats(t *testing.T) {
 		"nested2.k2|v2",
 	}
 
-	require.Equal(t, expected, result)
+	must.Eq(t, expected, result)
 }
 
 func TestNodeStatusCommand_GetDeviceResourcesForNode(t *testing.T) {
@@ -208,7 +207,7 @@ func TestNodeStatusCommand_GetDeviceResourcesForNode(t *testing.T) {
 		"vendor2/type2[id2]|4",
 	}
 
-	assert.Equal(t, expected, formattedDevices)
+	must.Eq(t, expected, formattedDevices)
 }
 
 func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
@@ -258,7 +257,7 @@ func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
 		"vendor2/type2[id2]|4",
 	}
 
-	assert.Equal(t, expected, formattedDevices)
+	must.Eq(t, expected, formattedDevices)
 }
 func TestGetDeviceAttributes(t *testing.T) {
 	ci.Parallel(t)
@@ -286,5 +285,5 @@ func TestGetDeviceAttributes(t *testing.T) {
 		"utilization|0.78 %",
 	}
 
-	assert.Equal(t, expected, formattedDevices)
+	must.Eq(t, expected, formattedDevices)
 }

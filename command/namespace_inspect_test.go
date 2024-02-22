@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestNamespaceInspectCommand_Implements(t *testing.T) {
@@ -57,7 +57,7 @@ func TestNamespaceInspectCommand_Good(t *testing.T) {
 		Name: "foo",
 	}
 	_, err := client.Namespaces().Register(ns, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Inspect
 	if code := cmd.Run([]string{"-address=" + url, ns.Name}); code != 0 {
@@ -72,7 +72,6 @@ func TestNamespaceInspectCommand_Good(t *testing.T) {
 
 func TestNamespaceInspectCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -85,14 +84,14 @@ func TestNamespaceInspectCommand_AutocompleteArgs(t *testing.T) {
 		Name: "foo",
 	}
 	_, err := client.Namespaces().Register(ns, nil)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	args := complete.Args{Last: "f"}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(ns.Name, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, ns.Name, res[0])
 }
 
 // This test should demonstrate the behavior of a namespace
@@ -112,27 +111,24 @@ func TestNamespaceInspectCommand_NamespaceMatchesPrefix(t *testing.T) {
 	// Create a namespace that uses foo as a prefix
 	ns := &api.Namespace{Name: "fooBar"}
 	_, err := client.Namespaces().Register(ns, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Create a foo namespace
 	ns2 := &api.Namespace{Name: "foo"}
 	_, err = client.Namespaces().Register(ns2, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Adding a NS after to prevent sort from creating
 	// false successes
 	ns = &api.Namespace{Name: "fooBaz"}
 	_, err = client.Namespaces().Register(ns, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Check status on namespace
 	code := cmd.Run([]string{"-address=" + url, ns2.Name})
-	if code != 0 {
-		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
-	}
+	must.Zero(t, code)
+
 	// Check to ensure we got the proper foo
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "\"foo\",\n") {
-		t.Fatalf("expected namespace foo, got: %s", out)
-	}
+	must.StrContains(t, out, "\"foo\",\n")
 }

@@ -23,7 +23,6 @@ import (
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestHelpers_FormatKV(t *testing.T) {
@@ -315,22 +314,22 @@ func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			fh, err := os.CreateTemp("", "nomad")
-			require.NoError(t, err)
+			must.NoError(t, err)
 			defer os.Remove(fh.Name())
 			defer fh.Close()
 
 			_, err = fh.WriteString(c.hcl)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			j := &JobGetter{}
 			_, _, err = j.ApiJob(fh.Name())
-			require.Error(t, err)
+			must.Error(t, err)
 
 			exptMessage := "Failed to parse using HCL 2. Use the HCL 1"
 			if c.expectHCL1Message {
-				require.Contains(t, err.Error(), exptMessage)
+				must.ErrorContains(t, err, exptMessage)
 			} else {
-				require.NotContains(t, err.Error(), exptMessage)
+				must.StrNotContains(t, err.Error(), exptMessage)
 			}
 		})
 	}
@@ -359,20 +358,20 @@ job "example" {
 	expected := []string{"default-val", "from-cli", "from-varfile", "from-envvar"}
 
 	hclf, err := os.CreateTemp("", "hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer os.Remove(hclf.Name())
 	defer hclf.Close()
 
 	_, err = hclf.WriteString(hcl)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	vf, err := os.CreateTemp("", "var.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer os.Remove(vf.Name())
 	defer vf.Close()
 
 	_, err = vf.WriteString(fileVars + "\n")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	jg := &JobGetter{
 		Vars:     cliArgs,
@@ -381,10 +380,10 @@ job "example" {
 	}
 
 	_, j, err := jg.Get(hclf.Name())
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.NotNil(t, j)
-	require.Equal(t, expected, j.Datacenters)
+	must.NotNil(t, j)
+	must.Eq(t, expected, j.Datacenters)
 }
 
 func TestJobGetter_HCL2_Variables_StrictFalse(t *testing.T) {
@@ -414,20 +413,20 @@ unsedVar2 = "from-varfile"
 	expected := []string{"default-val", "from-cli", "from-varfile", "from-envvar"}
 
 	hclf, err := os.CreateTemp("", "hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer os.Remove(hclf.Name())
 	defer hclf.Close()
 
 	_, err = hclf.WriteString(hcl)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	vf, err := os.CreateTemp("", "var.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer os.Remove(vf.Name())
 	defer vf.Close()
 
 	_, err = vf.WriteString(fileVars + "\n")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	jg := &JobGetter{
 		Vars:     cliArgs,
@@ -436,10 +435,9 @@ unsedVar2 = "from-varfile"
 	}
 
 	_, j, err := jg.Get(hclf.Name())
-	require.NoError(t, err)
-
-	require.NotNil(t, j)
-	require.Equal(t, expected, j.Datacenters)
+	must.NoError(t, err)
+	must.NotNil(t, j)
+	must.Eq(t, expected, j.Datacenters)
 }
 
 // Test StructJob with jobfile from HTTP Server
@@ -535,9 +533,9 @@ func TestJobGetter_Validate(t *testing.T) {
 
 			switch tc.errContains {
 			case "":
-				require.NoError(t, err)
+				must.NoError(t, err)
 			default:
-				require.ErrorContains(t, err, tc.errContains)
+				must.ErrorContains(t, err, tc.errContains)
 			}
 
 		})
@@ -610,27 +608,27 @@ func TestUiErrorWriter(t *testing.T) {
 	partialAcc := ""
 	for _, in := range inputs {
 		n, err := w.Write([]byte(in))
-		require.NoError(t, err)
-		require.Equal(t, len(in), n)
+		must.NoError(t, err)
+		must.Eq(t, len(in), n)
 
 		// assert that writer emits partial result until last new line
 		partialAcc += strings.ReplaceAll(in, "\r\n", "\n")
 		lastNL := strings.LastIndex(partialAcc, "\n")
-		require.Equal(t, partialAcc[:lastNL+1], errBuf.String())
+		must.Eq(t, partialAcc[:lastNL+1], errBuf.String())
 	}
 
-	require.Empty(t, outBuf.String())
+	must.Eq(t, "", outBuf.String())
 
 	// note that the \r\n got replaced by \n
 	expectedErr := "some line\nmultiple\nlines\nhere with  followup\nand more lines  without new line until here\n"
-	require.Equal(t, expectedErr, errBuf.String())
+	must.Eq(t, expectedErr, errBuf.String())
 
 	// close emits the final line
 	err := w.Close()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	expectedErr += "and thensome more\n"
-	require.Equal(t, expectedErr, errBuf.String())
+	must.Eq(t, expectedErr, errBuf.String())
 }
 
 func Test_extractVarFiles(t *testing.T) {

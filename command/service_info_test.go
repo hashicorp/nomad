@@ -5,6 +5,7 @@ package command
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,7 +37,7 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	ui := cli.NewMockUi()
@@ -49,8 +50,8 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 
 	// Run the command without any arguments to ensure we are performing this
 	// check.
-	require.Equal(t, 1, cmd.Run([]string{"-address=" + url}))
-	require.Contains(t, ui.ErrorWriter.String(),
+	must.One(t, cmd.Run([]string{"-address=" + url}))
+	must.StrContains(t, ui.ErrorWriter.String(),
 		"This command takes one argument: <service_name>")
 	ui.ErrorWriter.Reset()
 
@@ -61,9 +62,9 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 
 	// Register that job.
 	regResp, _, err := client.Jobs().Register(testJob, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	registerCode := waitForSuccess(ui, client, fullId, t, regResp.EvalID)
-	require.Equal(t, 0, registerCode)
+	must.Zero(t, registerCode)
 
 	// Reset the output writer, otherwise we will have additional information here.
 	ui.OutputWriter.Reset()
@@ -72,6 +73,8 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 	// therefore needs this wrapper to account for eventual service
 	// registration. One this has completed, we can perform lookups without
 	// similar wraps.
+	//
+	// TODO(shoenig) clean this up
 	require.Eventually(t, func() bool {
 
 		defer ui.OutputWriter.Reset()
@@ -83,25 +86,25 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 
 		// Test each header and data entry.
 		s := ui.OutputWriter.String()
-		if !assert.Contains(t, s, "Job ID") {
+		if !strings.Contains(s, "Job ID") {
 			return false
 		}
-		if !assert.Contains(t, s, "Address") {
+		if !strings.Contains(s, "Address") {
 			return false
 		}
-		if !assert.Contains(t, s, "Node ID") {
+		if !strings.Contains(s, "Node ID") {
 			return false
 		}
-		if !assert.Contains(t, s, "Alloc ID") {
+		if !strings.Contains(s, "Alloc ID") {
 			return false
 		}
-		if !assert.Contains(t, s, "service-discovery-nomad-info") {
+		if !strings.Contains(s, "service-discovery-nomad-info") {
 			return false
 		}
-		if !assert.Contains(t, s, ":9999") {
+		if !strings.Contains(s, ":9999") {
 			return false
 		}
-		if !assert.Contains(t, s, "[foo,bar]") {
+		if !strings.Contains(s, "[foo,bar]") {
 			return false
 		}
 		return true
@@ -109,16 +112,16 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 
 	// Perform a verbose lookup.
 	code := cmd.Run([]string{"-address=" + url, "-verbose", "service-discovery-nomad-info"})
-	require.Equal(t, 0, code)
+	must.Zero(t, code)
 
 	// Test KV entries.
 	s := ui.OutputWriter.String()
-	require.Contains(t, s, "Service Name = service-discovery-nomad-info")
-	require.Contains(t, s, "Namespace    = default")
-	require.Contains(t, s, "Job ID       = service-discovery-nomad-info")
-	require.Contains(t, s, "Datacenter   = dc1")
-	require.Contains(t, s, "Address      = :9999")
-	require.Contains(t, s, "Tags         = [foo,bar]")
+	must.StrContains(t, s, "Service Name = service-discovery-nomad-info")
+	must.StrContains(t, s, "Namespace    = default")
+	must.StrContains(t, s, "Job ID       = service-discovery-nomad-info")
+	must.StrContains(t, s, "Datacenter   = dc1")
+	must.StrContains(t, s, "Address      = :9999")
+	must.StrContains(t, s, "Tags         = [foo,bar]")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
@@ -174,7 +177,7 @@ func Test_argsWithNewPageToken(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := argsWithNewPageToken(tc.inputOsArgs, tc.inputNextToken)
-			require.Equal(t, tc.expectedOutput, actualOutput)
+			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
 }

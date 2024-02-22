@@ -17,7 +17,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJobPeriodicForceCommand_Implements(t *testing.T) {
@@ -32,15 +31,15 @@ func TestJobPeriodicForceCommand_Fails(t *testing.T) {
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
-	require.Equal(t, code, 1, "expected error")
+	must.One(t, code)
 	out := ui.ErrorWriter.String()
-	require.Contains(t, out, commandErrorText(cmd), "expected help output")
+	must.StrContains(t, out, commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
 	code = cmd.Run([]string{"-address=nope", "12"})
-	require.Equal(t, code, 1, "expected error")
+	must.One(t, code)
 	out = ui.ErrorWriter.String()
-	require.Contains(t, out, "Error querying job prefix", "expected force error")
+	must.StrContains(t, out, "Error querying job prefix")
 }
 
 func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
@@ -55,12 +54,12 @@ func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job, not periodic
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(complete.Args{Last: j.ID[:len(j.ID)-5]})
-	require.Empty(t, res)
+	must.SliceEmpty(t, res)
 
 	// Create another fake job, periodic
 	state = srv.Agent.Server().State()
@@ -72,13 +71,13 @@ func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
 		ProhibitOverlap: true,
 		TimeZone:        "test zone",
 	}
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j2))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j2))
 
 	res = predictor.Predict(complete.Args{Last: j2.ID[:len(j.ID)-5]})
-	require.Equal(t, []string{j2.ID}, res)
+	must.Eq(t, []string{j2.ID}, res)
 
 	res = predictor.Predict(complete.Args{})
-	require.Equal(t, []string{j2.ID}, res)
+	must.Eq(t, []string{j2.ID}, res)
 }
 
 func TestJobPeriodicForceCommand_NonPeriodicJob(t *testing.T) {
@@ -98,7 +97,7 @@ func TestJobPeriodicForceCommand_NonPeriodicJob(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	// Register a job
@@ -108,14 +107,14 @@ func TestJobPeriodicForceCommand_NonPeriodicJob(t *testing.T) {
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	resp, _, err := client.Jobs().Register(j, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-	require.Equal(t, 0, code)
+	must.Zero(t, code)
 
 	code = cmd.Run([]string{"-address=" + url, "job_not_periodic"})
-	require.Equal(t, 1, code, "expected exit code")
+	must.One(t, code)
 	out := ui.ErrorWriter.String()
-	require.Contains(t, out, "No periodic job(s)", "non-periodic error message")
+	must.StrContains(t, out, "No periodic job(s)")
 }
 
 func TestJobPeriodicForceCommand_SuccessfulPeriodicForceDetach(t *testing.T) {
@@ -135,7 +134,7 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForceDetach(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	// Register a job
@@ -151,13 +150,13 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForceDetach(t *testing.T) {
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	_, _, err := client.Jobs().Register(j, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	code := cmd.Run([]string{"-address=" + url, "-detach", "job1_is_periodic"})
-	require.Equal(t, 0, code, "expected no error code")
+	must.Zero(t, code)
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "Force periodic successful")
-	require.Contains(t, out, "Evaluation ID:")
+	must.StrContains(t, out, "Force periodic successful")
+	must.StrContains(t, out, "Evaluation ID:")
 }
 
 func TestJobPeriodicForceCommand_SuccessfulPeriodicForce(t *testing.T) {
@@ -177,7 +176,7 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForce(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	// Register a job
@@ -193,13 +192,13 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForce(t *testing.T) {
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	_, _, err := client.Jobs().Register(j, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	code := cmd.Run([]string{"-address=" + url, "job2_is_periodic"})
-	require.Equal(t, 0, code, "expected no error code")
+	must.Zero(t, code)
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "Monitoring evaluation")
-	require.Contains(t, out, "finished with status \"complete\"")
+	must.StrContains(t, out, "Monitoring evaluation")
+	must.StrContains(t, out, "finished with status \"complete\"")
 }
 
 func TestJobPeriodicForceCommand_SuccessfulIfJobIDEqualsPrefix(t *testing.T) {
@@ -219,7 +218,7 @@ func TestJobPeriodicForceCommand_SuccessfulIfJobIDEqualsPrefix(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	j1 := testJob("periodic-prefix")
@@ -241,15 +240,15 @@ func TestJobPeriodicForceCommand_SuccessfulIfJobIDEqualsPrefix(t *testing.T) {
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	_, _, err := client.Jobs().Register(j1, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	_, _, err = client.Jobs().Register(j2, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	code := cmd.Run([]string{"-address=" + url, "periodic-prefix"})
-	require.Equal(t, 0, code, "expected no error code")
+	must.Zero(t, code)
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "Monitoring evaluation")
-	require.Contains(t, out, "finished with status \"complete\"")
+	must.StrContains(t, out, "Monitoring evaluation")
+	must.StrContains(t, out, "finished with status \"complete\"")
 }
 
 func TestJobPeriodicForceCommand_ACL(t *testing.T) {

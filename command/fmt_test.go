@@ -13,8 +13,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestFmtCommand(t *testing.T) {
@@ -141,10 +139,10 @@ func TestFmtCommand_FromWorkingDirectory(t *testing.T) {
 	tmpDir := fmtFixtureWriteDir(t)
 
 	cwd, err := os.Getwd()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = os.Chdir(tmpDir)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer os.Chdir(cwd)
 
 	tests := []struct {
@@ -251,7 +249,7 @@ func TestFmtCommand_FileDoesNotExist(t *testing.T) {
 	}
 
 	code := cmd.Run([]string{"file/does/not/exist.hcl"})
-	assert.Equal(t, 1, code)
+	must.One(t, code)
 }
 
 func TestFmtCommand_InvalidSyntax(t *testing.T) {
@@ -266,14 +264,14 @@ func TestFmtCommand_InvalidSyntax(t *testing.T) {
 	}
 
 	code := cmd.Run([]string{"-"})
-	assert.Equal(t, 1, code)
+	must.One(t, code)
 }
 
 func fmtFixtureWriteDir(t *testing.T) string {
 	dir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(dir, fmtFixture.filename), fmtFixture.input, 0644)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	return dir
 }

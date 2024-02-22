@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestOperator_Autopilot_SetConfig_Implements(t *testing.T) {
@@ -20,7 +20,7 @@ func TestOperator_Autopilot_SetConfig_Implements(t *testing.T) {
 
 func TestOperatorAutopilotSetConfigCommand(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
@@ -39,22 +39,23 @@ func TestOperatorAutopilotSetConfigCommand(t *testing.T) {
 	}
 
 	code := c.Run(args)
-	require.EqualValues(0, code)
+	must.Zero(t, code)
+
 	output := strings.TrimSpace(ui.OutputWriter.String())
-	require.Contains(output, "Configuration updated")
+	must.StrContains(t, output, "Configuration updated")
 
 	client, err := c.Client()
-	require.NoError(err)
+	must.NoError(t, err)
 
 	conf, _, err := client.Operator().AutopilotGetConfiguration(nil)
-	require.NoError(err)
+	must.NoError(t, err)
 
-	require.False(conf.CleanupDeadServers)
-	require.EqualValues(99, conf.MaxTrailingLogs)
-	require.EqualValues(3, conf.MinQuorum)
-	require.EqualValues(123*time.Millisecond, conf.LastContactThreshold)
-	require.EqualValues(123*time.Millisecond, conf.ServerStabilizationTime)
-	require.True(conf.EnableRedundancyZones)
-	require.True(conf.DisableUpgradeMigration)
-	require.True(conf.EnableCustomUpgrades)
+	must.False(t, conf.CleanupDeadServers)
+	must.Eq(t, 99, conf.MaxTrailingLogs)
+	must.Eq(t, 3, conf.MinQuorum)
+	must.Eq(t, 123*time.Millisecond, conf.LastContactThreshold)
+	must.Eq(t, 123*time.Millisecond, conf.ServerStabilizationTime)
+	must.True(t, conf.EnableRedundancyZones)
+	must.True(t, conf.DisableUpgradeMigration)
+	must.True(t, conf.EnableCustomUpgrades)
 }

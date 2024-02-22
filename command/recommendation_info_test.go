@@ -7,17 +7,16 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 )
 
 func TestRecommendationInfoCommand_Run(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -46,20 +45,20 @@ func TestRecommendationInfoCommand_Run(t *testing.T) {
 	// Perform an initial call, which should return a not found error.
 	code := cmd.Run([]string{"-address=" + url, "2c13f001-f5b6-ce36-03a5-e37afe160df5"})
 	if srv.Enterprise {
-		require.Equal(1, code)
+		must.One(t, code)
 		out := ui.ErrorWriter.String()
-		require.Contains(out, "Recommendation not found")
+		must.StrContains(t, out, "Recommendation not found")
 	} else {
-		require.Equal(1, code)
-		require.Contains(ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
+		must.One(t, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
 	}
 
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_info")
 	regResp, _, err := client.Jobs().Register(testJob, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 	registerCode := waitForSuccess(ui, client, fullId, t, regResp.EvalID)
-	require.Equal(0, registerCode)
+	must.Zero(t, registerCode)
 
 	// Write a recommendation.
 	rec := api.Recommendation{
@@ -73,21 +72,21 @@ func TestRecommendationInfoCommand_Run(t *testing.T) {
 	}
 	recResp, _, err := client.Recommendations().Upsert(&rec, nil)
 	if srv.Enterprise {
-		require.NoError(err)
+		must.NoError(t, err)
 	} else {
-		require.Error(err, "Nomad Enterprise only endpoint")
+		must.ErrorContains(t, err, "Nomad Enterprise only endpoint")
 	}
 
 	// Only perform the call if we are running enterprise tests. Otherwise the
 	// recResp object will be nil.
 	if srv.Enterprise {
 		code = cmd.Run([]string{"-address=" + url, recResp.ID})
-		require.Equal(0, code)
+		must.Zero(t, code)
 		out := ui.OutputWriter.String()
-		require.Contains(out, "test-meta-entry")
-		require.Contains(out, "p13")
-		require.Contains(out, "1.13")
-		require.Contains(out, recResp.ID)
+		must.StrContains(t, out, "test-meta-entry")
+		must.StrContains(t, out, "p13")
+		must.StrContains(t, out, "1.13")
+		must.StrContains(t, out, recResp.ID)
 	}
 }
 

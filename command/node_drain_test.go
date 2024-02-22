@@ -17,8 +17,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestNodeDrainCommand_Implements(t *testing.T) {
@@ -28,7 +27,7 @@ func TestNodeDrainCommand_Implements(t *testing.T) {
 
 func TestNodeDrainCommand_Detach(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+
 	server, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "drain_detach_node"
 	})
@@ -72,7 +71,7 @@ func TestNodeDrainCommand_Detach(t *testing.T) {
 	}
 
 	_, _, err := client.Jobs().Register(job, nil)
-	require.Nil(err)
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		allocs, _, err := client.Nodes().Allocations(nodeID, nil)
@@ -92,16 +91,16 @@ func TestNodeDrainCommand_Detach(t *testing.T) {
 
 	out := ui.OutputWriter.String()
 	expected := "drain strategy set"
-	require.Contains(out, expected)
+	must.StrContains(t, out, expected)
 
 	node, _, err := client.Nodes().Info(nodeID, nil)
-	require.Nil(err)
-	require.NotNil(node.DrainStrategy)
+	must.NoError(t, err)
+	must.NotNil(t, node.DrainStrategy)
 }
 
 func TestNodeDrainCommand_Monitor(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+
 	server, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "drain_monitor_node"
 	})
@@ -161,7 +160,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	}
 
 	_, _, err := client.Jobs().Register(job, nil)
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Register a system job to ensure it is ignored during draining
 	sysjob := &api.Job{
@@ -191,7 +190,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	}
 
 	_, _, err = client.Jobs().Register(sysjob, nil)
-	require.Nil(err)
+	must.NoError(t, err)
 
 	var allocs []*api.Allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -221,7 +220,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	cmd := &NodeDrainCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + url, "-self", "-enable", "-deadline", "1s", "-ignore-system"}
 	t.Logf("Running: %v", args)
-	require.Zero(cmd.Run(args))
+	must.Zero(t, cmd.Run(args))
 
 	out := outBuf.String()
 	t.Logf("Output:\n%s", out)
@@ -230,7 +229,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	// monitor goroutines may start only after some or all the allocs have been
 	// migrated.
 	if !testutil.IsTravis() {
-		require.Contains(out, "Drain complete for node")
+		must.StrContains(t, out, "Drain complete for node")
 		for _, a := range allocs {
 			if *a.Job.Type == "system" {
 				if strings.Contains(out, a.ID) {
@@ -238,8 +237,8 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 				}
 				continue
 			}
-			require.Contains(out, fmt.Sprintf("Alloc %q marked for migration", a.ID))
-			require.Contains(out, fmt.Sprintf("Alloc %q draining", a.ID))
+			must.StrContains(t, out, fmt.Sprintf("Alloc %q marked for migration", a.ID))
+			must.StrContains(t, out, fmt.Sprintf("Alloc %q draining", a.ID))
 		}
 
 		expected := fmt.Sprintf("All allocations on node %q have stopped\n", nodeID)
@@ -252,16 +251,16 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	outBuf.Reset()
 	args = []string{"-address=" + url, "-self", "-monitor", "-ignore-system"}
 	t.Logf("Running: %v", args)
-	require.Zero(cmd.Run(args))
+	must.Zero(t, cmd.Run(args))
 
 	out = outBuf.String()
 	t.Logf("Output:\n%s", out)
-	require.Contains(out, "No drain strategy set")
+	must.StrContains(t, out, "No drain strategy set")
 }
 
 func TestNodeDrainCommand_Monitor_NoDrainStrategy(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+
 	server, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "drain_monitor_node2"
 	})
@@ -298,7 +297,7 @@ func TestNodeDrainCommand_Monitor_NoDrainStrategy(t *testing.T) {
 	out := outBuf.String()
 	t.Logf("Output:\n%s", out)
 
-	require.Contains(out, "No drain strategy set")
+	must.StrContains(t, out, "No drain strategy set")
 }
 
 func TestNodeDrainCommand_Fails(t *testing.T) {
@@ -417,7 +416,6 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 
 func TestNodeDrainCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -446,6 +444,6 @@ func TestNodeDrainCommand_AutocompleteArgs(t *testing.T) {
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(nodeID, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, nodeID, res[0])
 }

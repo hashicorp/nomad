@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMeta_FlagSet(t *testing.T) {
@@ -138,7 +137,7 @@ func TestMeta_Colorize(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			// Create fake test terminal.
 			_, tty, err := pty.Open()
-			require.NoError(t, err)
+			must.NoError(t, err)
 			defer tty.Close()
 
 			oldStdout := os.Stdout
@@ -155,7 +154,7 @@ func TestMeta_Colorize(t *testing.T) {
 				tc.SetupFn(t, m)
 			}
 
-			require.Equal(t, !tc.ExpectColor, m.Colorize().Disable)
+			must.Eq(t, !tc.ExpectColor, m.Colorize().Disable)
 		})
 	}
 }

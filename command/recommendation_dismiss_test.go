@@ -7,19 +7,18 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/mitchellh/cli"
-	"github.com/posener/complete"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/shoenig/test/must"
 )
 
 func TestRecommendationDismissCommand_Run(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -51,9 +50,9 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_dismiss")
 	regResp, _, err := client.Jobs().Register(testJob, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 	registerCode := waitForSuccess(ui, client, fullId, t, regResp.EvalID)
-	require.Equal(0, registerCode)
+	must.Zero(t, registerCode)
 
 	// Write a recommendation.
 	rec := api.Recommendation{
@@ -67,15 +66,15 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 	}
 	recResp, _, err := client.Recommendations().Upsert(&rec, nil)
 	if srv.Enterprise {
-		require.NoError(err)
+		must.NoError(t, err)
 
 		// Read the recommendation out to ensure it is there as a control on
 		// later tests.
 		recInfo, _, err := client.Recommendations().Info(recResp.ID, nil)
-		require.NoError(err)
-		require.NotNil(recInfo)
+		must.NoError(t, err)
+		must.NotNil(t, recInfo)
 	} else {
-		require.Error(err, "Nomad Enterprise only endpoint")
+		must.ErrorContains(t, err, "Nomad Enterprise only endpoint")
 	}
 
 	// Only perform the call if we are running enterprise tests. Otherwise the
@@ -84,15 +83,15 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 		return
 	}
 	code := cmd.Run([]string{"-address=" + url, recResp.ID})
-	require.Equal(0, code)
+	must.Zero(t, code)
 	out := ui.OutputWriter.String()
-	require.Contains(out, "Successfully dismissed recommendation")
+	must.StrContains(t, out, "Successfully dismissed recommendation")
 
 	// Perform an info call on the recommendation which should return not
 	// found.
 	recInfo, _, err := client.Recommendations().Info(recResp.ID, nil)
-	require.Error(err, "not found")
-	require.Nil(recInfo)
+	must.ErrorContains(t, err, "not found")
+	must.Nil(recInfo)
 }
 
 func TestRecommendationDismissCommand_AutocompleteArgs(t *testing.T) {
@@ -114,12 +113,10 @@ func TestRecommendationDismissCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv *agent.TestAgent, cmd *RecommendationAutocompleteCommand) {
-	require := require.New(t)
-
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_autocomplete")
 	_, _, err := client.Jobs().Register(testJob, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Write a recommendation.
 	rec := &api.Recommendation{
@@ -133,9 +130,9 @@ func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv
 	}
 	rec, _, err = client.Recommendations().Upsert(rec, nil)
 	if srv.Enterprise {
-		require.NoError(err)
+		must.NoError(t, err)
 	} else {
-		require.Error(err, "Nomad Enterprise only endpoint")
+		must.ErrorContains(t, err, "Nomad Enterprise only endpoint")
 		return
 	}
 
@@ -144,6 +141,6 @@ func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	require.Equal(1, len(res))
-	require.Equal(rec.ID, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, rec.ID, res[0])
 }
