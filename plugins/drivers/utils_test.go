@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestResourceUsageRoundTrip(t *testing.T) {
@@ -138,7 +137,7 @@ func Test_networkCreateRequestFromProto(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := networkCreateRequestFromProto(tc.inputPB)
-			assert.Equal(t, tc.expectedOutput, actualOutput, tc.name)
+			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
 }

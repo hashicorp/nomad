@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 var _ drivers.DriverPlugin = (*MockDriver)(nil)
@@ -34,8 +34,8 @@ func TestDriverHarness(t *testing.T) {
 	harness := NewDriverHarness(t, d)
 	defer harness.Kill()
 	actual, _, err := harness.StartTask(&drivers.TaskConfig{})
-	require.NoError(t, err)
-	require.Equal(t, handle.Config.Name, actual.Config.Name)
+	must.NoError(t, err)
+	must.Eq(t, handle.Config.Name, actual.Config.Name)
 }
 
 type testDriverState struct {
@@ -45,7 +45,6 @@ type testDriverState struct {
 
 func TestBaseDriver_Fingerprint(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	fingerprints := []*drivers.Fingerprint{
 		{
@@ -81,7 +80,7 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 	defer harness.Kill()
 
 	ch, err := harness.Fingerprint(context.Background())
-	require.NoError(err)
+	must.NoError(t, err)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -89,25 +88,24 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 		defer wg.Done()
 		select {
 		case f := <-ch:
-			require.Exactly(f, fingerprints[0])
+			must.Eq(t, f, fingerprints[0])
 		case <-time.After(1 * time.Second):
-			require.Fail("did not receive fingerprint[0]")
+			t.Fatal("did not receive fingerprint[0]")
 		}
 		select {
 		case f := <-ch:
-			require.Exactly(f, fingerprints[1])
+			must.Eq(t, f, fingerprints[1])
 		case <-time.After(1 * time.Second):
-			require.Fail("did not receive fingerprint[1]")
+			t.Fatal("did not receive fingerprint[1]")
 		}
 	}()
-	require.False(complete.Load().(bool))
+	must.False(t, complete.Load().(bool))
 	wg.Wait()
-	require.True(complete.Load().(bool))
+	must.True(t, complete.Load().(bool))
 }
 
 func TestBaseDriver_RecoverTask(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// build driver state and encode it into proto msg
 	state := testDriverState{Pid: 1, Log: "foo"}
@@ -119,8 +117,8 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 	impl := &MockDriver{
 		RecoverTaskF: func(h *drivers.TaskHandle) error {
 			var actual testDriverState
-			require.NoError(h.GetDriverState(&actual))
-			require.Equal(state, actual)
+			must.NoError(t, h.GetDriverState(&actual))
+			must.Eq(t, state, actual)
 			return nil
 		},
 	}
@@ -132,12 +130,11 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 		DriverState: buf.Bytes(),
 	}
 	err := harness.RecoverTask(handle)
-	require.NoError(err)
+	must.NoError(t, err)
 }
 
 func TestBaseDriver_StartTask(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	cfg := &drivers.TaskConfig{
 		ID: "foo",
@@ -157,19 +154,18 @@ func TestBaseDriver_StartTask(t *testing.T) {
 	harness := NewDriverHarness(t, impl)
 	defer harness.Kill()
 	resp, _, err := harness.StartTask(cfg)
-	require.NoError(err)
-	require.Equal(cfg.ID, resp.Config.ID)
-	require.Equal(handle.State, resp.State)
+	must.NoError(t, err)
+	must.Eq(t, cfg.ID, resp.Config.ID)
+	must.Eq(t, handle.State, resp.State)
 
 	var actualState testDriverState
-	require.NoError(resp.GetDriverState(&actualState))
-	require.Equal(*state, actualState)
+	must.NoError(t, resp.GetDriverState(&actualState))
+	must.Eq(t, *state, actualState)
 
 }
 
 func TestBaseDriver_WaitTask(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	result := &drivers.ExitResult{ExitCode: 1, Signal: 9}
 
@@ -194,20 +190,19 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		ch, err := harness.WaitTask(context.TODO(), "foo")
-		require.NoError(err)
+		must.NoError(t, err)
 		actualResult := <-ch
 		finished = true
-		require.Exactly(result, actualResult)
+		must.Eq(t, result, actualResult)
 	}()
-	require.False(finished)
+	must.False(t, finished)
 	close(signalTask)
 	wg.Wait()
-	require.True(finished)
+	must.True(t, finished)
 }
 
 func TestBaseDriver_TaskEvents(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	events := []*drivers.TaskEvent{
@@ -254,14 +249,14 @@ func TestBaseDriver_TaskEvents(t *testing.T) {
 	defer harness.Kill()
 
 	ch, err := harness.TaskEvents(context.Background())
-	require.NoError(err)
+	must.NoError(t, err)
 
 	for _, event := range events {
 		select {
 		case actual := <-ch:
-			require.Exactly(actual, event)
+			must.Eq(t, actual, event)
 		case <-time.After(500 * time.Millisecond):
-			require.Fail("failed to receive event")
+			t.Fatal("failed to receive event")
 
 		}
 	}
@@ -291,6 +286,6 @@ func TestBaseDriver_Capabilities(t *testing.T) {
 	defer harness.Kill()
 
 	caps, err := harness.Capabilities()
-	require.NoError(t, err)
-	require.Equal(t, capabilities, caps)
+	must.NoError(t, err)
+	must.Eq(t, capabilities, caps)
 }
