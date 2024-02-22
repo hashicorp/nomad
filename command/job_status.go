@@ -161,8 +161,13 @@ func (c *JobStatusCommand) Run(args []string) int {
 					ids[i] = j.ID
 				}
 
-				out, err := c.createJsonJobsOutput(client, ids...)
+				jsonJobs, err := createJsonJobsOutput(client, c.allAllocs, ids...)
+				if err != nil {
+					c.Ui.Error(err.Error())
+					return 1
+				}
 
+				out, err := Format(true, c.tmpl, jsonJobs)
 				if err != nil {
 					c.Ui.Error(err.Error())
 					return 1
@@ -201,8 +206,14 @@ func (c *JobStatusCommand) Run(args []string) int {
 	}
 
 	if c.json || len(c.tmpl) > 0 {
-		out, err := c.createJsonJobsOutput(client, *job.ID)
+		jsonJobs, err := createJsonJobsOutput(client, c.allAllocs, *job.ID)
 
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		out, err := Format(true, c.tmpl, jsonJobs)
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
@@ -707,14 +718,13 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 	}
 }
 
-func (c *JobStatusCommand) createJsonJobsOutput(client *api.Client, jobIds ...string) (string, error) {
+func createJsonJobsOutput(client *api.Client, allAllocs bool, jobIds ...string) ([]JobJson, error) {
 	jsonJobs := make([]JobJson, len(jobIds))
 
 	for i, id := range jobIds {
 		job, _, err := client.Jobs().Info(id, &api.QueryOptions{})
-
 		if err != nil {
-			return "", fmt.Errorf("Error querying job info: %s", err)
+			return nil, fmt.Errorf("Error querying job info: %s", err)
 		}
 
 		var q *api.QueryOptions
@@ -723,27 +733,23 @@ func (c *JobStatusCommand) createJsonJobsOutput(client *api.Client, jobIds ...st
 		}
 
 		summary, _, err := client.Jobs().Summary(id, q)
-
 		if err != nil {
-			return "", fmt.Errorf("Error querying job summary: %s", err)
+			return nil, fmt.Errorf("Error querying job summary: %s", err)
 		}
 
-		allocations, _, err := client.Jobs().Allocations(id, c.allAllocs, q)
-
+		allocations, _, err := client.Jobs().Allocations(id, allAllocs, q)
 		if err != nil {
-			return "", fmt.Errorf("Error querying job allocations: %s", err)
+			return nil, fmt.Errorf("Error querying job allocations: %s", err)
 		}
 
 		latestDeployment, _, err := client.Jobs().LatestDeployment(id, q)
-
 		if err != nil {
-			return "", fmt.Errorf("Error querying latest job deployment: %s", err)
+			return nil, fmt.Errorf("Error querying latest job deployment: %s", err)
 		}
 
 		evals, _, err := client.Jobs().Evaluations(id, q)
-
 		if err != nil {
-			return "", fmt.Errorf("Error querying job evaluations: %s", err)
+			return nil, fmt.Errorf("Error querying job evaluations: %s", err)
 		}
 
 		jsonJobs[i] = JobJson{
@@ -754,7 +760,7 @@ func (c *JobStatusCommand) createJsonJobsOutput(client *api.Client, jobIds ...st
 		}
 	}
 
-	return Format(true, c.tmpl, jsonJobs)
+	return jsonJobs, nil
 }
 
 // list general information about a list of jobs
