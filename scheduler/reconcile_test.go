@@ -19,9 +19,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -270,7 +269,6 @@ type resultExpectation struct {
 
 func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	t.Helper()
-	assertion := assert.New(t)
 
 	if exp.createDeployment != nil && r.deployment == nil {
 		t.Errorf("Expect a created deployment got none")
@@ -285,15 +283,15 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 		}
 	}
 
-	assertion.EqualValues(exp.deploymentUpdates, r.deploymentUpdates, "Expected Deployment Updates")
-	assertion.Len(r.place, exp.place, "Expected Placements")
-	assertion.Len(r.destructiveUpdate, exp.destructive, "Expected Destructive")
-	assertion.Len(r.inplaceUpdate, exp.inplace, "Expected Inplace Updates")
-	assertion.Len(r.attributeUpdates, exp.attributeUpdates, "Expected Attribute Updates")
-	assertion.Len(r.reconnectUpdates, exp.reconnectUpdates, "Expected Reconnect Updates")
-	assertion.Len(r.disconnectUpdates, exp.disconnectUpdates, "Expected Disconnect Updates")
-	assertion.Len(r.stop, exp.stop, "Expected Stops")
-	assertion.EqualValues(exp.desiredTGUpdates, r.desiredTGUpdates, "Expected Desired TG Update Annotations")
+	test.Eq(t, exp.deploymentUpdates, r.deploymentUpdates, test.Sprint("Expected Deployment Updates"))
+	test.SliceLen(t, exp.place, r.place, test.Sprint("Expected Placements"))
+	test.SliceLen(t, exp.destructive, r.destructiveUpdate, test.Sprint("Expected Destructive"))
+	test.SliceLen(t, exp.inplace, r.inplaceUpdate, test.Sprint("Expected Inplace Updates"))
+	test.MapLen(t, exp.attributeUpdates, r.attributeUpdates, test.Sprint("Expected Attribute Updates"))
+	test.MapLen(t, exp.reconnectUpdates, r.reconnectUpdates, test.Sprint("Expected Reconnect Updates"))
+	test.MapLen(t, exp.disconnectUpdates, r.disconnectUpdates, test.Sprint("Expected Disconnect Updates"))
+	test.SliceLen(t, exp.stop, r.stop, test.Sprint("Expected Stops"))
+	test.Eq(t, exp.desiredTGUpdates, r.desiredTGUpdates, test.Sprint("Expected Desired TG Update Annotations"))
 }
 
 func buildAllocations(job *structs.Job, count int, clientStatus, desiredStatus string, nodeScore float64) []*structs.Allocation {
@@ -726,7 +724,7 @@ func TestReconciler_Inplace_Rollback(t *testing.T) {
 		},
 	})
 
-	assert.Len(t, r.desiredFollowupEvals, 1, "expected 1 follow-up eval")
+	test.MapLen(t, 1, r.desiredFollowupEvals, test.Sprint("expected 1 follow-up eval"))
 	assertNamesHaveIndexes(t, intRange(0, 0), allocsToNames(r.inplaceUpdate))
 	assertNamesHaveIndexes(t, intRange(2, 2), stopResultsToNames(r.stop))
 	assertNamesHaveIndexes(t, intRange(2, 3), placeResultsToNames(r.place))
@@ -1540,7 +1538,7 @@ func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job,
 				nil, allocs, nil, "", 50, true)
 			r := reconciler.Compute()
-			require.Len(t, r.stop, 0)
+			must.SliceEmpty(t, r.stop)
 			// Assert the correct results
 			assertResults(t, r, &resultExpectation{
 				createDeployment:  nil,
@@ -1657,8 +1655,6 @@ func TestReconciler_MultiTG_SingleUpdateBlock(t *testing.T) {
 func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	// Set desired 4
 	job := mock.Job()
 	job.TaskGroups[0].Count = 4
@@ -1717,9 +1713,9 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 	// Two reschedule attempts were already made, one more can be made at a future time
 	// Verify that the follow up eval has the expected waitUntil time
 	evals := r.desiredFollowupEvals[tgName]
-	require.NotNil(evals)
-	require.Equal(1, len(evals))
-	require.Equal(now.Add(delayDur), evals[0].WaitUntil)
+	must.NotNil(t, evals)
+	must.SliceLen(t, 1, evals)
+	must.Eq(t, now.Add(delayDur), evals[0].WaitUntil)
 
 	// Alloc 5 should not be replaced because it is terminal
 	assertResults(t, r, &resultExpectation{
@@ -1745,15 +1741,13 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 	for _, a := range r.attributeUpdates {
 		annotated = a
 	}
-	require.Equal(evals[0].ID, annotated.FollowupEvalID)
+	must.Eq(t, evals[0].ID, annotated.FollowupEvalID)
 }
 
 // Tests delayed rescheduling of failed batch allocations and batching of allocs
 // with fail times that are close together
 func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Set desired 4
 	job := mock.Job()
@@ -1799,13 +1793,13 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 
 	// Verify that two follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.NotNil(evals)
-	require.Equal(2, len(evals))
+	must.NotNil(t, evals)
+	must.SliceLen(t, 2, evals)
 
 	// Verify expected WaitUntil values for both batched evals
-	require.Equal(now.Add(delayDur), evals[0].WaitUntil)
+	must.Eq(t, now.Add(delayDur), evals[0].WaitUntil)
 	secondBatchDuration := delayDur + 10*time.Second
-	require.Equal(now.Add(secondBatchDuration), evals[1].WaitUntil)
+	must.Eq(t, now.Add(secondBatchDuration), evals[1].WaitUntil)
 
 	// Alloc 5 should not be replaced because it is terminal
 	assertResults(t, r, &resultExpectation{
@@ -1829,9 +1823,9 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 	// Verify that the followup evalID field is set correctly
 	for _, alloc := range r.attributeUpdates {
 		if allocNameToIndex(alloc.Name) < 5 {
-			require.Equal(evals[0].ID, alloc.FollowupEvalID)
+			must.Eq(t, evals[0].ID, alloc.FollowupEvalID)
 		} else if allocNameToIndex(alloc.Name) < 7 {
-			require.Equal(evals[1].ID, alloc.FollowupEvalID)
+			must.Eq(t, evals[1].ID, alloc.FollowupEvalID)
 		} else {
 			t.Fatalf("Unexpected alloc name in Inplace results %v", alloc.Name)
 		}
@@ -1842,7 +1836,6 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 func TestReconciler_RescheduleNow_Batch(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	// Set desired 4
 	job := mock.Job()
 	job.TaskGroups[0].Count = 4
@@ -1897,7 +1890,7 @@ func TestReconciler_RescheduleNow_Batch(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(t, evals)
 
 	// Two reschedule attempts were made, one more can be made now
 	// Alloc 5 should not be replaced because it is terminal
@@ -1925,8 +1918,6 @@ func TestReconciler_RescheduleNow_Batch(t *testing.T) {
 // Tests rescheduling failed service allocations with desired state stop
 func TestReconciler_RescheduleLater_Service(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Set desired 5
 	job := mock.Job()
@@ -1975,9 +1966,9 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 	// Should place a new placement and create a follow up eval for the delayed reschedule
 	// Verify that the follow up eval has the expected waitUntil time
 	evals := r.desiredFollowupEvals[tgName]
-	require.NotNil(evals)
-	require.Equal(1, len(evals))
-	require.Equal(now.Add(delayDur), evals[0].WaitUntil)
+	must.NotNil(t, evals)
+	must.SliceLen(t, 1, evals)
+	must.Eq(t, now.Add(delayDur), evals[0].WaitUntil)
 
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
@@ -2004,7 +1995,7 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 	for _, a := range r.attributeUpdates {
 		annotated = a
 	}
-	require.Equal(evals[0].ID, annotated.FollowupEvalID)
+	must.Eq(t, evals[0].ID, annotated.FollowupEvalID)
 }
 
 // Tests service allocations with client status complete
@@ -2122,15 +2113,12 @@ func TestReconciler_Service_DesiredStop_ClientStatusComplete(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(4, 4), placeResultsToNames(r.place))
 
 	// Should not have any follow up evals created
-	require := require.New(t)
-	require.Equal(0, len(r.desiredFollowupEvals))
+	must.MapEmpty(t, r.desiredFollowupEvals)
 }
 
 // Tests rescheduling failed service allocations with desired state stop
 func TestReconciler_RescheduleNow_Service(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Set desired 5
 	job := mock.Job()
@@ -2185,7 +2173,7 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(evals)
 
 	// Verify that one rescheduled alloc and one replacement for terminal alloc were placed
 	assertResults(t, r, &resultExpectation{
@@ -2212,8 +2200,6 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 // Tests rescheduling failed service allocations when there's clock drift (upto a second)
 func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Set desired 5
 	job := mock.Job()
@@ -2267,7 +2253,7 @@ func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(t, evals)
 
 	// Verify that one rescheduled alloc was placed
 	assertResults(t, r, &resultExpectation{
@@ -2294,8 +2280,6 @@ func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
 // Tests rescheduling failed service allocations when the eval ID matches and there's a large clock drift
 func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Set desired 5
 	job := mock.Job()
@@ -2351,7 +2335,7 @@ func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(t, evals)
 
 	// Verify that one rescheduled alloc was placed
 	assertResults(t, r, &resultExpectation{
@@ -2378,8 +2362,6 @@ func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
 // Tests rescheduling failed service allocations when there are canaries
 func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Set desired 5
 	job := mock.Job()
@@ -2462,7 +2444,7 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(t, evals)
 
 	// Verify that one rescheduled alloc and one replacement for terminal alloc were placed
 	assertResults(t, r, &resultExpectation{
@@ -2489,8 +2471,6 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 // Tests rescheduling failed canary service allocations
 func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Set desired 5
 	job := mock.Job()
@@ -2589,7 +2569,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(t, evals)
 
 	// Verify that one rescheduled alloc and one replacement for terminal alloc were placed
 	assertResults(t, r, &resultExpectation{
@@ -2617,8 +2597,6 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 // reschedule limit
 func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Set desired 5
 	job := mock.Job()
@@ -2719,7 +2697,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(t, evals)
 
 	// Verify that one rescheduled alloc and one replacement for terminal alloc were placed
 	assertResults(t, r, &resultExpectation{
@@ -5163,8 +5141,6 @@ func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T
 func TestReconciler_ForceReschedule_Service(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	// Set desired 5
 	job := mock.Job()
 	job.TaskGroups[0].Count = 5
@@ -5211,7 +5187,7 @@ func TestReconciler_ForceReschedule_Service(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(t, evals)
 
 	// Verify that one rescheduled alloc was created because of the forced reschedule
 	assertResults(t, r, &resultExpectation{
@@ -5240,8 +5216,6 @@ func TestReconciler_ForceReschedule_Service(t *testing.T) {
 // left unmodified
 func TestReconciler_RescheduleNot_Service(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Set desired 5
 	job := mock.Job()
@@ -5296,7 +5270,7 @@ func TestReconciler_RescheduleNot_Service(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(t, evals)
 
 	// no rescheduling, ignore all 4 allocs
 	// but place one to substitute allocs[4] that was stopped explicitly
@@ -5785,10 +5759,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				if tc.shouldStopOnDisconnectedNode {
 					must.Eq(t, testNode.ID, stopResult.alloc.NodeID)
 				} else {
-					require.NotEqual(t, testNode.ID, stopResult.alloc.NodeID)
+					must.NotEq(t, testNode.ID, stopResult.alloc.NodeID)
 				}
 
-				require.Equal(t, job.Version, stopResult.alloc.Job.Version)
+				must.Eq(t, job.Version, stopResult.alloc.Job.Version)
 			}
 		})
 	}
@@ -5799,7 +5773,6 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 func TestReconciler_RescheduleNot_Batch(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	// Set desired 4
 	job := mock.Job()
 	job.TaskGroups[0].Count = 4
@@ -5859,7 +5832,7 @@ func TestReconciler_RescheduleNot_Batch(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	require.Nil(evals)
+	must.Nil(t, evals)
 
 	// No reschedule attempts were made and all allocs are untouched
 	assertResults(t, r, &resultExpectation{
@@ -5891,19 +5864,19 @@ func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
 
 	// Verify that 1 follow up eval was created with the values we expect.
 	evals := results.desiredFollowupEvals[job.TaskGroups[0].Name]
-	require.Len(t, evals, 1)
+	must.SliceLen(t, 1, evals)
 	expectedTime := reconciler.now.Add(5 * time.Minute)
 
 	eval := evals[0]
-	require.NotNil(t, eval.WaitUntil)
-	require.Equal(t, expectedTime, eval.WaitUntil)
+	must.NotNil(t, eval.WaitUntil)
+	must.Eq(t, expectedTime, eval.WaitUntil)
 
 	// Validate that the queued disconnectUpdates have the right client status,
 	// and that they have a valid FollowUpdEvalID.
 	for _, disconnectUpdate := range results.disconnectUpdates {
-		require.Equal(t, structs.AllocClientStatusUnknown, disconnectUpdate.ClientStatus)
-		require.NotEmpty(t, disconnectUpdate.FollowupEvalID)
-		require.Equal(t, eval.ID, disconnectUpdate.FollowupEvalID)
+		must.Eq(t, structs.AllocClientStatusUnknown, disconnectUpdate.ClientStatus)
+		must.NotEq(t, "", disconnectUpdate.FollowupEvalID)
+		must.Eq(t, eval.ID, disconnectUpdate.FollowupEvalID)
 	}
 
 	// 2 to place, 2 to update, 1 to ignore
@@ -6243,7 +6216,7 @@ func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
 				}
 			}
 
-			require.Equal(t, tc.deploymentState.DesiredTotal, allocsConfigured, "invalid alloc configuration: expect %d got %d", tc.deploymentState.DesiredTotal, allocsConfigured)
+			must.Eq(t, tc.deploymentState.DesiredTotal, allocsConfigured, must.Sprintf("invalid alloc configuration: expect %d got %d", tc.deploymentState.DesiredTotal, allocsConfigured))
 
 			// Populate Alloc IDS, Node IDs, Job on canaries
 			canariesConfigured := 0
@@ -6275,7 +6248,7 @@ func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
 			}
 
 			// Validate tc.canaryAllocs against tc.deploymentState
-			require.Equal(t, tc.deploymentState.PlacedAllocs, canariesConfigured, "invalid canary configuration: expect %d got %d", tc.deploymentState.PlacedAllocs, canariesConfigured)
+			must.Eq(t, tc.deploymentState.PlacedAllocs, canariesConfigured, must.Sprintf("invalid canary configuration: expect %d got %d", tc.deploymentState.PlacedAllocs, canariesConfigured))
 
 			deployment := structs.NewDeployment(updatedJob, 50)
 			deployment.TaskGroups[updatedJob.TaskGroups[0].Name] = tc.deploymentState
@@ -6304,33 +6277,33 @@ func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
 			// and that they have a disconnect update.
 			for _, placeResult := range result.place {
 				found := false
-				require.NotNil(t, placeResult.previousAlloc)
+				must.NotNil(t, placeResult.previousAlloc)
 				for _, deployed := range tc.deployedAllocs[disconnectedNode] {
 					if deployed.ID == placeResult.previousAlloc.ID {
 						found = true
-						require.Equal(t, job.Version, placeResult.previousAlloc.Job.Version)
-						require.Equal(t, disconnectedNode.ID, placeResult.previousAlloc.NodeID)
+						must.Eq(t, job.Version, placeResult.previousAlloc.Job.Version)
+						must.Eq(t, disconnectedNode.ID, placeResult.previousAlloc.NodeID)
 						_, exists := result.disconnectUpdates[placeResult.previousAlloc.ID]
-						require.True(t, exists)
+						must.True(t, exists)
 						break
 					}
 				}
 				for _, canary := range tc.canaryAllocs[disconnectedNode] {
 					if canary.ID == placeResult.previousAlloc.ID {
 						found = true
-						require.Equal(t, updatedJob.Version, placeResult.previousAlloc.Job.Version)
-						require.Equal(t, disconnectedNode.ID, placeResult.previousAlloc.NodeID)
+						must.Eq(t, updatedJob.Version, placeResult.previousAlloc.Job.Version)
+						must.Eq(t, disconnectedNode.ID, placeResult.previousAlloc.NodeID)
 						_, exists := result.disconnectUpdates[placeResult.previousAlloc.ID]
-						require.True(t, exists)
+						must.True(t, exists)
 						break
 					}
 				}
-				require.True(t, found)
+				must.True(t, found)
 			}
 
 			// Validate that stops are for pending disconnects
 			for _, stopResult := range result.stop {
-				require.Equal(t, pending, stopResult.alloc.ClientStatus)
+				must.Eq(t, pending, stopResult.alloc.ClientStatus)
 			}
 		})
 	}
@@ -6417,7 +6390,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 				job = mock.BatchJob()
 			}
 
-			require.NotNil(t, job, "invalid job type", tc.jobType)
+			must.NotNil(t, job, must.Sprint("invalid job type", tc.jobType))
 
 			var deployment *structs.Deployment
 			if tc.isMultiregion {
@@ -6447,7 +6420,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 
 			_ = reconciler.Compute()
 
-			require.Equal(t, tc.expected, reconciler.deploymentPaused)
+			must.Eq(t, tc.expected, reconciler.deploymentPaused)
 		})
 	}
 }
