@@ -127,7 +127,7 @@ func (c *NodeStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	if node.Status != "disconnected" {
+	if node.Status != api.NodeStatusDisconnected {
 		c.Ui.Error(fmt.Sprintf("Node %s is not disconnected, only disconnected nodes can be stopped", nodeID))
 		return 1
 	}
