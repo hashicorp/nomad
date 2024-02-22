@@ -11074,6 +11074,21 @@ func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
+// ShouldBeReplaced tests an alloc for replace in case of disconnection
+func (a *Allocation) ShouldBeReplaced() *bool {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	if tg == nil {
+		return nil
+	}
+
+	if tg.Disconnect == nil || tg.Disconnect.Replace == nil {
+		return nil
+	}
+
+	return tg.Disconnect.Replace
+}
+
 // ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
 func (a *Allocation) ShouldClientStop() bool {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)

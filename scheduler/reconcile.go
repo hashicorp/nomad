@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	reconnectingpicker "github.com/hashicorp/nomad/scheduler/reconnecting_picker"
 )
 
 const (
@@ -31,6 +32,10 @@ const (
 	// This helps protect against small clock drifts between servers
 	rescheduleWindowSize = 1 * time.Second
 )
+
+type ReconnectingPicker interface {
+	PickReconnectingAlloc(disconnect *structs.DisconnectStrategy, original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation
+}
 
 // allocUpdateType takes an existing allocation and a new job definition and
 // returns whether the allocation can ignore the change, requires a destructive
@@ -101,6 +106,8 @@ type allocReconciler struct {
 	// now is the time used when determining rescheduling eligibility
 	// defaults to time.Now, and overridden in unit tests
 	now time.Time
+
+	reconnectingPicker ReconnectingPicker
 
 	// result is the results of the reconcile. During computation it can be
 	// used to store intermediate state
@@ -195,6 +202,7 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string,
 	evalPriority int, supportsDisconnectedClients bool, opts ...AllocReconcilerOption) *allocReconciler {
+
 	ar := &allocReconciler{
 		logger:                      logger.Named("reconciler"),
 		allocUpdateFn:               allocUpdateFn,
@@ -216,6 +224,7 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 			desiredFollowupEvals:      make(map[string][]*structs.Evaluation),
 			taskGroupAllocNameIndexes: make(map[string]*allocNameIndex),
 		},
+		reconnectingPicker: reconnectingpicker.New(logger),
 	}
 
 	for _, op := range opts {
@@ -461,7 +470,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	if len(reconnecting) > 0 {
 		// Pass all allocations because the replacements we need to find may be
 		// in any state, including themselves being reconnected.
-		reconnect, stop := a.reconcileReconnecting(reconnecting, all)
+		reconnect, stop := a.reconcileReconnecting(reconnecting, all, tg)
 
 		// Stop the reconciled allocations and remove them from the other sets
 		// since they have been already handled.
@@ -1145,7 +1154,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 //   - If the reconnecting allocation is to be stopped, its replacements may
 //     not be present in any of the returned sets. The rest of the reconciler
 //     logic will handle them.
-func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all allocSet) (allocSet, allocSet) {
+func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all allocSet, tg *structs.TaskGroup) (allocSet, allocSet) {
 	stop := make(allocSet)
 	reconnect := make(allocSet)
 
@@ -1199,8 +1208,8 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 				continue
 			}
 
-			// Pick which allocation we want to keep.
-			keepAlloc := pickReconnectingAlloc(reconnectingAlloc, replacementAlloc)
+			// Pick which allocation we want to keep using the disconnect reconcile strategy
+			keepAlloc := a.reconnectingPicker.PickReconnectingAlloc(tg.Disconnect, reconnectingAlloc, replacementAlloc)
 			if keepAlloc == replacementAlloc {
 				// The replacement allocation is preferred, so stop the one
 				// reconnecting if not stopped yet.
@@ -1233,44 +1242,6 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 	}
 
 	return reconnect, stop
-}
-
-// pickReconnectingAlloc returns the allocation to keep between the original
-// one that is reconnecting and one of its replacements.
-//
-// This function is not commutative, meaning that pickReconnectingAlloc(A, B)
-// is not the same as pickReconnectingAlloc(B, A). Preference is given to keep
-// the original allocation when possible.
-func pickReconnectingAlloc(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
-	// Check if the replacement is newer.
-	// Always prefer the replacement if true.
-	replacementIsNewer := replacement.Job.Version > original.Job.Version ||
-		replacement.Job.CreateIndex > original.Job.CreateIndex
-	if replacementIsNewer {
-		return replacement
-	}
-
-	// Check if the replacement has better placement score.
-	// If any of the scores is not available, only pick the replacement if
-	// itself does have scores.
-	originalMaxScoreMeta := original.Metrics.MaxNormScore()
-	replacementMaxScoreMeta := replacement.Metrics.MaxNormScore()
-
-	replacementHasBetterScore := originalMaxScoreMeta == nil && replacementMaxScoreMeta != nil ||
-		(originalMaxScoreMeta != nil && replacementMaxScoreMeta != nil &&
-			replacementMaxScoreMeta.NormScore > originalMaxScoreMeta.NormScore)
-
-	// Check if the replacement has better client status.
-	// Even with a better placement score make sure we don't replace a running
-	// allocation with one that is not.
-	replacementIsRunning := replacement.ClientStatus == structs.AllocClientStatusRunning
-	originalNotRunning := original.ClientStatus != structs.AllocClientStatusRunning
-
-	if replacementHasBetterScore && (replacementIsRunning || originalNotRunning) {
-		return replacement
-	}
-
-	return original
 }
 
 // computeUpdates determines which allocations for the passed group require
