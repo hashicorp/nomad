@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestVarListCommand_Implements(t *testing.T) {
@@ -81,36 +80,29 @@ func TestVarListCommand_Offline(t *testing.T) {
 			errOut := ui.ErrorWriter.String()
 			defer resetUiWriters(ui)
 
-			require.Equal(t, tC.exitCode, ec,
-				"Expected exit code %v; got: %v\nstdout: %s\nstderr: %s",
-				tC.exitCode, ec, stdOut, errOut,
-			)
+			must.Eq(t, tC.exitCode, ec)
 			if tC.expectUsage {
 				help := cmd.Help()
-				require.Equal(t, help, strings.TrimSpace(stdOut))
+				must.Eq(t, help, strings.TrimSpace(stdOut))
 				// Test that stdout ends with a linefeed since we trim them for
 				// convenience in the equality tests.
-				require.True(t, strings.HasSuffix(stdOut, "\n"),
-					"stdout does not end with a linefeed")
+				must.True(t, strings.HasSuffix(stdOut, "\n"))
 			}
 			if tC.expectUsageError {
-				require.Contains(t, errOut, commandErrorText(cmd))
+				must.StrContains(t, errOut, commandErrorText(cmd))
 			}
 			if tC.expectStdOut != "" {
-				require.Equal(t, tC.expectStdOut, strings.TrimSpace(stdOut))
+				must.Eq(t, tC.expectStdOut, strings.TrimSpace(stdOut))
 				// Test that stdout ends with a linefeed since we trim them for
 				// convenience in the equality tests.
-				require.True(t, strings.HasSuffix(stdOut, "\n"),
-					"stdout does not end with a linefeed")
+				must.True(t, strings.HasSuffix(stdOut, "\n"))
 			}
 			if tC.expectStdErrPrefix != "" {
-				require.True(t, strings.HasPrefix(errOut, tC.expectStdErrPrefix),
-					"Expected stderr to start with %q; got %s",
-					tC.expectStdErrPrefix, errOut)
+				must.True(t, strings.HasPrefix(errOut, tC.expectStdErrPrefix))
+
 				// Test that stderr ends with a linefeed since we trim them for
 				// convenience in the equality tests.
-				require.True(t, strings.HasSuffix(errOut, "\n"),
-					"stderr does not end with a linefeed")
+				must.True(t, strings.HasSuffix(errOut, "\n"))
 			}
 		})
 	}
@@ -140,10 +132,10 @@ func TestVarListCommand_Online(t *testing.T) {
 
 			expect := expect
 			exp, ok := expect.(NSPather)
-			require.True(t, ok, "expect is not an NSPather, got %T", expect)
+			must.True(t, ok)
 			in, ok := check.(NSPather)
-			require.True(t, ok, "check is not an NSPather, got %T", check)
-			require.ElementsMatch(t, exp.NSPaths(), in.NSPaths())
+			must.True(t, ok)
+			must.Eq(t, exp.NSPaths(), in.NSPaths())
 		}
 		return out
 	}
@@ -153,11 +145,9 @@ func TestVarListCommand_Online(t *testing.T) {
 
 			length := length
 			in, ok := check.(NSPather)
-			require.True(t, ok, "check is not an NSPather, got %T", check)
+			must.True(t, ok)
 			inLen := in.NSPaths().Len()
-			require.Equal(t, length, inLen,
-				"expected length of %v, got %v. \nvalues: %v",
-				length, inLen, in.NSPaths())
+			must.Eq(t, length, inLen)
 		}
 		return out
 	}
@@ -285,34 +275,28 @@ func TestVarListCommand_Online(t *testing.T) {
 			errOut := ui.ErrorWriter.String()
 			defer resetUiWriters(ui)
 
-			require.Equal(t, tC.exitCode, code,
-				"Expected exit code %v; got: %v\nstdout: %s\nstderr: %s",
-				tC.exitCode, code, stdOut, errOut)
+			must.Eq(t, tC.exitCode, code)
 
 			if tC.expectStdOut != "" {
-				require.Equal(t, tC.expectStdOut, strings.TrimSpace(stdOut))
+				must.Eq(t, tC.expectStdOut, strings.TrimSpace(stdOut))
 
 				// Test that stdout ends with a linefeed since we trim them for
 				// convenience in the equality tests.
-				require.True(t, strings.HasSuffix(stdOut, "\n"),
-					"stdout does not end with a linefeed")
+				must.True(t, strings.HasSuffix(stdOut, "\n"))
 			}
 
 			if tC.expectStdErrPrefix != "" {
-				require.True(t, strings.HasPrefix(errOut, tC.expectStdErrPrefix),
-					"Expected stderr to start with %q; got %s",
-					tC.expectStdErrPrefix, errOut)
+				must.True(t, strings.HasPrefix(errOut, tC.expectStdErrPrefix))
 
 				// Test that stderr ends with a linefeed since this test only
 				// considers prefixes.
-				require.True(t, strings.HasSuffix(stdOut, "\n"),
-					"stderr does not end with a linefeed")
+				must.True(t, strings.HasSuffix(stdOut, "\n"))
 			}
 
 			if tC.jsonTest != nil {
 				jtC := tC.jsonTest
 				err := json.Unmarshal([]byte(stdOut), &jtC.jsonDest)
-				require.NoError(t, err, "stdout: %s", stdOut)
+				must.NoError(t, err)
 
 				for _, fn := range jtC.expectFns {
 					fn(t, jtC.jsonDest)

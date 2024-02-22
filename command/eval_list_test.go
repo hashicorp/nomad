@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestEvalList_ArgsWithoutPageToken(t *testing.T) {
@@ -58,8 +58,6 @@ func TestEvalList_ArgsWithoutPageToken(t *testing.T) {
 
 	for _, tc := range cases {
 		args := strings.Split(tc.cli, " ")
-		assert.Equal(t, tc.expected, argsWithoutPageToken(args),
-			"for input: %s", tc.cli)
+		must.Eq(t, tc.expected, argsWithoutPageToken(args), must.Sprintf("for input: %s", tc.cli))
 	}
-
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/command/asset"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestInitCommand_Implements(t *testing.T) {
@@ -64,12 +63,12 @@ func TestInitCommand_Run(t *testing.T) {
 	// Works with -short flag
 	os.Remove(DefaultInitName)
 	if code := cmd.Run([]string{"-short"}); code != 0 {
-		require.Zero(t, code, "unexpected exit code: %d", code)
+		must.Zero(t, code)
 	}
 	content, err = os.ReadFile(DefaultInitName)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	shortJob := asset.JobExampleShort
-	require.Equal(t, string(content), string(shortJob))
+	must.Eq(t, string(content), string(shortJob))
 
 	// Fails if the file exists
 	if code := cmd.Run([]string{}); code != 1 {
@@ -204,12 +203,12 @@ func TestInitCommand_customFilename(t *testing.T) {
 	// Works with -short flag
 	os.Remove(filename)
 	if code := cmd.Run([]string{"-short", filename}); code != 0 {
-		require.Zero(t, code, "unexpected exit code: %d", code)
+		must.Zero(t, code)
 	}
 	content, err = os.ReadFile(filename)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	shortJob := asset.JobExampleShort
-	require.Equal(t, string(content), string(shortJob))
+	must.Eq(t, string(content), string(shortJob))
 
 	// Fails if the file exists
 	if code := cmd.Run([]string{filename}); code != 1 {
