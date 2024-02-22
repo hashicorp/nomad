@@ -159,7 +159,7 @@ func (c *NodeStopCommand) Run(args []string) int {
 
 	spec = &api.DrainSpec{
 		Deadline:         -1 * time.Second,
-		IgnoreSystemJobs: true,
+		IgnoreSystemJobs: false,
 	}
 
 	// propagate drain metadata if cancelling
