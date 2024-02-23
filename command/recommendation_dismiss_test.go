@@ -91,7 +91,7 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 	// found.
 	recInfo, _, err := client.Recommendations().Info(recResp.ID, nil)
 	must.ErrorContains(t, err, "not found")
-	must.Nil(recInfo)
+	must.Nil(t, recInfo)
 }
 
 func TestRecommendationDismissCommand_AutocompleteArgs(t *testing.T) {

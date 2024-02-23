@@ -2173,7 +2173,7 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
-	must.Nil(evals)
+	must.Nil(t, evals)
 
 	// Verify that one rescheduled alloc and one replacement for terminal alloc were placed
 	assertResults(t, r, &resultExpectation{
