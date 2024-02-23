@@ -16,7 +16,10 @@ func BenchmarkReconciler(b *testing.B) {
 
 	jobv3 := mock.Job()
 	jobv3.Version = 3
-	jobv3.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+
+	tg := jobv3.TaskGroups[0]
+	tg.Update = structs.DefaultUpdateStrategy
+	tg.ReschedulePolicy = &structs.ReschedulePolicy{
 		Attempts:      1,
 		Interval:      time.Hour,
 		Delay:         0,
@@ -24,7 +27,7 @@ func BenchmarkReconciler(b *testing.B) {
 		MaxDelay:      time.Hour,
 		Unlimited:     false,
 	}
-	tgName := jobv3.TaskGroups[0].Name
+	tgName := tg.Name
 
 	jobv2 := mock.Job()
 	jobv2.Version = 2
@@ -90,6 +93,14 @@ func BenchmarkReconciler(b *testing.B) {
 	mAlloc := mock.Alloc()
 	for _, alloc := range allocs {
 		alloc.AllocatedResources = mAlloc.AllocatedResources
+		alloc.RescheduleTracker = &structs.RescheduleTracker{
+			Events: []*structs.RescheduleEvent{},
+		}
+	}
+
+	eval := &structs.Evaluation{
+		ID:    uuid.Generate(),
+		JobID: jobv3.ID,
 	}
 
 	b.Run("existing implementation", func(b *testing.B) {
@@ -108,15 +119,7 @@ func BenchmarkReconciler(b *testing.B) {
 
 	b.Run("revisited implementation", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			b.StopTimer()
-			// reconciler := NewAllocReconciler(testlog.HCLogger(b),
-			// 	allocUpdateFnInplace,
-			// 	false, jobv3.ID, jobv3, d, allocs,
-			// 	map[string]*structs.Node{}, uuid.Generate(),
-			// 	50, true)
-			b.StartTimer()
-
-			//			reconciler.Compute()
+			reconcileServiceDeployment(eval, jobv3, tg, d, allocs, []*structs.Node{node})
 		}
 	})
 

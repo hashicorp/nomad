@@ -6,8 +6,6 @@ package scheduler
 import (
 	"fmt"
 	"reflect"
-	"regexp"
-	"strconv"
 	"testing"
 	"time"
 
@@ -86,26 +84,6 @@ func allocUpdateFnMock(handled map[string]allocUpdateType, unhandled allocUpdate
 
 		return unhandled(existing, newJob, newTG)
 	}
-}
-
-var (
-	// AllocationIndexRegex is a regular expression to find the allocation index.
-	allocationIndexRegex = regexp.MustCompile(".+\\[(\\d+)\\]$")
-)
-
-// allocNameToIndex returns the index of the allocation.
-func allocNameToIndex(name string) uint {
-	matches := allocationIndexRegex.FindStringSubmatch(name)
-	if len(matches) != 2 {
-		return 0
-	}
-
-	index, err := strconv.Atoi(matches[1])
-	if err != nil {
-		return 0
-	}
-
-	return uint(index)
 }
 
 func assertNamesHaveIndexes(t *testing.T, indexes []int, names []string) {
