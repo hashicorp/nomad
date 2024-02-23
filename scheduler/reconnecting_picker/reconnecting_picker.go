@@ -33,7 +33,7 @@ func (rp *ReconnectingPicker) PickReconnectingAlloc(ds *structs.DisconnectStrate
 
 	// Best score is the default strategy.
 	strategy := structs.ReconcileOptionBestScore
-	if ds != nil || ds.Reconcile != "" {
+	if ds != nil || (ds != nil && ds.Reconcile != "") {
 		strategy = ds.Reconcile
 	}
 
