@@ -72,7 +72,7 @@ func TestServiceDeleteCommand_Run(t *testing.T) {
 	// Attempt to manually delete the service registration within the default
 	// namespace.
 	code := cmd.Run([]string{"-address=" + url, "service-discovery-nomad-delete", defaultNSService[0].ID})
-	must.One(t, code)
+	must.Zero(t, code)
 	must.StrContains(t, ui.OutputWriter.String(), "Successfully deleted service registration")
 
 	ui.OutputWriter.Reset()

@@ -152,6 +152,7 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 	t.Run("isolation", func(t *testing.T) {
 		caps, err := driver.Capabilities()
+		must.NoError(t, err)
 
 		isolated := (caps.FSIsolation != drivers.FSIsolationNone)
 

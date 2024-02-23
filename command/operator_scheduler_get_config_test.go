@@ -23,7 +23,7 @@ func TestOperatorSchedulerGetConfig_Run(t *testing.T) {
 	c := &OperatorSchedulerGetConfig{Meta: Meta{Ui: ui}}
 
 	// Run the command, so we get the default output and test this.
-	must.One(t, c.Run([]string{"-address=" + addr}))
+	must.Zero(t, c.Run([]string{"-address=" + addr}))
 	s := ui.OutputWriter.String()
 	must.StrContains(t, s, "Scheduler Algorithm           = binpack")
 	must.StrContains(t, s, "Preemption SysBatch Scheduler = false")
@@ -31,7 +31,7 @@ func TestOperatorSchedulerGetConfig_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// Request JSON output and test.
-	must.One(t, c.Run([]string{"-address=" + addr, "-json"}))
+	must.Zero(t, c.Run([]string{"-address=" + addr, "-json"}))
 	s = ui.OutputWriter.String()
 	var js api.SchedulerConfiguration
 	must.NoError(t, json.Unmarshal([]byte(s), &js))

@@ -48,7 +48,7 @@ func TestCACreateCommand(t *testing.T) {
 			"foo.com-agent-ca.pem",
 			"foo.com-agent-ca-key.pem",
 			func(t *testing.T, cert *x509.Certificate) {
-				must.Eq(t, cert.PermittedDNSDomains, []string{"nomad", "foo.com", "localhost"})
+				must.SliceContainsAll(t, cert.PermittedDNSDomains, []string{"nomad", "foo.com", "localhost"})
 			},
 		},
 		{"ca options",
@@ -68,11 +68,11 @@ func TestCACreateCommand(t *testing.T) {
 				must.Eq(t, 365*24*time.Hour, time.Until(cert.NotAfter).Round(24*time.Hour))
 				must.True(t, cert.PermittedDNSDomainsCritical)
 				must.Len(t, 4, cert.PermittedDNSDomains)
-				must.Eq(t, cert.PermittedDNSDomains, []string{"nomad", "foo", "localhost", "bar"})
+				must.SliceContainsAll(t, cert.PermittedDNSDomains, []string{"nomad", "foo", "localhost", "bar"})
 				must.Eq(t, cert.Issuer.Organization, []string{"CustOrg"})
 				must.Eq(t, cert.Issuer.OrganizationalUnit, []string{"CustOrgUnit"})
 				must.Eq(t, cert.Issuer.Country, []string{"ZZ"})
-				must.StrContains(t, cert.Issuer.CommonName, "CustomCA")
+				must.StrHasPrefix(t, "CustomCA", cert.Issuer.CommonName)
 			},
 		},
 		{"ca custom date",

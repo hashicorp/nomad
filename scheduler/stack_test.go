@@ -572,7 +572,7 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	stack.SetNodes(nodes)
 	stack.SetJob(job)
 	node = stack.Select(job.TaskGroups[0], selectOptions)
-	must.NotNil(t, node)
+	must.Nil(t, node)
 }
 
 func TestSystemStack_Select_ConstraintFilter(t *testing.T) {

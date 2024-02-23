@@ -101,7 +101,7 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 
 			resp, err := client.PluginProbe(context.TODO())
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
 			must.Eq(t, tc.ExpectedResponse, resp)
@@ -155,7 +155,7 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 
 			name, version, err := client.PluginGetInfo(context.TODO())
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
 			must.Eq(t, tc.ExpectedResponseName, name)
@@ -222,7 +222,7 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 
 			resp, err := client.PluginGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
 			must.Eq(t, tc.ExpectedResponse, resp)
@@ -322,7 +322,7 @@ func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
 
 			resp, err := client.ControllerGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
 			must.Eq(t, tc.ExpectedResponse, resp)
@@ -382,7 +382,7 @@ func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
 
 			resp, err := client.NodeGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
 			must.Eq(t, tc.ExpectedResponse, resp)
@@ -449,7 +449,7 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 
 			resp, err := client.ControllerPublishVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
 			must.Eq(t, tc.ExpectedResponse, resp)
@@ -497,7 +497,7 @@ func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
 
 			resp, err := client.ControllerUnpublishVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
 			must.Eq(t, tc.ExpectedResponse, resp)
@@ -722,7 +722,7 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 
 			err := client.ControllerValidateCapabilities(context.TODO(), req)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
 				must.NoError(t, err, must.Sprint("name", tc.Name))
 			}
@@ -831,7 +831,7 @@ func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
 
 			resp, err := client.ControllerCreateVolume(context.TODO(), req)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
 			must.NoError(t, err, must.Sprint("name", tc.Name))
@@ -893,7 +893,7 @@ func TestClient_RPC_ControllerDeleteVolume(t *testing.T) {
 			cc.NextErr = tc.ResponseErr
 			err := client.ControllerDeleteVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
 			must.NoError(t, err, must.Sprint("name", tc.Name))
@@ -986,7 +986,7 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 
 			resp, err := client.ControllerListVolumes(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
 			must.NoError(t, err, must.Sprint("name", tc.Name))
@@ -1053,7 +1053,7 @@ func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
 			// from protobuf to our struct
 			resp, err := client.ControllerCreateSnapshot(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
 				must.NoError(t, err, must.Sprint("name", tc.Name))
 				must.Positive(t, resp.Snapshot.CreateTime)
@@ -1098,7 +1098,7 @@ func TestClient_RPC_ControllerDeleteSnapshot(t *testing.T) {
 			cc.NextErr = tc.ResponseErr
 			err := client.ControllerDeleteSnapshot(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
 			must.NoError(t, err, must.Sprint("name", tc.Name))
@@ -1161,7 +1161,7 @@ func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
 
 			resp, err := client.ControllerListSnapshots(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
 			must.NoError(t, err, must.Sprint("name", tc.Name))
@@ -1358,7 +1358,7 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 				VolumeCapability:  &VolumeCapability{},
 			})
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
 				must.NoError(t, err)
 			}
@@ -1397,7 +1397,7 @@ func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
 
 			err := client.NodeUnstageVolume(context.TODO(), "foo", "/foo")
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
 				must.NoError(t, err)
 			}
@@ -1455,7 +1455,7 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 
 			err := client.NodePublishVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
 				must.NoError(t, err)
 			}
@@ -1510,7 +1510,7 @@ func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 
 			err := client.NodeUnpublishVolume(context.TODO(), tc.ExternalID, tc.TargetPath)
 			if tc.ExpectedErr != nil {
-				must.ErrorIs(t, err, tc.ExpectedErr)
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
 				must.NoError(t, err)
 			}

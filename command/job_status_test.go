@@ -331,7 +331,7 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 
 	// Request Job List with a valid token
 	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-short"})
-	must.One(t, code)
+	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
 	if !strings.Contains(out, *j.ID) {

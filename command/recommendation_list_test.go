@@ -32,7 +32,7 @@ func TestRecommendationListCommand_Run(t *testing.T) {
 	if srv.Enterprise {
 		must.Zero(t, code)
 		out := ui.OutputWriter.String()
-		must.StrContains(out, "No recommendations found")
+		must.StrContains(t, out, "No recommendations found")
 	} else {
 		must.One(t, code)
 		must.StrContains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
