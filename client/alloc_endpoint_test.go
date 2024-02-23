@@ -28,14 +28,12 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
 
 func TestAllocations_Restart(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -48,13 +46,13 @@ func TestAllocations_Restart(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "10s",
 	}
-	require.Nil(client.addAlloc(a, ""))
+	must.NoError(t, client.addAlloc(a, ""))
 
 	// Try with bad alloc
 	req := &nstructs.AllocRestartRequest{}
 	var resp nstructs.GenericResponse
 	err := client.ClientRPC("Allocations.Restart", &req, &resp)
-	require.Error(err)
+	must.Error(t, err)
 
 	// Try with good alloc
 	req.AllocID = a.ID
@@ -75,12 +73,11 @@ func TestAllocations_Restart(t *testing.T) {
 func TestAllocations_RestartAllTasks(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	alloc := mock.LifecycleAlloc()
-	require.Nil(client.addAlloc(alloc, ""))
+	must.NoError(t, client.addAlloc(alloc, ""))
 
 	// setup process wranglers for our tasks to make sure they work with restart
 	client.wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: "web"})
@@ -96,7 +93,7 @@ func TestAllocations_RestartAllTasks(t *testing.T) {
 	}
 	var resp nstructs.GenericResponse
 	err := client.ClientRPC("Allocations.Restart", &req, &resp)
-	require.Error(err)
+	must.Error(t, err)
 
 	// Good request.
 	req = &nstructs.AllocRestartRequest{
@@ -119,7 +116,6 @@ func TestAllocations_RestartAllTasks(t *testing.T) {
 
 func TestAllocations_Restart_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
 	defer cleanupS()
@@ -145,8 +141,7 @@ func TestAllocations_Restart_ACL(t *testing.T) {
 		req.AllocID = alloc.ID
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Restart", &req, &resp)
-		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
@@ -158,24 +153,21 @@ func TestAllocations_Restart_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Restart", &req, &resp)
-
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with a valid token
 	{
 		policyHCL := mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityAllocLifecycle})
 		token := mock.CreatePolicyAndToken(t, server.State(), 1007, "valid", policyHCL)
-		require.NotNil(token)
+		must.NotNil(t, token)
 		req := &nstructs.AllocRestartRequest{}
 		req.AllocID = alloc.ID
 		req.AuthToken = token.SecretID
 		req.Namespace = nstructs.DefaultNamespace
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Restart", &req, &resp)
-		require.NoError(err)
-		//require.True(nstructs.IsErrUnknownAllocation(err), "Expected unknown alloc, found: %v", err)
+		must.NoError(t, err)
 	}
 
 	// Try request with a management token
@@ -188,26 +180,24 @@ func TestAllocations_Restart_ACL(t *testing.T) {
 		// Depending on how quickly the alloc restarts there may be no
 		// error *or* a task not running error; either is fine.
 		if err != nil {
-			require.Contains(err.Error(), "Task not running", err)
+			must.ErrorContains(t, err, "Task not running")
 		}
 	}
 }
 
 func TestAllocations_GarbageCollectAll(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	req := &nstructs.NodeSpecificRequest{}
 	var resp nstructs.GenericResponse
-	require.Nil(client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp))
+	must.NoError(t, client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp))
 }
 
 func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
 	defer cleanupS()
@@ -223,8 +213,7 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 		req := &nstructs.NodeSpecificRequest{}
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp)
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
@@ -235,9 +224,7 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp)
-
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with a valid token
@@ -246,7 +233,7 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 		req := &nstructs.NodeSpecificRequest{}
 		req.AuthToken = token.SecretID
 		var resp nstructs.GenericResponse
-		require.Nil(client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp))
+		must.NoError(t, client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp))
 	}
 
 	// Try request with a management token
@@ -254,13 +241,12 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 		req := &nstructs.NodeSpecificRequest{}
 		req.AuthToken = root.SecretID
 		var resp nstructs.GenericResponse
-		require.Nil(client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp))
+		must.NoError(t, client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp))
 	}
 }
 
 func TestAllocations_GarbageCollect(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.GCDiskUsageThreshold = 100.0
@@ -278,13 +264,13 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "10ms",
 	}
-	require.Nil(client.addAlloc(a, ""))
+	must.NoError(t, client.addAlloc(a, ""))
 
 	// Try with bad alloc
 	req := &nstructs.AllocSpecificRequest{}
 	var resp nstructs.GenericResponse
 	err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-	require.NotNil(err)
+	must.Error(t, err)
 
 	// Try with good alloc
 	req.AllocID = a.ID
@@ -304,7 +290,6 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 
 func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
 	defer cleanupS()
@@ -321,7 +306,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 		"run_for": "20s",
 	}
 
-	noSuchAllocErr := fmt.Errorf("No such allocation on client or allocation not eligible for GC")
+	noSuchAllocErr := fmt.Errorf("No such allocation on client, or allocation not eligible for GC")
 
 	// Wait for client to be running job
 	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
@@ -332,8 +317,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 		req.AllocID = alloc.ID
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
@@ -345,9 +329,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with a valid token
@@ -361,7 +343,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.Error(err, noSuchAllocErr)
+		must.EqError(t, err, noSuchAllocErr.Error())
 	}
 
 	// Try request with a management token
@@ -371,7 +353,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.Error(err, noSuchAllocErr)
+		must.Error(t, err)
 	}
 }
 
@@ -382,28 +364,26 @@ func TestAllocations_Signal(t *testing.T) {
 	defer cleanup()
 
 	a := mock.Alloc()
-	require.Nil(t, client.addAlloc(a, ""))
+	must.NoError(t, client.addAlloc(a, ""))
 
 	// Try with bad alloc
 	req := &nstructs.AllocSignalRequest{}
 	var resp nstructs.GenericResponse
 	err := client.ClientRPC("Allocations.Signal", &req, &resp)
-	require.NotNil(t, err)
-	require.True(t, nstructs.IsErrUnknownAllocation(err))
+	must.Error(t, err)
+	must.True(t, nstructs.IsErrUnknownAllocation(err))
 
 	// Try with good alloc
 	req.AllocID = a.ID
 
 	var resp2 nstructs.GenericResponse
 	err = client.ClientRPC("Allocations.Signal", &req, &resp2)
-
-	require.Error(t, err, "Expected error, got: %s, resp: %#+v", err, resp2)
-	require.Contains(t, err.Error(), "Failed to signal task: web, err: Task not running")
+	must.Error(t, err)
+	must.ErrorContains(t, err, "Failed to signal task: web, err: Task not running")
 }
 
 func TestAllocations_Signal_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
 	defer cleanupS()
@@ -429,8 +409,7 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 		req.AllocID = alloc.ID
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Signal", &req, &resp)
-		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
@@ -442,9 +421,7 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Signal", &req, &resp)
-
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with a valid token
@@ -458,7 +435,7 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Signal", &req, &resp)
-		require.NoError(err)
+		must.NoError(t, err)
 	}
 
 	// Try request with a management token
@@ -469,25 +446,24 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Signal", &req, &resp)
-		require.NoError(err)
+		must.NoError(t, err)
 	}
 }
 
 func TestAllocations_Stats(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	a := mock.Alloc()
-	require.Nil(client.addAlloc(a, ""))
+	must.NoError(t, client.addAlloc(a, ""))
 
 	// Try with bad alloc
 	req := &cstructs.AllocStatsRequest{}
 	var resp cstructs.AllocStatsResponse
 	err := client.ClientRPC("Allocations.Stats", &req, &resp)
-	require.NotNil(err)
+	must.Error(t, err)
 
 	// Try with good alloc
 	req.AllocID = a.ID
@@ -509,7 +485,6 @@ func TestAllocations_Stats(t *testing.T) {
 
 func TestAllocations_Stats_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
 	defer cleanupS()
@@ -535,8 +510,7 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 		req.AllocID = alloc.ID
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
-		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
@@ -548,9 +522,7 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
-
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		must.EqError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with a valid token
@@ -564,7 +536,7 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
-		require.NoError(err)
+		must.NoError(t, err)
 	}
 
 	// Try request with a management token
@@ -575,7 +547,7 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
-		require.NoError(err)
+		must.NoError(t, err)
 	}
 }
 
@@ -667,7 +639,6 @@ func TestAlloc_Checks(t *testing.T) {
 
 func TestAlloc_ExecStreaming(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -700,8 +671,8 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	args := nstructs.AllocListRequest{}
 	args.Region = "global"
 	resp := nstructs.AllocListResponse{}
-	require.NoError(s.RPC("Alloc.List", &args, &resp))
-	require.Len(resp.Allocations, 1)
+	must.NoError(t, s.RPC("Alloc.List", &args, &resp))
+	must.SliceLen(t, 1, resp.Allocations)
 	allocID := resp.Allocations[0].ID
 
 	// Make the request
@@ -715,7 +686,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("Allocations.Exec")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -731,7 +702,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(3 * time.Second)
 
@@ -744,12 +715,12 @@ OUTER:
 		select {
 		case <-timeout:
 			// time out report
-			require.Equal(expectedStdout, receivedStderr, "didn't receive expected stdout")
-			require.Equal(expectedStderr, receivedStderr, "didn't receive expected stderr")
-			require.Equal(3, exitCode, "failed to get exit code")
-			require.FailNow("timed out")
+			must.Eq(t, expectedStdout, receivedStderr)
+			must.Eq(t, expectedStderr, receivedStderr)
+			must.Eq(t, 3, exitCode)
+			t.Fatal("timed out")
 		case err := <-errCh:
-			require.NoError(err)
+			must.NoError(t, err)
 		case f := <-frames:
 			switch {
 			case f.Stdout != nil && len(f.Stdout.Data) != 0:
@@ -771,7 +742,6 @@ OUTER:
 
 func TestAlloc_ExecStreaming_NoAllocation(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -794,7 +764,7 @@ func TestAlloc_ExecStreaming_NoAllocation(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("Allocations.Exec")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -810,23 +780,22 @@ func TestAlloc_ExecStreaming_NoAllocation(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(3 * time.Second)
 
 	select {
 	case <-timeout:
-		require.FailNow("timed out")
+		t.Fatal("timed out")
 	case err := <-errCh:
-		require.True(nstructs.IsErrUnknownAllocation(err), "expected no allocation error but found: %v", err)
+		must.True(t, nstructs.IsErrUnknownAllocation(err))
 	case f := <-frames:
-		require.Fail("received unexpected frame", "frame: %#v", f)
+		must.Unreachable(t, must.Sprintf("received unexpected frame: %#v", f))
 	}
 }
 
 func TestAlloc_ExecStreaming_DisableRemoteExec(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -850,7 +819,7 @@ func TestAlloc_ExecStreaming_DisableRemoteExec(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("Allocations.Exec")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -866,17 +835,17 @@ func TestAlloc_ExecStreaming_DisableRemoteExec(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(3 * time.Second)
 
 	select {
 	case <-timeout:
-		require.FailNow("timed out")
+		t.Fatal("timed out")
 	case err := <-errCh:
-		require.True(nstructs.IsErrPermissionDenied(err), "expected permission denied error but found: %v", err)
+		must.True(t, nstructs.IsErrPermissionDenied(err))
 	case f := <-frames:
-		require.Fail("received unexpected frame", "frame: %#v", f)
+		must.Unreachable(t, must.Sprintf("received unexpected frame: %#v", f))
 	}
 }
 
@@ -951,7 +920,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 
 			// Get the handler
 			handler, err := client.StreamingRpcHandler("Allocations.Exec")
-			require.Nil(t, err)
+			must.NoError(t, err)
 
 			// Create a pipe
 			p1, p2 := net.Pipe()
@@ -967,15 +936,15 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 
 			// Send the request
 			encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
-			require.Nil(t, encoder.Encode(req))
+			must.NoError(t, encoder.Encode(req))
 
 			select {
 			case <-time.After(3 * time.Second):
-				require.FailNow(t, "timed out")
+				t.Fatal("timed out")
 			case err := <-errCh:
-				require.Contains(t, err.Error(), c.ExpectedError)
+				must.EqError(t, err, c.ExpectedError)
 			case f := <-frames:
-				require.Fail(t, "received unexpected frame", "frame: %#v", f)
+				must.Unreachable(t, must.Sprintf("received unexpected frame: %#v", f))
 			}
 		})
 	}
@@ -1040,8 +1009,8 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 	args.AuthToken = root.SecretID
 	args.Namespace = nstructs.DefaultNamespace
 	resp := nstructs.AllocListResponse{}
-	require.NoError(t, s.RPC("Alloc.List", &args, &resp))
-	require.Len(t, resp.Allocations, 1)
+	must.NoError(t, s.RPC("Alloc.List", &args, &resp))
+	must.SliceLen(t, 1, resp.Allocations)
 	allocID := resp.Allocations[0].ID
 
 	cases := []struct {
@@ -1089,7 +1058,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 
 			// Get the handler
 			handler, err := client.StreamingRpcHandler("Allocations.Exec")
-			require.Nil(t, err)
+			must.NoError(t, err)
 
 			// Create a pipe
 			p1, p2 := net.Pipe()
@@ -1105,20 +1074,20 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 
 			// Send the request
 			encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
-			require.Nil(t, encoder.Encode(req))
+			must.NoError(t, encoder.Encode(req))
 
 			select {
 			case <-time.After(3 * time.Second):
 			case err := <-errCh:
 				if c.ExpectedError == "" {
-					require.NoError(t, err)
+					must.NoError(t, err)
 				} else {
-					require.Contains(t, err.Error(), c.ExpectedError)
+					must.ErrorContains(t, err, c.ExpectedError)
 				}
 			case f := <-frames:
 				// we are good if we don't expect an error
 				if c.ExpectedError != "" {
-					require.Fail(t, "unexpected frame", "frame: %#v", f)
+					must.Unreachable(t, must.Sprintf("unexpected frame: %#v", f))
 				}
 			}
 		})
@@ -1190,8 +1159,8 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 	args.AuthToken = root.SecretID
 	args.Namespace = nstructs.DefaultNamespace
 	resp := nstructs.AllocListResponse{}
-	require.NoError(t, s.RPC("Alloc.List", &args, &resp))
-	require.Len(t, resp.Allocations, 1)
+	must.NoError(t, s.RPC("Alloc.List", &args, &resp))
+	must.SliceLen(t, 1, resp.Allocations)
 	allocID := resp.Allocations[0].ID
 
 	cases := []struct {
@@ -1239,7 +1208,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 
 			// Get the handler
 			handler, err := client.StreamingRpcHandler("Allocations.Exec")
-			require.Nil(t, err)
+			must.NoError(t, err)
 
 			// Create a pipe
 			p1, p2 := net.Pipe()
@@ -1255,20 +1224,20 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 
 			// Send the request
 			encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
-			require.Nil(t, encoder.Encode(req))
+			must.NoError(t, encoder.Encode(req))
 
 			select {
 			case <-time.After(3 * time.Second):
 			case err := <-errCh:
 				if c.ExpectedError == "" {
-					require.NoError(t, err)
+					must.NoError(t, err)
 				} else {
-					require.Contains(t, err.Error(), c.ExpectedError)
+					must.ErrorContains(t, err, c.ExpectedError)
 				}
 			case f := <-frames:
 				// we are good if we don't expect an error
 				if c.ExpectedError != "" {
-					require.Fail(t, "unexpected frame", "frame: %#v", f)
+					must.Unreachable(t, must.Sprintf("unexpected frame: %#v", f))
 				}
 			}
 		})
@@ -1334,8 +1303,8 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 	args.AuthToken = root.SecretID
 	args.Namespace = nstructs.DefaultNamespace
 	resp := nstructs.AllocListResponse{}
-	require.NoError(t, s.RPC("Alloc.List", &args, &resp))
-	require.Len(t, resp.Allocations, 1)
+	must.NoError(t, s.RPC("Alloc.List", &args, &resp))
+	must.SliceLen(t, 1, resp.Allocations)
 	allocID := resp.Allocations[0].ID
 
 	cases := []struct {
@@ -1383,7 +1352,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 
 			// Get the handler
 			handler, err := client.StreamingRpcHandler("Allocations.Exec")
-			require.Nil(t, err)
+			must.NoError(t, err)
 
 			// Create a pipe
 			p1, p2 := net.Pipe()
@@ -1399,20 +1368,20 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 
 			// Send the request
 			encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
-			require.Nil(t, encoder.Encode(req))
+			must.NoError(t, encoder.Encode(req))
 
 			select {
 			case <-time.After(3 * time.Second):
 			case err := <-errCh:
 				if c.ExpectedError == "" {
-					require.NoError(t, err)
+					must.NoError(t, err)
 				} else {
-					require.Contains(t, err.Error(), c.ExpectedError)
+					must.ErrorContains(t, err, c.ExpectedError)
 				}
 			case f := <-frames:
 				// we are good if we don't expect an error
 				if c.ExpectedError != "" {
-					require.Fail(t, "unexpected frame", "frame: %#v", f)
+					must.Unreachable(t, must.Sprintf("unexpected frame: %#v", f))
 				}
 			}
 		})

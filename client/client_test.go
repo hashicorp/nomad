@@ -38,8 +38,6 @@ import (
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken, func()) {
@@ -66,7 +64,6 @@ func TestClient_StartStop(t *testing.T) {
 // that the client has properly initialized before we assign values to labels
 func TestClient_BaseLabels(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	client, cleanup := TestClient(t, nil)
 	if err := client.Shutdown(); err != nil {
@@ -79,12 +76,12 @@ func TestClient_BaseLabels(t *testing.T) {
 	client.emitStats()
 
 	baseLabels := client.baseLabels
-	assert.NotEqual(0, len(baseLabels))
+	must.Positive(t, len(baseLabels))
 
 	nodeID := client.Node().ID
 	for _, e := range baseLabels {
 		if e.Name == "node_id" {
-			assert.Equal(nodeID, e.Value)
+			must.Eq(t, nodeID, e.Value)
 		}
 	}
 }
@@ -925,7 +922,6 @@ func TestClient_SaveRestoreState(t *testing.T) {
 
 func TestClient_AddAllocError(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -958,13 +954,13 @@ func TestClient_AddAllocError(t *testing.T) {
 
 	state := s1.State()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
-	require.Nil(err)
+	must.NoError(t, err)
 
 	err = state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID))
-	require.Nil(err)
+	must.NoError(t, err)
 
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1})
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Push this alloc update to the client
 	allocUpdates := &allocUpdates{
@@ -987,14 +983,14 @@ func TestClient_AddAllocError(t *testing.T) {
 			return false, fmt.Errorf("expected alloc to be marked as invalid")
 		}
 		alloc, err := s1.State().AllocByID(nil, alloc1.ID)
-		require.Nil(err)
+		must.NoError(t, err)
 		failed := alloc.ClientStatus == structs.AllocClientStatusFailed
 		if !failed {
 			return false, fmt.Errorf("Expected failed client status, but got %v", alloc.ClientStatus)
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 
 }
@@ -1138,7 +1134,6 @@ func TestClient_BlockedAllocations(t *testing.T) {
 
 func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
@@ -1147,40 +1142,36 @@ func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
 
 	alloc := mock.Alloc()
 	validToken, err := structs.GenerateMigrateToken(alloc.ID, c.secretNodeID())
-	assert.Nil(err)
-
-	assert.Equal(c.ValidateMigrateToken(alloc.ID, validToken), true)
+	must.NoError(t, err)
+	must.Eq(t, c.ValidateMigrateToken(alloc.ID, validToken), true)
 }
 
 func TestClient_ValidateMigrateToken_InvalidToken(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 	})
 	defer cleanup()
 
-	assert.Equal(c.ValidateMigrateToken("", ""), false)
+	must.Eq(t, c.ValidateMigrateToken("", ""), false)
 
 	alloc := mock.Alloc()
-	assert.Equal(c.ValidateMigrateToken(alloc.ID, alloc.ID), false)
-	assert.Equal(c.ValidateMigrateToken(alloc.ID, ""), false)
+	must.Eq(t, c.ValidateMigrateToken(alloc.ID, alloc.ID), false)
+	must.Eq(t, c.ValidateMigrateToken(alloc.ID, ""), false)
 }
 
 func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {})
 	defer cleanup()
 
-	assert.Equal(c.ValidateMigrateToken("", ""), true)
+	must.Eq(t, c.ValidateMigrateToken("", ""), true)
 }
 
 func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.Region = "global"
@@ -1230,7 +1221,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	}
 
 	err := c1.reloadTLSConnections(newConfig)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	// Registering a node over plaintext should fail after the node has upgraded
 	// to TLS
@@ -1256,7 +1247,6 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 
 func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.Region = "global"
@@ -1309,7 +1299,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	newConfig := &nconfig.TLSConfig{}
 
 	err := c1.reloadTLSConnections(newConfig)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	// assert that when both nodes are in plaintext mode, a RPC request should
 	// succeed
@@ -1463,7 +1453,7 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		},
 	}
 
-	assert.EqualValues(t, expectedResources2, conf.Node.NodeResources)
+	must.Eq(t, expectedResources2, conf.Node.NodeResources)
 
 }
 
@@ -1635,9 +1625,9 @@ func TestClient_computeAllocatedDeviceStats(t *testing.T) {
 	}
 
 	// test some edge conditions
-	assert.Empty(t, c.computeAllocatedDeviceGroupStats(nil, nil))
-	assert.Empty(t, c.computeAllocatedDeviceGroupStats(nil, hostDeviceGroupStats))
-	assert.Empty(t, c.computeAllocatedDeviceGroupStats(allocatedDevices, nil))
+	must.SliceEmpty(t, c.computeAllocatedDeviceGroupStats(nil, nil))
+	must.SliceEmpty(t, c.computeAllocatedDeviceGroupStats(nil, hostDeviceGroupStats))
+	must.SliceEmpty(t, c.computeAllocatedDeviceGroupStats(allocatedDevices, nil))
 
 	// actual test
 	result := c.computeAllocatedDeviceGroupStats(allocatedDevices, hostDeviceGroupStats)
@@ -1665,12 +1655,11 @@ func TestClient_computeAllocatedDeviceStats(t *testing.T) {
 		},
 	}
 
-	assert.EqualValues(t, expected, result)
+	must.Eq(t, expected, result)
 }
 
 func TestClient_getAllocatedResources(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -1686,7 +1675,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocStops.AllocatedResources.Shared.DiskMB = 64
 	allocStops.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 64}
 	allocStops.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 64}
-	require.Nil(client.addAlloc(allocStops, ""))
+	must.NoError(t, client.addAlloc(allocStops, ""))
 
 	allocFails := mock.BatchAlloc()
 	allocFails.Job.TaskGroups[0].Count = 1
@@ -1699,7 +1688,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocFails.AllocatedResources.Shared.DiskMB = 128
 	allocFails.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 128}
 	allocFails.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 128}
-	require.Nil(client.addAlloc(allocFails, ""))
+	must.NoError(t, client.addAlloc(allocFails, ""))
 
 	allocRuns := mock.Alloc()
 	allocRuns.Job.TaskGroups[0].Count = 1
@@ -1710,7 +1699,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocRuns.AllocatedResources.Shared.DiskMB = 256
 	allocRuns.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 256}
 	allocRuns.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 256}
-	require.Nil(client.addAlloc(allocRuns, ""))
+	must.NoError(t, client.addAlloc(allocRuns, ""))
 
 	allocPends := mock.Alloc()
 	allocPends.Job.TaskGroups[0].Count = 1
@@ -1722,7 +1711,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocPends.AllocatedResources.Shared.DiskMB = 512
 	allocPends.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 512}
 	allocPends.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 512}
-	require.Nil(client.addAlloc(allocPends, ""))
+	must.NoError(t, client.addAlloc(allocPends, ""))
 
 	// wait for allocStops to stop running and for allocRuns to be pending/running
 	testutil.WaitForResult(func() (bool, error) {
@@ -1756,7 +1745,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 
 	result := client.getAllocatedResources(client.config.Node)
@@ -1781,7 +1770,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 		},
 	}
 
-	assert.EqualValues(t, expected, *result)
+	must.Eq(t, expected, *result)
 }
 
 func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
@@ -1806,10 +1795,10 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 		updatedInfo := *n.Drivers["mock"]
 		// compare without update time
 		updatedInfo.UpdateTime = info.UpdateTime
-		assert.EqualValues(t, updatedInfo, *info)
+		must.Eq(t, updatedInfo, *info)
 
 		// check node attributes
-		assert.Equal(t, "val1", n.Attributes["node.mock.testattr1"])
+		must.Eq(t, "val1", n.Attributes["node.mock.testattr1"])
 	}
 
 	// initial update
@@ -1828,15 +1817,15 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 		updatedInfo := *n.Drivers["mock"]
 		// compare without update time
 		updatedInfo.UpdateTime = info.UpdateTime
-		assert.EqualValues(t, updatedInfo, *info)
+		must.Eq(t, updatedInfo, *info)
 
 		// check node attributes are updated
-		assert.Equal(t, "val2", n.Attributes["node.mock.testattr1"])
+		must.Eq(t, "val2", n.Attributes["node.mock.testattr1"])
 
 		// update once more with the same info, updateTime shouldn't change
 		client.updateNodeFromDriver("mock", info)
 		un := client.Node()
-		assert.EqualValues(t, n, un)
+		must.Eq(t, n, un)
 	}
 
 	// update once more to unhealthy because why not
@@ -1855,15 +1844,15 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 		updatedInfo := *n.Drivers["mock"]
 		// compare without update time
 		updatedInfo.UpdateTime = info.UpdateTime
-		assert.EqualValues(t, updatedInfo, *info)
+		must.Eq(t, updatedInfo, *info)
 
 		// check node attributes are updated
-		assert.Equal(t, "", n.Attributes["node.mock.testattr1"])
+		must.Eq(t, "", n.Attributes["node.mock.testattr1"])
 
 		// update once more with the same info, updateTime shouldn't change
 		client.updateNodeFromDriver("mock", info)
 		un := client.Node()
-		assert.EqualValues(t, n, un)
+		must.Eq(t, n, un)
 	}
 }
 
@@ -1888,7 +1877,7 @@ func TestClient_hasLocalState(t *testing.T) {
 		alloc := mock.BatchAlloc()
 		c.stateDB.PutAllocation(alloc)
 
-		require.False(t, c.hasLocalState(alloc))
+		must.False(t, c.hasLocalState(alloc))
 	})
 
 	t.Run("alloc with a task with local state", func(t *testing.T) {
@@ -1899,7 +1888,7 @@ func TestClient_hasLocalState(t *testing.T) {
 		c.stateDB.PutAllocation(alloc)
 		c.stateDB.PutTaskRunnerLocalState(alloc.ID, taskName, ls)
 
-		require.True(t, c.hasLocalState(alloc))
+		must.True(t, c.hasLocalState(alloc))
 	})
 
 	t.Run("alloc with a task with task state", func(t *testing.T) {
@@ -1912,7 +1901,7 @@ func TestClient_hasLocalState(t *testing.T) {
 		c.stateDB.PutAllocation(alloc)
 		c.stateDB.PutTaskState(alloc.ID, taskName, ts)
 
-		require.True(t, c.hasLocalState(alloc))
+		must.True(t, c.hasLocalState(alloc))
 	})
 }
 
@@ -1924,10 +1913,10 @@ func Test_verifiedTasks(t *testing.T) {
 	try := func(t *testing.T, a *structs.Allocation, tasks, expTasks []string, expErr string) {
 		result, err := verifiedTasks(logger, a, tasks)
 		if expErr != "" {
-			require.EqualError(t, err, expErr)
+			must.EqError(t, err, expErr)
 		} else {
-			require.NoError(t, err)
-			require.Equal(t, expTasks, result)
+			must.NoError(t, err)
+			must.Eq(t, expTasks, result)
 		}
 	}
 
@@ -2013,31 +2002,31 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 
 	state := s1.State()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = state.UpsertJobSummary(101, mock.JobSummary(runningAlloc.JobID))
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{runningAlloc})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Ensure allocation gets upserted with desired status.
 	testutil.WaitForResult(func() (bool, error) {
 		upsertResult, stateErr := state.AllocByID(nil, runningAlloc.ID)
 		return upsertResult.ClientStatus == structs.AllocClientStatusRunning, stateErr
 	}, func(err error) {
-		require.NoError(t, err, "allocation query failed")
+		must.NoError(t, err)
 	})
 
 	// Create the unknown version of the alloc from the running one, update state
 	// to simulate what reconciler would have done, and then send to the client.
 	unknownAlloc, err := state.AllocByID(nil, runningAlloc.ID)
-	require.Equal(t, structs.AllocClientStatusRunning, unknownAlloc.ClientStatus)
-	require.NoError(t, err)
+	must.Eq(t, structs.AllocClientStatusRunning, unknownAlloc.ClientStatus)
+	must.NoError(t, err)
 	unknownAlloc.ClientStatus = structs.AllocClientStatusUnknown
 	unknownAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, runningAlloc.AllocModifyIndex+1, []*structs.Allocation{unknownAlloc})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	updates := &allocUpdates{
 		pulled: map[string]*structs.Allocation{
@@ -2062,12 +2051,12 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 		result = structs.AllocClientStatusRunning == finalAlloc.ClientStatus
 		return
 	}, func(err error) {
-		require.NoError(t, err, "allocation server check failed")
+		must.NoError(t, err)
 	})
 
-	require.NotNil(t, runner, "expected alloc runner")
-	require.False(t, invalid, "expected alloc to not be marked invalid")
-	require.Equal(t, unknownAlloc.AllocModifyIndex, finalAlloc.AllocModifyIndex)
+	must.NotNil(t, runner)
+	must.False(t, invalid)
+	must.Eq(t, unknownAlloc.AllocModifyIndex, finalAlloc.AllocModifyIndex)
 }
 
 // TestClient_AllocPrerunErrorDuringRestore ensures that a running allocation,

@@ -33,7 +33,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 // tempAllocDir returns a new alloc dir that is rooted in a temp dir. Caller
@@ -41,7 +40,7 @@ import (
 func tempAllocDir(t testing.TB) *allocdir.AllocDir {
 	dir := t.TempDir()
 
-	require.NoError(t, os.Chmod(dir, 0o777))
+	must.NoError(t, os.Chmod(dir, 0o777))
 
 	return allocdir.NewAllocDir(testlog.HCLogger(t), dir, "test_allocid")
 }
@@ -56,7 +55,6 @@ func (n nopWriteCloser) Close() error {
 
 func TestFS_Stat_NoAlloc(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a client
 	c, cleanup := TestClient(t, nil)
@@ -71,13 +69,11 @@ func TestFS_Stat_NoAlloc(t *testing.T) {
 
 	var resp cstructs.FsStatResponse
 	err := c.ClientRPC("FileSystem.Stat", req, &resp)
-	require.NotNil(err)
-	require.True(structs.IsErrUnknownAllocation(err))
+	must.True(t, structs.IsErrUnknownAllocation(err))
 }
 
 func TestFS_Stat(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -107,9 +103,9 @@ func TestFS_Stat(t *testing.T) {
 
 	var resp cstructs.FsStatResponse
 	err := c.ClientRPC("FileSystem.Stat", req, &resp)
-	require.Nil(err)
-	require.NotNil(resp.Info)
-	require.True(resp.Info.IsDir)
+	must.Nil(t, err)
+	must.NotNil(t, resp.Info)
+	must.True(t, resp.Info.IsDir)
 }
 
 func TestFS_Stat_ACL(t *testing.T) {
@@ -178,10 +174,10 @@ func TestFS_Stat_ACL(t *testing.T) {
 			var resp cstructs.FsStatResponse
 			err := client.ClientRPC("FileSystem.Stat", req, &resp)
 			if c.ExpectedError == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				require.NotNil(t, err)
-				require.Contains(t, err.Error(), c.ExpectedError)
+				must.NotNil(t, err)
+				must.ErrorContains(t, err, c.ExpectedError)
 			}
 		})
 	}
@@ -189,7 +185,6 @@ func TestFS_Stat_ACL(t *testing.T) {
 
 func TestFS_List_NoAlloc(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a client
 	c, cleanup := TestClient(t, nil)
@@ -204,13 +199,11 @@ func TestFS_List_NoAlloc(t *testing.T) {
 
 	var resp cstructs.FsListResponse
 	err := c.ClientRPC("FileSystem.List", req, &resp)
-	require.NotNil(err)
-	require.True(structs.IsErrUnknownAllocation(err))
+	must.True(t, structs.IsErrUnknownAllocation(err))
 }
 
 func TestFS_List(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -240,9 +233,9 @@ func TestFS_List(t *testing.T) {
 
 	var resp cstructs.FsListResponse
 	err := c.ClientRPC("FileSystem.List", req, &resp)
-	require.Nil(err)
-	require.NotEmpty(resp.Files)
-	require.True(resp.Files[0].IsDir)
+	must.Nil(t, err)
+	must.SliceNotEmpty(t, resp.Files)
+	must.True(t, resp.Files[0].IsDir)
 }
 
 func TestFS_List_ACL(t *testing.T) {
@@ -312,9 +305,9 @@ func TestFS_List_ACL(t *testing.T) {
 			var resp cstructs.FsListResponse
 			err := client.ClientRPC("FileSystem.List", req, &resp)
 			if c.ExpectedError == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				require.EqualError(t, err, c.ExpectedError)
+				must.EqError(t, err, c.ExpectedError)
 			}
 		})
 	}
@@ -323,7 +316,6 @@ func TestFS_List_ACL(t *testing.T) {
 func TestFS_Stream_NoAlloc(t *testing.T) {
 	ci.Parallel(t)
 	ci.SkipSlow(t, "flaky on GHA; #12358")
-	require := require.New(t)
 
 	// Start a client
 	c, cleanup := TestClient(t, nil)
@@ -339,7 +331,7 @@ func TestFS_Stream_NoAlloc(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("FileSystem.Stream")
-	require.Nil(err)
+	must.Nil(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -370,7 +362,7 @@ func TestFS_Stream_NoAlloc(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(3 * time.Second)
 
@@ -553,7 +545,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 
 			// Get the handler
 			handler, err := client.StreamingRpcHandler("FileSystem.Stream")
-			require.Nil(t, err)
+			must.NoError(t, err)
 
 			// Create a pipe
 			p1, p2 := net.Pipe()
@@ -582,7 +574,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 
 			// Send the request
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-			require.NoError(t, encoder.Encode(req))
+			must.NoError(t, encoder.Encode(req))
 
 			timeout := time.After(5 * time.Second)
 
@@ -616,7 +608,6 @@ func TestFS_Stream_ACL(t *testing.T) {
 
 func TestFS_Stream(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -649,7 +640,7 @@ func TestFS_Stream(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("FileSystem.Stream")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -683,7 +674,7 @@ func TestFS_Stream(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(3 * time.Second)
 	received := ""
@@ -732,7 +723,6 @@ func (r *ReadWriteCloseChecker) Close() error {
 
 func TestFS_Stream_Follow(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -770,7 +760,7 @@ func TestFS_Stream_Follow(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("FileSystem.Stream")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -801,7 +791,7 @@ func TestFS_Stream_Follow(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(20 * time.Second)
 	expected := strings.Repeat(expectedBase, repeat+1)
@@ -829,7 +819,6 @@ OUTER:
 
 func TestFS_Stream_Limit(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -865,7 +854,7 @@ func TestFS_Stream_Limit(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("FileSystem.Stream")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -896,7 +885,7 @@ func TestFS_Stream_Limit(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(3 * time.Second)
 	received := ""
@@ -923,7 +912,6 @@ OUTER:
 
 func TestFS_Logs_NoAlloc(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a client
 	c, cleanup := TestClient(t, nil)
@@ -940,7 +928,7 @@ func TestFS_Logs_NoAlloc(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("FileSystem.Logs")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -971,7 +959,7 @@ func TestFS_Logs_NoAlloc(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(3 * time.Second)
 
@@ -1001,7 +989,6 @@ OUTER:
 // have not started returns a 404 error.
 func TestFS_Logs_TaskPending(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -1025,7 +1012,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 	args.WriteRequest.Region = "global"
 	args.Namespace = job.Namespace
 	var jobResp structs.JobRegisterResponse
-	require.NoError(s.RPC("Job.Register", args, &jobResp))
+	must.NoError(t, s.RPC("Job.Register", args, &jobResp))
 
 	// Get the allocation ID
 	var allocID string
@@ -1065,7 +1052,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("FileSystem.Logs")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -1096,7 +1083,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	for {
 		select {
@@ -1105,10 +1092,10 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 		case err := <-errCh:
 			t.Fatalf("unexpected stream error: %v", err)
 		case msg := <-streamMsg:
-			require.NotNil(msg.Error)
-			require.NotNil(msg.Error.Code)
-			require.EqualValues(http.StatusNotFound, *msg.Error.Code)
-			require.Contains(msg.Error.Message, "not started")
+			must.Error(t, msg.Error)
+			must.NotNil(t, msg.Error.Code)
+			must.Eq(t, http.StatusNotFound, *msg.Error.Code)
+			must.StrContains(t, msg.Error.Message, "not started")
 			return
 		}
 	}
@@ -1207,7 +1194,6 @@ func TestFS_Logs_GC(t *testing.T) {
 
 func TestFS_Logs_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -1274,7 +1260,7 @@ func TestFS_Logs_ACL(t *testing.T) {
 
 			// Get the handler
 			handler, err := client.StreamingRpcHandler("FileSystem.Logs")
-			require.Nil(err)
+			must.NoError(t, err)
 
 			// Create a pipe
 			p1, p2 := net.Pipe()
@@ -1303,7 +1289,7 @@ func TestFS_Logs_ACL(t *testing.T) {
 
 			// Send the request
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-			require.Nil(encoder.Encode(req))
+			must.NoError(t, encoder.Encode(req))
 
 			timeout := time.After(5 * time.Second)
 
@@ -1338,7 +1324,6 @@ func TestFS_Logs_ACL(t *testing.T) {
 
 func TestFS_Logs(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -1365,8 +1350,8 @@ func TestFS_Logs(t *testing.T) {
 	args := structs.AllocListRequest{}
 	args.Region = "global"
 	resp := structs.AllocListResponse{}
-	require.NoError(s.RPC("Alloc.List", &args, &resp))
-	require.Len(resp.Allocations, 1)
+	must.NoError(t, s.RPC("Alloc.List", &args, &resp))
+	must.SliceLen(t, 1, resp.Allocations)
 	allocID := resp.Allocations[0].ID
 
 	// Make the request
@@ -1381,7 +1366,7 @@ func TestFS_Logs(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("FileSystem.Logs")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -1412,7 +1397,7 @@ func TestFS_Logs(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(3 * time.Second)
 	received := ""
@@ -1439,7 +1424,6 @@ OUTER:
 
 func TestFS_Logs_Follow(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	// Start a server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -1479,7 +1463,7 @@ func TestFS_Logs_Follow(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("FileSystem.Logs")
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
@@ -1510,7 +1494,7 @@ func TestFS_Logs_Follow(t *testing.T) {
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(20 * time.Second)
 	expected := strings.Repeat(expectedBase, repeat+1)
@@ -1757,11 +1741,11 @@ func TestFS_streamFile_NoFile(t *testing.T) {
 
 	err := c.endpoints.FileSystem.streamFile(
 		context.Background(), 0, "foo", 0, ad, framer, nil, false)
-	require.Error(t, err)
+	must.Error(t, err)
 	if runtime.GOOS == "windows" {
-		require.Contains(t, err.Error(), "cannot find the file")
+		must.ErrorContains(t, err, "cannot find the file")
 	} else {
-		require.Contains(t, err.Error(), "no such file")
+		must.ErrorContains(t, err, "no such file")
 	}
 }
 
@@ -1773,7 +1757,7 @@ func TestFS_streamFile_Modify(t *testing.T) {
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
+	must.NoError(t, ad.Build())
 	defer ad.Destroy()
 
 	// Create a file in the temp dir
@@ -1844,7 +1828,7 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
+	must.NoError(t, ad.Build())
 	defer ad.Destroy()
 
 	// Create a file in the temp dir
@@ -1852,7 +1836,7 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 	streamFile := "stream_file"
 	streamFilePath := filepath.Join(ad.AllocDir, streamFile)
 	f, err := os.Create(streamFilePath)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer f.Close()
 
 	// Start the reader
@@ -1951,7 +1935,7 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
+	must.NoError(t, ad.Build())
 	defer ad.Destroy()
 
 	// Create a file in the temp dir
@@ -2024,7 +2008,7 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 
 	// Get a temp alloc dir and create the log dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
+	must.NoError(t, ad.Build())
 	defer ad.Destroy()
 
 	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
@@ -2093,7 +2077,7 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 
 	// Get a temp alloc dir and create the log dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
+	must.NoError(t, ad.Build())
 	defer ad.Destroy()
 
 	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)

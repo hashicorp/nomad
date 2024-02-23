@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 var (
@@ -57,7 +57,7 @@ func TestDriverManager_Fingerprint_Run(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 }
 
@@ -110,7 +110,7 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	// eventually, the mock_driver is marked as unhealthy
@@ -128,7 +128,7 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 }
 
@@ -193,6 +193,6 @@ func TestDriverManager_NodeAttributes_Run(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 }

@@ -23,14 +23,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestMonitor_Monitor(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// start server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -48,7 +45,7 @@ func TestMonitor_Monitor(t *testing.T) {
 	}
 
 	handler, err := c.StreamingRpcHandler("Agent.Monitor")
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// create pipe
 	p1, p2 := net.Pipe()
@@ -78,7 +75,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// send request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	must.NoError(t, encoder.Encode(req))
 
 	timeout := time.After(5 * time.Second)
 	expected := "[DEBUG]"
@@ -98,11 +95,11 @@ OUTER:
 
 			var frame sframer.StreamFrame
 			err := json.Unmarshal(msg.Payload, &frame)
-			assert.NoError(t, err)
+			must.NoError(t, err)
 
 			received += string(frame.Data)
 			if strings.Contains(received, expected) {
-				require.Nil(p2.Close())
+				must.NoError(t, p2.Close())
 				break OUTER
 			}
 		}
@@ -111,8 +108,6 @@ OUTER:
 
 func TestMonitor_Monitor_ACL(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// start server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -165,7 +160,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 			}
 
 			handler, err := c.StreamingRpcHandler("Agent.Monitor")
-			require.Nil(err)
+			must.NoError(t, err)
 
 			// create pipe
 			p1, p2 := net.Pipe()
@@ -195,7 +190,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 
 			// send request
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-			require.Nil(encoder.Encode(req))
+			must.NoError(t, encoder.Encode(req))
 
 			timeout := time.After(5 * time.Second)
 		OUTER:
@@ -225,8 +220,6 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 func TestAgentProfile_DefaultDisabled(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	// start server and client
 	s1, cleanup := nomad.TestServer(t, nil)
 	defer cleanup()
@@ -246,13 +239,11 @@ func TestAgentProfile_DefaultDisabled(t *testing.T) {
 	reply := structs.AgentPprofResponse{}
 
 	err := c.ClientRPC("Agent.Profile", &req, &reply)
-	require.EqualError(err, structs.ErrPermissionDenied.Error())
+	must.ErrorIs(t, err, structs.ErrPermissionDenied)
 }
 
 func TestAgentProfile(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// start server and client
 	s1, cleanup := nomad.TestServer(t, nil)
@@ -276,10 +267,10 @@ func TestAgentProfile(t *testing.T) {
 		reply := structs.AgentPprofResponse{}
 
 		err := c.ClientRPC("Agent.Profile", &req, &reply)
-		require.NoError(err)
+		must.NoError(t, err)
 
-		require.NotNil(reply.Payload)
-		require.Equal(c.NodeID(), reply.AgentID)
+		must.NotNil(t, reply.Payload)
+		must.Eq(t, c.NodeID(), reply.AgentID)
 	}
 
 	// Unknown profile request
@@ -293,14 +284,12 @@ func TestAgentProfile(t *testing.T) {
 		reply := structs.AgentPprofResponse{}
 
 		err := c.ClientRPC("Agent.Profile", &req, &reply)
-		require.EqualError(err, "RPC Error:: 404,Pprof profile not found profile: unknown")
+		must.ErrorContains(t, err, "RPC Error:: 404,Pprof profile not found profile: unknown")
 	}
 }
 
 func TestAgentProfile_ACL(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// start server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -354,10 +343,10 @@ func TestAgentProfile_ACL(t *testing.T) {
 
 			err := c.ClientRPC("Agent.Profile", req, reply)
 			if tc.authErr {
-				require.EqualError(err, structs.ErrPermissionDenied.Error())
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 			} else {
-				require.NoError(err)
-				require.NotNil(reply.Payload)
+				must.NoError(t, err)
+				must.NotNil(t, reply.Payload)
 			}
 		})
 	}
@@ -382,10 +371,10 @@ func TestAgentHost(t *testing.T) {
 	var resp structs.HostDataResponse
 
 	err := c.ClientRPC("Agent.Host", &req, &resp)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.NotNil(t, resp.HostData)
-	require.Equal(t, c.NodeID(), resp.AgentID)
+	must.NotNil(t, resp.HostData)
+	must.Eq(t, c.NodeID(), resp.AgentID)
 }
 
 func TestAgentHost_ACL(t *testing.T) {
@@ -438,10 +427,10 @@ func TestAgentHost_ACL(t *testing.T) {
 
 			err := c.ClientRPC("Agent.Host", &req, &resp)
 			if tc.authErr {
-				require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+				must.ErrorIs(t, err, structs.ErrPermissionDenied)
 			} else {
-				require.NoError(t, err)
-				require.NotEmpty(t, resp.HostData)
+				must.NoError(t, err)
+				must.NotNil(t, resp.HostData)
 			}
 		})
 	}

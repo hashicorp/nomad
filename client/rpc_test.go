@@ -13,12 +13,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestRpc_streamingRpcConn_badEndpoint(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, cleanupS1 := nomad.TestServer(t, nil)
 	defer cleanupS1()
@@ -46,17 +45,16 @@ func TestRpc_streamingRpcConn_badEndpoint(t *testing.T) {
 
 	// Get the server
 	server := c.servers.FindServer()
-	require.NotNil(server)
+	must.NotNil(t, server)
 
 	conn, err := c.streamingRpcConn(server, "Bogus")
-	require.Nil(conn)
-	require.NotNil(err)
-	require.Contains(err.Error(), "Unknown rpc method: \"Bogus\"")
+	must.Nil(t, conn)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "Unknown rpc method: \"Bogus\"")
 }
 
 func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	const (
 		cafile        = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
@@ -110,10 +108,10 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 
 	// Get the server
 	server := c.servers.FindServer()
-	require.NotNil(server)
+	must.NotNil(t, server)
 
 	conn, err := c.streamingRpcConn(server, "Bogus")
-	require.Nil(conn)
-	require.NotNil(err)
-	require.Contains(err.Error(), "Unknown rpc method: \"Bogus\"")
+	must.Nil(t, conn)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "Unknown rpc method: \"Bogus\"")
 }

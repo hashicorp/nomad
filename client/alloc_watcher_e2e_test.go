@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 // TestPrevAlloc_StreamAllocDir_TLS asserts ephemeral disk migrations still
@@ -31,7 +31,6 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 		clientKeyFn  = "../helper/tlsutil/testdata/global-client-nomad-key.pem"
 	)
 	ci.Parallel(t)
-	require := require.New(t)
 
 	server, cleanupS := nomad.TestServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &config.TLSConfig{
@@ -99,14 +98,14 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 	allocArgs.JobID = job.ID
 	allocArgs.QueryOptions.Region = "global"
 	var allocReply structs.JobAllocationsResponse
-	require.NoError(server.RPC("Job.Allocations", allocArgs, &allocReply))
-	require.Len(allocReply.Allocations, 1)
+	must.NoError(t, server.RPC("Job.Allocations", allocArgs, &allocReply))
+	must.SliceLen(t, 1, allocReply.Allocations)
 	origAlloc := allocReply.Allocations[0].ID
 
 	// Save a file into alloc dir
 	contents := []byte("123\n456")
 	allocFn := filepath.Join(client1.DataDir, "alloc", origAlloc, "alloc", "data", "bar")
-	require.NoError(os.WriteFile(allocFn, contents, 0666))
+	must.NoError(t, os.WriteFile(allocFn, contents, 0666))
 	t.Logf("[TEST] Wrote initial file: %s", allocFn)
 
 	// Migrate alloc to other node
@@ -123,7 +122,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 		allocArgs.JobID = job.ID
 		allocArgs.QueryOptions.Region = "global"
 		var allocReply structs.JobAllocationsResponse
-		require.NoError(server.RPC("Job.Allocations", allocArgs, &allocReply))
+		must.NoError(t, server.RPC("Job.Allocations", allocArgs, &allocReply))
 		if n := len(allocReply.Allocations); n != 2 {
 			return false, fmt.Errorf("expected 2 allocs found %d", n)
 		}
