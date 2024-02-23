@@ -4,6 +4,7 @@
 package taskenv
 
 import (
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -59,6 +60,7 @@ func InterpolateService(taskEnv *TaskEnv, origService *structs.Service) *structs
 	service.CanaryMeta = interpolateMapStringString(taskEnv, service.CanaryMeta)
 	service.TaggedAddresses = interpolateMapStringString(taskEnv, service.TaggedAddresses)
 	interpolateConnect(taskEnv, service.Connect)
+	service.Identity = interpolateIdentity(taskEnv, service.Identity)
 
 	return service
 }
@@ -220,4 +222,21 @@ func interpolateTaskResources(taskEnv *TaskEnv, resources *structs.Resources) {
 			resources.Networks[i].ReservedPorts[p].Label = taskEnv.ReplaceEnv(resources.Networks[i].ReservedPorts[p].Label)
 		}
 	}
+}
+
+func interpolateIdentity(taskEnv *TaskEnv, origIdentity *structs.WorkloadIdentity) *structs.WorkloadIdentity {
+	if origIdentity == nil {
+		return nil
+	}
+	identity := origIdentity.Copy()
+	identity.Name = taskEnv.ReplaceEnv(identity.Name)
+	identity.Audience = helper.ConvertSlice(identity.Audience,
+		func(aud string) string { return taskEnv.ReplaceEnv(aud) })
+	identity.ChangeMode = taskEnv.ReplaceEnv(identity.ChangeMode)
+	identity.ChangeSignal = taskEnv.ReplaceEnv(identity.ChangeSignal)
+	identity.ServiceName = taskEnv.ReplaceEnv(identity.ServiceName)
+
+	// note: can't interpolate Env, File, TTL
+
+	return identity
 }

@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 
@@ -136,6 +137,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	if vault != nil {
 		vaultFunc = func(_ string) (vaultclient.VaultClient, error) { return vault, nil }
 	}
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, thisTask, "global")
 
 	conf := &Config{
 		Alloc:                 alloc,
@@ -157,7 +159,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
 		Wranglers:             proclib.MockWranglers(t),
-		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger),
+		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger, envBuilder),
 		AllocHookResources:    cstructs.NewAllocHookResources(),
 	}
 

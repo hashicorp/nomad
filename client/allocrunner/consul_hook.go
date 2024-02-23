@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
@@ -24,6 +25,7 @@ type consulHook struct {
 	consulConfigs           map[string]*structsc.ConsulConfig
 	consulClientConstructor func(*structsc.ConsulConfig, log.Logger) (consul.Client, error)
 	hookResources           *cstructs.AllocHookResources
+	taskEnv                 *taskenv.TaskEnv
 
 	logger log.Logger
 }
@@ -42,6 +44,9 @@ type consulHookConfig struct {
 	// hookResources is used for storing and retrieving Consul tokens
 	hookResources *cstructs.AllocHookResources
 
+	// taskEnv is used to interpolate services
+	taskEnv *taskenv.TaskEnv
+
 	logger log.Logger
 }
 
@@ -53,6 +58,7 @@ func newConsulHook(cfg consulHookConfig) *consulHook {
 		consulConfigs:           cfg.consulConfigs,
 		consulClientConstructor: cfg.consulClientConstructor,
 		hookResources:           cfg.hookResources,
+		taskEnv:                 cfg.taskEnv,
 	}
 	h.logger = cfg.logger.Named(h.Name())
 	return h
@@ -161,7 +167,9 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 	}
 
 	var mErr *multierror.Error
-	for _, service := range services {
+	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, services)
+
+	for _, service := range interpolatedServices {
 		// Exit early if service doesn't need a Consul token.
 		if service == nil || !service.IsConsul() || service.Identity == nil {
 			continue
