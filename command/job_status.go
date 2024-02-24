@@ -37,6 +37,11 @@ type JobJson struct {
 	Evaluations      []*api.Evaluation
 }
 
+type jobIDNamespacePair struct {
+	ID        string
+	Namespace string
+}
+
 func (c *JobStatusCommand) Help() string {
 	helpText := `
 Usage: nomad job status [options] <job>
@@ -155,13 +160,13 @@ func (c *JobStatusCommand) Run(args []string) int {
 			c.Ui.Output("No running jobs")
 		} else {
 			if c.json || len(c.tmpl) > 0 {
-				ids := make([]string, len(jobs))
+				pairs := make([]jobIDNamespacePair, len(jobs))
 
 				for i, j := range jobs {
-					ids[i] = j.ID
+					pairs[i] = jobIDNamespacePair{ID: j.ID, Namespace: j.Namespace}
 				}
 
-				jsonJobs, err := createJsonJobsOutput(client, c.allAllocs, ids...)
+				jsonJobs, err := createJsonJobsOutput(client, c.allAllocs, pairs...)
 				if err != nil {
 					c.Ui.Error(err.Error())
 					return 1
@@ -206,7 +211,8 @@ func (c *JobStatusCommand) Run(args []string) int {
 	}
 
 	if c.json || len(c.tmpl) > 0 {
-		jsonJobs, err := createJsonJobsOutput(client, c.allAllocs, *job.ID)
+		jsonJobs, err := createJsonJobsOutput(client, c.allAllocs,
+			jobIDNamespacePair{ID: *job.ID, Namespace: *job.Namespace})
 
 		if err != nil {
 			c.Ui.Error(err.Error())
@@ -718,36 +724,28 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 	}
 }
 
-func createJsonJobsOutput(client *api.Client, allAllocs bool, jobIds ...string) ([]JobJson, error) {
-	jsonJobs := make([]JobJson, len(jobIds))
+func createJsonJobsOutput(client *api.Client, allAllocs bool, jobs ...jobIDNamespacePair) ([]JobJson, error) {
+	jsonJobs := make([]JobJson, len(jobs))
 
-	for i, id := range jobIds {
-		job, _, err := client.Jobs().Info(id, &api.QueryOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("Error querying job info: %s", err)
-		}
+	for i, pair := range jobs {
+		q := &api.QueryOptions{Namespace: pair.Namespace}
 
-		var q *api.QueryOptions
-		if job.Namespace != nil {
-			q = &api.QueryOptions{Namespace: *job.Namespace}
-		}
-
-		summary, _, err := client.Jobs().Summary(id, q)
+		summary, _, err := client.Jobs().Summary(pair.ID, q)
 		if err != nil {
 			return nil, fmt.Errorf("Error querying job summary: %s", err)
 		}
 
-		allocations, _, err := client.Jobs().Allocations(id, allAllocs, q)
+		allocations, _, err := client.Jobs().Allocations(pair.ID, allAllocs, q)
 		if err != nil {
 			return nil, fmt.Errorf("Error querying job allocations: %s", err)
 		}
 
-		latestDeployment, _, err := client.Jobs().LatestDeployment(id, q)
+		latestDeployment, _, err := client.Jobs().LatestDeployment(pair.ID, q)
 		if err != nil {
 			return nil, fmt.Errorf("Error querying latest job deployment: %s", err)
 		}
 
-		evals, _, err := client.Jobs().Evaluations(id, q)
+		evals, _, err := client.Jobs().Evaluations(pair.ID, q)
 		if err != nil {
 			return nil, fmt.Errorf("Error querying job evaluations: %s", err)
 		}
