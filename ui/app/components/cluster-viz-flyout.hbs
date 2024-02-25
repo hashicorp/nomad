@@ -1,0 +1,24 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#if this.cluster.flyoutActive}}
+  <Hds::Flyout id="cluster-viz-flyout"
+    @onClose={{queue
+      this.cluster.closeFlyout
+      this.clearElementDimensions
+      }} @size="large" as |Fly|
+  >
+    <Fly.Header>
+      <h3>
+        Cluster
+      </h3>
+    </Fly.Header>
+    <Fly.Body {{did-insert this.establishElementDimensions}}>
+      {{#if this.elementEstablished}}
+        <ClusterViz />
+      {{/if}}
+    </Fly.Body>
+  </Hds::Flyout>
+{{/if}}

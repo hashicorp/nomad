@@ -62,7 +62,6 @@ export default class JobSerializer extends ApplicationSerializer {
 
   normalizeQueryResponse(store, primaryModelClass, payload, id, requestType) {
     // What jobs did we ask for?
-    console.log('normalizeQueryResponse', payload, id, requestType);
     if (payload._requestBody?.jobs) {
       let requestedJobIDs = payload._requestBody.jobs;
       // If they dont match the jobIDs we got back, we need to create an empty one
@@ -88,7 +87,6 @@ export default class JobSerializer extends ApplicationSerializer {
           },
         };
       });
-      console.log('missingJobIDs', missingJobIDs);
 
       // If any were missing, sort them in the order they were requested
       if (missingJobIDs.length > 0) {

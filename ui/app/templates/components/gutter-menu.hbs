@@ -152,6 +152,13 @@
     </aside>
     {{#if this.system.agent.version}}
       <footer class="gutter-footer">
+        <div class="cluster-viz-container">
+          {{#unless this.cluster.flyoutActive}}
+            <ClusterViz />
+          {{/unless}}
+          <Hds::Button @icon="plus" @isIconOnly={{true}} class="open-cluster-viz" @text="Open Cluster Viz" @color="secondary" @size="medium" {{on "click" this.cluster.openFlyout}} />
+        </div>
+
         <span class="is-faded">
           v{{this.system.agent.version}}
         </span>

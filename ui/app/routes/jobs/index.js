@@ -22,7 +22,7 @@ export default class IndexRoute extends Route.extend(
   @service store;
   @service watchList;
 
-  perPage = 3;
+  perPage = 25;
 
   queryParams = {
     qpNamespace: {

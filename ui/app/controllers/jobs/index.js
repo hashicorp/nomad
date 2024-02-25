@@ -87,14 +87,12 @@ export default class JobsIndexController extends Controller {
         }
       }
     } else if (page === 'next') {
-      console.log('next page', this.nextToken);
       // this.previousTokens = [...this.previousTokens, this.cursorAt];
       this.cursorAt = this.nextToken;
     }
   }
 
   get pendingJobIDDiff() {
-    console.log('pending job IDs', this.pendingJobIDs, this.jobIDs);
     return (
       this.pendingJobIDs &&
       JSON.stringify(
@@ -130,7 +128,9 @@ export default class JobsIndexController extends Controller {
         },
       })
       .catch((e) => {
-        console.log('error fetching job ids', e);
+        // console.log('error fetching job ids', e);
+        // TODO: gracefully handle this! Maybe don't return, but set a flag on the controller?
+        // Or retry the request after a timeout?
         return;
       });
   }
@@ -171,7 +171,7 @@ export default class JobsIndexController extends Controller {
         }
       )
       .catch((e) => {
-        console.log('error fetching job allocs', e);
+        // console.log('error fetching job allocs', e);
         return;
       });
   }
@@ -201,14 +201,13 @@ export default class JobsIndexController extends Controller {
       }));
 
       const okayToJostle = this.liveUpdatesEnabled;
-      console.log('okay to jostle?', okayToJostle);
       if (okayToJostle) {
         this.jobIDs = jobIDs;
         this.watchList.jobsIndexDetailsController.abort();
-        console.log(
-          'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
-          jobIDs
-        );
+        // console.log(
+        //   'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
+        //   jobIDs
+        // );
         this.watchList.jobsIndexDetailsController = new AbortController();
         this.watchJobs.perform(jobIDs, 500);
       } else {

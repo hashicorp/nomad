@@ -1,0 +1,65 @@
+.cluster-viz {
+  // position: fixed;
+  // right: 0;
+  // top: $header-height;
+  // height: calc(100vh - $header-height);
+  // width: 600px;
+  position: relative;
+  height: 100%;
+  z-index: $z-cluster-viz;
+
+  & > svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .controls {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 150px;
+    z-index: 2;
+  }
+}
+
+#cluster-viz-flyout {
+  z-index: $z-actions;
+  left: unset;
+  // animation-name: FlyoutSlideIn;
+  // animation-duration: 0.2s;
+  // animation-fill-mode: both;
+  & + .hds-flyout__overlay {
+    z-index: $z-actions-backdrop;
+    animation-name: FlyoutOverlayFadeIn;
+    animation-duration: 0.2s;
+    animation-fill-mode: both;
+  }
+}
+
+.gutter-footer {
+  .cluster-viz-container {
+    height: 250px;
+    position: relative;
+
+    button.open-cluster-viz {
+      position: absolute;
+      right: 0;
+      top: 0;
+      z-index: $z-cluster-viz;
+      display: none;
+    }
+    &:hover {
+      button.open-cluster-viz {
+        display: block;
+      }
+    }
+
+    .cluster-viz {
+      // height: 100%;
+      height: 250px;
+    }
+  }
+}
