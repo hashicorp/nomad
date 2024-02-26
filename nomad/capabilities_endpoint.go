@@ -5,7 +5,9 @@ package nomad
 
 import (
 	"reflect"
+	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,6 +31,8 @@ func (c *Capabilities) List(args *structs.CapabilitiesListRequest, reply *struct
 	if done, err := c.srv.forward("Capabilities.List", args, args, reply); done {
 		return err
 	}
+	c.srv.MeasureRPCRate("capabilities", structs.RateMetricList, args)
+	defer metrics.MeasureSince([]string{"nomad", "capabilities", "list"}, time.Now())
 
 	capabilities := &structs.Capabilities{
 		ACL:              fieldExistsInStruct(c.srv.config, "ACLEnabled"),

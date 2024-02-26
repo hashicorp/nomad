@@ -10,7 +10,6 @@ type Capabilities struct {
 	WorkloadIdentity bool
 	ConsulVaultWI    bool
 	NUMA             bool
-	Plugins          []string
 }
 
 type CapabilitiesListRequest struct {

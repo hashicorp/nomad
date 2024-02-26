@@ -14,7 +14,6 @@ type CapabilitiesList struct {
 	WorkloadIdentity bool
 	ConsulVaultWI    bool
 	NUMA             bool
-	Plugins          []string
 }
 
 func (c *Client) Capabilities() *Capabilities {
