@@ -26,12 +26,12 @@
 				class="policy-editor"
 				data-test-policy-editor
 				{{code-mirror
-          screenReaderLabel="Policy definition"
-          theme="hashi"
-          mode="ruby"
-          content=@policy.policy
-          onUpdate=this.updatePolicy
-          autofocus=false
+					screenReaderLabel="Policy definition"
+					theme="hashi"
+					mode="ruby"
+					content=@policy.policy
+					onUpdate=this.updatePolicy
+					autofocus=false
 					extraKeys=(hash Cmd-Enter=this.save)
 				}} />
 		</div>
@@ -48,6 +48,34 @@
 				class="input"
 			/>
 		</label>
+	</div>
+
+	<div>
+		<Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updatePolicyEnforcementLevel}} as |G|>
+		<G.Legend>Enforcement Level</G.Legend>
+		<G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Sentinel Policy documentation</Hds::Link::Inline> for more information.</G.HelperText>
+		<G.Radio::Field
+			@id="advisory"
+			checked={{eq @policy.enforcementLevel "advisory"}}
+			data-test-token-type="client"
+		as |F|>
+			<F.Label>Advisory</F.Label>
+		</G.Radio::Field>
+		<G.Radio::Field
+			@id="soft-mandatory"
+			checked={{eq @policy.enforcementLevel "soft-mandatory"}}
+			data-test-token-type="soft-mandatory"
+		as |F|>
+			<F.Label>Soft Mandatory</F.Label>
+		</G.Radio::Field>
+		<G.Radio::Field
+			@id="hard-mandatory"
+			checked={{eq @policy.enforcementLevel "hard-mandatory"}}
+			data-test-token-type="hard-mandatory"
+		as |F|>
+			<F.Label>Hard Mandatory</F.Label>
+		</G.Radio::Field>
+		</Hds::Form::Radio::Group>
 	</div>
 
 	<footer>

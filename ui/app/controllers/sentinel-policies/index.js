@@ -31,6 +31,11 @@ export default class SentinelPoliciesIndexController extends Controller {
         key: 'description',
         label: 'Description',
       },
+      {
+        key: 'enforcementLevel',
+        label: 'Enforcement Level',
+        isSortable: true,
+      },
     ];
   }
 }

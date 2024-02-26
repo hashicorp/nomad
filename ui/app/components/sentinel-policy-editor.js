@@ -23,6 +23,9 @@ export default class SentinelPolicyEditorComponent extends Component {
   @action updatePolicyName({ target: { value } }) {
     this.policy.set('name', value);
   }
+  @action updatePolicyEnforcementLevel({ target: { id } }) {
+    this.policy.set('enforcementLevel', id);
+  }
 
   @action async save(e) {
     if (e instanceof Event) {
