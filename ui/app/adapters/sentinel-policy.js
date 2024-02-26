@@ -23,4 +23,15 @@ export default class SentinelPolicyAdapter extends ApplicationAdapter {
   urlForDeleteRecord(id) {
     return '/v1/sentinel/policy/' + id;
   }
+
+  testAgainstJob(sentinelPolicy, jobspec) {
+    const url = '/v1/sentinel/test-policy';
+
+    return this.ajax(url, 'POST', {
+      data: {
+        policy: sentinelPolicy.policy,
+        jobspec,
+      },
+    });
+  }
 }

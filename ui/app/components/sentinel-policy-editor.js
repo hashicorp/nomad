@@ -111,7 +111,7 @@ export default class SentinelPolicyEditorComponent extends Component {
   }
 
   @action async testIt() {
-    alert('woot');
+    await this.policy.testAgainstJob(this.selectedJobspec);
   }
 
   @action async save(e) {

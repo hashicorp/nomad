@@ -64,7 +64,7 @@
 	<button
 		class="button is-light is-compact"
 		type="button"
-		{{on "click" this.testIt}}
+		{{on "click" (perform this.testIt)}}
 		data-test-edit-job
 	>
 		Test it!

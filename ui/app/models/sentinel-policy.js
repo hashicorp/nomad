@@ -15,4 +15,10 @@ export default class SentinelPolicy extends Model {
   @attr('string') hash;
   @attr('number') createIndex;
   @attr('number') modifyIndex;
+
+  testAgainstJob(specification) {
+    return this.store
+      .adapterFor('sentinel-policy')
+      .testAgainstJob(this, specification);
+  }
 }
