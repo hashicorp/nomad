@@ -13,7 +13,6 @@ export default class SentinelPoliciesController extends Controller {
 
   @action
   onChange(e) {
-    console.log('WAT!');
     this.selectedTemplate = e.target.id;
   }
 }

@@ -26,12 +26,12 @@
 				class="policy-editor"
 				data-test-policy-editor
 				{{code-mirror
-					screenReaderLabel="Policy definition"
-					theme="hashi"
-					mode="ruby"
-					content=@policy.rules
-					onUpdate=this.updatePolicyRules
-					autofocus=false
+          screenReaderLabel="Policy definition"
+          theme="hashi"
+          mode="ruby"
+          content=@policy.policy
+          onUpdate=this.updatePolicy
+          autofocus=false
 					extraKeys=(hash Cmd-Enter=this.save)
 				}} />
 		</div>
@@ -51,7 +51,7 @@
 	</div>
 
 	<footer>
-		{{#if (can "update policy")}}
+		{{#if (can "update sentinel-policy")}}
 		<Hds::Button
 			@text="Save Policy"
 			@type="submit"

@@ -1,1 +1,15 @@
-NEW!
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<Breadcrumb @crumb={{hash label="New" args=(array "sentinel-policies.new")}} />
+{{page-title "Add Sentinel Job"}}
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		Create Sentinel Policy
+	</h1>
+  <SentinelPolicyEditor
+    @policy={{this.model}}
+  />
+</section>

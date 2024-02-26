@@ -5,12 +5,17 @@
 
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
-import notifyError from 'nomad-ui/utils/notify-error';
 
 export default class PolicyRoute extends Route {
   @service store;
 
-  model() {
-    return super.model(...arguments).catch(notifyError(this));
+  async model(params) {
+    return await this.store.findRecord(
+      'sentinel-policy',
+      decodeURIComponent(params.id),
+      {
+        reload: true,
+      }
+    );
   }
 }

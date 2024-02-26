@@ -12,6 +12,6 @@ export default class ClientsRoute extends Route {
   @service store;
 
   model() {
-    return this.store.findAll('sentinel-policy');
+    return this.store.findAll('sentinel-policy', { reload: true });
   }
 }

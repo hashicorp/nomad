@@ -32,9 +32,9 @@
     </div>
   </header>
 
-{{#if this.model.sentinel-policies}}
+{{#if this.model}}
   <Hds::Table @caption="A list of policies for this cluster" class="acl-table"
-      @model={{this.model.sentinel-policies}}
+      @model={{this.model}}
       @columns={{this.columns}}
       @sortBy="name"
   >
