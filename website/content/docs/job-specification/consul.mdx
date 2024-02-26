@@ -82,10 +82,6 @@ If the Nomad cluster is [configured][config_consul_namespace] to use [Consul Nam
 `CONSUL_NAMESPACE` environment variable will be injected whenever `CONSUL_TOKEN`
 is set.
 
-If the Nomad cluster is [configured][config_consul_namespace] to use [Consul Admin Partitions][], a
-`CONSUL_PARTITION` environment variable will be injected whenever `CONSUL_TOKEN`
-is set.
-
 The [`template`][template] block can use the Consul token as well.
 
 ### `consul` Parameters
@@ -104,7 +100,7 @@ The [`template`][template] block can use the Consul token as well.
 - `partition` `(string: "")` - When this field is set, a constraint will be
   added to the group or task to ensure that the allocation is placed on a Nomad
   client that has a Consul Enterprise agent in the specified Consul [admin
-  partition][]. Note that Consul Community Edition agents are limited to the `default` partition, so only Consul Enterprise users should configure this field.
+  partition][].
 
 ## `consul` Examples
 
@@ -236,15 +232,17 @@ job "docs" {
 
 ### Consul Admin Partition
 
-This example demonstrates how to configure Consul admin partitions for different tasks within a group.
+This example demonstrates how to configure Consul admin partitions for different
+tasks within a group. The Consul client agent must separately specify the admin
+partition in the agent configuration. Refer to the Consul documentation's
+[agent configuration reference][] for more information.
 
 <EnterpriseAlert />
 
-In the following example:
+In the following example, the `template` block in the `web` and `app` tasks use
+the default Consul cluster. It obtains a token that allows it access to the `prod`
+admin partition in Consul.
 
-- The `template` block in the `web` task uses the default Consul cluster. It obtains a token that allows it access to the `engineering` admin partition in Consul. 
-- The `template` block in the `app` task uses the Consul cluster named `prod-apps`. It obtains a token that allows it access to the
-`engineering` Consul admin partition.
 
 ```hcl
 job "docs" {
@@ -253,7 +251,9 @@ job "docs" {
     task "web" {
 
       consul {
-        partition = "engineering"
+        cluster   = "default"
+        namespace = "default"
+        partition = "prod"
       }
 
       template {
@@ -265,8 +265,9 @@ job "docs" {
     task "app" {
 
       consul {
-        partition = "engineering"
-        cluster   = "prod-apps"
+        cluster   = "default"
+        namespace = "default"
+        partition = "prod"
       }
 
       template {
@@ -296,3 +297,4 @@ job "docs" {
 [flag_consul_namespace]: /nomad/docs/commands/job/run#consul-namespace
 [Connect]: /nomad/docs/job-specification/connect
 [admin partition]: /consul/docs/enterprise/admin-partitions
+[agent configuration reference]: (/consul/docs/agent/config/config-files#partition-1)
