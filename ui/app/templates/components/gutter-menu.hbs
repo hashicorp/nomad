@@ -65,23 +65,6 @@
             </LinkTo>
           </li>
         {{/if}}
-        {{#if (can "read sentinel-policy")}}
-          <li
-            {{keyboard-shortcut
-              menuLevel=true
-              pattern=(array "g" "s" "p")
-              action=(action this.transitionTo 'sentinel')
-            }}
-          >
-            <LinkTo
-              @route="sentinel-policies"
-              @activeClass="is-active"
-              data-test-gutter-link="optimize"
-            >
-              Sentinel
-            </LinkTo>
-          </li>
-        {{/if}}
         <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "r") }}>
           <LinkTo
             @route="csi"
@@ -101,6 +84,23 @@
             Variables
           </LinkTo>
         </li>
+        {{/if}}
+        {{#if (can "read sentinel-policy")}}
+          <li
+            {{keyboard-shortcut
+              menuLevel=true
+              pattern=(array "g" "x")
+              action=(action this.transitionTo 'sentinel-policies')
+            }}
+          >
+            <LinkTo
+              @route="sentinel-policies"
+              @activeClass="is-active"
+              data-test-gutter-link="optimize"
+            >
+              Sentinel
+            </LinkTo>
+          </li>
         {{/if}}
       </ul>
       <p class="menu-label">
