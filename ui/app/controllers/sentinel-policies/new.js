@@ -14,6 +14,8 @@ export default class SentinelPoliciesNewController extends Controller {
   @service router;
   @service store;
 
+  queryParams = ['template'];
+
   @action updatePolicyDefinition() {
     console.log('sup');
   }

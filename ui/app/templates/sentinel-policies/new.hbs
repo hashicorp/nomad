@@ -6,9 +6,24 @@
 <Breadcrumb @crumb={{hash label="New" args=(array "sentinel-policies.new")}} />
 {{page-title "Add Sentinel Job"}}
 <section class="section">
-	<h1 class="title with-flex" data-test-title>
+	{{!-- <h1 class="title with-flex" data-test-title>
 		Create Sentinel Policy
-	</h1>
+	</h1> --}}
+  <header class="run-job-header">
+    <h1 class="title is-3">Create Sentinel Policy</h1>
+    <p>
+      Sentinel policies check job submissions to ensure certain rules are met.
+    </p>
+    <Hds::ButtonSet>
+      <Hds::Button
+        @text="Start from a template"
+        @color="secondary"
+        @route="sentinel-policies.gallery"
+        data-test-choose-template
+      />
+    </Hds::ButtonSet>
+  </header>
+
   <SentinelPolicyEditor
     @policy={{this.model}}
   />
