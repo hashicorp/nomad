@@ -4,9 +4,10 @@
 package nomad
 
 import (
+	"reflect"
+
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -30,13 +31,19 @@ func (c *Capabilities) List(args *structs.CapabilitiesListRequest, reply *struct
 	}
 
 	capabilities := &structs.Capabilities{
-		ACL: true,
+		ACL:              fieldExistsInStruct(c.srv.config, "ACLEnabled"),
+		ACLEnabled:       c.srv.config.ACLEnabled,
+		OIDC:             fieldExistsInStruct(c.srv.config, "OIDCIssuer"),
+		WorkloadIdentity: fieldExistsInStruct(c.srv, "encrypter"),
+		ConsulVaultWI:    fieldExistsInStruct(c.srv.config, "ConsulConfigs"),
 	}
-
-	acls, _ := c.srv.auth.ResolveACL(&structs.ACLAuthMethodListRequest{})
-	capabilities.ACLEnabled = acls != acl.ACLsDisabledACL || acls != nil
 
 	reply.Capabilities = capabilities
 
 	return nil
+}
+
+func fieldExistsInStruct(s any, field string) bool {
+	metaStruct := reflect.ValueOf(s).Elem()
+	return !(metaStruct.FieldByName(field) == (reflect.Value{}))
 }

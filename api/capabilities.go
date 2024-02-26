@@ -11,7 +11,6 @@ type CapabilitiesList struct {
 	ACL              bool
 	ACLEnabled       bool
 	OIDC             bool
-	OIDCMethods      []string
 	WorkloadIdentity bool
 	ConsulVaultWI    bool
 	NUMA             bool
