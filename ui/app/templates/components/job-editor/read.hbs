@@ -51,7 +51,7 @@
     <div class="boxed-section-body is-full-bleed">
     {{#if (eq @data.view "job-spec")}}
         <div 
-            data-test-job-spec-view 
+            data-test-job-spec-view
             {{code-mirror
             content=@data.definition
             mode=(if (eq @data.format "json") "javascript" "ruby")

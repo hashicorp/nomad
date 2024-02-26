@@ -4,15 +4,60 @@
  */
 
 import Component from '@glimmer/component';
-import { action } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
+import { tracked } from '@glimmer/tracking';
+import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
 export default class SentinelPolicyEditorComponent extends Component {
   @service notifications;
   @service router;
   @service store;
+  @tracked devMode = null;
+  @tracked jobs = null;
+  @tracked selectedJobspec = `job "hello-world" {
+    meta {
+      foo = "bar"
+    }
+    group "servers" {
+      count = 1
+  
+      network {
+        port "www" {
+          to = 8001
+        }
+      }
+  
+      # Tasks are individual units of work that are run by Nomad.
+      task "web" {
+        # This particular task starts a simple web server within a Docker container
+        driver = "docker"
+  
+        config {
+          image   = "busybox:1"
+          command = "httpd"
+          args    = ["-v", "-f", "-p", "\${NOMAD_PORT_www}", "-h", "/local"]
+          ports   = ["www"]
+        }
+  
+        template {
+          data        = <<-EOF
+                        <h1>Hello, Nomad!</h1>
+                        EOF
+          destination = "local/index.html"
+        }
+  
+        # Specify the maximum resources required to run the task
+        resources {
+          cpu    = 50
+          memory = 64
+        }
+      }
+    }
+  }
+  `;
 
   @alias('args.policy') policy;
 
@@ -23,8 +68,50 @@ export default class SentinelPolicyEditorComponent extends Component {
   @action updatePolicyName({ target: { value } }) {
     this.policy.set('name', value);
   }
+
   @action updatePolicyEnforcementLevel({ target: { id } }) {
     this.policy.set('enforcementLevel', id);
+  }
+
+  @action updatedSelectedJobspec({ target: { value } }) {
+    this.selectedJobspec = value;
+  }
+
+  @action async enterDevMode() {
+    let jobs = await this.store.query('job', { meta: true });
+    this.jobs = jobs;
+    this.devMode = true;
+  }
+
+  @action exitDevMode() {
+    this.devMode = false;
+  }
+
+  @action async getJobspecOptions() {
+    return this.store.peekAll('submission');
+  }
+
+  @task(function* (arg) {
+    // TODO: This only works on default
+    const fullId = JSON.stringify([arg, 'default']);
+    let job = yield this.store.findRecord('job', fullId, { reload: true });
+    console.log('job name', job.name);
+    const spec = yield job.fetchRawSpecification();
+    console.log('spec', spec);
+    this.selectedJobspec = spec;
+    yield true;
+  })
+  selectJob;
+
+  @computed('jobs')
+  get jobNames() {
+    return this.jobs.map((j) => {
+      return { key: j.name, label: j.name };
+    });
+  }
+
+  @action async testIt() {
+    alert('woot');
   }
 
   @action async save(e) {

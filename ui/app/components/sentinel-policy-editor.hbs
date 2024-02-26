@@ -3,29 +3,53 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
-	{{#if @policy.isNew }}
-		<Hds::Form::TextInput::Field
-			@isRequired={{true}}
-			data-test-policy-name-input
-			@value={{@policy.name}}
-			{{on "input" this.updatePolicyName}}
-			{{autofocus}}
-		as |F|>
-			<F.Label>Policy Name</F.Label>
-		</Hds::Form::TextInput::Field>
+{{#if this.devMode}}
+	{{#if selectedJobspec}}
+		<div class="boxed-section">
+			<div class="boxed-section-head">
+				Edit Job Spec
+			</div>
+			<div class="boxed-section-body is-full-bleed">
+				<div
+					class="policy-dev"
+					data-test-jobspec-editor
+					{{code-mirror
+						id="jobby"
+						screenReaderLabel="Jobspec Definition"
+						theme="hashi"
+						mode="ruby"
+						content=this.selectedJobspec
+						onUpdate=this.updatedSelectedJobspec
+						autofocus=false
+						extraKeys=(hash Cmd-Enter=this.save)
+					}} />
+			</div>
+		</div>
+	{{else}}
+		<h2>
+			Select a Job Spec
+		</h2>
+
+		{{#each this.jobs as |job|}}
+			<Hds::Button
+				@text={{job.name}}
+				@color="primary"
+				@size="medium"
+				{{on "click" (perform this.selectJob job.name)}}
+			/>
+		{{/each}}
 	{{/if}}
 
 	<div class="boxed-section">
 		<div class="boxed-section-head">
-			Policy Definition
+			Edit Policy
 		</div>
 		<div class="boxed-section-body is-full-bleed">
-
 			<div
-				class="policy-editor"
+				class="policy-dev"
 				data-test-policy-editor
 				{{code-mirror
+					id="polly"
 					screenReaderLabel="Policy definition"
 					theme="hashi"
 					mode="ruby"
@@ -37,55 +61,117 @@
 		</div>
 	</div>
 
-	<div>
-		<label>
-			<span>
-				Description (optional)
-			</span>
-			<Input
-				data-test-policy-description
-				@value={{@policy.description}}
-				class="input"
-			/>
-		</label>
-	</div>
+	<button
+		class="button is-light is-compact"
+		type="button"
+		{{on "click" this.testIt}}
+		data-test-edit-job
+	>
+		Test it!
+	</button>
 
-	<div>
-		<Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updatePolicyEnforcementLevel}} as |G|>
-		<G.Legend>Enforcement Level</G.Legend>
-		<G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Sentinel Policy documentation</Hds::Link::Inline> for more information.</G.HelperText>
-		<G.Radio::Field
-			@id="advisory"
-			checked={{eq @policy.enforcementLevel "advisory"}}
-			data-test-token-type="client"
-		as |F|>
-			<F.Label>Advisory</F.Label>
-		</G.Radio::Field>
-		<G.Radio::Field
-			@id="soft-mandatory"
-			checked={{eq @policy.enforcementLevel "soft-mandatory"}}
-			data-test-token-type="soft-mandatory"
-		as |F|>
-			<F.Label>Soft Mandatory</F.Label>
-		</G.Radio::Field>
-		<G.Radio::Field
-			@id="hard-mandatory"
-			checked={{eq @policy.enforcementLevel "hard-mandatory"}}
-			data-test-token-type="hard-mandatory"
-		as |F|>
-			<F.Label>Hard Mandatory</F.Label>
-		</G.Radio::Field>
-		</Hds::Form::Radio::Group>
-	</div>
-
-	<footer>
-		{{#if (can "update sentinel-policy")}}
-		<Hds::Button
-			@text="Save Policy"
-			@type="submit"
-			data-test-save-policy
-			{{on "click" this.save}}
-		/>
+	<button
+		class="button is-light is-compact"
+		type="button"
+		{{on "click" this.exitDevMode}}
+		data-test-edit-job
+	>
+		Finished Developing
+	</button>
+{{else}}
+	<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
+		{{#if @policy.isNew }}
+			<Hds::Form::TextInput::Field
+				@isRequired={{true}}
+				data-test-policy-name-input
+				@value={{@policy.name}}
+				{{on "input" this.updatePolicyName}}
+				{{autofocus}}
+			as |F|>
+				<F.Label>Policy Name</F.Label>
+			</Hds::Form::TextInput::Field>
 		{{/if}}
-	</footer>
-</form>
+
+		<div class="boxed-section">
+			<div class="boxed-section-head">
+				Policy Definition
+				<div class="pull-right" style="display: flex">
+					<button
+						class="button is-light is-compact"
+						type="button"
+						{{on "click" this.enterDevMode}}
+						data-test-edit-job
+					>
+						Test against a job spec
+					</button>
+				</div>
+			</div>
+			<div class="boxed-section-body is-full-bleed">
+				<div
+					class="policy-editor"
+					data-test-policy-editor
+					{{code-mirror
+						screenReaderLabel="Policy definition"
+						theme="hashi"
+						mode="ruby"
+						content=@policy.policy
+						onUpdate=this.updatePolicy
+						autofocus=false
+						extraKeys=(hash Cmd-Enter=this.save)
+					}} />
+			</div>
+		</div>
+
+		<div>
+			<label>
+				<span>
+					Description (optional)
+				</span>
+				<Input
+					data-test-policy-description
+					@value={{@policy.description}}
+					class="input"
+				/>
+			</label>
+		</div>
+
+		<div>
+			<Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updatePolicyEnforcementLevel}} as |G|>
+			<G.Legend>Enforcement Level</G.Legend>
+			<G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Sentinel Policy documentation</Hds::Link::Inline> for more information.</G.HelperText>
+			<G.Radio::Field
+				@id="advisory"
+				checked={{eq @policy.enforcementLevel "advisory"}}
+				data-test-token-type="client"
+			as |F|>
+				<F.Label>Advisory</F.Label>
+			</G.Radio::Field>
+			<G.Radio::Field
+				@id="soft-mandatory"
+				checked={{eq @policy.enforcementLevel "soft-mandatory"}}
+				data-test-token-type="soft-mandatory"
+			as |F|>
+				<F.Label>Soft Mandatory</F.Label>
+			</G.Radio::Field>
+			<G.Radio::Field
+				@id="hard-mandatory"
+				checked={{eq @policy.enforcementLevel "hard-mandatory"}}
+				data-test-token-type="hard-mandatory"
+			as |F|>
+				<F.Label>Hard Mandatory</F.Label>
+			</G.Radio::Field>
+			</Hds::Form::Radio::Group>
+		</div>
+
+		<footer>
+			{{#if (can "update sentinel-policy")}}
+			<Hds::Button
+				@text="Save Policy"
+				@type="submit"
+				data-test-save-policy
+				{{on "click" this.save}}
+			/>
+			{{/if}}
+		</footer>
+	</form>
+{{/if}}
