@@ -393,6 +393,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/allocations", s.wrap(s.AllocsRequest))
 	s.mux.HandleFunc("/v1/allocation/", s.wrap(s.AllocSpecificRequest))
 
+	s.mux.HandleFunc("/v1/capabilities", s.wrap(s.CapabilitiesRequest))
+
 	s.mux.HandleFunc("/v1/evaluations", s.wrap(s.EvalsRequest))
 	s.mux.HandleFunc("/v1/evaluations/count", s.wrap(s.EvalsCountRequest))
 	s.mux.HandleFunc("/v1/evaluation/", s.wrap(s.EvalSpecificRequest))
