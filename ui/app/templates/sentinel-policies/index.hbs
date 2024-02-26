@@ -1,0 +1,68 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<section class="section">
+  <header class="acl-explainer">
+    <p>
+      {{!-- TODO: perhaps add description here --}}
+    </p>
+    <div>
+      {{#if (can "write sentinel-policy")}}
+        <Hds::Button
+          @text="Create Policy"
+          @icon="plus"
+          @route="sentinel-policies.new"
+          {{keyboard-shortcut
+            pattern=(array "n" "p")
+            action=(action this.goToNewPolicy)
+            label="Create Policy"
+          }}
+          data-test-create-sentinel-policy
+        />
+      {{else}}
+        <Hds::Button
+          @text="Create Policy"
+          @icon="plus"
+          disabled
+          data-test-disabled-create-sentinel-policy
+        />
+      {{/if}}
+    </div>
+  </header>
+
+{{#if this.model.sentinel-policies}}
+  <Hds::Table @caption="A list of policies for this cluster" class="acl-table"
+      @model={{this.model.sentinel-policies}}
+      @columns={{this.columns}}
+      @sortBy="name"
+  >
+      <:body as |B|>
+      <B.Tr
+          {{keyboard-shortcut
+          enumerated=true
+          action=(action "openPolicy" B.data)
+          }}
+          data-test-sentinel-policy-row
+      >
+          <B.Td>
+            <LinkTo data-test-sentinel-policy-name={{B.data.name}} @route="sentinel-policies.policy" @model={{B.data.name}}>{{B.data.name}}</LinkTo>
+          </B.Td>
+          <B.Td>{{B.data.description}}</B.Td>
+      </B.Tr>
+      </:body>
+  </Hds::Table>
+{{ else }}
+
+  <div data-test-empty-jobs-list class="empty-message">
+    <h3 data-test-empty-jobs-list-headline class="empty-message-headline">
+      No Sentinel Policies
+    </h3>
+    <p class="empty-message-body">
+      Get started by <LinkTo @route="sentinel-policies.new">creating a policy from scratch</LinkTo> or
+      by <LinkTo @route="sentinel-policies.gallery">creating one from the policy gallery</LinkTo>.
+    </p>
+  </div>
+{{/if}}
+</section>
