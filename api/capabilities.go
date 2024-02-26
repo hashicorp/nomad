@@ -11,6 +11,7 @@ type CapabilitiesList struct {
 	ACL              bool
 	ACLEnabled       bool
 	OIDC             bool
+	NodePools        bool
 	WorkloadIdentity bool
 	ConsulVaultWI    bool
 	NUMA             bool

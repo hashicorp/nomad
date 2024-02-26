@@ -42,6 +42,14 @@ func (c *Capabilities) List(args *structs.CapabilitiesListRequest, reply *struct
 		ConsulVaultWI:    fieldExistsInStruct(c.srv.config, "ConsulConfigs"),
 	}
 
+	// node pool detection
+	if capabilities.ACL {
+		serverACL, _ := c.srv.auth.AuthenticateServerOnly(c.ctx, args)
+		if serverACL != nil {
+			capabilities.NodePools = fieldExistsInStruct(serverACL, "nodePools")
+		}
+	}
+
 	reply.Capabilities = capabilities
 
 	return nil
