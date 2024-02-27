@@ -100,7 +100,9 @@ The [`template`][template] block can use the Consul token as well.
 - `partition` `(string: "")` - When this field is set, a constraint will be
   added to the group or task to ensure that the allocation is placed on a Nomad
   client that has a Consul Enterprise agent in the specified Consul [admin
-  partition][].
+  partition][]. Note that Consul Community Edition agents are not assigned to
+  any admin partition, so this field should not be used without Consul
+  Enterprise.
 
 ## `consul` Examples
 
@@ -239,22 +241,23 @@ partition in the agent configuration. Refer to the Consul documentation's
 
 <EnterpriseAlert />
 
-In the following example, the `template` block in the `web` and `app` tasks use
-the default Consul cluster. It obtains a token that allows it access to the `prod`
-admin partition in Consul.
-
+In the following example, the `web` and `app` tasks use the default Consul cluster
+and obtain a token that allows access to the `prod` admin partition in Consul. The
+Consul configuration occurs at the `group` level because tasks are placed together
+on the same Allocation. If you configure tasks with separate `consul` blocks, the
+`partition` field must be the same in both blocks.
 
 ```hcl
 job "docs" {
   group "example" {
 
-    task "web" {
+    consul {
+      cluster   = "default"
+      namespace = "default"
+      partition = "prod"
+    }
 
-      consul {
-        cluster   = "default"
-        namespace = "default"
-        partition = "prod"
-      }
+    task "web" {
 
       template {
         data        = "FRONTEND_NAME={{key \"fe/name\"}}"
@@ -263,12 +266,6 @@ job "docs" {
     }
 
     task "app" {
-
-      consul {
-        cluster   = "default"
-        namespace = "default"
-        partition = "prod"
-      }
 
       template {
         data        = "APP_NAME={{key \"app/name\"}}"
