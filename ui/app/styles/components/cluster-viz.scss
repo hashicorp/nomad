@@ -7,6 +7,7 @@
   position: relative;
   height: 100%;
   z-index: $z-cluster-viz;
+  padding-bottom: 100px;
 
   & > svg {
     position: absolute;
@@ -17,11 +18,21 @@
   }
 
   .controls {
-    position: absolute;
+    background: white;
+    padding: 1rem;
+    position: fixed;
     top: 0;
     right: 0;
     width: 150px;
     z-index: 2;
+  }
+
+  .focus-info {
+    position: absolute;
+    top: -101px;
+    height: 100px;
+    border-top: 1px solid $grey-blue;
+    width: 100%;
   }
 }
 

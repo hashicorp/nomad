@@ -17,20 +17,56 @@ import {
   forceY,
 } from 'd3-force';
 import forceBoundary from 'd3-force-boundary';
+import { scaleLinear } from 'd3-scale';
+
 import { zoom as d3Zoom, select as d3Select } from 'd3';
 
 import { tracked } from '@glimmer/tracking';
 
 export default class ClusterVizComponent extends Component {
   @service cluster;
+  @service router;
 
   // #region default values
   @tracked chargeStrength = -500; // TODO: deprecated
   @tracked boundaryBuffer = 20;
-  // @tracked collisionBuffer = 10;
+  @tracked defaultCollisionBuffer = 16;
   get collisionBuffer() {
     return this.width / 30 || 16;
   }
+
+  //   get collisionBuffers() {
+
+  // // Okay, let's consider total amount of distance along the perimeter around the radius.
+  // let totalPerimeterSpace = 2 * Math.PI * this.secondaryRadius;
+  // console.log('totalPerimeterSpace', totalPerimeterSpace);
+  // // Also consider the width of the nodes themselves, and if the number of them
+  // // would be greater than the amount of space we have, we should consider
+  // // making the nodes smaller.
+
+  // let maxNodeSize = this.defaultCollisionBuffer;
+  // let minNodeSize = 1;
+
+  // let maxSpacePerNode = totalPerimeterSpace / (this.nodes.filter(
+  //   (node) => node.model.constructor.modelName === 'node'
+  // ).length);
+
+  // console.log('so max space per node', maxSpacePerNode);
+  // let nodeSize = Math.min(this.defaultCollisionBuffer, maxSpacePerNode - this.defaultCollisionBuffer);
+  // console.log('so nodeSize', nodeSize);
+
+  //     return {
+  //       allocation: this.defaultCollisionBuffer / 2,
+  //       job: this.defaultCollisionBuffer,
+  //       node: this.defaultCollisionBuffer,
+  //       agent: this.defaultCollisionBuffer,
+  //       token: this.defaultCollisionBuffer,
+  //       policy: this.defaultCollisionBuffer,
+  //       role: this.defaultCollisionBuffer,
+  //     }
+  //   }
+
+  @tracked linkDistance = 30;
   @tracked radialStrength = 2;
   @tracked centerX;
   @tracked centerY;
@@ -110,28 +146,22 @@ export default class ClusterVizComponent extends Component {
     // const jobs = await this.cluster.data;
     // const clients = await this.cluster.clients;
     // const servers = await this.cluster.servers;
-    let [jobs, clients, servers] = await Promise.all([
-      this.cluster.data, // Assuming this is a Promise
-      this.cluster.clients, // Assuming this is a Promise
-      this.cluster.servers, // Assuming this is a Promise
-    ]);
+    let primary, secondary, tertiary;
+    if (this.cluster.context === 'tokens') {
+      [primary, secondary, tertiary] = await Promise.all([
+        this.cluster.tokens,
+        this.cluster.policies,
+        this.cluster.roles,
+      ]);
+    } else {
+      [primary, secondary, tertiary] = await Promise.all([
+        this.cluster.data,
+        this.cluster.clients,
+        this.cluster.servers,
+      ]);
+    }
 
-    // const total = this.cluster.data.length;
-    // const total = jobs.length + clients.length + servers.length;
-    // console.log('so total', total);
-    // const radius = this.tertiaryRadius; // TODO: buggy here
-
-    // let allObjects = [];
-    // allObjects.pushObjects(jobs);
-    // allObjects.pushObjects(clients);
-    // allObjects.pushObjects(servers);
-
-    // const allObjects = ArrayProxy.create();
-    // allObjects.pushObjects(jobs);
-    // allObjects.pushObjects(clients);
-    // allObjects.pushObjects(servers);
-
-    this.nodes = this.cluster.data.map((item, index) => {
+    this.nodes = primary.map((item, index) => {
       // this.nodes = [...jobs.toArray(), ...clients.toArray(), ...servers.toArray()].map((item, index) => {
       // this.nodes = allObjects.map((item, index) => {
       // this.nodes = jobs.map(j => j.toJSON()).concat(clients.map(c => c.toJSON())).concat(servers.map(s => s.toJSON())).map((item, index) => {
@@ -141,13 +171,32 @@ export default class ClusterVizComponent extends Component {
       //   y: this.nodes[index] ? this.nodes[index].y : index * 100,
       // };
 
-      const angle = (index / jobs.length) * 2 * Math.PI; // Angle for each node in radians
+      const angle = (index / primary.length) * 2 * Math.PI; // Angle for each node in radians
       // item.x = this.centerX + this.tertiaryRadius * Math.cos(angle);
       // item.y = this.centerY + this.tertiaryRadius * Math.sin(angle);
       // return item;
 
       let jobX = this.centerX + this.tertiaryRadius * Math.cos(angle);
       let jobY = this.centerY + this.tertiaryRadius * Math.sin(angle);
+      // if job:
+      let color;
+      if (item.constructor.modelName === 'job') {
+        // set color based on status
+        color = (() => {
+          switch (item.aggregateAllocStatus?.label) {
+            case 'Failed':
+              return '#c0000555';
+            case 'Healthy':
+              return '#00781e55';
+            case 'Deploying':
+              return '#911ced55';
+            case 'Degraded':
+              return '#9e4b0055';
+            default:
+              return 'aliceblue';
+          }
+        })();
+      }
       // const jobAllocationCount = item.allocations.length;
       // const angleIncrement = (2 * Math.PI) / jobAllocationCount;
       // let allocations = item.allocations.map((alloc, index) => {
@@ -164,6 +213,7 @@ export default class ClusterVizComponent extends Component {
         // modelName: item.constructor.modelName,
         x: jobX,
         y: jobY,
+        color,
         model: item,
         // x: this.nodes[index] ? this.nodes[index].x : this.centerX,
         // y: this.nodes[index] ? this.nodes[index].y : this.centerY,
@@ -171,78 +221,100 @@ export default class ClusterVizComponent extends Component {
     });
 
     // Add allocations of jobs
-    this.nodes
-      .filter((node) => node.model.constructor.modelName === 'job')
-      .forEach((job) => {
-        console.log('job and alloc blocks', job.model.allocBlocks);
-        let jobAllocBlockArray = [];
-        Object.keys(job.model.allocBlocks).forEach((status) => {
-          let statusGroup = job.model.allocBlocks[status];
+    if (this.cluster.context === 'jobs') {
+      this.nodes
+        .filter((node) => node.model.constructor.modelName === 'job')
+        .forEach((job) => {
+          console.log('job and alloc blocks', job.model.allocBlocks);
+          let jobAllocBlockArray = [];
+          Object.keys(job.model.allocBlocks).forEach((status) => {
+            let statusGroup = job.model.allocBlocks[status];
 
-          // Iterate through each health status (e.g., "healthy")
-          Object.keys(statusGroup).forEach((healthStatus) => {
-            let healthGroup = statusGroup[healthStatus];
+            // Iterate through each health status (e.g., "healthy")
+            Object.keys(statusGroup).forEach((healthStatus) => {
+              let healthGroup = statusGroup[healthStatus];
 
-            // Iterate through each group type (e.g., "nonCanary")
-            Object.keys(healthGroup).forEach((canaryType) => {
-              let items = healthGroup[canaryType];
+              // Iterate through each group type (e.g., "nonCanary")
+              Object.keys(healthGroup).forEach((canaryType) => {
+                let items = healthGroup[canaryType];
 
-              // Iterate through each item, adding 'status' and 'healthStatus'
-              items.forEach((item) => {
-                jobAllocBlockArray.push({
-                  ...item, // Spread the original item properties
-                  status,
-                  healthStatus,
-                  canaryType,
-                  constructor: {
-                    // TOODO: big ol hack
-                    modelName: 'allocation',
-                  },
+                // Iterate through each item, adding 'status' and 'healthStatus'
+                items.forEach((item) => {
+                  jobAllocBlockArray.push({
+                    ...item, // Spread the original item properties
+                    status,
+                    healthStatus,
+                    canaryType,
+                    constructor: {
+                      // TOODO: big ol hack
+                      modelName: 'allocation',
+                    },
+                  });
                 });
               });
             });
           });
+          console.log('so finally', jobAllocBlockArray);
+          // job.model.allocations.forEach((allocation, index) => {
+          jobAllocBlockArray.forEach((allocation, index) => {
+            console.log('allocs', allocation);
+            let allocNode = {};
+            allocNode.parentJob = job;
+            allocNode.index = index;
+            allocNode.model = allocation;
+            // color: a switch statement method
+            allocNode.color = (() => {
+              switch (allocation.status) {
+                case 'running':
+                  return '#2eb039';
+                case 'pending':
+                  return '#bbc4d1';
+                case 'failed':
+                  return '#c84034';
+                default:
+                  return '#000000';
+              }
+            })();
+            this.nodes.push(allocNode);
+          });
         });
-        console.log('so finally', jobAllocBlockArray);
-        // job.model.allocations.forEach((allocation, index) => {
-        jobAllocBlockArray.forEach((allocation, index) => {
-          console.log('allocs', allocation);
-          let allocNode = {};
-          allocNode.parentJob = job;
-          allocNode.index = index;
-          allocNode.model = allocation;
-          // color: a switch statement method
-          allocNode.color = (() => {
-            switch (allocation.status) {
-              case 'running':
-                return '#2eb039';
-              case 'pending':
-                return '#bbc4d1';
-              case 'failed':
-                return '#c84034';
-              default:
-                return '#000000';
-            }
-          })();
-          this.nodes.push(allocNode);
-        });
-      });
+    }
 
     // add clients
+    // d3 color scale from green to white to red
+    let colorScale = scaleLinear()
+      .domain([0, 0.5, 1])
+      .range(['#c84034', '#cccccc', '#2eb039']);
     this.nodes.pushObjects(
-      clients.map((item, index) => {
-        const angle = (index / clients.length) * 2 * Math.PI; // Angle for each node in radians
+      secondary.map((item, index) => {
+        // TODO: set CPU/MEM
+        if (item.constructor.modelName === 'node') {
+          // read from resources
+          item.cpu = item.resources.cpu;
+          item.memory = item.resources.memory;
+          // rando values as %
+          item.cpuUsed = Math.random();
+          item.memoryUsed = Math.random();
+          // use D3 to set color
+          console.log('=== so node', item.cpuUsed, item.memoryUsed);
+          item.cpuAsColor = colorScale(item.cpuUsed);
+          item.memoryAsColor = colorScale(item.memoryUsed);
+          console.log('===', item.cpuAsColor, item.memoryAsColor);
+        }
+        const angle = (index / secondary.length) * 2 * Math.PI; // Angle for each node in radians
         return {
           x: this.centerX + this.secondaryRadius * Math.cos(angle),
           y: this.centerY + this.secondaryRadius * Math.sin(angle),
+          cpuAsColor: item.cpuAsColor,
+          memoryAsColor: item.memoryAsColor,
           model: item,
         };
       })
     );
     // add servers
     this.nodes.pushObjects(
-      servers.map((item, index) => {
-        const angle = (index / servers.length) * 2 * Math.PI; // Angle for each node in radians
+      tertiary.map((item, index) => {
+        const angle = (index / tertiary.length) * 2 * Math.PI; // Angle for each node in radians
         return {
           x: this.centerX + this.primaryRadius * Math.cos(angle),
           y: this.centerY + this.primaryRadius * Math.sin(angle),
@@ -290,6 +362,46 @@ export default class ClusterVizComponent extends Component {
           edges.push({ source: index, target: this.nodes.indexOf(parentJob) });
         }
       }
+      // bind token to policy or role
+      if (node.model.constructor.modelName === 'token') {
+        console.log('node, to which policy and role do you belong?', node);
+        let parentPolicies = node.model.policies;
+        let parentRoles = node.model.roles;
+        parentPolicies.forEach((policy) => {
+          let policyIndex = this.nodes.findIndex(
+            (n) =>
+              n.model.constructor.modelName === 'policy' &&
+              n.model.id === policy.id
+          );
+          if (policyIndex !== -1) {
+            edges.push({ source: index, target: policyIndex });
+          }
+        });
+        parentRoles.forEach((role) => {
+          let roleIndex = this.nodes.findIndex(
+            (n) =>
+              n.model.constructor.modelName === 'role' && n.model.id === role.id
+          );
+          if (roleIndex !== -1) {
+            edges.push({ source: index, target: roleIndex });
+          }
+        });
+      }
+
+      // bind role to policies
+      if (node.model.constructor.modelName === 'role') {
+        let parentPolicies = node.model.policies;
+        parentPolicies.forEach((policy) => {
+          let policyIndex = this.nodes.findIndex(
+            (n) =>
+              n.model.constructor.modelName === 'policy' &&
+              n.model.id === policy.id
+          );
+          if (policyIndex !== -1) {
+            edges.push({ source: index, target: policyIndex });
+          }
+        });
+      }
     });
 
     // Store the links in your component for rendering or simulation use
@@ -305,15 +417,16 @@ export default class ClusterVizComponent extends Component {
         'link',
         forceLink(this.edges)
           .distance((d) => {
-            console.log('d link force', d);
             if (d.source.model.constructor.modelName === 'allocation') {
               return 0;
             }
-            return 30;
+            return this.linkDistance;
           })
           .strength((d) => {
-            console.log('d link force', d);
             if (d.source.model.constructor.modelName === 'allocation') {
+              return 1;
+            }
+            if (d.source.model.constructor.modelName === 'token') {
               return 1;
             }
             return 0.02;
@@ -374,6 +487,12 @@ export default class ClusterVizComponent extends Component {
               case 'node':
                 return this.secondaryRadius;
               case 'job':
+                return this.tertiaryRadius;
+              case 'role':
+                return this.primaryRadius;
+              case 'policy':
+                return this.secondaryRadius;
+              case 'token':
                 return this.tertiaryRadius;
               default:
                 return this.secondaryRadius;
@@ -512,6 +631,10 @@ export default class ClusterVizComponent extends Component {
     this.restartSimulation();
   }
 
+  @action updateLinkDistance(event) {
+    console.log('lol, lmao');
+  }
+
   @action
   updateRadialStrength(event) {
     const radialStrength = parseFloat(event.target.value);
@@ -566,8 +689,67 @@ export default class ClusterVizComponent extends Component {
   }
 
   // #region actions
-  onNodeMouseOver(node) {
-    console.log(node.model.id, node.model.status);
+
+  @tracked focusInfo = [];
+
+  @action onNodeMouseOver(node) {
+    console.log(node.model.id, node.model.status, node.model);
+    this.focusInfo = [
+      { key: 'id', value: node.model.id },
+      { key: 'status', value: node.model.aggregateAllocStatus?.label },
+    ];
+  }
+
+  @action onNodeMouseOut(node) {
+    this.focusInfo = [];
+  }
+
+  @action onNodeClick(node) {
+    // use router to go to correct place based on node.id and node.model.constructor.modelName
+    console.log('node click', node);
+    if (node.model.constructor.modelName === 'job') {
+      this.router.transitionTo(
+        'jobs.job',
+        `${node.model.plainId}@${node.model.namespace.get('id')}`
+      );
+    }
+    if (node.model.constructor.modelName === 'node') {
+      this.router.transitionTo('clients.client', node.model.id);
+    }
+    if (node.model.constructor.modelName === 'agent') {
+      this.router.transitionTo('servers.server', node.model.id);
+    }
+    if (node.model.constructor.modelName === 'allocation') {
+      this.router.transitionTo(
+        'jobs.job.allocations.allocation',
+        node.model.id
+      );
+    }
+    if (node.model.constructor.modelName === 'token') {
+      this.router.transitionTo('access-control.tokens.token', node.model.id);
+    }
+    if (node.model.constructor.modelName === 'policy') {
+      this.router.transitionTo('access-control.policies.policy', node.model.id);
+    }
+    if (node.model.constructor.modelName === 'role') {
+      this.router.transitionTo('access-control.roles.role', node.model.id);
+    }
   }
   // #endregion actions
+
+  // #region scales
+  // get clientNodeSize() {
+  //   // Size down the client nodes based on the number of them that exist.
+  //   // Maxes out at this.nodeRadius
+  //   // Min size 1px
+  //   let clientNodes = this.nodes.filter(
+  //     (node) => node.model.constructor.modelName === 'node'
+  //   );
+  //   let clientNodeCount = clientNodes.length;
+  //   let maxNodeSize = this.nodeRadius;
+  //   let minNodeSize = 1;
+  //   let size = maxNodeSize / clientNodeCount;
+  //   return Math.max(size, minNodeSize);
+  // }
+  // #endregion scales
 }

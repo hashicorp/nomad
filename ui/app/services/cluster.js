@@ -34,10 +34,13 @@ export default class ClusterService extends Service {
    */
   get context() {
     if (this.router.currentRouteName.includes('jobs')) {
+      console.log('context JOBS');
       return 'jobs';
     } else if (this.router.currentRouteName.includes('clients')) {
+      console.log('context CLIENTS');
       return 'nodes';
     } else if (this.router.currentRouteName.includes('access-control')) {
+      console.log('context TOKENS');
       return 'tokens';
     }
   }
@@ -116,7 +119,19 @@ export default class ClusterService extends Service {
   }
 
   get clients() {
-    return this.store.findAll('node');
+    return this.store.query('node', { resources: true });
+  }
+
+  get tokens() {
+    return this.store.findAll('token');
+  }
+
+  get policies() {
+    return this.store.findAll('policy');
+  }
+
+  get roles() {
+    return this.store.findAll('role');
   }
 
   @tracked flyoutActive = false;

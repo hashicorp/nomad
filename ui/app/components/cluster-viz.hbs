@@ -32,16 +32,25 @@
       <g id="icon-job">
         <svg xmlns="http://www.w3.org/2000/svg" width={{this.nodeRadius}} height={{this.nodeRadius}} fill="none" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M5.75 1A1.75 1.75 0 004 2.75V4H2.25A2.25 2.25 0 000 6.25v6.5A2.25 2.25 0 002.25 15h11.5A2.25 2.25 0 0016 12.75v-6.5A2.25 2.25 0 0013.75 4H12V2.75A1.75 1.75 0 0010.25 1h-4.5zm6.75 12.5h1.25a.75.75 0 00.75-.75v-6.5a.75.75 0 00-.75-.75H12.5v8zm-1.{{this.nodeIconOffset}}8H5{{this.nodeIconOffset}}6zm-7.5 8{{this.nodeIconOffset}}2.25a.75.75 0 00-.75.75v6.5c0 .414.336.75.75.75H3.5zm7-9.5V2.75a.25.25 0 00-.25-.25h-4.5a.25.25 0 00-.25.25V4h5z" clip-rule="evenodd"/></svg>
       </g>
+      <g id="icon-token">
+        <svg xmlns="http://www.w3.org/2000/svg" width={{this.nodeRadius}} height={{this.nodeRadius}} fill="none" viewBox="0 0 16 16"><g fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"><path d="M5.791 3.318L3.316 5.793a1 1 0 000 1.414l2.475 2.475a1 1 0 001.415 0L9.68 7.207a1 1 0 000-1.414L7.206 3.318a1 1 0 00-1.415 0zm.707 4.95L4.731 6.5l1.767-1.768L8.266 6.5 6.498 8.268z"/><path d="M0 6.5a6.5 6.5 0 0112.346-2.845 6.5 6.5 0 11-8.691 8.691A6.5 6.5 0 010 6.5zm6.5-5a5 5 0 100 10 5 5 0 000-10zm6.5 5c0-.201-.01-.4-.027-.597a5 5 0 11-7.07 7.07A6.5 6.5 0 0013 6.5z"/></g></svg>
+      </g>
+      <g id="icon-policy">
+        <svg xmlns="http://www.w3.org/2000/svg" width={{this.nodeRadius}} height={{this.nodeRadius}} fill="none" viewBox="0 0 16 16"><g fill="currentColor"><path d="M4.75 8a.75.75 0 000 1.5h5.5a.75.75 0 000-1.5h-5.5zM4 11.75a.75.75 0 01.75-.75h3.5a.75.75 0 010 1.5h-3.5a.75.75 0 01-.75-.75zM4.75 5a.75.75 0 000 1.5h1.5a.75.75 0 000-1.5h-1.5z"/><path fill-rule="evenodd" d="M1 2.25A2.25 2.25 0 013.25 0h6.293c.331 0 .65.132.884.366l4.207 4.207c.234.235.366.553.366.884v8.293A2.25 2.25 0 0112.75 16h-9.5A2.25 2.25 0 011 13.75V2.25zm2.25-.75a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h9.5a.75.75 0 00.75-.75V6H9.75A.75.75 0 019 5.25V1.5H3.25zm7.25 1.06l1.94 1.94H10.5V2.56z" clip-rule="evenodd"/></g></svg>
+      </g>
+      <g id="icon-role">
+        <svg xmlns="http://www.w3.org/2000/svg" width={{this.nodeRadius}} height={{this.nodeRadius}} fill="none" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M1 2.25A2.25 2.25 0 013.25 0h4.793c.331 0 .65.132.884.366l3.207 3.207c.076.076.141.161.195.253a.75.75 0 01.201.144l2.104 2.103c.234.235.366.553.366.884v6.793A2.25 2.25 0 0112.75 16h-7a2.25 2.25 0 01-2.25-2.25v-.25h-.25A2.25 2.25 0 011 11.25v-9zm2.25-.75a.75.75 0 00-.75.75v9c0 .414.336.75.75.75h7a.75.75 0 00.75-.75V6H7.75A.75.75 0 017 5.25V1.5H3.25zm5.25.56V4.5h2.44L8.5 2.06zm4 9.19V6.06l1 1v6.69a.75.75 0 01-.75.75h-7a.75.75 0 01-.75-.75v-.25h5.25a2.25 2.25 0 002.25-2.25z" clip-rule="evenodd"/></svg>
+      </g>
     </defs>
 
     <g class="zoom-container" width="100%" height="100%">
       <rect width="100%" height="100%" fill="transparent" />
       {{!-- {{log "AY NODES" this.nodes}} --}}
-      {{!-- {{#if (and this.primaryRadius this.secondaryRadius this.tertiaryRadius this.centerX this.centerY)}}
-      <circle r={{this.primaryRadius}} cx={{this.centerX}} cy={{this.centerY}} stroke="brown" stroke-opacity="0.5" fill="none"></circle>
-      <circle r={{this.secondaryRadius}} cx={{this.centerX}} cy={{this.centerY}} stroke="steelblue" stroke-opacity="0.5" fill="none"></circle>
-      <circle r={{this.tertiaryRadius}} cx={{this.centerX}} cy={{this.centerY}} stroke="green" stroke-opacity="0.5" fill="none"></circle>
-      {{/if}} --}}
+      {{#if (and this.primaryRadius this.secondaryRadius this.tertiaryRadius this.centerX this.centerY)}}
+      <circle r={{this.primaryRadius}} cx={{this.centerX}} cy={{this.centerY}} stroke="brown" stroke-opacity="0.2" fill="none"></circle>
+      <circle r={{this.secondaryRadius}} cx={{this.centerX}} cy={{this.centerY}} stroke="steelblue" stroke-opacity="0.2" fill="none"></circle>
+      <circle r={{this.tertiaryRadius}} cx={{this.centerX}} cy={{this.centerY}} stroke="green" stroke-opacity="0.2" fill="none"></circle>
+      {{/if}}
       <g class="edges">
           {{!-- {{#each this.edges as |link|}}
               <line class="link" x1={{this.nodes.[link.source].x}} y1={{this.nodes.[link.source].y}}
@@ -63,20 +72,32 @@
         <g
         {{!-- on hover --}}
         {{on "mouseover" (fn this.onNodeMouseOver node)}}
+        {{on "mouseout" (fn this.onNodeMouseOut node)}}
+        {{!-- on click --}}
+        {{on "click" (fn this.onNodeClick node)}}
         data-item-type={{node.model.constructor.modelName}} transform="translate({{node.x}}, {{node.y}})">
 
           {{#if (eq node.model.constructor.modelName 'agent')}}
-            <circle r="{{this.nodeRadius}}" fill="aliceblue" stroke="black" stoke-width="1" stroke-opacity="0.2"></circle>
+            <circle r="{{this.nodeRadius}}" fill="aliceblue" stroke="black" stroke-width="1" stroke-opacity="0.2"></circle>
             <use href="#icon-server" x={{this.nodeIconOffset}} y={{this.nodeIconOffset}} width="{{this.nodeRadius}}" height="{{this.nodeRadius}}"></use>
           {{else if (eq node.model.constructor.modelName 'node')}}
-            <circle r="{{this.nodeRadius}}" fill="aliceblue" stroke="black" stoke-width="1" stroke-opacity="0.2"></circle>
+            <circle r={{this.nodeRadius}} fill="aliceblue" stroke={{node.cpuAsColor}} stroke-width="3" stroke-opacity="0.5"></circle>
             <use href="#icon-client" x={{this.nodeIconOffset}} y={{this.nodeIconOffset}} width="{{this.nodeRadius}}" height="{{this.nodeRadius}}"></use>
           {{else if (eq node.model.constructor.modelName 'job')}}
-            <circle r="{{this.nodeRadius}}" fill="aliceblue" stroke="black" stoke-width="1" stroke-opacity="0.2"></circle>
+            <circle r="{{this.nodeRadius}}" fill={{node.color}} stroke="black" stroke-width="1" stroke-opacity="0.2"></circle>
             <use href="#icon-job" x={{this.nodeIconOffset}} y={{this.nodeIconOffset}} width="{{this.nodeRadius}}" height="{{this.nodeRadius}}"></use>
           {{else if (eq node.model.constructor.modelName 'allocation')}}
-            <circle r="{{this.allocationRadius}}" fill={{node.color}} stroke="black" stoke-width="1" stroke-opacity="0.2"></circle>
+            <circle r="{{this.allocationRadius}}" fill={{node.color}} stroke="black" stroke-width="1" stroke-opacity="0.2"></circle>
             {{!-- <use href="#icon-job" x={{this.nodeIconOffset}} y={{this.nodeIconOffset}} width="{{this.nodeRadius}}" height="{{this.nodeRadius}}"></use> --}}
+          {{else if (eq node.model.constructor.modelName 'token')}}
+            <circle r="{{this.nodeRadius}}" fill="aliceblue" stroke="black" stroke-width="1" stroke-opacity="0.2"></circle>
+            <use href="#icon-token" x={{this.nodeIconOffset}} y={{this.nodeIconOffset}} width="{{this.nodeRadius}}" height="{{this.nodeRadius}}"></use>
+          {{else if (eq node.model.constructor.modelName 'policy')}}
+            <circle r="{{this.nodeRadius}}" fill="aliceblue" stroke="black" stroke-width="1" stroke-opacity="0.2"></circle>
+            <use href="#icon-policy" x={{this.nodeIconOffset}} y={{this.nodeIconOffset}} width="{{this.nodeRadius}}" height="{{this.nodeRadius}}"></use>
+          {{else if (eq node.model.constructor.modelName 'role')}}
+            <circle r="{{this.nodeRadius}}" fill="aliceblue" stroke="black" stroke-width="1" stroke-opacity="0.2"></circle>
+            <use href="#icon-role" x={{this.nodeIconOffset}} y={{this.nodeIconOffset}} width="{{this.nodeRadius}}" height="{{this.nodeRadius}}"></use>
           {{else}}
               <circle r="{{this.nodeRadius}}" fill="red"></circle>
           {{/if}}
@@ -85,7 +106,7 @@
     </g>
   </svg>
 
-  {{!-- <div class="controls">
+  <div class="controls">
     <label for="chargeStrength">Charge Strength:</label>
     <input type="number" id="chargeStrength" {{on "input" this.updateChargeStrength}} value={{this.chargeStrength}}>
 
@@ -95,11 +116,16 @@
     <label for="collisionBuffer">Collision Buffer:</label>
     <input type="number" id="collisionBuffer" {{on "input" this.updateCollisionBuffer}} value={{this.collisionBuffer}}>
 
-    <label for="radialRadius">Radial force radius:</label>
-    <input type="number" id="radialRadius" {{on "input" this.updateRadialRadius}} value={{this.radialRadius}} step="0.1">
+    <label for="linkDistance">Link Distance:</label>
+    <input type="number" id="linkDistance" {{on "input" this.updateLinkDistance}} value={{this.linkDistance}}>
+  </div>
 
-    <label for="radialStrength">Radial Strength:</label>
-    <input type="number" id="radialStrength" {{on "input" this.updateRadialStrength}} value={{this.radialStrength}} step="0.1">
-  </div> --}}
+    {{#if this.focusInfo.length}}
+  <div class="focus-info">
+    {{#each this.focusInfo as |info|}}
+    <li><strong>{{info.key}}:</strong><span>{{info.value}}</span></li>
+    {{/each}}
+  </div>
+    {{/if}}
 
 </div>
