@@ -35,6 +35,30 @@ namespace "default" {
 }
 ```
 
+When utilizing the High-Availability feature added in v0.4.0, the ACL policy will
+need to include capabilities that allow it to obtain and release Nomad variable
+locks. The namespace identifier should match the configured
+[`high_availability.lock_namespace`][autoscaler_ha_lock_namespace] parameter,
+and the path should match the [`high_availability.lock_path`][autoscaler_ha_lock_path]
+parameter.
+
+```hcl
+namespace "default" {
+  path "nomad-autoscaler/lock" {
+    capabilities = ["write"]
+  }
+}
+```
+
+If running Nomad Autoscaler Enterprise, the following ACL policy addition will be
+needed to ensure it can read the Nomad Enterprise license.
+
+```hcl
+operator {
+  policy = "read"
+}
+```
+
 Other APM and target plugins may require additional ACLs; see the plugin documentation for more information.
 
 ## Load Order and Merging
@@ -99,3 +123,5 @@ following actions.
 [autoscaler_agent_nomad]: /nomad/tools/autoscaling/agent/nomad
 [autoscaler_cli_config]: /nomad/tools/autoscaling/cli#config
 [autoscaler_cli_policy_dir]: /nomad/tools/autoscaling/cli#policy-dir
+[autoscaler_ha_lock_namespace]: /nomad/tools/autoscaling/agent/high_availability#lock_namespace
+[autoscaler_ha_lock_path]: /nomad/tools/autoscaling/agent/high_availability#lock_path
