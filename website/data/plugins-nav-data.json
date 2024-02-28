@@ -69,6 +69,10 @@
           {
             "title": "Windows IIS",
             "path": "drivers/community/iis"
+          },
+          {
+            "title": "Windows IIS",
+            "path": "drivers/community/nomad-iis"
           }
         ]
       },
