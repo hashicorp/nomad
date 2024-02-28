@@ -128,11 +128,6 @@
     display: grid;
     grid-template-rows: auto 1fr;
 
-    .external-link svg {
-      position: relative;
-      top: 3px;
-    }
-
     button.create-test-token,
     pre {
       margin-top: 1rem;

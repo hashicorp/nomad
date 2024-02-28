@@ -132,7 +132,6 @@ export default function browseFilesystem({
     assert.equal(FS.breadcrumbs.length, 1);
     assert.ok(FS.breadcrumbs[0].isActive);
     assert.equal(FS.breadcrumbs[0].text, getBreadcrumbComponent(objects));
-
     FS.directoryEntries[0].as((directory) => {
       const fileRecord = sortedFiles[0];
       assert.equal(

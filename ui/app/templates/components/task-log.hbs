@@ -48,7 +48,11 @@
     <button data-test-log-action="head" class="button is-white" onclick={{action "gotoHead"}} type="button">Head</button>
     <button data-test-log-action="tail" class="button is-white" onclick={{action "gotoTail"}} type="button">Tail</button>
     <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
-      {{x-icon (if this.logger.isStreaming "media-pause" "media-play") class="is-text"}}
+      {{#if this.logger.isStreaming}}
+        <FlightIcon @name="pause" />
+      {{else}}
+        <FlightIcon @name="play" />
+      {{/if}}
     </button>
   </span>
 </div>

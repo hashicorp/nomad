@@ -220,7 +220,7 @@
             </t.head>
             <t.body @key="model.id" as |row|>
               <AllocationRow
-                {{keyboard-shortcut 
+                {{keyboard-shortcut
                   enumerated=true
                   action=(action "gotoAllocation" row.model)
                 }}
@@ -247,10 +247,10 @@
                 {{this.sortedAllocations.length}}
               </div>
               <p.prev @class="pagination-previous">
-                {{x-icon "chevron-left"}}
+                <FlightIcon @name="chevron-left" />
               </p.prev>
               <p.next @class="pagination-next">
-                {{x-icon "chevron-right"}}
+                <FlightIcon @name="chevron-right" />
               </p.next>
               <ul class="pagination-list"></ul>
             </nav>

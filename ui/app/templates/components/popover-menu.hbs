@@ -23,7 +23,7 @@
     {{on "keyup" (action "openOnArrowDown" dd)}}
   >
     {{this.label}}
-    {{x-icon "chevron-down" class="is-text"}}
+    <FlightIcon @name="chevron-down" class="is-text" />
   </dd.Trigger>
   <dd.Content data-test-popover-menu class="popover-content">
     {{yield dd}}

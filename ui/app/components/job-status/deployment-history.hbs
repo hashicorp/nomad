@@ -13,9 +13,9 @@
       >
         {{or @title "Deployment History"}}
         {{#if this.isHidden}}
-          {{x-icon "chevron-down"}}
+          <FlightIcon @name="chevron-down" />
         {{else}}
-          {{x-icon "chevron-up"}}
+          <FlightIcon @name="chevron-up" />
         {{/if}}
       </button>
     </h4>

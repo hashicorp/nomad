@@ -138,14 +138,14 @@ export let IconItems = () => {
             <aside class="menu">
               <p class="menu-label">Places</p>
               <ul class="menu-list">
-                <li><a href="javascript:;">{{x-icon "clock"}} Place One</a></li>
-                <li><a href="javascript:;" class="is-active">{{x-icon "history"}} Place Two</a></li>
+                <li><a href="javascript:;"><FlightIcon @name="clock" /> Place One</a></li>
+                <li><a href="javascript:;" class="is-active"><FlightIcon @name="history" /> Place Two</a></li>
               </ul>
 
               <p class="menu-label">Features</p>
               <ul class="menu-list">
-                <li><a href="javascript:;">{{x-icon "alert-triangle"}} Feature One</a></li>
-                <li><a href="javascript:;">{{x-icon "media-pause"}} Feature Two</a></li>
+                <li><a href="javascript:;"><FlightIcon @name="alert-triangle" /> Feature One</a></li>
+                <li><a href="javascript:;"><FlightIcon @name="pause" /> Feature Two</a></li>
               </ul>
             </aside>
           </div>
@@ -156,7 +156,7 @@ export let IconItems = () => {
           </div>
         </div>
       </div>
-      <p class="annotation">In the future, the gutter menu may have icons.</p>
+      <p class="annotation">In the future, the gutter menu may have icons. (N.B. FlightIcons don't render in Storybook)</p>
       `,
   };
 };
@@ -172,13 +172,13 @@ export let TaggedItems = () => {
               <p class="menu-label">Places</p>
               <ul class="menu-list">
                 <li><a href="javascript:;">Place One <span class="tag is-small">Beta</span></a></li>
-                <li><a href="javascript:;" class="is-active">{{x-icon "history"}} Place Two</a></li>
+                <li><a href="javascript:;" class="is-active"><FlightIcon @name="history" /> Place Two</a></li>
               </ul>
 
               <p class="menu-label">Features</p>
               <ul class="menu-list">
-                <li><a href="javascript:;">{{x-icon "alert-triangle"}} Feature One</a></li>
-                <li><a href="javascript:;">{{x-icon "media-pause"}} Feature Two <span class="tag is-small is-warning">3</span></a></li>
+                <li><a href="javascript:;"><FlightIcon @name="alert-triangle" /> Feature One</a></li>
+                <li><a href="javascript:;"><FlightIcon @name="pause" /> Feature Two <span class="tag is-small is-warning">3</span></a></li>
               </ul>
             </aside>
           </div>

@@ -32,9 +32,9 @@ export default create({
     isLoading: hasClass('is-loading', '[data-test-task-group-name]'),
 
     chevron: {
-      scope: '.toggle-button .icon',
-      isDown: hasClass('icon-is-chevron-down'),
-      isRight: hasClass('icon-is-chevron-right'),
+      scope: '.toggle-button .flight-icon',
+      isDown: hasClass('flight-icon-chevron-down'),
+      isRight: hasClass('flight-icon-chevron-right'),
     },
 
     tasks: collection('[data-test-task]', {

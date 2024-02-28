@@ -51,9 +51,35 @@ $icon-dimensions-large: 2rem;
       color: $color;
     }
   }
+}
 
-  &.is-grey {
-    fill: $grey;
-    color: $grey;
+// Flight Icons general override: notes:
+// When the Nomad UI was original built, we worked with svg icons that
+// generally matched a slightly larger height than our 16x16 flight icons
+// now occupy. In order to maintain vertical alignment with text,
+// we apply a blanket rule to FlightIcons to bump them down a few pixels.
+.flight-icon {
+  position: relative;
+  top: 3px;
+}
+
+// Exceptions:
+.copy-btn,
+.button,
+.hds-badge,
+.ember-basic-dropdown-trigger,
+.hds-dropdown,
+.prefix-icon,
+.hds-button,
+.hds-form-visibility-toggle,
+.hds-icon-tile,
+.hds-table__th-sort,
+.hds-alert__icon {
+  .flight-icon {
+    top: 0;
   }
+}
+
+.nomad-logo-icon {
+  top: 0;
 }

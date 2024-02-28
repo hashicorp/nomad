@@ -8,7 +8,7 @@
     {{or this.title this.job.name}}
     {{#if @job.meta.structured.pack}}
       <span data-test-pack-tag class="tag is-hollow">
-        {{x-icon "box" class= "test"}}
+        <FlightIcon @name="box" class= "test" />
         <span>Pack</span>
       </span>
     {{/if}}
@@ -32,7 +32,7 @@
         @confirmationMessage="Are you sure you want to stop this job?"
         @awaitingConfirmation={{this.stopJob.isRunning}}
         @onConfirm={{perform this.stopJob}}
-        {{keyboard-shortcut 
+        {{keyboard-shortcut
           label="Stop"
           pattern=(array "s" "t" "o" "p")
           action=(perform this.stopJob true)
@@ -47,7 +47,7 @@
         @confirmationMessage="Are you sure? You cannot undo this action."
         @awaitingConfirmation={{this.purgeJob.isRunning}}
         @onConfirm={{perform this.purgeJob}}
-        {{keyboard-shortcut 
+        {{keyboard-shortcut
           label="Purge"
           pattern=(array "p" "u" "r" "g" "e")
           action=(perform this.purgeJob)
@@ -62,7 +62,7 @@
         @confirmationMessage="Are you sure you want to start this job?"
         @awaitingConfirmation={{this.startJob.isRunning}}
         @onConfirm={{perform this.startJob}}
-        {{keyboard-shortcut 
+        {{keyboard-shortcut
           label="Start"
           pattern=(array "s" "t" "a" "r" "t")
           action=(perform this.startJob true)
