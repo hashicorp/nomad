@@ -10,7 +10,7 @@ type Capabilities struct {
 	NodePools        bool
 	WorkloadIdentity bool
 	ConsulVaultWI    bool
-	NUMA             bool
+	Enterprise       bool
 }
 
 type CapabilitiesListRequest struct {

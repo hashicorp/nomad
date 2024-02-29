@@ -14,7 +14,7 @@ type CapabilitiesList struct {
 	NodePools        bool
 	WorkloadIdentity bool
 	ConsulVaultWI    bool
-	NUMA             bool
+	Enterprise       bool
 }
 
 func (c *Client) Capabilities() *Capabilities {

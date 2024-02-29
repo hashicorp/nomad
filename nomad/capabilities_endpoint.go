@@ -40,6 +40,7 @@ func (c *Capabilities) List(args *structs.CapabilitiesListRequest, reply *struct
 		OIDC:             fieldExistsInStruct(c.srv.config, "OIDCIssuer"),
 		WorkloadIdentity: fieldExistsInStruct(c.srv, "encrypter"),
 		ConsulVaultWI:    fieldExistsInStruct(c.srv.config, "ConsulConfigs"),
+		Enterprise:       c.srv.EnterpriseState.Features() != 0,
 	}
 
 	// node pool detection
@@ -56,6 +57,6 @@ func (c *Capabilities) List(args *structs.CapabilitiesListRequest, reply *struct
 }
 
 func fieldExistsInStruct(s any, field string) bool {
-	metaStruct := reflect.ValueOf(s).Elem()
+	metaStruct := reflect.ValueOf(s).Elem() // yucky but works™
 	return !(metaStruct.FieldByName(field) == (reflect.Value{}))
 }
