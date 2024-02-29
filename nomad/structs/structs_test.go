@@ -329,7 +329,6 @@ func TestJob_Validate(t *testing.T) {
 				},
 			},
 			expErr: []string{
-				`Unknown periodic specification type ""`,
 				"Must specify a spec",
 			},
 		},
