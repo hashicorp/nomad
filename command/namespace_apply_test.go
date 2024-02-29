@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNamespaceApplyCommand_Implements(t *testing.T) {
@@ -59,8 +58,8 @@ func TestNamespaceApplyCommand_Good(t *testing.T) {
 	}
 
 	namespaces, _, err := client.Namespaces().List(nil)
-	assert.Nil(t, err)
-	assert.Len(t, namespaces, 2)
+	must.NoError(t, err)
+	must.SliceLen(t, 2, namespaces)
 }
 
 func TestNamespaceApplyCommand_parseNamesapceSpec(t *testing.T) {

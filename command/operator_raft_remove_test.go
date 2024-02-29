@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestOperator_Raft_RemovePeers_Implements(t *testing.T) {
@@ -18,7 +18,7 @@ func TestOperator_Raft_RemovePeers_Implements(t *testing.T) {
 
 func TestOperator_Raft_RemovePeer(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
+
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
@@ -32,21 +32,18 @@ func TestOperator_Raft_RemovePeer(t *testing.T) {
 		t.Fatalf("bad: %d. %#v", code, ui.ErrorWriter.String())
 	}
 
-	assert.Contains(ui.ErrorWriter.String(), "cannot give both an address and id")
+	must.StrContains(t, ui.ErrorWriter.String(), "cannot give both an address and id")
 
 	// Neither address nor ID present
 	args = args[:1]
 	code = c.Run(args)
-	if code != 1 {
-		t.Fatalf("bad: %d. %#v", code, ui.ErrorWriter.String())
-	}
-
-	assert.Contains(ui.ErrorWriter.String(), "an address or id is required for the peer to remove")
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "an address or id is required for the peer to remove")
 }
 
 func TestOperator_Raft_RemovePeerAddress(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
+
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
@@ -55,17 +52,15 @@ func TestOperator_Raft_RemovePeerAddress(t *testing.T) {
 	args := []string{"-address=" + addr, "-peer-address=nope"}
 
 	code := c.Run(args)
-	if code != 1 {
-		t.Fatalf("bad: %d. %#v", code, ui.ErrorWriter.String())
-	}
+	must.One(t, code)
 
 	// If we get this error, it proves we sent the address all they through.
-	assert.Contains(ui.ErrorWriter.String(), "address \"nope\" was not found in the Raft configuration")
+	must.StrContains(t, ui.ErrorWriter.String(), "address \"nope\" was not found in the Raft configuration")
 }
 
 func TestOperator_Raft_RemovePeerID(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
+
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
@@ -74,10 +69,8 @@ func TestOperator_Raft_RemovePeerID(t *testing.T) {
 	args := []string{"-address=" + addr, "-peer-id=nope"}
 
 	code := c.Run(args)
-	if code != 1 {
-		t.Fatalf("bad: %d. %#v", code, ui.ErrorWriter.String())
-	}
+	must.One(t, code)
 
 	// If we get this error, it proves we sent the address all they through.
-	assert.Contains(ui.ErrorWriter.String(), "id \"nope\" was not found in the Raft configuration")
+	must.StrContains(t, ui.ErrorWriter.String(), "id \"nope\" was not found in the Raft configuration")
 }

@@ -10,8 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestDeploymentStatusCommand_Implements(t *testing.T) {
@@ -26,37 +25,36 @@ func TestDeploymentStatusCommand_Fails(t *testing.T) {
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
-	require.Equal(t, 1, code)
+	must.One(t, code)
 	out := ui.ErrorWriter.String()
-	require.Contains(t, out, commandErrorText(cmd))
+	must.StrContains(t, out, commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
 	code = cmd.Run([]string{"-address=nope", "12"})
-	require.Equal(t, 1, code)
+	must.One(t, code)
 	out = ui.ErrorWriter.String()
-	require.Contains(t, out, "Error retrieving deployment")
+	must.StrContains(t, out, "Error retrieving deployment")
 	ui.ErrorWriter.Reset()
 
 	code = cmd.Run([]string{"-address=nope"})
-	require.Equal(t, 1, code)
+	must.One(t, code)
 	out = ui.ErrorWriter.String()
 	// "deployments" indicates that we attempted to list all deployments
-	require.Contains(t, out, "Error retrieving deployments")
+	must.StrContains(t, out, "Error retrieving deployments")
 	ui.ErrorWriter.Reset()
 
 	// Fails if monitor passed with json or tmpl flags
 	for _, flag := range []string{"-json", "-t"} {
 		code = cmd.Run([]string{"-monitor", flag, "12"})
-		require.Equal(t, 1, code)
+		must.One(t, code)
 		out = ui.ErrorWriter.String()
-		require.Contains(t, out, "The monitor flag cannot be used with the '-json' or '-t' flags")
+		must.StrContains(t, out, "The monitor flag cannot be used with the '-json' or '-t' flags")
 		ui.ErrorWriter.Reset()
 	}
 }
 
 func TestDeploymentStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -67,13 +65,13 @@ func TestDeploymentStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake deployment
 	state := srv.Agent.Server().State()
 	d := mock.Deployment()
-	assert.Nil(state.UpsertDeployment(1000, d))
+	must.NoError(t, state.UpsertDeployment(1000, d))
 
 	prefix := d.ID[:5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(d.ID, res[0])
+	must.SliceLen(t, 1, res)
+	must.Eq(t, d.ID, res[0])
 }

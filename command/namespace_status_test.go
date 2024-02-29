@@ -13,7 +13,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNamespaceStatusCommand_Implements(t *testing.T) {
@@ -108,7 +107,7 @@ func TestNamespaceStatusCommand_Run_Quota(t *testing.T) {
 	// Create a quota to delete
 	qs := testQuotaSpec()
 	_, err := client.Quotas().Register(qs, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Create a namespace
 	ns := &api.Namespace{
@@ -116,7 +115,7 @@ func TestNamespaceStatusCommand_Run_Quota(t *testing.T) {
 		Quota: qs.Name,
 	}
 	_, err = client.Namespaces().Register(ns, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Check status on namespace
 	code := cmd.Run([]string{"-address=" + url, ns.Name})

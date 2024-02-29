@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
@@ -48,12 +48,12 @@ func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
 			ci.Parallel(t)
 			ui := cli.NewMockUi()
 			cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
-			require.NotEqual(t, 0, cmd.Run(tc.args))
+			must.Positive(t, cmd.Run(tc.args))
 			got := ui.ErrorWriter.String()
 			if tc.expectErr == "" {
-				require.NotEmpty(t, got) // don't care
+				must.NotNil(t, got)
 			} else {
-				require.Contains(t, got, tc.expectErr)
+				must.StrContains(t, got, tc.expectErr)
 			}
 		})
 	}
@@ -62,8 +62,8 @@ func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
 func TestTlsCertCreateCommandDefaults_fileCreate(t *testing.T) {
 	testDir := t.TempDir()
 	previousDirectory, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(testDir))
+	must.NoError(t, err)
+	must.NoError(t, os.Chdir(testDir))
 	defer os.Chdir(previousDirectory)
 
 	ui := cli.NewMockUi()
@@ -143,34 +143,34 @@ func TestTlsCertCreateCommandDefaults_fileCreate(t *testing.T) {
 
 	for _, tc := range cases {
 		tc := tc
-		require.True(t, t.Run(tc.name, func(t *testing.T) {
+		must.True(t, t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
 			cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
-			require.Equal(t, 0, cmd.Run(tc.args))
-			require.Equal(t, tc.errOut, ui.ErrorWriter.String())
+			must.Zero(t, cmd.Run(tc.args))
+			must.Eq(t, tc.errOut, ui.ErrorWriter.String())
 
 			// is a valid cert expects the cert
 			cert := testutil.IsValidCertificate(t, tc.certPath)
-			require.Equal(t, tc.expectCN, cert.Subject.CommonName)
-			require.True(t, cert.BasicConstraintsValid)
-			require.Equal(t, x509.KeyUsageDigitalSignature|x509.KeyUsageKeyEncipherment, cert.KeyUsage)
+			must.Eq(t, tc.expectCN, cert.Subject.CommonName)
+			must.True(t, cert.BasicConstraintsValid)
+			must.Eq(t, x509.KeyUsageDigitalSignature|x509.KeyUsageKeyEncipherment, cert.KeyUsage)
 			switch tc.typ {
 			case "server":
-				require.Equal(t,
+				must.Eq(t,
 					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 					cert.ExtKeyUsage)
 			case "client":
-				require.Equal(t,
+				must.Eq(t,
 					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 					cert.ExtKeyUsage)
 			case "cli":
-				require.Equal(t,
+				must.Eq(t,
 					[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 					cert.ExtKeyUsage)
 			}
-			require.False(t, cert.IsCA)
-			require.Equal(t, tc.expectDNS, cert.DNSNames)
-			require.Equal(t, tc.expectIP, cert.IPAddresses)
+			must.False(t, cert.IsCA)
+			must.Eq(t, tc.expectDNS, cert.DNSNames)
+			must.Eq(t, tc.expectIP, cert.IPAddresses)
 		}))
 	}
 }
@@ -310,7 +310,7 @@ func TestTlsRecordPreparation(t *testing.T) {
 
 	for _, tc := range cases {
 		tc := tc
-		require.True(t, t.Run(tc.name, func(t *testing.T) {
+		must.True(t, t.Run(tc.name, func(t *testing.T) {
 			var ipAddresses []net.IP
 			for _, i := range tc.ipAddresses {
 				if len(i) > 0 {
@@ -319,11 +319,11 @@ func TestTlsRecordPreparation(t *testing.T) {
 			}
 
 			ipAddresses, dnsNames, name, extKeyUsage, prefix := recordPreparation(tc.certType, tc.regionName, tc.domain, tc.dnsNames, ipAddresses)
-			require.Equal(t, tc.expectedipAddresses, ipAddresses)
-			require.Equal(t, tc.expectedDNSNames, dnsNames)
-			require.Equal(t, tc.expectedName, name)
-			require.Equal(t, tc.expectedextKeyUsage, extKeyUsage)
-			require.Equal(t, tc.expectedPrefix, prefix)
+			must.Eq(t, tc.expectedipAddresses, ipAddresses)
+			must.Eq(t, tc.expectedDNSNames, dnsNames)
+			must.Eq(t, tc.expectedName, name)
+			must.Eq(t, tc.expectedextKeyUsage, extKeyUsage)
+			must.Eq(t, tc.expectedPrefix, prefix)
 		}))
 	}
 }

@@ -11,13 +11,12 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestRecommendationListCommand_Run(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -31,20 +30,20 @@ func TestRecommendationListCommand_Run(t *testing.T) {
 	// Perform an initial list, which should return zero results.
 	code := cmd.Run([]string{"-address=" + url})
 	if srv.Enterprise {
-		require.Equal(0, code)
+		must.Zero(t, code)
 		out := ui.OutputWriter.String()
-		require.Contains(out, "No recommendations found")
+		must.StrContains(t, out, "No recommendations found")
 	} else {
-		require.Equal(1, code)
-		require.Contains(ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
+		must.One(t, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
 	}
 
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_list")
 	regResp, _, err := client.Jobs().Register(testJob, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 	registerCode := waitForSuccess(ui, client, fullId, t, regResp.EvalID)
-	require.Equal(0, registerCode)
+	must.Zero(t, registerCode)
 
 	// Write a recommendation.
 	rec := api.Recommendation{
@@ -58,26 +57,26 @@ func TestRecommendationListCommand_Run(t *testing.T) {
 	}
 	_, _, err = client.Recommendations().Upsert(&rec, nil)
 	if srv.Enterprise {
-		require.NoError(err)
+		must.NoError(t, err)
 	} else {
-		require.Error(err, "Nomad Enterprise only endpoint")
+		must.ErrorContains(t, err, "Nomad Enterprise only endpoint")
 	}
 
 	// Perform a new list which should yield results.
 	code = cmd.Run([]string{"-address=" + url})
 	if srv.Enterprise {
-		require.Equal(0, code)
+		must.Zero(t, code)
 		out := ui.OutputWriter.String()
-		require.Contains(out, "ID")
-		require.Contains(out, "Job")
-		require.Contains(out, "Group")
-		require.Contains(out, "Task")
-		require.Contains(out, "Resource")
-		require.Contains(out, "Value")
-		require.Contains(out, "CPU")
+		must.StrContains(t, out, "ID")
+		must.StrContains(t, out, "Job")
+		must.StrContains(t, out, "Group")
+		must.StrContains(t, out, "Task")
+		must.StrContains(t, out, "Resource")
+		must.StrContains(t, out, "Value")
+		must.StrContains(t, out, "CPU")
 	} else {
-		require.Equal(1, code)
-		require.Contains(ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
+		must.One(t, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
 	}
 }
 
@@ -163,7 +162,7 @@ func TestRecommendationListCommand_Sort(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			sortedRecs := recommendationList{r: tc.inputRecommendationList}
 			sort.Sort(sortedRecs)
-			assert.Equal(t, tc.expectedOutputList, sortedRecs.r, tc.name)
+			must.Eq(t, tc.expectedOutputList, sortedRecs.r)
 		})
 	}
 }

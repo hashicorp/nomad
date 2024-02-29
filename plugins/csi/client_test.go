@@ -14,7 +14,6 @@ import (
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -102,10 +101,10 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 
 			resp, err := client.PluginProbe(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 
@@ -156,11 +155,11 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 
 			name, version, err := client.PluginGetInfo(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponseName, name)
-			require.Equal(t, tc.ExpectedResponseVersion, version)
+			must.Eq(t, tc.ExpectedResponseName, name)
+			must.Eq(t, tc.ExpectedResponseVersion, version)
 		})
 	}
 
@@ -223,10 +222,10 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 
 			resp, err := client.PluginGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -323,10 +322,10 @@ func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
 
 			resp, err := client.ControllerGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -383,10 +382,10 @@ func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
 
 			resp, err := client.NodeGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -450,10 +449,10 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 
 			resp, err := client.ControllerPublishVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -498,10 +497,10 @@ func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
 
 			resp, err := client.ControllerUnpublishVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -723,9 +722,9 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 
 			err := client.ControllerValidateCapabilities(context.TODO(), req)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.NoError(t, err, tc.Name)
+				must.NoError(t, err, must.Sprint("name", tc.Name))
 			}
 		})
 	}
@@ -832,24 +831,24 @@ func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
 
 			resp, err := client.ControllerCreateVolume(context.TODO(), req)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
+			must.NoError(t, err, must.Sprint("name", tc.Name))
 			if tc.Response == nil {
-				require.Nil(t, resp)
+				must.Nil(t, resp)
 				return
 			}
 			if tc.CapacityRange != nil {
-				require.Greater(t, resp.Volume.CapacityBytes, int64(0))
+				must.Greater(t, 0, resp.Volume.CapacityBytes)
 			}
 			if tc.ContentSource != nil {
-				require.Equal(t, tc.ContentSource.CloneID, resp.Volume.ContentSource.CloneID)
-				require.Equal(t, tc.ContentSource.SnapshotID, resp.Volume.ContentSource.SnapshotID)
+				must.Eq(t, tc.ContentSource.CloneID, resp.Volume.ContentSource.CloneID)
+				must.Eq(t, tc.ContentSource.SnapshotID, resp.Volume.ContentSource.SnapshotID)
 			}
 			if tc.Response != nil && tc.Response.Volume != nil {
-				require.Len(t, resp.Volume.AccessibleTopology, 1)
-				require.Equal(t,
+				must.SliceLen(t, 1, resp.Volume.AccessibleTopology)
+				must.Eq(t,
 					req.AccessibilityRequirements.Requisite[0].Segments,
 					resp.Volume.AccessibleTopology[0].Segments,
 				)
@@ -894,10 +893,10 @@ func TestClient_RPC_ControllerDeleteVolume(t *testing.T) {
 			cc.NextErr = tc.ResponseErr
 			err := client.ControllerDeleteVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
+			must.NoError(t, err, must.Sprint("name", tc.Name))
 		})
 	}
 }
@@ -987,11 +986,11 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 
 			resp, err := client.ControllerListVolumes(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
-			require.NotNil(t, resp)
+			must.NoError(t, err, must.Sprint("name", tc.Name))
+			must.NotNil(t, resp)
 
 		})
 	}
@@ -1054,11 +1053,11 @@ func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
 			// from protobuf to our struct
 			resp, err := client.ControllerCreateSnapshot(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.NoError(t, err, tc.Name)
-				require.NotZero(t, resp.Snapshot.CreateTime)
-				require.Equal(t, now.Second(), time.Unix(resp.Snapshot.CreateTime, 0).Second())
+				must.NoError(t, err, must.Sprint("name", tc.Name))
+				must.Positive(t, resp.Snapshot.CreateTime)
+				must.Eq(t, now.Second(), time.Unix(resp.Snapshot.CreateTime, 0).Second())
 			}
 		})
 	}
@@ -1099,10 +1098,10 @@ func TestClient_RPC_ControllerDeleteSnapshot(t *testing.T) {
 			cc.NextErr = tc.ResponseErr
 			err := client.ControllerDeleteSnapshot(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
+			must.NoError(t, err, must.Sprint("name", tc.Name))
 		})
 	}
 }
@@ -1162,14 +1161,14 @@ func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
 
 			resp, err := client.ControllerListSnapshots(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
-			require.NotNil(t, resp)
-			require.Len(t, resp.Entries, 1)
-			require.NotZero(t, resp.Entries[0].Snapshot.CreateTime)
-			require.Equal(t, now.Second(),
+			must.NoError(t, err, must.Sprint("name", tc.Name))
+			must.NotNil(t, resp)
+			must.Len(t, 1, resp.Entries)
+			must.Positive(t, resp.Entries[0].Snapshot.CreateTime)
+			must.Eq(t, now.Second(),
 				time.Unix(resp.Entries[0].Snapshot.CreateTime, 0).Second())
 		})
 	}
@@ -1359,9 +1358,9 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 				VolumeCapability:  &VolumeCapability{},
 			})
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.Nil(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}
@@ -1398,9 +1397,9 @@ func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
 
 			err := client.NodeUnstageVolume(context.TODO(), "foo", "/foo")
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.Nil(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}
@@ -1456,9 +1455,9 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 
 			err := client.NodePublishVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.Nil(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}
@@ -1511,9 +1510,9 @@ func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 
 			err := client.NodeUnpublishVolume(context.TODO(), tc.ExternalID, tc.TargetPath)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.Nil(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}
