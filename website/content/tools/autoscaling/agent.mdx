@@ -44,8 +44,10 @@ parameter.
 
 ```hcl
 namespace "default" {
-  path "nomad-autoscaler/lock" {
-    capabilities = ["write"]
+  variables {
+    path "nomad-autoscaler/lock" {
+      capabilities = ["write"]
+    }
   }
 }
 ```
