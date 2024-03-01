@@ -5,6 +5,7 @@ package command
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"sort"
 	"strings"
 	"time"
@@ -35,11 +36,6 @@ type JobJson struct {
 	Allocations      []*api.AllocationListStub
 	LatestDeployment *api.Deployment
 	Evaluations      []*api.Evaluation
-}
-
-type jobIDNamespacePair struct {
-	ID        string
-	Namespace string
 }
 
 func (c *JobStatusCommand) Help() string {
@@ -160,10 +156,10 @@ func (c *JobStatusCommand) Run(args []string) int {
 			c.Ui.Output("No running jobs")
 		} else {
 			if c.json || len(c.tmpl) > 0 {
-				pairs := make([]jobIDNamespacePair, len(jobs))
+				pairs := make([]structs.NamespacedID, len(jobs))
 
 				for i, j := range jobs {
-					pairs[i] = jobIDNamespacePair{ID: j.ID, Namespace: j.Namespace}
+					pairs[i] = structs.NamespacedID{ID: j.ID, Namespace: j.Namespace}
 				}
 
 				jsonJobs, err := createJsonJobsOutput(client, c.allAllocs, pairs...)
@@ -212,7 +208,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	if c.json || len(c.tmpl) > 0 {
 		jsonJobs, err := createJsonJobsOutput(client, c.allAllocs,
-			jobIDNamespacePair{ID: *job.ID, Namespace: *job.Namespace})
+			structs.NamespacedID{ID: *job.ID, Namespace: *job.Namespace})
 
 		if err != nil {
 			c.Ui.Error(err.Error())
@@ -724,7 +720,7 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 	}
 }
 
-func createJsonJobsOutput(client *api.Client, allAllocs bool, jobs ...jobIDNamespacePair) ([]JobJson, error) {
+func createJsonJobsOutput(client *api.Client, allAllocs bool, jobs ...structs.NamespacedID) ([]JobJson, error) {
 	jsonJobs := make([]JobJson, len(jobs))
 
 	for i, pair := range jobs {
