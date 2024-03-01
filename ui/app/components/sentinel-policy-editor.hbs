@@ -5,9 +5,50 @@
 
 {{#if this.devMode}}
 	{{#if selectedJobspec}}
+		<div class="section">
+			<button
+				class="button is-light is-compact"
+				type="button"
+				{{on "click" (perform this.testIt)}}
+				data-test-edit-job
+			>
+				Run Policy
+			</button>
+			<button
+				class="button is-light is-compact"
+				type="button"
+				{{on "click" this.exitDevMode}}
+				data-test-edit-job
+			>
+				Finished Developing
+			</button>
+		</div>
+
+		{{#if (eq testResult "Passed")}}
+			<div>
+				<Hds::Alert @type="inline" @color="success" @icon="info" class="related-entities notification" as |A|>
+					<A.Title>Policy Check Passed</A.Title>
+					<A.Description>
+						This policy check successfully passed.
+					</A.Description>
+				</Hds::Alert>
+			</div>
+		{{/if}}
+
+		{{#if (eq testResult "Failed")}}
+			<div>
+				<Hds::Alert @type="inline" @color="critical" @icon="info" class="related-entities notification" as |A|>
+					<A.Title>Policy Check failed</A.Title>
+					<A.Description>
+						This Policy check failed.
+					</A.Description>
+				</Hds::Alert>
+			</div>
+		{{/if}}
+
 		<div class="boxed-section">
 			<div class="boxed-section-head">
-				Edit Job Spec
+				Job to test against
 			</div>
 			<div class="boxed-section-body is-full-bleed">
 				<div
@@ -19,7 +60,7 @@
 						theme="hashi"
 						mode="ruby"
 						content=this.selectedJobspec
-						onUpdate=this.updatedSelectedJobspec
+						onUpdate=this.updateSelectedJobspec
 						autofocus=false
 						extraKeys=(hash Cmd-Enter=this.save)
 					}} />
@@ -30,6 +71,7 @@
 			Select a Job Spec
 		</h2>
 
+		<Hds::ButtonSet class="button-group">
 		{{#each this.jobs as |job|}}
 			<Hds::Button
 				@text={{job.name}}
@@ -38,11 +80,12 @@
 				{{on "click" (perform this.selectJob job.name)}}
 			/>
 		{{/each}}
+		</Hds::ButtonSet>
 	{{/if}}
 
 	<div class="boxed-section">
 		<div class="boxed-section-head">
-			Edit Policy
+			Policy Definition
 		</div>
 		<div class="boxed-section-body is-full-bleed">
 			<div
@@ -61,23 +104,47 @@
 		</div>
 	</div>
 
-	<button
-		class="button is-light is-compact"
-		type="button"
-		{{on "click" this.testIt}}
-		data-test-edit-job
-	>
-		Test it!
-	</button>
+	<div class="section">
+		<button
+			class="button is-light is-compact"
+			type="button"
+			{{on "click" (perform this.testIt)}}
+			data-test-edit-job
+		>
+			Run Policy
+		</button>
 
-	<button
-		class="button is-light is-compact"
-		type="button"
-		{{on "click" this.exitDevMode}}
-		data-test-edit-job
-	>
-		Finished Developing
-	</button>
+		<button
+			class="button is-light is-compact"
+			type="button"
+			{{on "click" this.exitDevMode}}
+			data-test-edit-job
+		>
+			Finished Developing
+		</button>
+	</div>
+
+	{{#if (eq testResult "Passed")}}
+		<div>
+			<Hds::Alert @type="inline" @color="success" @icon="info" class="related-entities notification" as |A|>
+				<A.Title>Policy Check Passed</A.Title>
+				<A.Description>
+					This policy check successfully passed.
+				</A.Description>
+			</Hds::Alert>
+		</div>
+	{{/if}}
+
+	{{#if (eq testResult "Failed")}}
+		<div>
+			<Hds::Alert @type="inline" @color="critical" @icon="info" class="related-entities notification" as |A|>
+				<A.Title>Policy Check failed</A.Title>
+				<A.Description>
+					This Policy check failed.
+				</A.Description>
+			</Hds::Alert>
+		</div>
+	{{/if}}
 {{else}}
 	<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
 		{{#if @policy.isNew }}
@@ -102,7 +169,7 @@
 						{{on "click" this.enterDevMode}}
 						data-test-edit-job
 					>
-						Test against a job spec
+						Develop with a job spec
 					</button>
 				</div>
 			</div>

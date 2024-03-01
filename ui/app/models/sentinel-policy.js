@@ -16,9 +16,7 @@ export default class SentinelPolicy extends Model {
   @attr('number') createIndex;
   @attr('number') modifyIndex;
 
-  testAgainstJob(specification) {
-    return this.store
-      .adapterFor('sentinel-policy')
-      .testAgainstJob(this, specification);
+  testAgainstJob(job) {
+    return this.store.adapterFor('sentinel-policy').testAgainstJob(this, job);
   }
 }

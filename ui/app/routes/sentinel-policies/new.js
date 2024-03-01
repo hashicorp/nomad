@@ -17,17 +17,23 @@ export default class NewRoute extends Route {
   };
 
   model({ template }) {
-    let policy = 'main = rule { false }\n';
+    let policy = '#I always pass\nmain = rule { true }\n';
+    let name = '';
+    let description = '';
+
     if (template) {
       let matchingTemplate = TEMPLATES.find((t) => t.name == template);
       if (matchingTemplate) {
         policy = matchingTemplate.policy;
+        name = matchingTemplate.name;
+        description = matchingTemplate.description;
       }
     }
 
     return this.store.createRecord('sentinel-policy', {
-      name: '',
+      name,
       policy,
+      description,
       enforcementLevel: 'advisory',
       scope: 'submit-job',
     });

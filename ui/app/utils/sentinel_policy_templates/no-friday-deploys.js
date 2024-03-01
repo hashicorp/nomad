@@ -3,17 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-export default `
-# Test policy only allows Docker based tasks
-main = rule { all_drivers_docker }
+export default `import "time"
 
-# all_drivers_docker checks that all the drivers in use are Docker
+is_weekday = rule { time.day not in ["friday", "saturday", "sunday"] }
+is_open_hours = rule { time.hour > 8 and time.hour < 16 }
 
-all_drivers_docker = rule {
-  all job.task_groups as tg {
-    all tg.tasks as task {
-      task.driver is "docker"
-    }
-  }
-}
-`;
+main = rule { is_open_hours and is_weekday }`;

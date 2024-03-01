@@ -17,47 +17,41 @@ export default class SentinelPolicyEditorComponent extends Component {
   @service store;
   @tracked devMode = null;
   @tracked jobs = null;
-  @tracked selectedJobspec = `job "hello-world" {
-    meta {
-      foo = "bar"
-    }
-    group "servers" {
-      count = 1
-  
-      network {
-        port "www" {
-          to = 8001
-        }
-      }
-  
-      # Tasks are individual units of work that are run by Nomad.
-      task "web" {
-        # This particular task starts a simple web server within a Docker container
-        driver = "docker"
-  
-        config {
-          image   = "busybox:1"
-          command = "httpd"
-          args    = ["-v", "-f", "-p", "\${NOMAD_PORT_www}", "-h", "/local"]
-          ports   = ["www"]
-        }
-  
-        template {
-          data        = <<-EOF
-                        <h1>Hello, Nomad!</h1>
-                        EOF
-          destination = "local/index.html"
-        }
-  
-        # Specify the maximum resources required to run the task
-        resources {
-          cpu    = 50
-          memory = 64
-        }
-      }
-    }
-  }
-  `;
+  @tracked testResult = null;
+  @tracked selectedJobspec = '';
+  // @tracked selectedJobspec = `job "hello-world" {
+  //   group "servers" {
+  //     count = 1
+
+  //     network {
+  //       port "www" {
+  //         to = 8001
+  //       }
+  //     }
+
+  //     task "web" {
+  //       config {
+  //         image   = "busybox:1"
+  //         command = "httpd"
+  //         args    = ["-v", "-f", "-p", "\${NOMAD_PORT_www}", "-h", "/local"]
+  //         ports   = ["www"]
+  //       }
+
+  //       template {
+  //         data        = <<-EOF
+  //                       <h1>Hello, Nomad!</h1>
+  //                       EOF
+  //         destination = "local/index.html"
+  //       }
+
+  //       resources {
+  //         cpu    = 50
+  //         memory = 64
+  //       }
+  //     }
+  //   }
+  // }
+  // `;
 
   @alias('args.policy') policy;
 
@@ -73,7 +67,7 @@ export default class SentinelPolicyEditorComponent extends Component {
     this.policy.set('enforcementLevel', id);
   }
 
-  @action updatedSelectedJobspec({ target: { value } }) {
+  @action updateSelectedJobspec(value) {
     this.selectedJobspec = value;
   }
 
@@ -84,12 +78,45 @@ export default class SentinelPolicyEditorComponent extends Component {
   }
 
   @action exitDevMode() {
+    this.testResult = null;
+    this.selectedJobspec = '';
     this.devMode = false;
   }
 
   @action async getJobspecOptions() {
     return this.store.peekAll('submission');
   }
+
+  /**
+   * A task that performs the job parsing and planning.
+   * On error, it calls the onError method.
+   */
+  @(task(function* () {
+    this.testResult = null;
+
+    let job = this.store.createRecord('job', {
+      _newDefinition: this.selectedJobspec,
+    });
+
+    try {
+      yield job.parse();
+    } catch (err) {
+      this.onError(err, 'parse', 'parse jobs');
+      return;
+    }
+
+    let res = yield this.policy.testAgainstJob(job);
+
+    if (res.Passed) {
+      this.testResult = 'Passed';
+    } else {
+      this.testResult = 'Failed';
+      this.testMessage = res.Message;
+    }
+
+    console.log('res: ', res);
+  }).drop())
+  testIt;
 
   @task(function* (arg) {
     // TODO: This only works on default
@@ -98,7 +125,7 @@ export default class SentinelPolicyEditorComponent extends Component {
     console.log('job name', job.name);
     const spec = yield job.fetchRawSpecification();
     console.log('spec', spec);
-    this.selectedJobspec = spec;
+    this.selectedJobspec = spec.Source;
     yield true;
   })
   selectJob;
@@ -108,10 +135,6 @@ export default class SentinelPolicyEditorComponent extends Component {
     return this.jobs.map((j) => {
       return { key: j.name, label: j.name };
     });
-  }
-
-  @action async testIt() {
-    await this.policy.testAgainstJob(this.selectedJobspec);
   }
 
   @action async save(e) {

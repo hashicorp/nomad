@@ -9,7 +9,7 @@ export default `main = rule { all_counts_under }
 
 all_counts_under = rule {
   all job.task_groups as tg {
-    count < 100
+    tg.count < 100
   }
 }
 `;

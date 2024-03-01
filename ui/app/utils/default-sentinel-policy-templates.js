@@ -15,6 +15,7 @@ import vaultSecretsPolicy from './sentinel_policy_templates/vault-secrets-only';
 import dyanmicPortsPolicy from './sentinel_policy_templates/dynamic-ports-only';
 import resourceLimitsPolicy from './sentinel_policy_templates/resource-limits';
 import constraintEnforcmentPolicy from './sentinel_policy_templates/constraint-enforcement';
+import restictImagesPolicy from './sentinel_policy_templates/restrict-images';
 
 export default [
   {
@@ -90,5 +91,11 @@ export default [
     name: 'constraint-enforcement',
     description: 'Requires a constraint on client metadata',
     policy: constraintEnforcmentPolicy,
+  },
+  {
+    displayName: 'Restrict Images',
+    name: 'restrict-images',
+    description: 'Allows only certain Docker images and disables "latest" tags',
+    policy: restictImagesPolicy,
   },
 ];

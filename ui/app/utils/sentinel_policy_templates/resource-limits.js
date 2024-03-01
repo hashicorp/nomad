@@ -3,21 +3,19 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-export default `main = rule { memory_under_limit and cpu_under_limit }
+export default `import "units"
 
-memory_under_limit = rule {
-  all job.task_groups as tg {
-    all tg.tasks as task {
-      task.resources.memory < 1000
+resource_check = func(task_groups, resource) {
+  result = 0
+  for task_groups as g {
+    for g.tasks as t {
+        result = result + t.resources[resource] * g.count
     }
   }
+  return result
 }
 
-cpu_under_limit = rule {
-  all job.task_groups as tg {
-    all tg.tasks as task {
-      task.resources.cpu < 1000
-    }
-  }
-}
-`;
+main = rule  {
+  resource_check(job.task_groups, "cpu") <= 1500 and
+  resource_check(job.task_groups, "memory_mb") <= 2500
+}`;
