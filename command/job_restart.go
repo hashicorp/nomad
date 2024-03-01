@@ -1245,5 +1245,5 @@ func (a *AllocationListStubWithJob) IsRunning() bool {
 // isSystemJob returns true if allocation's job type
 // is "system", false otherwise
 func (a *AllocationListStubWithJob) isSystemJob() bool {
-	return a.Job != nil && a.Job.Type != nil && *a.Job.Type == "system"
+	return a.Job != nil && a.Job.Type != nil && *a.Job.Type == api.JobTypeSystem
 }
