@@ -65,11 +65,43 @@ const (
 	ACLAuthMethodSnapshot                SnapshotType = 26
 	ACLBindingRuleSnapshot               SnapshotType = 27
 	NodePoolSnapshot                     SnapshotType = 28
-	JobSubmissionSnapshot                SnapshotType = 29
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
 )
+
+var snapshotTypeStrings = map[SnapshotType]string{
+	NodeSnapshot:                         "Node",
+	JobSnapshot:                          "Job",
+	IndexSnapshot:                        "Index",
+	EvalSnapshot:                         "Eval",
+	AllocSnapshot:                        "Alloc",
+	TimeTableSnapshot:                    "TimeTable",
+	PeriodicLaunchSnapshot:               "PeriodicLaunch",
+	JobSummarySnapshot:                   "JobSummary",
+	VaultAccessorSnapshot:                "VaultAccessor",
+	JobVersionSnapshot:                   "JobVersion",
+	DeploymentSnapshot:                   "Deployment",
+	ACLPolicySnapshot:                    "ACLPolicy",
+	ACLTokenSnapshot:                     "ACLToken",
+	SchedulerConfigSnapshot:              "SchedulerConfig",
+	ClusterMetadataSnapshot:              "ClusterMetadata",
+	ServiceIdentityTokenAccessorSnapshot: "ServiceIdentityTokenAccessor",
+	ScalingPolicySnapshot:                "ScalingPolicy",
+	CSIPluginSnapshot:                    "CSIPlugin",
+	CSIVolumeSnapshot:                    "CSIVolume",
+	ScalingEventsSnapshot:                "ScalingEvents",
+	EventSinkSnapshot:                    "EventSink",
+	ServiceRegistrationSnapshot:          "ServiceRegistration",
+	VariablesSnapshot:                    "Variables",
+	VariablesQuotaSnapshot:               "VariablesQuota",
+	RootKeyMetaSnapshot:                  "RootKeyMeta",
+	ACLRoleSnapshot:                      "ACLRole",
+	ACLAuthMethodSnapshot:                "ACLAuthMethod",
+	ACLBindingRuleSnapshot:               "ACLBindingRule",
+	NodePoolSnapshot:                     "NodePool",
+	NamespaceSnapshot:                    "Namespace",
+}
 
 // LogApplier is the definition of a function that can apply a Raft log
 type LogApplier func(buf []byte, index uint64) interface{}
@@ -120,8 +152,8 @@ type nomadSnapshot struct {
 	timetable *TimeTable
 }
 
-// snapshotHeader is the first entry in our snapshot
-type snapshotHeader struct {
+// SnapshotHeader is the first entry in our snapshot
+type SnapshotHeader struct {
 }
 
 // FSMConfig is used to configure the FSM
@@ -727,7 +759,7 @@ func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, i
 	}
 
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
-		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.SubmitTime, req.NoShutdownDelay, tx)
+		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.NoShutdownDelay, tx)
 
 		if err != nil {
 			n.logger.Error("deregistering job failed",
@@ -767,7 +799,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 	// evals for jobs whose deregistering didn't get committed yet.
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
-			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, req.SubmitTime, false, tx); err != nil {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, false, tx); err != nil {
 				n.logger.Error("deregistering job failed", "job", jobNS.ID, "error", err)
 				return err
 			}
@@ -792,7 +824,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 
 // handleJobDeregister is used to deregister a job. Leaves error logging up to
 // caller.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, submitTime int64, noShutdownDelay bool, tx state.Txn) error {
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, noShutdownDelay bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
@@ -840,9 +872,6 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 
 		stopped := current.Copy()
 		stopped.Stop = true
-		if submitTime != 0 {
-			stopped.SubmitTime = submitTime
-		}
 
 		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
 			return fmt.Errorf("UpsertJob failed: %w", err)
@@ -1480,7 +1509,6 @@ func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 
 	if err := n.state.DeleteNamespaces(index, req.Namespaces); err != nil {
 		n.logger.Error("DeleteNamespaces failed", "error", err)
-		return err
 	}
 
 	return nil
@@ -1540,7 +1568,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 	dec := codec.NewDecoder(old, structs.MsgpackHandle)
 
 	// Read in the header
-	var header snapshotHeader
+	var header SnapshotHeader
 	if err := dec.Decode(&header); err != nil {
 		return err
 	}
@@ -1881,18 +1909,6 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 
 			// Perform the restoration.
 			if err := restore.NodePoolRestore(pool); err != nil {
-				return err
-			}
-
-		case JobSubmissionSnapshot:
-			jobSubmissions := new(structs.JobSubmission)
-
-			if err := dec.Decode(jobSubmissions); err != nil {
-				return err
-			}
-
-			// Perform the restoration.
-			if err := restore.JobSubmissionRestore(jobSubmissions); err != nil {
 				return err
 			}
 
@@ -2337,7 +2353,7 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	encoder := codec.NewEncoder(sink, structs.MsgpackHandle)
 
 	// Write the header
-	header := snapshotHeader{}
+	header := SnapshotHeader{}
 	if err := encoder.Encode(&header); err != nil {
 		sink.Cancel()
 		return err
@@ -2464,10 +2480,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLBindingRules(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistJobSubmissions(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -3187,28 +3199,51 @@ func (s *nomadSnapshot) persistACLBindingRules(sink raft.SnapshotSink, encoder *
 	return nil
 }
 
-func (s *nomadSnapshot) persistJobSubmissions(sink raft.SnapshotSink, encoder *codec.Encoder) error {
-
-	// Get all the job submissions.
-	ws := memdb.NewWatchSet()
-	jobSubmissionsIter, err := s.snap.GetJobSubmissions(ws)
-	if err != nil {
-		return err
-	}
-
-	for raw := jobSubmissionsIter.Next(); raw != nil; raw = jobSubmissionsIter.Next() {
-		jobSubmission := raw.(*structs.JobSubmission)
-
-		// write the snapshot
-		sink.Write([]byte{byte(JobSubmissionSnapshot)})
-		if err := encoder.Encode(jobSubmission); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // Release is a no-op, as we just need to GC the pointer
 // to the state store snapshot. There is nothing to explicitly
 // cleanup.
 func (s *nomadSnapshot) Release() {}
+
+// ReadSnapshot decodes each message type and utilizes the handler function to
+// process each message type individually
+func ReadSnapshot(r io.Reader, handler func(header *SnapshotHeader, snapType SnapshotType, dec *codec.Decoder) error) error {
+	// Create a decoder
+	dec := codec.NewDecoder(r, structs.MsgpackHandle)
+
+	// Read in the header
+	var header SnapshotHeader
+	if err := dec.Decode(&header); err != nil {
+		return err
+	}
+
+	// Populate the new state
+	msgType := make([]byte, 1)
+	for {
+		// Read the message type
+		_, err := r.Read(msgType)
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		// Decode
+		snapType := SnapshotType(msgType[0])
+
+		if err := handler(&header, snapType, dec); err != nil {
+			return err
+		}
+	}
+}
+
+func (s SnapshotType) String() string {
+	v, ok := snapshotTypeStrings[s]
+	if ok {
+		return v
+	}
+	v, ok = enterpriseSnapshotType(s)
+	if ok {
+		return v
+	}
+	return "others"
+}
