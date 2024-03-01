@@ -1,0 +1,3 @@
+```release-note:improvement
+build: Added json option on job status command
+```
