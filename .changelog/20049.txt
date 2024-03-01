@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where the `nomad job restart` command could crash if the job type was not present in a response from the server
+```
