@@ -22,7 +22,7 @@ export default class IndexRoute extends Route.extend(
   @service store;
   @service watchList;
 
-  perPage = 3;
+  perPage = 10;
 
   queryParams = {
     qpNamespace: {
@@ -87,7 +87,7 @@ export default class IndexRoute extends Route.extend(
 
     // TODO: maybe do these in controller constructor?
     // Now that we've set the jobIDs, immediately start watching them
-    this.controller.watchJobs.perform(controller.jobIDs, 500);
+    this.controller.watchJobs.perform(controller.jobIDs, 2000);
     // And also watch for any changes to the jobIDs list
     this.controller.watchJobIDs.perform(this.getCurrentParams(), 2000);
   }
@@ -99,7 +99,7 @@ export default class IndexRoute extends Route.extend(
   @action
   willTransition(transition) {
     // TODO: Something is preventing jobs -> job -> jobs -> job.
-    if (!transition.intent.name.startsWith(this.routeName)) {
+    if (!transition.intent.name?.startsWith(this.routeName)) {
       this.watchList.jobsIndexDetailsController.abort();
       this.watchList.jobsIndexIDsController.abort();
       this.controller.watchJobs.cancelAll();
