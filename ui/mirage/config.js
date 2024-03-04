@@ -30,7 +30,7 @@ export function filesForPath(allocFiles, filterPath) {
 export default function () {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
-  this.logging = window.location.search.includes('mirage-logging=true');
+  this.logging = true; // TODO: window.location.search.includes('mirage-logging=true');
 
   this.namespace = 'v1';
   this.trackRequests = Ember.testing;
@@ -97,7 +97,6 @@ export default function () {
 
       let returnedJobs = this.serialize(jobs.all()).map((j) => {
         let job = {};
-        // job.priority = Math.floor(Math.random() * 100);
         job.ID = j.ID;
         job.Name = j.Name;
         job.Allocs = server.db.allocations
@@ -116,7 +115,7 @@ export default function () {
             };
           });
         job.ChildStatuses = null; // TODO: handle parent job here
-        job.Datacenters = ['*']; // TODO
+        job.Datacenters = j.Datacenters;
         job.DeploymentID = j.DeploymentID;
         job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
           (a, b) => a + b,
@@ -130,7 +129,6 @@ export default function () {
         job.SmartAllocs = {}; // TODO
         return job;
       });
-      // console.log('returned', returnedJobs);
       return returnedJobs;
     })
   );
