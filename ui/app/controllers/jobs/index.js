@@ -108,7 +108,7 @@ export default class JobsIndexController extends Controller {
     this.pendingJobs = null;
     this.jobIDs = this.pendingJobIDs;
     this.pendingJobIDs = null;
-    this.watchJobs.perform(this.jobIDs, 500);
+    this.watchJobs.perform(this.jobIDs, 2000);
   }
 
   @localStorageProperty('nomadLiveUpdateJobsIndex', false) liveUpdatesEnabled;
@@ -210,7 +210,8 @@ export default class JobsIndexController extends Controller {
           jobIDs
         );
         this.watchList.jobsIndexDetailsController = new AbortController();
-        this.watchJobs.perform(jobIDs, 500);
+        // make sure throttle has taken place!
+        this.watchJobs.perform(jobIDs, throttle);
       } else {
         // this.controller.set('pendingJobIDs', jobIDs);
         // this.controller.set('pendingJobs', newJobs);
