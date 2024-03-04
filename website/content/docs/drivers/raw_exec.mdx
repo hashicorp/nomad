@@ -117,6 +117,30 @@ client {
 - `enabled` - Specifies whether the driver should be enabled or disabled.
   Defaults to `false`.
 
+- `denied_host_uids` - (Optional) Specifies a comma-separated list of host uids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user has a user id in
+  the given ranges, the task will error before starting. This will not be run on Windows
+  clients.
+
+```hcl
+config {
+  denied_host_uids = "0,10-15,22"
+}
+```
+
+- `denied_host_gids` - (Optional) Specifies a comma-separated list of host uids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user has is part of
+  any groups with gid's in the specified ranges, the task will error before
+  starting. This will not be run on Windows clients.
+
+```hcl
+config {
+  denied_host_gids = "2,4-8"
+}
+```
+
 ## Client Options
 
 ~> Note: client configuration options will soon be deprecated. Please use
@@ -142,7 +166,7 @@ manage the process tree. Cgroups are used on Linux when Nomad is being run with
 appropriate privileges, and the cgroup system is mounted.
 
 If the cluster is configured with memory oversubscription enabled, a task using
-the `raw_exec` driver can be configured to have no maximum memory limit by 
+the `raw_exec` driver can be configured to have no maximum memory limit by
 setting `memory_max = -1`.
 
 ```hcl
@@ -152,7 +176,6 @@ resources {
   memory_max = -1 # no limit
 }
 ```
-
 
 [hardening]: /nomad/docs/install/production/requirements#user-permissions
 [plugin-options]: #plugin-options

@@ -178,15 +178,39 @@ able to make use of IPC features, like sending unexpected POSIX signals.
  "net_bind_service", "setfcap", "setgid", "setpcap", "setuid", "sys_chroot"]
 ```
 
-  which is modeled after the capabilities allowed by [docker by default][docker_caps]
-  (without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities
-  can be obtained by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options.
-  Supports the value `"all"` as a shortcut for allow-listing all capabilities supported
-  by the operating system.
+which is modeled after the capabilities allowed by [docker by default][docker_caps]
+(without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities
+can be obtained by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options.
+Supports the value `"all"` as a shortcut for allow-listing all capabilities supported
+by the operating system.
 
 !> **Warning:** Allowing more capabilities beyond the default may lead to
 undesirable consequences, including untrusted tasks being able to compromise the
 host system.
+
+- `denied_host_uids` - (Optional) Specifies a comma-separated list of host uids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user has a user id in
+  the given ranges, the task will error before starting. This will not be run on Windows
+  clients.
+
+```hcl
+config {
+  denied_host_uids = "0,10-15,22"
+}
+```
+
+- `denied_host_gids` - (Optional) Specifies a comma-separated list of host uids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user has is part of
+  any groups with gid's in the specified ranges, the task will error before
+  starting. This will not be run on Windows clients.
+
+```hcl
+config {
+  denied_host_gids = "2,4-8"
+}
+```
 
 ## Client Attributes
 

@@ -7,6 +7,7 @@ package rawexec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testtask"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -409,4 +411,34 @@ func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
 	require.Zero(t, code)
 	require.Empty(t, stderr)
 	require.Contains(t, stdout, "nobody")
+}
+
+func TestRawExec_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	current, err := users.Current()
+	require.NoError(t, err)
+	currentUid, err := strconv.ParseUint(current.Uid, 10, 32)
+	require.NoError(t, err)
+
+	currentUserErrStr := fmt.Sprintf("running as uid %d is disallowed", currentUid)
+
+	allowAll := ""
+	denyCurrent := fmt.Sprintf("%d", currentUid)
+	configAllowCurrent := Config{DeniedHostUids: allowAll}
+	configDenyCurrent := Config{DeniedHostUids: denyCurrent}
+	driverConfigNoUserSpecified := drivers.TaskConfig{}
+	driverConfigSpecifyCurrent := drivers.TaskConfig{User: current.Name}
+
+	for _, tc := range []struct {
+		config       Config
+		driverConfig drivers.TaskConfig
+		exp          error
+	}{
+		{config: configAllowCurrent, driverConfig: driverConfigSpecifyCurrent, exp: nil},
+		{config: configDenyCurrent, driverConfig: driverConfigNoUserSpecified, exp: errors.New(currentUserErrStr)},
+		{config: configDenyCurrent, driverConfig: driverConfigSpecifyCurrent, exp: errors.New(currentUserErrStr)},
+	} {
+		require.Equal(t, tc.exp, (&TaskConfig{}).Validate(tc.config, tc.driverConfig))
+	}
 }

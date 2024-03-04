@@ -123,6 +123,15 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	bconfig.PluginConfig = data
 	require.NoError(harness.SetConfig(bconfig))
 	require.Exactly(config, d.(*Driver).config)
+
+	// Turns on uid/gid restrictions, and sets the range to a bad value
+	config.DeniedHostUids = "10-0"
+	data = []byte{}
+	require.NoError(basePlug.MsgPackEncode(&data, config))
+	bconfig.PluginConfig = data
+	err := harness.SetConfig(bconfig)
+	require.Error(err)
+	require.Contains(err.Error(), "invalid denied_host_uids value")
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
