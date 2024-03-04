@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -81,6 +82,8 @@ var (
 			hclspec.NewAttr("enabled", "bool", false),
 			hclspec.NewLiteral("false"),
 		),
+		"denied_host_uids": hclspec.NewAttr("denied_host_uids", "string", false),
+		"denied_host_gids": hclspec.NewAttr("denied_host_gids", "string", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -139,6 +142,12 @@ type Driver struct {
 type Config struct {
 	// Enabled is set to true to enable the raw_exec driver
 	Enabled bool `codec:"enabled"`
+
+	// DeniedHostUids configures which host uids are disallowed
+	DeniedHostUids string `codec:"denied_host_uids"`
+
+	// DeniedHostGids configures which host gids are disallowed
+	DeniedHostGids string `codec:"denied_host_gids"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -194,17 +203,28 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
 	var config Config
+
 	if len(cfg.PluginConfig) != 0 {
 		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
 			return err
 		}
 	}
 
+	if err := validators.IDRangeValid("denied_host_uids", config.DeniedHostUids); err != nil {
+		return err
+	}
+
+	if err := validators.IDRangeValid("denied_host_gids", config.DeniedHostGids); err != nil {
+		return err
+	}
+
 	d.config = &config
+
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 		d.compute = cfg.AgentConfig.Compute()
 	}
+
 	return nil
 }
 
@@ -328,8 +348,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
+<<<<<<< HEAD
 	if driverConfig.OOMScoreAdj < 0 {
 		return nil, nil, fmt.Errorf("oom_score_adj must not be negative")
+=======
+	if err := driverConfig.Validate(*d.config, *cfg); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
+>>>>>>> e1288623a5 (Adds ability to restrict uid and gids in exec and raw_exec)
 	}
 
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))

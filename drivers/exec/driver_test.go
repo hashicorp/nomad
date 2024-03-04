@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -870,10 +871,59 @@ func TestDriver_Config_validate(t *testing.T) {
 			}).validate())
 		}
 	})
+
+	t.Run("denied_host_ids", func(t *testing.T) {
+		invalidUidRange := "invalid uid range"
+		invalidGidRange := "invalid gid range"
+
+		for _, tc := range []struct {
+			uidRanges string
+			gidRanges string
+			errorStr  *string
+		}{
+			{uidRanges: "", gidRanges: "", errorStr: nil},
+			{uidRanges: "1-10", gidRanges: "1-10", errorStr: nil},
+			{uidRanges: "10-1", gidRanges: "", errorStr: &invalidUidRange},
+			{uidRanges: "", gidRanges: "10-1", errorStr: &invalidGidRange},
+		} {
+
+			validationErr := (&Config{
+				DefaultModePID: "private",
+				DefaultModeIPC: "private",
+				DeniedHostUids: tc.uidRanges,
+				DeniedHostGids: tc.gidRanges,
+			}).validate()
+
+			if tc.errorStr == nil {
+				require.Nil(t, validationErr)
+			} else {
+				require.Contains(t, validationErr.Error(), *tc.errorStr)
+			}
+		}
+	})
 }
 
 func TestDriver_TaskConfig_validate(t *testing.T) {
 	ci.Parallel(t)
+
+	current, err := users.Current()
+	require.NoError(t, err)
+	currentUid, err := strconv.ParseUint(current.Uid, 10, 32)
+	require.NoError(t, err)
+	nobody, err := users.Lookup("nobody")
+	require.NoError(t, err)
+	nobodyUid, err := strconv.ParseUint(nobody.Uid, 10, 32)
+	require.NoError(t, err)
+
+	allowAll := ""
+	denyCurrent := fmt.Sprint(currentUid)
+	denyNobody := fmt.Sprint(nobodyUid)
+	configAllowCurrent := Config{DeniedHostUids: allowAll}
+	configDenyCurrent := Config{DeniedHostUids: denyCurrent}
+	configDenyAnonymous := Config{DeniedHostUids: denyNobody}
+	driverConfigNoUserSpecified := drivers.TaskConfig{}
+	driverConfigSpecifyCurrent := drivers.TaskConfig{User: current.Name}
+
 	t.Run("pid/ipc", func(t *testing.T) {
 		for _, tc := range []struct {
 			pidMode, ipcMode string
@@ -892,7 +942,7 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			require.Equal(t, tc.exp, (&TaskConfig{
 				ModePID: tc.pidMode,
 				ModeIPC: tc.ipcMode,
-			}).validate())
+			}).validate(&driverConfigNoUserSpecified, &configAllowCurrent))
 		}
 	})
 
@@ -909,7 +959,7 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 		} {
 			require.Equal(t, tc.exp, (&TaskConfig{
 				CapAdd: tc.adds,
-			}).validate())
+			}).validate(&driverConfigNoUserSpecified, &configAllowCurrent))
 		}
 	})
 
@@ -926,7 +976,25 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 		} {
 			require.Equal(t, tc.exp, (&TaskConfig{
 				CapDrop: tc.drops,
-			}).validate())
+			}).validate(&driverConfigNoUserSpecified, &configAllowCurrent))
+		}
+	})
+
+	t.Run("uid_restriction", func(t *testing.T) {
+		currentUserErrStr := fmt.Sprintf("running as uid %d is disallowed", currentUid)
+		anonUserErrStr := fmt.Sprintf("running as uid %d is disallowed", nobodyUid)
+
+		for _, tc := range []struct {
+			config       Config
+			driverConfig drivers.TaskConfig
+			exp          error
+		}{
+			{config: configAllowCurrent, driverConfig: driverConfigSpecifyCurrent, exp: nil},
+			{config: configDenyCurrent, driverConfig: driverConfigNoUserSpecified, exp: nil},
+			{config: configDenyCurrent, driverConfig: driverConfigSpecifyCurrent, exp: errors.New(currentUserErrStr)},
+			{config: configDenyAnonymous, driverConfig: driverConfigNoUserSpecified, exp: errors.New(anonUserErrStr)},
+		} {
+			require.Equal(t, tc.exp, (&TaskConfig{}).validate(&tc.driverConfig, &tc.config))
 		}
 	})
 }
