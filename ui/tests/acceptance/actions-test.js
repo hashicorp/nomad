@@ -352,7 +352,7 @@ module('Acceptance | actions', function (hooks) {
 
     await percySnapshot('Cleared actions/flyout open state', {
       percyCSS: `
-          g.tick { visibility: hidden; };
+          g.tick { visibility: hidden; }
           .recent-events-table td {
             display: none;
           }
