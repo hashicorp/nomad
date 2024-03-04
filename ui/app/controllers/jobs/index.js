@@ -11,6 +11,7 @@ import { action, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { restartableTask, timeout } from 'ember-concurrency';
+import Ember from 'ember';
 
 export default class JobsIndexController extends Controller {
   @service router;
@@ -184,7 +185,7 @@ export default class JobsIndexController extends Controller {
 
   // TODO: set up isEnabled to check blockingQueries rather than just use while (true)
   @restartableTask *watchJobIDs(params, throttle = 2000) {
-    while (true) {
+    while (true && !Ember.testing) {
       let currentParams = params;
       const newJobs = yield this.jobQuery(currentParams, {
         queryType: 'update_ids',
@@ -223,7 +224,7 @@ export default class JobsIndexController extends Controller {
   }
 
   @restartableTask *watchJobs(jobIDs, throttle = 2000) {
-    while (true) {
+    while (true && !Ember.testing) {
       // let jobIDs = this.controller.jobIDs;
       if (jobIDs && jobIDs.length > 0) {
         let jobDetails = yield this.jobAllocsQuery(jobIDs);
