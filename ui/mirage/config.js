@@ -74,6 +74,67 @@ export default function () {
     })
   );
 
+  this.get(
+    '/jobs/statuses',
+    withBlockingSupport(function ({ jobs }, req) {
+      const json = this.serialize(jobs.all());
+      const namespace = req.queryParams.namespace || 'default';
+      return json
+        .filter((job) => {
+          if (namespace === '*') return true;
+          return namespace === 'default'
+            ? !job.NamespaceID || job.NamespaceID === 'default'
+            : job.NamespaceID === namespace;
+        })
+        .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+    })
+  );
+
+  this.post(
+    '/jobs/statuses',
+    withBlockingSupport(function ({ jobs }, req) {
+      // console.log('postbody', req, server.db, server.schema);
+
+      let returnedJobs = this.serialize(jobs.all()).map((j) => {
+        let job = {};
+        // job.priority = Math.floor(Math.random() * 100);
+        job.ID = j.ID;
+        job.Name = j.Name;
+        job.Allocs = server.db.allocations
+          .where({ jobId: j.ID, namespace: j.Namespace })
+          .map((alloc) => {
+            return {
+              ClientStatus: alloc.clientStatus,
+              DeploymentStatus: {
+                Canary: false,
+                Healthy: true,
+              },
+              Group: alloc.taskGroup,
+              JobVersion: alloc.jobVersion,
+              NodeID: alloc.nodeId,
+              ID: alloc.id,
+            };
+          });
+        job.ChildStatuses = null; // TODO: handle parent job here
+        job.Datacenters = ['*']; // TODO
+        job.DeploymentID = j.DeploymentID;
+        job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
+          (a, b) => a + b,
+          0
+        );
+        job.Namespace = j.NamespaceID;
+        job.NodePool = j.NodePool;
+        job.Type = j.Type;
+        job.Priority = j.Priority;
+        job.Version = j.Version;
+        job.SmartAllocs = {}; // TODO
+        return job;
+      });
+      // console.log('returned', returnedJobs);
+      return returnedJobs;
+    })
+  );
+
   this.post('/jobs', function (schema, req) {
     const body = JSON.parse(req.requestBody);
 
