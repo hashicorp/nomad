@@ -927,7 +927,7 @@ func (a *ACLPolicyJobACLFieldIndex) FromObject(obj interface{}) (bool, []byte, e
 	jobID := policy.JobACL.JobID
 	if jobID == "" {
 		return false, nil, fmt.Errorf(
-			"object %#v is not a valid ACLPolicy: JobACL.JobID without Namespace", obj)
+			"object %#v is not a valid ACLPolicy: Namespace without JobID", obj)
 	}
 
 	val := ns + "\x00" + jobID + "\x00"
