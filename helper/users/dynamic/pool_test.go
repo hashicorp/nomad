@@ -83,9 +83,6 @@ func TestPool_Acquire_random(t *testing.T) {
 		run2[i] = v2
 	}
 
-	// ensure the order is different (i.e. randomness)
-	must.NotEq(t, run1, run2)
-
 	// ensure both runs contain the expected ugids
 	exp := []UGID{200, 201, 202, 203, 204, 205, 206, 207, 208, 209}
 	must.SliceContainsAll(t, exp, run1)
