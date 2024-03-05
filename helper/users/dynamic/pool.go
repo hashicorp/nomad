@@ -1,8 +1,6 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-//go:build linux
-
 // Package dynamic provides a way of allocating UID/GID to be used by Nomad
 // tasks with no associated service users managed by the operating system.
 package dynamic
@@ -18,8 +16,8 @@ import (
 )
 
 var (
-	ErrPoolExhausted = errors.New("users: credentials exhausted")
-	ErrReleaseUnused = errors.New("users: release of unused credentials")
+	ErrPoolExhausted = errors.New("users: uid/gid pool exhausted")
+	ErrReleaseUnused = errors.New("users: release of unused uid/gid")
 	ErrCannotParse   = errors.New("users: unable to parse uid/gid from username")
 )
 

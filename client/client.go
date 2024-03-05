@@ -56,6 +56,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
@@ -339,6 +340,9 @@ type Client struct {
 
 	// widsigner signs workload identities
 	widsigner widmgr.IdentitySigner
+
+	// users is a pool of dynamic workload users
+	users dynamic.Pool
 }
 
 var (
@@ -470,6 +474,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	} else {
 		c.topology = numalib.NoImpl(ir.Topology)
 	}
+
+	// Create the dynamic workload users pool
+	c.users = dynamic.New(&dynamic.PoolConfig{
+		MinUGID: 80_000, // TODO(shoenig) plumb client config
+		MaxUGID: 89_999, // TODO(shoenig) plumb client config
+	})
 
 	// Create the cpu core partition manager
 	c.partitions = cgroupslib.GetPartition(
@@ -2772,6 +2782,7 @@ func (c *Client) newAllocRunnerConfig(
 		WIDSigner:           c.widsigner,
 		Wranglers:           c.wranglers,
 		Partitions:          c.partitions,
+		Users:               c.users,
 	}
 }
 

@@ -178,6 +178,12 @@ type Capabilities struct {
 	// DisableLogCollection indicates this driver has disabled log collection
 	// and the client should not start a logmon process.
 	DisableLogCollection bool
+
+	// DynamicWorkloadUsers indicates this driver is capable (but not required)
+	// of making use of UID/GID not backed by a user known to the operating system.
+	// The allocation of a unique, not-in-use UID/GID is managed by Nomad client
+	// ensuring no overlap.
+	DynamicWorkloadUsers bool
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {

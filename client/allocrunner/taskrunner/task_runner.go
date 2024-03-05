@@ -38,6 +38,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
@@ -270,6 +271,9 @@ type TaskRunner struct {
 
 	// widmgr manages workload identities
 	widmgr widmgr.IdentityManager
+
+	// users manages the pool of dynamic workload users
+	users dynamic.Pool
 }
 
 type Config struct {
@@ -345,6 +349,9 @@ type Config struct {
 
 	// WIDMgr manages workload identities
 	WIDMgr widmgr.IdentityManager
+
+	// Users manages a pool of dynamic workload users
+	Users dynamic.Pool
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -1117,7 +1124,7 @@ func (tr *TaskRunner) persistLocalState() error {
 func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	task := tr.Task()
 	alloc := tr.Alloc()
-	invocationid := uuid.Generate()[:8]
+	invocationid := uuid.Short()
 	taskResources := tr.taskResources
 	ports := tr.Alloc().AllocatedResources.Shared.Ports
 	env := tr.envBuilder.Build()
