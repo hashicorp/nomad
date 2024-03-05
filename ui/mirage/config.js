@@ -126,7 +126,7 @@ export default function () {
         job.Type = j.Type;
         job.Priority = j.Priority;
         job.Version = j.Version;
-        job.SmartAllocs = {}; // TODO
+        job.SmartAlloc = {}; // TODO
         return job;
       });
       return returnedJobs;
