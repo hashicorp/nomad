@@ -27,6 +27,7 @@ export default class NodeAdapter extends Watchable {
         NodeID: node.id,
         Eligibility: isEligible ? 'eligible' : 'ineligible',
       },
+      skipURLModification: true,
     });
   }
 
@@ -45,6 +46,7 @@ export default class NodeAdapter extends Watchable {
           drainSpec
         ),
       },
+      skipURLModification: true,
     });
   }
 
@@ -71,6 +73,7 @@ export default class NodeAdapter extends Watchable {
     const url = `/v1/client/metadata?node_id=${node.id}`;
     return this.ajax(url, 'POST', {
       data: { Meta: newMeta },
+      skipURLModification: true,
     });
   }
 }
