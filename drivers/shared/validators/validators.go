@@ -70,7 +70,7 @@ func UserInRange(userLookupFn userLookupFn, usernameToLookup string, deniedHostU
 			return fmt.Errorf("unable to convert user's group %q to integer", gidString)
 		}
 
-		gids = append(gids, uint64(u))
+		gids = append(gids, u)
 	}
 
 	gidRanges, err := parseRanges(deniedHostGIDs)
