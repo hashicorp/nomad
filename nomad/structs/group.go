@@ -127,3 +127,15 @@ func (ds *DisconnectStrategy) Canonicalize() {
 		ds.Reconcile = ReconcileOptionBestScore
 	}
 }
+
+// ReconcileStrategy returns the strategy to be used when reconciling allocations
+// after a client reconnects. Best score is the default one.
+func (ds *DisconnectStrategy) ReconcileStrategy() string {
+
+	strategy := ReconcileOptionBestScore
+	if ds != nil || (ds != nil && ds.Reconcile != "") {
+		strategy = ds.Reconcile
+	}
+
+	return strategy
+}

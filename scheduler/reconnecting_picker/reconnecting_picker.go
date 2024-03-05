@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// type picker func(*structs.Allocation, *structs.Allocation) *structs.Allocation
 type ReconnectingPicker struct {
 	logger log.Logger
 }
@@ -31,27 +30,23 @@ func (rp *ReconnectingPicker) PickReconnectingAlloc(ds *structs.DisconnectStrate
 		return replacement
 	}
 
-	// Best score is the default strategy.
-	strategy := structs.ReconcileOptionBestScore
-	if ds != nil || (ds != nil && ds.Reconcile != "") {
-		strategy = ds.Reconcile
-	}
-
-	rp.logger.Debug("picking according to strategy", "strategy", strategy)
-
 	var picker func(*structs.Allocation, *structs.Allocation) *structs.Allocation
-	switch strategy {
+
+	rs := ds.ReconcileStrategy()
+	rp.logger.Debug("picking according to strategy", "strategy", rs)
+
+	switch rs {
 	case structs.ReconcileOptionBestScore:
-		picker = pickBestScore
+		picker = rp.pickBestScore
 
 	case structs.ReconcileOptionKeepOriginal:
-		picker = pickOriginal
+		picker = rp.pickOriginal
 
 	case structs.ReconcileOptionKeepReplacement:
-		picker = pickReplacement
+		picker = rp.pickReplacement
 
 	case structs.ReconcileOptionLongestRunning:
-		picker = pickLongestRunning
+		picker = rp.pickLongestRunning
 	}
 
 	return picker(original, replacement)
@@ -63,7 +58,7 @@ func (rp *ReconnectingPicker) PickReconnectingAlloc(ds *structs.DisconnectStrate
 // This function is not commutative, meaning that pickReconnectingAlloc(A, B)
 // is not the same as pickReconnectingAlloc(B, A). Preference is given to keep
 // the original allocation when possible.
-func pickBestScore(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
+func (rp *ReconnectingPicker) pickBestScore(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
 
 	// Check if the replacement has better placement score.
 	// If any of the scores is not available, only pick the replacement if
@@ -88,21 +83,26 @@ func pickBestScore(original *structs.Allocation, replacement *structs.Allocation
 	return original
 }
 
-func pickOriginal(original *structs.Allocation, _ *structs.Allocation) *structs.Allocation {
+func (rp *ReconnectingPicker) pickOriginal(original *structs.Allocation, _ *structs.Allocation) *structs.Allocation {
 	return original
 }
 
-func pickReplacement(_ *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
+func (rp *ReconnectingPicker) pickReplacement(_ *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
 	return replacement
 }
 
-func pickLongestRunning(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
-	// Check if the replacement has been running longer.
-	// Always prefer the replacement if true.
-	replacementIsLongerRunning := replacement.ClientStatus == structs.AllocClientStatusRunning
-	if replacementIsLongerRunning {
-		return replacement
+func (rp *ReconnectingPicker) pickLongestRunning(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
+	ln := original.GetLeaderTasksName()
+
+	// Default to the first task in the group if no leader is found.
+	if ln == "" {
+		tg := original.Job.LookupTaskGroup(original.TaskGroup)
+		ln = tg.Tasks[0].Name
 	}
 
-	return original
+	if original.LatestStartOfTask(ln).Sub(replacement.LatestStartOfTask(ln)) < 0 {
+		return original
+	}
+
+	return replacement
 }

@@ -11443,6 +11443,47 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
+// GetLeaderTasksName will return the name of the leader task in the allocation
+// if there is one, otherwise it will return an empty string.
+func (a *Allocation) GetLeaderTasksName() string {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	name := ""
+	switch len(tg.Tasks) {
+	case 0:
+
+	case 1:
+		name = tg.Tasks[0].Name
+
+	default:
+		for _, t := range tg.Tasks {
+			if t.Leader == true {
+				name = t.Name
+				break
+			}
+		}
+	}
+
+	return name
+}
+
+// LatestStartOfTask returns the time of the last start event for the given task
+// using the allocations TaskStates. If the task has not started, the zero time
+// will be returned.
+func (a *Allocation) LatestStartOfTask(task string) time.Time {
+	t := time.Time{}
+	// TaskStates are appended to the list and we only need the latest
+	// transition, so traverse from the end until we find one.
+	for i := len(a.TaskStates[task].Events) - 1; i >= 0; i-- {
+		e := a.TaskStates[task].Events[i]
+		if e.Type == TaskStarted {
+			t = time.Unix(0, e.Time).UTC()
+			break
+		}
+	}
+	return t
+}
+
 // IdentityClaims are the input to a JWT identifying a workload. It
 // should never be serialized to msgpack unsigned.
 type IdentityClaims struct {
