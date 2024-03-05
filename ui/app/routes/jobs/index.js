@@ -73,7 +73,8 @@ export default class IndexRoute extends Route.extend(
 
   setupController(controller, model) {
     super.setupController(controller, model);
-    controller.set('jobs', model.jobs);
+    // TODO: consider re-instating this. This is setting them and then their order gets shuffled.
+    // controller.set('jobs', model.jobs);
     controller.set('nextToken', model.jobs.meta.nextToken);
     controller.set(
       'jobIDs',
