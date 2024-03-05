@@ -11443,28 +11443,28 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
-// GetLeaderTasksName will return the name of the leader task in the allocation
-// if there is one, otherwise it will return an empty string.
-func (a *Allocation) GetLeaderTasksName() string {
+// GetLeaderTask will return the leader task in the allocation
+// if there is one, otherwise it will return an empty task.
+func (a *Allocation) GetLeaderTask() Task {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
-	name := ""
+	task := Task{}
 	switch len(tg.Tasks) {
 	case 0:
 
 	case 1:
-		name = tg.Tasks[0].Name
+		task = *tg.Tasks[0]
 
 	default:
 		for _, t := range tg.Tasks {
-			if t.Leader == true {
-				name = t.Name
+			if t.Leader {
+				task = *t
 				break
 			}
 		}
 	}
 
-	return name
+	return task
 }
 
 // LatestStartOfTask returns the time of the last start event for the given task

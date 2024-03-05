@@ -92,15 +92,14 @@ func (rp *ReconnectingPicker) pickReplacement(_ *structs.Allocation, replacement
 }
 
 func (rp *ReconnectingPicker) pickLongestRunning(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
-	ln := original.GetLeaderTasksName()
+	lt := original.GetLeaderTask()
 
 	// Default to the first task in the group if no leader is found.
-	if ln == "" {
-		tg := original.Job.LookupTaskGroup(original.TaskGroup)
-		ln = tg.Tasks[0].Name
+	if lt.Name == "" {
+		lt = *original.Job.LookupTaskGroup(original.TaskGroup).Tasks[0]
 	}
 
-	if original.LatestStartOfTask(ln).Sub(replacement.LatestStartOfTask(ln)) < 0 {
+	if original.LatestStartOfTask(lt.Name).Sub(replacement.LatestStartOfTask(lt.Name)) < 0 {
 		return original
 	}
 
