@@ -530,6 +530,7 @@ module('Acceptance | job status panel', function (hooks) {
       {
         percyCSS: `
           .allocation-row td { display: none; }
+          .inline-chart { visibility: hidden; }
         `,
       }
     );
@@ -545,6 +546,7 @@ module('Acceptance | job status panel', function (hooks) {
       {
         percyCSS: `
           .allocation-row td { display: none; }
+          .inline-chart { visibility: hidden; }
         `,
       }
     );
@@ -588,6 +590,7 @@ module('Acceptance | job status panel', function (hooks) {
       {
         percyCSS: `
           .allocation-row td { display: none; }
+          .inline-chart { visibility: hidden; }
         `,
       }
     );

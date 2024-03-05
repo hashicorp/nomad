@@ -162,7 +162,11 @@ module('Acceptance | actions', function (hooks) {
       "The first action's dropdown subcontent exists"
     );
 
-    await percySnapshot(assert);
+    await percySnapshot(assert, {
+      percyCSS: `
+        .allocation-row td { display: none; }
+      `,
+    });
 
     // run on a random alloc
     await Actions.titleActions.multiAllocActions[0].subActions[0].click();
@@ -333,11 +337,28 @@ module('Acceptance | actions', function (hooks) {
       Actions.flyout.actions.isPresent,
       'Flyout has actions dropdown on task page'
     );
-    await percySnapshot(assert);
+    await percySnapshot(assert, {
+      percyCSS: `
+          g.tick { visibility: hidden; };
+          .recent-events-table td {
+            display: none;
+          }
+          .inline-definitions { visibility: hidden; }
+        `,
+    });
 
     // Clear finished actions and take a snapshot
     await click('button[data-test-clear-finished-actions]');
-    await percySnapshot('Cleared actions/flyout open state');
+
+    await percySnapshot('Cleared actions/flyout open state', {
+      percyCSS: `
+          g.tick { visibility: hidden; }
+          .recent-events-table td {
+            display: none;
+          }
+          .inline-definitions { visibility: hidden; }
+        `,
+    });
 
     // Close flyout; global button is no longer present
     await Actions.flyout.close();
