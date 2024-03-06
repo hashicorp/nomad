@@ -25,5 +25,10 @@ func (tc *TaskConfig) Validate(driverCofig Config, cfg drivers.TaskConfig) error
 		usernameToLookup = current.Name
 	}
 
-	return validators.UserInRange(users.Lookup, usernameToLookup, driverCofig.DeniedHostUids, driverCofig.DeniedHostGids)
+	user, err := users.LookupOsUser(usernameToLookup)
+	if err != nil {
+		return err
+	}
+
+	return validators.UserInRange(user, driverCofig.DeniedHostUids, driverCofig.DeniedHostGids)
 }

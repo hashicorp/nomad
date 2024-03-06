@@ -6,7 +6,6 @@
 package validators
 
 import (
-	"os/user"
 	"testing"
 
 	"github.com/shoenig/test/must"
@@ -52,19 +51,31 @@ func Test_IDRangeValid(t *testing.T) {
 	}
 }
 
+type MockUser struct {
+	Uid string
+	Gid string
+}
+
+func (u *MockUser) UserId() string {
+	return u.Uid
+}
+func (u *MockUser) GroupIds() ([]string, error) {
+	return []string{u.Gid}, nil
+}
+
 func Test_UserInRange(t *testing.T) {
 	emptyRange := ""
 	invalidRange := "foo"
 
 	testCases := []struct {
-		name           string
-		uidRanges      string
-		gidRanges      string
-		uid            string
-		gid            string
-		expectedPass   bool
-		expectedErr    string
-		userLookupFunc userLookupFn
+		name         string
+		uidRanges    string
+		gidRanges    string
+		uid          string
+		gid          string
+		expectedPass bool
+		expectedErr  string
+		user         MockUser
 	}{
 		{name: "no-ranges-are-valid", uidRanges: emptyRange, gidRanges: emptyRange, expectedPass: true},
 		{name: "uid-and-gid-outside-of-ranges-valid", uidRanges: validRange, gidRanges: validRange, expectedPass: true},
@@ -78,24 +89,20 @@ func Test_UserInRange(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			defaultUserToReturn := &user.User{
+			mockUser := &MockUser{
 				Uid: "200",
 				Gid: "200",
 			}
 
 			if tc.uid != "" {
-				defaultUserToReturn.Uid = tc.uid
+				mockUser.Uid = tc.uid
 			}
 
 			if tc.gid != "" {
-				defaultUserToReturn.Gid = tc.gid
+				mockUser.Gid = tc.gid
 			}
 
-			getUserFn := func(username string) (*user.User, error) {
-				return defaultUserToReturn, nil
-			}
-
-			err := UserInRange(getUserFn, "username", tc.uidRanges, tc.gidRanges)
+			err := UserInRange(mockUser, tc.uidRanges, tc.gidRanges)
 			if tc.expectedPass {
 				must.NoError(t, err)
 			} else {

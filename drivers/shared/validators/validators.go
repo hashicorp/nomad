@@ -5,7 +5,6 @@ package validators
 
 import (
 	"fmt"
-	"os/user"
 	"strconv"
 	"strings"
 )
@@ -26,21 +25,20 @@ func IDRangeValid(rangeType string, deniedRanges string) error {
 	return nil
 }
 
-type userLookupFn func(string) (*user.User, error)
+type User interface {
+	UserId() string
+	GroupIds() ([]string, error)
+}
 
 // UserInRange is used when running a task to ensure the
 // given user is in the ID range defined in the task config
-func UserInRange(userLookupFn userLookupFn, usernameToLookup string, deniedHostUIDs, deniedHostGIDs string) error {
+func UserInRange(u User, deniedHostUIDs, deniedHostGIDs string) error {
 
 	// look up user on host given username
-
-	u, err := userLookupFn(usernameToLookup)
+	userIdString := u.UserId()
+	uid, err := strconv.ParseUint(userIdString, 10, 32)
 	if err != nil {
-		return fmt.Errorf("failed to identify user %q: %v", usernameToLookup, err)
-	}
-	uid, err := strconv.ParseUint(u.Uid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("unable to convert userid %s to integer", u.Uid)
+		return fmt.Errorf("unable to convert userid %s to integer", userIdString)
 	}
 
 	// check uids

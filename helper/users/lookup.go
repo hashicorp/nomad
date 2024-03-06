@@ -15,6 +15,18 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+type OsUser struct {
+	User user.User
+}
+
+func (u *OsUser) UserId() string {
+	return u.User.Uid
+}
+
+func (u *OsUser) GroupIds() ([]string, error) {
+	return u.User.GroupIds()
+}
+
 var globalCache = newCache()
 
 // Lookup returns the user.User entry associated with the given username.
@@ -22,6 +34,18 @@ var globalCache = newCache()
 // Values are cached up to 1 hour, or 1 minute for failure cases.
 func Lookup(username string) (*user.User, error) {
 	return globalCache.GetUser(username)
+}
+
+func LookupOsUser(username string) (*OsUser, error) {
+	u, err := Lookup(username)
+	if err != nil {
+		return nil, err
+	}
+
+	// if err != nil {
+	// 	return fmt.Errorf("failed to identify user %q: %v", username, err)
+	// }
+	return &OsUser{User: *u}, nil
 }
 
 // LookupUnix returns the UID, GID, and home directory for username or returns
