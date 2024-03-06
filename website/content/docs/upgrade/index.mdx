@@ -12,9 +12,8 @@ Nomad is designed to be flexible and resilient when upgrading from one Nomad
 version to the next. Upgrades should cause neither a Nomad nor a service
 outage. However, there are some restrictions to be aware of before upgrading:
 
-- Nomad strives to be backward compatible for at least 1 point release, so
-  Nomad v1.6.x hosts work with v1.5.x hosts. Upgrading 2 point releases
-  (for example, from v1.4.0 to v1.6.0) may work but is untested and unsupported.
+- Nomad strives to be backward compatible for at least 2 point release, so
+  Nomad v1.7.x works with v1.5.x.
 
   - Nomad does _not_ support downgrading at this time. Downgrading clients
     requires draining allocations and removing the [data directory][data_dir].
