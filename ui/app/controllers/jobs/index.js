@@ -112,7 +112,7 @@ export default class JobsIndexController extends Controller {
     yield this.watchJobs.perform(this.jobIDs, 2000);
   }
 
-  @localStorageProperty('nomadLiveUpdateJobsIndex', false) liveUpdatesEnabled;
+  @localStorageProperty('nomadLiveUpdateJobsIndex', true) liveUpdatesEnabled;
 
   // #endregion pagination
 
