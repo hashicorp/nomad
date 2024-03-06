@@ -902,6 +902,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.Drain = drainConfig
 
+	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
+
 	return conf, nil
 }
 

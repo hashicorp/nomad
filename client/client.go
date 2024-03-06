@@ -477,8 +477,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 
 	// Create the dynamic workload users pool
 	c.users = dynamic.New(&dynamic.PoolConfig{
-		MinUGID: 80_000, // TODO(shoenig) plumb client config
-		MaxUGID: 89_999, // TODO(shoenig) plumb client config
+		MinUGID: cfg.Users.MinDynamicUser,
+		MaxUGID: cfg.Users.MaxDynamicUser,
 	})
 
 	// Create the cpu core partition manager
