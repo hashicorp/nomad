@@ -50,7 +50,7 @@ func Parse(user string) (UGID, error) {
 // has synthesized a dynamic workload user for the task and the UID/GID are the
 // <id> value.
 func LookupUser(username string) (int, int, string, error) {
-	// if we can succusfully parse username as an anonymous user, use that
+	// if we can successfully parse username as an anonymous user, use that
 	ugid, err := Parse(username)
 	if err == nil {
 		return int(ugid), int(ugid), Home, nil
