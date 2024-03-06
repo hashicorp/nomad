@@ -5,9 +5,9 @@
 
 // @ts-check
 
-import Controller, { inject as controller } from '@ember/controller';
+import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { action, computed } from '@ember/object';
+import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { restartableTask, timeout } from 'ember-concurrency';
@@ -67,7 +67,7 @@ export default class JobsIndexController extends Controller {
    *
    * @param {"prev"|"next"} page
    */
-  @action async handlePageChange(page, event, c) {
+  @action async handlePageChange(page) {
     if (page === 'prev') {
       // Note (and TODO:) this isn't particularly efficient!
       // We're making an extra full request to get the nextToken we need,
@@ -109,7 +109,7 @@ export default class JobsIndexController extends Controller {
     this.pendingJobs = null;
     this.jobIDs = this.pendingJobIDs;
     this.pendingJobIDs = null;
-    this.watchJobs.perform(this.jobIDs, 2000);
+    yield this.watchJobs.perform(this.jobIDs, 2000);
   }
 
   @localStorageProperty('nomadLiveUpdateJobsIndex', false) liveUpdatesEnabled;
