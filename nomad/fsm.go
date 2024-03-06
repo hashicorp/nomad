@@ -65,6 +65,7 @@ const (
 	ACLAuthMethodSnapshot                SnapshotType = 26
 	ACLBindingRuleSnapshot               SnapshotType = 27
 	NodePoolSnapshot                     SnapshotType = 28
+	JobSubmissionSnapshot                SnapshotType = 29
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -759,7 +760,7 @@ func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, i
 	}
 
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
-		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.NoShutdownDelay, tx)
+		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.SubmitTime, req.NoShutdownDelay, tx)
 
 		if err != nil {
 			n.logger.Error("deregistering job failed",
@@ -799,7 +800,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 	// evals for jobs whose deregistering didn't get committed yet.
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
-			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, false, tx); err != nil {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, req.SubmitTime, false, tx); err != nil {
 				n.logger.Error("deregistering job failed", "job", jobNS.ID, "error", err)
 				return err
 			}
@@ -824,7 +825,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 
 // handleJobDeregister is used to deregister a job. Leaves error logging up to
 // caller.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, noShutdownDelay bool, tx state.Txn) error {
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, submitTime int64, noShutdownDelay bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
@@ -872,6 +873,9 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 
 		stopped := current.Copy()
 		stopped.Stop = true
+		if submitTime != 0 {
+			stopped.SubmitTime = submitTime
+		}
 
 		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
 			return fmt.Errorf("UpsertJob failed: %w", err)
@@ -1509,6 +1513,7 @@ func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 
 	if err := n.state.DeleteNamespaces(index, req.Namespaces); err != nil {
 		n.logger.Error("DeleteNamespaces failed", "error", err)
+		return err
 	}
 
 	return nil
@@ -1909,6 +1914,18 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 
 			// Perform the restoration.
 			if err := restore.NodePoolRestore(pool); err != nil {
+				return err
+			}
+
+		case JobSubmissionSnapshot:
+			jobSubmissions := new(structs.JobSubmission)
+
+			if err := dec.Decode(jobSubmissions); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.JobSubmissionRestore(jobSubmissions); err != nil {
 				return err
 			}
 
@@ -2480,6 +2497,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLBindingRules(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistJobSubmissions(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -3193,6 +3214,27 @@ func (s *nomadSnapshot) persistACLBindingRules(sink raft.SnapshotSink, encoder *
 		// write the snapshot
 		sink.Write([]byte{byte(ACLBindingRuleSnapshot)})
 		if err := encoder.Encode(bindingRule); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistJobSubmissions(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+
+	// Get all the job submissions.
+	ws := memdb.NewWatchSet()
+	jobSubmissionsIter, err := s.snap.GetJobSubmissions(ws)
+	if err != nil {
+		return err
+	}
+
+	for raw := jobSubmissionsIter.Next(); raw != nil; raw = jobSubmissionsIter.Next() {
+		jobSubmission := raw.(*structs.JobSubmission)
+
+		// write the snapshot
+		sink.Write([]byte{byte(JobSubmissionSnapshot)})
+		if err := encoder.Encode(jobSubmission); err != nil {
 			return err
 		}
 	}
