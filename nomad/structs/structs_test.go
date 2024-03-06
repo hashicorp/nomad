@@ -5891,6 +5891,251 @@ func TestAllocation_NeedsToReconnect(t *testing.T) {
 	}
 }
 
+func TestAllocation_ShouldBeReplaced(t *testing.T) {
+	ci.Parallel(t)
+
+	testAlloc := MockAlloc()
+
+	testCases := []struct {
+		name            string
+		taskGroup       string
+		disconnectGroup *DisconnectStrategy
+		expected        *bool
+	}{
+		{
+			name:      "missing_task_group",
+			taskGroup: "missing-task-group",
+			expected:  nil,
+		},
+		{
+			name:            "missing_disconnect_group",
+			taskGroup:       "web",
+			disconnectGroup: nil,
+			expected:        nil,
+		},
+		{
+			name:            "empty_disconnect_group",
+			taskGroup:       "web",
+			disconnectGroup: &DisconnectStrategy{},
+			expected:        nil,
+		},
+		{
+			name:      "replace_enabled",
+			taskGroup: "web",
+			disconnectGroup: &DisconnectStrategy{
+				Replace: pointer.Of(true),
+			},
+			expected: pointer.Of(true),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := testAlloc.Copy()
+			alloc.TaskGroup = tc.taskGroup
+
+			alloc.Job.TaskGroups[0].Disconnect = tc.disconnectGroup
+
+			got := alloc.ShouldBeReplaced()
+
+			require.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestAllocation_GetLeaderTask(t *testing.T) {
+	ci.Parallel(t)
+
+	testAlloc := MockAlloc()
+	testAlloc.Job.TaskGroups = []*TaskGroup{
+		{
+			Name:  "no-tasks",
+			Tasks: []*Task{},
+		},
+		{
+			Name: "one-task",
+			Tasks: []*Task{
+				{
+					Name: "task1",
+				},
+			},
+		},
+		{
+			Name: "multiple-tasks-no-leader",
+			Tasks: []*Task{
+				{
+					Name: "task1",
+				},
+				{
+					Name: "task2",
+				},
+				{
+					Name: "task3",
+				},
+			},
+		},
+		{
+			Name: "multiple-tasks-one-leader",
+			Tasks: []*Task{
+				{
+					Name: "task1",
+				},
+				{
+					Name:   "task2",
+					Leader: true,
+				},
+				{
+					Name: "task3",
+				},
+			},
+		},
+	}
+
+	testCases := []struct {
+		name      string
+		taskGroup string
+		expected  Task
+	}{
+		{
+			name:      "missing_task_group",
+			taskGroup: "missing-task-group",
+			expected:  Task{},
+		},
+		{
+			name:      "empty_tasks",
+			taskGroup: "no-tasks",
+			expected:  Task{},
+		},
+		{
+			name:      "one_task",
+			taskGroup: "one-task",
+			expected: Task{
+				Name: "task1",
+			},
+		},
+		{
+			name:      "multiple_tasks_no_leader",
+			taskGroup: "multiple-tasks-no-leader",
+			expected:  Task{},
+		},
+		{
+			name:      "multiple_tasks_one_leader",
+			taskGroup: "multiple-tasks-one-leader",
+			expected: Task{
+				Name:   "task2",
+				Leader: true,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {})
+		ta := testAlloc.Copy()
+		ta.TaskGroup = tc.taskGroup
+
+		got := ta.GetLeaderTask()
+		must.Eq(t, tc.expected, got)
+	}
+}
+
+func TestAllocation_LatestStartOfTask(t *testing.T) {
+	ci.Parallel(t)
+	testNow := time.Now()
+
+	alloc := MockAlloc()
+	alloc.TaskStates = map[string]*TaskState{
+		"empty-events": {
+			Events: []*TaskEvent{},
+		},
+		"no-start": {
+			Events: []*TaskEvent{
+				{
+					Type: TaskReceived,
+					Time: testNow.UnixNano(),
+				},
+			},
+		},
+		"multiple-starts": {
+			Events: []*TaskEvent{
+				{
+					Type: TaskReceived,
+					Time: testNow.Add(-30 * time.Minute).UnixNano(),
+				},
+				{
+					Type: TaskStarted,
+					Time: testNow.Add(-20 * time.Minute).UnixNano(),
+				},
+				{
+					Type: TaskKilled,
+					Time: testNow.Add(-10 * time.Minute).UnixNano(),
+				},
+				{
+					Type: TaskStarted,
+					Time: testNow.Add(-5 * time.Minute).UnixNano(),
+				},
+			},
+		},
+		"disconnects": {
+			Events: []*TaskEvent{
+				{
+					Type: TaskReceived,
+					Time: testNow.Add(-30 * time.Minute).UnixNano(),
+				},
+				{
+					Type: TaskStarted,
+					Time: testNow.Add(-20 * time.Minute).UnixNano(),
+				},
+				{
+					Type: TaskClientReconnected,
+					Time: testNow.Add(-10 * time.Minute).UnixNano(),
+				},
+			},
+		},
+	}
+
+	testCases := []struct {
+		name     string
+		taskName string
+		expected time.Time
+	}{
+		{
+			name:     "missing_task",
+			taskName: "missing-task",
+			expected: time.Time{},
+		},
+		{
+			name:     "no_events",
+			taskName: "empty-events",
+			expected: time.Time{},
+		},
+		{
+			name:     "task_hasn't_started",
+			taskName: "no-start",
+			expected: time.Time{},
+		},
+		{
+			name:     "task_has_multiple_starts",
+			taskName: "multiple-starts",
+			expected: testNow.Add(-5 * time.Minute).UTC(),
+		},
+		{
+			name:     "task_has_disconnects",
+			taskName: "disconnects",
+			expected: testNow.Add(-20 * time.Minute).UTC(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc.TaskGroup = "web"
+			got := alloc.LatestStartOfTask(tc.taskName)
+
+			must.Eq(t, tc.expected, got)
+		})
+	}
+
+}
+
 func TestAllocation_Canonicalize_Old(t *testing.T) {
 	ci.Parallel(t)
 

@@ -11449,8 +11449,14 @@ func (a *Allocation) GetLeaderTask() Task {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
 	task := Task{}
+
+	if tg == nil {
+		return task
+	}
+
 	switch len(tg.Tasks) {
 	case 0:
+		return task
 
 	case 1:
 		task = *tg.Tasks[0]
@@ -11470,12 +11476,18 @@ func (a *Allocation) GetLeaderTask() Task {
 // LatestStartOfTask returns the time of the last start event for the given task
 // using the allocations TaskStates. If the task has not started, the zero time
 // will be returned.
-func (a *Allocation) LatestStartOfTask(task string) time.Time {
+func (a *Allocation) LatestStartOfTask(taskName string) time.Time {
 	t := time.Time{}
+
+	task := a.TaskStates[taskName]
+	if task == nil {
+		return t
+	}
+
 	// TaskStates are appended to the list and we only need the latest
 	// transition, so traverse from the end until we find one.
-	for i := len(a.TaskStates[task].Events) - 1; i >= 0; i-- {
-		e := a.TaskStates[task].Events[i]
+	for i := len(task.Events) - 1; i >= 0; i-- {
+		e := task.Events[i]
 		if e.Type == TaskStarted {
 			t = time.Unix(0, e.Time).UTC()
 			break

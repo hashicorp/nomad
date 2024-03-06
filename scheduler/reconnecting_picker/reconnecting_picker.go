@@ -99,6 +99,7 @@ func (rp *ReconnectingPicker) pickLongestRunning(original *structs.Allocation, r
 		lt = *original.Job.LookupTaskGroup(original.TaskGroup).Tasks[0]
 	}
 
+	// If the replacement has a later start time, keep the original.
 	if original.LatestStartOfTask(lt.Name).Sub(replacement.LatestStartOfTask(lt.Name)) < 0 {
 		return original
 	}
