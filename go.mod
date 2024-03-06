@@ -61,7 +61,7 @@ require (
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.15
 	github.com/hashicorp/go-memdb v1.3.4
-	github.com/hashicorp/go-msgpack v1.1.5
+	github.com/hashicorp/go-msgpack v1.1.6-0.20240304204939-8824e8ccc35f
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-netaddrs v0.1.0
 	github.com/hashicorp/go-plugin v1.6.0
@@ -282,7 +282,7 @@ require (
 	golang.org/x/tools v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.126.0 // indirect
-	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
