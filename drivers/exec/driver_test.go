@@ -873,8 +873,8 @@ func TestDriver_Config_validate(t *testing.T) {
 	})
 
 	t.Run("denied_host_ids", func(t *testing.T) {
-		invalidUidRange := "invalid uid range"
-		invalidGidRange := "invalid gid range"
+		invalidUidRange := "invalid denied_host_uids value"
+		invalidGidRange := "invalid denied_host_gids value"
 
 		for _, tc := range []struct {
 			uidRanges string
