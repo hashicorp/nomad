@@ -63,6 +63,7 @@ func (tr *TaskRunner) initHooks() {
 	alloc := tr.Alloc()
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
+		newDynamicUsersHook(tr.killCtx, tr.driverCapabilities.DynamicWorkloadUsers, tr.logger, tr.users),
 		newTaskDirHook(tr, hookLogger),
 		newIdentityHook(tr, hookLogger),
 		newLogMonHook(tr, hookLogger),

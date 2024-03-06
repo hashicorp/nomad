@@ -34,6 +34,7 @@ import (
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -211,6 +212,9 @@ type allocRunner struct {
 
 	// widmgr manages workload identity signatures
 	widmgr widmgr.IdentityManager
+
+	// users manages a pool of dynamic workload users
+	users dynamic.Pool
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -255,6 +259,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		partitions:               config.Partitions,
 		hookResources:            cstructs.NewAllocHookResources(),
 		widsigner:                config.WIDSigner,
+		users:                    config.Users,
 	}
 
 	// Create the logger based on the allocation ID
@@ -324,6 +329,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Wranglers:           ar.wranglers,
 			AllocHookResources:  ar.hookResources,
 			WIDMgr:              ar.widmgr,
+			Users:               ar.users,
 		}
 
 		// Create, but do not Run, the task runner
