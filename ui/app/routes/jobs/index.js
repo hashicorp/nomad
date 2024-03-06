@@ -50,7 +50,7 @@ export default class IndexRoute extends Route.extend(
     return { ...this.defaultParams, ...queryParams };
   }
 
-  async model(params) {
+  async model(/*params*/) {
     let currentParams = this.getCurrentParams(); // TODO: how do these differ from passed params?
     this.watchList.jobsIndexIDsController.abort();
     this.watchList.jobsIndexIDsController = new AbortController();
@@ -88,12 +88,14 @@ export default class IndexRoute extends Route.extend(
 
     // TODO: maybe do these in controller constructor?
     // Now that we've set the jobIDs, immediately start watching them
+    // eslint-disable-next-line
     this.controller.watchJobs.perform(controller.jobIDs, 2000);
     // And also watch for any changes to the jobIDs list
+    // eslint-disable-next-line
     this.controller.watchJobIDs.perform(this.getCurrentParams(), 2000);
   }
 
-  startWatchers(controller, model) {
+  startWatchers(controller) {
     controller.set('namespacesWatch', this.watchNamespaces.perform());
   }
 
@@ -103,7 +105,9 @@ export default class IndexRoute extends Route.extend(
     if (!transition.intent.name?.startsWith(this.routeName)) {
       this.watchList.jobsIndexDetailsController.abort();
       this.watchList.jobsIndexIDsController.abort();
+      // eslint-disable-next-line
       this.controller.watchJobs.cancelAll();
+      // eslint-disable-next-line
       this.controller.watchJobIDs.cancelAll();
     }
     this.cancelAllWatchers();
