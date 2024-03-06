@@ -283,6 +283,6 @@ export default class Tokens extends Controller {
 
   // #region settings
   @localStorageProperty('nomadShouldWrapCode', false) wordWrap;
-  @localStorageProperty('nomadLiveUpdateJobsIndex', false) liveUpdateJobsIndex;
+  @localStorageProperty('nomadLiveUpdateJobsIndex', true) liveUpdateJobsIndex;
   // #endregion settings
 }
