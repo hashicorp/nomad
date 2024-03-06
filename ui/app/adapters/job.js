@@ -249,7 +249,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       data: query,
       skipURLModification: true,
     }).then((payload) => {
-      console.log('thenner', payload, query);
       // If there was a request body, append it to my payload
       if (query.jobs) {
         payload._requestBody = query;
@@ -258,7 +257,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
   }
 
-  handleResponse(status, headers, payload, requestData) {
+  handleResponse(status, headers) {
     // watchList.setIndexFor() happens in the watchable adapter, super'd here
 
     /**
