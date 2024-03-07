@@ -1,0 +1,3 @@
+```release-note:improvement
+drivers: Added ability to restrict host uids and gids in exec and raw_exec drivers
+```
