@@ -133,7 +133,7 @@ client {
 - `denied_host_uids` - (Optional) Specifies a comma-separated list of host uids to
   deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
   If a "user" value is specified in task configuration and that user has a user id in
-  the given ranges, the task will error before starting. This will not be run on Windows
+  the given ranges, the task will error before starting. This will not be checked on Windows
   clients.
 
 ```hcl
@@ -146,7 +146,7 @@ config {
   deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
   If a "user" value is specified in task configuration and that user has is part of
   any groups with gid's in the specified ranges, the task will error before
-  starting. This will not be run on Windows clients.
+  starting. This will not be checked on Windows clients.
 
 ```hcl
 config {

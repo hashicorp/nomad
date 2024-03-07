@@ -887,7 +887,7 @@ func TestDriver_Config_validate(t *testing.T) {
 			{uidRanges: "", gidRanges: "10-1", errorStr: &invalidGidRange},
 		} {
 
-			validationErr := (&Config{
+			err := (&Config{
 				DefaultModePID: "private",
 				DefaultModeIPC: "private",
 				DeniedHostUids: tc.uidRanges,
@@ -895,24 +895,21 @@ func TestDriver_Config_validate(t *testing.T) {
 			}).validate()
 
 			if tc.errorStr == nil {
-				require.Nil(t, validationErr)
+				must.NoError(t, err)
 			} else {
-				require.Contains(t, validationErr.Error(), *tc.errorStr)
+				must.ErrorContains(t, err, *tc.errorStr)
 			}
 		}
 	})
 }
 
-func TestDriver_TaskConfig_validate(t *testing.T) {
+func TestDriver_TaskConfig_validateUserIds(t *testing.T) {
 	ci.Parallel(t)
 
 	current, err := users.Current()
 	require.NoError(t, err)
-	currentUid, err := strconv.ParseUint(current.Uid, 10, 32)
-	require.NoError(t, err)
-	nobody, err := users.Lookup("nobody")
-	require.NoError(t, err)
-	nobodyUid, err := strconv.ParseUint(nobody.Uid, 10, 32)
+	currentUid := os.Getuid()
+	nobodyUid, _, _, err := users.LookupUnix("nobody")
 	require.NoError(t, err)
 
 	allowAll := ""
@@ -923,6 +920,30 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 	configDenyAnonymous := Config{DeniedHostUids: denyNobody}
 	driverConfigNoUserSpecified := drivers.TaskConfig{}
 	driverConfigSpecifyCurrent := drivers.TaskConfig{User: current.Name}
+	currentUserErrStr := fmt.Sprintf("running as uid %d is disallowed", currentUid)
+	anonUserErrStr := fmt.Sprintf("running as uid %d is disallowed", nobodyUid)
+
+	for _, tc := range []struct {
+		config       Config
+		driverConfig drivers.TaskConfig
+		expectedErr  string
+	}{
+		{config: configAllowCurrent, driverConfig: driverConfigSpecifyCurrent, expectedErr: ""},
+		{config: configDenyCurrent, driverConfig: driverConfigNoUserSpecified, expectedErr: ""},
+		{config: configDenyCurrent, driverConfig: driverConfigSpecifyCurrent, expectedErr: currentUserErrStr},
+		{config: configDenyAnonymous, driverConfig: driverConfigNoUserSpecified, expectedErr: anonUserErrStr},
+	} {
+		err := (&TaskConfig{}).validateUserIds(&tc.driverConfig, &tc.config)
+		if tc.expectedErr == "" {
+			require.NoError(t, err)
+		} else {
+			require.ErrorContains(t, err, tc.expectedErr)
+		}
+	}
+}
+
+func TestDriver_TaskConfig_validate(t *testing.T) {
+	ci.Parallel(t)
 
 	t.Run("pid/ipc", func(t *testing.T) {
 		for _, tc := range []struct {
@@ -939,10 +960,10 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{pidMode: "", ipcMode: "host", exp: nil},
 			{pidMode: "other", ipcMode: "host", exp: errors.New(`pid_mode must be "private" or "host", got "other"`)},
 		} {
-			require.Equal(t, tc.exp, (&TaskConfig{
+			must.Eq(t, tc.exp, (&TaskConfig{
 				ModePID: tc.pidMode,
 				ModeIPC: tc.ipcMode,
-			}).validate(&driverConfigNoUserSpecified, &configAllowCurrent))
+			}).validate())
 		}
 	})
 
@@ -957,9 +978,9 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{adds: []string{"chown", "sys_time"}, exp: nil},
 			{adds: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_add configured with capabilities not supported by system: not_valid")},
 		} {
-			require.Equal(t, tc.exp, (&TaskConfig{
+			must.Eq(t, tc.exp, (&TaskConfig{
 				CapAdd: tc.adds,
-			}).validate(&driverConfigNoUserSpecified, &configAllowCurrent))
+			}).validate())
 		}
 	})
 
@@ -974,27 +995,9 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{drops: []string{"chown", "sys_time"}, exp: nil},
 			{drops: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_drop configured with capabilities not supported by system: not_valid")},
 		} {
-			require.Equal(t, tc.exp, (&TaskConfig{
+			must.Eq(t, tc.exp, (&TaskConfig{
 				CapDrop: tc.drops,
-			}).validate(&driverConfigNoUserSpecified, &configAllowCurrent))
-		}
-	})
-
-	t.Run("uid_restriction", func(t *testing.T) {
-		currentUserErrStr := fmt.Sprintf("running as uid %d is disallowed", currentUid)
-		anonUserErrStr := fmt.Sprintf("running as uid %d is disallowed", nobodyUid)
-
-		for _, tc := range []struct {
-			config       Config
-			driverConfig drivers.TaskConfig
-			exp          error
-		}{
-			{config: configAllowCurrent, driverConfig: driverConfigSpecifyCurrent, exp: nil},
-			{config: configDenyCurrent, driverConfig: driverConfigNoUserSpecified, exp: nil},
-			{config: configDenyCurrent, driverConfig: driverConfigSpecifyCurrent, exp: errors.New(currentUserErrStr)},
-			{config: configDenyAnonymous, driverConfig: driverConfigNoUserSpecified, exp: errors.New(anonUserErrStr)},
-		} {
-			require.Equal(t, tc.exp, (&TaskConfig{}).validate(&tc.driverConfig, &tc.config))
+			}).validate())
 		}
 	})
 }

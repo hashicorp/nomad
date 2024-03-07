@@ -143,11 +143,14 @@ type Config struct {
 	// Enabled is set to true to enable the raw_exec driver
 	Enabled bool `codec:"enabled"`
 
+	DeniedHostUidsStr string `codec:"denied_host_uids"`
+	DeniedHostGidsStr string `codec:"denied_host_gids"`
+
 	// DeniedHostUids configures which host uids are disallowed
-	DeniedHostUids string `codec:"denied_host_uids"`
+	DeniedHostUids []validators.IDRange
 
 	// DeniedHostGids configures which host gids are disallowed
-	DeniedHostGids string `codec:"denied_host_gids"`
+	DeniedHostGids []validators.IDRange
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -210,15 +213,19 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		}
 	}
 
-	if err := validators.IDRangeValid("denied_host_uids", config.DeniedHostUids); err != nil {
+	deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", config.DeniedHostUidsStr)
+	if err != nil {
 		return err
 	}
 
-	if err := validators.IDRangeValid("denied_host_gids", config.DeniedHostGids); err != nil {
+	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", config.DeniedHostGidsStr)
+	if err != nil {
 		return err
 	}
 
 	d.config = &config
+	d.config.DeniedHostUids = deniedUidRanges
+	d.config.DeniedHostGids = deniedGidRanges
 
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver

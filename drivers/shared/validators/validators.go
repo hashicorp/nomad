@@ -1,6 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
+//go:build !windows
+
 package validators
 
 import (
@@ -16,83 +18,10 @@ type IDRange struct {
 	Upper uint64 `codec:"to"`
 }
 
-// IDRangeValid is used to ensure that the configuration for ID ranges is valid.
-func IDRangeValid(rangeType string, deniedRanges string) error {
-	_, err := parseRanges(deniedRanges)
-	if err != nil {
-		return fmt.Errorf("invalid %s value %q: %v", rangeType, deniedRanges, err)
-	}
-
-	return nil
-}
-
-type userLookupFn func(string) (*user.User, error)
-
-// UserInRange is used when running a task to ensure the
-// given user is in the ID range defined in the task config
-func UserInRange(userLookupFn userLookupFn, usernameToLookup string, deniedHostUIDs, deniedHostGIDs string) error {
-
-	// look up user on host given username
-
-	u, err := userLookupFn(usernameToLookup)
-	if err != nil {
-		return fmt.Errorf("failed to identify user %q: %v", usernameToLookup, err)
-	}
-	uid, err := strconv.ParseUint(u.Uid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("unable to convert userid %s to integer", u.Uid)
-	}
-
-	// check uids
-
-	uidRanges, err := parseRanges(deniedHostUIDs)
-	if err != nil {
-		return fmt.Errorf("invalid denied_host_uids value %q: %v", deniedHostUIDs, err)
-	}
-
-	for _, uidRange := range uidRanges {
-		if uid >= uidRange.Lower && uid <= uidRange.Upper {
-			return fmt.Errorf("running as uid %d is disallowed", uid)
-		}
-	}
-
-	// check gids
-
-	gidStrings, err := u.GroupIds()
-	if err != nil {
-		return fmt.Errorf("unable to lookup user's group membership: %v", err)
-	}
-	gids := make([]uint64, len(gidStrings))
-
-	for _, gidString := range gidStrings {
-		u, err := strconv.ParseUint(gidString, 10, 32)
-		if err != nil {
-			return fmt.Errorf("unable to convert user's group %q to integer", gidString)
-		}
-
-		gids = append(gids, u)
-	}
-
-	gidRanges, err := parseRanges(deniedHostGIDs)
-	if err != nil {
-		return fmt.Errorf("invalid denied_host_gids value %q: %v", deniedHostGIDs, err)
-	}
-
-	for _, gidRange := range gidRanges {
-		for _, gid := range gids {
-			if gid >= gidRange.Lower && gid <= gidRange.Upper {
-				return fmt.Errorf("running as gid %d is disallowed", gid)
-			}
-		}
-	}
-
-	return nil
-}
-
-func parseRanges(ranges string) ([]IDRange, error) {
+// ParseIdRange is used to ensure that the configuration for ID ranges is valid.
+func ParseIdRange(rangeType string, deniedRanges string) ([]IDRange, error) {
 	var idRanges []IDRange
-
-	parts := strings.Split(ranges, ",")
+	parts := strings.Split(deniedRanges, ",")
 
 	// exit early if empty string
 	if len(parts) == 1 && parts[0] == "" {
@@ -111,6 +40,59 @@ func parseRanges(ranges string) ([]IDRange, error) {
 	return idRanges, nil
 }
 
+type userLookupFn func(string) (*user.User, error)
+
+// HasValidIds is used when running a task to ensure the
+// given user is in the ID range defined in the task config
+func HasValidIds(userLookupFn userLookupFn, usernameToLookup string, deniedHostUIDs, deniedHostGIDs []IDRange) error {
+
+	// look up user on host given username
+
+	u, err := userLookupFn(usernameToLookup)
+	if err != nil {
+		return fmt.Errorf("failed to identify user %q: %w", usernameToLookup, err)
+	}
+	uid, err := strconv.ParseUint(u.Uid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("unable to convert userid %s to integer", u.Uid)
+	}
+
+	// check uids
+
+	for _, uidRange := range deniedHostUIDs {
+		if uid >= uidRange.Lower && uid <= uidRange.Upper {
+			return fmt.Errorf("running as uid %d is disallowed", uid)
+		}
+	}
+
+	// check gids
+
+	gidStrings, err := u.GroupIds()
+	if err != nil {
+		return fmt.Errorf("unable to lookup user's group membership: %w", err)
+	}
+	gids := make([]uint64, len(gidStrings))
+
+	for _, gidString := range gidStrings {
+		u, err := strconv.ParseUint(gidString, 10, 32)
+		if err != nil {
+			return fmt.Errorf("unable to convert user's group %q to integer: %w", gidString, err)
+		}
+
+		gids = append(gids, u)
+	}
+
+	for _, gidRange := range deniedHostGIDs {
+		for _, gid := range gids {
+			if gid >= gidRange.Lower && gid <= gidRange.Upper {
+				return fmt.Errorf("running as gid %d is disallowed", gid)
+			}
+		}
+	}
+
+	return nil
+}
+
 func parseRangeString(boundsString string) (*IDRange, error) {
 	uidDenyRangeParts := strings.Split(boundsString, "-")
 
@@ -118,36 +100,36 @@ func parseRangeString(boundsString string) (*IDRange, error) {
 
 	switch len(uidDenyRangeParts) {
 	case 0:
-		return nil, fmt.Errorf("range cannot be empty, invalid range: \"%q\" ", boundsString)
+		return nil, fmt.Errorf("range value cannot be empty")
 	case 1:
-		singleBound := uidDenyRangeParts[0]
-		singleBoundInt, err := strconv.ParseUint(singleBound, 10, 64)
+		disallowedIdStr := uidDenyRangeParts[0]
+		disallowedIdInt, err := strconv.ParseUint(disallowedIdStr, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("range bound not valid, invalid bound: \"%q\" ", singleBoundInt)
+			return nil, fmt.Errorf("range bound not valid, invalid bound: %q ", disallowedIdInt)
 		}
 
-		idRange.Lower = singleBoundInt
-		idRange.Upper = singleBoundInt
+		idRange.Lower = disallowedIdInt
+		idRange.Upper = disallowedIdInt
 	case 2:
-		boundAStr := uidDenyRangeParts[0]
-		boundBStr := uidDenyRangeParts[1]
+		lowerBoundStr := uidDenyRangeParts[0]
+		upperBoundStr := uidDenyRangeParts[1]
 
-		boundAInt, err := strconv.ParseUint(boundAStr, 10, 64)
+		lowerBoundInt, err := strconv.ParseUint(lowerBoundStr, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("invalid range %q, invalid bound: \"%q\" ", boundsString, boundAStr)
+			return nil, fmt.Errorf("invalid bound: %q", lowerBoundStr)
 		}
 
-		boundBInt, err := strconv.ParseUint(boundBStr, 10, 64)
+		upperBoundInt, err := strconv.ParseUint(upperBoundStr, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("invalid range %q, invalid bound: \"%q\" ", boundsString, boundBStr)
+			return nil, fmt.Errorf("invalid bound: %q", upperBoundStr)
 		}
 
-		if boundAInt > boundBInt {
+		if lowerBoundInt > upperBoundInt {
 			return nil, fmt.Errorf("invalid range %q, lower bound cannot be greater than upper bound", boundsString)
 		}
 
-		idRange.Lower = boundAInt
-		idRange.Upper = boundBInt
+		idRange.Lower = lowerBoundInt
+		idRange.Upper = upperBoundInt
 	}
 
 	return &idRange, nil

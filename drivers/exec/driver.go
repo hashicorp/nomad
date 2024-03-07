@@ -164,11 +164,17 @@ type Config struct {
 	// running on this node.
 	AllowCaps []string `codec:"allow_caps"`
 
+	// TODO: Move this out of validators into structs
+	// if you are to use it here
+
+	DeniedHostUidsStr string `codec:"denied_host_uids"`
+	DeniedHostGidsStr string `codec:"denied_host_gids"`
+
 	// DeniedHostUids configures which host uids are disallowed
-	DeniedHostUids string `codec:"denied_host_uids"`
+	DeniedHostUids []validators.IDRange `codec:"-"`
 
 	// DeniedHostGids configures which host gids are disallowed
-	DeniedHostGids string `codec:"denied_host_gids"`
+	DeniedHostGids []validators.IDRange `codec:"-"`
 }
 
 func (c *Config) validate() error {
@@ -187,14 +193,6 @@ func (c *Config) validate() error {
 	badCaps := capabilities.Supported().Difference(capabilities.New(c.AllowCaps))
 	if !badCaps.Empty() {
 		return fmt.Errorf("allow_caps configured with capabilities not supported by system: %s", badCaps)
-	}
-
-	if err := validators.IDRangeValid("denied_host_uids", c.DeniedHostUids); err != nil {
-		return err
-	}
-
-	if err := validators.IDRangeValid("denied_host_gids", c.DeniedHostGids); err != nil {
-		return err
 	}
 
 	return nil
@@ -223,7 +221,7 @@ type TaskConfig struct {
 	CapDrop []string `codec:"cap_drop"`
 }
 
-func (tc *TaskConfig) validate(cfg *drivers.TaskConfig, driverConfig *Config) error {
+func (tc *TaskConfig) validate() error {
 	switch tc.ModePID {
 	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
 	default:
@@ -241,18 +239,18 @@ func (tc *TaskConfig) validate(cfg *drivers.TaskConfig, driverConfig *Config) er
 	if !badAdds.Empty() {
 		return fmt.Errorf("cap_add configured with capabilities not supported by system: %s", badAdds)
 	}
+
 	badDrops := supported.Difference(capabilities.New(tc.CapDrop))
 	if !badDrops.Empty() {
 		return fmt.Errorf("cap_drop configured with capabilities not supported by system: %s", badDrops)
 	}
 
-	usernameToLookup := getUsername(cfg)
-
-	if err := validators.UserInRange(users.Lookup, usernameToLookup, driverConfig.DeniedHostUids, driverConfig.DeniedHostGids); err != nil {
-		return err
-	}
-
 	return nil
+}
+
+func (tc *TaskConfig) validateUserIds(cfg *drivers.TaskConfig, driverConfig *Config) error {
+	usernameToLookup := getUsername(cfg)
+	return validators.HasValidIds(users.Lookup, usernameToLookup, driverConfig.DeniedHostUids, driverConfig.DeniedHostGids)
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -318,6 +316,19 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		return err
 	}
 	d.config = config
+
+	deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", config.DeniedHostUidsStr)
+	if err != nil {
+		return err
+	}
+
+	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", config.DeniedHostGidsStr)
+	if err != nil {
+		return err
+	}
+
+	d.config.DeniedHostUids = deniedUidRanges
+	d.config.DeniedHostGids = deniedGidRanges
 
 	if cfg != nil && cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
@@ -457,8 +468,12 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	if err := driverConfig.validate(cfg, &d.config); err != nil {
+	if err := driverConfig.validate(); err != nil {
 		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
+	}
+
+	if err := driverConfig.validateUserIds(cfg, &d.config); err != nil {
+		return nil, nil, fmt.Errorf("failed host user validation: %v", err)
 	}
 
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
