@@ -1314,6 +1314,11 @@ func connectGatewayTLSConfigDiff(prev, next *ConsulGatewayTLSConfig, contextual 
 	// Diff the primitive field.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
+	// Diff SDS object
+	if sdsDiff := primitiveObjectDiff(prev.SDS, next.SDS, nil, "SDS", contextual); sdsDiff != nil {
+		diff.Objects = append(diff.Objects, sdsDiff)
+	}
+
 	return diff
 }
 
@@ -1379,6 +1384,12 @@ func connectGatewayIngressListenerDiff(prev, next *ConsulIngressListener, contex
 
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the ConsulGatewayTLSConfig objects.
+	tlsConfigDiff := connectGatewayTLSConfigDiff(prev.TLS, next.TLS, contextual)
+	if tlsConfigDiff != nil {
+		diff.Objects = append(diff.Objects, tlsConfigDiff)
+	}
 
 	// Diff the Ingress Service objects.
 	if diffs := connectGatewayIngressServicesDiff(prev.Services, next.Services, contextual); diffs != nil {

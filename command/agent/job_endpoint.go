@@ -1734,6 +1734,17 @@ func apiConnectIngressGatewayToStructs(in *api.ConsulIngressConfigEntry) *struct
 	}
 }
 
+func apiConnectGatewayTLSSDSConfig(in *api.ConsulGatewayTLSSDSConfig) *structs.ConsulGatewayTLSSDSConfig {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulGatewayTLSSDSConfig{
+		ClusterName:  in.ClusterName,
+		CertResource: in.CertResource,
+	}
+}
+
 func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulGatewayTLSConfig {
 	if in == nil {
 		return nil
@@ -1744,6 +1755,7 @@ func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulG
 		TLSMinVersion: in.TLSMinVersion,
 		TLSMaxVersion: in.TLSMaxVersion,
 		CipherSuites:  slices.Clone(in.CipherSuites),
+		SDS:           apiConnectGatewayTLSSDSConfig(in.SDS),
 	}
 }
 
@@ -1768,6 +1780,7 @@ func apiConnectIngressListenerToStructs(in *api.ConsulIngressListener) *structs.
 		Port:     in.Port,
 		Protocol: in.Protocol,
 		Services: apiConnectIngressServicesToStructs(in.Services),
+		TLS:      apiConnectGatewayTLSConfig(in.TLS),
 	}
 }
 

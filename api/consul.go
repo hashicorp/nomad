@@ -400,12 +400,29 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 }
 
+type ConsulGatewayTLSSDSConfig struct {
+	ClusterName  string `hcl:"cluster_name,optional" mapstructure:"cluster_name"`
+	CertResource string `hcl:"cert_resource,optional" mapstructure:"cert_resource"`
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Copy() *ConsulGatewayTLSSDSConfig {
+	if c == nil {
+		return nil
+	}
+
+	return &ConsulGatewayTLSSDSConfig{
+		ClusterName:  c.ClusterName,
+		CertResource: c.CertResource,
+	}
+}
+
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
-	Enabled       bool     `hcl:"enabled,optional"`
-	TLSMinVersion string   `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
-	TLSMaxVersion string   `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
-	CipherSuites  []string `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
+	Enabled       bool                       `hcl:"enabled,optional"`
+	TLSMinVersion string                     `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
+	TLSMaxVersion string                     `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
+	CipherSuites  []string                   `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
+	SDS           *ConsulGatewayTLSSDSConfig `hcl:"sds_config,block" mapstructure:"sds_config"`
 }
 
 func (tc *ConsulGatewayTLSConfig) Canonicalize() {
@@ -420,6 +437,7 @@ func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		Enabled:       tc.Enabled,
 		TLSMinVersion: tc.TLSMinVersion,
 		TLSMaxVersion: tc.TLSMaxVersion,
+		SDS:           tc.SDS.Copy(),
 	}
 	if len(tc.CipherSuites) != 0 {
 		cipherSuites := make([]string, len(tc.CipherSuites))
@@ -476,6 +494,7 @@ type ConsulIngressListener struct {
 	Port     int                     `hcl:"port,optional"`
 	Protocol string                  `hcl:"protocol,optional"`
 	Services []*ConsulIngressService `hcl:"service,block"`
+	TLS      *ConsulGatewayTLSConfig `hcl:"tls,block" mapstructure:"tls"`
 }
 
 func (l *ConsulIngressListener) Canonicalize() {
@@ -491,6 +510,8 @@ func (l *ConsulIngressListener) Canonicalize() {
 	if len(l.Services) == 0 {
 		l.Services = nil
 	}
+
+	l.TLS.Canonicalize()
 }
 
 func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
@@ -510,6 +531,7 @@ func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
 		Port:     l.Port,
 		Protocol: l.Protocol,
 		Services: services,
+		TLS:      l.TLS.Copy(),
 	}
 }
 

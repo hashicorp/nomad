@@ -114,6 +114,12 @@ envoy_gateway_bind_addresses "<service>" {
   [`CipherSuites`](/consul/docs/connect/config-entries/ingress-gateway#ciphersuites)
   in the Consul documentation for the supported cipher suites.
 
+- `sds` `(SDSConfig: <optional>)` - Defines a set of parameters that configures the listener to load TLS certificates from an external SDS service.
+
+  - `cluster_name` `(string)` - The SDS cluster name to connect to to retrieve certificates.
+
+  - `cert_resource` `(string)` - The SDS resource name to request when fetching the certificate from the SDS service.
+
 #### `listener` Parameters
 
 - `port` `(int: required)` - The port that the listener should receive traffic on.
@@ -126,6 +132,34 @@ envoy_gateway_bind_addresses "<service>" {
 
 - `service` <code>(array<[service]>: required)</code> - One or more services to be
   exposed via this listener. For `tcp` listeners, only a single service is allowed.
+
+  - [`tls`](#tls-parameters) `(TLSConfig: <optional>)` - TLS configuration for this listener.
+
+  - [`cipher_suites`](#cipher_suites) `(array<string>: optional)` - Set the list of TLS cipher suites to support when negotiating
+    connections using TLS 1.2 or earlier. Refer to
+    [`CipherSuites`](/consul/docs/connect/config-entries/ingress-gateway#ciphersuites)
+    in the Consul documentation for the supported cipher suites.
+
+    - [`sds`](#sds) `(SDSConfig: <optional>)` - Defines a set of parameters that configures the listener to load TLS certificates from an external SDS service.
+
+      - [`cluster_name`](#cluster_name) `(string)` - The SDS cluster name to connect to to retrieve certificates.
+
+      - [`cert_resource`](#cert_resource) `(string)` - The SDS resource name to request when fetching the certificate from the SDS service.
+
+  - [`enabled`](#enabled) `(bool: false)` - Set this configuration to true to enable built-in TLS for this listener.
+  If TLS is enabled, then each host defined in each service's Hosts field will be added as a DNSSAN
+  to the gateway's x509 certificate. Note that even hosts from other listeners with TLS disabled will be added. 
+  TLS can not be disabled for individual listeners if it is enabled on the gateway.
+
+  - [`tls_max_version`](#tls_max_version) `(string: "")` - Set the default maximum TLS version
+    supported for this listener. Refer to
+    [`TLSMaxVersion`](/consul/docs/connect/config-entries/ingress-gateway#tlsmaxversion)
+    in the Consul documentation for supported versions.
+
+  - [`tls_min_version`](#tls_min_version) `(string: "")` - Set the default minimum TLS version
+    supported for this listener. Refer to
+    [`TLSMinVersion`](/consul/docs/connect/config-entries/ingress-gateway#tlsminversion)
+    in the Consul documentation for supported versions.
 
 #### `service` Parameters
 

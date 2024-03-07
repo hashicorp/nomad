@@ -4183,6 +4183,12 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 							Name:  "ingress1",
 							Hosts: []string{"host1"},
 						}},
+						TLS: &structs.ConsulGatewayTLSConfig{
+							SDS: &structs.ConsulGatewayTLSSDSConfig{
+								ClusterName:  "foo",
+								CertResource: "bar",
+							},
+						},
 					}},
 				},
 			},
@@ -4203,6 +4209,12 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 								Name:  "ingress1",
 								Hosts: []string{"host1"},
 							}},
+							TLS: &api.ConsulGatewayTLSConfig{
+								SDS: &api.ConsulGatewayTLSSDSConfig{
+									ClusterName:  "foo",
+									CertResource: "bar",
+								},
+							},
 						}},
 					},
 				},

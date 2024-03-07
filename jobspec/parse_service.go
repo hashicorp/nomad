@@ -493,6 +493,7 @@ func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, 
 		"port",
 		"protocol",
 		"service",
+		"tls",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -506,6 +507,7 @@ func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, 
 	}
 
 	delete(m, "service")
+	delete(m, "tls")
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Result: &listener,
@@ -538,7 +540,44 @@ func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, 
 			listener.Services[i] = is
 		}
 	}
+	to := listVal.Filter("tls")
+	if len(to.Items) > 0 {
+		listener.TLS, err = parseConsulGatewayTLS(to.Items[0])
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &listener, nil
+}
+
+func parseConsulGatewayTLSSDS(o *ast.ObjectItem) (*api.ConsulGatewayTLSSDSConfig, error) {
+	valid := []string{
+		"cluster_name",
+		"cert_resource",
+	}
+
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "sds ->")
+	}
+
+	var sds api.ConsulGatewayTLSSDSConfig
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &sds,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	return &sds, nil
 }
 
 func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, error) {
@@ -547,6 +586,7 @@ func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, erro
 		"tls_min_version",
 		"tls_max_version",
 		"cipher_suites",
+		"sds_config",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -559,6 +599,8 @@ func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, erro
 		return nil, err
 	}
 
+	delete(m, "sds_config")
+
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Result: &tls,
 	})
@@ -568,6 +610,22 @@ func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, erro
 
 	if err := dec.Decode(m); err != nil {
 		return nil, err
+	}
+
+	// Parse SDS
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("tls: should be an object")
+	}
+
+	so := listVal.Filter("sds_config")
+	if len(so.Items) > 0 {
+		tls.SDS, err = parseConsulGatewayTLSSDS(so.Items[0])
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &tls, nil

@@ -42,6 +42,12 @@ job "connect_gateway_ingress" {
                 name  = "service2"
                 hosts = ["10.0.0.1:8001"]
               }
+              tls {
+                sds_config {
+                  cluster_name  = "foo"
+                  cert_resource = "bar"
+                }
+              }
             }
 
             listener {
