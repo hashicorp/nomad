@@ -265,7 +265,12 @@ func (tc *TaskConfig) validate() error {
 
 func (tc *TaskConfig) validateUserIds(cfg *drivers.TaskConfig, driverConfig *Config) error {
 	usernameToLookup := getUsername(cfg)
-	return validators.HasValidIds(users.Lookup, usernameToLookup, driverConfig.DeniedHostUids, driverConfig.DeniedHostGids)
+	user, err := users.Lookup(usernameToLookup)
+	if err != nil {
+		return fmt.Errorf("failed to identify user %q: %w", usernameToLookup, err)
+	}
+
+	return validators.HasValidIds(user, driverConfig.DeniedHostUids, driverConfig.DeniedHostGids)
 }
 
 // TaskState is the state which is encoded in the handle returned in

@@ -1,8 +1,6 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build !windows
-
 package validators
 
 import (
@@ -36,21 +34,12 @@ func ParseIdRange(rangeType string, deniedRanges string) ([]structs.IDRange, err
 	return idRanges, nil
 }
 
-type userLookupFn func(string) (*user.User, error)
-
 // HasValidIds is used when running a task to ensure the
 // given user is in the ID range defined in the task config
-func HasValidIds(userLookupFn userLookupFn, usernameToLookup string, deniedHostUIDs, deniedHostGIDs []structs.IDRange) error {
-
-	// look up user on host given username
-
-	u, err := userLookupFn(usernameToLookup)
+func HasValidIds(user *user.User, deniedHostUIDs, deniedHostGIDs []structs.IDRange) error {
+	uid, err := strconv.ParseUint(user.Uid, 10, 32)
 	if err != nil {
-		return fmt.Errorf("failed to identify user %q: %w", usernameToLookup, err)
-	}
-	uid, err := strconv.ParseUint(u.Uid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("unable to convert userid %s to integer", u.Uid)
+		return fmt.Errorf("unable to convert userid %s to integer", user.Uid)
 	}
 
 	// check uids
@@ -63,7 +52,7 @@ func HasValidIds(userLookupFn userLookupFn, usernameToLookup string, deniedHostU
 
 	// check gids
 
-	gidStrings, err := u.GroupIds()
+	gidStrings, err := user.GroupIds()
 	if err != nil {
 		return fmt.Errorf("unable to lookup user's group membership: %w", err)
 	}

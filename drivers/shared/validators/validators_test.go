@@ -1,8 +1,6 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build !windows
-
 package validators
 
 import (
@@ -63,13 +61,12 @@ func Test_HasValidIds(t *testing.T) {
 	validRangesList := []structs.IDRange{validRange, validRangeSingle}
 
 	testCases := []struct {
-		name           string
-		uidRanges      []structs.IDRange
-		gidRanges      []structs.IDRange
-		uid            string
-		gid            string
-		expectedErr    string
-		userLookupFunc userLookupFn
+		name        string
+		uidRanges   []structs.IDRange
+		gidRanges   []structs.IDRange
+		uid         string
+		gid         string
+		expectedErr string
 	}{
 		{name: "no-ranges-are-valid", uidRanges: validRangesList, gidRanges: emptyRanges},
 		{name: "uid-and-gid-outside-of-ranges-valid", uidRanges: validRangesList, gidRanges: validRangesList},
@@ -80,24 +77,20 @@ func Test_HasValidIds(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			defaultUserToReturn := &user.User{
+			user := &user.User{
 				Uid: "200",
 				Gid: "200",
 			}
 
 			if tc.uid != "" {
-				defaultUserToReturn.Uid = tc.uid
+				user.Uid = tc.uid
 			}
 
 			if tc.gid != "" {
-				defaultUserToReturn.Gid = tc.gid
+				user.Gid = tc.gid
 			}
 
-			getUserFn := func(username string) (*user.User, error) {
-				return defaultUserToReturn, nil
-			}
-
-			err := HasValidIds(getUserFn, "username", tc.uidRanges, tc.gidRanges)
+			err := HasValidIds(user, tc.uidRanges, tc.gidRanges)
 			if tc.expectedErr == "" {
 				must.NoError(t, err)
 			} else {
