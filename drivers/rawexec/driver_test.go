@@ -123,13 +123,13 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	must.Eq(t, config, d.(*Driver).config)
 
 	// Turns on uid/gid restrictions, and sets the range to a bad value
-	config.DeniedHostUids = "10-0"
+	config.DeniedHostUidsStr = "100-1"
 	data = []byte{}
 	must.NoError(t, basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
 	err := harness.SetConfig(bconfig)
 	must.Error(t, err)
-	must.ErrorContains(t, err, "invalid denied_host_uids value")
+	must.ErrorContains(t, err, "invalid range \"100-1\", lower bound cannot be greater than upper bound")
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {

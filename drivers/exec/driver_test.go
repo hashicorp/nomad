@@ -832,6 +832,40 @@ func TestExecDriver_OOMKilled(t *testing.T) {
 	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
+func TestDriver_Config_setDeniedIds(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("denied_host_ids", func(t *testing.T) {
+		invalidUidRange := "invalid denied_host_uids"
+		invalidGidRange := "invalid denied_host_gids"
+
+		for _, tc := range []struct {
+			uidRanges string
+			gidRanges string
+			errorStr  *string
+		}{
+			{uidRanges: "", gidRanges: "", errorStr: nil},
+			{uidRanges: "1-10", gidRanges: "1-10", errorStr: nil},
+			{uidRanges: "10-1", gidRanges: "", errorStr: &invalidUidRange},
+			{uidRanges: "", gidRanges: "10-1", errorStr: &invalidGidRange},
+		} {
+
+			err := (&Config{
+				DefaultModePID:    "private",
+				DefaultModeIPC:    "private",
+				DeniedHostUidsStr: tc.uidRanges,
+				DeniedHostGidsStr: tc.gidRanges,
+			}).setDeniedIds()
+
+			if tc.errorStr == nil {
+				must.NoError(t, err)
+			} else {
+				must.ErrorContains(t, err, *tc.errorStr)
+			}
+		}
+	})
+}
+
 func TestDriver_Config_validate(t *testing.T) {
 	ci.Parallel(t)
 	t.Run("pid/ipc", func(t *testing.T) {
@@ -871,36 +905,6 @@ func TestDriver_Config_validate(t *testing.T) {
 			}).validate())
 		}
 	})
-
-	t.Run("denied_host_ids", func(t *testing.T) {
-		invalidUidRange := "invalid denied_host_uids value"
-		invalidGidRange := "invalid denied_host_gids value"
-
-		for _, tc := range []struct {
-			uidRanges string
-			gidRanges string
-			errorStr  *string
-		}{
-			{uidRanges: "", gidRanges: "", errorStr: nil},
-			{uidRanges: "1-10", gidRanges: "1-10", errorStr: nil},
-			{uidRanges: "10-1", gidRanges: "", errorStr: &invalidUidRange},
-			{uidRanges: "", gidRanges: "10-1", errorStr: &invalidGidRange},
-		} {
-
-			err := (&Config{
-				DefaultModePID: "private",
-				DefaultModeIPC: "private",
-				DeniedHostUids: tc.uidRanges,
-				DeniedHostGids: tc.gidRanges,
-			}).validate()
-
-			if tc.errorStr == nil {
-				must.NoError(t, err)
-			} else {
-				must.ErrorContains(t, err, *tc.errorStr)
-			}
-		}
-	})
 }
 
 func TestDriver_TaskConfig_validateUserIds(t *testing.T) {
@@ -912,9 +916,9 @@ func TestDriver_TaskConfig_validateUserIds(t *testing.T) {
 	nobodyUid, _, _, err := users.LookupUnix("nobody")
 	require.NoError(t, err)
 
-	allowAll := ""
-	denyCurrent := fmt.Sprint(currentUid)
-	denyNobody := fmt.Sprint(nobodyUid)
+	allowAll := []structs.IDRange{}
+	denyCurrent := []structs.IDRange{{Lower: uint64(currentUid), Upper: uint64(currentUid)}}
+	denyNobody := []structs.IDRange{{Lower: uint64(nobodyUid), Upper: uint64(nobodyUid)}}
 	configAllowCurrent := Config{DeniedHostUids: allowAll}
 	configDenyCurrent := Config{DeniedHostUids: denyCurrent}
 	configDenyAnonymous := Config{DeniedHostUids: denyNobody}

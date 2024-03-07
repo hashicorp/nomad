@@ -9,11 +9,12 @@ import (
 	"os/user"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 
-var validRange = "1-100"
-var validRangeSingle = "1"
+var validRangeStr = "1-100"
+var validRangeSingleStr = "1"
 var flippedBoundsMessage = "lower bound cannot be greater than upper bound"
 var invalidRangeFlipped = "100-1"
 
@@ -27,17 +28,16 @@ func Test_IDRangeValid(t *testing.T) {
 		idRange     string
 		expectedErr string
 	}{
-		{name: "standard-range-is-valid", idRange: validRange},
-		{name: "same-number-for-both-bounds-is-valid", idRange: validRangeSingle},
+		{name: "standard-range-is-valid", idRange: validRangeStr},
+		{name: "same-number-for-both-bounds-is-valid", idRange: validRangeSingleStr},
 		{name: "lower-higher-than-upper-is-invalid", idRange: invalidRangeFlipped, expectedErr: flippedBoundsMessage},
 		{name: "missing-lower-is-invalid", idRange: invalidRangeSubstring, expectedErr: invalidBound},
 		{name: "missing-higher-is-invalid", idRange: invalidRangeEmpty, expectedErr: invalidBound},
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			err := ParseIdRange("uid", tc.idRange)
+			_, err := ParseIdRange("uid", tc.idRange)
 			if tc.expectedErr == "" {
 				must.NoError(t, err)
 			} else {
@@ -49,29 +49,36 @@ func Test_IDRangeValid(t *testing.T) {
 }
 
 func Test_HasValidIds(t *testing.T) {
-	emptyRange := ""
-	invalidRange := "foo"
+	var validRange = structs.IDRange{
+		Lower: 1,
+		Upper: 100,
+	}
+
+	var validRangeSingle = structs.IDRange{
+		Lower: 1,
+		Upper: 1,
+	}
+
+	emptyRanges := []structs.IDRange{}
+	validRangesList := []structs.IDRange{validRange, validRangeSingle}
 
 	testCases := []struct {
 		name           string
-		uidRanges      string
-		gidRanges      string
+		uidRanges      []structs.IDRange
+		gidRanges      []structs.IDRange
 		uid            string
 		gid            string
 		expectedErr    string
 		userLookupFunc userLookupFn
 	}{
-		{name: "no-ranges-are-valid", uidRanges: emptyRange, gidRanges: emptyRange},
-		{name: "uid-and-gid-outside-of-ranges-valid", uidRanges: validRange, gidRanges: validRange},
-		{name: "uid-in-one-of-ranges-is-invalid", uidRanges: validRange, gidRanges: validRange, uid: "50", expectedErr: "running as uid 50 is disallowed"},
-		{name: "gid-in-one-of-ranges-is-invalid", uidRanges: validRange, gidRanges: validRange, gid: "50", expectedErr: "running as gid 50 is disallowed"},
-		{name: "invalid-uid-range-throws-error", uidRanges: invalidRange, gidRanges: validRange, expectedErr: "invalid denied_host_uids value"},
-		{name: "invalid-gid-range-throws-error", uidRanges: validRange, gidRanges: invalidRange, expectedErr: "invalid denied_host_gids value"},
+		{name: "no-ranges-are-valid", uidRanges: validRangesList, gidRanges: emptyRanges},
+		{name: "uid-and-gid-outside-of-ranges-valid", uidRanges: validRangesList, gidRanges: validRangesList},
+		{name: "uid-in-one-of-ranges-is-invalid", uidRanges: validRangesList, gidRanges: validRangesList, uid: "50", expectedErr: "running as uid 50 is disallowed"},
+		{name: "gid-in-one-of-ranges-is-invalid", uidRanges: validRangesList, gidRanges: validRangesList, gid: "50", expectedErr: "running as gid 50 is disallowed"},
 		{name: "string-uid-throws-error", uid: "banana", expectedErr: "unable to convert userid banana to integer"},
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			defaultUserToReturn := &user.User{
 				Uid: "200",

@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
@@ -164,17 +165,14 @@ type Config struct {
 	// running on this node.
 	AllowCaps []string `codec:"allow_caps"`
 
-	// TODO: Move this out of validators into structs
-	// if you are to use it here
-
 	DeniedHostUidsStr string `codec:"denied_host_uids"`
 	DeniedHostGidsStr string `codec:"denied_host_gids"`
 
 	// DeniedHostUids configures which host uids are disallowed
-	DeniedHostUids []validators.IDRange `codec:"-"`
+	DeniedHostUids []structs.IDRange `codec:"-"`
 
 	// DeniedHostGids configures which host gids are disallowed
-	DeniedHostGids []validators.IDRange `codec:"-"`
+	DeniedHostGids []structs.IDRange `codec:"-"`
 }
 
 func (c *Config) validate() error {
@@ -194,6 +192,23 @@ func (c *Config) validate() error {
 	if !badCaps.Empty() {
 		return fmt.Errorf("allow_caps configured with capabilities not supported by system: %s", badCaps)
 	}
+
+	return nil
+}
+
+func (c *Config) setDeniedIds() error {
+	deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", c.DeniedHostUidsStr)
+	if err != nil {
+		return err
+	}
+
+	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", c.DeniedHostGidsStr)
+	if err != nil {
+		return err
+	}
+
+	c.DeniedHostUids = deniedUidRanges
+	c.DeniedHostGids = deniedGidRanges
 
 	return nil
 }
@@ -315,20 +330,11 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 	if err := config.validate(); err != nil {
 		return err
 	}
+
+	if err := config.setDeniedIds(); err != nil {
+		return err
+	}
 	d.config = config
-
-	deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", config.DeniedHostUidsStr)
-	if err != nil {
-		return err
-	}
-
-	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", config.DeniedHostGidsStr)
-	if err != nil {
-		return err
-	}
-
-	d.config.DeniedHostUids = deniedUidRanges
-	d.config.DeniedHostGids = deniedGidRanges
 
 	if cfg != nil && cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver

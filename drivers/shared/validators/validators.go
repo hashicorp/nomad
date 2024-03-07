@@ -10,17 +10,13 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// IDRange defines a range of uids or gids (to eventually restrict)
-type IDRange struct {
-	Lower uint64 `codec:"from"`
-	Upper uint64 `codec:"to"`
-}
-
 // ParseIdRange is used to ensure that the configuration for ID ranges is valid.
-func ParseIdRange(rangeType string, deniedRanges string) ([]IDRange, error) {
-	var idRanges []IDRange
+func ParseIdRange(rangeType string, deniedRanges string) ([]structs.IDRange, error) {
+	var idRanges []structs.IDRange
 	parts := strings.Split(deniedRanges, ",")
 
 	// exit early if empty string
@@ -31,7 +27,7 @@ func ParseIdRange(rangeType string, deniedRanges string) ([]IDRange, error) {
 	for _, rangeStr := range parts {
 		idRange, err := parseRangeString(rangeStr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid %s: %w", rangeType, err)
 		}
 
 		idRanges = append(idRanges, *idRange)
@@ -44,7 +40,7 @@ type userLookupFn func(string) (*user.User, error)
 
 // HasValidIds is used when running a task to ensure the
 // given user is in the ID range defined in the task config
-func HasValidIds(userLookupFn userLookupFn, usernameToLookup string, deniedHostUIDs, deniedHostGIDs []IDRange) error {
+func HasValidIds(userLookupFn userLookupFn, usernameToLookup string, deniedHostUIDs, deniedHostGIDs []structs.IDRange) error {
 
 	// look up user on host given username
 
@@ -93,10 +89,10 @@ func HasValidIds(userLookupFn userLookupFn, usernameToLookup string, deniedHostU
 	return nil
 }
 
-func parseRangeString(boundsString string) (*IDRange, error) {
+func parseRangeString(boundsString string) (*structs.IDRange, error) {
 	uidDenyRangeParts := strings.Split(boundsString, "-")
 
-	var idRange IDRange
+	var idRange structs.IDRange
 
 	switch len(uidDenyRangeParts) {
 	case 0:
