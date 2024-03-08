@@ -76,7 +76,7 @@ func New(opts *PoolConfig) Pool {
 		panic("bug: users pool cannot be nil")
 	}
 	if opts.disable() {
-		return new(disable)
+		return new(noopPool)
 	}
 	if opts.MinUGID < 0 {
 		panic("bug: users pool min must be >= 0")
@@ -94,14 +94,14 @@ func New(opts *PoolConfig) Pool {
 	}
 }
 
-// disable is an implementation of Pool that does not allow acquiring ugids
-type disable struct{}
+// noopPool is an implementation of Pool that does not allow acquiring ugids
+type noopPool struct{}
 
-func (*disable) Restore(UGID) {}
-func (*disable) Acquire() (UGID, error) {
+func (*noopPool) Restore(UGID) {}
+func (*noopPool) Acquire() (UGID, error) {
 	return 0, errors.New("dynamic workload users disabled")
 }
-func (*disable) Release(UGID) error {
+func (*noopPool) Release(UGID) error {
 	// avoid giving an error if a client is restarted with a new config
 	// that disables dynamic workload users but still has a task running
 	// making use of one
