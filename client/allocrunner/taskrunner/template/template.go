@@ -253,7 +253,11 @@ func (tm *TaskTemplateManager) run() {
 	// Start the runner
 	go tm.runner.Start()
 
-	// Block till all the templates have been rendered
+	//defer tm.runner.Stop() // TODO(tgross): this is safe but does it fix the bug?
+
+	// Block till all the templates have been rendered or until we get an
+	// error. An error will send Kill to the task, which closes the
+	// tm.shutdownCh
 	tm.handleFirstRender()
 
 	// Detect if there was a shutdown.
@@ -270,6 +274,7 @@ func (tm *TaskTemplateManager) run() {
 			structs.NewTaskEvent(structs.TaskKilling).
 				SetFailsTask().
 				SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
+		// tm.runner.Stop() // TODO(tgross): this is safe but does it fix the bug?
 		return
 	}
 	tm.config.EnvBuilder.SetTemplateEnv(envMap)
@@ -287,7 +292,7 @@ func (tm *TaskTemplateManager) run() {
 }
 
 // handleFirstRender blocks till all templates have been rendered
-func (tm *TaskTemplateManager) handleFirstRender() {
+func (tm *TaskTemplateManager) handleFirstRender() error {
 	// missingDependencies is the set of missing dependencies.
 	var missingDependencies map[string]struct{}
 
@@ -307,16 +312,21 @@ WAIT:
 	for {
 		select {
 		case <-tm.shutdownCh:
-			return
+			return nil
 		case err, ok := <-tm.runner.ErrCh:
 			if !ok {
 				continue
 			}
 
+			// note: we don't return here so that we block on tm.shutdownCh in
+			// the next pass through the loop; this ensures that the caller
+			// doesn't unblock prematurely
 			tm.config.Lifecycle.Kill(context.Background(),
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
+			// tm.runner.Stop() // TODO(tgross): this is safe but does it fix the bug?
+
 		case <-tm.runner.TemplateRenderedCh():
 			// A template has been rendered, figure out what to do
 			events := tm.runner.RenderEvents()
@@ -408,6 +418,8 @@ WAIT:
 			tm.config.Events.EmitEvent(structs.NewTaskEvent(consulTemplateSourceName).SetDisplayMessage(fmt.Sprintf("Missing: %s", missingStr)))
 		}
 	}
+
+	return nil
 }
 
 // handleTemplateRerenders is used to handle template render events after they
@@ -431,6 +443,8 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
+			// tm.runner.Stop() // TODO(tgross): this is safe but does it fix the bug?
+
 		case <-tm.runner.TemplateRenderedCh():
 			tm.onTemplateRendered(handledRenders, allRenderedTime)
 		}

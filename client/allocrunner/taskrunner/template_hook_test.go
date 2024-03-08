@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -268,4 +270,229 @@ func Test_templateHook_Prestart_Vault(t *testing.T) {
 			must.True(t, gotRequest)
 		})
 	}
+}
+
+func Test_templateHook_Prestart_VaultFail(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server to simulate Vault cluster responses.
+	reqCh := make(chan any, 10)
+	vaultServer := mockVaultServer(t, reqCh)
+	t.Cleanup(vaultServer.Close)
+
+	// Setup client with Vault config.
+	clientConfig := config.DefaultConfig()
+	clientConfig.TemplateConfig.DisableSandbox = true
+	clientConfig.TemplateConfig.VaultRetry = &config.RetryConfig{
+		Attempts:   pointer.Of(1),
+		Backoff:    pointer.Of(100 * time.Millisecond),
+		MaxBackoff: pointer.Of(100 * time.Millisecond),
+	}
+
+	clientConfig.VaultConfigs = map[string]*structsc.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Name:    structs.VaultDefaultCluster,
+			Enabled: pointer.Of(true),
+			Addr:    vaultServer.URL,
+		},
+	}
+
+	testCases := []struct {
+		name      string
+		expectErr string
+	}{
+		{
+			name:      "exhaust retries on 403",
+			expectErr: "foo",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Setup template hook.
+			alloc := mock.MinAlloc()
+			task := alloc.Job.TaskGroups[0].Tasks[0]
+			taskDir := t.TempDir()
+			taskLifecycleHooks := trtesting.NewMockTaskHooks()
+
+			hookConfig := &templateHookConfig{
+				alloc:        alloc,
+				logger:       testlog.HCLogger(t),
+				lifecycle:    taskLifecycleHooks,
+				events:       &trtesting.MockEmitter{},
+				clientConfig: clientConfig,
+				envBuilder:   taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region),
+				templates: []*structs.Template{
+					{
+						EmbeddedTmpl: `
+{{with secret "secret/data/test1"}}{{.Data.data.secret}}{{end}}
+{{with secret "secret/data/test2"}}{{.Data.data.secret}}{{end}}
+{{with secret "secret/data/test3"}}{{.Data.data.secret}}{{end}}
+`,
+						ChangeMode: structs.TemplateChangeModeNoop,
+						DestPath:   path.Join(taskDir, "out.txt"),
+					},
+				},
+			}
+			hook := newTemplateHook(hookConfig)
+
+			// Start template hook with a timeout context to ensure it exists.
+			req := &interfaces.TaskPrestartRequest{
+				Alloc:   alloc,
+				Task:    task,
+				TaskDir: &allocdir.TaskDir{Dir: taskDir},
+			}
+
+			killCtx, killCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			t.Cleanup(killCancel)
+
+			testCtx, testCancel := context.WithTimeout(context.Background(), time.Second*3)
+			t.Cleanup(testCancel)
+
+			start := time.Now()
+
+			// Start in a goroutine because Prestart() blocks until first
+			// render.
+			hookErrCh := make(chan error, 1)
+			go func() {
+				err := hook.Prestart(killCtx, req, nil)
+				t.Logf("%v hook.Prestart done!", time.Now().Sub(start))
+				hookErrCh <- err
+			}()
+
+			stopCh := make(chan error, 1)
+
+			killTaskAndStop := func() {
+				killCancel()
+
+				// note: template_hook.Stop doesn't respect context
+				err := hook.Stop(context.TODO(),
+					&interfaces.TaskStopRequest{}, &interfaces.TaskStopResponse{})
+				stopCh <- err
+			}
+
+			var gotRequests int
+			var gotKill bool
+			var gotStop bool
+			var timedOut bool
+		LOOP:
+			for {
+				select {
+				case <-reqCh:
+					gotRequests++ // record the number of Vault requests we send
+					if gotRequests == 1 {
+						go killTaskAndStop() // must be async so we can get Stop hook result
+
+					}
+
+				case <-taskLifecycleHooks.KillCh:
+					gotKill = true
+					t.Logf("%v KILL recv!", time.Now().Sub(start))
+					go killTaskAndStop() // must be async so we can get Stop hook result
+
+				case err := <-stopCh:
+					t.Logf("%v hook.Stop done!", time.Now().Sub(start))
+					must.NoError(t, err, must.Sprint("expected no error from Stop hook"))
+					gotStop = true
+					break LOOP
+
+				case <-testCtx.Done():
+					t.Logf("%v test timeout!", time.Now().Sub(start))
+					timedOut = true
+					must.NoError(t, testCtx.Err(), must.Sprint("test timed out"))
+					return
+
+				case err := <-hookErrCh:
+					t.Logf("%v hookErrCh recv! (%v)", time.Now().Sub(start), err)
+					must.NoError(t, err, must.Sprint("expected no error from Prestart hook"))
+				}
+			}
+			t.Logf("%v all done!", time.Now().Sub(start))
+
+			must.False(t, timedOut, must.Sprintf("timed out!"))
+			must.True(t, gotStop, must.Sprint("expected stop"))
+			must.False(t, gotKill, must.Sprint("expected kill"))
+			//			must.Eq(t, 3, gotRequests, must.Sprint("expected requests to use up retries"))
+		})
+	}
+}
+
+func mockVaultServer(t *testing.T, reqCh chan any) *httptest.Server {
+	t.Helper()
+
+	secretsResp := `
+{
+  "data": {
+    "data": {
+      "secret": "secret"
+    },
+    "metadata": {
+      "created_time": "2023-10-18T15:58:29.65137Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 1
+    }
+  }
+}`
+
+	preflightResp := `
+{
+  "request_id": "5667af97-0fa4-d36f-92aa-1f256560c69a",
+  "lease_id": "",
+  "renewable": false,
+  "lease_duration": 0,
+  "data": {
+    "accessor": "kv_4b3570ef",
+    "config": {
+      "default_lease_ttl": 0,
+      "force_no_cache": false,
+      "max_lease_ttl": 0
+    },
+    "deprecation_status": "supported",
+    "description": "key/value secret storage",
+    "external_entropy_access": false,
+    "local": false,
+    "options": {
+      "version": "2"
+    },
+    "path": "secret/",
+    "plugin_version": "",
+    "running_plugin_version": "v0.15.0+builtin",
+    "running_sha256": "",
+    "seal_wrap": false,
+    "type": "kv",
+    "uuid": "f046f163-8359-f3bf-7bac-29bee259073f"
+  },
+  "wrap_info": null,
+  "warnings": null,
+  "auth": null
+}
+`
+	// Start test server to simulate Vault cluster responses.
+	reqNum := atomic.Uintptr{}
+	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("GET %s", r.URL.Path)
+
+		if strings.HasPrefix(r.URL.Path, "/v1/sys") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(preflightResp))
+		} else {
+			reqNum.Add(1)
+			//			if reqNum%3 == 0 {
+			if strings.HasSuffix(r.URL.Path, "test3") {
+				time.Sleep(500 * time.Millisecond)
+				http.Error(w, "Forbidden", http.StatusForbidden)
+			} else {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(secretsResp))
+			}
+		}
+
+		reqCh <- struct{}{}
+
+	}))
+
+	return vaultServer
 }

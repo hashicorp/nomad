@@ -260,7 +260,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	return unblock, nil
 }
 
-func (h *templateHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
+func (h *templateHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
