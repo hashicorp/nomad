@@ -5891,8 +5891,9 @@ func TestAllocation_NeedsToReconnect(t *testing.T) {
 	}
 }
 
-func TestAllocation_ShouldBeReplaced(t *testing.T) {
+func TestAllocation_RescheduleTimeOnDisconnect(t *testing.T) {
 	ci.Parallel(t)
+	testNow := time.Now()
 
 	testAlloc := MockAlloc()
 
@@ -5900,24 +5901,28 @@ func TestAllocation_ShouldBeReplaced(t *testing.T) {
 		name            string
 		taskGroup       string
 		disconnectGroup *DisconnectStrategy
-		expected        *bool
+		expected        bool
+		expectedTime    time.Time
 	}{
 		{
-			name:      "missing_task_group",
-			taskGroup: "missing-task-group",
-			expected:  nil,
+			name:         "missing_task_group",
+			taskGroup:    "missing-task-group",
+			expected:     false,
+			expectedTime: time.Time{},
 		},
 		{
 			name:            "missing_disconnect_group",
 			taskGroup:       "web",
 			disconnectGroup: nil,
-			expected:        nil,
+			expected:        true,
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is de default value
 		},
 		{
 			name:            "empty_disconnect_group",
 			taskGroup:       "web",
 			disconnectGroup: &DisconnectStrategy{},
-			expected:        nil,
+			expected:        true,
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is de default value
 		},
 		{
 			name:      "replace_enabled",
@@ -5925,103 +5930,145 @@ func TestAllocation_ShouldBeReplaced(t *testing.T) {
 			disconnectGroup: &DisconnectStrategy{
 				Replace: pointer.Of(true),
 			},
-			expected: pointer.Of(true),
+			expected:     true,
+			expectedTime: testNow,
+		},
+		{
+			name:      "replace_enabled",
+			taskGroup: "web",
+			disconnectGroup: &DisconnectStrategy{
+				Replace: pointer.Of(false),
+			},
+			expected:     false,
+			expectedTime: testNow,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			alloc := testAlloc.Copy()
-			alloc.TaskGroup = tc.taskGroup
 
+			alloc.TaskGroup = tc.taskGroup
 			alloc.Job.TaskGroups[0].Disconnect = tc.disconnectGroup
 
-			got := alloc.ShouldBeReplaced()
+			time, eligible := alloc.RescheduleTimeOnDisconnect(testNow)
 
-			require.Equal(t, tc.expected, got)
+			must.Eq(t, tc.expected, eligible)
+			must.Eq(t, tc.expectedTime, time)
 		})
 	}
 }
 
-func TestAllocation_GetLeaderTask(t *testing.T) {
+func TestAllocation_LeaderOrMainTaskInInGroup(t *testing.T) {
 	ci.Parallel(t)
 
-	testAlloc := MockAlloc()
-	testAlloc.Job.TaskGroups = []*TaskGroup{
-		{
-			Name:  "no-tasks",
-			Tasks: []*Task{},
-		},
-		{
-			Name: "one-task",
-			Tasks: []*Task{
-				{
-					Name: "task1",
-				},
-			},
-		},
-		{
-			Name: "multiple-tasks-no-leader",
-			Tasks: []*Task{
-				{
-					Name: "task1",
-				},
-				{
-					Name: "task2",
-				},
-				{
-					Name: "task3",
-				},
-			},
-		},
-		{
-			Name: "multiple-tasks-one-leader",
-			Tasks: []*Task{
-				{
-					Name: "task1",
-				},
-				{
-					Name:   "task2",
-					Leader: true,
-				},
-				{
-					Name: "task3",
-				},
+	taskGroupNoTasks := &TaskGroup{
+		Name:  "no-tasks",
+		Tasks: []*Task{},
+	}
+
+	taskGroupOneTask := &TaskGroup{
+		Name: "one-task",
+		Tasks: []*Task{
+			{
+				Name: "task1",
 			},
 		},
 	}
 
+	taskGroupNoLifeCycle := &TaskGroup{
+		Name: "multiple-tasks-no-leader-no-lifecycle",
+		Tasks: []*Task{
+			{
+				Name: "task1",
+			},
+			{
+				Name: "task2",
+			},
+			{
+				Name: "task3",
+			},
+		},
+	}
+
+	taskGroupLifeCycle := &TaskGroup{
+		Name: "multiple-tasks-no-leader-with-lifecycle",
+		Tasks: []*Task{
+			{
+				Name: "task1",
+				Lifecycle: &TaskLifecycleConfig{
+					Hook: TaskLifecycleHookPrestart,
+				},
+			},
+			{
+				Name: "task2",
+			},
+			{
+				Name: "task3",
+			},
+		},
+	}
+
+	taskGroupOneLeader := &TaskGroup{
+		Name: "multiple-tasks-one-leader",
+		Tasks: []*Task{
+			{
+				Name: "task1",
+			},
+			{
+				Name:   "task2",
+				Leader: true,
+			},
+			{
+				Name: "task3",
+			},
+		},
+	}
+
+	testAlloc := MockAlloc()
+	testAlloc.Job.TaskGroups = []*TaskGroup{
+		taskGroupNoTasks,
+		taskGroupOneTask,
+		taskGroupNoLifeCycle,
+		taskGroupLifeCycle,
+		taskGroupOneLeader,
+	}
+
 	testCases := []struct {
 		name      string
-		taskGroup string
-		expected  Task
+		taskGroup *TaskGroup
+		expected  *Task
 	}{
 		{
-			name:      "missing_task_group",
-			taskGroup: "missing-task-group",
-			expected:  Task{},
-		},
-		{
 			name:      "empty_tasks",
-			taskGroup: "no-tasks",
-			expected:  Task{},
+			taskGroup: taskGroupNoTasks,
+			expected:  nil,
 		},
 		{
 			name:      "one_task",
-			taskGroup: "one-task",
-			expected: Task{
+			taskGroup: taskGroupOneTask,
+			expected: &Task{
 				Name: "task1",
 			},
 		},
 		{
-			name:      "multiple_tasks_no_leader",
-			taskGroup: "multiple-tasks-no-leader",
-			expected:  Task{},
+			name:      "multiple_tasks_no_leader_no_lifecycle",
+			taskGroup: taskGroupNoLifeCycle,
+			expected: &Task{
+				Name: "task1",
+			},
+		},
+		{
+			name:      "multiple_tasks_no_leader_lifecycle",
+			taskGroup: taskGroupLifeCycle,
+			expected: &Task{
+				Name: "task2",
+			},
 		},
 		{
 			name:      "multiple_tasks_one_leader",
-			taskGroup: "multiple-tasks-one-leader",
-			expected: Task{
+			taskGroup: taskGroupOneLeader,
+			expected: &Task{
 				Name:   "task2",
 				Leader: true,
 			},
@@ -6031,65 +6078,27 @@ func TestAllocation_GetLeaderTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {})
 		ta := testAlloc.Copy()
-		ta.TaskGroup = tc.taskGroup
+		ta.TaskGroup = tc.taskGroup.Name
 
-		got := ta.GetLeaderTask()
+		got := ta.LeaderOrMainTaskInInGroup(tc.taskGroup)
 		must.Eq(t, tc.expected, got)
 	}
 }
 
-func TestAllocation_LatestStartOfTask(t *testing.T) {
+func TestAllocation_LastStartOfTask(t *testing.T) {
 	ci.Parallel(t)
 	testNow := time.Now()
 
 	alloc := MockAlloc()
 	alloc.TaskStates = map[string]*TaskState{
-		"empty-events": {
-			Events: []*TaskEvent{},
+		"task-with-restarts": {
+			StartedAt:   testNow.Add(-30 * time.Minute),
+			Restarts:    3,
+			LastRestart: testNow.Add(-5 * time.Minute),
 		},
-		"no-start": {
-			Events: []*TaskEvent{
-				{
-					Type: TaskReceived,
-					Time: testNow.UnixNano(),
-				},
-			},
-		},
-		"multiple-starts": {
-			Events: []*TaskEvent{
-				{
-					Type: TaskReceived,
-					Time: testNow.Add(-30 * time.Minute).UnixNano(),
-				},
-				{
-					Type: TaskStarted,
-					Time: testNow.Add(-20 * time.Minute).UnixNano(),
-				},
-				{
-					Type: TaskKilled,
-					Time: testNow.Add(-10 * time.Minute).UnixNano(),
-				},
-				{
-					Type: TaskStarted,
-					Time: testNow.Add(-5 * time.Minute).UnixNano(),
-				},
-			},
-		},
-		"disconnects": {
-			Events: []*TaskEvent{
-				{
-					Type: TaskReceived,
-					Time: testNow.Add(-30 * time.Minute).UnixNano(),
-				},
-				{
-					Type: TaskStarted,
-					Time: testNow.Add(-20 * time.Minute).UnixNano(),
-				},
-				{
-					Type: TaskClientReconnected,
-					Time: testNow.Add(-10 * time.Minute).UnixNano(),
-				},
-			},
+		"task-without-restarts": {
+			StartedAt: testNow.Add(-30 * time.Minute),
+			Restarts:  0,
 		},
 	}
 
@@ -6104,36 +6113,25 @@ func TestAllocation_LatestStartOfTask(t *testing.T) {
 			expected: time.Time{},
 		},
 		{
-			name:     "no_events",
-			taskName: "empty-events",
-			expected: time.Time{},
+			name:     "task_with_restarts",
+			taskName: "task-with-restarts",
+			expected: testNow.Add(-5 * time.Minute),
 		},
 		{
-			name:     "task_hasn't_started",
-			taskName: "no-start",
-			expected: time.Time{},
-		},
-		{
-			name:     "task_has_multiple_starts",
-			taskName: "multiple-starts",
-			expected: testNow.Add(-5 * time.Minute).UTC(),
-		},
-		{
-			name:     "task_has_disconnects",
-			taskName: "disconnects",
-			expected: testNow.Add(-20 * time.Minute).UTC(),
+			name:     "task_without_restarts",
+			taskName: "task-without-restarts",
+			expected: testNow.Add(-30 * time.Minute),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			alloc.TaskGroup = "web"
-			got := alloc.LatestStartOfTask(tc.taskName)
+			got := alloc.LastStartOfTask(tc.taskName)
 
 			must.Eq(t, tc.expected, got)
 		})
 	}
-
 }
 
 func TestAllocation_Canonicalize_Old(t *testing.T) {

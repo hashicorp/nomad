@@ -21,12 +21,12 @@ func New(logger log.Logger) *ReconnectingPicker {
 }
 
 func (rp *ReconnectingPicker) PickReconnectingAlloc(ds *structs.DisconnectStrategy, original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
-	// Check if the replacement is newer.
+	// Check if the replacement is a newer job version.
 	// Always prefer the replacement if true.
 	replacementIsNewer := replacement.Job.Version > original.Job.Version ||
 		replacement.Job.CreateIndex > original.Job.CreateIndex
 	if replacementIsNewer {
-		rp.logger.Debug("replacement has a newer version, keeping replacement")
+		rp.logger.Debug("replacement has a newer job version, keeping replacement")
 		return replacement
 	}
 
@@ -92,15 +92,32 @@ func (rp *ReconnectingPicker) pickReplacement(_ *structs.Allocation, replacement
 }
 
 func (rp *ReconnectingPicker) pickLongestRunning(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
-	lt := original.GetLeaderTask()
+	tg := original.Job.LookupTaskGroup(original.TaskGroup)
 
-	// Default to the first task in the group if no leader is found.
-	if lt.Name == "" {
-		lt = *original.Job.LookupTaskGroup(original.TaskGroup).Tasks[0]
+	lt := original.LeaderOrMainTaskInInGroup(tg)
+
+	if lt == nil {
+		return replacement
+	}
+
+	orgStartTime := original.LastStartOfTask(lt.Name)
+	repStartTime := replacement.LastStartOfTask(lt.Name)
+
+	if orgStartTime.IsZero() && !repStartTime.IsZero() {
+		return replacement
+	}
+
+	if !orgStartTime.IsZero() && repStartTime.IsZero() {
+		return original
+	}
+
+	// In neither one of them is running yet, default to best score.
+	if repStartTime.IsZero() && orgStartTime.IsZero() {
+		return rp.pickBestScore(original, replacement)
 	}
 
 	// If the replacement has a later start time, keep the original.
-	if original.LatestStartOfTask(lt.Name).Sub(replacement.LatestStartOfTask(lt.Name)) < 0 {
+	if orgStartTime.Sub(repStartTime) < 0 {
 		return original
 	}
 

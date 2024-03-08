@@ -11074,19 +11074,14 @@ func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
-// ShouldBeReplaced tests an alloc for replace in case of disconnection
-func (a *Allocation) ShouldBeReplaced() *bool {
+func (a *Allocation) RescheduleTimeOnDisconnect(now time.Time) (time.Time, bool) {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-
-	if tg == nil {
-		return nil
+	if tg == nil || tg.Disconnect == nil || tg.Disconnect.Replace == nil {
+		// Kept to maintain backwards compatibility with behavior prior to 1.8.0
+		return a.NextRescheduleTimeByTime(now)
 	}
 
-	if tg.Disconnect == nil || tg.Disconnect.Replace == nil {
-		return nil
-	}
-
-	return tg.Disconnect.Replace
+	return now, *tg.Disconnect.Replace
 }
 
 // ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
@@ -11443,30 +11438,38 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
-// GetLeaderTask will return the leader task in the allocation
-// if there is one, otherwise it will return an empty task.
-func (a *Allocation) GetLeaderTask() Task {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-
-	task := Task{}
-
+// LeaderOrMainTaskInInGroup will return the leader task in the allocation
+// if there is one, otherwise it will return the first task that run as main.
+// If the task group is no longer present or there are no tasks in it, it
+// will return nil.
+func (a *Allocation) LeaderOrMainTaskInInGroup(tg *TaskGroup) *Task {
 	if tg == nil {
-		return task
+		return nil
 	}
 
 	switch len(tg.Tasks) {
 	case 0:
-		return task
+		return nil
 
 	case 1:
-		task = *tg.Tasks[0]
+		return tg.Tasks[0]
+	}
 
-	default:
-		for _, t := range tg.Tasks {
-			if t.Leader {
-				task = *t
-				break
-			}
+	var task *Task
+
+	// flag used to avoid traversing the tasks twice in case there is no defined
+	// leader.
+	mainTaskFound := false
+
+	for _, t := range tg.Tasks {
+		if t.Leader {
+			task = t
+			break
+		}
+
+		if !mainTaskFound && t.IsMain() {
+			mainTaskFound = true
+			task = t
 		}
 	}
 
@@ -11476,24 +11479,17 @@ func (a *Allocation) GetLeaderTask() Task {
 // LatestStartOfTask returns the time of the last start event for the given task
 // using the allocations TaskStates. If the task has not started, the zero time
 // will be returned.
-func (a *Allocation) LatestStartOfTask(taskName string) time.Time {
-	t := time.Time{}
-
+func (a *Allocation) LastStartOfTask(taskName string) time.Time {
 	task := a.TaskStates[taskName]
 	if task == nil {
-		return t
+		return time.Time{}
 	}
 
-	// TaskStates are appended to the list and we only need the latest
-	// transition, so traverse from the end until we find one.
-	for i := len(task.Events) - 1; i >= 0; i-- {
-		e := task.Events[i]
-		if e.Type == TaskStarted {
-			t = time.Unix(0, e.Time).UTC()
-			break
-		}
+	if task.Restarts > 0 {
+		return task.LastRestart
 	}
-	return t
+
+	return task.StartedAt
 }
 
 // IdentityClaims are the input to a JWT identifying a workload. It
