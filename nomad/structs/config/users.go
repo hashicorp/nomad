@@ -60,25 +60,33 @@ func (u *UsersConfig) Equal(o *UsersConfig) bool {
 	}
 }
 
+var (
+	errUsersUnset            = errors.New("users must not be nil")
+	errDynamicUserMinUnset   = errors.New("dynamic_user_min must be set")
+	errDynamicUserMinInvalid = errors.New("dynamic_user_min must not be negative")
+	errDynamicUserMaxUnset   = errors.New("dynamic_user_max must be set")
+	errDynamicUserMaxInvalid = errors.New("dynamic_user_max must not be negative")
+)
+
 // Validate whether UsersConfig is valid.
 //
 // Note that -1 is a valid value for min/max dynamic users, as this is used
 // to indicate the dynamic workload users feature should be disabled.
 func (u *UsersConfig) Validate() error {
 	if u == nil {
-		return errors.New("users must not be nil")
+		return errUsersUnset
 	}
 	if u.MinDynamicUser == nil {
-		return errors.New("dynamic_user_min must be set")
+		return errDynamicUserMinUnset
 	}
 	if *u.MinDynamicUser < -1 {
-		return errors.New("dynamic_user_min must not be negative")
+		return errDynamicUserMinInvalid
 	}
 	if u.MaxDynamicUser == nil {
-		return errors.New("dynamic_user_max must be set")
+		return errDynamicUserMaxUnset
 	}
 	if *u.MaxDynamicUser < -1 {
-		return errors.New("dynamic_user_max must not be negative")
+		return errDynamicUserMaxInvalid
 	}
 	return nil
 }

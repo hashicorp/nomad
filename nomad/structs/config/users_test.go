@@ -85,29 +85,44 @@ func TestUsersConfig_Merge(t *testing.T) {
 func TestUsersConfig_Validate(t *testing.T) {
 	ci.Parallel(t)
 
+	// default config should be valid of course
+	must.NoError(t, DefaultUsersConfig().Validate())
+
+	// nil config is not valid
+	must.ErrorIs(t, ((*UsersConfig)(nil)).Validate(), errUsersUnset)
+
 	cases := []struct {
 		name   string
 		modify func(*UsersConfig)
-		exp    string
+		exp    error
 	}{
 		{
-			name:   "default config is valid",
-			modify: nil,
-			exp:    "",
-		},
-		{
-			name: "missing min dynamic user",
+			name: "min dynamic user not set",
 			modify: func(u *UsersConfig) {
 				u.MinDynamicUser = nil
 			},
-			exp: "dynamic_user_min must be set",
+			exp: errDynamicUserMinUnset,
 		},
 		{
-			name: "missing max dynamic user",
+			name: "min dynamic user not valid",
+			modify: func(u *UsersConfig) {
+				u.MinDynamicUser = pointer.Of(-2)
+			},
+			exp: errDynamicUserMinInvalid,
+		},
+		{
+			name: "max dynamic user not set",
 			modify: func(u *UsersConfig) {
 				u.MaxDynamicUser = nil
 			},
-			exp: "dynamic_user_max must be set",
+			exp: errDynamicUserMaxUnset,
+		},
+		{
+			name: "max dynamic user not valid",
+			modify: func(u *UsersConfig) {
+				u.MaxDynamicUser = pointer.Of(-2)
+			},
+			exp: errDynamicUserMaxInvalid,
 		},
 	}
 
@@ -118,11 +133,7 @@ func TestUsersConfig_Validate(t *testing.T) {
 				tc.modify(u)
 			}
 			err := u.Validate()
-			if tc.exp != "" {
-				must.ErrorContains(t, err, tc.exp)
-			} else {
-				must.NoError(t, err)
-			}
+			must.ErrorIs(t, err, tc.exp)
 		})
 	}
 }
