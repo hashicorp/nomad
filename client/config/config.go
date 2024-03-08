@@ -328,6 +328,9 @@ type Config struct {
 	// Drain configuration from the agent's config file.
 	Drain *DrainConfig
 
+	// Uesrs configuration from the agent's config file.
+	Users *UsersConfig
+
 	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
 	ExtraAllocHooks []interfaces.RunnerHook
 }
@@ -757,6 +760,7 @@ func (c *Config) Copy() *Config {
 	nc.TemplateConfig = c.TemplateConfig.Copy()
 	nc.ReservableCores = slices.Clone(c.ReservableCores)
 	nc.Artifact = c.Artifact.Copy()
+	nc.Users = c.Users.Copy()
 	return &nc
 }
 
@@ -805,6 +809,10 @@ func DefaultConfig() *Config {
 		CgroupParent:       "nomad.slice", // SETH todo
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
+		Users: &UsersConfig{
+			MinDynamicUser: 80_000,
+			MaxDynamicUser: 89_999,
+		},
 	}
 
 	return cfg
