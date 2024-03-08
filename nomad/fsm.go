@@ -3287,5 +3287,5 @@ func (s SnapshotType) String() string {
 	if ok {
 		return v
 	}
-	return "others"
+	return fmt.Sprintf("Unknown(%d)", s)
 }
