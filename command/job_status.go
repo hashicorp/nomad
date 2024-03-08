@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -29,6 +28,12 @@ type JobStatusCommand struct {
 	verbose   bool
 	json      bool
 	tmpl      string
+}
+
+// NamespacedID is a tuple of an ID and a namespace
+type NamespacedID struct {
+	ID        string
+	Namespace string
 }
 
 type JobJson struct {
@@ -156,10 +161,10 @@ func (c *JobStatusCommand) Run(args []string) int {
 			c.Ui.Output("No running jobs")
 		} else {
 			if c.json || len(c.tmpl) > 0 {
-				pairs := make([]structs.NamespacedID, len(jobs))
+				pairs := make([]NamespacedID, len(jobs))
 
 				for i, j := range jobs {
-					pairs[i] = structs.NamespacedID{ID: j.ID, Namespace: j.Namespace}
+					pairs[i] = NamespacedID{ID: j.ID, Namespace: j.Namespace}
 				}
 
 				jsonJobs, err := createJsonJobsOutput(client, c.allAllocs, pairs...)
@@ -208,7 +213,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	if c.json || len(c.tmpl) > 0 {
 		jsonJobs, err := createJsonJobsOutput(client, c.allAllocs,
-			structs.NamespacedID{ID: *job.ID, Namespace: *job.Namespace})
+			NamespacedID{ID: *job.ID, Namespace: *job.Namespace})
 
 		if err != nil {
 			c.Ui.Error(err.Error())
@@ -720,7 +725,7 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 	}
 }
 
-func createJsonJobsOutput(client *api.Client, allAllocs bool, jobs ...structs.NamespacedID) ([]JobJson, error) {
+func createJsonJobsOutput(client *api.Client, allAllocs bool, jobs ...NamespacedID) ([]JobJson, error) {
 	jsonJobs := make([]JobJson, len(jobs))
 
 	for i, pair := range jobs {
