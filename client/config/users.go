@@ -3,7 +3,7 @@
 
 package config
 
-import "github.com/hashicorp/nomad/nomad/structs/config"
+import sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 
 // UsersConfig configures things related to operating system users.
 type UsersConfig struct {
@@ -14,7 +14,7 @@ type UsersConfig struct {
 	MaxDynamicUser int
 }
 
-func UsersConfigFromAgent(c *config.UsersConfig) *UsersConfig {
+func UsersConfigFromAgent(c *sconfig.UsersConfig) *UsersConfig {
 	return &UsersConfig{
 		MinDynamicUser: *c.MinDynamicUser,
 		MaxDynamicUser: *c.MaxDynamicUser,
