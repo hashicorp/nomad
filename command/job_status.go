@@ -5,13 +5,13 @@ package command
 
 import (
 	"fmt"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
