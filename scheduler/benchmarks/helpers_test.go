@@ -5,7 +5,7 @@ package benchmarks
 
 // Test helper functions for running scheduling tests and benchmarks
 // against real world state snapshots or data directories. These live
-// here and not in the the parent scheduler package because it would
+// here and not in the parent scheduler package because it would
 // create circular imports between the scheduler and raftutils package
 // (via the nomad package)
 

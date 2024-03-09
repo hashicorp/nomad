@@ -435,7 +435,7 @@ func cloneWithTimeout(httpClient *http.Client, t time.Duration) (*http.Client, e
 	return &nc, nil
 }
 
-// ConfigureTLS applies a set of TLS configurations to the the HTTP client.
+// ConfigureTLS applies a set of TLS configurations to the HTTP client.
 func ConfigureTLS(httpClient *http.Client, tlsConfig *TLSConfig) error {
 	if tlsConfig == nil {
 		return nil
