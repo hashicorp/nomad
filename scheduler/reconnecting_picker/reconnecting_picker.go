@@ -94,7 +94,7 @@ func (rp *ReconnectingPicker) pickReplacement(_ *structs.Allocation, replacement
 func (rp *ReconnectingPicker) pickLongestRunning(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
 	tg := original.Job.LookupTaskGroup(original.TaskGroup)
 
-	lt := original.LeaderOrMainTaskInInGroup(tg)
+	lt := original.LeaderOrMainTaskInGroup(tg)
 
 	if lt == nil {
 		return replacement

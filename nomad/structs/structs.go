@@ -11438,11 +11438,11 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
-// LeaderOrMainTaskInInGroup will return the leader task in the allocation
+// LeaderOrMainTaskInGroup will return the leader task in the allocation
 // if there is one, otherwise it will return the first task that run as main.
 // If the task group is no longer present or there are no tasks in it, it
 // will return nil.
-func (a *Allocation) LeaderOrMainTaskInInGroup(tg *TaskGroup) *Task {
+func (a *Allocation) LeaderOrMainTaskInGroup(tg *TaskGroup) *Task {
 	if tg == nil {
 		return nil
 	}
@@ -11476,7 +11476,7 @@ func (a *Allocation) LeaderOrMainTaskInInGroup(tg *TaskGroup) *Task {
 	return task
 }
 
-// LatestStartOfTask returns the time of the last start event for the given task
+// LastStartOfTask returns the time of the last start event for the given task
 // using the allocations TaskStates. If the task has not started, the zero time
 // will be returned.
 func (a *Allocation) LastStartOfTask(taskName string) time.Time {

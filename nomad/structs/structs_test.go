@@ -5915,14 +5915,14 @@ func TestAllocation_RescheduleTimeOnDisconnect(t *testing.T) {
 			taskGroup:       "web",
 			disconnectGroup: nil,
 			expected:        true,
-			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is de default value
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
 		},
 		{
 			name:            "empty_disconnect_group",
 			taskGroup:       "web",
 			disconnectGroup: &DisconnectStrategy{},
 			expected:        true,
-			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is de default value
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
 		},
 		{
 			name:      "replace_enabled",
@@ -5959,7 +5959,7 @@ func TestAllocation_RescheduleTimeOnDisconnect(t *testing.T) {
 	}
 }
 
-func TestAllocation_LeaderOrMainTaskInInGroup(t *testing.T) {
+func TestAllocation_LeaderOrMainTaskInGroup(t *testing.T) {
 	ci.Parallel(t)
 
 	taskGroupNoTasks := &TaskGroup{
@@ -6080,7 +6080,7 @@ func TestAllocation_LeaderOrMainTaskInInGroup(t *testing.T) {
 		ta := testAlloc.Copy()
 		ta.TaskGroup = tc.taskGroup.Name
 
-		got := ta.LeaderOrMainTaskInInGroup(tc.taskGroup)
+		got := ta.LeaderOrMainTaskInGroup(tc.taskGroup)
 		must.Eq(t, tc.expected, got)
 	}
 }
