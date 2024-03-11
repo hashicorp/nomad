@@ -337,7 +337,7 @@ func (m *ReserveRequest) GetDeviceIds() []string {
 }
 
 // ReserveResponse informs Nomad how to expose the requested devices
-// to the the task.
+// to the task.
 type ReserveResponse struct {
 	// container_res contains information on how to mount the device
 	// into a task isolated using container technologies (where the
