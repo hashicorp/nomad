@@ -135,7 +135,7 @@ func LegacySupported() *Set {
 //
 // The task will drop any capabilities specified in cap_drop, and add back
 // capabilities specified in cap_add. The task will not be allowed to add capabilities
-// not set in the the allow_caps setting (which by default is the same as the basis).
+// not set in the allow_caps setting (which by default is the same as the basis).
 //
 // cap_add takes precedence over cap_drop, enabling the common pattern of dropping
 // all capabilities, then adding back the desired smaller set. e.g.

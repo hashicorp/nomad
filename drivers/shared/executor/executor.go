@@ -141,7 +141,7 @@ type ExecCommand struct {
 	// Mounts are the host paths to be be made available inside rootfs
 	Mounts []*drivers.MountConfig
 
-	// Devices are the the device nodes to be created in isolation environment
+	// Devices are the device nodes to be created in isolation environment
 	Devices []*drivers.DeviceConfig
 
 	// NetworkIsolation is the network isolation configuration.
