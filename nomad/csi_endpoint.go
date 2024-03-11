@@ -993,7 +993,7 @@ func (v *CSIVolume) lookupExternalNodeID(vol *structs.CSIVolume, claim *structs.
 		return "", fmt.Errorf("%s: %s", structs.ErrUnknownNodePrefix, claim.NodeID)
 	}
 
-	// get the the storage provider's ID for the client node (not
+	// get the storage provider's ID for the client node (not
 	// Nomad's ID for the node)
 	targetCSIInfo, ok := targetNode.CSINodePlugins[vol.PluginID]
 	if !ok || targetCSIInfo.NodeInfo == nil {
