@@ -131,7 +131,7 @@ func TestConsul_Integration(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	logUpdate := &mockUpdater{logger}
-	allocDir := allocdir.NewAllocDir(logger, conf.AllocDir, alloc.ID)
+	allocDir := allocdir.NewAllocDir(logger, conf.AllocDir, conf.AllocMountsDir, alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 	}

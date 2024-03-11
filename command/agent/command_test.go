@@ -59,7 +59,7 @@ func TestCommand_Args(t *testing.T) {
 		},
 		{
 			[]string{"-client", "-alloc-dir="},
-			"Must specify the state, alloc dir, and plugin dir if data-dir is omitted.",
+			"Must specify the state, alloc-dir, alloc-mounts-dir and plugin-dir if data-dir is omitted.",
 		},
 		{
 			[]string{"-client", "-data-dir=" + tmpDir, "-meta=invalid..key=inaccessible-value"},

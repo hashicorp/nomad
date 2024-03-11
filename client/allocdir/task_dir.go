@@ -8,47 +8,74 @@ import (
 	"os"
 	"path/filepath"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/nomad/helper/users/dynamic"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 )
 
 // TaskDir contains all of the paths relevant to a task. All paths are on the
 // host system so drivers should mount/link into task containers as necessary.
 type TaskDir struct {
-	// AllocDir is the path to the alloc directory on the host
+	// AllocDir is the path to the alloc directory on the host.
+	// (not to be conflated with client.alloc_dir)
+	//
+	// <alloc_dir>
 	AllocDir string
 
-	// Dir is the path to Task directory on the host
+	// Dir is the path to Task directory on the host.
+	//
+	// <task_dir>
 	Dir string
 
+	// MountsAllocDir is the path to the alloc directory on the host that has
+	// been bind mounted under <client.mounts_dir>
+	//
+	// <client.mounts_dir>/task/<alloc_dir> -> <alloc_dir>
+	MountsAllocDir string
+
+	// MountsTaskDir is the path to the task directory on the host that has been
+	// bind mounted under <client.mounts_dir>
+	//
+	// <client.mounts_dir>/task/<task_dir> -> <task_dir>
+	MountsTaskDir string
+
 	// SharedAllocDir is the path to shared alloc directory on the host
+	//
 	// <alloc_dir>/alloc/
 	SharedAllocDir string
 
 	// SharedTaskDir is the path to the shared alloc directory linked into
 	// the task directory on the host.
+	//
 	// <task_dir>/alloc/
 	SharedTaskDir string
 
 	// LocalDir is the path to the task's local directory on the host
+	//
 	// <task_dir>/local/
 	LocalDir string
 
 	// LogDir is the path to the task's log directory on the host
+	//
 	// <alloc_dir>/alloc/logs/
 	LogDir string
 
 	// SecretsDir is the path to secrets/ directory on the host
+	//
 	// <task_dir>/secrets/
 	SecretsDir string
 
 	// PrivateDir is the path to private/ directory on the host
+	//
 	// <task_dir>/private/
 	PrivateDir string
 
 	// skip embedding these paths in chroots. Used for avoiding embedding
-	// client.alloc_dir recursively.
-	skip map[string]struct{}
+	// client.alloc_dir and client.mounts_dir recursively.
+	skip *set.Set[string]
 
+	// logger for this task
 	logger hclog.Logger
 }
 
@@ -56,32 +83,30 @@ type TaskDir struct {
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func newTaskDir(logger hclog.Logger, clientAllocDir, allocDir, taskName string) *TaskDir {
-	taskDir := filepath.Join(allocDir, taskName)
-
-	logger = logger.Named("task_dir").With("task_name", taskName)
-
-	// skip embedding client.alloc_dir in chroots
-	skip := map[string]struct{}{clientAllocDir: {}}
+func (d *AllocDir) newTaskDir(taskName string) *TaskDir {
+	taskDir := filepath.Join(d.AllocDir, taskName)
+	taskUnique := filepath.Base(d.AllocDir) + "-" + taskName
 
 	return &TaskDir{
-		AllocDir:       allocDir,
+		AllocDir:       d.AllocDir,
 		Dir:            taskDir,
-		SharedAllocDir: filepath.Join(allocDir, SharedAllocName),
-		LogDir:         filepath.Join(allocDir, SharedAllocName, LogDirName),
+		SharedAllocDir: filepath.Join(d.AllocDir, SharedAllocName),
+		LogDir:         filepath.Join(d.AllocDir, SharedAllocName, LogDirName),
 		SharedTaskDir:  filepath.Join(taskDir, SharedAllocName),
 		LocalDir:       filepath.Join(taskDir, TaskLocal),
 		SecretsDir:     filepath.Join(taskDir, TaskSecrets),
 		PrivateDir:     filepath.Join(taskDir, TaskPrivate),
-		skip:           skip,
-		logger:         logger,
+		MountsTaskDir:  filepath.Join(d.clientAllocMountsDir, taskUnique, "task"),
+		MountsAllocDir: filepath.Join(d.clientAllocMountsDir, taskUnique, "alloc"),
+		skip:           set.From[string]([]string{d.clientAllocDir, d.clientAllocMountsDir}),
+		logger:         d.logger.Named("task_dir").With("task_name", taskName),
 	}
 }
 
 // Build default directories and permissions in a task directory. chrootCreated
 // allows skipping chroot creation if the caller knows it has already been
 // done. client.alloc_dir will be skipped.
-func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
+func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username string) error {
 	if err := os.MkdirAll(t.Dir, 0777); err != nil {
 		return err
 	}
@@ -116,7 +141,7 @@ func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 	// Image based isolation will bind the shared alloc dir in the driver.
 	// If there's no isolation the task will use the host path to the
 	// shared alloc dir.
-	if createChroot {
+	if fsi == fsisolation.Chroot {
 		// If the path doesn't exist OR it exists and is empty, link it
 		empty, _ := pathEmpty(t.SharedTaskDir)
 		if !pathExists(t.SharedTaskDir) || empty {
@@ -145,10 +170,31 @@ func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 	}
 
 	// Build chroot if chroot filesystem isolation is going to be used
-	if createChroot {
+	if fsi == fsisolation.Chroot {
 		if err := t.buildChroot(chroot); err != nil {
 			return err
 		}
+	}
+
+	// Only bind mount the task alloc/task dirs to the client.mounts_dir/<task>
+	if fsi == fsisolation.Unveil {
+		uid, gid, _, err := dynamic.LookupUser(username)
+		if err != nil {
+			return fmt.Errorf("Failed to lookup user: %v", err)
+		}
+
+		// create the task unique directory under the client mounts path
+		parent := filepath.Dir(t.MountsAllocDir)
+		if err = os.MkdirAll(parent, 0o710); err != nil {
+			return fmt.Errorf("Failed to create task mount directory: %v", err)
+		}
+		if err = os.Chown(parent, uid, gid); err != nil {
+			return fmt.Errorf("Failed to chown task mount directory: %v", err)
+		}
+
+		// create the task and alloc mount points
+		mountDir(t.AllocDir, t.MountsAllocDir, uid, gid, 0o710)
+		mountDir(t.Dir, t.MountsTaskDir, uid, gid, 0o710)
 	}
 
 	return nil
@@ -165,7 +211,7 @@ func (t *TaskDir) buildChroot(entries map[string]string) error {
 func (t *TaskDir) embedDirs(entries map[string]string) error {
 	subdirs := make(map[string]string)
 	for source, dest := range entries {
-		if _, ok := t.skip[source]; ok {
+		if t.skip.Contains(source) {
 			// source in skip list
 			continue
 		}
