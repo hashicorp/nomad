@@ -11438,10 +11438,9 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
-// LeaderOrMainTaskInGroup will return the leader task in the allocation
-// if there is one, otherwise it will return the first task that run as main.
-// If the task group is no longer present or there are no tasks in it, it
-// will return nil.
+// LeaderOrMainTaskInGroup returns the leader task in the allocation
+// if there is one, otherwise it returns the first task that runs as main.
+// Returns nil If the task group is no longer present or if there are no tasks in it.
 func (a *Allocation) LeaderOrMainTaskInGroup(tg *TaskGroup) *Task {
 	if tg == nil {
 		return nil
