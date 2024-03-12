@@ -111,7 +111,7 @@ func (rp *ReconnectingPicker) pickLongestRunning(original *structs.Allocation, r
 		return original
 	}
 
-	// In neither one of them is running yet, default to best score.
+	// If neither one of them is running yet, default to best score.
 	if repStartTime.IsZero() && orgStartTime.IsZero() {
 		return rp.pickBestScore(original, replacement)
 	}
