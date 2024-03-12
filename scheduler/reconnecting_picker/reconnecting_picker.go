@@ -117,7 +117,7 @@ func (rp *ReconnectingPicker) pickLongestRunning(original *structs.Allocation, r
 	}
 
 	// If the replacement has a later start time, keep the original.
-	if orgStartTime.Sub(repStartTime) < 0 {
+	if orgStartTime.Before(repStartTime) {
 		return original
 	}
 
