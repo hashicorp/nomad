@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
@@ -916,13 +917,13 @@ func TestDriver_TaskConfig_validateUserIds(t *testing.T) {
 	nobodyUid, _, _, err := users.LookupUnix("nobody")
 	require.NoError(t, err)
 
-	allowAll := []structs.IDRange{}
-	denyCurrent := []structs.IDRange{{Lower: uint64(currentUid), Upper: uint64(currentUid)}}
-	denyNobody := []structs.IDRange{{Lower: uint64(nobodyUid), Upper: uint64(nobodyUid)}}
+	allowAll := []validators.IDRange{}
+	denyCurrent := []validators.IDRange{{Lower: uint64(currentUid), Upper: uint64(currentUid)}}
+	denyNobody := []validators.IDRange{{Lower: uint64(nobodyUid), Upper: uint64(nobodyUid)}}
 	configAllowCurrent := Config{DeniedHostUids: allowAll}
 	configDenyCurrent := Config{DeniedHostUids: denyCurrent}
 	configDenyAnonymous := Config{DeniedHostUids: denyNobody}
-	driverConfigNoUserSpecified := drivers.TaskConfig{}
+	driverConfigNoUserSpecified := drivers.TaskConfig{User: "nobody"}
 	driverConfigSpecifyCurrent := drivers.TaskConfig{User: current.Name}
 	currentUserErrStr := fmt.Sprintf("running as uid %d is disallowed", currentUid)
 	anonUserErrStr := fmt.Sprintf("running as uid %d is disallowed", nobodyUid)
@@ -939,9 +940,9 @@ func TestDriver_TaskConfig_validateUserIds(t *testing.T) {
 	} {
 		err := (&TaskConfig{}).validateUserIds(&tc.driverConfig, &tc.config)
 		if tc.expectedErr == "" {
-			require.NoError(t, err)
+			must.NoError(t, err)
 		} else {
-			require.ErrorContains(t, err, tc.expectedErr)
+			must.ErrorContains(t, err, tc.expectedErr)
 		}
 	}
 }

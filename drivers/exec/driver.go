@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/users"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
@@ -169,10 +168,10 @@ type Config struct {
 	DeniedHostGidsStr string `codec:"denied_host_gids"`
 
 	// DeniedHostUids configures which host uids are disallowed
-	DeniedHostUids []structs.IDRange `codec:"-"`
+	DeniedHostUids []validators.IDRange `codec:"-"`
 
 	// DeniedHostGids configures which host gids are disallowed
-	DeniedHostGids []structs.IDRange `codec:"-"`
+	DeniedHostGids []validators.IDRange `codec:"-"`
 }
 
 func (c *Config) validate() error {
@@ -264,10 +263,9 @@ func (tc *TaskConfig) validate() error {
 }
 
 func (tc *TaskConfig) validateUserIds(cfg *drivers.TaskConfig, driverConfig *Config) error {
-	usernameToLookup := getUsername(cfg)
-	user, err := users.Lookup(usernameToLookup)
+	user, err := users.Lookup(cfg.User)
 	if err != nil {
-		return fmt.Errorf("failed to identify user %q: %w", usernameToLookup, err)
+		return fmt.Errorf("failed to identify user %q: %w", cfg.User, err)
 	}
 
 	return validators.HasValidIds(user, driverConfig.DeniedHostUids, driverConfig.DeniedHostGids)
@@ -483,6 +481,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
 	}
 
+	if cfg.User == "" {
+		fmt.Println("User is not empty, setting to nobody")
+		cfg.User = "nobody"
+	} else {
+		fmt.Printf("User is not empty, user is %s\n", cfg.User)
+	}
+
 	if err := driverConfig.validateUserIds(cfg, &d.config); err != nil {
 		return nil, nil, fmt.Errorf("failed host user validation: %v", err)
 	}
@@ -506,7 +511,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
-	user := getUsername(cfg)
+	user := cfg.User
 
 	if cfg.DNS != nil {
 		dnsMount, err := resolvconf.GenerateDNSMount(cfg.TaskDir().Dir, cfg.DNS)
@@ -735,13 +740,4 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 	}
 
 	return handle.exec.ExecStreaming(ctx, command, tty, stream)
-}
-
-func getUsername(cfg *drivers.TaskConfig) string {
-	username := "nobody"
-	if cfg.User != "" {
-		username = cfg.User
-	}
-
-	return username
 }

@@ -7,7 +7,6 @@ import (
 	"os/user"
 	"testing"
 
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 
@@ -47,23 +46,23 @@ func Test_IDRangeValid(t *testing.T) {
 }
 
 func Test_HasValidIds(t *testing.T) {
-	var validRange = structs.IDRange{
+	var validRange = IDRange{
 		Lower: 1,
 		Upper: 100,
 	}
 
-	var validRangeSingle = structs.IDRange{
+	var validRangeSingle = IDRange{
 		Lower: 1,
 		Upper: 1,
 	}
 
-	emptyRanges := []structs.IDRange{}
-	validRangesList := []structs.IDRange{validRange, validRangeSingle}
+	emptyRanges := []IDRange{}
+	validRangesList := []IDRange{validRange, validRangeSingle}
 
 	testCases := []struct {
 		name        string
-		uidRanges   []structs.IDRange
-		gidRanges   []structs.IDRange
+		uidRanges   []IDRange
+		gidRanges   []IDRange
 		uid         string
 		gid         string
 		expectedErr string

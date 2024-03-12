@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
@@ -148,10 +147,10 @@ type Config struct {
 	DeniedHostGidsStr string `codec:"denied_host_gids"`
 
 	// DeniedHostUids configures which host uids are disallowed
-	DeniedHostUids []structs.IDRange
+	DeniedHostUids []validators.IDRange
 
 	// DeniedHostGids configures which host gids are disallowed
-	DeniedHostGids []structs.IDRange
+	DeniedHostGids []validators.IDRange
 }
 
 // TaskConfig is the driver configuration of a task within a job

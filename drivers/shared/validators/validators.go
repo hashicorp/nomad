@@ -8,13 +8,17 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
-
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// IDRange defines a range of uids or gids (to eventually restrict)
+type IDRange struct {
+	Lower uint64 `codec:"from"`
+	Upper uint64 `codec:"to"`
+}
+
 // ParseIdRange is used to ensure that the configuration for ID ranges is valid.
-func ParseIdRange(rangeType string, deniedRanges string) ([]structs.IDRange, error) {
-	var idRanges []structs.IDRange
+func ParseIdRange(rangeType string, deniedRanges string) ([]IDRange, error) {
+	var idRanges []IDRange
 	parts := strings.Split(deniedRanges, ",")
 
 	// exit early if empty string
@@ -36,7 +40,7 @@ func ParseIdRange(rangeType string, deniedRanges string) ([]structs.IDRange, err
 
 // HasValidIds is used when running a task to ensure the
 // given user is in the ID range defined in the task config
-func HasValidIds(user *user.User, deniedHostUIDs, deniedHostGIDs []structs.IDRange) error {
+func HasValidIds(user *user.User, deniedHostUIDs, deniedHostGIDs []IDRange) error {
 	uid, err := strconv.ParseUint(user.Uid, 10, 32)
 	if err != nil {
 		return fmt.Errorf("unable to convert userid %s to integer", user.Uid)
@@ -78,10 +82,10 @@ func HasValidIds(user *user.User, deniedHostUIDs, deniedHostGIDs []structs.IDRan
 	return nil
 }
 
-func parseRangeString(boundsString string) (*structs.IDRange, error) {
+func parseRangeString(boundsString string) (*IDRange, error) {
 	uidDenyRangeParts := strings.Split(boundsString, "-")
 
-	var idRange structs.IDRange
+	var idRange IDRange
 
 	switch len(uidDenyRangeParts) {
 	case 0:
