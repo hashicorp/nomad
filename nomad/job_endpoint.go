@@ -290,6 +290,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 				return errCE
 			}
 		}
+		for service, entry := range entries.APIGateway {
+			if errCE := j.srv.consulConfigEntries.SetAPIGatewayCE(ctx, ns, service, entries.Cluster, entry); errCE != nil {
+				return errCE
+			}
+		}
 	}
 
 	// Enforce Sentinel policies. Pass a copy of the job to prevent

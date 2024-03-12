@@ -8352,6 +8352,10 @@ const (
 	// Connect Ingress Gateway Proxy.
 	ConnectIngressPrefix = "connect-ingress"
 
+	// ConnectIngressPrefix is the prefix used for fields referencing a Consul
+	// Connect Ingress Gateway Proxy.
+	ConnectAPIGatewayPrefix = "connect-api-gateway"
+
 	// ConnectTerminatingPrefix is the prefix used for fields referencing a Consul
 	// Connect Terminating Gateway Proxy.
 	ConnectTerminatingPrefix = "connect-terminating"

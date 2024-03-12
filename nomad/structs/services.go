@@ -1736,6 +1736,9 @@ type ConsulGateway struct {
 
 	// Mesh indicates the Consul service should be a Mesh Gateway.
 	Mesh *ConsulMeshConfigEntry
+
+	// APIGateway represents the Consul service entry for an APIGateway.
+	APIGateway *ConsulAPIGatewayConfigEntry
 }
 
 func (g *ConsulGateway) Prefix() string {
@@ -1744,6 +1747,8 @@ func (g *ConsulGateway) Prefix() string {
 		return ConnectMeshPrefix
 	case g.Ingress != nil:
 		return ConnectIngressPrefix
+	case g.APIGateway != nil:
+		return ConnectAPIGatewayPrefix
 	default:
 		return ConnectTerminatingPrefix
 	}
@@ -1759,6 +1764,7 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 		Ingress:     g.Ingress.Copy(),
 		Terminating: g.Terminating.Copy(),
 		Mesh:        g.Mesh.Copy(),
+		APIGateway:  g.APIGateway.Copy(),
 	}
 }
 
@@ -1791,33 +1797,34 @@ func (g *ConsulGateway) Validate() error {
 		return nil
 	}
 
-	if err := g.Proxy.Validate(); err != nil {
-		return err
+	fieldValidators := []func() error{g.Proxy.Validate, g.Ingress.Validate, g.Terminating.Validate, g.Mesh.Validate}
+
+	for _, validator := range fieldValidators {
+		if err := validator(); err != nil {
+			return err
+		}
 	}
 
-	if err := g.Ingress.Validate(); err != nil {
-		return err
-	}
-
-	if err := g.Terminating.Validate(); err != nil {
-		return err
-	}
-
-	if err := g.Mesh.Validate(); err != nil {
-		return err
-	}
-
-	// Exactly 1 of ingress/terminating/mesh must be set.
+	// Exactly 1 of ingress/terminating/mesh/APIGateway must be set.
 	count := 0
 	if g.Ingress != nil {
 		count++
 	}
+
 	if g.Terminating != nil {
 		count++
 	}
+
 	if g.Mesh != nil {
 		count++
 	}
+
+	if g.APIGateway != nil {
+		count++
+	}
+
+	fmt.Println("count", count)
+
 	if count != 1 {
 		return fmt.Errorf("One Consul Gateway Configuration must be set")
 	}
@@ -2302,6 +2309,26 @@ func (s *ConsulLinkedService) Validate() error {
 
 func linkedServicesEqual(a, b []*ConsulLinkedService) bool {
 	return helper.ElementsEqual(a, b)
+}
+
+type ConsulAPIGatewayConfigEntry struct{}
+
+func (e *ConsulAPIGatewayConfigEntry) Copy() *ConsulAPIGatewayConfigEntry {
+	if e == nil {
+		return nil
+	}
+	return new(ConsulAPIGatewayConfigEntry)
+}
+
+func (e *ConsulAPIGatewayConfigEntry) Equal(o *ConsulAPIGatewayConfigEntry) bool {
+	if e == nil || o == nil {
+		return e == o
+	}
+	return true
+}
+
+func (e *ConsulAPIGatewayConfigEntry) Validate() error {
+	return nil
 }
 
 type ConsulTerminatingConfigEntry struct {

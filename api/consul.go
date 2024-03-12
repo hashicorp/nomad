@@ -302,6 +302,17 @@ type ConsulGateway struct {
 
 	// Mesh indicates the Consul service should be a Mesh Gateway.
 	Mesh *ConsulMeshConfigEntry `hcl:"mesh,block"`
+
+	// APIGateway represents the Consul Configuration Entry for an APIGateway.
+	APIGateway *ConsulAPIGatewayConfigEntry `hcl:"apigateway,block"`
+}
+
+type ConsulAPIGatewayConfigEntry struct{}
+
+func (g *ConsulAPIGatewayConfigEntry) Canonicalize() {}
+
+func (g *ConsulAPIGatewayConfigEntry) Copy() *ConsulAPIGatewayConfigEntry {
+	return new(ConsulAPIGatewayConfigEntry)
 }
 
 func (g *ConsulGateway) Canonicalize() {
@@ -322,6 +333,7 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 		Proxy:       g.Proxy.Copy(),
 		Ingress:     g.Ingress.Copy(),
 		Terminating: g.Terminating.Copy(),
+		APIGateway:  g.APIGateway.Copy(),
 	}
 }
 

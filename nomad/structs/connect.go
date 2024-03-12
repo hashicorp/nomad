@@ -9,6 +9,7 @@ type ConsulConfigEntries struct {
 	Cluster     string
 	Ingress     map[string]*ConsulIngressConfigEntry
 	Terminating map[string]*ConsulTerminatingConfigEntry
+	APIGateway  map[string]*ConsulAPIGatewayConfigEntry
 }
 
 // ConfigEntries accumulates the Consul Configuration Entries defined in task groups
@@ -24,6 +25,7 @@ func (j *Job) ConfigEntries() map[string]*ConsulConfigEntries {
 			collection[ns] = &ConsulConfigEntries{
 				Ingress:     make(map[string]*ConsulIngressConfigEntry),
 				Terminating: make(map[string]*ConsulTerminatingConfigEntry),
+				APIGateway:  make(map[string]*ConsulAPIGatewayConfigEntry),
 			}
 		}
 
@@ -35,6 +37,9 @@ func (j *Job) ConfigEntries() map[string]*ConsulConfigEntries {
 					collection[ns].Cluster = service.Cluster
 				} else if term := gateway.Terminating; term != nil {
 					collection[ns].Terminating[service.Name] = term
+					collection[ns].Cluster = service.Cluster
+				} else if gw := gateway.APIGateway; gw != nil {
+					collection[ns].APIGateway[service.Name] = gw
 					collection[ns].Cluster = service.Cluster
 				}
 			}

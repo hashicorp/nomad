@@ -515,6 +515,9 @@ type ConsulConfigsAPI interface {
 	// the previous entry if set.
 	SetTerminatingCE(ctx context.Context, namespace, service, cluster string, entry *structs.ConsulTerminatingConfigEntry) error
 
+	// SetAPIGatewayCE adds the given ConfigEntry to Consul, overwriting
+	// the previous entry if set.
+	SetAPIGatewayCE(ctx context.Context, namespace, service, cluster string, entry *structs.ConsulAPIGatewayConfigEntry) error
 	// Stop is used to stop additional creations of Configuration Entries. Intended to
 	// be used on Nomad Server shutdown.
 	Stop()
@@ -557,6 +560,11 @@ func (c *consulConfigsAPI) SetIngressCE(ctx context.Context, namespace, service,
 
 func (c *consulConfigsAPI) SetTerminatingCE(ctx context.Context, namespace, service, cluster string, entry *structs.ConsulTerminatingConfigEntry) error {
 	return c.setCE(ctx, convertTerminatingCE(namespace, service, entry), cluster)
+}
+
+
+func (c *consulConfigsAPI) SetAPIGatewayCE(ctx context.Context, namespace, service, cluster string, entry *structs.ConsulAPIGatewayConfigEntry) error {
+	return c.setCE(ctx, convertAPIGatewayCE(namespace, service, entry), cluster)
 }
 
 // setCE will set the Configuration Entry of any type Consul supports.
@@ -614,6 +622,14 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		TLS:       tls,
 		Listeners: listeners,
 	}
+}
+
+func convertAPIGatewayCE(namespace, service string, _ *structs.ConsulAPIGatewayConfigEntry) api.ConfigEntry {
+  return &api.APIGatewayConfigEntry{
+    Namespace: namespace,
+    Kind: api.APIGateway,
+    Name: service,
+  }
 }
 
 func convertTerminatingCE(namespace, service string, entry *structs.ConsulTerminatingConfigEntry) api.ConfigEntry {

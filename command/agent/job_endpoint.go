@@ -1695,6 +1695,7 @@ func apiConnectGatewayToStructs(in *api.ConsulGateway) *structs.ConsulGateway {
 		Ingress:     apiConnectIngressGatewayToStructs(in.Ingress),
 		Terminating: apiConnectTerminatingGatewayToStructs(in.Terminating),
 		Mesh:        apiConnectMeshGatewayToStructs(in.Mesh),
+		APIGateway:  apiConnectAPIGatewayToStructs(in.APIGateway),
 	}
 }
 
@@ -1835,6 +1836,15 @@ func apiConnectMeshGatewayToStructs(in *api.ConsulMeshConfigEntry) *structs.Cons
 		return nil
 	}
 	return new(structs.ConsulMeshConfigEntry)
+}
+
+func apiConnectAPIGatewayToStructs(in *api.ConsulAPIGatewayConfigEntry) *structs.ConsulAPIGatewayConfigEntry {
+	if in == nil {
+		return nil
+	}
+	gw := new(structs.ConsulAPIGatewayConfigEntry)
+	fmt.Println("apiConnectAPIGatewayToStructs", gw == nil)
+	return gw
 }
 
 func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.ConsulSidecarService {
