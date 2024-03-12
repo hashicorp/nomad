@@ -31,13 +31,13 @@ type TaskDir struct {
 	// MountsAllocDir is the path to the alloc directory on the host that has
 	// been bind mounted under <client.mounts_dir>
 	//
-	// <client.mounts_dir>/task/<alloc_dir> -> <alloc_dir>
+	// <client.mounts_dir>/<allocid-task>/alloc -> <alloc_dir>
 	MountsAllocDir string
 
 	// MountsTaskDir is the path to the task directory on the host that has been
 	// bind mounted under <client.mounts_dir>
 	//
-	// <client.mounts_dir>/task/<task_dir> -> <task_dir>
+	// <client.mounts_dir>/<allocid-task>/task -> <task_dir>
 	MountsTaskDir string
 
 	// SharedAllocDir is the path to shared alloc directory on the host
