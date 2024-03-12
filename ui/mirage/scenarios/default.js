@@ -83,7 +83,7 @@ function smallCluster(server) {
     },
     'withMeta'
   );
-  server.createList('job', 1, { createRecommendations: true });
+  server.createList('job', 10, { createRecommendations: true });
   server.create('job', {
     withGroupServices: true,
     withTaskServices: true,

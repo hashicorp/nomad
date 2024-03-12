@@ -35,7 +35,20 @@ export default class WatchListService extends Service {
   setIndexFor(url, value) {
     this.list[url] = +value;
     this.list = { ...this.list };
-    console.log('total list is now', this.list);
-    console.log('===================');
+  }
+
+  /**
+   * When we paginate or otherwise manually change queryParams for our jobs index,
+   * we want our requests to return immediately. This means we need to clear out
+   * any previous indexes that are associated with the jobs index.
+   */
+  clearJobsIndexIndexes() {
+    // If it starts with /v1/jobs/statuses, remove it
+    let keys = Object.keys(this.list);
+    keys.forEach((key) => {
+      if (key.startsWith('/v1/jobs/statuses')) {
+        delete this.list[key];
+      }
+    });
   }
 }

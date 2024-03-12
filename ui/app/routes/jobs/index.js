@@ -22,7 +22,7 @@ export default class IndexRoute extends Route.extend(
   @service store;
   @service watchList;
 
-  perPage = 10;
+  // perPage = 10;
 
   queryParams = {
     qpNamespace: {
@@ -31,14 +31,6 @@ export default class IndexRoute extends Route.extend(
     cursorAt: {
       refreshModel: true,
     },
-    reverse: {
-      refreshModel: true,
-    },
-  };
-
-  defaultParams = {
-    meta: true,
-    per_page: this.perPage,
   };
 
   hasBeenInitialized = false;
@@ -47,7 +39,7 @@ export default class IndexRoute extends Route.extend(
     let queryParams = this.paramsFor(this.routeName); // Get current query params
     queryParams.next_token = queryParams.cursorAt;
     delete queryParams.cursorAt; // TODO: hacky, should be done in the serializer/adapter?
-    return { ...this.defaultParams, ...queryParams };
+    return { ...queryParams };
   }
 
   async model(/*params*/) {
@@ -60,10 +52,10 @@ export default class IndexRoute extends Route.extend(
           method: 'GET', // TODO: default
           queryType: 'initialize',
           abortController: this.watchList.jobsIndexIDsController,
+          modifyURL: false,
         },
       })
       .catch(notifyForbidden(this));
-    this.hasBeenInitialized = true;
     return RSVP.hash({
       jobs,
       namespaces: this.store.findAll('namespace'),
@@ -86,13 +78,19 @@ export default class IndexRoute extends Route.extend(
       })
     );
 
+    // Note: we should remove the indexes from the watch-list for jobs index queries if we've already initialized, since
+    // if we explicitly change our queryParams we want to start from scratch, unindexed
+    this.watchList.clearJobsIndexIndexes();
+
     // TODO: maybe do these in controller constructor?
     // Now that we've set the jobIDs, immediately start watching them
     // eslint-disable-next-line
-    this.controller.watchJobs.perform(controller.jobIDs, 2000);
+    this.controller.watchJobs.perform(controller.jobIDs, 2000, 'update');
     // And also watch for any changes to the jobIDs list
     // eslint-disable-next-line
     this.controller.watchJobIDs.perform(this.getCurrentParams(), 2000);
+
+    this.hasBeenInitialized = true;
   }
 
   startWatchers(controller) {

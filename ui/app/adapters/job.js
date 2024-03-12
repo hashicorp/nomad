@@ -236,8 +236,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     // TODO: adding a new job hash will not necessarily cancel the old one.
     // You could be holding open a POST on jobs AB and ABC at the same time.
 
-    console.log('index for', url, 'is', index);
-
     if (index && index > 1) {
       query.index = index;
     }
@@ -247,7 +245,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return this.ajax(url, method, {
       signal,
       data: query,
-      skipURLModification: true,
+      modifyURL: options.adapterOptions.modifyURL,
     }).then((payload) => {
       // If there was a request body, append it to my payload
       if (query.jobs) {
