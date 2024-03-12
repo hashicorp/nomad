@@ -5959,7 +5959,7 @@ func TestAllocation_RescheduleTimeOnDisconnect(t *testing.T) {
 	}
 }
 
-func TestAllocation_LeaderOrMainTaskInGroup(t *testing.T) {
+func TestAllocation_LeaderAndMainTasksInGroup(t *testing.T) {
 	ci.Parallel(t)
 
 	taskGroupNoTasks := &TaskGroup{
@@ -5991,8 +5991,8 @@ func TestAllocation_LeaderOrMainTaskInGroup(t *testing.T) {
 		},
 	}
 
-	taskGroupLifeCycle := &TaskGroup{
-		Name: "multiple-tasks-no-leader-with-lifecycle",
+	multipleLeadersWithLifecycle := &TaskGroup{
+		Name: "multiple-leaders-with-lifecycle",
 		Tasks: []*Task{
 			{
 				Name: "task1",
@@ -6001,10 +6001,21 @@ func TestAllocation_LeaderOrMainTaskInGroup(t *testing.T) {
 				},
 			},
 			{
-				Name: "task2",
+				Name:   "task2",
+				Leader: true,
 			},
 			{
-				Name: "task3",
+				Name:   "task3",
+				Leader: true,
+			},
+			{
+				Name: "task4",
+				Lifecycle: &TaskLifecycleConfig{
+					Hook: TaskLifecycleHookPoststart,
+				},
+			},
+			{
+				Name: "task5",
 			},
 		},
 	}
@@ -6025,53 +6036,135 @@ func TestAllocation_LeaderOrMainTaskInGroup(t *testing.T) {
 		},
 	}
 
+	taskNoMain := &TaskGroup{
+		Name: "no-main",
+		Tasks: []*Task{
+			{
+				Name: "task1",
+				Lifecycle: &TaskLifecycleConfig{
+					Hook: TaskLifecycleHookPrestart,
+				},
+			},
+			{
+				Name:   "task2",
+				Leader: true,
+			},
+			{
+				Name:   "task3",
+				Leader: true,
+			},
+			{
+				Name: "task4",
+				Lifecycle: &TaskLifecycleConfig{
+					Hook: TaskLifecycleHookPoststart,
+				},
+			},
+		},
+	}
+
 	testAlloc := MockAlloc()
 	testAlloc.Job.TaskGroups = []*TaskGroup{
 		taskGroupNoTasks,
 		taskGroupOneTask,
 		taskGroupNoLifeCycle,
-		taskGroupLifeCycle,
+		multipleLeadersWithLifecycle,
 		taskGroupOneLeader,
+		taskNoMain,
 	}
 
 	testCases := []struct {
-		name      string
-		taskGroup *TaskGroup
-		expected  *Task
+		name            string
+		taskGroup       *TaskGroup
+		expectedLeaders []*Task
+		expectedMain    []*Task
 	}{
 		{
-			name:      "empty_tasks",
-			taskGroup: taskGroupNoTasks,
-			expected:  nil,
+			name:            "empty_tasks",
+			taskGroup:       taskGroupNoTasks,
+			expectedLeaders: nil,
+			expectedMain:    nil,
 		},
 		{
 			name:      "one_task",
 			taskGroup: taskGroupOneTask,
-			expected: &Task{
-				Name: "task1",
+			expectedLeaders: []*Task{
+				{
+					Name: "task1",
+				},
+			},
+			expectedMain: []*Task{
+				{
+					Name: "task1",
+				},
 			},
 		},
 		{
-			name:      "multiple_tasks_no_leader_no_lifecycle",
-			taskGroup: taskGroupNoLifeCycle,
-			expected: &Task{
-				Name: "task1",
+			name:            "multiple_tasks_no_leader_no_lifecycle",
+			taskGroup:       taskGroupNoLifeCycle,
+			expectedLeaders: nil,
+			expectedMain: []*Task{
+				{
+					Name: "task1",
+				},
+				{
+					Name: "task2",
+				},
+				{
+					Name: "task3",
+				},
 			},
 		},
 		{
-			name:      "multiple_tasks_no_leader_lifecycle",
-			taskGroup: taskGroupLifeCycle,
-			expected: &Task{
-				Name: "task2",
+			name:      "multiple_tasks_multiple_leaders",
+			taskGroup: multipleLeadersWithLifecycle,
+			expectedLeaders: []*Task{
+				{
+					Name:   "task2",
+					Leader: true,
+				},
+				{
+					Name:   "task3",
+					Leader: true,
+				},
+			},
+			expectedMain: []*Task{
+				{
+					Name: "task5",
+				},
 			},
 		},
 		{
 			name:      "multiple_tasks_one_leader",
 			taskGroup: taskGroupOneLeader,
-			expected: &Task{
-				Name:   "task2",
-				Leader: true,
+			expectedLeaders: []*Task{
+				{
+					Name:   "task2",
+					Leader: true,
+				},
 			},
+			expectedMain: []*Task{
+				{
+					Name: "task1",
+				},
+				{
+					Name: "task3",
+				},
+			},
+		},
+		{
+			name:      "multiple_leaders_no_main",
+			taskGroup: taskNoMain,
+			expectedLeaders: []*Task{
+				{
+					Name:   "task2",
+					Leader: true,
+				},
+				{
+					Name:   "task3",
+					Leader: true,
+				},
+			},
+			expectedMain: nil,
 		},
 	}
 
@@ -6080,8 +6173,9 @@ func TestAllocation_LeaderOrMainTaskInGroup(t *testing.T) {
 		ta := testAlloc.Copy()
 		ta.TaskGroup = tc.taskGroup.Name
 
-		got := ta.LeaderOrMainTaskInGroup(tc.taskGroup)
-		must.Eq(t, tc.expected, got)
+		gotLeaders, gotMain := ta.LeaderAndMainTasksInGroup(tc.taskGroup)
+		must.Eq(t, tc.expectedLeaders, gotLeaders)
+		must.Eq(t, tc.expectedMain, gotMain)
 	}
 }
 
@@ -6128,6 +6222,75 @@ func TestAllocation_LastStartOfTask(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			alloc.TaskGroup = "web"
 			got := alloc.LastStartOfTask(tc.taskName)
+
+			must.Eq(t, tc.expected, got)
+		})
+	}
+}
+
+func TestAllocation_StartOfOldestTask(t *testing.T) {
+	ci.Parallel(t)
+	testNow := time.Now()
+
+	alloc := MockAlloc()
+	alloc.TaskStates = map[string]*TaskState{
+		"task-with-restarts": {
+			StartedAt:   testNow.Add(-30 * time.Minute),
+			Restarts:    3,
+			LastRestart: testNow.Add(-5 * time.Minute),
+		},
+		"task-without-restarts": {
+			StartedAt: testNow.Add(-30 * time.Minute),
+			Restarts:  0,
+		},
+		"unstarted-task": {},
+	}
+
+	testCases := []struct {
+		name     string
+		tasks    []*Task
+		expected time.Time
+	}{
+		{
+			name:     "nil_tasks",
+			tasks:    nil,
+			expected: time.Time{},
+		},
+		{
+			name:     "empty_tasks",
+			tasks:    []*Task{},
+			expected: time.Time{},
+		},
+		{
+			name: "one_unstarted_task",
+			tasks: []*Task{
+				{
+					Name: "unstarted-task",
+				},
+			},
+			expected: time.Time{},
+		},
+		{
+			name: "multiple_tasks",
+			tasks: []*Task{
+				{
+					Name: "unstarted-task",
+				},
+				{
+					Name: "task-with-restarts",
+				},
+				{
+					Name: "task-without-restarts",
+				},
+			},
+			expected: testNow.Add(-30 * time.Minute),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc.TaskGroup = "web"
+			got := alloc.StartOfOldestTask(tc.tasks)
 
 			must.Eq(t, tc.expected, got)
 		})

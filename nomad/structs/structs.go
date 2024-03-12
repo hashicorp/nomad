@@ -11438,41 +11438,41 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
-// LeaderOrMainTaskInGroup returns the leader task in the allocation
-// if there is one, otherwise it returns the first task that runs as main.
-// Returns nil If the task group is no longer present or if there are no tasks in it.
-func (a *Allocation) LeaderOrMainTaskInGroup(tg *TaskGroup) *Task {
+// LeaderAndMainTasksInGroup returns two slices: one with the leader tasks and
+// another with the main tasks that are not leader in the given task group.
+// If the task group is no longer present in the allocation definition
+// or there are no leaders and the main body the task is empty both slices will
+// be nil. If the task group has only one task, both slices will contain that task.
+//
+// This function is optimized to avoid traversing the task group tasks more than
+// once in case there is no leader defined.
+func (a *Allocation) LeaderAndMainTasksInGroup(tg *TaskGroup) ([]*Task, []*Task) {
 	if tg == nil {
-		return nil
+		return nil, nil
 	}
 
 	switch len(tg.Tasks) {
 	case 0:
-		return nil
+		return nil, nil
 
 	case 1:
-		return tg.Tasks[0]
+		return tg.Tasks, tg.Tasks
 	}
 
-	var task *Task
-
-	// flag used to avoid traversing the tasks twice in case there is no defined
-	// leader.
-	mainTaskFound := false
+	var leaderTasks, mainTasks []*Task
 
 	for _, t := range tg.Tasks {
 		if t.Leader {
-			task = t
-			break
+			leaderTasks = append(leaderTasks, t)
+			continue
 		}
 
-		if !mainTaskFound && t.IsMain() {
-			mainTaskFound = true
-			task = t
+		if t.IsMain() {
+			mainTasks = append(mainTasks, t)
 		}
 	}
 
-	return task
+	return leaderTasks, mainTasks
 }
 
 // LastStartOfTask returns the time of the last start event for the given task
@@ -11489,6 +11489,31 @@ func (a *Allocation) LastStartOfTask(taskName string) time.Time {
 	}
 
 	return task.StartedAt
+}
+
+// StartOfOldestTask returns the time of the oldest start event for the given
+// tasks using the allocations TaskStates. If no task has started yet, the
+// last start of the first task is returned.
+// If the slice of tasks is empty, the Zero value of time is returned.
+func (a *Allocation) StartOfOldestTask(tasks []*Task) time.Time {
+	if len(tasks) == 0 {
+		return time.Time{}
+	}
+
+	now := time.Now().UTC()
+	oldestStart := now
+	for _, task := range tasks {
+		ls := a.LastStartOfTask(task.Name)
+		if !ls.IsZero() && ls.Before(oldestStart) {
+			oldestStart = a.LastStartOfTask(task.Name)
+		}
+	}
+
+	if oldestStart == now {
+		return a.LastStartOfTask(tasks[0].Name)
+	}
+
+	return oldestStart
 }
 
 // IdentityClaims are the input to a JWT identifying a workload. It

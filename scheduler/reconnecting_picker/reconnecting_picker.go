@@ -83,25 +83,27 @@ func (rp *ReconnectingPicker) pickBestScore(original *structs.Allocation, replac
 	return original
 }
 
-func (rp *ReconnectingPicker) pickOriginal(original *structs.Allocation, _ *structs.Allocation) *structs.Allocation {
+func (rp *ReconnectingPicker) pickOriginal(original, _ *structs.Allocation) *structs.Allocation {
 	return original
 }
 
-func (rp *ReconnectingPicker) pickReplacement(_ *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
+func (rp *ReconnectingPicker) pickReplacement(_, replacement *structs.Allocation) *structs.Allocation {
 	return replacement
 }
 
-func (rp *ReconnectingPicker) pickLongestRunning(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
+func (rp *ReconnectingPicker) pickLongestRunning(original, replacement *structs.Allocation) *structs.Allocation {
 	tg := original.Job.LookupTaskGroup(original.TaskGroup)
 
-	lt := original.LeaderOrMainTaskInGroup(tg)
+	var tasks []*structs.Task
 
-	if lt == nil {
-		return replacement
+	// Use main tasks if there is no leader.
+	tasks, mts := original.LeaderAndMainTasksInGroup(tg)
+	if tasks == nil {
+		tasks = mts
 	}
 
-	orgStartTime := original.LastStartOfTask(lt.Name)
-	repStartTime := replacement.LastStartOfTask(lt.Name)
+	orgStartTime := original.StartOfOldestTask(tasks)
+	repStartTime := replacement.StartOfOldestTask(tasks)
 
 	if orgStartTime.IsZero() && !repStartTime.IsZero() {
 		return replacement
