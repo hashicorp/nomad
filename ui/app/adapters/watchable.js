@@ -24,10 +24,13 @@ export default class Watchable extends ApplicationAdapter {
   //
   // It's either this weird side-effecting thing that also requires a change
   // to ajaxOptions or overriding ajax completely.
-  ajax(url, type, options) {
+  ajax(url, type, options = {}) {
     const hasParams = hasNonBlockingQueryParams(options);
-    if (!hasParams || options.skipURLModification)
+    // if (!hasParams || options.skipURLModification)
+    //   return super.ajax(url, type, options);
+    if (!hasParams || type !== 'GET' || options.modifyURL === false)
       return super.ajax(url, type, options);
+    // ^-- TODO: this means that all non-GETs dont get their URLs modified. Make sure this is what we want.
     let params = { ...options?.data };
     delete params.index;
     return super.ajax(`${url}?${queryString.stringify(params)}`, type, options);

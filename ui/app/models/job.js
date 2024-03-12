@@ -250,8 +250,7 @@ export default class Job extends Model {
     }
 
     const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
-    // console.log('healthyAllocs', this.name, healthyAllocs, totalAllocs);
-    if (healthyAllocs?.length === totalAllocs) {
+    if (totalAllocs && healthyAllocs?.length === totalAllocs) {
       return { label: 'Healthy', state: 'success' };
     }
 
