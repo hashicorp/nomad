@@ -1,3 +1,17 @@
+## 1.6.9 (March 12, 2024)
+
+SECURITY:
+
+* build: Update to go1.22 to address Go standard library vulnerabilities CVE-2024-24783, CVE-2023-45290, and CVE-2024-24785. [[GH-20066](https://github.com/hashicorp/nomad/issues/20066)]
+* deps: Upgrade protobuf library to 1.33.0 to avoid scan alerts for CVE-2024-24786, which Nomad is not vulnerable to [[GH-20100](https://github.com/hashicorp/nomad/issues/20100)]
+
+BUG FIXES:
+
+* cli: Fixed a bug where the `nomad job restart` command could crash if the job type was not present in a response from the server [[GH-20049](https://github.com/hashicorp/nomad/issues/20049)]
+* client: Fixed a bug where corrupt client state could panic the client [[GH-19972](https://github.com/hashicorp/nomad/issues/19972)]
+* cni: Fixed a bug where DNS set by CNI plugins was not provided to task drivers [[GH-20007](https://github.com/hashicorp/nomad/issues/20007)]
+* connect: Fixed a bug where `expose` blocks would not appear in `job plan` diff output [[GH-19990](https://github.com/hashicorp/nomad/issues/19990)]
+
 ## 1.6.8 (February 13, 2024)
 
 SECURITY:
