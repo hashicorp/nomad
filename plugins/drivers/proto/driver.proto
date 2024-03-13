@@ -371,6 +371,7 @@ message DriverCapabilities {
         NONE = 0;
         CHROOT = 1;
         IMAGE = 2;
+        UNVEIL= 3;
     }
     // FsIsolation indicates what kind of filesystem isolation a driver supports.
     FSIsolation fs_isolation = 3;

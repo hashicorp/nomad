@@ -275,6 +275,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	ar.allocDir = allocdir.NewAllocDir(
 		ar.logger,
 		config.ClientConfig.AllocDir,
+		config.ClientConfig.AllocMountsDir,
 		alloc.ID,
 	)
 

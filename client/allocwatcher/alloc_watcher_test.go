@@ -44,7 +44,7 @@ func newFakeAllocRunner(t *testing.T, logger hclog.Logger) *fakeAllocRunner {
 
 	return &fakeAllocRunner{
 		alloc:       alloc,
-		AllocDir:    allocdir.NewAllocDir(logger, path, alloc.ID),
+		AllocDir:    allocdir.NewAllocDir(logger, path, path, alloc.ID),
 		Broadcaster: cstructs.NewAllocBroadcaster(logger),
 	}
 }

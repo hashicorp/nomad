@@ -32,6 +32,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
@@ -355,7 +356,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
 
 	// Insert service identity token in the secrets directory
 	token := uuid.Generate()
@@ -453,7 +454,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
 
 	resp := &interfaces.TaskPrestartResponse{}
 
@@ -533,7 +534,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, alloc.Job.TaskGroups[0].Tasks[0].User))
 
 	var resp interfaces.TaskPrestartResponse
 
@@ -582,7 +583,7 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 		Task:    task,
 		TaskDir: allocDir.NewTaskDir(task.Name),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, task.User))
 
 	resp := &interfaces.TaskPrestartResponse{}
 
@@ -658,7 +659,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
 
 	resp := &interfaces.TaskPrestartResponse{}
 
@@ -743,7 +744,7 @@ func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
 
 	var resp interfaces.TaskPrestartResponse
 

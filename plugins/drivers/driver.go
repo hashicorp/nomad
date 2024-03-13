@@ -17,6 +17,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -132,20 +133,18 @@ type Fingerprint struct {
 	Err error
 }
 
-// FSIsolation is an enumeration to describe what kind of filesystem isolation
-// a driver supports.
-type FSIsolation string
+// Deprecated: use fsisolation.Mode instead.
+type FSIsolation = fsisolation.Mode
 
 var (
-	// FSIsolationNone means no isolation. The host filesystem is used.
-	FSIsolationNone = FSIsolation("none")
+	// Deprecated: use fsisolation.None instead.
+	FSIsolationNone = fsisolation.None
 
-	// FSIsolationChroot means the driver will use a chroot on the host
-	// filesystem.
-	FSIsolationChroot = FSIsolation("chroot")
+	// Deprecated: use fsisolation.Chroot instead.
+	FSIsolationChroot = fsisolation.Chroot
 
-	// FSIsolationImage means the driver uses an image.
-	FSIsolationImage = FSIsolation("image")
+	// Deprecated: use fsisolation.Image instead.
+	FSIsolationImage = fsisolation.Image
 )
 
 type Capabilities struct {
@@ -157,7 +156,7 @@ type Capabilities struct {
 	Exec bool
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
-	FSIsolation FSIsolation
+	FSIsolation fsisolation.Mode
 
 	//NetIsolationModes lists the set of isolation modes supported by the driver
 	NetIsolationModes []NetIsolationMode

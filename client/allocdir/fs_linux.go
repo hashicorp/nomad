@@ -1,6 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
+//go:build linux
+
 package allocdir
 
 import (
@@ -29,6 +31,18 @@ func linkDir(src, dst string) error {
 	}
 
 	return syscall.Mount(src, dst, "", syscall.MS_BIND, "")
+}
+
+// mountDir bind mounts old to next using the given file mode.
+func mountDir(old, next string, uid, gid int, mode os.FileMode) error {
+	if err := os.MkdirAll(next, mode); err != nil {
+		return err
+	}
+	opts := unix.MS_BIND | unix.MS_NOSUID | unix.MS_NOATIME
+	if err := unix.Mount(old, next, "", uintptr(opts), ""); err != nil {
+		return err
+	}
+	return os.Chown(next, uid, gid)
 }
 
 // unlinkDir unmounts a bind mounted directory as Linux doesn't support

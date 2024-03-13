@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	dstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
@@ -53,12 +54,14 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 	}
 
 	switch caps.FSIsolation {
-	case FSIsolationNone:
+	case fsisolation.None:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
-	case FSIsolationChroot:
+	case fsisolation.Chroot:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_CHROOT
-	case FSIsolationImage:
+	case fsisolation.Image:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_IMAGE
+	case fsisolation.Unveil:
+		resp.Capabilities.FsIsolation = proto.DriverCapabilities_UNVEIL
 	default:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
 	}
