@@ -4,6 +4,7 @@
 package reconnectingpicker
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -133,6 +134,7 @@ func TestPickReconnectingAlloc_DifferentStrategies(t *testing.T) {
 	testsCases := []struct {
 		name     string
 		strategy string
+
 		expected *structs.Allocation
 	}{
 		{
@@ -168,31 +170,146 @@ func TestPickReconnectingAlloc_DifferentStrategies(t *testing.T) {
 
 		})
 	}
+}
 
+func TestPickReconnectingAlloc_BestScore(t *testing.T) {
+	rp := New(hclog.NewNullLogger())
+
+	original := &structs.Allocation{
+		Job: &structs.Job{
+			Version:     1,
+			CreateIndex: 1,
+		},
+		TaskGroup: "taskgroup1",
+		Metrics: &structs.AllocMetric{
+			ScoreMetaData: []*structs.NodeScoreMeta{
+				{
+					NormScore: 10,
+				},
+			},
+		},
+	}
+
+	replacement := original.Copy()
+
+	testsCases := []struct {
+		name                    string
+		originalClientStatus    string
+		replacementClientStatus string
+		replacementScore        float64
+		expected                *structs.Allocation
+	}{
+		{
+			name:                    "replacement_has_better_score_but_running",
+			replacementScore:        20,
+			originalClientStatus:    structs.AllocClientStatusRunning,
+			replacementClientStatus: structs.AllocClientStatusRunning,
+			expected:                replacement,
+		},
+		{
+			name:                    "original_has_better_score_but_running",
+			originalClientStatus:    structs.AllocClientStatusRunning,
+			replacementClientStatus: structs.AllocClientStatusRunning,
+			replacementScore:        5,
+			expected:                original,
+		},
+		{
+			name:                    "replacement_has_better_score_but_replacement_not_running",
+			originalClientStatus:    structs.AllocClientStatusRunning,
+			replacementClientStatus: structs.AllocClientStatusPending,
+			replacementScore:        20,
+			expected:                original,
+		},
+		{
+			name:                    "replacement_has_better_score_and_original_not_running",
+			originalClientStatus:    structs.AllocClientStatusPending,
+			replacementClientStatus: structs.AllocClientStatusRunning,
+			replacementScore:        20,
+			expected:                replacement,
+		},
+		{
+			name:                    "original_has_better_score_but_not_running",
+			originalClientStatus:    structs.AllocClientStatusPending,
+			replacementClientStatus: structs.AllocClientStatusRunning,
+			replacementScore:        5,
+			expected:                original,
+		},
+		{
+			name:                    "original_has_better_score_and_replacement_not_running",
+			originalClientStatus:    structs.AllocClientStatusRunning,
+			replacementClientStatus: structs.AllocClientStatusPending,
+			replacementScore:        5,
+			expected:                original,
+		},
+	}
+
+	for _, tc := range testsCases {
+		t.Run(tc.name, func(t *testing.T) {
+			original.ClientStatus = tc.originalClientStatus
+
+			replacement.ClientStatus = tc.replacementClientStatus
+			replacement.Metrics.ScoreMetaData[0].NormScore = tc.replacementScore
+
+			result := rp.PickReconnectingAlloc(&structs.DisconnectStrategy{
+				Reconcile: structs.ReconcileOptionBestScore,
+			}, original, replacement)
+
+			must.Eq(t, tc.expected, result)
+		})
+	}
 }
 
 func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 	rp := New(hclog.NewNullLogger())
 	now := time.Now()
+	fmt.Println(now)
+	taskGroupNoLeader := &structs.TaskGroup{
+		Name: "taskGroupNoLeader",
+		Tasks: []*structs.Task{
+			{
+				Name: "task1",
+			},
+			{
+				Name: "task2",
+			},
+			{
+				Name: "task3",
+			},
+		},
+	}
+
+	taskGroupWithLeader := &structs.TaskGroup{
+		Name: "taskGroupWithLeader",
+		Tasks: []*structs.Task{
+			{
+				Name: "task1",
+			},
+			{
+				Name:   "task2",
+				Leader: true,
+			},
+			{
+				Name: "task3",
+			},
+		},
+	}
+
+	emptyTaskGroup := &structs.TaskGroup{
+		Name: "emptyTaskGroup",
+	}
 
 	original := &structs.Allocation{
-		TaskGroup: "taskgroup1",
 		Job: &structs.Job{
 			Version:     1,
 			CreateIndex: 1,
 			TaskGroups: []*structs.TaskGroup{
-				{
-					Name: "taskgroup1",
-					Tasks: []*structs.Task{
-						{
-							Name: "task1",
-						},
-					},
-				},
+				taskGroupNoLeader,
+				taskGroupWithLeader,
+				emptyTaskGroup,
 			},
 		},
 		TaskStates: map[string]*structs.TaskState{
-			"task1": {},
+			"task2": {},
 		},
 		Metrics: &structs.AllocMetric{
 			ScoreMetaData: []*structs.NodeScoreMeta{
@@ -203,41 +320,19 @@ func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 		},
 	}
 
-	replacement := &structs.Allocation{
-		Job: &structs.Job{
-			Version:     1,
-			CreateIndex: 1,
-			TaskGroups: []*structs.TaskGroup{
-				{
-					Name: "taskgroup1",
-					Tasks: []*structs.Task{
-						{
-							Name: "task1",
-						},
-					},
-				},
-			},
-		},
-		TaskStates: map[string]*structs.TaskState{
-			"task1": {},
-		},
-		Metrics: &structs.AllocMetric{
-			ScoreMetaData: []*structs.NodeScoreMeta{
-				{
-					NormScore: 20,
-				},
-			},
-		},
-	}
+	replacement := original.Copy()
+	replacement.Metrics.ScoreMetaData[0].NormScore = 20
 
 	testsCases := []struct {
 		name             string
+		taskGroupName    string
 		originalState    structs.TaskState
 		replacementState structs.TaskState
 		expected         *structs.Allocation
 	}{
 		{
-			name: "original_with_no_restart",
+			name:          "original_with_no_restart",
+			taskGroupName: "taskGroupNoLeader",
 			replacementState: structs.TaskState{
 				StartedAt:   now.Add(-30 * time.Minute),
 				Restarts:    2,
@@ -250,7 +345,50 @@ func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 			expected: original,
 		},
 		{
-			name: "original_with_older_restarts",
+			name:          "original_with_no_restart_on_leader",
+			taskGroupName: "taskGroupWithLeader",
+			replacementState: structs.TaskState{
+				StartedAt:   now.Add(-30 * time.Minute),
+				Restarts:    2,
+				LastRestart: now.Add(-10 * time.Minute),
+			},
+			originalState: structs.TaskState{
+				StartedAt: now.Add(-time.Hour),
+				Restarts:  0,
+			},
+			expected: original,
+		},
+		{
+			name:          "empty_task_group",
+			taskGroupName: "emptyTaskGroup",
+			replacementState: structs.TaskState{
+				StartedAt:   now.Add(-30 * time.Minute),
+				Restarts:    2,
+				LastRestart: now.Add(-10 * time.Minute),
+			},
+			originalState: structs.TaskState{
+				StartedAt: now.Add(-time.Hour),
+				Restarts:  0,
+			},
+			expected: replacement,
+		},
+		{
+			name:          "original_with_no_restart_on_leader",
+			taskGroupName: "taskGroupNoLeader",
+			replacementState: structs.TaskState{
+				StartedAt:   now.Add(-30 * time.Minute),
+				Restarts:    2,
+				LastRestart: now.Add(-10 * time.Minute),
+			},
+			originalState: structs.TaskState{
+				StartedAt: now.Add(-time.Hour),
+				Restarts:  0,
+			},
+			expected: original,
+		},
+		{
+			name:          "original_with_older_restarts",
+			taskGroupName: "taskGroupNoLeader",
 			replacementState: structs.TaskState{
 				StartedAt:   now.Add(-30 * time.Minute),
 				Restarts:    2,
@@ -264,7 +402,8 @@ func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 			expected: original,
 		},
 		{
-			name: "original_with_newer_restarts",
+			name:          "original_with_newer_restarts",
+			taskGroupName: "taskGroupNoLeader",
 			replacementState: structs.TaskState{
 				StartedAt:   now.Add(-30 * time.Minute),
 				Restarts:    2,
@@ -278,7 +417,8 @@ func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 			expected: replacement,
 		},
 		{
-			name: "original_with_zero_start_time",
+			name:          "original_with_zero_start_time",
+			taskGroupName: "taskGroupNoLeader",
 			replacementState: structs.TaskState{
 				StartedAt:   now.Add(-30 * time.Minute),
 				Restarts:    2,
@@ -291,7 +431,8 @@ func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 			expected: replacement,
 		},
 		{
-			name: "replacement_with_zero_start_time",
+			name:          "replacement_with_zero_start_time",
+			taskGroupName: "taskGroupNoLeader",
 			replacementState: structs.TaskState{
 				StartedAt: time.Time{},
 				Restarts:  0,
@@ -304,7 +445,8 @@ func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 			expected: original,
 		},
 		{
-			name: "both_with_zero_start_time",
+			name:          "both_with_zero_start_time_pick_best_score",
+			taskGroupName: "taskGroupNoLeader",
 			replacementState: structs.TaskState{
 				StartedAt: time.Time{},
 				Restarts:  0,
@@ -319,8 +461,11 @@ func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 
 	for _, tc := range testsCases {
 		t.Run(tc.name, func(t *testing.T) {
-			original.TaskStates["task1"] = &tc.originalState
-			replacement.TaskStates["task1"] = &tc.replacementState
+			original.TaskGroup = tc.taskGroupName
+			replacement.TaskGroup = tc.taskGroupName
+
+			original.TaskStates["task2"] = &tc.originalState
+			replacement.TaskStates["task2"] = &tc.replacementState
 
 			result := rp.PickReconnectingAlloc(&structs.DisconnectStrategy{
 				Reconcile: structs.ReconcileOptionLongestRunning,
@@ -329,5 +474,4 @@ func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 			must.Eq(t, tc.expected, result)
 		})
 	}
-
 }

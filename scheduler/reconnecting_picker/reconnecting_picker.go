@@ -4,6 +4,8 @@
 package reconnectingpicker
 
 import (
+	"time"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -94,16 +96,8 @@ func (rp *ReconnectingPicker) pickReplacement(_, replacement *structs.Allocation
 func (rp *ReconnectingPicker) pickLongestRunning(original, replacement *structs.Allocation) *structs.Allocation {
 	tg := original.Job.LookupTaskGroup(original.TaskGroup)
 
-	var tasks []*structs.Task
-
-	// Use main tasks if there is no leader.
-	tasks, mts := original.LeaderAndMainTasksInGroup(tg)
-	if tasks == nil {
-		tasks = mts
-	}
-
-	orgStartTime := original.StartOfOldestTask(tasks)
-	repStartTime := replacement.StartOfOldestTask(tasks)
+	orgStartTime := startOfLeaderOrOldestTaskInMain(original, tg)
+	repStartTime := startOfLeaderOrOldestTaskInMain(replacement, tg)
 
 	if orgStartTime.IsZero() && !repStartTime.IsZero() {
 		return replacement
@@ -124,4 +118,30 @@ func (rp *ReconnectingPicker) pickLongestRunning(original, replacement *structs.
 	}
 
 	return replacement
+}
+
+func startOfLeaderOrOldestTaskInMain(alloc *structs.Allocation, tg *structs.TaskGroup) time.Time {
+	if tg == nil || len(tg.Tasks) == 0 {
+		return time.Time{}
+	}
+
+	now := time.Now().UTC()
+	oldestStart := now
+
+	for _, task := range tg.Tasks {
+		ls := alloc.LastStartOfTask(task.Name)
+		if task.Leader {
+			return ls
+		}
+
+		if !ls.IsZero() && ls.Before(oldestStart) {
+			oldestStart = ls
+		}
+	}
+
+	if oldestStart == now {
+		return time.Time{}
+	}
+
+	return oldestStart
 }

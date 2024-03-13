@@ -11438,43 +11438,6 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
-// LeaderAndMainTasksInGroup returns two slices: one with the leader tasks and
-// another with the main tasks that are not leader in the given task group.
-// If the task group is no longer present in the allocation definition
-// or there are no leaders and the main body the task is empty both slices will
-// be nil. If the task group has only one task, both slices will contain that task.
-//
-// This function is optimized to avoid traversing the task group tasks more than
-// once in case there is no leader defined.
-func (a *Allocation) LeaderAndMainTasksInGroup(tg *TaskGroup) ([]*Task, []*Task) {
-	if tg == nil {
-		return nil, nil
-	}
-
-	switch len(tg.Tasks) {
-	case 0:
-		return nil, nil
-
-	case 1:
-		return tg.Tasks, tg.Tasks
-	}
-
-	var leaderTasks, mainTasks []*Task
-
-	for _, t := range tg.Tasks {
-		if t.Leader {
-			leaderTasks = append(leaderTasks, t)
-			continue
-		}
-
-		if t.IsMain() {
-			mainTasks = append(mainTasks, t)
-		}
-	}
-
-	return leaderTasks, mainTasks
-}
-
 // LastStartOfTask returns the time of the last start event for the given task
 // using the allocations TaskStates. If the task has not started, the zero time
 // will be returned.
@@ -11489,31 +11452,6 @@ func (a *Allocation) LastStartOfTask(taskName string) time.Time {
 	}
 
 	return task.StartedAt
-}
-
-// StartOfOldestTask returns the time of the oldest start event for the given
-// tasks using the allocations TaskStates. If no task has started yet, the
-// last start of the first task is returned.
-// If the slice of tasks is empty, the Zero value of time is returned.
-func (a *Allocation) StartOfOldestTask(tasks []*Task) time.Time {
-	if len(tasks) == 0 {
-		return time.Time{}
-	}
-
-	now := time.Now().UTC()
-	oldestStart := now
-	for _, task := range tasks {
-		ls := a.LastStartOfTask(task.Name)
-		if !ls.IsZero() && ls.Before(oldestStart) {
-			oldestStart = a.LastStartOfTask(task.Name)
-		}
-	}
-
-	if oldestStart == now {
-		return a.LastStartOfTask(tasks[0].Name)
-	}
-
-	return oldestStart
 }
 
 // IdentityClaims are the input to a JWT identifying a workload. It
