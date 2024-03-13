@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
 
@@ -184,7 +185,7 @@ func TestJobs_Statuses(t *testing.T) {
 		// context to signal when the query unblocks
 		// mustBlock and mustUnblock below work by checking ctx.Done()
 		ctx, cancel := context.WithCancel(context.Background())
-		// default latest index
+		// default latest index to induce blocking
 		if req.QueryOptions.MinQueryIndex == 0 {
 			idx, err := s.State().LatestIndex()
 			must.NoError(t, err)
@@ -214,8 +215,7 @@ func TestJobs_Statuses(t *testing.T) {
 	}
 	mustUnblock := func(t *testing.T, ctx context.Context) {
 		t.Helper()
-		timer := time.NewTimer(time.Millisecond * 200) // may take a sec for a job to get deleted
-		//timer := time.NewTimer(time.Second * 2) // may take a sec for a job to get deleted
+		timer := time.NewTimer(time.Millisecond * 200)
 		defer timer.Stop()
 		select {
 		case <-ctx.Done():
@@ -226,27 +226,29 @@ func TestJobs_Statuses(t *testing.T) {
 
 	// alloc and deployment helpers
 	createAlloc := func(t *testing.T, job *structs.Job) {
+		t.Helper()
 		idx, err := s.State().LatestIndex()
 		must.NoError(t, err)
 		a := mock.MinAllocForJob(job)
 		must.NoError(t,
-			s.State().UpsertAllocs(structs.AllocUpdateRequestType, idx+1, []*structs.Allocation{a}))
-		//t.Cleanup(func() {
-		//	t.Helper()
-		//	idx, err = s.State().Index("allocs")
-		//	test.NoError(t, err)
-		//	test.NoError(t, s.State().DeleteEval(idx, []string{}, []string{a.ID}, false))
-		//})
+			s.State().UpsertAllocs(structs.AllocUpdateRequestType, idx+1, []*structs.Allocation{a}),
+			must.Sprintf("error creating alloc for job %s", job.ID))
+		t.Cleanup(func() {
+			idx, err = s.State().Index("allocs")
+			test.NoError(t, err)
+			test.NoError(t, s.State().DeleteEval(idx, []string{}, []string{a.ID}, false))
+		})
 	}
 	createDeployment := func(t *testing.T, job *structs.Job) {
+		t.Helper()
 		idx, err := s.State().LatestIndex()
 		must.NoError(t, err)
 		deploy := mock.Deployment()
 		deploy.JobID = job.ID
 		must.NoError(t, s.State().UpsertDeployment(idx+1, deploy))
-		//t.Cleanup(func(){
-		//	s.State().DeleteDeployment(idx+)
-		//})
+		t.Cleanup(func() {
+			test.NoError(t, s.State().DeleteDeployment(idx+1, []string{deploy.ID}))
+		})
 	}
 
 	// these must be run in order, as they affect outer-scope state.
@@ -259,7 +261,7 @@ func TestJobs_Statuses(t *testing.T) {
 	}{
 		{
 			name:  "get all jobs",
-			check: mustBlock, // TODO: these leak goroutines... until the server goes away, breaking the RPC?
+			check: mustBlock,
 		},
 		{
 			name: "delete job",
