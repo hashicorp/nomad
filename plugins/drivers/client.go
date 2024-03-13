@@ -81,6 +81,7 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 		caps.MountConfigs = MountConfigSupport(resp.Capabilities.MountConfigs)
 		caps.RemoteTasks = resp.Capabilities.RemoteTasks
 		caps.DisableLogCollection = resp.Capabilities.DisableLogCollection
+		caps.DynamicWorkloadUsers = resp.Capabilities.DynamicWorkloadUsers
 	}
 
 	return caps, nil
