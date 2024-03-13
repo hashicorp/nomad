@@ -5090,7 +5090,6 @@ type JobChildrenSummary struct {
 	Pending int64
 	Running int64
 	Dead    int64
-	Desired int64
 }
 
 // Copy returns a new copy of a JobChildrenSummary
