@@ -71,8 +71,8 @@ func (j *Jobs) Statuses(
 	}
 	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
 
-	// compare between state run() unblocks to see if the RPC should unblock.
-	// i.e. if new job(s) shift the page, or when job(s) go away.
+	// Compare between state run() unblocks to see if the RPC, as a whole,
+	// should unblock. i.e. if new jobs shift the page, or when jobs go away.
 	prevJobs := set.New[structs.NamespacedID](0)
 
 	sort := state.QueryOptionSort(args.QueryOptions)
@@ -118,7 +118,7 @@ func (j *Jobs) Statuses(
 				paginator.NamespaceFilter{
 					AllowableNamespaces: allowableNamespaces,
 				},
-				// don't include child jobs; we'll look them up later, per parent.
+				// skip child jobs; we'll look them up later, per parent.
 				paginator.GenericFilter{Allow: func(i interface{}) (bool, error) {
 					job := i.(*structs.Job)
 					return job.ParentID == "", nil
@@ -143,12 +143,9 @@ func (j *Jobs) Statuses(
 			pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 				func(raw interface{}) error {
 					job := raw.(*structs.Job)
-					if job == nil {
-						return nil
-					}
 
 					// this is where the sausage is made
-					uiJob, idx, err := UIJobFromJob(ws, state, job, args.SmartOnly)
+					uiJob, highestIndexOnPage, err := UIJobFromJob(ws, state, job, args.SmartOnly)
 					if err != nil {
 						return err
 					}
@@ -156,8 +153,12 @@ func (j *Jobs) Statuses(
 					jobs = append(jobs, uiJob)
 					newJobs.Insert(job.NamespacedID())
 
-					if idx > reply.Index {
-						reply.Index = idx
+					// by using the highest index we find on any job/alloc/
+					// deployment among the jobs on the page, instead of the
+					// latest index for any particular state table, we can
+					// avoid unblocking the RPC if something changes "off page"
+					if highestIndexOnPage > reply.Index {
+						reply.Index = highestIndexOnPage
 					}
 					return nil
 				})
@@ -174,7 +175,7 @@ func (j *Jobs) Statuses(
 
 			// if the page has updated, or a job has gone away,
 			// bump the index to latest jobs entry.
-			if !newJobs.Equal(prevJobs) {
+			if !prevJobs.Empty() && !newJobs.Equal(prevJobs) {
 				reply.Index, err = state.Index("jobs")
 				if err != nil {
 					return err
@@ -211,10 +212,14 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 		ChildStatuses: nil,
 		DeploymentID:  "",
 	}
+
+	// the GroupCountSum will map to how many allocations we expect to run
+	// (for service jobs)
 	for _, tg := range job.TaskGroups {
 		uiJob.GroupCountSum += tg.Count
 	}
 
+	// collect the statuses of child jobs
 	if job.IsParameterized() || job.IsPeriodic() {
 		children, err := store.JobsByIDPrefix(ws, job.Namespace, job.ID, state.SortDefault)
 		if err != nil {
@@ -226,6 +231,7 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 				break
 			}
 			j := child.(*structs.Job)
+			// note: this filters out grandchildren jobs (children of children)
 			if j.ParentID != job.ID {
 				continue
 			}
@@ -234,19 +240,28 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 			}
 			uiJob.ChildStatuses = append(uiJob.ChildStatuses, j.Status)
 		}
-	}
-
-	allocs, err := store.AllocsByJob(ws, job.Namespace, job.ID, true) // TODO: anyCreateIndex?
-	if err != nil {
+		// no allocs or deployments for parameterized/period jobs,
+		// so we're done here.
 		return uiJob, idx, err
 	}
 
+	// collect info about allocations
+	allocs, err := store.AllocsByJob(ws, job.Namespace, job.ID, true)
+	if err != nil {
+		return uiJob, idx, err
+	}
 	for _, a := range allocs {
+		if a.ModifyIndex > idx {
+			idx = a.ModifyIndex
+		}
+
 		uiJob.SmartAlloc["total"]++
 		uiJob.SmartAlloc[a.ClientStatus]++
 		if a.DeploymentStatus != nil && a.DeploymentStatus.Canary {
 			uiJob.SmartAlloc["canary"]++
 		}
+		// callers may wish to keep response body size smaller by excluding
+		// details about allocations.
 		if smartOnly {
 			continue
 		}
@@ -258,29 +273,24 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 			NodeID:       a.NodeID,
 			JobVersion:   a.Job.Version,
 		}
-		// TODO: use methods instead of fields directly?
 		if a.DeploymentStatus != nil {
-			alloc.DeploymentStatus.Canary = a.DeploymentStatus.Canary
-			if a.DeploymentStatus.Healthy != nil {
-				alloc.DeploymentStatus.Healthy = *a.DeploymentStatus.Healthy
-			}
+			alloc.DeploymentStatus.Canary = a.DeploymentStatus.IsCanary()
+			alloc.DeploymentStatus.Healthy = a.DeploymentStatus.IsHealthy()
 		}
 		uiJob.Allocs = append(uiJob.Allocs, alloc)
-		if a.ModifyIndex > idx {
-			idx = a.ModifyIndex
-		}
 	}
 
-	deploys, err := store.DeploymentsByJobID(ws, job.Namespace, job.ID, true)
+	// look for active deployment
+	deploy, err := store.LatestDeploymentByJobID(ws, job.Namespace, job.ID)
 	if err != nil {
 		return uiJob, idx, err
 	}
-	for _, d := range deploys {
-		if d.Active() {
-			uiJob.DeploymentID = d.ID
+	if deploy != nil {
+		if deploy.Active() {
+			uiJob.DeploymentID = deploy.ID
 		}
-		if d.ModifyIndex > idx {
-			idx = d.ModifyIndex
+		if deploy.ModifyIndex > idx {
+			idx = deploy.ModifyIndex
 		}
 	}
 	return uiJob, idx, nil
