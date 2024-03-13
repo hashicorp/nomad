@@ -414,6 +414,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		getter:                  config.Getter,
 		wranglers:               config.Wranglers,
 		widmgr:                  config.WIDMgr,
+		users:                   config.Users,
 	}
 
 	// Create the logger based on the allocation ID
