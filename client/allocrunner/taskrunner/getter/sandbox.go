@@ -38,6 +38,7 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 	}
 
 	mode := getMode(artifact)
+	insecure := isInsecure(artifact)
 	headers := getHeaders(env, artifact)
 	allocDir, taskDir := getWritableDirs(env)
 
@@ -56,6 +57,7 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 
 		// artifact configuration
 		Mode:        mode,
+		Insecure:    insecure,
 		Source:      source,
 		Destination: destination,
 		Headers:     headers,

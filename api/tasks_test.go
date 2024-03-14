@@ -317,6 +317,7 @@ func TestTask_Artifact(t *testing.T) {
 	}
 	a.Canonicalize()
 	must.Eq(t, "file", *a.GetterMode)
+	must.Eq(t, false, *a.GetterInsecure)
 	must.Eq(t, "local/foo.txt", filepath.ToSlash(*a.RelativeDest))
 	must.Nil(t, a.GetterOptions)
 	must.Nil(t, a.GetterHeaders)

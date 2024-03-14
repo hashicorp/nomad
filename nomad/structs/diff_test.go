@@ -5627,6 +5627,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "GetterInsecure",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "GetterMode",
 								Old:  "",
 								New:  "file",
@@ -5659,6 +5665,13 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "GetterHeaders[User]",
 								Old:  "user1",
+								New:  "",
+							},
+
+							{
+								Type: DiffTypeDeleted,
+								Name: "GetterInsecure",
+								Old:  "false",
 								New:  "",
 							},
 							{

@@ -1355,11 +1355,12 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		for _, ta := range apiTask.Artifacts {
 			structsTask.Artifacts = append(structsTask.Artifacts,
 				&structs.TaskArtifact{
-					GetterSource:  *ta.GetterSource,
-					GetterOptions: maps.Clone(ta.GetterOptions),
-					GetterHeaders: maps.Clone(ta.GetterHeaders),
-					GetterMode:    *ta.GetterMode,
-					RelativeDest:  *ta.RelativeDest,
+					GetterSource:   *ta.GetterSource,
+					GetterOptions:  maps.Clone(ta.GetterOptions),
+					GetterHeaders:  maps.Clone(ta.GetterHeaders),
+					GetterMode:     *ta.GetterMode,
+					GetterInsecure: *ta.GetterInsecure,
+					RelativeDest:   *ta.RelativeDest,
 				})
 		}
 	}
