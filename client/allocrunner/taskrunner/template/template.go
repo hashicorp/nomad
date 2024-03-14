@@ -237,10 +237,14 @@ func (tm *TaskTemplateManager) run() {
 		return
 	}
 
-	// Start the runner
+	// Start the runner. We don't defer a call to tm.runner.Stop here so that
+	// the runner can keep dynamic secrets alive during the task's
+	// kill_timeout. We stop the runner in the Stop hook, which is guaranteed to
+	// be called during task kill.
 	go tm.runner.Start()
 
-	// Block till all the templates have been rendered
+	// Block till all the templates have been rendered or until an error has
+	// triggered taskrunner Kill, which closes tm.shutdownCh before we return
 	tm.handleFirstRender()
 
 	// Detect if there was a shutdown.
@@ -300,6 +304,9 @@ WAIT:
 				continue
 			}
 
+			// we don't return here so that we wait for tm.shutdownCh in the
+			// next pass thru the loop; this ensures the callers doesn't unblock
+			// prematurely
 			tm.config.Lifecycle.Kill(context.Background(),
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
@@ -414,6 +421,9 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				continue
 			}
 
+			// we don't return here so that we wait for tm.shutdownCh in the
+			// next pass thru the loop; this ensures the callers doesn't unblock
+			// prematurely
 			tm.config.Lifecycle.Kill(context.Background(),
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
