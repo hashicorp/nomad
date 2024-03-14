@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-getter"
 )
 
@@ -36,6 +35,7 @@ type parameters struct {
 
 	// Artifact
 	Mode        getter.ClientMode   `json:"artifact_mode"`
+	Insecure    bool                `json:"artifact_insecure"`
 	Source      string              `json:"artifact_source"`
 	Destination string              `json:"artifact_destination"`
 	Headers     map[string][]string `json:"artifact_headers"`
@@ -102,6 +102,8 @@ func (p *parameters) Equal(o *parameters) bool {
 		return false
 	case p.Mode != o.Mode:
 		return false
+	case p.Insecure != o.Insecure:
+		return false
 	case p.Source != o.Source:
 		return false
 	case p.Destination != o.Destination:
@@ -130,7 +132,6 @@ const (
 func (p *parameters) client(ctx context.Context) *getter.Client {
 	httpGetter := &getter.HttpGetter{
 		Netrc:  true,
-		Client: cleanhttp.DefaultClient(),
 		Header: p.Headers,
 
 		// Do not support the custom X-Terraform-Get header and
@@ -162,8 +163,8 @@ func (p *parameters) client(ctx context.Context) *getter.Client {
 		Src:             p.Source,
 		Dst:             p.Destination,
 		Mode:            p.Mode,
+		Insecure:        p.Insecure,
 		Umask:           umask,
-		Insecure:        false,
 		DisableSymlinks: true,
 		Decompressors:   decompressors,
 		Getters: map[string]getter.Getter{

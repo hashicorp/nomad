@@ -27,6 +27,7 @@ const paramsAsJSON = `
   "disable_filesystem_isolation": true,
   "set_environment_variables": "",
   "artifact_mode": 2,
+  "artifact_insecure": false,
   "artifact_source": "https://example.com/file.txt",
   "artifact_destination": "local/out.txt",
   "artifact_headers": {

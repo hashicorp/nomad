@@ -4785,6 +4785,16 @@ func TestTaskArtifact_Hash(t *testing.T) {
 			GetterMode:   "g",
 			RelativeDest: "i",
 		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:     "g",
+			GetterInsecure: true,
+			RelativeDest:   "i",
+		},
 	}
 
 	// Map of hash to source
