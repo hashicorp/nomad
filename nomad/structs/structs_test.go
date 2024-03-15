@@ -5934,7 +5934,7 @@ func TestAllocation_RescheduleTimeOnDisconnect(t *testing.T) {
 			expectedTime: testNow,
 		},
 		{
-			name:      "replace_enabled",
+			name:      "replace_disabled",
 			taskGroup: "web",
 			disconnectGroup: &DisconnectStrategy{
 				Replace: pointer.Of(false),
