@@ -14,7 +14,7 @@ import (
 )
 
 func TestPickReconnectingAlloc_NewerVersion(t *testing.T) {
-	rp := New(nil)
+	rp := New(hclog.NewNullLogger())
 	ds := &structs.DisconnectStrategy{
 		Reconcile: "best-score",
 	}
@@ -200,14 +200,14 @@ func TestPickReconnectingAlloc_BestScore(t *testing.T) {
 		expected                *structs.Allocation
 	}{
 		{
-			name:                    "replacement_has_better_score_but_running",
+			name:                    "replacement_has_better_score_and_running",
 			replacementScore:        20,
 			originalClientStatus:    structs.AllocClientStatusRunning,
 			replacementClientStatus: structs.AllocClientStatusRunning,
 			expected:                replacement,
 		},
 		{
-			name:                    "original_has_better_score_but_running",
+			name:                    "original_has_better_score_and_running",
 			originalClientStatus:    structs.AllocClientStatusRunning,
 			replacementClientStatus: structs.AllocClientStatusRunning,
 			replacementScore:        5,
