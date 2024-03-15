@@ -157,12 +157,17 @@ func (st *SidecarTask) Canonicalize() {
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec block.
 type ConsulProxy struct {
-	LocalServiceAddress string                 `mapstructure:"local_service_address" hcl:"local_service_address,optional"`
-	LocalServicePort    int                    `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
-	Expose              *ConsulExposeConfig    `mapstructure:"expose" hcl:"expose,block"`
-	ExposeConfig        *ConsulExposeConfig    // Deprecated: only to maintain backwards compatibility. Use Expose instead.
-	Upstreams           []*ConsulUpstream      `hcl:"upstreams,block"`
-	Config              map[string]interface{} `hcl:"config,block"`
+	LocalServiceAddress string              `mapstructure:"local_service_address" hcl:"local_service_address,optional"`
+	LocalServicePort    int                 `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
+	Expose              *ConsulExposeConfig `mapstructure:"expose" hcl:"expose,block"`
+	ExposeConfig        *ConsulExposeConfig // Deprecated: only to maintain backwards compatibility. Use Expose instead.
+	Upstreams           []*ConsulUpstream   `hcl:"upstreams,block"`
+
+	// TransparentProxy configures the Envoy sidecar to use "transparent
+	// proxying", which creates IP tables rules inside the network namespace to
+	// ensure traffic flows thru the Envoy proxy
+	TransparentProxy *ConsulTransparentProxy `mapstructure:"transparent_proxy" hcl:"transparent_proxy,block"`
+	Config           map[string]interface{}  `hcl:"config,block"`
 }
 
 func (cp *ConsulProxy) Canonicalize() {
@@ -175,6 +180,8 @@ func (cp *ConsulProxy) Canonicalize() {
 	if len(cp.Upstreams) == 0 {
 		cp.Upstreams = nil
 	}
+
+	cp.TransparentProxy.Canonicalize()
 
 	for _, upstream := range cp.Upstreams {
 		upstream.Canonicalize()
@@ -260,6 +267,61 @@ func (cu *ConsulUpstream) Canonicalize() {
 	cu.MeshGateway.Canonicalize()
 	if len(cu.Config) == 0 {
 		cu.Config = nil
+	}
+}
+
+// ConsulTransparentProxy is used to configure the Envoy sidecar for
+// "transparent proxying", which creates IP tables rules inside the network
+// namespace to ensure traffic flows thru the Envoy proxy
+type ConsulTransparentProxy struct {
+	// UID of the Envoy proxy. Defaults to the default Envoy proxy container
+	// image user.
+	UID string `mapstructure:"uid" hcl:"uid,optional"`
+
+	// OutboundPort is the Envoy proxy's outbound listener port. Inbound TCP
+	// traffic hitting the PROXY_IN_REDIRECT chain will be redirected here.
+	// Defaults to 15001.
+	OutboundPort uint16 `mapstructure:"outbound_port" hcl:"outbound_port,optional"`
+
+	// ExcludeInboundPorts is an additional set of ports will be excluded from
+	// redirection to the Envoy proxy. Can be Port.Label or Port.Value. This set
+	// will be added to the ports automatically excluded for the Expose.Port and
+	// Check.Expose fields.
+	ExcludeInboundPorts []string `mapstructure:"exclude_inbound_ports" hcl:"exclude_inbound_ports,optional"`
+
+	// ExcludeOutboundPorts is a set of outbound ports that will not be
+	// redirected to the Envoy proxy, specified as port numbers.
+	ExcludeOutboundPorts []uint16 `mapstructure:"exclude_outbound_ports" hcl:"exclude_outbound_ports,optional"`
+
+	// ExcludeOutboundCIDRs is a set of outbound CIDR blocks that will not be
+	// redirected to the Envoy proxy.
+	ExcludeOutboundCIDRs []string `mapstructure:"exclude_outbound_cidrs" hcl:"exclude_outbound_cidrs,optional"`
+
+	// ExcludeUIDs is a set of user IDs whose network traffic will not be
+	// redirected through the Envoy proxy.
+	ExcludeUIDs []string `mapstructure:"exclude_uids" hcl:"exclude_uids,optional"`
+
+	// NoDNS disables redirection of DNS traffic to Consul DNS. By default NoDNS
+	// is false and transparent proxy will direct DNS traffic to Consul DNS if
+	// available on the client.
+	NoDNS bool `mapstructure:"no_dns" hcl:"no_dns,optional"`
+}
+
+func (tp *ConsulTransparentProxy) Canonicalize() {
+	if tp == nil {
+		return
+	}
+	if len(tp.ExcludeInboundPorts) == 0 {
+		tp.ExcludeInboundPorts = nil
+	}
+	if len(tp.ExcludeOutboundCIDRs) == 0 {
+		tp.ExcludeOutboundCIDRs = nil
+	}
+	if len(tp.ExcludeOutboundPorts) == 0 {
+		tp.ExcludeOutboundPorts = nil
+	}
+	if len(tp.ExcludeUIDs) == 0 {
+		tp.ExcludeUIDs = nil
 	}
 }
 

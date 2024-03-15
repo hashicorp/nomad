@@ -3490,6 +3490,15 @@ func TestTaskGroupDiff(t *testing.T) {
 									Config: map[string]interface{}{
 										"foo": "qux",
 									},
+									TransparentProxy: &ConsulTransparentProxy{
+										UID:                  "101",
+										OutboundPort:         15001,
+										ExcludeInboundPorts:  []string{"www", "9000"},
+										ExcludeOutboundPorts: []uint16{4443},
+										ExcludeOutboundCIDRs: []string{"10.0.0.0/8"},
+										ExcludeUIDs:          []string{"1", "10"},
+										NoDNS:                true,
+									},
 								},
 							},
 							Gateway: &ConsulGateway{
@@ -3915,6 +3924,92 @@ func TestTaskGroupDiff(t *testing.T) {
 																		New:  "http",
 																	},
 																},
+															},
+														},
+													},
+													{
+														Type: DiffTypeAdded,
+														Name: "TransparentProxy",
+														Objects: []*ObjectDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "ExcludeInboundPorts",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeInboundPorts",
+																		Old:  "",
+																		New:  "9000",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeInboundPorts",
+																		Old:  "",
+																		New:  "www",
+																	},
+																},
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "ExcludeOutboundPorts",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeOutboundPorts",
+																		Old:  "",
+																		New:  "4443",
+																	},
+																},
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "ExcludeOutboundCIDRs",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeOutboundCIDRs",
+																		Old:  "",
+																		New:  "10.0.0.0/8",
+																	},
+																},
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "ExcludeUIDs",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeUIDs",
+																		Old:  "",
+																		New:  "1",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeUIDs",
+																		Old:  "",
+																		New:  "10",
+																	},
+																},
+															},
+														},
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "NoDNS",
+																Old:  "",
+																New:  "true",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "OutboundPort",
+																Old:  "",
+																New:  "15001",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "UID",
+																Old:  "",
+																New:  "101",
 															},
 														},
 													},
