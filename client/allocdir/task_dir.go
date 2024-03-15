@@ -165,7 +165,7 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 
 		// create the task unique directory under the client mounts path
 		parent := filepath.Dir(t.MountsAllocDir)
-		if err = os.MkdirAll(parent, 0o710); err != nil {
+		if err = os.MkdirAll(parent, fileMode710); err != nil {
 			return fmt.Errorf("Failed to create task mount directory: %v", err)
 		}
 		if err = os.Chown(parent, uid, gid); err != nil {
@@ -173,8 +173,8 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 		}
 
 		// create the task and alloc mount points
-		mountDir(t.AllocDir, t.MountsAllocDir, uid, gid, 0o710)
-		mountDir(t.Dir, t.MountsTaskDir, uid, gid, 0o710)
+		mountDir(t.AllocDir, t.MountsAllocDir, uid, gid, fileMode710)
+		mountDir(t.Dir, t.MountsTaskDir, uid, gid, fileMode710)
 	}
 
 	return nil

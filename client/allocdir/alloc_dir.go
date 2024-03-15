@@ -32,6 +32,9 @@ const (
 	// fileMode777 is a constant that represents the file mode rwxrwxrwx
 	fileMode777 = os.FileMode(0o777)
 
+	// fileMode710 is a constant that represents the file mode rwx--x---
+	fileMode710 = os.FileMode(0o710)
+
 	// fileMode755 is a constant that represents the file mode rwxr-xr-x
 	fileMode755 = os.FileMode(0o755)
 
