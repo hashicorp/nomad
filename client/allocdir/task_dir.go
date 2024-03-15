@@ -313,6 +313,22 @@ func (t *TaskDir) Unmount() error {
 		}
 	}
 
+	if pathExists(t.MountsAllocDir) {
+		if err := unlinkDir(t.MountsAllocDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the alloc mounts dir %q: %w", t.MountsAllocDir, err),
+			)
+		}
+	}
+
+	if pathExists(t.MountsTaskDir) {
+		if err := unlinkDir(t.MountsTaskDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the alloc mounts task dir %q: %w", t.MountsTaskDir, err),
+			)
+		}
+	}
+
 	// Unmount dev/ and proc/ have been mounted.
 	if err := t.unmountSpecialDirs(); err != nil {
 		mErr = multierror.Append(mErr, err)
