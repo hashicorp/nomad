@@ -505,7 +505,7 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 	var eligible bool
 	switch {
 	case isDisconnecting:
-		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(now)
+		rescheduleTime, eligible = alloc.RescheduleTimeOnDisconnect(now)
 
 	case alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.FollowupEvalID == evalID:
 		lastDisconnectTime := alloc.LastUnknown()
