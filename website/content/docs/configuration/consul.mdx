@@ -26,11 +26,12 @@ consul {
 ```
 
 A default `consul` block is automatically merged with all Nomad agent
-configurations. These sane defaults automatically enable Consul integration if
-Consul is detected on the system. This allows for seamless bootstrapping of the
-cluster with zero configuration. To put it another way: if you have a Consul
+configurations. These sensible defaults automatically enable Consul integration
+if Consul is detected on the system. This allows for seamless bootstrapping of
+the cluster with zero configuration. To put it another way: if you have a Consul
 agent running on the same host as the Nomad agent with the default
-configuration, Nomad will automatically connect and configure with Consul.
+configuration, Nomad will be able to automatically connect to the rest of the
+Nomad cluster.
 
 ~> An important requirement is that each Nomad agent talks to a unique Consul
 agent. Nomad agents should be configured to talk to Consul agents and not
