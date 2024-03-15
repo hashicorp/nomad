@@ -238,6 +238,7 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 	return nil
 }
 
+// Unmount or delete task directories. Returns all errors as a multierror.
 func (t *TaskDir) Unmount() error {
 	mErr := new(multierror.Error)
 
