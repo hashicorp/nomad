@@ -35,6 +35,12 @@ module.exports = [
    * change its destination in the future.
    */
   {
+    source: '/nomad/s/port-plan-failure',
+    destination:
+      'https://developer.hashicorp.com/nomad/docs/operations/monitoring-nomad#progress',
+    permanent: false,
+  },
+  {
     source: '/nomad/s/envoy-bootstrap-error',
     destination:
       'https://developer.hashicorp.com/nomad/docs/integrations/consul/service-mesh#troubleshooting',

@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 )
 
 func TestGossipKeyringGenerateCommand(t *testing.T) {
@@ -17,17 +18,11 @@ func TestGossipKeyringGenerateCommand(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &OperatorGossipKeyringGenerateCommand{Meta: Meta{Ui: ui}}
 	code := c.Run(nil)
-	if code != 0 {
-		t.Fatalf("bad: %d", code)
-	}
+	must.Zero(t, code)
 
 	output := ui.OutputWriter.String()
 	result, err := base64.StdEncoding.DecodeString(output)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
+	must.Len(t, 32, result)
 
-	if len(result) != 32 {
-		t.Fatalf("bad: %#v", result)
-	}
 }

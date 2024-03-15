@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestIntegration_Command_NomadInit(t *testing.T) {
@@ -43,7 +43,6 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	assert := assert.New(t)
 	tmpDir := t.TempDir()
 
 	// Start in dev mode so we get a node registration
@@ -53,7 +52,7 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	{
 		cmd := exec.Command("nomad", "job", "init", "-short")
 		cmd.Dir = tmpDir
-		assert.Nil(cmd.Run())
+		must.NoError(t, cmd.Run())
 	}
 
 	{
@@ -71,16 +70,16 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 		cmd.Dir = tmpDir
 		cmd.Env = []string{fmt.Sprintf("NOMAD_ADDR=%s", url)}
 		out, err := cmd.Output()
-		assert.Nil(err)
+		must.NoError(t, err)
 
 		var req api.JobRegisterRequest
 		dec := json.NewDecoder(bytes.NewReader(out))
-		assert.Nil(dec.Decode(&req))
+		must.NoError(t, dec.Decode(&req))
 
 		var resp api.JobRegisterResponse
 		_, err = client.Raw().Write("/v1/jobs", req, &resp, nil)
-		assert.Nil(err)
-		assert.NotZero(resp.EvalID)
+		must.NoError(t, err)
+		must.NotEq(t, "", resp.EvalID)
 	}
 
 	{
@@ -88,6 +87,6 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 		cmd.Dir = tmpDir
 		cmd.Env = []string{fmt.Sprintf("NOMAD_ADDR=%s", url)}
 		_, err := cmd.Output()
-		assert.Nil(err)
+		must.NoError(t, err)
 	}
 }

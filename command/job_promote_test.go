@@ -10,13 +10,11 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
-
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestJobPromoteCommand_Implements(t *testing.T) {
@@ -49,7 +47,6 @@ func TestJobPromoteCommand_Fails(t *testing.T) {
 
 func TestJobPromoteCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -60,15 +57,15 @@ func TestJobPromoteCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(j.ID, res[0])
+	must.SliceLen(t, 1, res)
+	must.Eq(t, j.ID, res[0])
 }
 
 func TestJobPromoteCommand_ACL(t *testing.T) {

@@ -4,6 +4,8 @@
 package getter
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -50,4 +52,33 @@ func TestSandbox_Get_http(t *testing.T) {
 	b, err := os.ReadFile(filepath.Join(taskDir, "local", "downloads", "go.mod"))
 	must.NoError(t, err)
 	must.StrContains(t, string(b), "module github.com/hashicorp/go-set")
+}
+
+func TestSandbox_Get_insecure_http(t *testing.T) {
+	testutil.RequireRoot(t)
+	logger := testlog.HCLogger(t)
+
+	ac := artifactConfig(10 * time.Second)
+	sbox := New(ac, logger)
+
+	_, taskDir := SetupDir(t)
+	env := noopTaskEnv(taskDir)
+
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	artifact := &structs.TaskArtifact{
+		GetterSource: srv.URL,
+		RelativeDest: "local/downloads",
+	}
+
+	err := sbox.Get(env, artifact)
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "x509: certificate signed by unknown authority")
+
+	artifact.GetterInsecure = true
+	err = sbox.Get(env, artifact)
+	must.NoError(t, err)
 }

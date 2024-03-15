@@ -418,8 +418,7 @@ func TestArtifactConfig_Validate(t *testing.T) {
 
 			err := a.Validate()
 			if tc.expErr != "" {
-				must.Error(t, err)
-				must.StrContains(t, err.Error(), tc.expErr)
+				must.ErrorContains(t, err, tc.expErr)
 			} else {
 				must.NoError(t, err)
 			}

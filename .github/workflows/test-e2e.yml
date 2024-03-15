@@ -38,7 +38,7 @@ jobs:
   test-e2e-vault:
     runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - uses: ./.github/actions/vault-secrets
         with:
           paths: |-
@@ -55,7 +55,7 @@ jobs:
   test-e2e-consul:
     runs-on: 'ubuntu-22.04' # this job requires sudo, so not currently suitable for self-hosted runners
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Git config token
         if: endsWith(github.repository, '-enterprise')
         run: git config --global url.'https://${{ secrets.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'

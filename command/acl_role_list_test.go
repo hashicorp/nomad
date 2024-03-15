@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestACLRoleListCommand_Run(t *testing.T) {
@@ -27,7 +27,7 @@ func TestACLRoleListCommand_Run(t *testing.T) {
 	// Wait for the server to start fully and ensure we have a bootstrap token.
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 	rootACLToken := srv.RootToken
-	require.NotNil(t, rootACLToken)
+	must.NotNil(t, rootACLToken)
 
 	ui := cli.NewMockUi()
 	cmd := &ACLRoleListCommand{
@@ -38,8 +38,8 @@ func TestACLRoleListCommand_Run(t *testing.T) {
 	}
 
 	// Perform a list straight away without any roles held in state.
-	require.Equal(t, 0, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID}))
-	require.Contains(t, ui.OutputWriter.String(), "No ACL roles found")
+	must.Zero(t, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID}))
+	must.StrContains(t, ui.OutputWriter.String(), "No ACL roles found")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
@@ -54,7 +54,7 @@ func TestACLRoleListCommand_Run(t *testing.T) {
 	}
 	err := srv.Agent.Server().State().UpsertACLPolicies(
 		structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{&aclPolicy})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Create an ACL role referencing the previously created policy.
 	aclRole := structs.ACLRole{
@@ -64,16 +64,16 @@ func TestACLRoleListCommand_Run(t *testing.T) {
 	}
 	err = srv.Agent.Server().State().UpsertACLRoles(
 		structs.MsgTypeTestSetup, 20, []*structs.ACLRole{&aclRole}, false)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Perform a listing to get the created role.
-	require.Equal(t, 0, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID}))
+	must.Zero(t, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID}))
 	s := ui.OutputWriter.String()
-	require.Contains(t, s, "ID")
-	require.Contains(t, s, "Name")
-	require.Contains(t, s, "Policies")
-	require.Contains(t, s, "acl-role-cli-test")
-	require.Contains(t, s, "acl-role-policy-cli-test")
+	must.StrContains(t, s, "ID")
+	must.StrContains(t, s, "Name")
+	must.StrContains(t, s, "Policies")
+	must.StrContains(t, s, "acl-role-cli-test")
+	must.StrContains(t, s, "acl-role-policy-cli-test")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

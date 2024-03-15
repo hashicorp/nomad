@@ -43,7 +43,7 @@ func tempAllocDir(t testing.TB) *allocdir.AllocDir {
 
 	require.NoError(t, os.Chmod(dir, 0o777))
 
-	return allocdir.NewAllocDir(testlog.HCLogger(t), dir, "test_allocid")
+	return allocdir.NewAllocDir(testlog.HCLogger(t), dir, dir, "test_allocid")
 }
 
 type nopWriteCloser struct {

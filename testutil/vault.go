@@ -19,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
 	testing "github.com/mitchellh/go-testing-interface"
-	"github.com/stretchr/testify/require"
 )
 
 // TestVault is a test helper. It uses a fork/exec model to create a test Vault
@@ -229,7 +228,7 @@ func (tv *TestVault) Stop() {
 		case <-tv.waitCh:
 			return
 		case <-time.After(1 * time.Second):
-			require.Fail(tv.t, "Timed out waiting for vault to terminate")
+			tv.t.Fatal("Timed out waiting for vault to terminate")
 		}
 	}
 }

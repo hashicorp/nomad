@@ -21,6 +21,7 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/client/widmgr"
+	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -119,6 +120,9 @@ type AllocRunnerConfig struct {
 
 	// WIDMgr manages workload identities
 	WIDMgr widmgr.IdentityManager
+
+	// Users manages a pool of dynamic workload users
+	Users dynamic.Pool
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to

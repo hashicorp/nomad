@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestVarLockCommand_Implements(t *testing.T) {
@@ -99,7 +98,7 @@ func TestVarLockCommand_Good(t *testing.T) {
 
 	// Get the variable
 	code := cmd.Run([]string{"-address=" + url, "test/var/shell", "touch ", filePath})
-	require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+	must.Zero(t, code)
 
 	sv, _, err := srv.APIClient().Variables().Peek("test/var/shell", nil)
 	must.NoError(t, err)
@@ -133,7 +132,7 @@ func TestVarLockCommand_Good_NoShell(t *testing.T) {
 
 	// Get the variable
 	code := cmd.Run([]string{"-address=" + url, "-shell=false", "test/var/noShell", "touch", filePath})
-	require.Zero(t, 0, code)
+	must.Zero(t, code)
 
 	sv, _, err := srv.APIClient().Variables().Peek("test/var/noShell", nil)
 	must.NoError(t, err)

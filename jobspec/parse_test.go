@@ -12,7 +12,7 @@ import (
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 // consts copied from nomad/structs package to keep jobspec isolated from rest of nomad
@@ -1921,14 +1921,14 @@ func TestParse(t *testing.T) {
 			t.Logf("Testing parse: %s", tc.File)
 
 			path, err := filepath.Abs(filepath.Join("./test-fixtures", tc.File))
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			actual, err := ParseFile(path)
 			if tc.Err {
-				require.Error(t, err)
+				must.Error(t, err)
 			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.Result, actual)
+				must.NoError(t, err)
+				must.Eq(t, tc.Result, actual)
 			}
 		})
 	}
@@ -1999,15 +1999,15 @@ func TestPortParsing(t *testing.T) {
 	var job *api.Job
 
 	path, err = filepath.Abs(filepath.Join("./test-fixtures", "parse-ports.hcl"))
-	require.NoError(t, err, "Can't get absolute path for file: parse-ports.hcl")
+	must.NoError(t, err, must.Sprint("Can't get absolute path for file: parse-ports.hcl"))
 
 	job, err = ParseFile(path)
-	require.NoError(t, err, "cannot parse job")
-	require.NotNil(t, job)
-	require.Len(t, job.TaskGroups, 1)
-	require.Len(t, job.TaskGroups[0].Networks, 1)
-	require.Len(t, job.TaskGroups[0].Networks[0].ReservedPorts, 1)
-	require.Len(t, job.TaskGroups[0].Networks[0].DynamicPorts, 1)
-	require.Equal(t, 9000, job.TaskGroups[0].Networks[0].ReservedPorts[0].Value)
-	require.Equal(t, 0, job.TaskGroups[0].Networks[0].DynamicPorts[0].Value)
+	must.NoError(t, err)
+	must.NotNil(t, job)
+	must.Len(t, 1, job.TaskGroups)
+	must.Len(t, 1, job.TaskGroups[0].Networks)
+	must.Len(t, 1, job.TaskGroups[0].Networks[0].ReservedPorts)
+	must.Len(t, 1, job.TaskGroups[0].Networks[0].DynamicPorts)
+	must.Eq(t, 9000, job.TaskGroups[0].Networks[0].ReservedPorts[0].Value)
+	must.Eq(t, 0, job.TaskGroups[0].Networks[0].DynamicPorts[0].Value)
 }

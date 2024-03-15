@@ -15,7 +15,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJobDispatchCommand_Implements(t *testing.T) {
@@ -67,7 +66,7 @@ func TestJobDispatchCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -75,12 +74,12 @@ func TestJobDispatchCommand_AutocompleteArgs(t *testing.T) {
 
 	// No parameterized jobs, should be 0 results
 	res := predictor.Predict(args)
-	require.Equal(t, 0, len(res))
+	must.SliceEmpty(t, res)
 
 	// Create a fake parameterized job
 	j1 := mock.Job()
 	j1.ParameterizedJob = &structs.ParameterizedJobConfig{}
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 2000, nil, j1))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 2000, nil, j1))
 
 	prefix = j1.ID[:len(j1.ID)-5]
 	args = complete.Args{Last: prefix}
@@ -88,8 +87,8 @@ func TestJobDispatchCommand_AutocompleteArgs(t *testing.T) {
 
 	// Should return 1 parameterized job
 	res = predictor.Predict(args)
-	require.Equal(t, 1, len(res))
-	require.Equal(t, j1.ID, res[0])
+	must.SliceLen(t, 1, res)
+	must.Eq(t, j1.ID, res[0])
 }
 
 func TestJobDispatchCommand_ACL(t *testing.T) {

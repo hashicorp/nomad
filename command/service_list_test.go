@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +37,7 @@ func TestServiceListCommand_Run(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	ui := cli.NewMockUi()
@@ -49,8 +50,8 @@ func TestServiceListCommand_Run(t *testing.T) {
 
 	// Run the command with some random arguments to ensure we are performing
 	// this check.
-	require.Equal(t, 1, cmd.Run([]string{"-address=" + url, "pretty-please"}))
-	require.Contains(t, ui.ErrorWriter.String(), "This command takes no arguments")
+	must.One(t, cmd.Run([]string{"-address=" + url, "pretty-please"}))
+	must.StrContains(t, ui.ErrorWriter.String(), "This command takes no arguments")
 	ui.ErrorWriter.Reset()
 
 	// Create a test job with a Nomad service.
@@ -60,9 +61,9 @@ func TestServiceListCommand_Run(t *testing.T) {
 
 	// Register that job.
 	regResp, _, err := client.Jobs().Register(testJob, nil)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	registerCode := waitForSuccess(ui, client, fullId, t, regResp.EvalID)
-	require.Equal(t, 0, registerCode)
+	must.Zero(t, registerCode)
 
 	// Reset the output writer, otherwise we will have additional information here.
 	ui.OutputWriter.Reset()
@@ -71,6 +72,8 @@ func TestServiceListCommand_Run(t *testing.T) {
 	// therefore needs this wrapper to account for eventual service
 	// registration. One this has completed, we can perform lookups without
 	// similar wraps.
+	//
+	// TODO(shoenig) clean this up
 	require.Eventually(t, func() bool {
 
 		defer ui.OutputWriter.Reset()
@@ -99,16 +102,16 @@ func TestServiceListCommand_Run(t *testing.T) {
 
 	// Perform a wildcard namespace lookup.
 	code := cmd.Run([]string{"-address=" + url, "-namespace", "*"})
-	require.Equal(t, 0, code)
+	must.Zero(t, code)
 
 	// Test each header and data entry.
 	s := ui.OutputWriter.String()
-	require.Contains(t, s, "Service Name")
-	require.Contains(t, s, "Namespace")
-	require.Contains(t, s, "Tags")
-	require.Contains(t, s, "service-discovery-nomad-list")
-	require.Contains(t, s, "default")
-	require.Contains(t, s, "[bar,foo]")
+	must.StrContains(t, s, "Service Name")
+	must.StrContains(t, s, "Namespace")
+	must.StrContains(t, s, "Tags")
+	must.StrContains(t, s, "service-discovery-nomad-list")
+	must.StrContains(t, s, "default")
+	must.StrContains(t, s, "[bar,foo]")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

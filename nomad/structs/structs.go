@@ -9449,6 +9449,10 @@ type TaskArtifact struct {
 	// Defaults to "any" but can be set to "file" or "dir".
 	GetterMode string
 
+	// GetterInsecure is a flag to disable SSL certificate verification when
+	// downloading the artifact using go-getter.
+	GetterInsecure bool
+
 	// RelativeDest is the download destination given relative to the task's
 	// directory.
 	RelativeDest string
@@ -9467,6 +9471,8 @@ func (ta *TaskArtifact) Equal(o *TaskArtifact) bool {
 		return false
 	case ta.GetterMode != o.GetterMode:
 		return false
+	case ta.GetterInsecure != o.GetterInsecure:
+		return false
 	case ta.RelativeDest != o.RelativeDest:
 		return false
 	}
@@ -9478,11 +9484,12 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 		return nil
 	}
 	return &TaskArtifact{
-		GetterSource:  ta.GetterSource,
-		GetterOptions: maps.Clone(ta.GetterOptions),
-		GetterHeaders: maps.Clone(ta.GetterHeaders),
-		GetterMode:    ta.GetterMode,
-		RelativeDest:  ta.RelativeDest,
+		GetterSource:   ta.GetterSource,
+		GetterOptions:  maps.Clone(ta.GetterOptions),
+		GetterHeaders:  maps.Clone(ta.GetterHeaders),
+		GetterMode:     ta.GetterMode,
+		GetterInsecure: ta.GetterInsecure,
+		RelativeDest:   ta.RelativeDest,
 	}
 }
 
@@ -9522,6 +9529,7 @@ func (ta *TaskArtifact) Hash() string {
 	hashStringMap(h, ta.GetterHeaders)
 
 	_, _ = h.Write([]byte(ta.GetterMode))
+	_, _ = h.Write([]byte(strconv.FormatBool(ta.GetterInsecure)))
 	_, _ = h.Write([]byte(ta.RelativeDest))
 	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
@@ -11074,6 +11082,16 @@ func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
+func (a *Allocation) RescheduleTimeOnDisconnect(now time.Time) (time.Time, bool) {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil || tg.Disconnect == nil || tg.Disconnect.Replace == nil {
+		// Kept to maintain backwards compatibility with behavior prior to 1.8.0
+		return a.NextRescheduleTimeByTime(now)
+	}
+
+	return now, *tg.Disconnect.Replace
+}
+
 // ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
 func (a *Allocation) ShouldClientStop() bool {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
@@ -11426,6 +11444,22 @@ func (a *Allocation) NeedsToReconnect() bool {
 	}
 
 	return disconnected
+}
+
+// LastStartOfTask returns the time of the last start event for the given task
+// using the allocations TaskStates. If the task has not started, the zero time
+// will be returned.
+func (a *Allocation) LastStartOfTask(taskName string) time.Time {
+	task := a.TaskStates[taskName]
+	if task == nil {
+		return time.Time{}
+	}
+
+	if task.Restarts > 0 {
+		return task.LastRestart
+	}
+
+	return task.StartedAt
 }
 
 // IdentityClaims are the input to a JWT identifying a workload. It

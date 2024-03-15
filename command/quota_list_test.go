@@ -12,7 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestQuotaListCommand_Implements(t *testing.T) {
@@ -45,7 +45,6 @@ func TestQuotaListCommand_Fails(t *testing.T) {
 
 func TestQuotaListCommand_List(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
@@ -57,7 +56,7 @@ func TestQuotaListCommand_List(t *testing.T) {
 	// Create a quota
 	qs := testQuotaSpec()
 	_, err := client.Quotas().Register(qs, nil)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	// List should contain the new quota
 	if code := cmd.Run([]string{"-address=" + url}); code != 0 {

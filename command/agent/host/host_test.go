@@ -6,17 +6,17 @@ package host
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestHostUtils(t *testing.T) {
 	mounts := mountedPaths()
-	require.NotEmpty(t, mounts)
+	must.SliceNotEmpty(t, mounts)
 
 	du, err := diskUsage("/")
-	require.NoError(t, err)
-	require.NotZero(t, du.DiskMB)
-	require.NotZero(t, du.UsedMB)
+	must.NoError(t, err)
+	must.Positive(t, du.DiskMB)
+	must.Positive(t, du.UsedMB)
 }
 
 func TestMakeHostData(t *testing.T) {
@@ -27,15 +27,15 @@ func TestMakeHostData(t *testing.T) {
 	t.Setenv("ryanSECRETS", "foo")
 
 	host, err := MakeHostData()
-	require.NoError(t, err)
-	require.NotEmpty(t, host.OS)
-	require.NotEmpty(t, host.Network)
-	require.NotEmpty(t, host.ResolvConf)
-	require.NotEmpty(t, host.Hosts)
-	require.NotEmpty(t, host.Disk)
-	require.NotEmpty(t, host.Environment)
-	require.Equal(t, "<redacted>", host.Environment["VAULT_TOKEN"])
-	require.Equal(t, "<redacted>", host.Environment["BOGUS_TOKEN"])
-	require.Equal(t, "<redacted>", host.Environment["BOGUS_SECRET"])
-	require.Equal(t, "<redacted>", host.Environment["ryanSECRETS"])
+	must.NoError(t, err)
+	must.NotEq(t, "", host.OS)
+	must.SliceNotEmpty(t, host.Network)
+	must.NotEq(t, "", host.ResolvConf)
+	must.NotEq(t, "", host.Hosts)
+	must.MapNotEmpty(t, host.Disk)
+	must.MapNotEmpty(t, host.Environment)
+	must.Eq(t, "<redacted>", host.Environment["VAULT_TOKEN"])
+	must.Eq(t, "<redacted>", host.Environment["BOGUS_TOKEN"])
+	must.Eq(t, "<redacted>", host.Environment["BOGUS_SECRET"])
+	must.Eq(t, "<redacted>", host.Environment["ryanSECRETS"])
 }

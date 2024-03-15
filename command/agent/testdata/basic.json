@@ -73,6 +73,7 @@
   "client": [
     {
       "alloc_dir": "/tmp/alloc",
+      "alloc_mounts_dir": "/tmp/mounts",
       "bridge_network_name": "custom_bridge_name",
       "bridge_network_subnet": "custom_bridge_subnet",
       "chroot_env": [

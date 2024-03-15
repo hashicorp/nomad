@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestACLRoleDeleteCommand_Run(t *testing.T) {
@@ -27,7 +27,7 @@ func TestACLRoleDeleteCommand_Run(t *testing.T) {
 	// Wait for the server to start fully and ensure we have a bootstrap token.
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 	rootACLToken := srv.RootToken
-	require.NotNil(t, rootACLToken)
+	must.NotNil(t, rootACLToken)
 
 	ui := cli.NewMockUi()
 	cmd := &ACLRoleDeleteCommand{
@@ -39,15 +39,15 @@ func TestACLRoleDeleteCommand_Run(t *testing.T) {
 
 	// Try and delete more than one ACL role.
 	code := cmd.Run([]string{"-address=" + url, "acl-role-1", "acl-role-2"})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), "This command takes one argument")
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "This command takes one argument")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
 	// Try deleting a role that does not exist.
-	require.Equal(t, 1, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, "acl-role-1"}))
-	require.Contains(t, ui.ErrorWriter.String(), "ACL role not found")
+	must.One(t, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, "acl-role-1"}))
+	must.StrContains(t, ui.ErrorWriter.String(), "ACL role not found")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
@@ -62,7 +62,7 @@ func TestACLRoleDeleteCommand_Run(t *testing.T) {
 	}
 	err := srv.Agent.Server().State().UpsertACLPolicies(
 		structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{&aclPolicy})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Create an ACL role referencing the previously created policy.
 	aclRole := structs.ACLRole{
@@ -72,9 +72,9 @@ func TestACLRoleDeleteCommand_Run(t *testing.T) {
 	}
 	err = srv.Agent.Server().State().UpsertACLRoles(
 		structs.MsgTypeTestSetup, 20, []*structs.ACLRole{&aclRole}, false)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Delete the existing ACL role.
-	require.Equal(t, 0, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, aclRole.ID}))
-	require.Contains(t, ui.OutputWriter.String(), "successfully deleted")
+	must.Zero(t, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, aclRole.ID}))
+	must.StrContains(t, ui.OutputWriter.String(), "successfully deleted")
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestACLRoleUpdateCommand_Run(t *testing.T) {
@@ -28,7 +28,7 @@ func TestACLRoleUpdateCommand_Run(t *testing.T) {
 	// Wait for the server to start fully and ensure we have a bootstrap token.
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 	rootACLToken := srv.RootToken
-	require.NotNil(t, rootACLToken)
+	must.NotNil(t, rootACLToken)
 
 	ui := cli.NewMockUi()
 	cmd := &ACLRoleUpdateCommand{
@@ -39,16 +39,16 @@ func TestACLRoleUpdateCommand_Run(t *testing.T) {
 	}
 
 	// Try calling the command without setting an ACL Role ID arg.
-	require.Equal(t, 1, cmd.Run([]string{"-address=" + url}))
-	require.Contains(t, ui.ErrorWriter.String(), "This command takes one argument")
+	must.One(t, cmd.Run([]string{"-address=" + url}))
+	must.StrContains(t, ui.ErrorWriter.String(), "This command takes one argument")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
 	// Try calling the command with an ACL role ID that does not exist.
 	code := cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, "catch-me-if-you-can"})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), "ACL role not found")
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "ACL role not found")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
@@ -63,7 +63,7 @@ func TestACLRoleUpdateCommand_Run(t *testing.T) {
 	}
 	err := srv.Agent.Server().State().UpsertACLPolicies(
 		structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{&aclPolicy})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Create an ACL role that can be used for updating.
 	aclRole := structs.ACLRole{
@@ -75,12 +75,12 @@ func TestACLRoleUpdateCommand_Run(t *testing.T) {
 
 	err = srv.Agent.Server().State().UpsertACLRoles(
 		structs.MsgTypeTestSetup, 20, []*structs.ACLRole{&aclRole}, false)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Try a merge update without setting any parameters to update.
 	code = cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, aclRole.ID})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), "Please provide at least one flag to update the ACL role")
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "Please provide at least one flag to update the ACL role")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
@@ -88,39 +88,39 @@ func TestACLRoleUpdateCommand_Run(t *testing.T) {
 	// Update the description using the merge method.
 	code = cmd.Run([]string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-description=badger-badger-badger", aclRole.ID})
-	require.Equal(t, 0, code)
+	must.Zero(t, code)
 	s := ui.OutputWriter.String()
-	require.Contains(t, s, fmt.Sprintf("ID           = %s", aclRole.ID))
-	require.Contains(t, s, "Name         = acl-role-cli-test")
-	require.Contains(t, s, "Description  = badger-badger-badger")
-	require.Contains(t, s, "Policies     = acl-role-cli-test-policy")
+	must.StrContains(t, s, fmt.Sprintf("ID           = %s", aclRole.ID))
+	must.StrContains(t, s, "Name         = acl-role-cli-test")
+	must.StrContains(t, s, "Description  = badger-badger-badger")
+	must.StrContains(t, s, "Policies     = acl-role-cli-test-policy")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
 	// Try updating the role using no-merge without setting the required flags.
 	code = cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, "-no-merge", aclRole.ID})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), "ACL role name must be specified using the -name flag")
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "ACL role name must be specified using the -name flag")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
 	code = cmd.Run([]string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-no-merge", "-name=update-role-name", aclRole.ID})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), "At least one policy name must be specified using the -policy flag")
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "At least one policy name must be specified using the -policy flag")
 
 	// Update the role using no-merge with all required flags set.
 	code = cmd.Run([]string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-no-merge", "-name=update-role-name",
 		"-description=updated-description", "-policy=acl-role-cli-test-policy", aclRole.ID})
-	require.Equal(t, 0, code)
+	must.Zero(t, code)
 	s = ui.OutputWriter.String()
-	require.Contains(t, s, fmt.Sprintf("ID           = %s", aclRole.ID))
-	require.Contains(t, s, "Name         = update-role-name")
-	require.Contains(t, s, "Description  = updated-description")
-	require.Contains(t, s, "Policies     = acl-role-cli-test-policy")
+	must.StrContains(t, s, fmt.Sprintf("ID           = %s", aclRole.ID))
+	must.StrContains(t, s, "Name         = update-role-name")
+	must.StrContains(t, s, "Description  = updated-description")
+	must.StrContains(t, s, "Policies     = acl-role-cli-test-policy")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

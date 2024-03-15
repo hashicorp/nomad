@@ -97,7 +97,15 @@ type Config struct {
 	StateDir string
 
 	// AllocDir is where we store data for allocations
+	//
+	// In a production environment this should be owned by root with file
+	// mode 0o700.
 	AllocDir string
+
+	// AllocMountsDir is where we bind mount paths from AllocDir for tasks making
+	// use of the unveil file isolation mode. In a production environment this
+	// should be owned  by root with file mode 0o755.
+	AllocMountsDir string
 
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger
@@ -327,6 +335,9 @@ type Config struct {
 
 	// Drain configuration from the agent's config file.
 	Drain *DrainConfig
+
+	// Uesrs configuration from the agent's config file.
+	Users *UsersConfig
 
 	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
 	ExtraAllocHooks []interfaces.RunnerHook
@@ -757,6 +768,7 @@ func (c *Config) Copy() *Config {
 	nc.TemplateConfig = c.TemplateConfig.Copy()
 	nc.ReservableCores = slices.Clone(c.ReservableCores)
 	nc.Artifact = c.Artifact.Copy()
+	nc.Users = c.Users.Copy()
 	return &nc
 }
 
@@ -805,6 +817,10 @@ func DefaultConfig() *Config {
 		CgroupParent:       "nomad.slice", // SETH todo
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
+		Users: &UsersConfig{
+			MinDynamicUser: 80_000,
+			MaxDynamicUser: 89_999,
+		},
 	}
 
 	return cfg

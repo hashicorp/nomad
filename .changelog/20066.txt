@@ -1,0 +1,3 @@
+```release-note:security
+build: Update to go1.22 to address Go standard library vulnerabilities CVE-2024-24783, CVE-2023-45290, and CVE-2024-24785.
+```

@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestACLBootstrapCommand(t *testing.T) {
@@ -37,7 +36,7 @@ func TestACLBootstrapCommand(t *testing.T) {
 
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, "Secret ID")
-	require.Contains(t, out, "Expiry Time  = <none>")
+	must.StrContains(t, out, "Expiry Time  = <none>")
 }
 
 // If a bootstrap token has already been created, attempts to create more should
@@ -115,7 +114,7 @@ func TestACLBootstrapCommand_WithOperatorFileBootstrapToken(t *testing.T) {
 
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, mockToken.SecretID)
-	require.Contains(t, out, "Expiry Time  = <none>")
+	must.StrContains(t, out, "Expiry Time  = <none>")
 }
 
 // Attempting to bootstrap the server with an invalid operator provided token in a file should

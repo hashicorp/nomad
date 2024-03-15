@@ -223,6 +223,9 @@ type ClientConfig struct {
 	// AllocDir is the directory for storing allocation data
 	AllocDir string `hcl:"alloc_dir"`
 
+	// AllocMountsDir is the directory for storing mounts into allocation data
+	AllocMountsDir string `hcl:"alloc_mounts_dir"`
+
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
 
@@ -380,6 +383,9 @@ type ClientConfig struct {
 	// Drain specifies whether to drain the client on shutdown; ignored in dev mode.
 	Drain *config.DrainConfig `hcl:"drain_on_shutdown"`
 
+	// Users is used to configure parameters around operating system users.
+	Users *config.UsersConfig `hcl:"users"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -403,6 +409,7 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.NomadServiceDiscovery = pointer.Copy(c.NomadServiceDiscovery)
 	nc.Artifact = c.Artifact.Copy()
 	nc.Drain = c.Drain.Copy()
+	nc.Users = c.Users.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -1356,6 +1363,7 @@ func DefaultConfig() *Config {
 			NomadServiceDiscovery:          pointer.Of(true),
 			Artifact:                       config.DefaultArtifactConfig(),
 			Drain:                          nil,
+			Users:                          config.DefaultUsersConfig(),
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -2206,6 +2214,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.AllocDir != "" {
 		result.AllocDir = b.AllocDir
 	}
+	if b.AllocMountsDir != "" {
+		result.AllocMountsDir = b.AllocMountsDir
+	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
 	}
@@ -2361,6 +2372,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	result.Artifact = a.Artifact.Merge(b.Artifact)
 	result.Drain = a.Drain.Merge(b.Drain)
+	result.Users = a.Users.Merge(b.Users)
 
 	return &result
 }

@@ -76,8 +76,9 @@ to Using Workload Identity with Consul</a>
 
 The Nomad client will make the Consul token available to the task by writing it
 to the secret directory at `secrets/consul_token` and by injecting a
-`CONSUL_TOKEN` environment variable in the task. If the Nomad cluster is
-[configured][config_consul_namespace] to use [Consul Namespaces][], a
+`CONSUL_TOKEN` environment variable in the task. 
+
+If the Nomad cluster is [configured][config_consul_namespace] to use [Consul Namespaces][], a
 `CONSUL_NAMESPACE` environment variable will be injected whenever `CONSUL_TOKEN`
 is set.
 
@@ -231,6 +232,51 @@ job "docs" {
 }
 ```
 
+### Consul Admin Partition
+
+This example demonstrates how to configure Consul admin partitions for different
+tasks within a group. The Consul client agent must separately specify the admin
+partition in the agent configuration. Refer to the Consul documentation's
+[agent configuration reference][] for more information.
+
+<EnterpriseAlert />
+
+In the following example, the `web` and `app` tasks use the default Consul cluster
+and obtain a token that allows access to the `prod` admin partition in Consul. The
+Consul configuration occurs at the `group` level because tasks are placed together
+on the same Allocation. If you configure tasks with separate `consul` blocks, the
+`partition` field must be the same in both blocks.
+
+```hcl
+job "docs" {
+  group "example" {
+
+    consul {
+      cluster   = "default"
+      namespace = "default"
+      partition = "prod"
+    }
+
+    task "web" {
+
+      template {
+        data        = "FRONTEND_NAME={{key \"fe/name\"}}"
+        destination = "local/config.txt"
+      }
+    }
+
+    task "app" {
+
+      template {
+        data        = "APP_NAME={{key \"app/name\"}}"
+        destination = "local/config.txt"
+      }
+    }
+
+  }
+}
+```
+
 [Consul]: https://www.consul.io/ "Consul by HashiCorp"
 [Workload Identity]: /nomad/docs/concepts/workload-identity
 [`consul.task_identity`]: /nomad/docs/configuration/consul#task_identity
@@ -242,8 +288,10 @@ job "docs" {
 [Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul
 [config_consul_namespace]: /nomad/docs/configuration/consul#namespace
 [Consul Namespaces]: /consul/docs/enterprise/namespaces
+[Consul Admin Partitions]: /consul/docs/enterprise/admin-partitions
 [template]: /nomad/docs/job-specification/template "Nomad template Job Specification"
 [`consul.name`]: /nomad/docs/configuration/consul#name
 [flag_consul_namespace]: /nomad/docs/commands/job/run#consul-namespace
 [Connect]: /nomad/docs/job-specification/connect
 [admin partition]: /consul/docs/enterprise/admin-partitions
+[agent configuration reference]: /consul/docs/agent/config/config-files#partition-1

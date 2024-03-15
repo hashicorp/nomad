@@ -86,9 +86,6 @@ var (
 )
 
 // Interface is implemented by AllocDir.
-//
-// TODO(shoenig) soon to be implemented by AllocDir2 in support of the exec2
-// driver and perhaps other drivers with landlock or unveil capabilities.
 type Interface interface {
 	AllocDirFS
 
@@ -118,6 +115,10 @@ type AllocDir struct {
 	// clientAllocDir is the client agent's root alloc directory. It must
 	// be excluded from chroots and is configured via client.alloc_dir.
 	clientAllocDir string
+
+	// clientAllocMountsDir is the client agent's mounts directory. It must be
+	// excluded from chroots and is configured via client.mounts_dir.
+	clientAllocMountsDir string
 
 	// built is true if Build has successfully run
 	built bool
@@ -153,17 +154,18 @@ type AllocDirFS interface {
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
 // the allocation directory.
-func NewAllocDir(logger hclog.Logger, clientAllocDir, allocID string) *AllocDir {
+func NewAllocDir(logger hclog.Logger, clientAllocDir, clientMountsDir, allocID string) *AllocDir {
 	logger = logger.Named("alloc_dir")
 	allocDir := filepath.Join(clientAllocDir, allocID)
 	shareDir := filepath.Join(allocDir, SharedAllocName)
 
 	return &AllocDir{
-		clientAllocDir: clientAllocDir,
-		AllocDir:       allocDir,
-		SharedDir:      shareDir,
-		TaskDirs:       make(map[string]*TaskDir),
-		logger:         logger,
+		clientAllocDir:       clientAllocDir,
+		clientAllocMountsDir: clientMountsDir,
+		AllocDir:             allocDir,
+		SharedDir:            shareDir,
+		TaskDirs:             make(map[string]*TaskDir),
+		logger:               logger,
 	}
 }
 
@@ -172,7 +174,7 @@ func (d *AllocDir) NewTaskDir(name string) *TaskDir {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	td := newTaskDir(d.logger, d.clientAllocDir, d.AllocDir, name)
+	td := d.newTaskDir(name)
 	d.TaskDirs[name] = td
 	return td
 }

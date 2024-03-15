@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestPluginStatusCommand_Implements(t *testing.T) {
@@ -26,18 +26,18 @@ func TestPluginStatusCommand_Fails(t *testing.T) {
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
-	require.Equal(t, 1, code)
+	must.One(t, code)
 
 	out := ui.ErrorWriter.String()
-	require.Contains(t, out, commandErrorText(cmd))
+	must.StrContains(t, out, commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
 	// Test an unsupported plugin type.
 	code = cmd.Run([]string{"-type=not-a-plugin"})
-	require.Equal(t, 1, code)
+	must.One(t, code)
 
 	out = ui.ErrorWriter.String()
-	require.Contains(t, out, "Unsupported plugin type: not-a-plugin")
+	must.StrContains(t, out, "Unsupported plugin type: not-a-plugin")
 	ui.ErrorWriter.Reset()
 }
 
@@ -57,13 +57,13 @@ func TestPluginStatusCommand_AutocompleteArgs(t *testing.T) {
 	defer cleanup()
 	ws := memdb.NewWatchSet()
 	plug, err := s.CSIPluginByID(ws, id)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	prefix := plug.ID[:len(plug.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	require.Equal(t, 1, len(res))
-	require.Equal(t, plug.ID, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, plug.ID, res[0])
 }

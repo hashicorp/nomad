@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func Test_formatACLRole(t *testing.T) {
@@ -26,7 +26,7 @@ func Test_formatACLRole(t *testing.T) {
 	}
 	expectedOutput := "ID           = this-is-usually-a-uuid\nName         = this-is-my-friendly-name\nDescription  = this-is-my-friendly-name\nPolicies     = policy-link-1,policy-link-2,policy-link-3,policy-link-4\nCreate Index = 13\nModify Index = 1313"
 	actualOutput := formatACLRole(&inputACLRole)
-	require.Equal(t, expectedOutput, actualOutput)
+	must.Eq(t, expectedOutput, actualOutput)
 }
 
 func Test_aclRolePolicyLinkToStringList(t *testing.T) {
@@ -43,7 +43,7 @@ func Test_aclRolePolicyLinkToStringList(t *testing.T) {
 		"z-policy-link-1",
 	}
 	actualOutput := aclRolePolicyLinkToStringList(inputPolicyLinks)
-	require.Equal(t, expectedOutput, actualOutput)
+	must.Eq(t, expectedOutput, actualOutput)
 }
 
 func Test_aclRolePolicyNamesToPolicyLinks(t *testing.T) {
@@ -60,5 +60,5 @@ func Test_aclRolePolicyNamesToPolicyLinks(t *testing.T) {
 		{Name: "policy-link-4"},
 	}
 	actualOutput := aclRolePolicyNamesToPolicyLinks(inputPolicyNames)
-	require.ElementsMatch(t, expectedOutput, actualOutput)
+	must.SliceContainsAll(t, expectedOutput, actualOutput)
 }

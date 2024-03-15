@@ -11,12 +11,12 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestRecommendationApplyCommand_Run(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -47,9 +47,9 @@ func TestRecommendationApplyCommand_Run(t *testing.T) {
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_apply")
 	regResp, _, err := client.Jobs().Register(testJob, nil)
-	require.NoError(err)
+	must.NoError(t, err)
 	registerCode := waitForSuccess(ui, client, fullId, t, regResp.EvalID)
-	require.Equal(0, registerCode)
+	must.Zero(t, registerCode)
 
 	// Write a recommendation.
 	rec := api.Recommendation{
@@ -63,15 +63,15 @@ func TestRecommendationApplyCommand_Run(t *testing.T) {
 	}
 	recResp, _, err := client.Recommendations().Upsert(&rec, nil)
 	if srv.Enterprise {
-		require.NoError(err)
+		must.NoError(t, err)
 
 		// Read the recommendation out to ensure it is there as a control on
 		// later tests.
 		recInfo, _, err := client.Recommendations().Info(recResp.ID, nil)
-		require.NoError(err)
-		require.NotNil(recInfo)
+		must.NoError(t, err)
+		must.NotNil(t, recInfo)
 	} else {
-		require.Error(err, "Nomad Enterprise only endpoint")
+		must.ErrorContains(t, err, "Nomad Enterprise only endpoint")
 	}
 
 	// Only perform the call if we are running enterprise tests. Otherwise the
@@ -80,18 +80,18 @@ func TestRecommendationApplyCommand_Run(t *testing.T) {
 		return
 	}
 	code := cmd.Run([]string{"-address=" + url, recResp.ID})
-	require.Equal(0, code)
+	must.Zero(t, code)
 
 	// Perform an info call on the recommendation which should return not
 	// found.
 	recInfo, _, err := client.Recommendations().Info(recResp.ID, nil)
-	require.Error(err, "not found")
-	require.Nil(recInfo)
+	must.ErrorContains(t, err, "not found")
+	must.Nil(t, recInfo)
 
 	// Check the new jobspec to see if the resource value has changed.
 	jobResp, _, err := client.Jobs().Info(*testJob.ID, nil)
-	require.NoError(err)
-	require.Equal(1, *jobResp.TaskGroups[0].Tasks[0].Resources.CPU)
+	must.NoError(t, err)
+	must.Eq(t, 1, *jobResp.TaskGroups[0].Tasks[0].Resources.CPU)
 }
 
 func TestRecommendationApplyCommand_AutocompleteArgs(t *testing.T) {
