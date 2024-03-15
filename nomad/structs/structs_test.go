@@ -5901,6 +5901,123 @@ func TestAllocation_NeedsToReconnect(t *testing.T) {
 	}
 }
 
+func TestAllocation_RescheduleTimeOnDisconnect(t *testing.T) {
+	ci.Parallel(t)
+	testNow := time.Now()
+
+	testAlloc := MockAlloc()
+
+	testCases := []struct {
+		name            string
+		taskGroup       string
+		disconnectGroup *DisconnectStrategy
+		expected        bool
+		expectedTime    time.Time
+	}{
+		{
+			name:         "missing_task_group",
+			taskGroup:    "missing-task-group",
+			expected:     false,
+			expectedTime: time.Time{},
+		},
+		{
+			name:            "missing_disconnect_group",
+			taskGroup:       "web",
+			disconnectGroup: nil,
+			expected:        true,
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
+		},
+		{
+			name:            "empty_disconnect_group",
+			taskGroup:       "web",
+			disconnectGroup: &DisconnectStrategy{},
+			expected:        true,
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
+		},
+		{
+			name:      "replace_enabled",
+			taskGroup: "web",
+			disconnectGroup: &DisconnectStrategy{
+				Replace: pointer.Of(true),
+			},
+			expected:     true,
+			expectedTime: testNow,
+		},
+		{
+			name:      "replace_disabled",
+			taskGroup: "web",
+			disconnectGroup: &DisconnectStrategy{
+				Replace: pointer.Of(false),
+			},
+			expected:     false,
+			expectedTime: testNow,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := testAlloc.Copy()
+
+			alloc.TaskGroup = tc.taskGroup
+			alloc.Job.TaskGroups[0].Disconnect = tc.disconnectGroup
+
+			time, eligible := alloc.RescheduleTimeOnDisconnect(testNow)
+
+			must.Eq(t, tc.expected, eligible)
+			must.Eq(t, tc.expectedTime, time)
+		})
+	}
+}
+
+func TestAllocation_LastStartOfTask(t *testing.T) {
+	ci.Parallel(t)
+	testNow := time.Now()
+
+	alloc := MockAlloc()
+	alloc.TaskStates = map[string]*TaskState{
+		"task-with-restarts": {
+			StartedAt:   testNow.Add(-30 * time.Minute),
+			Restarts:    3,
+			LastRestart: testNow.Add(-5 * time.Minute),
+		},
+		"task-without-restarts": {
+			StartedAt: testNow.Add(-30 * time.Minute),
+			Restarts:  0,
+		},
+	}
+
+	testCases := []struct {
+		name     string
+		taskName string
+		expected time.Time
+	}{
+		{
+			name:     "missing_task",
+			taskName: "missing-task",
+			expected: time.Time{},
+		},
+		{
+			name:     "task_with_restarts",
+			taskName: "task-with-restarts",
+			expected: testNow.Add(-5 * time.Minute),
+		},
+		{
+			name:     "task_without_restarts",
+			taskName: "task-without-restarts",
+			expected: testNow.Add(-30 * time.Minute),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc.TaskGroup = "web"
+			got := alloc.LastStartOfTask(tc.taskName)
+
+			must.Eq(t, tc.expected, got)
+		})
+	}
+}
+
 func TestAllocation_Canonicalize_Old(t *testing.T) {
 	ci.Parallel(t)
 

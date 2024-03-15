@@ -11082,6 +11082,16 @@ func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
+func (a *Allocation) RescheduleTimeOnDisconnect(now time.Time) (time.Time, bool) {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil || tg.Disconnect == nil || tg.Disconnect.Replace == nil {
+		// Kept to maintain backwards compatibility with behavior prior to 1.8.0
+		return a.NextRescheduleTimeByTime(now)
+	}
+
+	return now, *tg.Disconnect.Replace
+}
+
 // ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
 func (a *Allocation) ShouldClientStop() bool {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
@@ -11434,6 +11444,22 @@ func (a *Allocation) NeedsToReconnect() bool {
 	}
 
 	return disconnected
+}
+
+// LastStartOfTask returns the time of the last start event for the given task
+// using the allocations TaskStates. If the task has not started, the zero time
+// will be returned.
+func (a *Allocation) LastStartOfTask(taskName string) time.Time {
+	task := a.TaskStates[taskName]
+	if task == nil {
+		return time.Time{}
+	}
+
+	if task.Restarts > 0 {
+		return task.LastRestart
+	}
+
+	return task.StartedAt
 }
 
 // IdentityClaims are the input to a JWT identifying a workload. It
