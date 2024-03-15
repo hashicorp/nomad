@@ -16,7 +16,7 @@ type ReconnectingPicker struct {
 
 func New(logger log.Logger) *ReconnectingPicker {
 	rp := ReconnectingPicker{
-		logger: log.L().Named("reconnecting-picker"),
+		logger: logger.Named("reconnecting-picker"),
 	}
 
 	return &rp
