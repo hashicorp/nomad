@@ -6,6 +6,7 @@
 // @ts-check
 import ApplicationAdapter from './application';
 import AdapterError from '@ember-data/adapter/error';
+import InvalidError from '@ember-data/adapter/error';
 import { pluralize } from 'ember-inflector';
 import classic from 'ember-classic-decorator';
 import { ConflictError } from '@ember-data/adapter/error';
@@ -139,6 +140,15 @@ export default class VariableAdapter extends ApplicationAdapter {
     if (status === 409) {
       return new ConflictError([
         { detail: _normalizeConflictErrorObject(payload), status: 409 },
+      ]);
+    }
+    if (status === 400) {
+      return new InvalidError([
+        {
+          detail:
+            'Invalid name. Name must contain only alphanumeric or "-", "_", "~", or "/" characters, and be fewer than 128 characters in length.',
+          status: 400,
+        },
       ]);
     }
     return super.handleResponse(...arguments);

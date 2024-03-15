@@ -338,6 +338,11 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, uDiff)
 	}
 
+	// Disconnect diff
+	if disconnectDiff := disconectStrategyDiffs(tg.Disconnect, other.Disconnect, contextual); disconnectDiff != nil {
+		diff.Objects = append(diff.Objects, disconnectDiff)
+	}
+
 	// Network Resources diff
 	if nDiffs := networkResourceDiffs(tg.Networks, other.Networks, contextual); nDiffs != nil {
 		diff.Objects = append(diff.Objects, nDiffs...)
@@ -1639,6 +1644,10 @@ func consulProxyDiff(old, new *ConsulProxy, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, upDiffs...)
 	}
 
+	if exposeDiff := consulProxyExposeDiff(old.Expose, new.Expose, contextual); exposeDiff != nil {
+		diff.Objects = append(diff.Objects, exposeDiff)
+	}
+
 	// diff the config blob
 	if cDiff := configDiff(old.Config, new.Config, contextual); cDiff != nil {
 		diff.Objects = append(diff.Objects, cDiff)
@@ -1710,6 +1719,40 @@ func consulProxyUpstreamDiff(prev, next ConsulUpstream, contextual bool) *Object
 	// diff the mesh gateway primitive object
 	if mDiff := primitiveObjectDiff(prev.MeshGateway, next.MeshGateway, nil, "MeshGateway", contextual); mDiff != nil {
 		diff.Objects = append(diff.Objects, mDiff)
+	}
+
+	return diff
+}
+
+func consulProxyExposeDiff(prev, next *ConsulExposeConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Expose"}
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil || prev.Equal(&ConsulExposeConfig{}) {
+		prev = &ConsulExposeConfig{}
+		diff.Type = DiffTypeAdded
+	} else if next == nil || next.Equal(&ConsulExposeConfig{}) {
+		next = &ConsulExposeConfig{}
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
+	var prevPaths, nextPaths []any
+	if prev != nil {
+		prevPaths = interfaceSlice(prev.Paths)
+	}
+	if next != nil {
+		nextPaths = interfaceSlice(next.Paths)
+	}
+
+	if pathDiff := primitiveObjectSetDiff(
+		prevPaths,
+		nextPaths,
+		nil, "Paths",
+		contextual); pathDiff != nil {
+		diff.Objects = append(diff.Objects, pathDiff...)
 	}
 
 	return diff
@@ -2355,6 +2398,30 @@ func (d *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
 
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	return diff
+}
+
+func disconectStrategyDiffs(old, new *DisconnectStrategy, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Disconnect"}
+	var oldDisconnectFlat, newDisconnectFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		diff.Type = DiffTypeAdded
+		newDisconnectFlat = flatmap.Flatten(new, nil, false)
+	} else if new == nil {
+		diff.Type = DiffTypeDeleted
+		oldDisconnectFlat = flatmap.Flatten(old, nil, false)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldDisconnectFlat = flatmap.Flatten(old, nil, false)
+		newDisconnectFlat = flatmap.Flatten(new, nil, false)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldDisconnectFlat, newDisconnectFlat, contextual)
 
 	return diff
 }

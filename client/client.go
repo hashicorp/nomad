@@ -2668,7 +2668,7 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 	// Reconnect unknown allocations if they were updated and are not terminal.
 	reconnect := update.ClientStatus == structs.AllocClientStatusUnknown &&
 		update.AllocModifyIndex > alloc.AllocModifyIndex &&
-		(!update.ServerTerminalStatus() || !alloc.PreventRescheduleOnLost())
+		(!update.ServerTerminalStatus() || !alloc.PreventRescheduleOnDisconnect())
 	if reconnect {
 		err = ar.Reconnect(update)
 		if err != nil {

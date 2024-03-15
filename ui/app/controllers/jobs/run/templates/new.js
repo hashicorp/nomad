@@ -36,6 +36,11 @@ export default class JobsRunTemplatesNewController extends Controller {
       );
   }
 
+  get hasInvalidName() {
+    let pathNameRegex = new RegExp('^[a-zA-Z0-9-_~/]{1,128}$');
+    return !pathNameRegex.test(this.templateName);
+  }
+
   @action
   updateKeyValue(key, value) {
     if (this.model.keyValues.find((kv) => kv.key === key)) {
@@ -74,9 +79,19 @@ export default class JobsRunTemplatesNewController extends Controller {
 
       this.router.transitionTo('jobs.run.templates');
     } catch (e) {
+      let errorMessage =
+        'An unexpected error occurred when saving your Job template.';
+      console.log('caught', e);
+      if (e.errors && e.errors.length > 0) {
+        const nameInvalidError = e.errors.find((err) => err.status === 400);
+        if (nameInvalidError) {
+          errorMessage = nameInvalidError.detail;
+        }
+      }
+
       this.notifications.add({
         title: 'Job template cannot be saved.',
-        message: e,
+        message: errorMessage,
         color: 'critical',
       });
     }
