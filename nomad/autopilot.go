@@ -116,35 +116,19 @@ func (s *Server) GetClusterHealth() *structs.OperatorHealthReply {
 	health := &structs.OperatorHealthReply{
 		Healthy:          state.Healthy,
 		FailureTolerance: state.FailureTolerance,
+		Leader:           string(state.Leader),
+		Voters:           stringIDs(state.Voters),
+		Servers:          make([]structs.ServerHealth, 0, len(state.Servers)),
 	}
 
 	for _, srv := range state.Servers {
-		srvHealth := structs.ServerHealth{
-			ID:          string(srv.Server.ID),
-			Name:        srv.Server.Name,
-			Address:     string(srv.Server.Address),
-			Version:     srv.Server.Version,
-			Leader:      srv.State == autopilot.RaftLeader,
-			Voter:       srv.State == autopilot.RaftLeader || srv.State == autopilot.RaftVoter,
-			LastContact: srv.Stats.LastContact,
-			LastTerm:    srv.Stats.LastTerm,
-			LastIndex:   srv.Stats.LastIndex,
-			Healthy:     srv.Health.Healthy,
-			StableSince: srv.Health.StableSince,
-		}
-
-		switch srv.Server.NodeStatus {
-		case autopilot.NodeAlive:
-			srvHealth.SerfStatus = serf.StatusAlive
-		case autopilot.NodeLeft:
-			srvHealth.SerfStatus = serf.StatusLeft
-		case autopilot.NodeFailed:
-			srvHealth.SerfStatus = serf.StatusFailed
-		default:
-			srvHealth.SerfStatus = serf.StatusNone
-		}
+		srvHealth := autopilotToServerHealth(srv)
 
 		health.Servers = append(health.Servers, srvHealth)
+	}
+	err := s.autopilotStateExt(state, health)
+	if err != nil {
+		s.logger.Error("Error parsing autopilot state", "error", err)
 	}
 
 	return health
@@ -152,6 +136,43 @@ func (s *Server) GetClusterHealth() *structs.OperatorHealthReply {
 
 // -------------------
 // helper functions
+
+func autopilotToServerHealth(srv *autopilot.ServerState) structs.ServerHealth {
+	srvHealth := structs.ServerHealth{
+		ID:          string(srv.Server.ID),
+		Name:        srv.Server.Name,
+		Address:     string(srv.Server.Address),
+		Version:     srv.Server.Version,
+		Leader:      srv.State == autopilot.RaftLeader,
+		Voter:       srv.State == autopilot.RaftLeader || srv.State == autopilot.RaftVoter,
+		LastContact: srv.Stats.LastContact,
+		LastTerm:    srv.Stats.LastTerm,
+		LastIndex:   srv.Stats.LastIndex,
+		Healthy:     srv.Health.Healthy,
+		StableSince: srv.Health.StableSince,
+	}
+
+	switch srv.Server.NodeStatus {
+	case autopilot.NodeAlive:
+		srvHealth.SerfStatus = serf.StatusAlive
+	case autopilot.NodeLeft:
+		srvHealth.SerfStatus = serf.StatusLeft
+	case autopilot.NodeFailed:
+		srvHealth.SerfStatus = serf.StatusFailed
+	default:
+		srvHealth.SerfStatus = serf.StatusNone
+	}
+
+	return srvHealth
+}
+
+func stringIDs(ids []raft.ServerID) []string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = string(id)
+	}
+	return out
+}
 
 func minRaftProtocol(members []serf.Member, serverFunc func(serf.Member) (bool, *serverParts)) (int, error) {
 	minVersion := -1

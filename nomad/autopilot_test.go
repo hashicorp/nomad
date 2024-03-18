@@ -14,6 +14,7 @@ import (
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -306,5 +307,42 @@ func TestAutopilot_PromoteNonVoter(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) { must.NoError(t, err) })
+}
 
+func TestAutopilot_ReturnAutopilotHealth(t *testing.T) {
+	ci.Parallel(t)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.RaftConfig.ProtocolVersion = 3
+		c.AutopilotConfig.EnableCustomUpgrades = true
+		c.UpgradeVersion = "0.0.1"
+		c.NumSchedulers = 0 // reduce log noise
+	})
+	defer cleanupS1()
+
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.RaftConfig.ProtocolVersion = 3
+		c.AutopilotConfig.EnableCustomUpgrades = true
+		c.UpgradeVersion = "0.0.1"
+		c.NumSchedulers = 0 // reduce log noise
+	})
+	defer cleanupS2()
+
+	TestJoin(t, s1, s2)
+	servers := []*Server{s1, s2}
+	leader := waitForStableLeadership(t, servers)
+
+	get := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	reply := &structs.OperatorHealthReply{}
+	err := s1.RPC("Operator.ServerHealth", get, reply)
+	must.NoError(t, err)
+
+	must.Eq(t, reply.Healthy, true)
+	_, leaderID := leader.raft.LeaderWithID()
+	must.Eq(t, reply.Leader, string(leaderID))
 }
