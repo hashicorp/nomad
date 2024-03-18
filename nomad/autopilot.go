@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
@@ -167,11 +168,7 @@ func autopilotToServerHealth(srv *autopilot.ServerState) structs.ServerHealth {
 }
 
 func stringIDs(ids []raft.ServerID) []string {
-	out := make([]string, len(ids))
-	for i, id := range ids {
-		out[i] = string(id)
-	}
-	return out
+	return helper.ConvertSlice(ids, func(id raft.ServerID) string { return string(id) })
 }
 
 func minRaftProtocol(members []serf.Member, serverFunc func(serf.Member) (bool, *serverParts)) (int, error) {
