@@ -26,7 +26,7 @@ export default class JobsIndexController extends Controller {
   @service watchList; // TODO: temp
 
   // qpNamespace = '*';
-  per_page = 10;
+  per_page = 3;
   reverse = false;
 
   queryParams = [
@@ -41,6 +41,9 @@ export default class JobsIndexController extends Controller {
   isForbidden = false;
 
   // #region filtering and sorting
+
+  @tracked jobQueryIndex = 0;
+  @tracked jobAllocsQueryIndex = 0;
 
   @selection('qpNamespace') selectionNamespace;
   // @computed('qpNamespace', 'model.namespaces.[]')
@@ -120,6 +123,10 @@ export default class JobsIndexController extends Controller {
    * @param {"prev"|"next"} page
    */
   @action async handlePageChange(page) {
+    // reset indexes
+    this.jobQueryIndex = 0;
+    this.jobAllocsQueryIndex = 0;
+
     if (page === 'prev') {
       // Note (and TODO:) this isn't particularly efficient!
       // We're making an extra full request to get the nextToken we need,
@@ -171,7 +178,7 @@ export default class JobsIndexController extends Controller {
 
   //#region querying
 
-  jobQuery(params, options = {}) {
+  jobQuery(params) {
     this.watchList.jobsIndexIDsController.abort();
     this.watchList.jobsIndexIDsController = new AbortController();
 
@@ -179,9 +186,7 @@ export default class JobsIndexController extends Controller {
       .query('job', params, {
         adapterOptions: {
           method: 'GET', // TODO: default
-          queryType: options.queryType,
           abortController: this.watchList.jobsIndexIDsController,
-          modifyURL: false,
         },
       })
       .catch((e) => {
@@ -200,19 +205,20 @@ export default class JobsIndexController extends Controller {
         'job',
         {
           jobs: jobIDs,
+          index: this.jobAllocsQueryIndex, // TODO: consider using a passed params object like jobQuery uses, rather than just passing jobIDs
         },
         {
           adapterOptions: {
             method: 'POST',
-            queryType: 'update',
             abortController: this.watchList.jobsIndexDetailsController,
-            // modifyURL: false,
           },
         }
       )
       .catch((e) => {
         if (e.name !== 'AbortError') {
           console.log('error fetching job allocs', e);
+        } else {
+          console.log('|> jobAllocsQuery aborted');
         }
         return;
       });
@@ -222,6 +228,7 @@ export default class JobsIndexController extends Controller {
     let prevPageToken = await this.store.query(
       'job',
       {
+        prev_page_query: true, // TODO: debugging only!
         next_token: this.cursorAt,
         per_page: this.per_page + 1,
         reverse: true,
@@ -229,8 +236,6 @@ export default class JobsIndexController extends Controller {
       {
         adapterOptions: {
           method: 'GET',
-          queryType: 'initialize',
-          modifyURL: false,
         },
       }
     );
@@ -240,42 +245,57 @@ export default class JobsIndexController extends Controller {
   // TODO: set up isEnabled to check blockingQueries rather than just use while (true)
   @restartableTask *watchJobIDs(params, throttle = 2000) {
     while (true && !Ember.testing) {
+      // let watchlistIndex = this.watchList.getIndexFor(
+      //   '/v1/jobs/statuses?per_page=3'
+      // );
+      // console.log('> watchJobIDs', params);
       let currentParams = params;
-      const newJobs = yield this.jobQuery(currentParams, {
-        queryType: 'update_ids',
-      });
-      if (!newJobs) {
-        return;
-      }
-      if (newJobs.meta.nextToken) {
-        this.nextToken = newJobs.meta.nextToken;
-      } else {
-        this.nextToken = null;
-      }
+      // currentParams.index = watchlistIndex;
+      currentParams.index = this.jobQueryIndex;
+      const newJobs = yield this.jobQuery(currentParams, {});
+      if (newJobs) {
+        // console.log('|> watchJobIDs returned new job IDs', newJobs.length);
+        if (newJobs.meta.index) {
+          this.jobQueryIndex = newJobs.meta.index;
+        }
+        if (newJobs.meta.nextToken) {
+          this.nextToken = newJobs.meta.nextToken;
+        } else {
+          this.nextToken = null;
+        }
 
-      const jobIDs = newJobs.map((job) => ({
-        id: job.plainId,
-        namespace: job.belongsTo('namespace').id(),
-      }));
+        const jobIDs = newJobs.map((job) => ({
+          id: job.plainId,
+          namespace: job.belongsTo('namespace').id(),
+        }));
 
-      const okayToJostle = this.liveUpdatesEnabled;
-      if (okayToJostle) {
-        this.jobIDs = jobIDs;
-        this.watchList.jobsIndexDetailsController.abort();
-        console.log(
-          'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
-          jobIDs
-        );
-        this.watchList.jobsIndexDetailsController = new AbortController();
-        // make sure throttle has taken place!
-        this.watchJobs.perform(jobIDs, throttle);
+        const okayToJostle = this.liveUpdatesEnabled;
+        if (okayToJostle) {
+          this.jobIDs = jobIDs;
+          this.watchList.jobsIndexDetailsController.abort();
+          console.log(
+            'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
+            jobIDs
+          );
+          // Let's also reset the index for the job details query
+          this.jobAllocsQueryIndex = 0;
+          this.watchList.jobsIndexDetailsController = new AbortController();
+          // make sure throttle has taken place!
+          this.watchJobs.perform(jobIDs, throttle);
+        } else {
+          // this.controller.set('pendingJobIDs', jobIDs);
+          // this.controller.set('pendingJobs', newJobs);
+          this.pendingJobIDs = jobIDs;
+          this.pendingJobs = newJobs;
+        }
+        yield timeout(throttle); // Moved to the end of the loop
       } else {
-        // this.controller.set('pendingJobIDs', jobIDs);
-        // this.controller.set('pendingJobs', newJobs);
-        this.pendingJobIDs = jobIDs;
-        this.pendingJobs = newJobs;
+        // This returns undefined on page change / cursorAt change, resulting from the aborting of the old query.
+        // console.log('|> watchJobIDs aborted');
+        yield timeout(throttle);
+        this.watchJobs.perform(this.jobIDs, throttle);
+        continue;
       }
-      yield timeout(throttle); // Moved to the end of the loop
     }
   }
 
@@ -286,9 +306,22 @@ export default class JobsIndexController extends Controller {
   // 3. via the user manually clicking to updateJobList()
   @restartableTask *watchJobs(jobIDs, throttle = 2000) {
     while (true && !Ember.testing) {
+      console.log(
+        '> watchJobs of IDs',
+        jobIDs.map((j) => j.id)
+      );
       // let jobIDs = this.controller.jobIDs;
       if (jobIDs && jobIDs.length > 0) {
         let jobDetails = yield this.jobAllocsQuery(jobIDs);
+        if (jobDetails) {
+          if (jobDetails.meta.index) {
+            this.jobAllocsQueryIndex = jobDetails.meta.index;
+          }
+          console.log(
+            '|> watchJobs returned with',
+            jobDetails.map((j) => j.id)
+          );
+        }
         this.jobs = jobDetails;
       }
       yield timeout(throttle);

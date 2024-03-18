@@ -369,6 +369,28 @@
     />
 
   <hr />
+  {{!-- TODO: Temporary keyboard-shortcut tester buttons while I think about nixing the pagination component above --}}
+  <Hds::Button
+    @text="Prev"
+    @color="secondary"
+    @disabled={{not this.cursorAt}}
+    {{on "click" (action this.handlePageChange "prev")}}
+    {{keyboard-shortcut
+      label="Previous Page"
+      pattern=(array "[" "[")
+      action=(action this.handlePageChange "prev")}}
+  />
+  <Hds::Button
+    @text="Next"
+    @color="secondary"
+    @disabled={{not this.nextToken}}
+    {{on "click" (action this.handlePageChange "next")}}
+    {{keyboard-shortcut
+      label="Next Page"
+      pattern=(array "]" "]")
+      action=(action this.handlePageChange "next")}}
+  />
+  <hr />
   Next token is {{this.nextToken}}<br />
   {{!-- Previous tokens ({{this.previousTokens.length}}) are {{this.previousTokens}}<br /> --}}
   Model.jobs length: {{this.model.jobs.length}}<br />
@@ -384,14 +406,11 @@
     <F.Label>Live update new/removed jobs?</F.Label>
   </Hds::Form::Toggle::Field>
   {{this.liveUpdatesEnabled}}<br />
-
   <hr />
-  Watchlist:
-  <ul>
-  {{#each-in this.watchList.list as |key value|}}
-    <li><strong>{{key}}:</strong> {{value}}</li>
-  {{/each-in}}
-  </ul>
+  Local watchlist<br />
+  jobQueryIndex: {{this.jobQueryIndex}}<br />
+  jobAllocsQueryIndex: {{this.jobAllocsQueryIndex}}<br />
+
   <hr />
 
 
