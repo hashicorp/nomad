@@ -84,14 +84,14 @@ The following examples only show the `disconnect` blocks. Remember that the
 
 ### Stop After Client Disconnect
 
-This example shows how `stop_after_client_disconnect` interacts with
+This example shows how `stop_after` interacts with
 other blocks. For the `first` group, after the default 10 second
 [`heartbeat_grace`] window expires and 90 more seconds passes, the
 server will reschedule the allocation. The client will wait 90 seconds
 before sending a stop signal (`SIGTERM`) to the `first-task`
 task. After 15 more seconds because of the task's `kill_timeout`, the
 client will send `SIGKILL`. The `second` group does not have
-`stop_after_client_disconnect`, so the server will reschedule the
+`stop_after`, so the server will reschedule the
 allocation after the 10 second [`heartbeat_grace`] expires. It will
 not be stopped on the client, regardless of how long the client is out
 of touch.
@@ -202,3 +202,4 @@ group "second" {
 [`heartbeat_grace`]: /nomad/docs/configuration/server#heartbeat_grace
 [`stop_after`] : /nomad/docs/job-specification/disconnect#stop_after
 [`replace_after`] : /nomad/docs/job-specification/disconnect#replace_after
+[`reconcile`]: /nomad/docs/job-specification/disconnect#reconcile
