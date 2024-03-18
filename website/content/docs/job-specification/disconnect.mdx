@@ -32,7 +32,7 @@ partition.
 
 - `lost_after` `(string: "")` - Specifies a duration during which a Nomad client
   will attempt to reconnect allocations after it fails to heartbeat
-  in the [`heartbeat_grace`] window.  It defaults to “” which is equivalent to 
+  in the [`heartbeat_grace`][] window.  It defaults to "" which is equivalent to 
   having the disconnect block be nil.
   
   See [the example code below][lost_after] for more details. This setting cannot
