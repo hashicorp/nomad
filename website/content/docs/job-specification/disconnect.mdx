@@ -40,9 +40,9 @@ partition.
 
 - `replace` `(bool: false)` - Specifies if the disconnected allocation should 
   be replaced by a new one rescheduled on a different node. If false and the 
-  node it is running on becomes disconnected or goes down, this allocations
-  wont be rescheduled and will show up as `unknown` until the node comes back 
-  up or it are manually stoped:
+  node it is running on becomes disconnected or goes down, this allocation
+  won't be rescheduled and will be reported as `unknown` until the node reconnects, 
+  or until the allocation is manually stopped:
 
   ```plaintext
   `nomad alloc stop  <alloc ID>`
