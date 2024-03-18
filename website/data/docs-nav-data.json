@@ -768,6 +768,10 @@
               {
                 "title": "set-config",
                 "path": "commands/operator/autopilot/set-config"
+              },
+              {
+                "title": "health",
+                "path": "commands/operator/autopilot/health"
               }
             ]
           },
