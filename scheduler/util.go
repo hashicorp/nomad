@@ -439,6 +439,10 @@ func connectServiceUpdated(servicesA, servicesB []*structs.Service) comparison {
 // volumeMountUpdated returns true if the definition of the volume mount
 // has been updated in a manner that will requires the task to be recreated.
 func volumeMountUpdated(mountA, mountB *structs.VolumeMount) comparison {
+	if mountA != nil && mountB == nil {
+		difference("volume mount removed", mountA, mountB)
+	}
+
 	if mountA != nil && mountB != nil &&
 		mountA.SELinuxLabel != mountB.SELinuxLabel {
 		return difference("volume mount selinux label", mountA.SELinuxLabel, mountB.SELinuxLabel)

@@ -548,8 +548,13 @@ func TestTasksUpdated(t *testing.T) {
 	j30.TaskGroups[0].Tasks[0].Templates[0].ErrMissingKey = true
 	must.True(t, tasksUpdated(j29, j30, name).modified)
 
-	// Compare volume mounts
+	// Compare identical volume mounts
 	j31 := mock.Job()
+	j32 := j31.Copy()
+
+	must.False(t, tasksUpdated(j31, j32, name).modified)
+
+	// Modify volume mounts
 	j31.TaskGroups[0].Tasks[0].VolumeMounts = []*structs.VolumeMount{
 		{
 			Volume:       "myvolume",
@@ -557,15 +562,17 @@ func TestTasksUpdated(t *testing.T) {
 		},
 	}
 
-	j32 := j31.Copy()
-	must.False(t, tasksUpdated(j31, j32, name).modified)
-
 	j32.TaskGroups[0].Tasks[0].VolumeMounts = []*structs.VolumeMount{
 		{
 			Volume:       "myvolume",
 			SELinuxLabel: "",
 		},
 	}
+
+	must.True(t, tasksUpdated(j31, j32, name).modified)
+
+	// Remove volume mount
+	j32.TaskGroups[0].Tasks[0].VolumeMounts = nil
 
 	must.True(t, tasksUpdated(j31, j32, name).modified)
 }
