@@ -430,6 +430,62 @@ func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
 	})
 }
 
+func TestOperator_AutopilotHealth(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, func(c *Config) {
+		c.Server.RaftProtocol = 3
+	}, func(s *TestAgent) {
+		body := bytes.NewBuffer(nil)
+		req, _ := http.NewRequest(http.MethodGet, "/v1/operator/autopilot/health", body)
+		f := func() error {
+			resp := httptest.NewRecorder()
+			obj, err := s.Server.OperatorServerHealth(resp, req)
+			if err != nil {
+				return fmt.Errorf("failed to get operator server state: %w", err)
+			}
+			if code := resp.Code; code != 200 {
+				return fmt.Errorf("response code not 200, got: %d", code)
+			}
+			out := obj.(*api.OperatorHealthReply)
+			if n := len(out.Servers); n != 1 {
+				return fmt.Errorf("expected 1 server, got: %d", n)
+			}
+			serfMember := s.server.LocalMember()
+			id, ok := serfMember.Tags["id"]
+			if !ok {
+				t.Errorf("Tag not found")
+			}
+			var leader api.ServerHealth
+			for _, srv := range out.Servers {
+				if srv.ID == id {
+					leader = srv
+					break
+				}
+			}
+
+			t.Log("serfMember", serfMember)
+			s1, s2 := leader.ID, id
+			if s1 != s2 {
+				return fmt.Errorf("expected server names to match, got %s and %s", s1, s2)
+			}
+			if leader.Healthy != true {
+				return fmt.Errorf("expected autopilot server status to be healthy, got: %t", leader.Healthy)
+			}
+			s1, s2 = out.Voters[0], id
+			if s1 != s2 {
+				return fmt.Errorf("expected server to be voter: %s", out.Voters[0])
+			}
+			return nil
+		}
+		must.Wait(t, wait.InitialSuccess(
+			wait.ErrorFunc(f),
+			wait.Timeout(10*time.Second),
+			wait.Gap(1*time.Second),
+		))
+	})
+}
+
 func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
