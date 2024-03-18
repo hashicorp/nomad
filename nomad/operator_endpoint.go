@@ -366,11 +366,11 @@ func (op *Operator) AutopilotGetConfiguration(args *structs.GenericRequest, repl
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.AllowOperatorRead() {
+	if aclObj != nil && !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -401,11 +401,11 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 	}
 
 	// This action requires operator write access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.AllowOperatorWrite() {
+	if aclObj != nil && !aclObj.AllowOperatorWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -444,11 +444,11 @@ func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *structs.Op
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.AllowOperatorRead() {
+	if aclObj != nil && !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -479,10 +479,10 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	}
 
 	// This action requires operator write access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if rule != nil && !rule.AllowOperatorWrite() {
+	} else if aclObj != nil && !aclObj.AllowOperatorWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -533,10 +533,10 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if rule != nil && !rule.AllowOperatorRead() {
+	} else if aclObj != nil && !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -804,10 +804,10 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if rule != nil && !rule.AllowOperatorRead() {
+	} else if aclObj != nil && !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
