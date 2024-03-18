@@ -57,19 +57,20 @@ partition.
   are running, hence it is not admitted and will cause a validation error.
 
   The Nomad client process must be running for this to occur. This setting
-  cannot be used with [`replace_after`].
+  cannot be used with [`lost_after`].
 
 - `reconcile` `(string: “best_score”)` - Specifies which allocation to keep once
   the previously disconnected node regains connectivity.
   It has four possible values which are described below:
-        * `keep_original`: Always keep the original allocation, bare in mind 
+
+        - `keep_original`: Always keep the original allocation, bare in mind 
         when choosing this option, it can have crashed while the client was 
         disconnected.
-        * `keep_replacement`: Always keep the allocation that was rescheduled 
+        - `keep_replacement`: Always keep the allocation that was rescheduled 
         to replace the disconnected one.
-        * `best_score`: Keep the allocation running on the node with the best 
+        - `best_score`: Keep the allocation running on the node with the best 
         score.
-        * `longest_running`: Keep the allocation that has been up and running 
+        - `longest_running`: Keep the allocation that has been up and running 
         continuously for the longest time.
 
 
@@ -78,11 +79,7 @@ partition.
 The following examples only show the `disconnect` blocks. Remember that the
 `disconnect` block is only valid in the placements listed above.
 
-[`heartbeat_grace`]: /nomad/docs/configuration/server#heartbeat_grace
-[`stop_after`] : /nomad/docs/job-specification/disconnect#stop_after
-[`replace_after`] : /nomad/docs/job-specification/disconnect#replace_after
-
-### Stop After Client Disconnect
+### Stop After
 
 This example shows how `stop_after` interacts with
 other blocks. For the `first` group, after the default 10 second
@@ -201,5 +198,5 @@ group "second" {
 
 [`heartbeat_grace`]: /nomad/docs/configuration/server#heartbeat_grace
 [`stop_after`] : /nomad/docs/job-specification/disconnect#stop_after
-[`replace_after`] : /nomad/docs/job-specification/disconnect#replace_after
+[`lost_after`] : /nomad/docs/job-specification/disconnect#replace_after
 [`reconcile`]: /nomad/docs/job-specification/disconnect#reconcile
