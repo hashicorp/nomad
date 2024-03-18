@@ -14,6 +14,12 @@ their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.8.0
+Nomad 1.8.0 introduces a `disconnect` block meant to group all the configuration
+options related to disconnected client's and server's behavior, causing the 
+deprecation of the fileds `stop_after_client_disconnect`, `max_client_disconnec`
+and `prevent_reschedule_on_lost`. This block also introduces new options for
+allocations reconciliation if the client regains connectivity.
+
 
 #### Removal of `raw_exec` option `no_cgroups`
 
