@@ -50,12 +50,11 @@ export default class IndexRoute extends Route.extend(
       .query('job', currentParams, {
         adapterOptions: {
           method: 'GET', // TODO: default
-          queryType: 'initialize',
           abortController: this.watchList.jobsIndexIDsController,
-          modifyURL: false,
         },
       })
       .catch(notifyForbidden(this));
+    console.log('model jobs', jobs);
     return RSVP.hash({
       jobs,
       namespaces: this.store.findAll('namespace'),
@@ -64,10 +63,11 @@ export default class IndexRoute extends Route.extend(
   }
 
   setupController(controller, model) {
+    console.log('== setupController');
     super.setupController(controller, model);
-    // TODO: consider re-instating this. This is setting them and then their order gets shuffled.
-    // controller.set('jobs', model.jobs);
     controller.set('nextToken', model.jobs.meta.nextToken);
+    controller.set('jobQueryIndex', model.jobs.meta.index);
+    controller.set('jobAllocsQueryIndex', model.jobs.meta.allocsIndex); // Assuming allocsIndex is your meta key for job allocations.
     controller.set(
       'jobIDs',
       model.jobs.map((job) => {
@@ -78,17 +78,10 @@ export default class IndexRoute extends Route.extend(
       })
     );
 
-    // Note: we should remove the indexes from the watch-list for jobs index queries if we've already initialized, since
-    // if we explicitly change our queryParams we want to start from scratch, unindexed
-    this.watchList.clearJobsIndexIndexes();
-
-    // TODO: maybe do these in controller constructor?
     // Now that we've set the jobIDs, immediately start watching them
-    // eslint-disable-next-line
-    this.controller.watchJobs.perform(controller.jobIDs, 2000, 'update');
+    controller.watchJobs.perform(controller.jobIDs, 2000, 'update');
     // And also watch for any changes to the jobIDs list
-    // eslint-disable-next-line
-    this.controller.watchJobIDs.perform(this.getCurrentParams(), 2000);
+    controller.watchJobIDs.perform(this.getCurrentParams(), 2000);
 
     this.hasBeenInitialized = true;
   }

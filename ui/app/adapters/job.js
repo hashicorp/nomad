@@ -11,7 +11,6 @@ import classic from 'ember-classic-decorator';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import { get } from '@ember/object';
-import queryString from 'query-string';
 
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
@@ -214,24 +213,8 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     const url = this.urlForQuery(query, type.modelName, method);
 
     // Let's establish the index, via watchList.getIndexFor.
-    let index = this.watchList.getIndexFor(url);
-
-    // In the case that this is of queryType update,
-    // and its index is found to be 1,
-    // check for the initialize query's index and use that instead
-    // if (options.adapterOptions.queryType === 'update' && index === 1) {
-    //   let initializeQueryIndex = this.watchList.getIndexFor(
-    //     '/v1/jobs/statuses3?meta=true&per_page=10'
-    //   ); // TODO: fickle!
-    //   if (initializeQueryIndex) {
-    //     index = initializeQueryIndex;
-    //   }
-    // }
-
-    // Disregard the index if this is an initialize query
-    if (options.adapterOptions.queryType === 'initialize') {
-      index = null;
-    }
+    // let index = this.watchList.getIndexFor(url);
+    let index = query.index || 1;
 
     // TODO: adding a new job hash will not necessarily cancel the old one.
     // You could be holding open a POST on jobs AB and ABC at the same time.
@@ -245,7 +228,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return this.ajax(url, method, {
       signal,
       data: query,
-      modifyURL: options.adapterOptions.modifyURL,
     }).then((payload) => {
       // If there was a request body, append it to my payload
       if (query.jobs) {
@@ -267,6 +249,10 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       if (headers['x-nomad-nexttoken']) {
         result.meta.nextToken = headers['x-nomad-nexttoken'];
       }
+      if (headers['x-nomad-index']) {
+        // this.watchList.setIndexFor(result.url, headers['x-nomad-index']);
+        result.meta.index = headers['x-nomad-index'];
+      }
     }
 
     return result;
@@ -274,26 +260,31 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
   urlForQuery(query, modelName, method) {
     let baseUrl = `/${this.namespace}/jobs/statuses`;
-    if (method === 'POST') {
-      // Setting a base64 hash to represent the body of the POST request
-      // (which is otherwise not represented in the URL)
-      // because the watchList uses the URL as a key for index lookups.
-      return `${baseUrl}?hash=${btoa(JSON.stringify(query))}`;
-    } else {
-      return `${baseUrl}?${queryString.stringify(query)}`; // TODO: maybe nix this, it's doubling up QPs
+    if (method === 'POST' && query.index) {
+      return `${baseUrl}?index=${query.index}`;
     }
+    return baseUrl;
+    // if (method === 'POST') {
+    //   // Setting a base64 hash to represent the body of the POST request
+    //   // (which is otherwise not represented in the URL)
+    //   // because the watchList uses the URL as a key for index lookups.
+    //   return `${baseUrl}?hash=${btoa(JSON.stringify(query))}`;
+    // } else {
+    //   // return `${baseUrl}?${queryString.stringify(query)}`; // TODO: maybe nix this, it's doubling up QPs
+    //   return `${baseUrl}`;
+    // }
   }
 
-  ajaxOptions(url, type, options) {
-    let hash = super.ajaxOptions(url, type, options);
-    // Custom handling for POST requests to append 'index' as a query parameter
-    if (type === 'POST' && options.data && options.data.index) {
-      let index = encodeURIComponent(options.data.index);
-      hash.url = `${hash.url}&index=${index}`;
-    }
+  // ajaxOptions(url, type, options) {
+  //   let hash = super.ajaxOptions(url, type, options);
+  //   // Custom handling for POST requests to append 'index' as a query parameter
+  //   if (type === 'POST' && options.data && options.data.index) {
+  //     let index = encodeURIComponent(options.data.index);
+  //     hash.url = `${hash.url}&index=${index}`;
+  //   }
 
-    return hash;
-  }
+  //   return hash;
+  // }
 }
 
 // TODO: First query (0 jobs to 1 job) doesnt seem to kick off POST
