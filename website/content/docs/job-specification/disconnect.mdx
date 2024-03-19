@@ -52,9 +52,10 @@ partition.
   disconnected.
 
 - `stop_after` `(string: "")` - Specifies a duration after which a disconnected 
-  Nomad client will stop its allocations. Keep in mind that if stop_after is 
-  shorter than ttl, and `replace` = false, can lead to a state where no allocations
-  are running, hence it is not admitted and will cause a validation error.
+  Nomad client will stop its allocations. Setting `stop_after` shorter than 
+  ??? and `replace = false` at the same time is not permitted and will cause a 
+  validation error, because this would lead to a state where no allocations 
+  can be scheduled.
 
   The Nomad client process must be running for this to occur. This setting
   cannot be used with [`lost_after`].
