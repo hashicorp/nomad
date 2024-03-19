@@ -53,9 +53,9 @@ partition.
 
 - `stop_after` `(string: "")` - Specifies a duration after which a disconnected 
   Nomad client will stop its allocations. Setting `stop_after` shorter than 
-  ??? and `replace = false` at the same time is not permitted and will cause a 
-  validation error, because this would lead to a state where no allocations 
-  can be scheduled.
+  `lost_after` and `replace = false` at the same time is not permitted and 
+  will cause a validation error, because this would lead to a state where no 
+  allocations can be scheduled.
 
   The Nomad client process must be running for this to occur. This setting
   cannot be used with [`lost_after`].
@@ -124,10 +124,6 @@ group "second" {
 
 ### Lost After
 
-`lost_after` specifies a duration during which a Nomad client will
-attempt to reconnect allocations after it fails to heartbeat in the
-[`heartbeat_grace`] window.
-
 By default, allocations running on a client that fails to heartbeat will be
 marked "lost". When a client reconnects, its allocations, which may still be
 healthy, will restart because they have been marked "lost". This can cause
@@ -136,15 +132,16 @@ issues with stateful tasks or tasks with long restart times.
 Instead, an operator may desire that these allocations reconnect without a
 restart. When `lost_after` is specified, the Nomad server will mark
 clients that fail to heartbeat as "disconnected" rather than "down", and will
-mark allocations on a disconnected client as "unknown" rather than "lost". These
-allocations may continue to run on the disconnected client. Replacement
-allocations will be scheduled according to the allocations' reschedule policy
+mark allocations on a disconnected client as "unknown" rather than "lost".
+These allocations may continue to run on the disconnected client. Replacement
+allocations will be scheduled according to the allocations' `replace` settings
 until the disconnected client reconnects. Once a disconnected client reconnects,
-Nomad will compare the "unknown" allocations with their replacements and keep
-the one with the best node score. If the `lost_after` duration
-expires before the client reconnects, the allocations will be marked "lost".
-Clients that contain "unknown" allocations will transition to "disconnected"
-rather than "down" until the last `lost_after` duration has expired.
+Nomad will compare the "unknown" allocations with their replacements will 
+decide which ones to keep according to the `reconcile` setting. 
+If the `lost_after` duration expires before the client reconnects, 
+the allocations will be marked "lost". Clients that contain "unknown" 
+allocations will transition to "disconnected" rather than "down" until the last
+`lost_after` duration has expired.
 
 In the example code below, if both of these task groups were placed on the same
 client and that client experienced a network outage, both of the group's

@@ -298,17 +298,20 @@ healthy, will restart because they have been marked "lost". This can cause
 issues with stateful tasks or tasks with long restart times.
 
 Instead, an operator may desire that these allocations reconnect without a
-restart. When `max_client_disconnect` is specified, the Nomad server will mark
-clients that fail to heartbeat as "disconnected" rather than "down", and will
-mark allocations on a disconnected client as "unknown" rather than "lost". These
-allocations may continue to run on the disconnected client. Replacement
-allocations will be scheduled according to the allocations' reschedule policy
-until the disconnected client reconnects. Once a disconnected client reconnects,
-Nomad will compare the "unknown" allocations with their replacements and keep
-the one with the best node score. If the `max_client_disconnect` duration
-expires before the client reconnects, the allocations will be marked "lost".
+restart. When `max_client_disconnect` or `disconnect.lost_after` is specified,
+the Nomad server will mark clients that fail to heartbeat as "disconnected" 
+rather than "down", and will mark allocations on a disconnected client as
+"unknown" rather than "lost". These allocations may continue to run on the
+disconnected client. Replacement allocations will be scheduled according to the
+allocations' `disconnect.replace` settings. until the disconnected client 
+reconnects. Once a disconnected client reconnects, Nomad will compare the "unknown" 
+allocations with their replacements and will decide which ones to keep according 
+to the `disconnect.replace` setting. If the `max_client_disconnect` or 
+`disconnect.losta_after` duration expires before the client reconnects, 
+the allocations will be marked "lost".
 Clients that contain "unknown" allocations will transition to "disconnected"
-rather than "down" until the last `max_client_disconnect` duration has expired.
+rather than "down" until the last `max_client_disconnect` or `disconnect.lost_after` 
+duration has expired.
 
 In the example code below, if both of these task groups were placed on the same
 client and that client experienced a network outage, both of the group's
