@@ -37,7 +37,9 @@ The following options are available on all telemetry configurations.
   prefixed with the local hostname.
 
 - `collection_interval` `(duration: 1s)` - Specifies the time interval at which
-  the Nomad agent collects telemetry data.
+  the Nomad agent collects telemetry data. For metrics tools that scrape metrics
+  (for example, Prometheus), you should ensure this value is less than or equal
+  to the value of any scrape interval.
 
 - `use_node_name` `(bool: false)` - Specifies if gauge values should be
   prefixed with the name of the node, instead of the hostname. If set it will
