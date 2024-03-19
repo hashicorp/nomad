@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os/user"
 	"strconv"
-	"strings"
 )
 
 // HasValidIds is used when running a task to ensure the
@@ -54,46 +53,4 @@ func HasValidIds(user *user.User, deniedHostUIDs, deniedHostGIDs []IDRange) erro
 	}
 
 	return nil
-}
-
-func parseRangeString(boundsString string) (*IDRange, error) {
-	uidDenyRangeParts := strings.Split(boundsString, "-")
-
-	var idRange IDRange
-
-	switch len(uidDenyRangeParts) {
-	case 0:
-		return nil, fmt.Errorf("range value cannot be empty")
-	case 1:
-		disallowedIdStr := uidDenyRangeParts[0]
-		disallowedIdInt, err := strconv.ParseUint(disallowedIdStr, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("range bound not valid, invalid bound: %q ", disallowedIdInt)
-		}
-
-		idRange.Lower = disallowedIdInt
-		idRange.Upper = disallowedIdInt
-	case 2:
-		lowerBoundStr := uidDenyRangeParts[0]
-		upperBoundStr := uidDenyRangeParts[1]
-
-		lowerBoundInt, err := strconv.ParseUint(lowerBoundStr, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("invalid bound: %q", lowerBoundStr)
-		}
-
-		upperBoundInt, err := strconv.ParseUint(upperBoundStr, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("invalid bound: %q", upperBoundStr)
-		}
-
-		if lowerBoundInt > upperBoundInt {
-			return nil, fmt.Errorf("invalid range %q, lower bound cannot be greater than upper bound", boundsString)
-		}
-
-		idRange.Lower = lowerBoundInt
-		idRange.Upper = upperBoundInt
-	}
-
-	return &idRange, nil
 }
