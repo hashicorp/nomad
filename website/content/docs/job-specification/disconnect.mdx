@@ -12,7 +12,9 @@ description: |-
 <Placement groups={['job', 'group', 'disconnect']} />
 
 The `disconnect` block describes the system's behavior in case of a network 
-partition.
+partition. By default, without a `disconnect` block, if an allocation is on a 
+node that misses heartbeats, the allocation will be marked `lost` and will be 
+rescheduled.
 
 ```hcl
  job "docs" {
