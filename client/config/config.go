@@ -17,6 +17,7 @@ import (
 
 	"github.com/hashicorp/consul-template/config"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
@@ -424,6 +425,28 @@ type ClientTemplateConfig struct {
 	NomadRetry *RetryConfig `hcl:"nomad_retry,optional"`
 }
 
+func DefaultTemplateConfig() *ClientTemplateConfig {
+	return &ClientTemplateConfig{
+		FunctionDenylist:   DefaultTemplateFunctionDenylist,
+		DisableSandbox:     false,
+		BlockQueryWaitTime: pointer.Of(5 * time.Minute),         // match Consul default
+		MaxStale:           pointer.Of(DefaultTemplateMaxStale), // match Consul default
+		Wait: &WaitConfig{
+			Min: pointer.Of(5 * time.Second),
+			Max: pointer.Of(4 * time.Minute),
+		},
+		ConsulRetry: &RetryConfig{
+			Attempts: pointer.Of(0), // unlimited
+		},
+		VaultRetry: &RetryConfig{
+			Attempts: pointer.Of(0), // unlimited
+		},
+		NomadRetry: &RetryConfig{
+			Attempts: pointer.Of(0), // unlimited
+		},
+	}
+}
+
 // Copy returns a deep copy of a ClientTemplateConfig
 func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 	if c == nil {
@@ -483,6 +506,58 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		c.ConsulRetry.IsEmpty() &&
 		c.VaultRetry.IsEmpty() &&
 		c.NomadRetry.IsEmpty()
+}
+
+func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateConfig {
+	if c == nil {
+		return o
+	}
+
+	result := *c
+	if o == nil {
+		return &result
+	}
+
+	if len(o.FunctionDenylist) > 0 {
+		funcSet := set.From(result.FunctionDenylist)
+		funcSet.InsertSlice(o.FunctionDenylist)
+		result.FunctionDenylist = funcSet.Slice()
+	}
+
+	if len(o.FunctionBlacklist) > 0 {
+		funcSet := set.From(result.FunctionBlacklist)
+		funcSet.InsertSlice(o.FunctionBlacklist)
+		result.FunctionBlacklist = funcSet.Slice()
+	}
+
+	if o.DisableSandbox {
+		result.DisableSandbox = true
+	}
+	if o.MaxStale != nil {
+		result.MaxStale = &*o.MaxStale
+	}
+	if o.BlockQueryWaitTime != nil {
+		result.BlockQueryWaitTime = &*o.BlockQueryWaitTime
+	}
+
+	if o.Wait != nil {
+		result.Wait = c.Wait.Merge(o.Wait)
+	}
+	if o.WaitBounds != nil {
+		result.WaitBounds = c.WaitBounds.Merge(o.WaitBounds)
+	}
+
+	if o.ConsulRetry != nil {
+		result.ConsulRetry = c.ConsulRetry.Merge(o.ConsulRetry)
+	}
+	if o.VaultRetry != nil {
+		result.VaultRetry = c.VaultRetry.Merge(o.VaultRetry)
+	}
+	if o.NomadRetry != nil {
+		result.NomadRetry = c.NomadRetry.Merge(o.NomadRetry)
+	}
+
+	return &result
 }
 
 // WaitConfig is mirrored from templateconfig.WaitConfig because we need to handle
@@ -790,33 +865,15 @@ func DefaultConfig() *Config {
 		GCMaxAllocs:             50,
 		NoHostUUID:              true,
 		DisableRemoteExec:       false,
-		TemplateConfig: &ClientTemplateConfig{
-			FunctionDenylist:   DefaultTemplateFunctionDenylist,
-			DisableSandbox:     false,
-			BlockQueryWaitTime: pointer.Of(5 * time.Minute),         // match Consul default
-			MaxStale:           pointer.Of(DefaultTemplateMaxStale), // match Consul default
-			Wait: &WaitConfig{
-				Min: pointer.Of(5 * time.Second),
-				Max: pointer.Of(4 * time.Minute),
-			},
-			ConsulRetry: &RetryConfig{
-				Attempts: pointer.Of(0), // unlimited
-			},
-			VaultRetry: &RetryConfig{
-				Attempts: pointer.Of(0), // unlimited
-			},
-			NomadRetry: &RetryConfig{
-				Attempts: pointer.Of(0), // unlimited
-			},
-		},
-		RPCHoldTimeout:     5 * time.Second,
-		CNIPath:            "/opt/cni/bin",
-		CNIConfigDir:       "/opt/cni/config",
-		CNIInterfacePrefix: "eth",
-		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
-		CgroupParent:       "nomad.slice", // SETH todo
-		MaxDynamicPort:     structs.DefaultMinDynamicPort,
-		MinDynamicPort:     structs.DefaultMaxDynamicPort,
+		TemplateConfig:          DefaultTemplateConfig(),
+		RPCHoldTimeout:          5 * time.Second,
+		CNIPath:                 "/opt/cni/bin",
+		CNIConfigDir:            "/opt/cni/config",
+		CNIInterfacePrefix:      "eth",
+		HostNetworks:            map[string]*structs.ClientHostNetworkConfig{},
+		CgroupParent:            "nomad.slice", // SETH todo
+		MaxDynamicPort:          structs.DefaultMinDynamicPort,
+		MinDynamicPort:          structs.DefaultMaxDynamicPort,
 		Users: &UsersConfig{
 			MinDynamicUser: 80_000,
 			MaxDynamicUser: 89_999,
