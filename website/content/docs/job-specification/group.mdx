@@ -401,18 +401,18 @@ To keep the same behaviour as the old configuration upon reconnection, the
 The following example shows how to migrate from the old configuration to the new one:
 
 ```hcl
-  job "docs" {
-  	group "example" {
-    	max_client_disconnect = "6h"
-      stop_after_client_disconnect = "2h"
-		  prevent_reschedule_on_lost = true 	
-    }
+job "docs" {
+  group "example" {
+    max_client_disconnect        = "6h"
+    stop_after_client_disconnect = "2h"
+    prevent_reschedule_on_lost   = true
   }
+}
 ```
 Can be directly translated to:
 
 ```hcl
-  job "docs" {
+job "docs" {
   	group "example" {
       disconnect {
         lost_after = "6h"

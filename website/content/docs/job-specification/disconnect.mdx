@@ -15,7 +15,7 @@ The `disconnect` block describes the system's behavior in case of a network
 partition.
 
 ```hcl
-    job "docs" {
+ job "docs" {
   	    group "example" {
     	    disconnect {
 		        lost_after = "6h"
@@ -25,7 +25,6 @@ partition.
      	    }
   	    }
     }
-
 ```
 
 ## `disconnect` Parameters
