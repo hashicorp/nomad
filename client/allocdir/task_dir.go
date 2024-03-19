@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
@@ -107,32 +108,19 @@ func (d *AllocDir) newTaskDir(taskName string) *TaskDir {
 // allows skipping chroot creation if the caller knows it has already been
 // done. client.alloc_dir will be skipped.
 func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username string) error {
-	if err := os.MkdirAll(t.Dir, 0777); err != nil {
+	if err := allocMkdirAll(t.Dir, fileMode777); err != nil {
 		return err
 	}
 
-	// Make the task directory have non-root permissions.
-	if err := dropDirPermissions(t.Dir, os.ModePerm); err != nil {
-		return err
-	}
-
-	// Create a local directory that each task can use.
-	if err := os.MkdirAll(t.LocalDir, 0777); err != nil {
-		return err
-	}
-
-	if err := dropDirPermissions(t.LocalDir, os.ModePerm); err != nil {
+	if err := allocMkdirAll(t.LocalDir, fileMode777); err != nil {
 		return err
 	}
 
 	// Create the directories that should be in every task.
 	for dir, perms := range TaskDirs {
 		absdir := filepath.Join(t.Dir, dir)
-		if err := os.MkdirAll(absdir, perms); err != nil {
-			return err
-		}
 
-		if err := dropDirPermissions(absdir, perms); err != nil {
+		if err := allocMkdirAll(absdir, perms); err != nil {
 			return err
 		}
 	}
@@ -146,26 +134,18 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 		empty, _ := pathEmpty(t.SharedTaskDir)
 		if !pathExists(t.SharedTaskDir) || empty {
 			if err := linkDir(t.SharedAllocDir, t.SharedTaskDir); err != nil {
-				return fmt.Errorf("Failed to mount shared directory for task: %v", err)
+				return fmt.Errorf("Failed to mount shared directory for task: %w", err)
 			}
 		}
 	}
 
 	// Create the secret directory
-	if err := createSecretDir(t.SecretsDir); err != nil {
-		return err
-	}
-
-	if err := dropDirPermissions(t.SecretsDir, os.ModePerm); err != nil {
+	if err := allocMakeSecretsDir(t.SecretsDir, fileMode777); err != nil {
 		return err
 	}
 
 	// Create the private directory
-	if err := createSecretDir(t.PrivateDir); err != nil {
-		return err
-	}
-
-	if err := dropDirPermissions(t.PrivateDir, os.ModePerm); err != nil {
+	if err := allocMakeSecretsDir(t.PrivateDir, fileMode777); err != nil {
 		return err
 	}
 
@@ -185,7 +165,7 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 
 		// create the task unique directory under the client mounts path
 		parent := filepath.Dir(t.MountsAllocDir)
-		if err = os.MkdirAll(parent, 0o710); err != nil {
+		if err = os.MkdirAll(parent, fileMode710); err != nil {
 			return fmt.Errorf("Failed to create task mount directory: %v", err)
 		}
 		if err = os.Chown(parent, uid, gid); err != nil {
@@ -193,8 +173,8 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 		}
 
 		// create the task and alloc mount points
-		mountDir(t.AllocDir, t.MountsAllocDir, uid, gid, 0o710)
-		mountDir(t.Dir, t.MountsTaskDir, uid, gid, 0o710)
+		mountDir(t.AllocDir, t.MountsAllocDir, uid, gid, fileMode710)
+		mountDir(t.Dir, t.MountsTaskDir, uid, gid, fileMode710)
 	}
 
 	return nil
@@ -225,7 +205,7 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 		// Embedding a single file
 		if !s.IsDir() {
 			if err := createDir(t.Dir, filepath.Dir(dest)); err != nil {
-				return fmt.Errorf("Couldn't create destination directory %v: %v", dest, err)
+				return fmt.Errorf("Couldn't create destination directory %v: %w", dest, err)
 			}
 
 			// Copy the file.
@@ -242,19 +222,19 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 		destDir := filepath.Join(t.Dir, dest)
 
 		if err := createDir(t.Dir, dest); err != nil {
-			return fmt.Errorf("Couldn't create destination directory %v: %v", destDir, err)
+			return fmt.Errorf("Couldn't create destination directory %v: %w", destDir, err)
 		}
 
 		// Enumerate the files in source.
 		dirEntries, err := os.ReadDir(source)
 		if err != nil {
-			return fmt.Errorf("Couldn't read directory %v: %v", source, err)
+			return fmt.Errorf("Couldn't read directory %v: %w", source, err)
 		}
 
 		for _, fileEntry := range dirEntries {
 			entry, err := fileEntry.Info()
 			if err != nil {
-				return fmt.Errorf("Couldn't read the file information %v: %v", entry, err)
+				return fmt.Errorf("Couldn't read the file information %v: %w", entry, err)
 			}
 			hostEntry := filepath.Join(source, entry.Name())
 			taskEntry := filepath.Join(destDir, filepath.Base(hostEntry))
@@ -277,13 +257,13 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 
 				link, err := os.Readlink(hostEntry)
 				if err != nil {
-					return fmt.Errorf("Couldn't resolve symlink for %v: %v", source, err)
+					return fmt.Errorf("Couldn't resolve symlink for %v: %w", source, err)
 				}
 
 				if err := os.Symlink(link, taskEntry); err != nil {
 					// Symlinking twice
 					if err.(*os.LinkError).Err.Error() != "file exists" {
-						return fmt.Errorf("Couldn't create symlink: %v", err)
+						return fmt.Errorf("Couldn't create symlink: %w", err)
 					}
 				}
 				continue
@@ -302,4 +282,56 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 	}
 
 	return nil
+}
+
+// Unmount or delete task directories. Returns all errors as a multierror.
+func (t *TaskDir) Unmount() error {
+	mErr := new(multierror.Error)
+
+	// Check if the directory has the shared alloc mounted.
+	if pathExists(t.SharedTaskDir) {
+		if err := unlinkDir(t.SharedTaskDir); err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("failed to unmount shared alloc dir %q: %w", t.SharedTaskDir, err))
+		} else if err := os.RemoveAll(t.SharedTaskDir); err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("failed to delete shared alloc dir %q: %w", t.SharedTaskDir, err))
+		}
+	}
+
+	if pathExists(t.SecretsDir) {
+		if err := removeSecretDir(t.SecretsDir); err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("failed to remove the secret dir %q: %w", t.SecretsDir, err))
+		}
+	}
+
+	if pathExists(t.PrivateDir) {
+		if err := removeSecretDir(t.PrivateDir); err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("failed to remove the private dir %q: %w", t.PrivateDir, err))
+		}
+	}
+
+	if pathExists(t.MountsAllocDir) {
+		if err := unlinkDir(t.MountsAllocDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the alloc mounts dir %q: %w", t.MountsAllocDir, err),
+			)
+		}
+	}
+
+	if pathExists(t.MountsTaskDir) {
+		if err := unlinkDir(t.MountsTaskDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the alloc mounts task dir %q: %w", t.MountsTaskDir, err),
+			)
+		}
+	}
+
+	// Unmount dev/ and proc/ have been mounted.
+	if err := t.unmountSpecialDirs(); err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+	return mErr.ErrorOrNil()
 }
