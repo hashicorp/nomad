@@ -424,7 +424,7 @@ server {
 Nomad Clients periodically heartbeat to Nomad Servers to confirm they are
 operating as expected. Nomad Clients which do not heartbeat in the specified
 amount of time are considered `down` and their allocations are marked as `lost`
-or `disconnected` (if [`max_client_disconnect`][max_client_disconnect] is set)
+or `disconnected` (if [`disconnect.lost_after`][disconnect.lost_after] is set)
 and rescheduled.
 
 The various heartbeat related parameters allow you to tune the following
@@ -509,6 +509,6 @@ work.
 [`nomad operator gossip keyring generate`]: /nomad/docs/commands/operator/gossip/keyring-generate
 [search]: /nomad/docs/configuration/search
 [encryption key]: /nomad/docs/operations/key-management
-[max_client_disconnect]: /nomad/docs/job-specification/group#max-client-disconnect
+[disconnect.lost_after]: /nomad/docs/job-specification/disconnect#lost_after
 [herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem
 [wi]: /nomad/docs/concepts/workload-identity
