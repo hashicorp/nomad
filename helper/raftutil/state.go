@@ -31,6 +31,7 @@ func RaftStateInfo(p string) (store *raftboltdb.BoltStore, firstIdx uint64, last
 			ReadOnly: true,
 			Timeout:  1 * time.Second,
 		},
+		MsgpackUseNewTimeFormat: true,
 	}
 	s, err := raftboltdb.New(opts)
 	if err != nil {
