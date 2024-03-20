@@ -527,12 +527,9 @@ func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateCon
 	if o.DisableSandbox {
 		result.DisableSandbox = true
 	}
-	if o.MaxStale != nil {
-		result.MaxStale = &*o.MaxStale
-	}
-	if o.BlockQueryWaitTime != nil {
-		result.BlockQueryWaitTime = &*o.BlockQueryWaitTime
-	}
+
+	result.MaxStale = pointer.Merge(result.MaxStale, o.MaxStale)
+	result.BlockQueryWaitTime = pointer.Merge(result.BlockQueryWaitTime, o.BlockQueryWaitTime)
 
 	if o.Wait != nil {
 		result.Wait = c.Wait.Merge(o.Wait)
