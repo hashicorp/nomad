@@ -1274,10 +1274,6 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
-	conf.Client.TemplateConfig = &client.ClientTemplateConfig{
-		FunctionDenylist: client.DefaultTemplateFunctionDenylist,
-		DisableSandbox:   false,
-	}
 	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Client.NomadServiceDiscovery = pointer.Of(true)
@@ -1346,10 +1342,7 @@ func DefaultConfig() *Config {
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
 			},
-			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
-				DisableSandbox:   false,
-			},
+			TemplateConfig:                 client.DefaultTemplateConfig(),
 			BindWildcardDefaultHostNetwork: true,
 			CNIPath:                        "/opt/cni/bin",
 			CNIConfigDir:                   "/opt/cni/config",
@@ -2282,7 +2275,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 
 	if b.TemplateConfig != nil {
-		result.TemplateConfig = b.TemplateConfig
+		result.TemplateConfig = result.TemplateConfig.Merge(b.TemplateConfig)
 	}
 
 	// Add the servers
