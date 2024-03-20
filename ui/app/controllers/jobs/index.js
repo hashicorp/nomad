@@ -16,8 +16,9 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 // import { scheduleOnce } from '@ember/runloop';
-
 import Ember from 'ember';
+
+const DEFAULT_THROTTLE = 2000;
 
 export default class JobsIndexController extends Controller {
   @service router;
@@ -169,7 +170,10 @@ export default class JobsIndexController extends Controller {
     this.pendingJobs = null;
     this.jobIDs = this.pendingJobIDs;
     this.pendingJobIDs = null;
-    yield this.watchJobs.perform(this.jobIDs, 2000);
+    yield this.watchJobs.perform(
+      this.jobIDs,
+      Ember.testing ? 0 : DEFAULT_THROTTLE
+    );
   }
 
   @localStorageProperty('nomadLiveUpdateJobsIndex', true) liveUpdatesEnabled;
@@ -243,8 +247,11 @@ export default class JobsIndexController extends Controller {
   }
 
   // TODO: set up isEnabled to check blockingQueries rather than just use while (true)
-  @restartableTask *watchJobIDs(params, throttle = 2000) {
-    while (true && !Ember.testing) {
+  @restartableTask *watchJobIDs(
+    params,
+    throttle = Ember.testing ? 0 : DEFAULT_THROTTLE
+  ) {
+    while (true) {
       // let watchlistIndex = this.watchList.getIndexFor(
       //   '/v1/jobs/statuses?per_page=3'
       // );
@@ -296,6 +303,9 @@ export default class JobsIndexController extends Controller {
         this.watchJobs.perform(this.jobIDs, throttle);
         continue;
       }
+      if (Ember.testing) {
+        break;
+      }
     }
   }
 
@@ -304,8 +314,11 @@ export default class JobsIndexController extends Controller {
   // (which can happen both on initial load, and should the queryParams change)
   // 2. via the watchJobIDs task seeing new jobIDs
   // 3. via the user manually clicking to updateJobList()
-  @restartableTask *watchJobs(jobIDs, throttle = 2000) {
-    while (true && !Ember.testing) {
+  @restartableTask *watchJobs(
+    jobIDs,
+    throttle = Ember.testing ? 0 : DEFAULT_THROTTLE
+  ) {
+    while (true) {
       console.log(
         '> watchJobs of IDs',
         jobIDs.map((j) => j.id)
@@ -325,6 +338,9 @@ export default class JobsIndexController extends Controller {
         this.jobs = jobDetails;
       }
       yield timeout(throttle);
+      if (Ember.testing) {
+        break;
+      }
     }
   }
 
