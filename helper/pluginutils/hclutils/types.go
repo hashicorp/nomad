@@ -4,7 +4,7 @@
 package hclutils
 
 import (
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 )
 
 // MapStrInt is a wrapper for map[string]int that handles
