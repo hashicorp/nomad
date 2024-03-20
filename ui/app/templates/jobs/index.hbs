@@ -259,13 +259,15 @@
               />
             </div>
 
-            <Hds::Form::TextInput::Base
-              @type="search"
-              @value=""
-              aria-label="Job Search"
-              placeholder="eg. Hello World"
-              @icon="search"
-            />
+            <div data-test-jobs-search>
+              <Hds::Form::TextInput::Base
+                @type="search"
+                @value=""
+                aria-label="Job Search"
+                placeholder="eg. Hello World"
+                @icon="search"
+              />
+            </div>
 
             {{#if this.pendingJobIDDiff}}
             <Hds::Button
@@ -292,12 +294,14 @@
             enumerated=true
             action=(action "gotoJob" B.data)
           }}
+          {{on "click" (action this.gotoJob B.data)}}
           class="{{if B.data.assumeGC "assume-gc"}}"
+          data-test-job-row={{B.data.plainId}}
         >
           {{!-- {{#each this.tableColumns as |column|}}
             <B.Td>{{get B.data (lowercase column.label)}}</B.Td>
           {{/each}} --}}
-          <B.Td>
+          <B.Td data-test-job-name>
             {{#if B.data.assumeGC}}
               {{B.data.name}}
             {{else}}
