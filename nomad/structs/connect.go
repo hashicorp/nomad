@@ -8,6 +8,9 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper"
 )
 
 // ConsulConfigEntries represents Consul ConfigEntry definitions from a job for
@@ -105,11 +108,14 @@ func (tp *ConsulTransparentProxy) Copy() *ConsulTransparentProxy {
 }
 
 func (tp *ConsulTransparentProxy) Validate() error {
+	var mErr multierror.Error
+
 	for _, rawCidr := range tp.ExcludeOutboundCIDRs {
 		_, err := netip.ParsePrefix(rawCidr)
 		if err != nil {
 			// note: error returned always include parsed string
-			return fmt.Errorf("could not parse transparent proxy excluded outbound CIDR as network prefix: %w", err)
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("could not parse transparent proxy excluded outbound CIDR as network prefix: %w", err))
 		}
 	}
 
@@ -127,19 +133,24 @@ func (tp *ConsulTransparentProxy) Validate() error {
 
 	if tp.UID != "" {
 		if err := requireUIDisUint(tp.UID); err != nil {
-			return fmt.Errorf("transparent proxy block has invalid UID field: %w", err)
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("transparent proxy block has invalid UID field: %w", err))
 		}
 	}
 	for _, uid := range tp.ExcludeUIDs {
 		if err := requireUIDisUint(uid); err != nil {
-			return fmt.Errorf("transparent proxy block has invalid ExcludeUIDs field: %w", err)
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("transparent proxy block has invalid ExcludeUIDs field: %w", err))
 		}
 	}
 
 	// note: ExcludeInboundPorts are validated in connect validation hook
 	// because we need information from the network block
 
-	return nil
+	if mErr.Len() == 1 {
+		return mErr.Errors[0]
+	}
+	return mErr.ErrorOrNil()
 }
 
 func (tp *ConsulTransparentProxy) Equal(o *ConsulTransparentProxy) bool {
@@ -152,21 +163,21 @@ func (tp *ConsulTransparentProxy) Equal(o *ConsulTransparentProxy) bool {
 	if tp.OutboundPort != o.OutboundPort {
 		return false
 	}
-	if !slices.Equal(tp.ExcludeInboundPorts, o.ExcludeInboundPorts) {
+	if !helper.SliceSetEq(tp.ExcludeInboundPorts, o.ExcludeInboundPorts) {
 		return false
 	}
-	if !slices.Equal(tp.ExcludeOutboundPorts, o.ExcludeOutboundPorts) {
+	if !helper.SliceSetEq(tp.ExcludeOutboundPorts, o.ExcludeOutboundPorts) {
 		return false
 	}
-	if !slices.Equal(tp.ExcludeOutboundCIDRs, o.ExcludeOutboundCIDRs) {
+	if !helper.SliceSetEq(tp.ExcludeOutboundCIDRs, o.ExcludeOutboundCIDRs) {
 		return false
 	}
-	if !slices.Equal(tp.ExcludeUIDs, o.ExcludeUIDs) {
+	if !helper.SliceSetEq(tp.ExcludeUIDs, o.ExcludeUIDs) {
 		return false
 	}
 	if tp.NoDNS != o.NoDNS {
 		return false
 	}
 
-	return false
+	return true
 }

@@ -10105,6 +10105,10 @@ func TestServicesDiff(t *testing.T) {
 													},
 													Objects: nil,
 												},
+												{
+													Type: DiffTypeNone,
+													Name: "TransparentProxy",
+												},
 											},
 										},
 									},

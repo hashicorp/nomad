@@ -1764,14 +1764,11 @@ func consulProxyExposeDiff(prev, next *ConsulExposeConfig, contextual bool) *Obj
 }
 
 func consulTProxyDiff(prev, next *ConsulTransparentProxy, contextual bool) *ObjectDiff {
-	if prev.Equal(next) {
-		return nil
-	}
 
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "TransparentProxy"}
 	var oldPrimFlat, newPrimFlat map[string]string
 
-	if prev == nil && next == nil {
+	if prev.Equal(next) {
 		return diff
 	} else if prev == nil {
 		prev = &ConsulTransparentProxy{}
@@ -1808,6 +1805,7 @@ func consulTProxyDiff(prev, next *ConsulTransparentProxy, contextual bool) *Obje
 		"ExcludeOutboundCIDRs", contextual); setDiff != nil && setDiff.Type != DiffTypeNone {
 		diff.Objects = append(diff.Objects, setDiff)
 	}
+
 	if setDiff := stringSetDiff(prev.ExcludeUIDs, next.ExcludeUIDs,
 		"ExcludeUIDs", contextual); setDiff != nil && setDiff.Type != DiffTypeNone {
 		diff.Objects = append(diff.Objects, setDiff)

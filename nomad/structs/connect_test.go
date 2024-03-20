@@ -66,3 +66,25 @@ func TestConnectTransparentProxy_Validate(t *testing.T) {
 	}
 
 }
+
+func TestConnectTransparentProxy_Equal(t *testing.T) {
+	tp1 := &ConsulTransparentProxy{
+		UID:                  "101",
+		OutboundPort:         1001,
+		ExcludeInboundPorts:  []string{"9000", "443"},
+		ExcludeOutboundPorts: []uint16{443, 80},
+		ExcludeOutboundCIDRs: []string{"10.0.0.0/8", "192.168.1.1"},
+		ExcludeUIDs:          []string{"1001", "10"},
+		NoDNS:                true,
+	}
+	tp2 := &ConsulTransparentProxy{
+		UID:                  "101",
+		OutboundPort:         1001,
+		ExcludeInboundPorts:  []string{"443", "9000"},
+		ExcludeOutboundPorts: []uint16{80, 443},
+		ExcludeOutboundCIDRs: []string{"192.168.1.1", "10.0.0.0/8"},
+		ExcludeUIDs:          []string{"10", "1001"},
+		NoDNS:                true,
+	}
+	must.Equal(t, tp1, tp2)
+}
