@@ -295,6 +295,7 @@ var (
 		// disable_log_collection indicates whether docker driver should collect logs of docker
 		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
+		"new_networking":         hclspec.NewAttr("new_networking", "bool", false),
 	})
 
 	// mountBodySpec is the hcl specification for the `mount` block
@@ -649,6 +650,7 @@ type DriverConfig struct {
 	InfraImagePullTimeout         string        `codec:"infra_image_pull_timeout"`
 	infraImagePullTimeoutDuration time.Duration `codec:"-"`
 	DisableLogCollection          bool          `codec:"disable_log_collection"`
+	NewNetworking                 bool          `codec:"new_networking"`
 	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
 	PidsLimit                     int64         `codec:"pids_limit"`
 	pullActivityTimeoutDuration   time.Duration `codec:"-"`
@@ -796,5 +798,8 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 // features this driver supports.
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	driverCapabilities.DisableLogCollection = d.config != nil && d.config.DisableLogCollection
+	if d.config != nil {
+		driverCapabilities.MustInitiateNetwork = !d.config.NewNetworking
+	}
 	return driverCapabilities, nil
 }
