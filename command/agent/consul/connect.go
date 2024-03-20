@@ -204,6 +204,7 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 			DestinationName:      upstream.DestinationName,
 			DestinationNamespace: upstream.DestinationNamespace,
 			DestinationType:      api.UpstreamDestType(upstream.DestinationType),
+			DestinationPartition: upstream.DestinationPartition,
 			DestinationPeer:      upstream.DestinationPeer,
 			LocalBindPort:        upstream.LocalBindPort,
 			LocalBindSocketPath:  upstream.LocalBindSocketPath,

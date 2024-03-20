@@ -178,6 +178,7 @@ func TestConsulUpstream_Copy(t *testing.T) {
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
 			DestinationPeer:      "10.0.0.1:6379",
+			DestinationPartition: "infra",
 			DestinationType:      "tcp",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
