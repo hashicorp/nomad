@@ -17,7 +17,6 @@ import (
 
 	"github.com/hashicorp/consul-template/config"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
@@ -518,16 +517,11 @@ func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateCon
 		return &result
 	}
 
-	if len(o.FunctionDenylist) > 0 {
-		funcSet := set.From(result.FunctionDenylist)
-		funcSet.InsertSlice(o.FunctionDenylist)
-		result.FunctionDenylist = funcSet.Slice()
+	if o.FunctionDenylist != nil {
+		result.FunctionDenylist = slices.Clone(o.FunctionDenylist)
 	}
-
-	if len(o.FunctionBlacklist) > 0 {
-		funcSet := set.From(result.FunctionBlacklist)
-		funcSet.InsertSlice(o.FunctionBlacklist)
-		result.FunctionBlacklist = funcSet.Slice()
+	if o.FunctionBlacklist != nil {
+		result.FunctionBlacklist = slices.Clone(o.FunctionBlacklist)
 	}
 
 	if o.DisableSandbox {

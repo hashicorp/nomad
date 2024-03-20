@@ -1468,6 +1468,16 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 		must.Eq(t, defaultConfig.Client.TemplateConfig, agentConfig.Client.TemplateConfig)
 	})
 
+	t.Run("client config with nil function denylist", func(t *testing.T) {
+		defaultConfig := DefaultConfig()
+		agentConfig, err := LoadConfig("test-resources/client_with_function_denylist_nil.hcl")
+		must.NoError(t, err)
+		agentConfig = defaultConfig.Merge(agentConfig)
+
+		templateConfig := agentConfig.Client.TemplateConfig
+		must.Len(t, 2, templateConfig.FunctionDenylist)
+	})
+
 	t.Run("client config with basic template", func(t *testing.T) {
 		defaultConfig := DefaultConfig()
 		agentConfig, err := LoadConfig("test-resources/client_with_basic_template.hcl")
@@ -1478,7 +1488,7 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 
 		// check explicit overrides
 		must.Eq(t, true, templateConfig.DisableSandbox)
-		must.Len(t, 2, templateConfig.FunctionDenylist)
+		must.Len(t, 0, templateConfig.FunctionDenylist)
 
 		// check all the complex defaults
 		must.Eq(t, 87600*time.Hour, *templateConfig.MaxStale)
