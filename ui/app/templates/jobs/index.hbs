@@ -295,7 +295,7 @@
             action=(action "gotoJob" B.data)
           }}
           {{on "click" (action this.gotoJob B.data)}}
-          class="{{if B.data.assumeGC "assume-gc"}}"
+          class="job-row is-interactive {{if B.data.assumeGC "assume-gc"}}"
           data-test-job-row={{B.data.plainId}}
         >
           {{!-- {{#each this.tableColumns as |column|}}
