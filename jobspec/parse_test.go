@@ -1468,6 +1468,15 @@ func TestParse(t *testing.T) {
 										DestinationName: "upstream2",
 										LocalBindPort:   2002,
 									}},
+									TransparentProxy: &api.ConsulTransparentProxy{
+										UID:                  "101",
+										OutboundPort:         15001,
+										ExcludeInboundPorts:  []string{"www", "9000"},
+										ExcludeOutboundPorts: []uint16{443, 80},
+										ExcludeOutboundCIDRs: []string{"10.0.0.0/8"},
+										ExcludeUIDs:          []string{"10", "1001"},
+										NoDNS:                true,
+									},
 									Config: map[string]interface{}{
 										"foo": "bar",
 									},
