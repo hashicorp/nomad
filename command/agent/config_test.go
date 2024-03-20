@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -1372,6 +1373,49 @@ func TestTelemetry_PrefixFilters(t *testing.T) {
 			require.Exactly(c.expAllow, allow)
 			require.Exactly(c.expBlock, block)
 			require.Equal(c.expErr, err != nil)
+		})
+	}
+}
+
+func TestTelemetry_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name           string
+		inputTelemetry *Telemetry
+		expectedError  error
+	}{
+		{
+			name:           "nil",
+			inputTelemetry: nil,
+			expectedError:  nil,
+		},
+		{
+			name: "invalid",
+			inputTelemetry: &Telemetry{
+				inMemoryCollectionInterval: 10 * time.Second,
+				inMemoryRetentionPeriod:    1 * time.Second,
+			},
+			expectedError: errors.New("telemetry in-memory collection interval cannot be greater than retention period"),
+		},
+		{
+			name: "valid",
+			inputTelemetry: &Telemetry{
+				inMemoryCollectionInterval: 1 * time.Second,
+				inMemoryRetentionPeriod:    10 * time.Second,
+			},
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.inputTelemetry.Validate()
+			if tc.expectedError != nil {
+				must.EqError(t, actualError, tc.expectedError.Error())
+			} else {
+				must.NoError(t, actualError)
+			}
 		})
 	}
 }
