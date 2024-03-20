@@ -13,6 +13,10 @@ var (
 	// directory shared across tasks in a task group.
 	SharedAllocContainerPath = filepath.Join("c:\\", SharedAllocName)
 
+	// SharedAllocSecretsContainerPath is the path inside container for mounted
+	// secrets directory shared across tasks in a task group.
+	SharedAllocSecretsContainerPath = filepath.Join("c:\\", SharedAllocName, SharedAllocSecretsName)
+
 	// TaskLocalContainerPath is the path inside a container for mounted directory
 	// for local storage.
 	TaskLocalContainerPath = filepath.Join("c:\\", TaskLocal)
