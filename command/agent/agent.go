@@ -721,7 +721,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
 
 	if agentConfig.Client.TemplateConfig != nil {
-		conf.TemplateConfig = agentConfig.Client.TemplateConfig.Copy()
+		conf.TemplateConfig = conf.TemplateConfig.Merge(agentConfig.Client.TemplateConfig)
 	}
 
 	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
