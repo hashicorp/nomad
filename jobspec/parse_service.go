@@ -686,7 +686,7 @@ func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, erro
 		"tls_min_version",
 		"tls_max_version",
 		"cipher_suites",
-		"sds_config",
+		"sds",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -699,7 +699,7 @@ func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, erro
 		return nil, err
 	}
 
-	delete(m, "sds_config")
+	delete(m, "sds")
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Result: &tls,
@@ -720,7 +720,7 @@ func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, erro
 		return nil, fmt.Errorf("tls: should be an object")
 	}
 
-	so := listVal.Filter("sds_config")
+	so := listVal.Filter("sds")
 	if len(so.Items) > 0 {
 		tls.SDS, err = parseConsulGatewayTLSSDS(so.Items[0])
 		if err != nil {

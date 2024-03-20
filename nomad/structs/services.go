@@ -1994,8 +1994,15 @@ func (p *ConsulGatewayProxy) Validate() error {
 	return nil
 }
 
+// ConsulGatewayTLSSDSConfig is used to configure the gateway's TLS listener to
+// load certificates from an external Secret Discovery Service (SDS)
 type ConsulGatewayTLSSDSConfig struct {
-	ClusterName  string
+
+	// ClusterName specifies the name of the SDS cluster where Consul should
+	// retrieve certificates.
+	ClusterName string
+
+	// CertResource specifies an SDS resource name
 	CertResource string
 }
 
@@ -2019,13 +2026,28 @@ func (c *ConsulGatewayTLSSDSConfig) Equal(o *ConsulGatewayTLSSDSConfig) bool {
 		c.CertResource == o.CertResource
 }
 
-// ConsulGatewayTLSConfig is used to configure TLS for a gateway.
+// ConsulGatewayTLSConfig is used to configure TLS for a gateway. Both
+// ConsulIngressConfigEntry and ConsulIngressService use this struct. For more
+// details, consult the Consul documentation:
+// https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway#listeners-services-tls
 type ConsulGatewayTLSConfig struct {
-	Enabled       bool
+	// Enabled indicates whether TLS is enabled for the configuration entry
+	Enabled bool
+
+	// TLSMinVersion specifies the minimum TLS version supported for gateway
+	// listeners.
 	TLSMinVersion string
+
+	// TLSMaxVersion specifies the maxmimum TLS version supported for gateway
+	// listeners.
 	TLSMaxVersion string
-	CipherSuites  []string
-	// SDS allows configuring TLS certificate from an SDS service.
+
+	// CipherSuites specifies a list of cipher suites that gateway listeners
+	// support when negotiating connections using TLS 1.2 or older.
+	CipherSuites []string
+
+	// SDS specifies parameters that configure the listener to load TLS
+	// certificates from an external Secrets Discovery Service (SDS).
 	SDS *ConsulGatewayTLSSDSConfig
 }
 
@@ -2106,14 +2128,39 @@ func (h *ConsulHTTPHeaderModifiers) Equal(o *ConsulHTTPHeaderModifiers) bool {
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.
+// For more details, consult the Consul documentation:
+// https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway
 type ConsulIngressService struct {
-	Name                  string
-	Hosts                 []string
-	TLS                   *ConsulGatewayTLSConfig
-	RequestHeaders        *ConsulHTTPHeaderModifiers
-	ResponseHeaders       *ConsulHTTPHeaderModifiers
-	MaxConnections        *uint32
-	MaxPendingRequests    *uint32
+
+	// Name of the service exposed through this listener.
+	Name string
+
+	// Hosts specifies one or more hosts that the listening services can receive
+	// requests on.
+	Hosts []string
+
+	// TLS specifies a TLS configuration override for a specific service. If
+	// unset this will fallback to the ConsulIngressConfigEntry's own TLS field.
+	TLS *ConsulGatewayTLSConfig
+
+	// RequestHeaders specifies a set of HTTP-specific header modification rules
+	// applied to requests routed through the gateway
+	RequestHeaders *ConsulHTTPHeaderModifiers
+
+	// ResponseHeader specifies a set of HTTP-specific header modification rules
+	// applied to responses routed through the gateway
+	ResponseHeaders *ConsulHTTPHeaderModifiers
+
+	// MaxConnections specifies the maximum number of HTTP/1.1 connections a
+	// service instance is allowed to establish against the upstream
+	MaxConnections *uint32
+
+	// MaxPendingRequests specifies the maximum number of requests that are
+	// allowed to queue while waiting to establish a connection
+	MaxPendingRequests *uint32
+
+	// MaxConcurrentRequests specifies the maximum number of concurrent HTTP/2
+	// traffic requests that are allowed at a single point in time
 	MaxConcurrentRequests *uint32
 }
 
@@ -2125,32 +2172,14 @@ func (s *ConsulIngressService) Copy() *ConsulIngressService {
 	ns := new(ConsulIngressService)
 	*ns = *s
 
-	var hosts []string = nil
-	if n := len(s.Hosts); n > 0 {
-		hosts = make([]string, n)
-		copy(hosts, s.Hosts)
-	}
-
-	ns.Name = s.Name
-	ns.Hosts = hosts
+	ns.Hosts = slices.Clone(s.Hosts)
 	ns.RequestHeaders = s.RequestHeaders.Copy()
 	ns.ResponseHeaders = s.ResponseHeaders.Copy()
+	ns.TLS = s.TLS.Copy()
 
-	if s.TLS != nil {
-		ns.TLS = s.TLS.Copy()
-	}
-
-	if s.MaxConnections != nil {
-		ns.MaxConnections = pointer.Of(*s.MaxConnections)
-	}
-
-	if s.MaxPendingRequests != nil {
-		ns.MaxPendingRequests = pointer.Of(*s.MaxPendingRequests)
-	}
-
-	if s.MaxConcurrentRequests != nil {
-		ns.MaxConcurrentRequests = pointer.Of(*s.MaxConcurrentRequests)
-	}
+	ns.MaxConnections = pointer.Copy(s.MaxConnections)
+	ns.MaxPendingRequests = pointer.Copy(s.MaxPendingRequests)
+	ns.MaxConcurrentRequests = pointer.Copy(s.MaxConcurrentRequests)
 
 	return ns
 }
@@ -2305,7 +2334,12 @@ func ingressServicesEqual(a, b []*ConsulIngressService) bool {
 //
 // https://www.consul.io/docs/agent/config-entries/ingress-gateway#available-fields
 type ConsulIngressConfigEntry struct {
-	TLS       *ConsulGatewayTLSConfig
+
+	// TLS specifies a TLS configuration for the gateway.
+	TLS *ConsulGatewayTLSConfig
+
+	// Listeners specifies a list of listeners in the mesh for the
+	// gateway. Listeners are uniquely identified by their port number.
 	Listeners []*ConsulIngressListener
 }
 

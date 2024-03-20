@@ -1,3 +1,3 @@
 ```release-note:improvement
-connect: Added support for TLS RequestHeaders ResponeHeaders Config on ingress service block
+consul/connect: Added support for TLS configuration, headers configuration, and request limit configuration to ingress service block
 ```

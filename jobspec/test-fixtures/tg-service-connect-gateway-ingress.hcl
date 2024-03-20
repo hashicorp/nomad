@@ -51,7 +51,7 @@ job "connect_gateway_ingress" {
                 name  = "nginx"
                 hosts = ["2.2.2.2:8080"]
                 tls {
-                  sds_config {
+                  sds {
                     cluster_name  = "foo"
                     cert_resource = "bar"
                   }

@@ -1735,17 +1735,6 @@ func apiConnectIngressGatewayToStructs(in *api.ConsulIngressConfigEntry) *struct
 	}
 }
 
-func apiConnectGatewayTLSSDSConfig(in *api.ConsulGatewayTLSSDSConfig) *structs.ConsulGatewayTLSSDSConfig {
-	if in == nil {
-		return nil
-	}
-
-	return &structs.ConsulGatewayTLSSDSConfig{
-		ClusterName:  in.ClusterName,
-		CertResource: in.CertResource,
-	}
-}
-
 func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulGatewayTLSConfig {
 	if in == nil {
 		return nil
@@ -1757,6 +1746,17 @@ func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulG
 		TLSMaxVersion: in.TLSMaxVersion,
 		CipherSuites:  slices.Clone(in.CipherSuites),
 		SDS:           apiConnectGatewayTLSSDSConfig(in.SDS),
+	}
+}
+
+func apiConnectGatewayTLSSDSConfig(in *api.ConsulGatewayTLSSDSConfig) *structs.ConsulGatewayTLSSDSConfig {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulGatewayTLSSDSConfig{
+		ClusterName:  in.ClusterName,
+		CertResource: in.CertResource,
 	}
 }
 
@@ -1796,18 +1796,6 @@ func apiConnectIngressServicesToStructs(in []*api.ConsulIngressService) []*struc
 	return services
 }
 
-func apiConsulHTTPHeaderModifiersToStructs(in *api.ConsulHTTPHeaderModifiers) *structs.ConsulHTTPHeaderModifiers {
-	if in == nil {
-		return nil
-	}
-
-	return &structs.ConsulHTTPHeaderModifiers{
-		Add:    maps.Clone(in.Add),
-		Set:    maps.Clone(in.Set),
-		Remove: slices.Clone(in.Remove),
-	}
-}
-
 func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.ConsulIngressService {
 	if in == nil {
 		return nil
@@ -1822,6 +1810,18 @@ func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.Co
 		MaxConnections:        in.MaxConnections,
 		MaxPendingRequests:    in.MaxPendingRequests,
 		MaxConcurrentRequests: in.MaxConcurrentRequests,
+	}
+}
+
+func apiConsulHTTPHeaderModifiersToStructs(in *api.ConsulHTTPHeaderModifiers) *structs.ConsulHTTPHeaderModifiers {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulHTTPHeaderModifiers{
+		Add:    maps.Clone(in.Add),
+		Set:    maps.Clone(in.Set),
+		Remove: slices.Clone(in.Remove),
 	}
 }
 

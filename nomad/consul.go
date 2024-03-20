@@ -636,9 +636,9 @@ func convertHTTPHeaderModifiers(in *structs.ConsulHTTPHeaderModifiers) *api.HTTP
 			Set:    maps.Clone(in.Set),
 			Remove: slices.Clone(in.Remove),
 		}
-	} else {
-		return &api.HTTPHeaderModifiers{}
 	}
+
+	return &api.HTTPHeaderModifiers{}
 }
 
 func convertGatewayTLSConfig(in *structs.ConsulGatewayTLSConfig) *api.GatewayTLSConfig {
@@ -650,9 +650,9 @@ func convertGatewayTLSConfig(in *structs.ConsulGatewayTLSConfig) *api.GatewayTLS
 			CipherSuites:  slices.Clone(in.CipherSuites),
 			SDS:           convertGatewayTLSSDSConfig(in.SDS),
 		}
-	} else {
-		return &api.GatewayTLSConfig{}
 	}
+
+	return &api.GatewayTLSConfig{}
 }
 
 func convertGatewayTLSSDSConfig(in *structs.ConsulGatewayTLSSDSConfig) *api.GatewayTLSSDSConfig {
@@ -661,9 +661,9 @@ func convertGatewayTLSSDSConfig(in *structs.ConsulGatewayTLSSDSConfig) *api.Gate
 			ClusterName:  in.ClusterName,
 			CertResource: in.CertResource,
 		}
-	} else {
-		return &api.GatewayTLSSDSConfig{}
 	}
+
+	return &api.GatewayTLSSDSConfig{}
 }
 
 func convertTerminatingCE(namespace, service string, entry *structs.ConsulTerminatingConfigEntry) api.ConfigEntry {
