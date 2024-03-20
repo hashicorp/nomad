@@ -151,6 +151,14 @@ type ExecCommand struct {
 
 	// Capabilities are the linux capabilities to be enabled by the task driver.
 	Capabilities []string
+
+	// CGroup1Override specfies the existing cgroups that will be used instead of
+	// creating new ones.
+	CGroup1Override map[string]string
+
+	// CGroup2Override specifies an existing cgroup that will be used instead of
+	// creating a new one.
+	CGroup2Override string
 }
 
 // CpusetCgroup returns the path to the cgroup in which the Nomad client will
@@ -183,10 +191,17 @@ func (c *ExecCommand) StatsCgroup() string {
 	}
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
+		if p, ok := c.CGroup1Override["pids"]; ok {
+			return p
+		}
+
 		taskName := filepath.Base(c.TaskDir)
 		allocID := filepath.Base(filepath.Dir(c.TaskDir))
 		return cgroupslib.PathCG1(allocID, taskName, "freezer")
 	default:
+		if c.CGroup2Override != "" {
+			return c.CGroup2Override
+		}
 		return c.CpusetCgroup()
 	}
 }

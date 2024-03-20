@@ -50,6 +50,8 @@ message LaunchRequest {
     string cpuset_cgroup = 17;
     repeated string allow_caps = 18;
     repeated string capabilities = 19;
+    map<string, string> c_group1_override = 20;
+    string c_group2_override = 21;
 }
 
 message LaunchResponse {

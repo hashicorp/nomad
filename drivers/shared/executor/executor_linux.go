@@ -725,11 +725,16 @@ func (l *LibcontainerExecutor) configureCgroupMemory(cfg *runc.Config, command *
 func (l *LibcontainerExecutor) configureCG1(cfg *runc.Config, command *ExecCommand, cgroup string) error {
 
 	cpuShares := l.clampCpuShares(command.Resources.LinuxResources.CPUShares)
-	cpusetPath := command.Resources.LinuxResources.CpusetCgroupPath
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
+	cpusetPath := command.Resources.LinuxResources.CpusetCgroupPath
+	if override, ok := command.CGroup1Override["cpuset"]; ok {
+		cpusetPath = override
+	}
 
 	// Set the v1 parent relative path (i.e. /nomad/<scope>) for the NON-cpuset cgroups
 	scope := filepath.Base(cgroup)
+
+	//FIXME(schmichael) support CG1Override here... not sure how
 	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
 
 	// set cpu resources
@@ -769,8 +774,12 @@ func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecComma
 	cfg.Cgroups.Resources.CpuWeight = cpuWeight
 
 	// finally set the path of the cgroup in which to run the task
-	scope := filepath.Base(cg)
-	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, partition, scope)
+	if o := command.CGroup2Override; o != "" {
+		cfg.Cgroups.Path = o
+	} else {
+		scope := filepath.Base(cg)
+		cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, partition, scope)
+	}
 
 	// todo(shoenig): we will also want to set cpu bandwidth (i.e. cpu_hard_limit)
 	// hopefully for 1.7

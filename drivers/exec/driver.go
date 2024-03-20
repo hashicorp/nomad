@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -88,12 +89,14 @@ var (
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"command":  hclspec.NewAttr("command", "string", true),
-		"args":     hclspec.NewAttr("args", "list(string)", false),
-		"pid_mode": hclspec.NewAttr("pid_mode", "string", false),
-		"ipc_mode": hclspec.NewAttr("ipc_mode", "string", false),
-		"cap_add":  hclspec.NewAttr("cap_add", "list(string)", false),
-		"cap_drop": hclspec.NewAttr("cap_drop", "list(string)", false),
+		"command":          hclspec.NewAttr("command", "string", true),
+		"args":             hclspec.NewAttr("args", "list(string)", false),
+		"pid_mode":         hclspec.NewAttr("pid_mode", "string", false),
+		"ipc_mode":         hclspec.NewAttr("ipc_mode", "string", false),
+		"cap_add":          hclspec.NewAttr("cap_add", "list(string)", false),
+		"cap_drop":         hclspec.NewAttr("cap_drop", "list(string)", false),
+		"cgroup1_override": hclspec.NewAttr("cgroup1_override", "list(map(string))", false),
+		"cgroup2_override": hclspec.NewAttr("cgroup2_override", "string", false),
 	})
 
 	// driverCapabilities represents the RPC response for what features are
@@ -203,6 +206,14 @@ type TaskConfig struct {
 
 	// CapDrop is a set of linux capabilities to disable.
 	CapDrop []string `codec:"cap_drop"`
+
+	// CGroup1Override specfies the existing cgroups that will be used instead of
+	// creating new ones.
+	CGroup1Override hclutils.MapStrStr `codec:"cgroup1_override"`
+
+	// CGroup2Override specifies an existing cgroup that will be used instead of
+	// creating a new one.
+	CGroup2Override string `codec:"cgroup2_override"`
 }
 
 func (tc *TaskConfig) validate() error {
@@ -477,6 +488,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 	d.logger.Debug("task capabilities", "capabilities", caps)
 
+	//FIXME(schmichael) remove
+	d.logger.Info("cgroup overrides", "c1", driverConfig.CGroup1Override, "c2", driverConfig.CGroup2Override)
+
 	execCmd := &executor.ExecCommand{
 		Cmd:              driverConfig.Command,
 		Args:             driverConfig.Args,
@@ -494,6 +508,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		ModePID:          executor.IsolationMode(d.config.DefaultModePID, driverConfig.ModePID),
 		ModeIPC:          executor.IsolationMode(d.config.DefaultModeIPC, driverConfig.ModeIPC),
 		Capabilities:     caps,
+		CGroup1Override:  driverConfig.CGroup1Override,
+		CGroup2Override:  driverConfig.CGroup2Override,
 	}
 
 	ps, err := exec.Launch(execCmd)
