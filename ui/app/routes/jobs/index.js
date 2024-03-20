@@ -14,6 +14,9 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import { action } from '@ember/object';
+import Ember from 'ember';
+
+const DEFAULT_THROTTLE = 2000;
 
 export default class IndexRoute extends Route.extend(
   WithWatchers,
@@ -79,9 +82,16 @@ export default class IndexRoute extends Route.extend(
     );
 
     // Now that we've set the jobIDs, immediately start watching them
-    controller.watchJobs.perform(controller.jobIDs, 2000, 'update');
+    controller.watchJobs.perform(
+      controller.jobIDs,
+      Ember.testing ? 0 : DEFAULT_THROTTLE,
+      'update'
+    );
     // And also watch for any changes to the jobIDs list
-    controller.watchJobIDs.perform(this.getCurrentParams(), 2000);
+    controller.watchJobIDs.perform(
+      this.getCurrentParams(),
+      Ember.testing ? 0 : DEFAULT_THROTTLE
+    );
 
     this.hasBeenInitialized = true;
   }
