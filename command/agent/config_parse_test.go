@@ -1083,3 +1083,23 @@ func TestConfig_MultipleConsul(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_Telemetry(t *testing.T) {
+	ci.Parallel(t)
+
+	// Ensure merging a mostly empty struct correctly inherits default values
+	// set.
+	inputTelemetry1 := &Telemetry{PrometheusMetrics: true}
+	mergedTelemetry1 := DefaultConfig().Telemetry.Merge(inputTelemetry1)
+	must.Eq(t, mergedTelemetry1.inMemoryCollectionInterval, 10*time.Second)
+	must.Eq(t, mergedTelemetry1.inMemoryRetentionPeriod, 1*time.Minute)
+
+	// Ensure we can then overlay user specified data.
+	inputTelemetry2 := &Telemetry{
+		inMemoryCollectionInterval: 1 * time.Second,
+		inMemoryRetentionPeriod:    10 * time.Second,
+	}
+	mergedTelemetry2 := mergedTelemetry1.Merge(inputTelemetry2)
+	must.Eq(t, mergedTelemetry2.inMemoryCollectionInterval, 1*time.Second)
+	must.Eq(t, mergedTelemetry2.inMemoryRetentionPeriod, 10*time.Second)
+}
