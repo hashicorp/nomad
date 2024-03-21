@@ -30,7 +30,7 @@ export default create({
 
   runJobButton: {
     scope: '[data-test-run-job]',
-    isDisabled: property('disabled'),
+    isDisabled: attribute('disabled'),
   },
 
   jobs: collection('[data-test-job-row]', {

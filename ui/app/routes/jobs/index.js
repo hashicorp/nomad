@@ -68,6 +68,11 @@ export default class IndexRoute extends Route.extend(
   setupController(controller, model) {
     console.log('== setupController');
     super.setupController(controller, model);
+
+    if (!model.jobs) {
+      return;
+    }
+
     controller.set('nextToken', model.jobs.meta.nextToken);
     controller.set('jobQueryIndex', model.jobs.meta.index);
     controller.set('jobAllocsQueryIndex', model.jobs.meta.allocsIndex); // Assuming allocsIndex is your meta key for job allocations.
