@@ -269,10 +269,11 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('when accessing jobs is forbidden, show a message with a link to the tokens page', async function (assert) {
-    server.pretender.get('/v1/jobs', () => [403, {}, null]);
+    server.pretender.get('/v1/jobs/statuses', () => [403, {}, null]);
 
     await JobsList.visit();
     assert.equal(JobsList.error.title, 'Not Authorized');
+    await percySnapshot(assert);
 
     await JobsList.error.seekHelp();
     assert.equal(currentURL(), '/settings/tokens');
@@ -356,30 +357,30 @@ module('Acceptance | jobs list', function (hooks) {
     },
   });
 
-  // testFacet('Status', {
-  //   facet: JobsList.facets.status,
-  //   paramName: 'status',
-  //   expectedOptions: ['Pending', 'Running', 'Dead'],
-  //   async beforeEach() {
-  //     server.createList('job', 2, {
-  //       status: 'pending',
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     server.createList('job', 2, {
-  //       status: 'running',
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     server.createList('job', 2, {
-  //       status: 'dead',
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     await JobsList.visit();
-  //   },
-  //   filter: (job, selection) => selection.includes(job.status),
-  // });
+  testFacet('Status', {
+    facet: JobsList.facets.status,
+    paramName: 'status',
+    expectedOptions: ['Pending', 'Running', 'Dead'],
+    async beforeEach() {
+      server.createList('job', 2, {
+        status: 'pending',
+        createAllocations: false,
+        childrenCount: 0,
+      });
+      server.createList('job', 2, {
+        status: 'running',
+        createAllocations: false,
+        childrenCount: 0,
+      });
+      server.createList('job', 2, {
+        status: 'dead',
+        createAllocations: false,
+        childrenCount: 0,
+      });
+      await JobsList.visit();
+    },
+    filter: (job, selection) => selection.includes(job.status),
+  });
 
   testFacet('Datacenter', {
     facet: JobsList.facets.datacenter,
