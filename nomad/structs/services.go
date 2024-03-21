@@ -958,6 +958,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 			hashString(h, p.LocalServiceAddress)
 			hashString(h, strconv.Itoa(p.LocalServicePort))
 			hashConfig(h, p.Config)
+			hashTProxy(h, p.TransparentProxy)
 			for _, upstream := range p.Upstreams {
 				hashString(h, upstream.DestinationName)
 				hashString(h, upstream.DestinationNamespace)
@@ -1013,6 +1014,22 @@ func hashMeta(h hash.Hash, m map[string]string) {
 
 func hashConfig(h hash.Hash, c map[string]interface{}) {
 	_, _ = fmt.Fprintf(h, "%v", c)
+}
+
+func hashTProxy(h hash.Hash, tp *ConsulTransparentProxy) {
+	if tp == nil {
+		return
+	}
+
+	hashStringIfNonEmpty(h, tp.UID)
+	hashIntIfNonZero(h, "OutboundPort", int(tp.OutboundPort))
+	hashTags(h, tp.ExcludeInboundPorts)
+	for _, port := range tp.ExcludeOutboundPorts {
+		hashIntIfNonZero(h, "ExcludeOutboundPorts", int(port))
+	}
+	hashTags(h, tp.ExcludeOutboundCIDRs)
+	hashTags(h, tp.ExcludeUIDs)
+	hashBool(h, tp.NoDNS, "NoDNS")
 }
 
 // Equal returns true if the structs are recursively equal.
@@ -1187,6 +1204,14 @@ func (c *ConsulConnect) IsMesh() bool {
 	return c.IsGateway() && c.Gateway.Mesh != nil
 }
 
+// HasTransparentProxy checks if a service with a Connect sidecar has a
+// transparent proxy configuration
+func (c *ConsulConnect) HasTransparentProxy() bool {
+	return c.HasSidecar() &&
+		c.SidecarService.Proxy != nil &&
+		c.SidecarService.Proxy.TransparentProxy != nil
+}
+
 // Validate that the Connect block represents exactly one of:
 // - Connect non-native service sidecar proxy
 // - Connect native service
@@ -1201,6 +1226,11 @@ func (c *ConsulConnect) Validate() error {
 	count := 0
 
 	if c.HasSidecar() {
+		if c.HasTransparentProxy() {
+			if err := c.SidecarService.Proxy.TransparentProxy.Validate(); err != nil {
+				return err
+			}
+		}
 		count++
 	}
 
@@ -1222,7 +1252,8 @@ func (c *ConsulConnect) Validate() error {
 		}
 	}
 
-	// The Native and Sidecar cases are validated up at the service level.
+	// Checking against the surrounding task group is validated up at the
+	// service level or job endpint connect validation hook
 
 	return nil
 }
@@ -1509,6 +1540,11 @@ type ConsulProxy struct {
 	// used by task-group level service checks using HTTP or gRPC protocols.
 	Expose *ConsulExposeConfig
 
+	// TransparentProxy configures the Envoy sidecar to use "transparent
+	// proxying", which creates IP tables rules inside the network namespace to
+	// ensure traffic flows thru the Envoy proxy
+	TransparentProxy *ConsulTransparentProxy
+
 	// Config is a proxy configuration. It is opaque to Nomad and passed
 	// directly to Consul.
 	Config map[string]interface{}
@@ -1525,6 +1561,7 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 		LocalServicePort:    p.LocalServicePort,
 		Expose:              p.Expose.Copy(),
 		Upstreams:           slices.Clone(p.Upstreams),
+		TransparentProxy:    p.TransparentProxy.Copy(),
 		Config:              maps.Clone(p.Config),
 	}
 }
@@ -1548,6 +1585,10 @@ func (p *ConsulProxy) Equal(o *ConsulProxy) bool {
 	}
 
 	if !upstreamsEquals(p.Upstreams, o.Upstreams) {
+		return false
+	}
+
+	if !p.TransparentProxy.Equal(o.TransparentProxy) {
 		return false
 	}
 
