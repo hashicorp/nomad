@@ -9,7 +9,6 @@ import {
   collection,
   clickable,
   isPresent,
-  property,
   text,
   triggerable,
   visitable,
@@ -19,7 +18,7 @@ import { multiFacet, singleFacet } from 'nomad-ui/tests/pages/components/facet';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
-  pageSize: 3,
+  pageSize: 25,
 
   visit: visitable('/jobs'),
 
