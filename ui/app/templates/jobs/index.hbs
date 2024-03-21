@@ -282,96 +282,113 @@
       </PH.Actions>
     </Hds::PageHeader>
 
-    <Hds::Table
-      @model={{this.jobs}}
-      @columns={{this.tableColumns}}
-      @valign="middle"
-    >
-      <:body as |B|>
-      {{!-- TODO: use <JobRow> --}}
-        <B.Tr
-          {{keyboard-shortcut
-            enumerated=true
-            action=(action "gotoJob" B.data)
-          }}
-          {{on "click" (action this.gotoJob B.data)}}
-          class="job-row is-interactive {{if B.data.assumeGC "assume-gc"}}"
-          data-test-job-row={{B.data.plainId}}
-        >
-          {{!-- {{#each this.tableColumns as |column|}}
-            <B.Td>{{get B.data (lowercase column.label)}}</B.Td>
-          {{/each}} --}}
-          <B.Td data-test-job-name>
-            {{#if B.data.assumeGC}}
-              {{B.data.name}}
-            {{else}}
-            <LinkTo
-              @route="jobs.job.index"
-              @model={{B.data.idWithNamespace}}
-              class="is-primary"
-            >
-              {{B.data.name}}
-              {{#if B.data.meta.structured.pack}}
-                <span data-test-pack-tag class="tag is-pack">
-                  {{x-icon "box" class= "test"}}
-                  <span>Pack</span>
-                </span>
-              {{/if}}
-            </LinkTo>
-            {{/if}}
-          </B.Td>
-          {{#if this.system.shouldShowNamespaces}}
-            <B.Td>{{B.data.namespace.id}}</B.Td>
-          {{/if}}
-          <B.Td data-test-job-status>
-            {{#unless B.data.childStatuses}}
-              <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
-            {{/unless}}
-          </B.Td>
-          <B.Td data-test-job-type>
-            {{B.data.type}}
-          </B.Td>
-          {{#if this.system.shouldShowNodepools}}
-            <B.Td data-test-job-node-pool>{{B.data.nodePool}}</B.Td>
-          {{/if}}
-          <B.Td data-test-job-priority>
-            {{B.data.priority}}
-          </B.Td>
-          <B.Td>
-            {{!-- {{get (filter-by 'clientStatus' 'running' B.data.allocations) "length"}} running <br />
-            {{B.data.allocations.length}} total <br />
-            {{B.data.groupCountSum}} desired
-            <hr /> --}}
-            <div class="job-status-panel">
-              {{#unless B.data.assumeGC}}
-                {{#if B.data.childStatuses}}
-                  {{B.data.childStatuses.length}} child jobs;<br />
-                  {{#each-in B.data.childStatusBreakdown as |status count|}}
-                    {{count}} {{status}}<br />
-                  {{/each-in}}
-                {{else}}
-                  <JobStatus::AllocationStatusRow
-                    @allocBlocks={{B.data.allocBlocks}}
-                    @steady={{true}}
-                    @compact={{true}}
-                    {{!-- @runningAllocs={{B.data.runningAllocs}} --}}
-                    @runningAllocs={{B.data.allocBlocks.running.healthy.nonCanary.length}}
-                    @groupCountSum={{B.data.expectedRunningAllocCount}}
-                  />
+    {{#if this.isForbidden}}
+      <ForbiddenMessage />
+    {{else if this.jobs.length}}
+      <Hds::Table
+        @model={{this.jobs}}
+        @columns={{this.tableColumns}}
+        @valign="middle"
+      >
+        <:body as |B|>
+        {{!-- TODO: use <JobRow> --}}
+          <B.Tr
+            {{keyboard-shortcut
+              enumerated=true
+              action=(action "gotoJob" B.data)
+            }}
+            {{on "click" (action this.gotoJob B.data)}}
+            class="job-row is-interactive {{if B.data.assumeGC "assume-gc"}}"
+            data-test-job-row={{B.data.plainId}}
+          >
+            {{!-- {{#each this.tableColumns as |column|}}
+              <B.Td>{{get B.data (lowercase column.label)}}</B.Td>
+            {{/each}} --}}
+            <B.Td data-test-job-name>
+              {{#if B.data.assumeGC}}
+                {{B.data.name}}
+              {{else}}
+              <LinkTo
+                @route="jobs.job.index"
+                @model={{B.data.idWithNamespace}}
+                class="is-primary"
+              >
+                {{B.data.name}}
+                {{#if B.data.meta.structured.pack}}
+                  <span data-test-pack-tag class="tag is-pack">
+                    {{x-icon "box" class= "test"}}
+                    <span>Pack</span>
+                  </span>
                 {{/if}}
+              </LinkTo>
+              {{/if}}
+            </B.Td>
+            {{#if this.system.shouldShowNamespaces}}
+              <B.Td>{{B.data.namespace.id}}</B.Td>
+            {{/if}}
+            <B.Td data-test-job-status>
+              {{#unless B.data.childStatuses}}
+                <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
               {{/unless}}
-            </div>
-          </B.Td>
-        </B.Tr>
-      </:body>
-    </Hds::Table>
+            </B.Td>
+            <B.Td data-test-job-type>
+              {{B.data.type}}
+            </B.Td>
+            {{#if this.system.shouldShowNodepools}}
+              <B.Td data-test-job-node-pool>{{B.data.nodePool}}</B.Td>
+            {{/if}}
+            <B.Td data-test-job-priority>
+              {{B.data.priority}}
+            </B.Td>
+            <B.Td>
+              {{!-- {{get (filter-by 'clientStatus' 'running' B.data.allocations) "length"}} running <br />
+              {{B.data.allocations.length}} total <br />
+              {{B.data.groupCountSum}} desired
+              <hr /> --}}
+              <div class="job-status-panel">
+                {{#unless B.data.assumeGC}}
+                  {{#if B.data.childStatuses}}
+                    {{B.data.childStatuses.length}} child jobs;<br />
+                    {{#each-in B.data.childStatusBreakdown as |status count|}}
+                      {{count}} {{status}}<br />
+                    {{/each-in}}
+                  {{else}}
+                    <JobStatus::AllocationStatusRow
+                      @allocBlocks={{B.data.allocBlocks}}
+                      @steady={{true}}
+                      @compact={{true}}
+                      {{!-- @runningAllocs={{B.data.runningAllocs}} --}}
+                      @runningAllocs={{B.data.allocBlocks.running.healthy.nonCanary.length}}
+                      @groupCountSum={{B.data.expectedRunningAllocCount}}
+                    />
+                  {{/if}}
+                {{/unless}}
+              </div>
+            </B.Td>
+          </B.Tr>
+        </:body>
+      </Hds::Table>
 
-    <Hds::Pagination::Compact
-      @onPageChange={{action this.handlePageChange}}
-      @isDisabledPrev={{not this.cursorAt}}
-      @isDisabledNext={{not this.nextToken}}
-    />
-
+      <Hds::Pagination::Compact
+        @onPageChange={{action this.handlePageChange}}
+        @isDisabledPrev={{not this.cursorAt}}
+        @isDisabledNext={{not this.nextToken}}
+      />
+    {{else}}
+      <Hds::ApplicationState data-test-empty-jobs-list as |A|>
+        {{!-- TODO: differentiate between "empty because there's nothing" and "empty because you have filtered/searched" --}}
+        <A.Header data-test-empty-jobs-list-headline @title="No Jobs" />
+        <A.Body
+          @text="No jobs match your current filter selection."
+        />
+        <A.Footer @hasDivider={{true}}>
+          {{!-- TODO: HDS4.0, convert to F.LinkStandalone --}}
+          <Hds::Link::Standalone @icon="arrow-left" @text="Reset Filters" @route="jobs.index" />
+          <Hds::Link::Standalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
+            @iconPosition="trailing" />
+        </A.Footer>
+      </Hds::ApplicationState>
+    {{/if}}
   <hr />
   {{!-- TODO: Temporary keyboard-shortcut tester buttons while I think about nixing the pagination component above --}}
   <Hds::Button
