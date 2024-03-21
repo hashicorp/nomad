@@ -1392,8 +1392,19 @@ func (s *Server) setupRaft() error {
 	}
 
 	// Create a transport layer
-	trans := raft.NewNetworkTransport(s.raftLayer, 3, s.config.RaftTimeout,
-		s.config.LogOutput)
+	logger := log.New(&log.LoggerOptions{
+		Name:   "raft-net",
+		Output: s.config.LogOutput,
+		Level:  log.DefaultLevel,
+	})
+	netConfig := &raft.NetworkTransportConfig{
+		Stream:                  s.raftLayer,
+		MaxPool:                 3,
+		Timeout:                 s.config.RaftTimeout,
+		Logger:                  logger,
+		MsgpackUseNewTimeFormat: true,
+	}
+	trans := raft.NewNetworkTransportWithConfig(netConfig)
 	s.raftTransport = trans
 
 	// Make sure we set the Logger.
@@ -1443,6 +1454,7 @@ func (s *Server) setupRaft() error {
 			BoltOptions: &bbolt.Options{
 				NoFreelistSync: s.config.RaftBoltNoFreelistSync,
 			},
+			MsgpackUseNewTimeFormat: true,
 		})
 		if raftErr != nil {
 			return raftErr
