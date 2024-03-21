@@ -19,7 +19,7 @@ import { multiFacet, singleFacet } from 'nomad-ui/tests/pages/components/facet';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
-  pageSize: 25,
+  pageSize: 3,
 
   visit: visitable('/jobs'),
 
