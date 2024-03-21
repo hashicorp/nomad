@@ -432,6 +432,15 @@ func TestService_Hash(t *testing.T) {
 						LocalBindPort:        29000,
 						Config:               map[string]any{"foo": "bar"},
 					}},
+					TransparentProxy: &ConsulTransparentProxy{
+						UID:                  "101",
+						OutboundPort:         15001,
+						ExcludeInboundPorts:  []string{"www", "9000"},
+						ExcludeOutboundPorts: []uint16{4443},
+						ExcludeOutboundCIDRs: []string{"10.0.0.0/8"},
+						ExcludeUIDs:          []string{"1", "10"},
+						NoDNS:                true,
+					},
 				},
 				Meta: map[string]string{
 					"test-key": "test-value",
@@ -528,6 +537,54 @@ func TestService_Hash(t *testing.T) {
 
 	t.Run("mod connect sidecar proxy upstream config", func(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].Config = map[string]any{"foo": "baz"} })
+	})
+
+	t.Run("mod connect transparent proxy removed", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy = nil
+		})
+	})
+
+	t.Run("mod connect transparent proxy uid", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.UID = "42"
+		})
+	})
+
+	t.Run("mod connect transparent proxy outbound port", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.OutboundPort = 42
+		})
+	})
+
+	t.Run("mod connect transparent proxy inbound ports", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.ExcludeInboundPorts = []string{"443"}
+		})
+	})
+
+	t.Run("mod connect transparent proxy outbound ports", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.ExcludeOutboundPorts = []uint16{42}
+		})
+	})
+
+	t.Run("mod connect transparent proxy outbound cidr", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.ExcludeOutboundCIDRs = []string{"192.168.1.0/24"}
+		})
+	})
+
+	t.Run("mod connect transparent proxy exclude uids", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.ExcludeUIDs = []string{"42"}
+		})
+	})
+
+	t.Run("mod connect transparent proxy no dns", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.NoDNS = false
+		})
 	})
 }
 
