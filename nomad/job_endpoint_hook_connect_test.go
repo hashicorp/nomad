@@ -548,13 +548,15 @@ func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("no connect services", func(t *testing.T) {
-		err := groupConnectUpstreamsValidate("group",
+		tg := &structs.TaskGroup{Name: "group"}
+		err := groupConnectUpstreamsValidate(tg,
 			[]*structs.Service{{Name: "s1"}, {Name: "s2"}})
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("connect services no overlap", func(t *testing.T) {
-		err := groupConnectUpstreamsValidate("group",
+		tg := &structs.TaskGroup{Name: "group"}
+		err := groupConnectUpstreamsValidate(tg,
 			[]*structs.Service{
 				{
 					Name: "s1",
@@ -589,11 +591,12 @@ func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
 					},
 				},
 			})
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("connect services overlap port", func(t *testing.T) {
-		err := groupConnectUpstreamsValidate("group",
+		tg := &structs.TaskGroup{Name: "group"}
+		err := groupConnectUpstreamsValidate(tg,
 			[]*structs.Service{
 				{
 					Name: "s1",
@@ -628,7 +631,55 @@ func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
 					},
 				},
 			})
-		require.EqualError(t, err, `Consul Connect services "s2" and "s1" in group "group" using same address for upstreams (127.0.0.1:9002)`)
+		must.EqError(t, err, `Consul Connect services "s2" and "s1" in group "group" using same address for upstreams (127.0.0.1:9002)`)
+	})
+
+	t.Run("connect tproxy excludes invalid port", func(t *testing.T) {
+		tg := &structs.TaskGroup{Name: "group", Networks: structs.Networks{
+			{
+				ReservedPorts: []structs.Port{{
+					Label: "www",
+				}},
+			},
+		}}
+		err := groupConnectUpstreamsValidate(tg,
+			[]*structs.Service{
+				{
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								TransparentProxy: &structs.ConsulTransparentProxy{
+									ExcludeInboundPorts: []string{"www", "9000", "no-such-label"},
+								},
+							},
+						},
+					},
+				},
+			})
+		must.EqError(t, err, `Consul Connect transparent proxy port "no-such-label" must be numeric or one of network.port labels`)
+	})
+
+	t.Run("Consul Connect transparent proxy allows only one Connect block", func(t *testing.T) {
+		tg := &structs.TaskGroup{Name: "group"}
+		err := groupConnectUpstreamsValidate(tg,
+			[]*structs.Service{
+				{
+					Name:    "s1",
+					Connect: &structs.ConsulConnect{},
+				},
+				{
+					Name: "s2",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								TransparentProxy: &structs.ConsulTransparentProxy{},
+							},
+						},
+					},
+				},
+			})
+		must.EqError(t, err, `Consul Connect transparent proxy requires there is only one connect block`)
 	})
 }
 
