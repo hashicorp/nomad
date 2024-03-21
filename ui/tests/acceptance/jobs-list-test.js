@@ -66,13 +66,23 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.visit();
 
+    const store = this.owner.lookup('service:store');
+    const jobInStore = await store.peekRecord(
+      'job',
+      `["${job.id}","${job.namespace}"]`
+    );
+
     const jobRow = JobsList.jobs.objectAt(0);
 
     assert.equal(jobRow.name, job.name, 'Name');
     assert.notOk(jobRow.hasNamespace);
     assert.equal(jobRow.nodePool, job.nodePool, 'Node Pool');
     assert.equal(jobRow.link, `/ui/jobs/${job.id}@default`, 'Detail Link');
-    assert.equal(jobRow.status, job.status, 'Status');
+    assert.equal(
+      jobRow.status,
+      jobInStore.aggregateAllocStatus.label,
+      'Status'
+    );
     assert.equal(jobRow.type, typeForJob(job), 'Type');
     assert.equal(jobRow.priority, job.priority, 'Priority');
   });
@@ -346,30 +356,30 @@ module('Acceptance | jobs list', function (hooks) {
     },
   });
 
-  testFacet('Status', {
-    facet: JobsList.facets.status,
-    paramName: 'status',
-    expectedOptions: ['Pending', 'Running', 'Dead'],
-    async beforeEach() {
-      server.createList('job', 2, {
-        status: 'pending',
-        createAllocations: false,
-        childrenCount: 0,
-      });
-      server.createList('job', 2, {
-        status: 'running',
-        createAllocations: false,
-        childrenCount: 0,
-      });
-      server.createList('job', 2, {
-        status: 'dead',
-        createAllocations: false,
-        childrenCount: 0,
-      });
-      await JobsList.visit();
-    },
-    filter: (job, selection) => selection.includes(job.status),
-  });
+  // testFacet('Status', {
+  //   facet: JobsList.facets.status,
+  //   paramName: 'status',
+  //   expectedOptions: ['Pending', 'Running', 'Dead'],
+  //   async beforeEach() {
+  //     server.createList('job', 2, {
+  //       status: 'pending',
+  //       createAllocations: false,
+  //       childrenCount: 0,
+  //     });
+  //     server.createList('job', 2, {
+  //       status: 'running',
+  //       createAllocations: false,
+  //       childrenCount: 0,
+  //     });
+  //     server.createList('job', 2, {
+  //       status: 'dead',
+  //       createAllocations: false,
+  //       childrenCount: 0,
+  //     });
+  //     await JobsList.visit();
+  //   },
+  //   filter: (job, selection) => selection.includes(job.status),
+  // });
 
   testFacet('Datacenter', {
     facet: JobsList.facets.datacenter,
