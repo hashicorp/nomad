@@ -323,18 +323,18 @@
           {{#if this.system.shouldShowNamespaces}}
             <B.Td>{{B.data.namespace.id}}</B.Td>
           {{/if}}
-          {{#if this.system.shouldShowNodepools}}
-            <B.Td>{{B.data.nodepool}}</B.Td>
-          {{/if}}
-          <B.Td>
+          <B.Td data-test-job-status>
             {{#unless B.data.childStatuses}}
               <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
             {{/unless}}
           </B.Td>
-          <B.Td>
+          <B.Td data-test-job-type>
             {{B.data.type}}
           </B.Td>
-          <B.Td>
+          {{#if this.system.shouldShowNodepools}}
+            <B.Td data-test-job-node-pool>{{B.data.nodePool}}</B.Td>
+          {{/if}}
+          <B.Td data-test-job-priority>
             {{B.data.priority}}
           </B.Td>
           <B.Td>
