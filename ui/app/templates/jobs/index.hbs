@@ -369,11 +369,41 @@
         </:body>
       </Hds::Table>
 
-      <Hds::Pagination::Compact
+      <hr />
+      {{!-- TODO: Temporary keyboard-shortcut tester buttons while I think about nixing the pagination component --}}
+      <Hds::Button
+        @text="Prev"
+        @color="secondary"
+        disabled={{not this.cursorAt}}
+        {{on "click" (action this.handlePageChange "prev")}}
+        {{keyboard-shortcut
+          label="Previous Page"
+          pattern=(array "[" "[")
+          action=(action this.handlePageChange "prev")}}
+      />
+      <Hds::Button
+        @text="Next"
+        @color="secondary"
+        disabled={{not this.nextToken}}
+        {{on "click" (action this.handlePageChange "next")}}
+        {{keyboard-shortcut
+          label="Next Page"
+          pattern=(array "]" "]")
+          action=(action this.handlePageChange "next")}}
+      />
+      <PageSizeSelect @onChange={{this.handlePageSizeChange}} />
+
+
+      {{!-- <Hds::Pagination::Compact
         @onPageChange={{action this.handlePageChange}}
         @isDisabledPrev={{not this.cursorAt}}
         @isDisabledNext={{not this.nextToken}}
-      />
+        @sizeSelectorLabel="Per page"
+        @showSizeSelector={{true}}
+        @onPageSizeChange={{this.handlePageSizeChange}}
+        @pageSizes={{array 10 25 50}}
+        @currentPageSize={{this.pageSize}}
+      /> --}}
     {{else}}
       <Hds::ApplicationState data-test-empty-jobs-list as |A|>
         {{!-- TODO: differentiate between "empty because there's nothing" and "empty because you have filtered/searched" --}}
@@ -389,28 +419,6 @@
         </A.Footer>
       </Hds::ApplicationState>
     {{/if}}
-  <hr />
-  {{!-- TODO: Temporary keyboard-shortcut tester buttons while I think about nixing the pagination component above --}}
-  <Hds::Button
-    @text="Prev"
-    @color="secondary"
-    @disabled={{not this.cursorAt}}
-    {{on "click" (action this.handlePageChange "prev")}}
-    {{keyboard-shortcut
-      label="Previous Page"
-      pattern=(array "[" "[")
-      action=(action this.handlePageChange "prev")}}
-  />
-  <Hds::Button
-    @text="Next"
-    @color="secondary"
-    @disabled={{not this.nextToken}}
-    {{on "click" (action this.handlePageChange "next")}}
-    {{keyboard-shortcut
-      label="Next Page"
-      pattern=(array "]" "]")
-      action=(action this.handlePageChange "next")}}
-  />
   <hr />
   Next token is {{this.nextToken}}<br />
   {{!-- Previous tokens ({{this.previousTokens.length}}) are {{this.previousTokens}}<br /> --}}

@@ -34,6 +34,9 @@ export default class IndexRoute extends Route.extend(
     cursorAt: {
       refreshModel: true,
     },
+    pageSize: {
+      refreshModel: true,
+    },
   };
 
   hasBeenInitialized = false;
@@ -41,6 +44,8 @@ export default class IndexRoute extends Route.extend(
   getCurrentParams() {
     let queryParams = this.paramsFor(this.routeName); // Get current query params
     queryParams.next_token = queryParams.cursorAt;
+    queryParams.per_page = queryParams.pageSize;
+    delete queryParams.pageSize;
     delete queryParams.cursorAt; // TODO: hacky, should be done in the serializer/adapter?
     return { ...queryParams };
   }
