@@ -1,0 +1,201 @@
+---
+layout: docs
+page_title: disconnect Block - Job Specification
+description: |-
+  The "disconnect" block describes the behavior of both the Nomad server and 
+  client in case of a network partition, as well as how to reconcile the workloads
+  in case of a reconnection.
+---
+
+# `disconnect` Block
+
+<Placement groups={['job', 'group', 'disconnect']} />
+
+The `disconnect` block describes the system's behavior in case of a network 
+partition. By default, without a `disconnect` block, if an allocation is on a 
+node that misses heartbeats, the allocation will be marked `lost` and will be 
+rescheduled.
+
+```hcl
+ job "docs" {
+  	    group "example" {
+    	    disconnect {
+		        lost_after = "6h"
+		        stop_after = "2h"
+		        replace = false
+                reconcile = "keep_original"
+     	    }
+  	    }
+    }
+```
+
+## `disconnect` Parameters
+
+- `lost_after` `(string: "")` - Specifies a duration during which a Nomad client
+  will attempt to reconnect allocations after it fails to heartbeat
+  in the [`heartbeat_grace`][] window.  It defaults to "" which is equivalent to 
+  having the disconnect block be nil.
+  
+  See [the example code below][lost_after] for more details. This setting cannot
+  be used with [`stop_after`].
+
+- `replace` `(bool: false)` - Specifies if the disconnected allocation should 
+  be replaced by a new one rescheduled on a different node. If false and the 
+  node it is running on becomes disconnected or goes down, this allocation
+  won't be rescheduled and will be reported as `unknown` until the node reconnects, 
+  or until the allocation is manually stopped:
+
+  ```plaintext
+  `nomad alloc stop  <alloc ID>`
+  ```
+
+  If true, a new alloc will be placed immediately upon the node becoming 
+  disconnected.
+
+- `stop_after` `(string: "")` - Specifies a duration after which a disconnected 
+  Nomad client will stop its allocations. Setting `stop_after` shorter than 
+  `lost_after` and `replace = false` at the same time is not permitted and 
+  will cause a validation error, because this would lead to a state where no 
+  allocations can be scheduled.
+
+  The Nomad client process must be running for this to occur. This setting
+  cannot be used with [`lost_after`].
+
+- `reconcile` `(string: "best_score")` - Specifies which allocation to keep once
+  the previously disconnected node regains connectivity.
+  It has four possible values which are described below:
+
+    - `keep_original`: Always keep the original allocation. Bear in mind 
+    when choosing this option, it can have crashed while the client was 
+    disconnected.
+    - `keep_replacement`: Always keep the allocation that was rescheduled 
+    to replace the disconnected one.
+    - `best_score`: Keep the allocation running on the node with the best 
+    score.
+    - `longest_running`: Keep the allocation that has been up and running 
+    continuously for the longest time.
+
+
+## `disconnect` Examples
+
+The following examples only show the `disconnect` blocks. Remember that the
+`disconnect` block is only valid in the placements listed above.
+
+### Stop After
+
+This example shows how `stop_after` interacts with
+other blocks. For the `first` group, after the default 10 second
+[`heartbeat_grace`] window expires and 90 more seconds passes, the
+server will reschedule the allocation. The client will wait 90 seconds
+before sending a stop signal (`SIGTERM`) to the `first-task`
+task. After 15 more seconds because of the task's `kill_timeout`, the
+client will send `SIGKILL`. The `second` group does not have
+`stop_after`, so the server will reschedule the
+allocation after the 10 second [`heartbeat_grace`] expires. It will
+not be stopped on the client, regardless of how long the client is out
+of touch.
+
+Note that if the server's clocks are not closely synchronized with
+each other, the server may reschedule the group before the client has
+stopped the allocation. Operators should ensure that clock drift
+between servers is as small as possible.
+
+Note also that a group using this feature will be stopped on the
+client if the Nomad server cluster fails, since the client will be
+unable to contact any server in that case. Groups opting in to this
+feature are therefore exposed to an additional runtime dependency and
+potential point of failure.
+
+```hcl
+group "first" {
+  stop_after_client_disconnect = "90s"
+
+  task "first-task" {
+    kill_timeout = "15s"
+  }
+}
+
+group "second" {
+
+  task "second-task" {
+    kill_timeout = "5s"
+  }
+}
+```
+
+### Lost After
+
+By default, allocations running on a client that fails to heartbeat will be
+marked "lost". When a client reconnects, its allocations, which may still be
+healthy, will restart because they have been marked "lost". This can cause
+issues with stateful tasks or tasks with long restart times.
+
+Instead, an operator may desire that these allocations reconnect without a
+restart. When `lost_after` is specified, the Nomad server will mark
+clients that fail to heartbeat as "disconnected" rather than "down", and will
+mark allocations on a disconnected client as "unknown" rather than "lost".
+These allocations may continue to run on the disconnected client. Replacement
+allocations will be scheduled according to the allocations' `replace` settings
+until the disconnected client reconnects. Once a disconnected client reconnects,
+Nomad will compare the "unknown" allocations with their replacements will 
+decide which ones to keep according to the `reconcile` setting. 
+If the `lost_after` duration expires before the client reconnects, 
+the allocations will be marked "lost". Clients that contain "unknown" 
+allocations will transition to "disconnected" rather than "down" until the last
+`lost_after` duration has expired.
+
+In the example code below, if both of these task groups were placed on the same
+client and that client experienced a network outage, both of the group's
+allocations would be marked as "disconnected" at two minutes because of the
+client's `heartbeat_grace` value of "2m". If the network outage continued for
+eight hours, and the client continued to fail to heartbeat, the client would
+remain in a "disconnected" state, as the first group's `lost_after`
+is twelve hours. Once all groups' `lost_after` durations are
+exceeded, in this case in twelve hours, the client node will be marked as "down"
+and the allocation will be marked as "lost". If the client had reconnected
+before twelve hours had passed, the allocations would gracefully reconnect
+using the strategy defined by [`reconcile`].
+
+Lost After is useful for edge deployments, or scenarios when
+operators want zero on-client downtime due to node connectivity issues. This
+setting cannot be used with [`stop_after`].
+
+```hcl
+# server_config.hcl
+
+server {
+  enabled         = true
+  heartbeat_grace = "2m"
+}
+```
+
+```hcl
+# jobspec.nomad
+
+group "first" {
+  disconnect {
+    lost_after = "12h"
+    reconcile = "best_score"
+  }
+
+  task "first-task" {
+    ...
+  }
+}
+
+group "second" {
+  disconnect {
+    lost_after = "12h"
+    reconcile = "keep_original"
+  }
+
+  task "second-task" {
+    ...
+  }
+}
+```
+
+[`heartbeat_grace`]: /nomad/docs/configuration/server#heartbeat_grace
+[`stop_after`]: /nomad/docs/job-specification/disconnect#stop_after
+[`lost_after`]: /nomad/docs/job-specification/disconnect#replace_after
+[`reconcile`]: /nomad/docs/job-specification/disconnect#reconcile

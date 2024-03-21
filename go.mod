@@ -35,9 +35,9 @@ require (
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/fatih/color v1.15.0
 	github.com/fsouza/go-dockerclient v1.10.1
-	github.com/go-jose/go-jose/v3 v3.0.1
+	github.com/go-jose/go-jose/v3 v3.0.3
 	github.com/golang-jwt/jwt/v5 v5.0.0
-	github.com/golang/protobuf v1.5.3
+	github.com/golang/protobuf v1.5.4
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.6.0
 	github.com/gorilla/handlers v1.5.1
@@ -45,7 +45,7 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/cap v0.2.0
-	github.com/hashicorp/consul-template v0.36.1-0.20240205193627-e15d61bb21ae
+	github.com/hashicorp/consul-template v0.37.2
 	github.com/hashicorp/consul/api v1.26.1
 	github.com/hashicorp/consul/sdk v0.15.0
 	github.com/hashicorp/cronexpr v1.1.2
@@ -125,13 +125,13 @@ require (
 	github.com/zclconf/go-cty-yaml v1.0.3
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/goleak v1.2.1
-	golang.org/x/crypto v0.17.0
+	golang.org/x/crypto v0.19.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 	golang.org/x/sync v0.6.0
-	golang.org/x/sys v0.15.0
+	golang.org/x/sys v0.17.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.59.0
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	gopkg.in/tomb.v2 v2.0.0-20140626144623-14b3d72120e8
 	oss.indeed.com/go/libtime v1.6.0
@@ -277,7 +277,7 @@ require (
 	golang.org/x/mod v0.13.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.12.0 // indirect
-	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect

@@ -477,8 +477,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 
 	// Create the dynamic workload users pool
 	c.users = dynamic.New(&dynamic.PoolConfig{
-		MinUGID: 80_000, // TODO(shoenig) plumb client config
-		MaxUGID: 89_999, // TODO(shoenig) plumb client config
+		MinUGID: cfg.Users.MinDynamicUser,
+		MaxUGID: cfg.Users.MaxDynamicUser,
 	})
 
 	// Create the cpu core partition manager
@@ -692,10 +692,17 @@ func (c *Client) init() error {
 
 	c.stateDB = db
 
-	// Ensure the alloc dir exists if we have one
+	// Ensure the alloc mounts dir exists if we are configured with a custom path.
+	if conf.AllocMountsDir != "" {
+		if err := os.MkdirAll(conf.AllocMountsDir, 0o711); err != nil {
+			return fmt.Errorf("failed creating alloc mounts dir: %w", err)
+		}
+	}
+
+	// Ensure the alloc dir exists if we are configured with a custom path.
 	if conf.AllocDir != "" {
-		if err := os.MkdirAll(conf.AllocDir, 0711); err != nil {
-			return fmt.Errorf("failed creating alloc dir: %s", err)
+		if err := os.MkdirAll(conf.AllocDir, 0o711); err != nil {
+			return fmt.Errorf("failed creating alloc dir: %w", err)
 		}
 	} else {
 		// Otherwise make a temp directory to use.
@@ -710,12 +717,13 @@ func (c *Client) init() error {
 		}
 
 		// Change the permissions to have the execute bit
-		if err := os.Chmod(p, 0711); err != nil {
+		if err := os.Chmod(p, 0o711); err != nil {
 			return fmt.Errorf("failed to change directory permissions for the AllocDir: %v", err)
 		}
 
 		conf = c.UpdateConfig(func(c *config.Config) {
 			c.AllocDir = p
+			c.AllocMountsDir = p
 		})
 	}
 

@@ -75,7 +75,7 @@ The list below covers each trigger and what can trigger it.
 * **job-scaling**: Scaling a Job will result in 1 Evaluation created, plus any
   follow-up Evaluations associated with scheduling, planning, or deployments.
 * **max-disconnect-timeout**: When an Allocation is in the `unknown` state for
-  longer than the [`max_client_disconnect`][] window, the scheduler will create
+  longer than the [`disconnect.lost_after`][] window, the scheduler will create
   1 Evaluation.
 * **reconnect**: When a Node in the `disconnected` state reconnects, Nomad will
   create 1 Evaluation per job with an allocation on the reconnected Node.
@@ -256,4 +256,4 @@ and eventually need to be garbage collected.
 [`structs.go`]: https://github.com/hashicorp/nomad/blob/v1.4.0-beta.1/nomad/structs/structs.go#L10857-L10875
 [`update`]: https://developer.hashicorp.com/nomad/docs/job-specification/update
 [`restart` attempts]: https://developer.hashicorp.com/nomad/docs/job-specification/restart
-[`max_client_disconnect`]: https://developer.hashicorp.com/nomad/docs/job-specification/group#max-client-disconnect
+[`disconnect.lost_after`]: https://developer.hashicorp.com/nomad/docs/job-specification/disconnect#lost_after

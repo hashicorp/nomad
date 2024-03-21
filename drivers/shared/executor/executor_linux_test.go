@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	tu "github.com/hashicorp/nomad/testutil"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
@@ -70,11 +71,11 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), os.TempDir(), alloc.ID)
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), os.TempDir(), os.TempDir(), alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	if err := allocDir.NewTaskDir(task.Name).Build(true, chrootEnv); err != nil {
+	if err := allocDir.NewTaskDir(task.Name).Build(fsisolation.Chroot, chrootEnv, task.User); err != nil {
 		allocDir.Destroy()
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}

@@ -16,7 +16,7 @@ type ACLPolicyInfoCommand struct {
 
 func (c *ACLPolicyInfoCommand) Help() string {
 	helpText := `
-Usage: nomad acl policy info <name>
+Usage: nomad acl policy info [options] <name>
 
   Info is used to fetch information on an existing ACL policy.
 

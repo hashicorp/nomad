@@ -82,7 +82,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	dir, err := os.MkdirTemp("", "nomad_driver_harness-")
 	must.NoError(h.t, err)
 
-	allocDir := allocdir.NewAllocDir(h.logger, dir, t.AllocID)
+	allocDir := allocdir.NewAllocDir(h.logger, dir, dir, t.AllocID)
 	must.NoError(h.t, allocDir.Build())
 
 	t.AllocDir = allocDir.AllocDir
@@ -94,7 +94,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 
 	fsi := caps.FSIsolation
 	h.logger.Trace("FS isolation", "fsi", fsi)
-	must.NoError(h.t, taskDir.Build(fsi == drivers.FSIsolationChroot, ci.TinyChroot))
+	must.NoError(h.t, taskDir.Build(fsi, ci.TinyChroot, t.User))
 
 	task := &structs.Task{
 		Name: t.Name,
