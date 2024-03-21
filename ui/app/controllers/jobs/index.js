@@ -24,15 +24,19 @@ export default class JobsIndexController extends Controller {
   @service router;
   @service system;
   @service store;
+  @service userSettings;
   @service watchList; // TODO: temp
 
-  // qpNamespace = '*';
-  per_page = 3;
+  @tracked pageSize;
+  constructor() {
+    super(...arguments);
+    this.pageSize = this.userSettings.pageSize;
+  }
   reverse = false;
 
   queryParams = [
     'cursorAt',
-    'per_page',
+    'pageSize',
     // 'status',
     { qpNamespace: 'namespace' },
     // 'type',
@@ -152,6 +156,10 @@ export default class JobsIndexController extends Controller {
     }
   }
 
+  @action handlePageSizeChange(size) {
+    this.pageSize = size;
+  }
+
   get pendingJobIDDiff() {
     return (
       this.pendingJobIDs &&
@@ -234,7 +242,7 @@ export default class JobsIndexController extends Controller {
       {
         prev_page_query: true, // TODO: debugging only!
         next_token: this.cursorAt,
-        per_page: this.per_page + 1,
+        per_page: this.pageSize + 1,
         reverse: true,
       },
       {
