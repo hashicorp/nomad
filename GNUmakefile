@@ -288,7 +288,7 @@ test-nomad: GOTEST_PKGS=$(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tool
 test-nomad: # dev ## Run Nomad unit tests
 	@echo "==> Running Nomad unit tests $(GOTEST_GROUP)"
 	@echo "==> with packages $(GOTEST_PKGS)"
-	gotestsum --format=testname --rerun-fails=3 --packages="$(GOTEST_PKGS)" -- \
+	gotestsum --format=testname --rerun-fails=0 --packages="$(GOTEST_PKGS)" -- \
 		-cover \
 		-timeout=20m \
 		-count=1 \
@@ -298,7 +298,7 @@ test-nomad: # dev ## Run Nomad unit tests
 .PHONY: test-nomad-module
 test-nomad-module: dev ## Run Nomad unit tests on sub-module
 	@echo "==> Running Nomad unit tests on sub-module $(GOTEST_MOD)"
-	cd $(GOTEST_MOD); gotestsum --format=testname --rerun-fails=3 --packages=./... -- \
+	cd $(GOTEST_MOD); gotestsum --format=testname --rerun-fails=0 --packages=./... -- \
 		-cover \
 		-timeout=20m \
 		-count=1 \
