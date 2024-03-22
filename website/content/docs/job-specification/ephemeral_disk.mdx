@@ -53,21 +53,6 @@ documentation][] for more information.
   attempt to place the updated allocation on the same machine. This will move
   the `local/` and `alloc/data` directories to the new allocation.
 
-## `ephemeral_disk` Examples
-
-The following examples only show the `ephemeral_disk` blocks. Remember that the
-`ephemeral_disk` block is only valid in the placements listed above.
-
-### Sticky Volumes
-
-This example shows enabling sticky volumes with Nomad using ephemeral disks:
-
-```hcl
-ephemeral_disk {
-  sticky = true
-}
-```
-
 [resources]: /nomad/docs/job-specification/resources 'Nomad resources Job Specification'
 [filesystem internals]: /nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads 'Filesystem internals documentation'
 [logs documentation]: /nomad/docs/job-specification/logs 'Nomad logs Job Specification'
