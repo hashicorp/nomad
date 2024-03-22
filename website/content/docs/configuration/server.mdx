@@ -29,10 +29,13 @@ server {
 
 ## `server` Parameters
 
-- `authoritative_region` `(string: "")` - Specifies the authoritative region, which
-  provides a single source of truth for global configurations such as ACL Policies and
-  global ACL tokens. Non-authoritative regions will replicate from the authoritative
-  to act as a mirror. By default, the local region is assumed to be authoritative.
+- `authoritative_region` `(string: "")` - Specifies the authoritative region,
+  which provides a single source of truth for global configurations such as ACL
+  Policies and global ACL tokens. Non-authoritative regions will replicate from
+  the authoritative to act as a mirror. By default, the local region is assumed
+  to be authoritative. Setting `authoritative_region` assumes that ACLs have
+  been bootstrapped in the authoritative region. See [Configure for multiple
+  regions][] in the ACLs tutorial.
 
 - `bootstrap_expect` `(int: required)` - Specifies the number of server nodes to
   wait for before bootstrapping. It is most common to use the odd-numbered
@@ -502,3 +505,4 @@ work.
 [encryption key]: /nomad/docs/operations/key-management
 [max_client_disconnect]: /nomad/docs/job-specification/group#max-client-disconnect
 [herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem
+[Configure for multiple regions]: /nomad/tutorials/access-control/access-control-bootstrap#configure-for-multiple-regions
