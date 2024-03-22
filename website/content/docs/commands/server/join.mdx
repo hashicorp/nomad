@@ -24,6 +24,10 @@ specified, then an attempt will be made to join each one. If one or more nodes
 are joined successfully, the exit code will be 0. Otherwise, the exit code will
 be 1.
 
+Joining servers in different regions will [federate][] the regions. This assumes
+that ACLs have been bootstrapped in the authoritative region. See [Configure for
+multiple regions][] in the ACLs tutorial.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'
@@ -36,3 +40,6 @@ Join the local server to a remote server:
 $ nomad server join 10.0.0.8:4648
 Joined 1 servers successfully
 ```
+
+[federate]: /nomad/tutorials/manage-clusters/federation
+[Configure for multiple regions]: /nomad/tutorials/access-control/access-control-bootstrap#configure-for-multiple-regions
