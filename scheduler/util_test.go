@@ -571,7 +571,7 @@ func TestTasksUpdated(t *testing.T) {
 
 	must.True(t, tasksUpdated(j31, j32, name).modified)
 
-	// Remove volume mount
+	// Add volume mount
 	j32.TaskGroups[0].Tasks[0].VolumeMounts = nil
 
 	must.True(t, tasksUpdated(j31, j32, name).modified)
