@@ -1081,6 +1081,7 @@ func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
 	valid := []string{
 		"destination_name",
 		"destination_peer",
+		"destination_partition",
 		"destination_type",
 		"local_bind_port",
 		"local_bind_address",

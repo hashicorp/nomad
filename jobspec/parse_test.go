@@ -1210,14 +1210,15 @@ func TestParse(t *testing.T) {
 											LocalServicePort: 8080,
 											Upstreams: []*api.ConsulUpstream{
 												{
-													DestinationName:     "other-service",
-													DestinationPeer:     "10.0.0.1:6379",
-													DestinationType:     "tcp",
-													LocalBindPort:       4567,
-													LocalBindAddress:    "0.0.0.0",
-													LocalBindSocketPath: "/var/run/testsocket.sock",
-													LocalBindSocketMode: "0666",
-													Datacenter:          "dc1",
+													DestinationName:      "other-service",
+													DestinationPeer:      "10.0.0.1:6379",
+													DestinationPartition: "infra",
+													DestinationType:      "tcp",
+													LocalBindPort:        4567,
+													LocalBindAddress:     "0.0.0.0",
+													LocalBindSocketPath:  "/var/run/testsocket.sock",
+													LocalBindSocketMode:  "0666",
+													Datacenter:           "dc1",
 
 													MeshGateway: &api.ConsulMeshGateway{
 														Mode: "local",

@@ -965,6 +965,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 				hashStringIfNonEmpty(h, upstream.Datacenter)
 				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
 				hashString(h, upstream.DestinationPeer)
+				hashString(h, upstream.DestinationPartition)
 				hashString(h, upstream.DestinationType)
 				hashString(h, upstream.LocalBindSocketPath)
 				hashString(h, upstream.LocalBindSocketMode)
@@ -1608,6 +1609,9 @@ type ConsulUpstream struct {
 	// DestinationNamespace is the namespace of the upstream service.
 	DestinationNamespace string
 
+	// DestinationNamespace is the admin partition of the upstream service.
+	DestinationPartition string
+
 	// DestinationPeer the destination service address
 	DestinationPeer string
 
@@ -1653,6 +1657,8 @@ func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 	case u.DestinationNamespace != o.DestinationNamespace:
 		return false
 	case u.DestinationPeer != o.DestinationPeer:
+		return false
+	case u.DestinationPartition != o.DestinationPartition:
 		return false
 	case u.DestinationType != o.DestinationType:
 		return false

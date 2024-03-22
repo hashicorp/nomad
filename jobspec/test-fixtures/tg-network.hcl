@@ -39,6 +39,7 @@ job "foo" {
             upstreams {
               destination_name       = "other-service"
               destination_peer       = "10.0.0.1:6379"
+              destination_partition  = "infra"
               destination_type       = "tcp"
               local_bind_port        = 4567
               local_bind_address     = "0.0.0.0"
