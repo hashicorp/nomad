@@ -82,6 +82,7 @@ export default function () {
 
       const json = this.serialize(jobs.all());
       return json
+        .sort((a, b) => b.ID.localeCompare(a.ID))
         .sort((a, b) => b.ModifyIndex - a.ModifyIndex)
         .filter((job) => {
           if (namespace === '*') return true;
@@ -147,7 +148,9 @@ export default function () {
           return job;
         });
       // sort by modifyIndex, descending
-      returnedJobs.sort((a, b) => b.ModifyIndex - a.ModifyIndex);
+      returnedJobs
+        .sort((a, b) => b.ID.localeCompare(a.ID))
+        .sort((a, b) => b.ModifyIndex - a.ModifyIndex);
 
       return returnedJobs;
     })

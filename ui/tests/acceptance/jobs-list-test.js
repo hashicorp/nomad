@@ -53,7 +53,10 @@ module('Acceptance | jobs list', function (hooks) {
 
     await percySnapshot(assert);
 
-    const sortedJobs = server.db.jobs.sortBy('modifyIndex').reverse();
+    const sortedJobs = server.db.jobs
+      .sortBy('id')
+      .sortBy('modifyIndex')
+      .reverse();
     assert.equal(JobsList.jobs.length, JobsList.pageSize);
     JobsList.jobs.forEach((job, index) => {
       assert.equal(job.name, sortedJobs[index].name, 'Jobs are ordered');
