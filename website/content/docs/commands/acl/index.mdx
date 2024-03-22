@@ -11,6 +11,10 @@ The `acl` command is used to interact with ACL policies and tokens. Learn more
 about using Nomad's ACL system in the [Secure Nomad with Access Control
 guide][secure-guide].
 
+In [federated][] clusters, all ACL updates are forwarded to the
+[`authoritative_region`][] and replicated to non-authoritative regions. This
+requires that ACLs have been bootstrapped in the authoritative region.
+
 ## Usage
 
 Usage: `nomad acl <subcommand> [options]`
@@ -72,3 +76,5 @@ subcommands are available:
 [roleinfo]: /nomad/docs/commands/acl/role/info
 [rolelist]: /nomad/docs/commands/acl/role/list
 [secure-guide]: /nomad/tutorials/access-control
+[federated]: /nomad/tutorials/manage-clusters/federation
+[`authoritative_region`]: /nomad/docs/configuration/server#authoritative_region
