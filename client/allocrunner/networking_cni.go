@@ -184,12 +184,15 @@ func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.Result) (*structs.AllocN
 
 	}
 
-	// Use the first DNS results.
+	// Use the first DNS results, if non-empty
 	if len(res.DNS) > 0 {
-		netStatus.DNS = &structs.DNSConfig{
-			Servers:  res.DNS[0].Nameservers,
-			Searches: res.DNS[0].Search,
-			Options:  res.DNS[0].Options,
+		cniDNS := res.DNS[0]
+		if len(cniDNS.Nameservers) > 0 {
+			netStatus.DNS = &structs.DNSConfig{
+				Servers:  cniDNS.Nameservers,
+				Searches: cniDNS.Search,
+				Options:  cniDNS.Options,
+			}
 		}
 	}
 
