@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/shoenig/test/must"
@@ -251,7 +252,7 @@ func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execO
 }
 
 // SetEnvvars sets path and host env vars depending on the FS isolation used.
-func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir) {
+func SetEnvvars(envBuilder *taskenv.Builder, fsmode fsisolation.Mode, taskDir *allocdir.TaskDir) {
 
 	envBuilder.SetClientTaskRoot(taskDir.Dir)
 	envBuilder.SetClientSharedAllocDir(taskDir.SharedAllocDir)
@@ -259,8 +260,8 @@ func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 	envBuilder.SetClientTaskSecretsDir(taskDir.SecretsDir)
 
 	// Set driver-specific environment variables
-	switch fsi {
-	case drivers.FSIsolationNone:
+	switch fsmode {
+	case fsisolation.None, fsisolation.Unveil:
 		// Use host paths
 		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
 		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
@@ -273,7 +274,7 @@ func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 	}
 
 	// Set the host environment variables for non-image based drivers
-	if fsi != drivers.FSIsolationImage {
+	if fsmode != fsisolation.Image {
 		envBuilder.SetHostEnvvars([]string{"env.denylist"})
 	}
 }
