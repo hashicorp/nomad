@@ -1309,6 +1309,11 @@ func connectGatewayTLSConfigDiff(prev, next *ConsulGatewayTLSConfig, contextual 
 	// Diff the primitive field.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
+	// Diff SDS object
+	if sdsDiff := primitiveObjectDiff(prev.SDS, next.SDS, nil, "SDS", contextual); sdsDiff != nil {
+		diff.Objects = append(diff.Objects, sdsDiff)
+	}
+
 	return diff
 }
 
@@ -1438,12 +1443,93 @@ func connectGatewayIngressServiceDiff(prev, next *ConsulIngressService, contextu
 		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
 	}
 
+	// Diff pointer types.
+	if prev != nil {
+		if prev.MaxConnections != nil {
+			oldPrimitiveFlat["MaxConnections"] = fmt.Sprintf("%v", *prev.MaxConnections)
+		}
+	}
+	if next != nil {
+		if next.MaxConnections != nil {
+			newPrimitiveFlat["MaxConnections"] = fmt.Sprintf("%v", *next.MaxConnections)
+		}
+	}
+	if prev != nil {
+		if prev.MaxPendingRequests != nil {
+			oldPrimitiveFlat["MaxPendingRequests"] = fmt.Sprintf("%v", *prev.MaxPendingRequests)
+		}
+	}
+	if next != nil {
+		if next.MaxPendingRequests != nil {
+			newPrimitiveFlat["MaxPendingRequests"] = fmt.Sprintf("%v", *next.MaxPendingRequests)
+		}
+	}
+	if prev != nil {
+		if prev.MaxConcurrentRequests != nil {
+			oldPrimitiveFlat["MaxConcurrentRequests"] = fmt.Sprintf("%v", *prev.MaxConcurrentRequests)
+		}
+	}
+	if next != nil {
+		if next.MaxConcurrentRequests != nil {
+			newPrimitiveFlat["MaxConcurrentRequests"] = fmt.Sprintf("%v", *next.MaxConcurrentRequests)
+		}
+	}
+
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	// Diff the hosts.
 	if hDiffs := stringSetDiff(prev.Hosts, next.Hosts, "Hosts", contextual); hDiffs != nil {
 		diff.Objects = append(diff.Objects, hDiffs)
+	}
+
+	// Diff the ConsulGatewayTLSConfig objects.
+	tlsConfigDiff := connectGatewayTLSConfigDiff(prev.TLS, next.TLS, contextual)
+	if tlsConfigDiff != nil {
+		diff.Objects = append(diff.Objects, tlsConfigDiff)
+	}
+
+	// Diff the ConsulHTTPHeaderModifiers objects (RequestHeaders).
+	reqModifiersDiff := connectGatewayHTTPHeaderModifiersDiff(prev.RequestHeaders, next.RequestHeaders, "RequestHeaders", contextual)
+	if reqModifiersDiff != nil {
+		diff.Objects = append(diff.Objects, reqModifiersDiff)
+	}
+
+	// Diff the ConsulHTTPHeaderModifiers objects (ResponseHeaders).
+	respModifiersDiff := connectGatewayHTTPHeaderModifiersDiff(prev.ResponseHeaders, next.ResponseHeaders, "ResponseHeaders", contextual)
+	if respModifiersDiff != nil {
+		diff.Objects = append(diff.Objects, respModifiersDiff)
+	}
+
+	return diff
+}
+
+func connectGatewayHTTPHeaderModifiersDiff(prev, next *ConsulHTTPHeaderModifiers, name string, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: name}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		prev = new(ConsulHTTPHeaderModifiers)
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		next = new(ConsulHTTPHeaderModifiers)
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the Remove Headers.
+	if rDiffs := stringSetDiff(prev.Remove, next.Remove, "Remove", contextual); rDiffs != nil {
+		diff.Objects = append(diff.Objects, rDiffs)
 	}
 
 	return diff
