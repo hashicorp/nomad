@@ -3629,6 +3629,12 @@ func TestTaskGroupDiff(t *testing.T) {
 															},
 															{
 																Type: DiffTypeNone,
+																Name: "DestinationPartition",
+																Old:  "",
+																New:  "",
+															},
+															{
+																Type: DiffTypeNone,
 																Name: "DestinationPeer",
 																Old:  "",
 																New:  "",
@@ -9724,14 +9730,15 @@ func TestServicesDiff(t *testing.T) {
 								LocalServicePort:    8080,
 								Upstreams: []ConsulUpstream{
 									{
-										DestinationName:     "count-api",
-										LocalBindPort:       8080,
-										Datacenter:          "dc2",
-										LocalBindAddress:    "127.0.0.1",
-										LocalBindSocketMode: "0700",
-										LocalBindSocketPath: "/tmp/redis_5678.sock",
-										DestinationPeer:     "cloud-services",
-										DestinationType:     "service",
+										DestinationName:      "count-api",
+										LocalBindPort:        8080,
+										Datacenter:           "dc2",
+										LocalBindAddress:     "127.0.0.1",
+										LocalBindSocketMode:  "0700",
+										LocalBindSocketPath:  "/tmp/redis_5678.sock",
+										DestinationPeer:      "cloud-services",
+										DestinationPartition: "infra",
+										DestinationType:      "service",
 										MeshGateway: ConsulMeshGateway{
 											Mode: "remote",
 										},
@@ -9763,6 +9770,13 @@ func TestServicesDiff(t *testing.T) {
 													Type: DiffTypeEdited,
 													Name: "ConsulUpstreams",
 													Fields: []*FieldDiff{
+														{
+															Type:        DiffTypeAdded,
+															Name:        "DestinationPartition",
+															Old:         "",
+															New:         "infra",
+															Annotations: nil,
+														},
 														{
 															Type:        DiffTypeAdded,
 															Name:        "DestinationPeer",
