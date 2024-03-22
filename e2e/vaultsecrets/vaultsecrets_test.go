@@ -107,16 +107,16 @@ func TestVaultSecrets(t *testing.T) {
 	writePolicy(t, policyID, "./input/policy-good.hcl", testID)
 	submission.Rerun(jobs3.ReplaceInJobSpec("FIRST", "SECOND"))
 
-	// record the rough start of vault lease TTL window, so that we don't have
-	// to wait excessively later on
-	ttlStart := time.Now()
-
 	// job should be now unblocked
 	err = e2e.WaitForAllocStatusExpected(jobID, ns, []string{"running", "complete"})
 	must.NoError(t, err, must.Sprint("expected running->complete allocation"))
 
 	renderedCert := waitForAllocSecret(t, submission, "/secrets/certificate.crt", "BEGIN CERTIFICATE")
 	waitForAllocSecret(t, submission, "/secrets/access.key", secretValue)
+
+	// record the earliest we can guaranteee that the vault lease TTL has
+	// started, so we don't have to wait excessively later on
+	ttlStart := time.Now()
 
 	var re = regexp.MustCompile(`VAULT_TOKEN=(.*)`)
 
