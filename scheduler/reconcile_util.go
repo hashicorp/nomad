@@ -295,7 +295,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		if alloc.TerminalStatus() && !reconnect {
 			// Server-terminal allocs, if supportsDisconnectedClient and not reconnect,
 			// are probably stopped replacements and should be ignored
-			if supportsDisconnectedClients && alloc.DesiredStatus != structs.AllocDesiredStatusRun {
+			if supportsDisconnectedClients && alloc.ServerTerminalStatus() {
 				ignore[alloc.ID] = alloc
 				continue
 			}
