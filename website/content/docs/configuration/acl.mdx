@@ -50,8 +50,12 @@ acl {
   because of an outage, the TTL will be ignored and the cached value used.
 
 - `replication_token` `(string: "")` - Specifies the Secret ID of the ACL token
-  to use for replicating policies and tokens. This is used by servers in non-authoritative
-  region to mirror the policies and tokens into the local region from [authoritative_region][authoritative-region].
+  to use for replicating policies and tokens. This is used by servers in
+  non-authoritative region to mirror the policies and tokens into the local
+  region from the [`authoritative_region`][authoritative-region]. Setting
+  `replication_token` requires that ACLs have been bootstrapped in the
+  authoritative region. See [Configure for multiple regions][] in the ACLs
+  tutorial.
 
 - `token_min_expiration_ttl` `(string: "1m")` - Specifies the lowest acceptable
   TTL value for an ACL token when setting expiration. This is used by the Nomad
@@ -63,3 +67,4 @@ acl {
 
 [secure-guide]: /nomad/tutorials/access-control
 [authoritative-region]: /nomad/docs/configuration/server#authoritative_region
+[Configure for multiple regions]: /nomad/tutorials/access-control/access-control-bootstrap#configure-for-multiple-regions
