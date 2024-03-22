@@ -304,7 +304,7 @@ module('Acceptance | keyboard', function (hooks) {
       triggerEvent('.page-layout', 'keydown', { key: '0' });
       await triggerEvent('.page-layout', 'keydown', { key: '1' });
 
-      const clickedJob = server.db.jobs[0].id;
+      const clickedJob = server.db.jobs.sortBy('modifyIndex').reverse()[0].id;
       assert.equal(
         currentURL(),
         `/jobs/${clickedJob}@default`,
@@ -313,7 +313,9 @@ module('Acceptance | keyboard', function (hooks) {
     });
     test('Multi-Table Nav', async function (assert) {
       server.createList('job', 3, { createRecommendations: true });
-      await visit(`/jobs/${server.db.jobs[0].id}@default`);
+      await visit(
+        `/jobs/${server.db.jobs.sortBy('modifyIndex').reverse()[0].id}@default`
+      );
       const numberOfGroups = findAll('.task-group-row').length;
       const numberOfAllocs = findAll('.allocation-row').length;
 
