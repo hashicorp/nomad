@@ -18,17 +18,19 @@ const (
 
 type UIJob struct {
 	NamespacedID
-	Name          string
-	Type          string
-	NodePool      string
-	Datacenters   []string
-	Priority      int
-	Allocs        []JobStatusAlloc
-	SmartAlloc    map[string]int
-	GroupCountSum int
-	ChildStatuses []string
-	DeploymentID  string
-	Version       uint64
+	Name               string
+	Type               string
+	NodePool           string
+	Datacenters        []string
+	Priority           int
+	Allocs             []JobStatusAlloc
+	SmartAlloc         map[string]int
+	GroupCountSum      int
+	ChildStatuses      []string
+	ActiveDeploymentID string
+	Version            uint64
+	SubmitTime         int64
+	ModifyIndex        uint64
 }
 
 type JobsStatusesRequest struct {
