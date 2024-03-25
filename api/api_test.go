@@ -14,6 +14,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -22,9 +24,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-type configCallback func(c *Config)
-
-func makeACLClient(t *testing.T, cb1 configCallback,
+func makeACLClient(t *testing.T, cb1 ModifyConfigFunc,
 	cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer, *ACLToken) {
 	client, server := makeClient(t, cb1, func(c *testutil.TestServerConfig) {
 		c.ACL.Enabled = true
@@ -42,7 +42,7 @@ func makeACLClient(t *testing.T, cb1 configCallback,
 	return client, server, root
 }
 
-func makeClient(t *testing.T, cb1 configCallback,
+func makeClient(t *testing.T, cb1 ModifyConfigFunc,
 	cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer) {
 	// Make client config
 	conf := DefaultConfig()
@@ -594,4 +594,47 @@ func TestClient_autoUnzip(t *testing.T) {
 		Header: http.Header{"Content-Encoding": []string{"gzip"}},
 		Body:   io.NopCloser(&b),
 	}, nil)
+}
+
+func Test_TaskClient(t *testing.T) {
+	// setup a fake secrets dir and api socket
+	secretsDir := t.TempDir()
+	fakeSocketPath := filepath.Join(secretsDir, "api.sock")
+	_, err := os.OpenFile(fakeSocketPath, os.O_RDONLY|os.O_CREATE, 0o640)
+	must.NoError(t, err)
+
+	t.Run("missing socket", func(t *testing.T) {
+		t.Setenv("NOMAD_TOKEN", "e6b1233c-3faa-e04d-8c74-5ce8760e0b2b")
+		client := TaskClient(nil)
+		must.Nil(t, client)
+	})
+
+	t.Run("missing token", func(t *testing.T) {
+		t.Setenv("NOMAD_SECRETS_DIR", secretsDir)
+		client := TaskClient(nil)
+		must.Nil(t, client)
+	})
+
+	t.Run("defaults", func(t *testing.T) {
+		t.Setenv("NOMAD_SECRETS_DIR", secretsDir)
+		t.Setenv("NOMAD_TOKEN", "e6b1233c-3faa-e04d-8c74-5ce8760e0b2b")
+		client := TaskClient(nil)
+		must.NotNil(t, client)
+		must.Eq(t, "http://nomad"+fakeSocketPath, client.config.Address)
+		must.Eq(t, map[string][]string{
+			"Authorization": {
+				fmt.Sprintf("Bearer %s", "e6b1233c-3faa-e04d-8c74-5ce8760e0b2b"),
+			},
+		}, client.config.Headers)
+	})
+
+	t.Run("modify", func(t *testing.T) {
+		t.Setenv("NOMAD_SECRETS_DIR", secretsDir)
+		t.Setenv("NOMAD_TOKEN", "e6b1233c-3faa-e04d-8c74-5ce8760e0b2b")
+		client := TaskClient(func(c *Config) {
+			c.Namespace = "myns"
+		})
+		must.NotNil(t, client)
+		must.Eq(t, "myns", client.config.Namespace)
+	})
 }
