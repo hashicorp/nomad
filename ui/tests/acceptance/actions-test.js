@@ -339,7 +339,7 @@ module('Acceptance | actions', function (hooks) {
     );
     await percySnapshot(assert, {
       percyCSS: `
-          g.tick { visibility: hidden; };
+          g.tick { visibility: hidden; }
           .recent-events-table td {
             display: none;
           }
