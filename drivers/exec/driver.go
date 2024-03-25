@@ -20,8 +20,10 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
+	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
@@ -83,6 +85,8 @@ var (
 			hclspec.NewAttr("allow_caps", "list(string)", false),
 			hclspec.NewLiteral(capabilities.HCLSpecLiteral),
 		),
+		"denied_host_uids": hclspec.NewAttr("denied_host_uids", "string", false),
+		"denied_host_gids": hclspec.NewAttr("denied_host_gids", "string", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -159,6 +163,15 @@ type Config struct {
 	// AllowCaps configures which Linux Capabilities are enabled for tasks
 	// running on this node.
 	AllowCaps []string `codec:"allow_caps"`
+
+	DeniedHostUidsStr string `codec:"denied_host_uids"`
+	DeniedHostGidsStr string `codec:"denied_host_gids"`
+
+	// DeniedHostUids configures which host uids are disallowed
+	DeniedHostUids []validators.IDRange `codec:"-"`
+
+	// DeniedHostGids configures which host gids are disallowed
+	DeniedHostGids []validators.IDRange `codec:"-"`
 }
 
 func (c *Config) validate() error {
@@ -178,6 +191,23 @@ func (c *Config) validate() error {
 	if !badCaps.Empty() {
 		return fmt.Errorf("allow_caps configured with capabilities not supported by system: %s", badCaps)
 	}
+
+	return nil
+}
+
+func (c *Config) setDeniedIds() error {
+	deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", c.DeniedHostUidsStr)
+	if err != nil {
+		return err
+	}
+
+	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", c.DeniedHostGidsStr)
+	if err != nil {
+		return err
+	}
+
+	c.DeniedHostUids = deniedUidRanges
+	c.DeniedHostGids = deniedGidRanges
 
 	return nil
 }
@@ -223,12 +253,22 @@ func (tc *TaskConfig) validate() error {
 	if !badAdds.Empty() {
 		return fmt.Errorf("cap_add configured with capabilities not supported by system: %s", badAdds)
 	}
+
 	badDrops := supported.Difference(capabilities.New(tc.CapDrop))
 	if !badDrops.Empty() {
 		return fmt.Errorf("cap_drop configured with capabilities not supported by system: %s", badDrops)
 	}
 
 	return nil
+}
+
+func (tc *TaskConfig) validateUserIds(cfg *drivers.TaskConfig, driverConfig *Config) error {
+	user, err := users.Lookup(cfg.User)
+	if err != nil {
+		return fmt.Errorf("failed to identify user %q: %w", cfg.User, err)
+	}
+
+	return validators.HasValidIds(user, driverConfig.DeniedHostUids, driverConfig.DeniedHostGids)
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -291,6 +331,10 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		}
 	}
 	if err := config.validate(); err != nil {
+		return err
+	}
+
+	if err := config.setDeniedIds(); err != nil {
 		return err
 	}
 	d.config = config
@@ -437,6 +481,17 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
 	}
 
+	if cfg.User == "" {
+		fmt.Println("User is not empty, setting to nobody")
+		cfg.User = "nobody"
+	} else {
+		fmt.Printf("User is not empty, user is %s\n", cfg.User)
+	}
+
+	if err := driverConfig.validateUserIds(cfg, &d.config); err != nil {
+		return nil, nil, fmt.Errorf("failed host user validation: %v", err)
+	}
+
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
@@ -457,9 +512,6 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	user := cfg.User
-	if user == "" {
-		user = "nobody"
-	}
 
 	if cfg.DNS != nil {
 		dnsMount, err := resolvconf.GenerateDNSMount(cfg.TaskDir().Dir, cfg.DNS)

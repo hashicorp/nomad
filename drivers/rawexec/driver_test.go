@@ -93,7 +93,6 @@ func newEnabledRawExecDriver(t *testing.T) *Driver {
 
 func TestRawExecDriver_SetConfig(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -111,18 +110,27 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	)
 
 	// Default is raw_exec is disabled.
-	require.NoError(basePlug.MsgPackEncode(&data, config))
+	must.NoError(t, basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
-	require.NoError(harness.SetConfig(bconfig))
-	require.Exactly(config, d.(*Driver).config)
+	must.NoError(t, harness.SetConfig(bconfig))
+	must.Eq(t, config, d.(*Driver).config)
 
 	// Enable raw_exec, but disable cgroups.
 	config.Enabled = true
 	data = []byte{}
-	require.NoError(basePlug.MsgPackEncode(&data, config))
+	must.NoError(t, basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
-	require.NoError(harness.SetConfig(bconfig))
-	require.Exactly(config, d.(*Driver).config)
+	must.NoError(t, harness.SetConfig(bconfig))
+	must.Eq(t, config, d.(*Driver).config)
+
+	// Turns on uid/gid restrictions, and sets the range to a bad value
+	config.DeniedHostUidsStr = "100-1"
+	data = []byte{}
+	must.NoError(t, basePlug.MsgPackEncode(&data, config))
+	bconfig.PluginConfig = data
+	err := harness.SetConfig(bconfig)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "invalid range \"100-1\", lower bound cannot be greater than upper bound")
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
