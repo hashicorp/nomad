@@ -942,6 +942,20 @@ func (s *ServerConfig) EncryptBytes() ([]byte, error) {
 
 // Telemetry is the telemetry configuration for the server
 type Telemetry struct {
+
+	// InMemoryCollectionInterval configures the in-memory sink collection
+	// interval. This sink is always configured and backs the JSON metrics API
+	// endpoint. This option is particularly useful for debugging or
+	// development.
+	InMemoryCollectionInterval string        `hcl:"in_memory_collection_interval"`
+	inMemoryCollectionInterval time.Duration `hcl:"-"`
+
+	// InMemoryRetentionPeriod configures the in-memory sink retention period
+	// This sink is always configured and backs the JSON metrics API endpoint.
+	// This option is particularly useful for debugging or development.
+	InMemoryRetentionPeriod string        `hcl:"in_memory_retention_period"`
+	inMemoryRetentionPeriod time.Duration `hcl:"-"`
+
 	StatsiteAddr             string        `hcl:"statsite_address"`
 	StatsdAddr               string        `hcl:"statsd_address"`
 	DataDogAddr              string        `hcl:"datadog_address"`
@@ -1062,8 +1076,8 @@ func (t *Telemetry) Copy() *Telemetry {
 }
 
 // PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
-func (a *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
-	for _, rule := range a.PrefixFilter {
+func (t *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
+	for _, rule := range t.PrefixFilter {
 		if rule == "" {
 			continue
 		}
@@ -1077,6 +1091,30 @@ func (a *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
 		}
 	}
 	return allowed, blocked, nil
+}
+
+// Validate the telemetry configuration options. These are used by the agent,
+// regardless of mode, so can live here rather than a structs package. It is
+// safe to call, without checking whether the config object is nil first.
+func (t *Telemetry) Validate() error {
+	if t == nil {
+		return nil
+	}
+
+	// Ensure we have durations that are greater than zero.
+	if t.inMemoryCollectionInterval <= 0 {
+		return errors.New("telemetry in-memory collection interval must be greater than zero")
+	}
+	if t.inMemoryRetentionPeriod <= 0 {
+		return errors.New("telemetry in-memory retention period must be greater than zero")
+	}
+
+	// Ensure the in-memory durations do not conflict.
+	if t.inMemoryCollectionInterval > t.inMemoryRetentionPeriod {
+		return errors.New("telemetry in-memory collection interval cannot be greater than retention period")
+	}
+
+	return nil
 }
 
 // Ports encapsulates the various ports we bind to for network services. If any
@@ -1391,8 +1429,12 @@ func DefaultConfig() *Config {
 		},
 		SyslogFacility: "LOCAL0",
 		Telemetry: &Telemetry{
-			CollectionInterval: "1s",
-			collectionInterval: 1 * time.Second,
+			InMemoryCollectionInterval: "10s",
+			inMemoryCollectionInterval: 10 * time.Second,
+			InMemoryRetentionPeriod:    "1m",
+			inMemoryRetentionPeriod:    1 * time.Minute,
+			CollectionInterval:         "1s",
+			collectionInterval:         1 * time.Second,
 		},
 		TLSConfig:          &config.TLSConfig{},
 		Sentinel:           &config.SentinelConfig{},
@@ -2371,9 +2413,21 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 }
 
 // Merge is used to merge two telemetry configs together
-func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
-	result := *a
+func (t *Telemetry) Merge(b *Telemetry) *Telemetry {
+	result := *t
 
+	if b.InMemoryCollectionInterval != "" {
+		result.InMemoryCollectionInterval = b.InMemoryCollectionInterval
+	}
+	if b.inMemoryCollectionInterval != 0 {
+		result.inMemoryCollectionInterval = b.inMemoryCollectionInterval
+	}
+	if b.InMemoryRetentionPeriod != "" {
+		result.InMemoryRetentionPeriod = b.InMemoryRetentionPeriod
+	}
+	if b.inMemoryRetentionPeriod != 0 {
+		result.inMemoryRetentionPeriod = b.inMemoryRetentionPeriod
+	}
 	if b.StatsiteAddr != "" {
 		result.StatsiteAddr = b.StatsiteAddr
 	}

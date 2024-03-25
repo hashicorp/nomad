@@ -352,6 +352,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	if err := config.Telemetry.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("telemetry block invalid: %v", err))
+		return false
+	}
+
 	// Set up the TLS configuration properly if we have one.
 	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
 	// constructor-type actions like this.
@@ -1155,14 +1160,8 @@ func (c *Command) handleReload() {
 	}
 }
 
-// setupTelemetry is used ot setup the telemetry sub-systems
+// setupTelemetry is used to set up the telemetry sub-systems.
 func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
-	/* Setup telemetry
-	Aggregate on 10 second intervals for 1 minute. Expose the
-	metrics over stderr when there is a SIGUSR1 received.
-	*/
-	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
-	metrics.DefaultInmemSignal(inm)
 
 	var telConfig *Telemetry
 	if config.Telemetry == nil {
@@ -1170,6 +1169,9 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	} else {
 		telConfig = config.Telemetry
 	}
+
+	inm := metrics.NewInmemSink(telConfig.inMemoryCollectionInterval, telConfig.inMemoryRetentionPeriod)
+	metrics.DefaultInmemSignal(inm)
 
 	metricsConf := metrics.DefaultConfig("nomad")
 	metricsConf.EnableHostname = !telConfig.DisableHostname
