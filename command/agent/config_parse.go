@@ -109,6 +109,8 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL, nil},
 		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL, nil},
 		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL, nil},
+		{"telemetry.in_memory_collection_interval", &c.Telemetry.inMemoryCollectionInterval, &c.Telemetry.InMemoryCollectionInterval, nil},
+		{"telemetry.in_memory_retention_period", &c.Telemetry.inMemoryRetentionPeriod, &c.Telemetry.InMemoryRetentionPeriod, nil},
 		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval, nil},
 		{"client.template.block_query_wait", nil, &c.Client.TemplateConfig.BlockQueryWaitTimeHCL,
 			func(d *time.Duration) {
