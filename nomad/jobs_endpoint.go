@@ -96,12 +96,18 @@ func (j *Jobs) Statuses(
 				return err
 			}
 
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
-			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = state.JobsByNamespace(ws, namespace, sort)
+			// the UI jobs index page shows most-recently changed at the top,
+			// and with pagination, we need to sort here on the backend.
+			if true { // TODO: parameterize...?
+				iter, err = state.JobsByModifyIndex(ws, sort)
 			} else {
-				iter, err = state.Jobs(ws, sort)
+				if prefix := args.QueryOptions.Prefix; prefix != "" {
+					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
+				} else if namespace != structs.AllNamespacesSentinel {
+					iter, err = state.JobsByNamespace(ws, namespace, sort)
+				} else {
+					iter, err = state.Jobs(ws, sort)
+				}
 			}
 			if err != nil {
 				return err
