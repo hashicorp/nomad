@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where overlapping system allocations would not be stopped
+```
