@@ -4062,9 +4062,10 @@ func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
 	require.Nil(t, apiConnectSidecarServiceProxyToStructs(nil))
 	config := make(map[string]interface{})
 	require.Equal(t, &structs.ConsulProxy{
-		LocalServiceAddress: "192.168.30.1",
-		LocalServicePort:    9000,
-		Config:              map[string]any{},
+		LocalServiceAddress:    "192.168.30.1",
+		LocalServicePort:       9000,
+		LocalServiceSocketPath: "/run/test.sock",
+		Config:                 map[string]any{},
 		Upstreams: []structs.ConsulUpstream{{
 			DestinationName: "upstream",
 		}},
@@ -4072,9 +4073,10 @@ func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
 			Paths: []structs.ConsulExposePath{{Path: "/health"}},
 		},
 	}, apiConnectSidecarServiceProxyToStructs(&api.ConsulProxy{
-		LocalServiceAddress: "192.168.30.1",
-		LocalServicePort:    9000,
-		Config:              config,
+		LocalServiceAddress:    "192.168.30.1",
+		LocalServicePort:       9000,
+		LocalServiceSocketPath: "/run/test.sock",
+		Config:                 config,
 		Upstreams: []*api.ConsulUpstream{{
 			DestinationName: "upstream",
 		}},
@@ -4093,7 +4095,8 @@ func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
 		Tags: []string{"foo"},
 		Port: "myPort",
 		Proxy: &structs.ConsulProxy{
-			LocalServiceAddress: "192.168.30.1",
+			LocalServiceAddress:    "192.168.30.1",
+			LocalServiceSocketPath: "/run/test.sock",
 		},
 		Meta: map[string]string{
 			"test-key": "test-value",
@@ -4102,7 +4105,8 @@ func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
 		Tags: []string{"foo"},
 		Port: "myPort",
 		Proxy: &api.ConsulProxy{
-			LocalServiceAddress: "192.168.30.1",
+			LocalServiceAddress:    "192.168.30.1",
+			LocalServiceSocketPath: "/run/test.sock",
 		},
 		Meta: map[string]string{
 			"test-key": "test-value",

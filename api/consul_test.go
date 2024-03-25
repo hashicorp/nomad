@@ -107,8 +107,9 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 			Tags: make([]string, 0),
 			Port: "port",
 			Proxy: &ConsulProxy{
-				LocalServiceAddress: "lsa",
-				LocalServicePort:    80,
+				LocalServiceAddress:    "lsa",
+				LocalServicePort:       80,
+				LocalServiceSocketPath: "/run/test.sock",
 			},
 			Meta: map[string]string{
 				"test-key": "test-value",
@@ -119,8 +120,9 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 			Tags: nil,
 			Port: "port",
 			Proxy: &ConsulProxy{
-				LocalServiceAddress: "lsa",
-				LocalServicePort:    80},
+				LocalServiceAddress:    "lsa",
+				LocalServicePort:       80,
+				LocalServiceSocketPath: "/run/test.sock"},
 			Meta: map[string]string{
 				"test-key": "test-value",
 			},
@@ -142,6 +144,7 @@ func TestConsulProxy_Canonicalize(t *testing.T) {
 		cp.Canonicalize()
 		must.Eq(t, "", cp.LocalServiceAddress)
 		must.Zero(t, cp.LocalServicePort)
+		must.Eq(t, "", cp.LocalServiceSocketPath)
 		must.Nil(t, cp.Expose)
 		must.Nil(t, cp.Upstreams)
 		must.MapEmpty(t, cp.Config)
@@ -149,15 +152,17 @@ func TestConsulProxy_Canonicalize(t *testing.T) {
 
 	t.Run("non empty proxy", func(t *testing.T) {
 		cp := &ConsulProxy{
-			LocalServiceAddress: "127.0.0.1",
-			LocalServicePort:    80,
-			Expose:              new(ConsulExposeConfig),
-			Upstreams:           make([]*ConsulUpstream, 0),
-			Config:              make(map[string]interface{}),
+			LocalServiceAddress:    "127.0.0.1",
+			LocalServicePort:       80,
+			LocalServiceSocketPath: "/run/test.sock",
+			Expose:                 new(ConsulExposeConfig),
+			Upstreams:              make([]*ConsulUpstream, 0),
+			Config:                 make(map[string]interface{}),
 		}
 		cp.Canonicalize()
 		must.Eq(t, "127.0.0.1", cp.LocalServiceAddress)
 		must.Eq(t, 80, cp.LocalServicePort)
+		must.Eq(t, "/run/test.sock", cp.LocalServiceSocketPath)
 		must.Eq(t, &ConsulExposeConfig{}, cp.Expose)
 		must.Nil(t, cp.Upstreams)
 		must.Nil(t, cp.Config)
