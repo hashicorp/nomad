@@ -452,14 +452,14 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	}
 
 	pprofFiles := []string{
-		"allocs.prof",
-		"goroutine-debug1.txt",
-		"goroutine-debug2.txt",
-		"goroutine.prof",
-		"heap.prof",
+		"allocs_0000.prof",
+		"goroutine-debug1_0000.txt",
+		"goroutine-debug2_0000.txt",
+		"goroutine_0000.prof",
+		"heap_0000.prof",
 		"profile_0000.prof",
-		"threadcreate.prof",
-		"trace.prof",
+		"threadcreate_0000.prof",
+		"trace_0000.prof",
 	}
 
 	clientFiles := []string{
