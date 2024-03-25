@@ -695,6 +695,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator autopilot health": func() (cli.Command, error) {
+			return &OperatorAutopilotHealthCommand{
+				Meta: meta,
+			}, nil
+		},
 
 		"operator client-state": func() (cli.Command, error) {
 			return &OperatorClientStateCommand{
