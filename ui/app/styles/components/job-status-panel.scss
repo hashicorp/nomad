@@ -454,10 +454,10 @@
 
     & > header {
       display: grid;
-      grid-template-columns: 1fr 2fr;
+      grid-template-columns: 1fr 2fr 60px;
       gap: 1rem;
       margin-bottom: 1rem;
-      align-items: end;
+      align-items: start; // TODO: end?
       & > h4 {
         margin-bottom: 0;
         height: 100%;
@@ -494,7 +494,11 @@
     .timeline-container {
       max-height: 300px;
       overflow-y: auto;
-      & > ol > li {
+
+      & > .timeline-categories h3 {
+        padding: 2rem 0 0.5rem;
+      }
+      & > .timeline-categories > ol > li {
         @for $i from 1 through 50 {
           &:nth-child(#{$i}) {
             animation-name: historyItemSlide;
