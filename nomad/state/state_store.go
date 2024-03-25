@@ -2479,7 +2479,7 @@ func (s *StateStore) JobsByPool(ws memdb.WatchSet, pool string) (memdb.ResultIte
 func (s *StateStore) JobsByModifyIndex(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := GetSorted(txn, sort, "jobs", "modify_index")
+	iter, err := getSorted(txn, sort, "jobs", "modify_index")
 	if err != nil {
 		return nil, err
 	}
