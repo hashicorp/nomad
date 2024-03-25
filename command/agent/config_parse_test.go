@@ -197,15 +197,19 @@ var basicConfig = &Config{
 		},
 	},
 	Telemetry: &Telemetry{
-		StatsiteAddr:             "127.0.0.1:1234",
-		StatsdAddr:               "127.0.0.1:2345",
-		PrometheusMetrics:        true,
-		DisableHostname:          true,
-		UseNodeName:              false,
-		CollectionInterval:       "3s",
-		collectionInterval:       3 * time.Second,
-		PublishAllocationMetrics: true,
-		PublishNodeMetrics:       true,
+		StatsiteAddr:               "127.0.0.1:1234",
+		StatsdAddr:                 "127.0.0.1:2345",
+		PrometheusMetrics:          true,
+		DisableHostname:            true,
+		UseNodeName:                false,
+		InMemoryCollectionInterval: "1m",
+		inMemoryCollectionInterval: 1 * time.Minute,
+		InMemoryRetentionPeriod:    "24h",
+		inMemoryRetentionPeriod:    24 * time.Hour,
+		CollectionInterval:         "3s",
+		collectionInterval:         3 * time.Second,
+		PublishAllocationMetrics:   true,
+		PublishNodeMetrics:         true,
 	},
 	LeaveOnInt:                true,
 	LeaveOnTerm:               true,
@@ -1079,4 +1083,24 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			must.Eq(t, "nomad-client", cfg.Consuls[2].ClientServiceName)
 		})
 	}
+}
+
+func TestConfig_Telemetry(t *testing.T) {
+	ci.Parallel(t)
+
+	// Ensure merging a mostly empty struct correctly inherits default values
+	// set.
+	inputTelemetry1 := &Telemetry{PrometheusMetrics: true}
+	mergedTelemetry1 := DefaultConfig().Telemetry.Merge(inputTelemetry1)
+	must.Eq(t, mergedTelemetry1.inMemoryCollectionInterval, 10*time.Second)
+	must.Eq(t, mergedTelemetry1.inMemoryRetentionPeriod, 1*time.Minute)
+
+	// Ensure we can then overlay user specified data.
+	inputTelemetry2 := &Telemetry{
+		inMemoryCollectionInterval: 1 * time.Second,
+		inMemoryRetentionPeriod:    10 * time.Second,
+	}
+	mergedTelemetry2 := mergedTelemetry1.Merge(inputTelemetry2)
+	must.Eq(t, mergedTelemetry2.inMemoryCollectionInterval, 1*time.Second)
+	must.Eq(t, mergedTelemetry2.inMemoryRetentionPeriod, 10*time.Second)
 }
