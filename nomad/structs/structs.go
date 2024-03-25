@@ -132,6 +132,10 @@ const (
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
 	NamespaceDeleteRequestType MessageType = 65
+
+	//TODO(schmichael) Might get rebased for a long time so pick a number
+	//unlikely to collide
+	PortlandRequestType MessageType = 99
 )
 
 const (
