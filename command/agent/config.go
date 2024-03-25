@@ -1101,11 +1101,17 @@ func (t *Telemetry) Validate() error {
 		return nil
 	}
 
-	// Ensure the in-memory durations are set correctly.
-	if t.inMemoryRetentionPeriod > 0 && t.inMemoryCollectionInterval > 0 {
-		if t.inMemoryCollectionInterval > t.inMemoryRetentionPeriod {
-			return errors.New("telemetry in-memory collection interval cannot be greater than retention period")
-		}
+	// Ensure we have durations that are greater than zero.
+	if t.inMemoryCollectionInterval <= 0 {
+		return errors.New("telemetry in-memory collection interval must be greater than zero")
+	}
+	if t.inMemoryRetentionPeriod <= 0 {
+		return errors.New("telemetry in-memory retention period must be greater than zero")
+	}
+
+	// Ensure the in-memory durations do not conflict.
+	if t.inMemoryCollectionInterval > t.inMemoryRetentionPeriod {
+		return errors.New("telemetry in-memory collection interval cannot be greater than retention period")
 	}
 
 	return nil

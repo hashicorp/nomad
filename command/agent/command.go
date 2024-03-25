@@ -1170,20 +1170,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		telConfig = config.Telemetry
 	}
 
-	// The values are defaulted in both the dev and default config object, so
-	// we should never have empty values. Do this, so it can never happen and
-	// cause agents to panic on start.
-	inMemInt := 10 * time.Second
-	inMemRet := 1 * time.Minute
-
-	if telConfig.inMemoryCollectionInterval > 0 {
-		inMemInt = telConfig.inMemoryCollectionInterval
-	}
-	if telConfig.inMemoryRetentionPeriod > 0 {
-		inMemRet = telConfig.inMemoryRetentionPeriod
-	}
-
-	inm := metrics.NewInmemSink(inMemInt, inMemRet)
+	inm := metrics.NewInmemSink(telConfig.inMemoryCollectionInterval, telConfig.inMemoryRetentionPeriod)
 	metrics.DefaultInmemSignal(inm)
 
 	metricsConf := metrics.DefaultConfig("nomad")

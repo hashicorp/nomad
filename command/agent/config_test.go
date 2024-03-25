@@ -1415,6 +1415,20 @@ func TestTelemetry_Validate(t *testing.T) {
 			},
 			expectedError: nil,
 		},
+		{
+			name: "missing in-memory interval",
+			inputTelemetry: &Telemetry{
+				inMemoryRetentionPeriod: 10 * time.Second,
+			},
+			expectedError: errors.New("telemetry in-memory collection interval must be greater than zero"),
+		},
+		{
+			name: "missing in-memory collection",
+			inputTelemetry: &Telemetry{
+				inMemoryCollectionInterval: 10 * time.Second,
+			},
+			expectedError: errors.New("telemetry in-memory retention period must be greater than zero"),
+		},
 	}
 
 	for _, tc := range testCases {
