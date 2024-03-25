@@ -43,9 +43,32 @@ func ParseWithConfig(args *ParseConfig) (*api.Job, error) {
 	args.normalize()
 
 	c := newJobConfig(args)
-	err := decode(c)
-	if err != nil {
-		return nil, err
+	diags := decode(c)
+	if diags.HasErrors() {
+		diag := diags[0]
+		if diag.Summary == "Failed to read file" {
+			return nil, fmt.Errorf("unable to parse var file: %v", diag.Error())
+		}
+		var str strings.Builder
+		for i, diag := range diags {
+			if i != 0 {
+				str.WriteByte('\n')
+			}
+			str.WriteString(diag.Error())
+		}
+		return nil, errors.New(str.String())
+	}
+	normalizeJob(c)
+	return c.Job, nil
+}
+
+func ParseJobFile(args *ParseConfig) (*api.Job, hcl.Diagnostics) {
+	args.normalize()
+
+	c := newJobConfig(args)
+	diags := decode(c)
+	if diags.HasErrors() {
+		return nil, diags
 	}
 
 	normalizeJob(c)
@@ -88,7 +111,7 @@ func (c *ParseConfig) normalize() {
 	}
 }
 
-func decode(c *jobConfig) error {
+func decode(c *jobConfig) hcl.Diagnostics {
 	config := c.ParseConfig
 
 	file, diags := parseHCLOrJSON(config.Body, config.Path)
@@ -96,7 +119,7 @@ func decode(c *jobConfig) error {
 	for _, varFile := range config.VarFiles {
 		parsedVarFile, ds := parseFile(varFile)
 		if parsedVarFile == nil || ds.HasErrors() {
-			return fmt.Errorf("unable to parse var file: %v", ds.Error())
+			return ds
 		}
 
 		config.parsedVarFiles = append(config.parsedVarFiles, parsedVarFile)
@@ -106,7 +129,7 @@ func decode(c *jobConfig) error {
 	if config.VarContent != "" {
 		hclFile, hclDiagnostics := parseHCLOrJSON([]byte(config.VarContent), "input.hcl")
 		if hclDiagnostics.HasErrors() {
-			return fmt.Errorf("unable to parse var content: %v", hclDiagnostics.Error())
+			return hclDiagnostics
 		}
 		config.parsedVarFiles = append(config.parsedVarFiles, hclFile)
 	}
@@ -127,7 +150,7 @@ func decode(c *jobConfig) error {
 			}
 			str.WriteString(diag.Error())
 		}
-		return errors.New(str.String())
+		return diags
 	}
 
 	diags = append(diags, decodeMapInterfaceType(&c.Job, c.EvalContext())...)
