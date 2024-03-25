@@ -170,13 +170,13 @@ func (j *Jobs) Statuses(
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
+					http.StatusInternalServerError, "failed to create result paginator: %v", err)
 			}
 
 			nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to read result page: %v", err)
+					http.StatusInternalServerError, "failed to read result page: %v", err)
 			}
 
 			// if the page has updated, or a job has gone away,
