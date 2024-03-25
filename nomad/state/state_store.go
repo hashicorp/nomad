@@ -2475,6 +2475,20 @@ func (s *StateStore) JobsByPool(ws memdb.WatchSet, pool string) (memdb.ResultIte
 	return iter, nil
 }
 
+// JobsByModifyIndex returns an iterator over all jobs, sorted by ModifyIndex.
+func (s *StateStore) JobsByModifyIndex(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := getSorted(txn, sort, "jobs", "modify_index")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // JobSummaryByID returns a job summary object which matches a specific id.
 func (s *StateStore) JobSummaryByID(ws memdb.WatchSet, namespace, jobID string) (*structs.JobSummary, error) {
 	txn := s.db.ReadTxn()
