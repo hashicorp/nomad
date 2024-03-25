@@ -349,6 +349,8 @@ func proxyUpstreamsDifferent(wanted *api.AgentServiceConnect, sidecar *api.Agent
 				return true
 			case A.DestinationPeer != B.DestinationPeer:
 				return true
+			case A.DestinationPartition != B.DestinationPartition:
+				return true
 			case A.DestinationType != B.DestinationType:
 				return true
 			case A.LocalBindSocketPath != B.LocalBindSocketPath:

@@ -714,6 +714,15 @@ func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
 		}
 	})
 
+	try(t, "different destination partition", func(p proxy) {
+		diff := upstream1()
+		diff.DestinationPartition = "foo"
+		p.Upstreams = []api.Upstream{
+			diff,
+			upstream2(),
+		}
+	})
+
 	try(t, "different destination type", func(p proxy) {
 		diff := upstream1()
 		diff.DestinationType = "service"
