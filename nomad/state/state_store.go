@@ -2266,11 +2266,7 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string, sor
 
 	txn := s.db.ReadTxn()
 
-<<<<<<< HEAD
 	iter, err := getSorted(txn, sort, "jobs", "id_prefix", namespace, id)
-=======
-	iter, err := GetSorted(txn, sort, "jobs", "id_prefix", namespace, id)
->>>>>>> 73102917b7 (enable reverse sorting jobs - REMEMBER ENT!)
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -2392,11 +2388,7 @@ func (s *StateStore) Jobs(ws memdb.WatchSet, sort SortOption) (memdb.ResultItera
 	txn := s.db.ReadTxn()
 
 	// Walk the entire jobs table
-<<<<<<< HEAD
 	iter, err := getSorted(txn, sort, "jobs", "id")
-=======
-	iter, err := GetSorted(txn, sort, "jobs", "id")
->>>>>>> 73102917b7 (enable reverse sorting jobs - REMEMBER ENT!)
 	if err != nil {
 		return nil, err
 	}
@@ -2414,11 +2406,7 @@ func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string, sort S
 
 // jobsByNamespaceImpl returns an iterator over all the jobs for the given namespace
 func (s *StateStore) jobsByNamespaceImpl(ws memdb.WatchSet, namespace string, txn *txn, sort SortOption) (memdb.ResultIterator, error) {
-<<<<<<< HEAD
 	iter, err := getSorted(txn, sort, "jobs", "id_prefix", namespace, "")
-=======
-	iter, err := GetSorted(txn, sort, "jobs", "id_prefix", namespace, "")
->>>>>>> 73102917b7 (enable reverse sorting jobs - REMEMBER ENT!)
 	if err != nil {
 		return nil, err
 	}
