@@ -212,11 +212,13 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 		Priority:    job.Priority,
 		Version:     job.Version,
 		// included here for completeness, populated below.
-		Allocs:        nil,
-		SmartAlloc:    make(map[string]int),
-		GroupCountSum: 0,
-		ChildStatuses: nil,
-		DeploymentID:  "",
+		Allocs:             nil,
+		SmartAlloc:         make(map[string]int),
+		GroupCountSum:      0,
+		ChildStatuses:      nil,
+		ActiveDeploymentID: "",
+		SubmitTime:         job.SubmitTime,
+		ModifyIndex:        job.ModifyIndex,
 	}
 
 	// the GroupCountSum will map to how many allocations we expect to run
@@ -293,7 +295,7 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 	}
 	if deploy != nil {
 		if deploy.Active() {
-			uiJob.DeploymentID = deploy.ID
+			uiJob.ActiveDeploymentID = deploy.ID
 		}
 		if deploy.ModifyIndex > idx {
 			idx = deploy.ModifyIndex
