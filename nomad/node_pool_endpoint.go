@@ -170,7 +170,11 @@ func (n *NodePool) GetNodePool(args *structs.NodePoolSpecificRequest, reply *str
 // cannot be updated.
 func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *structs.GenericResponse) error {
 	authErr := n.srv.Authenticate(n.ctx, args)
-	args.Region = n.srv.config.AuthoritativeRegion
+	if n.srv.config.ACLEnabled {
+		// only forward to the authoritative region if ACLs are enabled,
+		// otherwise we silently write to the local region
+		args.Region = n.srv.config.AuthoritativeRegion
+	}
 	if done, err := n.srv.forward("NodePool.UpsertNodePools", args, args, reply); done {
 		return err
 	}
@@ -231,7 +235,11 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 // deleted.
 func (n *NodePool) DeleteNodePools(args *structs.NodePoolDeleteRequest, reply *structs.GenericResponse) error {
 	authErr := n.srv.Authenticate(n.ctx, args)
-	args.Region = n.srv.config.AuthoritativeRegion
+	if n.srv.config.ACLEnabled {
+		// only forward to the authoritative region if ACLs are enabled,
+		// otherwise we silently write to the local region
+		args.Region = n.srv.config.AuthoritativeRegion
+	}
 	if done, err := n.srv.forward("NodePool.DeleteNodePools", args, args, reply); done {
 		return err
 	}

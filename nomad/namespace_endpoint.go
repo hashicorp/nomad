@@ -30,7 +30,11 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	reply *structs.GenericResponse) error {
 
 	authErr := n.srv.Authenticate(n.ctx, args)
-	args.Region = n.srv.config.AuthoritativeRegion
+	if n.srv.config.ACLEnabled {
+		// only forward to the authoritative region if ACLs are enabled,
+		// otherwise we silently write to the local region
+		args.Region = n.srv.config.AuthoritativeRegion
+	}
 	if done, err := n.srv.forward("Namespace.UpsertNamespaces", args, args, reply); done {
 		return err
 	}
@@ -77,7 +81,11 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply *structs.GenericResponse) error {
 
 	authErr := n.srv.Authenticate(n.ctx, args)
-	args.Region = n.srv.config.AuthoritativeRegion
+	if n.srv.config.ACLEnabled {
+		// only forward to the authoritative region if ACLs are enabled,
+		// otherwise we silently write to the local region
+		args.Region = n.srv.config.AuthoritativeRegion
+	}
 	if done, err := n.srv.forward("Namespace.DeleteNamespaces", args, args, reply); done {
 		return err
 	}
