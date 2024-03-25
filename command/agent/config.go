@@ -71,7 +71,7 @@ type Config struct {
 	// LogIncludeLocation dictates whether the logger includes file and line
 	// information on each log line. This is useful for Nomad development and
 	// debugging.
-	LogIncludeLocation bool `hcl:"log_include_location"`
+	LogIncludeLocation *bool `hcl:"log_include_location"`
 
 	// LogRotateDuration is the time period that logs should be rotated in
 	LogRotateDuration string `hcl:"log_rotate_duration"`
@@ -1265,6 +1265,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf := DefaultConfig()
 	conf.BindAddr = mode.bindAddr
 	conf.LogLevel = "DEBUG"
+	conf.LogIncludeLocation = pointer.Of(true)
 	conf.Client.Enabled = true
 	conf.Server.Enabled = true
 	conf.DevMode = true
@@ -1460,8 +1461,8 @@ func (c *Config) Merge(b *Config) *Config {
 	if b.LogFile != "" {
 		result.LogFile = b.LogFile
 	}
-	if b.LogIncludeLocation {
-		result.LogIncludeLocation = true
+	if b.LogIncludeLocation != nil {
+		result.LogIncludeLocation = b.LogIncludeLocation
 	}
 	if b.LogRotateDuration != "" {
 		result.LogRotateDuration = b.LogRotateDuration
