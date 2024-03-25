@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where `operator debug` did not respect the `-pprof-interval` flag and would take only one profile
+```
