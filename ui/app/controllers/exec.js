@@ -121,10 +121,16 @@ export default class ExecController extends Controller {
         'Customize your command, then hit ‘return’ to run.'
       );
       this.terminal.writeln('');
+
+      let namespaceCommandString = '';
+      if (this.namespace && this.namespace !== 'default') {
+        namespaceCommandString = `-namespace ${this.namespace} `;
+      }
+
       this.terminal.write(
-        `$ nomad alloc exec -i -t -task ${escapeTaskName(taskName)} ${
-          this.taskState.allocation.shortId
-        } `
+        `$ nomad alloc exec -i -t ${namespaceCommandString}-task ${escapeTaskName(
+          taskName
+        )} ${this.taskState.allocation.shortId} `
       );
 
       this.terminal.write(ANSI_WHITE);
