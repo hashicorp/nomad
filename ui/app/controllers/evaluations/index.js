@@ -72,7 +72,8 @@ export default class EvaluationsController extends Controller {
       e instanceof MouseEvent ||
       (e instanceof KeyboardEvent &&
         (e.code === 'Enter' || e.code === 'Space')) ||
-      !e
+      !e ||
+      e === 'keynav'
     ) {
       this.statechart.send('LOAD_EVALUATION', { evaluation });
     }
