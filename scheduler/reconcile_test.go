@@ -942,7 +942,7 @@ func TestReconciler_LostNode_PreventRescheduleOnLost(t *testing.T) {
 			maxClientDisconnect:     pointer.Of(10 * time.Second),
 			PreventRescheduleOnLost: false,
 			reschedulePolicy:        disabledReschedulePolicy,
-			expectPlace:             2,
+			expectPlace:             1,
 			expectStop:              1,
 			expectIgnore:            4,
 			expectDisconnect:        1,
@@ -953,13 +953,12 @@ func TestReconciler_LostNode_PreventRescheduleOnLost(t *testing.T) {
 			maxClientDisconnect:     pointer.Of(10 * time.Second),
 			PreventRescheduleOnLost: true,
 			reschedulePolicy:        disabledReschedulePolicy,
-			expectPlace:             1, // This behaviour needs to be verified
+			expectPlace:             0,
 			expectStop:              0,
 			expectIgnore:            5,
 			expectDisconnect:        2,
 			allocStatus:             structs.AllocClientStatusUnknown,
 		},
-
 		{
 			name:                    "PreventRescheduleOnLost off, MaxClientDisconnect off, Reschedule on",
 			maxClientDisconnect:     nil,
@@ -993,8 +992,8 @@ func TestReconciler_LostNode_PreventRescheduleOnLost(t *testing.T) {
 				Attempts: 1,
 			},
 			expectPlace:      3,
-			expectStop:       1,
-			expectIgnore:     3,
+			expectStop:       2,
+			expectIgnore:     2,
 			expectDisconnect: 1,
 			allocStatus:      structs.AllocClientStatusLost,
 		},
@@ -5428,7 +5427,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                    "ignore-reconnect-completed",
+			name:                    "update-reconnect-completed",
 			allocCount:              2,
 			replace:                 false,
 			disconnectedAllocCount:  2,
@@ -5436,16 +5435,15 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			disconnectedAllocStates: disconnectAllocState,
 			isBatch:                 true,
 			expected: &resultExpectation{
-				place: 2,
+				place: 0,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
 						Ignore: 2,
-						Place:  2,
+						Place:  0,
 					},
 				},
 			},
 		},
-
 		{
 			name:                         "stop-original-alloc-failed-replacements-replaced",
 			allocCount:                   5,
@@ -5496,13 +5494,13 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			disconnectedAllocStates:      disconnectAllocState,
 			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
-				stop:  2,
+				stop:  4,
 				place: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
-						Stop:   2,
+						Stop:   4,
 						Place:  2,
-						Ignore: 5,
+						Ignore: 3,
 					},
 				},
 			},
