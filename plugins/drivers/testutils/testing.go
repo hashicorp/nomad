@@ -83,7 +83,11 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	dir, err := os.MkdirTemp("", "nomad_driver_harness-")
 	must.NoError(h.t, err)
 
-	allocDir := allocdir.NewAllocDir(h.logger, dir, dir, t.AllocID)
+	mountsDir, err := os.MkdirTemp("", "nomad_driver_harness-mounts-")
+	must.NoError(h.t, err)
+	must.NoError(h.t, os.Chmod(mountsDir, 0755))
+
+	allocDir := allocdir.NewAllocDir(h.logger, dir, mountsDir, t.AllocID)
 	must.NoError(h.t, allocDir.Build())
 
 	t.AllocDir = allocDir.AllocDir
@@ -261,7 +265,12 @@ func SetEnvvars(envBuilder *taskenv.Builder, fsmode fsisolation.Mode, taskDir *a
 
 	// Set driver-specific environment variables
 	switch fsmode {
-	case fsisolation.None, fsisolation.Unveil:
+	case fsisolation.Unveil:
+		// Use mounts host paths
+		envBuilder.SetAllocDir(filepath.Join(taskDir.MountsAllocDir, "alloc"))
+		envBuilder.SetTaskLocalDir(filepath.Join(taskDir.MountsTaskDir, "local"))
+		envBuilder.SetSecretsDir(filepath.Join(taskDir.SecretsDir, "secrets"))
+	case fsisolation.None:
 		// Use host paths
 		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
 		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
