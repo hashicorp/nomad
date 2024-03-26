@@ -163,7 +163,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		return nil, err
 	}
 
-	// prepend the Consul DNS to the nameservers, if we have it; we don't need
+	// overwrite the nameservers with Consul DNS, if we have it; we don't need
 	// the port because the iptables rule redirects port 53 traffic to it
 	if tproxyArgs != nil && tproxyArgs.ConsulDNSIP != "" {
 		if allocNet.DNS == nil {
@@ -173,8 +173,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 				Options:  []string{},
 			}
 		}
-		allocNet.DNS.Servers = append([]string{tproxyArgs.ConsulDNSIP},
-			allocNet.DNS.Servers...)
+		allocNet.DNS.Servers = []string{tproxyArgs.ConsulDNSIP}
 	}
 
 	return allocNet, nil
