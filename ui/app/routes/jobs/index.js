@@ -62,7 +62,6 @@ export default class IndexRoute extends Route.extend(
         },
       })
       .catch(notifyForbidden(this));
-    console.log('model jobs', jobs);
     return RSVP.hash({
       jobs,
       namespaces: this.store.findAll('namespace'),
@@ -71,7 +70,6 @@ export default class IndexRoute extends Route.extend(
   }
 
   setupController(controller, model) {
-    console.log('== setupController');
     super.setupController(controller, model);
 
     if (!model.jobs) {
