@@ -88,26 +88,26 @@ export default class JobSerializer extends ApplicationSerializer {
         };
       });
 
-      // If any were missing, sort them in the order they were requested
-      // TODO: document why
-      if (missingJobIDs.length > 0) {
-        payload.sort((a, b) => {
-          return (
-            requestedJobIDs.findIndex(
-              (j) => j.id === a.ID && j.namespace === a.Namespace
-            ) -
-            requestedJobIDs.findIndex(
-              (j) => j.id === b.ID && j.namespace === b.Namespace
-            )
-          );
-        });
-      }
+      // Note: we want our returned jobs to come back in the order we requested them,
+      // including jobs that were missing from the initial request.
+      payload.sort((a, b) => {
+        return (
+          requestedJobIDs.findIndex(
+            (j) => j.id === a.ID && j.namespace === a.Namespace
+          ) -
+          requestedJobIDs.findIndex(
+            (j) => j.id === b.ID && j.namespace === b.Namespace
+          )
+        );
+      });
 
       delete payload._requestBody;
     }
 
     const jobs = payload;
     // Signal that it's a query response at individual normalization level for allocation placement
+    // Sort by ModifyIndex, reverse
+    jobs.sort((a, b) => b.ModifyIndex - a.ModifyIndex);
     jobs.forEach((job) => {
       if (job.Allocs) {
         job.relationships = {
