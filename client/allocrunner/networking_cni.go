@@ -29,6 +29,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -189,7 +190,7 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 	var proxyInboundPort int
 	var proxyOutboundPort int
 
-	exposePorts := []string{}
+	var exposePorts []string
 	outboundPorts := []string{}
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
@@ -203,7 +204,7 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 			// The default value matches the Envoy UID. The cluster admin can
 			// set this value to something non-default if they have a customer
 			// Envoy container with a different UID
-			proxyUID = c.nodeMeta["connect.transparent_proxy.default_uid"]
+			proxyUID = c.nodeMeta[envoy.DefaultTransparentProxyUIDParam]
 			if tproxy.UID != "" {
 				proxyUID = tproxy.UID
 			}
@@ -217,7 +218,7 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 			if tproxy.OutboundPort != 0 {
 				proxyOutboundPort = int(tproxy.OutboundPort)
 			} else {
-				outboundPortAttr := c.nodeMeta["connect.transparent_proxy.default_outbound_port"]
+				outboundPortAttr := c.nodeMeta[envoy.DefaultTransparentProxyOutboundPortParam]
 				parsedOutboundPort, err := strconv.ParseInt(outboundPortAttr, 10, 32)
 				if err != nil {
 					return nil, fmt.Errorf(
@@ -277,9 +278,7 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 				}
 			}
 
-			if exposePortSet.Size() == 0 {
-				exposePorts = nil
-			} else {
+			if exposePortSet.Size() > 0 {
 				exposePorts = exposePortSet.Slice()
 				slices.Sort(exposePorts)
 			}
