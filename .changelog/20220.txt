@@ -1,0 +1,3 @@
+```release-note:bug
+namespace/node pool: Fixed a bug where the `-region` flag would not be respected for namespace and node pool updates if ACLs were disabled
+```
