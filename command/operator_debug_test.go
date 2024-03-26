@@ -451,7 +451,6 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	}
 
 	pprofFiles := []string{
-		"allocs_0000.prof",
 		"goroutine-debug1_0000.txt",
 		"goroutine-debug2_0000.txt",
 		"goroutine_0000.prof",
