@@ -12,6 +12,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -335,15 +336,8 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		}
 
 		// Check volume mount updates
-		bVMMap := helper.SliceToMap[map[string]*structs.VolumeMount](bt.VolumeMounts,
-			func(vm *structs.VolumeMount) string {
-				return vm.Volume
-			})
-
-		for _, atvm := range at.VolumeMounts {
-			if c := volumeMountUpdated(atvm, bVMMap[atvm.Volume]); c.modified {
-				return c
-			}
+		if c := volumeMountsUpdated(at.VolumeMounts, bt.VolumeMounts); c.modified {
+			return c
 		}
 
 		// Check if restart.render_templates is updated
@@ -433,6 +427,33 @@ func connectServiceUpdated(servicesA, servicesB []*structs.Service) comparison {
 			}
 		}
 	}
+	return same
+}
+
+func volumeMountsUpdated(a, b []*structs.VolumeMount) comparison {
+	setA := set.HashSetFrom(a)
+	setB := set.HashSetFrom(b)
+
+	if setA.Equal(setB) {
+		return same
+	}
+
+	bVMMap := helper.SliceToMap[map[string]*structs.VolumeMount](b,
+		func(vm *structs.VolumeMount) string {
+			return vm.Volume
+		})
+
+	for _, atvm := range a {
+		if c := volumeMountUpdated(atvm, bVMMap[atvm.Volume]); c.modified {
+			return c
+		}
+		delete(bVMMap, atvm.Volume)
+	}
+
+	if len(bVMMap) > 0 {
+		return difference("volume mount added", nil, bVMMap)
+	}
+
 	return same
 }
 

@@ -572,6 +572,14 @@ func TestTasksUpdated(t *testing.T) {
 	must.True(t, tasksUpdated(j31, j32, name).modified)
 
 	// Add volume mount
+	j32.TaskGroups[0].Tasks[0].VolumeMounts = append(j32.TaskGroups[0].Tasks[0].VolumeMounts,
+		&structs.VolumeMount{
+			Volume:       "myvolume2",
+			SELinuxLabel: "Z",
+		})
+
+	// Remove volume mount
+	j32 = j31.Copy()
 	j32.TaskGroups[0].Tasks[0].VolumeMounts = nil
 
 	must.True(t, tasksUpdated(j31, j32, name).modified)
