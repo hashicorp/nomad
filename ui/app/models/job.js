@@ -76,8 +76,8 @@ export default class Job extends Model {
 
   /**
    * @typedef {Object} CurrentStatus
-   * @property {"Healthy"|"Failed"|"Degraded"|"Recovering"|"Complete"|"Running"} label - The current status of the job
-   * @property {"highlight"|"success"|"warning"|"critical"} state -
+   * @property {"Healthy"|"Failed"|"Deploying"|"Degraded"|"Recovering"|"Complete"|"Running"|"Removed"} label - The current status of the job
+   * @property {"highlight"|"success"|"warning"|"critical"|"neutral"} state -
    */
 
   /**
@@ -185,6 +185,7 @@ export default class Job extends Model {
 
     // Handle unplaced allocs
     if (availableSlotsToFill > 0) {
+      // TODO: JSDoc types for unhealty and health unknown aren't optional, but should be.
       allocationsOfShowableType['unplaced'] = {
         healthy: {
           nonCanary: Array(availableSlotsToFill)
@@ -211,6 +212,7 @@ export default class Job extends Model {
    * - Recovering: Some allocations are pending
    * - Degraded: A deployment is not taking place, and some allocations are failed, lost, or unplaced
    * - Failed: All allocations are failed, lost, or unplaced
+   * - Removed: The job appeared in our initial query, but has since been garbage collected
    * @returns {CurrentStatus}
    */
   /**
@@ -218,18 +220,16 @@ export default class Job extends Model {
    * @returns {CurrentStatus}
    */
   get aggregateAllocStatus() {
-    // If all allocs are running, the job is Healthy
-
     let totalAllocs = this.expectedRunningAllocCount;
-
-    // console.log('expectedRunningAllocCount is', totalAllocs);
-    // console.log('ablocks are', this.allocBlocks);
 
     // If deploying:
     if (this.deploymentID) {
       return { label: 'Deploying', state: 'highlight' };
     }
 
+    // If the job was requested initially, but a subsequent request for it was
+    // not found, we can remove links to it but maintain its presence in the list
+    // until the user specifies they want a refresh
     if (this.assumeGC) {
       return { label: 'Removed', state: 'neutral' };
     }
@@ -249,35 +249,34 @@ export default class Job extends Model {
       }
     }
 
+    // All the exepected allocs are running and healthy? Congratulations!
     const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
     if (totalAllocs && healthyAllocs?.length === totalAllocs) {
       return { label: 'Healthy', state: 'success' };
     }
 
     // If any allocations are pending the job is "Recovering"
-    // TODO: weird, but batch jobs (which do not have deployments!) go into "recovering" right away, since some of their statuses are "pending" as they come online.
-    // This feels a little wrong.
+    // Note: Batch/System jobs (which do not have deployments)
+    // go into "recovering" right away, since some of their statuses are
+    // "pending" as they come online. This feels a little wrong but it's kind
+    // of correct?
     const pendingAllocs = this.allocBlocks.pending?.healthy?.nonCanary;
     if (pendingAllocs?.length > 0) {
       return { label: 'Recovering', state: 'highlight' };
     }
 
-    // If any allocations are failed, lost, or unplaced in a steady state, the job is "Degraded"
+    // If any allocations are failed, lost, or unplaced in a steady state,
+    // the job is "Degraded"
     const failedOrLostAllocs = [
       ...this.allocBlocks.failed?.healthy?.nonCanary,
       ...this.allocBlocks.lost?.healthy?.nonCanary,
       ...this.allocBlocks.unplaced?.healthy?.nonCanary,
     ];
+
     // TODO: GroupCountSum for a parameterized parent job is the count present at group level, but that's not quite true, as the parent job isn't expecting any allocs, its children are. Chat with BFF about this.
+
     // TODO: handle garbage collected cases not showing "failed" for batch jobs here maybe?
 
-    // console.log(
-    //   'numFailedAllocs',
-    //   failedOrLostAllocs.length,
-    //   failedOrLostAllocs,
-    //   totalAllocs
-    // );
-    // if (failedOrLostAllocs.length === totalAllocs) {
     if (failedOrLostAllocs.length >= totalAllocs) {
       // TODO: when totalAllocs only cares about latest version, change back to ===
       return { label: 'Failed', state: 'critical' };
