@@ -7,7 +7,7 @@
 
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { action } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { restartableTask, timeout } from 'ember-concurrency';
@@ -15,10 +15,10 @@ import {
   serialize,
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
-// import { scheduleOnce } from '@ember/runloop';
 import Ember from 'ember';
 
-const DEFAULT_THROTTLE = 2000;
+const JOB_LIST_THROTTLE = 5000;
+const JOB_DETAILS_THROTTLE = 1000;
 
 export default class JobsIndexController extends Controller {
   @service router;
@@ -28,6 +28,7 @@ export default class JobsIndexController extends Controller {
   @service watchList; // TODO: temp
 
   @tracked pageSize;
+
   constructor() {
     super(...arguments);
     this.pageSize = this.userSettings.pageSize;
@@ -51,7 +52,8 @@ export default class JobsIndexController extends Controller {
   @tracked jobAllocsQueryIndex = 0;
 
   @selection('qpNamespace') selectionNamespace;
-  // @computed('qpNamespace', 'model.namespaces.[]')
+
+  @computed('qpNamespace', 'model.namespaces.[]')
   get optionsNamespace() {
     const availableNamespaces = this.model.namespaces.map((namespace) => ({
       key: namespace.name,
@@ -133,6 +135,9 @@ export default class JobsIndexController extends Controller {
     this.jobAllocsQueryIndex = 0;
 
     if (page === 'prev') {
+      if (!this.cursorAt) {
+        return;
+      }
       // Note (and TODO:) this isn't particularly efficient!
       // We're making an extra full request to get the nextToken we need,
       // but actually the results of that request are the reverse order, plus one job,
@@ -152,6 +157,9 @@ export default class JobsIndexController extends Controller {
         }
       }
     } else if (page === 'next') {
+      if (!this.nextToken) {
+        return;
+      }
       this.cursorAt = this.nextToken;
     }
   }
@@ -180,7 +188,7 @@ export default class JobsIndexController extends Controller {
     this.pendingJobIDs = null;
     yield this.watchJobs.perform(
       this.jobIDs,
-      Ember.testing ? 0 : DEFAULT_THROTTLE
+      Ember.testing ? 0 : JOB_DETAILS_THROTTLE
     );
   }
 
@@ -209,28 +217,19 @@ export default class JobsIndexController extends Controller {
       });
   }
 
-  jobAllocsQuery(jobIDs) {
+  jobAllocsQuery(params) {
     this.watchList.jobsIndexDetailsController.abort();
     this.watchList.jobsIndexDetailsController = new AbortController();
     return this.store
-      .query(
-        'job',
-        {
-          jobs: jobIDs,
-          index: this.jobAllocsQueryIndex, // TODO: consider using a passed params object like jobQuery uses, rather than just passing jobIDs
+      .query('job', params, {
+        adapterOptions: {
+          method: 'POST',
+          abortController: this.watchList.jobsIndexDetailsController,
         },
-        {
-          adapterOptions: {
-            method: 'POST',
-            abortController: this.watchList.jobsIndexDetailsController,
-          },
-        }
-      )
+      })
       .catch((e) => {
         if (e.name !== 'AbortError') {
           console.log('error fetching job allocs', e);
-        } else {
-          console.log('|> jobAllocsQuery aborted');
         }
         return;
       });
@@ -257,19 +256,13 @@ export default class JobsIndexController extends Controller {
   // TODO: set up isEnabled to check blockingQueries rather than just use while (true)
   @restartableTask *watchJobIDs(
     params,
-    throttle = Ember.testing ? 0 : DEFAULT_THROTTLE
+    throttle = Ember.testing ? 0 : JOB_LIST_THROTTLE
   ) {
     while (true) {
-      // let watchlistIndex = this.watchList.getIndexFor(
-      //   '/v1/jobs/statuses?per_page=3'
-      // );
-      // console.log('> watchJobIDs', params);
       let currentParams = params;
-      // currentParams.index = watchlistIndex;
       currentParams.index = this.jobQueryIndex;
       const newJobs = yield this.jobQuery(currentParams, {});
       if (newJobs) {
-        // console.log('|> watchJobIDs returned new job IDs', newJobs.length);
         if (newJobs.meta.index) {
           this.jobQueryIndex = newJobs.meta.index;
         }
@@ -288,25 +281,16 @@ export default class JobsIndexController extends Controller {
         if (okayToJostle) {
           this.jobIDs = jobIDs;
           this.watchList.jobsIndexDetailsController.abort();
-          console.log(
-            'new jobIDs have appeared, we should now watch them. We have cancelled the old hash req.',
-            jobIDs
-          );
-          // Let's also reset the index for the job details query
           this.jobAllocsQueryIndex = 0;
           this.watchList.jobsIndexDetailsController = new AbortController();
-          // make sure throttle has taken place!
           this.watchJobs.perform(jobIDs, throttle);
         } else {
-          // this.controller.set('pendingJobIDs', jobIDs);
-          // this.controller.set('pendingJobs', newJobs);
           this.pendingJobIDs = jobIDs;
           this.pendingJobs = newJobs;
         }
-        yield timeout(throttle); // Moved to the end of the loop
+        yield timeout(throttle);
       } else {
         // This returns undefined on page change / cursorAt change, resulting from the aborting of the old query.
-        // console.log('|> watchJobIDs aborted');
         yield timeout(throttle);
         this.watchJobs.perform(this.jobIDs, throttle);
         continue;
@@ -324,24 +308,18 @@ export default class JobsIndexController extends Controller {
   // 3. via the user manually clicking to updateJobList()
   @restartableTask *watchJobs(
     jobIDs,
-    throttle = Ember.testing ? 0 : DEFAULT_THROTTLE
+    throttle = Ember.testing ? 0 : JOB_DETAILS_THROTTLE
   ) {
     while (true) {
-      console.log(
-        '> watchJobs of IDs',
-        jobIDs.map((j) => j.id)
-      );
-      // let jobIDs = this.controller.jobIDs;
       if (jobIDs && jobIDs.length > 0) {
-        let jobDetails = yield this.jobAllocsQuery(jobIDs);
+        let jobDetails = yield this.jobAllocsQuery({
+          jobs: jobIDs,
+          index: this.jobAllocsQueryIndex,
+        });
         if (jobDetails) {
           if (jobDetails.meta.index) {
             this.jobAllocsQueryIndex = jobDetails.meta.index;
           }
-          console.log(
-            '|> watchJobs returned with',
-            jobDetails.map((j) => j.id)
-          );
         }
         this.jobs = jobDetails;
       }
@@ -351,6 +329,5 @@ export default class JobsIndexController extends Controller {
       }
     }
   }
-
   //#endregion querying
 }

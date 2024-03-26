@@ -6,10 +6,7 @@
 {{page-title "Jobs"}}
 <section class="section">
     <Hds::PageHeader as |PH|>
-      {{!-- <PH.Title>
-        Jobs <em>(soft J, like "yobs")</em>
-      </PH.Title> --}}
-      <PH.Actions>
+      <PH.Actions id="jobs-list-actions">
         {{!-- <Hds::SegmentedGroup as |S|>
           <S.Dropdown data-test-state-facet as |dd|>
             <dd.ToggleButton
@@ -194,82 +191,73 @@
           </S.Dropdown>
         </Hds::SegmentedGroup>
        --}}
-      
 
+        <Hds::ButtonSet style="white-space: nowrap;">
+          {{#if this.system.shouldShowNamespaces}}
+            {{!-- <SingleSelectDropdown
+              data-test-namespace-facet
+              @label="Namespace"
+              @options={{this.optionsNamespaces}}
+              @selection={{this.qpNamespace}}
+              @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
+            /> --}}
 
-
-
-
-
-
-          <Hds::ButtonSet style="white-space: nowrap;">
-            {{#if this.system.shouldShowNamespaces}}
-              {{!-- <SingleSelectDropdown
-                data-test-namespace-facet
-                @label="Namespace"
-                @options={{this.optionsNamespaces}}
-                @selection={{this.qpNamespace}}
-                @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
-              /> --}}
-
-        <Hds::Dropdown data-test-namespace-facet as |dd|>
-          <dd.ToggleButton
-            @text="Namespace"
-            @color="secondary"
-            @badge={{or this.selectionNamespace.length false}}
-          />
-          {{#each this.optionsNamespace key="label" as |option|}}
-            <dd.Checkbox
-              {{on "change" (action this.handleFilterChange
-                this.selectionNamespace
-                option.label
-                "qpNamespace"
-              )}}
-              @value={{option.label}}
-              checked={{includes option.label this.selectionDatacenter}}
-              @count={{get (filter-by 'datacenter' option.label this.nodes) "length"}}
-              data-test-dropdown-option={{option.label}}
-            >
-              {{option.label}}
-            </dd.Checkbox>
-          {{else}}
-            <dd.Generic data-test-dropdown-empty>
-              No Namespaces
-            </dd.Generic>
-          {{/each}}
-
-        </Hds::Dropdown>
-
-            {{/if}}
-
-            <div
-              {{keyboard-shortcut
-                label="Run Job"
-                pattern=(array "r" "u" "n")
-                action=(action this.goToRun)
-              }}
-            >
-              <Hds::Button
-                data-test-run-job
-                @text="Run Job"
-                disabled={{not (can "run job")}}
-                title={{if (can "run job") null "You don’t have permission to run jobs"}}
-                @route="jobs.run"
-                @query={{hash namespace=this.qpNamespace}}
+            <Hds::Dropdown data-test-namespace-facet as |dd|>
+              <dd.ToggleButton
+                @text="Namespace"
+                @color="secondary"
+                @badge={{or this.selectionNamespace.length false}}
               />
-            </div>
+              {{#each this.optionsNamespace key="label" as |option|}}
+                <dd.Checkbox
+                  {{on "change" (action this.handleFilterChange
+                    this.selectionNamespace
+                    option.label
+                    "qpNamespace"
+                  )}}
+                  @value={{option.label}}
+                  checked={{includes option.label this.selectionDatacenter}}
+                  @count={{get (filter-by 'datacenter' option.label this.nodes) "length"}}
+                  data-test-dropdown-option={{option.label}}
+                >
+                  {{option.label}}
+                </dd.Checkbox>
+              {{else}}
+                <dd.Generic data-test-dropdown-empty>
+                  No Namespaces
+                </dd.Generic>
+              {{/each}}
+            </Hds::Dropdown>
+          {{/if}}
 
-            <div data-test-jobs-search>
-              <Hds::Form::TextInput::Base
-                @type="search"
-                @value=""
-                aria-label="Job Search"
-                placeholder="eg. Hello World"
-                @icon="search"
-              />
-            </div>
+          <div
+            {{keyboard-shortcut
+              label="Run Job"
+              pattern=(array "r" "u" "n")
+              action=(action this.goToRun)
+            }}
+          >
+            <Hds::Button
+              data-test-run-job
+              @text="Run Job"
+              disabled={{not (can "run job")}}
+              title={{if (can "run job") null "You don’t have permission to run jobs"}}
+              @route="jobs.run"
+              @query={{hash namespace=this.qpNamespace}}
+            />
+          </div>
 
-            {{#if this.pendingJobIDDiff}}
+          <div data-test-jobs-search>
+            <Hds::Form::TextInput::Base
+              @type="search"
+              @value=""
+              aria-label="Job Search"
+              placeholder="eg. Hello World"
+              @icon="search"
+            />
+          </div>
+
+          {{#if this.pendingJobIDDiff}}
             <Hds::Button
               @size="medium"
               @text="Updates Pending"
@@ -314,6 +302,7 @@
                 class="is-primary"
               >
                 {{B.data.name}}
+                {{!-- TODO: going to lose .meta with statuses endpoint! --}}
                 {{#if B.data.meta.structured.pack}}
                   <span data-test-pack-tag class="tag is-pack">
                     {{x-icon "box" class= "test"}}
@@ -369,31 +358,37 @@
         </:body>
       </Hds::Table>
 
-      <hr />
-      {{!-- TODO: Temporary keyboard-shortcut tester buttons while I think about nixing the pagination component --}}
-      <Hds::Button
-        @text="Prev"
-        @color="secondary"
-        disabled={{not this.cursorAt}}
-        {{on "click" (action this.handlePageChange "prev")}}
-        {{keyboard-shortcut
-          label="Previous Page"
-          pattern=(array "[" "[")
-          action=(action this.handlePageChange "prev")}}
-      />
-      <Hds::Button
-        @text="Next"
-        @color="secondary"
-        disabled={{not this.nextToken}}
-        {{on "click" (action this.handlePageChange "next")}}
-        {{keyboard-shortcut
-          label="Next Page"
-          pattern=(array "]" "]")
-          action=(action this.handlePageChange "next")}}
-      />
-      <PageSizeSelect @onChange={{this.handlePageSizeChange}} />
-
-
+      <section id="jobs-list-pagination">
+        <div class="nav-buttons">
+          <span {{keyboard-shortcut
+            label="Previous Page"
+            pattern=(array "[" "[")
+            action=(action this.handlePageChange "prev")}}
+          >
+            <Hds::Button
+              @text="Prev"
+              @color="secondary"
+              disabled={{not this.cursorAt}}
+              {{on "click" (action this.handlePageChange "prev")}}
+            />
+          </span>
+          <span {{keyboard-shortcut
+            label="Next Page"
+            pattern=(array "]" "]")
+            action=(action this.handlePageChange "next")}}
+          >
+            <Hds::Button
+              @text="Next"
+              @color="secondary"
+              disabled={{not this.nextToken}}
+              {{on "click" (action this.handlePageChange "next")}}
+            />
+          </span>
+        </div>
+        <div class="page-size">
+          <PageSizeSelect @onChange={{this.handlePageSizeChange}} />
+        </div>
+      </section>
       {{!-- <Hds::Pagination::Compact
         @onPageChange={{action this.handlePageChange}}
         @isDisabledPrev={{not this.cursorAt}}

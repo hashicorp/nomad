@@ -15,7 +15,6 @@ import { get } from '@ember/object';
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
   @service system;
-  @service watchList;
 
   relationshipFallbackLinks = {
     summary: '/summary',
@@ -205,6 +204,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return wsUrl;
   }
 
+  // TODO: Handle the in-job-page query for pack meta per https://github.com/hashicorp/nomad/pull/14833
   query(store, type, query, snapshotRecordArray, options) {
     options = options || {};
     options.adapterOptions = options.adapterOptions || {};
@@ -212,12 +212,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     const method = get(options, 'adapterOptions.method') || 'GET';
     const url = this.urlForQuery(query, type.modelName, method);
 
-    // Let's establish the index, via watchList.getIndexFor.
-    // let index = this.watchList.getIndexFor(url);
     let index = query.index || 1;
-
-    // TODO: adding a new job hash will not necessarily cancel the old one.
-    // You could be holding open a POST on jobs AB and ABC at the same time.
 
     if (index && index > 1) {
       query.index = index;
@@ -225,11 +220,20 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     const signal = get(options, 'adapterOptions.abortController.signal');
 
+    // when GETting our jobs list, we want to sort in reverse order, because
+    // the sort property is ModifyIndex and we want the most recent jobs first.
+    if (method === 'GET') {
+      query.reverse = true;
+    }
+
     return this.ajax(url, method, {
       signal,
       data: query,
     }).then((payload) => {
-      // If there was a request body, append it to my payload
+      // If there was a request body, append it to the payload
+      // We can use this in our serializer to maintain returned job order,
+      // even if one of the requested jobs is not found (has been GC'd) so as
+      // not to jostle the user's view.
       if (query.jobs) {
         payload._requestBody = query;
       }
@@ -238,8 +242,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   handleResponse(status, headers) {
-    // watchList.setIndexFor() happens in the watchable adapter, super'd here
-
     /**
      * @type {Object}
      */
@@ -250,11 +252,9 @@ export default class JobAdapter extends WatchableNamespaceIDs {
         result.meta.nextToken = headers['x-nomad-nexttoken'];
       }
       if (headers['x-nomad-index']) {
-        // this.watchList.setIndexFor(result.url, headers['x-nomad-index']);
         result.meta.index = headers['x-nomad-index'];
       }
     }
-
     return result;
   }
 
@@ -264,27 +264,5 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       return `${baseUrl}?index=${query.index}`;
     }
     return baseUrl;
-    // if (method === 'POST') {
-    //   // Setting a base64 hash to represent the body of the POST request
-    //   // (which is otherwise not represented in the URL)
-    //   // because the watchList uses the URL as a key for index lookups.
-    //   return `${baseUrl}?hash=${btoa(JSON.stringify(query))}`;
-    // } else {
-    //   // return `${baseUrl}?${queryString.stringify(query)}`; // TODO: maybe nix this, it's doubling up QPs
-    //   return `${baseUrl}`;
-    // }
   }
-
-  // ajaxOptions(url, type, options) {
-  //   let hash = super.ajaxOptions(url, type, options);
-  //   // Custom handling for POST requests to append 'index' as a query parameter
-  //   if (type === 'POST' && options.data && options.data.index) {
-  //     let index = encodeURIComponent(options.data.index);
-  //     hash.url = `${hash.url}&index=${index}`;
-  //   }
-
-  //   return hash;
-  // }
 }
-
-// TODO: First query (0 jobs to 1 job) doesnt seem to kick off POST
