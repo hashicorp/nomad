@@ -1034,22 +1034,31 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 		}
 	}
 
-	// goroutine debug type 1 = legacy text format for human readable output
+	// goroutine debug type 1 = goroutine in pprof text format (includes a count
+	// for each identical stack, pprof labels)
 	opts.Debug = 1
 	c.savePprofProfile(path, "goroutine", opts, client, interval)
 
-	// goroutine debug type 2 = goroutine stacks in panic format
+	// goroutine debug type 2 = goroutine stacks in panic format (includes a
+	// stack for each goroutine, wait reason, no pprof labels)
 	opts.Debug = 2
 	c.savePprofProfile(path, "goroutine", opts, client, interval)
 
 	// Reset to pprof binary format
 	opts.Debug = 0
 
-	c.savePprofProfile(path, "goroutine", opts, client, interval)    // Stack traces of all current goroutines
-	c.savePprofProfile(path, "trace", opts, client, interval)        // A trace of execution of the current program
-	c.savePprofProfile(path, "heap", opts, client, interval)         // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
-	c.savePprofProfile(path, "allocs", opts, client, interval)       // A sampling of all past memory allocations
-	c.savePprofProfile(path, "threadcreate", opts, client, interval) // Stack traces that led to the creation of new OS threads
+	// Stack traces of all current goroutines, binary format for `go tool pprof`
+	c.savePprofProfile(path, "goroutine", opts, client, interval)
+
+	// A trace of execution of the current program
+	c.savePprofProfile(path, "trace", opts, client, interval)
+
+	// A sampling of memory allocations of live objects. You can specify
+	// the gc GET parameter to run GC before taking the heap sample.
+	c.savePprofProfile(path, "heap", opts, client, interval)
+
+	// Stack traces that led to the creation of new OS threads
+	c.savePprofProfile(path, "threadcreate", opts, client, interval)
 }
 
 // savePprofProfile retrieves a pprof profile and writes to disk
