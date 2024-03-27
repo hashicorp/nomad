@@ -30,7 +30,7 @@ func linkDir(src, dst string) error {
 		return err
 	}
 
-	return syscall.Mount(src, dst, "", syscall.MS_BIND, "")
+	return syscall.Mount(src, dst, "", syscall.MS_BIND|syscall.MS_REC, "")
 }
 
 // mountDir bind mounts old to next using the given file mode.
@@ -57,7 +57,7 @@ func unlinkDir(dir string) error {
 	return nil
 }
 
-// createSecretDir creates the secrets dir folder at the given path using a
+// createSecretDir creates a secrets dir folder at the given path using a
 // tmpfs
 func createSecretDir(dir string) error {
 	// Only mount the tmpfs if we are root
@@ -79,19 +79,17 @@ func createSecretDir(dir string) error {
 		}
 
 		// Create the marker file so we don't try to mount more than once
-		f, err := os.OpenFile(marker, os.O_RDWR|os.O_CREATE, fileMode666)
-		if err != nil {
+		if err := os.WriteFile(marker, []byte{}, fileMode666); err != nil {
 			// Hard fail since if this fails something is really wrong
 			return err
 		}
-		f.Close()
 		return nil
 	}
 
 	return os.MkdirAll(dir, fileMode777)
 }
 
-// createSecretDir removes the secrets dir folder
+// removeSecretDir removes the secrets dir folder
 func removeSecretDir(dir string) error {
 	if unix.Geteuid() == 0 {
 		if err := unlinkDir(dir); err != nil {

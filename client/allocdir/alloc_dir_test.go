@@ -77,19 +77,20 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	must.NoError(t, d.Build())
 
 	// Check that the AllocDir and each of the task directories exist.
-	if _, err := os.Stat(d.AllocDir); os.IsNotExist(err) {
-		t.Fatalf("Build() didn't create AllocDir %v", d.AllocDir)
-	}
+	must.DirExists(t, d.AllocDir)
 
+	// Check that the alloc's SharedDir exists.
+	must.DirExists(t, d.SharedDir)
+
+	// Check that the alloc's SecretsDir exists.
+	must.DirExists(t, d.SecretsDir)
+
+	// Verify the task duirectories are not present since their Build
+	// funcs weren't called.
 	for _, task := range []*structs.Task{t1, t2} {
 		tDir, ok := d.TaskDirs[task.Name]
 		must.True(t, ok)
-
-		stat, _ := os.Stat(tDir.Dir)
-		must.Nil(t, stat)
-
-		stat, _ = os.Stat(tDir.SecretsDir)
-		must.Nil(t, stat)
+		must.DirNotExists(t, tDir.Dir)
 	}
 }
 
@@ -142,6 +143,46 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 			t.Errorf("Incorrect data read from task dir: want %v; got %v", contents, act)
 		}
 	}
+}
+
+func TestAllocDir_MountSharedSecretAlloc(t *testing.T) {
+	ci.Parallel(t)
+	MountCompatible(t)
+
+	tmp := t.TempDir()
+	var isSuccess bool
+	t.Cleanup(func() {
+		success := &isSuccess
+		// Try to clean up orphaned test mounts
+		if !*success {
+			cleanTestMounts(t, tmp)
+		}
+	})
+
+	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
+	defer d.Destroy()
+	must.NoError(t, d.Build())
+
+	// Build 2 task dirs
+	td1 := d.NewTaskDir(t1.Name)
+	must.NoError(t, td1.Build(fsisolation.Chroot, nil, "nobody"))
+
+	td2 := d.NewTaskDir(t2.Name)
+	must.NoError(t, td2.Build(fsisolation.Chroot, nil, "nobody"))
+
+	// Write a file to the shared dir.
+	contents := []byte("foo")
+	const filename = "bar"
+	must.NoError(t, os.WriteFile(filepath.Join(d.SecretsDir, filename), contents, fileMode666))
+
+	// Check that the file exists in the task directories
+	for _, td := range []*TaskDir{td1, td2} {
+		taskFile := filepath.Join(td.SharedTaskSecretsDir, filename)
+		act, err := os.ReadFile(taskFile)
+		must.NoError(t, err)
+		must.EqFunc(t, act, contents, bytes.Equal)
+	}
+	isSuccess = true
 }
 
 func TestAllocDir_Snapshot(t *testing.T) {

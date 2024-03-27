@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -46,11 +48,22 @@ type TaskDir struct {
 	// <alloc_dir>/alloc/
 	SharedAllocDir string
 
+	// SharedAllocDir is the path to shared alloc directory on the host
+	//
+	// <alloc_dir>/alloc/secrets
+	SharedAllocSecretsDir string
+
 	// SharedTaskDir is the path to the shared alloc directory linked into
 	// the task directory on the host.
 	//
 	// <task_dir>/alloc/
 	SharedTaskDir string
+
+	// SharedTaskSecretsDir is the path to the shared alloc directory linked into
+	// the task directory on the host.
+	//
+	// <task_dir>/alloc/secrets
+	SharedTaskSecretsDir string
 
 	// LocalDir is the path to the task's local directory on the host
 	//
@@ -78,6 +91,11 @@ type TaskDir struct {
 
 	// logger for this task
 	logger hclog.Logger
+
+	// built is true if Build has successfully run
+	built bool
+
+	mu sync.RWMutex
 }
 
 // newTaskDir creates a TaskDir struct with paths set. Call Build() to
@@ -89,18 +107,20 @@ func (d *AllocDir) newTaskDir(taskName string) *TaskDir {
 	taskUnique := filepath.Base(d.AllocDir) + "-" + taskName
 
 	return &TaskDir{
-		AllocDir:       d.AllocDir,
-		Dir:            taskDir,
-		SharedAllocDir: filepath.Join(d.AllocDir, SharedAllocName),
-		LogDir:         filepath.Join(d.AllocDir, SharedAllocName, LogDirName),
-		SharedTaskDir:  filepath.Join(taskDir, SharedAllocName),
-		LocalDir:       filepath.Join(taskDir, TaskLocal),
-		SecretsDir:     filepath.Join(taskDir, TaskSecrets),
-		PrivateDir:     filepath.Join(taskDir, TaskPrivate),
-		MountsTaskDir:  filepath.Join(d.clientAllocMountsDir, taskUnique, "task"),
-		MountsAllocDir: filepath.Join(d.clientAllocMountsDir, taskUnique, "alloc"),
-		skip:           set.From[string]([]string{d.clientAllocDir, d.clientAllocMountsDir}),
-		logger:         d.logger.Named("task_dir").With("task_name", taskName),
+		AllocDir:              d.AllocDir,
+		Dir:                   taskDir,
+		SharedAllocDir:        filepath.Join(d.AllocDir, SharedAllocName),
+		SharedAllocSecretsDir: filepath.Join(d.AllocDir, SharedAllocName, SharedAllocSecretsName),
+		LogDir:                filepath.Join(d.AllocDir, SharedAllocName, LogDirName),
+		SharedTaskDir:         filepath.Join(taskDir, SharedAllocName),
+		SharedTaskSecretsDir:  filepath.Join(taskDir, SharedAllocName, SharedAllocSecretsName),
+		LocalDir:              filepath.Join(taskDir, TaskLocal),
+		SecretsDir:            filepath.Join(taskDir, TaskSecrets),
+		PrivateDir:            filepath.Join(taskDir, TaskPrivate),
+		MountsTaskDir:         filepath.Join(d.clientAllocMountsDir, taskUnique, "task"),
+		MountsAllocDir:        filepath.Join(d.clientAllocMountsDir, taskUnique, "alloc"),
+		skip:                  set.From[string]([]string{d.clientAllocDir, d.clientAllocMountsDir}),
+		logger:                d.logger.Named("task_dir").With("task_name", taskName),
 	}
 }
 
@@ -119,7 +139,6 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 	// Create the directories that should be in every task.
 	for dir, perms := range TaskDirs {
 		absdir := filepath.Join(t.Dir, dir)
-
 		if err := allocMkdirAll(absdir, perms); err != nil {
 			return err
 		}
@@ -176,8 +195,19 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 		mountDir(t.AllocDir, t.MountsAllocDir, uid, gid, fileMode710)
 		mountDir(t.Dir, t.MountsTaskDir, uid, gid, fileMode710)
 	}
-
+	// Mark as built
+	t.mu.Lock()
+	t.built = true
+	t.mu.Unlock()
 	return nil
+}
+
+// IsBuilt returns whether or not the Build() function has been called and
+// completed successfully.
+func (t *TaskDir) IsBuilt() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.built
 }
 
 // buildChroot takes a mapping of absolute directory or file paths on the host
@@ -288,6 +318,18 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 func (t *TaskDir) Unmount() error {
 	mErr := new(multierror.Error)
 
+	// Check if the directory has the shared alloc secrets mounted, since it can be mounted recursively
+	// when the shared alloc folder is mounted
+	if pathExists(t.SharedTaskSecretsDir) {
+		if err := unlinkDir(t.SharedTaskSecretsDir); err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("failed to unmount shared alloc secrets dir %q: %w", t.SharedTaskSecretsDir, err))
+		} else if err := os.RemoveAll(t.SharedTaskSecretsDir); err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("failed to delete shared alloc secrets dir %q: %w", t.SharedTaskSecretsDir, err))
+		}
+	}
+
 	// Check if the directory has the shared alloc mounted.
 	if pathExists(t.SharedTaskDir) {
 		if err := unlinkDir(t.SharedTaskDir); err != nil {
@@ -334,4 +376,25 @@ func (t *TaskDir) Unmount() error {
 		mErr = multierror.Append(mErr, err)
 	}
 	return mErr.ErrorOrNil()
+}
+
+func (t *TaskDir) AsLogKeyValues(relative bool) []any {
+	p := func(s string) string { return s }
+	if relative {
+		p = func(s string) string { return "«AllocDir»" + strings.TrimPrefix(s, t.AllocDir) }
+	}
+	out := []any{
+		"AllocDir", t.AllocDir,
+		"Dir", p(t.Dir),
+		"SharedAllocDir", p(t.SharedAllocDir),
+		"SharedTaskDir", p(t.SharedTaskDir),
+		"SharedAllocSecretsDir", p(t.SharedAllocSecretsDir),
+		"SharedTaskSecretsDir", p(t.SharedTaskSecretsDir),
+		"LocalDir", p(t.LocalDir),
+		"LogDir", p(t.LogDir),
+		"SecretsDir", p(t.SecretsDir),
+		"PrivateDir", p(t.PrivateDir),
+	}
+	return out
+
 }

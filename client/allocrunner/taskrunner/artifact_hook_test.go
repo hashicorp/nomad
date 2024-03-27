@@ -88,7 +88,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	_, destdir := getter.SetupDir(t)
 
 	req := &interfaces.TaskPrestartRequest{
-		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
+		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, "", ""),
 		TaskDir: &allocdir.TaskDir{Dir: destdir},
 		Task: &structs.Task{
 			Artifacts: []*structs.TaskArtifact{
@@ -180,7 +180,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	_, destdir := getter.SetupDir(t)
 
 	req := &interfaces.TaskPrestartRequest{
-		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
+		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, "", ""),
 		TaskDir: &allocdir.TaskDir{Dir: destdir},
 		Task: &structs.Task{
 			Artifacts: []*structs.TaskArtifact{
@@ -271,7 +271,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	_, destdir := getter.SetupDir(t)
 
 	req := &interfaces.TaskPrestartRequest{
-		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
+		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, "", ""),
 		TaskDir: &allocdir.TaskDir{Dir: destdir},
 		Task: &structs.Task{
 			Artifacts: []*structs.TaskArtifact{

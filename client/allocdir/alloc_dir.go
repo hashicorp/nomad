@@ -50,6 +50,9 @@ var (
 	// The name of the directory that is shared across tasks in a task group.
 	SharedAllocName = "alloc"
 
+	// The name of the secret directory that is placed in the shared alloc dir
+	SharedAllocSecretsName = "secrets"
+
 	// Name of the directory where logs of Tasks are written
 	LogDirName = "logs"
 
@@ -62,6 +65,8 @@ var (
 	TmpDirName = "tmp"
 
 	// The set of directories that exist inside each shared alloc directory.
+	// Note, this list does not include the alloc secrets directory because
+	// it is a child of the SharedDataDir.
 	SharedAllocDirs = []string{LogDirName, TmpDirName, SharedDataDir}
 
 	// The name of the directory that exists inside each task directory
@@ -95,6 +100,7 @@ type Interface interface {
 	NewTaskDir(string) *TaskDir
 	AllocDirPath() string
 	ShareDirPath() string
+	SecretsDirPath() string
 	GetTaskDir(string) *TaskDir
 	Build() error
 	Destroy() error
@@ -111,6 +117,10 @@ type AllocDir struct {
 	// The shared directory is available to all tasks within the same task
 	// group.
 	SharedDir string
+
+	// SecretsDir is the name of the allocation's shared secret directory
+	// and is a child of SharedDir.
+	SecretsDir string
 
 	// TaskDirs is a mapping of task names to their non-shared directory.
 	TaskDirs map[string]*TaskDir
@@ -139,6 +149,10 @@ func (a *AllocDir) ShareDirPath() string {
 	return a.SharedDir
 }
 
+func (a *AllocDir) SecretsDirPath() string {
+	return a.SecretsDir
+}
+
 func (a *AllocDir) GetTaskDir(task string) *TaskDir {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -161,12 +175,14 @@ func NewAllocDir(logger hclog.Logger, clientAllocDir, clientMountsDir, allocID s
 	logger = logger.Named("alloc_dir")
 	allocDir := filepath.Join(clientAllocDir, allocID)
 	shareDir := filepath.Join(allocDir, SharedAllocName)
+	secretsDir := filepath.Join(shareDir, SharedAllocSecretsName)
 
 	return &AllocDir{
 		clientAllocDir:       clientAllocDir,
 		clientAllocMountsDir: clientMountsDir,
 		AllocDir:             allocDir,
 		SharedDir:            shareDir,
+		SecretsDir:           secretsDir,
 		TaskDirs:             make(map[string]*TaskDir),
 		logger:               logger,
 	}
@@ -314,10 +330,17 @@ func (d *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 
 // Destroy tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
+
 	// Unmount all mounted shared alloc dirs.
 	mErr := new(multierror.Error)
 	if err := d.UnmountAll(); err != nil {
 		mErr = multierror.Append(mErr, err)
+	}
+
+	if err := removeSecretDir(d.SecretsDir); err != nil {
+		mErr = multierror.Append(mErr,
+			fmt.Errorf("failed to remove the alloc secrets dir %q: %w", d.SecretsDir, err),
+		)
 	}
 
 	if err := os.RemoveAll(d.AllocDir); err != nil {
@@ -348,6 +371,7 @@ func (d *AllocDir) UnmountAll() error {
 
 // Build the directory tree for an allocation.
 func (d *AllocDir) Build() error {
+
 	// Make the alloc directory, owned by the nomad process.
 	if err := os.MkdirAll(d.AllocDir, fileMode755); err != nil {
 		return fmt.Errorf("Failed to make the alloc directory %v: %w", d.AllocDir, err)
@@ -355,6 +379,10 @@ func (d *AllocDir) Build() error {
 
 	// Make the shared directory and make it available to all user/groups.
 	if err := allocMkdirAll(d.SharedDir, fileMode755); err != nil {
+		return err
+	}
+	// Make the shared directory and make it available to all user/groups
+	if err := allocMakeSecretsDir(d.SecretsDir, fileMode777); err != nil {
 		return err
 	}
 
@@ -703,13 +731,11 @@ func writeError(tw *tar.Writer, allocID string, err error) error {
 // value. It also sets the owner of the directory to "nobody" on systems that
 // allow.
 func allocMkdirAll(path string, perms os.FileMode) error {
-	// Create the directory
 	if err := os.MkdirAll(path, perms); err != nil {
-		return err
+		return fmt.Errorf("error creating path: %w", err)
 	}
-	// Update the access permissions on the directory
 	if err := dropDirPermissions(path, perms); err != nil {
-		return err
+		return fmt.Errorf("error dropping permissions: %w", err)
 	}
 	return nil
 }
@@ -718,12 +744,11 @@ func allocMkdirAll(path string, perms os.FileMode) error {
 // When possible it uses a tmpfs or some other method to prevent it from
 // persisting to actual disk.
 func allocMakeSecretsDir(path string, perms os.FileMode) error {
-	// Create the private directory
 	if err := createSecretDir(path); err != nil {
-		return err
+		return fmt.Errorf("error creating secret dir: %w", err)
 	}
 	if err := dropDirPermissions(path, perms); err != nil {
-		return err
+		return fmt.Errorf("error dropping permissions: %w", err)
 	}
 	return nil
 }
