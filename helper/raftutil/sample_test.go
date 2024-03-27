@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/kr/pretty"
@@ -24,7 +25,6 @@ func TestSampleInvariant(t *testing.T) {
 	fsm, err := NewFSM(path)
 	require.NoError(t, err)
 
-	state := fsm.State()
 	for {
 		idx, _, err := fsm.ApplyNext()
 		if err == ErrNoMoreLogs {
@@ -35,7 +35,7 @@ func TestSampleInvariant(t *testing.T) {
 		// Test invariant for each entry
 
 		// For example, test job summary numbers against running jobs
-		summary, err := state.JobSummaryByID(nil, ns, parentID)
+		summary, err := fsm.State().JobSummaryByID(nil, ns, parentID)
 		require.NoError(t, err)
 
 		if summary == nil {
@@ -46,7 +46,7 @@ func TestSampleInvariant(t *testing.T) {
 		summaryCount := summary.Children.Running + summary.Children.Pending + summary.Children.Dead
 		jobCountByParent := 0
 
-		iter, err := state.Jobs(nil)
+		iter, err := fsm.State().Jobs(nil, state.SortDefault)
 		require.NoError(t, err)
 		for {
 			rawJob := iter.Next()

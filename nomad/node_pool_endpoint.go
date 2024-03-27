@@ -412,6 +412,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 	}
 	allowNsFunc := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
 	namespace := args.RequestNamespace()
+	sort := state.QueryOptionSort(args.QueryOptions)
 
 	// Setup the blocking query. This largely mirrors the Jobs.List RPC but with
 	// an additional paginator filter for the node pool.
@@ -449,7 +450,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 				if namespace == structs.AllNamespacesSentinel {
 					iter, err = store.JobsByPool(ws, args.Name)
 				} else {
-					iter, err = store.JobsByNamespace(ws, namespace)
+					iter, err = store.JobsByNamespace(ws, namespace, sort)
 					filters = append(filters,
 						paginator.GenericFilter{
 							Allow: func(raw interface{}) (bool, error) {

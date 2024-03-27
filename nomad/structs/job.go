@@ -16,6 +16,48 @@ const (
 	JobServiceRegistrationsRPCMethod = "Job.GetServiceRegistrations"
 )
 
+type UIJob struct {
+	NamespacedID
+	Name               string
+	Type               string
+	NodePool           string
+	Datacenters        []string
+	Priority           int
+	Allocs             []JobStatusAlloc
+	SmartAlloc         map[string]int
+	GroupCountSum      int
+	ChildStatuses      []string
+	ActiveDeploymentID string
+	Version            uint64
+	SubmitTime         int64
+	ModifyIndex        uint64
+}
+
+type JobsStatusesRequest struct {
+	Jobs      []NamespacedID
+	SmartOnly bool
+	QueryOptions
+}
+
+type JobsStatusesResponse struct {
+	Jobs []UIJob
+	QueryMeta
+}
+
+type JobStatusAlloc struct {
+	ID               string
+	Group            string
+	ClientStatus     string
+	NodeID           string
+	DeploymentStatus JobStatusDeployment
+	JobVersion       uint64
+}
+
+type JobStatusDeployment struct {
+	Canary  bool
+	Healthy bool
+}
+
 // JobServiceRegistrationsRequest is the request object used to list all
 // service registrations belonging to the specified Job.ID.
 type JobServiceRegistrationsRequest struct {

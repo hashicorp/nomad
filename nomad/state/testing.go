@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 )
 
 func TestStateStore(t testing.TB) *StateStore {
@@ -317,4 +318,19 @@ func TestBadCSIState(t testing.TB, store *StateStore) error {
 	}
 
 	return nil
+}
+
+func (s *StateStore) UpsertAllocsRaw(t testing.TB, idx uint64, allocs []*structs.Allocation) {
+	t.Helper()
+	txn := s.db.WriteTxn(idx)
+	defer txn.Abort()
+	var err error
+	for _, a := range allocs {
+		err = txn.Insert("allocs", a)
+		must.NoError(t, err, must.Sprint("error inserting alloc"))
+	}
+	err = txn.Insert("index", &IndexEntry{"allocs", idx})
+	must.NoError(t, err, must.Sprint("error inserting index"))
+	err = txn.Commit()
+	must.NoError(t, err, must.Sprint("error committing transaction"))
 }

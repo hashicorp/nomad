@@ -20,6 +20,7 @@ import (
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/snapshot"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -810,11 +811,10 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 		return structs.ErrPermissionDenied
 	}
 
-	state := op.srv.fsm.State()
 	ws := memdb.NewWatchSet()
 
 	// Check for jobs that use Vault but don't have an identity for Vault.
-	jobsIter, err := state.Jobs(ws)
+	jobsIter, err := op.srv.State().Jobs(ws, state.SortDefault)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve jobs: %w", err)
 	}
@@ -847,7 +847,7 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	reply.JobsWithoutVaultIdentity = jobs
 
 	// Find nodes that don't support workload identities for Vault.
-	nodesIter, err := state.Nodes(ws)
+	nodesIter, err := op.srv.State().Nodes(ws)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve nodes: %w", err)
 	}
@@ -865,7 +865,7 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	reply.OutdatedNodes = nodes
 
 	// Retrieve Vault tokens that were created by Nomad servers.
-	vaultTokensIter, err := state.VaultAccessors(ws)
+	vaultTokensIter, err := op.srv.State().VaultAccessors(ws)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve Vault token accessors: %w", err)
 	}
