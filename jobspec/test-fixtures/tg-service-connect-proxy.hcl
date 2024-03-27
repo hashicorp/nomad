@@ -40,6 +40,16 @@ job "service-connect-proxy" {
               }
             }
 
+            transparent_proxy {
+              uid                    = "101"
+              outbound_port          = 15001
+              exclude_inbound_ports  = ["www", "9000"]
+              exclude_outbound_ports = [443, 80]
+              exclude_outbound_cidrs = ["10.0.0.0/8"]
+              exclude_uids           = ["10", "1001"]
+              no_dns                 = true
+            }
+
             config {
               foo = "bar"
             }

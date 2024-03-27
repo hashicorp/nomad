@@ -145,8 +145,13 @@ func connectSidecarProxy(info structs.AllocInfo, proxy *structs.ConsulProxy, cPo
 	if err != nil {
 		return nil, err
 	}
+	mode := api.ProxyModeDefault
+	if proxy.TransparentProxy != nil {
+		mode = api.ProxyModeTransparent
+	}
 
 	return &api.AgentServiceConnectProxyConfig{
+		Mode:                mode,
 		LocalServiceAddress: proxy.LocalServiceAddress,
 		LocalServicePort:    proxy.LocalServicePort,
 		Config:              connectProxyConfig(proxy.Config, cPort, info),

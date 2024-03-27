@@ -12,8 +12,12 @@ import (
 
 	"github.com/containerd/go-cni"
 	"github.com/containernetworking/cni/pkg/types"
+	"github.com/hashicorp/consul/sdk/iptables"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -199,4 +203,251 @@ func TestCNI_cniToAllocNet_Invalid(t *testing.T) {
 	allocNet, err := c.cniToAllocNet(cniResult)
 	require.Error(t, err)
 	require.Nil(t, allocNet)
+}
+
+func TestCNI_setupTproxyArgs(t *testing.T) {
+	ci.Parallel(t)
+
+	nodeMeta := map[string]string{
+		"connect.transparent_proxy.default_outbound_port": "15001",
+		"connect.transparent_proxy.default_uid":           "101",
+	}
+
+	nodeAttrs := map[string]string{
+		"consul.dns.addr": "192.168.1.117",
+		"consul.dns.port": "8600",
+	}
+
+	alloc := mock.ConnectAlloc()
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg.Networks = []*structs.NetworkResource{{
+		Mode: "bridge",
+		DNS:  &structs.DNSConfig{},
+		ReservedPorts: []structs.Port{ // non-Connect port
+			{
+				Label:       "http",
+				Value:       9002,
+				To:          9002,
+				HostNetwork: "default",
+			},
+		},
+		DynamicPorts: []structs.Port{ // Connect port
+			{
+				Label:       "connect-proxy-count-dashboard",
+				Value:       0,
+				To:          -1,
+				HostNetwork: "default",
+			},
+			{
+				Label:       "health",
+				Value:       0,
+				To:          9000,
+				HostNetwork: "default",
+			},
+		},
+	}}
+	tg.Services[0].PortLabel = "9002"
+	tg.Services[0].Connect.SidecarService.Proxy = &structs.ConsulProxy{
+		LocalServiceAddress: "",
+		LocalServicePort:    0,
+		Upstreams:           []structs.ConsulUpstream{},
+		Expose:              &structs.ConsulExposeConfig{},
+		Config:              map[string]interface{}{},
+	}
+
+	spec := &drivers.NetworkIsolationSpec{
+		Mode:        "group",
+		Path:        "/var/run/docker/netns/a2ece01ea7bc",
+		Labels:      map[string]string{"docker_sandbox_container_id": "4a77cdaad5"},
+		HostsConfig: &drivers.HostsConfig{},
+	}
+
+	portMapping := []cni.PortMapping{
+		{
+			HostPort:      9002,
+			ContainerPort: 9002,
+			Protocol:      "tcp",
+			HostIP:        "",
+		},
+		{
+			HostPort:      9002,
+			ContainerPort: 9002,
+			Protocol:      "udp",
+			HostIP:        "",
+		},
+		{
+			HostPort:      9001,
+			ContainerPort: 9000,
+			Protocol:      "tcp",
+			HostIP:        "",
+		},
+		{
+			HostPort:      9001,
+			ContainerPort: 9000,
+			Protocol:      "udp",
+			HostIP:        "",
+		},
+		{
+			HostPort:      25018,
+			ContainerPort: 25018,
+			Protocol:      "tcp",
+			HostIP:        "",
+		},
+		{
+			HostPort:      25018,
+			ContainerPort: 20000,
+			Protocol:      "udp",
+			HostIP:        "",
+		},
+	}
+	portLabels := map[string]int{
+		"connect-proxy-testconnect": 5,
+		"http":                      1,
+		"health":                    3,
+	}
+
+	testCases := []struct {
+		name           string
+		cluster        string
+		tproxySpec     *structs.ConsulTransparentProxy
+		exposeSpec     *structs.ConsulExposeConfig
+		nodeAttrs      map[string]string
+		expectIPConfig *iptables.Config
+		expectErr      string
+	}{
+		{
+			name: "nil tproxy spec returns no error or iptables config",
+		},
+		{
+			name:       "minimal empty tproxy spec returns defaults",
+			tproxySpec: &structs.ConsulTransparentProxy{},
+			expectIPConfig: &iptables.Config{
+				ConsulDNSIP:         "192.168.1.117",
+				ConsulDNSPort:       8600,
+				ProxyUserID:         "101",
+				ProxyInboundPort:    25018,
+				ProxyOutboundPort:   15001,
+				ExcludeInboundPorts: []string{"9002"},
+				NetNS:               "/var/run/docker/netns/a2ece01ea7bc",
+			},
+		},
+		{
+			name: "tproxy spec with overrides",
+			tproxySpec: &structs.ConsulTransparentProxy{
+				UID:                  "1001",
+				OutboundPort:         16001,
+				ExcludeInboundPorts:  []string{"http", "9000"},
+				ExcludeOutboundPorts: []uint16{443, 80},
+				ExcludeOutboundCIDRs: []string{"10.0.0.1/8"},
+				ExcludeUIDs:          []string{"10", "42"},
+				NoDNS:                true,
+			},
+			expectIPConfig: &iptables.Config{
+				ProxyUserID:          "1001",
+				ProxyInboundPort:     25018,
+				ProxyOutboundPort:    16001,
+				ExcludeInboundPorts:  []string{"9000", "9002"},
+				ExcludeOutboundCIDRs: []string{"10.0.0.1/8"},
+				ExcludeOutboundPorts: []string{"443", "80"},
+				ExcludeUIDs:          []string{"10", "42"},
+				NetNS:                "/var/run/docker/netns/a2ece01ea7bc",
+			},
+		},
+		{
+			name:       "tproxy with exposed checks",
+			tproxySpec: &structs.ConsulTransparentProxy{},
+			exposeSpec: &structs.ConsulExposeConfig{
+				Paths: []structs.ConsulExposePath{{
+					Path:          "/v1/example",
+					Protocol:      "http",
+					LocalPathPort: 9000,
+					ListenerPort:  "health",
+				}},
+			},
+			expectIPConfig: &iptables.Config{
+				ConsulDNSIP:         "192.168.1.117",
+				ConsulDNSPort:       8600,
+				ProxyUserID:         "101",
+				ProxyInboundPort:    25018,
+				ProxyOutboundPort:   15001,
+				ExcludeInboundPorts: []string{"9000", "9002"},
+				NetNS:               "/var/run/docker/netns/a2ece01ea7bc",
+			},
+		},
+		{
+			name:       "tproxy with no consul dns fingerprint",
+			nodeAttrs:  map[string]string{},
+			tproxySpec: &structs.ConsulTransparentProxy{},
+			expectIPConfig: &iptables.Config{
+				ProxyUserID:         "101",
+				ProxyInboundPort:    25018,
+				ProxyOutboundPort:   15001,
+				ExcludeInboundPorts: []string{"9002"},
+				NetNS:               "/var/run/docker/netns/a2ece01ea7bc",
+			},
+		},
+		{
+			name: "tproxy with consul dns disabled",
+			nodeAttrs: map[string]string{
+				"consul.dns.port": "-1",
+				"consul.dns.addr": "192.168.1.117",
+			},
+			tproxySpec: &structs.ConsulTransparentProxy{},
+			expectIPConfig: &iptables.Config{
+				ProxyUserID:         "101",
+				ProxyInboundPort:    25018,
+				ProxyOutboundPort:   15001,
+				ExcludeInboundPorts: []string{"9002"},
+				NetNS:               "/var/run/docker/netns/a2ece01ea7bc",
+			},
+		},
+		{
+			name:    "tproxy for other cluster with default consul dns disabled",
+			cluster: "infra",
+			nodeAttrs: map[string]string{
+				"consul.dns.port":       "-1",
+				"consul.dns.addr":       "192.168.1.110",
+				"consul.infra.dns.port": "8600",
+				"consul.infra.dns.addr": "192.168.1.117",
+			},
+			tproxySpec: &structs.ConsulTransparentProxy{},
+			expectIPConfig: &iptables.Config{
+				ConsulDNSIP:         "192.168.1.117",
+				ConsulDNSPort:       8600,
+				ProxyUserID:         "101",
+				ProxyInboundPort:    25018,
+				ProxyOutboundPort:   15001,
+				ExcludeInboundPorts: []string{"9002"},
+				NetNS:               "/var/run/docker/netns/a2ece01ea7bc",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tg.Services[0].Connect.SidecarService.Proxy.TransparentProxy = tc.tproxySpec
+			tg.Services[0].Connect.SidecarService.Proxy.Expose = tc.exposeSpec
+			tg.Services[0].Cluster = tc.cluster
+
+			c := &cniNetworkConfigurator{
+				nodeAttrs: nodeAttrs,
+				nodeMeta:  nodeMeta,
+				logger:    testlog.HCLogger(t),
+			}
+			if tc.nodeAttrs != nil {
+				c.nodeAttrs = tc.nodeAttrs
+			}
+
+			iptablesCfg, err := c.setupTransparentProxyArgs(alloc, spec, portMapping, portLabels)
+			if tc.expectErr == "" {
+				must.NoError(t, err)
+				must.Eq(t, tc.expectIPConfig, iptablesCfg)
+			} else {
+				must.EqError(t, err, tc.expectErr)
+				must.Nil(t, iptablesCfg)
+			}
+		})
+
+	}
+
 }

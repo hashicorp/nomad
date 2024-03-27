@@ -927,6 +927,7 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 		"local_service_port",
 		"upstreams",
 		"expose",
+		"transparent_proxy",
 		"config",
 	}
 
@@ -942,6 +943,7 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 
 	delete(m, "upstreams")
 	delete(m, "expose")
+	delete(m, "transparent_proxy")
 	delete(m, "config")
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -982,6 +984,16 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 			return nil, err
 		} else {
 			proxy.Expose = e
+		}
+	}
+
+	if tpo := listVal.Filter("transparent_proxy"); len(tpo.Items) > 1 {
+		return nil, fmt.Errorf("only 1 transparent_proxy object supported")
+	} else if len(tpo.Items) == 1 {
+		if tp, err := parseTproxy(tpo.Items[0]); err != nil {
+			return nil, err
+		} else {
+			proxy.TransparentProxy = tp
 		}
 	}
 
@@ -1075,6 +1087,41 @@ func parseExposePath(epo *ast.ObjectItem) (*api.ConsulExposePath, error) {
 	}
 
 	return &path, nil
+}
+
+func parseTproxy(epo *ast.ObjectItem) (*api.ConsulTransparentProxy, error) {
+	valid := []string{
+		"uid",
+		"outbound_port",
+		"exclude_inbound_ports",
+		"exclude_outbound_ports",
+		"exclude_outbound_cidrs",
+		"exclude_uids",
+		"no_dns",
+	}
+
+	if err := checkHCLKeys(epo.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "tproxy ->")
+	}
+
+	var tproxy api.ConsulTransparentProxy
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, epo.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &tproxy,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	return &tproxy, nil
 }
 
 func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {

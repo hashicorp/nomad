@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/mitchellh/hashstructure"
 )
@@ -1734,6 +1735,10 @@ func consulProxyDiff(old, new *ConsulProxy, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, exposeDiff)
 	}
 
+	if tproxyDiff := consulTProxyDiff(old.TransparentProxy, new.TransparentProxy, contextual); tproxyDiff != nil {
+		diff.Objects = append(diff.Objects, tproxyDiff)
+	}
+
 	// diff the config blob
 	if cDiff := configDiff(old.Config, new.Config, contextual); cDiff != nil {
 		diff.Objects = append(diff.Objects, cDiff)
@@ -1839,6 +1844,57 @@ func consulProxyExposeDiff(prev, next *ConsulExposeConfig, contextual bool) *Obj
 		nil, "Paths",
 		contextual); pathDiff != nil {
 		diff.Objects = append(diff.Objects, pathDiff...)
+	}
+
+	return diff
+}
+
+func consulTProxyDiff(prev, next *ConsulTransparentProxy, contextual bool) *ObjectDiff {
+
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "TransparentProxy"}
+	var oldPrimFlat, newPrimFlat map[string]string
+
+	if prev.Equal(next) {
+		return diff
+	} else if prev == nil {
+		prev = &ConsulTransparentProxy{}
+		diff.Type = DiffTypeAdded
+		newPrimFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		next = &ConsulTransparentProxy{}
+		diff.Type = DiffTypeDeleted
+		oldPrimFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimFlat = flatmap.Flatten(prev, nil, true)
+		newPrimFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// diff the primitive fields
+	diff.Fields = fieldDiffs(oldPrimFlat, newPrimFlat, contextual)
+
+	if setDiff := stringSetDiff(prev.ExcludeInboundPorts, next.ExcludeInboundPorts,
+		"ExcludeInboundPorts", contextual); setDiff != nil && setDiff.Type != DiffTypeNone {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	if setDiff := stringSetDiff(
+		helper.ConvertSlice(prev.ExcludeOutboundPorts, func(a uint16) string { return fmt.Sprint(a) }),
+		helper.ConvertSlice(next.ExcludeOutboundPorts, func(a uint16) string { return fmt.Sprint(a) }),
+		"ExcludeOutboundPorts",
+		contextual,
+	); setDiff != nil && setDiff.Type != DiffTypeNone {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	if setDiff := stringSetDiff(prev.ExcludeOutboundCIDRs, next.ExcludeOutboundCIDRs,
+		"ExcludeOutboundCIDRs", contextual); setDiff != nil && setDiff.Type != DiffTypeNone {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	if setDiff := stringSetDiff(prev.ExcludeUIDs, next.ExcludeUIDs,
+		"ExcludeUIDs", contextual); setDiff != nil && setDiff.Type != DiffTypeNone {
+		diff.Objects = append(diff.Objects, setDiff)
 	}
 
 	return diff
