@@ -132,3 +132,15 @@ func (j *Job) RequiredNUMA() set.Collection[string] {
 	}
 	return result
 }
+
+// RequiredBridgeNetwork identifies which task groups, if any, within the job
+// contain networks requesting bridge networking.
+func (j *Job) RequiredBridgeNetwork() set.Collection[string] {
+	result := set.New[string](10)
+	for _, tg := range j.TaskGroups {
+		if tg.Networks.Modes().Contains("bridge") {
+			result.Insert(tg.Name)
+		}
+	}
+	return result
+}

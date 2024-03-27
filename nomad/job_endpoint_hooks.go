@@ -248,12 +248,14 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// Identify which task groups are utilizing NUMA resources.
 	numaTaskGroups := j.RequiredNUMA()
 
+	bridgeNetworkingTaskGroups := j.RequiredBridgeNetwork()
+
 	// Hot path where none of our things require constraints.
 	//
 	// [UPDATE THIS] if you are adding a new constraint thing!
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
 		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
-		numaTaskGroups.Empty() {
+		numaTaskGroups.Empty() && bridgeNetworkingTaskGroups.Empty() {
 		return j, nil, nil
 	}
 
@@ -311,7 +313,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 			}
 		}
 
-		if tg.Networks.Modes().Contains("bridge") {
+		if bridgeNetworkingTaskGroups.Contains(tg.Name) {
 			mutateConstraint(constraintMatcherLeft, tg, cniBridgeConstraint)
 			mutateConstraint(constraintMatcherLeft, tg, cniFirewallConstraint)
 			mutateConstraint(constraintMatcherLeft, tg, cniHostLocalConstraint)
