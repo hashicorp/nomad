@@ -107,7 +107,10 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	if err := c.ensureCNIInitialized(); err != nil {
 		return nil, err
 	}
-	argsMap := map[string]string{
+	cniArgs := map[string]string{
+		// CNI plugins are called one after the other with the same set of
+		// arguments. Passing IgnoreUnknown=true signals to plugins that they
+		// should ignore any arguments they don't understand
 		"IgnoreUnknown": "true",
 	}
 
@@ -122,10 +125,8 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		if err != nil {
 			return nil, err
 		}
-		argsMap[ConsulIPTablesConfigEnvVar] = string(iptablesCfg)
+		cniArgs[ConsulIPTablesConfigEnvVar] = string(iptablesCfg)
 	}
-
-	c.logger.Trace("CNI_ARGS", "args", argsMap)
 
 	// Depending on the version of bridge cni plugin used, a known race could occure
 	// where two alloc attempt to create the nomad bridge at the same time, resulting
@@ -137,7 +138,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		var err error
 		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path,
 			cni.WithCapabilityPortMap(portMapping),
-			cni.WithLabels(argsMap),
+			cni.WithLabels(cniArgs), // "labels" turn into CNI_ARGS
 		); err != nil {
 			c.logger.Warn("failed to configure network", "error", err, "attempt", attempt)
 			switch attempt {
@@ -202,7 +203,7 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 			cluster = svc.Cluster
 
 			// The default value matches the Envoy UID. The cluster admin can
-			// set this value to something non-default if they have a customer
+			// set this value to something non-default if they have a custom
 			// Envoy container with a different UID
 			proxyUID = c.nodeMeta[envoy.DefaultTransparentProxyUIDParam]
 			if tproxy.UID != "" {
