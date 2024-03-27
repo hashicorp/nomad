@@ -438,23 +438,7 @@ func volumeMountsUpdated(a, b []*structs.VolumeMount) comparison {
 		return same
 	}
 
-	bVMMap := helper.SliceToMap[map[string]*structs.VolumeMount](b,
-		func(vm *structs.VolumeMount) string {
-			return vm.Volume
-		})
-
-	for _, atvm := range a {
-		if c := volumeMountUpdated(atvm, bVMMap[atvm.Volume]); c.modified {
-			return c
-		}
-		delete(bVMMap, atvm.Volume)
-	}
-
-	if len(bVMMap) > 0 {
-		return difference("volume mount added", nil, bVMMap)
-	}
-
-	return same
+	return difference("volume mounts", a, b)
 }
 
 // volumeMountUpdated returns true if the definition of the volume mount
