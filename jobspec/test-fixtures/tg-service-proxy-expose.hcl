@@ -10,6 +10,7 @@ job "group_service_proxy_expose" {
         sidecar_service {
           proxy {
             expose {
+              checks = true
               path {
                 path            = "/health"
                 protocol        = "http"

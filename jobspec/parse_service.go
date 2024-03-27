@@ -1012,6 +1012,7 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 
 func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
 	valid := []string{
+		"checks",
 		"path", // an array of path blocks
 	}
 
@@ -1020,6 +1021,23 @@ func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
 	}
 
 	var expose api.ConsulExposeConfig
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, eo.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "path")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &expose,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
 
 	var listVal *ast.ObjectList
 	if eoType, ok := eo.Val.(*ast.ObjectType); ok {
