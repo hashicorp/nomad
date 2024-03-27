@@ -64,12 +64,12 @@ func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, b
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	for _, svc := range tg.Services {
 		if svc.Connect.HasTransparentProxy() {
-			netCfg = buildNomadBridgeNetConfigForTProxy(*b)
+			netCfg = buildNomadBridgeNetConfig(*b, true)
 			break
 		}
 	}
 	if netCfg == nil {
-		netCfg = buildNomadBridgeNetConfig(*b)
+		netCfg = buildNomadBridgeNetConfig(*b, false)
 	}
 
 	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, netCfg, node)
@@ -152,20 +152,19 @@ func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs
 	return b.cni.Teardown(ctx, alloc, spec)
 }
 
-func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator) []byte {
+func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator, withConsulCNI bool) []byte {
+	var consulCNI string
+	if withConsulCNI {
+		consulCNI = consulCNIBlock
+	}
+
 	return []byte(fmt.Sprintf(nomadCNIConfigTemplate,
 		b.bridgeName,
 		b.hairpinMode,
 		b.allocSubnet,
-		cniAdminChainName))
-}
-
-func buildNomadBridgeNetConfigForTProxy(b bridgeNetworkConfigurator) []byte {
-	return []byte(fmt.Sprintf(nomadCNIConfigTemplateForTProxy,
-		b.bridgeName,
-		b.hairpinMode,
-		b.allocSubnet,
-		cniAdminChainName))
+		cniAdminChainName,
+		consulCNI,
+	))
 }
 
 // Update website/content/docs/networking/cni.mdx when the bridge configuration
@@ -207,53 +206,14 @@ const nomadCNIConfigTemplate = `{
 			"type": "portmap",
 			"capabilities": {"portMappings": true},
 			"snat": true
-		}
+		}%s
 	]
 }
 `
 
-const nomadCNIConfigTemplateForTProxy = `{
-	"cniVersion": "0.4.0",
-	"name": "nomad",
-	"plugins": [
-		{
-			"type": "loopback"
-		},
-		{
-			"type": "bridge",
-			"bridge": %q,
-			"ipMasq": true,
-			"isGateway": true,
-			"forceAddress": true,
-			"hairpinMode": %v,
-			"ipam": {
-				"type": "host-local",
-				"ranges": [
-					[
-						{
-							"subnet": %q
-						}
-					]
-				],
-				"routes": [
-					{ "dst": "0.0.0.0/0" }
-				]
-			}
-		},
-		{
-			"type": "firewall",
-			"backend": "iptables",
-			"iptablesAdminChainName": %q
-		},
-		{
-			"type": "portmap",
-			"capabilities": {"portMappings": true},
-			"snat": true
-		},
+const consulCNIBlock = `,
 		{
 			"type": "consul-cni",
 			"log_level": "debug"
 		}
-	]
-}
 `
