@@ -74,6 +74,87 @@ export default function () {
     })
   );
 
+  this.get(
+    '/jobs/statuses',
+    withBlockingSupport(function ({ jobs }, req) {
+      let per_page = req.queryParams.per_page || 20;
+      const namespace = req.queryParams.namespace || 'default';
+
+      const json = this.serialize(jobs.all());
+      return json
+        .sort((a, b) => b.ID.localeCompare(a.ID))
+        .sort((a, b) => b.ModifyIndex - a.ModifyIndex)
+        .filter((job) => {
+          if (namespace === '*') return true;
+          return namespace === 'default'
+            ? !job.NamespaceID || job.NamespaceID === 'default'
+            : job.NamespaceID === namespace;
+        })
+        .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'))
+        .slice(0, per_page);
+    })
+  );
+
+  this.post(
+    '/jobs/statuses',
+    withBlockingSupport(function ({ jobs }, req) {
+      const body = JSON.parse(req.requestBody);
+      const requestedJobs = body.jobs || [];
+      const allJobs = this.serialize(jobs.all());
+
+      let returnedJobs = allJobs
+        .filter((job) => {
+          return requestedJobs.some((requestedJob) => {
+            return (
+              job.ID === requestedJob.id &&
+              (requestedJob.namespace === 'default' ||
+                job.NamespaceID === requestedJob.namespace)
+            );
+          });
+        })
+        .map((j) => {
+          let job = {};
+          job.ID = j.ID;
+          job.Name = j.Name;
+          job.ModifyIndex = j.ModifyIndex;
+          job.Allocs = server.db.allocations
+            .where({ jobId: j.ID, namespace: j.Namespace })
+            .map((alloc) => {
+              return {
+                ClientStatus: alloc.clientStatus,
+                DeploymentStatus: {
+                  Canary: false,
+                  Healthy: true,
+                },
+                Group: alloc.taskGroup,
+                JobVersion: alloc.jobVersion,
+                NodeID: alloc.nodeId,
+                ID: alloc.id,
+              };
+            });
+          job.ChildStatuses = null; // TODO: handle parent job here
+          job.Datacenters = j.Datacenters;
+          job.DeploymentID = j.DeploymentID;
+          job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
+            (a, b) => a + b,
+            0
+          );
+          job.Namespace = j.NamespaceID;
+          job.NodePool = j.NodePool;
+          job.Type = j.Type;
+          job.Priority = j.Priority;
+          job.Version = j.Version;
+          return job;
+        });
+      // sort by modifyIndex, descending
+      returnedJobs
+        .sort((a, b) => b.ID.localeCompare(a.ID))
+        .sort((a, b) => b.ModifyIndex - a.ModifyIndex);
+
+      return returnedJobs;
+    })
+  );
+
   this.post('/jobs', function (schema, req) {
     const body = JSON.parse(req.requestBody);
 

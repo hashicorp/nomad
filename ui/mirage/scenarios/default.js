@@ -28,6 +28,7 @@ export const allScenarios = {
   policiesTestCluster,
   rolesTestCluster,
   namespacesTestCluster,
+  jobsIndexTestCluster,
   ...topoScenarios,
   ...sysbatchScenarios,
 };
@@ -57,6 +58,17 @@ export default function (server) {
 
 // Scenarios
 
+function jobsIndexTestCluster(server) {
+  faker.seed(1);
+  server.createList('agent', 1, 'withConsulLink', 'withVaultLink');
+  server.createList('node', 1);
+  server.createList('job', 1, {
+    namespaceId: 'default',
+    resourceSpec: Array(1).fill('M: 256, C: 500'),
+    groupAllocCount: 1,
+  });
+}
+
 function smallCluster(server) {
   faker.seed(1);
   server.create('feature', { name: 'Dynamic Application Sizing' });
@@ -71,7 +83,7 @@ function smallCluster(server) {
     },
     'withMeta'
   );
-  server.createList('job', 1, { createRecommendations: true });
+  server.createList('job', 10, { createRecommendations: true });
   server.create('job', {
     withGroupServices: true,
     withTaskServices: true,

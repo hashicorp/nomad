@@ -11,6 +11,7 @@ import { jobAllocStatuses } from '../../../utils/allocation-client-statuses';
 export default class JobStatusPanelSteadyComponent extends Component {
   @alias('args.job') job;
 
+  // TODO: use the job model for this
   get allocTypes() {
     return jobAllocStatuses[this.args.job.type].map((type) => {
       return {
@@ -143,7 +144,8 @@ export default class JobStatusPanelSteadyComponent extends Component {
     if (this.args.job.type === 'service' || this.args.job.type === 'batch') {
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
     } else if (this.atMostOneAllocPerNode) {
-      return this.args.job.allocations.uniqBy('nodeID').length;
+      return this.args.job.allocations.filterBy('nodeID').uniqBy('nodeID')
+        .length;
     } else {
       return this.args.job.count; // TODO: this is probably not the correct totalAllocs count for any type.
     }

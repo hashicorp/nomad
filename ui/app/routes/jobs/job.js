@@ -44,7 +44,7 @@ export default class JobRoute extends Route.extend(WithWatchers) {
         const relatedModelsQueries = [
           job.get('allocations'),
           job.get('evaluations'),
-          this.store.query('job', { namespace, meta: true }),
+          // this.store.query('job', { namespace, meta: true }), // TODO: I think I am probably nuking the ability to get meta:pack info here. See https://github.com/hashicorp/nomad/pull/14833
           this.store.findAll('namespace'),
         ];
 

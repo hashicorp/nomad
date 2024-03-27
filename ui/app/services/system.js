@@ -136,6 +136,10 @@ export default class SystemService extends Service {
     );
   }
 
+  get shouldShowNodepools() {
+    return true; // TODO: make this dependent on there being at least one non-default node pool
+  }
+
   @task(function* () {
     const emptyLicense = { License: { Features: [] } };
 

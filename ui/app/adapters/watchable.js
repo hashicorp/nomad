@@ -24,11 +24,10 @@ export default class Watchable extends ApplicationAdapter {
   //
   // It's either this weird side-effecting thing that also requires a change
   // to ajaxOptions or overriding ajax completely.
-  ajax(url, type, options) {
+  ajax(url, type, options = {}) {
     const hasParams = hasNonBlockingQueryParams(options);
     if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
-
-    const params = { ...options.data };
+    let params = { ...options?.data };
     delete params.index;
 
     // Options data gets appended as query params as part of ajaxOptions.
@@ -96,6 +95,7 @@ export default class Watchable extends ApplicationAdapter {
     additionalParams = {}
   ) {
     const url = this.buildURL(type.modelName, null, null, 'query', query);
+    const method = get(options, 'adapterOptions.method') || 'GET';
     let [urlPath, params] = url.split('?');
     params = assign(
       queryString.parse(params) || {},
@@ -105,15 +105,13 @@ export default class Watchable extends ApplicationAdapter {
     );
 
     if (get(options, 'adapterOptions.watch')) {
-      // The intended query without additional blocking query params is used
-      // to track the appropriate query index.
       params.index = this.watchList.getIndexFor(
         `${urlPath}?${queryString.stringify(query)}`
       );
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
-    return this.ajax(urlPath, 'GET', {
+    return this.ajax(urlPath, method, {
       signal,
       data: params,
     }).then((payload) => {

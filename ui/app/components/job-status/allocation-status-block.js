@@ -7,6 +7,9 @@ import Component from '@glimmer/component';
 
 export default class JobStatusAllocationStatusBlockComponent extends Component {
   get countToShow() {
+    if (this.args.compact) {
+      return 0;
+    }
     const restWidth = 50;
     const restGap = 10;
     let cts = Math.floor((this.args.width - (restWidth + restGap)) / 42);
