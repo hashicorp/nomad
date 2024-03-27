@@ -31,6 +31,7 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
  * @property {boolean} [custom]
  * @property {boolean} [exclusive]
  * @property {HTMLElement} [element]
+ * @property {string[]} [defaultPattern]
  */
 
 const DEBOUNCE_MS = 750;
@@ -110,6 +111,7 @@ export default class KeyboardService extends Service {
       {
         label: 'Go to Variables',
         action: () => this.router.transitionTo('variables'),
+        rebindable: true,
       },
       {
         label: 'Go to Servers',
@@ -181,6 +183,7 @@ export default class KeyboardService extends Service {
       if (persistedValue) {
         set(command, 'pattern', JSON.parse(persistedValue));
         set(command, 'custom', true);
+        set(command, 'defaultPattern', this.defaultPatterns[command.label]);
       } else {
         set(command, 'pattern', this.defaultPatterns[command.label]);
       }
@@ -207,6 +210,12 @@ export default class KeyboardService extends Service {
     this.keyCommands.filterBy('enumerated').forEach((command, iter) => {
       command.pattern = this.cleanPattern(iter);
     });
+  }
+
+  getCommandByPattern(pattern) {
+    return this.keyCommands.find(
+      (command) => command.pattern.join('+') === pattern.join('+')
+    );
   }
 
   addCommands(commands) {
@@ -364,6 +373,7 @@ export default class KeyboardService extends Service {
     this.clearBuffer();
     set(cmd, 'recording', true);
     set(cmd, 'previousPattern', cmd.pattern);
+    set(cmd, 'defaultPattern', cmd.defaultPattern || cmd.pattern);
     set(cmd, 'pattern', null);
   };
 

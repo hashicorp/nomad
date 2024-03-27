@@ -118,6 +118,10 @@ module('Acceptance | keyboard', function (hooks) {
         'end up on the clients page after typing g c'
       );
 
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      assert.dom('[data-shortcut="g,c"]').exists('g c shortcut is shown');
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
+
       triggerEvent('.page-layout', 'keydown', { key: 'g' });
       await triggerEvent('.page-layout', 'keydown', { key: 'j' });
       assert.equal(
@@ -180,6 +184,16 @@ module('Acceptance | keyboard', function (hooks) {
           'text unchanged when I hit escape during recording'
         );
 
+      // when holding shift, the previous "g c" command is now "r o f l"
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      assert
+        .dom('[data-shortcut="g,c"]')
+        .doesNotExist('g c shortcut is no longer shown');
+      assert
+        .dom('[data-shortcut="r,o,f,l"]')
+        .exists('r o f l shortcut is shown in its place');
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
+
       await click(
         '[data-test-command-label="Go to Clients"] button.reset-to-default'
       );
@@ -188,6 +202,16 @@ module('Acceptance | keyboard', function (hooks) {
           '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
         )
         .hasText('g c', 'Resetting to default rebinds the shortcut');
+
+      // when holding shift, the now-reset command is back to "g c"
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      assert
+        .dom('[data-shortcut="g,c"]')
+        .exists('g c shortcut is back after reset to default');
+      assert
+        .dom('[data-shortcut="r,o,f,l"]')
+        .doesNotExist('r o f l shortcut is gone after reset to default');
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
     });
 
     test('Rebound shortcuts persist from localStorage', async function (assert) {
