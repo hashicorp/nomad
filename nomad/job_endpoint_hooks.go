@@ -15,12 +15,23 @@ import (
 	"golang.org/x/exp/maps"
 )
 
+// Node attributes acquired via fingerprinting.
 const (
 	attrVaultVersion      = `${attr.vault.version}`
 	attrConsulVersion     = `${attr.consul.version}`
 	attrNomadVersion      = `${attr.nomad.version}`
 	attrNomadServiceDisco = `${attr.nomad.service_discovery}`
+	attrBridgeCNI         = `${attr.plugins.cni.version.bridge}`
+	attrFirewallCNI       = `${attr.plugins.cni.version.firewall}`
+	attrHostLocalCNI      = `${attr.plugins.cni.version.host-local}`
+	attrLoopbackCNI       = `${attr.plugins.cni.version.loopback}`
+	attrPortMapCNI        = `${attr.plugins.cni.version.portmap}`
 )
+
+// cniMinVersion is the version expression for the minimum CNI version supported
+// for the CNI container-networking plugins. Support was added at v0.4.0, so
+// we set the minimum to that.
+const cniMinVersion = ">= 0.4.0"
 
 var (
 	// vaultConstraint is the implicit constraint added to jobs requesting a
@@ -77,6 +88,51 @@ var (
 		LTarget: "${attr.kernel.name}",
 		RTarget: "linux",
 		Operand: "=",
+	}
+
+	// cniBridgeConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniBridgeConstraint = &structs.Constraint{
+		LTarget: attrBridgeCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniFirewallConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniFirewallConstraint = &structs.Constraint{
+		LTarget: attrFirewallCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniHostLocalConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniHostLocalConstraint = &structs.Constraint{
+		LTarget: attrHostLocalCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniLoopbackConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniLoopbackConstraint = &structs.Constraint{
+		LTarget: attrLoopbackCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniPortMapConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniPortMapConstraint = &structs.Constraint{
+		LTarget: attrPortMapCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
 	}
 )
 
@@ -192,12 +248,14 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// Identify which task groups are utilizing NUMA resources.
 	numaTaskGroups := j.RequiredNUMA()
 
+	bridgeNetworkingTaskGroups := j.RequiredBridgeNetwork()
+
 	// Hot path where none of our things require constraints.
 	//
 	// [UPDATE THIS] if you are adding a new constraint thing!
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
 		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
-		numaTaskGroups.Empty() {
+		numaTaskGroups.Empty() && bridgeNetworkingTaskGroups.Empty() {
 		return j, nil, nil
 	}
 
@@ -253,6 +311,14 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 					}
 				}
 			}
+		}
+
+		if bridgeNetworkingTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherLeft, tg, cniBridgeConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniFirewallConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniHostLocalConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniLoopbackConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniPortMapConstraint)
 		}
 	}
 

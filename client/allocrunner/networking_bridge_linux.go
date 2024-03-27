@@ -148,7 +148,8 @@ func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator) []byte {
 }
 
 // Update website/content/docs/networking/cni.mdx when the bridge configuration
-// is modified.
+// is modified. If CNI plugins are added or versions need to be updated for new
+// fields, add a new constraint to nomad/job_endpoint_hooks.go
 const nomadCNIConfigTemplate = `{
 	"cniVersion": "0.4.0",
 	"name": "nomad",
