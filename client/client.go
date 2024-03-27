@@ -114,16 +114,6 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
-
-	// defaultConnectLogLevel is the log level set in the node meta by default
-	// to be used by Consul Connect sidecar tasks.
-	defaultConnectLogLevel = "info"
-
-	// defaultConnectProxyConcurrency is the default number of worker threads the
-	// connect sidecar should be configured to use.
-	//
-	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
-	defaultConnectProxyConcurrency = "1"
 )
 
 var (
@@ -1572,11 +1562,17 @@ func (c *Client) setupNode() error {
 	if _, ok := node.Meta[envoy.GatewayMetaParam]; !ok {
 		node.Meta[envoy.GatewayMetaParam] = envoy.ImageFormat
 	}
-	if _, ok := node.Meta["connect.log_level"]; !ok {
-		node.Meta["connect.log_level"] = defaultConnectLogLevel
+	if _, ok := node.Meta[envoy.DefaultConnectLogLevelParam]; !ok {
+		node.Meta[envoy.DefaultConnectLogLevelParam] = envoy.DefaultConnectLogLevel
 	}
-	if _, ok := node.Meta["connect.proxy_concurrency"]; !ok {
-		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
+	if _, ok := node.Meta[envoy.DefaultConnectProxyConcurrencyParam]; !ok {
+		node.Meta[envoy.DefaultConnectProxyConcurrencyParam] = envoy.DefaultConnectProxyConcurrency
+	}
+	if _, ok := node.Meta[envoy.DefaultTransparentProxyUIDParam]; !ok {
+		node.Meta[envoy.DefaultTransparentProxyUIDParam] = envoy.DefaultTransparentProxyUID
+	}
+	if _, ok := node.Meta[envoy.DefaultTransparentProxyOutboundPortParam]; !ok {
+		node.Meta[envoy.DefaultTransparentProxyOutboundPortParam] = envoy.DefaultTransparentProxyOutboundPort
 	}
 
 	// Since node.Meta will get dynamic metadata merged in, save static metadata
