@@ -14,12 +14,26 @@ their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.8.0
+
+#### Deprecated Disconnect Fields
+
 Nomad 1.8.0 introduces a `disconnect` block meant to group all the configuration
-options related to disconnected client's and server's behavior, causing the 
-deprecation of the fileds `stop_after_client_disconnect`, `max_client_disconnect`
+options related to disconnected client's and server's behavior, causing the
+deprecation of the fields `stop_after_client_disconnect`, `max_client_disconnect`
 and `prevent_reschedule_on_lost`. This block also introduces new options for
 allocations reconciliation if the client regains connectivity.
 
+#### CNI Constraints
+
+In Nomad 1.8.0, jobs with `bridge` networking will have constraints added during
+job submit that require CNI plugins to be present on the node. Nodes have
+fingerprinted the available CNI plugins starting in Nomad 1.5.0.
+
+If you are upgrading from Nomad 1.5.0 or later to 1.8.0 or later, there's
+nothing additional for you to do. It's not recommended to skip more than 2
+versions of Nomad. But if you upgrade from earlier than 1.5.0 to 1.8.0 or later,
+you will need to ensure that clients have been upgraded before submitting any
+jobs that use `bridge` networking.
 
 #### Removal of `raw_exec` option `no_cgroups`
 
