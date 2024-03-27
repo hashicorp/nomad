@@ -1194,6 +1194,60 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			expectedOutputError:    nil,
 			name:                   "task group with bridge network",
 		},
+		{
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-tproxy",
+						Services: []*structs.Service{{
+							Connect: &structs.ConsulConnect{
+								SidecarService: &structs.ConsulSidecarService{
+									Proxy: &structs.ConsulProxy{
+										TransparentProxy: &structs.ConsulTransparentProxy{},
+									},
+								},
+							},
+						}},
+						Networks: []*structs.NetworkResource{
+							{Mode: "bridge"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-tproxy",
+						Services: []*structs.Service{{
+							Connect: &structs.ConsulConnect{
+								SidecarService: &structs.ConsulSidecarService{
+									Proxy: &structs.ConsulProxy{
+										TransparentProxy: &structs.ConsulTransparentProxy{},
+									},
+								},
+							},
+						}},
+						Networks: []*structs.NetworkResource{
+							{Mode: "bridge"},
+						},
+						Constraints: []*structs.Constraint{
+							consulServiceDiscoveryConstraint,
+							cniBridgeConstraint,
+							cniFirewallConstraint,
+							cniHostLocalConstraint,
+							cniLoopbackConstraint,
+							cniPortMapConstraint,
+							cniConsulConstraint,
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+			name:                   "task group with tproxy",
+		},
 	}
 
 	for _, tc := range testCases {

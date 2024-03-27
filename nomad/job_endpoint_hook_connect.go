@@ -592,6 +592,12 @@ func groupConnectUpstreamsValidate(g *structs.TaskGroup, services []*structs.Ser
 
 			if tp := service.Connect.SidecarService.Proxy.TransparentProxy; tp != nil {
 				hasTproxy = true
+				for _, net := range g.Networks {
+					if !net.DNS.IsZero() && !tp.NoDNS {
+						return fmt.Errorf(
+							"Consul Connect transparent proxy cannot be used with network.dns unless no_dns=true")
+					}
+				}
 				for _, portLabel := range tp.ExcludeInboundPorts {
 					if !transparentProxyPortLabelValidate(g, portLabel) {
 						return fmt.Errorf(
