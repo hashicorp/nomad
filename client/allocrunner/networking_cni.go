@@ -99,7 +99,7 @@ func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfaceP
 }
 
 const (
-	ConsulIPTablesConfigEnvVar = "IPTABLES_CONFIG"
+	ConsulIPTablesConfigEnvVar = "CONSUL_IPTABLES_CONFIG"
 )
 
 // Setup calls the CNI plugins with the add action
