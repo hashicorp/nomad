@@ -29,7 +29,7 @@ Consul [service intentions][]. When transparent proxy is enabled:
 * Nomad will invoke the [`consul-cni`][] CNI plugin to configure `iptables` rules
   in the network namespace to force outbound traffic from an allocation to flow
   through the proxy.
-* If the local Consul agent is serving DNS, Nomad set the IP address of the
+* If the local Consul agent is serving DNS, Nomad will set the IP address of the
   Consul agent as the nameserver in the task's `/etc/resolv.conf`.
 * Consul will provide a [virtual IP][] for any upstream service the workload
   has access to, based on the service intentions.
@@ -59,10 +59,14 @@ Using transparent proxy has several important requirements:
   * The port of any `network.port` with a [`static`][] value.
 * `exclude_outbound_cidrs` `([]string: nil)` - A list of CIDR subnets that
   should be excluded from outbound traffic redirection. This allows traffic to
-  these subnets to bypass the Envoy proxy.
+  these subnets to bypass the Envoy proxy. Note this is independent of
+  `exclude_outbound_ports`; CIDR subnets listed here are excluded regardless of
+  the port.
 * `exclude_outbound_ports` `([]int: nil)` - A list of port numbers that should
   be excluded from outbound traffic redirection. This allows traffic to these
-  subnets to bypass the Envoy proxy.
+  subnets to bypass the Envoy proxy. Note this is independent of
+  `exclude_outbound_cidrs`; ports listed here are excluded regardless of the
+  CIDR.
 * `exclude_uids` `([]string: nil)` - A list of Unix user IDs (UIDs) that should
   be excluded from outbound traffic redirection. When unset, only the Envoy
   proxy's user will be allowed to bypass the iptables rule.
