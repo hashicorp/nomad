@@ -14,9 +14,9 @@ CONFIGDIR=/ops/shared/config
 sudo apt-get install -yq  apt-utils
 
 # Install HashiCorp products
-CONSULVERSION=1.17.0
-VAULTVERSION=1.15.4
-NOMADVERSION=1.7.3
+CONSULVERSION=1.18.1
+VAULTVERSION=1.15.7
+NOMADVERSION=1.7.6
 CONSULTEMPLATEVERSION=0.35.0
 
 sudo apt-get update && sudo apt-get install gpg
