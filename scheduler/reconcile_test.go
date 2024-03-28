@@ -5475,10 +5475,13 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			disconnectedAllocStates: disconnectAllocState,
 			expected: &resultExpectation{
 				reconnectUpdates: 2,
-				stop:             0,
+				stop:             2,
+				place:            2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
-						Ignore: 5,
+						Ignore: 3,
+						Place:  2,
+						Stop:   2,
 					},
 				},
 			},
