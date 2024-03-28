@@ -145,6 +145,29 @@ resource "aws_security_group" "primary" {
     cidr_blocks = [var.whitelist_ip]
   }
 
+  # Consul Ingress
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = [var.whitelist_ip]
+  }  
+
+# Prometheus
+  ingress {
+    from_port   = 8081
+    to_port     = 8081
+    protocol    = "tcp"
+    cidr_blocks = [var.whitelist_ip]
+  }
+
+# Grafana
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = [var.whitelist_ip]
+  }
   ingress {
     from_port = 0
     to_port   = 0
