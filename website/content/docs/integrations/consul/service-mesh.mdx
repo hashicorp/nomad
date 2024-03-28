@@ -237,7 +237,7 @@ job "countdash" {
       driver = "docker"
 
       env {
-        COUNTING_SERVICE_URL = "http://count-api.virtual.consul:9001"
+        COUNTING_SERVICE_URL = "http://count-api.virtual.consul"
       }
 
       config {
@@ -353,12 +353,14 @@ environment variable `$COUNTING_SERVICE_URL`:
 
 ```hcl
       env {
-        COUNTING_SERVICE_URL = "http://count-api.virtual.consul:9001"
+        COUNTING_SERVICE_URL = "http://count-api.virtual.consul"
       }
 ```
 
 The `transparent_proxy` block ensures that DNS queries are made to Consul so
-that the `count-api.virtual.consul` name resolves to a virtual IP address.
+that the `count-api.virtual.consul` name resolves to a virtual IP address. Note
+that you don't need to specify a port number because the virtual IP will only be
+directed to the correct service port.
 
 ### Manually Configured Upstreams
 
