@@ -21,12 +21,12 @@ description: |-
 />
 
 The `upstreams` block allows configuring various options for managing upstream
-services that a [Consul
-Connect](/nomad/docs/integrations/consul-connect) proxy routes to. It
-is valid only within the context of a `proxy` block.
+services that a [Consul Connect][] proxy routes to. It is valid only within the
+context of a `proxy` block.
 
-For Consul-specific details see the [Consul Connect
-Guide](/consul/tutorials/get-started-vms/virtual-machine-gs-service-discovery).
+For Consul-specific details see the [Consul Connect Guide][]. Note that using
+`upstream` may not be necessary if you have configured the proxy with the
+[`transparent_proxy`][] block.
 
 ```hcl
 job "countdash" {
@@ -135,6 +135,9 @@ and a local bind port.
     }
 ```
 
+[Consul Connect]: /nomad/docs/integrations/consul-connect
+[Consul Connect Guide]: /consul/tutorials/get-started-vms/virtual-machine-gs-service-discovery
+[`transparent_proxy`]: /nomad/docs/job-specification/transparent_proxy
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'

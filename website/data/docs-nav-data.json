@@ -1804,6 +1804,10 @@
         "path": "job-specification/template"
       },
       {
+        "title": "transparent_proxy",
+        "path": "job-specification/transparent_proxy"
+      },
+      {
         "title": "update",
         "path": "job-specification/update"
       },
