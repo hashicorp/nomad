@@ -2851,7 +2851,7 @@ func (d *DNSConfig) IsZero() bool {
 	if d == nil {
 		return true
 	}
-	return len(d.Options) == 0 || len(d.Searches) == 0 || len(d.Servers) == 0
+	return len(d.Options) == 0 && len(d.Searches) == 0 && len(d.Servers) == 0
 }
 
 // NetworkResource is used to represent available network
