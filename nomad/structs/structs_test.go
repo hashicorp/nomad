@@ -7580,6 +7580,7 @@ func TestDNSConfig_Equal(t *testing.T) {
 
 	must.Equal[*DNSConfig](t, nil, nil)
 	must.NotEqual[*DNSConfig](t, nil, new(DNSConfig))
+	must.NotEqual[*DNSConfig](t, nil, &DNSConfig{Servers: []string{"8.8.8.8"}})
 
 	must.StructEqual(t, &DNSConfig{
 		Servers:  []string{"8.8.8.8", "8.8.4.4"},
