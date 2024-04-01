@@ -162,17 +162,17 @@ resource "null_resource" "install_consul_server_configs" {
 # get the management token into the provider's environment after we bootstrap,
 # and we want to pass various tokens in the Nomad and Consul configuration
 # files. So we run a bootstrapping script that uses tokens we generate randomly.
-locals {
-  consul_env = "CONSUL_HTTP_ADDR=https://${aws_instance.consul_server.public_ip}:8501 CONSUL_CACERT=keys/tls_ca.crt CONSUL_HTTP_TOKEN=${random_uuid.consul_initial_management_token.result} CONSUL_AGENT_TOKEN=${random_uuid.consul_agent_token.result} NOMAD_CLUSTER_CONSUL_TOKEN=${random_uuid.consul_token_for_nomad.result}"
-}
-
 resource "null_resource" "bootstrap_consul_acls" {
   depends_on = [null_resource.install_consul_server_configs]
-  triggers = {
-    command = aws_instance.consul_server.public_ip != "" ? local.consul_env : "echo 'Consul server not ready yet, skipping bootstrap'"
-  }
 
   provisioner "local-exec" {
-    command = "${local.consul_env} ./scripts/bootstrap-consul.sh"
+    command = "./scripts/bootstrap-consul.sh"
+    environment = {
+      CONSUL_HTTP_ADDR           = "https://${aws_instance.consul_server.public_ip}:8501"
+      CONSUL_CACERT              = "keys/tls_ca.crt"
+      CONSUL_HTTP_TOKEN          = "${random_uuid.consul_initial_management_token.result}"
+      CONSUL_AGENT_TOKEN         = "${random_uuid.consul_agent_token.result}"
+      NOMAD_CLUSTER_CONSUL_TOKEN = "${random_uuid.consul_token_for_nomad.result}"
+    }
   }
 }

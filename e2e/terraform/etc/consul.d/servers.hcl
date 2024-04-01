@@ -20,10 +20,6 @@ acl {
     initial_management = "${management_token}"
     agent              = "${token}"
     default            = "${token}"
-
-    # this isn't a Consul config value, but the bootstrap script will read
-    # this to create an initial pre-existing token for our Nomad agents
-    # nomad_cluster = "${nomad_token}"
   }
 }
 

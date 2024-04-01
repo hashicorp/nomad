@@ -7,19 +7,17 @@
 # to get the management token into the provider's environment after we bootstrap.
 # So we run a bootstrapping script and write our management token into a file
 # that we read in for the output of $(terraform output environment) later.
-
-locals {
-  nomad_env = "NOMAD_ADDR=https://${aws_instance.server.0.public_ip}:4646 NOMAD_CACERT=keys/tls_ca.crt NOMAD_CLIENT_CERT=keys/tls_api_client.crt NOMAD_CLIENT_KEY=keys/tls_api_client.key"
-}
-
 resource "null_resource" "bootstrap_nomad_acls" {
   depends_on = [module.nomad_server, null_resource.bootstrap_consul_acls]
-  triggers = {
-    command = aws_instance.server.0.public_ip != "" ? local.nomad_env : "echo 'Nomad server not ready yet, skipping bootstrap'"
-  }
 
   provisioner "local-exec" {
-    command = "${local.nomad_env} ./scripts/bootstrap-nomad.sh"
+    command = "./scripts/bootstrap-nomad.sh"
+    environment = {
+      NOMAD_ADDR        = "https://${aws_instance.server.0.public_ip}:4646"
+      NOMAD_CACERT      = "keys/tls_ca.crt"
+      NOMAD_CLIENT_CERT = "keys/tls_api_client.crt"
+      NOMAD_CLIENT_KEY  = "keys/tls_api_client.key"
+    }
   }
 }
 
@@ -41,6 +39,9 @@ export NOMAD_SKIP_VERIFY=true
 export NOMAD_CLIENT_CERT=/etc/nomad.d/tls/agent.crt
 export NOMAD_CLIENT_KEY=/etc/nomad.d/tls/agent.key
 export NOMAD_TOKEN=${data.local_sensitive_file.nomad_token.content}
+export CONSUL_HTTP_ADDR=https://localhost:8501
+export CONSUL_HTTP_TOKEN="${random_uuid.consul_initial_management_token.result}"
+export CONSUL_CACERT=/etc/consul.d/ca.pem
 ENV
 EXEC
 }
