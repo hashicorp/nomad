@@ -58,6 +58,23 @@ resource "aws_instance" "client_windows_2016_amd64" {
   }
 }
 
+resource "aws_instance" "consul_server" {
+  ami                    = data.aws_ami.ubuntu_jammy_amd64.image_id
+  instance_type          = var.instance_type
+  key_name               = module.keys.key_name
+  vpc_security_group_ids = [aws_security_group.consul_server.id]
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
+  availability_zone      = var.availability_zone
+
+  # Instance tags
+  tags = {
+    Name           = "${local.random_name}-consul-server-ubuntu-jammy-amd64"
+    ConsulAutoJoin = "auto-join-${local.random_name}"
+    User           = data.aws_caller_identity.current.arn
+  }
+}
+
+
 data "external" "packer_sha" {
   program = ["/bin/sh", "-c", <<EOT
 sha=$(git log -n 1 --pretty=format:%H packer)

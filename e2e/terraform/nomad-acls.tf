@@ -13,7 +13,7 @@ locals {
 }
 
 resource "null_resource" "bootstrap_nomad_acls" {
-  depends_on = [module.nomad_server]
+  depends_on = [module.nomad_server, null_resource.bootstrap_consul_acls]
   triggers = {
     command = aws_instance.server.0.public_ip != "" ? local.nomad_env : "echo 'Nomad server not ready yet, skipping bootstrap'"
   }

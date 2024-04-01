@@ -54,6 +54,9 @@ export NOMAD_CLIENT_CERT=${abspath(path.root)}/keys/tls_api_client.crt
 export NOMAD_CLIENT_KEY=${abspath(path.root)}/keys/tls_api_client.key
 export NOMAD_TOKEN=${data.local_sensitive_file.nomad_token.content}
 export NOMAD_E2E=1
+export CONSUL_HTTP_ADDR=https://${aws_instance.consul_server.public_ip}:8501
+export CONSUL_HTTP_TOKEN=${local_sensitive_file.consul_initial_management_token.content}
+export CONSUL_CACERT=${abspath(path.root)}/keys/tls_ca.crt
 
 EOM
 }
