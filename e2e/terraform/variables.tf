@@ -53,7 +53,13 @@ variable "nomad_local_binary" {
 
 variable "nomad_license" {
   type        = string
-  description = "If nomad_license is set, deploy a license to override the temporary license"
+  description = "If nomad_license is set, deploy a license"
+  default     = ""
+}
+
+variable "consul_license" {
+  type        = string
+  description = "If consul_license is set, deploy a license"
   default     = ""
 }
 
