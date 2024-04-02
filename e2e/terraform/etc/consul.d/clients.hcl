@@ -36,6 +36,7 @@ service {
 }
 
 ports {
-  grpc_tls = 8502
+  grpc     = 8502
+  grpc_tls = 8503
   dns      = 8600
 }
