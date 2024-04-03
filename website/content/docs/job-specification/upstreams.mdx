@@ -82,7 +82,7 @@ job "countdash" {
 ## `upstreams` Parameters
 
 - `config` `(map: nil)` - Upstream configuration that is opaque to Nomad and passed
-  directly to Consul. See [Consul Connect documentation](/consul/docs/connect/registration/service-registration#upstream-configuration-reference)
+  directly to Consul. See [Consul Connect documentation][consul_expose_path_ref]
   for details. Keys and values support [runtime variable interpolation][interpolation].
 - `destination_name` `(string: <required>)` - Name of the upstream service.
 - `destination_namespace` `(string: <required>)` - Name of the upstream Consul namespace.
@@ -147,3 +147,4 @@ and a local bind port.
 [service_defaults_mode]: /consul/docs/connect/config-entries/service-defaults#meshgateway
 [mesh_gateway_param]: /nomad/docs/job-specification/upstreams#mesh_gateway-parameters
 [mesh_gateways]: /consul/docs/connect/gateways/mesh-gateway/service-to-service-traffic-datacenters#mesh-gateways
+[consul_expose_path_ref]: /consul/docs/connect/proxies/proxy-config-reference#expose-paths-configuration-reference
