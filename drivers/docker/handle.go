@@ -29,6 +29,8 @@ type taskHandle struct {
 	// for all calls that aren't Wait() or Stop() (and their variations).
 	dockerClient *docker.Client
 
+	dockerCGroupDriver string
+
 	// infinityClient is useful for
 	// - the Wait docker API call(s) (no limit on container lifetime)
 	// - the Stop docker API call(s) (context with task kill_timeout required)
@@ -263,8 +265,14 @@ func (h *taskHandle) startCpusetFixer() {
 		case cgroupslib.CG1:
 			cgroup = "/sys/fs/cgroup/cpuset/docker/" + h.containerID
 		default:
-			// systemd driver; not sure if we need to consider cgroupfs driver
 			cgroup = "/sys/fs/cgroup/system.slice/docker-" + h.containerID + ".scope"
+			switch h.dockerCGroupDriver {
+			case "cgroupfs":
+				cgroup = "/sys/fs/cgroup/docker/" + h.containerID
+			case "systemd":
+			default:
+				h.logger.Warn("CPUSetfixer got unsupported CGroup driver `%s`, defaulting to `systemd`", h.dockerCGroupDriver)
+			}
 		}
 	}
 
