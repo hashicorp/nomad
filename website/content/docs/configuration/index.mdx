@@ -276,10 +276,10 @@ testing.
   value is used to identify individual agents. When specified on a server, the
   name must be unique within the region.
 
-- `plugin_dir` `(string: "[data_dir]/plugins")` - Specifies the directory to
-  use for looking up plugins. By default, this is the top-level
-  [data_dir](#data_dir) suffixed with "plugins", like `"/opt/nomad/plugins"`.
-  This must be an absolute path.
+- `plugin_dir` `(string: "")` - Specifies the directory to use for looking up
+  plugins. When this parameter is empty, Nomad will generate the path using the
+  top-level [data_dir](#data_dir) suffixed with "plugins", like
+  `"/opt/nomad/plugins"`. This must be an absolute path.
 
 - `plugin` `(`[`Plugin`]`: nil)` - Specifies configuration for a
   specific plugin. The plugin block may be repeated, once for each plugin being
