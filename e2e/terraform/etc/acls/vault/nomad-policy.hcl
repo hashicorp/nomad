@@ -3,13 +3,13 @@
 
 # Allow creating tokens under "nomad-tasks" role. The role name should be
 # updated if "nomad-tasks" is not used.
-path "auth/token/create/nomad-tasks" {
+path "auth/token/create/${role}" {
   capabilities = ["update"]
 }
 
-# Allow looking up "nomad-tasks" role. The role name should be updated if
-# "nomad-tasks" is not used.
-path "auth/token/roles/nomad-tasks" {
+# Allow looking up "${role}" role. The role name should be updated if
+# "${role}" is not used.
+path "auth/token/roles/${role}" {
   capabilities = ["read"]
 }
 
