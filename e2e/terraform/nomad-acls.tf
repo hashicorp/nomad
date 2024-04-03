@@ -1,29 +1,49 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-# Bootstrapping Nomad ACLs:
-# We can't both bootstrap the ACLs and use the Nomad TF provider's
-# resource.nomad_acl_token in the same Terraform run, because there's no way
-# to get the management token into the provider's environment after we bootstrap.
-# So we run a bootstrapping script and write our management token into a file
-# that we read in for the output of $(terraform output environment) later.
-resource "null_resource" "bootstrap_nomad_acls" {
-  depends_on = [module.nomad_server, null_resource.bootstrap_consul_acls]
+resource "random_uuid" "nomad_bootstrap_token" {}
 
+# Write to token to disk for developer convenience
+resource "local_sensitive_file" "nomad_token" {
+  content         = random_uuid.nomad_bootstrap_token.result
+  filename        = "${path.root}/keys/nomad_root_token"
+  file_permission = "0600"
+}
+
+# Verify Nomad is serving HTTP, which we can use to gate all Nomad API requests
+data "http" "nomad_ready" {
+  url         = "https://${aws_instance.server.0.public_ip}:4646"
+  ca_cert_pem = tls_self_signed_cert.ca.cert_pem
+  retry {
+    attempts     = 300
+    min_delay_ms = 1000
+  }
+}
+
+resource "terraform_data" "nomad_bootstrap" {
   provisioner "local-exec" {
-    command = "./scripts/bootstrap-nomad.sh"
+    command = "${path.root}/etc/acls/nomad/bootstrap.sh ${path.root}/keys/nomad_root_token"
     environment = {
-      NOMAD_ADDR        = "https://${aws_instance.server.0.public_ip}:4646"
-      NOMAD_CACERT      = "keys/tls_ca.crt"
-      NOMAD_CLIENT_CERT = "keys/tls_api_client.crt"
-      NOMAD_CLIENT_KEY  = "keys/tls_api_client.key"
+      NOMAD_ADDR   = data.http.nomad_ready.url
+      NOMAD_CACERT = local_sensitive_file.ca_cert.filename
     }
   }
 }
 
-data "local_sensitive_file" "nomad_token" {
-  depends_on = [null_resource.bootstrap_nomad_acls]
-  filename   = "${path.root}/keys/nomad_root_token"
+provider "nomad" {
+  address   = data.http.nomad_ready.url
+  ca_pem    = data.local_sensitive_file.ca_cert.content
+  cert_pem  = data.local_sensitive_file.api_client_cert.content
+  key_pem   = data.local_sensitive_file.api_client_key.content
+  secret_id = random_uuid.nomad_bootstrap_token.result
+}
+
+# Anon users get agent:read only
+resource "nomad_acl_policy" "anon" {
+  depends_on  = [terraform_data.nomad_bootstrap]
+  name        = "anonymous"
+  description = "Anonymous policy"
+  rules_hcl   = file("etc/acls/nomad/anonymous.nomad_policy.hcl")
 }
 
 # push the token out to the servers for humans to use.
@@ -38,7 +58,7 @@ export NOMAD_ADDR=https://localhost:4646
 export NOMAD_SKIP_VERIFY=true
 export NOMAD_CLIENT_CERT=/etc/nomad.d/tls/agent.crt
 export NOMAD_CLIENT_KEY=/etc/nomad.d/tls/agent.key
-export NOMAD_TOKEN=${data.local_sensitive_file.nomad_token.content}
+export NOMAD_TOKEN=${random_uuid.nomad_bootstrap_token.result}
 export CONSUL_HTTP_ADDR=https://localhost:8501
 export CONSUL_HTTP_TOKEN="${random_uuid.consul_initial_management_token.result}"
 export CONSUL_CACERT=/etc/consul.d/ca.pem

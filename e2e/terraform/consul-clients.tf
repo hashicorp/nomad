@@ -43,10 +43,6 @@ resource "local_sensitive_file" "consul_agents_cert" {
   filename = "uploads/shared/consul.d/agent_cert.pem"
 }
 
-# Consul tokens for the Consul agents
-
-resource "random_uuid" "consul_agent_token" {}
-
 resource "local_sensitive_file" "consul_agent_config_file" {
   content = templatefile("etc/consul.d/clients.hcl", {
     token          = "${random_uuid.consul_agent_token.result}"
@@ -55,10 +51,6 @@ resource "local_sensitive_file" "consul_agent_config_file" {
   filename        = "uploads/shared/consul.d/clients.hcl"
   file_permission = "0600"
 }
-
-# Consul tokens for the Nomad agents
-
-resource "random_uuid" "consul_token_for_nomad" {}
 
 resource "local_sensitive_file" "nomad_client_config_for_consul" {
   content = templatefile("etc/nomad.d/client-consul.hcl", {
@@ -69,6 +61,7 @@ resource "local_sensitive_file" "nomad_client_config_for_consul" {
   filename        = "uploads/shared/nomad.d/client-consul.hcl"
   file_permission = "0600"
 }
+
 
 resource "local_sensitive_file" "nomad_server_config_for_consul" {
   content = templatefile("etc/nomad.d/server-consul.hcl", {

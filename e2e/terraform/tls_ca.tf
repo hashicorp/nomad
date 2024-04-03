@@ -31,3 +31,7 @@ resource "local_sensitive_file" "ca_cert" {
   filename = "keys/tls_ca.crt"
   content  = tls_self_signed_cert.ca.cert_pem
 }
+
+data "local_sensitive_file" "ca_cert" {
+  filename = local_sensitive_file.ca_cert.filename
+}

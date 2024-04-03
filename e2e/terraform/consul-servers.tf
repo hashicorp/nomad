@@ -1,18 +1,8 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-# consul-servers.tf produces the TLS certifications and configuration files for
-# the single-node Consul server cluster
-
-# Consul token for bootstrapping the Consul server
-
-resource "random_uuid" "consul_initial_management_token" {}
-
-resource "local_sensitive_file" "consul_initial_management_token" {
-  content         = random_uuid.consul_initial_management_token.result
-  filename        = "keys/consul_initial_management_token"
-  file_permission = "0600"
-}
+# consul-servers.tf produces configuration files for the single-node Consul
+# server cluster
 
 resource "local_sensitive_file" "consul_server_config_file" {
   content = templatefile("etc/consul.d/servers.hcl", {
@@ -152,27 +142,5 @@ resource "null_resource" "install_consul_server_configs" {
       "sudo systemctl enable consul",
       "sudo systemctl restart consul",
     ]
-  }
-}
-
-# Bootstrapping Consul ACLs:
-#
-# We can't both bootstrap the ACLs and use the Consul TF provider's
-# resource.consul_acl_token in the same Terraform run, because there's no way to
-# get the management token into the provider's environment after we bootstrap,
-# and we want to pass various tokens in the Nomad and Consul configuration
-# files. So we run a bootstrapping script that uses tokens we generate randomly.
-resource "null_resource" "bootstrap_consul_acls" {
-  depends_on = [null_resource.install_consul_server_configs]
-
-  provisioner "local-exec" {
-    command = "./scripts/bootstrap-consul.sh"
-    environment = {
-      CONSUL_HTTP_ADDR           = "https://${aws_instance.consul_server.public_ip}:8501"
-      CONSUL_CACERT              = "keys/tls_ca.crt"
-      CONSUL_HTTP_TOKEN          = "${random_uuid.consul_initial_management_token.result}"
-      CONSUL_AGENT_TOKEN         = "${random_uuid.consul_agent_token.result}"
-      NOMAD_CLUSTER_CONSUL_TOKEN = "${random_uuid.consul_token_for_nomad.result}"
-    }
   }
 }

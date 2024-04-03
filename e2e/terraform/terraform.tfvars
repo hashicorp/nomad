@@ -13,3 +13,5 @@ nomad_local_binary_client_windows_2016_amd64 = ["../../pkg/windows_amd64/nomad.e
 
 # For testing Nomad enterprise, also set via --var:
 # nomad_license = <content of Nomad license>
+client_count_ubuntu_jammy_amd64 = 1
+volumes                         = false

@@ -37,9 +37,17 @@ resource "local_sensitive_file" "api_client_key" {
   filename = "keys/tls_api_client.key"
 }
 
+data "local_sensitive_file" "api_client_key" {
+  filename = local_sensitive_file.api_client_key.filename
+}
+
 resource "local_sensitive_file" "api_client_cert" {
   content  = tls_locally_signed_cert.api_client.cert_pem
   filename = "keys/tls_api_client.crt"
+}
+
+data "local_sensitive_file" "api_client_cert" {
+  filename = local_sensitive_file.api_client_cert.filename
 }
 
 # Self signed cert for reverse proxy
