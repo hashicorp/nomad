@@ -13,9 +13,8 @@ description: |-
 />
 
 The `proxy` block allows configuring various options for the sidecar proxy
-managed by Nomad for [Consul
-Connect](/nomad/docs/integrations/consul-connect). It is valid only
-within the context of a `sidecar_service` block.
+managed by Nomad for [Consul Connect][]. It is valid only within the context of
+a `sidecar_service` block.
 
 ```hcl
 job "countdash" {
@@ -50,23 +49,29 @@ job "countdash" {
 
 ## `proxy` Parameters
 
-- `local_service_address` `(string: "127.0.0.1")` - The address the local service binds to. Useful to
-  customize in clusters with mixed Connect and non-Connect services.
+- `config` `(map: nil)` - Proxy configuration that is opaque to Nomad and passed
+  directly to Consul. See [Consul Connect documentation][envoy_dynamic_config]
+  for details. Keys and values support [runtime variable interpolation][].
+- `expose` <code>([expose]: nil)</code> - Used to configure expose path
+  configuration for Envoy. See Consul's [Expose Paths Configuration
+  Reference][expose_path_ref] for more information.
+- `local_service_address` `(string: "127.0.0.1")` - The address the local
+  service binds to. Useful to customize in clusters with mixed Connect and
+  non-Connect services.
 - `local_service_port` `(int: <varies>)` - The port the local service binds to.
-  Usually the same as the parent service's port, it is useful to customize in clusters with mixed
-  Connect and non-Connect services.
-- `upstreams` <code>([upstreams][]: nil)</code> - Used to configure details of each upstream service that
-  this sidecar proxy communicates with.
-- `expose` <code>([expose]: nil)</code> - Used to configure expose path configuration for Envoy.
-  See Consul's [Expose Paths Configuration Reference](/consul/docs/connect/registration/service-registration#expose-paths-configuration-reference)
-  for more information.
-- `config` `(map: nil)` - Proxy configuration that is opaque to Nomad and
-  passed directly to Consul. See [Consul Connect documentation](/consul/docs/connect/proxies/envoy#dynamic-configuration)
-  for details. Keys and values support [runtime variable interpolation][interpolation].
+  Usually the same as the parent service's port, it is useful to customize in
+  clusters with mixed Connect and non-Connect services.
+- `transparent_proxy` <code>([transparent_proxy][]: nil)</code> - Used to enable
+  [transparent proxy][tproxy] mode, which allows the proxy to use Consul service
+  intentions to automatically configure upstreams, and configures iptables rules
+  to force traffic from the allocation to flow through the proxy.
+- `upstreams` <code>([upstreams][]: nil)</code> - Used to configure details of
+  each upstream service that this sidecar proxy communicates with.
 
 ## `proxy` Examples
 
-The following example is a proxy specification that includes upstreams configuration.
+The following example is a proxy specification that includes upstreams
+configuration.
 
 ```hcl
 sidecar_service {
@@ -79,10 +84,28 @@ sidecar_service {
 }
 ```
 
+The following example is a proxy specification that includes transparent proxy
+configuration. Note that with transparent proxy, you will not need to configure
+an `upstreams` block.
+
+```hcl
+sidecar_service {
+  proxy {
+    transparent_proxy {
+    }
+  }
+}
+```
+
+[Consul Connect]: /nomad/docs/integrations/consul-connect
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
-[interpolation]: /nomad/docs/runtime/interpolation 'Nomad interpolation'
+[runtime variable interpolation]: /nomad/docs/runtime/interpolation 'Nomad interpolation'
 [sidecar_service]: /nomad/docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
 [upstreams]: /nomad/docs/job-specification/upstreams 'Nomad upstream config Specification'
 [expose]: /nomad/docs/job-specification/expose 'Nomad proxy expose configuration'
+[envoy_dynamic_config]: /consul/docs/connect/proxies/envoy#dynamic-configuration
+[expose_path_ref]: /consul/docs/connect/proxies/proxy-config-reference#expose-paths-configuration-reference
+[transparent_proxy]: /nomad/docs/job-specification/transparent_proxy
+[tproxy]: /consul/docs/k8s/connect/transparent-proxy
