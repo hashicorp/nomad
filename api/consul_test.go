@@ -178,6 +178,7 @@ func TestConsulUpstream_Copy(t *testing.T) {
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
 			DestinationPeer:      "10.0.0.1:6379",
+			DestinationPartition: "infra",
 			DestinationType:      "tcp",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
@@ -415,6 +416,33 @@ func TestConsulIngressConfigEntry_Copy(t *testing.T) {
 			Services: []*ConsulIngressService{{
 				Name:  "service1",
 				Hosts: []string{"1.1.1.1", "1.1.1.1:9000"},
+				TLS: &ConsulGatewayTLSConfig{
+					SDS: &ConsulGatewayTLSSDSConfig{
+						ClusterName:  "foo",
+						CertResource: "bar",
+					},
+				},
+				RequestHeaders: &ConsulHTTPHeaderModifiers{
+					Add: map[string]string{
+						"test": "testvalue",
+					},
+					Set: map[string]string{
+						"test1": "testvalue1",
+					},
+					Remove: []string{"test2"},
+				},
+				ResponseHeaders: &ConsulHTTPHeaderModifiers{
+					Add: map[string]string{
+						"test": "testvalue",
+					},
+					Set: map[string]string{
+						"test1": "testvalue1",
+					},
+					Remove: []string{"test2"},
+				},
+				MaxConnections:        pointerOf(uint32(5120)),
+				MaxPendingRequests:    pointerOf(uint32(512)),
+				MaxConcurrentRequests: pointerOf(uint32(2048)),
 			}, {
 				Name:  "service2",
 				Hosts: []string{"2.2.2.2"},

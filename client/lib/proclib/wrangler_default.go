@@ -7,14 +7,14 @@ package proclib
 
 // New creates a Wranglers backed by the DefaultWrangler implementation, which
 // does not do anything.
-func New(configs *Configs) *Wranglers {
+func New(configs *Configs) (*Wranglers, error) {
 	w := &Wranglers{
 		configs: configs,
 		m:       make(map[Task]ProcessWrangler),
 		create:  doNothing(configs),
 	}
 
-	return w
+	return w, nil
 }
 
 func doNothing(*Configs) create {

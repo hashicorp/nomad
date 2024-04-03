@@ -4,6 +4,7 @@
 package api
 
 import (
+	"slices"
 	"time"
 
 	"golang.org/x/exp/maps"
@@ -224,6 +225,7 @@ type ConsulUpstream struct {
 	DestinationName      string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
 	DestinationNamespace string             `mapstructure:"destination_namespace" hcl:"destination_namespace,optional"`
 	DestinationPeer      string             `mapstructure:"destination_peer" hcl:"destination_peer,optional"`
+	DestinationPartition string             `mapstructure:"destination_partition" hcl:"destination_partition,optional"`
 	DestinationType      string             `mapstructure:"destination_type" hcl:"destination_type,optional"`
 	LocalBindPort        int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
 	Datacenter           string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
@@ -238,19 +240,11 @@ func (cu *ConsulUpstream) Copy() *ConsulUpstream {
 	if cu == nil {
 		return nil
 	}
-	return &ConsulUpstream{
-		DestinationName:      cu.DestinationName,
-		DestinationNamespace: cu.DestinationNamespace,
-		DestinationPeer:      cu.DestinationPeer,
-		DestinationType:      cu.DestinationType,
-		LocalBindPort:        cu.LocalBindPort,
-		Datacenter:           cu.Datacenter,
-		LocalBindAddress:     cu.LocalBindAddress,
-		LocalBindSocketPath:  cu.LocalBindSocketPath,
-		LocalBindSocketMode:  cu.LocalBindSocketMode,
-		MeshGateway:          cu.MeshGateway.Copy(),
-		Config:               maps.Clone(cu.Config),
-	}
+	up := new(ConsulUpstream)
+	*up = *cu
+	up.MeshGateway = cu.MeshGateway.Copy()
+	up.Config = maps.Clone(cu.Config)
+	return up
 }
 
 func (cu *ConsulUpstream) Canonicalize() {
@@ -400,12 +394,52 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 }
 
-// ConsulGatewayTLSConfig is used to configure TLS for a gateway.
+// ConsulGatewayTLSSDSConfig is used to configure the gateway's TLS listener to
+// load certificates from an external Secret Discovery Service (SDS)
+type ConsulGatewayTLSSDSConfig struct {
+	// ClusterName specifies the name of the SDS cluster where Consul should
+	// retrieve certificates.
+	ClusterName string `hcl:"cluster_name,optional" mapstructure:"cluster_name"`
+
+	// CertResource specifies an SDS resource name
+	CertResource string `hcl:"cert_resource,optional" mapstructure:"cert_resource"`
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Copy() *ConsulGatewayTLSSDSConfig {
+	if c == nil {
+		return nil
+	}
+
+	return &ConsulGatewayTLSSDSConfig{
+		ClusterName:  c.ClusterName,
+		CertResource: c.CertResource,
+	}
+}
+
+// ConsulGatewayTLSConfig is used to configure TLS for a gateway. Both
+// ConsulIngressConfigEntry and ConsulIngressService use this struct. For more
+// details, consult the Consul documentation:
+// https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway#listeners-services-tls
 type ConsulGatewayTLSConfig struct {
-	Enabled       bool     `hcl:"enabled,optional"`
-	TLSMinVersion string   `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
-	TLSMaxVersion string   `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
-	CipherSuites  []string `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
+
+	// Enabled indicates whether TLS is enabled for the configuration entry
+	Enabled bool `hcl:"enabled,optional"`
+
+	// TLSMinVersion specifies the minimum TLS version supported for gateway
+	// listeners.
+	TLSMinVersion string `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
+
+	// TLSMaxVersion specifies the maxmimum TLS version supported for gateway
+	// listeners.
+	TLSMaxVersion string `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
+
+	// CipherSuites specifies a list of cipher suites that gateway listeners
+	// support when negotiating connections using TLS 1.2 or older.
+	CipherSuites []string `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
+
+	// SDS specifies parameters that configure the listener to load TLS
+	// certificates from an external Secrets Discovery Service (SDS).
+	SDS *ConsulGatewayTLSSDSConfig `hcl:"sds,block" mapstructure:"sds"`
 }
 
 func (tc *ConsulGatewayTLSConfig) Canonicalize() {
@@ -420,6 +454,7 @@ func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		Enabled:       tc.Enabled,
 		TLSMinVersion: tc.TLSMinVersion,
 		TLSMaxVersion: tc.TLSMaxVersion,
+		SDS:           tc.SDS.Copy(),
 	}
 	if len(tc.CipherSuites) != 0 {
 		cipherSuites := make([]string, len(tc.CipherSuites))
@@ -430,13 +465,90 @@ func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 	return result
 }
 
-// ConsulIngressService is used to configure a service fronted by the ingress gateway.
+// ConsulHTTPHeaderModifiers is a set of rules for HTTP header modification that
+// should be performed by proxies as the request passes through them. It can
+// operate on either request or response headers depending on the context in
+// which it is used.
+type ConsulHTTPHeaderModifiers struct {
+	// Add is a set of name -> value pairs that should be appended to the
+	// request or response (i.e. allowing duplicates if the same header already
+	// exists).
+	Add map[string]string `hcl:"add,block" mapstructure:"add"`
+
+	// Set is a set of name -> value pairs that should be added to the request
+	// or response, overwriting any existing header values of the same name.
+	Set map[string]string `hcl:"set,block" mapstructure:"set"`
+
+	// Remove is the set of header names that should be stripped from the
+	// request or response.
+	Remove []string `hcl:"remove,optional" mapstructure:"remove"`
+}
+
+func (h *ConsulHTTPHeaderModifiers) Copy() *ConsulHTTPHeaderModifiers {
+	if h == nil {
+		return nil
+	}
+
+	return &ConsulHTTPHeaderModifiers{
+		Add:    maps.Clone(h.Add),
+		Set:    maps.Clone(h.Set),
+		Remove: slices.Clone(h.Remove),
+	}
+}
+
+func (h *ConsulHTTPHeaderModifiers) Canonicalize() {
+	if h == nil {
+		return
+	}
+
+	if len(h.Add) == 0 {
+		h.Add = nil
+	}
+	if len(h.Set) == 0 {
+		h.Set = nil
+	}
+	if len(h.Remove) == 0 {
+		h.Remove = nil
+	}
+}
+
+// ConsulIngressService is used to configure a service fronted by the ingress
+// gateway. For more details, consult the Consul documentation:
+// https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway
 type ConsulIngressService struct {
 	// Namespace is not yet supported.
 	// Namespace string
+
+	// Name of the service exposed through this listener.
 	Name string `hcl:"name,optional"`
 
+	// Hosts specifies one or more hosts that the listening services can receive
+	// requests on.
 	Hosts []string `hcl:"hosts,optional"`
+
+	// TLS specifies a TLS configuration override for a specific service. If
+	// unset this will fallback to the ConsulIngressConfigEntry's own TLS field.
+	TLS *ConsulGatewayTLSConfig `hcl:"tls,block" mapstructure:"tls"`
+
+	// RequestHeaders specifies a set of HTTP-specific header modification rules
+	// applied to requests routed through the gateway
+	RequestHeaders *ConsulHTTPHeaderModifiers `hcl:"request_headers,block" mapstructure:"request_headers"`
+
+	// ResponseHeader specifies a set of HTTP-specific header modification rules
+	// applied to responses routed through the gateway
+	ResponseHeaders *ConsulHTTPHeaderModifiers `hcl:"response_headers,block" mapstructure:"response_headers"`
+
+	// MaxConnections specifies the maximum number of HTTP/1.1 connections a
+	// service instance is allowed to establish against the upstream
+	MaxConnections *uint32 `hcl:"max_connections,optional" mapstructure:"max_connections"`
+
+	// MaxPendingRequests specifies the maximum number of requests that are
+	// allowed to queue while waiting to establish a connection
+	MaxPendingRequests *uint32 `hcl:"max_pending_requests,optional" mapstructure:"max_pending_requests"`
+
+	// MaxConcurrentRequests specifies the maximum number of concurrent HTTP/2
+	// traffic requests that are allowed at a single point in time
+	MaxConcurrentRequests *uint32 `hcl:"max_concurrent_requests,optional" mapstructure:"max_concurrent_requests"`
 }
 
 func (s *ConsulIngressService) Canonicalize() {
@@ -447,6 +559,9 @@ func (s *ConsulIngressService) Canonicalize() {
 	if len(s.Hosts) == 0 {
 		s.Hosts = nil
 	}
+
+	s.RequestHeaders.Canonicalize()
+	s.ResponseHeaders.Canonicalize()
 }
 
 func (s *ConsulIngressService) Copy() *ConsulIngressService {
@@ -454,16 +569,19 @@ func (s *ConsulIngressService) Copy() *ConsulIngressService {
 		return nil
 	}
 
-	var hosts []string = nil
-	if n := len(s.Hosts); n > 0 {
-		hosts = make([]string, n)
-		copy(hosts, s.Hosts)
-	}
+	ns := new(ConsulIngressService)
+	*ns = *s
 
-	return &ConsulIngressService{
-		Name:  s.Name,
-		Hosts: hosts,
-	}
+	ns.Hosts = slices.Clone(s.Hosts)
+	ns.RequestHeaders = s.RequestHeaders.Copy()
+	ns.ResponseHeaders = s.ResponseHeaders.Copy()
+	ns.TLS = s.TLS.Copy()
+
+	ns.MaxConnections = pointerCopy(s.MaxConnections)
+	ns.MaxPendingRequests = pointerCopy(s.MaxPendingRequests)
+	ns.MaxConcurrentRequests = pointerCopy(s.MaxConcurrentRequests)
+
+	return ns
 }
 
 const (
@@ -521,7 +639,11 @@ type ConsulIngressConfigEntry struct {
 	// Namespace is not yet supported.
 	// Namespace string
 
-	TLS       *ConsulGatewayTLSConfig  `hcl:"tls,block"`
+	// TLS specifies a TLS configuration for the gateway.
+	TLS *ConsulGatewayTLSConfig `hcl:"tls,block"`
+
+	// Listeners specifies a list of listeners in the mesh for the
+	// gateway. Listeners are uniquely identified by their port number.
 	Listeners []*ConsulIngressListener `hcl:"listener,block"`
 }
 

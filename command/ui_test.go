@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestCommand_Ui(t *testing.T) {
@@ -102,13 +102,12 @@ func TestCommand_Ui(t *testing.T) {
 			// Don't try to open a browser.
 			args := append(tc.Args, "-show-url")
 
-			if code := cmd.Run(args); code != 0 {
-				require.Equal(t, 0, code, "expected exit code 0, got %d", code)
-			}
+			code := cmd.Run(args)
+			must.Zero(t, code)
 
 			got := ui.OutputWriter.String()
 			expected := fmt.Sprintf("URL for web UI: %s", tc.ExpectedURL)
-			require.Equal(t, expected, strings.TrimSpace(got))
+			must.Eq(t, expected, strings.TrimSpace(got))
 		})
 	}
 }

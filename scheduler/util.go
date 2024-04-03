@@ -12,6 +12,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -334,6 +335,11 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 			return difference("task log disabled", at.LogConfig.Disabled, bt.LogConfig.Disabled)
 		}
 
+		// Check volume mount updates
+		if c := volumeMountsUpdated(at.VolumeMounts, bt.VolumeMounts); c.modified {
+			return c
+		}
+
 		// Check if restart.render_templates is updated
 		if c := renderTemplatesUpdated(at.RestartPolicy, bt.RestartPolicy,
 			"task restart render_templates"); c.modified {
@@ -421,6 +427,32 @@ func connectServiceUpdated(servicesA, servicesB []*structs.Service) comparison {
 			}
 		}
 	}
+	return same
+}
+
+func volumeMountsUpdated(a, b []*structs.VolumeMount) comparison {
+	setA := set.HashSetFrom(a)
+	setB := set.HashSetFrom(b)
+
+	if setA.Equal(setB) {
+		return same
+	}
+
+	return difference("volume mounts", a, b)
+}
+
+// volumeMountUpdated returns true if the definition of the volume mount
+// has been updated in a manner that will requires the task to be recreated.
+func volumeMountUpdated(mountA, mountB *structs.VolumeMount) comparison {
+	if mountA != nil && mountB == nil {
+		difference("volume mount removed", mountA, mountB)
+	}
+
+	if mountA != nil && mountB != nil &&
+		mountA.SELinuxLabel != mountB.SELinuxLabel {
+		return difference("volume mount selinux label", mountA.SELinuxLabel, mountB.SELinuxLabel)
+	}
+
 	return same
 }
 

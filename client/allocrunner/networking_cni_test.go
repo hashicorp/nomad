@@ -11,10 +11,11 @@ import (
 	"testing"
 
 	"github.com/containerd/go-cni"
+	"github.com/containernetworking/cni/pkg/types"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -127,12 +128,12 @@ func TestCNI_forceCleanup(t *testing.T) {
 	})
 }
 
-// TestCNI_cniToAllocNet_NoInterfaces asserts an error is returned if CNIResult
+// TestCNI_cniToAllocNet_NoInterfaces asserts an error is returned if cni.Result
 // contains no interfaces.
 func TestCNI_cniToAllocNet_NoInterfaces(t *testing.T) {
 	ci.Parallel(t)
 
-	cniResult := &cni.CNIResult{}
+	cniResult := &cni.Result{}
 
 	// Only need a logger
 	c := &cniNetworkConfigurator{
@@ -148,9 +149,8 @@ func TestCNI_cniToAllocNet_NoInterfaces(t *testing.T) {
 func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
 	ci.Parallel(t)
 
-	// Calico's CNI plugin v3.12.3 has been observed to return the
-	// following:
-	cniResult := &cni.CNIResult{
+	cniResult := &cni.Result{
+		// Calico's CNI plugin v3.12.3 has been observed to return the following:
 		Interfaces: map[string]*cni.Config{
 			"cali39179aa3-74": {},
 			"eth0": {
@@ -161,6 +161,8 @@ func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
 				},
 			},
 		},
+		// cni.Result will return a single empty struct, not an empty slice
+		DNS: []types.DNS{{}},
 	}
 
 	// Only need a logger
@@ -168,11 +170,11 @@ func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
 		logger: testlog.HCLogger(t),
 	}
 	allocNet, err := c.cniToAllocNet(cniResult)
-	require.NoError(t, err)
-	require.NotNil(t, allocNet)
-	assert.Equal(t, "192.168.135.232", allocNet.Address)
-	assert.Equal(t, "eth0", allocNet.InterfaceName)
-	assert.Nil(t, allocNet.DNS)
+	must.NoError(t, err)
+	must.NotNil(t, allocNet)
+	test.Eq(t, "192.168.135.232", allocNet.Address)
+	test.Eq(t, "eth0", allocNet.InterfaceName)
+	test.Nil(t, allocNet.DNS)
 }
 
 // TestCNI_cniToAllocNet_Invalid asserts an error is returned if a CNI plugin
@@ -181,7 +183,7 @@ func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
 func TestCNI_cniToAllocNet_Invalid(t *testing.T) {
 	ci.Parallel(t)
 
-	cniResult := &cni.CNIResult{
+	cniResult := &cni.Result{
 		Interfaces: map[string]*cni.Config{
 			"eth0": {},
 			"veth1": {

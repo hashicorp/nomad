@@ -52,16 +52,19 @@ func pathEscapesBaseViaSymlink(base, full string) (bool, error) {
 		return false, err
 	}
 
-	rel, err := filepath.Rel(resolveSym, base)
-	if err != nil {
-		return true, nil
-	}
+	// Nomad owns most of the prefix path, which includes the alloc UUID, so
+	// it's safe to assume that we can do a case insensitive check regardless of
+	// filesystem, as even if the cluster admin remounted the datadir with a
+	// slightly different capitalization, you'd only be able to escape into that
+	// same directory.
+	return !hasPrefixCaseInsensitive(resolveSym, base), nil
+}
 
-	// note: this is not the same as !filesystem.IsAbs; we are asking if the relative
-	// path is descendent of the base path, indicating it does not escape.
-	isRelative := strings.HasPrefix(rel, "..") || rel == "."
-	escapes := !isRelative
-	return escapes, nil
+func hasPrefixCaseInsensitive(path, prefix string) bool {
+	if len(prefix) > len(path) {
+		return false
+	}
+	return strings.EqualFold(path[:len(prefix)], prefix)
 }
 
 // PathEscapesAllocDir returns true if base/prefix/path escapes the given base directory.

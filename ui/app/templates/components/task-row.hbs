@@ -5,13 +5,9 @@
 
 <td class="is-narrow">
   {{#unless this.task.driverStatus.healthy}}
-    <span
-      data-test-icon="unhealthy-driver"
-      class="tooltip text-center"
-      aria-label="{{this.task.driver}} is unhealthy"
-    >
-      {{x-icon "alert-triangle" class="is-warning"}}
-    </span>
+    <Hds::TooltipButton data-test-icon="unhealthy-driver" @text="{{this.task.driver}} is unhealthy" aria-label="More information">
+      <FlightIcon @name="alert-triangle" />
+    </Hds::TooltipButton>
   {{/unless}}
 </td>
 <td data-test-name class="nowrap">

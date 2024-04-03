@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestOperatorSnapshotRestore_Works(t *testing.T) {
@@ -44,7 +44,7 @@ job "snapshot-test-job" {
 		cmd.JobGetter.testStdin = strings.NewReader(sampleJob)
 
 		code := cmd.Run([]string{"--address=" + url, "-detach", "-"})
-		require.Zero(t, code)
+		must.Zero(t, code)
 	})
 
 	srv, _, url := testServer(t, false, func(c *agent.Config) {
@@ -60,20 +60,20 @@ job "snapshot-test-job" {
 
 	// job is not found before restore
 	j, err := srv.Agent.Server().State().JobByID(nil, structs.DefaultNamespace, "snapshot-test-job")
-	require.NoError(t, err)
-	require.Nil(t, j)
+	must.NoError(t, err)
+	must.Nil(t, j)
 
 	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotRestoreCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{"--address=" + url, snapshotPath})
-	require.Empty(t, ui.ErrorWriter.String())
-	require.Zero(t, code)
-	require.Contains(t, ui.OutputWriter.String(), "Snapshot Restored")
+	must.Eq(t, "", ui.ErrorWriter.String())
+	must.Zero(t, code)
+	must.StrContains(t, ui.OutputWriter.String(), "Snapshot Restored")
 
 	foundJob, err := srv.Agent.Server().State().JobByID(nil, structs.DefaultNamespace, "snapshot-test-job")
-	require.NoError(t, err)
-	require.Equal(t, "snapshot-test-job", foundJob.ID)
+	must.NoError(t, err)
+	must.Eq(t, "snapshot-test-job", foundJob.ID)
 }
 
 func TestOperatorSnapshotRestore_Fails(t *testing.T) {
@@ -84,12 +84,12 @@ func TestOperatorSnapshotRestore_Fails(t *testing.T) {
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
 	// Fails when specified file does not exist
 	code = cmd.Run([]string{"/unicorns/leprechauns"})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), "no such file")
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "no such file")
 }

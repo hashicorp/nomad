@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestNodeStatusCommand_Implements(t *testing.T) {
@@ -241,7 +241,6 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 
 func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -270,30 +269,29 @@ func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(nodeID, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, nodeID, res[0])
 }
 
 func TestNodeStatusCommand_FormatDrain(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	node := &api.Node{}
 
-	assert.Equal("false", formatDrain(node))
+	must.Eq(t, "false", formatDrain(node))
 
 	node.DrainStrategy = &api.DrainStrategy{}
-	assert.Equal("true; no deadline", formatDrain(node))
+	must.Eq(t, "true; no deadline", formatDrain(node))
 
 	node.DrainStrategy = &api.DrainStrategy{}
 	node.DrainStrategy.Deadline = -1 * time.Second
-	assert.Equal("true; force drain", formatDrain(node))
+	must.Eq(t, "true; force drain", formatDrain(node))
 
 	// formatTime special cases Unix(0, 0), so increment by 1
 	node.DrainStrategy = &api.DrainStrategy{}
 	node.DrainStrategy.ForceDeadline = time.Unix(1, 0).UTC()
-	assert.Equal("true; 1970-01-01T00:00:01Z deadline", formatDrain(node))
+	must.Eq(t, "true; 1970-01-01T00:00:01Z deadline", formatDrain(node))
 
 	node.DrainStrategy.IgnoreSystemJobs = true
-	assert.Equal("true; 1970-01-01T00:00:01Z deadline; ignoring system jobs", formatDrain(node))
+	must.Eq(t, "true; 1970-01-01T00:00:01Z deadline; ignoring system jobs", formatDrain(node))
 }

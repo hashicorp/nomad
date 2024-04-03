@@ -19,8 +19,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJobStatusCommand_Implements(t *testing.T) {
@@ -166,7 +164,7 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	nodeNameHeaderStr := "Node Name"
 	nodeNameHeaderIndex := strings.Index(allocationsTableStr, nodeNameHeaderStr)
 	nodeNameRegexpStr := fmt.Sprintf(`.*%s.*\n.{%d}%s`, nodeNameHeaderStr, nodeNameHeaderIndex, regexp.QuoteMeta(nodeName))
-	require.Regexp(t, regexp.MustCompile(nodeNameRegexpStr), out)
+	must.RegexMatch(t, regexp.MustCompile(nodeNameRegexpStr), out)
 
 	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()
@@ -254,7 +252,6 @@ func TestJobStatusCommand_Fails(t *testing.T) {
 
 func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -265,20 +262,19 @@ func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(j.ID, res[0])
+	must.SliceLen(t, 1, res)
+	must.Eq(t, j.ID, res[0])
 }
 
 func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
@@ -289,7 +285,7 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 
 	// Bootstrap an initial ACL token
 	token := srv.RootToken
-	assert.NotNil(token, "failed to bootstrap ACL token")
+	must.NotNil(t, token)
 
 	// Wait for client ready
 	client.SetSecretID(token.SecretID)
@@ -320,22 +316,22 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 	// registering a job without a token fails
 	client.SetSecretID(invalidToken.SecretID)
 	resp, _, err := client.Jobs().Register(j, nil)
-	assert.NotNil(err)
+	must.NotNil(t, err)
 
 	// registering a job with a valid token succeeds
 	client.SetSecretID(token.SecretID)
 	resp, _, err = client.Jobs().Register(j, nil)
-	assert.Nil(err)
+	must.NoError(t, err)
 	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-	assert.Equal(0, code)
+	must.Zero(t, code)
 
 	// Request Job List without providing a valid token
 	code = cmd.Run([]string{"-address=" + url, "-token=" + invalidToken.SecretID, "-short"})
-	assert.Equal(1, code)
+	must.One(t, code)
 
 	// Request Job List with a valid token
 	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-short"})
-	assert.Equal(0, code)
+	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
 	if !strings.Contains(out, *j.ID) {
@@ -367,16 +363,15 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	require := require.New(t)
 	state := srv.Agent.Server().State()
 
 	// Create state store objects for job, alloc and followup eval with a future WaitUntil value
 	j := mock.Job()
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 900, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 900, nil, j))
 
 	e := mock.Eval()
 	e.WaitUntil = time.Now().Add(1 * time.Hour)
-	require.Nil(state.UpsertEvals(structs.MsgTypeTestSetup, 902, []*structs.Evaluation{e}))
+	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 902, []*structs.Evaluation{e}))
 	a := mock.Alloc()
 	a.Job = j
 	a.JobID = j.ID
@@ -385,15 +380,15 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 	a.Metrics = &structs.AllocMetric{}
 	a.DesiredStatus = structs.AllocDesiredStatusRun
 	a.ClientStatus = structs.AllocClientStatusRunning
-	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	// Query jobs with prefix match
 	if code := cmd.Run([]string{"-address=" + url, j.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	require.Contains(out, "Future Rescheduling Attempts")
-	require.Contains(out, e.ID[:8])
+	must.StrContains(t, out, "Future Rescheduling Attempts")
+	must.StrContains(t, out, e.ID[:8])
 }
 
 func TestJobStatusCommand_ACL(t *testing.T) {

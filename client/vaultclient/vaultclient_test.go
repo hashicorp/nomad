@@ -19,9 +19,11 @@ import (
 	josejwt "github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/widmgr"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/useragent"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
@@ -615,4 +617,63 @@ func TestVaultClient_SetUserAgent(t *testing.T) {
 
 	ua := c.client.Headers().Get("User-Agent")
 	must.Eq(t, useragent.String(), ua)
+}
+
+func TestVaultClient_RenewalConcurrent(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create test server to mock the Vault API.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := vaultapi.Secret{
+			RequestID: uuid.Generate(),
+			LeaseID:   uuid.Generate(),
+			Renewable: true,
+			Data:      map[string]any{},
+			Auth: &vaultapi.SecretAuth{
+				ClientToken:   uuid.Generate(),
+				Accessor:      uuid.Generate(),
+				LeaseDuration: 300,
+			},
+		}
+
+		out, err := json.Marshal(resp)
+		if err != nil {
+			t.Errorf("failed to generate JWKS json response: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintln(w, string(out))
+	}))
+	defer ts.Close()
+
+	// Start Vault client.
+	conf := structsc.DefaultVaultConfig()
+	conf.Addr = ts.URL
+	conf.Enabled = pointer.Of(true)
+
+	vc, err := NewVaultClient(conf, testlog.HCLogger(t), nil)
+	must.NoError(t, err)
+	vc.Start()
+
+	// Renew token multiple times in parallel.
+	requests := 100
+	resultCh := make(chan any)
+	for i := 0; i < requests; i++ {
+		go func() {
+			_, err := vc.RenewToken("token", 30)
+			resultCh <- err
+		}()
+	}
+
+	// Collect results with timeout.
+	timer, stop := helper.NewSafeTimer(3 * time.Second)
+	defer stop()
+	for i := 0; i < requests; i++ {
+		select {
+		case got := <-resultCh:
+			must.Nil(t, got, must.Sprintf("token renewal error: %v", got))
+		case <-timer.C:
+			t.Fatal("timeout waiting for token renewal")
+		}
+	}
 }

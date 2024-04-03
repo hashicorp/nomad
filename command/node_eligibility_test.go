@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestNodeEligibilityCommand_Implements(t *testing.T) {
@@ -95,7 +95,6 @@ func TestNodeEligibilityCommand_Fails(t *testing.T) {
 
 func TestNodeEligibilityCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -124,6 +123,6 @@ func TestNodeEligibilityCommand_AutocompleteArgs(t *testing.T) {
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(nodeID, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, nodeID, res[0])
 }

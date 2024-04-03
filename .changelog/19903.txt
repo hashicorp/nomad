@@ -1,0 +1,3 @@
+```release-note:improvement
+api: emit `JobDeregistered` event when job is deregistered with `purge`
+```

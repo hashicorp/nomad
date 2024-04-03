@@ -5,6 +5,7 @@ package client
 
 import (
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"path/filepath"
@@ -60,6 +61,34 @@ func TestClient_StartStop(t *testing.T) {
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+}
+
+func TestClient_alloc_dirs(t *testing.T) {
+	ci.Parallel(t)
+
+	parent := t.TempDir()
+	allocs := filepath.Join(parent, "allocs")
+	mounts := filepath.Join(parent, "mounts")
+
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		c.AllocDir = allocs
+		c.AllocMountsDir = mounts
+	})
+	defer cleanup()
+
+	t.Cleanup(func() {
+		test.NoError(t, client.Shutdown())
+	})
+
+	// assert existence and permissions of alloc-dir
+	fi, err := os.Stat(allocs)
+	must.NoError(t, err)
+	must.Eq(t, 0o711|fs.ModeDir, fi.Mode())
+
+	// assert existence and permissions of alloc-mounts-dir
+	fi, err = os.Stat(allocs)
+	must.NoError(t, err)
+	must.Eq(t, 0o711|fs.ModeDir, fi.Mode())
 }
 
 // Certain labels for metrics are dependant on client initial setup. This tests
@@ -1875,6 +1904,14 @@ func TestClient_hasLocalState(t *testing.T) {
 	defer cleanup()
 
 	c.stateDB = cstate.NewMemDB(c.logger)
+
+	t.Run("nil Job", func(t *testing.T) {
+		alloc := mock.BatchAlloc()
+		alloc.Job = nil
+		c.stateDB.PutAllocation(alloc)
+
+		must.False(t, c.hasLocalState(alloc))
+	})
 
 	t.Run("plain alloc", func(t *testing.T) {
 		alloc := mock.BatchAlloc()

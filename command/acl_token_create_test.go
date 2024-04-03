@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestACLTokenCreateCommand(t *testing.T) {
@@ -39,12 +38,12 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	// Request to create a new token with a valid management token that does
 	// not have an expiry set.
 	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-policy=foo", "-type=client"})
-	require.Equal(t, 0, code)
+	must.Zero(t, code)
 
 	// Check the output
 	out := ui.OutputWriter.String()
-	require.Contains(t, out, "[foo]")
-	require.Contains(t, out, "Expiry Time  = <none>")
+	must.StrContains(t, out, "[foo]")
+	must.StrContains(t, out, "Expiry Time  = <none>")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
@@ -54,14 +53,14 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	var jsonMap map[string]interface{}
 	for _, outputFormatFlag := range testCasesNoTTL {
 		code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-policy=foo", "-type=client", outputFormatFlag})
-		require.Equal(t, 0, code)
+		must.Zero(t, code)
 
 		// Check the output
 		out = ui.OutputWriter.String()
-		require.Contains(t, out, "foo")
+		must.StrContains(t, out, "foo")
 		if outputFormatFlag == "-json" {
 			err := json.Unmarshal([]byte(out), &jsonMap)
-			require.Nil(t, err, "Output not in JSON format")
+			must.NoError(t, err)
 		}
 
 		ui.OutputWriter.Reset()
@@ -70,10 +69,10 @@ func TestACLTokenCreateCommand(t *testing.T) {
 
 	// Create a new token that has an expiry TTL set and check the response.
 	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-type=management", "-ttl=10m"})
-	require.Equal(t, 0, code)
+	must.Zero(t, code)
 
 	out = ui.OutputWriter.String()
-	require.NotContains(t, out, "Expiry Time  = <none>")
+	must.StrNotContains(t, out, "Expiry Time  = <none>")
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
@@ -81,15 +80,15 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	testCasesWithTTL := [][]string{{"-json", "ExpirationTTL"}, {"-t='{{ .ExpirationTTL }}'", "10m0s"}}
 	for _, outputFormatFlag := range testCasesWithTTL {
 		code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-type=management", "-ttl=10m", outputFormatFlag[0]})
-		require.Equal(t, 0, code)
+		must.Zero(t, code)
 
 		// Check the output
 		out = ui.OutputWriter.String()
 		if outputFormatFlag[0] == "-json" {
 			err := json.Unmarshal([]byte(out), &jsonMap)
-			require.Nil(t, err, "Output not in JSON format")
+			must.NoError(t, err)
 		}
-		require.Contains(t, out, outputFormatFlag[1])
+		must.StrContains(t, out, outputFormatFlag[1])
 		ui.OutputWriter.Reset()
 		ui.ErrorWriter.Reset()
 	}
@@ -117,5 +116,5 @@ func Test_generateACLTokenRoleLinks(t *testing.T) {
 		{ID: "77a780d8-2dee-7c7f-7822-6f5471c5cbb2"},
 		{ID: "56850b06-a343-a772-1a5c-ad083fd8a50e"},
 	}
-	require.ElementsMatch(t, generateACLTokenRoleLinks(inputRoleNames, inputRoleIDs), expectedOutput)
+	must.SliceContainsAll(t, generateACLTokenRoleLinks(inputRoleNames, inputRoleIDs), expectedOutput)
 }

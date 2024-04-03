@@ -125,6 +125,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 				driverHandle: nil,
 			}
 			req := &interfaces.TaskPrestartRequest{
+				Alloc:   a,
 				Task:    a.Job.TaskGroups[0].Tasks[0],
 				TaskDir: &allocdir.TaskDir{Dir: "foo"},
 			}
@@ -227,6 +228,7 @@ func Test_templateHook_Prestart_Vault(t *testing.T) {
 
 			// Start template hook with a timeout context to ensure it exists.
 			req := &interfaces.TaskPrestartRequest{
+				Alloc:   alloc,
 				Task:    task,
 				TaskDir: &allocdir.TaskDir{Dir: taskDir},
 			}

@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )

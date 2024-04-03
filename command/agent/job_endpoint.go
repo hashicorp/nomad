@@ -398,7 +398,7 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 		return nil, err
 	}
 
-	return s.execStreamImpl(conn, &args)
+	return s.execStream(conn, &args)
 }
 
 func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
@@ -1168,6 +1168,21 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		}
 	}
 
+	if taskGroup.Disconnect != nil {
+		tg.Disconnect = &structs.DisconnectStrategy{
+			StopOnClientAfter: taskGroup.Disconnect.StopOnClientAfter,
+			Replace:           taskGroup.Disconnect.Replace,
+		}
+
+		if taskGroup.Disconnect.Reconcile != nil {
+			tg.Disconnect.Reconcile = *taskGroup.Disconnect.Reconcile
+		}
+
+		if taskGroup.Disconnect.LostAfter != nil {
+			tg.Disconnect.LostAfter = *taskGroup.Disconnect.LostAfter
+		}
+	}
+
 	if taskGroup.Migrate != nil {
 		tg.Migrate = &structs.MigrateStrategy{
 			MaxParallel:     *taskGroup.Migrate.MaxParallel,
@@ -1344,11 +1359,12 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		for _, ta := range apiTask.Artifacts {
 			structsTask.Artifacts = append(structsTask.Artifacts,
 				&structs.TaskArtifact{
-					GetterSource:  *ta.GetterSource,
-					GetterOptions: maps.Clone(ta.GetterOptions),
-					GetterHeaders: maps.Clone(ta.GetterHeaders),
-					GetterMode:    *ta.GetterMode,
-					RelativeDest:  *ta.RelativeDest,
+					GetterSource:   *ta.GetterSource,
+					GetterOptions:  maps.Clone(ta.GetterOptions),
+					GetterHeaders:  maps.Clone(ta.GetterHeaders),
+					GetterMode:     *ta.GetterMode,
+					GetterInsecure: *ta.GetterInsecure,
+					RelativeDest:   *ta.RelativeDest,
 				})
 		}
 	}
@@ -1733,6 +1749,18 @@ func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulG
 		TLSMinVersion: in.TLSMinVersion,
 		TLSMaxVersion: in.TLSMaxVersion,
 		CipherSuites:  slices.Clone(in.CipherSuites),
+		SDS:           apiConnectGatewayTLSSDSConfig(in.SDS),
+	}
+}
+
+func apiConnectGatewayTLSSDSConfig(in *api.ConsulGatewayTLSSDSConfig) *structs.ConsulGatewayTLSSDSConfig {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulGatewayTLSSDSConfig{
+		ClusterName:  in.ClusterName,
+		CertResource: in.CertResource,
 	}
 }
 
@@ -1778,8 +1806,26 @@ func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.Co
 	}
 
 	return &structs.ConsulIngressService{
-		Name:  in.Name,
-		Hosts: slices.Clone(in.Hosts),
+		Name:                  in.Name,
+		Hosts:                 slices.Clone(in.Hosts),
+		TLS:                   apiConnectGatewayTLSConfig(in.TLS),
+		RequestHeaders:        apiConsulHTTPHeaderModifiersToStructs(in.RequestHeaders),
+		ResponseHeaders:       apiConsulHTTPHeaderModifiersToStructs(in.ResponseHeaders),
+		MaxConnections:        in.MaxConnections,
+		MaxPendingRequests:    in.MaxPendingRequests,
+		MaxConcurrentRequests: in.MaxConcurrentRequests,
+	}
+}
+
+func apiConsulHTTPHeaderModifiersToStructs(in *api.ConsulHTTPHeaderModifiers) *structs.ConsulHTTPHeaderModifiers {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulHTTPHeaderModifiers{
+		Add:    maps.Clone(in.Add),
+		Set:    maps.Clone(in.Set),
+		Remove: slices.Clone(in.Remove),
 	}
 }
 
@@ -1869,6 +1915,7 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 			DestinationName:      upstream.DestinationName,
 			DestinationNamespace: upstream.DestinationNamespace,
 			DestinationPeer:      upstream.DestinationPeer,
+			DestinationPartition: upstream.DestinationPartition,
 			DestinationType:      upstream.DestinationType,
 			LocalBindPort:        upstream.LocalBindPort,
 			LocalBindSocketPath:  upstream.LocalBindSocketPath,

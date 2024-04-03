@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestWait_WaitForFilesUntil(t *testing.T) {
@@ -30,11 +30,10 @@ func TestWait_WaitForFilesUntil(t *testing.T) {
 		for _, file := range files {
 			t.Logf("Creating file %s ...", file)
 			fh, createErr := os.Create(file)
-			require.NoError(t, createErr)
+			must.NoError(t, createErr)
 
-			closeErr := fh.Close()
-			require.NoError(t, closeErr)
-			require.FileExists(t, file)
+			must.Close(t, fh)
+			must.FileExists(t, file)
 
 			time.Sleep(250 * time.Millisecond)
 		}

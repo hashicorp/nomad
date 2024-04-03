@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where the `nomad tls ca create` command failed when the `-domain` was used without other values
+```

@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestOperatorSnapshotSave_Works(t *testing.T) {
@@ -39,15 +39,15 @@ func TestOperatorSnapshotSave_Works(t *testing.T) {
 		"--address=" + url,
 		dest,
 	})
-	require.Zero(t, code)
-	require.Contains(t, ui.OutputWriter.String(), "State file written to "+dest)
+	must.Zero(t, code)
+	must.StrContains(t, ui.OutputWriter.String(), "State file written to "+dest)
 
 	f, err := os.Open(dest)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	meta, err := snapshot.Verify(f)
-	require.NoError(t, err)
-	require.NotZero(t, meta.Index)
+	must.NoError(t, err)
+	must.Positive(t, meta.Index)
 }
 
 func TestOperatorSnapshotSave_Fails(t *testing.T) {
@@ -58,12 +58,12 @@ func TestOperatorSnapshotSave_Fails(t *testing.T) {
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
 	// Fails when specified file does not exist
 	code = cmd.Run([]string{"/unicorns/leprechauns"})
-	require.Equal(t, 1, code)
-	require.Contains(t, ui.ErrorWriter.String(), "no such file")
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "no such file")
 }

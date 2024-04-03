@@ -188,7 +188,7 @@
           @class="is-striped" as |t|
         >
           <t.head>
-            <th class="is-narrow"></th>
+            <th class="is-narrow"><span class="visually-hidden">Driver Health</span></th>
             <t.sort-by @prop="name">
               Name
             </t.sort-by>
@@ -287,7 +287,7 @@
       <div class="boxed-section-body is-full-bleed">
         <ListTable class="allocation-services-table" @source={{this.servicesWithHealthChecks}} as |t|>
           <t.head>
-            <th class="is-narrow"></th>
+            <th class="is-narrow"><span class="visually-hidden">Service Type</span></th>
             <th>
               Name
             </th>
@@ -468,7 +468,7 @@
           @class="allocations is-isolated" as |t|
         >
           <t.head>
-            <th class="is-narrow"></th>
+            <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
             <th>
               ID
             </th>

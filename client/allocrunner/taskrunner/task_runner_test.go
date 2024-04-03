@@ -99,7 +99,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 
 	// Create the alloc dir + task dir
-	allocDir := allocdir.NewAllocDir(logger, clientConf.AllocDir, alloc.ID)
+	allocDir := allocdir.NewAllocDir(logger, clientConf.AllocDir, clientConf.AllocMountsDir, alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		cleanup()
 		t.Fatalf("error building alloc dir: %v", err)
@@ -2930,4 +2930,124 @@ func TestTaskRunner_IdentityHook_Disabled(t *testing.T) {
 	// Assert the token is built into the task env
 	taskEnv := tr.envBuilder.Build()
 	must.MapNotContainsKey(t, taskEnv.EnvMap, "NOMAD_TOKEN")
+}
+
+func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{"run_for": "2s"}
+
+	groupNetworks := []*structs.NetworkResource{{
+		Device: "eth0",
+		IP:     "192.168.0.100",
+		DNS: &structs.DNSConfig{
+			Servers:  []string{"1.1.1.1", "8.8.8.8"},
+			Searches: []string{"test.local"},
+			Options:  []string{"ndots:1"},
+		},
+		ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+		DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+	}}
+
+	groupNetworksWithoutDNS := []*structs.NetworkResource{{
+		Device:        "eth0",
+		IP:            "192.168.0.100",
+		ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+		DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+	}}
+
+	testCases := []struct {
+		name     string
+		networks []*structs.NetworkResource
+		fromCNI  *structs.DNSConfig
+		expect   *drivers.DNSConfig
+	}{
+		{
+			name:     "task with group networking overrides CNI",
+			networks: groupNetworks,
+			fromCNI: &structs.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{"ndots:1"},
+			},
+		},
+		{
+			name: "task with CNI alone",
+			fromCNI: &structs.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+		{
+			name:     "task with group networking alone wth DNS",
+			networks: groupNetworks,
+			fromCNI:  nil,
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{"ndots:1"},
+			},
+		},
+		{
+			name:     "task with group networking and no CNI dns",
+			networks: groupNetworksWithoutDNS,
+			fromCNI:  &structs.DNSConfig{},
+			expect:   &drivers.DNSConfig{},
+		},
+		{
+			name:    "task without group networking or CNI",
+			fromCNI: nil,
+			expect:  nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			testAlloc := alloc.Copy()
+			testAlloc.AllocatedResources.Shared.Networks = tc.networks
+
+			conf, cleanup := testTaskRunnerConfig(t, testAlloc, task.Name, nil)
+			t.Cleanup(cleanup)
+
+			// note this will never actually be set if we don't have group/CNI
+			// networking, but it's a good validation no-group/CNI code path
+			conf.AllocHookResources.SetAllocNetworkStatus(&structs.AllocNetworkStatus{
+				InterfaceName: "",
+				Address:       "",
+				DNS:           tc.fromCNI,
+			})
+
+			tr, err := NewTaskRunner(conf)
+			must.NoError(t, err)
+
+			// Run the task runner.
+			go tr.Run()
+			t.Cleanup(func() {
+				tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+			})
+
+			// Wait for task to complete.
+			testWaitForTaskToStart(t, tr)
+
+			tr.stateLock.RLock()
+			t.Cleanup(tr.stateLock.RUnlock)
+
+			must.Eq(t, tc.expect, tr.localState.TaskHandle.Config.DNS)
+		})
+	}
 }

@@ -14,9 +14,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStaticIterator_Reset(t *testing.T) {
@@ -354,7 +353,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 	index := uint64(999)
 	for _, node := range nodes {
 		err := state.UpsertNode(structs.MsgTypeTestSetup, index, node)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		index++
 	}
 
@@ -370,7 +369,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 		{Segments: map[string]string{"rack": "R2"}},
 	}
 	err := state.UpsertCSIVolume(index, []*structs.CSIVolume{vol})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	index++
 
 	// Create some other volumes in use on nodes[3] to trip MaxVolumes
@@ -381,14 +380,14 @@ func TestCSIVolumeChecker(t *testing.T) {
 	vol2.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	vol2.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol2})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	index++
 
 	vid3 := "volume-id[0]"
 	vol3 := vol.Copy()
 	vol3.ID = vid3
 	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol3})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	index++
 
 	alloc := mock.Alloc()
@@ -401,13 +400,13 @@ func TestCSIVolumeChecker(t *testing.T) {
 		},
 	}
 	err = state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	index++
 	summary := mock.JobSummary(alloc.JobID)
-	require.NoError(t, state.UpsertJobSummary(index, summary))
+	must.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	index++
 
 	// Create volume requests
@@ -499,7 +498,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 
 	for _, c := range cases {
 		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
-		assert.Equal(t, c.Result, checker.Feasible(c.Node), c.Name)
+		test.Eq(t, c.Result, checker.Feasible(c.Node), test.Sprint(c.Name))
 	}
 
 	// add a missing volume
@@ -515,7 +514,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 	for _, node := range nodes {
 		checker.SetVolumes(alloc.Name, volumes)
 		act := checker.Feasible(node)
-		require.False(t, act, "request with missing volume should never be feasible")
+		must.False(t, act, must.Sprint("request with missing volume should never be feasible"))
 	}
 
 }
@@ -661,7 +660,7 @@ func TestNetworkChecker(t *testing.T) {
 	for _, c := range cases {
 		checker.SetNetwork(c.network)
 		for i, node := range nodes {
-			require.Equal(t, c.results[i], checker.Feasible(node), "mode=%q, idx=%d", c.network.Mode, i)
+			must.Eq(t, c.results[i], checker.Feasible(node), must.Sprintf("mode=%q, idx=%d", c.network.Mode, i))
 		}
 	}
 }
@@ -681,7 +680,7 @@ func TestNetworkChecker_bridge_upgrade_path(t *testing.T) {
 		checker.SetNetwork(&structs.NetworkResource{Mode: "bridge"})
 
 		ok := checker.Feasible(oldClient)
-		require.True(t, ok)
+		must.True(t, ok)
 	})
 
 	t.Run("updated client", func(t *testing.T) {
@@ -694,7 +693,7 @@ func TestNetworkChecker_bridge_upgrade_path(t *testing.T) {
 		checker.SetNetwork(&structs.NetworkResource{Mode: "bridge"})
 
 		ok := checker.Feasible(oldClient)
-		require.False(t, ok)
+		must.False(t, ok)
 	})
 }
 
@@ -805,7 +804,6 @@ func TestDriverChecker_Compatibility(t *testing.T) {
 func Test_HealthChecks(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	_, ctx := testContext(t)
 
 	nodes := []*structs.Node{
@@ -863,7 +861,7 @@ func Test_HealthChecks(t *testing.T) {
 		}
 		checker := NewDriverChecker(ctx, drivers)
 		act := checker.Feasible(c.Node)
-		require.Equal(act, c.Result)
+		must.Eq(t, act, c.Result)
 	}
 }
 
@@ -1348,7 +1346,7 @@ func TestCheckSemverConstraint(t *testing.T) {
 			_, ctx := testContext(t)
 			p := newSemverConstraintParser(ctx)
 			actual := checkVersionMatch(ctx, p, tc.lVal, tc.rVal)
-			require.Equal(t, tc.result, actual)
+			must.Eq(t, tc.result, actual)
 		})
 	}
 }
@@ -2639,11 +2637,11 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 func TestSetContainsAny(t *testing.T) {
 	ci.Parallel(t)
 
-	require.True(t, checkSetContainsAny("a", "a"))
-	require.True(t, checkSetContainsAny("a,b", "a"))
-	require.True(t, checkSetContainsAny("  a,b  ", "a "))
-	require.True(t, checkSetContainsAny("a", "a"))
-	require.False(t, checkSetContainsAny("b", "a"))
+	must.True(t, checkSetContainsAny("a", "a"))
+	must.True(t, checkSetContainsAny("a,b", "a"))
+	must.True(t, checkSetContainsAny("  a,b  ", "a "))
+	must.True(t, checkSetContainsAny("a", "a"))
+	must.False(t, checkSetContainsAny("b", "a"))
 }
 
 func TestDeviceChecker(t *testing.T) {

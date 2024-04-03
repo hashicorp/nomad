@@ -136,6 +136,18 @@
       max-width: 200px;
     }
 
+    .visually-hidden {
+      border: 0;
+      clip: rect(0 0 0 0);
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      padding: 0;
+      position: absolute;
+      width: 1px;
+      white-space: nowrap; /* added to ensure the text does not wrap */
+    }
+
     @for $i from 1 through 11 {
       &.is-#{$i} {
         width: math.div(100%, 12) * $i;

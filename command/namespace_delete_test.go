@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestNamespaceDeleteCommand_Implements(t *testing.T) {
@@ -57,7 +57,7 @@ func TestNamespaceDeleteCommand_Good(t *testing.T) {
 		Name: "foo",
 	}
 	_, err := client.Namespaces().Register(ns, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Delete a namespace
 	if code := cmd.Run([]string{"-address=" + url, ns.Name}); code != 0 {
@@ -65,13 +65,12 @@ func TestNamespaceDeleteCommand_Good(t *testing.T) {
 	}
 
 	namespaces, _, err := client.Namespaces().List(nil)
-	assert.Nil(t, err)
-	assert.Len(t, namespaces, 1)
+	must.NoError(t, err)
+	must.Len(t, 1, namespaces)
 }
 
 func TestNamespaceDeleteCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -84,12 +83,12 @@ func TestNamespaceDeleteCommand_AutocompleteArgs(t *testing.T) {
 		Name: "diddo",
 	}
 	_, err := client.Namespaces().Register(ns, nil)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	args := complete.Args{Last: "d"}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(ns.Name, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, ns.Name, res[0])
 }

@@ -50,6 +50,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"task",
 			"ephemeral_disk",
 			"update",
+			"disconnect",
 			"reschedule",
 			"vault",
 			"migrate",
@@ -79,6 +80,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "restart")
 		delete(m, "ephemeral_disk")
 		delete(m, "update")
+		delete(m, "disconnect")
 		delete(m, "vault")
 		delete(m, "migrate")
 		delete(m, "spread")
@@ -164,6 +166,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		// If we have an update strategy, then parse that
 		if o := listVal.Filter("update"); len(o.Items) > 0 {
 			if err := parseUpdate(&g.Update, o); err != nil {
+				return multierror.Prefix(err, "update ->")
+			}
+		}
+
+		// If we have an disconnect strategy, then parse that
+		if o := listVal.Filter("disconnect"); len(o.Items) > 0 {
+			if err := parseDisconnect(&g.Disconnect, o); err != nil {
 				return multierror.Prefix(err, "update ->")
 			}
 		}

@@ -19,6 +19,10 @@ namespace apply`][cli_ns_apply] CLI command.
 Unlike [Job specifications][jobspecs], Namespace specifications do *not*
 support [HCL2][hcl2] features like functions.
 
+In [federated][] clusters, all updates to namespaces are forwarded to the
+[`authoritative_region`][] and replicated to non-authoritative regions. This
+requires that ACLs have been bootstrapped in the authoritative region.
+
 Example namespace specification:
 
 ```hcl
@@ -148,3 +152,5 @@ consul {
 [cli_ns_apply]: /nomad/docs/commands/namespace/apply
 [hcl2]: /nomad/docs/job-specification/hcl2
 [jobspecs]: /nomad/docs/job-specification
+[federated]: /nomad/tutorials/manage-clusters/federation
+[`authoritative_region`]: /nomad/docs/configuration/server#authoritative_region

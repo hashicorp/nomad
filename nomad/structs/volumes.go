@@ -251,6 +251,11 @@ type VolumeMount struct {
 	SELinuxLabel    string
 }
 
+// Hash is a very basic string based implementation of a hasher.
+func (v *VolumeMount) Hash() string {
+	return fmt.Sprintf("%#+v", v)
+}
+
 func (v *VolumeMount) Equal(o *VolumeMount) bool {
 	if v == nil || o == nil {
 		return v == o

@@ -17,8 +17,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJobEvalCommand_Implements(t *testing.T) {
@@ -74,17 +72,16 @@ func TestJobEvalCommand_Run(t *testing.T) {
 
 	ui := cli.NewMockUi()
 	cmd := &JobEvalCommand{Meta: Meta{Ui: ui}}
-	require := require.New(t)
 
 	state := srv.Agent.Server().State()
 
 	// Create a job
 	job := mock.Job()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 11, nil, job)
-	require.Nil(err)
+	must.NoError(t, err)
 
 	job, err = state.JobByID(nil, structs.DefaultNamespace, job.ID)
-	require.Nil(err)
+	must.NoError(t, err)
 
 	// Create a failed alloc for the job
 	alloc := mock.Alloc()
@@ -94,7 +91,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 	alloc.Namespace = job.Namespace
 	alloc.ClientStatus = structs.AllocClientStatusFailed
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 12, []*structs.Allocation{alloc})
-	require.Nil(err)
+	must.NoError(t, err)
 
 	if code := cmd.Run([]string{"-address=" + url, "-force-reschedule", "-detach", job.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
@@ -102,15 +99,14 @@ func TestJobEvalCommand_Run(t *testing.T) {
 
 	// Lookup alloc again
 	alloc, err = state.AllocByID(nil, alloc.ID)
-	require.NotNil(alloc)
-	require.Nil(err)
-	require.True(*alloc.DesiredTransition.ForceReschedule)
+	must.NotNil(t, alloc)
+	must.Nil(t, err)
+	must.True(t, *alloc.DesiredTransition.ForceReschedule)
 
 }
 
 func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -121,15 +117,15 @@ func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(j.ID, res[0])
+	must.SliceLen(t, 1, res)
+	must.Eq(t, j.ID, res[0])
 }
 
 func TestJobEvalCommand_ACL(t *testing.T) {

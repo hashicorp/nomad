@@ -16,7 +16,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMonitor_Update_Eval(t *testing.T) {
@@ -379,7 +378,7 @@ node-3  0        0        0        4        3
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
 			got := formatAllocMetrics(tc.Metrics, true, "")
-			require.Equal(t, strings.TrimSpace(tc.Expected), got)
+			must.Eq(t, strings.TrimSpace(tc.Expected), got)
 		})
 	}
 }

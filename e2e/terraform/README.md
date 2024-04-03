@@ -4,10 +4,10 @@ This folder contains Terraform resources for provisioning a Nomad
 cluster on EC2 instances on AWS to use as the target of end-to-end
 tests.
 
-Terraform provisions the AWS infrastructure assuming that EC2 AMIs
-have already been built via Packer and HCP Consul and HCP Vault
-clusters are already running. It deploys a build of Nomad from your
-local machine along with configuration files.
+Terraform provisions the AWS infrastructure assuming that EC2 AMIs have already
+been built via Packer and a HCP Vault cluster is already running. It deploys a
+build of Nomad from your local machine along with configuration files, as well
+as a single-node Consul server cluster.
 
 ## Setup
 
@@ -30,8 +30,6 @@ team's vault under `nomad-e2e`.
 ```
 export HCP_CLIENT_ID=
 export HCP_CLIENT_SECRET=
-export CONSUL_HTTP_TOKEN=
-export CONSUL_HTTP_ADDR=
 ```
 
 The Vault admin token will expire after 6 hours. If you haven't
@@ -56,6 +54,8 @@ server_count                     = "3"
 client_count_ubuntu_jammy_amd64  = "4"
 client_count_windows_2016_amd64  = "1"
 ```
+
+You will also need a Consul Enterprise license file.
 
 Optionally, edit the `nomad_local_binary` variable in the
 `terraform.tfvars` file to change the path to the local binary of

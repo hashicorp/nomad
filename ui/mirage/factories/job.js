@@ -209,11 +209,6 @@ export default Factory.extend({
     );
 
     if (!job.namespaceId) {
-      console.log(
-        'NO NAMESPACE',
-        server.db.namespaces.length,
-        server.schema.namespaces.all().models
-      );
       const namespace = server.db.namespaces.length
         ? pickOne(server.db.namespaces).id
         : 'default';

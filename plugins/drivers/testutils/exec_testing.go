@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
@@ -20,7 +19,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func ExecTaskStreamingConformanceTests(t *testing.T, driver *DriverHarness, taskID string) {
@@ -121,30 +120,29 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 
 			result := execTask(t, driver, taskID, c.Command, c.Tty, c.Stdin)
 
-			require.Equal(t, c.ExitCode, result.exitCode)
+			must.Eq(t, c.ExitCode, result.exitCode)
 
 			switch s := c.Stdout.(type) {
 			case string:
-				require.Equal(t, s, result.stdout)
+				must.Eq(t, s, result.stdout)
 			case *regexp.Regexp:
-				require.Regexp(t, s, result.stdout)
+				must.RegexMatch(t, s, result.stdout)
 			case nil:
-				require.Empty(t, result.stdout)
+				must.Eq(t, "", result.stdout)
 			default:
-				require.Fail(t, "unexpected stdout type", "found %v (%v), but expected string or regexp", s, reflect.TypeOf(s))
+				t.Fatal("unexpected type")
 			}
 
 			switch s := c.Stderr.(type) {
 			case string:
-				require.Equal(t, s, result.stderr)
+				must.Eq(t, s, result.stderr)
 			case *regexp.Regexp:
-				require.Regexp(t, s, result.stderr)
+				must.RegexMatch(t, s, result.stderr)
 			case nil:
-				require.Empty(t, result.stderr)
+				must.Eq(t, "", result.stderr)
 			default:
-				require.Fail(t, "unexpected stderr type", "found %v (%v), but expected string or regexp", s, reflect.TypeOf(s))
+				t.Fatal("unexpected type")
 			}
-
 		})
 	}
 }
@@ -154,7 +152,7 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 	t.Run("isolation", func(t *testing.T) {
 		caps, err := driver.Capabilities()
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		isolated := (caps.FSIsolation != drivers.FSIsolationNone)
 
@@ -164,7 +162,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 		w := execTask(t, driver, taskID,
 			fmt.Sprintf(`FILE=$(mktemp); echo "$FILE"; echo %q >> "${FILE}"`, text),
 			false, "")
-		require.Zero(t, w.exitCode)
+		must.Zero(t, w.exitCode)
 
 		tempfile := strings.TrimSpace(w.stdout)
 		if !isolated {
@@ -176,26 +174,26 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 		// read from host
 		b, err := os.ReadFile(tempfile)
 		if !isolated {
-			require.NoError(t, err)
-			require.Equal(t, text, strings.TrimSpace(string(b)))
+			must.NoError(t, err)
+			must.Eq(t, text, strings.TrimSpace(string(b)))
 		} else {
-			require.Error(t, err)
-			require.True(t, os.IsNotExist(err))
+			must.Error(t, err)
+			must.True(t, os.IsNotExist(err))
 		}
 
 		// read should succeed from task again
 		r := execTask(t, driver, taskID,
 			fmt.Sprintf("cat %q", tempfile),
 			false, "")
-		require.Zero(t, r.exitCode)
-		require.Equal(t, text, strings.TrimSpace(r.stdout))
+		must.Zero(t, r.exitCode)
+		must.Eq(t, text, strings.TrimSpace(r.stdout))
 
 		// we always run in a cgroup - testing freezer cgroup
 		r = execTask(t, driver, taskID,
 			"cat /proc/self/cgroup",
 			false, "",
 		)
-		require.Zero(t, r.exitCode)
+		must.Zero(t, r.exitCode)
 
 		switch cgroupslib.GetMode() {
 
@@ -214,7 +212,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 				}
 			}
 			if !ok {
-				require.Fail(t, "unexpected freezer cgroup", "expected freezer to be /nomad/ or /docker/, but found:\n%s", r.stdout)
+				t.Fatal("unexpected freezer cgroup")
 			}
 		case cgroupslib.CG2:
 			info, _ := driver.PluginInfo()
@@ -225,7 +223,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 				t.Skip("/proc/self/cgroup not useful in docker cgroups.v2")
 			}
 			// e.g. 0::/testing.slice/5bdbd6c2-8aba-3ab2-728b-0ff3a81727a9.sleep.scope
-			require.True(t, strings.HasSuffix(strings.TrimSpace(r.stdout), ".scope"), "actual stdout %q", r.stdout)
+			must.True(t, strings.HasSuffix(strings.TrimSpace(r.stdout), ".scope"), must.Sprintf("actual stdout %q", r.stdout))
 		}
 	})
 }
@@ -249,27 +247,27 @@ func execTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tt
 		isRaw = true
 		err := raw.ExecTaskStreamingRaw(ctx, taskID,
 			command, tty, stream)
-		require.NoError(t, err)
+		must.NoError(t, err)
 	} else if d, ok := driver.impl.(drivers.ExecTaskStreamingDriver); ok {
 		execOpts, errCh := drivers.StreamToExecOptions(ctx, command, tty, stream)
 
 		r, err := d.ExecTaskStreaming(ctx, taskID, execOpts)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		select {
 		case err := <-errCh:
-			require.NoError(t, err)
+			must.NoError(t, err)
 		default:
 			// all good
 		}
 
 		exitCode = r.ExitCode
 	} else {
-		require.Fail(t, "driver does not support exec")
+		t.Fatal("driver does not support exec")
 	}
 
 	result := stream.currentResult()
-	require.NoError(t, result.err)
+	must.NoError(t, result.err)
 
 	if !isRaw {
 		result.exitCode = exitCode

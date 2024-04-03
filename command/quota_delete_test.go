@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestQuotaDeleteCommand_Implements(t *testing.T) {
@@ -60,7 +60,7 @@ func TestQuotaDeleteCommand_Good(t *testing.T) {
 	// Create a quota to delete
 	qs := testQuotaSpec()
 	_, err := client.Quotas().Register(qs, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Delete a namespace
 	if code := cmd.Run([]string{"-address=" + url, qs.Name}); code != 0 {
@@ -68,13 +68,12 @@ func TestQuotaDeleteCommand_Good(t *testing.T) {
 	}
 
 	quotas, _, err := client.Quotas().List(nil)
-	assert.Nil(t, err)
-	assert.Len(t, quotas, 0)
+	must.NoError(t, err)
+	must.SliceEmpty(t, quotas)
 }
 
 func TestQuotaDeleteCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -85,14 +84,14 @@ func TestQuotaDeleteCommand_AutocompleteArgs(t *testing.T) {
 	// Create a quota
 	qs := testQuotaSpec()
 	_, err := client.Quotas().Register(qs, nil)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	args := complete.Args{Last: "quot"}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(qs.Name, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, qs.Name, res[0])
 }
 
 // testQuotaSpec returns a test quota specification

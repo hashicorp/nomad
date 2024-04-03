@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -323,8 +324,17 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout:    "50s",
 			DisableRemoteExec: false,
 			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
-				DisableSandbox:   false,
+				FunctionDenylist:   client.DefaultTemplateFunctionDenylist,
+				DisableSandbox:     false,
+				BlockQueryWaitTime: pointer.Of(5 * time.Minute),
+				MaxStale:           pointer.Of(client.DefaultTemplateMaxStale),
+				Wait: &client.WaitConfig{
+					Min: pointer.Of(5 * time.Second),
+					Max: pointer.Of(4 * time.Minute),
+				},
+				ConsulRetry: &client.RetryConfig{Attempts: pointer.Of(0)},
+				VaultRetry:  &client.RetryConfig{Attempts: pointer.Of(0)},
+				NomadRetry:  &client.RetryConfig{Attempts: pointer.Of(0)},
 			},
 			Reserved: &Resources{
 				CPU:           15,
@@ -1376,6 +1386,63 @@ func TestTelemetry_PrefixFilters(t *testing.T) {
 	}
 }
 
+func TestTelemetry_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name           string
+		inputTelemetry *Telemetry
+		expectedError  error
+	}{
+		{
+			name:           "nil",
+			inputTelemetry: nil,
+			expectedError:  nil,
+		},
+		{
+			name: "invalid",
+			inputTelemetry: &Telemetry{
+				inMemoryCollectionInterval: 10 * time.Second,
+				inMemoryRetentionPeriod:    1 * time.Second,
+			},
+			expectedError: errors.New("telemetry in-memory collection interval cannot be greater than retention period"),
+		},
+		{
+			name: "valid",
+			inputTelemetry: &Telemetry{
+				inMemoryCollectionInterval: 1 * time.Second,
+				inMemoryRetentionPeriod:    10 * time.Second,
+			},
+			expectedError: nil,
+		},
+		{
+			name: "missing in-memory interval",
+			inputTelemetry: &Telemetry{
+				inMemoryRetentionPeriod: 10 * time.Second,
+			},
+			expectedError: errors.New("telemetry in-memory collection interval must be greater than zero"),
+		},
+		{
+			name: "missing in-memory collection",
+			inputTelemetry: &Telemetry{
+				inMemoryCollectionInterval: 10 * time.Second,
+			},
+			expectedError: errors.New("telemetry in-memory retention period must be greater than zero"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.inputTelemetry.Validate()
+			if tc.expectedError != nil {
+				must.EqError(t, actualError, tc.expectedError.Error())
+			} else {
+				must.NoError(t, actualError)
+			}
+		})
+	}
+}
+
 func TestTelemetry_Parse(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1451,56 +1518,121 @@ func TestEventBroker_Parse(t *testing.T) {
 func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 	ci.Parallel(t)
 
-	defaultConfig := DefaultConfig()
-	// Test that loading without template config didn't create load errors
-	agentConfig, err := LoadConfig("test-resources/minimal_client.hcl")
-	require.NoError(t, err)
+	t.Run("minimal client expect defaults", func(t *testing.T) {
+		defaultConfig := DefaultConfig()
+		agentConfig, err := LoadConfig("test-resources/minimal_client.hcl")
+		must.NoError(t, err)
+		agentConfig = defaultConfig.Merge(agentConfig)
+		must.Eq(t, defaultConfig.Client.TemplateConfig, agentConfig.Client.TemplateConfig)
+	})
 
-	// Test loading with this config didn't create load errors
-	agentConfig, err = LoadConfig("test-resources/client_with_template.hcl")
-	require.NoError(t, err)
+	t.Run("client config with nil function denylist", func(t *testing.T) {
+		defaultConfig := DefaultConfig()
+		agentConfig, err := LoadConfig("test-resources/client_with_function_denylist_nil.hcl")
+		must.NoError(t, err)
+		agentConfig = defaultConfig.Merge(agentConfig)
 
-	agentConfig = defaultConfig.Merge(agentConfig)
+		templateConfig := agentConfig.Client.TemplateConfig
+		must.Len(t, 2, templateConfig.FunctionDenylist)
+	})
 
-	clientAgent := Agent{config: agentConfig}
-	clientConfig, err := clientAgent.clientConfig()
-	require.NoError(t, err)
+	t.Run("client config with basic template", func(t *testing.T) {
+		defaultConfig := DefaultConfig()
+		agentConfig, err := LoadConfig("test-resources/client_with_basic_template.hcl")
+		must.NoError(t, err)
+		agentConfig = defaultConfig.Merge(agentConfig)
 
-	templateConfig := clientConfig.TemplateConfig
+		templateConfig := agentConfig.Client.TemplateConfig
 
-	// Make sure all fields to test are set
-	require.NotNil(t, templateConfig.BlockQueryWaitTime)
-	require.NotNil(t, templateConfig.MaxStale)
-	require.NotNil(t, templateConfig.Wait)
-	require.NotNil(t, templateConfig.WaitBounds)
-	require.NotNil(t, templateConfig.ConsulRetry)
-	require.NotNil(t, templateConfig.VaultRetry)
-	require.NotNil(t, templateConfig.NomadRetry)
+		// check explicit overrides
+		must.Eq(t, true, templateConfig.DisableSandbox)
+		must.Len(t, 0, templateConfig.FunctionDenylist)
 
-	// Direct properties
-	require.Equal(t, 300*time.Second, *templateConfig.MaxStale)
-	require.Equal(t, 90*time.Second, *templateConfig.BlockQueryWaitTime)
-	// Wait
-	require.Equal(t, 2*time.Second, *templateConfig.Wait.Min)
-	require.Equal(t, 60*time.Second, *templateConfig.Wait.Max)
-	// WaitBounds
-	require.Equal(t, 2*time.Second, *templateConfig.WaitBounds.Min)
-	require.Equal(t, 60*time.Second, *templateConfig.WaitBounds.Max)
-	// Consul Retry
-	require.NotNil(t, templateConfig.ConsulRetry)
-	require.Equal(t, 5, *templateConfig.ConsulRetry.Attempts)
-	require.Equal(t, 5*time.Second, *templateConfig.ConsulRetry.Backoff)
-	require.Equal(t, 10*time.Second, *templateConfig.ConsulRetry.MaxBackoff)
-	// Vault Retry
-	require.NotNil(t, templateConfig.VaultRetry)
-	require.Equal(t, 10, *templateConfig.VaultRetry.Attempts)
-	require.Equal(t, 15*time.Second, *templateConfig.VaultRetry.Backoff)
-	require.Equal(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
-	// Nomad Retry
-	require.NotNil(t, templateConfig.NomadRetry)
-	require.Equal(t, 15, *templateConfig.NomadRetry.Attempts)
-	require.Equal(t, 20*time.Second, *templateConfig.NomadRetry.Backoff)
-	require.Equal(t, 25*time.Second, *templateConfig.NomadRetry.MaxBackoff)
+		// check all the complex defaults
+		must.Eq(t, 87600*time.Hour, *templateConfig.MaxStale)
+		must.Eq(t, 5*time.Minute, *templateConfig.BlockQueryWaitTime)
+
+		// Wait
+		must.NotNil(t, templateConfig.Wait)
+		must.Eq(t, 5*time.Second, *templateConfig.Wait.Min)
+		must.Eq(t, 4*time.Minute, *templateConfig.Wait.Max)
+
+		// WaitBounds
+		must.Nil(t, templateConfig.WaitBounds)
+
+		// Consul Retry
+		must.NotNil(t, templateConfig.ConsulRetry)
+		must.Eq(t, 0, *templateConfig.ConsulRetry.Attempts)
+		must.Nil(t, templateConfig.ConsulRetry.Backoff)
+		must.Nil(t, templateConfig.ConsulRetry.MaxBackoff)
+
+		// Vault Retry
+		must.NotNil(t, templateConfig.VaultRetry)
+		must.Eq(t, 0, *templateConfig.VaultRetry.Attempts)
+		must.Nil(t, templateConfig.VaultRetry.Backoff)
+		must.Nil(t, templateConfig.VaultRetry.MaxBackoff)
+
+		// Nomad Retry
+		must.NotNil(t, templateConfig.NomadRetry)
+		must.Eq(t, 0, *templateConfig.NomadRetry.Attempts)
+		must.Nil(t, templateConfig.NomadRetry.Backoff)
+		must.Nil(t, templateConfig.NomadRetry.MaxBackoff)
+	})
+
+	t.Run("client config with full template block", func(t *testing.T) {
+		defaultConfig := DefaultConfig()
+
+		agentConfig, err := LoadConfig("test-resources/client_with_template.hcl")
+		must.NoError(t, err)
+
+		agentConfig = defaultConfig.Merge(agentConfig)
+
+		clientAgent := Agent{config: agentConfig}
+		clientConfig, err := clientAgent.clientConfig()
+		must.NoError(t, err)
+
+		templateConfig := clientConfig.TemplateConfig
+
+		// Make sure all fields to test are set
+		must.NotNil(t, templateConfig.BlockQueryWaitTime)
+		must.NotNil(t, templateConfig.MaxStale)
+		must.NotNil(t, templateConfig.Wait)
+		must.NotNil(t, templateConfig.WaitBounds)
+		must.NotNil(t, templateConfig.ConsulRetry)
+		must.NotNil(t, templateConfig.VaultRetry)
+		must.NotNil(t, templateConfig.NomadRetry)
+
+		// Direct properties
+		must.Eq(t, 300*time.Second, *templateConfig.MaxStale)
+		must.Eq(t, 90*time.Second, *templateConfig.BlockQueryWaitTime)
+
+		// Wait
+		must.Eq(t, 2*time.Second, *templateConfig.Wait.Min)
+		must.Eq(t, 60*time.Second, *templateConfig.Wait.Max)
+
+		// WaitBounds
+		must.Eq(t, 2*time.Second, *templateConfig.WaitBounds.Min)
+		must.Eq(t, 60*time.Second, *templateConfig.WaitBounds.Max)
+
+		// Consul Retry
+		must.NotNil(t, templateConfig.ConsulRetry)
+		must.Eq(t, 5, *templateConfig.ConsulRetry.Attempts)
+		must.Eq(t, 5*time.Second, *templateConfig.ConsulRetry.Backoff)
+		must.Eq(t, 10*time.Second, *templateConfig.ConsulRetry.MaxBackoff)
+
+		// Vault Retry
+		must.NotNil(t, templateConfig.VaultRetry)
+		must.Eq(t, 10, *templateConfig.VaultRetry.Attempts)
+		must.Eq(t, 15*time.Second, *templateConfig.VaultRetry.Backoff)
+		must.Eq(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
+
+		// Nomad Retry
+		must.NotNil(t, templateConfig.NomadRetry)
+		must.Eq(t, 15, *templateConfig.NomadRetry.Attempts)
+		must.Eq(t, 20*time.Second, *templateConfig.NomadRetry.Backoff)
+		must.Eq(t, 25*time.Second, *templateConfig.NomadRetry.MaxBackoff)
+	})
+
 }
 
 func TestConfig_LoadConsulTemplate_FunctionDenylist(t *testing.T) {

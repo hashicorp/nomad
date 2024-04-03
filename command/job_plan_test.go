@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPlanCommand_Implements(t *testing.T) {
@@ -132,7 +131,7 @@ func TestPlanCommand_hcl1_hcl2_strict(t *testing.T) {
 		})
 		// Exit code 1 here means that an alloc will be created, which is
 		// expected.
-		require.Equal(t, 1, got)
+		must.One(t, got)
 	})
 }
 
@@ -199,7 +198,7 @@ func TestPlanCommand_From_Files(t *testing.T) {
 		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
 		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-basic.nomad"}
 		code := cmd.Run(args)
-		require.Equal(t, 1, code) // no client running, fail to place
+		must.One(t, code) // no client running, fail to place
 		must.StrContains(t, ui.OutputWriter.String(), "WARNING: Failed to place all allocations.")
 	})
 
@@ -253,7 +252,6 @@ func TestPlanCommand_Preemptions(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
-	require := require.New(t)
 
 	// Only one preempted alloc
 	resp1 := &api.JobPlanResponse{
@@ -271,8 +269,8 @@ func TestPlanCommand_Preemptions(t *testing.T) {
 	}
 	cmd.addPreemptions(resp1)
 	out := ui.OutputWriter.String()
-	require.Contains(out, "Alloc ID")
-	require.Contains(out, "alloc1")
+	must.StrContains(t, out, "Alloc ID")
+	must.StrContains(t, out, "alloc1")
 
 	// Less than 10 unique job ids
 	var preemptedAllocs []*api.AllocationListStub
@@ -296,8 +294,8 @@ func TestPlanCommand_Preemptions(t *testing.T) {
 	ui.OutputWriter.Reset()
 	cmd.addPreemptions(resp2)
 	out = ui.OutputWriter.String()
-	require.Contains(out, "Job ID")
-	require.Contains(out, "Namespace")
+	must.StrContains(t, out, "Job ID")
+	must.StrContains(t, out, "Namespace")
 
 	// More than 10 unique job IDs
 	preemptedAllocs = make([]*api.AllocationListStub, 0)
@@ -327,9 +325,9 @@ func TestPlanCommand_Preemptions(t *testing.T) {
 	ui.OutputWriter.Reset()
 	cmd.addPreemptions(resp3)
 	out = ui.OutputWriter.String()
-	require.Contains(out, "Job Type")
-	require.Contains(out, "batch")
-	require.Contains(out, "service")
+	must.StrContains(t, out, "Job Type")
+	must.StrContains(t, out, "batch")
+	must.StrContains(t, out, "service")
 }
 
 func TestPlanCommand_JSON(t *testing.T) {
@@ -344,6 +342,6 @@ func TestPlanCommand_JSON(t *testing.T) {
 		"testdata/example-short.json",
 	}
 	code := cmd.Run(args)
-	require.Equal(t, 255, code)
-	require.Contains(t, ui.ErrorWriter.String(), "Error during plan: Put")
+	must.Eq(t, 255, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "Error during plan: Put")
 }

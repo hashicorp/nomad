@@ -13,7 +13,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -365,11 +365,11 @@ func (op *Operator) AutopilotGetConfiguration(args *structs.GenericRequest, repl
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.AllowOperatorRead() {
+	if aclObj != nil && !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -400,11 +400,11 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 	}
 
 	// This action requires operator write access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.AllowOperatorWrite() {
+	if aclObj != nil && !aclObj.AllowOperatorWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -443,11 +443,11 @@ func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *structs.Op
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.AllowOperatorRead() {
+	if aclObj != nil && !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -478,10 +478,10 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	}
 
 	// This action requires operator write access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if rule != nil && !rule.AllowOperatorWrite() {
+	} else if aclObj != nil && !aclObj.AllowOperatorWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -532,10 +532,10 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if rule != nil && !rule.AllowOperatorRead() {
+	} else if aclObj != nil && !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -803,10 +803,10 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.ResolveACL(args)
+	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if rule != nil && !rule.AllowOperatorRead() {
+	} else if aclObj != nil && !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 

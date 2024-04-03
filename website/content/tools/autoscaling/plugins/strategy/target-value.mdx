@@ -89,3 +89,11 @@ check "target-value-check" {
 - `threshold` `(float: 0.01)` - Specifies how significant a change in the input
   metric should be considered. Small threshold values can lead to output
   fluctuation.
+
+- `max_scale_up` `(int: unlimited)` - Specifies the maximum number of instances
+  that can be added in a single scaling operation. It acts as a safeguard
+  against the system scaling up too rapidly.
+
+- `max_scale_down` `(int: unlimited)` - Specifies the maximum number of instances
+  that can be removed in a single scaling operation. It acts as a safeguard
+  against the system scaling down too rapidly.

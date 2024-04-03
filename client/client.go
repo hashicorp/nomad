@@ -56,6 +56,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
@@ -339,6 +340,9 @@ type Client struct {
 
 	// widsigner signs workload identities
 	widsigner widmgr.IdentitySigner
+
+	// users is a pool of dynamic workload users
+	users dynamic.Pool
 }
 
 var (
@@ -471,16 +475,25 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		c.topology = numalib.NoImpl(ir.Topology)
 	}
 
+	// Create the dynamic workload users pool
+	c.users = dynamic.New(&dynamic.PoolConfig{
+		MinUGID: cfg.Users.MinDynamicUser,
+		MaxUGID: cfg.Users.MaxDynamicUser,
+	})
+
 	// Create the cpu core partition manager
 	c.partitions = cgroupslib.GetPartition(
 		c.topology.UsableCores(),
 	)
 
 	// Create the process wranglers
-	wranglers := proclib.New(&proclib.Configs{
+	wranglers, err := proclib.New(&proclib.Configs{
 		UsableCores: c.topology.UsableCores(),
 		Logger:      c.logger.Named("proclib"),
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize process manager: %w", err)
+	}
 	c.wranglers = wranglers
 
 	// Build the allow/denylists of drivers.
@@ -679,10 +692,17 @@ func (c *Client) init() error {
 
 	c.stateDB = db
 
-	// Ensure the alloc dir exists if we have one
+	// Ensure the alloc mounts dir exists if we are configured with a custom path.
+	if conf.AllocMountsDir != "" {
+		if err := os.MkdirAll(conf.AllocMountsDir, 0o711); err != nil {
+			return fmt.Errorf("failed creating alloc mounts dir: %w", err)
+		}
+	}
+
+	// Ensure the alloc dir exists if we are configured with a custom path.
 	if conf.AllocDir != "" {
-		if err := os.MkdirAll(conf.AllocDir, 0711); err != nil {
-			return fmt.Errorf("failed creating alloc dir: %s", err)
+		if err := os.MkdirAll(conf.AllocDir, 0o711); err != nil {
+			return fmt.Errorf("failed creating alloc dir: %w", err)
 		}
 	} else {
 		// Otherwise make a temp directory to use.
@@ -697,12 +717,13 @@ func (c *Client) init() error {
 		}
 
 		// Change the permissions to have the execute bit
-		if err := os.Chmod(p, 0711); err != nil {
+		if err := os.Chmod(p, 0o711); err != nil {
 			return fmt.Errorf("failed to change directory permissions for the AllocDir: %v", err)
 		}
 
 		conf = c.UpdateConfig(func(c *config.Config) {
 			c.AllocDir = p
+			c.AllocMountsDir = p
 		})
 	}
 
@@ -2665,7 +2686,7 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 	// Reconnect unknown allocations if they were updated and are not terminal.
 	reconnect := update.ClientStatus == structs.AllocClientStatusUnknown &&
 		update.AllocModifyIndex > alloc.AllocModifyIndex &&
-		(!update.ServerTerminalStatus() || !alloc.PreventRescheduleOnLost())
+		(!update.ServerTerminalStatus() || !alloc.PreventRescheduleOnDisconnect())
 	if reconnect {
 		err = ar.Reconnect(update)
 		if err != nil {
@@ -2769,6 +2790,7 @@ func (c *Client) newAllocRunnerConfig(
 		WIDSigner:           c.widsigner,
 		Wranglers:           c.wranglers,
 		Partitions:          c.partitions,
+		Users:               c.users,
 	}
 }
 

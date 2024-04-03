@@ -15,13 +15,11 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestStatusCommand_Run_JobStatus(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -32,22 +30,20 @@ func TestStatusCommand_Run_JobStatus(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	// Query to check the job status
-	if code := cmd.Run([]string{"-address=" + url, j.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, j.ID})
+	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, j.ID)
+	must.StrContains(t, out, j.ID)
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_JobStatus_MultiMatch(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -60,22 +56,20 @@ func TestStatusCommand_Run_JobStatus_MultiMatch(t *testing.T) {
 	j := mock.Job()
 	j2 := mock.Job()
 	j2.ID = fmt.Sprintf("%s-more", j.ID)
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j2))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j2))
 
 	// Query to check the job status
-	if code := cmd.Run([]string{"-address=" + url, j.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, j.ID})
+	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, j.ID)
+	must.StrContains(t, out, j.ID)
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_EvalStatus(t *testing.T) {
-	assert := assert.New(t)
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
@@ -87,7 +81,7 @@ func TestStatusCommand_Run_EvalStatus(t *testing.T) {
 	// Create a fake eval
 	state := srv.Agent.Server().State()
 	eval := mock.Eval()
-	assert.Nil(state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
+	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
 
 	// Query to check the eval status
 	if code := cmd.Run([]string{"-address=" + url, eval.ID}); code != 0 {
@@ -95,13 +89,12 @@ func TestStatusCommand_Run_EvalStatus(t *testing.T) {
 	}
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, eval.ID[:shortId])
+	must.StrContains(t, out, eval.ID[:shortId])
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_NodeStatus(t *testing.T) {
-	assert := assert.New(t)
 	ci.Parallel(t)
 
 	// Start in dev mode so we get a node registration
@@ -135,13 +128,12 @@ func TestStatusCommand_Run_NodeStatus(t *testing.T) {
 	}
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, "mynode")
+	must.StrContains(t, out, "mynode")
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_AllocStatus(t *testing.T) {
-	assert := assert.New(t)
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
@@ -153,20 +145,18 @@ func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	alloc := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
-	if code := cmd.Run([]string{"-address=" + url, alloc.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, alloc.ID})
+	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, alloc.ID[:shortId])
+	must.StrContains(t, out, alloc.ID[:shortId])
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_DeploymentStatus(t *testing.T) {
-	assert := assert.New(t)
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
@@ -178,21 +168,19 @@ func TestStatusCommand_Run_DeploymentStatus(t *testing.T) {
 	// Create a fake deployment
 	state := srv.Agent.Server().State()
 	deployment := mock.Deployment()
-	assert.Nil(state.UpsertDeployment(1000, deployment))
+	must.NoError(t, state.UpsertDeployment(1000, deployment))
 
 	// Query to check the deployment status
-	if code := cmd.Run([]string{"-address=" + url, deployment.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url, deployment.ID})
+	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, deployment.ID[:shortId])
+	must.StrContains(t, out, deployment.ID[:shortId])
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_Run_NoPrefix(t *testing.T) {
-	assert := assert.New(t)
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
@@ -204,21 +192,19 @@ func TestStatusCommand_Run_NoPrefix(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	job := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
 
 	// Query to check status
-	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url})
+	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
-	assert.Contains(out, job.ID)
+	must.StrContains(t, out, job.ID)
 
 	ui.OutputWriter.Reset()
 }
 
 func TestStatusCommand_AutocompleteArgs(t *testing.T) {
-	assert := assert.New(t)
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
@@ -230,14 +216,14 @@ func TestStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	job := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
 
 	prefix := job.ID[:len(job.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Contains(res, job.ID)
+	must.SliceContains(t, res, job.ID)
 }
 
 func TestStatusCommand_Run_HostNetwork(t *testing.T) {
@@ -261,7 +247,7 @@ func TestStatusCommand_Run_HostNetwork(t *testing.T) {
 			verbose: false,
 			assertions: func(out string) {
 				hostNetworksRegexpStr := `Host Networks\s+=\s+internal\n`
-				require.Regexp(t, regexp.MustCompile(hostNetworksRegexpStr), out)
+				must.RegexMatch(t, regexp.MustCompile(hostNetworksRegexpStr), out)
 			},
 		},
 		{
@@ -274,10 +260,10 @@ func TestStatusCommand_Run_HostNetwork(t *testing.T) {
 			verbose: true,
 			assertions: func(out string) {
 				verboseHostNetworksHeadRegexpStr := `Name\s+CIDR\s+Interface\s+ReservedPorts\n`
-				require.Regexp(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
+				must.RegexMatch(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
 
 				verboseHostNetworksBodyRegexpStr := `internal\s+127\.0\.0\.1/8\s+lo\s+<none>\n`
-				require.Regexp(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
+				must.RegexMatch(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
 			},
 		},
 		{
@@ -289,10 +275,10 @@ func TestStatusCommand_Run_HostNetwork(t *testing.T) {
 			verbose: true,
 			assertions: func(out string) {
 				verboseHostNetworksHeadRegexpStr := `Name\s+CIDR\s+Interface\s+ReservedPorts\n`
-				require.Regexp(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
+				must.RegexMatch(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
 
 				verboseHostNetworksBodyRegexpStr := `public\s+10\.199\.0\.200/24\s+<none>\s+<none>\n`
-				require.Regexp(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
+				must.RegexMatch(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
 			},
 		},
 		{
@@ -305,10 +291,10 @@ func TestStatusCommand_Run_HostNetwork(t *testing.T) {
 			verbose: true,
 			assertions: func(out string) {
 				verboseHostNetworksHeadRegexpStr := `Name\s+CIDR\s+Interface\s+ReservedPorts\n`
-				require.Regexp(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
+				must.RegexMatch(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
 
 				verboseHostNetworksBodyRegexpStr := `public\s+10\.199\.0\.200/24\s+<none>\s+8080,8081\n`
-				require.Regexp(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
+				must.RegexMatch(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
 			},
 		},
 	}

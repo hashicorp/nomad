@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+
+	"golang.org/x/sys/windows"
 )
 
 // configure new process group for child process
@@ -45,18 +47,9 @@ func (e *UniversalExecutor) killProcessTree(proc *os.Process) error {
 }
 
 // Send a Ctrl-Break signal for shutting down the process,
-// like in https://golang.org/src/os/signal/signal_windows_test.go
 func sendCtrlBreak(pid int) error {
-	dll, err := syscall.LoadDLL("kernel32.dll")
+	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, uint32(pid))
 	if err != nil {
-		return fmt.Errorf("Error loading kernel32.dll: %v", err)
-	}
-	proc, err := dll.FindProc("GenerateConsoleCtrlEvent")
-	if err != nil {
-		return fmt.Errorf("Cannot find procedure GenerateConsoleCtrlEvent: %v", err)
-	}
-	result, _, err := proc.Call(syscall.CTRL_BREAK_EVENT, uintptr(pid))
-	if result == 0 {
 		return fmt.Errorf("Error sending ctrl-break event: %v", err)
 	}
 	return nil

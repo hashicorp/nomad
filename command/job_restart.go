@@ -965,7 +965,7 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 
 	// Allocations for system jobs do not get replaced by the scheduler after
 	// being stopped, so an eval is needed to trigger the reconciler.
-	if *alloc.Job.Type == api.JobTypeSystem {
+	if alloc.isSystemJob() {
 		opts := api.EvalOptions{
 			ForceReschedule: true,
 		}
@@ -1240,4 +1240,10 @@ func (a *AllocationListStubWithJob) HasTask(name string) bool {
 func (a *AllocationListStubWithJob) IsRunning() bool {
 	return a.ClientStatus == api.AllocClientStatusRunning ||
 		a.DesiredStatus == api.AllocDesiredStatusRun
+}
+
+// isSystemJob returns true if allocation's job type
+// is "system", false otherwise
+func (a *AllocationListStubWithJob) isSystemJob() bool {
+	return a.Job != nil && a.Job.Type != nil && *a.Job.Type == api.JobTypeSystem
 }

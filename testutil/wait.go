@@ -377,6 +377,57 @@ func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, a
 	return allocs
 }
 
+// WaitforJobEvalStatus blocks until the job's evals match the status described
+// in the map of <Eval.Status>: <count>.
+func WaitForJobEvalStatus(t testing.TB, rpc rpcFn, job *structs.Job, evalStatus map[string]int) []*structs.Evaluation {
+	return WaitForJobEvalStatusWithToken(t, rpc, job, evalStatus, "")
+}
+
+// WaitForJobEvalStatusWithToken is the same as WaitforJobEvalStatus  with ACL
+// enabled.
+func WaitForJobEvalStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, evalStatus map[string]int, token string) []*structs.Evaluation {
+	var evals []*structs.Evaluation
+
+	errorFunc := func() error {
+		req := &structs.JobSpecificRequest{
+			JobID: job.ID,
+			QueryOptions: structs.QueryOptions{
+				AuthToken: token,
+				Namespace: job.Namespace,
+				Region:    job.Region,
+			},
+		}
+		var resp structs.JobEvaluationsResponse
+		err := rpc("Job.Evaluations", req, &resp)
+		if err != nil {
+			return fmt.Errorf("failed to call Job.Evaluations RPC: %w", err)
+		}
+
+		got := make(map[string]int)
+		for _, eval := range resp.Evaluations {
+			got[eval.Status]++
+		}
+
+		if diff := cmp.Diff(evalStatus, got); diff != "" {
+			return fmt.Errorf("eval status mismatch (-want +got):\n%s", diff)
+		}
+
+		evals = resp.Evaluations
+		return nil
+	}
+
+	must.Wait(t,
+		wait.InitialSuccess(
+			wait.ErrorFunc(errorFunc),
+			wait.Timeout(time.Duration(TestMultiplier())*time.Second),
+			wait.Gap(10*time.Millisecond),
+		),
+		must.Sprintf("failed to wait for job %s eval status", job.ID),
+	)
+
+	return evals
+}
+
 // WaitForFiles blocks until all the files in the slice are present
 func WaitForFiles(t testing.TB, files []string) {
 	WaitForResult(func() (bool, error) {

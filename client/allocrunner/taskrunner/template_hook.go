@@ -94,6 +94,10 @@ type templateHook struct {
 
 	// taskDir is the task directory
 	taskDir string
+
+	// taskID is a unique identifier for this templateHook, for use in
+	// downstream platform-specific template runner consumers
+	taskID string
 }
 
 func newTemplateHook(config *templateHookConfig) *templateHook {
@@ -127,6 +131,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
 	h.nomadToken = req.NomadToken
+	h.taskID = req.Alloc.ID + "-" + req.Task.Name
 
 	// Set the consul token if the task uses WI.
 	tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
@@ -187,7 +192,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	return nil
 }
 
-func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, resp *interfaces.TaskPoststartResponse) error {
+func (h *templateHook) Poststart(_ context.Context, req *interfaces.TaskPoststartRequest, resp *interfaces.TaskPoststartResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
@@ -240,6 +245,8 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
 		NomadNamespace:       h.config.nomadNamespace,
 		NomadToken:           h.nomadToken,
+		TaskID:               h.taskID,
+		Logger:               h.logger,
 	})
 	if err != nil {
 		h.logger.Error("failed to create template manager", "error", err)
@@ -253,7 +260,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	return unblock, nil
 }
 
-func (h *templateHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
+func (h *templateHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
@@ -266,7 +273,7 @@ func (h *templateHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest
 }
 
 // Update is used to handle updates to vault and/or nomad tokens.
-func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, resp *interfaces.TaskUpdateResponse) error {
+func (h *templateHook) Update(_ context.Context, req *interfaces.TaskUpdateRequest, resp *interfaces.TaskUpdateResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 

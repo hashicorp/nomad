@@ -162,13 +162,13 @@ func TestServiceCheck_validate_FailingTypes(t *testing.T) {
 
 	t.Run("invalid", func(t *testing.T) {
 		err := (&ServiceCheck{
-			Name:                   "check",
-			Type:                   "script",
-			Command:                "/nothing",
-			Interval:               1 * time.Second,
-			Timeout:                2 * time.Second,
-			SuccessBeforePassing:   0,
-			FailuresBeforeWarning:  3,
+			Name:                  "check",
+			Type:                  "script",
+			Command:               "/nothing",
+			Interval:              1 * time.Second,
+			Timeout:               2 * time.Second,
+			SuccessBeforePassing:  0,
+			FailuresBeforeWarning: 3,
 		}).validateConsul()
 		require.EqualError(t, err, `failures_before_warning not supported for check of type "script"`)
 	})
@@ -298,10 +298,10 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 		{
 			name: "failures_before_warning",
 			sc: &ServiceCheck{
-				Type:                   ServiceCheckTCP,
-				FailuresBeforeWarning:  3, // consul only
-				Interval:               3 * time.Second,
-				Timeout:                1 * time.Second,
+				Type:                  ServiceCheckTCP,
+				FailuresBeforeWarning: 3, // consul only
+				Interval:              3 * time.Second,
+				Timeout:               1 * time.Second,
 			},
 			exp: `failures_before_warning may only be set for Consul service checks`,
 		},
@@ -786,6 +786,16 @@ func TestConsulUpstream_upstreamEqual(t *testing.T) {
 		must.False(t, upstreamsEquals(a, b))
 	})
 
+	t.Run("different dest partition", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000)}
+		a[0].DestinationPeer = "infra"
+
+		b := []ConsulUpstream{up("foo", 8000)}
+		b[0].DestinationPeer = "dev"
+
+		must.False(t, upstreamsEquals(a, b))
+	})
+
 	t.Run("different dest type", func(t *testing.T) {
 		a := []ConsulUpstream{up("foo", 8000)}
 		a[0].DestinationType = "tcp"
@@ -832,10 +842,12 @@ func TestConsulUpstream_upstreamEqual(t *testing.T) {
 		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
 		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
 		a[0].DestinationPeer = "10.0.0.1:6379"
+		a[0].DestinationPartition = "infra"
 		a[0].DestinationType = "tcp"
 		a[0].LocalBindSocketPath = "/var/run/mysocket.sock"
 		a[0].LocalBindSocketMode = "0666"
 		b[0].DestinationPeer = "10.0.0.1:6379"
+		b[0].DestinationPartition = "infra"
 		b[0].DestinationType = "tcp"
 		b[0].LocalBindSocketPath = "/var/run/mysocket.sock"
 		b[0].LocalBindSocketMode = "0666"

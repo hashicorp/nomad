@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestDeploymentResumeCommand_Implements(t *testing.T) {
@@ -44,7 +44,6 @@ func TestDeploymentResumeCommand_Fails(t *testing.T) {
 
 func TestDeploymentResumeCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -55,13 +54,13 @@ func TestDeploymentResumeCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake deployment
 	state := srv.Agent.Server().State()
 	d := mock.Deployment()
-	assert.Nil(state.UpsertDeployment(1000, d))
+	must.NoError(t, state.UpsertDeployment(1000, d))
 
 	prefix := d.ID[:5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(d.ID, res[0])
+	must.SliceLen(t, 1, res)
+	must.Eq(t, d.ID, res[0])
 }

@@ -726,7 +726,7 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 	event := eventsFromChanges(nil, changes)
 	require.NotNil(t, event)
 
-	require.Len(t, event.Events, 1)
+	require.Len(t, event.Events, 2)
 }
 
 func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {

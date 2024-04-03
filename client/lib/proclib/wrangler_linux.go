@@ -11,18 +11,19 @@ import (
 
 // New creates a Wranglers factory for creating ProcessWrangler's appropriate
 // for the given system (i.e. cgroups v1 or cgroups v2).
-func New(configs *Configs) *Wranglers {
+func New(configs *Configs) (*Wranglers, error) {
 	w := &Wranglers{
 		configs: configs,
 		m:       make(map[Task]ProcessWrangler),
 	}
 
+	var err error
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
-		w.create = newCG1(configs)
+		w.create, err = newCG1(configs)
 	default:
-		w.create = newCG2(configs)
+		w.create, err = newCG2(configs)
 	}
 
-	return w
+	return w, err
 }

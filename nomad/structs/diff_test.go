@@ -2971,6 +2971,209 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 		},
 		{
+			TestCase: "Disconnect strategy deleted",
+			Old: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         1 * time.Second,
+					Replace:           pointer.Of(true),
+					Reconcile:         ReconcileOptionLongestRunning,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Disconnect",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "LostAfter",
+								Old:  "1000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Reconcile",
+								Old:  ReconcileOptionLongestRunning,
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Replace",
+								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "StopOnClientAfter",
+								Old:  "1000000000",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Disconnect strategy added",
+			Old:      &TaskGroup{},
+			New: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Second,
+					Replace:           pointer.Of(true),
+					Reconcile:         ReconcileOptionLongestRunning,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Disconnect",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "LostAfter",
+								Old:  "",
+								New:  "1000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Reconcile",
+								Old:  "",
+								New:  ReconcileOptionLongestRunning,
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Replace",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "StopOnClientAfter",
+								Old:  "",
+								New:  "1000000000",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Disconnect strategy edited",
+			Old: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Second,
+					Replace:           pointer.Of(false),
+					Reconcile:         ReconcileOptionLongestRunning,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			New: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Minute,
+					Replace:           pointer.Of(true),
+					Reconcile:         ReconcileOptionBestScore,
+					StopOnClientAfter: pointer.Of(1 * time.Minute),
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Disconnect",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "LostAfter",
+								Old:  "1000000000",
+								New:  "60000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Reconcile",
+								Old:  ReconcileOptionLongestRunning,
+								New:  ReconcileOptionBestScore,
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Replace",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "StopOnClientAfter",
+								Old:  "1000000000",
+								New:  "60000000000",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase:   "Disconnect strategy edited with context",
+			Contextual: true,
+			Old: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Second,
+					Replace:           pointer.Of(false),
+					Reconcile:         ReconcileOptionLongestRunning,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			New: &TaskGroup{
+				Disconnect: &DisconnectStrategy{
+					LostAfter:         time.Minute,
+					Replace:           pointer.Of(true),
+					Reconcile:         ReconcileOptionBestScore,
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Disconnect",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "LostAfter",
+								Old:  "1000000000",
+								New:  "60000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Reconcile",
+								Old:  ReconcileOptionLongestRunning,
+								New:  ReconcileOptionBestScore,
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Replace",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "StopOnClientAfter",
+								Old:  "1000000000",
+								New:  "1000000000",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			TestCase: "EphemeralDisk added",
 			Old:      &TaskGroup{},
 			New: &TaskGroup{
@@ -3275,6 +3478,14 @@ func TestTaskGroupDiff(t *testing.T) {
 												Mode: "remote",
 											},
 										},
+									},
+									Expose: &ConsulExposeConfig{
+										Paths: []ConsulExposePath{{
+											Path:          "/health",
+											Protocol:      "http",
+											LocalPathPort: 9001,
+											ListenerPort:  "api_expose_healthcheck",
+										}},
 									},
 									Config: map[string]interface{}{
 										"foo": "qux",
@@ -3621,6 +3832,12 @@ func TestTaskGroupDiff(t *testing.T) {
 															},
 															{
 																Type: DiffTypeNone,
+																Name: "DestinationPartition",
+																Old:  "",
+																New:  "",
+															},
+															{
+																Type: DiffTypeNone,
 																Name: "DestinationPeer",
 																Old:  "",
 																New:  "",
@@ -3666,6 +3883,42 @@ func TestTaskGroupDiff(t *testing.T) {
 																		Name: "Mode",
 																		Old:  "",
 																		New:  "remote",
+																	},
+																},
+															},
+														},
+													},
+													{
+														Type: DiffTypeAdded,
+														Name: "Expose",
+														Objects: []*ObjectDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "Paths",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ListenerPort",
+																		Old:  "",
+																		New:  "api_expose_healthcheck",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "LocalPathPort",
+																		Old:  "",
+																		New:  "9001",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "Path",
+																		Old:  "",
+																		New:  "/health",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "Protocol",
+																		Old:  "",
+																		New:  "http",
 																	},
 																},
 															},
@@ -5380,6 +5633,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "GetterInsecure",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "GetterMode",
 								Old:  "",
 								New:  "file",
@@ -5412,6 +5671,13 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "GetterHeaders[User]",
 								Old:  "user1",
+								New:  "",
+							},
+
+							{
+								Type: DiffTypeDeleted,
+								Name: "GetterInsecure",
+								Old:  "false",
 								New:  "",
 							},
 							{
@@ -9680,14 +9946,15 @@ func TestServicesDiff(t *testing.T) {
 								LocalServicePort:    8080,
 								Upstreams: []ConsulUpstream{
 									{
-										DestinationName:     "count-api",
-										LocalBindPort:       8080,
-										Datacenter:          "dc2",
-										LocalBindAddress:    "127.0.0.1",
-										LocalBindSocketMode: "0700",
-										LocalBindSocketPath: "/tmp/redis_5678.sock",
-										DestinationPeer:     "cloud-services",
-										DestinationType:     "service",
+										DestinationName:      "count-api",
+										LocalBindPort:        8080,
+										Datacenter:           "dc2",
+										LocalBindAddress:     "127.0.0.1",
+										LocalBindSocketMode:  "0700",
+										LocalBindSocketPath:  "/tmp/redis_5678.sock",
+										DestinationPeer:      "cloud-services",
+										DestinationPartition: "infra",
+										DestinationType:      "service",
 										MeshGateway: ConsulMeshGateway{
 											Mode: "remote",
 										},
@@ -9719,6 +9986,13 @@ func TestServicesDiff(t *testing.T) {
 													Type: DiffTypeEdited,
 													Name: "ConsulUpstreams",
 													Fields: []*FieldDiff{
+														{
+															Type:        DiffTypeAdded,
+															Name:        "DestinationPartition",
+															Old:         "",
+															New:         "infra",
+															Annotations: nil,
+														},
 														{
 															Type:        DiffTypeAdded,
 															Name:        "DestinationPeer",
