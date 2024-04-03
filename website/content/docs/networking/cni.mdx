@@ -31,6 +31,9 @@ with Consul service mesh.
 
 See the Linux [post-install steps][cni_install] for installing CNI reference plugins.
 
+To use Nomad's [`transparent_proxy`][] feature, you will also need the
+[`consul-cni`][] plugin.
+
 ## CNI plugins
 
 Spec-compliant plugins should work with Nomad, however, it's possible a plugin
@@ -225,3 +228,5 @@ a unique value for your configuration.
 [loopback]: https://github.com/containernetworking/plugins#main-interface-creating
 [nomad_install]: /nomad/tutorials/get-started/get-started-install#post-installation-steps
 [portmap]: https://www.cni.dev/plugins/current/meta/portmap/
+[`transparent_proxy`]: /nomad/docs/job-specification/transparent_proxy
+[`consul-cni`]: https://releases.hashicorp.com/consul-cni
