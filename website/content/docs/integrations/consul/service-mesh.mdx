@@ -134,15 +134,33 @@ service_prefix "" { policy = "read" }
 node_prefix    "" { policy = "read" }
 ```
 
-#### Consul DNS For Transparent Proxy
+#### Transparent Proxy
 
-To use Consul's [transparent proxy][] mode with virtual IP addresses, you'll
-need to configure Consul's DNS listener to be exposed to the workload network
-namespace. You can do this without exposing the Consul agent on a public IP by
-setting the Consul `bind_addr` to bind on a private IP address.
+Using Nomad's support for [transparent proxy][] configures the network namespace
+so that traffic flows through the Envoy proxy. When the [`transparent_proxy`][]
+block is enabled:
 
-If you want workloads to be able to use both Consul DNS and query external DNS
-entries, you'll need to add [`recursors`][] for the external nameservers.
+* Nomad will invoke the [`consul-cni`][] CNI plugin to configure `iptables` rules
+  in the network namespace to force outbound traffic from an allocation to flow
+  through the proxy.
+* If the local Consul agent is serving DNS, Nomad will set the IP address of the
+  Consul agent as the nameserver in the task's `/etc/resolv.conf`.
+* Consul will provide a [virtual IP][] for any upstream service the workload
+  has access to, based on the service intentions.
+
+Using transparent proxy has several important requirements:
+
+* You must have the [`consul-cni`][] CNI plugin installed on the client host
+  along with the usual [required CNI plugins][cni_plugins].
+* To use Consul DNS and virtual IPs, you'll need to configure Consul's DNS
+  listener to be exposed to the workload network namespace. You can do this
+  without exposing the Consul agent on a public IP by setting the Consul
+  `bind_addr` to bind on a private IP address (the default is to use the
+  `client_addr`).
+* The Consul agent must be configured with [`recursors`][] if you want
+  allocations to make DNS queries for applications outside the service mesh.
+* You cannot set a [`network.dns`][] block on the allocation (unless you set
+  [`no_dns`][tproxy_no_dns], see below).
 
 For example, a HCL configuration with a [go-sockaddr/template][] binding to the
 subnet `10.37.105.0/20`, with recursive DNS set to OpenDNS nameservers:
@@ -470,4 +488,9 @@ filesystem.
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
 [`recursors`]: /consul/docs/agent/config/config-files#recursors
 [`transparent_proxy`]: /nomad/docs/job-specification/transparent_proxy
+[tproxy_no_dns]: /nomad/docs/job-specification/transparent_proxy#no_dns
 [`consul-cni`]: https://releases.hashicorp.com/consul-cni
+[virtual IP]: /consul/docs/services/discovery/dns-static-lookups#service-virtual-ip-lookups
+[cni_plugins]: /nomad/docs/networking/cni#cni-reference-plugins
+[consul_dns_port]: /consul/docs/agent/config/config-files#dns_port
+[`network.dns`]: /nomad/docs/job-specification/network#dns-parameters
