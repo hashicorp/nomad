@@ -230,6 +230,11 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to get docker client: %w", err)
 	}
 
+	dockerInfo, err := dockerClient.Info()
+	if err != nil {
+		return fmt.Errorf("failed to fetch docker daemon info: %v", err)
+	}
+
 	infinityClient, err := d.getInfinityClient()
 	if err != nil {
 		return fmt.Errorf("failed to get docker long operations client: %w", err)
@@ -244,6 +249,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 
 	h := &taskHandle{
 		dockerClient:          dockerClient,
+		dockerCGroupDriver:    dockerInfo.CgroupDriver,
 		infinityClient:        infinityClient,
 		logger:                d.logger.With("container_id", container.ID),
 		task:                  handle.Config,
@@ -321,6 +327,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	dockerClient, err := d.getDockerClient()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create docker client: %v", err)
+	}
+
+	dockerInfo, err := dockerClient.Info()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch docker daemon info: %v", err)
 	}
 
 	// and also the long operations client
@@ -433,6 +444,7 @@ CREATE:
 	// Return a driver handle
 	h := &taskHandle{
 		dockerClient:          dockerClient,
+		dockerCGroupDriver:    dockerInfo.CgroupDriver,
 		infinityClient:        infinityClient,
 		dlogger:               dlogger,
 		dloggerPluginClient:   pluginClient,
