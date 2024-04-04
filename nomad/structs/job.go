@@ -186,3 +186,21 @@ func (j *Job) RequiredBridgeNetwork() set.Collection[string] {
 	}
 	return result
 }
+
+// RequiredTransparentProxy identifies which task groups, if any, within the job
+// contain Connect blocks using transparent proxy
+func (j *Job) RequiredTransparentProxy() set.Collection[string] {
+	result := set.New[string](len(j.TaskGroups))
+	for _, tg := range j.TaskGroups {
+		for _, service := range tg.Services {
+			if service.Connect != nil {
+				if service.Connect.HasTransparentProxy() {
+					result.Insert(tg.Name)
+					break // to next TaskGroup
+				}
+			}
+		}
+	}
+
+	return result
+}
