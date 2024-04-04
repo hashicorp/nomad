@@ -140,10 +140,7 @@ var (
 	// transparent proxy mode.
 	cniConsulConstraint = &structs.Constraint{
 		LTarget: attrConsulCNI,
-		// TODO(tgross): consul-cni 1.4.2 will have Nomad support and will emit
-		// the correct version string. Once that's shipped update this RTarget
-		// to "1.4.2"
-		RTarget: "1.0.0",
+		RTarget: "1.4.2",
 		Operand: structs.ConstraintSemver,
 	}
 )

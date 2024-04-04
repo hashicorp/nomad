@@ -154,7 +154,7 @@ func (j *Job) RequiredTransparentProxy() set.Collection[string] {
 			if service.Connect != nil {
 				if service.Connect.HasTransparentProxy() {
 					result.Insert(tg.Name)
-					continue
+					break // to next TaskGroup
 				}
 			}
 		}
