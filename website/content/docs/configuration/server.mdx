@@ -40,11 +40,13 @@ server {
   `1` does not provide any fault tolerance and is not recommended for production
   use cases.
 
-- `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use
-  for server-specific data, including the replicated log. By default, this is
-  the top-level [data_dir](/nomad/docs/configuration#data_dir) suffixed with "server",
-  like `"/opt/nomad/server"`. The top-level option must be set, even when
-  setting this value. This must be an absolute path.
+- `data_dir` `(string: "")` - Specifies the directory to use for server-specific
+  data, including the replicated log. When this parameter is empty, Nomad will
+  generate the path using the [top-level `data_dir`][top_level_data_dir] suffixed
+  with `server`, like `"/opt/nomad/server"`. The
+  [top-level data_dir][top_level_data_dir] must be set, even when setting this
+  value. This must be an absolute path. Nomad will create the directory on the
+  host, if it does not exist when the agent process starts.
 
 - `enabled` `(bool: false)` - Specifies if this agent should run in server mode.
   All other server options depend on this value being set.
@@ -512,3 +514,4 @@ work.
 [max_client_disconnect]: /nomad/docs/job-specification/group#max-client-disconnect
 [herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem
 [wi]: /nomad/docs/concepts/workload-identity
+[top_level_data_dir]: /nomad/docs/configuration#data_dir
