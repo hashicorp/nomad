@@ -33,6 +33,12 @@ type CreateIndexGetter interface {
 	GetCreateIndex() uint64
 }
 
+// ModifyIndexGetter is the interface that must be implemented by structs that
+// need to have their ModifyIndex as part of the pagination token.
+type ModifyIndexGetter interface {
+	GetModifyIndex() uint64
+}
+
 // StructsTokenizerOptions is the configuration provided to a StructsTokenizer.
 //
 // These are some of the common use cases:
@@ -58,10 +64,18 @@ type CreateIndexGetter interface {
 //	    WithNamespace:   true,
 //	    WithCreateIndex: true,
 //	}
+//
+// For structs that can be sorted by the order they were modified, set
+// `OnlyModifyIndex` to `true` and exclude all other options:
+//
+//	StructsTokenizerOptions {
+//	    OnlyModifyIndex: true,
+//	}
 type StructsTokenizerOptions struct {
 	WithCreateIndex bool
 	WithNamespace   bool
 	WithID          bool
+	OnlyModifyIndex bool
 }
 
 // StructsTokenizer is an pagination token generator that can create different
@@ -81,6 +95,10 @@ func NewStructsTokenizer(_ Iterator, opts StructsTokenizerOptions) StructsTokeni
 func (it StructsTokenizer) GetToken(raw interface{}) any {
 	if raw == nil {
 		return ""
+	}
+
+	if it.opts.OnlyModifyIndex {
+		return raw.(ModifyIndexGetter).GetModifyIndex()
 	}
 
 	parts := []string{}

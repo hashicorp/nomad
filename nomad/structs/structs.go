@@ -4518,6 +4518,15 @@ func (j *Job) GetCreateIndex() uint64 {
 	return j.CreateIndex
 }
 
+// GetModifyIndex implements the ModifyIndexGetter interface, required for
+// pagination.
+func (j *Job) GetModifyIndex() uint64 {
+	if j == nil {
+		return 0
+	}
+	return j.ModifyIndex
+}
+
 // Canonicalize is used to canonicalize fields in the Job. This should be
 // called when registering a Job.
 func (j *Job) Canonicalize() {

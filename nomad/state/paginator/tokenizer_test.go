@@ -20,7 +20,7 @@ func TestStructsTokenizer(t *testing.T) {
 	cases := []struct {
 		name     string
 		opts     StructsTokenizerOptions
-		expected string
+		expected any
 	}{
 		{
 			name: "ID",
@@ -61,6 +61,15 @@ func TestStructsTokenizer(t *testing.T) {
 				WithNamespace:   true,
 			},
 			expected: fmt.Sprintf("%v.%v", j.CreateIndex, j.Namespace),
+		},
+		{
+			name: "ModifyIndex",
+			opts: StructsTokenizerOptions{
+				OnlyModifyIndex: true,
+				// note: all others options will be ignored
+				WithNamespace: true,
+			},
+			expected: j.ModifyIndex,
 		},
 	}
 
