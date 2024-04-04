@@ -22,10 +22,11 @@ client {
 
 ## `client` Parameters
 
-- `alloc_dir` `(string: "[data_dir]/alloc")` - Specifies the directory to use
-  for allocation data. By default, this is the top-level
-  [data_dir](/nomad/docs/configuration#data_dir) suffixed with
-  "alloc", like `"/opt/nomad/alloc"`. This must be an absolute path.
+- `alloc_dir` `(string: "")` - Specifies the directory to use for allocation
+  data. When this parameter is empty, Nomad will generate the path using the
+  [top-level `data_dir`][top_level_data_dir] suffixed with `alloc`, like
+  `"/opt/nomad/alloc"`. This must be an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
   Specifies a key-value mapping that defines the chroot environment for jobs
@@ -115,10 +116,11 @@ client {
   the server address or use go-discover syntax for auto-discovery. See the
   documentation for more detail.
 
-- `state_dir` `(string: "[data_dir]/client")` - Specifies the directory to use
-  to store client state. By default, this is - the top-level
-  [data_dir](/nomad/docs/configuration#data_dir) suffixed with
-  "client", like `"/opt/nomad/client"`. This must be an absolute path.
+- `state_dir` `(string: "")` - Specifies the directory to use to store client
+  state. When this parameter is empty, Nomad will generate the path using the
+  [top-level `data_dir`][top_level_data_dir] suffixed with `client`, like
+  `"/opt/nomad/client"`. This must be an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
   attempts to garbage collect terminal allocation directories.
@@ -744,3 +746,4 @@ client {
 [migrate]: /nomad/docs/job-specification/migrate
 [`nomad node drain -self -no-deadline`]: /nomad/docs/commands/node/drain
 [`TimeoutStopSec`]: https://www.freedesktop.org/software/systemd/man/systemd.service.html#TimeoutStopSec=
+[top_level_data_dir]: /nomad/docs/configuration#data_dir
