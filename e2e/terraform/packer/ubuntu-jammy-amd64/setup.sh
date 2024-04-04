@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+ #!/usr/bin/env bash
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
@@ -20,6 +20,7 @@ echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selecti
 
 mkdir_for_root /opt
 mkdir_for_root /srv/data # for host volumes
+mkdir_for_root /opt/cni/bin
 
 # Dependencies
 sudo apt-get update
@@ -63,6 +64,25 @@ sudo apt-get install -y \
      consul-enterprise \
      nomad
 
+# TODO(tgross: replace with downloading the binary from releases.hashicorp.com
+# once the official 1.4.2 release has shipped
+echo "Installing consul-cni plugin"
+sudo apt-get install -y build-essential git curl
+
+pushd /tmp
+curl -LO https://go.dev/dl/go1.22.2.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.22.2.linux-amd64.tar.gz
+git clone https://github.com/hashicorp/consul-k8s.git
+pushd consul-k8s
+export PATH="$PATH:/usr/local/go/bin"
+make control-plane-dev
+
+sudo mv control-plane/cni/bin/consul-cni /opt/cni/bin
+sudo chown root:root /opt/cni/bin/consul-cni
+sudo chmod +x /opt/cni/bin/consul-cni
+popd
+popd
+
 # Note: neither service will start on boot because we haven't enabled
 # the systemd unit file and we haven't uploaded any configuration
 # files for Consul and Nomad
@@ -90,7 +110,6 @@ sudo apt-get install -y openjdk-17-jdk-headless
 
 # CNI
 echo "Installing CNI plugins"
-sudo mkdir -p /opt/cni/bin
 wget -q -O - \
      https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-amd64-v1.0.0.tgz \
     | sudo tar -C /opt/cni/bin -xz

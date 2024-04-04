@@ -32,6 +32,7 @@ func TestConnect(t *testing.T) {
 	t.Run("ConnectMultiIngress", testConnectMultiIngressGateway)
 	t.Run("ConnectTerminatingGateway", testConnectTerminatingGateway)
 	t.Run("ConnectMultiService", testConnectMultiService)
+	t.Run("ConnectTransparentProxy", testConnectTransparentProxy)
 }
 
 // testConnectDemo tests the demo job file used in Connect Integration examples.
@@ -118,6 +119,30 @@ func testConnectMultiService(t *testing.T) {
 	cc := e2eutil.ConsulClient(t)
 	assertServiceOk(t, cc, "echo1-sidecar-proxy")
 	assertServiceOk(t, cc, "echo2-sidecar-proxy")
+}
+
+// testConnectTransparentProxy tests the Connect Transparent Proxy integration
+func testConnectTransparentProxy(t *testing.T) {
+	_, cleanup := jobs3.Submit(t, "./input/tproxy.nomad.hcl", jobs3.Timeout(time.Second*60))
+	t.Cleanup(cleanup)
+
+	cc := e2eutil.ConsulClient(t)
+
+	ixn := &capi.Intention{
+		SourceName:      "count-dashboard",
+		DestinationName: "count-api",
+		Action:          "allow",
+	}
+	_, err := cc.Connect().IntentionUpsert(ixn, nil)
+	must.NoError(t, err, must.Sprint("could not create intention"))
+
+	t.Cleanup(func() {
+		_, err := cc.Connect().IntentionDeleteExact("count-dashboard", "count-api", nil)
+		test.NoError(t, err)
+	})
+
+	assertServiceOk(t, cc, "count-api-sidecar-proxy")
+	assertServiceOk(t, cc, "count-dashboard-sidecar-proxy")
 }
 
 // assertServiceOk is a test helper to assert a service is passing health checks, if any
