@@ -152,7 +152,8 @@ testing.
   agent state. Client nodes use this directory by default to store temporary
   allocation data as well as cluster information. Server nodes use this
   directory to store cluster state, including the replicated log and snapshot
-  data. This must be specified as an absolute path.
+  data. This must be specified as an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `disable_anonymous_signature` `(bool: false)` - Specifies if Nomad should
   provide an anonymous signature for de-duplication with the update check.

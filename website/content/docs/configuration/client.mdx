@@ -25,7 +25,8 @@ client {
 - `alloc_dir` `(string: "")` - Specifies the directory to use for allocation
   data. When this parameter is empty, Nomad will generate the path using the
   [top-level `data_dir`][top_level_data_dir] suffixed with `alloc`, like
-  `"/opt/nomad/alloc"`. This must be an absolute path.
+  `"/opt/nomad/alloc"`. This must be an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
   Specifies a key-value mapping that defines the chroot environment for jobs
@@ -118,7 +119,8 @@ client {
 - `state_dir` `(string: "")` - Specifies the directory to use to store client
   state. When this parameter is empty, Nomad will generate the path using the
   [top-level `data_dir`][top_level_data_dir] suffixed with `client`, like
-  `"/opt/nomad/client"`. This must be an absolute path.
+  `"/opt/nomad/client"`. This must be an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
   attempts to garbage collect terminal allocation directories.
