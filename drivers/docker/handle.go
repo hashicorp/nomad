@@ -256,31 +256,33 @@ func (h *taskHandle) startCpusetFixer() {
 		return
 	}
 
-	cgroup := h.containerCgroup
-	if cgroup == "" {
-		// The api does not actually set this value, so we are left to compute it ourselves.
-		// Luckily this is documented,
-		// https://docs.docker.com/config/containers/runmetrics/#find-the-cgroup-for-a-given-container
-		switch cgroupslib.GetMode() {
-		case cgroupslib.CG1:
-			cgroup = "/sys/fs/cgroup/cpuset/docker/" + h.containerID
-		default:
-			cgroup = "/sys/fs/cgroup/system.slice/docker-" + h.containerID + ".scope"
-			switch h.dockerCGroupDriver {
-			case "cgroupfs":
-				cgroup = "/sys/fs/cgroup/docker/" + h.containerID
-			case "systemd":
-			default:
-				h.logger.Warn("CPUSetfixer got unsupported CGroup driver `%s`, defaulting to `systemd`", h.dockerCGroupDriver)
-			}
-		}
-	}
-
 	go (&cpuset{
 		doneCh:      h.doneCh,
 		source:      h.task.Resources.LinuxResources.CpusetCgroupPath,
-		destination: cgroup,
+		destination: h.dockerCgroup(),
 	}).watch()
+}
+
+// dockerCgroup returns the path to the cgroup docker will use for the container.
+//
+// The api does not provide this value, so we are left to compute it ourselves.
+//
+// https://docs.docker.com/config/containers/runmetrics/#find-the-cgroup-for-a-given-container
+func (h *taskHandle) dockerCgroup() string {
+	cgroup := h.containerCgroup
+	if cgroup == "" {
+		mode := cgroupslib.GetMode()
+		usingCgroupfs := h.dockerCGroupDriver == "cgroupfs"
+		switch {
+		case mode == cgroupslib.CG1:
+			cgroup = "/sys/fs/cgroup/cpuset/docker/" + h.containerID
+		case mode == cgroupslib.CG2 && usingCgroupfs:
+			cgroup = "/sys/fs/cgroup/docker/" + h.containerID
+		default:
+			cgroup = "/sys/fs/cgroup/system.slice/docker-" + h.containerID + ".scope"
+		}
+	}
+	return cgroup
 }
 
 func (h *taskHandle) run() {
