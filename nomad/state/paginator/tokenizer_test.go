@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestStructsTokenizer(t *testing.T) {
@@ -76,7 +76,7 @@ func TestStructsTokenizer(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tokenizer := StructsTokenizer{opts: tc.opts}
-			require.Equal(t, tc.expected, tokenizer.GetToken(j))
+			must.Eq(t, tc.expected, tokenizer.GetToken(j))
 		})
 	}
 }

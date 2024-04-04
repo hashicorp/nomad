@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestPaginator(t *testing.T) {
@@ -105,16 +105,16 @@ func TestPaginator(t *testing.T) {
 					return nil
 				},
 			)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			nextToken, err := paginator.Page()
 			if tc.expectedError == "" {
-				require.NoError(t, err)
-				require.Equal(t, tc.expected, results)
-				require.Equal(t, tc.expectedNextToken, nextToken)
+				must.NoError(t, err)
+				must.Eq(t, tc.expected, results)
+				must.Eq(t, tc.expectedNextToken, nextToken)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.expectedError)
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expectedError)
 			}
 		})
 	}
