@@ -47,6 +47,8 @@ type Submission struct {
 	waitComplete *set.Set[string] // groups to wait until complete
 	inNamespace  string
 	authToken    string
+
+	legacyConsulToken string
 }
 
 func (sub *Submission) queryOptions() *nomadapi.QueryOptions {
@@ -298,6 +300,9 @@ func (sub *Submission) run() {
 
 	if job.Type == nil {
 		job.Type = pointer.Of("service")
+	}
+	if sub.legacyConsulToken != "" {
+		job.ConsulToken = pointer.Of(sub.legacyConsulToken)
 	}
 
 	writeOpts := &nomadapi.WriteOptions{
@@ -626,4 +631,10 @@ func SkipEvalComplete() Option {
 // healthy.
 func SkipDeploymentHealthy() Option {
 	panic("not yet implemented")
+}
+
+func LegacyConsulToken(token string) Option {
+	return func(c *Submission) {
+		c.legacyConsulToken = token
+	}
 }
