@@ -45,8 +45,8 @@ server {
 
 - `data_dir` `(string: "")` - Specifies the directory to use for server-specific
   data, including the replicated log. When this parameter is empty, Nomad will
-  generate the path using the [top-level data_dir][top_level_data_dir] suffixed
-  with "server", like `"/opt/nomad/server"`. The
+  generate the path using the [top-level `data_dir`][top_level_data_dir] suffixed
+  with `server`, like `"/opt/nomad/server"`. The
   [top-level data_dir][top_level_data_dir] must be set, even when setting this
   value. This must be an absolute path. Nomad will create the directory on the
   host, if it does not exist when the agent process starts.

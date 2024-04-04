@@ -24,7 +24,7 @@ client {
 
 - `alloc_dir` `(string: "")` - Specifies the directory to use for allocation
   data. When this parameter is empty, Nomad will generate the path using the
-  [top-level data_dir][top_level_data_dir] suffixed with "alloc", like
+  [top-level `data_dir`][top_level_data_dir] suffixed with `alloc`, like
   `"/opt/nomad/alloc"`. This must be an absolute path.
 
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
@@ -117,7 +117,7 @@ client {
 
 - `state_dir` `(string: "")` - Specifies the directory to use to store client
   state. When this parameter is empty, Nomad will generate the path using the
-  [top-level data_dir][top_level_data_dir] suffixed with "client", like
+  [top-level `data_dir`][top_level_data_dir] suffixed with `client`, like
   `"/opt/nomad/client"`. This must be an absolute path.
 
 - `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
