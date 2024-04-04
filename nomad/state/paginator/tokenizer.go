@@ -12,7 +12,7 @@ import (
 // tokens to the Paginator.
 type Tokenizer interface {
 	// GetToken returns the pagination token for the given element.
-	GetToken(interface{}) string
+	GetToken(interface{}) any
 }
 
 // IDGetter is the interface that must be implemented by structs that need to
@@ -78,7 +78,7 @@ func NewStructsTokenizer(_ Iterator, opts StructsTokenizerOptions) StructsTokeni
 	}
 }
 
-func (it StructsTokenizer) GetToken(raw interface{}) string {
+func (it StructsTokenizer) GetToken(raw interface{}) any {
 	if raw == nil {
 		return ""
 	}
