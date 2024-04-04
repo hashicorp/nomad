@@ -37,8 +37,7 @@ func TestConnect(t *testing.T) {
 
 // testConnectDemo tests the demo job file used in Connect Integration examples.
 func testConnectDemo(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/demo.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/demo.nomad", jobs3.Timeout(time.Second*60))
 
 	cc := e2eutil.ConsulClient(t)
 
@@ -69,26 +68,22 @@ func testConnectCustomSidecarExposed(t *testing.T) {
 // testConnectNativeDemo tests the demo job file used in Connect Native
 // Integration examples.
 func testConnectNativeDemo(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/native-demo.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/native-demo.nomad", jobs3.Timeout(time.Second*60))
 }
 
 // testConnectIngressGatewayDemo tests a job with an ingress gateway
 func testConnectIngressGatewayDemo(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/ingress-gateway.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/ingress-gateway.nomad", jobs3.Timeout(time.Second*60))
 }
 
 // testConnectMultiIngressGateway tests a job with multiple ingress gateways
 func testConnectMultiIngressGateway(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/multi-ingress.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/multi-ingress.nomad", jobs3.Timeout(time.Second*60))
 }
 
 // testConnectTerminatingGateway tests a job with a terminating gateway
 func testConnectTerminatingGateway(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/terminating-gateway.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/terminating-gateway.nomad", jobs3.Timeout(time.Second*60))
 
 	cc := e2eutil.ConsulClient(t)
 
@@ -113,8 +108,7 @@ func testConnectTerminatingGateway(t *testing.T) {
 // testConnectMultiService tests a job with multiple Connect blocks in the same
 // group
 func testConnectMultiService(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/multi-service.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/multi-service.nomad", jobs3.Timeout(time.Second*60))
 
 	cc := e2eutil.ConsulClient(t)
 	assertServiceOk(t, cc, "echo1-sidecar-proxy")
@@ -123,8 +117,7 @@ func testConnectMultiService(t *testing.T) {
 
 // testConnectTransparentProxy tests the Connect Transparent Proxy integration
 func testConnectTransparentProxy(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/tproxy.nomad.hcl", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/tproxy.nomad.hcl", jobs3.Timeout(time.Second*60))
 
 	cc := e2eutil.ConsulClient(t)
 

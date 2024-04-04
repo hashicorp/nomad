@@ -1,4 +1,4 @@
- #!/usr/bin/env bash
+#!/usr/bin/env bash
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
@@ -67,12 +67,12 @@ sudo apt-get install -y \
 # TODO(tgross: replace with downloading the binary from releases.hashicorp.com
 # once the official 1.4.2 release has shipped
 echo "Installing consul-cni plugin"
-sudo apt-get install -y build-essential git curl
+sudo apt-get install -y build-essential git
 
 pushd /tmp
 curl -LO https://go.dev/dl/go1.22.2.linux-amd64.tar.gz
 sudo tar -C /usr/local -xzf go1.22.2.linux-amd64.tar.gz
-git clone https://github.com/hashicorp/consul-k8s.git
+git clone --depth=1 https://github.com/hashicorp/consul-k8s.git
 pushd consul-k8s
 export PATH="$PATH:/usr/local/go/bin"
 make control-plane-dev
