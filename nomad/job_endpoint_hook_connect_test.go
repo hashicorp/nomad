@@ -681,6 +681,26 @@ func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
 			})
 		must.EqError(t, err, `Consul Connect transparent proxy requires there is only one connect block`)
 	})
+
+	t.Run("Consul Connect transparent proxy DNS not allowed with network.dns", func(t *testing.T) {
+		tg := &structs.TaskGroup{Name: "group", Networks: []*structs.NetworkResource{{
+			DNS: &structs.DNSConfig{Servers: []string{"1.1.1.1"}},
+		}}}
+		err := groupConnectUpstreamsValidate(tg,
+			[]*structs.Service{
+				{
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								TransparentProxy: &structs.ConsulTransparentProxy{},
+							},
+						},
+					},
+				},
+			})
+		must.EqError(t, err, `Consul Connect transparent proxy cannot be used with network.dns unless no_dns=true`)
+	})
 }
 
 func TestJobEndpointConnect_getNamedTaskForNativeService(t *testing.T) {
