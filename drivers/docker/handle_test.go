@@ -38,7 +38,7 @@ func Test_dockerCgroup(t *testing.T) {
 		h := new(taskHandle)
 		h.containerID = "abc123"
 		result := h.dockerCgroup()
-		must.Eq(t, "/sys/fs/cgroup/system.slice/docker-"+h.containerID+".scope", result)
+		must.Eq(t, "/sys/fs/cgroup/system.slice/docker-abc123.scope", result)
 	})
 
 	t.Run("v2-cgroupfs", func(t *testing.T) {
@@ -47,6 +47,6 @@ func Test_dockerCgroup(t *testing.T) {
 		h.containerID = "abc123"
 		h.dockerCGroupDriver = "cgroupfs"
 		result := h.dockerCgroup()
-		must.Eq(t, "/sys/fs/cgroup/docker/"+h.containerID, result)
+		must.Eq(t, "/sys/fs/cgroup/docker/abc123", result)
 	})
 }
