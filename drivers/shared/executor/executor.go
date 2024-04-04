@@ -365,6 +365,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	e.childCmd.Path = path
 	e.childCmd.Args = append([]string{e.childCmd.Path}, command.Args...)
 	e.childCmd.Env = e.command.Env
+	e.childCmd.SysProcAttr.Pdeathsig = syscall.SIGKILL
 
 	// Start the process
 	if err = withNetworkIsolation(e.childCmd.Start, command.NetworkIsolation); err != nil {
