@@ -332,6 +332,18 @@ task "task" {
 }
 ```
 
+### Dependencies
+
+For templates that read from Vault, Consul, or Nomad, each item read is called a
+"dependency". All the `template` blocks share the same internal runner which
+de-duplicates dependencies requesting the same item. You should avoid having
+large numbers of dependencies for a given task, as each dependency requires at
+least one concurrent request (a possibly blocking query) to the upstream
+server. If a task has more than 128 dependencies, a warn-level log will appear
+in the Nomad client logs which reports "watching this many dependencies could
+DDoS your servers", referring to the Vault, Consul, or Nomad cluster being
+queried.
+
 ## Nomad Integration
 
 ### Nomad Services
