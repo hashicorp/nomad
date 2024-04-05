@@ -57,7 +57,9 @@ func NewPaginator(iter Iterator, tokenizer Tokenizer, filters []Filter,
 		filters = append(filters, evaluator)
 	}
 
-	// attempt to convert token to uint for iterators ordered numerically
+	// attempt to convert token to uint for iterators ordered numerically.
+	// it's safe to ignore the error here because the `next` method ignores
+	// this field for string tokens and 0 is valid for an unset numeric token.
 	seekingUint, _ := strconv.ParseUint(opts.NextToken, 10, 64)
 
 	return &Paginator{
