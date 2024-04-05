@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestStructsTokenizer(t *testing.T) {
@@ -20,7 +20,7 @@ func TestStructsTokenizer(t *testing.T) {
 	cases := []struct {
 		name     string
 		opts     StructsTokenizerOptions
-		expected string
+		expected any
 	}{
 		{
 			name: "ID",
@@ -62,12 +62,21 @@ func TestStructsTokenizer(t *testing.T) {
 			},
 			expected: fmt.Sprintf("%v.%v", j.CreateIndex, j.Namespace),
 		},
+		{
+			name: "ModifyIndex",
+			opts: StructsTokenizerOptions{
+				OnlyModifyIndex: true,
+				// note: all others options will be ignored
+				WithNamespace: true,
+			},
+			expected: j.ModifyIndex,
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tokenizer := StructsTokenizer{opts: tc.opts}
-			require.Equal(t, tc.expected, tokenizer.GetToken(j))
+			must.Eq(t, tc.expected, tokenizer.GetToken(j))
 		})
 	}
 }
