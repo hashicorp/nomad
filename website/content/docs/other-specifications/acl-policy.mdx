@@ -110,6 +110,7 @@ Each namespace rule can include a coarse-grained `policy` field, a fine-grained
 `capabilities` field, a `variables` block, or all three.
 
 The `policy` field for namespace rules can have one of the following values:
+- `deny` - prevent any capabilities
 - `read`: allow the resource to be read but not modified
 - `write`: allow the resource to be read and modified
 - `deny`: do not allow the resource to be read or modified. Deny takes
@@ -152,18 +153,19 @@ of `capabilities`. This includes:
 - `read-job-scaling` - Allows inspecting the current scaling of a job.
 - `scale-job`: Allows scaling a job up or down.
 - `sentinel-override` - Allows soft mandatory policies to be overridden.
+- `submit-recommendation` - Allows submitting vertical job scaling recommendations.
 
 The coarse-grained policy permissions are shorthand for the following fine-
 grained namespace capabilities:
 
 <!-- markdownlint-disable -->
 
-| Policy  | Capabilities                                                                                                                                                                                                                                                    |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deny`  | deny                                                                                                                                                                                                                                                            |
-| `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                      |
-| `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job |
-| `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                             |
+| Policy  | Capabilities                                                                                                                                                                                                                                                                                                |
+|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `deny`  | deny                                                                                                                                                                                                                                                                                                        |
+| `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                                                                  |
+| `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job<br />"submit-recommendation" |
+| `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                                                                         |
 
 <!-- markdownlint-enable -->
 
