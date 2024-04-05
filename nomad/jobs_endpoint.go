@@ -47,9 +47,10 @@ func (j *Jobs) Statuses(
 	defer metrics.MeasureSince([]string{"nomad", "jobs", "statuses"}, time.Now())
 
 	namespace := args.RequestNamespace()
-	// The ns from the UI by default is "*" which scans the whole "jobs" table.
-	// If specific jobs are requested, all with the same namespace,
-	// we may get some extra efficiency, especially for non-contiguous job IDs.
+	// the namespace from the UI by default is "*", but if specific jobs are
+	// requested, all with the same namespace, AllowNsOp() below may be able
+	// to quickly deny the request if the token lacks permissions for that ns,
+	// rather than iterating the whole jobs table and filtering out every job.
 	if len(args.Jobs) > 0 {
 		nses := set.New[string](0)
 		for _, j := range args.Jobs {
@@ -60,7 +61,7 @@ func (j *Jobs) Statuses(
 		}
 	}
 
-	// Check for read-job permissions, since this endpoint includes alloc info
+	// check for read-job permissions, since this endpoint includes alloc info
 	// and possibly a deployment ID, and those APIs require read-job.
 	aclObj, err := j.srv.ResolveACL(args)
 	if err != nil {
@@ -71,13 +72,40 @@ func (j *Jobs) Statuses(
 	}
 	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
 
-	// Compare between state run() unblocks to see if the RPC, as a whole,
+	store := j.srv.State()
+
+	// get the namespaces the user is allowed to access.
+	allowableNamespaces, err := allowedNSes(aclObj, store, allow)
+	if errors.Is(err, structs.ErrPermissionDenied) {
+		// return empty jobs if token isn't authorized for any
+		// namespace, matching other endpoints
+		reply.Jobs = make([]structs.UIJob, 0)
+		return nil
+	} else if err != nil {
+		return err
+	}
+	// since the state index we're using doesn't include namespace,
+	// explicitly add the user-provided ns to our filter if needed.
+	// (allowableNamespaces will be nil if the caller sent a mgmt token)
+	if allowableNamespaces == nil &&
+		namespace != "" &&
+		namespace != structs.AllNamespacesSentinel {
+		allowableNamespaces = map[string]bool{
+			namespace: true,
+		}
+	}
+
+	// compare between state run() unblocks to see if the RPC, as a whole,
 	// should unblock. i.e. if new jobs shift the page, or when jobs go away.
 	prevJobs := set.New[structs.NamespacedID](0)
 
+	// because the state index is in order of ModifyIndex, lowest to highest,
+	// SortDefault would show oldest jobs first, so instead invert the default
+	// to show most recent job changes first.
+	args.QueryOptions.Reverse = !args.QueryOptions.Reverse
 	sort := state.QueryOptionSort(args.QueryOptions)
 
-	// Setup the blocking query
+	// setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -85,39 +113,17 @@ func (j *Jobs) Statuses(
 			var err error
 			var iter memdb.ResultIterator
 
-			// Get the namespaces the user is allowed to access.
-			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
-			if errors.Is(err, structs.ErrPermissionDenied) {
-				// return empty jobs if token isn't authorized for any
-				// namespace, matching other endpoints
-				reply.Jobs = make([]structs.UIJob, 0)
-				return nil
-			} else if err != nil {
-				return err
-			}
-
-			// the UI jobs index page shows most-recently changed at the top,
-			// and with pagination, we need to sort here on the backend.
-			if true { // TODO: parameterize...?
-				iter, err = state.JobsByModifyIndex(ws, sort)
-			} else {
-				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
-				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.JobsByNamespace(ws, namespace, sort)
-				} else {
-					iter, err = state.Jobs(ws, sort)
-				}
-			}
+			// the UI jobs index page shows most-recently changed first.
+			iter, err = state.JobsByModifyIndex(ws, sort)
 			if err != nil {
 				return err
 			}
 
+			// set up tokenizer and filters
 			tokenizer := paginator.NewStructsTokenizer(
 				iter,
 				paginator.StructsTokenizerOptions{
-					WithNamespace: true,
-					WithID:        true,
+					OnlyModifyIndex: true,
 				},
 			)
 			filters := []paginator.Filter{

@@ -258,7 +258,7 @@ func jobTableSchema() *memdb.TableSchema {
 			"modify_index": {
 				Name:         "modify_index",
 				AllowMissing: false,
-				Unique:       false,
+				Unique:       true,
 				Indexer: &memdb.UintFieldIndex{
 					Field: "ModifyIndex",
 				},
