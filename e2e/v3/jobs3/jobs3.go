@@ -37,6 +37,7 @@ type Submission struct {
 	timeout       time.Duration
 	verbose       bool
 	detach        bool
+	dispatcher    bool
 
 	// jobspec mutator funcs
 	mutators []func(string) string
@@ -327,6 +328,10 @@ func (sub *Submission) run() {
 		})
 	}
 
+	if sub.dispatcher {
+		return
+	}
+
 	evalID := regResp.EvalID
 
 	queryOpts := &nomadapi.QueryOptions{
@@ -590,6 +595,14 @@ func WaitComplete(group string) Option {
 func PreCleanup(cb func(*Submission)) Option {
 	return func(sub *Submission) {
 		sub.preCleanup = append(sub.preCleanup, cb)
+	}
+}
+
+// Dispatcher indicates the job is the parent for dispatched jobs, so we
+// shouldn't wait for evals or deployments
+func Dispatcher() Option {
+	return func(sub *Submission) {
+		sub.dispatcher = true
 	}
 }
 
