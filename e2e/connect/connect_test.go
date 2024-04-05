@@ -37,7 +37,7 @@ func TestConnect(t *testing.T) {
 
 // testConnectDemo tests the demo job file used in Connect Integration examples.
 func testConnectDemo(t *testing.T) {
-	jobs3.Submit(t, "./input/demo.nomad", jobs3.Timeout(time.Second*60))
+	sub, _ := jobs3.Submit(t, "./input/demo.nomad", jobs3.Timeout(time.Second*60))
 
 	cc := e2eutil.ConsulClient(t)
 
@@ -56,13 +56,16 @@ func testConnectDemo(t *testing.T) {
 
 	assertServiceOk(t, cc, "count-api-sidecar-proxy")
 	assertServiceOk(t, cc, "count-dashboard-sidecar-proxy")
+
+	logs := sub.Exec("dashboard", "dashboard",
+		[]string{"/bin/sh", "-c", "wget -O /dev/null http://${NOMAD_UPSTREAM_ADDR_count_api}"})
+	must.StrContains(t, logs.Stderr, "saving to")
 }
 
 // testConnectCustomSidecarExposed tests that a connect sidecar with custom task
 // definition can also make use of the expose service check feature.
 func testConnectCustomSidecarExposed(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/expose-custom.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/expose-custom.nomad", jobs3.Timeout(time.Second*60))
 }
 
 // testConnectNativeDemo tests the demo job file used in Connect Native
@@ -117,7 +120,7 @@ func testConnectMultiService(t *testing.T) {
 
 // testConnectTransparentProxy tests the Connect Transparent Proxy integration
 func testConnectTransparentProxy(t *testing.T) {
-	jobs3.Submit(t, "./input/tproxy.nomad.hcl", jobs3.Timeout(time.Second*60))
+	sub, _ := jobs3.Submit(t, "./input/tproxy.nomad.hcl", jobs3.Timeout(time.Second*60))
 
 	cc := e2eutil.ConsulClient(t)
 
@@ -136,6 +139,10 @@ func testConnectTransparentProxy(t *testing.T) {
 
 	assertServiceOk(t, cc, "count-api-sidecar-proxy")
 	assertServiceOk(t, cc, "count-dashboard-sidecar-proxy")
+
+	logs := sub.Exec("dashboard", "dashboard",
+		[]string{"wget", "-O", "/dev/null", "count-api.virtual.consul"})
+	must.StrContains(t, logs.Stderr, "saving to")
 }
 
 // assertServiceOk is a test helper to assert a service is passing health checks, if any
