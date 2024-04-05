@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where cpuset cgroup would not be updated on cgroup v1 systems
+```
