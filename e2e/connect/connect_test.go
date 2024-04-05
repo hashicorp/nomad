@@ -32,12 +32,12 @@ func TestConnect(t *testing.T) {
 	t.Run("ConnectMultiIngress", testConnectMultiIngressGateway)
 	t.Run("ConnectTerminatingGateway", testConnectTerminatingGateway)
 	t.Run("ConnectMultiService", testConnectMultiService)
+	t.Run("ConnectTransparentProxy", testConnectTransparentProxy)
 }
 
 // testConnectDemo tests the demo job file used in Connect Integration examples.
 func testConnectDemo(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/demo.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	sub, _ := jobs3.Submit(t, "./input/demo.nomad", jobs3.Timeout(time.Second*60))
 
 	cc := e2eutil.ConsulClient(t)
 
@@ -56,38 +56,37 @@ func testConnectDemo(t *testing.T) {
 
 	assertServiceOk(t, cc, "count-api-sidecar-proxy")
 	assertServiceOk(t, cc, "count-dashboard-sidecar-proxy")
+
+	logs := sub.Exec("dashboard", "dashboard",
+		[]string{"/bin/sh", "-c", "wget -O /dev/null http://${NOMAD_UPSTREAM_ADDR_count_api}"})
+	must.StrContains(t, logs.Stderr, "saving to")
 }
 
 // testConnectCustomSidecarExposed tests that a connect sidecar with custom task
 // definition can also make use of the expose service check feature.
 func testConnectCustomSidecarExposed(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/expose-custom.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/expose-custom.nomad", jobs3.Timeout(time.Second*60))
 }
 
 // testConnectNativeDemo tests the demo job file used in Connect Native
 // Integration examples.
 func testConnectNativeDemo(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/native-demo.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/native-demo.nomad", jobs3.Timeout(time.Second*60))
 }
 
 // testConnectIngressGatewayDemo tests a job with an ingress gateway
 func testConnectIngressGatewayDemo(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/ingress-gateway.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/ingress-gateway.nomad", jobs3.Timeout(time.Second*60))
 }
 
 // testConnectMultiIngressGateway tests a job with multiple ingress gateways
 func testConnectMultiIngressGateway(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/multi-ingress.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/multi-ingress.nomad", jobs3.Timeout(time.Second*60))
 }
 
 // testConnectTerminatingGateway tests a job with a terminating gateway
 func testConnectTerminatingGateway(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/terminating-gateway.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/terminating-gateway.nomad", jobs3.Timeout(time.Second*60))
 
 	cc := e2eutil.ConsulClient(t)
 
@@ -112,12 +111,38 @@ func testConnectTerminatingGateway(t *testing.T) {
 // testConnectMultiService tests a job with multiple Connect blocks in the same
 // group
 func testConnectMultiService(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/multi-service.nomad", jobs3.Timeout(time.Second*60))
-	t.Cleanup(cleanup)
+	jobs3.Submit(t, "./input/multi-service.nomad", jobs3.Timeout(time.Second*60))
 
 	cc := e2eutil.ConsulClient(t)
 	assertServiceOk(t, cc, "echo1-sidecar-proxy")
 	assertServiceOk(t, cc, "echo2-sidecar-proxy")
+}
+
+// testConnectTransparentProxy tests the Connect Transparent Proxy integration
+func testConnectTransparentProxy(t *testing.T) {
+	sub, _ := jobs3.Submit(t, "./input/tproxy.nomad.hcl", jobs3.Timeout(time.Second*60))
+
+	cc := e2eutil.ConsulClient(t)
+
+	ixn := &capi.Intention{
+		SourceName:      "count-dashboard",
+		DestinationName: "count-api",
+		Action:          "allow",
+	}
+	_, err := cc.Connect().IntentionUpsert(ixn, nil)
+	must.NoError(t, err, must.Sprint("could not create intention"))
+
+	t.Cleanup(func() {
+		_, err := cc.Connect().IntentionDeleteExact("count-dashboard", "count-api", nil)
+		test.NoError(t, err)
+	})
+
+	assertServiceOk(t, cc, "count-api-sidecar-proxy")
+	assertServiceOk(t, cc, "count-dashboard-sidecar-proxy")
+
+	logs := sub.Exec("dashboard", "dashboard",
+		[]string{"wget", "-O", "/dev/null", "count-api.virtual.consul"})
+	must.StrContains(t, logs.Stderr, "saving to")
 }
 
 // assertServiceOk is a test helper to assert a service is passing health checks, if any
