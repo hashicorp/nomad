@@ -448,11 +448,15 @@ func resolveServer(s string) (net.Addr, error) {
 	host, port, err := net.SplitHostPort(s)
 	if err != nil {
 		if strings.Contains(err.Error(), "missing port") {
-			host = s
-			port = defaultClientPort
+			// with IPv6 addresses the `host` variable will have brackets
+			// removed, so send the original value thru again with only the
+			// correct port suffix
+			return resolveServer(s + ":" + defaultClientPort)
 		} else {
 			return nil, err
 		}
+	} else if port == "" {
+		return resolveServer(s + defaultClientPort)
 	}
 	return net.ResolveTCPAddr("tcp", net.JoinHostPort(host, port))
 }
