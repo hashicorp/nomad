@@ -212,12 +212,6 @@ export default class KeyboardService extends Service {
     });
   }
 
-  getCommandByPattern(pattern) {
-    return this.keyCommands.find(
-      (command) => command.pattern.join('+') === pattern.join('+')
-    );
-  }
-
   addCommands(commands) {
     schedule('afterRender', () => {
       commands.forEach((command) => {
