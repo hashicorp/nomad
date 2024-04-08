@@ -90,6 +90,13 @@ done in the `ip:port` format, such as:
 1.2.3.4:5678
 ```
 
+If the IP address is an IPv6 address, it must be in URL format surrounded by
+brackets. For example:
+
+```
+[2001:db8::1]:5678
+```
+
 If the port option is omitted, it defaults to the Serf port, which is 4648
 unless configured otherwise:
 

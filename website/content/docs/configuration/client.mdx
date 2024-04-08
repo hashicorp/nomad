@@ -101,7 +101,9 @@ client {
   servers this client should join. This list is used to register the client with
   the server nodes and advertise the available resources so that the agent can
   receive work. This may be specified as an IP address or DNS, with or without
-  the port. If the port is omitted, the default port of `4647` is used.
+  the port. If the port is omitted, the default port of `4647` is used. If you
+  are specifying IPv6 addresses, they must be in URL format with brackets
+  (ex. `"[2001:db8::1]"`).
 
 - `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
   how the Nomad client will connect to Nomad servers. The `start_join` field
