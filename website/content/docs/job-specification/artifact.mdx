@@ -244,6 +244,28 @@ artifact {
 }
 ```
 
+[DigitalOcean Spaces][do_spaces] provide S3-compatible object storage and can be
+used in conjunction with the `artifact` block. Given a bucket named
+`my-bucket-example` located in the `sfo3` region and a file named `my_app.tar.gz`,
+the following artifact block will work, provided the bucket and file are public.
+This uses the origin endpoint as detailed directly from Digital Ocean.
+
+```hcl
+artifact {
+  source = "https://my-bucket-example.sfo3.digitaloceanspaces.com/my_app.tar.gz"
+}
+```
+
+If the bucket or file are private, the artifact source string needs to be
+modified to add the `s3::` prefix. The bucket name is also moved to form part
+of the URL path component.
+
+```hcl
+artifact {
+  source = "s3::https://sfo3.digitaloceanspaces.com/my-bucket-example/my_app.tar.gz"
+}
+```
+
 ## Environment
 
 The `artifact` downloader by default does not have access to the environment variables
@@ -259,3 +281,4 @@ client configuration.
 [iam-instance-profiles]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html 'EC2 IAM instance profiles'
 [task's working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'
 [filesystem internals]: /nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads
+[do_spaces]: https://www.digitalocean.com/products/spaces
