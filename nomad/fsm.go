@@ -482,7 +482,7 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 	}
 
 	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt,
-		req.NodeEvent, req.Meta, req.Identity); err != nil {
+		req.NodeEvent, req.Meta, req.UpdatedBy); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
