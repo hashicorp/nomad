@@ -650,6 +650,10 @@ type NodeUpdateDrainRequest struct {
 	// Meta is user-provided metadata relating to the drain operation
 	Meta map[string]string
 
+	// UpdatedBy represents the AuthenticatedIdentity of the request, so that we
+	// can record it in the LastDrain data without re-authenticating in the FSM.
+	UpdatedBy string
+
 	WriteRequest
 }
 
