@@ -715,7 +715,11 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 
 	// The AuthenticatedIdentity is unexported so won't be written via
 	// Raft. Record the identity string so it can be written to LastDrain
-	args.UpdatedBy = args.GetIdentity().String()
+	if !n.srv.config.ACLEnabled {
+		args.UpdatedBy = "token:acls-disabled"
+	} else {
+		args.UpdatedBy = args.GetIdentity().String()
+	}
 
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
