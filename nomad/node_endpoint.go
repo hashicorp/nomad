@@ -713,7 +713,14 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node event must not be set")
 	}
 
-	// Look for the node
+	// The AuthenticatedIdentity is unexported so won't be written via
+	// Raft. Record the identity string so it can be written to LastDrain
+	if !n.srv.config.ACLEnabled {
+		args.UpdatedBy = "token:acls-disabled"
+	} else {
+		args.UpdatedBy = args.GetIdentity().String()
+	}
+
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err

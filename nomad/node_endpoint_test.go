@@ -1166,10 +1166,11 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Equal(NodeDrainEventDrainSet, out.Events[1].Message)
 	require.NotNil(out.LastDrain)
 	require.Equal(structs.DrainMetadata{
-		StartedAt: out.LastDrain.UpdatedAt,
-		UpdatedAt: out.LastDrain.StartedAt,
-		Status:    structs.DrainStatusDraining,
-		Meta:      map[string]string{"message": "this node is not needed"},
+		StartedAt:  out.LastDrain.UpdatedAt,
+		UpdatedAt:  out.LastDrain.StartedAt,
+		Status:     structs.DrainStatusDraining,
+		Meta:       map[string]string{"message": "this node is not needed"},
+		AccessorID: "token:acls-disabled",
 	}, *out.LastDrain)
 
 	// before+deadline should be before the forced deadline
@@ -1213,10 +1214,11 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.NotNil(out.LastDrain)
 	require.False(out.LastDrain.UpdatedAt.Before(out.LastDrain.StartedAt))
 	require.Equal(structs.DrainMetadata{
-		StartedAt: out.LastDrain.StartedAt,
-		UpdatedAt: out.LastDrain.UpdatedAt,
-		Status:    structs.DrainStatusCanceled,
-		Meta:      map[string]string{"cancelled": "yes"},
+		StartedAt:  out.LastDrain.StartedAt,
+		UpdatedAt:  out.LastDrain.UpdatedAt,
+		Status:     structs.DrainStatusCanceled,
+		Meta:       map[string]string{"cancelled": "yes"},
+		AccessorID: "token:acls-disabled",
 	}, *out.LastDrain)
 
 	// Check that calling UpdateDrain with the same DrainStrategy does not emit
@@ -1281,10 +1283,11 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 	require.NotNil(out.LastDrain)
 	firstDrainUpdate := out.LastDrain.UpdatedAt
 	require.Equal(structs.DrainMetadata{
-		StartedAt: firstDrainUpdate,
-		UpdatedAt: firstDrainUpdate,
-		Status:    structs.DrainStatusDraining,
-		Meta:      map[string]string{"message": "first drain"},
+		StartedAt:  firstDrainUpdate,
+		UpdatedAt:  firstDrainUpdate,
+		Status:     structs.DrainStatusDraining,
+		Meta:       map[string]string{"message": "first drain"},
+		AccessorID: "token:acls-disabled",
 	}, *out.LastDrain)
 
 	time.Sleep(1 * time.Second)
@@ -1302,10 +1305,11 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 	secondDrainUpdate := out.LastDrain.UpdatedAt
 	require.True(secondDrainUpdate.After(firstDrainUpdate))
 	require.Equal(structs.DrainMetadata{
-		StartedAt: firstDrainUpdate,
-		UpdatedAt: secondDrainUpdate,
-		Status:    structs.DrainStatusDraining,
-		Meta:      map[string]string{"message": "second drain"},
+		StartedAt:  firstDrainUpdate,
+		UpdatedAt:  secondDrainUpdate,
+		Status:     structs.DrainStatusDraining,
+		Meta:       map[string]string{"message": "second drain"},
+		AccessorID: "token:acls-disabled",
 	}, *out.LastDrain)
 
 	time.Sleep(1 * time.Second)
@@ -1328,10 +1332,11 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 
 	require.True(out.LastDrain.UpdatedAt.After(secondDrainUpdate))
 	require.Equal(structs.DrainMetadata{
-		StartedAt: firstDrainUpdate,
-		UpdatedAt: out.LastDrain.UpdatedAt,
-		Status:    structs.DrainStatusComplete,
-		Meta:      map[string]string{"message": "second drain"},
+		StartedAt:  firstDrainUpdate,
+		UpdatedAt:  out.LastDrain.UpdatedAt,
+		Status:     structs.DrainStatusComplete,
+		Meta:       map[string]string{"message": "second drain"},
+		AccessorID: "token:acls-disabled",
 	}, *out.LastDrain)
 }
 
@@ -1456,7 +1461,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
 		out, err := state.NodeByID(nil, node.ID)
 		require.NoError(err)
-		require.Equal(validToken.AccessorID, out.LastDrain.AccessorID)
+		require.Equal("token:"+validToken.AccessorID, out.LastDrain.AccessorID)
 	}
 
 	// Try with a invalid token
@@ -1476,7 +1481,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
 		out, err := state.NodeByID(nil, node.ID)
 		require.NoError(err)
-		require.Equal(root.AccessorID, out.LastDrain.AccessorID)
+		require.Equal("token:"+root.AccessorID, out.LastDrain.AccessorID)
 	}
 }
 
