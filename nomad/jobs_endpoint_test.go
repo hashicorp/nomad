@@ -66,21 +66,26 @@ func TestJobs_Statuses(t *testing.T) {
 		return resp
 	}
 
-	// job helpers
-	deleteJob := func(t *testing.T, job *structs.Job) {
+	// increment state index helper
+	incIdx := func(t *testing.T) uint64 {
 		t.Helper()
 		idx, err := s.State().LatestIndex()
 		must.NoError(t, err)
-		err = s.State().DeleteJob(idx+1, job.Namespace, job.ID)
+		return idx + 1
+	}
+
+	// job helpers
+	deleteJob := func(t *testing.T, job *structs.Job) {
+		t.Helper()
+		err := s.State().DeleteJob(incIdx(t), job.Namespace, job.ID)
 		if err != nil && err.Error() == "job not found" {
 			return
 		}
 		must.NoError(t, err)
 	}
 	upsertJob := func(t *testing.T, job *structs.Job) {
-		idx, err := s.State().LatestIndex()
-		must.NoError(t, err)
-		err = s.State().UpsertJob(structs.MsgTypeTestSetup, idx+1, nil, job)
+		t.Helper()
+		err := s.State().UpsertJob(structs.MsgTypeTestSetup, incIdx(t), nil, job)
 		must.NoError(t, err)
 	}
 	createJob := func(t *testing.T, id string) (job *structs.Job, cleanup func()) {
@@ -97,8 +102,14 @@ func TestJobs_Statuses(t *testing.T) {
 		return job, cleanup
 	}
 
-	// set up 5 jobs
-	// they should be in order in state, due to lexicographical indexing
+	// this little cutie sets the latest state index to a predictable value,
+	// to ensure the below jobs span the boundary from 999->1000 which would
+	// break pagination without proper uint64 NextToken (ModifyIndex) comparison
+	must.NoError(t, s.State().UpsertNamespaces(996, nil))
+
+	// set up some jobs
+	// they should be in this order in state using the "modify_index" index,
+	// but the RPC will return them in reverse order by default.
 	jobs := make([]*structs.Job, 5)
 	var deleteJob0, deleteJob1, deleteJob2 func()
 	jobs[0], deleteJob0 = createJob(t, "job0")
@@ -120,27 +131,28 @@ func TestJobs_Statuses(t *testing.T) {
 	// test various single-job requests
 
 	for _, tc := range []struct {
-		name   string
-		qo     structs.QueryOptions
-		jobs   []structs.NamespacedID
-		expect *structs.Job
+		name       string
+		qo         structs.QueryOptions
+		jobs       []structs.NamespacedID
+		expect     *structs.Job
+		expectNext uint64 // NextToken (ModifyIndex)
 	}{
 		{
 			name: "page 1",
 			qo: structs.QueryOptions{
 				PerPage: 1,
 			},
-			expect: jobs[4],
+			expect:     jobs[4],
+			expectNext: jobs[3].ModifyIndex,
 		},
 		{
 			name: "page 2",
 			qo: structs.QueryOptions{
-				PerPage: 1,
-				// paginator/tokenizer will produce a uint64 of the next job's
-				// ModifyIndex, so here we just fake that.
+				PerPage:   1,
 				NextToken: strconv.FormatUint(jobs[3].ModifyIndex, 10),
 			},
-			expect: jobs[3],
+			expect:     jobs[3],
+			expectNext: jobs[2].ModifyIndex,
 		},
 		{
 			name: "reverse",
@@ -148,7 +160,8 @@ func TestJobs_Statuses(t *testing.T) {
 				PerPage: 1,
 				Reverse: true,
 			},
-			expect: jobs[0],
+			expect:     jobs[0],
+			expectNext: jobs[1].ModifyIndex,
 		},
 		{
 			name: "filter",
@@ -172,6 +185,11 @@ func TestJobs_Statuses(t *testing.T) {
 			})
 			must.Len(t, 1, resp.Jobs, must.Sprint("expect only one job"))
 			must.Eq(t, tc.expect.ID, resp.Jobs[0].ID)
+			expectToken := ""
+			if tc.expectNext > 0 {
+				expectToken = strconv.FormatUint(tc.expectNext, 10)
+			}
+			must.Eq(t, expectToken, resp.NextToken)
 		})
 	}
 
@@ -234,27 +252,21 @@ func TestJobs_Statuses(t *testing.T) {
 	// alloc and deployment helpers
 	createAlloc := func(t *testing.T, job *structs.Job) {
 		t.Helper()
-		idx, err := s.State().LatestIndex()
-		must.NoError(t, err)
 		a := mock.MinAllocForJob(job)
 		must.NoError(t,
-			s.State().UpsertAllocs(structs.AllocUpdateRequestType, idx+1, []*structs.Allocation{a}),
+			s.State().UpsertAllocs(structs.AllocUpdateRequestType, incIdx(t), []*structs.Allocation{a}),
 			must.Sprintf("error creating alloc for job %s", job.ID))
 		t.Cleanup(func() {
-			idx, err = s.State().Index("allocs")
-			test.NoError(t, err)
-			test.NoError(t, s.State().DeleteEval(idx, []string{}, []string{a.ID}, false))
+			test.NoError(t, s.State().DeleteEval(incIdx(t), []string{}, []string{a.ID}, false))
 		})
 	}
 	createDeployment := func(t *testing.T, job *structs.Job) {
 		t.Helper()
-		idx, err := s.State().LatestIndex()
-		must.NoError(t, err)
 		deploy := mock.Deployment()
 		deploy.JobID = job.ID
-		must.NoError(t, s.State().UpsertDeployment(idx+1, deploy))
+		must.NoError(t, s.State().UpsertDeployment(incIdx(t), deploy))
 		t.Cleanup(func() {
-			test.NoError(t, s.State().DeleteDeployment(idx+1, []string{deploy.ID}))
+			test.NoError(t, s.State().DeleteDeployment(incIdx(t), []string{deploy.ID}))
 		})
 	}
 
