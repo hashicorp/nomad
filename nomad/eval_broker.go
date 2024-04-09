@@ -112,6 +112,11 @@ type EvalBroker struct {
 	// compounding after the first Nack.
 	subsequentNackDelay time.Duration
 
+	// enqueued and dequeuedTime store the time an evaluation was enqueued and
+	// dequeued, and are used as metrics
+	enqueuedTime map[string]time.Time
+	dequeuedTime map[string]time.Time
+
 	l sync.RWMutex
 }
 
@@ -158,6 +163,8 @@ func NewEvalBroker(ctx context.Context, timeout, initialNackDelay, subsequentNac
 		timeWait:             make(map[string]*time.Timer),
 		initialNackDelay:     initialNackDelay,
 		subsequentNackDelay:  subsequentNackDelay,
+		enqueuedTime:         make(map[string]time.Time),
+		dequeuedTime:         make(map[string]time.Time),
 		delayHeap:            delayheap.NewDelayHeap(),
 		delayedEvalsUpdateCh: make(chan struct{}, 1),
 	}
@@ -314,6 +321,10 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
 		heap.Push(&pending, eval)
 		b.pending[namespacedID] = pending
 		b.stats.TotalPending += 1
+
+		// store when the eval was enqueued before this early return, so that we capture
+		// the "pending" queue time, too
+		b.enqueuedTime[eval.ID] = time.Now()
 		return
 	}
 
@@ -476,6 +487,9 @@ func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string,
 	bySched := b.stats.ByScheduler[sched]
 	bySched.Ready -= 1
 	bySched.Unacked += 1
+
+	// Update the dequeue time for evaluation
+	b.dequeuedTime[eval.ID] = time.Now()
 
 	return eval, token, nil
 }
