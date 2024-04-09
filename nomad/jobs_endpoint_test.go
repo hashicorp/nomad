@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -112,7 +113,8 @@ func TestJobs_Statuses(t *testing.T) {
 
 	// make sure our state order assumption is correct
 	for i, j := range resp.Jobs {
-		must.Eq(t, jobs[i].ID, j.ID, must.Sprintf("jobs not in order; idx=%d", i))
+		reverse := len(jobs) - i - 1
+		must.Eq(t, jobs[reverse].ID, j.ID, must.Sprintf("jobs not in order; idx=%d", i))
 	}
 
 	// test various single-job requests
@@ -128,15 +130,17 @@ func TestJobs_Statuses(t *testing.T) {
 			qo: structs.QueryOptions{
 				PerPage: 1,
 			},
-			expect: jobs[0],
+			expect: jobs[4],
 		},
 		{
 			name: "page 2",
 			qo: structs.QueryOptions{
-				PerPage:   1,
-				NextToken: "default." + jobs[1].ID,
+				PerPage: 1,
+				// paginator/tokenizer will produce a uint64 of the next job's
+				// ModifyIndex, so here we just fake that.
+				NextToken: strconv.FormatUint(jobs[3].ModifyIndex, 10),
 			},
-			expect: jobs[1],
+			expect: jobs[3],
 		},
 		{
 			name: "reverse",
@@ -144,7 +148,7 @@ func TestJobs_Statuses(t *testing.T) {
 				PerPage: 1,
 				Reverse: true,
 			},
-			expect: jobs[len(jobs)-1],
+			expect: jobs[0],
 		},
 		{
 			name: "filter",
