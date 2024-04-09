@@ -28,6 +28,7 @@ type UIJob struct {
 	GroupCountSum      int
 	ChildStatuses      []string
 	ActiveDeploymentID string
+	LatestDeployment   *JobStatusLatestDeployment
 	Version            uint64
 	SubmitTime         int64
 	ModifyIndex        uint64
@@ -56,6 +57,16 @@ type JobStatusAlloc struct {
 type JobStatusDeployment struct {
 	Canary  bool
 	Healthy bool
+}
+
+type JobStatusLatestDeployment struct {
+	ID                string
+	IsActive          bool
+	JobVersion        uint64
+	Status            string
+	StatusDescription string
+	AllAutoPromote    bool
+	RequiresPromotion bool
 }
 
 // JobServiceRegistrationsRequest is the request object used to list all

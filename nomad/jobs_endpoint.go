@@ -294,7 +294,7 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 		uiJob.Allocs = append(uiJob.Allocs, alloc)
 	}
 
-	// look for active deployment
+	// look for latest deployment
 	deploy, err := store.LatestDeploymentByJobID(ws, job.Namespace, job.ID)
 	if err != nil {
 		return uiJob, idx, err
@@ -303,6 +303,17 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 		if deploy.Active() {
 			uiJob.ActiveDeploymentID = deploy.ID
 		}
+
+		uiJob.LatestDeployment = &structs.JobStatusLatestDeployment{
+			ID:                deploy.ID,
+			IsActive:          deploy.Active(),
+			JobVersion:        deploy.JobVersion,
+			Status:            deploy.Status,
+			StatusDescription: deploy.StatusDescription,
+			AllAutoPromote:    deploy.HasAutoPromote(),
+			RequiresPromotion: deploy.RequiresPromotion(),
+		}
+
 		if deploy.ModifyIndex > idx {
 			idx = deploy.ModifyIndex
 		}
