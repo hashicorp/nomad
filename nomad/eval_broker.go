@@ -322,9 +322,11 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
 		b.pending[namespacedID] = pending
 		b.stats.TotalPending += 1
 
-		// store when the eval was enqueued before this early return, so that we capture
-		// the "pending" queue time, too
-		b.enqueuedTime[eval.ID] = time.Now()
+		// store when the eval was enqueued before this early return, so that
+		// we capture the "pending" queue time, too
+		if len(b.enqueuedTime) < 10_000 {
+			b.enqueuedTime[eval.ID] = time.Now()
+		}
 		return
 	}
 
@@ -380,6 +382,17 @@ SCAN:
 		if timeoutTimer != nil {
 			timeoutTimer.Stop()
 		}
+		b.l.Lock()
+		if t, ok := b.enqueuedTime[eval.ID]; ok {
+			b.dequeuedTime[eval.ID] = time.Now()
+			metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "wait_time"}, t, []metrics.Label{
+				{Name: "job", Value: eval.JobID},
+				{Name: "namespace", Value: eval.Namespace},
+				{Name: "type", Value: eval.Type},
+				{Name: "triggered_by", Value: eval.TriggeredBy},
+			})
+		}
+		b.l.Unlock()
 		return eval, token, nil
 	}
 
@@ -488,9 +501,6 @@ func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string,
 	bySched.Ready -= 1
 	bySched.Unacked += 1
 
-	// Update the dequeue time for evaluation
-	b.dequeuedTime[eval.ID] = time.Now()
-
 	return eval, token, nil
 }
 
@@ -584,6 +594,8 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 	}
 	jobID := unack.Eval.JobID
 
+	defer b.handleAckNackLocked(unack.Eval)
+
 	// Ensure we were able to stop the timer
 	if !unack.NackTimer.Stop() {
 		return fmt.Errorf("Evaluation ID Ack'd after Nack timer expiration")
@@ -659,6 +671,7 @@ func (b *EvalBroker) Nack(evalID, token string) error {
 	if unack.Token != token {
 		return fmt.Errorf("Token does not match for Evaluation ID")
 	}
+	defer b.handleAckNackLocked(unack.Eval)
 
 	// Stop the timer, doesn't matter if we've missed it
 	unack.NackTimer.Stop()
@@ -736,6 +749,38 @@ func (b *EvalBroker) ResumeNackTimeout(evalID, token string) error {
 	}
 	unack.NackTimer.Reset(b.nackTimeout)
 	return nil
+}
+
+func (b *EvalBroker) handleAckNackLocked(eval *structs.Evaluation) {
+	if eval == nil {
+		return
+	}
+
+	tEnq, ok := b.enqueuedTime[eval.ID]
+	if !ok {
+		delete(b.dequeuedTime, eval.ID)
+		return
+	}
+
+	tDeq, ok := b.dequeuedTime[eval.ID]
+	if !ok {
+		return
+	}
+
+	metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "process_time"}, tDeq, []metrics.Label{
+		{Name: "job", Value: eval.JobID},
+		{Name: "namespace", Value: eval.Namespace},
+		{Name: "type", Value: eval.Type},
+		{Name: "triggered_by", Value: eval.TriggeredBy},
+	})
+	metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "response_time"}, tEnq, []metrics.Label{
+		{Name: "job", Value: eval.JobID},
+		{Name: "namespace", Value: eval.Namespace},
+		{Name: "type", Value: eval.Type},
+		{Name: "triggered_by", Value: eval.TriggeredBy},
+	})
+	delete(b.enqueuedTime, eval.ID)
+	delete(b.dequeuedTime, eval.ID)
 }
 
 // Flush is used to clear the state of the broker. It must be called from within
