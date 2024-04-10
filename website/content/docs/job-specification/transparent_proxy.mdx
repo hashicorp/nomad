@@ -23,7 +23,7 @@ description: |-
 The `transparent_proxy` block configures the Envoy sidecar proxy to act as a
 Consul Connect [transparent proxy][tproxy]. This simplifies the configuration of
 Consul Connect by eliminating the need to configure [`upstreams`][] blocks in
-Nomad. Instead, the Envoy proxy will takes its configuration entirely from
+Nomad. Instead, the Envoy proxy will determines its configuration entirely from
 Consul [service intentions][].
 
 When transparent proxy is enabled traffic will automatically flow through the
