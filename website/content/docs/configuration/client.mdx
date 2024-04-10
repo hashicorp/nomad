@@ -436,6 +436,10 @@ see the [drivers documentation](/nomad/docs/drivers).
   isolation should be disabled for artifact downloads. Applies only to systems
   where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
 
+- `filesystem_isolation_extra_paths` `([]string: nil)` - Allow extra paths
+  in the filesystem isolation. Paths are specified in the form "[kind]:[mode]:[path]"
+  e.g. "f:r:/dev/urandom"
+
 - `set_environment_variables` `(string:"")` - Specifies a comma separated list
   of environment variables that should be inherited by the artifact sandbox from
   the Nomad client's environment. By default a minimal environment is set including

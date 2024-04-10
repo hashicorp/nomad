@@ -898,6 +898,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid artifact config: %v", err)
 	}
+
 	conf.Artifact = artifactConfig
 
 	drainConfig, err := clientconfig.DrainConfigFromAgent(agentConfig.Client.Drain)

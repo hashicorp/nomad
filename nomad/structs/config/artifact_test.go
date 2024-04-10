@@ -15,6 +15,11 @@ func TestArtifactConfig_Copy(t *testing.T) {
 	ci.Parallel(t)
 
 	a := DefaultArtifactConfig()
+	a.FilesystemIsolationExtraPaths = []string{
+		"p:a/b:r",
+		"p:a/c/drw",
+		"f:x/y:rw",
+	}
 	b := a.Copy()
 	must.Equal(t, a, b)
 	must.Equal(t, b, a)
@@ -25,6 +30,10 @@ func TestArtifactConfig_Copy(t *testing.T) {
 	b.HgTimeout = pointer.Of("2m")
 	b.DecompressionFileCountLimit = pointer.Of(7)
 	b.DecompressionSizeLimit = pointer.Of("2GB")
+	must.NotEqual(t, a, b)
+
+	b = a.Copy()
+	b.FilesystemIsolationExtraPaths[1] = "f:g/g:r"
 	must.NotEqual(t, a, b)
 }
 
@@ -49,7 +58,12 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionFileCountLimit: pointer.Of(4096),
 				DecompressionSizeLimit:      pointer.Of("100GB"),
 				DisableFilesystemIsolation:  pointer.Of(false),
-				SetEnvironmentVariables:     pointer.Of(""),
+				FilesystemIsolationExtraPaths: []string{
+					"p:a/b:r",
+					"p:a/c/drw",
+					"f:x/y:rw",
+				},
+				SetEnvironmentVariables: pointer.Of(""),
 			},
 			other: &ArtifactConfig{
 				HTTPReadTimeout:             pointer.Of("5m"),
@@ -61,7 +75,12 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionFileCountLimit: pointer.Of(100),
 				DecompressionSizeLimit:      pointer.Of("8GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
-				SetEnvironmentVariables:     pointer.Of("FOO,BAR"),
+				FilesystemIsolationExtraPaths: []string{
+					"p:d/d:r",
+					"f:e/f/g:rw",
+					"f:h/i/j:r",
+				},
+				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
 			expected: &ArtifactConfig{
 				HTTPReadTimeout:             pointer.Of("5m"),
@@ -73,7 +92,12 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionFileCountLimit: pointer.Of(100),
 				DecompressionSizeLimit:      pointer.Of("8GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
-				SetEnvironmentVariables:     pointer.Of("FOO,BAR"),
+				FilesystemIsolationExtraPaths: []string{
+					"p:d/d:r",
+					"f:e/f/g:rw",
+					"f:h/i/j:r",
+				},
+				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
 		},
 		{
@@ -89,7 +113,12 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionFileCountLimit: pointer.Of(100),
 				DecompressionSizeLimit:      pointer.Of("8GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
-				SetEnvironmentVariables:     pointer.Of("FOO,BAR"),
+				FilesystemIsolationExtraPaths: []string{
+					"p:d/d:r",
+					"f:e/f/g:rw",
+					"f:h/i/j:r",
+				},
+				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
 			expected: &ArtifactConfig{
 				HTTPReadTimeout:             pointer.Of("5m"),
@@ -101,7 +130,12 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionFileCountLimit: pointer.Of(100),
 				DecompressionSizeLimit:      pointer.Of("8GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
-				SetEnvironmentVariables:     pointer.Of("FOO,BAR"),
+				FilesystemIsolationExtraPaths: []string{
+					"p:d/d:r",
+					"f:e/f/g:rw",
+					"f:h/i/j:r",
+				},
+				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
 		},
 		{
@@ -116,7 +150,12 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionFileCountLimit: pointer.Of(4096),
 				DecompressionSizeLimit:      pointer.Of("100GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
-				SetEnvironmentVariables:     pointer.Of("FOO,BAR"),
+				FilesystemIsolationExtraPaths: []string{
+					"p:a/b:r",
+					"p:a/c/drw",
+					"f:x/y:rw",
+				},
+				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
 			other: nil,
 			expected: &ArtifactConfig{
@@ -129,7 +168,54 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionFileCountLimit: pointer.Of(4096),
 				DecompressionSizeLimit:      pointer.Of("100GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
-				SetEnvironmentVariables:     pointer.Of("FOO,BAR"),
+				FilesystemIsolationExtraPaths: []string{
+					"p:a/b:r",
+					"p:a/c/drw",
+					"f:x/y:rw",
+				},
+				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
+			},
+		},
+		{
+			name: "null fsIsolationLocation",
+			source: &ArtifactConfig{
+				HTTPReadTimeout:               pointer.Of("30m"),
+				HTTPMaxSize:                   pointer.Of("100GB"),
+				GCSTimeout:                    pointer.Of("30m"),
+				GitTimeout:                    pointer.Of("30m"),
+				HgTimeout:                     pointer.Of("30m"),
+				S3Timeout:                     pointer.Of("30m"),
+				DecompressionFileCountLimit:   pointer.Of(4096),
+				DecompressionSizeLimit:        pointer.Of("100GB"),
+				DisableFilesystemIsolation:    pointer.Of(false),
+				FilesystemIsolationExtraPaths: nil,
+				SetEnvironmentVariables:       pointer.Of(""),
+			},
+			other: &ArtifactConfig{
+				HTTPReadTimeout:               pointer.Of("5m"),
+				HTTPMaxSize:                   pointer.Of("2GB"),
+				GCSTimeout:                    pointer.Of("1m"),
+				GitTimeout:                    pointer.Of("2m"),
+				HgTimeout:                     pointer.Of("3m"),
+				S3Timeout:                     pointer.Of("4m"),
+				DecompressionFileCountLimit:   pointer.Of(100),
+				DecompressionSizeLimit:        pointer.Of("8GB"),
+				DisableFilesystemIsolation:    pointer.Of(true),
+				FilesystemIsolationExtraPaths: nil,
+				SetEnvironmentVariables:       pointer.Of("FOO,BAR"),
+			},
+			expected: &ArtifactConfig{
+				HTTPReadTimeout:               pointer.Of("5m"),
+				HTTPMaxSize:                   pointer.Of("2GB"),
+				GCSTimeout:                    pointer.Of("1m"),
+				GitTimeout:                    pointer.Of("2m"),
+				HgTimeout:                     pointer.Of("3m"),
+				S3Timeout:                     pointer.Of("4m"),
+				DecompressionFileCountLimit:   pointer.Of(100),
+				DecompressionSizeLimit:        pointer.Of("8GB"),
+				DisableFilesystemIsolation:    pointer.Of(true),
+				FilesystemIsolationExtraPaths: nil,
+				SetEnvironmentVariables:       pointer.Of("FOO,BAR"),
 			},
 		},
 	}
@@ -399,6 +485,16 @@ func TestArtifactConfig_Validate(t *testing.T) {
 				a.DisableFilesystemIsolation = nil
 			},
 			expErr: "disable_filesystem_isolation must be set",
+		},
+		{
+			name: "fs isolation extra paths contains invalid path",
+			config: func(a *ArtifactConfig) {
+				a.FilesystemIsolationExtraPaths = []string{
+					"f:rw:/okay",
+					"failure",
+				}
+			},
+			expErr: "filesystem_isolation_extra_paths contains invalid lockdown path failure",
 		},
 		{
 			name: "env not set",
