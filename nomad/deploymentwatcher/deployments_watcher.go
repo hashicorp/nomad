@@ -180,8 +180,7 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 		// Update the latest index
 		dindex = idx
 
-		// Ensure we are tracking the things we should and not tracking what we
-		// shouldn't be
+		// Ensure we are tracking only active deployments
 		for _, d := range deployments {
 			if d.Active() {
 				if err := w.add(d); err != nil {
@@ -189,6 +188,21 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 				}
 			} else {
 				w.remove(d)
+			}
+		}
+
+		// Ensure we're not tracking deployments that have been deleted because
+		// the job was purged
+		for _, watcher := range w.watchers {
+			var found bool
+			for _, d := range deployments {
+				if watcher.deploymentID == d.ID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				w.removeByID(watcher.deploymentID)
 			}
 		}
 	}
@@ -285,6 +299,10 @@ func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 // remove stops watching a deployment. This can be because the deployment is
 // complete or being deleted.
 func (w *Watcher) remove(d *structs.Deployment) {
+	w.removeByID(d.ID)
+}
+
+func (w *Watcher) removeByID(id string) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
@@ -293,9 +311,9 @@ func (w *Watcher) remove(d *structs.Deployment) {
 		return
 	}
 
-	if watcher, ok := w.watchers[d.ID]; ok {
+	if watcher, ok := w.watchers[id]; ok {
 		watcher.StopWatch()
-		delete(w.watchers, d.ID)
+		delete(w.watchers, id)
 	}
 }
 
