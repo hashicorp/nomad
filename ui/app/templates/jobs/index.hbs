@@ -301,7 +301,7 @@
                 @model={{B.data.idWithNamespace}}
                 class="is-primary"
               >
-                {{B.data.name}}
+                {{B.data.name}} ({{B.data.modifyIndex}})
                 {{!-- TODO: going to lose .meta with statuses endpoint! --}}
                 {{#if B.data.meta.structured.pack}}
                   <span data-test-pack-tag class="tag is-pack">
@@ -361,6 +361,18 @@
       <section id="jobs-list-pagination">
         <div class="nav-buttons">
           <span {{keyboard-shortcut
+            label="First Page"
+            pattern=(array "{" "{")
+            action=(action this.handlePageChange "first")}}
+          >
+            <Hds::Button
+              @text="First"
+              @color="secondary"
+              disabled={{not this.cursorAt}}
+              {{on "click" (action this.handlePageChange "first")}}
+            />
+          </span>
+          <span {{keyboard-shortcut
             label="Previous Page"
             pattern=(array "[" "[")
             action=(action this.handlePageChange "prev")}}
@@ -382,6 +394,18 @@
               @color="secondary"
               disabled={{not this.nextToken}}
               {{on "click" (action this.handlePageChange "next")}}
+            />
+          </span>
+          <span {{keyboard-shortcut
+            label="Last Page"
+            pattern=(array "}" "}")
+            action=(action this.handlePageChange "last")}}
+          >
+            <Hds::Button
+              @text="Last"
+              @color="secondary"
+              disabled={{not this.nextToken}}
+              {{on "click" (action this.handlePageChange "last")}}
             />
           </span>
         </div>
