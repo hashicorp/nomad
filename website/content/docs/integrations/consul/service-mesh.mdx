@@ -136,9 +136,9 @@ node_prefix    "" { policy = "read" }
 
 #### Transparent Proxy
 
-Using Nomad's support for [transparent proxy][] configures the network namespace
-so that traffic flows through the Envoy proxy. When the [`transparent_proxy`][]
-block is enabled:
+Using Nomad's support for [transparent proxy][] configures the task group's
+network namespace so that traffic flows through the Envoy proxy. When the
+[`transparent_proxy`][] block is enabled:
 
 * Nomad will invoke the [`consul-cni`][] CNI plugin to configure `iptables` rules
   in the network namespace to force outbound traffic from an allocation to flow
@@ -152,7 +152,7 @@ Using transparent proxy has several important requirements:
 
 * You must have the [`consul-cni`][] CNI plugin installed on the client host
   along with the usual [required CNI plugins][cni_plugins].
-* To use Consul DNS and virtual IPs, you'll need to configure Consul's DNS
+* To use Consul DNS and virtual IPs, you will need to configure Consul's DNS
   listener to be exposed to the workload network namespace. You can do this
   without exposing the Consul agent on a public IP by setting the Consul
   `bind_addr` to bind on a private IP address (the default is to use the
@@ -382,8 +382,13 @@ directed to the correct service port.
 
 ### Manually Configured Upstreams
 
-If you don't want to use Consul DNS and `transparent_proxy` mode, you can add
-`upstream` blocks to the job spec. In that case, you don't need the
+You can also use Connect without Consul DNS and `transparent_proxy` mode. This
+approach is not recommended because it requires duplicating service intention
+information in an `upstreams` block in the Nomad job specification. But Consul
+DNS is not protected by ACLs, so you might want to do this if you don't want to
+expose Consul DNS to untrusted workloads.
+
+In that case, you can add `upstream` blocks to the job spec. You don't need the
 `transparent_proxy` block for the `count-api` service:
 
 ```hcl
@@ -485,7 +490,7 @@ filesystem.
 [consul_grpc_tls]: /consul/docs/upgrading/upgrade-specific#changes-to-grpc-tls-configuration
 [cni_install]: /nomad/docs/install#post-installation-steps
 [transparent proxy]: /consul/docs/k8s/connect/transparent-proxy
-[go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
+[go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
 [`recursors`]: /consul/docs/agent/config/config-files#recursors
 [`transparent_proxy`]: /nomad/docs/job-specification/transparent_proxy
 [tproxy_no_dns]: /nomad/docs/job-specification/transparent_proxy#no_dns
