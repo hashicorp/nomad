@@ -1965,6 +1965,116 @@ func TestBinPackIterator_Devices(t *testing.T) {
 	}
 }
 
+// Tests that bin packing iterator fails due to overprovisioning of devices
+// This test has devices at task level
+func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				NodeResources: &structs.NodeResources{
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
+					Networks: []*structs.NetworkResource{},
+					Devices: []*structs.NodeDeviceResource{
+						{
+							Vendor: "nvidia",
+							Type:   "gpu",
+							Instances: []*structs.NodeDevice{
+								{
+									ID:                "1",
+									Healthy:           true,
+									HealthDescription: "healthy",
+									Locality:          &structs.NodeDeviceLocality{},
+								},
+							},
+							Name: "SOME-GPU",
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+	}
+
+	// Add a planned alloc that takes up a gpu
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
+		{
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 2048,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 2048,
+						},
+						Networks: []*structs.NetworkResource{},
+						Devices: []*structs.AllocatedDeviceResource{
+							{
+								Vendor:    "nvidia",
+								Type:      "gpu",
+								Name:      "SOME-GPU",
+								DeviceIDs: []string{"1"},
+							},
+						},
+					},
+				},
+				Shared: structs.AllocatedSharedResources{},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Create a task group with gpu device specified
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+					Networks: []*structs.NetworkResource{},
+					Devices: structs.ResourceDevices{
+						{
+							Name:  "nvidia/gpu",
+							Count: 1,
+						},
+					},
+				},
+			},
+		},
+		Networks: []*structs.NetworkResource{},
+	}
+
+	binp := NewBinPackIterator(ctx, static, true, 0)
+	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
+	require := require.New(t)
+
+	// We expect a placement failure because we need 1 GPU device
+	// and the other one is taken
+
+	require.Len(out, 0)
+	require.Equal(1, ctx.metrics.DimensionExhausted["devices: no devices match request"])
+}
+
 func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
