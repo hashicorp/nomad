@@ -219,6 +219,35 @@ func TestCNI_setupTproxyArgs(t *testing.T) {
 	}
 
 	alloc := mock.ConnectAlloc()
+
+	// need to setup the NetworkResource to have the expected port mapping for
+	// the services we create
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			IP:   "10.0.0.1",
+			ReservedPorts: []structs.Port{
+				{
+					Label: "http",
+					Value: 9002,
+					To:    9002,
+				},
+				{
+					Label: "health",
+					Value: 9001,
+					To:    9000,
+				},
+			},
+			DynamicPorts: []structs.Port{
+				{
+					Label: "connect-proxy-testconnect",
+					Value: 25018,
+					To:    25018,
+				},
+			},
+		},
+	}
+
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	tg.Networks = []*structs.NetworkResource{{
 		Mode: "bridge",
@@ -262,49 +291,7 @@ func TestCNI_setupTproxyArgs(t *testing.T) {
 		HostsConfig: &drivers.HostsConfig{},
 	}
 
-	portMapping := []cni.PortMapping{
-		{
-			HostPort:      9002,
-			ContainerPort: 9002,
-			Protocol:      "tcp",
-			HostIP:        "",
-		},
-		{
-			HostPort:      9002,
-			ContainerPort: 9002,
-			Protocol:      "udp",
-			HostIP:        "",
-		},
-		{
-			HostPort:      9001,
-			ContainerPort: 9000,
-			Protocol:      "tcp",
-			HostIP:        "",
-		},
-		{
-			HostPort:      9001,
-			ContainerPort: 9000,
-			Protocol:      "udp",
-			HostIP:        "",
-		},
-		{
-			HostPort:      25018,
-			ContainerPort: 25018,
-			Protocol:      "tcp",
-			HostIP:        "",
-		},
-		{
-			HostPort:      25018,
-			ContainerPort: 20000,
-			Protocol:      "udp",
-			HostIP:        "",
-		},
-	}
-	portLabels := map[string]int{
-		"connect-proxy-testconnect": 5,
-		"http":                      1,
-		"health":                    3,
-	}
+	portMaps := getPortMapping(alloc, false)
 
 	testCases := []struct {
 		name           string
@@ -438,7 +425,7 @@ func TestCNI_setupTproxyArgs(t *testing.T) {
 				c.nodeAttrs = tc.nodeAttrs
 			}
 
-			iptablesCfg, err := c.setupTransparentProxyArgs(alloc, spec, portMapping, portLabels)
+			iptablesCfg, err := c.setupTransparentProxyArgs(alloc, spec, portMaps)
 			if tc.expectErr == "" {
 				must.NoError(t, err)
 				must.Eq(t, tc.expectIPConfig, iptablesCfg)

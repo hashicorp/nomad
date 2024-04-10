@@ -114,9 +114,9 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		"IgnoreUnknown": "true",
 	}
 
-	portMapping, portLabels := getPortMapping(alloc, c.ignorePortMappingHostIP)
+	portMaps := getPortMapping(alloc, c.ignorePortMappingHostIP)
 
-	tproxyArgs, err := c.setupTransparentProxyArgs(alloc, spec, portMapping, portLabels)
+	tproxyArgs, err := c.setupTransparentProxyArgs(alloc, spec, portMaps)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	for attempt := 1; ; attempt++ {
 		var err error
 		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path,
-			cni.WithCapabilityPortMap(portMapping),
+			cni.WithCapabilityPortMap(portMaps.ports),
 			cni.WithLabels(cniArgs), // "labels" turn into CNI_ARGS
 		); err != nil {
 			c.logger.Warn("failed to configure network", "error", err, "attempt", attempt)
@@ -183,7 +183,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 
 // setupTransparentProxyArgs returns a Consul SDK iptables configuration if the
 // allocation has a transparent_proxy block
-func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec, portMapping []cni.PortMapping, portLabels map[string]int) (*consulIPTables.Config, error) {
+func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec, portMaps *portMappings) (*consulIPTables.Config, error) {
 
 	var tproxy *structs.ConsulTransparentProxy
 	var cluster string
@@ -231,8 +231,8 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 
 			// The inbound port is the service port exposed on the Envoy proxy
 			envoyPortLabel := "connect-proxy-" + svc.Name
-			if idx, ok := portLabels[envoyPortLabel]; ok {
-				proxyInboundPort = int(portMapping[idx].HostPort)
+			if envoyPort, ok := portMaps.get(envoyPortLabel); ok {
+				proxyInboundPort = int(envoyPort.HostPort)
 			}
 
 			// Extra user-defined ports that get excluded from outbound redirect
@@ -261,9 +261,9 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 					exposePortSet.Insert(portLabel)
 					continue
 				}
-				if idx, ok := portLabels[portLabel]; ok {
+				if port, ok := portMaps.get(portLabel); ok {
 					exposePortSet.Insert(
-						strconv.FormatInt(int64(portMapping[idx].ContainerPort), 10))
+						strconv.FormatInt(int64(port.ContainerPort), 10))
 				}
 			}
 
@@ -272,9 +272,9 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 			// health checks to work as expected without passing thru Envoy
 			if svc.Connect.SidecarService.Proxy.Expose != nil {
 				for _, path := range svc.Connect.SidecarService.Proxy.Expose.Paths {
-					if idx, ok := portLabels[path.ListenerPort]; ok {
+					if port, ok := portMaps.get(path.ListenerPort); ok {
 						exposePortSet.Insert(
-							strconv.FormatInt(int64(portMapping[idx].ContainerPort), 10))
+							strconv.FormatInt(int64(port.ContainerPort), 10))
 					}
 				}
 			}
@@ -468,9 +468,9 @@ func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Al
 		return err
 	}
 
-	portMap, _ := getPortMapping(alloc, c.ignorePortMappingHostIP)
+	portMap := getPortMapping(alloc, c.ignorePortMappingHostIP)
 
-	if err := c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(portMap)); err != nil {
+	if err := c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(portMap.ports)); err != nil {
 		// create a real handle to iptables
 		ipt, iptErr := iptables.New()
 		if iptErr != nil {
@@ -575,11 +575,34 @@ func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
 	}
 }
 
-// getPortMapping builds a list of portMapping structs that are used as the
+// portMappings is a wrapper around a slice of cni.PortMapping that lets us
+// index via the port's label, which isn't otherwise included in the
+// cni.PortMapping struct
+type portMappings struct {
+	ports  []cni.PortMapping
+	labels map[string]int // Label -> index into ports field
+}
+
+func (pm *portMappings) set(label string, port cni.PortMapping) {
+	pm.ports = append(pm.ports, port)
+	pm.labels[label] = len(pm.ports) - 1
+}
+
+func (pm *portMappings) get(label string) (cni.PortMapping, bool) {
+	idx, ok := pm.labels[label]
+	if !ok {
+		return cni.PortMapping{}, false
+	}
+	return pm.ports[idx], true
+}
+
+// getPortMapping builds a list of cni.PortMapping structs that are used as the
 // portmapping capability arguments for the portmap CNI plugin
-func getPortMapping(alloc *structs.Allocation, ignoreHostIP bool) ([]cni.PortMapping, map[string]int) {
-	var ports []cni.PortMapping
-	labels := map[string]int{}
+func getPortMapping(alloc *structs.Allocation, ignoreHostIP bool) *portMappings {
+	mappings := &portMappings{
+		ports:  []cni.PortMapping{},
+		labels: map[string]int{},
+	}
 
 	if len(alloc.AllocatedResources.Shared.Ports) == 0 && len(alloc.AllocatedResources.Shared.Networks) > 0 {
 		for _, network := range alloc.AllocatedResources.Shared.Networks {
@@ -588,12 +611,12 @@ func getPortMapping(alloc *structs.Allocation, ignoreHostIP bool) ([]cni.PortMap
 					port.To = port.Value
 				}
 				for _, proto := range []string{"tcp", "udp"} {
-					ports = append(ports, cni.PortMapping{
+					portMapping := cni.PortMapping{
 						HostPort:      int32(port.Value),
 						ContainerPort: int32(port.To),
 						Protocol:      proto,
-					})
-					labels[port.Label] = len(ports) - 1
+					}
+					mappings.set(port.Label, portMapping)
 				}
 			}
 		}
@@ -603,6 +626,7 @@ func getPortMapping(alloc *structs.Allocation, ignoreHostIP bool) ([]cni.PortMap
 				port.To = port.Value
 			}
 			for _, proto := range []string{"tcp", "udp"} {
+
 				portMapping := cni.PortMapping{
 					HostPort:      int32(port.Value),
 					ContainerPort: int32(port.To),
@@ -611,10 +635,9 @@ func getPortMapping(alloc *structs.Allocation, ignoreHostIP bool) ([]cni.PortMap
 				if !ignoreHostIP {
 					portMapping.HostIP = port.HostIP
 				}
-				ports = append(ports, portMapping)
-				labels[port.Label] = len(ports) - 1
+				mappings.set(port.Label, portMapping)
 			}
 		}
 	}
-	return ports, labels
+	return mappings
 }
