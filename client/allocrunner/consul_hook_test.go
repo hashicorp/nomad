@@ -64,7 +64,9 @@ func consulHookTestHarness(t *testing.T) *consulHook {
 	}
 
 	hookResources := cstructs.NewAllocHookResources()
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, "global")
+	envBuilderFn := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, task, "global")
+	}
 
 	consulHookCfg := consulHookConfig{
 		alloc:                   alloc,
@@ -73,7 +75,7 @@ func consulHookTestHarness(t *testing.T) *consulHook {
 		consulConfigs:           consulConfigs,
 		consulClientConstructor: consul.NewMockConsulClient,
 		hookResources:           hookResources,
-		taskEnv:                 taskEnvBuilder.Build(),
+		envBuilder:              envBuilderFn,
 		logger:                  logger,
 	}
 	return newConsulHook(consulHookCfg)
@@ -152,16 +154,16 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 	hook := consulHookTestHarness(t)
 	task := hook.alloc.LookupTask("web")
 	services := task.Services
-	interpolatedServices := taskenv.InterpolateServices(hook.taskEnv, services)
+	env := hook.envBuilder.Build()
 	hashedJWT := make(map[string]string)
 
-	for _, s := range interpolatedServices {
-		widHandle := *s.IdentityHandle()
+	for _, s := range services {
+		widHandle := taskenv.InterpolateWIHandle(env, *s.IdentityHandle())
 		jwt, err := hook.widmgr.Get(widHandle)
 		must.NoError(t, err)
 
 		hash := md5.Sum([]byte(jwt.JWT))
-		hashedJWT[s.Name] = hex.EncodeToString(hash[:])
+		hashedJWT[widHandle.InterpolatedWorkloadIdentifier] = hex.EncodeToString(hash[:])
 	}
 
 	tests := []struct {
@@ -212,7 +214,7 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tokens := map[string]map[string]*consulapi.ACLToken{}
-			err := hook.prepareConsulTokensForServices(tt.services, nil, tokens)
+			err := hook.prepareConsulTokensForServices(tt.services, nil, tokens, env)
 			if tt.wantErr {
 				must.Error(t, err)
 				must.ErrorContains(t, err, tt.errMsg)

@@ -25,7 +25,7 @@ type consulHook struct {
 	consulConfigs           map[string]*structsc.ConsulConfig
 	consulClientConstructor func(*structsc.ConsulConfig, log.Logger) (consul.Client, error)
 	hookResources           *cstructs.AllocHookResources
-	taskEnv                 *taskenv.TaskEnv
+	envBuilder              *taskenv.Builder
 
 	logger log.Logger
 }
@@ -44,8 +44,8 @@ type consulHookConfig struct {
 	// hookResources is used for storing and retrieving Consul tokens
 	hookResources *cstructs.AllocHookResources
 
-	// taskEnv is used to interpolate services
-	taskEnv *taskenv.TaskEnv
+	// envBuilder is used to interpolate services
+	envBuilder func() *taskenv.Builder
 
 	logger log.Logger
 }
@@ -58,7 +58,7 @@ func newConsulHook(cfg consulHookConfig) *consulHook {
 		consulConfigs:           cfg.consulConfigs,
 		consulClientConstructor: cfg.consulClientConstructor,
 		hookResources:           cfg.hookResources,
-		taskEnv:                 cfg.taskEnv,
+		envBuilder:              cfg.envBuilder(),
 	}
 	h.logger = cfg.logger.Named(h.Name())
 	return h
@@ -87,11 +87,12 @@ func (h *consulHook) Prerun() error {
 	}
 
 	var mErr *multierror.Error
-	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens); err != nil {
+	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens, h.envBuilder.Build()); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 	for _, task := range tg.Tasks {
-		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens); err != nil {
+		h.envBuilder.UpdateTask(h.alloc, task)
+		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens, h.envBuilder.Build()); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 		if err := h.prepareConsulTokensForTask(task, tg, tokens); err != nil {
@@ -161,15 +162,13 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 	return nil
 }
 
-func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken) error {
+func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken, env *taskenv.TaskEnv) error {
 	if len(services) == 0 {
 		return nil
 	}
 
 	var mErr *multierror.Error
-	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, services)
-
-	for _, service := range interpolatedServices {
+	for _, service := range services {
 		// Exit early if service doesn't need a Consul token.
 		if service == nil || !service.IsConsul() || service.Identity == nil {
 			continue
@@ -182,7 +181,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		}
 
 		// Find signed identity workload.
-		identity := *service.IdentityHandle()
+		identity := taskenv.InterpolateWIHandle(env, *service.IdentityHandle())
 		jwt, err := h.widmgr.Get(identity)
 		if err != nil {
 			mErr = multierror.Append(mErr, fmt.Errorf(
@@ -197,7 +196,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			JWT:            jwt.JWT,
 			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
 			Meta: map[string]string{
-				"requested_by": fmt.Sprintf("nomad_service_%s", identity.WorkloadIdentifier),
+				"requested_by": fmt.Sprintf("nomad_service_%s", identity.InterpolatedWorkloadIdentifier),
 			},
 		}
 		token, err := h.getConsulToken(clusterName, req)
