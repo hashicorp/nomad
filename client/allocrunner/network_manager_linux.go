@@ -190,13 +190,13 @@ func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config 
 
 	switch {
 	case netMode == "bridge":
-		c, err := newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.BridgeNetworkHairpinMode, config.CNIPath, ignorePortMappingHostIP)
+		c, err := newBridgeNetworkConfigurator(log, alloc, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.BridgeNetworkHairpinMode, config.CNIPath, ignorePortMappingHostIP, config.Node)
 		if err != nil {
 			return nil, err
 		}
 		return &synchronizedNetworkConfigurator{c}, nil
 	case strings.HasPrefix(netMode, "cni/"):
-		c, err := newCNINetworkConfigurator(log, config.CNIPath, config.CNIInterfacePrefix, config.CNIConfigDir, netMode[4:], ignorePortMappingHostIP)
+		c, err := newCNINetworkConfigurator(log, config.CNIPath, config.CNIInterfacePrefix, config.CNIConfigDir, netMode[4:], ignorePortMappingHostIP, config.Node)
 		if err != nil {
 			return nil, err
 		}

@@ -26,6 +26,7 @@ const (
 	attrHostLocalCNI      = `${attr.plugins.cni.version.host-local}`
 	attrLoopbackCNI       = `${attr.plugins.cni.version.loopback}`
 	attrPortMapCNI        = `${attr.plugins.cni.version.portmap}`
+	attrConsulCNI         = `${attr.plugins.cni.version.consul-cni}`
 )
 
 // cniMinVersion is the version expression for the minimum CNI version supported
@@ -132,6 +133,14 @@ var (
 	cniPortMapConstraint = &structs.Constraint{
 		LTarget: attrPortMapCNI,
 		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniConsulConstraint is an implicit constraint added to jobs making use of
+	// transparent proxy mode.
+	cniConsulConstraint = &structs.Constraint{
+		LTarget: attrConsulCNI,
+		RTarget: ">= 1.4.2",
 		Operand: structs.ConstraintSemver,
 	}
 )
@@ -250,12 +259,15 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 	bridgeNetworkingTaskGroups := j.RequiredBridgeNetwork()
 
+	transparentProxyTaskGroups := j.RequiredTransparentProxy()
+
 	// Hot path where none of our things require constraints.
 	//
 	// [UPDATE THIS] if you are adding a new constraint thing!
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
 		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
-		numaTaskGroups.Empty() && bridgeNetworkingTaskGroups.Empty() {
+		numaTaskGroups.Empty() && bridgeNetworkingTaskGroups.Empty() &&
+		transparentProxyTaskGroups.Empty() {
 		return j, nil, nil
 	}
 
@@ -319,6 +331,10 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 			mutateConstraint(constraintMatcherLeft, tg, cniHostLocalConstraint)
 			mutateConstraint(constraintMatcherLeft, tg, cniLoopbackConstraint)
 			mutateConstraint(constraintMatcherLeft, tg, cniPortMapConstraint)
+		}
+
+		if transparentProxyTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherLeft, tg, cniConsulConstraint)
 		}
 	}
 

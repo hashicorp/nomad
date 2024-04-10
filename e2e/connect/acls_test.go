@@ -36,40 +36,39 @@ func TestConnect_LegacyACLs(t *testing.T) {
 	t.Run("ConnectTerminatingGateway", testConnectTerminatingGatewayLegacyACLs)
 }
 
-func createPolicy(t *testing.T, cc *capi.Client, ns, rules string) (string, func()) {
+func createPolicy(t *testing.T, cc *capi.Client, ns, rules string) string {
 	policy, _, err := cc.ACL().PolicyCreate(&capi.ACLPolicy{
 		Name:      "nomad-operator-policy-" + uuid.Short(),
 		Rules:     rules,
 		Namespace: ns,
 	}, nil)
 	must.NoError(t, err)
-	return policy.ID, func() { cc.ACL().PolicyDelete(policy.ID, nil) }
+	t.Cleanup(func() { cc.ACL().PolicyDelete(policy.ID, nil) })
+	return policy.ID
 }
 
-func createToken(t *testing.T, cc *capi.Client, policyID, ns string) (string, func()) {
+func createToken(t *testing.T, cc *capi.Client, policyID, ns string) string {
 	token, _, err := cc.ACL().TokenCreate(&capi.ACLToken{
 		Description: "test token",
 		Policies:    []*capi.ACLTokenPolicyLink{{ID: policyID}},
 		Namespace:   ns,
 	}, nil)
 	must.NoError(t, err)
-	return token.SecretID, func() { cc.ACL().TokenDelete(token.AccessorID, nil) }
+	t.Cleanup(func() { cc.ACL().TokenDelete(token.AccessorID, nil) })
+	return token.SecretID
 }
 
 // testConnectDemoLegacyACLs tests the demo job file used in Connect Integration examples.
 func testConnectDemoLegacyACLs(t *testing.T) {
 	cc := e2eutil.ConsulClient(t)
 
-	policyID, policyCleanup := createPolicy(t, cc, "default",
+	policyID := createPolicy(t, cc, "default",
 		`service "count-api" { policy = "write" } service "count-dashboard" { policy = "write" }`)
-	t.Cleanup(policyCleanup)
 
-	token, tokenCleanup := createToken(t, cc, policyID, "default")
-	t.Cleanup(tokenCleanup)
+	token := createToken(t, cc, policyID, "default")
 
-	_, cleanup := jobs3.Submit(t, "./input/demo.nomad",
+	sub, _ := jobs3.Submit(t, "./input/demo.nomad",
 		jobs3.Timeout(time.Second*60), jobs3.LegacyConsulToken(token))
-	t.Cleanup(cleanup)
 
 	ixn := &capi.Intention{
 		SourceName:      "count-dashboard",
@@ -89,6 +88,9 @@ func testConnectDemoLegacyACLs(t *testing.T) {
 	assertSITokens(t, cc, map[string]int{
 		"connect-proxy-count-api": 1, "connect-proxy-count-dashboard": 1})
 
+	logs := sub.Exec("dashboard", "dashboard",
+		[]string{"/bin/sh", "-c", "wget -O /dev/null http://${NOMAD_UPSTREAM_ADDR_count_api}"})
+	must.StrContains(t, logs.Stderr, "saving to")
 }
 
 // testConnectDemoLegacyACLsNamespaced tests the demo job file used in Connect
@@ -101,16 +103,13 @@ func testConnectDemoLegacyACLsNamespaced(t *testing.T) {
 	must.NoError(t, err)
 	t.Cleanup(func() { cc.Namespaces().Delete(ns, nil) })
 
-	policyID, policyCleanup := createPolicy(t, cc, ns,
+	policyID := createPolicy(t, cc, ns,
 		`service "count-api" { policy = "write" } service "count-dashboard" { policy = "write" }`)
-	t.Cleanup(policyCleanup)
 
-	token, tokenCleanup := createToken(t, cc, policyID, ns)
-	t.Cleanup(tokenCleanup)
+	token := createToken(t, cc, policyID, ns)
 
-	_, cleanup := jobs3.Submit(t, "./input/demo.nomad",
+	jobs3.Submit(t, "./input/demo.nomad",
 		jobs3.Timeout(time.Second*60), jobs3.LegacyConsulToken(token))
-	t.Cleanup(cleanup)
 
 	ixn := &capi.Intention{
 		SourceName:      "count-dashboard",
@@ -137,16 +136,13 @@ func testConnectDemoLegacyACLsNamespaced(t *testing.T) {
 func testConnectNativeDemoLegacyACLs(t *testing.T) {
 	cc := e2eutil.ConsulClient(t)
 
-	policyID, policyCleanup := createPolicy(t, cc, "default",
+	policyID := createPolicy(t, cc, "default",
 		`service "uuid-fe" { policy = "write" } service "uuid-api" { policy = "write" }`)
-	t.Cleanup(policyCleanup)
 
-	token, tokenCleanup := createToken(t, cc, policyID, "default")
-	t.Cleanup(tokenCleanup)
+	token := createToken(t, cc, policyID, "default")
 
-	_, cleanup := jobs3.Submit(t, "./input/native-demo.nomad",
+	jobs3.Submit(t, "./input/native-demo.nomad",
 		jobs3.Timeout(time.Second*60), jobs3.LegacyConsulToken(token))
-	t.Cleanup(cleanup)
 
 	assertSITokens(t, cc, map[string]int{"frontend": 1, "generate": 1})
 }
@@ -155,16 +151,13 @@ func testConnectNativeDemoLegacyACLs(t *testing.T) {
 func testConnectIngressGatewayDemoLegacyACLs(t *testing.T) {
 	cc := e2eutil.ConsulClient(t)
 
-	policyID, policyCleanup := createPolicy(t, cc, "default",
+	policyID := createPolicy(t, cc, "default",
 		`service "my-ingress-service" { policy = "write" } service "uuid-api" { policy = "write" }`)
-	t.Cleanup(policyCleanup)
 
-	token, tokenCleanup := createToken(t, cc, policyID, "default")
-	t.Cleanup(tokenCleanup)
+	token := createToken(t, cc, policyID, "default")
 
-	_, cleanup := jobs3.Submit(t, "./input/ingress-gateway.nomad",
+	jobs3.Submit(t, "./input/ingress-gateway.nomad",
 		jobs3.Timeout(time.Second*60), jobs3.LegacyConsulToken(token))
-	t.Cleanup(cleanup)
 
 	assertSITokens(t, cc, map[string]int{"connect-ingress-my-ingress-service": 1, "generate": 1})
 }
@@ -173,16 +166,13 @@ func testConnectIngressGatewayDemoLegacyACLs(t *testing.T) {
 func testConnectTerminatingGatewayLegacyACLs(t *testing.T) {
 	cc := e2eutil.ConsulClient(t)
 
-	policyID, policyCleanup := createPolicy(t, cc, "default",
+	policyID := createPolicy(t, cc, "default",
 		`service "api-gateway" { policy = "write" } service "count-dashboard" { policy = "write" }`)
-	t.Cleanup(policyCleanup)
 
-	token, tokenCleanup := createToken(t, cc, policyID, "default")
-	t.Cleanup(tokenCleanup)
+	token := createToken(t, cc, policyID, "default")
 
-	_, cleanup := jobs3.Submit(t, "./input/terminating-gateway.nomad",
+	jobs3.Submit(t, "./input/terminating-gateway.nomad",
 		jobs3.Timeout(time.Second*60), jobs3.LegacyConsulToken(token))
-	t.Cleanup(cleanup)
 
 	ixn := &capi.Intention{
 		SourceName:      "count-dashboard",
