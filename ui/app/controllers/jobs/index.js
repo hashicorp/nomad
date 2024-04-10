@@ -91,6 +91,7 @@ export default class JobsIndexController extends Controller {
       'name',
       this.system.shouldShowNamespaces ? 'namespace' : null,
       'status',
+      'modify index',
       'type',
       this.system.shouldShowNodepools ? 'node pool' : null, // TODO: implement on system service
       'priority',

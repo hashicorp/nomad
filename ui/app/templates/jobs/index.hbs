@@ -301,7 +301,7 @@
                 @model={{B.data.idWithNamespace}}
                 class="is-primary"
               >
-                {{B.data.name}} ({{B.data.modifyIndex}})
+                {{B.data.name}}
                 {{!-- TODO: going to lose .meta with statuses endpoint! --}}
                 {{#if B.data.meta.structured.pack}}
                   <span data-test-pack-tag class="tag is-pack">
@@ -319,6 +319,9 @@
               {{#unless B.data.childStatuses}}
                 <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
               {{/unless}}
+            </B.Td>
+            <B.Td data-test-job-modify-index>
+               {{B.data.modifyIndex}}
             </B.Td>
             <B.Td data-test-job-type>
               {{B.data.type}}
@@ -367,7 +370,10 @@
           >
             <Hds::Button
               @text="First"
-              @color="secondary"
+              @color="tertiary"
+              @size="small"
+              @icon="chevrons-left"
+              @iconPosition="leading"
               disabled={{not this.cursorAt}}
               {{on "click" (action this.handlePageChange "first")}}
             />
@@ -378,8 +384,11 @@
             action=(action this.handlePageChange "prev")}}
           >
             <Hds::Button
-              @text="Prev"
-              @color="secondary"
+              @text="Previous"
+              @color="tertiary"
+              @size="small"
+              @icon="chevron-left"
+              @iconPosition="leading"
               disabled={{not this.cursorAt}}
               {{on "click" (action this.handlePageChange "prev")}}
             />
@@ -391,7 +400,10 @@
           >
             <Hds::Button
               @text="Next"
-              @color="secondary"
+              @color="tertiary"
+              @size="small"
+              @icon="chevron-right"
+              @iconPosition="trailing"
               disabled={{not this.nextToken}}
               {{on "click" (action this.handlePageChange "next")}}
             />
@@ -403,7 +415,10 @@
           >
             <Hds::Button
               @text="Last"
-              @color="secondary"
+              @color="tertiary"
+              @icon="chevrons-right"
+              @iconPosition="trailing"
+              @size="small"
               disabled={{not this.nextToken}}
               {{on "click" (action this.handlePageChange "last")}}
             />
