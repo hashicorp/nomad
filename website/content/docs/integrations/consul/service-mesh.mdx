@@ -273,13 +273,13 @@ The job contains two task groups: an API service and a web frontend.
 The API service is defined as a task group with a bridge network:
 
 ```hcl
-  group "api" {
-    network {
-      mode = "bridge"
-    }
-
-    # ...
+group "api" {
+  network {
+    mode = "bridge"
   }
+
+  # ...
+}
 ```
 
 Since the API service is only accessible via Consul service mesh, it does not
@@ -288,26 +288,26 @@ and the `transparent_proxy` block ensures that the service will be reachable via
 a virtual IP address when used with Consul DNS.
 
 ```hcl
-  group "api" {
+group "api" {
 
-    # ...
+  # ...
 
-    service {
-      name = "count-api"
-      port = "9001"
+  service {
+    name = "count-api"
+    port = "9001"
 
-      connect {
-        sidecar_service {
-          proxy {
-            transparent_proxy {}
-          }
+    connect {
+      sidecar_service {
+        proxy {
+          transparent_proxy {}
         }
       }
     }
-
-    # ...
-
   }
+
+  # ...
+
+}
 ```
 
 The `port` in the service block is the port the API service listens on. The
@@ -321,19 +321,19 @@ The web frontend is defined as a task group with a bridge network and a static
 forwarded port:
 
 ```hcl
-  group "dashboard" {
-    network {
-      mode = "bridge"
+group "dashboard" {
+  network {
+    mode = "bridge"
 
-      port "http" {
-        static = 9002
-        to     = 9002
-      }
+    port "http" {
+      static = 9002
+      to     = 9002
     }
-
-    # ...
-
   }
+
+  # ...
+
+}
 ```
 
 The `static = 9002` parameter requests the Nomad scheduler reserve port 9002 on
@@ -348,18 +348,18 @@ This allows you to connect to the web frontend in a browser by visiting
 The web frontend connects to the API service via Consul service mesh.
 
 ```hcl
-    service {
-      name = "count-dashboard"
-      port = "http"
+service {
+  name = "count-dashboard"
+  port = "http"
 
-      connect {
-        sidecar_service {
-          proxy {
-            transparent_proxy {}
-          }
-        }
+  connect {
+    sidecar_service {
+      proxy {
+        transparent_proxy {}
       }
     }
+  }
+}
 ```
 
 The `connect` block with `transparent_proxy` configures the web frontend's
@@ -370,9 +370,9 @@ The web frontend is configured to communicate with the API service with an
 environment variable `$COUNTING_SERVICE_URL`:
 
 ```hcl
-      env {
-        COUNTING_SERVICE_URL = "http://count-api.virtual.consul"
-      }
+env {
+  COUNTING_SERVICE_URL = "http://count-api.virtual.consul"
+}
 ```
 
 The `transparent_proxy` block ensures that DNS queries are made to Consul so
@@ -392,42 +392,42 @@ In that case, you can add `upstream` blocks to the job spec. You don't need the
 `transparent_proxy` block for the `count-api` service:
 
 ```hcl
-  group "api" {
+group "api" {
 
-    # ...
+  # ...
 
-    service {
-      name = "count-api"
-      port = "9001"
+  service {
+    name = "count-api"
+    port = "9001"
 
-      connect {
-        sidecar_service {}
-      }
+    connect {
+      sidecar_service {}
     }
-
-    # ...
-
   }
+
+  # ...
+
+}
 ```
 
 But you'll need to add an `upstreams` block to the `count-dashboard` service:
 
 ```hcl
-    service {
-      name = "count-dashboard"
-      port = "http"
+service {
+  name = "count-dashboard"
+  port = "http"
 
-      connect {
-        sidecar_service {
-          proxy {
-            upstreams {
-              destination_name = "count-api"
-              local_bind_port  = 8080
-            }
-          }
+  connect {
+    sidecar_service {
+      proxy {
+        upstreams {
+          destination_name = "count-api"
+          local_bind_port  = 8080
         }
       }
     }
+  }
+}
 ```
 
 The `upstreams` block defines the remote service to access (`count-api`) and
@@ -437,9 +437,9 @@ The web frontend will also need to use an environment variable to communicate
 with the API service:
 
 ```hcl
-      env {
-        COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
-      }
+env {
+  COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
+}
 ```
 
 This environment variable value gets interpolated with the upstream's
