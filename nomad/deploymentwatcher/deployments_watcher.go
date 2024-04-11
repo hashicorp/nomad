@@ -191,20 +191,8 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 			}
 		}
 
-		// Ensure we're not tracking deployments that have been deleted because
-		// the job was purged
-		for _, watcher := range w.watchers {
-			var found bool
-			for _, d := range deployments {
-				if watcher.deploymentID == d.ID {
-					found = true
-					break
-				}
-			}
-			if !found {
-				w.removeByID(watcher.deploymentID)
-			}
-		}
+		// Ensure we've removed deployments for purged jobs
+		w.removeDeletedDeployments(deployments)
 	}
 }
 
@@ -248,6 +236,28 @@ func (w *Watcher) getDeploysImpl(ws memdb.WatchSet, store *state.StateStore) (in
 	}
 
 	return deploys, index, nil
+}
+
+// removeDeletedDeployments removes any watchers that aren't in the list of
+// deployments we got from state
+func (w *Watcher) removeDeletedDeployments(deployments []*structs.Deployment) {
+	w.l.Lock()
+	defer w.l.Unlock()
+
+	// note we can't optimize this by checking the lengths first because some
+	// deployments might not be active
+	for _, watcher := range w.watchers {
+		var found bool
+		for _, d := range deployments {
+			if watcher.deploymentID == d.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			w.removeByIDLocked(watcher.deploymentID)
+		}
+	}
 }
 
 // add adds a deployment to the watch list
@@ -299,13 +309,12 @@ func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 // remove stops watching a deployment. This can be because the deployment is
 // complete or being deleted.
 func (w *Watcher) remove(d *structs.Deployment) {
-	w.removeByID(d.ID)
-}
-
-func (w *Watcher) removeByID(id string) {
 	w.l.Lock()
 	defer w.l.Unlock()
+	w.removeByIDLocked(d.ID)
+}
 
+func (w *Watcher) removeByIDLocked(id string) {
 	// Not enabled so no-op
 	if !w.enabled {
 		return
