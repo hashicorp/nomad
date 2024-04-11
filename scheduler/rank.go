@@ -444,6 +444,7 @@ OUTER:
 
 					if devicePreemptions == nil {
 						iter.ctx.Logger().Named("binpack").Debug("preemption not possible", "requested_device", req)
+						iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
 						netIdx.Release()
 						continue OUTER
 					}
@@ -460,6 +461,7 @@ OUTER:
 					offer, sumAffinities, err = devAllocator.AssignDevice(req)
 					if offer == nil {
 						iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create device offer after considering preemption", "error", err)
+						iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
 						continue OUTER
 					}
 				}
