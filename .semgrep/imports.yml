@@ -12,6 +12,7 @@ rules:
       - pattern: '"github.com/hashicorp/go-set"'
       - pattern: '"golang.org/x/exp/slices"'
       - pattern: '"golang.org/x/exp/maps"'
+      - pattern: '"golang.org/x/exp/constraints"'
     message: "Import of this package has been disallowed"
     languages:
       - "generic"

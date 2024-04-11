@@ -5,10 +5,10 @@ package serviceregistration
 
 import (
 	"context"
+	"maps"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 )
 
 // Handler is the interface the Nomad Client uses to register, update and

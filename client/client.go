@@ -6,6 +6,7 @@ package client
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/rpc"
 	"os"
@@ -58,13 +59,13 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/v3/host"
-	"golang.org/x/exp/maps"
 )
 
 const (
@@ -3474,7 +3475,7 @@ func (p *pendingClientUpdates) nextBatch(c *Client, updateTicks int) []*structs.
 
 	// Clear here so that allocrunners can queue up the next set of updates
 	// while we're waiting to hear from the server
-	maps.Clear(p.updates)
+	lang.MapClear(p.updates)
 
 	return toSync
 

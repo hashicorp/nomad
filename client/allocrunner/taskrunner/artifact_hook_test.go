@@ -6,6 +6,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/maps"
 )
 
 // Statically assert the artifact hook implements the expected interface

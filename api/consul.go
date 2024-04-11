@@ -4,10 +4,9 @@
 package api
 
 import (
+	"maps"
 	"slices"
 	"time"
-
-	"golang.org/x/exp/maps"
 )
 
 // Consul represents configuration related to consul.

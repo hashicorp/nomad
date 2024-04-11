@@ -6,6 +6,7 @@ package csi
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"os"
@@ -14,7 +15,6 @@ import (
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"golang.org/x/exp/maps"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

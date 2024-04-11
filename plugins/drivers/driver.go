@@ -8,6 +8,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"maps"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -23,7 +24,6 @@ import (
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
-	"golang.org/x/exp/maps"
 )
 
 const (
