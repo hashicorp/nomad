@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cstate "github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,9 +30,10 @@ func TestWIDMgr_Restore(t *testing.T) {
 	}
 	alloc.Job.TaskGroups[0].Tasks[0].Services[0].Identity = widSpecs[0]
 	alloc.Job.TaskGroups[0].Tasks[0].Identities = widSpecs[1:]
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
 
 	signer := NewMockWIDSigner(widSpecs)
-	mgr := NewWIDMgr(signer, alloc, db, logger)
+	mgr := NewWIDMgr(signer, alloc, db, logger, envBuilder)
 
 	// restore, but we haven't previously saved to the db
 	hasExpired, err := mgr.restoreStoredIdentities()
@@ -51,7 +53,8 @@ func TestWIDMgr_Restore(t *testing.T) {
 	signer.mockNow = time.Now().Add(-1 * time.Minute)
 	widSpecs[2].TTL = time.Second
 	signer.setWIDs(widSpecs)
-	wiHandle := service.IdentityHandle()
+
+	wiHandle := service.IdentityHandle(envBuilder.Build().ReplaceEnv)
 	mgr.widSpecs[*wiHandle].TTL = time.Second
 
 	// force a re-sign to re-populate the lastToken and save to the db
