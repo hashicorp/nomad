@@ -52,6 +52,7 @@ func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
 		DefaultPidMode:   cmd.ModePID,
 		DefaultIpcMode:   cmd.ModeIPC,
 		Capabilities:     cmd.Capabilities,
+		CGroupOverride:   cmd.CGroupOverride,
 	}
 	resp, err := c.client.Launch(ctx, req)
 	if err != nil {

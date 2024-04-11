@@ -50,6 +50,7 @@ message LaunchRequest {
     string cpuset_cgroup = 17;
     repeated string allow_caps = 18;
     repeated string capabilities = 19;
+    string c_group_override = 20;
 }
 
 message LaunchResponse {

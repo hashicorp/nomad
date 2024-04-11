@@ -151,6 +151,10 @@ type ExecCommand struct {
 
 	// Capabilities are the linux capabilities to be enabled by the task driver.
 	Capabilities []string
+
+	// CGroupOverride allows overriding the cgroup the task will be added to. All
+	// resource isolation guarantees are lost if set.
+	CGroupOverride string
 }
 
 // CpusetCgroup returns the path to the cgroup in which the Nomad client will
@@ -166,6 +170,16 @@ func (c *ExecCommand) CpusetCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
+
+	if c.CGroupOverride != "" {
+		switch cgroupslib.GetMode() {
+		case cgroupslib.CG1:
+			return filepath.Join(c.CGroupOverride, "cpuset")
+		default:
+			return c.CGroupOverride
+		}
+	}
+
 	return c.Resources.LinuxResources.CpusetCgroupPath
 }
 
@@ -183,6 +197,10 @@ func (c *ExecCommand) StatsCgroup() string {
 	}
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
+		if c.CGroupOverride != "" {
+			return filepath.Join(c.CGroupOverride, "freezer")
+		}
+
 		taskName := filepath.Base(c.TaskDir)
 		allocID := filepath.Base(filepath.Dir(c.TaskDir))
 		return cgroupslib.PathCG1(allocID, taskName, "freezer")

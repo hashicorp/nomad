@@ -88,12 +88,13 @@ var (
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"command":  hclspec.NewAttr("command", "string", true),
-		"args":     hclspec.NewAttr("args", "list(string)", false),
-		"pid_mode": hclspec.NewAttr("pid_mode", "string", false),
-		"ipc_mode": hclspec.NewAttr("ipc_mode", "string", false),
-		"cap_add":  hclspec.NewAttr("cap_add", "list(string)", false),
-		"cap_drop": hclspec.NewAttr("cap_drop", "list(string)", false),
+		"command":         hclspec.NewAttr("command", "string", true),
+		"args":            hclspec.NewAttr("args", "list(string)", false),
+		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
+		"ipc_mode":        hclspec.NewAttr("ipc_mode", "string", false),
+		"cap_add":         hclspec.NewAttr("cap_add", "list(string)", false),
+		"cap_drop":        hclspec.NewAttr("cap_drop", "list(string)", false),
+		"cgroup_override": hclspec.NewAttr("cgroup_override", "string", false),
 	})
 
 	// driverCapabilities represents the RPC response for what features are
@@ -203,6 +204,10 @@ type TaskConfig struct {
 
 	// CapDrop is a set of linux capabilities to disable.
 	CapDrop []string `codec:"cap_drop"`
+
+	// CGroupOverride allows overriding the cgroup the task will be added to. All
+	// resource isolation guarantees are lost if set.
+	CGroupOverride string `codec:"cgroup_override"`
 }
 
 func (tc *TaskConfig) validate() error {
@@ -494,6 +499,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		ModePID:          executor.IsolationMode(d.config.DefaultModePID, driverConfig.ModePID),
 		ModeIPC:          executor.IsolationMode(d.config.DefaultModeIPC, driverConfig.ModeIPC),
 		Capabilities:     caps,
+		CGroupOverride:   driverConfig.CGroupOverride,
 	}
 
 	ps, err := exec.Launch(execCmd)

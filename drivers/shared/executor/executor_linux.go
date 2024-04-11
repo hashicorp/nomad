@@ -672,8 +672,16 @@ func configureIsolation(cfg *runc.Config, command *ExecCommand) error {
 
 func (l *LibcontainerExecutor) configureCgroups(cfg *runc.Config, command *ExecCommand) error {
 	// note: an alloc TR hook pre-creates the cgroup(s) in both v1 and v2
+	if p := command.CGroupOverride; p != "" {
+		l.logger.Debug("configuring cgroups with override", "path", p)
+		cfg.Cgroups.Path = p
+
+		// Skip the rest of cgroups initialization when using an override
+		return nil
+	}
 
 	if !command.ResourceLimits {
+		l.logger.Trace("resource limits disabled; skipping cgroups")
 		return nil
 	}
 
