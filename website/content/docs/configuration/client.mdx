@@ -437,8 +437,11 @@ see the [drivers documentation](/nomad/docs/drivers).
   where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
 
 - `filesystem_isolation_extra_paths` `([]string: nil)` - Allow extra paths
-  in the filesystem isolation. Paths are specified in the form "[kind]:[mode]:[path]"
-  e.g. "f:r:/dev/urandom"
+  in the filesystem isolation. Paths are specified in the form `[kind]:[mode]:[path]`
+  where `kind` must be either `f` or `d` (file or directory) and 
+  `mode` must be zero or more of `r`, `w`, `c`, `x` (read, write, create, execute) e.g. 
+  `f:r:/dev/urandom` would enable reading the /dev/urandom file, 
+  `d:rx:/opt/bin` would enable reading and executing from the /opt/bin directory
 
 - `set_environment_variables` `(string:"")` - Specifies a comma separated list
   of environment variables that should be inherited by the artifact sandbox from

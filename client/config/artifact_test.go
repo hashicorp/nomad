@@ -136,7 +136,7 @@ func TestArtifactConfig_Copy(t *testing.T) {
 		HgTimeout:                     time.Hour,
 		S3Timeout:                     5 * time.Minute,
 		DisableFilesystemIsolation:    true,
-		FilesystemIsolationExtraPaths: []string{"f:r:a/b/c"},
+		FilesystemIsolationExtraPaths: []string{"f:r:/dev/urandom"},
 		SetEnvironmentVariables:       "FOO,BAR",
 	}
 
@@ -152,7 +152,7 @@ func TestArtifactConfig_Copy(t *testing.T) {
 	configCopy.HgTimeout = 2 * time.Hour
 	configCopy.S3Timeout = 10 * time.Minute
 	configCopy.DisableFilesystemIsolation = false
-	configCopy.FilesystemIsolationExtraPaths = []string{"d:rw:x/y/z"}
+	configCopy.FilesystemIsolationExtraPaths = []string{"f:rx:/opt/bin/runme"}
 	configCopy.SetEnvironmentVariables = "BAZ"
 
 	must.Eq(t, &ArtifactConfig{
@@ -163,7 +163,7 @@ func TestArtifactConfig_Copy(t *testing.T) {
 		HgTimeout:                     time.Hour,
 		S3Timeout:                     5 * time.Minute,
 		DisableFilesystemIsolation:    true,
-		FilesystemIsolationExtraPaths: []string{"f:r:a/b/c"},
+		FilesystemIsolationExtraPaths: []string{"f:r:/dev/urandom"},
 		SetEnvironmentVariables:       "FOO,BAR",
 	}, ac)
 }

@@ -26,9 +26,9 @@ const paramsAsJSON = `
   "decompression_limit_size": 98765,
   "disable_filesystem_isolation": true,
   "filesystem_isolation_extra_paths": [
-    "d:r:a/b",
-    "d:rw:c/d",
-    "f:r:x/y"
+    "f:r:/dev/urandom",
+    "d:rx:/opt/bin",
+    "d:r:/tmp/stash"
   ],
   "set_environment_variables": "",
   "artifact_mode": 2,
@@ -53,9 +53,9 @@ var paramsAsStruct = &parameters{
 	DecompressionLimitSize:      98765,
 	DisableFilesystemIsolation:  true,
 	FilesystemIsolationExtraPaths: []string{
-		"d:r:a/b",
-		"d:rw:c/d",
-		"f:r:x/y",
+		"f:r:/dev/urandom",
+		"d:rx:/opt/bin",
+		"d:r:/tmp/stash",
 	},
 	Mode:        getter.ClientModeFile,
 	Source:      "https://example.com/file.txt",

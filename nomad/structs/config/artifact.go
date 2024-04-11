@@ -6,13 +6,13 @@ package config
 import (
 	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/go-landlock"
-	"golang.org/x/exp/slices"
 )
 
 // ArtifactConfig is the configuration specific to the Artifact block
@@ -229,7 +229,7 @@ func (a *ArtifactConfig) Validate() error {
 
 	for _, p := range a.FilesystemIsolationExtraPaths {
 		if _, err := landlock.ParsePath(p); err != nil {
-			return fmt.Errorf("filesystem_isolation_extra_paths contains invalid lockdown path %s", p)
+			return fmt.Errorf("filesystem_isolation_extra_paths contains invalid lockdown path %q", p)
 		}
 	}
 

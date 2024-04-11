@@ -16,9 +16,9 @@ func TestArtifactConfig_Copy(t *testing.T) {
 
 	a := DefaultArtifactConfig()
 	a.FilesystemIsolationExtraPaths = []string{
-		"p:a/b:r",
-		"p:a/c/drw",
-		"f:x/y:rw",
+		"f:r:/dev/urandom",
+		"d:rx:/opt/bin",
+		"d:r:/tmp/stash",
 	}
 	b := a.Copy()
 	must.Equal(t, a, b)
@@ -33,7 +33,7 @@ func TestArtifactConfig_Copy(t *testing.T) {
 	must.NotEqual(t, a, b)
 
 	b = a.Copy()
-	b.FilesystemIsolationExtraPaths[1] = "f:g/g:r"
+	b.FilesystemIsolationExtraPaths[1] = "f:rx:/opt/bin/runme"
 	must.NotEqual(t, a, b)
 }
 
@@ -59,9 +59,9 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionSizeLimit:      pointer.Of("100GB"),
 				DisableFilesystemIsolation:  pointer.Of(false),
 				FilesystemIsolationExtraPaths: []string{
-					"p:a/b:r",
-					"p:a/c/drw",
-					"f:x/y:rw",
+					"f:r:/dev/urandom",
+					"d:rx:/opt/bin",
+					"d:r:/tmp/stash",
 				},
 				SetEnvironmentVariables: pointer.Of(""),
 			},
@@ -76,9 +76,8 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionSizeLimit:      pointer.Of("8GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
 				FilesystemIsolationExtraPaths: []string{
-					"p:d/d:r",
-					"f:e/f/g:rw",
-					"f:h/i/j:r",
+					"d:rw:/opt/certs",
+					"f:rx:/opt/bin/runme",
 				},
 				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
@@ -93,9 +92,8 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionSizeLimit:      pointer.Of("8GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
 				FilesystemIsolationExtraPaths: []string{
-					"p:d/d:r",
-					"f:e/f/g:rw",
-					"f:h/i/j:r",
+					"d:rw:/opt/certs",
+					"f:rx:/opt/bin/runme",
 				},
 				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
@@ -114,9 +112,8 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionSizeLimit:      pointer.Of("8GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
 				FilesystemIsolationExtraPaths: []string{
-					"p:d/d:r",
-					"f:e/f/g:rw",
-					"f:h/i/j:r",
+					"d:rw:/opt/certs",
+					"f:rx:/opt/bin/runme",
 				},
 				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
@@ -131,9 +128,8 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionSizeLimit:      pointer.Of("8GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
 				FilesystemIsolationExtraPaths: []string{
-					"p:d/d:r",
-					"f:e/f/g:rw",
-					"f:h/i/j:r",
+					"d:rw:/opt/certs",
+					"f:rx:/opt/bin/runme",
 				},
 				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
@@ -151,9 +147,9 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionSizeLimit:      pointer.Of("100GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
 				FilesystemIsolationExtraPaths: []string{
-					"p:a/b:r",
-					"p:a/c/drw",
-					"f:x/y:rw",
+					"f:r:/dev/urandom",
+					"d:rx:/opt/bin",
+					"d:r:/tmp/stash",
 				},
 				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
@@ -169,9 +165,9 @@ func TestArtifactConfig_Merge(t *testing.T) {
 				DecompressionSizeLimit:      pointer.Of("100GB"),
 				DisableFilesystemIsolation:  pointer.Of(true),
 				FilesystemIsolationExtraPaths: []string{
-					"p:a/b:r",
-					"p:a/c/drw",
-					"f:x/y:rw",
+					"f:r:/dev/urandom",
+					"d:rx:/opt/bin",
+					"d:r:/tmp/stash",
 				},
 				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
 			},
@@ -490,11 +486,11 @@ func TestArtifactConfig_Validate(t *testing.T) {
 			name: "fs isolation extra paths contains invalid path",
 			config: func(a *ArtifactConfig) {
 				a.FilesystemIsolationExtraPaths = []string{
-					"f:rw:/okay",
+					"f:r:/dev/urandom",
 					"failure",
 				}
 			},
-			expErr: "filesystem_isolation_extra_paths contains invalid lockdown path failure",
+			expErr: "filesystem_isolation_extra_paths contains invalid lockdown path \"failure\"",
 		},
 		{
 			name: "env not set",

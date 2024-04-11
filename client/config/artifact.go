@@ -5,11 +5,11 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"golang.org/x/exp/slices"
 )
 
 // ArtifactConfig is the internal readonly copy of the client agent's
