@@ -6,10 +6,13 @@ package config
 import (
 	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/shoenig/go-landlock"
 )
 
 // ArtifactConfig is the configuration specific to the Artifact block
@@ -55,6 +58,10 @@ type ArtifactConfig struct {
 	// read only from specific locations on the host filesystem.
 	DisableFilesystemIsolation *bool `hcl:"disable_filesystem_isolation"`
 
+	// FilesystemIsolationExtraPaths allows extra paths to be included in
+	// the sandbox used by the artifact downloader
+	FilesystemIsolationExtraPaths []string `hcl:"filesystem_isolation_extra_paths"`
+
 	// SetEnvironmentVariables is a comma-separated list of environment
 	// variable names to inherit from the Nomad Client and set in the artifact
 	// download sandbox process.
@@ -66,16 +73,17 @@ func (a *ArtifactConfig) Copy() *ArtifactConfig {
 		return nil
 	}
 	return &ArtifactConfig{
-		HTTPReadTimeout:             pointer.Copy(a.HTTPReadTimeout),
-		HTTPMaxSize:                 pointer.Copy(a.HTTPMaxSize),
-		GCSTimeout:                  pointer.Copy(a.GCSTimeout),
-		GitTimeout:                  pointer.Copy(a.GitTimeout),
-		HgTimeout:                   pointer.Copy(a.HgTimeout),
-		S3Timeout:                   pointer.Copy(a.S3Timeout),
-		DecompressionFileCountLimit: pointer.Copy(a.DecompressionFileCountLimit),
-		DecompressionSizeLimit:      pointer.Copy(a.DecompressionSizeLimit),
-		DisableFilesystemIsolation:  pointer.Copy(a.DisableFilesystemIsolation),
-		SetEnvironmentVariables:     pointer.Copy(a.SetEnvironmentVariables),
+		HTTPReadTimeout:               pointer.Copy(a.HTTPReadTimeout),
+		HTTPMaxSize:                   pointer.Copy(a.HTTPMaxSize),
+		GCSTimeout:                    pointer.Copy(a.GCSTimeout),
+		GitTimeout:                    pointer.Copy(a.GitTimeout),
+		HgTimeout:                     pointer.Copy(a.HgTimeout),
+		S3Timeout:                     pointer.Copy(a.S3Timeout),
+		DecompressionFileCountLimit:   pointer.Copy(a.DecompressionFileCountLimit),
+		DecompressionSizeLimit:        pointer.Copy(a.DecompressionSizeLimit),
+		DisableFilesystemIsolation:    pointer.Copy(a.DisableFilesystemIsolation),
+		FilesystemIsolationExtraPaths: slices.Clone(a.FilesystemIsolationExtraPaths),
+		SetEnvironmentVariables:       pointer.Copy(a.SetEnvironmentVariables),
 	}
 }
 
@@ -86,7 +94,7 @@ func (a *ArtifactConfig) Merge(o *ArtifactConfig) *ArtifactConfig {
 	case o == nil:
 		return a.Copy()
 	default:
-		return &ArtifactConfig{
+		result := &ArtifactConfig{
 			HTTPReadTimeout:             pointer.Merge(a.HTTPReadTimeout, o.HTTPReadTimeout),
 			HTTPMaxSize:                 pointer.Merge(a.HTTPMaxSize, o.HTTPMaxSize),
 			GCSTimeout:                  pointer.Merge(a.GCSTimeout, o.GCSTimeout),
@@ -98,6 +106,14 @@ func (a *ArtifactConfig) Merge(o *ArtifactConfig) *ArtifactConfig {
 			DisableFilesystemIsolation:  pointer.Merge(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation),
 			SetEnvironmentVariables:     pointer.Merge(a.SetEnvironmentVariables, o.SetEnvironmentVariables),
 		}
+
+		if o.FilesystemIsolationExtraPaths != nil {
+			result.FilesystemIsolationExtraPaths = slices.Clone(o.FilesystemIsolationExtraPaths)
+		} else {
+			result.FilesystemIsolationExtraPaths = slices.Clone(a.FilesystemIsolationExtraPaths)
+		}
+
+		return result
 	}
 }
 
@@ -123,6 +139,8 @@ func (a *ArtifactConfig) Equal(o *ArtifactConfig) bool {
 	case !pointer.Eq(a.DecompressionSizeLimit, o.DecompressionSizeLimit):
 		return false
 	case !pointer.Eq(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation):
+		return false
+	case !helper.SliceSetEq(a.FilesystemIsolationExtraPaths, o.FilesystemIsolationExtraPaths):
 		return false
 	case !pointer.Eq(a.SetEnvironmentVariables, o.SetEnvironmentVariables):
 		return false
@@ -209,6 +227,12 @@ func (a *ArtifactConfig) Validate() error {
 		return fmt.Errorf("disable_filesystem_isolation must be set")
 	}
 
+	for _, p := range a.FilesystemIsolationExtraPaths {
+		if _, err := landlock.ParsePath(p); err != nil {
+			return fmt.Errorf("filesystem_isolation_extra_paths contains invalid lockdown path %q", p)
+		}
+	}
+
 	if a.SetEnvironmentVariables == nil {
 		return fmt.Errorf("set_environment_variables must be set")
 	}
@@ -253,6 +277,9 @@ func DefaultArtifactConfig() *ArtifactConfig {
 
 		// Toggle for disabling filesystem isolation, where available.
 		DisableFilesystemIsolation: pointer.Of(false),
+
+		// No Filesystem Isolation Extra Locations by default
+		FilesystemIsolationExtraPaths: nil,
 
 		// No environment variables are inherited from Client by default.
 		SetEnvironmentVariables: pointer.Of(""),

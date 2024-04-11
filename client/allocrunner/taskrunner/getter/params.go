@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/helper"
 )
 
 // parameters is encoded by the Nomad client and decoded by the getter sub-process
@@ -22,16 +23,17 @@ import (
 // e.g. https://www.opencve.io/cve/CVE-2022-41716
 type parameters struct {
 	// Config
-	HTTPReadTimeout             time.Duration `json:"http_read_timeout"`
-	HTTPMaxBytes                int64         `json:"http_max_bytes"`
-	GCSTimeout                  time.Duration `json:"gcs_timeout"`
-	GitTimeout                  time.Duration `json:"git_timeout"`
-	HgTimeout                   time.Duration `json:"hg_timeout"`
-	S3Timeout                   time.Duration `json:"s3_timeout"`
-	DecompressionLimitFileCount int           `json:"decompression_limit_file_count"`
-	DecompressionLimitSize      int64         `json:"decompression_limit_size"`
-	DisableFilesystemIsolation  bool          `json:"disable_filesystem_isolation"`
-	SetEnvironmentVariables     string        `json:"set_environment_variables"`
+	HTTPReadTimeout               time.Duration `json:"http_read_timeout"`
+	HTTPMaxBytes                  int64         `json:"http_max_bytes"`
+	GCSTimeout                    time.Duration `json:"gcs_timeout"`
+	GitTimeout                    time.Duration `json:"git_timeout"`
+	HgTimeout                     time.Duration `json:"hg_timeout"`
+	S3Timeout                     time.Duration `json:"s3_timeout"`
+	DecompressionLimitFileCount   int           `json:"decompression_limit_file_count"`
+	DecompressionLimitSize        int64         `json:"decompression_limit_size"`
+	DisableFilesystemIsolation    bool          `json:"disable_filesystem_isolation"`
+	FilesystemIsolationExtraPaths []string      `json:"filesystem_isolation_extra_paths"`
+	SetEnvironmentVariables       string        `json:"set_environment_variables"`
 
 	// Artifact
 	Mode        getter.ClientMode   `json:"artifact_mode"`
@@ -97,6 +99,8 @@ func (p *parameters) Equal(o *parameters) bool {
 	case p.DecompressionLimitSize != o.DecompressionLimitSize:
 		return false
 	case p.DisableFilesystemIsolation != o.DisableFilesystemIsolation:
+		return false
+	case !helper.SliceSetEq(p.FilesystemIsolationExtraPaths, o.FilesystemIsolationExtraPaths):
 		return false
 	case p.SetEnvironmentVariables != o.SetEnvironmentVariables:
 		return false
