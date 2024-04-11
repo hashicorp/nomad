@@ -54,10 +54,7 @@ func TestWIDMgr_Restore(t *testing.T) {
 	widSpecs[2].TTL = time.Second
 	signer.setWIDs(widSpecs)
 
-	wiHandle := service.IdentityHandle()
-	wiHandle.InterpolatedWorkloadIdentifier = envBuilder.Build().ReplaceEnv(
-		wiHandle.WorkloadIdentifier)
-
+	wiHandle := service.IdentityHandle(envBuilder.Build().ReplaceEnv)
 	mgr.widSpecs[*wiHandle].TTL = time.Second
 
 	// force a re-sign to re-populate the lastToken and save to the db

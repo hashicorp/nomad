@@ -181,8 +181,8 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		}
 
 		// Find signed identity workload.
-		identity := taskenv.InterpolateWIHandle(env, *service.IdentityHandle())
-		jwt, err := h.widmgr.Get(identity)
+		handle := *service.IdentityHandle(env.ReplaceEnv)
+		jwt, err := h.widmgr.Get(handle)
 		if err != nil {
 			mErr = multierror.Append(mErr, fmt.Errorf(
 				"error getting signed identity for service %s: %v",
@@ -196,7 +196,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			JWT:            jwt.JWT,
 			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
 			Meta: map[string]string{
-				"requested_by": fmt.Sprintf("nomad_service_%s", identity.InterpolatedWorkloadIdentifier),
+				"requested_by": fmt.Sprintf("nomad_service_%s", handle.InterpolatedWorkloadIdentifier),
 			},
 		}
 		token, err := h.getConsulToken(clusterName, req)

@@ -62,7 +62,7 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, 
 
 	for _, service := range tg.Services {
 		if service.Identity != nil {
-			handle := taskenv.InterpolateWIHandle(allocEnv, *service.IdentityHandle())
+			handle := *service.IdentityHandle(allocEnv.ReplaceEnv)
 			widspecs[handle] = service.Identity
 		}
 	}
@@ -77,7 +77,7 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, 
 		taskEnv := envBuilder.UpdateTask(a, task).Build()
 		for _, service := range task.Services {
 			if service.Identity != nil {
-				handle := taskenv.InterpolateWIHandle(taskEnv, *service.IdentityHandle())
+				handle := *service.IdentityHandle(taskEnv.ReplaceEnv)
 				widspecs[handle] = service.Identity
 			}
 		}

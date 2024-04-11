@@ -158,7 +158,7 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 	hashedJWT := make(map[string]string)
 
 	for _, s := range services {
-		widHandle := taskenv.InterpolateWIHandle(env, *s.IdentityHandle())
+		widHandle := *s.IdentityHandle(env.ReplaceEnv)
 		jwt, err := hook.widmgr.Get(widHandle)
 		must.NoError(t, err)
 
