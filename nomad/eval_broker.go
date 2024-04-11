@@ -14,6 +14,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/broker"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -314,6 +315,15 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
 		Namespace: eval.Namespace,
 	}
 	readyEval := b.jobEvals[namespacedID]
+
+	// store when the eval was enqueued before early return, so that we capture
+	// the "pending" queue time, too
+	//
+	// we only store the first 10k enqueued times to avoid memory exhaustion
+	if len(b.enqueuedTime) < 10_000 {
+		b.enqueuedTime[eval.ID] = time.Now()
+	}
+
 	if readyEval == "" {
 		b.jobEvals[namespacedID] = eval.ID
 	} else if readyEval != eval.ID {
@@ -322,11 +332,6 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
 		b.pending[namespacedID] = pending
 		b.stats.TotalPending += 1
 
-		// store when the eval was enqueued before this early return, so that
-		// we capture the "pending" queue time, too
-		if len(b.enqueuedTime) < 10_000 {
-			b.enqueuedTime[eval.ID] = time.Now()
-		}
 		return
 	}
 
