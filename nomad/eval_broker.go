@@ -14,7 +14,6 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/broker"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -331,7 +330,6 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
 		heap.Push(&pending, eval)
 		b.pending[namespacedID] = pending
 		b.stats.TotalPending += 1
-
 		return
 	}
 
