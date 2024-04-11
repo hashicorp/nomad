@@ -8418,7 +8418,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				name:           path,
 				group:          tg.Name,
 				wid:            s.Identity,
-				wiHandle:       s.IdentityHandle(),
+				wiHandle:       s.IdentityHandle(nil),
 				expectedClaims: expectedClaims[path],
 			})
 		}
@@ -8447,7 +8447,7 @@ func TestNewIdentityClaims(t *testing.T) {
 					name:           path,
 					group:          tg.Name,
 					wid:            s.Identity,
-					wiHandle:       s.IdentityHandle(),
+					wiHandle:       s.IdentityHandle(nil),
 					expectedClaims: expectedClaims[path],
 				})
 			}

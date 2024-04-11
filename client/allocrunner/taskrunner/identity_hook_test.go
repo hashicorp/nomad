@@ -81,7 +81,9 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	db := cstate.NewMemDB(logger)
 	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
-	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger)
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
+
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, envBuilder)
 	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
 	mockLifecycle := trtesting.NewMockTaskHooks()
 
@@ -188,7 +190,8 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	db := cstate.NewMemDB(logger)
 	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
-	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger)
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, envBuilder)
 	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
 
 	h := &identityHook{
