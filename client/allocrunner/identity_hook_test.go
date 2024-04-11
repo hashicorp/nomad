@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstate "github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -47,9 +48,12 @@ func TestIdentityHook_Prerun(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	db := cstate.NewMemDB(logger)
 
+	// the WIDMgr env builder never has the task available
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
+
 	// setup mock signer and WIDMgr
 	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
-	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger)
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, envBuilder)
 	allocrunner.widmgr = mockWIDMgr
 	allocrunner.widsigner = mockSigner
 

@@ -221,3 +221,16 @@ func interpolateTaskResources(taskEnv *TaskEnv, resources *structs.Resources) {
 		}
 	}
 }
+
+// InterpolateWIHandle returns a copy of the WIHandle with only the
+// InterpolatedWorkloadIdentifier field interpolated. The original
+// WorkloadIdentifier should never be altered so the server can find
+// uninterpolated services associated with the handle.
+func InterpolateWIHandle(taskEnv *TaskEnv, orig structs.WIHandle) structs.WIHandle {
+	return structs.WIHandle{
+		IdentityName:                   orig.IdentityName,
+		WorkloadIdentifier:             orig.WorkloadIdentifier,
+		WorkloadType:                   orig.WorkloadType,
+		InterpolatedWorkloadIdentifier: taskEnv.ReplaceEnv(orig.WorkloadIdentifier),
+	}
+}

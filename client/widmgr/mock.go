@@ -113,35 +113,3 @@ func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadI
 	}
 	return swids, nil
 }
-
-// MockWIDMgr mocks IdentityManager interface allowing to only get identities
-// signed by the mock signer.
-type MockWIDMgr struct {
-	swids map[structs.WIHandle]*structs.SignedWorkloadIdentity
-}
-
-func NewMockWIDMgr(swids []*structs.SignedWorkloadIdentity) *MockWIDMgr {
-	swidmap := map[structs.WIHandle]*structs.SignedWorkloadIdentity{}
-	for _, id := range swids {
-		swidmap[id.WIHandle] = id
-	}
-	return &MockWIDMgr{swids: swidmap}
-}
-
-// Run does not run a renewal loop in this mock
-func (m MockWIDMgr) Run() error { return nil }
-
-func (m MockWIDMgr) Get(id structs.WIHandle) (*structs.SignedWorkloadIdentity, error) {
-	sid, ok := m.swids[id]
-	if !ok {
-		return nil, fmt.Errorf("unable to find token for workload %q and identity %q", id.WorkloadIdentifier, id.IdentityName)
-	}
-	return sid, nil
-}
-
-// Watch does not do anything, this mock doesn't support watching.
-func (m MockWIDMgr) Watch(identity structs.WIHandle) (<-chan *structs.SignedWorkloadIdentity, func()) {
-	return nil, nil
-}
-
-func (m MockWIDMgr) Shutdown() {}

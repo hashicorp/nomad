@@ -11378,6 +11378,9 @@ func NewIdentityClaims(job *Job, alloc *Allocation, wihandle *WIHandle, wid *Wor
 	switch wihandle.WorkloadType {
 	case WorkloadTypeService:
 		serviceName := wihandle.WorkloadIdentifier
+		if wihandle.InterpolatedWorkloadIdentifier != "" {
+			serviceName = wihandle.InterpolatedWorkloadIdentifier
+		}
 		claims.ServiceName = serviceName
 
 		// Find task name if this is a task service.
