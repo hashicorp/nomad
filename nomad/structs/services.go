@@ -802,15 +802,21 @@ func (s *Service) MakeUniqueIdentityName() string {
 	return fmt.Sprintf("%s_%v-%v", prefix, s.Name, s.PortLabel)
 }
 
+type envReplacer func(string) string
+
 // IdentityHandle returns a WorkloadIdentityHandle which is a pair of service
 // identity name and service name.
-func (s *Service) IdentityHandle() *WIHandle {
+func (s *Service) IdentityHandle(replace envReplacer) *WIHandle {
 	if s.Identity != nil {
-		return &WIHandle{
+		wi := &WIHandle{
 			IdentityName:       s.Identity.Name,
 			WorkloadIdentifier: s.Name,
 			WorkloadType:       WorkloadTypeService,
 		}
+		if replace != nil {
+			wi.InterpolatedWorkloadIdentifier = replace(s.Name)
+		}
+		return wi
 	}
 	return nil
 }

@@ -310,12 +310,18 @@ type WIHandle struct {
 	// WorkloadIdentifier is either a ServiceName or a TaskName
 	WorkloadIdentifier string
 	WorkloadType       WorkloadType
+
+	// InterpolatedWorkloadIdentifier is the WorkloadIdentifier, interpolated by
+	// the client. It is used only to provide an override for the identity
+	// claims
+	InterpolatedWorkloadIdentifier string
 }
 
 func (w *WIHandle) Equal(o WIHandle) bool {
 	if w == nil {
 		return false
 	}
+	// note: we're intentionally ignoring InterpolatedWorkloadIdentifier here
 	return w.IdentityName == o.IdentityName &&
 		w.WorkloadIdentifier == o.WorkloadIdentifier &&
 		w.WorkloadType == o.WorkloadType
