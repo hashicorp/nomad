@@ -5,6 +5,7 @@ package consul
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/maps"
 )
 
 func TestSyncLogic_maybeTweakTaggedAddresses(t *testing.T) {

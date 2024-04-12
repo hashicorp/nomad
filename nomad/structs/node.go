@@ -5,12 +5,12 @@ package structs
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"golang.org/x/exp/maps"
 )
 
 // CSITopology is a map of topological domains to topological segments.

@@ -8,13 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"sort"
 	"strconv"
 	"time"
 
 	"github.com/hashicorp/cronexpr"
-	"golang.org/x/exp/maps"
 )
 
 const (

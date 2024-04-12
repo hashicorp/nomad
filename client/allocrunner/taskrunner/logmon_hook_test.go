@@ -6,6 +6,7 @@ package taskrunner
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net"
 	"testing"
 
@@ -17,7 +18,6 @@ import (
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/maps"
 )
 
 // Statically assert the logmon hook implements the expected interfaces

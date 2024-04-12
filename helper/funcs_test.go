@@ -5,6 +5,7 @@ package helper
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"sort"
 	"testing"
@@ -12,7 +13,6 @@ import (
 	"github.com/hashicorp/go-set/v2"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/maps"
 )
 
 func TestIsSubset(t *testing.T) {
