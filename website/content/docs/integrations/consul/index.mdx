@@ -60,6 +60,26 @@ Consul data, Vault secrets, or just general configurations within a Nomad task.
 For more information on Nomad's template block and how it leverages Consul
 Template, please see the [`template` job specification documentation][].
 
+## DNS
+
+To provide Consul DNS to Nomad workloads using [bridge or CNI networking
+mode][], you will need to configure Consul's DNS listener to be exposed to the
+workload network namespace, or configure `systemd-resolved`, `dnsmasq`, or
+similar DNS stub resolvers to forward DNS. See [Forward DNS for Consul service
+discovery][] for details.
+
+You can avoid exposing the Consul agent on a public IP by setting the Consul
+`bind_addr` to bind on a private IP address (the default is to use the
+`client_addr`). You will also need to either have Consul bind to port 53 for
+DNS if you are not using DNS forwarding.
+
+You will also need to set the [nameserver][] to the address. This address is
+exposed as the `consul.dns.addr` node attribute or the `DNSStubListener`
+configuration value for `systemd-resolved`.
+
+An simpler solution is to use Consul Connect [transparent proxy][] mode to
+automatically configure tasks to use Consul DNS.
+
 ## Consul ACL
 
 The Consul ACL system protects the cluster from unauthorized access. When
@@ -174,3 +194,7 @@ Consul, with some exceptions.
 [int_consul_mesh]: /nomad/docs/integrations/consul/service-mesh
 [nomad_config_consul]: /nomad/docs/configuration/consul
 [service]: /nomad/docs/job-specification/service "Nomad service Job Specification"
+[bridge or CNI networking mode]: /nomad/docs/job-specification/network#mode
+[nameserver]: /nomad/docs/job-specification/network#servers
+[transparent proxy]: /nomad/docs/job-specification/transparent_proxy
+ [Forward DNS for Consul service discovery](https://developer.hashicorp.com/consul/tutorials/networking/dns-forwarding)
