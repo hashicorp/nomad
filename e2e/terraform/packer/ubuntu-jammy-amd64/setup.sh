@@ -82,6 +82,8 @@ sudo chown root:root /opt/cni/bin/consul-cni
 sudo chmod +x /opt/cni/bin/consul-cni
 popd
 popd
+# save us a bunch of disk space
+/usr/local/go/bin/go clean -cache -modcache
 
 # Note: neither service will start on boot because we haven't enabled
 # the systemd unit file and we haven't uploaded any configuration
