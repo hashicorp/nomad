@@ -773,6 +773,7 @@ func (b *EvalBroker) handleAckNackLocked(eval *structs.Evaluation) {
 
 	tDeq, ok := b.dequeuedTime[eval.ID]
 	if !ok {
+		delete(b.enqueuedTime, eval.ID)
 		return
 	}
 
