@@ -25,8 +25,8 @@ LABEL maintainer="Nomad Team <nomad@hashicorp.com>" \
       org.opencontainers.image.vendor="HashiCorp" \
       org.opencontainers.image.licenses="BUSL-1.1"
 
-RUN mkdir -p /licenses
-COPY LICENSE /licenses/LICENSE.txt
+RUN mkdir -p /usr/share/doc/nomad
+COPY LICENSE /usr/share/doc/nomad/LICENSE.txt
 
 COPY dist/$TARGETOS/$TARGETARCH/nomad /bin/
 COPY ./scripts/docker-entrypoint.sh /
