@@ -288,6 +288,7 @@
             {{on "click" (action this.gotoJob B.data)}}
             class="job-row is-interactive {{if B.data.assumeGC "assume-gc"}}"
             data-test-job-row={{B.data.plainId}}
+            data-test-modify-index={{B.data.modifyIndex}}
           >
             {{!-- {{#each this.tableColumns as |column|}}
               <B.Td>{{get B.data (lowercase column.label)}}</B.Td>
@@ -319,9 +320,6 @@
               {{#unless B.data.childStatuses}}
                 <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
               {{/unless}}
-            </B.Td>
-            <B.Td data-test-job-modify-index>
-               {{B.data.modifyIndex}}
             </B.Td>
             <B.Td data-test-job-type>
               {{B.data.type}}
@@ -375,6 +373,7 @@
               @icon="chevrons-left"
               @iconPosition="leading"
               disabled={{not this.cursorAt}}
+              data-test-pager="first"
               {{on "click" (action this.handlePageChange "first")}}
             />
           </span>
@@ -390,6 +389,7 @@
               @icon="chevron-left"
               @iconPosition="leading"
               disabled={{not this.cursorAt}}
+              data-test-pager="previous"
               {{on "click" (action this.handlePageChange "prev")}}
             />
           </span>
@@ -405,6 +405,7 @@
               @icon="chevron-right"
               @iconPosition="trailing"
               disabled={{not this.nextToken}}
+              data-test-pager="next"
               {{on "click" (action this.handlePageChange "next")}}
             />
           </span>
@@ -420,6 +421,7 @@
               @iconPosition="trailing"
               @size="small"
               disabled={{not this.nextToken}}
+              data-test-pager="last"
               {{on "click" (action this.handlePageChange "last")}}
             />
           </span>
@@ -428,16 +430,6 @@
           <PageSizeSelect @onChange={{this.handlePageSizeChange}} />
         </div>
       </section>
-      {{!-- <Hds::Pagination::Compact
-        @onPageChange={{action this.handlePageChange}}
-        @isDisabledPrev={{not this.cursorAt}}
-        @isDisabledNext={{not this.nextToken}}
-        @sizeSelectorLabel="Per page"
-        @showSizeSelector={{true}}
-        @onPageSizeChange={{this.handlePageSizeChange}}
-        @pageSizes={{array 10 25 50}}
-        @currentPageSize={{this.pageSize}}
-      /> --}}
     {{else}}
       <Hds::ApplicationState data-test-empty-jobs-list as |A|>
         {{!-- TODO: differentiate between "empty because there's nothing" and "empty because you have filtered/searched" --}}

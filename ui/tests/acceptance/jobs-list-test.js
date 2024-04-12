@@ -735,4 +735,27 @@ module('Acceptance | jobs list', function (hooks) {
   //     assert.equal(currentURL(), '/jobs/run');
   //   });
   // }
+
+  // module('Pagination', function (hooks) {
+  //   hooks.beforeEach(function () {
+  //     const jobsToCreate = 55;
+  //     for (let i = 0; i < jobsToCreate; i++) {
+  //       server.create('job', {
+  //         namespaceId: 'default',
+  //         resourceSpec: Array(1).fill('M: 256, C: 500'),
+  //         groupAllocCount: 1,
+  //         modifyIndex: i + 1,
+  //         createAllocations: false,
+  //       });
+  //     }
+  //   });
+
+  //   // module('Buttons are appropriately disabled', function () {
+  //     test('when there are no jobs', async function (assert) {
+  //       await JobsList.visit();
+  //       assert.ok(JobsList.prevPage.isDisabled, 'Prev page button is disabled');
+  //       assert.ok(JobsList.nextPage.isDisabled, 'Next page button is disabled');
+  //     });
+  //   // });
+  // });
 });

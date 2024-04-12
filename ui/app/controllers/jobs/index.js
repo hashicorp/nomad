@@ -91,7 +91,6 @@ export default class JobsIndexController extends Controller {
       'name',
       this.system.shouldShowNamespaces ? 'namespace' : null,
       'status',
-      'modify index',
       'type',
       this.system.shouldShowNodepools ? 'node pool' : null, // TODO: implement on system service
       'priority',
@@ -164,7 +163,7 @@ export default class JobsIndexController extends Controller {
     } else if (page === 'first') {
       this.cursorAt = undefined;
     } else if (page === 'last') {
-      let prevPageToken = await this.loadPreviousPageToken(true);
+      let prevPageToken = await this.loadPreviousPageToken({ last: true });
       this.cursorAt = prevPageToken
         .sortBy('modifyIndex')
         .get('lastObject').modifyIndex;
@@ -245,7 +244,7 @@ export default class JobsIndexController extends Controller {
   // Ask for the previous #page_size jobs, starting at the first job that's currently shown
   // on our page, and the last one in our list should be the one we use for our
   // subsequent nextToken.
-  async loadPreviousPageToken(last = false) {
+  async loadPreviousPageToken({ last = false } = {}) {
     let next_token = +this.cursorAt + 1;
     if (last) {
       next_token = undefined;

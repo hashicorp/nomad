@@ -117,11 +117,10 @@ export default function () {
     withBlockingSupport(
       function ({ jobs }, req) {
         const namespace = req.queryParams.namespace || 'default';
-        let startAt = req.queryParams.next_token || 0;
+        let nextToken = req.queryParams.next_token || 0;
         let reverse = req.queryParams.reverse === 'true';
         const json = this.serialize(jobs.all());
         let sortedJson = json
-          .sort((a, b) => b.ID.localeCompare(a.ID))
           .sort((a, b) =>
             reverse
               ? a.ModifyIndex - b.ModifyIndex
@@ -134,9 +133,11 @@ export default function () {
               : job.NamespaceID === namespace;
           })
           .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
-        if (startAt) {
+        if (nextToken) {
           sortedJson = sortedJson.filter((job) =>
-            reverse ? job.ModifyIndex >= startAt : job.ModifyIndex <= startAt
+            reverse
+              ? job.ModifyIndex >= nextToken
+              : job.ModifyIndex <= nextToken
           );
         }
         return sortedJson;
