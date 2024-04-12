@@ -397,7 +397,7 @@ SCAN:
 			metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "wait_time"}, t, []metrics.Label{
 				{Name: "job", Value: eval.JobID},
 				{Name: "namespace", Value: eval.Namespace},
-				{Name: "type", Value: eval.Type},
+				{Name: "eval_type", Value: eval.Type},
 				{Name: "triggered_by", Value: eval.TriggeredBy},
 			})
 		}
@@ -779,13 +779,13 @@ func (b *EvalBroker) handleAckNackLocked(eval *structs.Evaluation) {
 	metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "process_time"}, tDeq, []metrics.Label{
 		{Name: "job", Value: eval.JobID},
 		{Name: "namespace", Value: eval.Namespace},
-		{Name: "type", Value: eval.Type},
+		{Name: "eval_type", Value: eval.Type},
 		{Name: "triggered_by", Value: eval.TriggeredBy},
 	})
 	metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "response_time"}, tEnq, []metrics.Label{
 		{Name: "job", Value: eval.JobID},
 		{Name: "namespace", Value: eval.Namespace},
-		{Name: "type", Value: eval.Type},
+		{Name: "eval_type", Value: eval.Type},
 		{Name: "triggered_by", Value: eval.TriggeredBy},
 	})
 	delete(b.enqueuedTime, eval.ID)
