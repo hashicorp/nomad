@@ -615,7 +615,7 @@ func groupConnectUpstreamsValidate(g *structs.TaskGroup, services []*structs.Ser
 }
 
 func transparentProxyPortLabelValidate(g *structs.TaskGroup, portLabel string) bool {
-	if _, err := strconv.ParseUint(portLabel, 10, 64); err == nil {
+	if _, err := strconv.ParseUint(portLabel, 10, 16); err == nil {
 		return true
 	}
 
