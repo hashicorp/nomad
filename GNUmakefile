@@ -114,7 +114,10 @@ pkg/windows_%/nomad: GO_TAGS += timetzdata
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
 
-pkg/$(1).zip: pkg/$(1)/nomad
+pkg/$(1)/LICENSE.txt:
+	@cp LICENSE pkg/$(1)/LICENSE.txt
+
+pkg/$(1).zip: pkg/$(1)/nomad pkg/$(1)/LICENSE.txt
 	@echo "==> Packaging for $(1)..."
 	@zip -j pkg/$(1).zip pkg/$(1)/*
 
