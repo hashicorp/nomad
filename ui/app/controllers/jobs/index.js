@@ -148,7 +148,7 @@ export default class JobsIndexController extends Controller {
       let prevPageToken = await this.loadPreviousPageToken();
       // If there's no nextToken, we're at the "start" of our list and can drop the cursorAt
       if (!prevPageToken.meta.nextToken) {
-        this.cursorAt = null;
+        this.cursorAt = undefined;
       } else {
         // cursorAt should be the highest modifyIndex from the previous query.
         // This will immediately fire the route model hook with the new cursorAt
@@ -162,7 +162,7 @@ export default class JobsIndexController extends Controller {
       }
       this.cursorAt = this.nextToken;
     } else if (page === 'first') {
-      this.cursorAt = null;
+      this.cursorAt = undefined;
     } else if (page === 'last') {
       let prevPageToken = await this.loadPreviousPageToken(true);
       this.cursorAt = prevPageToken
@@ -248,7 +248,7 @@ export default class JobsIndexController extends Controller {
   async loadPreviousPageToken(last = false) {
     let next_token = +this.cursorAt + 1;
     if (last) {
-      next_token = null;
+      next_token = undefined;
     }
     let prevPageToken = await this.store.query(
       'job',

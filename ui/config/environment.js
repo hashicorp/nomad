@@ -36,7 +36,7 @@ module.exports = function (environment) {
 
     APP: {
       blockingQueries: true,
-      mirageScenario: 'smallCluster',
+      mirageScenario: 'jobsIndexTestCluster', //TODO: 'smallCluster',
       mirageWithNamespaces: true,
       mirageWithTokens: true,
       mirageWithRegions: true,

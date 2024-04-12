@@ -30,19 +30,29 @@ export function filesForPath(allocFiles, filterPath) {
 export default function () {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
-  this.logging = window.location.search.includes('mirage-logging=true');
+  this.logging = true; // TODO: window.location.search.includes('mirage-logging=true');
 
   this.namespace = 'v1';
   this.trackRequests = Ember.testing;
 
   const nomadIndices = {}; // used for tracking blocking queries
   const server = this;
-  const withBlockingSupport = function (fn) {
+  const withBlockingSupport = function (
+    fn,
+    { pagination = false, tokenProperty = 'ModifyIndex' } = {}
+  ) {
     return function (schema, request) {
+      let handler = fn;
+      if (pagination) {
+        handler = withPagination(handler, tokenProperty);
+      }
+
+      let response = handler.apply(this, arguments);
+
       // Get the original response
       let { url } = request;
       url = url.replace(/index=\d+[&;]?/, '');
-      const response = fn.apply(this, arguments);
+      response = handler.apply(this, arguments);
 
       // Get and increment the appropriate index
       nomadIndices[url] || (nomadIndices[url] = 2);
@@ -55,6 +65,34 @@ export default function () {
         return response;
       }
       return new Response(200, { 'x-nomad-index': index }, response);
+    };
+  };
+
+  const withPagination = function (fn, tokenProperty = 'ModifyIndex') {
+    return function (schema, request) {
+      let response = fn.apply(this, arguments);
+      let perPage = parseInt(request.queryParams.per_page || 25);
+      let page = parseInt(request.queryParams.page || 1);
+      let totalItems = response.length;
+      let totalPages = Math.ceil(totalItems / perPage);
+      let hasMore = page < totalPages;
+
+      let paginatedItems = response.slice((page - 1) * perPage, page * perPage);
+
+      let nextToken = null;
+      if (hasMore) {
+        nextToken = response[page * perPage][tokenProperty];
+      }
+
+      if (nextToken) {
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': nextToken },
+          paginatedItems
+        );
+      } else {
+        return new Response(200, {}, paginatedItems);
+      }
     };
   };
 
@@ -76,23 +114,35 @@ export default function () {
 
   this.get(
     '/jobs/statuses',
-    withBlockingSupport(function ({ jobs }, req) {
-      let per_page = req.queryParams.per_page || 20;
-      const namespace = req.queryParams.namespace || 'default';
-
-      const json = this.serialize(jobs.all());
-      return json
-        .sort((a, b) => b.ID.localeCompare(a.ID))
-        .sort((a, b) => b.ModifyIndex - a.ModifyIndex)
-        .filter((job) => {
-          if (namespace === '*') return true;
-          return namespace === 'default'
-            ? !job.NamespaceID || job.NamespaceID === 'default'
-            : job.NamespaceID === namespace;
-        })
-        .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'))
-        .slice(0, per_page);
-    })
+    withBlockingSupport(
+      function ({ jobs }, req) {
+        const namespace = req.queryParams.namespace || 'default';
+        let startAt = req.queryParams.next_token || 0;
+        let reverse = req.queryParams.reverse === 'true';
+        const json = this.serialize(jobs.all());
+        let sortedJson = json
+          .sort((a, b) => b.ID.localeCompare(a.ID))
+          .sort((a, b) =>
+            reverse
+              ? a.ModifyIndex - b.ModifyIndex
+              : b.ModifyIndex - a.ModifyIndex
+          )
+          .filter((job) => {
+            if (namespace === '*') return true;
+            return namespace === 'default'
+              ? !job.NamespaceID || job.NamespaceID === 'default'
+              : job.NamespaceID === namespace;
+          })
+          .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+        if (startAt) {
+          sortedJson = sortedJson.filter((job) =>
+            reverse ? job.ModifyIndex >= startAt : job.ModifyIndex <= startAt
+          );
+        }
+        return sortedJson;
+      },
+      { pagination: true, tokenProperty: 'ModifyIndex' }
+    )
   );
 
   this.post(
