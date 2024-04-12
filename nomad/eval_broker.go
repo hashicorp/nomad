@@ -212,7 +212,16 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 	b.l.Lock()
 	defer b.l.Unlock()
-	b.processEnqueue(eval, "")
+	b.processEnqueue(eval, "", true)
+}
+
+// Restore is used to restore an evaluation that was previously enqueued. It
+// works like enqueue exceot that it does not track enqueueTime of the restored
+// evaluation.
+func (b *EvalBroker) Restore(eval *structs.Evaluation) {
+	b.l.Lock()
+	defer b.l.Unlock()
+	b.processEnqueue(eval, "", false)
 }
 
 // EnqueueAll is used to enqueue many evaluations. The map allows evaluations
@@ -232,7 +241,7 @@ func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 	b.l.Lock()
 	defer b.l.Unlock()
 	for eval, token := range evals {
-		b.processEnqueue(eval, token)
+		b.processEnqueue(eval, token, true)
 	}
 }
 
@@ -240,7 +249,7 @@ func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 // the evals wait time. If the token is passed, and the evaluation ID is
 // outstanding, the evaluation is blocked until an Ack/Nack is received.
 // processEnqueue must be called with the lock held.
-func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
+func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string, trackTime bool) {
 	// If we're not enabled, don't enable more queuing.
 	if !b.enabled {
 		return
@@ -265,7 +274,7 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 
 	// Check if we need to enforce a wait
 	if eval.Wait > 0 {
-		b.processWaitingEnqueue(eval)
+		b.processWaitingEnqueue(eval, trackTime)
 		return
 	}
 
@@ -281,32 +290,32 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 		return
 	}
 
-	b.enqueueLocked(eval, eval.Type)
+	b.enqueueLocked(eval, eval.Type, trackTime)
 }
 
 // processWaitingEnqueue waits the given duration on the evaluation before
 // enqueuing.
-func (b *EvalBroker) processWaitingEnqueue(eval *structs.Evaluation) {
+func (b *EvalBroker) processWaitingEnqueue(eval *structs.Evaluation, trackTime bool) {
 	timer := time.AfterFunc(eval.Wait, func() {
-		b.enqueueWaiting(eval)
+		b.enqueueWaiting(eval, trackTime)
 	})
 	b.timeWait[eval.ID] = timer
 	b.stats.TotalWaiting += 1
 }
 
 // enqueueWaiting is used to enqueue a waiting evaluation
-func (b *EvalBroker) enqueueWaiting(eval *structs.Evaluation) {
+func (b *EvalBroker) enqueueWaiting(eval *structs.Evaluation, trackTime bool) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
 	delete(b.timeWait, eval.ID)
 	b.stats.TotalWaiting -= 1
 
-	b.enqueueLocked(eval, eval.Type)
+	b.enqueueLocked(eval, eval.Type, trackTime)
 }
 
 // enqueueLocked is used to enqueue with the lock held
-func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
+func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string, trackTime bool) {
 	// Do nothing if not enabled
 	if !b.enabled {
 		return
@@ -323,7 +332,7 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
 	// the "pending" queue time, too
 	//
 	// we only store the first 10k enqueued times to avoid memory exhaustion
-	if len(b.enqueuedTime) < 10_000 {
+	if len(b.enqueuedTime) < 10_000 && trackTime {
 		b.enqueuedTime[eval.ID] = time.Now()
 	}
 
@@ -366,7 +375,7 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
 	}
 }
 
-// Dequeue is used to perform a blocking dequeue. The next available evalution
+// Dequeue is used to perform a blocking dequeue. The next available evaluation
 // is returned as well as a unique token identifier for this dequeue. The token
 // changes on leadership election to ensure a Dequeue prior to a leadership
 // election cannot conflict with a Dequeue of the same evaluation after a
@@ -644,7 +653,7 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 			raw := heap.Pop(&pending)
 			eval := raw.(*structs.Evaluation)
 			b.stats.TotalPending -= 1
-			b.enqueueLocked(eval, eval.Type)
+			b.enqueueLocked(eval, eval.Type, true)
 		}
 
 		// Clean up if there are no more after that
@@ -657,7 +666,7 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 
 	// Re-enqueue the evaluation.
 	if eval, ok := b.requeue[token]; ok {
-		b.processEnqueue(eval, "")
+		b.processEnqueue(eval, "", true)
 	}
 
 	return nil
@@ -696,16 +705,16 @@ func (b *EvalBroker) Nack(evalID, token string) error {
 	// Check if we've hit the delivery limit, and re-enqueue
 	// in the failedQueue
 	if dequeues := b.evals[evalID]; dequeues >= b.deliveryLimit {
-		b.enqueueLocked(unack.Eval, failedQueue)
+		b.enqueueLocked(unack.Eval, failedQueue, true)
 	} else {
 		e := unack.Eval
 		e.Wait = b.nackReenqueueDelay(e, dequeues)
 
 		// See if there should be a delay before re-enqueuing
 		if e.Wait > 0 {
-			b.processWaitingEnqueue(e)
+			b.processWaitingEnqueue(e, true)
 		} else {
-			b.enqueueLocked(e, e.Type)
+			b.enqueueLocked(e, e.Type, true)
 		}
 	}
 
@@ -836,6 +845,8 @@ func (b *EvalBroker) flush() {
 	b.unack = make(map[string]*unackEval)
 	b.timeWait = make(map[string]*time.Timer)
 	b.delayHeap = delayheap.NewDelayHeap()
+	b.enqueuedTime = make(map[string]time.Time, 256)
+	b.dequeuedTime = make(map[string]time.Time, 256)
 }
 
 // evalWrapper satisfies the HeapNode interface
@@ -883,7 +894,7 @@ func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context, updateCh <-chan
 			b.delayHeap.Remove(&evalWrapper{eval})
 			b.stats.TotalWaiting -= 1
 			delete(b.stats.DelayedEvals, eval.ID)
-			b.enqueueLocked(eval, eval.Type)
+			b.enqueueLocked(eval, eval.Type, true)
 			b.l.Unlock()
 		case <-updateCh:
 			continue
