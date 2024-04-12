@@ -5341,12 +5341,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:                    "reconnect-original-no-replacement",
-			allocCount:              2,
-			replace:                 false,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
+			name:                         "reconnect-original-no-replacement",
+			allocCount:                   2,
+			replace:                      false,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
 			disconnectedAllocStates:      disconnectAllocState,
 			shouldStopOnDisconnectedNode: false,
 			expected: &resultExpectation{
@@ -5359,12 +5358,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                    "resume-original-and-stop-replacement",
-			allocCount:              3,
-			replace:                 true,
-			disconnectedAllocCount:  1,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
+			name:                         "resume-original-and-stop-replacement",
+			allocCount:                   3,
+			replace:                      true,
+			disconnectedAllocCount:       1,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
 			disconnectedAllocStates:      disconnectAllocState,
 			shouldStopOnDisconnectedNode: false,
 			expected: &resultExpectation{
@@ -5379,12 +5377,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                    "stop-original-with-lower-node-score",
-			allocCount:              4,
-			replace:                 true,
-			disconnectedAllocCount:  1,
-			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
+			name:                         "stop-original-with-lower-node-score",
+			allocCount:                   4,
+			replace:                      true,
+			disconnectedAllocCount:       1,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
 			disconnectedAllocStates:      disconnectAllocState,
 			shouldStopOnDisconnectedNode: true,
 			nodeScoreIncrement:           1,
@@ -5399,12 +5396,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                    "stop-original-failed-on-reconnect",
-			allocCount:              4,
-			replace:                 true,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusFailed,
-
+			name:                         "stop-original-failed-on-reconnect",
+			allocCount:                   4,
+			replace:                      true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
 			disconnectedAllocStates:      disconnectAllocState,
 			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
@@ -5418,12 +5414,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                    "reschedule-original-failed-if-not-replaced",
-			allocCount:              4,
-			replace:                 false,
-			disconnectedAllocCount:  2,
-			disconnectedAllocStatus: structs.AllocClientStatusFailed,
-
+			name:                         "reschedule-original-failed-if-not-replaced",
+			allocCount:                   4,
+			replace:                      false,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
 			disconnectedAllocStates:      disconnectAllocState,
 			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
@@ -5444,15 +5439,12 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			replace:                 false,
 			disconnectedAllocCount:  2,
 			disconnectedAllocStatus: structs.AllocClientStatusComplete,
-
 			disconnectedAllocStates: disconnectAllocState,
 			isBatch:                 true,
 			expected: &resultExpectation{
-				place: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
 						Ignore: 2,
-						Place:  2,
 					},
 				},
 			},
@@ -5464,14 +5456,16 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			failReplacement:         true,
 			disconnectedAllocCount:  2,
 			disconnectedAllocStatus: structs.AllocClientStatusRunning,
-
 			disconnectedAllocStates: disconnectAllocState,
 			expected: &resultExpectation{
 				reconnectUpdates: 2,
-				stop:             0,
+				stop:             2,
+				place:            2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
-						Ignore: 5,
+						Ignore: 3,
+						Stop:   2,
+						Place:  2,
 					},
 				},
 			},
@@ -5610,13 +5604,13 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			disconnectedAllocStates:      disconnectAllocState,
 			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
-				stop:  2,
+				stop:  4,
 				place: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
-						Stop:   2,
+						Stop:   4,
 						Place:  2,
-						Ignore: 5,
+						Ignore: 3,
 					},
 				},
 			},
