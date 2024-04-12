@@ -391,7 +391,9 @@ SCAN:
 		}
 		b.l.Lock()
 		if t, ok := b.enqueuedTime[eval.ID]; ok {
-			b.dequeuedTime[eval.ID] = time.Now()
+			if len(b.dequeuedTime) < 10_000 {
+				b.dequeuedTime[eval.ID] = time.Now()
+			}
 			metrics.MeasureSinceWithLabels([]string{"nomad", "broker", "wait_time"}, t, []metrics.Label{
 				{Name: "job", Value: eval.JobID},
 				{Name: "namespace", Value: eval.Namespace},
