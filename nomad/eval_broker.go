@@ -147,24 +147,28 @@ func NewEvalBroker(ctx context.Context, timeout, initialNackDelay, subsequentNac
 		return nil, fmt.Errorf("timeout cannot be negative")
 	}
 	b := &EvalBroker{
-		nackTimeout:          timeout,
-		deliveryLimit:        deliveryLimit,
-		enabled:              false,
-		enabledNotifier:      broker.NewGenericNotifier(ctx),
-		stats:                new(BrokerStats),
-		evals:                make(map[string]int),
-		jobEvals:             make(map[structs.NamespacedID]string),
-		pending:              make(map[structs.NamespacedID]PendingEvaluations),
-		cancelable:           make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest),
-		ready:                make(map[string]ReadyEvaluations),
-		unack:                make(map[string]*unackEval),
-		waiting:              make(map[string]chan struct{}),
-		requeue:              make(map[string]*structs.Evaluation),
-		timeWait:             make(map[string]*time.Timer),
-		initialNackDelay:     initialNackDelay,
-		subsequentNackDelay:  subsequentNackDelay,
-		enqueuedTime:         make(map[string]time.Time),
-		dequeuedTime:         make(map[string]time.Time),
+		nackTimeout:         timeout,
+		deliveryLimit:       deliveryLimit,
+		enabled:             false,
+		enabledNotifier:     broker.NewGenericNotifier(ctx),
+		stats:               new(BrokerStats),
+		evals:               make(map[string]int),
+		jobEvals:            make(map[structs.NamespacedID]string),
+		pending:             make(map[structs.NamespacedID]PendingEvaluations),
+		cancelable:          make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest),
+		ready:               make(map[string]ReadyEvaluations),
+		unack:               make(map[string]*unackEval),
+		waiting:             make(map[string]chan struct{}),
+		requeue:             make(map[string]*structs.Evaluation),
+		timeWait:            make(map[string]*time.Timer),
+		initialNackDelay:    initialNackDelay,
+		subsequentNackDelay: subsequentNackDelay,
+
+		// for enqueued and dequeuedTime, we pre-allocate 256 map elements to
+		// avoid memory allocation in the eval broker hotpath
+		enqueuedTime: make(map[string]time.Time, 256),
+		dequeuedTime: make(map[string]time.Time, 256),
+
 		delayHeap:            delayheap.NewDelayHeap(),
 		delayedEvalsUpdateCh: make(chan struct{}, 1),
 	}
