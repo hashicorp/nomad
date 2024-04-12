@@ -2011,7 +2011,7 @@ func TestWatcher_PurgeDeployment(t *testing.T) {
 	j := mock.Job()
 	d := mock.Deployment()
 	d.JobID = j.ID
-	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
+	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j))
 	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
 
 	// require that we get a call to UpsertDeploymentStatusUpdate
