@@ -6,6 +6,7 @@ package allocrunner
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -39,7 +40,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"golang.org/x/exp/maps"
 )
 
 // allocRunner is used to run all the tasks in a given allocation

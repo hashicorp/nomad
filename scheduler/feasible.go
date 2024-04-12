@@ -4,6 +4,7 @@
 package scheduler
 
 import (
+	"cmp"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -15,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -926,7 +926,7 @@ func checkLexicalOrder(op string, lVal, rVal string) bool {
 }
 
 // compareOrder returns the result of the expression (left op right)
-func compareOrder[T constraints.Ordered](op string, left, right T) bool {
+func compareOrder[T cmp.Ordered](op string, left, right T) bool {
 	switch op {
 	case "<":
 		return left < right

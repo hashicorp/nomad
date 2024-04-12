@@ -11,8 +11,8 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 )
 
 // Node attributes acquired via fingerprinting.
@@ -276,7 +276,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// this single loop, with a new constraintMatcher if needed.
 	for _, tg := range j.TaskGroups {
 		// If the task group utilises Vault, run the mutator.
-		vaultTasks := maps.Keys(vaultBlocks[tg.Name])
+		vaultTasks := lang.MapKeys(vaultBlocks[tg.Name])
 		sort.Strings(vaultTasks)
 		for _, vaultTask := range vaultTasks {
 			vaultBlock := vaultBlocks[tg.Name][vaultTask]

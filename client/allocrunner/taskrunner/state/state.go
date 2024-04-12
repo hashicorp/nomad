@@ -4,8 +4,9 @@
 package state
 
 import (
+	"maps"
+
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"golang.org/x/exp/maps"
 )
 
 // LocalState is Task state which is persisted for use when restarting Nomad
