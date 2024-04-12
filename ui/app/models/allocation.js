@@ -81,9 +81,9 @@ export default class Allocation extends Model {
 
   get hasBeenRestarted() {
     return this.states
-      .map((s) => s.events.content)
+      .map((s) => s.events?.content)
       .flat()
-      .find((e) => e.type === 'Restarting');
+      .find((e) => e?.type === 'Restarting');
   }
 
   @attr healthChecks;
