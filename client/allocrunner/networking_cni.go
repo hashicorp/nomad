@@ -220,7 +220,7 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 				proxyOutboundPort = int(tproxy.OutboundPort)
 			} else {
 				outboundPortAttr := c.nodeMeta[envoy.DefaultTransparentProxyOutboundPortParam]
-				parsedOutboundPort, err := strconv.ParseInt(outboundPortAttr, 10, 32)
+				parsedOutboundPort, err := strconv.ParseUint(outboundPortAttr, 10, 16)
 				if err != nil {
 					return nil, fmt.Errorf(
 						"could not parse default_outbound_port %q as port number: %w",
@@ -257,7 +257,7 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 			// ExcludeInboundPorts can be either a numeric port number or a port
 			// label that we need to convert into a port number
 			for _, portLabel := range tproxy.ExcludeInboundPorts {
-				if _, err := strconv.ParseUint(portLabel, 10, 64); err == nil {
+				if _, err := strconv.ParseUint(portLabel, 10, 16); err == nil {
 					exposePortSet.Insert(portLabel)
 					continue
 				}
@@ -348,7 +348,7 @@ func (c *cniNetworkConfigurator) dnsFromAttrs(cluster string) (string, int) {
 	if !ok || dnsPort == "0" || dnsPort == "-1" {
 		return "", 0
 	}
-	port, err := strconv.ParseInt(dnsPort, 10, 64)
+	port, err := strconv.ParseUint(dnsPort, 10, 16)
 	if err != nil {
 		return "", 0 // note: this will have been checked in fingerprint
 	}
