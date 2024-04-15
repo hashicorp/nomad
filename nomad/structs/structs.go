@@ -4482,8 +4482,10 @@ type Job struct {
 	SubmitTime int64
 
 	// Raft Indexes
-	CreateIndex    uint64
-	ModifyIndex    uint64
+	CreateIndex uint64
+	// ModifyIndex is the index at which any state of the job last changed
+	ModifyIndex uint64
+	// JobModifyIndex is the index at which the job *specification* last changed
 	JobModifyIndex uint64
 }
 
