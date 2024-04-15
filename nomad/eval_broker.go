@@ -14,6 +14,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/broker"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -147,28 +148,24 @@ func NewEvalBroker(ctx context.Context, timeout, initialNackDelay, subsequentNac
 		return nil, fmt.Errorf("timeout cannot be negative")
 	}
 	b := &EvalBroker{
-		nackTimeout:         timeout,
-		deliveryLimit:       deliveryLimit,
-		enabled:             false,
-		enabledNotifier:     broker.NewGenericNotifier(ctx),
-		stats:               new(BrokerStats),
-		evals:               make(map[string]int),
-		jobEvals:            make(map[structs.NamespacedID]string),
-		pending:             make(map[structs.NamespacedID]PendingEvaluations),
-		cancelable:          make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest),
-		ready:               make(map[string]ReadyEvaluations),
-		unack:               make(map[string]*unackEval),
-		waiting:             make(map[string]chan struct{}),
-		requeue:             make(map[string]*structs.Evaluation),
-		timeWait:            make(map[string]*time.Timer),
-		initialNackDelay:    initialNackDelay,
-		subsequentNackDelay: subsequentNackDelay,
-
-		// for enqueued and dequeuedTime, we pre-allocate 256 map elements to
-		// avoid memory allocation in the eval broker hotpath
-		enqueuedTime: make(map[string]time.Time, 256),
-		dequeuedTime: make(map[string]time.Time, 256),
-
+		nackTimeout:          timeout,
+		deliveryLimit:        deliveryLimit,
+		enabled:              false,
+		enabledNotifier:      broker.NewGenericNotifier(ctx),
+		stats:                new(BrokerStats),
+		evals:                make(map[string]int),
+		jobEvals:             make(map[structs.NamespacedID]string),
+		pending:              make(map[structs.NamespacedID]PendingEvaluations),
+		cancelable:           make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest),
+		ready:                make(map[string]ReadyEvaluations),
+		unack:                make(map[string]*unackEval),
+		waiting:              make(map[string]chan struct{}),
+		requeue:              make(map[string]*structs.Evaluation),
+		timeWait:             make(map[string]*time.Timer),
+		initialNackDelay:     initialNackDelay,
+		subsequentNackDelay:  subsequentNackDelay,
+		enqueuedTime:         make(map[string]time.Time),
+		dequeuedTime:         make(map[string]time.Time),
 		delayHeap:            delayheap.NewDelayHeap(),
 		delayedEvalsUpdateCh: make(chan struct{}, 1),
 	}
@@ -198,6 +195,13 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 		ctx, cancel := context.WithCancel(context.Background())
 		b.delayedEvalCancelFunc = cancel
 		go b.runDelayedEvalsWatcher(ctx, b.delayedEvalsUpdateCh)
+	}
+
+	// if we're the leader, allocate some memory for the enqueuedTime and
+	// dequeuedTime maps
+	if enabled {
+		b.enqueuedTime = make(map[string]time.Time, 256)
+		b.dequeuedTime = make(map[string]time.Time, 256)
 	}
 
 	if !enabled {
@@ -708,7 +712,7 @@ func (b *EvalBroker) Nack(evalID, token string) error {
 		b.enqueueLocked(unack.Eval, failedQueue, true)
 	} else {
 		e := unack.Eval
-		e.Wait = b.nackReenqueueDelay(e, dequeues)
+		e.Wait = b.nackReenqueueDelay(dequeues)
 
 		// See if there should be a delay before re-enqueuing
 		if e.Wait > 0 {
@@ -723,7 +727,7 @@ func (b *EvalBroker) Nack(evalID, token string) error {
 
 // nackReenqueueDelay is used to determine the delay that should be applied on
 // the evaluation given the number of previous attempts
-func (b *EvalBroker) nackReenqueueDelay(eval *structs.Evaluation, prevDequeues int) time.Duration {
+func (b *EvalBroker) nackReenqueueDelay(prevDequeues int) time.Duration {
 	switch {
 	case prevDequeues <= 0:
 		return 0
@@ -845,8 +849,8 @@ func (b *EvalBroker) flush() {
 	b.unack = make(map[string]*unackEval)
 	b.timeWait = make(map[string]*time.Timer)
 	b.delayHeap = delayheap.NewDelayHeap()
-	b.enqueuedTime = make(map[string]time.Time, 256)
-	b.dequeuedTime = make(map[string]time.Time, 256)
+	b.enqueuedTime = make(map[string]time.Time)
+	b.dequeuedTime = make(map[string]time.Time)
 }
 
 // evalWrapper satisfies the HeapNode interface
