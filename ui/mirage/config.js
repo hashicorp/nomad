@@ -47,12 +47,10 @@ export default function () {
         handler = withPagination(handler, tokenProperty);
       }
 
-      let response = handler.apply(this, arguments);
-
       // Get the original response
       let { url } = request;
       url = url.replace(/index=\d+[&;]?/, '');
-      response = handler.apply(this, arguments);
+      let response = handler.apply(this, arguments);
 
       // Get and increment the appropriate index
       nomadIndices[url] || (nomadIndices[url] = 2);

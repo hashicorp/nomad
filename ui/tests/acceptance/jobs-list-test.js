@@ -736,26 +736,205 @@ module('Acceptance | jobs list', function (hooks) {
   //   });
   // }
 
-  // module('Pagination', function (hooks) {
-  //   hooks.beforeEach(function () {
-  //     const jobsToCreate = 55;
-  //     for (let i = 0; i < jobsToCreate; i++) {
-  //       server.create('job', {
-  //         namespaceId: 'default',
-  //         resourceSpec: Array(1).fill('M: 256, C: 500'),
-  //         groupAllocCount: 1,
-  //         modifyIndex: i + 1,
-  //         createAllocations: false,
-  //       });
-  //     }
-  //   });
+  module('Pagination', function (hooks) {
+    module('Buttons are appropriately disabled', function () {
+      test('when there are no jobs', async function (assert) {
+        await JobsList.visit();
+        assert.dom('[data-test-pager="first"]').doesNotExist();
+        assert.dom('[data-test-pager="previous"]').doesNotExist();
+        assert.dom('[data-test-pager="next"]').doesNotExist();
+        assert.dom('[data-test-pager="last"]').doesNotExist();
+        await percySnapshot(assert);
+      });
+      test('when there are fewer jobs than your page size setting', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 5);
+        await JobsList.visit();
+        assert.dom('[data-test-pager="first"]').isDisabled();
+        assert.dom('[data-test-pager="previous"]').isDisabled();
+        assert.dom('[data-test-pager="next"]').isDisabled();
+        assert.dom('[data-test-pager="last"]').isDisabled();
+        await percySnapshot(assert);
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('when you have plenty of jobs', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 25);
+        await JobsList.visit();
+        assert.dom('.job-row').exists({ count: 10 });
+        assert.dom('[data-test-pager="first"]').isDisabled();
+        assert.dom('[data-test-pager="previous"]').isDisabled();
+        assert.dom('[data-test-pager="next"]').isNotDisabled();
+        assert.dom('[data-test-pager="last"]').isNotDisabled();
+        // Clicking next brings me to another full page
+        await click('[data-test-pager="next"]');
+        assert.dom('.job-row').exists({ count: 10 });
+        assert.dom('[data-test-pager="first"]').isNotDisabled();
+        assert.dom('[data-test-pager="previous"]').isNotDisabled();
+        assert.dom('[data-test-pager="next"]').isNotDisabled();
+        assert.dom('[data-test-pager="last"]').isNotDisabled();
+        // clicking next again brings me to the last page, showing jobs 20-25
+        await click('[data-test-pager="next"]');
+        assert.dom('.job-row').exists({ count: 5 });
+        assert.dom('[data-test-pager="first"]').isNotDisabled();
+        assert.dom('[data-test-pager="previous"]').isNotDisabled();
+        assert.dom('[data-test-pager="next"]').isDisabled();
+        assert.dom('[data-test-pager="last"]').isDisabled();
+        await percySnapshot(assert);
+        localStorage.removeItem('nomadPageSize');
+      });
+    });
+    module('Jobs are appropriately sorted by modify index', function () {
+      test('on a single long page', async function (assert) {
+        const jobsToCreate = 25;
+        localStorage.setItem('nomadPageSize', '25');
+        createJobs(server, jobsToCreate);
+        await JobsList.visit();
+        assert.dom('.job-row').exists({ count: 25 });
+        // Check the data-test-modify-index attribute on each row
+        let rows = document.querySelectorAll('.job-row');
+        let modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse(),
+          'Jobs are sorted by modify index'
+        );
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('across multiple pages', async function (assert) {
+        const jobsToCreate = 90;
+        const pageSize = 25;
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(server, jobsToCreate);
+        await JobsList.visit();
+        let rows = document.querySelectorAll('.job-row');
+        let modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(0, pageSize),
+          'First page is sorted by modify index'
+        );
+        // Click next
+        await click('[data-test-pager="next"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(pageSize, pageSize * 2),
+          'Second page is sorted by modify index'
+        );
 
-  //   // module('Buttons are appropriately disabled', function () {
-  //     test('when there are no jobs', async function (assert) {
-  //       await JobsList.visit();
-  //       assert.ok(JobsList.prevPage.isDisabled, 'Prev page button is disabled');
-  //       assert.ok(JobsList.nextPage.isDisabled, 'Next page button is disabled');
-  //     });
-  //   // });
-  // });
+        // Click next again
+        await click('[data-test-pager="next"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(pageSize * 2, pageSize * 3),
+          'Third page is sorted by modify index'
+        );
+
+        // Click next again, should be the last page, and therefore fewer than pageSize jobs
+        await click('[data-test-pager="next"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(pageSize * 3),
+          'Fourth page is sorted by modify index'
+        );
+        assert.equal(
+          rows.length,
+          jobsToCreate - pageSize * 3,
+          'Last page has fewer jobs'
+        );
+
+        // Go back to the first page
+        await click('[data-test-pager="first"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(0, pageSize),
+          'First page is sorted by modify index'
+        );
+
+        // Click "last" to get an even number of jobs at the end of the list
+        await click('[data-test-pager="last"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(-pageSize),
+          'Last page is sorted by modify index'
+        );
+        assert.equal(
+          rows.length,
+          pageSize,
+          'Last page has the correct number of jobs'
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+    });
+  });
 });
+
+/**
+ *
+ * @param {*} server
+ * @param {number} jobsToCreate
+ */
+function createJobs(server, jobsToCreate) {
+  for (let i = 0; i < jobsToCreate; i++) {
+    server.create('job', {
+      namespaceId: 'default',
+      resourceSpec: Array(1).fill('M: 256, C: 500'),
+      groupAllocCount: 1,
+      modifyIndex: i + 1,
+      createAllocations: false,
+      shallow: true,
+    });
+  }
+}
