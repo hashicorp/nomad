@@ -197,15 +197,13 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 		go b.runDelayedEvalsWatcher(ctx, b.delayedEvalsUpdateCh)
 	}
 
-	// if we're the leader, allocate some memory for the enqueuedTime and
-	// dequeuedTime maps
-	if enabled {
-		b.enqueuedTime = make(map[string]time.Time, 256)
-		b.dequeuedTime = make(map[string]time.Time, 256)
-	}
-
 	if !enabled {
 		b.flush()
+	} else {
+		// if we're the leader, allocate some memory for the enqueuedTime and
+		// dequeuedTime maps
+		b.enqueuedTime = make(map[string]time.Time, 256)
+		b.dequeuedTime = make(map[string]time.Time, 256)
 	}
 
 	// Notify all subscribers to state changes of the broker enabled value.
