@@ -151,9 +151,9 @@ resource "aws_security_group" "primary" {
     to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = [var.whitelist_ip]
-  }  
+  }
 
-# Prometheus
+  # Prometheus
   ingress {
     from_port   = 8081
     to_port     = 8081
@@ -161,7 +161,7 @@ resource "aws_security_group" "primary" {
     cidr_blocks = [var.whitelist_ip]
   }
 
-# Grafana
+  # Grafana
   ingress {
     from_port   = 3000
     to_port     = 3000
