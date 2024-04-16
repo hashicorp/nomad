@@ -381,7 +381,7 @@ func sortSet(matches []fuzzyMatch) {
 func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix string, ws memdb.WatchSet, store *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
 	case structs.Jobs:
-		return store.JobsByIDPrefix(ws, namespace, prefix)
+		return store.JobsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Evals:
 		return store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Allocs:
@@ -439,10 +439,10 @@ func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespac
 	switch context {
 	case structs.Jobs:
 		if wildcard(namespace) {
-			iter, err := store.Jobs(ws)
+			iter, err := store.Jobs(ws, state.SortDefault)
 			return nsCapIterFilter(iter, err, aclObj)
 		}
-		return store.JobsByNamespace(ws, namespace)
+		return store.JobsByNamespace(ws, namespace, state.SortDefault)
 
 	case structs.Allocs:
 		if wildcard(namespace) {

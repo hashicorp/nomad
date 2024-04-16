@@ -1429,6 +1429,8 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	}
 	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
 
+	sort := state.QueryOptionSort(args.QueryOptions)
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -1448,11 +1450,11 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				return err
 			} else {
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
+					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.JobsByNamespace(ws, namespace)
+					iter, err = state.JobsByNamespace(ws, namespace, sort)
 				} else {
-					iter, err = state.Jobs(ws)
+					iter, err = state.Jobs(ws, sort)
 				}
 				if err != nil {
 					return err
@@ -2001,7 +2003,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// Avoid creating new dispatched jobs for retry requests, by using the idempotency token
 	if args.IdempotencyToken != "" {
 		// Fetch all jobs that match the parameterized job ID prefix
-		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID)
+		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID, state.SortDefault)
 		if err != nil {
 			errMsg := "failed to retrieve jobs for idempotency check"
 			j.logger.Error(errMsg, "error", err)
