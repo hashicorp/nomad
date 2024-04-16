@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix a bug where the UI would prompt a user to promote a deployment with unplaced canaries
+```
