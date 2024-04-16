@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -56,10 +57,16 @@ func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 
 	// Write tokens to tasks' secret dirs
 	for _, t := range tokens {
-		for identity, token := range t {
+		for tokenName, token := range t {
+			s := strings.Split(tokenName, "/")
+			if len(s) < 2 {
+				continue
+			}
+			identity := s[0]
+			taskName := s[1]
 			// do not write tokens that do not belong to any of this task's
 			// identities
-			if !slices.ContainsFunc(
+			if taskName != h.task.Name || !slices.ContainsFunc(
 				h.task.Identities,
 				func(id *structs.WorkloadIdentity) bool { return id.Name == identity }) &&
 				identity != h.task.Identity.Name {

@@ -162,7 +162,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 			)
 		}
 
-		consulToken := clusterTokens[consulWIDName]
+		consulToken := clusterTokens[consulWIDName+"/"+req.Task.Name]
 		if consulToken == nil {
 			return fmt.Errorf(
 				"consul tokens for cluster %s and identity %s requested by task %s not found",
