@@ -344,7 +344,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		desc = "disabled"
 	} else {
 		health = drivers.HealthStateHealthy
-		attrs["driver.mock"] = pstructs.NewBoolAttribute(true)
+		attrs["driver.mock_driver"] = pstructs.NewBoolAttribute(true)
 		desc = drivers.DriverHealthy
 	}
 
