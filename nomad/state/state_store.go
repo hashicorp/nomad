@@ -27,19 +27,6 @@ import (
 // This can be a read or write transaction.
 type Txn = *txn
 
-// SortOption represents how results can be sorted.
-type SortOption bool
-
-const (
-	// SortDefault indicates that the result should be returned using the
-	// default go-memdb ResultIterator order.
-	SortDefault SortOption = false
-
-	// SortReverse indicates that the result should be returned using the
-	// reversed go-memdb ResultIterator order.
-	SortReverse SortOption = true
-)
-
 const (
 	// NodeEligibilityEventPlanRejectThreshold is the message used when the node
 	// is set to ineligible due to multiple plan failures.
@@ -2119,14 +2106,14 @@ func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn
 
 // JobsByIDPrefix is used to lookup a job by prefix. If querying all namespaces
 // the prefix will not be filtered by an index.
-func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
+func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string, sort SortOption) (memdb.ResultIterator, error) {
 	if namespace == structs.AllNamespacesSentinel {
 		return s.jobsByIDPrefixAllNamespaces(ws, id)
 	}
 
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("jobs", "id_prefix", namespace, id)
+	iter, err := getSorted(txn, sort, "jobs", "id_prefix", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -2244,11 +2231,11 @@ func (s *StateStore) JobVersions(ws memdb.WatchSet) (memdb.ResultIterator, error
 }
 
 // Jobs returns an iterator over all the jobs
-func (s *StateStore) Jobs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) Jobs(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	// Walk the entire jobs table
-	iter, err := txn.Get("jobs", "id")
+	iter, err := getSorted(txn, sort, "jobs", "id")
 	if err != nil {
 		return nil, err
 	}
@@ -2259,15 +2246,14 @@ func (s *StateStore) Jobs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 }
 
 // JobsByNamespace returns an iterator over all the jobs for the given namespace
-func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
-	return s.jobsByNamespaceImpl(ws, namespace, txn)
+	return s.jobsByNamespaceImpl(ws, namespace, txn, sort)
 }
 
 // jobsByNamespaceImpl returns an iterator over all the jobs for the given namespace
-func (s *StateStore) jobsByNamespaceImpl(ws memdb.WatchSet, namespace string, txn *txn) (memdb.ResultIterator, error) {
-	// Walk the entire jobs table
-	iter, err := txn.Get("jobs", "id_prefix", namespace, "")
+func (s *StateStore) jobsByNamespaceImpl(ws memdb.WatchSet, namespace string, txn *txn, sort SortOption) (memdb.ResultIterator, error) {
+	iter, err := getSorted(txn, sort, "jobs", "id_prefix", namespace, "")
 	if err != nil {
 		return nil, err
 	}
@@ -6678,7 +6664,7 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 		}
 
 		// Ensure that the namespace doesn't have any non-terminal jobs
-		iter, err := s.jobsByNamespaceImpl(nil, name, txn)
+		iter, err := s.jobsByNamespaceImpl(nil, name, txn, SortDefault)
 		if err != nil {
 			return err
 		}
