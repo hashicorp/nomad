@@ -58,7 +58,7 @@ func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 	// Write tokens to tasks' secret dirs
 	for _, t := range tokens {
 		for tokenName, token := range t {
-			s := strings.Split(tokenName, "/")
+			s := strings.SplitN(tokenName, "/", 2)
 			if len(s) < 2 {
 				continue
 			}
