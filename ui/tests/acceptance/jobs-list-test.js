@@ -1016,7 +1016,7 @@ module('Acceptance | jobs list', function (hooks) {
         let updatedJob = assert.async(); // watch for this to say "My tests oughta be passing by now"
         const duelingQueryUpdateTime = 200;
 
-        assert.timeout(2000);
+        assert.timeout(500);
 
         setTimeout(async () => {
           // Order should now be 11-2
@@ -1116,7 +1116,7 @@ module('Acceptance | jobs list', function (hooks) {
         let updatedUnshownJob = assert.async(); // watch for this to say "My tests oughta be passing by now"
         const duelingQueryUpdateTime = 200;
 
-        assert.timeout(2000);
+        assert.timeout(500);
 
         setTimeout(async () => {
           // Order should still be be 10-1
