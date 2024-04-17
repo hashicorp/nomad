@@ -40,7 +40,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	hrTokens.SetConsulTokens(
 		map[string]map[string]*consulapi.ACLToken{
 			structs.ConsulDefaultCluster: {
-				fmt.Sprintf("consul_%s", structs.ConsulDefaultCluster): &consulapi.ACLToken{
+				fmt.Sprintf("consul_%s/web", structs.ConsulDefaultCluster): &consulapi.ACLToken{
 					SecretID: defaultToken,
 				},
 			},
@@ -59,7 +59,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	}{
 		{
 			// COMPAT remove in 1.9+
-			name:            "legecy flow",
+			name:            "legacy flow",
 			hr:              hrEmpty,
 			legacyFlow:      true,
 			wantConsulToken: "",
