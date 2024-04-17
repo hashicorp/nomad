@@ -2498,7 +2498,7 @@ func TestTaskRunner_TemplateWorkloadIdentity(t *testing.T) {
 	}
 	conf.AllocHookResources.SetConsulTokens(map[string]map[string]*consulapi.ACLToken{
 		structs.ConsulDefaultCluster: {
-			task.Consul.IdentityName(): {SecretID: "consul-task-token"},
+			task.Consul.IdentityName() + "/web": {SecretID: "consul-task-token"},
 		},
 	})
 	t.Cleanup(cleanup)

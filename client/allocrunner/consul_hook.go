@@ -157,7 +157,8 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 	if _, ok = tokens[clusterName]; !ok {
 		tokens[clusterName] = make(map[string]*consulapi.ACLToken)
 	}
-	tokens[clusterName][widName] = token
+	tokenName := widName + "/" + task.Name
+	tokens[clusterName][tokenName] = token
 
 	return nil
 }
