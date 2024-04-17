@@ -25,7 +25,7 @@ var (
 	nodeNumber int32 = 0
 )
 
-func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
+func TestACLServer(t testing.TB, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
 	server, cleanup := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		if cb != nil {
@@ -40,13 +40,13 @@ func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, f
 	return server, token, cleanup
 }
 
-func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
+func TestServer(t testing.TB, cb func(*Config)) (*Server, func()) {
 	s, c, err := TestServerErr(t, cb)
 	must.NoError(t, err, must.Sprint("failed to start test server"))
 	return s, c
 }
 
-func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
+func TestServerErr(t testing.TB, cb func(*Config)) (*Server, func(), error) {
 	// Setup the default settings
 	config := DefaultConfig()
 
@@ -153,7 +153,7 @@ func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 	return nil, nil, errors.New("unable to acquire ports for test server")
 }
 
-func TestJoin(t testing.T, servers ...*Server) {
+func TestJoin(t testing.TB, servers ...*Server) {
 	for i := 0; i < len(servers)-1; i++ {
 		addr := fmt.Sprintf("127.0.0.1:%d",
 			servers[i].config.SerfConfig.MemberlistConfig.BindPort)
