@@ -95,6 +95,7 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 			TaskPath:        m.Destination,
 			Readonly:        hostVolume.ReadOnly || req.ReadOnly || m.ReadOnly,
 			PropagationMode: m.PropagationMode,
+			SELinuxLabel:    m.SELinuxLabel,
 		}
 		mounts = append(mounts, mcfg)
 	}
@@ -188,6 +189,7 @@ func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest, volu
 				TaskPath:        m.Destination,
 				Readonly:        request.ReadOnly || m.ReadOnly,
 				PropagationMode: m.PropagationMode,
+				SELinuxLabel:    m.SELinuxLabel,
 			}
 			mounts = append(mounts, mcfg)
 		}

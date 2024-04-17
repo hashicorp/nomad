@@ -7937,15 +7937,12 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 
 	// Validation for volumes
 	for idx, vm := range t.VolumeMounts {
-		if !MountPropagationModeIsValid(vm.PropagationMode) {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) has an invalid propagation mode: \"%s\"", idx, vm.PropagationMode))
+		if _, ok := tg.Volumes[vm.Volume]; !ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) references undefined volume %s", idx, vm.Volume))
 		}
 
-		// Validate the task does not reference undefined volume mounts
-		if vm.Volume == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) references an empty volume", idx))
-		} else if _, ok := tg.Volumes[vm.Volume]; !ok {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) references undefined volume %s", idx, vm.Volume))
+		if err := vm.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) is invalid: \"%w\"", idx, err))
 		}
 	}
 

@@ -444,13 +444,15 @@ type MountConfig struct {
 	HostPath        string
 	Readonly        bool
 	PropagationMode string
+	SELinuxLabel    string
 }
 
 func (m *MountConfig) IsEqual(o *MountConfig) bool {
 	return m.TaskPath == o.TaskPath &&
 		m.HostPath == o.HostPath &&
 		m.Readonly == o.Readonly &&
-		m.PropagationMode == o.PropagationMode
+		m.PropagationMode == o.PropagationMode &&
+		m.SELinuxLabel == o.SELinuxLabel
 }
 
 func (m *MountConfig) Copy() *MountConfig {

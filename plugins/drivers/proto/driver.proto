@@ -590,6 +590,8 @@ message Mount {
     // Propagation mode for the mount. Not exactly the same as the unix mount
     // propagation flags. See callsite usage for details.
     string propagation_mode = 4;
+
+    string selinux_label = 5;
 }
 
 message Device {
