@@ -1033,7 +1033,7 @@ module('Acceptance | jobs list', function (hooks) {
             'Jobs are sorted by modify index'
           );
 
-          // Simulate one of the on-page jobs getting its modify-index bumped. It should remain in place.
+          // Simulate one of the on-page jobs getting its modify-index bumped. It should bump to the top of the list.
           let existingJobToUpdate = server.db.jobs.findBy(
             (job) => job.modifyIndex === 5
           );
@@ -1049,7 +1049,7 @@ module('Acceptance | jobs list', function (hooks) {
             assert.deepEqual(
               modifyIndexes,
               [12, 11, 10, 9, 8, 7, 6, 4, 3, 2],
-              'Jobs are sorted by modify index, on-page job remains in-place, and off-page pending'
+              'Jobs are sorted by modify index, on-page job moves up to the top, and off-page pending'
             );
             updatedOnPageJob();
 
