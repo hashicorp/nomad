@@ -41,6 +41,7 @@ export default class JobsIndexController extends Controller {
     { qpNamespace: 'namespace' },
     // 'type',
     // 'searchTerm',
+    'filter',
   ];
 
   isForbidden = false;
@@ -123,6 +124,7 @@ export default class JobsIndexController extends Controller {
   // #region pagination
   @tracked cursorAt;
   @tracked nextToken; // route sets this when new data is fetched
+  @tracked filter;
 
   /**
    *
@@ -342,4 +344,49 @@ export default class JobsIndexController extends Controller {
     }
   }
   //#endregion querying
+
+  //#region filtering and searching
+
+  /**
+   * Updates the filter based on the input, distinguishing between simple job names and filter expressions.
+   * A simple check for operators with surrounding spaces is used to identify filter expressions.
+   *
+   * @param {string} newFilter - The new filter string entered by the user.
+   */
+  @action
+  updateFilter(newFilter) {
+    if (!newFilter) {
+      this.filter = '';
+      return;
+    }
+
+    newFilter = newFilter.trim();
+
+    const operators = [
+      '==',
+      '!=',
+      'contains',
+      'not contains',
+      'is empty',
+      'is not empty',
+      'matches',
+      'not matches',
+      'in',
+      'not in',
+    ];
+
+    // Check for any operator surrounded by spaces
+    let isFilterExpression = operators.some((op) =>
+      newFilter.includes(` ${op} `)
+    );
+
+    if (isFilterExpression) {
+      this.filter = newFilter;
+    } else {
+      // If it's a string without a filter operator, assume the user is trying to look up a job name
+      this.filter = `Name contains "${newFilter}"`;
+    }
+  }
+
+  //#endregion filtering and searching
 }

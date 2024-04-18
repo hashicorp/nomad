@@ -248,12 +248,9 @@
           </div>
 
           <div data-test-jobs-search>
-            <Hds::Form::TextInput::Base
-              @type="search"
-              @value=""
-              aria-label="Job Search"
-              placeholder="eg. Hello World"
-              @icon="search"
+            <JobSearchBox
+              @filter={{this.filter}}
+              @onFilterChange={{this.updateFilter}}
             />
           </div>
 

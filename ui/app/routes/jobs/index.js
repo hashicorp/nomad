@@ -37,6 +37,9 @@ export default class IndexRoute extends Route.extend(
     pageSize: {
       refreshModel: true,
     },
+    filter: {
+      refreshModel: true,
+    },
   };
 
   hasBeenInitialized = false;
@@ -54,6 +57,7 @@ export default class IndexRoute extends Route.extend(
     let currentParams = this.getCurrentParams(); // TODO: how do these differ from passed params?
     this.watchList.jobsIndexIDsController.abort();
     this.watchList.jobsIndexIDsController = new AbortController();
+    console.log('model', currentParams);
     let jobs = await this.store
       .query('job', currentParams, {
         adapterOptions: {

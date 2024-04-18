@@ -1,0 +1,14 @@
+<Hds::Form::TextInput::Base
+  @type="search"
+  @value=""
+  aria-label="Job Search"
+  placeholder="eg. Hello World"
+  @icon="search"
+  @width="300px"
+  {{on "input" (action this.updateFilter)}}
+  {{keyboard-shortcut 
+    label="Search Jobs"
+    pattern=(array "Shift+F")
+    action=(action this.focus)
+  }}
+/>
