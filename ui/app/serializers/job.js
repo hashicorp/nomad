@@ -119,6 +119,10 @@ export default class JobSerializer extends ApplicationSerializer {
           },
         };
       }
+      if (job.LatestDeployment) {
+        job.LatestDeploymentSummary = job.LatestDeployment;
+        delete job.LatestDeployment;
+      }
       job._aggregate = true;
     });
     return super.normalizeQueryResponse(
