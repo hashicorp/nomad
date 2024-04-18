@@ -207,7 +207,7 @@ func (e *EventBroker) handleACLUpdates(ctx context.Context) {
 				}
 
 				aclObj, expiryTime, err := aclObjFromSnapshotForTokenSecretID(e.aclDelegate.TokenProvider(), e.aclCache, tokenSecretID)
-				if err != nil || aclObj == nil {
+				if err != nil {
 					e.logger.Error("failed resolving ACL for secretID, closing subscriptions", "error", err)
 					e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
 					continue
@@ -255,7 +255,7 @@ func (e *EventBroker) checkSubscriptionsAgainstACLChange() {
 		}
 
 		aclObj, expiryTime, err := aclObjFromSnapshotForTokenSecretID(aclSnapshot, e.aclCache, tokenSecretID)
-		if err != nil || aclObj == nil {
+		if err != nil {
 			e.logger.Debug("failed resolving ACL for secretID, closing subscriptions", "error", err)
 			e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
 			continue

@@ -1795,8 +1795,7 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 		return structs.ErrPermissionDenied
 	}
 
-	withAllocs := aclObj == nil ||
-		aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+	withAllocs := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")
