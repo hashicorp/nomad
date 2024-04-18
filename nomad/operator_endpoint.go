@@ -369,8 +369,7 @@ func (op *Operator) AutopilotGetConfiguration(args *structs.GenericRequest, repl
 	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	}
-	if aclObj != nil && !aclObj.AllowOperatorRead() {
+	} else if !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -404,8 +403,7 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	}
-	if aclObj != nil && !aclObj.AllowOperatorWrite() {
+	} else if !aclObj.AllowOperatorWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -447,8 +445,7 @@ func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *structs.Op
 	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	}
-	if aclObj != nil && !aclObj.AllowOperatorRead() {
+	} else if !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -482,7 +479,7 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowOperatorWrite() {
+	} else if !aclObj.AllowOperatorWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -536,7 +533,7 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowOperatorRead() {
+	} else if !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -807,7 +804,7 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	aclObj, err := op.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowOperatorRead() {
+	} else if !aclObj.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
