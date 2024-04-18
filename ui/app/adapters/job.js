@@ -220,12 +220,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     const signal = get(options, 'adapterOptions.abortController.signal');
 
-    // when GETting our jobs list, we want to sort in reverse order, because
-    // the sort property is ModifyIndex and we want the most recent jobs first.
-    if (method === 'GET') {
-      query.reverse = true;
-    }
-
     return this.ajax(url, method, {
       signal,
       data: query,

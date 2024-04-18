@@ -62,11 +62,16 @@ function jobsIndexTestCluster(server) {
   faker.seed(1);
   server.createList('agent', 1, 'withConsulLink', 'withVaultLink');
   server.createList('node', 1);
-  server.createList('job', 1, {
-    namespaceId: 'default',
-    resourceSpec: Array(1).fill('M: 256, C: 500'),
-    groupAllocCount: 1,
-  });
+
+  const jobsToCreate = 55;
+  for (let i = 0; i < jobsToCreate; i++) {
+    server.create('job', {
+      namespaceId: 'default',
+      resourceSpec: Array(1).fill('M: 256, C: 500'),
+      groupAllocCount: 1,
+      modifyIndex: i + 1,
+    });
+  }
 }
 
 function smallCluster(server) {

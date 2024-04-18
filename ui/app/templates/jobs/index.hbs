@@ -264,6 +264,7 @@
               @color="primary"
               @icon="sync"
               {{on "click" (perform this.updateJobList)}}
+              data-test-updates-pending-button
             />
           {{/if}}
         </Hds::ButtonSet>
@@ -288,6 +289,7 @@
             {{on "click" (action this.gotoJob B.data)}}
             class="job-row is-interactive {{if B.data.assumeGC "assume-gc"}}"
             data-test-job-row={{B.data.plainId}}
+            data-test-modify-index={{B.data.modifyIndex}}
           >
             {{!-- {{#each this.tableColumns as |column|}}
               <B.Td>{{get B.data (lowercase column.label)}}</B.Td>
@@ -361,14 +363,34 @@
       <section id="jobs-list-pagination">
         <div class="nav-buttons">
           <span {{keyboard-shortcut
+            label="First Page"
+            pattern=(array "{" "{")
+            action=(action this.handlePageChange "first")}}
+          >
+            <Hds::Button
+              @text="First"
+              @color="tertiary"
+              @size="small"
+              @icon="chevrons-left"
+              @iconPosition="leading"
+              disabled={{not this.cursorAt}}
+              data-test-pager="first"
+              {{on "click" (action this.handlePageChange "first")}}
+            />
+          </span>
+          <span {{keyboard-shortcut
             label="Previous Page"
             pattern=(array "[" "[")
             action=(action this.handlePageChange "prev")}}
           >
             <Hds::Button
-              @text="Prev"
-              @color="secondary"
+              @text="Previous"
+              @color="tertiary"
+              @size="small"
+              @icon="chevron-left"
+              @iconPosition="leading"
               disabled={{not this.cursorAt}}
+              data-test-pager="previous"
               {{on "click" (action this.handlePageChange "prev")}}
             />
           </span>
@@ -379,9 +401,29 @@
           >
             <Hds::Button
               @text="Next"
-              @color="secondary"
+              @color="tertiary"
+              @size="small"
+              @icon="chevron-right"
+              @iconPosition="trailing"
               disabled={{not this.nextToken}}
+              data-test-pager="next"
               {{on "click" (action this.handlePageChange "next")}}
+            />
+          </span>
+          <span {{keyboard-shortcut
+            label="Last Page"
+            pattern=(array "}" "}")
+            action=(action this.handlePageChange "last")}}
+          >
+            <Hds::Button
+              @text="Last"
+              @color="tertiary"
+              @icon="chevrons-right"
+              @iconPosition="trailing"
+              @size="small"
+              disabled={{not this.nextToken}}
+              data-test-pager="last"
+              {{on "click" (action this.handlePageChange "last")}}
             />
           </span>
         </div>
@@ -389,16 +431,6 @@
           <PageSizeSelect @onChange={{this.handlePageSizeChange}} />
         </div>
       </section>
-      {{!-- <Hds::Pagination::Compact
-        @onPageChange={{action this.handlePageChange}}
-        @isDisabledPrev={{not this.cursorAt}}
-        @isDisabledNext={{not this.nextToken}}
-        @sizeSelectorLabel="Per page"
-        @showSizeSelector={{true}}
-        @onPageSizeChange={{this.handlePageSizeChange}}
-        @pageSizes={{array 10 25 50}}
-        @currentPageSize={{this.pageSize}}
-      /> --}}
     {{else}}
       <Hds::ApplicationState data-test-empty-jobs-list as |A|>
         {{!-- TODO: differentiate between "empty because there's nothing" and "empty because you have filtered/searched" --}}
