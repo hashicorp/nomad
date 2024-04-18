@@ -43,7 +43,7 @@ export default class Job extends Model {
     }
   }
 
-  @attr('string') deploymentID;
+  @attr() latestDeploymentSummary; // TODO: model this out
 
   @attr() childStatuses;
 
@@ -223,7 +223,7 @@ export default class Job extends Model {
     let totalAllocs = this.expectedRunningAllocCount;
 
     // If deploying:
-    if (this.deploymentID) {
+    if (this.latestDeploymentSummary?.IsActive) {
       return { label: 'Deploying', state: 'highlight' };
     }
 
