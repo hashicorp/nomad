@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { currentURL, click } from '@ember/test-helpers';
+import { currentURL, click, triggerKeyEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -735,4 +735,477 @@ module('Acceptance | jobs list', function (hooks) {
   //     assert.equal(currentURL(), '/jobs/run');
   //   });
   // }
+
+  module('Pagination', function () {
+    module('Buttons are appropriately disabled', function () {
+      test('when there are no jobs', async function (assert) {
+        await JobsList.visit();
+        assert.dom('[data-test-pager="first"]').doesNotExist();
+        assert.dom('[data-test-pager="previous"]').doesNotExist();
+        assert.dom('[data-test-pager="next"]').doesNotExist();
+        assert.dom('[data-test-pager="last"]').doesNotExist();
+        await percySnapshot(assert);
+      });
+      test('when there are fewer jobs than your page size setting', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 5);
+        await JobsList.visit();
+        assert.dom('[data-test-pager="first"]').isDisabled();
+        assert.dom('[data-test-pager="previous"]').isDisabled();
+        assert.dom('[data-test-pager="next"]').isDisabled();
+        assert.dom('[data-test-pager="last"]').isDisabled();
+        await percySnapshot(assert);
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('when you have plenty of jobs', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 25);
+        await JobsList.visit();
+        assert.dom('.job-row').exists({ count: 10 });
+        assert.dom('[data-test-pager="first"]').isDisabled();
+        assert.dom('[data-test-pager="previous"]').isDisabled();
+        assert.dom('[data-test-pager="next"]').isNotDisabled();
+        assert.dom('[data-test-pager="last"]').isNotDisabled();
+        // Clicking next brings me to another full page
+        await click('[data-test-pager="next"]');
+        assert.dom('.job-row').exists({ count: 10 });
+        assert.dom('[data-test-pager="first"]').isNotDisabled();
+        assert.dom('[data-test-pager="previous"]').isNotDisabled();
+        assert.dom('[data-test-pager="next"]').isNotDisabled();
+        assert.dom('[data-test-pager="last"]').isNotDisabled();
+        // clicking next again brings me to the last page, showing jobs 20-25
+        await click('[data-test-pager="next"]');
+        assert.dom('.job-row').exists({ count: 5 });
+        assert.dom('[data-test-pager="first"]').isNotDisabled();
+        assert.dom('[data-test-pager="previous"]').isNotDisabled();
+        assert.dom('[data-test-pager="next"]').isDisabled();
+        assert.dom('[data-test-pager="last"]').isDisabled();
+        await percySnapshot(assert);
+        localStorage.removeItem('nomadPageSize');
+      });
+    });
+    module('Jobs are appropriately sorted by modify index', function () {
+      test('on a single long page', async function (assert) {
+        const jobsToCreate = 25;
+        localStorage.setItem('nomadPageSize', '25');
+        createJobs(server, jobsToCreate);
+        await JobsList.visit();
+        assert.dom('.job-row').exists({ count: 25 });
+        // Check the data-test-modify-index attribute on each row
+        let rows = document.querySelectorAll('.job-row');
+        let modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse(),
+          'Jobs are sorted by modify index'
+        );
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('across multiple pages', async function (assert) {
+        const jobsToCreate = 90;
+        const pageSize = 25;
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(server, jobsToCreate);
+        await JobsList.visit();
+        let rows = document.querySelectorAll('.job-row');
+        let modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(0, pageSize),
+          'First page is sorted by modify index'
+        );
+        // Click next
+        await click('[data-test-pager="next"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(pageSize, pageSize * 2),
+          'Second page is sorted by modify index'
+        );
+
+        // Click next again
+        await click('[data-test-pager="next"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(pageSize * 2, pageSize * 3),
+          'Third page is sorted by modify index'
+        );
+
+        // Click previous
+        await click('[data-test-pager="previous"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(pageSize, pageSize * 2),
+          'Second page is sorted by modify index'
+        );
+
+        // Click next twice, should be the last page, and therefore fewer than pageSize jobs
+        await click('[data-test-pager="next"]');
+        await click('[data-test-pager="next"]');
+
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(pageSize * 3),
+          'Fourth page is sorted by modify index'
+        );
+        assert.equal(
+          rows.length,
+          jobsToCreate - pageSize * 3,
+          'Last page has fewer jobs'
+        );
+
+        // Go back to the first page
+        await click('[data-test-pager="first"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(0, pageSize),
+          'First page is sorted by modify index'
+        );
+
+        // Click "last" to get an even number of jobs at the end of the list
+        await click('[data-test-pager="last"]');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(-pageSize),
+          'Last page is sorted by modify index'
+        );
+        assert.equal(
+          rows.length,
+          pageSize,
+          'Last page has the correct number of jobs'
+        );
+
+        // type "{{" to go to the beginning
+        triggerKeyEvent('.page-layout', 'keydown', '{');
+        await triggerKeyEvent('.page-layout', 'keydown', '{');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(0, pageSize),
+          'Keynav takes me back to the starting page'
+        );
+
+        // type "]]" to go forward a page
+        triggerKeyEvent('.page-layout', 'keydown', ']');
+        await triggerKeyEvent('.page-layout', 'keydown', ']');
+        rows = document.querySelectorAll('.job-row');
+        modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(jobsToCreate)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse()
+            .slice(pageSize, pageSize * 2),
+          'Keynav takes me forward a page'
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+    });
+    module('Live updates are reflected in the list', function () {
+      test('When you have live updates enabled, the list updates when new jobs are created', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 10);
+        await JobsList.visit();
+        assert.dom('.job-row').exists({ count: 10 });
+        let rows = document.querySelectorAll('.job-row');
+        assert.equal(rows.length, 10, 'List is still 10 rows');
+        let modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(10)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse(),
+          'Jobs are sorted by modify index'
+        );
+        assert.dom('[data-test-pager="next"]').isDisabled();
+
+        // Create a new job
+        server.create('job', {
+          namespaceId: 'default',
+          resourceSpec: Array(1).fill('M: 256, C: 500'),
+          groupAllocCount: 1,
+          modifyIndex: 11,
+          createAllocations: false,
+          shallow: true,
+          name: 'new-job',
+        });
+
+        const controller = this.owner.lookup('controller:jobs.index');
+
+        let currentParams = {
+          per_page: 10,
+        };
+
+        // We have to wait for watchJobIDs to trigger the "dueling query" with watchJobs.
+        // Since we can't await the watchJobs promise, we set a reasonably short timeout
+        // to check the state of the list after the dueling query has completed.
+        await controller.watchJobIDs.perform(currentParams, 0);
+
+        let updatedJob = assert.async(); // watch for this to say "My tests oughta be passing by now"
+        const duelingQueryUpdateTime = 200;
+
+        assert.timeout(500);
+
+        setTimeout(async () => {
+          // Order should now be 11-2
+          rows = document.querySelectorAll('.job-row');
+          modifyIndexes = Array.from(rows).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index'))
+          );
+          assert.deepEqual(
+            modifyIndexes,
+            Array(10)
+              .fill()
+              .map((_, i) => i + 2)
+              .reverse(),
+            'Jobs are sorted by modify index'
+          );
+
+          // Simulate one of the on-page jobs getting its modify-index bumped. It should bump to the top of the list.
+          let existingJobToUpdate = server.db.jobs.findBy(
+            (job) => job.modifyIndex === 5
+          );
+          server.db.jobs.update(existingJobToUpdate.id, { modifyIndex: 12 });
+          await controller.watchJobIDs.perform(currentParams, 0);
+          let updatedOnPageJob = assert.async();
+
+          setTimeout(async () => {
+            rows = document.querySelectorAll('.job-row');
+            modifyIndexes = Array.from(rows).map((row) =>
+              parseInt(row.getAttribute('data-test-modify-index'))
+            );
+            assert.deepEqual(
+              modifyIndexes,
+              [12, 11, 10, 9, 8, 7, 6, 4, 3, 2],
+              'Jobs are sorted by modify index, on-page job moves up to the top, and off-page pending'
+            );
+            updatedOnPageJob();
+
+            assert.dom('[data-test-pager="next"]').isNotDisabled();
+
+            await click('[data-test-pager="next"]');
+
+            rows = document.querySelectorAll('.job-row');
+            assert.equal(rows.length, 1, 'List is now 1 row');
+            assert.equal(
+              rows[0].getAttribute('data-test-modify-index'),
+              '1',
+              'Job is the first job, now pushed to the second page'
+            );
+          }, duelingQueryUpdateTime);
+          updatedJob();
+        }, duelingQueryUpdateTime);
+
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('When you have live updates disabled, the list does not update, but prompts you to refresh', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        localStorage.setItem('nomadLiveUpdateJobsIndex', 'false');
+        createJobs(server, 10);
+        await JobsList.visit();
+        assert.dom('[data-test-updates-pending-button]').doesNotExist();
+
+        let rows = document.querySelectorAll('.job-row');
+        assert.equal(rows.length, 10, 'List is still 10 rows');
+        let modifyIndexes = Array.from(rows).map((row) =>
+          parseInt(row.getAttribute('data-test-modify-index'))
+        );
+        assert.deepEqual(
+          modifyIndexes,
+          Array(10)
+            .fill()
+            .map((_, i) => i + 1)
+            .reverse(),
+          'Jobs are sorted by modify index'
+        );
+
+        // Create a new job
+        server.create('job', {
+          namespaceId: 'default',
+          resourceSpec: Array(1).fill('M: 256, C: 500'),
+          groupAllocCount: 1,
+          modifyIndex: 11,
+          createAllocations: false,
+          shallow: true,
+          name: 'new-job',
+        });
+
+        const controller = this.owner.lookup('controller:jobs.index');
+
+        let currentParams = {
+          per_page: 10,
+        };
+
+        // We have to wait for watchJobIDs to trigger the "dueling query" with watchJobs.
+        // Since we can't await the watchJobs promise, we set a reasonably short timeout
+        // to check the state of the list after the dueling query has completed.
+        await controller.watchJobIDs.perform(currentParams, 0);
+
+        let updatedUnshownJob = assert.async(); // watch for this to say "My tests oughta be passing by now"
+        const duelingQueryUpdateTime = 200;
+
+        assert.timeout(500);
+
+        setTimeout(async () => {
+          // Order should still be be 10-1
+          rows = document.querySelectorAll('.job-row');
+          modifyIndexes = Array.from(rows).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index'))
+          );
+          assert.deepEqual(
+            modifyIndexes,
+            Array(10)
+              .fill()
+              .map((_, i) => i + 1)
+              .reverse(),
+            'Jobs are sorted by modify index, off-page job not showing up yet'
+          );
+          assert
+            .dom('[data-test-updates-pending-button]')
+            .exists('The refresh button is present');
+          assert
+            .dom('[data-test-pager="next"]')
+            .isNotDisabled(
+              'Next button is enabled in spite of the new job not showing up yet'
+            );
+
+          // Simulate one of the on-page jobs getting its modify-index bumped. It should remain in place.
+          let existingJobToUpdate = server.db.jobs.findBy(
+            (job) => job.modifyIndex === 5
+          );
+          server.db.jobs.update(existingJobToUpdate.id, { modifyIndex: 12 });
+          await controller.watchJobIDs.perform(currentParams, 0);
+          let updatedShownJob = assert.async();
+
+          setTimeout(async () => {
+            rows = document.querySelectorAll('.job-row');
+            modifyIndexes = Array.from(rows).map((row) =>
+              parseInt(row.getAttribute('data-test-modify-index'))
+            );
+            assert.deepEqual(
+              modifyIndexes,
+              [10, 9, 8, 7, 6, 12, 4, 3, 2, 1],
+              'Jobs are sorted by modify index, on-page job remains in-place, and off-page pending'
+            );
+            assert
+              .dom('[data-test-updates-pending-button]')
+              .exists('The refresh button is still present');
+            assert
+              .dom('[data-test-pager="next"]')
+              .isNotDisabled('Next button is still enabled');
+
+            // Click the refresh button
+            await click('[data-test-updates-pending-button]');
+            rows = document.querySelectorAll('.job-row');
+            modifyIndexes = Array.from(rows).map((row) =>
+              parseInt(row.getAttribute('data-test-modify-index'))
+            );
+            assert.deepEqual(
+              modifyIndexes,
+              [12, 11, 10, 9, 8, 7, 6, 4, 3, 2],
+              'Jobs are sorted by modify index, after refresh'
+            );
+            assert
+              .dom('[data-test-updates-pending-button]')
+              .doesNotExist('The refresh button is gone');
+            updatedShownJob();
+          }, duelingQueryUpdateTime);
+          updatedUnshownJob();
+        }, duelingQueryUpdateTime);
+
+        localStorage.removeItem('nomadPageSize');
+        localStorage.removeItem('nomadLiveUpdateJobsIndex');
+      });
+    });
+  });
 });
+
+/**
+ *
+ * @param {*} server
+ * @param {number} jobsToCreate
+ */
+function createJobs(server, jobsToCreate) {
+  for (let i = 0; i < jobsToCreate; i++) {
+    server.create('job', {
+      namespaceId: 'default',
+      resourceSpec: Array(1).fill('M: 256, C: 500'),
+      groupAllocCount: 1,
+      modifyIndex: i + 1,
+      createAllocations: false,
+      shallow: true,
+    });
+  }
+}

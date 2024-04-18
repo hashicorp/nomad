@@ -48,9 +48,6 @@ export default create({
     clickName: clickable('[data-test-job-name] a'),
   }),
 
-  nextPage: clickable('[data-test-pager="next"]'),
-  prevPage: clickable('[data-test-pager="prev"]'),
-
   isEmpty: isPresent('[data-test-empty-jobs-list]'),
   emptyState: {
     headline: text('[data-test-empty-jobs-list-headline]'),

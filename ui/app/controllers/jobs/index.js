@@ -33,7 +33,6 @@ export default class JobsIndexController extends Controller {
     super(...arguments);
     this.pageSize = this.userSettings.pageSize;
   }
-  reverse = false;
 
   queryParams = [
     'cursorAt',
@@ -146,21 +145,28 @@ export default class JobsIndexController extends Controller {
       // overwrite this controller's jobIDs, leverage its index, and
       // restart a blocking watchJobIDs here.
       let prevPageToken = await this.loadPreviousPageToken();
-      if (prevPageToken.length > 1) {
-        // if there's only one result, it'd be the job you passed into it as your nextToken (and the first shown on your current page)
-        const [id, namespace] = JSON.parse(prevPageToken.lastObject.id);
-        // If there's no nextToken, we're at the "start" of our list and can drop the cursorAt
-        if (!prevPageToken.meta.nextToken) {
-          this.cursorAt = null;
-        } else {
-          this.cursorAt = `${namespace}.${id}`;
-        }
+      // If there's no nextToken, we're at the "start" of our list and can drop the cursorAt
+      if (!prevPageToken.meta.nextToken) {
+        this.cursorAt = undefined;
+      } else {
+        // cursorAt should be the highest modifyIndex from the previous query.
+        // This will immediately fire the route model hook with the new cursorAt
+        this.cursorAt = prevPageToken
+          .sortBy('modifyIndex')
+          .get('lastObject').modifyIndex;
       }
     } else if (page === 'next') {
       if (!this.nextToken) {
         return;
       }
       this.cursorAt = this.nextToken;
+    } else if (page === 'first') {
+      this.cursorAt = undefined;
+    } else if (page === 'last') {
+      let prevPageToken = await this.loadPreviousPageToken({ last: true });
+      this.cursorAt = prevPageToken
+        .sortBy('modifyIndex')
+        .get('lastObject').modifyIndex;
     }
   }
 
@@ -235,13 +241,19 @@ export default class JobsIndexController extends Controller {
       });
   }
 
-  async loadPreviousPageToken() {
+  // Ask for the previous #page_size jobs, starting at the first job that's currently shown
+  // on our page, and the last one in our list should be the one we use for our
+  // subsequent nextToken.
+  async loadPreviousPageToken({ last = false } = {}) {
+    let next_token = +this.cursorAt + 1;
+    if (last) {
+      next_token = undefined;
+    }
     let prevPageToken = await this.store.query(
       'job',
       {
-        prev_page_query: true, // TODO: debugging only!
-        next_token: this.cursorAt,
-        per_page: this.pageSize + 1,
+        next_token,
+        per_page: this.pageSize,
         reverse: true,
       },
       {
