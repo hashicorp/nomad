@@ -1190,6 +1190,38 @@ module('Acceptance | jobs list', function (hooks) {
       });
     });
   });
+
+  module('Searching and Filtering', function () {
+    module('Search', function () {
+      test('Searching reasons about whether you intended a job name or a filter expression', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 10);
+        await JobsList.visit();
+
+        await JobsList.search.fillIn('something-that-surely-doesnt-exist');
+        // check to see that we fired off a request; check handledRequests to find one with a ?filter in it
+        assert.ok(
+          server.pretender.handledRequests.find((req) =>
+            req.url.includes(
+              '?filter=Name%20contains%20something-that-surely-doesnt-exist'
+            )
+          ),
+          'A request was made with a filter query param that assumed job name'
+        );
+
+        await JobsList.search.fillIn('Namespace == ns-2');
+
+        assert.ok(
+          server.pretender.handledRequests.find((req) =>
+            req.url.includes('?filter=Namespace%20==%20ns-2')
+          ),
+          'A request was made with a filter query param for a filter expression as typed'
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+    });
+  });
 });
 
 /**

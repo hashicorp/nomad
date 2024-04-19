@@ -1,8 +1,14 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { fillIn, find, triggerEvent } from '@ember/test-helpers';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const DEBOUNCE_MS = 500;
 
@@ -19,6 +25,8 @@ module('Integration | Component | job-search-box', function (hooks) {
     });
 
     await render(hbs`<JobSearchBox @onFilterChange={{this.externalAction}} />`);
+    await componentA11yAudit(this.element, assert);
+
     const element = find('input');
     await fillIn('input', 'test1');
     assert.equal(message, 'test1', 'Initial typing');
