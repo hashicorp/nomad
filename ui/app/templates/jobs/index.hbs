@@ -319,7 +319,7 @@
                 <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
               {{/unless}}
             </B.Td>
-            <B.Td data-test-job-type>
+            <B.Td data-test-job-type={{B.data.type}}>
               {{B.data.type}}
             </B.Td>
             {{#if this.system.shouldShowNodepools}}

@@ -1202,8 +1202,8 @@ module('Acceptance | jobs list', function (hooks) {
         // check to see that we fired off a request; check handledRequests to find one with a ?filter in it
         assert.ok(
           server.pretender.handledRequests.find((req) =>
-            req.url.includes(
-              '?filter=Name%20contains%20something-that-surely-doesnt-exist'
+            decodeURIComponent(req.url).includes(
+              '?filter=Name contains something-that-surely-doesnt-exist'
             )
           ),
           'A request was made with a filter query param that assumed job name'
@@ -1213,10 +1213,263 @@ module('Acceptance | jobs list', function (hooks) {
 
         assert.ok(
           server.pretender.handledRequests.find((req) =>
-            req.url.includes('?filter=Namespace%20==%20ns-2')
+            decodeURIComponent(req.url).includes('?filter=Namespace == ns-2')
           ),
           'A request was made with a filter query param for a filter expression as typed'
         );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Searching by name filters the list', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 10);
+        server.create('job', {
+          name: 'hashi-one',
+          id: 'hashi-one',
+          modifyIndex: 0,
+        });
+        server.create('job', {
+          name: 'hashi-two',
+          id: 'hashi-two',
+          modifyIndex: 0,
+        });
+        await JobsList.visit();
+
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initially, 10 jobs are listed without any filters.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-one"]')
+          .doesNotExist(
+            'The specific job hashi-one should not appear without filtering.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-two"]')
+          .doesNotExist(
+            'The specific job hashi-two should also not appear without filtering.'
+          );
+
+        await JobsList.search.fillIn('hashi-one');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be visible when filtering by the name "hashi-one".'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-one"]')
+          .exists(
+            'The job hashi-one appears as expected when filtered by name.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-two"]')
+          .doesNotExist(
+            'The job hashi-two should not appear when filtering by "hashi-one".'
+          );
+
+        await JobsList.search.fillIn('hashi');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 2 },
+            'Two jobs should appear when the filter "hashi" matches both job names.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-one"]')
+          .exists(
+            'Job hashi-one is correctly displayed under the "hashi" filter.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-two"]')
+          .exists(
+            'Job hashi-two is correctly displayed under the "hashi" filter.'
+          );
+
+        await JobsList.search.fillIn('Name == hashi');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 0 },
+            'No jobs should appear when an incorrect filter format "Name == hashi" is used.'
+          );
+
+        await JobsList.search.fillIn('');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'All jobs reappear when the search filter is cleared.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-one"]')
+          .doesNotExist(
+            'The job hashi-one should disappear again when the filter is cleared.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-two"]')
+          .doesNotExist(
+            'The job hashi-two should disappear again when the filter is cleared.'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Searching by type filters the list', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        server.createList('job', 10, {
+          createAllocations: false,
+          type: 'service',
+          modifyIndex: 10,
+        });
+
+        server.create('job', {
+          id: 'batch-job',
+          type: 'batch',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+        server.create('job', {
+          id: 'system-job',
+          type: 'system',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+        server.create('job', {
+          id: 'sysbatch-job',
+          type: 'sysbatch',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+        server.create('job', {
+          id: 'sysbatch-job-2',
+          type: 'sysbatch',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+
+        await JobsList.visit();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initial setup should show 10 jobs of type "service".'
+          );
+        assert
+          .dom('[data-test-job-type="service"]')
+          .exists(
+            { count: 10 },
+            'All initial jobs are confirmed to be of type "service".'
+          );
+
+        await JobsList.search.fillIn('Type == batch');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Filtering by "Type == batch" should show exactly one job.'
+          );
+        assert
+          .dom('[data-test-job-type="batch"]')
+          .exists(
+            { count: 1 },
+            'The single job of type "batch" is displayed as expected.'
+          );
+
+        await JobsList.search.fillIn('Type == system');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be displayed when filtering by "Type == system".'
+          );
+        assert
+          .dom('[data-test-job-type="system"]')
+          .exists(
+            { count: 1 },
+            'The job of type "system" appears as expected.'
+          );
+
+        await JobsList.search.fillIn('Type == sysbatch');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 2 },
+            'Two jobs should be visible under the filter "Type == sysbatch".'
+          );
+        assert
+          .dom('[data-test-job-type="sysbatch"]')
+          .exists(
+            { count: 2 },
+            'Both jobs of type "sysbatch" are correctly displayed.'
+          );
+
+        await JobsList.search.fillIn('Type contains sys');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 3 },
+            'Filter "Type contains sys" should show three jobs.'
+          );
+        assert
+          .dom('[data-test-job-type="sysbatch"]')
+          .exists(
+            { count: 2 },
+            'Two jobs of type "sysbatch" match the "sys" substring.'
+          );
+        assert
+          .dom('[data-test-job-type="system"]')
+          .exists(
+            { count: 1 },
+            'One job of type "system" matches the "sys" substring.'
+          );
+
+        await JobsList.search.fillIn('Type != service');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 4 },
+            'Four jobs should be visible when excluding type "service".'
+          );
+        assert
+          .dom('[data-test-job-type="batch"]')
+          .exists({ count: 1 }, 'One batch job is visible.');
+        assert
+          .dom('[data-test-job-type="system"]')
+          .exists({ count: 1 }, 'One system job is visible.');
+        assert
+          .dom('[data-test-job-type="sysbatch"]')
+          .exists({ count: 2 }, 'Two sysbatch jobs are visible.');
+
+        // Next/Last buttons are disabled when searching for the 10 services bc there's just 10
+        await JobsList.search.fillIn('Type == service');
+        assert.dom('.job-row').exists({ count: 10 });
+        assert.dom('[data-test-job-type="service"]').exists({ count: 10 });
+        assert
+          .dom('[data-test-pager="next"]')
+          .isDisabled(
+            'The next page button should be disabled when all jobs fit on one page.'
+          );
+        assert
+          .dom('[data-test-pager="last"]')
+          .isDisabled(
+            'The last page button should also be disabled under the same conditions.'
+          );
+
+        // But if we disinclude sysbatch we'll have 12, so next/last should be clickable
+        await JobsList.search.fillIn('Type != sysbatch');
+        assert.dom('.job-row').exists({ count: 10 });
+        assert
+          .dom('[data-test-pager="next"]')
+          .isNotDisabled(
+            'The next page button should be enabled when not all jobs are shown on one page.'
+          );
+        assert
+          .dom('[data-test-pager="last"]')
+          .isNotDisabled('The last page button should be enabled as well.');
 
         localStorage.removeItem('nomadPageSize');
       });
