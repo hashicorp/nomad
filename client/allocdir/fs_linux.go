@@ -42,6 +42,9 @@ func mountDir(old, next string, uid, gid int, mode os.FileMode) error {
 	if err := unix.Mount(old, next, "", uintptr(opts), ""); err != nil {
 		return err
 	}
+	if err := os.Chmod(next, mode); err != nil {
+		return err
+	}
 	return os.Chown(next, uid, gid)
 }
 

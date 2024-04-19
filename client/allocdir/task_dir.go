@@ -41,6 +41,12 @@ type TaskDir struct {
 	// <client.mounts_dir>/<allocid-task>/task -> <task_dir>
 	MountsTaskDir string
 
+	// MountsSecretsDir is the path to the secrets directory on the host that
+	// has been bind mounted under <client.mounts_dir>
+	//
+	// <client.mounts_dir>/<allocid-task>/task/secrets -> <secrets_dir>
+	MountsSecretsDir string
+
 	// SharedAllocDir is the path to shared alloc directory on the host
 	//
 	// <alloc_dir>/alloc/
@@ -89,18 +95,19 @@ func (d *AllocDir) newTaskDir(taskName string) *TaskDir {
 	taskUnique := filepath.Base(d.AllocDir) + "-" + taskName
 
 	return &TaskDir{
-		AllocDir:       d.AllocDir,
-		Dir:            taskDir,
-		SharedAllocDir: filepath.Join(d.AllocDir, SharedAllocName),
-		LogDir:         filepath.Join(d.AllocDir, SharedAllocName, LogDirName),
-		SharedTaskDir:  filepath.Join(taskDir, SharedAllocName),
-		LocalDir:       filepath.Join(taskDir, TaskLocal),
-		SecretsDir:     filepath.Join(taskDir, TaskSecrets),
-		PrivateDir:     filepath.Join(taskDir, TaskPrivate),
-		MountsTaskDir:  filepath.Join(d.clientAllocMountsDir, taskUnique, "task"),
-		MountsAllocDir: filepath.Join(d.clientAllocMountsDir, taskUnique, "alloc"),
-		skip:           set.From[string]([]string{d.clientAllocDir, d.clientAllocMountsDir}),
-		logger:         d.logger.Named("task_dir").With("task_name", taskName),
+		AllocDir:         d.AllocDir,
+		Dir:              taskDir,
+		SharedAllocDir:   filepath.Join(d.AllocDir, SharedAllocName),
+		LogDir:           filepath.Join(d.AllocDir, SharedAllocName, LogDirName),
+		SharedTaskDir:    filepath.Join(taskDir, SharedAllocName),
+		LocalDir:         filepath.Join(taskDir, TaskLocal),
+		SecretsDir:       filepath.Join(taskDir, TaskSecrets),
+		PrivateDir:       filepath.Join(taskDir, TaskPrivate),
+		MountsAllocDir:   filepath.Join(d.clientAllocMountsDir, taskUnique, "alloc"),
+		MountsTaskDir:    filepath.Join(d.clientAllocMountsDir, taskUnique),
+		MountsSecretsDir: filepath.Join(d.clientAllocMountsDir, taskUnique, "secrets"),
+		skip:             set.From[string]([]string{d.clientAllocDir, d.clientAllocMountsDir}),
+		logger:           d.logger.Named("task_dir").With("task_name", taskName),
 	}
 }
 
@@ -172,9 +179,10 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 			return fmt.Errorf("Failed to chown task mount directory: %v", err)
 		}
 
-		// create the task and alloc mount points
-		mountDir(t.AllocDir, t.MountsAllocDir, uid, gid, fileMode710)
+		// create the task, alloc, and secrets mount points
 		mountDir(t.Dir, t.MountsTaskDir, uid, gid, fileMode710)
+		mountDir(filepath.Join(t.AllocDir, "/alloc"), t.MountsAllocDir, uid, gid, fileMode710)
+		mountDir(t.SecretsDir, t.MountsSecretsDir, uid, gid, fileMode710)
 	}
 
 	return nil
@@ -299,6 +307,33 @@ func (t *TaskDir) Unmount() error {
 		}
 	}
 
+	// unmount the alloc mounts alloc dir which is mounted inside the alloc mounts task dir
+	if pathExists(t.MountsAllocDir) {
+		if err := unlinkDir(t.MountsAllocDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the alloc mounts dir %q: %w", t.MountsAllocDir, err),
+			)
+		}
+	}
+
+	// unmount the alloc mounts task secrets dir which is mounted inside the alloc mounts task dir
+	if pathExists(t.MountsSecretsDir) {
+		if err := unlinkDir(t.MountsSecretsDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the alloc mounts secrets dir %q: %w", t.MountsSecretsDir, err),
+			)
+		}
+	}
+
+	// unmount the alloc mounts task dir which is a mount of the alloc dir
+	if pathExists(t.MountsTaskDir) {
+		if err := unlinkDir(t.MountsTaskDir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the alloc mounts task dir %q: %w", t.MountsTaskDir, err),
+			)
+		}
+	}
+
 	if pathExists(t.SecretsDir) {
 		if err := removeSecretDir(t.SecretsDir); err != nil {
 			mErr = multierror.Append(mErr,
@@ -310,22 +345,6 @@ func (t *TaskDir) Unmount() error {
 		if err := removeSecretDir(t.PrivateDir); err != nil {
 			mErr = multierror.Append(mErr,
 				fmt.Errorf("failed to remove the private dir %q: %w", t.PrivateDir, err))
-		}
-	}
-
-	if pathExists(t.MountsAllocDir) {
-		if err := unlinkDir(t.MountsAllocDir); err != nil {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("failed to remove the alloc mounts dir %q: %w", t.MountsAllocDir, err),
-			)
-		}
-	}
-
-	if pathExists(t.MountsTaskDir) {
-		if err := unlinkDir(t.MountsTaskDir); err != nil {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("failed to remove the alloc mounts task dir %q: %w", t.MountsTaskDir, err),
-			)
 		}
 	}
 
