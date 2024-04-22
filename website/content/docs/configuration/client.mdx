@@ -195,6 +195,9 @@ client {
   subsystems managed by Nomad will be mounted under. Currently this only applies to the
   `cpuset` subsystems. This field is ignored on non Linux platforms.
 
+- `users` <code>([Users](#users-block): nil)</code> - Specifies options
+  concerning Nomad client's use of operating system users.
+
 ### `chroot_env` Parameters
 
 Drivers based on [isolated fork/exec](/nomad/docs/drivers/exec) implement file
@@ -682,6 +685,27 @@ client {
 - `ignore_system_jobs` `(bool: false)` - Setting to `true` allows the drain to
   complete without stopping system job allocations. By default system jobs (and
   CSI plugins) are stopped last.
+
+### `users` Block
+
+The `users` block controls aspects of Nomad client's use of operating system
+users.
+
+```hcl
+client {
+  users {
+    dynamic_user_min = 80000
+    dynamic_user_max = 89999
+  }
+}
+```
+
+- `dynamic_user_min` `(int: 80000)` - The lowest UID/GID to allocate for task
+  drivers capable of making use of dynamic workload users.
+
+- `dynamic_user_max` `(int: 89999)` - The highest UID/GID to allocate for task
+  drivers capable of making use of dynamic workload users.
+
 
 ## `client` Examples
 
