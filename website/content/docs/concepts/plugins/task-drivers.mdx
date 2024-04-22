@@ -54,7 +54,7 @@ type Capabilities struct {
     Exec bool
 
     //FSIsolation indicates what kind of filesystem isolation the driver supports.
-    FSIsolation FSIsolation
+    FSIsolation fsisolation.Mode
 
     //NetIsolationModes lists the set of isolation modes supported by the driver
     NetIsolationModes []NetIsolationMode
@@ -80,10 +80,12 @@ type Capabilities struct {
 
 The file system isolation options are:
 
-- `FSIsolationImage`: The task driver isolates tasks as machine images.
-- `FSIsolationChroot`: The task driver isolates tasks with `chroot` or
+- `fsisolation.Image`: The task driver isolates tasks as machine images.
+- `fsisolation.Chroot`: The task driver isolates tasks with `chroot` or
   `pivot_root`.
-- `FSIsolationNone`: The task driver has no filesystem isolation.
+- `fsisolation.Unveil`: The task driver isolates tasks with the
+  [Landlock LSM][landlock] or other [`unveil`][unveil] like system.
+- `fsisolation.None`: The task driver has no filesystem isolation.
 
 The network isolation modes are:
 
@@ -258,3 +260,6 @@ inside the running container. `ExecTask` is called for Consul script checks.
 [taskhandle]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskHandle
 [fifopackage]: https://godoc.org/github.com/hashicorp/nomad/client/lib/fifo
 [rtd]: /nomad/plugins/drivers/remote
+[landlock]: https://docs.kernel.org/userspace-api/landlock.html
+[unveil]: https://man.openbsd.org/unveil
+
