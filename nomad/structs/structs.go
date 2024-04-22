@@ -7700,6 +7700,9 @@ type Task struct {
 
 	// Alloc-exec-like runnable commands
 	Actions []*Action
+
+	// Schedule for pausing tasks. Enterprise only.
+	Schedule *TaskSchedule
 }
 
 func (t *Task) UsesCores() bool {

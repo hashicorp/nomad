@@ -88,6 +88,7 @@ func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 			&jobValidate{srv: s},
 			&memoryOversubscriptionValidate{srv: s},
 			jobNumaHook{},
+			jobSchedHook{},
 		},
 	}
 }
