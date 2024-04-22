@@ -2114,11 +2114,6 @@ func (s *HTTPServer) JobsStatusesRequest(resp http.ResponseWriter, req *http.Req
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil // seems whack
 	}
-	if smartOnly, err := parseBool(req, "smart_only"); err != nil {
-		return nil, err
-	} else if smartOnly != nil {
-		args.SmartOnly = *smartOnly
-	}
 	switch req.Method {
 	case http.MethodGet:
 		// GET requests will be treated as "get all jobs" but also with filtering and pagination and such

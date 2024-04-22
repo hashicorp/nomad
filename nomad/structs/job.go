@@ -24,7 +24,6 @@ type UIJob struct {
 	Datacenters        []string
 	Priority           int
 	Allocs             []JobStatusAlloc
-	SmartAlloc         map[string]int
 	GroupCountSum      int
 	ChildStatuses      []string
 	ActiveDeploymentID string
@@ -35,8 +34,7 @@ type UIJob struct {
 }
 
 type JobsStatusesRequest struct {
-	Jobs      []NamespacedID
-	SmartOnly bool
+	Jobs []NamespacedID
 	QueryOptions
 }
 
