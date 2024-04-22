@@ -157,7 +157,7 @@ func (j *Jobs) Statuses(
 					job := raw.(*structs.Job)
 
 					// this is where the sausage is made
-					uiJob, highestIndexOnPage, err := UIJobFromJob(ws, state, job, args.SmartOnly)
+					uiJob, highestIndexOnPage, err := UIJobFromJob(ws, state, job)
 					if err != nil {
 						return err
 					}
@@ -203,7 +203,7 @@ func (j *Jobs) Statuses(
 	return j.srv.blockingRPC(&opts)
 }
 
-func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, smartOnly bool) (structs.UIJob, uint64, error) {
+func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) (structs.UIJob, uint64, error) {
 	idx := job.ModifyIndex
 
 	uiJob := structs.UIJob{
@@ -219,7 +219,6 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 		Version:     job.Version,
 		// included here for completeness, populated below.
 		Allocs:             nil,
-		SmartAlloc:         make(map[string]int),
 		GroupCountSum:      0,
 		ChildStatuses:      nil,
 		ActiveDeploymentID: "",
@@ -265,21 +264,6 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 		return uiJob, idx, err
 	}
 	for _, a := range allocs {
-		if a.ModifyIndex > idx {
-			idx = a.ModifyIndex
-		}
-
-		uiJob.SmartAlloc["total"]++
-		uiJob.SmartAlloc[a.ClientStatus]++
-		if a.DeploymentStatus != nil && a.DeploymentStatus.Canary {
-			uiJob.SmartAlloc["canary"]++
-		}
-		// callers may wish to keep response body size smaller by excluding
-		// details about allocations.
-		if smartOnly {
-			continue
-		}
-
 		alloc := structs.JobStatusAlloc{
 			ID:           a.ID,
 			Group:        a.TaskGroup,
@@ -292,6 +276,10 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job, 
 			alloc.DeploymentStatus.Healthy = a.DeploymentStatus.IsHealthy()
 		}
 		uiJob.Allocs = append(uiJob.Allocs, alloc)
+
+		if a.ModifyIndex > idx {
+			idx = a.ModifyIndex
+		}
 	}
 
 	// look for latest deployment
