@@ -32,6 +32,7 @@ export default class JobsIndexController extends Controller {
   constructor() {
     super(...arguments);
     this.pageSize = this.userSettings.pageSize;
+    this.addDynamicQueryParams();
   }
 
   queryParams = [
@@ -41,7 +42,13 @@ export default class JobsIndexController extends Controller {
     { qpNamespace: 'namespace' },
     // 'type',
     // 'searchTerm',
-    'filter',
+    // 'filter',
+    'searchText',
+    // 'status',
+    'type',
+    'status_pending',
+    'status_running',
+    'status_dead',
   ];
 
   isForbidden = false;
@@ -124,7 +131,6 @@ export default class JobsIndexController extends Controller {
   // #region pagination
   @tracked cursorAt;
   @tracked nextToken; // route sets this when new data is fetched
-  @tracked filter;
 
   /**
    *
@@ -336,6 +342,9 @@ export default class JobsIndexController extends Controller {
           }
         }
         this.jobs = jobDetails;
+      } else {
+        // No jobs have returned, so clear the list
+        this.jobs = [];
       }
       yield timeout(throttle);
       if (Ember.testing) {
@@ -347,6 +356,72 @@ export default class JobsIndexController extends Controller {
 
   //#region filtering and searching
 
+  addDynamicQueryParams() {
+    this.optionsStatus.forEach((filter) => {
+      this.queryParams.push({ [filter.qp]: filter.qp });
+      this.set(filter.qp, false);
+    });
+    // this.clientFilterToggles.state.forEach((filter) => {
+    //   this.queryParams.push({ [filter.qp]: filter.qp });
+    //   this.set(filter.qp, filter.default);
+    // });
+    // this.clientFilterToggles.eligibility.forEach((filter) => {
+    //   this.queryParams.push({ [filter.qp]: filter.qp });
+    //   this.set(filter.qp, filter.default);
+    // });
+    // this.clientFilterToggles.drainStatus.forEach((filter) => {
+    //   this.queryParams.push({ [filter.qp]: filter.qp });
+    //   this.set(filter.qp, filter.default);
+    // });
+  }
+
+  @tracked searchText = '';
+  // @tracked status = null;
+  @tracked type = null;
+
+  get optionsStatus() {
+    return [
+      { key: 'pending', label: 'Pending', qp: 'status_pending' },
+      { key: 'running', label: 'Running', qp: 'status_running' },
+      { key: 'dead', label: 'Dead', qp: 'status_dead' },
+    ];
+  }
+
+  // get status() {
+  //   console.log('getting status i guess for QP?', this.optionsStatus.filter((s) => s.filtered).map((s) => s.key).join(","));
+  //   return this.optionsStatus.filter((s) => s.filtered).map((s) => `State is ${s.key}`).join(" or ");
+  // }
+
+  // @tracked filter = "";
+  get filter() {
+    console.log('filter recompute');
+    let parts = [];
+    if (this.searchText) {
+      parts.push(this.searchText);
+    }
+    // if (this.status) {
+    //   parts.push(this.status);
+    // }
+    this.optionsStatus.forEach((s) => {
+      if (this[s.qp]) {
+        console.log('yeah!', s.key);
+        parts.push(`Status == ${s.key}`);
+      }
+    });
+    if (this.type) {
+      parts.push(this.type);
+    }
+    console.log('so PARTS', parts);
+    return parts.join(' and ');
+  }
+
+  @action resetFilters() {
+    this.searchText = '';
+    // this.status = null;
+    // this.optionsStatus.forEach((s) => s.filtered = false);
+    this.type = null;
+  }
+
   /**
    * Updates the filter based on the input, distinguishing between simple job names and filter expressions.
    * A simple check for operators with surrounding spaces is used to identify filter expressions.
@@ -356,7 +431,7 @@ export default class JobsIndexController extends Controller {
   @action
   updateFilter(newFilter) {
     if (!newFilter) {
-      this.filter = '';
+      this.searchText = '';
       return;
     }
 
@@ -381,10 +456,10 @@ export default class JobsIndexController extends Controller {
     );
 
     if (isFilterExpression) {
-      this.filter = newFilter;
+      this.searchText = newFilter;
     } else {
       // If it's a string without a filter operator, assume the user is trying to look up a job name
-      this.filter = `Name contains ${newFilter}`;
+      this.searchText = `Name contains ${newFilter}`;
     }
   }
 

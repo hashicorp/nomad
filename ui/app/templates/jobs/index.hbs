@@ -247,9 +247,45 @@
             />
           </div>
 
+
+
+
+        <Hds::Dropdown data-test-state-facet as |dd|>
+          <dd.ToggleButton
+            @text="Status"
+            @color="secondary"
+            {{!-- @badge={{if (eq this.activeToggles.length this.allToggles.length) false this.activeToggles.length}} --}}
+          />
+          <dd.Title @text="Status" />
+          {{#each this.optionsStatus as |option|}}
+            <dd.Checkbox
+              {{on "change" (toggle option.qp this)}}
+              @value={{option.key}}
+              checked={{get this option.qp}}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{capitalize option.label}}
+            </dd.Checkbox>
+          {{/each}}
+        </Hds::Dropdown>
+
+
+
+
+
+          {{!-- <div data-test-jobs-status>
+            <Hds::Dropdown
+              @label="Status"
+              @options={{this.optionsStatus}}
+              @selection={{this.status}}
+              @onSelect={{action this.setFacetQueryParam "qpType"}}
+            />
+          </div> --}}
+
           <div data-test-jobs-search>
             <JobSearchBox
-              @filter={{this.filter}}
+              {{!-- @filter={{this.filter}} --}}
+              @filter={{this.searchText}}
               @onFilterChange={{this.updateFilter}}
             />
           </div>
@@ -430,17 +466,35 @@
       </section>
     {{else}}
       <Hds::ApplicationState data-test-empty-jobs-list as |A|>
-        {{!-- TODO: differentiate between "empty because there's nothing" and "empty because you have filtered/searched" --}}
-        <A.Header data-test-empty-jobs-list-headline @title="No Jobs" />
-        <A.Body
-          @text="No jobs match your current filter selection."
-        />
+        {{#if this.filter}}
+          <A.Header data-test-empty-jobs-list-headline @title="No Jobs Match Filter" />
+          <A.Body
+            @text="No jobs match your current filter selection."
+          />
         <A.Footer @hasDivider={{true}}>
+          <Hds::Button
+            @text="Reset Filters"
+            @color="tertiary"
+            @icon="arrow-left"
+            @size="small"
+            {{on "click" (action this.resetFilters)}}
+          />
+
           {{!-- TODO: HDS4.0, convert to F.LinkStandalone --}}
-          <Hds::Link::Standalone @icon="arrow-left" @text="Reset Filters" @route="jobs.index" />
           <Hds::Link::Standalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
             @iconPosition="trailing" />
         </A.Footer>
+        {{else}}
+          <A.Header data-test-empty-jobs-list-headline @title="No Jobs" />
+          <A.Body
+            @text="No jobs found."
+          />
+          <A.Footer @hasDivider={{true}}>
+            {{!-- TODO: HDS4.0, convert to F.LinkStandalone --}}
+            <Hds::Link::Standalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
+              @iconPosition="trailing" />
+          </A.Footer>
+        {{/if}}
       </Hds::ApplicationState>
     {{/if}}
   <hr />

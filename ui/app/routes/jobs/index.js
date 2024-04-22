@@ -13,6 +13,7 @@ import { watchAll } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
+import codesForError from '../../utils/codes-for-error';
 import { action } from '@ember/object';
 import Ember from 'ember';
 
@@ -24,6 +25,7 @@ export default class IndexRoute extends Route.extend(
 ) {
   @service store;
   @service watchList;
+  @service notifications;
 
   // perPage = 10;
 
@@ -37,7 +39,25 @@ export default class IndexRoute extends Route.extend(
     pageSize: {
       refreshModel: true,
     },
-    filter: {
+    // filter: {
+    //   refreshModel: true,
+    // },
+    searchText: {
+      refreshModel: true,
+    },
+    status: {
+      refreshModel: true,
+    },
+    type: {
+      refreshModel: true,
+    },
+    status_dead: {
+      refreshModel: true,
+    },
+    status_running: {
+      refreshModel: true,
+    },
+    status_pending: {
       refreshModel: true,
     },
   };
@@ -48,8 +68,24 @@ export default class IndexRoute extends Route.extend(
     let queryParams = this.paramsFor(this.routeName); // Get current query params
     queryParams.next_token = queryParams.cursorAt;
     queryParams.per_page = queryParams.pageSize;
+
+    let filter = this.controllerFor('jobs.index').filter;
+    if (filter) {
+      queryParams.filter = filter;
+    }
+    console.log('filter, in model hook, is', filter);
     delete queryParams.pageSize;
     delete queryParams.cursorAt; // TODO: hacky, should be done in the serializer/adapter?
+
+    // Delete QPs that go into filter
+    delete queryParams.searchText;
+    delete queryParams.status;
+    delete queryParams.type;
+    // TODO: excessive
+    delete queryParams.status_dead;
+    delete queryParams.status_running;
+    delete queryParams.status_pending;
+    console.log('final queryParams in model hook is', queryParams);
     return { ...queryParams };
   }
 
@@ -58,19 +94,74 @@ export default class IndexRoute extends Route.extend(
     this.watchList.jobsIndexIDsController.abort();
     this.watchList.jobsIndexIDsController = new AbortController();
     console.log('model', currentParams);
-    let jobs = await this.store
-      .query('job', currentParams, {
+    try {
+      let jobs = await this.store.query('job', currentParams, {
         adapterOptions: {
           method: 'GET', // TODO: default
           abortController: this.watchList.jobsIndexIDsController,
         },
-      })
-      .catch(notifyForbidden(this));
-    return RSVP.hash({
-      jobs,
-      namespaces: this.store.findAll('namespace'),
-      nodePools: this.store.findAll('node-pool'),
+      });
+      return RSVP.hash({
+        jobs,
+        namespaces: this.store.findAll('namespace'),
+        nodePools: this.store.findAll('node-pool'),
+      });
+    } catch (error) {
+      console.log('error', error);
+      try {
+        notifyForbidden(this)(error);
+      } catch (secondaryError) {
+        console.log('Secondary Error caught', secondaryError);
+        return this.handleErrors(error);
+      }
+    }
+    return {};
+  }
+
+  /**
+   * @typedef {Object} HTTPError
+   * @property {string} stack
+   * @property {string} message
+   * @property {string} name
+   * @property {HTTPErrorDetail[]} errors
+   */
+
+  /**
+   * @typedef {Object} HTTPErrorDetail
+   * @property {string} status - HTTP status code
+   * @property {string} title
+   * @property {string} detail
+   */
+
+  /**
+   * Handles HTTP errors by returning an appropriate message based on the HTTP status code and details in the error object.
+   *
+   * @param {HTTPError} error
+   * @returns {Object}
+   */
+  handleErrors(error) {
+    console.log('handling error', error);
+    error.errors.forEach((err) => {
+      this.notifications.add({
+        title: err.title,
+        message: err.detail,
+        color: 'critical',
+      });
     });
+
+    return {
+      error,
+    };
+
+    // const errorCodes = codesForError(error);
+    // if (errorCodes.includes('500')) {
+    //   console.log('ye goofed lad', error, errorCodes);
+    // } else {
+    //   console.log('ye goofed lad but not that bad', error, errorCodes);
+    // }
+    // return {
+    //   error: error,
+    // }
   }
 
   setupController(controller, model) {
