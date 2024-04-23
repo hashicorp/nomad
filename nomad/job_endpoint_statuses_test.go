@@ -16,7 +16,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestJobs_Statuses_ACL(t *testing.T) {
+func TestJob_Statuses_ACL(t *testing.T) {
 	s, _, cleanup := TestACLServer(t, nil)
 	t.Cleanup(cleanup)
 	testutil.WaitForLeader(t, s.RPC)
@@ -34,12 +34,12 @@ func TestJobs_Statuses_ACL(t *testing.T) {
 		{"happy token", happyToken.SecretID, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			req := &structs.JobsStatusesRequest{}
+			req := &structs.JobStatusesRequest{}
 			req.QueryOptions.Region = "global"
 			req.QueryOptions.AuthToken = tc.token
 
-			var resp structs.JobsStatusesResponse
-			err := s.RPC("Jobs.Statuses", &req, &resp)
+			var resp structs.JobStatusesResponse
+			err := s.RPC("Job.Statuses", &req, &resp)
 
 			if tc.err != "" {
 				must.ErrorContains(t, err, tc.err)
@@ -50,7 +50,7 @@ func TestJobs_Statuses_ACL(t *testing.T) {
 	}
 }
 
-func TestJobs_Statuses(t *testing.T) {
+func TestJob_Statuses(t *testing.T) {
 	s, cleanup := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -58,11 +58,11 @@ func TestJobs_Statuses(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	// method under test
-	doRequest := func(t *testing.T, req *structs.JobsStatusesRequest) (resp structs.JobsStatusesResponse) {
+	doRequest := func(t *testing.T, req *structs.JobStatusesRequest) (resp structs.JobStatusesResponse) {
 		t.Helper()
 		must.NotNil(t, req, must.Sprint("request must not be nil"))
 		req.QueryOptions.Region = "global"
-		must.NoError(t, s.RPC("Jobs.Statuses", req, &resp))
+		must.NoError(t, s.RPC("Job.Statuses", req, &resp))
 		return resp
 	}
 
@@ -119,7 +119,7 @@ func TestJobs_Statuses(t *testing.T) {
 	jobs[4], _ = createJob(t, "job4")
 
 	// request all jobs
-	resp := doRequest(t, &structs.JobsStatusesRequest{})
+	resp := doRequest(t, &structs.JobStatusesRequest{})
 	must.Len(t, 5, resp.Jobs)
 
 	// make sure our state order assumption is correct
@@ -179,7 +179,7 @@ func TestJobs_Statuses(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			resp = doRequest(t, &structs.JobsStatusesRequest{
+			resp = doRequest(t, &structs.JobStatusesRequest{
 				QueryOptions: tc.qo,
 				Jobs:         tc.jobs,
 			})
@@ -202,10 +202,10 @@ func TestJobs_Statuses(t *testing.T) {
 	// job/alloc/deployment seen while iterating, i.e. those "on-page".
 
 	// blocking query helpers
-	startQuery := func(t *testing.T, req *structs.JobsStatusesRequest) context.Context {
+	startQuery := func(t *testing.T, req *structs.JobStatusesRequest) context.Context {
 		t.Helper()
 		if req == nil {
-			req = &structs.JobsStatusesRequest{}
+			req = &structs.JobStatusesRequest{}
 		}
 		// context to signal when the query unblocks
 		// mustBlock and mustUnblock below work by checking ctx.Done()
@@ -354,7 +354,7 @@ func TestJobs_Statuses(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			req := &structs.JobsStatusesRequest{}
+			req := &structs.JobStatusesRequest{}
 			if tc.watch != nil {
 				req.Jobs = []structs.NamespacedID{tc.watch.NamespacedID()}
 			}

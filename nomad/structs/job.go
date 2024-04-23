@@ -33,12 +33,12 @@ type UIJob struct {
 	ModifyIndex        uint64
 }
 
-type JobsStatusesRequest struct {
+type JobStatusesRequest struct {
 	Jobs []NamespacedID
 	QueryOptions
 }
 
-type JobsStatusesResponse struct {
+type JobStatusesResponse struct {
 	Jobs []UIJob
 	QueryMeta
 }
