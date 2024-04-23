@@ -1545,7 +1545,7 @@ func (j *Jobs) ActionExec(ctx context.Context,
 	return s.run(ctx)
 }
 
-type JobsStatusesRequest struct {
+type JobStatusesRequest struct {
 	Jobs []struct { // TODO: proper type
 		ID        string `json:"id"`
 		Namespace string `json:"namespace"`

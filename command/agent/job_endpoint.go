@@ -2109,8 +2109,8 @@ func validateEvalPriorityOpt(priority int) HTTPCodedError {
 	return nil
 }
 
-func (s *HTTPServer) JobsStatusesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	args := structs.JobsStatusesRequest{}
+func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	args := structs.JobStatusesRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil // seems whack
 	}
@@ -2119,7 +2119,7 @@ func (s *HTTPServer) JobsStatusesRequest(resp http.ResponseWriter, req *http.Req
 		// GET requests will be treated as "get all jobs" but also with filtering and pagination and such
 	case http.MethodPost:
 		// POST requests expect a list of Jobs in the request body, which will then be filtered/paginated, etc.
-		var in api.JobsStatusesRequest
+		var in api.JobStatusesRequest
 		if err := decodeBody(req, &in); err != nil {
 			return nil, err
 		}
@@ -2140,8 +2140,8 @@ func (s *HTTPServer) JobsStatusesRequest(resp http.ResponseWriter, req *http.Req
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	var out structs.JobsStatusesResponse
-	if err := s.agent.RPC("Jobs.Statuses", &args, &out); err != nil {
+	var out structs.JobStatusesResponse
+	if err := s.agent.RPC("Job.Statuses", &args, &out); err != nil {
 		return nil, err
 	}
 

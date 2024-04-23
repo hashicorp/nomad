@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/acl"
@@ -18,26 +17,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func NewJobsEndpoint(s *Server, ctx *RPCContext) *Jobs {
-	return &Jobs{
-		srv:    s,
-		ctx:    ctx,
-		logger: s.logger.Named("jobs"),
-	}
-}
-
-type Jobs struct {
-	srv    *Server
-	ctx    *RPCContext
-	logger hclog.Logger
-}
-
-func (j *Jobs) Statuses(
-	args *structs.JobsStatusesRequest,
-	reply *structs.JobsStatusesResponse) error {
+func (j *Job) Statuses(
+	args *structs.JobStatusesRequest,
+	reply *structs.JobStatusesResponse) error {
 
 	authErr := j.srv.Authenticate(j.ctx, args)
-	if done, err := j.srv.forward("Jobs.Statuses", args, args, reply); done {
+	if done, err := j.srv.forward("Job.Statuses", args, args, reply); done {
 		return err
 	}
 	j.srv.MeasureRPCRate("jobs", structs.RateMetricList, args)
