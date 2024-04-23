@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<Hds::Form::TextInput::Base
+<@S.TextInput
   @type="search"
   @value={{@searchText}}
   aria-label="Job Search"
@@ -16,5 +16,5 @@
     pattern=(array "Shift+F")
     action=(action this.focus)
   }}
-  data-test-job-search
+  data-test-jobs-search
 />

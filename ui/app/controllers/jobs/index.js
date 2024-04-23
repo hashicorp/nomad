@@ -7,7 +7,7 @@
 
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { action, computed } from '@ember/object';
+import { action, computed, set } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { restartableTask, timeout } from 'ember-concurrency';
@@ -355,125 +355,167 @@ export default class JobsIndexController extends Controller {
 
   //#region filtering and searching
 
-  // addDynamicQueryParams() {
-  //   this.optionsStatus.forEach((filter) => {
-  //     this.queryParams.push({ [filter.qp]: filter.qp });
-  //     this.set(filter.qp, false);
-  //   });
-  //   // this.clientFilterToggles.state.forEach((filter) => {
-  //   //   this.queryParams.push({ [filter.qp]: filter.qp });
-  //   //   this.set(filter.qp, filter.default);
-  //   // });
-  //   // this.clientFilterToggles.eligibility.forEach((filter) => {
-  //   //   this.queryParams.push({ [filter.qp]: filter.qp });
-  //   //   this.set(filter.qp, filter.default);
-  //   // });
-  //   // this.clientFilterToggles.drainStatus.forEach((filter) => {
-  //   //   this.queryParams.push({ [filter.qp]: filter.qp });
-  //   //   this.set(filter.qp, filter.default);
-  //   // });
-  // }
+  @tracked statusFacet = {
+    label: 'Status',
+    options: [
+      {
+        key: 'pending',
+        string: 'Status == pending',
+        checked: false,
+      },
+      {
+        key: 'running',
+        string: 'Status == running',
+        checked: false,
+      },
+      {
+        key: 'dead',
+        string: 'Status == dead',
+        checked: false,
+      },
+    ],
+  };
 
-  @tracked
-  filterOptions = [
-    {
-      label: 'Status',
-      options: [
-        { key: 'pending', string: 'Status == pending', checked: false },
-        { key: 'running', string: 'Status == running', checked: false },
-        { key: 'dead', string: 'Status == dead', checked: false },
-      ],
-    },
-    {
-      label: 'Type',
-      options: [
-        { key: 'service', string: 'Type == service' },
-        { key: 'batch', string: 'Type == batch' },
-        { key: 'system', string: 'Type == system' },
-        { key: 'sysbatch', string: 'Type == sysbatch' },
-      ],
-    },
-  ];
+  @tracked typeFacet = {
+    label: 'Type',
+    options: [
+      {
+        key: 'service',
+        string: 'Type == service',
+        checked: false,
+      },
+      {
+        key: 'batch',
+        string: 'Type == batch',
+        checked: false,
+      },
+      {
+        key: 'system',
+        string: 'Type == system',
+        checked: false,
+      },
+      {
+        key: 'sysbatch',
+        string: 'Type == sysbatch',
+        checked: false,
+      },
+    ],
+  };
+
+  @tracked filterFacets = [this.statusFacet, this.typeFacet];
 
   /**
    * On page load, takes the ?filter queryParam, and extracts it into those
    * properties used by the dropdown filter toggles, and the search text.
    */
   parseFilter() {
-    console.log('breakdownFilter', this.filter, 'oh yeah');
     let filterString = this.filter;
     if (!filterString) {
       return;
     }
     console.log('breakdown, string is', filterString);
+    // const filterParts = filterString.split(' and ');
+    // Update: split on both "and" and "or"
     const filterParts = filterString.split(' and ');
-    // filterParts.forEach((part) => {
-    //   if (part === "Status == running") {
-    //     this.filterOptions.status.running = true;
-    //   } else if (part === "Status == pending") {
-    //     this.filterOptions.status.pending = true;
-    //   } else if (part === "Status == dead") {
-    //     this.filterOptions.status.dead = true;
-    //   } else if (part === "Type == service") {
-    //     this.filterOptions.type.service = true;
-    //   } else if (part === "Type == batch") {
-    //     this.filterOptions.type.batch = true;
-    //   } else if (part === "Type == system") {
-    //     this.filterOptions.type.system = true;
-    //   } else if (part === "Type == sysbatch") {
-    //     this.filterOptions.type.sysbatch = true;
-    //   } else {
-    //     console.log('REST PART', part);
-    //     this.filterOptions.searchText += part;
-    //   }
-    // });
 
     let unmatchedFilters = [];
 
+    // For each of those splits, if it starts and ends with (), and if all entries within it have thes ame Propname and operator of ==, populate them into the appropriate dropdown
+    // If it doesnt start with and end with (), or if it does but not all entries are the same propname, or not all entries have == operators, populate them into the searchbox
+
     filterParts.forEach((part) => {
+      console.log('== part', part);
       let matched = false;
-      this.filterOptions.forEach((group) => {
-        group.options.forEach((option) => {
-          if (part === option.string) {
-            option.checked = true;
+      if (part.startsWith('(') && part.endsWith(')')) {
+        part = part.slice(1, -1); // trim the parens
+        // Check to see if the property name (first word) is one of the ones for which we have a dropdown
+        let propName = part.split(' ')[0];
+        if (this.filterFacets.find((facet) => facet.label === propName)) {
+          // Split along "or" and check that all parts have the same propName
+          let facetParts = part.split(' or ');
+          let allMatch = facetParts.every((facetPart) =>
+            facetPart.startsWith(propName)
+          );
+          let allEqualityOperators = facetParts.every((facetPart) =>
+            facetPart.includes('==')
+          );
+          if (allMatch && allEqualityOperators) {
+            // Set all the options in the dropdown to checked
+            this.filterFacets.forEach((group) => {
+              if (group.label === propName) {
+                group.options.forEach((option) => {
+                  set(option, 'checked', facetParts.includes(option.string));
+                });
+              }
+            });
             matched = true;
           }
-        });
-      });
+        }
+      }
       if (!matched) {
-        console.log('unmatched', part);
         unmatchedFilters.push(part);
       }
     });
+
+    // filterParts.forEach((part) => {
+    //   let matched = false;
+    //   this.filterFacets.forEach((group) => {
+    //     group.options.forEach((option) => {
+    //       if (part === option.string) {
+    //         // option.checked = true;
+    //         set(option, 'checked', true);
+    //         matched = true;
+    //       }
+    //     });
+    //   });
+    //   if (!matched) {
+    //     console.log('unmatched', part);
+    //     unmatchedFilters.push(part);
+    //   }
+    // });
 
     // Combine all unmatched filter parts into the searchText
     this.searchText = unmatchedFilters.join(' and ');
   }
 
-  @computed('filterOptions.@each.options.@each.checked', 'searchText')
+  // TODO: Tuesday morning:
+  //  When using @each in a dependent-key or an observer, you can only chain one property level deep after the @each. That is, `filterOptions.@each.options` is allowed but `filterOptions.@each.options.@each.checked` (which is what you passed) is not.
+  // @computed('filterOptions.@each.options.@each.checked', 'searchText')
+  @computed(
+    'typeFacet.options.@each.checked',
+    'statusFacet.options.@each.checked',
+    'searchText'
+  )
   get computedFilter() {
-    console.log('compFilt');
     let parts = this.searchText ? [this.searchText] : [];
-    this.filterOptions.forEach((group) => {
+    // let parts = [];
+    this.filterFacets.forEach((group) => {
+      let groupParts = [];
       group.options.forEach((option) => {
         if (option.checked) {
-          parts.push(option.string);
+          groupParts.push(option.string);
         }
       });
+      if (groupParts.length) {
+        parts.push(`(${groupParts.join(' or ')})`);
+        console.log('>>>', `(${groupParts.join(' or ')})`);
+        // parts.push(groupParts.join(' or '));
+      }
     });
+    console.log('||| so all parts are now', parts);
     return parts.join(' and ');
   }
 
   @action
-  toggleOption(groupIndex, optionIndex) {
-    let option = this.filterOptions[groupIndex].options[optionIndex];
-    option.checked = !option.checked;
+  toggleOption(option) {
+    // option.checked = !option.checked;
+    set(option, 'checked', !option.checked);
     this.updateFilter();
   }
 
   @action
   updateFilter() {
-    console.log('uFC');
+    // console.log('uFC');
     this.filter = this.computedFilter;
   }
 
@@ -537,9 +579,10 @@ export default class JobsIndexController extends Controller {
     // this.status = null;
     // this.optionsStatus.forEach((s) => s.filtered = false);
     // this.type = null;
-    this.filterOptions.forEach((group) => {
+    this.filterFacets.forEach((group) => {
       group.options.forEach((option) => {
-        option.checked = false;
+        // option.checked = false;
+        set(option, 'checked', false);
       });
     });
     this.updateFilter();
@@ -553,8 +596,8 @@ export default class JobsIndexController extends Controller {
    */
   @action
   updateSearchText(newFilter) {
-    console.log('uST', newFilter);
-    if (!newFilter) {
+    // console.log('uST', newFilter);
+    if (!newFilter.trim()) {
       this.searchText = '';
       return;
     }

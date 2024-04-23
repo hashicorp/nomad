@@ -85,7 +85,7 @@ export default class IndexRoute extends Route.extend(
     delete queryParams.status_dead;
     delete queryParams.status_running;
     delete queryParams.status_pending;
-    console.log('final queryParams in model hook is', queryParams);
+    // console.log('final queryParams in model hook is', queryParams);
     return { ...queryParams };
   }
 
@@ -93,7 +93,6 @@ export default class IndexRoute extends Route.extend(
     let currentParams = this.getCurrentParams(); // TODO: how do these differ from passed params?
     this.watchList.jobsIndexIDsController.abort();
     this.watchList.jobsIndexIDsController = new AbortController();
-    console.log('model', currentParams);
     try {
       let jobs = await this.store.query('job', currentParams, {
         adapterOptions: {
@@ -146,6 +145,7 @@ export default class IndexRoute extends Route.extend(
         title: err.title,
         message: err.detail,
         color: 'critical',
+        timeout: 8000,
       });
     });
 
