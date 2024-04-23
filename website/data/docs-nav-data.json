@@ -1887,6 +1887,10 @@
         "path": "drivers/docker"
       },
       {
+        "title": "Exec2",
+        "href": "/plugins/drivers/exec2"
+      },
+      {
         "title": "Isolated Fork/Exec",
         "path": "drivers/exec"
       },

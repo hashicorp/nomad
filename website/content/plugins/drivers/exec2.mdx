@@ -1,0 +1,251 @@
+---
+layout: docs
+page_title: 'Drivers: exec2'
+description: >-
+  The exec2 task driver leverages modern kernel features for constraining tasks.
+---
+
+# Exec2 Task Driver
+
+Name: `exec2`
+
+The `exec2` driver is used to execute a command for a task. It offers a security
+model optimized for running 'ordinary' processes with very low startup times
+and minimal overhead in terms of CPU, disk, and memory utilization. The `exec2`
+driver leverages kernel features such as the [Landlock LSM][landlock], cgroups
+v2, and the [`unshare`][unshare] system utility.
+
+Source is on [GitHub][github]
+
+Download from HashiCorp [releases][releases]
+
+The example below is a short demonstration of what a task makeing use of the
+exec2 task driver looks like:
+
+```hcl
+job "http" {
+  group "web" {
+    task "python" {
+      driver = "exec2"
+      config {
+        command = "python3"
+        args    = ["-m", "http.server", "8080", "--directory", "${NOMAD_TASK_DIR}"]
+        unveil  = ["r:/etc/mime.types"]
+      }
+    }
+  }
+}
+```
+
+## Client Requirements
+
+The `exec2` task driver is not built into Nomad. It must be [downloaded][releases]
+onto the client host in the configured plugin directory.
+
+- Linux 5.15+
+- Cgroups v2 enabled
+- Landlock LSM enabled
+- Commands `nsenter` and `unshare`
+- Nomad client running as root
+
+## Capabilities
+
+The `exec2` task driver implements the following driver [capabilities][capabilities]
+
+| Feature              | Implementation    |
+| -------------------- | ----------------- |
+| `nomad alloc signal` | true              |
+| `nomad alloc exec`   | false             |
+| filesystem isolation | unveil            |
+| network isolation    | host, group, none |
+| volume mounting      | false             |
+
+## Concepts
+
+### Filesystem Isolation
+
+##### landlock
+
+The `exec2` task driver makes use of [`go-landlock`][landlock] for providing
+filesystem isolation, making the host filesystem unreachable except where
+explicitly allowed.
+
+By default a task is enabled to access its task directory and its shared alloc
+directory. The paths to these directories are accessible by reading the environment
+variables `$NOMAD_TASK_DIR` and `$NOMAD_ALLOC_DIR` respectively.
+
+A file access mode must also be specified when granting additional filesystem
+access to a path. This is done by prefix the path with `'r'`, `'w'`, `'x'`,
+and/or `'c'` indicating read, write, executable, and create permissions,
+respectively. e.g.,
+
+- <code>r:/srv/www</code> - read-only access to `/srv/www`
+- <code>rwc:/tmp</code> - read, write, and create files in `/tmp`
+- <code>rx:/opt/bin/application</code> - read and execute a specific application
+- <code>wc:/var/log</code> - write and create files in `/var/log`
+
+This style of permission control is modeled after the [`unveil`][unveil] system
+call pioneered by the OpenBSD project. In configuration parameters we refer to
+"unveil"-ing of filesystem paths as `exec2` is leveraging landlock to emulate
+the semantics of `unveil`.
+
+##### dynamic workload users
+
+While landlock prevents tasks from accessing the host filesystem, Nomad 1.8
+introduces `dynamic workload users` which enable tasks to be run as a UID/GID
+that is not assigned to any user. This provides protection from non-root users
+getting access inside the task and allocation directories created for the task.
+
+To make use of a dynamic workload user, simply leave the `user` field blank in
+the task definition of an `exec2` task.
+
+### Resource Isolation
+
+Similar to `exec` and other container runtimes, `exec2` makes use of cgroups for
+limiting the amount of CPU and RAM a task may consume.
+
+## Configuration
+
+### Plugin Configuration
+
+The default plugin configuration is shown below. System default paths are enabled,
+but nothing else. These default paths enable basic functionality like reading
+system TLS certificates, executing programs in `/bin`, `/usr/bin`, and accessing
+system shared object files. The exact set of paths is system dependent, and can
+be disabled or customized in plugin config.
+
+The default set of paths are listed below. These paths are enabled only if they
+are found to exist at the time of the task launching.
+
+##### shared objects
+
+```
+rx:/lib
+rx:/lib64
+rx:/usr/lib
+rx:/usr/libexec
+rx:/usr/local/lib
+rx:/usr/local/lib64
+r:/etc/ld.so.conf
+r:/etc/ld.so.cache
+r:/etc/ld.so.conf.d
+```
+
+##### io, common
+
+```
+rwc:/tmp
+rw:/dev/null
+r:/dev/zero
+r:/dev/fd
+rw:/dev/stdin
+rw:/dev/stdout
+r:/dev/urandom
+w:/dev/log
+r:/usr/share/locale
+r:/proc/self/cmdline
+r:/usr/share/zoneinfo
+r:/usr/share/common-licenses
+r:/proc/sys/kernel/ngroups_max
+r:/proc/sys/kernel/cap_last_cap
+r:/proc/sys/vm/overcommit_memory
+```
+
+##### dns
+
+```
+r:/etc/hosts
+r:/hostname
+r:/etc/services
+r:/etc/protocols
+r:/etc/resolv.conf
+```
+
+##### certificates
+
+```
+r:/etc/ssl/certs
+r:/etc/pki/tls/certs
+r:/etc/ssl/ca-bundle.pem
+r:/etc/pki/tls/cacert.pem
+r:/etc/pki/ca-trust-extracted/pem/tls-ca-bundle.pem
+r:/etc/ssl/cert.pem
+```
+
+Additional allowable paths can be specified at the plugin level, which applies
+to all tasks making use of the `exec2` task driver, or at the task level, which
+will apply specifically to each task.
+
+```hcl
+plugin "nomad-driver-exec2" {
+  config {
+    unveil_defaults = true
+    unveil_paths    = []
+    unveil_by_task  = false
+  }
+}
+```
+
+- `unveil_defaults` - (default: `true`) - enable or disable default system paths
+  useful for running basic commands
+- `unveil_paths` - (default: `[]`) - a list of filesystem paths with permissions
+  to grant all tasks
+  ```hcl
+  unveil_paths = ["rx:/opt/bin", "r:/srv/certs"]
+  ```
+- `unveil_by_task` - (default: `false`) - enable or disable job submitters to
+  specify additional filesystem path access within task config
+
+### Task Configuration
+
+##### config
+
+Task configuration for an exec2 task includes setting a `command`, `args` for
+the command, and additional `unveil` filesystem paths if `unveil_by_task` is
+enabled in plugin configuration.
+
+```hcl
+config {
+	command = "/usr/bin/cat"
+	args    = ["/etc/os-release"]
+	unveil  = ["r:/etc/os-release"]
+}
+```
+
+- `command` - (string: required) - command to run
+- `args` - (list(string): optional) - list of arguments to provide
+  to `command`
+- `unveil` - (list(string): optional) - list of additional filesystem paths to
+  provide access to the task (requires `unveil_by_task` in plugin config).
+
+##### cpu
+
+Tasks are limited in CPU resources by setting the `cpu` or `cores` values in the
+task `resources` block.
+
+- `cpu` - (default: `100`) - limits the CPU bandwidth allowable for the task to
+  make use of in MHz, may not be used with `cores`.
+- `cores` - (int: optional) - specifies the number of CPU cores to reserve
+  specifically for the task, may not be used with `cpu`
+
+##### memory
+
+Tasks are limited in memory resources by setting `memory` and optionally the
+`memory_max` values in the task `resources` block.
+
+### Node Attributes
+
+When installed, the `exec2` plugin provides the following node attributes which
+can be used as constraints when authoring jobs.
+
+```
+driver.exec2.unveil.defaults    = true
+driver.exec2.unveil.tasks       = true
+```
+
+[capabilities]: https://developer.hashicorp.com/nomad/docs/concepts/plugins/task-drivers#task-driver-plugin-api
+[github]: https://github.com/hashicorp/nomad-driver-exec2
+[landlock]: https://github.com/shoenig/go-landlock
+[releases]: https://releases.hashicorp.com/nomad-driver-exec2
+[unshare]: https://www.man7.org/linux/man-pages/man1/unshare.1.html
+[unveil]: https://man.openbsd.org/unveil
