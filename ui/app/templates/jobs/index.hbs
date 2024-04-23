@@ -250,13 +250,12 @@
 
 
 
-        <Hds::Dropdown data-test-state-facet as |dd|>
+        {{!-- <Hds::Dropdown data-test-state-facet as |dd|>
           <dd.ToggleButton
             @text="Status"
             @color="secondary"
-            {{!-- @badge={{if (eq this.activeToggles.length this.allToggles.length) false this.activeToggles.length}} --}}
+            @count="3"
           />
-          <dd.Title @text="Status" />
           {{#each this.optionsStatus as |option|}}
             <dd.Checkbox
               {{on "change" (toggle option.qp this)}}
@@ -267,7 +266,35 @@
               {{capitalize option.label}}
             </dd.Checkbox>
           {{/each}}
+        </Hds::Dropdown> --}}
+
+        {{#each this.filterOptions as |group groupIndex|}}
+        <Hds::Dropdown as |dd|>
+          <dd.ToggleButton
+            @text={{group.label}}
+            @color="secondary"
+            {{!-- @badge={{or this.selection[group.qp].length false}} --}}
+          />
+          {{#each group.options as |option optionIndex|}}
+            <dd.Checkbox
+              {{!-- {{on "change" (queue
+                (fn (mut option.checked) (not option.checked))
+                this.updateFilter
+              )}} --}}
+              {{on "change" (fn this.toggleOption groupIndex optionIndex)}}
+              @value={{option.key}}
+              checked={{option.checked}}
+              data-test-dropdown-option={{option.key}}
+            >
+              {{option.key}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No {{group.label}} filters
+            </dd.Generic>
+          {{/each}}
         </Hds::Dropdown>
+        {{/each}}
 
 
 
@@ -284,9 +311,11 @@
 
           <div data-test-jobs-search>
             <JobSearchBox
-              {{!-- @filter={{this.filter}} --}}
-              @filter={{this.searchText}}
-              @onFilterChange={{this.updateFilter}}
+              @searchText={{this.searchText}}
+              @onSearchTextChange={{queue
+                this.updateSearchText
+                this.updateFilter
+              }}
             />
           </div>
 
@@ -497,6 +526,14 @@
         {{/if}}
       </Hds::ApplicationState>
     {{/if}}
+  <hr />
+  Options:<br />
+  {{#each this.filterOptions as |group groupIndex|}}
+    {{group.label}}<br />
+    {{#each group.options as |option optionIndex|}}
+      {{option.key}}: {{option.checked}}<br />
+    {{/each}}
+  {{/each}}
   <hr />
   Next token is {{this.nextToken}}<br />
   {{!-- Previous tokens ({{this.previousTokens.length}}) are {{this.previousTokens}}<br /> --}}

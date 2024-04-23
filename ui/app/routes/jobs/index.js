@@ -39,27 +39,27 @@ export default class IndexRoute extends Route.extend(
     pageSize: {
       refreshModel: true,
     },
-    // filter: {
+    filter: {
+      refreshModel: true,
+    },
+    // searchText: {
     //   refreshModel: true,
     // },
-    searchText: {
-      refreshModel: true,
-    },
-    status: {
-      refreshModel: true,
-    },
-    type: {
-      refreshModel: true,
-    },
-    status_dead: {
-      refreshModel: true,
-    },
-    status_running: {
-      refreshModel: true,
-    },
-    status_pending: {
-      refreshModel: true,
-    },
+    // status: {
+    //   refreshModel: true,
+    // },
+    // type: {
+    //   refreshModel: true,
+    // },
+    // status_dead: {
+    //   refreshModel: true,
+    // },
+    // status_running: {
+    //   refreshModel: true,
+    // },
+    // status_pending: {
+    //   refreshModel: true,
+    // },
   };
 
   hasBeenInitialized = false;
@@ -195,6 +195,8 @@ export default class IndexRoute extends Route.extend(
       this.getCurrentParams(),
       Ember.testing ? 0 : DEFAULT_THROTTLE
     );
+
+    controller.parseFilter();
 
     this.hasBeenInitialized = true;
   }

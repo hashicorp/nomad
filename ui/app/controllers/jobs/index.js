@@ -32,7 +32,6 @@ export default class JobsIndexController extends Controller {
   constructor() {
     super(...arguments);
     this.pageSize = this.userSettings.pageSize;
-    this.addDynamicQueryParams();
   }
 
   queryParams = [
@@ -42,13 +41,13 @@ export default class JobsIndexController extends Controller {
     { qpNamespace: 'namespace' },
     // 'type',
     // 'searchTerm',
-    // 'filter',
-    'searchText',
+    'filter',
+    // 'searchText',
     // 'status',
-    'type',
-    'status_pending',
-    'status_running',
-    'status_dead',
+    // 'type',
+    // 'status_pending',
+    // 'status_running',
+    // 'status_dead',
   ];
 
   isForbidden = false;
@@ -356,70 +355,194 @@ export default class JobsIndexController extends Controller {
 
   //#region filtering and searching
 
-  addDynamicQueryParams() {
-    this.optionsStatus.forEach((filter) => {
-      this.queryParams.push({ [filter.qp]: filter.qp });
-      this.set(filter.qp, false);
+  // addDynamicQueryParams() {
+  //   this.optionsStatus.forEach((filter) => {
+  //     this.queryParams.push({ [filter.qp]: filter.qp });
+  //     this.set(filter.qp, false);
+  //   });
+  //   // this.clientFilterToggles.state.forEach((filter) => {
+  //   //   this.queryParams.push({ [filter.qp]: filter.qp });
+  //   //   this.set(filter.qp, filter.default);
+  //   // });
+  //   // this.clientFilterToggles.eligibility.forEach((filter) => {
+  //   //   this.queryParams.push({ [filter.qp]: filter.qp });
+  //   //   this.set(filter.qp, filter.default);
+  //   // });
+  //   // this.clientFilterToggles.drainStatus.forEach((filter) => {
+  //   //   this.queryParams.push({ [filter.qp]: filter.qp });
+  //   //   this.set(filter.qp, filter.default);
+  //   // });
+  // }
+
+  @tracked
+  filterOptions = [
+    {
+      label: 'Status',
+      options: [
+        { key: 'pending', string: 'Status == pending', checked: false },
+        { key: 'running', string: 'Status == running', checked: false },
+        { key: 'dead', string: 'Status == dead', checked: false },
+      ],
+    },
+    {
+      label: 'Type',
+      options: [
+        { key: 'service', string: 'Type == service' },
+        { key: 'batch', string: 'Type == batch' },
+        { key: 'system', string: 'Type == system' },
+        { key: 'sysbatch', string: 'Type == sysbatch' },
+      ],
+    },
+  ];
+
+  /**
+   * On page load, takes the ?filter queryParam, and extracts it into those
+   * properties used by the dropdown filter toggles, and the search text.
+   */
+  parseFilter() {
+    console.log('breakdownFilter', this.filter, 'oh yeah');
+    let filterString = this.filter;
+    if (!filterString) {
+      return;
+    }
+    console.log('breakdown, string is', filterString);
+    const filterParts = filterString.split(' and ');
+    // filterParts.forEach((part) => {
+    //   if (part === "Status == running") {
+    //     this.filterOptions.status.running = true;
+    //   } else if (part === "Status == pending") {
+    //     this.filterOptions.status.pending = true;
+    //   } else if (part === "Status == dead") {
+    //     this.filterOptions.status.dead = true;
+    //   } else if (part === "Type == service") {
+    //     this.filterOptions.type.service = true;
+    //   } else if (part === "Type == batch") {
+    //     this.filterOptions.type.batch = true;
+    //   } else if (part === "Type == system") {
+    //     this.filterOptions.type.system = true;
+    //   } else if (part === "Type == sysbatch") {
+    //     this.filterOptions.type.sysbatch = true;
+    //   } else {
+    //     console.log('REST PART', part);
+    //     this.filterOptions.searchText += part;
+    //   }
+    // });
+
+    let unmatchedFilters = [];
+
+    filterParts.forEach((part) => {
+      let matched = false;
+      this.filterOptions.forEach((group) => {
+        group.options.forEach((option) => {
+          if (part === option.string) {
+            option.checked = true;
+            matched = true;
+          }
+        });
+      });
+      if (!matched) {
+        console.log('unmatched', part);
+        unmatchedFilters.push(part);
+      }
     });
-    // this.clientFilterToggles.state.forEach((filter) => {
-    //   this.queryParams.push({ [filter.qp]: filter.qp });
-    //   this.set(filter.qp, filter.default);
-    // });
-    // this.clientFilterToggles.eligibility.forEach((filter) => {
-    //   this.queryParams.push({ [filter.qp]: filter.qp });
-    //   this.set(filter.qp, filter.default);
-    // });
-    // this.clientFilterToggles.drainStatus.forEach((filter) => {
-    //   this.queryParams.push({ [filter.qp]: filter.qp });
-    //   this.set(filter.qp, filter.default);
-    // });
+
+    // Combine all unmatched filter parts into the searchText
+    this.searchText = unmatchedFilters.join(' and ');
   }
 
+  @computed('filterOptions.@each.options.@each.checked', 'searchText')
+  get computedFilter() {
+    console.log('compFilt');
+    let parts = this.searchText ? [this.searchText] : [];
+    this.filterOptions.forEach((group) => {
+      group.options.forEach((option) => {
+        if (option.checked) {
+          parts.push(option.string);
+        }
+      });
+    });
+    return parts.join(' and ');
+  }
+
+  @action
+  toggleOption(groupIndex, optionIndex) {
+    let option = this.filterOptions[groupIndex].options[optionIndex];
+    option.checked = !option.checked;
+    this.updateFilter();
+  }
+
+  @action
+  updateFilter() {
+    console.log('uFC');
+    this.filter = this.computedFilter;
+  }
+
+  @tracked filter = '';
   @tracked searchText = '';
   // @tracked status = null;
-  @tracked type = null;
+  // @tracked type = null;
 
-  get optionsStatus() {
-    return [
-      { key: 'pending', label: 'Pending', qp: 'status_pending' },
-      { key: 'running', label: 'Running', qp: 'status_running' },
-      { key: 'dead', label: 'Dead', qp: 'status_dead' },
-    ];
-  }
+  // @tracked filterOptions = {
+  //   status: {
+  //     pending: false,
+  //     running: false,
+  //     dead: false,
+  //   },
+  //   type: {
+  //     service: false,
+  //     batch: false,
+  //     system: false,
+  //     sysbatch: false,
+  //   },
+  //   searchText: '',
+  // };
+
+  // get optionsStatus() {
+  //   return [
+  //     { key: 'pending', label: 'Pending', qp: 'status_pending' },
+  //     { key: 'running', label: 'Running', qp: 'status_running' },
+  //     { key: 'dead', label: 'Dead', qp: 'status_dead' },
+  //   ];
+  // }
 
   // get status() {
   //   console.log('getting status i guess for QP?', this.optionsStatus.filter((s) => s.filtered).map((s) => s.key).join(","));
   //   return this.optionsStatus.filter((s) => s.filtered).map((s) => `State is ${s.key}`).join(" or ");
   // }
 
-  // @tracked filter = "";
-  get filter() {
-    console.log('filter recompute');
-    let parts = [];
-    if (this.searchText) {
-      parts.push(this.searchText);
-    }
-    // if (this.status) {
-    //   parts.push(this.status);
-    // }
-    this.optionsStatus.forEach((s) => {
-      if (this[s.qp]) {
-        console.log('yeah!', s.key);
-        parts.push(`Status == ${s.key}`);
-      }
-    });
-    if (this.type) {
-      parts.push(this.type);
-    }
-    console.log('so PARTS', parts);
-    return parts.join(' and ');
-  }
+  // get filter() {
+  //   console.log('filter recompute');
+  //   let parts = [];
+  //   if (this.searchText) {
+  //     parts.push(this.searchText);
+  //   }
+  //   // if (this.status) {
+  //   //   parts.push(this.status);
+  //   // }
+  //   this.optionsStatus.forEach((s) => {
+  //     if (this[s.qp]) {
+  //       console.log('yeah!', s.key);
+  //       parts.push(`Status == ${s.key}`);
+  //     }
+  //   });
+  //   if (this.type) {
+  //     parts.push(this.type);
+  //   }
+  //   console.log('so PARTS', parts);
+  //   return parts.join(' and ');
+  // }
 
   @action resetFilters() {
     this.searchText = '';
     // this.status = null;
     // this.optionsStatus.forEach((s) => s.filtered = false);
-    this.type = null;
+    // this.type = null;
+    this.filterOptions.forEach((group) => {
+      group.options.forEach((option) => {
+        option.checked = false;
+      });
+    });
+    this.updateFilter();
   }
 
   /**
@@ -429,7 +552,8 @@ export default class JobsIndexController extends Controller {
    * @param {string} newFilter - The new filter string entered by the user.
    */
   @action
-  updateFilter(newFilter) {
+  updateSearchText(newFilter) {
+    console.log('uST', newFilter);
     if (!newFilter) {
       this.searchText = '';
       return;

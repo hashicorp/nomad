@@ -18,18 +18,12 @@ export default class JobSearchBoxComponent extends Component {
   element = null;
 
   @action
-  updateFilter(event) {
-    debounce(
-      this,
-      // this.args.onFilterChange(event.target.value),
-      this.sendUpdate,
-      event.target.value,
-      DEBOUNCE_MS
-    );
+  updateSearchText(event) {
+    debounce(this, this.sendUpdate, event.target.value, DEBOUNCE_MS);
   }
 
   sendUpdate(value) {
-    this.args.onFilterChange(value);
+    this.args.onSearchTextChange(value);
   }
 
   @action
