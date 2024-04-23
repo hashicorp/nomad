@@ -8856,6 +8856,10 @@ type TaskState struct {
 	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
 	// by remote task drivers to migrate task handles between allocations.
 	TaskHandle *TaskHandle
+
+	// Enterprise Only - Paused is set to the paused state of the task. See
+	// task_sched.go
+	Paused TaskScheduleState
 }
 
 // NewTaskState returns a TaskState initialized in the Pending state.
@@ -9034,6 +9038,10 @@ const (
 	// TaskSkippingShutdownDelay indicates that the task operation was
 	// configured to ignore the shutdown delay value set for the tas.
 	TaskSkippingShutdownDelay = "Skipping shutdown delay"
+
+	// TaskRunning indicates a task is running due to a schedule or schedule
+	// override. Enterprise only.
+	TaskRunning = "Running"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
