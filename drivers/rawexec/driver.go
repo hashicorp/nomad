@@ -13,9 +13,11 @@ import (
 
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -83,8 +85,10 @@ var (
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"command": hclspec.NewAttr("command", "string", true),
-		"args":    hclspec.NewAttr("args", "list(string)", false),
+		"command":            hclspec.NewAttr("command", "string", true),
+		"args":               hclspec.NewAttr("args", "list(string)", false),
+		"cgroup_v2_override": hclspec.NewAttr("cgroup_v2_override", "string", false),
+		"cgroup_v1_override": hclspec.NewAttr("cgroup_v1_override", "list(map(string))", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -139,6 +143,18 @@ type Config struct {
 type TaskConfig struct {
 	Command string   `codec:"command"`
 	Args    []string `codec:"args"`
+
+	// OverrideCgroupV2 allows overriding the unified cgroup the task will be
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV2 string `codec:"cgroup_v2_override"`
+
+	// OverrideCgroupV1 allows overriding per-controller cgroups the task will
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV1 hclutils.MapStrStr `codec:"cgroup_v1_override"`
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -334,6 +350,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		StderrPath:       cfg.StderrPath,
 		NetworkIsolation: cfg.NetworkIsolation,
 		Resources:        cfg.Resources.Copy(),
+		OverrideCgroupV2: cgroupslib.CustomPathCG2(driverConfig.OverrideCgroupV2),
+		OverrideCgroupV1: driverConfig.OverrideCgroupV1,
 	}
 
 	ps, err := exec.Launch(execCmd)

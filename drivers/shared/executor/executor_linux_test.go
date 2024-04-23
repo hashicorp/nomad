@@ -793,3 +793,66 @@ func TestExecutor_cmdMounts(t *testing.T) {
 
 	require.EqualValues(t, expected, cmdMounts(input))
 }
+
+func TestExecCommand_getCgroupOr_off(t *testing.T) {
+	ci.Parallel(t)
+
+	if cgroupslib.GetMode() != cgroupslib.OFF {
+		t.Skip("test only runs with no cgroups")
+	}
+
+	ec := new(ExecCommand)
+	result := ec.getCgroupOr("cpuset", "/sys/fs/cgroup/cpuset/nomad/abc123")
+	must.Eq(t, "", result)
+}
+
+func TestExecCommand_getCgroupOr_v1_absolute(t *testing.T) {
+	ci.Parallel(t)
+
+	if cgroupslib.GetMode() != cgroupslib.CG1 {
+		t.Skip("test only runs on cgroups v1")
+	}
+
+	t.Run("unset", func(t *testing.T) {
+		ec := &ExecCommand{
+			OverrideCgroupV1: nil,
+		}
+		result := ec.getCgroupOr("pids", "/sys/fs/cgroup/pids/nomad/abc123")
+		must.Eq(t, result, "/sys/fs/cgroup/pids/nomad/abc123")
+		result2 := ec.getCgroupOr("cpuset", "/sys/fs/cgroup/cpuset/nomad/abc123")
+		must.Eq(t, result2, "/sys/fs/cgroup/cpuset/nomad/abc123")
+
+	})
+
+	t.Run("set", func(t *testing.T) {
+		ec := &ExecCommand{
+			OverrideCgroupV1: map[string]string{
+				"pids":   "/sys/fs/cgroup/pids/custom/path",
+				"cpuset": "/sys/fs/cgroup/cpuset/custom/path",
+			},
+		}
+		result := ec.getCgroupOr("pids", "/sys/fs/cgroup/pids/nomad/abc123")
+		must.Eq(t, result, "/sys/fs/cgroup/pids/custom/path")
+		result2 := ec.getCgroupOr("cpuset", "/sys/fs/cgroup/cpuset/nomad/abc123")
+		must.Eq(t, result2, "/sys/fs/cgroup/cpuset/custom/path")
+	})
+}
+
+func TestExecCommand_getCgroupOr_v1_relative(t *testing.T) {
+	ci.Parallel(t)
+
+	if cgroupslib.GetMode() != cgroupslib.CG1 {
+		t.Skip("test only runs on cgroups v1")
+	}
+
+	ec := &ExecCommand{
+		OverrideCgroupV1: map[string]string{
+			"pids":   "custom/path",
+			"cpuset": "custom/path",
+		},
+	}
+	result := ec.getCgroupOr("pids", "/sys/fs/cgroup/pids/nomad/abc123")
+	must.Eq(t, result, "/sys/fs/cgroup/pids/custom/path")
+	result2 := ec.getCgroupOr("cpuset", "/sys/fs/cgroup/cpuset/nomad/abc123")
+	must.Eq(t, result2, "/sys/fs/cgroup/cpuset/custom/path")
+}

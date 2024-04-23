@@ -151,6 +151,35 @@ type ExecCommand struct {
 
 	// Capabilities are the linux capabilities to be enabled by the task driver.
 	Capabilities []string
+
+	// OverrideCgroupV2 allows overriding the unified cgroup the task will be
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV2 string
+
+	// OverrideCgroupV1 allows overriding per-controller cgroups the task will
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV1 map[string]string
+}
+
+func (c *ExecCommand) getCgroupOr(controller, fallback string) string {
+	switch cgroupslib.GetMode() {
+	case cgroupslib.OFF:
+		return ""
+	case cgroupslib.CG2:
+		if c.OverrideCgroupV2 != "" {
+			return c.OverrideCgroupV2
+		}
+	case cgroupslib.CG1:
+		path, exists := c.OverrideCgroupV1[controller]
+		if exists {
+			return cgroupslib.CustomPathCG1(controller, path)
+		}
+	}
+	return fallback
 }
 
 // CpusetCgroup returns the path to the cgroup in which the Nomad client will
@@ -166,7 +195,10 @@ func (c *ExecCommand) CpusetCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
-	return c.Resources.LinuxResources.CpusetCgroupPath
+
+	// lookup the custom cgroup (cpuset controller on cgroups v1) or use the
+	// predetermined fallback
+	return c.getCgroupOr("cpuset", c.Resources.LinuxResources.CpusetCgroupPath)
 }
 
 // StatsCgroup returns the path to the cgroup Nomad client will use to inspect
@@ -181,14 +213,19 @@ func (c *ExecCommand) StatsCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
-	switch cgroupslib.GetMode() {
-	case cgroupslib.CG1:
+
+	// figure out the freezer cgroup path nomad created for use as fallback
+	// (in cgroups v2 its just the unified cgroup)
+	fallback := c.Resources.LinuxResources.CpusetCgroupPath
+	if cgroupslib.GetMode() == cgroupslib.CG1 {
 		taskName := filepath.Base(c.TaskDir)
 		allocID := filepath.Base(filepath.Dir(c.TaskDir))
-		return cgroupslib.PathCG1(allocID, taskName, "freezer")
-	default:
-		return c.CpusetCgroup()
+		fallback = cgroupslib.PathCG1(allocID, taskName, "freezer")
 	}
+
+	// lookup the custom cgroup (pids controller on cgroups v1) or use
+	// the predetermined fallback
+	return c.getCgroupOr("pids", fallback)
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should

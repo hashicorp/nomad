@@ -190,9 +190,20 @@ func (e *UniversalExecutor) enterCG1(statsCgroup, cpusetCgroup string) func() {
 }
 
 func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
-
 	// some drivers like qemu entirely own resource management
 	if command.Resources == nil || command.Resources.LinuxResources == nil {
+		return
+	}
+
+	// if custom cgroups are set join those instead of configuring the /nomad
+	// cgroups we are not going to use
+	if len(e.command.OverrideCgroupV1) > 0 {
+		pid := unix.Getpid()
+		for controller, path := range e.command.OverrideCgroupV1 {
+			absPath := cgroupslib.CustomPathCG1(controller, path)
+			ed := cgroupslib.OpenPath(absPath)
+			_ = ed.Write("cgroup.procs", strconv.Itoa(pid))
+		}
 		return
 	}
 
@@ -225,7 +236,6 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 }
 
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
-
 	// some drivers like qemu entirely own resource management
 	if command.Resources == nil || command.Resources.LinuxResources == nil {
 		return
