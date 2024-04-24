@@ -7,6 +7,10 @@
         "path": "drivers"
       },
       {
+        "title": "Exec2",
+        "path": "drivers/exec2"
+      },
+      {
         "title": "Podman",
         "path": "drivers/podman"
       },
