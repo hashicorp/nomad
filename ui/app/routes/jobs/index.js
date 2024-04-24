@@ -73,7 +73,11 @@ export default class IndexRoute extends Route.extend(
     if (filter) {
       queryParams.filter = filter;
     }
+    // namespace
+    queryParams.namespace = queryParams.qpNamespace;
+    delete queryParams.qpNamespace;
     console.log('filter, in model hook, is', filter);
+    console.log('and namespace is', queryParams.namespace);
     delete queryParams.pageSize;
     delete queryParams.cursorAt; // TODO: hacky, should be done in the serializer/adapter?
 

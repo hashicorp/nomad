@@ -5,7 +5,7 @@
 
 {{page-title "Jobs"}}
 <section class="section">
-    <Hds::PageHeader as |PH|>
+    <Hds::PageHeader id="jobs-list-header" as |PH|>
       <PH.Actions id="jobs-list-actions">
 
         <Hds::SegmentedGroup as |S|>
@@ -20,33 +20,54 @@
           />
 
           {{#each this.filterFacets as |group|}}
-          <S.Dropdown as |dd|>
-            <dd.ToggleButton
-              @text={{group.label}}
-              @color="secondary"
-              @count={{get (filter-by "checked" true group.options) "length"}}
-              {{!-- @badge={{or this.selection[group.qp].length false}} --}}
-            />
-            {{#each group.options as |option|}}
-              <dd.Checkbox
-                {{!-- {{on "change" (queue
-                  (fn (mut option.checked) (not option.checked))
-                  this.updateFilter
-                )}} --}}
-                {{on "change" (fn this.toggleOption option)}}
-                @value={{option.key}}
-                checked={{option.checked}}
-                data-test-dropdown-option={{option.key}}
-              >
-                {{option.key}}
-              </dd.Checkbox>
-            {{else}}
-              <dd.Generic data-test-dropdown-empty>
-                No {{group.label}} filters
-              </dd.Generic>
-            {{/each}}
-          </S.Dropdown>
+            <S.Dropdown as |dd|>
+              <dd.ToggleButton
+                @text={{group.label}}
+                @color="secondary"
+                @count={{get (filter-by "checked" true group.options) "length"}}
+                {{!-- @badge={{or this.selection[group.qp].length false}} --}}
+              />
+              {{#each group.options as |option|}}
+                <dd.Checkbox
+                  {{!-- {{on "change" (queue
+                    (fn (mut option.checked) (not option.checked))
+                    this.updateFilter
+                  )}} --}}
+                  {{on "change" (fn this.toggleOption option)}}
+                  @value={{option.key}}
+                  checked={{option.checked}}
+                  data-test-dropdown-option={{option.key}}
+                >
+                  {{option.key}}
+                </dd.Checkbox>
+              {{else}}
+                <dd.Generic data-test-dropdown-empty>
+                  No {{group.label}} filters
+                </dd.Generic>
+              {{/each}}
+            </S.Dropdown>
           {{/each}}
+
+          {{#if this.system.shouldShowNamespaces}}
+            <S.Dropdown as |dd|>
+              <dd.ToggleButton
+                @text="Namespace"
+                @color="secondary"
+                @badge={{get (find-by "checked" true this.namespaceFacet.options) "label"}}
+              />
+              {{#each this.namespaceFacet.options as |option|}}
+                <dd.Radio
+                  name="namespace"
+                  {{on "change" (fn this.toggleNamespaceOption option)}}
+                  @value={{option.key}}
+                  checked={{option.checked}}
+                  data-test-dropdown-option={{option.key}}
+                >
+                  {{option.label}}
+                </dd.Radio>
+              {{/each}}
+            </S.Dropdown>
+          {{/if}}
 
           {{#if this.filter}}
             <S.Button
@@ -284,7 +305,7 @@
         {{/if}}
       </Hds::ApplicationState>
     {{/if}}
-  <hr />
+  {{!-- <hr />
   Options:<br />
   {{#each this.filterFacets as |group groupIndex|}}
     {{group.label}}<br />
@@ -294,7 +315,6 @@
   {{/each}}
   <hr />
   Next token is {{this.nextToken}}<br />
-  {{!-- Previous tokens ({{this.previousTokens.length}}) are {{this.previousTokens}}<br /> --}}
   Model.jobs length: {{this.model.jobs.length}}<br />
   Controller.jobs length: {{this.jobs.length}}<br />
   Job IDs to watch for ({{this.jobIDs.length}}): {{#each this.jobIDs as |id|}}{{id.id}} | {{/each}}<br />
@@ -313,7 +333,7 @@
   jobQueryIndex: {{this.jobQueryIndex}}<br />
   jobAllocsQueryIndex: {{this.jobAllocsQueryIndex}}<br />
 
-  <hr />
+  <hr /> --}}
 
 
 </section>

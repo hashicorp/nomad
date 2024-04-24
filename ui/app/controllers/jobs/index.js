@@ -52,46 +52,20 @@ export default class JobsIndexController extends Controller {
 
   isForbidden = false;
 
-  // #region filtering and sorting
-
   @tracked jobQueryIndex = 0;
   @tracked jobAllocsQueryIndex = 0;
 
-  @selection('qpNamespace') selectionNamespace;
+  @tracked qpNamespace = '*';
 
-  @computed('qpNamespace', 'model.namespaces.[]')
-  get optionsNamespace() {
-    const availableNamespaces = this.model.namespaces.map((namespace) => ({
-      key: namespace.name,
-      label: namespace.name,
-    }));
-
-    availableNamespaces.unshift({
-      key: '*',
-      label: 'All (*)',
-    });
-
-    // // Unset the namespace selection if it was server-side deleted
-    // if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
-    //   scheduleOnce('actions', () => {
-    //     this.set('qpNamespace', '*');
-    //   });
-    // }
-
-    return availableNamespaces;
-  }
-
-  @action
-  handleFilterChange(queryParamValue, option, queryParamLabel) {
-    if (queryParamValue.includes(option)) {
-      queryParamValue.removeObject(option);
-    } else {
-      queryParamValue.addObject(option);
-    }
-    this[queryParamLabel] = serialize(queryParamValue);
-  }
-
-  // #endregion filtering and sorting
+  // @action
+  // handleFilterChange(queryParamValue, option, queryParamLabel) {
+  //   if (queryParamValue.includes(option)) {
+  //     queryParamValue.removeObject(option);
+  //   } else {
+  //     queryParamValue.addObject(option);
+  //   }
+  //   this[queryParamLabel] = serialize(queryParamValue);
+  // }
 
   get tableColumns() {
     return [
@@ -233,6 +207,7 @@ export default class JobsIndexController extends Controller {
   jobAllocsQuery(params) {
     this.watchList.jobsIndexDetailsController.abort();
     this.watchList.jobsIndexDetailsController = new AbortController();
+    params.namespace = '*';
     return this.store
       .query('job', params, {
         adapterOptions: {
@@ -402,7 +377,58 @@ export default class JobsIndexController extends Controller {
     ],
   };
 
-  @tracked filterFacets = [this.statusFacet, this.typeFacet];
+  @computed('system.shouldShowNamespaces', 'model.namespaces.[]', 'qpNamespace')
+  get namespaceFacet() {
+    if (!this.system.shouldShowNamespaces) {
+      return null;
+    }
+
+    const availableNamespaces = (this.model.namespaces || []).map(
+      (namespace) => ({
+        key: namespace.name,
+        label: namespace.name,
+      })
+    );
+
+    availableNamespaces.unshift({
+      key: '*',
+      label: 'All',
+    });
+
+    // qpNamespaces is a string queryParam that looks like ?namespace=ns1,ns2,ns3
+    // We need to deserialize that string into the checked options
+    let selectedNamespaces = this.qpNamespace || '*';
+    console.log('selectedNamespaces', selectedNamespaces);
+    availableNamespaces.forEach((opt) => {
+      if (selectedNamespaces.includes(opt.key)) {
+        opt.checked = true;
+      }
+    });
+
+    console.log('availablenamespaces', availableNamespaces);
+
+    return {
+      label: 'Namespace',
+      options: availableNamespaces,
+    };
+  }
+
+  // TODO:
+  // - Node Pool
+  // - Datacenter
+
+  // @tracked filterFacets = [
+  //   this.statusFacet,
+  //   this.typeFacet
+  // ];
+
+  get filterFacets() {
+    let facets = [this.statusFacet, this.typeFacet];
+    // if (this.system.shouldShowNamespaces) {
+    //   facets.push(this.namespaceFacet);
+    // }
+    return facets;
+  }
 
   /**
    * On page load, takes the ?filter queryParam, and extracts it into those
@@ -413,9 +439,7 @@ export default class JobsIndexController extends Controller {
     if (!filterString) {
       return;
     }
-    console.log('breakdown, string is', filterString);
-    // const filterParts = filterString.split(' and ');
-    // Update: split on both "and" and "or"
+
     const filterParts = filterString.split(' and ');
 
     let unmatchedFilters = [];
@@ -424,7 +448,6 @@ export default class JobsIndexController extends Controller {
     // If it doesnt start with and end with (), or if it does but not all entries are the same propname, or not all entries have == operators, populate them into the searchbox
 
     filterParts.forEach((part) => {
-      console.log('== part', part);
       let matched = false;
       if (part.startsWith('(') && part.endsWith(')')) {
         part = part.slice(1, -1); // trim the parens
@@ -457,38 +480,19 @@ export default class JobsIndexController extends Controller {
       }
     });
 
-    // filterParts.forEach((part) => {
-    //   let matched = false;
-    //   this.filterFacets.forEach((group) => {
-    //     group.options.forEach((option) => {
-    //       if (part === option.string) {
-    //         // option.checked = true;
-    //         set(option, 'checked', true);
-    //         matched = true;
-    //       }
-    //     });
-    //   });
-    //   if (!matched) {
-    //     console.log('unmatched', part);
-    //     unmatchedFilters.push(part);
-    //   }
-    // });
-
     // Combine all unmatched filter parts into the searchText
     this.searchText = unmatchedFilters.join(' and ');
   }
 
-  // TODO: Tuesday morning:
-  //  When using @each in a dependent-key or an observer, you can only chain one property level deep after the @each. That is, `filterOptions.@each.options` is allowed but `filterOptions.@each.options.@each.checked` (which is what you passed) is not.
-  // @computed('filterOptions.@each.options.@each.checked', 'searchText')
   @computed(
     'typeFacet.options.@each.checked',
     'statusFacet.options.@each.checked',
+    'namespaceFacet.options.@each.checked',
     'searchText'
   )
   get computedFilter() {
+    console.log('compFilter');
     let parts = this.searchText ? [this.searchText] : [];
-    // let parts = [];
     this.filterFacets.forEach((group) => {
       let groupParts = [];
       group.options.forEach((option) => {
@@ -498,93 +502,40 @@ export default class JobsIndexController extends Controller {
       });
       if (groupParts.length) {
         parts.push(`(${groupParts.join(' or ')})`);
-        console.log('>>>', `(${groupParts.join(' or ')})`);
-        // parts.push(groupParts.join(' or '));
       }
     });
-    console.log('||| so all parts are now', parts);
     return parts.join(' and ');
   }
 
   @action
   toggleOption(option) {
-    // option.checked = !option.checked;
     set(option, 'checked', !option.checked);
     this.updateFilter();
   }
 
+  // Radio button set
+  @action
+  toggleNamespaceOption(option) {
+    this.qpNamespace = option.key;
+  }
+
   @action
   updateFilter() {
-    // console.log('uFC');
+    this.cursorAt = null;
     this.filter = this.computedFilter;
   }
 
   @tracked filter = '';
   @tracked searchText = '';
-  // @tracked status = null;
-  // @tracked type = null;
-
-  // @tracked filterOptions = {
-  //   status: {
-  //     pending: false,
-  //     running: false,
-  //     dead: false,
-  //   },
-  //   type: {
-  //     service: false,
-  //     batch: false,
-  //     system: false,
-  //     sysbatch: false,
-  //   },
-  //   searchText: '',
-  // };
-
-  // get optionsStatus() {
-  //   return [
-  //     { key: 'pending', label: 'Pending', qp: 'status_pending' },
-  //     { key: 'running', label: 'Running', qp: 'status_running' },
-  //     { key: 'dead', label: 'Dead', qp: 'status_dead' },
-  //   ];
-  // }
-
-  // get status() {
-  //   console.log('getting status i guess for QP?', this.optionsStatus.filter((s) => s.filtered).map((s) => s.key).join(","));
-  //   return this.optionsStatus.filter((s) => s.filtered).map((s) => `State is ${s.key}`).join(" or ");
-  // }
-
-  // get filter() {
-  //   console.log('filter recompute');
-  //   let parts = [];
-  //   if (this.searchText) {
-  //     parts.push(this.searchText);
-  //   }
-  //   // if (this.status) {
-  //   //   parts.push(this.status);
-  //   // }
-  //   this.optionsStatus.forEach((s) => {
-  //     if (this[s.qp]) {
-  //       console.log('yeah!', s.key);
-  //       parts.push(`Status == ${s.key}`);
-  //     }
-  //   });
-  //   if (this.type) {
-  //     parts.push(this.type);
-  //   }
-  //   console.log('so PARTS', parts);
-  //   return parts.join(' and ');
-  // }
 
   @action resetFilters() {
     this.searchText = '';
-    // this.status = null;
-    // this.optionsStatus.forEach((s) => s.filtered = false);
-    // this.type = null;
     this.filterFacets.forEach((group) => {
       group.options.forEach((option) => {
-        // option.checked = false;
         set(option, 'checked', false);
       });
     });
+    this.qpNamespace = '*';
     this.updateFilter();
   }
 
@@ -592,11 +543,10 @@ export default class JobsIndexController extends Controller {
    * Updates the filter based on the input, distinguishing between simple job names and filter expressions.
    * A simple check for operators with surrounding spaces is used to identify filter expressions.
    *
-   * @param {string} newFilter - The new filter string entered by the user.
+   * @param {string} newFilter
    */
   @action
   updateSearchText(newFilter) {
-    // console.log('uST', newFilter);
     if (!newFilter.trim()) {
       this.searchText = '';
       return;

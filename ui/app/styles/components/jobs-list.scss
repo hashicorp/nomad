@@ -7,6 +7,10 @@
 // Over time, we can phase most of these custom styles out as Helios components
 // adapt to more use-cases (like custom footer, etc).
 
+#jobs-list-header {
+  z-index: $z-base;
+}
+
 #jobs-list-actions {
   margin-bottom: 1rem;
 }
