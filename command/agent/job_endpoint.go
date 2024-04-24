@@ -2114,11 +2114,17 @@ func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Requ
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil // seems whack
 	}
+
 	switch req.Method {
-	case http.MethodGet:
-		// GET requests will be treated as "get all jobs" but also with filtering and pagination and such
-	case http.MethodPost:
-		// POST requests expect a list of Jobs in the request body, which will then be filtered/paginated, etc.
+	case http.MethodGet, http.MethodPost:
+		break
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	// ostensibly GETs should not accept structured body, but the HTTP spec
+	// on this is more what you'd call "guidelines" than actual rules.
+	if req.Body != http.NoBody {
 		var in api.JobStatusesRequest
 		if err := decodeBody(req, &in); err != nil {
 			return nil, err
@@ -2126,18 +2132,22 @@ func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Requ
 		if len(in.Jobs) == 0 {
 			return nil, CodedError(http.StatusBadRequest, "no jobs in request")
 		}
+
+		// each job has a separate namespace, so default to wildcard
+		// in case the NSes are mixed.
+		if args.QueryOptions.Namespace == "" {
+			args.QueryOptions.Namespace = "*"
+		}
+
 		for _, j := range in.Jobs {
 			if j.Namespace == "" {
 				j.Namespace = "default"
 			}
 			args.Jobs = append(args.Jobs, structs.NamespacedID{
-				ID: j.ID,
-				// note: can't just use QueryOptions.Namespace, because each job may have a different NS
+				ID:        j.ID,
 				Namespace: j.Namespace,
 			})
 		}
-	default:
-		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
 	var out structs.JobStatusesResponse
