@@ -20,7 +20,7 @@
           />
 
           {{#each this.filterFacets as |group|}}
-            <S.Dropdown as |dd|>
+            <S.Dropdown data-test-facet={{group.label}} as |dd|>
               <dd.ToggleButton
                 @text={{group.label}}
                 @color="secondary"
@@ -44,7 +44,7 @@
           {{/each}}
 
           {{#if this.system.shouldShowNamespaces}}
-            <S.Dropdown as |dd|>
+            <S.Dropdown data-test-facet="namespace" as |dd|>
               <dd.ToggleButton
                 @text="Namespace"
                 @color="secondary"
@@ -292,4 +292,6 @@
         {{/if}}
       </Hds::ApplicationState>
     {{/if}}
+    <hr />
+    Namespace is {{this.qpNamespace}}
 </section>

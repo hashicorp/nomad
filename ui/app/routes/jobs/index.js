@@ -65,7 +65,9 @@ export default class IndexRoute extends Route.extend(
 
   getCurrentParams() {
     let queryParams = this.paramsFor(this.routeName); // Get current query params
-    queryParams.next_token = queryParams.cursorAt;
+    if (queryParams.cursorAt) {
+      queryParams.next_token = queryParams.cursorAt;
+    }
     queryParams.per_page = queryParams.pageSize;
 
     /* eslint-disable ember/no-controller-access-in-routes */
@@ -83,10 +85,6 @@ export default class IndexRoute extends Route.extend(
     delete queryParams.searchText;
     delete queryParams.status;
     delete queryParams.type;
-    // TODO: excessive
-    delete queryParams.status_dead;
-    delete queryParams.status_running;
-    delete queryParams.status_pending;
     // console.log('final queryParams in model hook is', queryParams);
     return { ...queryParams };
   }
@@ -154,16 +152,6 @@ export default class IndexRoute extends Route.extend(
     return {
       error,
     };
-
-    // const errorCodes = codesForError(error);
-    // if (errorCodes.includes('500')) {
-    //   console.log('ye goofed lad', error, errorCodes);
-    // } else {
-    //   console.log('ye goofed lad but not that bad', error, errorCodes);
-    // }
-    // return {
-    //   error: error,
-    // }
   }
 
   setupController(controller, model) {

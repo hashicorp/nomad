@@ -44,3 +44,16 @@ export const singleFacet = (scope) => ({
     },
   }),
 });
+
+export const hdsFacet = (scope) => ({
+  scope,
+
+  toggle: clickable('.hds-dropdown-toggle-button'),
+
+  options: collection('.hds-dropdown-list-item', {
+    resetScope: true,
+    label: text(),
+    key: attribute('data-test-hds-facet-option'),
+    toggle: clickable('.hds-dropdown-list-item__label'),
+  }),
+});

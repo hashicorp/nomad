@@ -14,7 +14,11 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
-import { multiFacet, singleFacet } from 'nomad-ui/tests/pages/components/facet';
+import {
+  multiFacet,
+  singleFacet,
+  hdsFacet,
+} from 'nomad-ui/tests/pages/components/facet';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
@@ -23,7 +27,7 @@ export default create({
   visit: visitable('/jobs'),
 
   search: {
-    scope: '[data-test-jobs-search] input',
+    scope: '[data-test-jobs-search]',
     keydown: triggerable('keydown'),
   },
 
@@ -66,7 +70,7 @@ export default create({
   pageSizeSelect: pageSizeSelect(),
 
   facets: {
-    namespace: singleFacet('[data-test-namespace-facet]'),
+    namespace: hdsFacet('[data-test-facet="namespace"]'),
     type: multiFacet('[data-test-type-facet]'),
     status: multiFacet('[data-test-status-facet]'),
     datacenter: multiFacet('[data-test-datacenter-facet]'),

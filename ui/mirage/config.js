@@ -30,7 +30,7 @@ export function filesForPath(allocFiles, filterPath) {
 export default function () {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
-  this.logging = window.location.search.includes('mirage-logging=true');
+  this.logging = true; // TODO: window.location.search.includes('mirage-logging=true');
 
   this.namespace = 'v1';
   this.trackRequests = Ember.testing;
@@ -128,7 +128,12 @@ export default function () {
           const filterConditions = req.queryParams.filter
             .split(' and ')
             .map((condition) => {
+              // Dropdowns user parenthesis wrapping; remove them for mock/test purposes
+              if (condition.startsWith('(') && condition.endsWith(')')) {
+                condition = condition.slice(1, -1);
+              }
               const parts = condition.split(' ');
+
               return {
                 field: parts[0],
                 operator: parts[1],

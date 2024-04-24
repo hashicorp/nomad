@@ -1474,6 +1474,94 @@ module('Acceptance | jobs list', function (hooks) {
         localStorage.removeItem('nomadPageSize');
       });
     });
+    module.only('Filtering', function () {
+      test('Filtering by namespace filters this list', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+
+        server.create('namespace', {
+          id: 'default',
+          name: 'default',
+        });
+
+        server.create('namespace', {
+          id: 'ns-2',
+          name: 'ns-2',
+        });
+
+        server.createList('job', 10, {
+          createAllocations: false,
+          namespaceId: 'default',
+          modifyIndex: 10,
+        });
+
+        server.create('job', {
+          id: 'ns-2-job',
+          namespaceId: 'ns-2',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+
+        // By default, start on "All" namespace
+        await JobsList.visit();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initial setup should show 10 jobs in the default namespace.'
+          );
+        assert
+          .dom('[data-test-job-row="ns-2-job"]')
+          .doesNotExist(
+            'The job in the ns-2 namespace should not appear without filtering.'
+          );
+
+        assert
+          .dom('[data-test-pager="next"]')
+          .isNotDisabled(
+            '11 jobs on "All" namespace, so second page is available'
+          );
+
+        // Toggle ns-2 namespace
+        await JobsList.facets.namespace.toggle();
+        await JobsList.facets.namespace.options[2].toggle();
+
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be visible when filtering by the ns-2 namespace.'
+          );
+        assert
+          .dom('[data-test-job-row="ns-2-job"]')
+          .exists(
+            'The job in the ns-2 namespace appears as expected when filtered.'
+          );
+
+        // Switch to default namespace
+        await JobsList.facets.namespace.toggle();
+        await JobsList.facets.namespace.options[1].toggle();
+
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'All jobs reappear when the search filter is cleared.'
+          );
+        assert
+          .dom('[data-test-job-row="ns-2-job"]')
+          .doesNotExist(
+            'The job in the ns-2 namespace should disappear when the filter is cleared.'
+          );
+
+        assert
+          .dom('[data-test-pager="next"]')
+          .isDisabled(
+            '10 jobs in "Default" namespace, so second page is not available'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+    });
   });
 });
 

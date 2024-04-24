@@ -387,8 +387,6 @@ export default class JobsIndexController extends Controller {
       }
     });
 
-    console.log('availablenamespaces', availableNamespaces);
-
     return {
       label: 'Namespace',
       options: availableNamespaces,
@@ -465,7 +463,6 @@ export default class JobsIndexController extends Controller {
     'typeFacet.options.@each.checked'
   )
   get computedFilter() {
-    console.log('compFilter');
     let parts = this.searchText ? [this.searchText] : [];
     this.filterFacets.forEach((group) => {
       let groupParts = [];
