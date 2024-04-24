@@ -13,7 +13,6 @@ import { watchAll } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
-import codesForError from '../../utils/codes-for-error';
 import { action } from '@ember/object';
 import Ember from 'ember';
 
@@ -69,6 +68,7 @@ export default class IndexRoute extends Route.extend(
     queryParams.next_token = queryParams.cursorAt;
     queryParams.per_page = queryParams.pageSize;
 
+    /* eslint-disable ember/no-controller-access-in-routes */
     let filter = this.controllerFor('jobs.index').filter;
     if (filter) {
       queryParams.filter = filter;
@@ -76,8 +76,6 @@ export default class IndexRoute extends Route.extend(
     // namespace
     queryParams.namespace = queryParams.qpNamespace;
     delete queryParams.qpNamespace;
-    console.log('filter, in model hook, is', filter);
-    console.log('and namespace is', queryParams.namespace);
     delete queryParams.pageSize;
     delete queryParams.cursorAt; // TODO: hacky, should be done in the serializer/adapter?
 

@@ -25,14 +25,9 @@
                 @text={{group.label}}
                 @color="secondary"
                 @count={{get (filter-by "checked" true group.options) "length"}}
-                {{!-- @badge={{or this.selection[group.qp].length false}} --}}
               />
               {{#each group.options as |option|}}
                 <dd.Checkbox
-                  {{!-- {{on "change" (queue
-                    (fn (mut option.checked) (not option.checked))
-                    this.updateFilter
-                  )}} --}}
                   {{on "change" (fn this.toggleOption option)}}
                   @value={{option.key}}
                   checked={{option.checked}}
@@ -169,14 +164,7 @@
             {{#if this.system.shouldShowNodepools}}
               <B.Td data-test-job-node-pool>{{B.data.nodePool}}</B.Td>
             {{/if}}
-            <B.Td data-test-job-priority>
-              {{B.data.priority}}
-            </B.Td>
             <B.Td>
-              {{!-- {{get (filter-by 'clientStatus' 'running' B.data.allocations) "length"}} running <br />
-              {{B.data.allocations.length}} total <br />
-              {{B.data.groupCountSum}} desired
-              <hr /> --}}
               <div class="job-status-panel compact">
                 {{#unless B.data.assumeGC}}
                   {{#if B.data.childStatuses}}
@@ -189,7 +177,6 @@
                       @allocBlocks={{B.data.allocBlocks}}
                       @steady={{true}}
                       @compact={{true}}
-                      {{!-- @runningAllocs={{B.data.runningAllocs}} --}}
                       @runningAllocs={{B.data.allocBlocks.running.healthy.nonCanary.length}}
                       @groupCountSum={{B.data.expectedRunningAllocCount}}
                     />
@@ -305,35 +292,4 @@
         {{/if}}
       </Hds::ApplicationState>
     {{/if}}
-  {{!-- <hr />
-  Options:<br />
-  {{#each this.filterFacets as |group groupIndex|}}
-    {{group.label}}<br />
-    {{#each group.options as |option optionIndex|}}
-      {{option.key}}: {{option.checked}}<br />
-    {{/each}}
-  {{/each}}
-  <hr />
-  Next token is {{this.nextToken}}<br />
-  Model.jobs length: {{this.model.jobs.length}}<br />
-  Controller.jobs length: {{this.jobs.length}}<br />
-  Job IDs to watch for ({{this.jobIDs.length}}): {{#each this.jobIDs as |id|}}{{id.id}} | {{/each}}<br />
-  Pending Job IDs to watch for ({{this.pendingJobIDs.length}}): {{#each this.pendingJobIDs as |id|}}{{id.id}} | {{/each}}<br />
-  <Hds::Form::Toggle::Field
-    name="jostle"
-    @id="jostle"
-    checked={{this.liveUpdatesEnabled}}
-    {{on "change" (action (mut this.liveUpdatesEnabled) (not this.liveUpdatesEnabled))}}
-    as |F|>
-    <F.Label>Live update new/removed jobs?</F.Label>
-  </Hds::Form::Toggle::Field>
-  {{this.liveUpdatesEnabled}}<br />
-  <hr />
-  Local watchlist<br />
-  jobQueryIndex: {{this.jobQueryIndex}}<br />
-  jobAllocsQueryIndex: {{this.jobAllocsQueryIndex}}<br />
-
-  <hr /> --}}
-
-
 </section>

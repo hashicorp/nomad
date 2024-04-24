@@ -11,10 +11,6 @@ import { action, computed, set } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { restartableTask, timeout } from 'ember-concurrency';
-import {
-  serialize,
-  deserializedQueryParam as selection,
-} from 'nomad-ui/utils/qp-serialize';
 import Ember from 'ember';
 
 const JOB_LIST_THROTTLE = 5000;
@@ -37,17 +33,8 @@ export default class JobsIndexController extends Controller {
   queryParams = [
     'cursorAt',
     'pageSize',
-    // 'status',
     { qpNamespace: 'namespace' },
-    // 'type',
-    // 'searchTerm',
     'filter',
-    // 'searchText',
-    // 'status',
-    // 'type',
-    // 'status_pending',
-    // 'status_running',
-    // 'status_dead',
   ];
 
   isForbidden = false;
@@ -57,16 +44,6 @@ export default class JobsIndexController extends Controller {
 
   @tracked qpNamespace = '*';
 
-  // @action
-  // handleFilterChange(queryParamValue, option, queryParamLabel) {
-  //   if (queryParamValue.includes(option)) {
-  //     queryParamValue.removeObject(option);
-  //   } else {
-  //     queryParamValue.addObject(option);
-  //   }
-  //   this[queryParamLabel] = serialize(queryParamValue);
-  // }
-
   get tableColumns() {
     return [
       'name',
@@ -74,7 +51,6 @@ export default class JobsIndexController extends Controller {
       'status',
       'type',
       this.system.shouldShowNodepools ? 'node pool' : null, // TODO: implement on system service
-      'priority',
       'running allocations',
     ]
       .filter((c) => !!c)
@@ -377,6 +353,15 @@ export default class JobsIndexController extends Controller {
     ],
   };
 
+  @tracked nodePoolFacet = {
+    label: 'NodePool',
+    options: (this.model.nodePools || []).map((nodePool) => ({
+      key: nodePool.name,
+      string: `NodePool == ${nodePool.name}`,
+      checked: false,
+    })),
+  };
+
   @computed('system.shouldShowNamespaces', 'model.namespaces.[]', 'qpNamespace')
   get namespaceFacet() {
     if (!this.system.shouldShowNamespaces) {
@@ -395,10 +380,7 @@ export default class JobsIndexController extends Controller {
       label: 'All',
     });
 
-    // qpNamespaces is a string queryParam that looks like ?namespace=ns1,ns2,ns3
-    // We need to deserialize that string into the checked options
     let selectedNamespaces = this.qpNamespace || '*';
-    console.log('selectedNamespaces', selectedNamespaces);
     availableNamespaces.forEach((opt) => {
       if (selectedNamespaces.includes(opt.key)) {
         opt.checked = true;
@@ -413,20 +395,11 @@ export default class JobsIndexController extends Controller {
     };
   }
 
-  // TODO:
-  // - Node Pool
-  // - Datacenter
-
-  // @tracked filterFacets = [
-  //   this.statusFacet,
-  //   this.typeFacet
-  // ];
-
   get filterFacets() {
     let facets = [this.statusFacet, this.typeFacet];
-    // if (this.system.shouldShowNamespaces) {
-    //   facets.push(this.namespaceFacet);
-    // }
+    if (this.system.shouldShowNodepools) {
+      facets.push(this.nodePoolFacet);
+    }
     return facets;
   }
 
@@ -485,10 +458,11 @@ export default class JobsIndexController extends Controller {
   }
 
   @computed(
-    'typeFacet.options.@each.checked',
+    'filterFacets',
+    'nodePoolFacet.options.@each.checked',
+    'searchText',
     'statusFacet.options.@each.checked',
-    'namespaceFacet.options.@each.checked',
-    'searchText'
+    'typeFacet.options.@each.checked'
   )
   get computedFilter() {
     console.log('compFilter');
