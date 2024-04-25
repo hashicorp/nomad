@@ -30,7 +30,7 @@ export function filesForPath(allocFiles, filterPath) {
 export default function () {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
-  this.logging = true; // TODO: window.location.search.includes('mirage-logging=true');
+  this.logging = window.location.search.includes('mirage-logging=true');
 
   this.namespace = 'v1';
   this.trackRequests = Ember.testing;

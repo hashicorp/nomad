@@ -1677,6 +1677,138 @@ module('Acceptance | jobs list', function (hooks) {
 
         localStorage.removeItem('nomadPageSize');
       });
+
+      test('Filtering by a dynamically-generated facet: data-test-facet="Node Pool"', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+
+        server.create('node-pool', {
+          id: 'pool-1',
+          name: 'pool-1',
+        });
+        server.create('node-pool', {
+          id: 'pool-2',
+          name: 'pool-2',
+        });
+
+        server.createList('job', 10, {
+          createAllocations: false,
+          nodePool: 'pool-1',
+          modifyIndex: 10,
+        });
+
+        server.create('job', {
+          id: 'pool-2-job',
+          nodePool: 'pool-2',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+
+        await JobsList.visit();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initial setup should show 10 jobs in the "pool-1" node pool.'
+          );
+        assert
+          .dom('[data-test-job-row="pool-2-job"]')
+          .doesNotExist(
+            'The job in the "pool-2" node pool should not appear without filtering.'
+          );
+        await JobsList.facets.nodePool.toggle();
+
+        await JobsList.facets.nodePool.options[2].toggle(); // pool-2
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be visible when filtering by the "pool-2" node pool.'
+          );
+        assert
+          .dom('[data-test-job-row="pool-2-job"]')
+          .exists(
+            'The job in the "pool-2" node pool appears as expected when filtered.'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Combined Filtering and Searching', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        // 2 service, 1 batch, 1 system, 1 sysbatch
+        // 3 running, 1 dead, 1 pending
+        server.create('job', {
+          id: 'job1',
+          name: 'Alpha Processing',
+          type: 'batch',
+          status: 'running',
+        });
+        server.create('job', {
+          id: 'job2',
+          name: 'Beta Calculation',
+          type: 'service',
+          status: 'dead',
+        });
+        server.create('job', {
+          id: 'job3',
+          name: 'Gamma Analysis',
+          type: 'sysbatch',
+          status: 'pending',
+        });
+        server.create('job', {
+          id: 'job4',
+          name: 'Delta Research',
+          type: 'system',
+          status: 'running',
+        });
+        server.create('job', {
+          id: 'job5',
+          name: 'Epsilon Development',
+          type: 'service',
+          status: 'running',
+        });
+
+        // All 5 jobs show up by default
+        await JobsList.visit();
+        assert.dom('.job-row').exists({ count: 5 }, 'All 5 jobs are visible');
+
+        // Toggle type to "service", should see 2 jobs
+        await JobsList.facets.type.toggle();
+        await JobsList.facets.type.options[0].toggle();
+        assert
+          .dom('.job-row')
+          .exists({ count: 2 }, 'Two service jobs are visible');
+
+        // additionally, enable "batch" type
+        await JobsList.facets.type.options[1].toggle();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 3 },
+            'Three jobs are visible with service and batch types'
+          );
+        assert.dom('[data-test-job-row="job1"]').exists();
+        assert.dom('[data-test-job-row="job2"]').exists();
+        assert.dom('[data-test-job-row="job5"]').exists();
+
+        // additionally, enable "running" status to filter down to just the running ones
+        await JobsList.facets.status.toggle();
+        await JobsList.facets.status.options[1].toggle();
+        assert
+          .dom('.job-row')
+          .exists({ count: 2 }, 'Two running service/batch jobs are visible');
+        assert.dom('[data-test-job-row="job1"]').exists();
+        assert.dom('[data-test-job-row="job5"]').exists();
+        assert.dom('[data-test-job-row="job2"]').doesNotExist();
+
+        // additionally, perform a search for Name != "Alpha Processing"
+        await JobsList.search.fillIn('Name != "Alpha Processing"');
+        assert
+          .dom('.job-row')
+          .exists({ count: 1 }, 'One running service job is visible');
+        assert.dom('[data-test-job-row="job5"]').exists();
+        assert.dom('[data-test-job-row="job1"]').doesNotExist();
+      });
     });
   });
 });
