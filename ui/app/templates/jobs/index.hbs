@@ -52,8 +52,8 @@
               />
               {{#each this.namespaceFacet.options as |option|}}
                 <dd.Radio
-                  name="namespace"
-                  {{on "change" (fn this.toggleNamespaceOption option)}}
+                  name={{option.key}}
+                  {{on "change" (fn this.toggleNamespaceOption option dd)}}
                   @value={{option.key}}
                   checked={{option.checked}}
                   data-test-dropdown-option={{option.key}}

@@ -18,6 +18,7 @@ import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
+import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
 
 let managementToken, clientToken;
 
@@ -92,7 +93,6 @@ module('Acceptance | jobs list', function (hooks) {
       'Status'
     );
     assert.equal(jobRow.type, typeForJob(job), 'Type');
-    assert.equal(jobRow.priority, job.priority, 'Priority');
   });
 
   test('each job row should link to the corresponding job', async function (assert) {

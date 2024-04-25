@@ -486,8 +486,9 @@ export default class JobsIndexController extends Controller {
 
   // Radio button set
   @action
-  toggleNamespaceOption(option) {
+  toggleNamespaceOption(option, dropdown) {
     this.qpNamespace = option.key;
+    dropdown.close();
   }
 
   @action

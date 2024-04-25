@@ -149,9 +149,16 @@ export default class IndexRoute extends Route.extend(
       });
     });
 
-    return {
-      error,
-    };
+    // if it's an innocuous-enough seeming "You mistyped something while searching" error,
+    // handle it with a notification and don't throw. Otherwise, throw.
+    if (
+      error.errors[0].detail.includes("couldn't find key") ||
+      error.errors[0].detail.includes('failed to read filter expression')
+    ) {
+      return error;
+    } else {
+      throw error;
+    }
   }
 
   setupController(controller, model) {

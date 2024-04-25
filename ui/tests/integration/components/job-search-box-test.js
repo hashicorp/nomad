@@ -16,7 +16,7 @@ module('Integration | Component | job-search-box', function (hooks) {
   setupRenderingTest(hooks);
 
   test('debouncer debounces appropriately', async function (assert) {
-    assert.expect(4);
+    assert.expect(5);
 
     let message = '';
 
@@ -24,7 +24,9 @@ module('Integration | Component | job-search-box', function (hooks) {
       message = value;
     });
 
-    await render(hbs`<JobSearchBox @onFilterChange={{this.externalAction}} />`);
+    await render(
+      hbs`<Hds::SegmentedGroup as |S|><JobSearchBox @onSearchTextChange={{this.externalAction}} @S={{S}} /></Hds::SegmentedGroup>`
+    );
     await componentA11yAudit(this.element, assert);
 
     const element = find('input');
