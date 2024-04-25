@@ -4,7 +4,12 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { currentURL, click, triggerKeyEvent } from '@ember/test-helpers';
+import {
+  currentURL,
+  settled,
+  click,
+  triggerKeyEvent,
+} from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -1474,8 +1479,8 @@ module('Acceptance | jobs list', function (hooks) {
         localStorage.removeItem('nomadPageSize');
       });
     });
-    module.only('Filtering', function () {
-      test('Filtering by namespace filters this list', async function (assert) {
+    module('Filtering', function () {
+      test('Filtering by namespace filters the job list', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
 
         server.create('namespace', {
@@ -1557,6 +1562,40 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('[data-test-pager="next"]')
           .isDisabled(
             '10 jobs in "Default" namespace, so second page is not available'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('Namespace filter only shows up if the server has more than one namespace', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+
+        server.create('namespace', {
+          id: 'default',
+          name: 'default',
+        });
+
+        server.createList('job', 10, {
+          createAllocations: false,
+          namespaceId: 'default',
+          modifyIndex: 10,
+        });
+
+        await JobsList.visit();
+        assert
+          .dom('[data-test-facet="namespace"]')
+          .doesNotExist(
+            'Namespace filter should not appear with only one namespace.'
+          );
+
+        let system = this.owner.lookup('service:system');
+        system.shouldShowNamespaces = true;
+
+        await settled();
+
+        assert
+          .dom('[data-test-facet="namespace"]')
+          .exists(
+            'Namespace filter should appear with more than one namespace.'
           );
 
         localStorage.removeItem('nomadPageSize');
