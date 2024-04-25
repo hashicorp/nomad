@@ -129,20 +129,42 @@ export default function () {
             .split(' and ')
             .map((condition) => {
               // Dropdowns user parenthesis wrapping; remove them for mock/test purposes
+              // We want to test multiple conditions within parens, like "(Type == system or Type == sysbatch)"
+              // So if we see parenthesis, we should re-split on "or" and treat them as separate conditions.
               if (condition.startsWith('(') && condition.endsWith(')')) {
                 condition = condition.slice(1, -1);
               }
-              const parts = condition.split(' ');
+              if (condition.includes(' or ')) {
+                // multiple or condition
+                return {
+                  field: condition.split(' ')[0],
+                  operator: '==',
+                  parts: condition.split(' or ').map((part) => {
+                    return part.split(' ')[2];
+                  }),
+                };
+              } else {
+                const parts = condition.split(' ');
 
-              return {
-                field: parts[0],
-                operator: parts[1],
-                value: parts.slice(2).join(' ').replace(/['"]+/g, ''),
-              };
+                return {
+                  field: parts[0],
+                  operator: parts[1],
+                  value: parts.slice(2).join(' ').replace(/['"]+/g, ''),
+                };
+              }
             });
+
+          console.log('filterConditions are', filterConditions);
 
           filteredJson = filteredJson.filter((job) => {
             return filterConditions.every((condition) => {
+              if (condition.parts) {
+                // Making a shortcut assumption that any condition.parts situations
+                // will be == as operator for testing sake.
+                return condition.parts.some((part) => {
+                  return job[condition.field] === part;
+                });
+              }
               if (condition.operator === 'contains') {
                 return (
                   job[condition.field] &&

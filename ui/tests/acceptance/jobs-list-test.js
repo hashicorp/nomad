@@ -1480,7 +1480,7 @@ module('Acceptance | jobs list', function (hooks) {
       });
     });
     module('Filtering', function () {
-      test('Filtering by namespace filters the job list', async function (assert) {
+      test('Filtering by namespace filters the list', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');
 
         server.create('namespace', {
@@ -1582,7 +1582,7 @@ module('Acceptance | jobs list', function (hooks) {
 
         await JobsList.visit();
         assert
-          .dom('[data-test-facet="namespace"]')
+          .dom('[data-test-facet="Namespace"]')
           .doesNotExist(
             'Namespace filter should not appear with only one namespace.'
           );
@@ -1593,9 +1593,86 @@ module('Acceptance | jobs list', function (hooks) {
         await settled();
 
         assert
-          .dom('[data-test-facet="namespace"]')
+          .dom('[data-test-facet="Namespace"]')
           .exists(
             'Namespace filter should appear with more than one namespace.'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('Filtering by status filters the list', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        server.createList('job', 10, {
+          createAllocations: false,
+          status: 'running',
+          modifyIndex: 10,
+        });
+
+        server.create('job', {
+          id: 'pending-job',
+          status: 'pending',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+
+        server.create('job', {
+          id: 'dead-job',
+          status: 'dead',
+          createAllocations: false,
+          modifyIndex: 8,
+        });
+
+        await JobsList.visit();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initial setup should show 10 jobs in the "running" status.'
+          );
+        assert
+          .dom('[data-test-job-row="pending-job"]')
+          .doesNotExist(
+            'The job in the "pending" status should not appear without filtering.'
+          );
+        assert
+          .dom('[data-test-pager="next"]')
+          .isNotDisabled(
+            '10 jobs in "running" status, so second page is available'
+          );
+
+        await JobsList.facets.status.toggle();
+        await JobsList.facets.status.options[0].toggle(); // pending
+
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be visible when filtering by the "pending" status.'
+          );
+        assert
+          .dom('[data-test-job-row="pending-job"]')
+          .exists(
+            'The job in the "pending" status appears as expected when filtered.'
+          );
+
+        assert
+          .dom('[data-test-pager="next"]')
+          .isDisabled(
+            '1 job in "pending" status, so second page is not available'
+          );
+
+        await JobsList.facets.status.options[2].toggle(); // dead
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 2 },
+            'Two jobs should be visible when the "dead" filter is added'
+          );
+        assert
+          .dom('[data-test-job-row="dead-job"]')
+          .exists(
+            { count: 1 },
+            'The job in the "dead" status appears as expected when filtered.'
           );
 
         localStorage.removeItem('nomadPageSize');

@@ -66,9 +66,10 @@ export default create({
   pageSizeSelect: pageSizeSelect(),
 
   facets: {
-    namespace: hdsFacet('[data-test-facet="namespace"]'),
+    namespace: hdsFacet('[data-test-facet="Namespace"]'),
     type: multiFacet('[data-test-type-facet]'),
-    status: multiFacet('[data-test-status-facet]'),
+    // status: multiFacet('[data-test-status-facet]'),
+    status: hdsFacet('[data-test-facet="Status"]'),
     datacenter: multiFacet('[data-test-datacenter-facet]'),
     prefix: multiFacet('[data-test-prefix-facet]'),
   },
