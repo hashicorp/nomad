@@ -43,11 +43,6 @@ var (
 	// 1.11.0 is when Vault added support for `user_claim_json_pointer`.
 	// https://github.com/hashicorp/vault/pull/15593
 	minJWTVersion = goversion.Must(goversion.NewVersion("1.11.0"))
-
-	// skipJWTVersion is a version that has a known issue with JWT. Once 1.16.2
-	// ships, we can remove this as it won't be downloaded and tested anymore.
-	// See: https://github.com/hashicorp/nomad/issues/20298
-	skipJWTVersion = goversion.Must(goversion.NewVersion("1.16.1"))
 )
 
 func TestVaultCompat(t *testing.T) {
@@ -75,7 +70,7 @@ func testVaultBuild(t *testing.T, b build) {
 			testVaultLegacy(t, b)
 		})
 
-		if version.GreaterThanOrEqual(minJWTVersion) && !version.Equal(skipJWTVersion) {
+		if version.GreaterThanOrEqual(minJWTVersion) {
 			t.Run("jwt", func(t *testing.T) {
 				testVaultJWT(t, b)
 			})
