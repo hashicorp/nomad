@@ -151,7 +151,7 @@
               {{/if}}
             </B.Td>
             {{#if this.system.shouldShowNamespaces}}
-              <B.Td>{{B.data.namespace.id}}</B.Td>
+              <B.Td data-test-job-namespace>{{B.data.namespace.id}}</B.Td>
             {{/if}}
             <B.Td data-test-job-status>
               {{#unless B.data.childStatuses}}
@@ -262,7 +262,7 @@
     {{else}}
       <Hds::ApplicationState data-test-empty-jobs-list as |A|>
         {{#if this.filter}}
-          <A.Header data-test-empty-jobs-list-headline @title="No Jobs Match Filter" />
+          <A.Header data-test-empty-jobs-list-headline @title="No Matches" />
           <A.Body
             @text="No jobs match your current filter selection."
           />
@@ -292,6 +292,4 @@
         {{/if}}
       </Hds::ApplicationState>
     {{/if}}
-    <hr />
-    Namespace is {{this.qpNamespace}}
 </section>

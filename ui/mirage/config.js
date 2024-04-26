@@ -154,8 +154,6 @@ export default function () {
               }
             });
 
-          console.log('filterConditions are', filterConditions);
-
           filteredJson = filteredJson.filter((job) => {
             return filterConditions.every((condition) => {
               if (condition.parts) {

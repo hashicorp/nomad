@@ -331,13 +331,13 @@ export default class JobsIndexController extends Controller {
     label: 'Type',
     options: [
       {
-        key: 'service',
-        string: 'Type == service',
+        key: 'batch',
+        string: 'Type == batch',
         checked: false,
       },
       {
-        key: 'batch',
-        string: 'Type == batch',
+        key: 'service',
+        string: 'Type == service',
         checked: false,
       },
       {

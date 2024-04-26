@@ -41,24 +41,6 @@ export default class IndexRoute extends Route.extend(
     filter: {
       refreshModel: true,
     },
-    // searchText: {
-    //   refreshModel: true,
-    // },
-    // status: {
-    //   refreshModel: true,
-    // },
-    // type: {
-    //   refreshModel: true,
-    // },
-    // status_dead: {
-    //   refreshModel: true,
-    // },
-    // status_running: {
-    //   refreshModel: true,
-    // },
-    // status_pending: {
-    //   refreshModel: true,
-    // },
   };
 
   hasBeenInitialized = false;
@@ -85,7 +67,6 @@ export default class IndexRoute extends Route.extend(
     delete queryParams.searchText;
     delete queryParams.status;
     delete queryParams.type;
-    // console.log('final queryParams in model hook is', queryParams);
     return { ...queryParams };
   }
 
@@ -106,11 +87,9 @@ export default class IndexRoute extends Route.extend(
         nodePools: this.store.findAll('node-pool'),
       });
     } catch (error) {
-      console.log('error', error);
       try {
         notifyForbidden(this)(error);
       } catch (secondaryError) {
-        console.log('Secondary Error caught', secondaryError);
         return this.handleErrors(error);
       }
     }
@@ -139,7 +118,6 @@ export default class IndexRoute extends Route.extend(
    * @returns {Object}
    */
   handleErrors(error) {
-    console.log('handling error', error);
     error.errors.forEach((err) => {
       this.notifications.add({
         title: err.title,

@@ -40,8 +40,6 @@ export default create({
     nodePool: text('[data-test-job-node-pool]'),
     status: text('[data-test-job-status]'),
     type: text('[data-test-job-type]'),
-    priority: text('[data-test-job-priority]'),
-    taskGroups: text('[data-test-job-task-groups]'),
 
     hasNamespace: isPresent('[data-test-job-namespace]'),
     clickRow: clickable(),
