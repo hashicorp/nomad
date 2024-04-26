@@ -5,6 +5,7 @@ package rawexec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -352,6 +353,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Resources:        cfg.Resources.Copy(),
 		OverrideCgroupV2: cgroupslib.CustomPathCG2(driverConfig.OverrideCgroupV2),
 		OverrideCgroupV1: driverConfig.OverrideCgroupV1,
+	}
+
+	// ensure only one of cgroups_v1_override and cgroups_v2_override have been
+	// configured; must check here because task config validation cannot happen
+	// on the server.
+	if len(execCmd.OverrideCgroupV1) > 0 && execCmd.OverrideCgroupV2 != "" {
+		return nil, nil, errors.New("only one of cgroups_v1_override and cgroups_v2_override may be set")
 	}
 
 	ps, err := exec.Launch(execCmd)
