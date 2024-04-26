@@ -26,8 +26,6 @@ export default class IndexRoute extends Route.extend(
   @service watchList;
   @service notifications;
 
-  // perPage = 10;
-
   queryParams = {
     qpNamespace: {
       refreshModel: true,
@@ -61,17 +59,13 @@ export default class IndexRoute extends Route.extend(
     queryParams.namespace = queryParams.qpNamespace;
     delete queryParams.qpNamespace;
     delete queryParams.pageSize;
-    delete queryParams.cursorAt; // TODO: hacky, should be done in the serializer/adapter?
+    delete queryParams.cursorAt;
 
-    // Delete QPs that go into filter
-    delete queryParams.searchText;
-    delete queryParams.status;
-    delete queryParams.type;
     return { ...queryParams };
   }
 
   async model(/*params*/) {
-    let currentParams = this.getCurrentParams(); // TODO: how do these differ from passed params?
+    let currentParams = this.getCurrentParams();
     this.watchList.jobsIndexIDsController.abort();
     this.watchList.jobsIndexIDsController = new AbortController();
     try {
