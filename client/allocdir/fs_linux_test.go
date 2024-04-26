@@ -160,3 +160,36 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 }
+
+func cleanTestMounts(t *testing.T, path string) error {
+	t.Logf("Attempting to remove potentially orphaned mounts from %q", path)
+	file, err := os.Open("/proc/self/mounts")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	reader := bufio.NewReaderSize(file, 64*1024)
+
+	for {
+		line, readerErr := reader.ReadString('\n')
+		if readerErr == io.EOF {
+			break
+		}
+		if readerErr != nil {
+			t.Logf("mount reader error: %v", err.Error())
+			return err
+		}
+
+		parts := strings.SplitN(line, " ", 3)
+		if len(parts) != 3 {
+			err = fmt.Errorf("unexpected line: %q", line)
+			t.Logf("%v", err)
+			return err
+		}
+		if strings.HasPrefix(parts[1], path) {
+			t.Logf("Found an orphaned mount; unlinking %q", parts[1])
+			unlinkDir(parts[1])
+		}
+	}
+	return nil
+}

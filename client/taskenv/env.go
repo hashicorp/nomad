@@ -27,7 +27,13 @@ const (
 	// that is shared across tasks within a task group.
 	AllocDir = "NOMAD_ALLOC_DIR"
 
-	// TaskLocalDir is the environment variable with the path to the tasks local
+	// AllocSecretsDir is the environment variable with the path to the
+	// alloc secrets directory that is shared across tasks within a task group.
+	AllocSecretsDir = "NOMAD_ALLOC_SECRETS_DIR"
+
+	// FIXME(cv 2024-02-07): this next comment is busted. I don't event understand it.
+
+	// TaskLocalDir is the environment variable with the path to the task's local
 	// directory where it can store data that is persisted to the alloc is
 	// removed.
 	TaskLocalDir = "NOMAD_TASK_DIR"
@@ -170,18 +176,23 @@ type TaskEnv struct {
 	// clientSharedAllocDir is the path to shared alloc directory on the host
 	// <alloc_dir>/alloc/
 	clientSharedAllocDir string
+
+	// clientSharedAllocSecrestDir is the path to shared alloc directory on the host
+	// <alloc_dir>/alloc/secrets
+	clientSharedAllocSecretsDir string
 }
 
 // NewTaskEnv creates a new task environment with the given environment, device
 // environment and node attribute maps.
-func NewTaskEnv(env, envClient, deviceEnv, node map[string]string, clientTaskDir, clientAllocDir string) *TaskEnv {
+func NewTaskEnv(env, envClient, deviceEnv, node map[string]string, clientTaskDir, clientAllocDir, clientSharedAllocSecretsDir string) *TaskEnv {
 	return &TaskEnv{
-		NodeAttrs:            node,
-		deviceEnv:            deviceEnv,
-		EnvMap:               env,
-		EnvMapClient:         envClient,
-		clientTaskDir:        clientTaskDir,
-		clientSharedAllocDir: clientAllocDir,
+		NodeAttrs:                   node,
+		deviceEnv:                   deviceEnv,
+		EnvMap:                      env,
+		EnvMapClient:                envClient,
+		clientTaskDir:               clientTaskDir,
+		clientSharedAllocDir:        clientAllocDir,
+		clientSharedAllocSecretsDir: clientSharedAllocSecretsDir,
 	}
 }
 
@@ -400,8 +411,14 @@ type Builder struct {
 	// secretsDir from task's perspective; eg /secrets
 	secretsDir string
 
+	// secretsDir from task's perspective; eg /alloc/secrets
+	allocSecretsDir string
+
 	// clientSharedAllocDir is the shared alloc dir from the client's perspective; eg, <alloc_dir>/<alloc_id>/alloc
 	clientSharedAllocDir string
+
+	// clientSharedAllocSecretsDir is the shared alloc dir from the client's perspective; eg, <alloc_dir>/<alloc_id>/alloc/secrets
+	clientSharedAllocSecretsDir string
 
 	// clientTaskRoot is the task working directory from the client's perspective; eg <alloc_dir>/<alloc_id>/<task>
 	clientTaskRoot string
@@ -484,7 +501,7 @@ func NewEmptyBuilder() *Builder {
 
 // buildEnv returns the environment variables and device environment
 // variables with respect to the task directories passed in the arguments.
-func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
+func (b *Builder) buildEnv(allocDir, allocSecretsDir, localDir, secretsDir string,
 	nodeAttrs map[string]string) (map[string]string, map[string]string) {
 
 	envMap := make(map[string]string)
@@ -493,6 +510,9 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	// Add the directories
 	if allocDir != "" {
 		envMap[AllocDir] = allocDir
+	}
+	if allocSecretsDir != "" {
+		envMap[AllocSecretsDir] = allocSecretsDir
 	}
 	if localDir != "" {
 		envMap[TaskLocalDir] = localDir
@@ -657,10 +677,10 @@ func (b *Builder) Build() *TaskEnv {
 		nodeAttrs[k] = v
 	}
 
-	envMap, deviceEnvs := b.buildEnv(b.allocDir, b.localDir, b.secretsDir, nodeAttrs)
-	envMapClient, _ := b.buildEnv(b.clientSharedAllocDir, b.clientTaskLocalDir, b.clientTaskSecretsDir, nodeAttrs)
+	envMap, deviceEnvs := b.buildEnv(b.allocDir, b.allocSecretsDir, b.localDir, b.secretsDir, nodeAttrs)
+	envMapClient, _ := b.buildEnv(b.clientSharedAllocDir, b.clientSharedAllocSecretsDir, b.clientTaskLocalDir, b.clientTaskSecretsDir, nodeAttrs)
 
-	return NewTaskEnv(envMap, envMapClient, deviceEnvs, nodeAttrs, b.clientTaskRoot, b.clientSharedAllocDir)
+	return NewTaskEnv(envMap, envMapClient, deviceEnvs, nodeAttrs, b.clientTaskRoot, b.clientSharedAllocDir, b.clientSharedAllocSecretsDir)
 }
 
 // UpdateTask updates the environment based on a new alloc and task.
@@ -862,6 +882,13 @@ func (b *Builder) SetAllocDir(dir string) *Builder {
 	return b
 }
 
+func (b *Builder) SetAllocSecretsDir(dir string) *Builder {
+	b.mu.Lock()
+	b.allocSecretsDir = dir
+	b.mu.Unlock()
+	return b
+}
+
 func (b *Builder) SetTaskLocalDir(dir string) *Builder {
 	b.mu.Lock()
 	b.localDir = dir
@@ -872,6 +899,13 @@ func (b *Builder) SetTaskLocalDir(dir string) *Builder {
 func (b *Builder) SetClientSharedAllocDir(dir string) *Builder {
 	b.mu.Lock()
 	b.clientSharedAllocDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientSharedAllocSecretsDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientSharedAllocSecretsDir = dir
 	b.mu.Unlock()
 	return b
 }
