@@ -91,9 +91,9 @@ func setEnvvars(envBuilder *taskenv.Builder, fsi fsisolation.Mode, taskDir *allo
 	switch fsi {
 	case fsisolation.Unveil:
 		// Use mount paths
-		envBuilder.SetAllocDir(filepath.Join(taskDir.MountsAllocDir, "alloc"))
+		envBuilder.SetAllocDir(taskDir.MountsAllocDir)
 		envBuilder.SetTaskLocalDir(filepath.Join(taskDir.MountsTaskDir, "local"))
-		envBuilder.SetSecretsDir(filepath.Join(taskDir.SecretsDir, "secrets"))
+		envBuilder.SetSecretsDir(taskDir.MountsSecretsDir)
 	case fsisolation.None:
 		// Use host paths
 		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
