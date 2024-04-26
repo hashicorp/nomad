@@ -9,6 +9,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shoenig/test/must"
@@ -65,4 +69,33 @@ func Test_computeMemory(t *testing.T) {
 			must.Eq(t, tc.expHard, hard)
 		})
 	}
+}
+
+func TestExecutor_InvalidCgroup(t *testing.T) {
+	ci.Parallel(t)
+	testutil.CgroupsCompatible(t)
+
+	factory := universalFactory
+	testExecCmd := testExecutorCommand(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "sleep"
+	execCmd.Args = []string{"infinity"}
+
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		execCmd.OverrideCgroupV1 = map[string]string{
+			"pid": "custom/path",
+		}
+	case cgroupslib.CG2:
+		execCmd.OverrideCgroupV2 = "custom.slice/test.scope"
+	}
+
+	factory.configureExecCmd(t, execCmd)
+	defer allocDir.Destroy()
+	executor := factory.new(testlog.HCLogger(t), compute)
+	defer executor.Shutdown("", 0)
+
+	_, err := executor.Launch(execCmd)
+	must.ErrorContains(t, err, "unable to configure cgroups: no such file or directory")
+
 }

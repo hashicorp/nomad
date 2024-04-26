@@ -368,8 +368,12 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 
 	// setup containment (i.e. cgroups on linux)
 	if cleanup, err := e.configureResourceContainer(command, os.Getpid()); err != nil {
-		// keep going; some folks run nomad as non-root and expect this driver to still work
-		e.logger.Warn("failed to configure container, process isolation will not work", "error", err)
+		e.logger.Error("failed to configure container, process isolation will not work", "error", err)
+		if os.Geteuid() == 0 {
+			return nil, fmt.Errorf("unable to configure cgroups: %w", err)
+		}
+		// keep going if we are not root; some folks run nomad as non-root and
+		// expect this driver to still work
 	} else {
 		defer cleanup()
 	}

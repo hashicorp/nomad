@@ -134,7 +134,9 @@ func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid
 	// manually configure cgroup for cpu / memory constraints
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
-		e.configureCG1(cgroup, command)
+		if err := e.configureCG1(cgroup, command); err != nil {
+			return nil, err
+		}
 		cgCleanup = e.enterCG1(cgroup, command.CpusetCgroup())
 	default:
 		e.configureCG2(cgroup, command)
@@ -189,10 +191,10 @@ func (e *UniversalExecutor) enterCG1(statsCgroup, cpusetCgroup string) func() {
 	}
 }
 
-func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
+func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) error {
 	// some drivers like qemu entirely own resource management
 	if command.Resources == nil || command.Resources.LinuxResources == nil {
-		return
+		return nil
 	}
 
 	// if custom cgroups are set join those instead of configuring the /nomad
@@ -202,9 +204,13 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 		for controller, path := range e.command.OverrideCgroupV1 {
 			absPath := cgroupslib.CustomPathCG1(controller, path)
 			ed := cgroupslib.OpenPath(absPath)
-			_ = ed.Write("cgroup.procs", strconv.Itoa(pid))
+			err := ed.Write("cgroup.procs", strconv.Itoa(pid))
+			if err != nil {
+				e.logger.Error("unable to write to custom cgroup", "error", err)
+				return fmt.Errorf("unable to write to custom cgroup: %v", err)
+			}
 		}
-		return
+		return nil
 	}
 
 	// write memory limits
@@ -233,6 +239,8 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 		ed = cgroupslib.OpenPath(cpusetPath)
 		_ = ed.Write("cpuset.cpus", cpuSet)
 	}
+
+	return nil
 }
 
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
