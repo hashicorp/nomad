@@ -24,6 +24,10 @@ export default class OptimizeRoute extends Route {
   async model() {
     const summaries = await this.store.findAll('recommendation-summary');
     const jobs = await RSVP.all(summaries.mapBy('job'));
+    console.log(
+      'partial?',
+      jobs.filter((job) => job).map((j) => j.isPartial)
+    );
     const [namespaces] = await RSVP.all([
       this.store.findAll('namespace'),
       ...jobs
@@ -31,6 +35,14 @@ export default class OptimizeRoute extends Route {
         .filterBy('isPartial')
         .map((j) => j.reload()),
     ]);
+
+    // also reload the /allocations for each job
+    // TODO: this might be the trick? Run a full test.
+    await RSVP.all(
+      jobs
+        .filter((job) => job)
+        .map((j) => this.store.query('allocation', { job_id: j.id }))
+    );
 
     return {
       summaries: summaries.sortBy('submitTime').reverse(),

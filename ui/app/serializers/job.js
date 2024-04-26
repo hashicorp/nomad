@@ -155,6 +155,10 @@ export default class JobSerializer extends ApplicationSerializer {
       : hash.PlainId;
 
     if (hash._aggregate && hash.Allocs) {
+      // Friday morning TODO: this is the source of the failing optimization test.
+      // Without this, our jobs index page makes an /allocations lookup, unnecessarily, for every job in the list.
+      // But with it, our "partially hydrated" concept for the Optimize page doesn't really work.
+
       // Manually push allocations to store
       hash.Allocs.forEach((alloc) => {
         this.store.push({

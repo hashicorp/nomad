@@ -18,7 +18,6 @@ import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
-import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
 
 let managementToken, clientToken;
 
