@@ -5,269 +5,105 @@
 
 {{page-title "Jobs"}}
 <section class="section">
-    <Hds::PageHeader as |PH|>
+    <Hds::PageHeader id="jobs-list-header" as |PH|>
       <PH.Actions id="jobs-list-actions">
-        {{!-- <Hds::SegmentedGroup as |S|>
-          <S.Dropdown data-test-state-facet as |dd|>
-            <dd.ToggleButton
-              @text="State"
-              @color="secondary"
-              @badge={{if (eq this.activeToggles.length this.allToggles.length) false this.activeToggles.length}}
-            />
-            <dd.Title @text="Status" />
-            {{#each this.clientFilterToggles.state as |option|}}
-              <dd.Checkbox
-                {{on "change" (toggle option.qp this)}}
-                @value={{option.label}}
-                @count={{get (filter (action option.filter) this.nodes) "length"}}
-                checked={{get this option.qp}}
-                data-test-dropdown-option={{option.label}}
-              >
-                {{capitalize option.label}}
-              </dd.Checkbox>
-            {{/each}}
-            <dd.Separator />
-            <dd.Title @text="Eligibility" />
-            {{#each this.clientFilterToggles.eligibility as |option|}}
-              <dd.Checkbox
-                {{on "change" (toggle option.qp this)}}
-                @value={{option.label}}
-                @count={{get (filter (action option.filter) this.nodes) "length"}}
-                checked={{get this option.qp}}
-                data-test-dropdown-option={{option.label}}
-              >
-                {{capitalize option.label}}
-              </dd.Checkbox>
-            {{/each}}
-            <dd.Separator />
-            <dd.Title @text="Drain Status" />
-            {{#each this.clientFilterToggles.drainStatus as |option|}}
-              <dd.Checkbox
-                {{on "change" (toggle option.qp this)}}
-                @value={{option.label}}
-                @count={{get (filter (action option.filter) this.nodes) "length"}}
-                checked={{get this option.qp}}
-                data-test-dropdown-option={{option.label}}
-              >
-                {{capitalize option.label}}
-              </dd.Checkbox>
-            {{/each}}
-          </S.Dropdown>
 
-          <S.Dropdown data-test-node-pool-facet as |dd|>
-            <dd.ToggleButton
-              @text="Node Pool"
-              @color="secondary"
-              @badge={{or this.selectionNodePool.length false}}
-            />
-            {{#each this.optionsNodePool key="label" as |option|}}
-              <dd.Checkbox
-                {{on "change" (action this.handleFilterChange
-                  this.selectionNodePool
-                  option.label
-                  "qpNodePool"
-                )}}
-                @value={{option.label}}
-                checked={{includes option.label this.selectionNodePool}}
-                @count={{get (filter-by 'nodePool' option.label this.nodes) "length"}}
-                data-test-dropdown-option={{option.label}}
-              >
-                {{option.label}}
-              </dd.Checkbox>
-            {{else}}
-              <dd.Generic data-test-dropdown-empty>
-                No Node Pool filters
-              </dd.Generic>
-            {{/each}}
-          </S.Dropdown>
+        <Hds::SegmentedGroup as |S|>
 
-          <S.Dropdown data-test-class-facet as |dd|>
-            <dd.ToggleButton
-              @text="Class"
-              @color="secondary"
-              @badge={{or this.selectionClass.length false}}
-            />
-            {{#each this.optionsClass key="label" as |option|}}
-              <dd.Checkbox
-                {{on "change" (action this.handleFilterChange
-                  this.selectionClass
-                  option.label
-                  "qpClass"
-                )}}
-                @value={{option.label}}
-                checked={{includes option.label this.selectionClass}}
-                @count={{get (filter-by 'nodeClass' option.label this.nodes) "length"}}
-                data-test-dropdown-option={{option.label}}
-              >
-                {{option.label}}
-              </dd.Checkbox>
-            {{else}}
-              <dd.Generic data-test-dropdown-empty>
-                No Class filters
-              </dd.Generic>
-            {{/each}}
-          </S.Dropdown>
+          <JobSearchBox
+            @searchText={{this.searchText}}
+            @onSearchTextChange={{queue
+              this.updateSearchText
+              this.updateFilter
+            }}
+            @S={{S}}
+          />
 
-          <S.Dropdown data-test-datacenter-facet as |dd|>
-            <dd.ToggleButton
-              @text="Datacenter"
-              @color="secondary"
-              @badge={{or this.selectionDatacenter.length false}}
-            />
-            {{#each this.optionsDatacenter key="label" as |option|}}
-              <dd.Checkbox
-                {{on "change" (action this.handleFilterChange
-                  this.selectionDatacenter
-                  option.label
-                  "qpDatacenter"
-                )}}
-                @value={{option.label}}
-                checked={{includes option.label this.selectionDatacenter}}
-                @count={{get (filter-by 'datacenter' option.label this.nodes) "length"}}
-                data-test-dropdown-option={{option.label}}
-              >
-                {{option.label}}
-              </dd.Checkbox>
-            {{else}}
-              <dd.Generic data-test-dropdown-empty>
-                No Datacenter filters
-              </dd.Generic>
-            {{/each}}
-
-          </S.Dropdown>
-
-          <S.Dropdown data-test-version-facet as |dd|>
-            <dd.ToggleButton
-              @text="Version"
-              @color="secondary"
-              @badge={{or this.selectionVersion.length false}}
-            />
-            {{#each this.optionsVersion key="label" as |option|}}
-              <dd.Checkbox
-                {{on "change" (action this.handleFilterChange
-                  this.selectionVersion
-                  option.label
-                  "qpVersion"
-                )}}
-                @value={{option.label}}
-                checked={{includes option.label this.selectionVersion}}
-                @count={{get (filter-by 'version' option.label this.nodes) "length"}}
-                data-test-dropdown-option={{option.label}}
-              >
-                {{option.label}}
-              </dd.Checkbox>
-            {{else}}
-              <dd.Generic data-test-dropdown-empty>
-                No Version filters
-              </dd.Generic>
-            {{/each}}
-          </S.Dropdown>
-
-          <S.Dropdown data-test-volume-facet as |dd|>
-            <dd.ToggleButton
-              @text="Volume"
-              @color="secondary"
-              @badge={{or this.selectionVolume.length false}}
-            />
-            {{#each this.optionsVolume key="label" as |option|}}
-              <dd.Checkbox
-                {{on "change" (action this.handleFilterChange
-                  this.selectionVolume
-                  option.label
-                  "qpVolume"
-                )}}
-                @value={{option.label}}
-                checked={{includes option.label this.selectionVolume}}
-                @count={{get (filter-by 'volume' option.label this.nodes) "length"}}
-                data-test-dropdown-option={{option.label}}
-              >
-                {{option.label}}
-              </dd.Checkbox>
-            {{else}}
-              <dd.Generic data-test-dropdown-empty>
-                No Volume filters
-              </dd.Generic>
-            {{/each}}
-          </S.Dropdown>
-        </Hds::SegmentedGroup>
-       --}}
-
-        <Hds::ButtonSet style="white-space: nowrap;">
-          {{#if this.system.shouldShowNamespaces}}
-            {{!-- <SingleSelectDropdown
-              data-test-namespace-facet
-              @label="Namespace"
-              @options={{this.optionsNamespaces}}
-              @selection={{this.qpNamespace}}
-              @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
-            /> --}}
-
-            <Hds::Dropdown data-test-namespace-facet as |dd|>
+          {{#each this.filterFacets as |group|}}
+            <S.Dropdown data-test-facet={{group.label}} as |dd|>
               <dd.ToggleButton
-                @text="Namespace"
+                @text={{group.label}}
                 @color="secondary"
-                @badge={{or this.selectionNamespace.length false}}
+                @count={{get (filter-by "checked" true group.options) "length"}}
               />
-              {{#each this.optionsNamespace key="label" as |option|}}
+              {{#each group.options as |option|}}
                 <dd.Checkbox
-                  {{on "change" (action this.handleFilterChange
-                    this.selectionNamespace
-                    option.label
-                    "qpNamespace"
-                  )}}
-                  @value={{option.label}}
-                  checked={{includes option.label this.selectionDatacenter}}
-                  @count={{get (filter-by 'datacenter' option.label this.nodes) "length"}}
-                  data-test-dropdown-option={{option.label}}
+                  {{on "change" (fn this.toggleOption option)}}
+                  @value={{option.key}}
+                  checked={{option.checked}}
+                  data-test-dropdown-option={{option.key}}
                 >
-                  {{option.label}}
+                  {{option.key}}
                 </dd.Checkbox>
               {{else}}
                 <dd.Generic data-test-dropdown-empty>
-                  No Namespaces
+                  No {{group.label}} filters
                 </dd.Generic>
               {{/each}}
-            </Hds::Dropdown>
+            </S.Dropdown>
+          {{/each}}
+
+          {{#if this.system.shouldShowNamespaces}}
+            <S.Dropdown data-test-facet="Namespace" as |dd|>
+              <dd.ToggleButton
+                @text="Namespace"
+                @color="secondary"
+                @badge={{get (find-by "checked" true this.namespaceFacet.options) "label"}}
+              />
+              {{#each this.namespaceFacet.options as |option|}}
+                <dd.Radio
+                  name={{option.key}}
+                  {{on "change" (fn this.toggleNamespaceOption option dd)}}
+                  @value={{option.key}}
+                  checked={{option.checked}}
+                  data-test-dropdown-option={{option.key}}
+                >
+                  {{option.label}}
+                </dd.Radio>
+              {{/each}}
+            </S.Dropdown>
           {{/if}}
 
-          <div
-            {{keyboard-shortcut
-              label="Run Job"
-              pattern=(array "r" "u" "n")
-              action=(action this.goToRun)
-            }}
-          >
-            <Hds::Button
-              data-test-run-job
-              @text="Run Job"
-              disabled={{not (can "run job")}}
-              title={{if (can "run job") null "You don’t have permission to run jobs"}}
-              @route="jobs.run"
-              @query={{hash namespace=this.qpNamespace}}
-            />
-          </div>
-
-          <div data-test-jobs-search>
-            <Hds::Form::TextInput::Base
-              @type="search"
-              @value=""
-              aria-label="Job Search"
-              placeholder="eg. Hello World"
-              @icon="search"
-            />
-          </div>
-
-          {{#if this.pendingJobIDDiff}}
-            <Hds::Button
+          {{#if this.filter}}
+            <S.Button
+              @text="Reset Filters"
+              @color="critical"
+              @icon="delete"
               @size="medium"
-              @text="Updates Pending"
-              @color="primary"
-              @icon="sync"
-              {{on "click" (perform this.updateJobList)}}
-              data-test-updates-pending-button
+              {{on "click" (action this.resetFilters)}}
             />
           {{/if}}
-        </Hds::ButtonSet>
+
+        </Hds::SegmentedGroup>
+
+        {{#if this.pendingJobIDDiff}}
+          <Hds::Button
+            @size="medium"
+            @text="Updates Pending"
+            @color="primary"
+            @icon="sync"
+            {{on "click" (perform this.updateJobList)}}
+            data-test-updates-pending-button
+          />
+        {{/if}}
+
+        <div
+          {{keyboard-shortcut
+            label="Run Job"
+            pattern=(array "r" "u" "n")
+            action=(action this.goToRun)
+          }}
+        >
+          <Hds::Button
+            data-test-run-job
+            @text="Run Job"
+            disabled={{not (can "run job")}}
+            title={{if (can "run job") null "You don’t have permission to run jobs"}}
+            @route="jobs.run"
+            @query={{hash namespace=this.qpNamespace}}
+          />
+        </div>
+
       </PH.Actions>
     </Hds::PageHeader>
 
@@ -315,27 +151,20 @@
               {{/if}}
             </B.Td>
             {{#if this.system.shouldShowNamespaces}}
-              <B.Td>{{B.data.namespace.id}}</B.Td>
+              <B.Td data-test-job-namespace>{{B.data.namespace.id}}</B.Td>
             {{/if}}
             <B.Td data-test-job-status>
               {{#unless B.data.childStatuses}}
                 <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
               {{/unless}}
             </B.Td>
-            <B.Td data-test-job-type>
+            <B.Td data-test-job-type={{B.data.type}}>
               {{B.data.type}}
             </B.Td>
             {{#if this.system.shouldShowNodepools}}
               <B.Td data-test-job-node-pool>{{B.data.nodePool}}</B.Td>
             {{/if}}
-            <B.Td data-test-job-priority>
-              {{B.data.priority}}
-            </B.Td>
             <B.Td>
-              {{!-- {{get (filter-by 'clientStatus' 'running' B.data.allocations) "length"}} running <br />
-              {{B.data.allocations.length}} total <br />
-              {{B.data.groupCountSum}} desired
-              <hr /> --}}
               <div class="job-status-panel compact">
                 {{#unless B.data.assumeGC}}
                   {{#if B.data.childStatuses}}
@@ -348,7 +177,6 @@
                       @allocBlocks={{B.data.allocBlocks}}
                       @steady={{true}}
                       @compact={{true}}
-                      {{!-- @runningAllocs={{B.data.runningAllocs}} --}}
                       @runningAllocs={{B.data.allocBlocks.running.healthy.nonCanary.length}}
                       @groupCountSum={{B.data.expectedRunningAllocCount}}
                     />
@@ -433,41 +261,35 @@
       </section>
     {{else}}
       <Hds::ApplicationState data-test-empty-jobs-list as |A|>
-        {{!-- TODO: differentiate between "empty because there's nothing" and "empty because you have filtered/searched" --}}
-        <A.Header data-test-empty-jobs-list-headline @title="No Jobs" />
-        <A.Body
-          @text="No jobs match your current filter selection."
-        />
+        {{#if this.filter}}
+          <A.Header data-test-empty-jobs-list-headline @title="No Matches" />
+          <A.Body
+            @text="No jobs match your current filter selection."
+          />
         <A.Footer @hasDivider={{true}}>
+          <Hds::Button
+            @text="Reset Filters"
+            @color="tertiary"
+            @icon="arrow-left"
+            @size="small"
+            {{on "click" (action this.resetFilters)}}
+          />
+
           {{!-- TODO: HDS4.0, convert to F.LinkStandalone --}}
-          <Hds::Link::Standalone @icon="arrow-left" @text="Reset Filters" @route="jobs.index" />
           <Hds::Link::Standalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
             @iconPosition="trailing" />
         </A.Footer>
+        {{else}}
+          <A.Header data-test-empty-jobs-list-headline @title="No Jobs" />
+          <A.Body
+            @text="No jobs found."
+          />
+          <A.Footer @hasDivider={{true}}>
+            {{!-- TODO: HDS4.0, convert to F.LinkStandalone --}}
+            <Hds::Link::Standalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
+              @iconPosition="trailing" />
+          </A.Footer>
+        {{/if}}
       </Hds::ApplicationState>
     {{/if}}
-  <hr />
-  Next token is {{this.nextToken}}<br />
-  {{!-- Previous tokens ({{this.previousTokens.length}}) are {{this.previousTokens}}<br /> --}}
-  Model.jobs length: {{this.model.jobs.length}}<br />
-  Controller.jobs length: {{this.jobs.length}}<br />
-  Job IDs to watch for ({{this.jobIDs.length}}): {{#each this.jobIDs as |id|}}{{id.id}} | {{/each}}<br />
-  Pending Job IDs to watch for ({{this.pendingJobIDs.length}}): {{#each this.pendingJobIDs as |id|}}{{id.id}} | {{/each}}<br />
-  <Hds::Form::Toggle::Field
-    name="jostle"
-    @id="jostle"
-    checked={{this.liveUpdatesEnabled}}
-    {{on "change" (action (mut this.liveUpdatesEnabled) (not this.liveUpdatesEnabled))}}
-    as |F|>
-    <F.Label>Live update new/removed jobs?</F.Label>
-  </Hds::Form::Toggle::Field>
-  {{this.liveUpdatesEnabled}}<br />
-  <hr />
-  Local watchlist<br />
-  jobQueryIndex: {{this.jobQueryIndex}}<br />
-  jobAllocsQueryIndex: {{this.jobAllocsQueryIndex}}<br />
-
-  <hr />
-
-
 </section>

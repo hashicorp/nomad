@@ -156,6 +156,10 @@ export default class JobSerializer extends ApplicationSerializer {
 
     if (hash._aggregate && hash.Allocs) {
       // Manually push allocations to store
+      // These allocations have enough information to be useful on a jobs index page,
+      // but less than the /allocations endpoint for an individual job might give us.
+      // As such, pages like /optimize require a specific call to the endpoint
+      // of any jobs' allocations to get more detailed information.
       hash.Allocs.forEach((alloc) => {
         this.store.push({
           data: {

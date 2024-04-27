@@ -7,8 +7,18 @@
 // Over time, we can phase most of these custom styles out as Helios components
 // adapt to more use-cases (like custom footer, etc).
 
+#jobs-list-header {
+  z-index: $z-base;
+}
+
 #jobs-list-actions {
   margin-bottom: 1rem;
+  // If the screen is made very small, don't try to multi-line the text,
+  // instead wrap the flex and let dropdowns/buttons go on a new line.
+  .hds-segmented-group {
+    flex-wrap: wrap;
+    gap: 0.5rem 0;
+  }
 }
 
 #jobs-list-pagination {

@@ -62,13 +62,14 @@ function jobsIndexTestCluster(server) {
   faker.seed(1);
   server.createList('agent', 1, 'withConsulLink', 'withVaultLink');
   server.createList('node', 1);
+  server.create('node-pool');
 
   const jobsToCreate = 55;
   for (let i = 0; i < jobsToCreate; i++) {
+    let groupCount = Math.floor(Math.random() * 2) + 1;
     server.create('job', {
-      namespaceId: 'default',
-      resourceSpec: Array(1).fill('M: 256, C: 500'),
-      groupAllocCount: 1,
+      resourceSpec: Array(groupCount).fill('M: 256, C: 500'),
+      groupAllocCount: Math.floor(Math.random() * 3) + 1,
       modifyIndex: i + 1,
     });
   }

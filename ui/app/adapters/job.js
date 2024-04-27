@@ -255,7 +255,12 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   urlForQuery(query, modelName, method) {
     let baseUrl = `/${this.namespace}/jobs/statuses`;
     if (method === 'POST' && query.index) {
-      return `${baseUrl}?index=${query.index}`;
+      baseUrl += baseUrl.includes('?') ? '&' : '?';
+      baseUrl += `index=${query.index}`;
+    }
+    if (method === 'POST' && query.jobs) {
+      baseUrl += baseUrl.includes('?') ? '&' : '?';
+      baseUrl += 'namespace=*';
     }
     return baseUrl;
   }

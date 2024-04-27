@@ -7,14 +7,10 @@
 
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { action, computed } from '@ember/object';
+import { action, computed, set } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { restartableTask, timeout } from 'ember-concurrency';
-import {
-  serialize,
-  deserializedQueryParam as selection,
-} from 'nomad-ui/utils/qp-serialize';
 import Ember from 'ember';
 
 const JOB_LIST_THROTTLE = 5000;
@@ -37,54 +33,16 @@ export default class JobsIndexController extends Controller {
   queryParams = [
     'cursorAt',
     'pageSize',
-    // 'status',
     { qpNamespace: 'namespace' },
-    // 'type',
-    // 'searchTerm',
+    'filter',
   ];
 
   isForbidden = false;
 
-  // #region filtering and sorting
-
   @tracked jobQueryIndex = 0;
   @tracked jobAllocsQueryIndex = 0;
 
-  @selection('qpNamespace') selectionNamespace;
-
-  @computed('qpNamespace', 'model.namespaces.[]')
-  get optionsNamespace() {
-    const availableNamespaces = this.model.namespaces.map((namespace) => ({
-      key: namespace.name,
-      label: namespace.name,
-    }));
-
-    availableNamespaces.unshift({
-      key: '*',
-      label: 'All (*)',
-    });
-
-    // // Unset the namespace selection if it was server-side deleted
-    // if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
-    //   scheduleOnce('actions', () => {
-    //     this.set('qpNamespace', '*');
-    //   });
-    // }
-
-    return availableNamespaces;
-  }
-
-  @action
-  handleFilterChange(queryParamValue, option, queryParamLabel) {
-    if (queryParamValue.includes(option)) {
-      queryParamValue.removeObject(option);
-    } else {
-      queryParamValue.addObject(option);
-    }
-    this[queryParamLabel] = serialize(queryParamValue);
-  }
-
-  // #endregion filtering and sorting
+  @tracked qpNamespace = '*';
 
   get tableColumns() {
     return [
@@ -93,7 +51,6 @@ export default class JobsIndexController extends Controller {
       'status',
       'type',
       this.system.shouldShowNodepools ? 'node pool' : null, // TODO: implement on system service
-      'priority',
       'running allocations',
     ]
       .filter((c) => !!c)
@@ -226,6 +183,7 @@ export default class JobsIndexController extends Controller {
   jobAllocsQuery(params) {
     this.watchList.jobsIndexDetailsController.abort();
     this.watchList.jobsIndexDetailsController = new AbortController();
+    params.namespace = '*';
     return this.store
       .query('job', params, {
         adapterOptions: {
@@ -334,6 +292,9 @@ export default class JobsIndexController extends Controller {
           }
         }
         this.jobs = jobDetails;
+      } else {
+        // No jobs have returned, so clear the list
+        this.jobs = [];
       }
       yield timeout(throttle);
       if (Ember.testing) {
@@ -342,4 +303,254 @@ export default class JobsIndexController extends Controller {
     }
   }
   //#endregion querying
+
+  //#region filtering and searching
+
+  @tracked statusFacet = {
+    label: 'Status',
+    options: [
+      {
+        key: 'pending',
+        string: 'Status == pending',
+        checked: false,
+      },
+      {
+        key: 'running',
+        string: 'Status == running',
+        checked: false,
+      },
+      {
+        key: 'dead',
+        string: 'Status == dead',
+        checked: false,
+      },
+    ],
+  };
+
+  @tracked typeFacet = {
+    label: 'Type',
+    options: [
+      {
+        key: 'batch',
+        string: 'Type == batch',
+        checked: false,
+      },
+      {
+        key: 'service',
+        string: 'Type == service',
+        checked: false,
+      },
+      {
+        key: 'system',
+        string: 'Type == system',
+        checked: false,
+      },
+      {
+        key: 'sysbatch',
+        string: 'Type == sysbatch',
+        checked: false,
+      },
+    ],
+  };
+
+  @tracked nodePoolFacet = {
+    label: 'NodePool',
+    options: (this.model.nodePools || []).map((nodePool) => ({
+      key: nodePool.name,
+      string: `NodePool == ${nodePool.name}`,
+      checked: false,
+    })),
+  };
+
+  @computed('system.shouldShowNamespaces', 'model.namespaces.[]', 'qpNamespace')
+  get namespaceFacet() {
+    if (!this.system.shouldShowNamespaces) {
+      return null;
+    }
+
+    const availableNamespaces = (this.model.namespaces || []).map(
+      (namespace) => ({
+        key: namespace.name,
+        label: namespace.name,
+      })
+    );
+
+    availableNamespaces.unshift({
+      key: '*',
+      label: 'All',
+    });
+
+    let selectedNamespaces = this.qpNamespace || '*';
+    availableNamespaces.forEach((opt) => {
+      if (selectedNamespaces.includes(opt.key)) {
+        opt.checked = true;
+      }
+    });
+
+    return {
+      label: 'Namespace',
+      options: availableNamespaces,
+    };
+  }
+
+  get filterFacets() {
+    let facets = [this.statusFacet, this.typeFacet];
+    if (this.system.shouldShowNodepools) {
+      facets.push(this.nodePoolFacet);
+    }
+    return facets;
+  }
+
+  /**
+   * On page load, takes the ?filter queryParam, and extracts it into those
+   * properties used by the dropdown filter toggles, and the search text.
+   */
+  parseFilter() {
+    let filterString = this.filter;
+    if (!filterString) {
+      return;
+    }
+
+    const filterParts = filterString.split(' and ');
+
+    let unmatchedFilters = [];
+
+    // For each of those splits, if it starts and ends with (), and if all entries within it have thes ame Propname and operator of ==, populate them into the appropriate dropdown
+    // If it doesnt start with and end with (), or if it does but not all entries are the same propname, or not all entries have == operators, populate them into the searchbox
+
+    filterParts.forEach((part) => {
+      let matched = false;
+      if (part.startsWith('(') && part.endsWith(')')) {
+        part = part.slice(1, -1); // trim the parens
+        // Check to see if the property name (first word) is one of the ones for which we have a dropdown
+        let propName = part.split(' ')[0];
+        if (this.filterFacets.find((facet) => facet.label === propName)) {
+          // Split along "or" and check that all parts have the same propName
+          let facetParts = part.split(' or ');
+          let allMatch = facetParts.every((facetPart) =>
+            facetPart.startsWith(propName)
+          );
+          let allEqualityOperators = facetParts.every((facetPart) =>
+            facetPart.includes('==')
+          );
+          if (allMatch && allEqualityOperators) {
+            // Set all the options in the dropdown to checked
+            this.filterFacets.forEach((group) => {
+              if (group.label === propName) {
+                group.options.forEach((option) => {
+                  set(option, 'checked', facetParts.includes(option.string));
+                });
+              }
+            });
+            matched = true;
+          }
+        }
+      }
+      if (!matched) {
+        unmatchedFilters.push(part);
+      }
+    });
+
+    // Combine all unmatched filter parts into the searchText
+    this.searchText = unmatchedFilters.join(' and ');
+  }
+
+  @computed(
+    'filterFacets',
+    'nodePoolFacet.options.@each.checked',
+    'searchText',
+    'statusFacet.options.@each.checked',
+    'typeFacet.options.@each.checked'
+  )
+  get computedFilter() {
+    let parts = this.searchText ? [this.searchText] : [];
+    this.filterFacets.forEach((group) => {
+      let groupParts = [];
+      group.options.forEach((option) => {
+        if (option.checked) {
+          groupParts.push(option.string);
+        }
+      });
+      if (groupParts.length) {
+        parts.push(`(${groupParts.join(' or ')})`);
+      }
+    });
+    return parts.join(' and ');
+  }
+
+  @action
+  toggleOption(option) {
+    set(option, 'checked', !option.checked);
+    this.updateFilter();
+  }
+
+  // Radio button set
+  @action
+  toggleNamespaceOption(option, dropdown) {
+    this.qpNamespace = option.key;
+    dropdown.close();
+  }
+
+  @action
+  updateFilter() {
+    this.cursorAt = null;
+    this.filter = this.computedFilter;
+  }
+
+  @tracked filter = '';
+  @tracked searchText = '';
+
+  @action resetFilters() {
+    this.searchText = '';
+    this.filterFacets.forEach((group) => {
+      group.options.forEach((option) => {
+        set(option, 'checked', false);
+      });
+    });
+    this.qpNamespace = '*';
+    this.updateFilter();
+  }
+
+  /**
+   * Updates the filter based on the input, distinguishing between simple job names and filter expressions.
+   * A simple check for operators with surrounding spaces is used to identify filter expressions.
+   *
+   * @param {string} newFilter
+   */
+  @action
+  updateSearchText(newFilter) {
+    if (!newFilter.trim()) {
+      this.searchText = '';
+      return;
+    }
+
+    newFilter = newFilter.trim();
+
+    const operators = [
+      '==',
+      '!=',
+      'contains',
+      'not contains',
+      'is empty',
+      'is not empty',
+      'matches',
+      'not matches',
+      'in',
+      'not in',
+    ];
+
+    // Check for any operator surrounded by spaces
+    let isFilterExpression = operators.some((op) =>
+      newFilter.includes(` ${op} `)
+    );
+
+    if (isFilterExpression) {
+      this.searchText = newFilter;
+    } else {
+      // If it's a string without a filter operator, assume the user is trying to look up a job name
+      this.searchText = `Name contains ${newFilter}`;
+    }
+  }
+
+  //#endregion filtering and searching
 }
