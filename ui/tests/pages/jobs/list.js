@@ -14,7 +14,7 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
-import { multiFacet, singleFacet } from 'nomad-ui/tests/pages/components/facet';
+import { hdsFacet } from 'nomad-ui/tests/pages/components/facet';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
@@ -23,7 +23,7 @@ export default create({
   visit: visitable('/jobs'),
 
   search: {
-    scope: '[data-test-jobs-search] input',
+    scope: '[data-test-jobs-search]',
     keydown: triggerable('keydown'),
   },
 
@@ -40,8 +40,6 @@ export default create({
     nodePool: text('[data-test-job-node-pool]'),
     status: text('[data-test-job-status]'),
     type: text('[data-test-job-type]'),
-    priority: text('[data-test-job-priority]'),
-    taskGroups: text('[data-test-job-task-groups]'),
 
     hasNamespace: isPresent('[data-test-job-namespace]'),
     clickRow: clickable(),
@@ -66,10 +64,9 @@ export default create({
   pageSizeSelect: pageSizeSelect(),
 
   facets: {
-    namespace: singleFacet('[data-test-namespace-facet]'),
-    type: multiFacet('[data-test-type-facet]'),
-    status: multiFacet('[data-test-status-facet]'),
-    datacenter: multiFacet('[data-test-datacenter-facet]'),
-    prefix: multiFacet('[data-test-prefix-facet]'),
+    namespace: hdsFacet('[data-test-facet="Namespace"]'),
+    type: hdsFacet('[data-test-facet="Type"]'),
+    status: hdsFacet('[data-test-facet="Status"]'),
+    nodePool: hdsFacet('[data-test-facet="NodePool"]'),
   },
 });

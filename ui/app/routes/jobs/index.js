@@ -24,8 +24,7 @@ export default class IndexRoute extends Route.extend(
 ) {
   @service store;
   @service watchList;
-
-  // perPage = 10;
+  @service notifications;
 
   queryParams = {
     qpNamespace: {
@@ -37,36 +36,101 @@ export default class IndexRoute extends Route.extend(
     pageSize: {
       refreshModel: true,
     },
+    filter: {
+      refreshModel: true,
+    },
   };
 
   hasBeenInitialized = false;
 
   getCurrentParams() {
     let queryParams = this.paramsFor(this.routeName); // Get current query params
-    queryParams.next_token = queryParams.cursorAt;
+    if (queryParams.cursorAt) {
+      queryParams.next_token = queryParams.cursorAt;
+    }
     queryParams.per_page = queryParams.pageSize;
+
+    /* eslint-disable ember/no-controller-access-in-routes */
+    let filter = this.controllerFor('jobs.index').filter;
+    if (filter) {
+      queryParams.filter = filter;
+    }
+    // namespace
+    queryParams.namespace = queryParams.qpNamespace;
+    delete queryParams.qpNamespace;
     delete queryParams.pageSize;
-    delete queryParams.cursorAt; // TODO: hacky, should be done in the serializer/adapter?
+    delete queryParams.cursorAt;
+
     return { ...queryParams };
   }
 
   async model(/*params*/) {
-    let currentParams = this.getCurrentParams(); // TODO: how do these differ from passed params?
+    let currentParams = this.getCurrentParams();
     this.watchList.jobsIndexIDsController.abort();
     this.watchList.jobsIndexIDsController = new AbortController();
-    let jobs = await this.store
-      .query('job', currentParams, {
+    try {
+      let jobs = await this.store.query('job', currentParams, {
         adapterOptions: {
           method: 'GET', // TODO: default
           abortController: this.watchList.jobsIndexIDsController,
         },
-      })
-      .catch(notifyForbidden(this));
-    return RSVP.hash({
-      jobs,
-      namespaces: this.store.findAll('namespace'),
-      nodePools: this.store.findAll('node-pool'),
+      });
+      return RSVP.hash({
+        jobs,
+        namespaces: this.store.findAll('namespace'),
+        nodePools: this.store.findAll('node-pool'),
+      });
+    } catch (error) {
+      try {
+        notifyForbidden(this)(error);
+      } catch (secondaryError) {
+        return this.handleErrors(error);
+      }
+    }
+    return {};
+  }
+
+  /**
+   * @typedef {Object} HTTPError
+   * @property {string} stack
+   * @property {string} message
+   * @property {string} name
+   * @property {HTTPErrorDetail[]} errors
+   */
+
+  /**
+   * @typedef {Object} HTTPErrorDetail
+   * @property {string} status - HTTP status code
+   * @property {string} title
+   * @property {string} detail
+   */
+
+  /**
+   * Handles HTTP errors by returning an appropriate message based on the HTTP status code and details in the error object.
+   *
+   * @param {HTTPError} error
+   * @returns {Object}
+   */
+  handleErrors(error) {
+    error.errors.forEach((err) => {
+      this.notifications.add({
+        title: err.title,
+        message: err.detail,
+        color: 'critical',
+        timeout: 8000,
+      });
     });
+
+    // if it's an innocuous-enough seeming "You mistyped something while searching" error,
+    // handle it with a notification and don't throw. Otherwise, throw.
+    if (
+      error.errors[0].detail.includes("couldn't find key") ||
+      error.errors[0].detail.includes('failed to read filter expression')
+    ) {
+      return error;
+    } else {
+      throw error;
+    }
   }
 
   setupController(controller, model) {
@@ -100,6 +164,8 @@ export default class IndexRoute extends Route.extend(
       this.getCurrentParams(),
       Ember.testing ? 0 : DEFAULT_THROTTLE
     );
+
+    controller.parseFilter();
 
     this.hasBeenInitialized = true;
   }

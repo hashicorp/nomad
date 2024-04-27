@@ -118,7 +118,67 @@ export default function () {
         let nextToken = req.queryParams.next_token || 0;
         let reverse = req.queryParams.reverse === 'true';
         const json = this.serialize(jobs.all());
-        let sortedJson = json
+
+        // Let's implement a very basic handling of ?filter here.
+        // We'll assume at most "and" combinations, and only positive filters
+        // (no "not Type contains sys" or similar)
+        let filteredJson = json;
+        if (req.queryParams.filter) {
+          // Format will be something like "Name contains NAME" or "Type == sysbatch" or combinations thereof
+          const filterConditions = req.queryParams.filter
+            .split(' and ')
+            .map((condition) => {
+              // Dropdowns user parenthesis wrapping; remove them for mock/test purposes
+              // We want to test multiple conditions within parens, like "(Type == system or Type == sysbatch)"
+              // So if we see parenthesis, we should re-split on "or" and treat them as separate conditions.
+              if (condition.startsWith('(') && condition.endsWith(')')) {
+                condition = condition.slice(1, -1);
+              }
+              if (condition.includes(' or ')) {
+                // multiple or condition
+                return {
+                  field: condition.split(' ')[0],
+                  operator: '==',
+                  parts: condition.split(' or ').map((part) => {
+                    return part.split(' ')[2];
+                  }),
+                };
+              } else {
+                const parts = condition.split(' ');
+
+                return {
+                  field: parts[0],
+                  operator: parts[1],
+                  value: parts.slice(2).join(' ').replace(/['"]+/g, ''),
+                };
+              }
+            });
+
+          filteredJson = filteredJson.filter((job) => {
+            return filterConditions.every((condition) => {
+              if (condition.parts) {
+                // Making a shortcut assumption that any condition.parts situations
+                // will be == as operator for testing sake.
+                return condition.parts.some((part) => {
+                  return job[condition.field] === part;
+                });
+              }
+              if (condition.operator === 'contains') {
+                return (
+                  job[condition.field] &&
+                  job[condition.field].includes(condition.value)
+                );
+              } else if (condition.operator === '==') {
+                return job[condition.field] === condition.value;
+              } else if (condition.operator === '!=') {
+                return job[condition.field] !== condition.value;
+              }
+              return true;
+            });
+          });
+        }
+
+        let sortedJson = filteredJson
           .sort((a, b) =>
             reverse
               ? a.ModifyIndex - b.ModifyIndex

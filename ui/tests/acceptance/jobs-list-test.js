@@ -4,7 +4,12 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { currentURL, click, triggerKeyEvent } from '@ember/test-helpers';
+import {
+  currentURL,
+  settled,
+  click,
+  triggerKeyEvent,
+} from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -87,7 +92,6 @@ module('Acceptance | jobs list', function (hooks) {
       'Status'
     );
     assert.equal(jobRow.type, typeForJob(job), 'Type');
-    assert.equal(jobRow.priority, job.priority, 'Priority');
   });
 
   test('each job row should link to the corresponding job', async function (assert) {
@@ -149,14 +153,14 @@ module('Acceptance | jobs list', function (hooks) {
     );
   });
 
-  // TODO: Jobs list search
-  test.skip('when there are jobs, but no matches for a search result, there is an empty message', async function (assert) {
+  test('when there are jobs, but no matches for a search result, there is an empty message', async function (assert) {
     server.create('job', { name: 'cat 1' });
     server.create('job', { name: 'cat 2' });
 
     await JobsList.visit();
 
     await JobsList.search.fillIn('dog');
+
     assert.ok(JobsList.isEmpty, 'The empty message is shown');
     assert.equal(
       JobsList.emptyState.headline,
@@ -165,70 +169,29 @@ module('Acceptance | jobs list', function (hooks) {
     );
   });
 
-  // TODO: Jobs list search
-  test.skip('searching resets the current page', async function (assert) {
+  test('searching resets the current page', async function (assert) {
     server.createList('job', JobsList.pageSize + 1, {
       createAllocations: false,
     });
 
     await JobsList.visit();
-    await JobsList.nextPage();
+    await click('[data-test-pager="next"]');
 
-    assert.equal(
-      currentURL(),
-      '/jobs?page=2',
-      'Page query param captures page=2'
+    assert.ok(
+      currentURL().includes('cursorAt'),
+      'Page query param contains cursorAt'
     );
 
     await JobsList.search.fillIn('foobar');
 
-    assert.equal(currentURL(), '/jobs?search=foobar', 'No page query param');
+    assert.equal(
+      currentURL(),
+      '/jobs?filter=Name%20contains%20foobar',
+      'No page query param'
+    );
   });
 
-  // TODO: Jobs list search
-  test.skip('Search order overrides Sort order', async function (assert) {
-    server.create('job', { name: 'car', modifyIndex: 1, priority: 200 });
-    server.create('job', { name: 'cat', modifyIndex: 2, priority: 150 });
-    server.create('job', { name: 'dog', modifyIndex: 3, priority: 100 });
-    server.create('job', { name: 'dot', modifyIndex: 4, priority: 50 });
-
-    await JobsList.visit();
-
-    // Expect list to be in reverse modifyIndex order by default
-    assert.equal(JobsList.jobs.objectAt(0).name, 'dot');
-    assert.equal(JobsList.jobs.objectAt(1).name, 'dog');
-    assert.equal(JobsList.jobs.objectAt(2).name, 'cat');
-    assert.equal(JobsList.jobs.objectAt(3).name, 'car');
-
-    // When sorting by name, expect list to be in alphabetical order
-    await click('[data-test-sort-by="name"]'); // sorts desc
-    await click('[data-test-sort-by="name"]'); // sorts asc
-
-    assert.equal(JobsList.jobs.objectAt(0).name, 'car');
-    assert.equal(JobsList.jobs.objectAt(1).name, 'cat');
-    assert.equal(JobsList.jobs.objectAt(2).name, 'dog');
-    assert.equal(JobsList.jobs.objectAt(3).name, 'dot');
-
-    // When searching, the "name" sort is locked in. Fuzzy results for cat return both car and cat, but cat first.
-    await JobsList.search.fillIn('cat');
-    assert.equal(JobsList.jobs.length, 2);
-    assert.equal(JobsList.jobs.objectAt(0).name, 'cat'); // higher fuzzy
-    assert.equal(JobsList.jobs.objectAt(1).name, 'car');
-
-    // Clicking priority sorter will maintain the search filter, but change the order
-    await click('[data-test-sort-by="priority"]'); // sorts desc
-    assert.equal(JobsList.jobs.objectAt(0).name, 'car'); // higher priority first
-    assert.equal(JobsList.jobs.objectAt(1).name, 'cat');
-
-    // Modifying search again will prioritize search "fuzzy" order
-    await JobsList.search.fillIn(''); // trigger search reset
-    await JobsList.search.fillIn('cat');
-    assert.equal(JobsList.jobs.objectAt(0).name, 'cat'); // higher fuzzy
-    assert.equal(JobsList.jobs.objectAt(1).name, 'car');
-  });
-
-  // TODO: Jobs list search
-  test.skip('when a cluster has namespaces, each job row includes the job namespace', async function (assert) {
+  test('when a cluster has namespaces, each job row includes the job namespace', async function (assert) {
     server.createList('namespace', 2);
     server.createList('job', 2);
     const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
@@ -239,8 +202,7 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(jobRow.namespace, job.namespaceId);
   });
 
-  // TODO: Jobs list filter
-  test.skip('when the namespace query param is set, only matching jobs are shown', async function (assert) {
+  test('when the namespace query param is set, only matching jobs are shown', async function (assert) {
     server.createList('namespace', 2);
     const job1 = server.create('job', {
       namespaceId: server.db.namespaces[0].id,
@@ -295,8 +257,7 @@ module('Acceptance | jobs list', function (hooks) {
       : job.type;
   }
 
-  // TODO: Jobs list filter
-  test.skip('the jobs list page has appropriate faceted search options', async function (assert) {
+  test('the jobs list page has appropriate faceted search options', async function (assert) {
     await JobsList.visit();
 
     assert.ok(
@@ -305,165 +266,95 @@ module('Acceptance | jobs list', function (hooks) {
     );
     assert.ok(JobsList.facets.type.isPresent, 'Type facet found');
     assert.ok(JobsList.facets.status.isPresent, 'Status facet found');
-    assert.ok(JobsList.facets.datacenter.isPresent, 'Datacenter facet found');
-    assert.ok(JobsList.facets.prefix.isPresent, 'Prefix facet found');
+    assert.ok(JobsList.facets.nodePool.isPresent, 'Node Pools facet found');
+    assert.notOk(
+      JobsList.facets.namespace.isPresent,
+      'Namespace facet not found by default'
+    );
   });
 
-  // TODO: Jobs list filter
+  testSingleSelectFacet('Namespace', {
+    facet: JobsList.facets.namespace,
+    paramName: 'namespace',
+    expectedOptions: ['All', 'default', 'namespace-2'],
+    optionToSelect: 'namespace-2',
+    async beforeEach() {
+      server.create('namespace', { id: 'default' });
+      server.create('namespace', { id: 'namespace-2' });
+      server.createList('job', 2, { namespaceId: 'default' });
+      server.createList('job', 2, { namespaceId: 'namespace-2' });
+      await JobsList.visit();
+    },
+    filter(job, selection) {
+      return job.namespaceId === selection;
+    },
+  });
 
-  // testSingleSelectFacet('Namespace', {
-  //   facet: JobsList.facets.namespace,
-  //   paramName: 'namespace',
-  //   expectedOptions: ['All (*)', 'default', 'namespace-2'],
-  //   optionToSelect: 'namespace-2',
-  //   async beforeEach() {
-  //     server.create('namespace', { id: 'default' });
-  //     server.create('namespace', { id: 'namespace-2' });
-  //     server.createList('job', 2, { namespaceId: 'default' });
-  //     server.createList('job', 2, { namespaceId: 'namespace-2' });
-  //     await JobsList.visit();
-  //   },
-  //   filter(job, selection) {
-  //     return job.namespaceId === selection;
-  //   },
-  // });
+  testFacet('Type', {
+    facet: JobsList.facets.type,
+    paramName: 'type',
+    expectedOptions: [
+      'batch',
+      'service',
+      'system',
+      'sysbatch',
+      // TODO: add Parameterized and Periodic
+    ],
+    async beforeEach() {
+      server.createList('job', 2, { createAllocations: false, type: 'batch' });
+      server.createList('job', 2, {
+        createAllocations: false,
+        type: 'batch',
+        periodic: true,
+        childrenCount: 0,
+      });
+      server.createList('job', 2, {
+        createAllocations: false,
+        type: 'batch',
+        parameterized: true,
+        childrenCount: 0,
+      });
+      server.createList('job', 2, {
+        createAllocations: false,
+        type: 'service',
+      });
+      await JobsList.visit();
+    },
+    filter(job, selection) {
+      let displayType = job.type;
+      // TODO: if/when we allow for parameterized/batch filtering, uncomment these.
+      // if (job.parameterized) displayType = 'parameterized';
+      // if (job.periodic) displayType = 'periodic';
+      return selection.includes(displayType);
+    },
+  });
 
-  // testFacet('Type', {
-  //   facet: JobsList.facets.type,
-  //   paramName: 'type',
-  //   expectedOptions: [
-  //     'Batch',
-  //     'Pack',
-  //     'Parameterized',
-  //     'Periodic',
-  //     'Service',
-  //     'System',
-  //     'System Batch',
-  //   ],
-  //   async beforeEach() {
-  //     server.createList('job', 2, { createAllocations: false, type: 'batch' });
-  //     server.createList('job', 2, {
-  //       createAllocations: false,
-  //       type: 'batch',
-  //       periodic: true,
-  //       childrenCount: 0,
-  //     });
-  //     server.createList('job', 2, {
-  //       createAllocations: false,
-  //       type: 'batch',
-  //       parameterized: true,
-  //       childrenCount: 0,
-  //     });
-  //     server.createList('job', 2, {
-  //       createAllocations: false,
-  //       type: 'service',
-  //     });
-  //     await JobsList.visit();
-  //   },
-  //   filter(job, selection) {
-  //     let displayType = job.type;
-  //     if (job.parameterized) displayType = 'parameterized';
-  //     if (job.periodic) displayType = 'periodic';
-  //     return selection.includes(displayType);
-  //   },
-  // });
+  testFacet('Status', {
+    facet: JobsList.facets.status,
+    paramName: 'status',
+    expectedOptions: ['pending', 'running', 'dead'],
+    async beforeEach() {
+      server.createList('job', 2, {
+        status: 'pending',
+        createAllocations: false,
+        childrenCount: 0,
+      });
+      server.createList('job', 2, {
+        status: 'running',
+        createAllocations: false,
+        childrenCount: 0,
+      });
+      server.createList('job', 2, {
+        status: 'dead',
+        createAllocations: false,
+        childrenCount: 0,
+      });
+      await JobsList.visit();
+    },
+    filter: (job, selection) => selection.includes(job.status),
+  });
 
-  // testFacet('Status', {
-  //   facet: JobsList.facets.status,
-  //   paramName: 'status',
-  //   expectedOptions: ['Pending', 'Running', 'Dead'],
-  //   async beforeEach() {
-  //     server.createList('job', 2, {
-  //       status: 'pending',
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     server.createList('job', 2, {
-  //       status: 'running',
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     server.createList('job', 2, {
-  //       status: 'dead',
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     await JobsList.visit();
-  //   },
-  //   filter: (job, selection) => selection.includes(job.status),
-  // });
-
-  // testFacet('Datacenter', {
-  //   facet: JobsList.facets.datacenter,
-  //   paramName: 'dc',
-  //   expectedOptions(jobs) {
-  //     const allDatacenters = new Set(
-  //       jobs.mapBy('datacenters').reduce((acc, val) => acc.concat(val), [])
-  //     );
-  //     return Array.from(allDatacenters).sort();
-  //   },
-  //   async beforeEach() {
-  //     server.create('job', {
-  //       datacenters: ['pdx', 'lax'],
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     server.create('job', {
-  //       datacenters: ['pdx', 'ord'],
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     server.create('job', {
-  //       datacenters: ['lax', 'jfk'],
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     server.create('job', {
-  //       datacenters: ['jfk', 'dfw'],
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     server.create('job', {
-  //       datacenters: ['pdx'],
-  //       createAllocations: false,
-  //       childrenCount: 0,
-  //     });
-  //     await JobsList.visit();
-  //   },
-  //   filter: (job, selection) =>
-  //     job.datacenters.find((dc) => selection.includes(dc)),
-  // });
-
-  // testFacet('Prefix', {
-  //   facet: JobsList.facets.prefix,
-  //   paramName: 'prefix',
-  //   expectedOptions: ['hashi (3)', 'nmd (2)', 'pre (2)'],
-  //   async beforeEach() {
-  //     [
-  //       'pre-one',
-  //       'hashi_one',
-  //       'nmd.one',
-  //       'one-alone',
-  //       'pre_two',
-  //       'hashi.two',
-  //       'hashi-three',
-  //       'nmd_two',
-  //       'noprefix',
-  //     ].forEach((name) => {
-  //       server.create('job', {
-  //         name,
-  //         createAllocations: false,
-  //         childrenCount: 0,
-  //       });
-  //     });
-  //     await JobsList.visit();
-  //   },
-  //   filter: (job, selection) =>
-  //     selection.find((prefix) => job.name.startsWith(prefix)),
-  // });
-
-  // TODO: Jobs list filter
-  test.skip('when the facet selections result in no matches, the empty state states why', async function (assert) {
+  test('when the facet selections result in no matches, the empty state states why', async function (assert) {
     server.createList('job', 2, {
       status: 'pending',
       createAllocations: false,
@@ -482,12 +373,11 @@ module('Acceptance | jobs list', function (hooks) {
     );
   });
 
-  // TODO: Jobs list filter
-  test.skip('the jobs list is immediately filtered based on query params', async function (assert) {
+  test('the jobs list is immediately filtered based on query params', async function (assert) {
     server.create('job', { type: 'batch', createAllocations: false });
     server.create('job', { type: 'service', createAllocations: false });
 
-    await JobsList.visit({ type: JSON.stringify(['batch']) });
+    await JobsList.visit({ filter: 'Type == batch' });
 
     assert.equal(
       JobsList.jobs.length,
@@ -576,165 +466,29 @@ module('Acceptance | jobs list', function (hooks) {
     },
   });
 
-  // async function facetOptions(assert, beforeEach, facet, expectedOptions) {
-  //   await beforeEach();
-  //   await facet.toggle();
+  test('the run job button works when filters are set', async function (assert) {
+    server.create('job', {
+      name: 'un',
+      createAllocations: false,
+      childrenCount: 0,
+      type: 'batch',
+    });
 
-  //   let expectation;
-  //   if (typeof expectedOptions === 'function') {
-  //     expectation = expectedOptions(server.db.jobs);
-  //   } else {
-  //     expectation = expectedOptions;
-  //   }
+    server.create('job', {
+      name: 'deux',
+      createAllocations: false,
+      childrenCount: 0,
+      type: 'system',
+    });
 
-  //   assert.deepEqual(
-  //     facet.options.map((option) => option.label.trim()),
-  //     expectation,
-  //     'Options for facet are as expected'
-  //   );
-  // }
+    await JobsList.visit();
 
-  // function testSingleSelectFacet(
-  //   label,
-  //   { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
-  // ) {
-  //   test.skip(`the ${label} facet has the correct options`, async function (assert) {
-  //     await facetOptions(assert, beforeEach, facet, expectedOptions);
-  //   });
+    await JobsList.facets.type.toggle();
+    await JobsList.facets.type.options[0].toggle();
 
-  //   test.skip(`the ${label} facet filters the jobs list by ${label}`, async function (assert) {
-  //     await beforeEach();
-  //     await facet.toggle();
-
-  //     const option = facet.options.findOneBy('label', optionToSelect);
-  //     const selection = option.key;
-  //     await option.select();
-
-  //     const expectedJobs = server.db.jobs
-  //       .filter((job) => filter(job, selection))
-  //       .sortBy('modifyIndex')
-  //       .reverse();
-
-  //     JobsList.jobs.forEach((job, index) => {
-  //       assert.equal(
-  //         job.id,
-  //         expectedJobs[index].id,
-  //         `Job at ${index} is ${expectedJobs[index].id}`
-  //       );
-  //     });
-  //   });
-
-  //   test.skip(`selecting an option in the ${label} facet updates the ${paramName} query param`, async function (assert) {
-  //     await beforeEach();
-  //     await facet.toggle();
-
-  //     const option = facet.options.objectAt(1);
-  //     const selection = option.key;
-  //     await option.select();
-
-  //     assert.ok(
-  //       currentURL().includes(`${paramName}=${selection}`),
-  //       'URL has the correct query param key and value'
-  //     );
-  //   });
-  // }
-
-  // function testFacet(
-  //   label,
-  //   { facet, paramName, beforeEach, filter, expectedOptions }
-  // ) {
-  //   test.skip(`the ${label} facet has the correct options`, async function (assert) {
-  //     await facetOptions(assert, beforeEach, facet, expectedOptions);
-  //   });
-
-  //   test.skip(`the ${label} facet filters the jobs list by ${label}`, async function (assert) {
-  //     let option;
-
-  //     await beforeEach();
-  //     await facet.toggle();
-
-  //     option = facet.options.objectAt(0);
-  //     await option.toggle();
-
-  //     const selection = [option.key];
-  //     const expectedJobs = server.db.jobs
-  //       .filter((job) => filter(job, selection))
-  //       .sortBy('modifyIndex')
-  //       .reverse();
-
-  //     JobsList.jobs.forEach((job, index) => {
-  //       assert.equal(
-  //         job.id,
-  //         expectedJobs[index].id,
-  //         `Job at ${index} is ${expectedJobs[index].id}`
-  //       );
-  //     });
-  //   });
-
-  //   test.skip(`selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
-  //     const selection = [];
-
-  //     await beforeEach();
-  //     await facet.toggle();
-
-  //     const option1 = facet.options.objectAt(0);
-  //     const option2 = facet.options.objectAt(1);
-  //     await option1.toggle();
-  //     selection.push(option1.key);
-  //     await option2.toggle();
-  //     selection.push(option2.key);
-
-  //     const expectedJobs = server.db.jobs
-  //       .filter((job) => filter(job, selection))
-  //       .sortBy('modifyIndex')
-  //       .reverse();
-
-  //     JobsList.jobs.forEach((job, index) => {
-  //       assert.equal(
-  //         job.id,
-  //         expectedJobs[index].id,
-  //         `Job at ${index} is ${expectedJobs[index].id}`
-  //       );
-  //     });
-  //   });
-
-  //   test.skip(`selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
-  //     const selection = [];
-
-  //     await beforeEach();
-  //     await facet.toggle();
-
-  //     const option1 = facet.options.objectAt(0);
-  //     const option2 = facet.options.objectAt(1);
-  //     await option1.toggle();
-  //     selection.push(option1.key);
-  //     await option2.toggle();
-  //     selection.push(option2.key);
-
-  //     assert.ok(
-  //       currentURL().includes(encodeURIComponent(JSON.stringify(selection))),
-  //       'URL has the correct query param key and value'
-  //     );
-  //   });
-
-  //   test.skip('the run job button works when filters are set', async function (assert) {
-  //     ['pre-one', 'pre-two', 'pre-three'].forEach((name) => {
-  //       server.create('job', {
-  //         name,
-  //         createAllocations: false,
-  //         childrenCount: 0,
-  //       });
-  //     });
-
-  //     await JobsList.visit();
-
-  //     await JobsList.facets.prefix.toggle();
-  //     await JobsList.facets.prefix.options[0].toggle();
-
-  //     await JobsList.runJobButton.click();
-  //     assert.equal(currentURL(), '/jobs/run');
-  //   });
-  // }
+    await JobsList.runJobButton.click();
+    assert.equal(currentURL(), '/jobs/run');
+  });
 
   module('Pagination', function () {
     module('Buttons are appropriately disabled', function () {
@@ -1190,6 +944,622 @@ module('Acceptance | jobs list', function (hooks) {
       });
     });
   });
+
+  module('Searching and Filtering', function () {
+    module('Search', function () {
+      test('Searching reasons about whether you intended a job name or a filter expression', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 10);
+        await JobsList.visit();
+
+        await JobsList.search.fillIn('something-that-surely-doesnt-exist');
+        // check to see that we fired off a request; check handledRequests to find one with a ?filter in it
+        assert.ok(
+          server.pretender.handledRequests.find((req) =>
+            decodeURIComponent(req.url).includes(
+              '?filter=Name contains something-that-surely-doesnt-exist'
+            )
+          ),
+          'A request was made with a filter query param that assumed job name'
+        );
+
+        await JobsList.search.fillIn('Namespace == ns-2');
+
+        assert.ok(
+          server.pretender.handledRequests.find((req) =>
+            decodeURIComponent(req.url).includes('?filter=Namespace == ns-2')
+          ),
+          'A request was made with a filter query param for a filter expression as typed'
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Searching by name filters the list', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 10);
+        server.create('job', {
+          name: 'hashi-one',
+          id: 'hashi-one',
+          modifyIndex: 0,
+        });
+        server.create('job', {
+          name: 'hashi-two',
+          id: 'hashi-two',
+          modifyIndex: 0,
+        });
+        await JobsList.visit();
+
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initially, 10 jobs are listed without any filters.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-one"]')
+          .doesNotExist(
+            'The specific job hashi-one should not appear without filtering.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-two"]')
+          .doesNotExist(
+            'The specific job hashi-two should also not appear without filtering.'
+          );
+
+        await JobsList.search.fillIn('hashi-one');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be visible when filtering by the name "hashi-one".'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-one"]')
+          .exists(
+            'The job hashi-one appears as expected when filtered by name.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-two"]')
+          .doesNotExist(
+            'The job hashi-two should not appear when filtering by "hashi-one".'
+          );
+
+        await JobsList.search.fillIn('hashi');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 2 },
+            'Two jobs should appear when the filter "hashi" matches both job names.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-one"]')
+          .exists(
+            'Job hashi-one is correctly displayed under the "hashi" filter.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-two"]')
+          .exists(
+            'Job hashi-two is correctly displayed under the "hashi" filter.'
+          );
+
+        await JobsList.search.fillIn('Name == hashi');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 0 },
+            'No jobs should appear when an incorrect filter format "Name == hashi" is used.'
+          );
+
+        await JobsList.search.fillIn('');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'All jobs reappear when the search filter is cleared.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-one"]')
+          .doesNotExist(
+            'The job hashi-one should disappear again when the filter is cleared.'
+          );
+        assert
+          .dom('[data-test-job-row="hashi-two"]')
+          .doesNotExist(
+            'The job hashi-two should disappear again when the filter is cleared.'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Searching by type filters the list', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        server.createList('job', 10, {
+          createAllocations: false,
+          type: 'service',
+          modifyIndex: 10,
+        });
+
+        server.create('job', {
+          id: 'batch-job',
+          type: 'batch',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+        server.create('job', {
+          id: 'system-job',
+          type: 'system',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+        server.create('job', {
+          id: 'sysbatch-job',
+          type: 'sysbatch',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+        server.create('job', {
+          id: 'sysbatch-job-2',
+          type: 'sysbatch',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+
+        await JobsList.visit();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initial setup should show 10 jobs of type "service".'
+          );
+        assert
+          .dom('[data-test-job-type="service"]')
+          .exists(
+            { count: 10 },
+            'All initial jobs are confirmed to be of type "service".'
+          );
+
+        await JobsList.search.fillIn('Type == batch');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Filtering by "Type == batch" should show exactly one job.'
+          );
+        assert
+          .dom('[data-test-job-type="batch"]')
+          .exists(
+            { count: 1 },
+            'The single job of type "batch" is displayed as expected.'
+          );
+
+        await JobsList.search.fillIn('Type == system');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be displayed when filtering by "Type == system".'
+          );
+        assert
+          .dom('[data-test-job-type="system"]')
+          .exists(
+            { count: 1 },
+            'The job of type "system" appears as expected.'
+          );
+
+        await JobsList.search.fillIn('Type == sysbatch');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 2 },
+            'Two jobs should be visible under the filter "Type == sysbatch".'
+          );
+        assert
+          .dom('[data-test-job-type="sysbatch"]')
+          .exists(
+            { count: 2 },
+            'Both jobs of type "sysbatch" are correctly displayed.'
+          );
+
+        await JobsList.search.fillIn('Type contains sys');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 3 },
+            'Filter "Type contains sys" should show three jobs.'
+          );
+        assert
+          .dom('[data-test-job-type="sysbatch"]')
+          .exists(
+            { count: 2 },
+            'Two jobs of type "sysbatch" match the "sys" substring.'
+          );
+        assert
+          .dom('[data-test-job-type="system"]')
+          .exists(
+            { count: 1 },
+            'One job of type "system" matches the "sys" substring.'
+          );
+
+        await JobsList.search.fillIn('Type != service');
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 4 },
+            'Four jobs should be visible when excluding type "service".'
+          );
+        assert
+          .dom('[data-test-job-type="batch"]')
+          .exists({ count: 1 }, 'One batch job is visible.');
+        assert
+          .dom('[data-test-job-type="system"]')
+          .exists({ count: 1 }, 'One system job is visible.');
+        assert
+          .dom('[data-test-job-type="sysbatch"]')
+          .exists({ count: 2 }, 'Two sysbatch jobs are visible.');
+
+        // Next/Last buttons are disabled when searching for the 10 services bc there's just 10
+        await JobsList.search.fillIn('Type == service');
+        assert.dom('.job-row').exists({ count: 10 });
+        assert.dom('[data-test-job-type="service"]').exists({ count: 10 });
+        assert
+          .dom('[data-test-pager="next"]')
+          .isDisabled(
+            'The next page button should be disabled when all jobs fit on one page.'
+          );
+        assert
+          .dom('[data-test-pager="last"]')
+          .isDisabled(
+            'The last page button should also be disabled under the same conditions.'
+          );
+
+        // But if we disinclude sysbatch we'll have 12, so next/last should be clickable
+        await JobsList.search.fillIn('Type != sysbatch');
+        assert.dom('.job-row').exists({ count: 10 });
+        assert
+          .dom('[data-test-pager="next"]')
+          .isNotDisabled(
+            'The next page button should be enabled when not all jobs are shown on one page.'
+          );
+        assert
+          .dom('[data-test-pager="last"]')
+          .isNotDisabled('The last page button should be enabled as well.');
+
+        localStorage.removeItem('nomadPageSize');
+      });
+    });
+    module('Filtering', function () {
+      test('Filtering by namespace filters the list', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+
+        server.create('namespace', {
+          id: 'default',
+          name: 'default',
+        });
+
+        server.create('namespace', {
+          id: 'ns-2',
+          name: 'ns-2',
+        });
+
+        server.createList('job', 10, {
+          createAllocations: false,
+          namespaceId: 'default',
+          modifyIndex: 10,
+        });
+
+        server.create('job', {
+          id: 'ns-2-job',
+          namespaceId: 'ns-2',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+
+        // By default, start on "All" namespace
+        await JobsList.visit();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initial setup should show 10 jobs in the default namespace.'
+          );
+        assert
+          .dom('[data-test-job-row="ns-2-job"]')
+          .doesNotExist(
+            'The job in the ns-2 namespace should not appear without filtering.'
+          );
+
+        assert
+          .dom('[data-test-pager="next"]')
+          .isNotDisabled(
+            '11 jobs on "All" namespace, so second page is available'
+          );
+
+        // Toggle ns-2 namespace
+        await JobsList.facets.namespace.toggle();
+        await JobsList.facets.namespace.options[2].toggle();
+
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be visible when filtering by the ns-2 namespace.'
+          );
+        assert
+          .dom('[data-test-job-row="ns-2-job"]')
+          .exists(
+            'The job in the ns-2 namespace appears as expected when filtered.'
+          );
+
+        // Switch to default namespace
+        await JobsList.facets.namespace.toggle();
+        await JobsList.facets.namespace.options[1].toggle();
+
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'All jobs reappear when the search filter is cleared.'
+          );
+        assert
+          .dom('[data-test-job-row="ns-2-job"]')
+          .doesNotExist(
+            'The job in the ns-2 namespace should disappear when the filter is cleared.'
+          );
+
+        assert
+          .dom('[data-test-pager="next"]')
+          .isDisabled(
+            '10 jobs in "Default" namespace, so second page is not available'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('Namespace filter only shows up if the server has more than one namespace', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+
+        server.create('namespace', {
+          id: 'default',
+          name: 'default',
+        });
+
+        server.createList('job', 10, {
+          createAllocations: false,
+          namespaceId: 'default',
+          modifyIndex: 10,
+        });
+
+        await JobsList.visit();
+        assert
+          .dom('[data-test-facet="Namespace"]')
+          .doesNotExist(
+            'Namespace filter should not appear with only one namespace.'
+          );
+
+        let system = this.owner.lookup('service:system');
+        system.shouldShowNamespaces = true;
+
+        await settled();
+
+        assert
+          .dom('[data-test-facet="Namespace"]')
+          .exists(
+            'Namespace filter should appear with more than one namespace.'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('Filtering by status filters the list', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        server.createList('job', 10, {
+          createAllocations: false,
+          status: 'running',
+          modifyIndex: 10,
+        });
+
+        server.create('job', {
+          id: 'pending-job',
+          status: 'pending',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+
+        server.create('job', {
+          id: 'dead-job',
+          status: 'dead',
+          createAllocations: false,
+          modifyIndex: 8,
+        });
+
+        await JobsList.visit();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initial setup should show 10 jobs in the "running" status.'
+          );
+        assert
+          .dom('[data-test-job-row="pending-job"]')
+          .doesNotExist(
+            'The job in the "pending" status should not appear without filtering.'
+          );
+        assert
+          .dom('[data-test-pager="next"]')
+          .isNotDisabled(
+            '10 jobs in "running" status, so second page is available'
+          );
+
+        await JobsList.facets.status.toggle();
+        await JobsList.facets.status.options[0].toggle(); // pending
+
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be visible when filtering by the "pending" status.'
+          );
+        assert
+          .dom('[data-test-job-row="pending-job"]')
+          .exists(
+            'The job in the "pending" status appears as expected when filtered.'
+          );
+
+        assert
+          .dom('[data-test-pager="next"]')
+          .isDisabled(
+            '1 job in "pending" status, so second page is not available'
+          );
+
+        await JobsList.facets.status.options[2].toggle(); // dead
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 2 },
+            'Two jobs should be visible when the "dead" filter is added'
+          );
+        assert
+          .dom('[data-test-job-row="dead-job"]')
+          .exists(
+            { count: 1 },
+            'The job in the "dead" status appears as expected when filtered.'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Filtering by a dynamically-generated facet: data-test-facet="Node Pool"', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+
+        server.create('node-pool', {
+          id: 'pool-1',
+          name: 'pool-1',
+        });
+        server.create('node-pool', {
+          id: 'pool-2',
+          name: 'pool-2',
+        });
+
+        server.createList('job', 10, {
+          createAllocations: false,
+          nodePool: 'pool-1',
+          modifyIndex: 10,
+        });
+
+        server.create('job', {
+          id: 'pool-2-job',
+          nodePool: 'pool-2',
+          createAllocations: false,
+          modifyIndex: 9,
+        });
+
+        await JobsList.visit();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Initial setup should show 10 jobs in the "pool-1" node pool.'
+          );
+        assert
+          .dom('[data-test-job-row="pool-2-job"]')
+          .doesNotExist(
+            'The job in the "pool-2" node pool should not appear without filtering.'
+          );
+        await JobsList.facets.nodePool.toggle();
+
+        await JobsList.facets.nodePool.options[2].toggle(); // pool-2
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 1 },
+            'Only one job should be visible when filtering by the "pool-2" node pool.'
+          );
+        assert
+          .dom('[data-test-job-row="pool-2-job"]')
+          .exists(
+            'The job in the "pool-2" node pool appears as expected when filtered.'
+          );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Combined Filtering and Searching', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        // 2 service, 1 batch, 1 system, 1 sysbatch
+        // 3 running, 1 dead, 1 pending
+        server.create('job', {
+          id: 'job1',
+          name: 'Alpha Processing',
+          type: 'batch',
+          status: 'running',
+        });
+        server.create('job', {
+          id: 'job2',
+          name: 'Beta Calculation',
+          type: 'service',
+          status: 'dead',
+        });
+        server.create('job', {
+          id: 'job3',
+          name: 'Gamma Analysis',
+          type: 'sysbatch',
+          status: 'pending',
+        });
+        server.create('job', {
+          id: 'job4',
+          name: 'Delta Research',
+          type: 'system',
+          status: 'running',
+        });
+        server.create('job', {
+          id: 'job5',
+          name: 'Epsilon Development',
+          type: 'service',
+          status: 'running',
+        });
+
+        // All 5 jobs show up by default
+        await JobsList.visit();
+        assert.dom('.job-row').exists({ count: 5 }, 'All 5 jobs are visible');
+
+        // Toggle type to "service", should see 2 jobs
+        await JobsList.facets.type.toggle();
+        await JobsList.facets.type.options[1].toggle();
+        assert
+          .dom('.job-row')
+          .exists({ count: 2 }, 'Two service jobs are visible');
+
+        // additionally, enable "batch" type
+        await JobsList.facets.type.options[0].toggle();
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 3 },
+            'Three jobs are visible with service and batch types'
+          );
+        assert.dom('[data-test-job-row="job1"]').exists();
+        assert.dom('[data-test-job-row="job2"]').exists();
+        assert.dom('[data-test-job-row="job5"]').exists();
+
+        // additionally, enable "running" status to filter down to just the running ones
+        await JobsList.facets.status.toggle();
+        await JobsList.facets.status.options[1].toggle();
+        assert
+          .dom('.job-row')
+          .exists({ count: 2 }, 'Two running service/batch jobs are visible');
+        assert.dom('[data-test-job-row="job1"]').exists();
+        assert.dom('[data-test-job-row="job5"]').exists();
+        assert.dom('[data-test-job-row="job2"]').doesNotExist();
+
+        // additionally, perform a search for Name != "Alpha Processing"
+        await JobsList.search.fillIn('Name != "Alpha Processing"');
+        assert
+          .dom('.job-row')
+          .exists({ count: 1 }, 'One running service job is visible');
+        assert.dom('[data-test-job-row="job5"]').exists();
+        assert.dom('[data-test-job-row="job1"]').doesNotExist();
+      });
+    });
+  });
 });
 
 /**
@@ -1208,4 +1578,152 @@ function createJobs(server, jobsToCreate) {
       shallow: true,
     });
   }
+}
+
+async function facetOptions(assert, beforeEach, facet, expectedOptions) {
+  await beforeEach();
+  await facet.toggle();
+
+  let expectation;
+  if (typeof expectedOptions === 'function') {
+    expectation = expectedOptions(server.db.jobs);
+  } else {
+    expectation = expectedOptions;
+  }
+
+  assert.deepEqual(
+    facet.options.map((option) => option.label.trim()),
+    expectation,
+    'Options for facet are as expected'
+  );
+}
+
+function testFacet(
+  label,
+  { facet, paramName, beforeEach, filter, expectedOptions }
+) {
+  test(`the ${label} facet has the correct options`, async function (assert) {
+    await facetOptions(assert, beforeEach, facet, expectedOptions);
+  });
+
+  test(`the ${label} facet filters the jobs list by ${label}`, async function (assert) {
+    let option;
+
+    await beforeEach();
+    await facet.toggle();
+
+    option = facet.options.objectAt(0);
+    await option.toggle();
+
+    const selection = [option.label];
+    const expectedJobs = server.db.jobs
+      .filter((job) => filter(job, selection))
+      .sortBy('modifyIndex')
+      .reverse();
+
+    JobsList.jobs.forEach((job, index) => {
+      assert.equal(
+        job.id,
+        expectedJobs[index].id,
+        `Job at ${index} is ${expectedJobs[index].id}`
+      );
+    });
+  });
+
+  test(`selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
+    const selection = [];
+
+    await beforeEach();
+    await facet.toggle();
+
+    const option1 = facet.options.objectAt(0);
+    const option2 = facet.options.objectAt(1);
+    await option1.toggle();
+    selection.push(option1.label);
+    await option2.toggle();
+    selection.push(option2.label);
+
+    const expectedJobs = server.db.jobs
+      .filter((job) => filter(job, selection))
+      .sortBy('modifyIndex')
+      .reverse();
+
+    JobsList.jobs.forEach((job, index) => {
+      assert.equal(
+        job.id,
+        expectedJobs[index].id,
+        `Job at ${index} is ${expectedJobs[index].id}`
+      );
+    });
+  });
+
+  test(`selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
+    const selection = [];
+
+    await beforeEach();
+    await facet.toggle();
+
+    const option1 = facet.options.objectAt(0);
+    const option2 = facet.options.objectAt(1);
+    await option1.toggle();
+    selection.push(option1.label);
+    await option2.toggle();
+    selection.push(option2.label);
+
+    selection.forEach((selection) => {
+      let capitalizedParamName =
+        paramName.charAt(0).toUpperCase() + paramName.slice(1);
+      assert.ok(
+        currentURL().includes(
+          encodeURIComponent(`${capitalizedParamName} == ${selection}`)
+        ),
+        `URL has the correct query param key and value for ${selection}`
+      );
+    });
+  });
+}
+
+function testSingleSelectFacet(
+  label,
+  { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
+) {
+  test(`the ${label} facet has the correct options`, async function (assert) {
+    await facetOptions(assert, beforeEach, facet, expectedOptions);
+  });
+
+  test(`the ${label} facet filters the jobs list by ${label}`, async function (assert) {
+    await beforeEach();
+    await facet.toggle();
+
+    const option = facet.options.findOneBy('label', optionToSelect);
+    const selection = option.label;
+    await option.toggle();
+
+    const expectedJobs = server.db.jobs
+      .filter((job) => filter(job, selection))
+      .sortBy('modifyIndex')
+      .reverse();
+
+    JobsList.jobs.forEach((job, index) => {
+      assert.equal(
+        job.id,
+        expectedJobs[index].id,
+        `Job at ${index} is ${expectedJobs[index].id}`
+      );
+    });
+  });
+
+  test(`selecting an option in the ${label} facet updates the ${paramName} query param`, async function (assert) {
+    await beforeEach();
+    await facet.toggle();
+
+    const option = facet.options.objectAt(1);
+    const selection = option.label;
+    await option.toggle();
+
+    assert.ok(
+      currentURL().includes(`${paramName}=${selection}`),
+      'URL has the correct query param key and value'
+    );
+  });
 }
