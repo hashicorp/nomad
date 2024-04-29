@@ -135,8 +135,11 @@ func (j *Job) Statuses(
 				})
 			}
 
-			jobs := make([]structs.UIJob, 0)
-			newJobs := set.New[structs.NamespacedID](0)
+			// little dance to avoid extra memory allocations
+			i := 0
+			jobs := make([]structs.UIJob, len(args.Jobs))
+			newJobs := set.New[structs.NamespacedID](len(args.Jobs))
+
 			pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 				func(raw interface{}) error {
 					job := raw.(*structs.Job)
@@ -147,7 +150,12 @@ func (j *Job) Statuses(
 						return err
 					}
 
-					jobs = append(jobs, uiJob)
+					if len(args.Jobs) > 0 {
+						jobs[i] = uiJob
+						i++
+					} else {
+						jobs = append(jobs, uiJob)
+					}
 					newJobs.Insert(job.NamespacedID())
 
 					// by using the highest index we find on any job/alloc/
@@ -170,6 +178,15 @@ func (j *Job) Statuses(
 					http.StatusInternalServerError, "failed to read result page: %v", err)
 			}
 
+			// remove empty jobs (caller requested jobs that don't exist)
+			prevJobs.Remove(structs.NamespacedID{})
+			jobsClean := make([]structs.UIJob, 0)
+			for _, j := range jobs {
+				if j.ID != "" && j.Namespace != "" {
+					jobsClean = append(jobsClean, j)
+				}
+			}
+
 			// if the page has updated, or a job has gone away,
 			// bump the index to latest jobs entry.
 			if !prevJobs.Empty() && !newJobs.Equal(prevJobs) {
@@ -181,7 +198,7 @@ func (j *Job) Statuses(
 			prevJobs = newJobs
 
 			reply.QueryMeta.NextToken = nextToken
-			reply.Jobs = jobs
+			reply.Jobs = jobsClean
 
 			return nil
 		}}
