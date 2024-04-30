@@ -191,6 +191,11 @@ func (e *UniversalExecutor) enterCG1(statsCgroup, cpusetCgroup string) func() {
 	}
 }
 
+// usesCustomCgroup whether cgroup_v1_override or cgroup_v2_override is set
+func (e *UniversalExecutor) usesCustomCgroup() bool {
+	return len(e.command.OverrideCgroupV1) > 0 || e.command.OverrideCgroupV2 != ""
+}
+
 func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) error {
 	// some drivers like qemu entirely own resource management
 	if command.Resources == nil || command.Resources.LinuxResources == nil {
