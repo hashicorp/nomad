@@ -766,6 +766,38 @@ func TestJob_Copy(t *testing.T) {
 	}
 }
 
+func TestJob_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	cases := []struct {
+		job *Job
+	}{
+		{
+			job: testJob(),
+		},
+		{
+			job: &Job{},
+		},
+		{
+			job: &Job{
+				Datacenters: []string{},
+				Constraints: []*Constraint{},
+				Affinities:  []*Affinity{},
+				Spreads:     []*Spread{},
+				TaskGroups:  []*TaskGroup{},
+				Meta:        map[string]string{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c.job.Canonicalize()
+		kopy := c.job.Copy()
+		if !reflect.DeepEqual(c.job, kopy) {
+			t.Fatalf("Canonicalize() returned a Job that changed after copy; before %#v; after %#v", c.job, kopy)
+		}
+	}
+}
+
 func TestJob_IsPeriodic(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1977,6 +2009,41 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 	}
 }
 
+func TestTaskGroup_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	job := testJob()
+	cases := []struct {
+		tg *TaskGroup
+	}{
+		{
+			tg: job.TaskGroups[0],
+		},
+		{
+			tg: &TaskGroup{},
+		},
+		{
+			tg: &TaskGroup{
+				Constraints: []*Constraint{},
+				Tasks:       []*Task{},
+				Meta:        map[string]string{},
+				Affinities:  []*Affinity{},
+				Spreads:     []*Spread{},
+				Networks:    []*NetworkResource{},
+				Services:    []*Service{},
+				Volumes:     map[string]*VolumeRequest{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c.tg.Canonicalize(job)
+		kopy := c.tg.Copy()
+		if !reflect.DeepEqual(c.tg, kopy) {
+			t.Fatalf("Canonicalize() returned a TaskGroup that changed after copy; before %#v; after %#v", c.tg, kopy)
+		}
+	}
+}
+
 func TestTask_Validate(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2145,6 +2212,46 @@ func TestTask_Validate_Resources(t *testing.T) {
 				require.Contains(t, err.Error(), tc.err)
 			}
 		})
+	}
+}
+
+func TestTask_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	job := testJob()
+	tg := job.TaskGroups[0]
+	cases := []struct {
+		task *Task
+	}{
+		{
+			task: tg.Tasks[0],
+		},
+		{
+			task: &Task{},
+		},
+		{
+			task: &Task{
+				Config:          map[string]interface{}{},
+				Env:             map[string]string{},
+				Services:        []*Service{},
+				Templates:       []*Template{},
+				Constraints:     []*Constraint{},
+				Affinities:      []*Affinity{},
+				Meta:            map[string]string{},
+				Artifacts:       []*TaskArtifact{},
+				VolumeMounts:    []*VolumeMount{},
+				ScalingPolicies: []*ScalingPolicy{},
+				Identities:      []*WorkloadIdentity{},
+				Actions:         []*Action{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c.task.Canonicalize(job, tg)
+		kopy := c.task.Copy()
+		if !reflect.DeepEqual(c.task, kopy) {
+			t.Fatalf("Canonicalize() returned a Task that changed after copy; before %#v; after %#v", c.task, kopy)
+		}
 	}
 }
 
