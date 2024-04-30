@@ -154,11 +154,15 @@
               <B.Td data-test-job-namespace>{{B.data.namespace.id}}</B.Td>
             {{/if}}
             <B.Td data-test-job-status>
-              {{#if B.data.childStatuses}}
+              {{#if (not (eq B.data.childStatuses null))}}
                 {{#if B.data.childStatusBreakdown.running}}
                   <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.running}} running {{pluralize "job" B.data.childStatusBreakdown.running}}" @color="highlight" @size="large" />
+                {{else if B.data.childStatusBreakdown.pending}}
+                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.pending}} pending {{pluralize "job" B.data.childStatusBreakdown.pending}}" @color="neutral" @size="large" />
                 {{else if B.data.childStatusBreakdown.dead}}
                   <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.dead}} completed {{pluralize "job" B.data.childStatusBreakdown.dead}}" @color="neutral" @size="large" />
+                {{else if (not B.data.childStatuses.length)}}
+                  <Hds::Badge @icon="corner-down-right" @text="No child jobs" @color="neutral" @size="large" />
                 {{/if}}
               {{else}}
                 {{!-- TODO: a parameterized/periodic job with no dispatches will not have childStatuses, nor allocations, and so will be indistinguishable to the UI from a failed job, since it will nevertheless have GroupCountSum. --}}
@@ -176,7 +180,7 @@
               <div class="job-status-panel compact">
                 {{#unless B.data.assumeGC}}
                   {{#if B.data.childStatuses}}
-                    <Hds::Link::Standalone @icon="chevron-right" @text="View {{B.data.childStatuses.length}} child jobs" @route="jobs.job.index" @model={{B.data.idWithNamespace}} @iconPosition="trailing" />
+                    <Hds::Link::Standalone @icon="chevron-right" @text="View {{B.data.childStatuses.length}} child {{pluralize "job" B.data.childStatuses.length}}" @route="jobs.job.index" @model={{B.data.idWithNamespace}} @iconPosition="trailing" />
                   {{else}}
                     <JobStatus::AllocationStatusRow
                       @allocBlocks={{B.data.allocBlocks}}
