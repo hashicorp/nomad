@@ -177,14 +177,28 @@ func TestJob_Statuses(t *testing.T) {
 			},
 			expect: jobs[0],
 		},
+		{
+			name: "missing",
+			jobs: []structs.NamespacedID{
+				{
+					ID:        "do-not-exist",
+					Namespace: "anywhere",
+				},
+			},
+			expect: nil,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			resp = doRequest(t, &structs.JobStatusesRequest{
 				QueryOptions: tc.qo,
 				Jobs:         tc.jobs,
 			})
-			must.Len(t, 1, resp.Jobs, must.Sprint("expect only one job"))
-			must.Eq(t, tc.expect.ID, resp.Jobs[0].ID)
+			if tc.expect == nil {
+				must.Len(t, 0, resp.Jobs, must.Sprint("expect no jobs"))
+			} else {
+				must.Len(t, 1, resp.Jobs, must.Sprint("expect only one job"))
+				must.Eq(t, tc.expect.ID, resp.Jobs[0].ID)
+			}
 			expectToken := ""
 			if tc.expectNext > 0 {
 				expectToken = strconv.FormatUint(tc.expectNext, 10)
