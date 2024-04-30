@@ -154,9 +154,6 @@
               <B.Td data-test-job-namespace>{{B.data.namespace.id}}</B.Td>
             {{/if}}
             <B.Td data-test-job-status>
-              {{!-- {{#each-in B.data.childStatusBreakdown as |status count|}} --}}
- 
-              {{!-- {{log "CHILD STATUS BREAKDOWN" B.data.childStatusBreakdown}} --}}
               {{#if B.data.childStatuses}}
                 {{#if B.data.childStatusBreakdown.running}}
                   <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.running}} running {{pluralize "job" B.data.childStatusBreakdown.running}}" @color="highlight" @size="large" />

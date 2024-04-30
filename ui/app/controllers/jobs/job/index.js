@@ -90,6 +90,10 @@ export default class IndexController extends Controller.extend(
 
   @tracked childJobs = [];
 
+  resetQueryIndex({ id, namespace }) {
+    this.watchList.setIndexFor(`child-jobs-for-${id}-${namespace}`, 1);
+  }
+
   @restartableTask *watchChildJobs(
     { id, namespace },
     throttle = Ember.testing ? 0 : 2000

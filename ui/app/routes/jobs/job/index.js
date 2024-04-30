@@ -17,6 +17,7 @@ import { action } from '@ember/object';
 export default class IndexRoute extends Route.extend(WithWatchers) {
   @service can;
   @service store;
+  @service watchList;
 
   async model() {
     return this.modelFor('jobs.job');
@@ -47,6 +48,11 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       controller.setProperties({
         sortProperty: 'submitTime',
         sortDescending: true,
+      });
+
+      controller.resetQueryIndex({
+        id: model.get('plainId'),
+        namespace: model.get('namespace.id'),
       });
 
       controller.watchChildJobs.perform({

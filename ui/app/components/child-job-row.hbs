@@ -35,32 +35,15 @@
     </span>
   </td>
   <td data-test-job-allocations>
-
     <div class="job-status-panel compact">
       <JobStatus::AllocationStatusRow
         @allocBlocks={{@job.allocBlocks}}
         @steady={{true}}
         @compact={{true}}
-        @runningAllocs={{@job.allocBlocks.running.healthy.nonCanary.length}}
+        @completeAllocs={{@job.allocBlocks.complete.healthy.nonCanary.length}}
+        @allocationTallyMode="complete"
         @groupCountSum={{@job.expectedRunningAllocCount}}
       />
     </div>
-
-    {{!-- <div class="inline-chart">
-      {{#if @job.hasChildren}}
-        {{#if (gt @job.totalChildren 0)}}
-          <ChildrenStatusBar @job={{@job}} @isNarrow={{true}} />
-        {{else}}
-          <em class="is-faded">
-            No Children
-          </em>
-        {{/if}}
-      {{else}}
-        <AllocationStatusBar
-          @allocationContainer={{@job}}
-          @isNarrow={{true}}
-        />
-      {{/if}}
-    </div> --}}
   </td>
 </tr>

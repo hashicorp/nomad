@@ -109,7 +109,6 @@ export default class JobSerializer extends ApplicationSerializer {
     // Sort by ModifyIndex, reverse
     jobs.sort((a, b) => b.ModifyIndex - a.ModifyIndex);
     jobs.forEach((job) => {
-      // console.log('foreached', job);
       if (job.Allocs) {
         job.relationships = {
           allocations: {
@@ -179,19 +178,6 @@ export default class JobSerializer extends ApplicationSerializer {
       });
 
       delete hash._aggregate;
-    }
-
-    // if _includeChildren, tie them to the parent job
-    if (hash._includeChildren) {
-      hash.relationships = {
-        children: {
-          data: hash.Children.map((child) => ({
-            id: JSON.stringify([child.ID, child.NamespaceID || 'default']),
-            type: 'job',
-          })),
-        },
-      };
-      delete hash._includeChildren;
     }
 
     return assign(super.extractRelationships(...arguments), {
