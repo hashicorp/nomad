@@ -98,15 +98,23 @@ func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
 	return procstats.List(l.command)
 }
 
-func (l *LibcontainerExecutor) killOrphans(path string) {
-	c, e := cgroups.GetAllPids("/sys/fs/cgroup" + path)
-	for i, p := range c {
-		l.logger.Info("   killing process", i, p)
-		syscall.Kill(p, syscall.SIGKILL)
+// killOrphans kills processes that ended up reparented to Nomad when the
+// executor was unexpectedly killed.
+func (l *LibcontainerExecutor) killOrphans(nomadRelativePath string) {
+	root := cgroupslib.GetNomadCGRoot()
+	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
+	if err != nil {
+		l.logger.Error("unable to get orphan allocs PIDs", err)
+		return
 	}
 
-	l.logger.Info(fmt.Sprintf("       *********    pid: %+v  error:%+v", c, e))
-	//syscall.Kill(-gid, syscall.SIGKILL)
+	for _, pid := range orphansPIDs {
+		l.logger.Info("killing process:", orphansPIDs)
+		err := syscall.Kill(pid, syscall.SIGKILL)
+		if err != nil {
+			l.logger.Error("unable to send signal to process", pid, err)
+		}
+	}
 }
 
 // Launch creates a new container in libcontainer and starts a new process with it
