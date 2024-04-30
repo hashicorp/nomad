@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strings"
@@ -97,6 +98,17 @@ func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
 	return procstats.List(l.command)
 }
 
+func (l *LibcontainerExecutor) killOrphans(path string) {
+	c, e := cgroups.GetAllPids("/sys/fs/cgroup" + path)
+	for i, p := range c {
+		l.logger.Info("   killing process", i, p)
+		syscall.Kill(p, syscall.SIGKILL)
+	}
+
+	l.logger.Info(fmt.Sprintf("       *********    pid: %+v  error:%+v", c, e))
+	//syscall.Kill(-gid, syscall.SIGKILL)
+}
+
 // Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
 	l.logger.Trace("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
@@ -127,6 +139,8 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
 
+	l.logger.Debug("       c goup path ", containerCfg.Cgroups.Path)
+	l.killOrphans(containerCfg.Cgroups.Path)
 	container, err := factory.Create(l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
@@ -163,9 +177,11 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		Init:   true,
 	}
 
+	l.logger.Debug("launching", "command", command.Args)
 	if command.User != "" {
 		process.User = command.User
 	}
+
 	l.userProc = process
 
 	l.totalCpuStats = cpustats.New(l.compute)
@@ -188,13 +204,43 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// be multiplexed
 	l.userProcExited = make(chan interface{})
 
-	go l.wait()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		defer cancel()
+
+		go l.wait()
+
+		signal := l.catchSignals(ctx)
+		err = container.Signal(signal, true)
+		if err != nil {
+			l.logger.Error("failed send signal to process(%s): %v", l.id, err)
+		}
+	}()
 
 	return &ProcessState{
 		Pid:      pid,
 		ExitCode: -1,
 		Time:     time.Now(),
 	}, nil
+}
+
+func (l *LibcontainerExecutor) catchSignals(ctx context.Context) os.Signal {
+
+	sigch := make(chan os.Signal, 4)
+	defer close(sigch)
+
+	l.logger.Debug("waiting for signls")
+	signal.Notify(sigch, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
+	defer signal.Stop(sigch)
+
+	select {
+	case <-ctx.Done():
+		return nil
+
+	case s := <-sigch:
+		return s
+	}
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
@@ -779,6 +825,7 @@ func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecComma
 
 func (l *LibcontainerExecutor) newLibcontainerConfig(command *ExecCommand) (*runc.Config, error) {
 	cfg := &runc.Config{
+		ParentDeathSignal: 9,
 		Cgroups: &runc.Cgroup{
 			Resources: &runc.Resources{
 				MemorySwappiness: nil,

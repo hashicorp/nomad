@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -423,6 +424,13 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+func (d *Driver) SetAsSubreaper() {
+	d.logger.Info(" setting nomad as subreaper")
+	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0); err != nil {
+		d.logger.Error("unable to set as subreaper", err)
+	}
+}
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
@@ -495,6 +503,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		ModeIPC:          executor.IsolationMode(d.config.DefaultModeIPC, driverConfig.ModeIPC),
 		Capabilities:     caps,
 	}
+
+	d.SetAsSubreaper()
 
 	ps, err := exec.Launch(execCmd)
 	if err != nil {
@@ -585,6 +595,7 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 }
 
 func (d *Driver) DestroyTask(taskID string, force bool) error {
+
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
