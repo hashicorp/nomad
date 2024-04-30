@@ -115,8 +115,11 @@ func (j *Job) Statuses(
 				paginator.NamespaceFilter{
 					AllowableNamespaces: allowableNamespaces,
 				},
-				// skip child jobs; we'll look them up later, per parent.
+				// skip child jobs unless requested to include them
 				paginator.GenericFilter{Allow: func(i interface{}) (bool, error) {
+					if args.IncludeChildren {
+						return true, nil
+					}
 					job := i.(*structs.Job)
 					return job.ParentID == "", nil
 				}},
@@ -202,6 +205,7 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) 
 		Datacenters: job.Datacenters,
 		Priority:    job.Priority,
 		Version:     job.Version,
+		ParentID:    job.ParentID,
 		// included here for completeness, populated below.
 		Allocs:           nil,
 		GroupCountSum:    0,
@@ -219,6 +223,7 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) 
 
 	// collect the statuses of child jobs
 	if job.IsParameterized() || job.IsPeriodic() {
+		uiJob.ChildStatuses = make([]string, 0) // set to not-nil
 		children, err := store.JobsByIDPrefix(ws, job.Namespace, job.ID, state.SortDefault)
 		if err != nil {
 			return uiJob, idx, err

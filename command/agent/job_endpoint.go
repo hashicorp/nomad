@@ -2122,6 +2122,12 @@ func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	if includeChildren, err := parseBool(req, "include_children"); err != nil {
+		return nil, err
+	} else if includeChildren != nil {
+		args.IncludeChildren = *includeChildren
+	}
+
 	// ostensibly GETs should not accept structured body, but the HTTP spec
 	// on this is more what you'd call "guidelines" than actual rules.
 	if req.Body != http.NoBody {

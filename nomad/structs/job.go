@@ -26,6 +26,7 @@ type UIJob struct {
 	Allocs           []JobStatusAlloc
 	GroupCountSum    int
 	ChildStatuses    []string
+	ParentID         string
 	LatestDeployment *JobStatusLatestDeployment
 	Version          uint64
 	SubmitTime       int64
@@ -33,7 +34,8 @@ type UIJob struct {
 }
 
 type JobStatusesRequest struct {
-	Jobs []NamespacedID
+	Jobs            []NamespacedID
+	IncludeChildren bool
 	QueryOptions
 }
 
