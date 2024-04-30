@@ -101,7 +101,7 @@ func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
 // killOrphans kills processes that ended up reparented to Nomad when the
 // executor was unexpectedly killed.
 func (l *LibcontainerExecutor) killOrphans(nomadRelativePath string) {
-	root := cgroupslib.GetNomadCGRoot()
+	root := cgroupslib.GetDefautlRoot()
 	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
 	if err != nil {
 		l.logger.Error("unable to get orphan allocs PIDs", err)

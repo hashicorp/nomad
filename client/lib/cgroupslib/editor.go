@@ -21,7 +21,7 @@ const (
 	root = "/sys/fs/cgroup"
 )
 
-func GetNomadCGRoot() string {
+func GetDefautlRoot() string {
 	return root
 }
 

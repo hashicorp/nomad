@@ -9,6 +9,8 @@ package executor
 import (
 	"os/exec"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // isolateCommand sets the setsid flag in exec.Cmd to true so that the process
@@ -19,4 +21,8 @@ func isolateCommand(cmd *exec.Cmd) {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	cmd.SysProcAttr.Setsid = true
+}
+
+func setAsSubreaper() error {
+	return unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0)
 }
