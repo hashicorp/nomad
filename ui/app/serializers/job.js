@@ -104,11 +104,23 @@ export default class JobSerializer extends ApplicationSerializer {
       delete payload._requestBody;
     }
 
+    if (payload._includeChildren) {
+      payload.forEach((job) => {
+        ParentID = JSON.stringify([
+          'periodic-sleeper', // job.ParentID,
+          job.NamespaceID || 'default',
+        ]);
+        job.ParentID = ParentID;
+      });
+      // delete payload._includeChildren;
+    }
+
     const jobs = payload;
     // Signal that it's a query response at individual normalization level for allocation placement
     // Sort by ModifyIndex, reverse
     jobs.sort((a, b) => b.ModifyIndex - a.ModifyIndex);
     jobs.forEach((job) => {
+      // console.log('foreached', job);
       if (job.Allocs) {
         job.relationships = {
           allocations: {
@@ -178,6 +190,19 @@ export default class JobSerializer extends ApplicationSerializer {
       });
 
       delete hash._aggregate;
+    }
+
+    // if _includeChildren, tie them to the parent job
+    if (hash._includeChildren) {
+      hash.relationships = {
+        children: {
+          data: hash.Children.map((child) => ({
+            id: JSON.stringify([child.ID, child.NamespaceID || 'default']),
+            type: 'job',
+          })),
+        },
+      };
+      delete hash._includeChildren;
     }
 
     return assign(super.extractRelationships(...arguments), {

@@ -31,9 +31,11 @@ export default class Children extends Component.extend(Sortable) {
     return this.get('job.taskGroups') || [];
   }
 
-  @computed('job.children.[]')
+  @computed('jobs.[]')
   get children() {
-    return this.get('job.children') || [];
+    // return this.get('job.children') || [];
+    console.log('get kids', this.jobs);
+    return this.jobs || [];
   }
 
   @alias('children') listToSort;

@@ -10,9 +10,9 @@ import {
   watchRecord,
   watchRelationship,
   watchAll,
-  watchQuery,
 } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
+import { action } from '@ember/object';
 
 export default class IndexRoute extends Route.extend(WithWatchers) {
   @service can;
@@ -33,12 +33,6 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       latestDeployment:
         model.get('supportsDeployments') &&
         this.watchLatestDeployment.perform(model),
-      list:
-        model.get('hasChildren') &&
-        this.watchAllJobs.perform({
-          namespace: model.namespace.get('name'),
-          meta: true,
-        }),
       nodes:
         model.get('hasClientStatus') &&
         this.can.can('read client') &&
@@ -54,11 +48,16 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
         sortProperty: 'submitTime',
         sortDescending: true,
       });
+
+      controller.watchChildJobs.perform({
+        id: model.get('plainId'),
+      });
+
+      // Run a blocking query against child jobs if it's periodic
     }
     return super.setupController(...arguments);
   }
 
-  @watchQuery('job') watchAllJobs;
   @watchAll('node') watchNodes;
   @watchRecord('job-summary') watchSummary;
   @watchRelationship('allocations') watchAllocations;
@@ -66,7 +65,6 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   @watchRelationship('latestDeployment') watchLatestDeployment;
 
   @collect(
-    'watchAllJobs',
     'watchSummary',
     'watchAllocations',
     'watchEvaluations',
@@ -74,4 +72,12 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
     'watchNodes'
   )
   watchers;
+
+  @action
+  willTransition(transition, params, query, model, controller) {
+    this.controller.childJobsController.abort();
+    this.controller.watchChildJobs.cancelAll();
+    this.cancelAllWatchers();
+    return true;
+  }
 }
