@@ -51,9 +51,8 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
 
       controller.watchChildJobs.perform({
         id: model.get('plainId'),
+        namespace: model.get('namespace.id'),
       });
-
-      // Run a blocking query against child jobs if it's periodic
     }
     return super.setupController(...arguments);
   }
@@ -74,8 +73,10 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   watchers;
 
   @action
-  willTransition(transition, params, query, model, controller) {
+  willTransition() {
+    // eslint-disable-next-line
     this.controller.childJobsController.abort();
+    // eslint-disable-next-line
     this.controller.watchChildJobs.cancelAll();
     this.cancelAllWatchers();
     return true;

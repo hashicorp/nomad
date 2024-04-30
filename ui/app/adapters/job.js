@@ -212,8 +212,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     const method = get(options, 'adapterOptions.method') || 'GET';
     const url = this.urlForQuery(query, type.modelName, method);
 
-    console.log('indexing and', query, query.index);
-
     let index = query.index || 1;
 
     if (index && index > 1) {

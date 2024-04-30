@@ -73,7 +73,6 @@ export default class IndexController extends Controller.extend(
   childJobsQuery(params) {
     this.childJobsController.abort();
     this.childJobsController = new AbortController();
-    console.log('cjQ', params);
 
     return this.store
       .query('job', params, {
@@ -93,34 +92,29 @@ export default class IndexController extends Controller.extend(
 
   @restartableTask *watchChildJobs(
     { id, namespace },
-    throttle = Ember.testing ? 0 : 5000
+    throttle = Ember.testing ? 0 : 2000
   ) {
     while (true) {
-      console.log('wt', id, namespace);
       let params = {
-        filter: `ParentID == "${id}"`, // TODO: "and Namespace == ..."
+        filter: `ParentID == "${id}"`,
+        namespace,
         include_children: true,
       };
-      params.index = this.watchList.getIndexFor(`child-jobs-for-${id}`); // TODO: maybe I should stick with the URL convention here
-      console.log('paramind', params.index);
+      params.index = this.watchList.getIndexFor(
+        `child-jobs-for-${id}-${namespace}`
+      );
+
       const childJobs = yield this.childJobsQuery(params);
-      console.log('childYobs', childJobs);
       if (childJobs) {
         if (childJobs.meta.index) {
           this.watchList.setIndexFor(
-            `child-jobs-for-${id}`,
+            `child-jobs-for-${id}-${namespace}`,
             childJobs.meta.index
           );
         }
         this.childJobs = childJobs;
         yield timeout(throttle);
       }
-      //  else {
-      //   // This returns undefined on page change / cursorAt change, resulting from the aborting of the old query.
-      //   yield timeout(throttle);
-      //   this.watchJobs.perform(this.jobIDs, throttle);
-      //   continue;
-      // }
       if (Ember.testing) {
         break;
       }

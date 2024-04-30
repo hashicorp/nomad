@@ -104,17 +104,6 @@ export default class JobSerializer extends ApplicationSerializer {
       delete payload._requestBody;
     }
 
-    if (payload._includeChildren) {
-      payload.forEach((job) => {
-        ParentID = JSON.stringify([
-          'periodic-sleeper', // job.ParentID,
-          job.NamespaceID || 'default',
-        ]);
-        job.ParentID = ParentID;
-      });
-      // delete payload._includeChildren;
-    }
-
     const jobs = payload;
     // Signal that it's a query response at individual normalization level for allocation placement
     // Sort by ModifyIndex, reverse

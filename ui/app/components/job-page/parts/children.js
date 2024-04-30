@@ -33,8 +33,6 @@ export default class Children extends Component.extend(Sortable) {
 
   @computed('jobs.[]')
   get children() {
-    // return this.get('job.children') || [];
-    console.log('get kids', this.jobs);
     return this.jobs || [];
   }
 

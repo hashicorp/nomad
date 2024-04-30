@@ -154,9 +154,20 @@
               <B.Td data-test-job-namespace>{{B.data.namespace.id}}</B.Td>
             {{/if}}
             <B.Td data-test-job-status>
-              {{#unless B.data.childStatuses}}
+              {{!-- {{#each-in B.data.childStatusBreakdown as |status count|}} --}}
+ 
+              {{!-- {{log "CHILD STATUS BREAKDOWN" B.data.childStatusBreakdown}} --}}
+              {{#if B.data.childStatuses}}
+                {{#if B.data.childStatusBreakdown.running}}
+                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.running}} running {{pluralize "job" B.data.childStatusBreakdown.running}}" @color="highlight" @size="large" />
+                {{else if B.data.childStatusBreakdown.dead}}
+                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.dead}} completed {{pluralize "job" B.data.childStatusBreakdown.dead}}" @color="neutral" @size="large" />
+                {{/if}}
+              {{else}}
+                {{!-- TODO: a parameterized/periodic job with no dispatches will not have childStatuses, nor allocations, and so will be indistinguishable to the UI from a failed job, since it will nevertheless have GroupCountSum. --}}
+                {{!-- This has the effect of showing "failed" for all periodic/parameterized parent jobs at first run. --}}
                 <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
-              {{/unless}}
+              {{/if}}
             </B.Td>
             <B.Td data-test-job-type={{B.data.type}}>
               {{B.data.type}}
@@ -168,10 +179,7 @@
               <div class="job-status-panel compact">
                 {{#unless B.data.assumeGC}}
                   {{#if B.data.childStatuses}}
-                    {{B.data.childStatuses.length}} child jobs;<br />
-                    {{#each-in B.data.childStatusBreakdown as |status count|}}
-                      {{count}} {{status}}<br />
-                    {{/each-in}}
+                    <Hds::Link::Standalone @icon="chevron-right" @text="View {{B.data.childStatuses.length}} child jobs" @route="jobs.job.index" @model={{B.data.idWithNamespace}} @iconPosition="trailing" />
                   {{else}}
                     <JobStatus::AllocationStatusRow
                       @allocBlocks={{B.data.allocBlocks}}
