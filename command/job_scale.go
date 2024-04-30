@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
@@ -127,13 +128,13 @@ func (j *JobScaleCommand) Run(args []string) int {
 	// Detail the job so we can perform addition checks before submitting the
 	// scaling request.
 	q := &api.QueryOptions{Namespace: namespace}
-	job, _, err := client.Jobs().ScaleStatus(jobID, q)
+	jobScaleStatusResp, _, err := client.Jobs().ScaleStatus(jobID, q)
 	if err != nil {
 		j.Ui.Error(fmt.Sprintf("Error querying job: %v", err))
 		return 1
 	}
 
-	if err := j.performGroupCheck(job.TaskGroups, &groupString); err != nil {
+	if err := j.performGroupCheck(jobScaleStatusResp.TaskGroups, &groupString); err != nil {
 		j.Ui.Error(err.Error())
 		return 1
 	}
@@ -155,9 +156,36 @@ func (j *JobScaleCommand) Run(args []string) int {
 			j.Colorize().Color(fmt.Sprintf("[bold][yellow]Job Warnings:\n%s[reset]\n", resp.Warnings)))
 	}
 
-	// If we are to detach, log the evaluation ID and exit.
-	if detach {
-		j.Ui.Output("Evaluation ID: " + resp.EvalID)
+	jobInfo, _, err := client.Jobs().Info(jobID, q)
+	if err != nil {
+		j.Ui.Error(fmt.Sprintf("Error looking up job: %s", err))
+		return 1
+	}
+
+	// Check if the job is periodic or is a parameterized job
+	isPeriodicJob := jobInfo.IsPeriodic()
+	isParameterizedJob := jobInfo.IsParameterized()
+	isMultiregionJob := jobInfo.IsMultiregion()
+
+	// Check if we should enter monitor mode
+	if detach || isPeriodicJob || isParameterizedJob || isMultiregionJob {
+		j.Ui.Output("Job scale successful")
+		if isPeriodicJob && !isParameterizedJob {
+			loc, err := jobInfo.Periodic.GetLocation()
+			if err == nil {
+				now := time.Now().In(loc)
+				next, err := jobInfo.Periodic.Next(now)
+				if err != nil {
+					j.Ui.Error(fmt.Sprintf("Error determining next launch time: %v", err))
+				} else {
+					j.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
+						formatTime(next), formatTimeDifference(now, next, time.Second)))
+				}
+			}
+		} else if !isParameterizedJob {
+			j.Ui.Output("Evaluation ID: " + resp.EvalID)
+		}
+
 		return 0
 	}
 
@@ -167,7 +195,7 @@ func (j *JobScaleCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	// Create and monitor the evaluation.
+	// Detach was not specified, so start monitoring.
 	mon := newMonitor(j.Ui, client, length)
 	return mon.monitor(resp.EvalID)
 }
