@@ -5,7 +5,6 @@ package structs
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -262,7 +261,6 @@ func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
 
 	err := job.Validate()
 	must.Error(t, errors.Unwrap(err))
-	fmt.Println("what?", err.Error(), "what?")
 	must.StrContains(t, err.Error(), "max_client_disconnect cannot be negative")
 	must.StrContains(t, err.Error(), "Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect")
 
