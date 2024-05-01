@@ -10,8 +10,8 @@
   }}
   {{on "click" (action this.gotoJob @job)}}
   {{did-insert this.requiresPromotionTask.perform}}
-  {{did-update this.requiresPromotionTask.perform @job.activeDeploymentID @job.hasActiveCanaries}}
-  class="job-row is-interactive {{if @job.assumeGC "assume-gc"}}"
+  {{did-update this.requiresPromotionTask.perform @job.latestDeploymentSummary.id @job.hasActiveCanaries}}
+  class="job-row {{if @job.assumeGC "assume-gc"}}"
   data-test-job-row={{@job.plainId}}
   data-test-modify-index={{@job.modifyIndex}}
 >
@@ -82,7 +82,6 @@
             @allocBlocks={{@job.allocBlocks}}
             @steady={{true}}
             @compact={{true}}
-            {{!-- @runningAllocs={{@job.runningAllocs}} --}}
             @runningAllocs={{@job.allocBlocks.running.healthy.nonCanary.length}}
             @groupCountSum={{@job.expectedRunningAllocCount}}
           />
@@ -104,7 +103,7 @@
                 {{hds-tooltip "Some canaries have failed; you will have to investigate"
                   options=(hash placement="right")}}
                 @name="alert-triangle" @color="#c84034" />
-           {{/if}}
+            {{/if}}
           {{/if}}
         </div>
         {{/if}}

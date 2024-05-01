@@ -7,6 +7,7 @@ import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import queryString from 'query-string';
 import classic from 'ember-classic-decorator';
+import { camelize } from '@ember/string';
 
 @classic
 export default class JobSerializer extends ApplicationSerializer {
@@ -120,8 +121,21 @@ export default class JobSerializer extends ApplicationSerializer {
         };
       }
       if (job.LatestDeployment) {
-        job.LatestDeploymentSummary = job.LatestDeployment;
+        // camelize property names and save it as a non-conflicting name (latestDeployment is already used as a computed property on the job model)
+        job.LatestDeploymentSummary = Object.keys(job.LatestDeployment).reduce(
+          (acc, key) => {
+            if (key === 'ID') {
+              acc.id = job.LatestDeployment[key];
+            } else {
+              acc[camelize(key)] = job.LatestDeployment[key];
+            }
+            return acc;
+          },
+          {}
+        );
         delete job.LatestDeployment;
+      } else {
+        job.LatestDeploymentSummary = {};
       }
       job._aggregate = true;
     });

@@ -52,13 +52,13 @@ export default class Job extends Model {
    * @property {boolean} AllAutoPromote - Whether all allocations were auto-promoted
    * @property {boolean} RequiresPromotion - Whether the deployment requires promotion
    */
-  @attr() latestDeploymentSummary;
+  @attr({ defaultValue: () => ({}) }) latestDeploymentSummary;
 
   get hasActiveCanaries() {
     // console.log('tell me about ur active canaries plz', this.allocBlocks, this.allocations, this.activeDeploymentID);
     // TODO: Monday/Tuesday: go over AllocBlocks.{all}.canary and if there are any? make the latestDeployment lookup,
     // and check to see if it requires promotion / isnt yet promoted.
-    if (!this.latestDeploymentSummary?.IsActive) {
+    if (!this.latestDeploymentSummary.isActive) {
       return false;
     }
     return Object.keys(this.allocBlocks)
@@ -151,7 +151,7 @@ export default class Job extends Model {
   get allocBlocks() {
     let availableSlotsToFill = this.expectedRunningAllocCount;
 
-    let isDeploying = this.latestDeploymentSummary?.IsActive;
+    let isDeploying = this.latestDeploymentSummary.isActive;
     // Initialize allocationsOfShowableType with empty arrays for each clientStatus
     /**
      * @type {AllocationBlock}
@@ -337,7 +337,7 @@ export default class Job extends Model {
     let totalAllocs = this.expectedRunningAllocCount;
 
     // If deploying:
-    if (this.latestDeploymentSummary?.IsActive) {
+    if (this.latestDeploymentSummary.isActive) {
       return { label: 'Deploying', state: 'highlight' };
     }
 
