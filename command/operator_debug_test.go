@@ -1052,7 +1052,6 @@ func TestDebug_EventStream(t *testing.T) {
 
 	archive := extractArchiveName(testOut.output)
 	require.NotEmpty(t, archive)
-	fmt.Println(archive)
 
 	// TODO dmay: verify evenstream.json output file contains expected content
 }
