@@ -804,44 +804,29 @@ func (s *StateStore) DeleteDeploymentTxn(index uint64, deploymentIDs []string, t
 	return nil
 }
 
-// DeleteAlloc is used to delete a set of allocations by ID
-func (s *StateStore) DeleteAlloc(index uint64, allocIDs []string) error {
-	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
+// deleteAllocsForJobTxn deletes all the allocations for a given job, ensuring
+// that any associated server-side resources like quotas are also cleaned up,
+// but not client-side resources like CSI volumes, which are resolved by the
+// client
+func (s *StateStore) deleteAllocsForJobTxn(txn Txn, index uint64, namespace, jobID string) error {
 
-	err := s.DeleteAllocTxn(index, allocIDs, txn)
-	if err == nil {
-		return txn.Commit()
+	allocs, err := s.AllocsByJob(nil, namespace, jobID, true)
+	if err != nil {
+		return fmt.Errorf("alloc lookup for job %s failed: %w", jobID, err)
 	}
 
-	return err
-}
-
-// DeleteAllocTxn is used to delete a set of allocs by ID, like DeleteALloc but
-// in a transaction. Useful when making multiple modifications atomically.
-func (s *StateStore) DeleteAllocTxn(index uint64, allocIDs []string, txn Txn) error {
-	if len(allocIDs) == 0 {
-		return nil
-	}
-
-	for _, allocID := range allocIDs {
-		// Lookup the alloc
-		existing, err := txn.First("allocs", "id", allocID)
-		if err != nil {
-			return fmt.Errorf("alloc lookup failed: %v", err)
+	for _, existing := range allocs {
+		if !existing.ClientTerminalStatus() {
+			stopped := existing.Copy()
+			stopped.ClientStatus = structs.AllocClientStatusComplete
+			s.updateEntWithAlloc(index, stopped, existing, txn)
 		}
-		if existing == nil {
-			continue
-		}
-
-		// Delete the alloc
 		if err := txn.Delete("allocs", existing); err != nil {
-			return fmt.Errorf("alloc delete failed: %v", err)
+			return fmt.Errorf("alloc delete failed: %w", err)
 		}
 	}
-
 	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+		return fmt.Errorf("index update failed: %w", err)
 	}
 
 	return nil
@@ -1911,18 +1896,8 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		}
 	}
 
-	// Delete job allocs
-	allocs, err := s.AllocsByJob(nil, namespace, job.ID, true)
-	if err != nil {
-		return fmt.Errorf("alloc lookup for job %s failed: %v", job.ID, err)
-	}
-
-	allocIDs := []string{}
-	for _, a := range allocs {
-		allocIDs = append(allocIDs, a.ID)
-	}
-
-	if err := s.DeleteAllocTxn(index, allocIDs, txn); err != nil {
+	// Delete allocs associated with the job
+	if err := s.deleteAllocsForJobTxn(txn, index, namespace, job.ID); err != nil {
 		return err
 	}
 
