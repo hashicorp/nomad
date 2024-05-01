@@ -59,6 +59,9 @@ export default class Job extends Model {
   get childStatusBreakdown() {
     // child statuses is something like ['dead', 'dead', 'complete', 'running', 'running', 'dead'].
     // Return an object counting by status, like {dead: 3, complete: 1, running: 2}
+
+    if (!this.childStatuses) return {};
+
     const breakdown = {};
     this.childStatuses.forEach((status) => {
       if (breakdown[status]) {

@@ -57,7 +57,6 @@
           </th>
         </t.head>
         <t.body @key="model.id" as |row|>
-          {{!-- <JobRow data-test-job-row @job={{row.model}} @context="child" /> --}}
           <ChildJobRow
             @job={{row.model}}
           />
