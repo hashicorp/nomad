@@ -81,20 +81,24 @@ export default class JobRow extends Component {
   @task(function* () {
     console.log(
       'checking if requries promotion',
-      this.args.job.activeDeploymentID,
+      this.args.job.name,
+      this.args.job.latestDeploymentSummary,
       this.args.job.hasActiveCanaries
     );
-    if (!this.args.job.hasActiveCanaries || !this.args.job.activeDeploymentID) {
+    if (
+      !this.args.job.hasActiveCanaries ||
+      !this.args.job.latestDeploymentSummary?.IsActive
+    ) {
       return false;
     }
 
     if (
-      !this.activeDeployment ||
-      this.activeDeployment.id !== this.args.job.activeDeploymentID
+      !this.latestDeploymentSummary?.IsActive ||
+      this.activeDeployment.id !== this.args.job?.latestDeploymentSummary.ID
     ) {
       this.activeDeployment = yield this.store.findRecord(
         'deployment',
-        this.args.job.activeDeploymentID
+        this.args.job.latestDeploymentSummary.ID
       );
     }
 
@@ -142,7 +146,7 @@ export default class JobRow extends Component {
      * @type {import('../models/job').default}
      */
     const job = this.args.job;
-    if (job.activeDeploymentID) {
+    if (job.latestDeploymentSummary?.IsActive) {
       return false;
     }
 

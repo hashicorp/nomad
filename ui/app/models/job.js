@@ -151,7 +151,7 @@ export default class Job extends Model {
   get allocBlocks() {
     let availableSlotsToFill = this.expectedRunningAllocCount;
 
-    let isDeploying = this.latestDeploymentSummary.IsActive;
+    let isDeploying = this.latestDeploymentSummary?.IsActive;
     // Initialize allocationsOfShowableType with empty arrays for each clientStatus
     /**
      * @type {AllocationBlock}

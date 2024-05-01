@@ -9,6 +9,8 @@
     action=(action "gotoJob" @job)
   }}
   {{on "click" (action this.gotoJob @job)}}
+  {{did-insert this.requiresPromotionTask.perform}}
+  {{did-update this.requiresPromotionTask.perform @job.activeDeploymentID @job.hasActiveCanaries}}
   class="job-row is-interactive {{if @job.assumeGC "assume-gc"}}"
   data-test-job-row={{@job.plainId}}
   data-test-modify-index={{@job.modifyIndex}}
@@ -36,7 +38,7 @@
   </@tableBody.Td>
 
   {{#if this.system.shouldShowNamespaces}}
-    <@tableBody.Td data-test-job-namespace>{{B.data.namespace.id}}</@tableBody.Td>
+    <@tableBody.Td data-test-job-namespace>{{@job.namespace.id}}</@tableBody.Td>
   {{/if}}
   <@tableBody.Td data-test-job-status>
     {{#unless @job.childStatuses}}
@@ -58,23 +60,15 @@
       </div>
     {{/unless}}
   </@tableBody.Td>
-  <@tableBody.Td data-test-job-type={{B.data.type}}>
-    {{B.data.type}}
+  <@tableBody.Td data-test-job-type={{@job.type}}>
+    {{@job.type}}
   </@tableBody.Td>
-
 
   {{#if this.system.shouldShowNodepools}}
     <@tableBody.Td data-test-job-node-pool>{{@job.nodePool}}</@tableBody.Td>
   {{/if}}
-  <@tableBody.Td data-test-job-priority>
-    {{@job.priority}}
-  </@tableBody.Td>
 
   <@tableBody.Td>
-    {{!-- {{get (filter-by 'clientStatus' 'running' @job.allocations) "length"}} running <br />
-    {{@job.allocations.length}} total <br />
-    {{@job.groupCountSum}} desired
-    <hr /> --}}
     <div class="job-status-panel compact">
       {{#unless @job.assumeGC}}
         {{#if @job.childStatuses}}
