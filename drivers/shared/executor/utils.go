@@ -72,10 +72,6 @@ func CreateExecutor(
 		isolateCommand(config.Cmd)
 	}
 
-	/* 	if err := setAsSubreaper(); err != nil {
-		return nil, nil, fmt.Errorf("unable to set nomad as subreaper: %v", err)
-	} */
-
 	return newExecutorClient(config, logger)
 }
 
