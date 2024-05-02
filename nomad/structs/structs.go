@@ -793,29 +793,6 @@ type JobDeregisterRequest struct {
 	WriteRequest
 }
 
-// JobBatchDeregisterRequest is used to batch deregister jobs and upsert
-// evaluations.
-type JobBatchDeregisterRequest struct {
-	// Jobs is the set of jobs to deregister
-	Jobs map[NamespacedID]*JobDeregisterOptions
-
-	// Evals is the set of evaluations to create.
-	Evals []*Evaluation
-
-	// SubmitTime is the time at which the job was requested to be stopped
-	SubmitTime int64
-
-	WriteRequest
-}
-
-// JobDeregisterOptions configures how a job is deregistered.
-type JobDeregisterOptions struct {
-	// Purge controls whether the deregister purges the job from the system or
-	// whether the job is just marked as stopped and will be removed by the
-	// garbage collector
-	Purge bool
-}
-
 // JobEvaluateRequest is used when we just need to re-evaluate a target job
 type JobEvaluateRequest struct {
 	JobID       string
@@ -1496,13 +1473,6 @@ type JobDeregisterResponse struct {
 	JobModifyIndex  uint64
 	VolumeEvalID    string
 	VolumeEvalIndex uint64
-	QueryMeta
-}
-
-// JobBatchDeregisterResponse is used to respond to a batch job deregistration
-type JobBatchDeregisterResponse struct {
-	// JobEvals maps the job to its created evaluation
-	JobEvals map[NamespacedID]string
 	QueryMeta
 }
 

@@ -8,6 +8,14 @@ import (
 )
 
 const (
+	// JobBatchDeregisterRPCMethod is the RPC method for batch removing jobs
+	// from Nomad state. This is not exposed externally and is used by Nomads
+	// internal GC.
+	//
+	// Args: JobBatchDeregisterRequest
+	// Reply: JobBatchDeregisterResponse
+	JobBatchDeregisterRPCMethod = "Job.BatchDeregister"
+
 	// JobServiceRegistrationsRPCMethod is the RPC method for listing all
 	// service registrations assigned to a specific namespaced job.
 	//
@@ -15,6 +23,53 @@ const (
 	// Reply: JobServiceRegistrationsResponse
 	JobServiceRegistrationsRPCMethod = "Job.GetServiceRegistrations"
 )
+
+// JobBatchDeregisterRequest is used to batch deregister jobs and upsert
+// evaluations.
+type JobBatchDeregisterRequest struct {
+
+	// Jobs is the set of jobs to deregister.
+	Jobs map[NamespacedID]*JobDeregisterOptions
+
+	// Evals is the set of evaluations to create.
+	//
+	// Deprecated: the job batch deregister endpoint no longer generates an
+	// eval per job.
+	Evals []*Evaluation
+
+	// SubmitTime is the time at which the job was requested to be stopped.
+	//
+	// Deprecated: The job batch deregister endpoint is only used by internal
+	// garbage collection meaning the job is removed from state, and we do not
+	// need to modify the submit time.
+	SubmitTime int64
+
+	WriteRequest
+}
+
+// JobDeregisterOptions configures how a job is deregistered.
+type JobDeregisterOptions struct {
+
+	// Purge controls whether the deregister purges the job from the system or
+	// whether the job is just marked as stopped and will be removed by the
+	// garbage collector.
+	//
+	// This request option is only ever used by the internal garbage collection
+	// process, so is always set to true.
+	Purge bool
+}
+
+// JobBatchDeregisterResponse is used to respond to a batch job deregistration.
+type JobBatchDeregisterResponse struct {
+
+	// JobEvals maps the job to its created evaluation.
+	//
+	// Deprecated: The job batch deregister endpoint is only used by internal
+	// garbage collection which no longer creates and evaluation per job GC.
+	JobEvals map[NamespacedID]string
+
+	QueryMeta
+}
 
 // JobServiceRegistrationsRequest is the request object used to list all
 // service registrations belonging to the specified Job.ID.

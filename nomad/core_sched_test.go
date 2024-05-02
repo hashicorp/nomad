@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -1733,6 +1734,132 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	}
 	if out != nil {
 		t.Fatalf("bad: %+v", out)
+	}
+}
+
+func TestCoreScheduler_jobGC(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create our test server and ensure we have a leader before continuing.
+	testServer, testServerCleanup := TestServer(t, nil)
+	defer testServerCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	testFn := func(inputJob *structs.Job) {
+
+		// Create and upsert a job which has a completed eval and 2 running
+		// allocations associated.
+		inputJob.Status = structs.JobStatusRunning
+
+		mockEval1 := mock.Eval()
+		mockEval1.JobID = inputJob.ID
+		mockEval1.Namespace = inputJob.Namespace
+		mockEval1.Status = structs.EvalStatusComplete
+
+		mockJob1Alloc1 := mock.Alloc()
+		mockJob1Alloc1.EvalID = mockEval1.ID
+		mockJob1Alloc1.JobID = inputJob.ID
+		mockJob1Alloc1.ClientStatus = structs.AllocClientStatusRunning
+
+		mockJob1Alloc2 := mock.Alloc()
+		mockJob1Alloc2.EvalID = mockEval1.ID
+		mockJob1Alloc2.JobID = inputJob.ID
+		mockJob1Alloc2.ClientStatus = structs.AllocClientStatusRunning
+
+		must.NoError(t,
+			testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, inputJob))
+		must.NoError(t,
+			testServer.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval1}))
+		must.NoError(t,
+			testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{
+				mockJob1Alloc1, mockJob1Alloc2}))
+
+		// Trigger a run of the job GC using the forced GC max index value to
+		// ensure all objects that can be GC'd are.
+		stateSnapshot, err := testServer.fsm.State().Snapshot()
+		must.NoError(t, err)
+		coreScheduler := NewCoreScheduler(testServer, stateSnapshot)
+
+		testJobGCEval1 := testServer.coreJobEval(structs.CoreJobForceGC, math.MaxUint64)
+		must.NoError(t, coreScheduler.Process(testJobGCEval1))
+
+		// Ensure the eval, allocations, and job are still present within state and
+		// have not been removed.
+		evalList, err := testServer.fsm.State().EvalsByJob(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Len(t, 1, evalList)
+		must.Eq(t, mockEval1, evalList[0])
+
+		allocList, err := testServer.fsm.State().AllocsByJob(nil, inputJob.Namespace, inputJob.ID, true)
+		must.NoError(t, err)
+		must.Len(t, 2, allocList)
+
+		jobInfo, err := testServer.fsm.State().JobByID(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Eq(t, inputJob, jobInfo)
+
+		// Mark the job as stopped.
+		inputJob.Stop = true
+
+		must.NoError(t,
+			testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 20, nil, inputJob))
+
+		// Force another GC, again the objects should exist in state, particularly
+		// the job as it has non-terminal allocs.
+		stateSnapshot, err = testServer.fsm.State().Snapshot()
+		must.NoError(t, err)
+		coreScheduler = NewCoreScheduler(testServer, stateSnapshot)
+
+		testJobGCEval2 := testServer.coreJobEval(structs.CoreJobForceGC, math.MaxUint64)
+		must.NoError(t, coreScheduler.Process(testJobGCEval2))
+
+		evalList, err = testServer.fsm.State().EvalsByJob(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Len(t, 1, evalList)
+		must.Eq(t, mockEval1, evalList[0])
+
+		allocList, err = testServer.fsm.State().AllocsByJob(nil, inputJob.Namespace, inputJob.ID, true)
+		must.NoError(t, err)
+		must.Len(t, 2, allocList)
+
+		jobInfo, err = testServer.fsm.State().JobByID(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Eq(t, inputJob, jobInfo)
+
+		// Mark that the allocations have reached a terminal state.
+		mockJob1Alloc1.DesiredStatus = structs.AllocDesiredStatusStop
+		mockJob1Alloc1.ClientStatus = structs.AllocClientStatusComplete
+		mockJob1Alloc2.DesiredStatus = structs.AllocDesiredStatusStop
+		mockJob1Alloc2.ClientStatus = structs.AllocClientStatusComplete
+
+		must.NoError(t,
+			testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 30, []*structs.Allocation{
+				mockJob1Alloc1, mockJob1Alloc2}))
+
+		// Force another GC. This time all objects are in a terminal state, so
+		// should be removed.
+		stateSnapshot, err = testServer.fsm.State().Snapshot()
+		must.NoError(t, err)
+		coreScheduler = NewCoreScheduler(testServer, stateSnapshot)
+
+		testJobGCEval3 := testServer.coreJobEval(structs.CoreJobForceGC, math.MaxUint64)
+		must.NoError(t, coreScheduler.Process(testJobGCEval3))
+
+		evalList, err = testServer.fsm.State().EvalsByJob(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Len(t, 0, evalList)
+
+		allocList, err = testServer.fsm.State().AllocsByJob(nil, inputJob.Namespace, inputJob.ID, true)
+		must.NoError(t, err)
+		must.Len(t, 0, allocList)
+
+		jobInfo, err = testServer.fsm.State().JobByID(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Nil(t, jobInfo)
+	}
+
+	for _, job := range []*structs.Job{mock.Job(), mock.BatchJob(), mock.SystemBatchJob()} {
+		testFn(job)
 	}
 }
 
