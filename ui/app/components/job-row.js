@@ -186,14 +186,25 @@ export default class JobRow extends Component {
 
   @task(function* () {
     try {
-      yield this.args.job.latestDeployment.content.promote();
+      yield this.args.job.latestDeployment.content.promote(); // TODO: need to do a deployment findRecord here first.
       // dont bubble up
       return false;
     } catch (err) {
-      this.handleError({
-        title: 'Could Not Promote Deployment',
-        // description: messageFromAdapterError(err, 'promote deployments'),
-      });
+      // TODO: handle error. add notifications.
+      console.log('caught error', err);
+      // this.handleError({
+      //   title: 'Could Not Promote Deployment',
+      //   // description: messageFromAdapterError(err, 'promote deployments'),
+      // });
+
+      // err.errors.forEach((err) => {
+      //   this.notifications.add({
+      //     title: "Could not promote deployment",
+      //     message: err.detail,
+      //     color: 'critical',
+      //     timeout: 8000,
+      //   });
+      // });
     }
   })
   promote;
