@@ -62,12 +62,43 @@ export default class JobRow extends Component {
     );
   }
 
-  get someCanariesHaveFailed() {
+  /**
+   * Similar to the below, but cares if any non-old canaries have failed, regardless of their rescheduled status.
+   */
+  get someCanariesHaveRescheduled() {
+    // TODO: Weird thing where alloc.isUnhealthy right away, because alloc.DeploymentStatus.Healthy is false.
+    // But that doesn't seem right: health check in that state should be unknown or null, perhaps.
+    const relevantAllocs = this.args.job.allocations.filter(
+      (a) => !a.isOld && a.isCanary
+    );
+    console.log(
+      'relevantAllocs',
+      relevantAllocs,
+      relevantAllocs.map((a) => a.jobVersion),
+      relevantAllocs.map((a) => a.clientStatus),
+      relevantAllocs.map((a) => a.isUnhealthy)
+    );
+
+    return relevantAllocs.some(
+      (a) =>
+        a.clientStatus === 'failed' ||
+        a.clientStatus === 'lost' ||
+        a.isUnhealthy
+    );
+  }
+
+  get someCanariesHaveFailedAndWontReschedule() {
+    let availableSlotsToFill = this.args.job.expectedRunningAllocCount;
+    let runningOrPendingCanaries = this.args.job.allocations.filter(
+      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled
+    );
     const relevantAllocs = this.args.job.allocations.filter(
       (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled
     );
     console.log(
       'relevantAllocs',
+      relevantAllocs,
+      relevantAllocs.map((a) => a.jobVersion),
       relevantAllocs.map((a) => a.clientStatus),
       relevantAllocs.map((a) => a.isUnhealthy)
     );
@@ -104,33 +135,47 @@ export default class JobRow extends Component {
      */
     let latestDeploymentSummary = this.args.job.latestDeploymentSummary;
 
-    console.log(
-      'checking if requries promotion',
-      this.args.job.name,
-      latestDeploymentSummary,
-      this.args.job.hasActiveCanaries
-    );
+    // console.log(
+    //   'checking if requries promotion',
+    //   this.args.job.name,
+    //   latestDeploymentSummary,
+    //   this.args.job.hasActiveCanaries
+    // );
     // Early return false if we don't have an active deployment
-    if (latestDeploymentSummary.isActive) {
+    if (!latestDeploymentSummary.isActive) {
       return false;
     }
 
     // Early return if we our deployment doesn't have any canaries
     if (!this.args.job.hasActiveCanaries) {
+      console.log('!hasActiveCan');
       return false;
     }
 
     if (latestDeploymentSummary.requiresPromotion) {
+      console.log('requires promotion, and...');
       if (this.canariesHealthy) {
+        console.log('canaries are healthy.');
         return 'canary-promote';
       }
-      if (this.someCanariesHaveFailed) {
+      // if (this.someCanariesHaveFailedAndWontReschedule) {
+      if (this.someCanariesHaveRescheduled) {
+        // TODO: I'm uncertain about when to alert the user here. It seems like it might be important
+        // enough to let them know when ANY canary has to be rescheduled, but there's an argument to be
+        // made that we oughtn't bother them until it's un-reschedulable.
+        console.log('some canaries have failed.');
         return 'canary-failure';
       }
       if (latestDeploymentSummary.allAutoPromote) {
+        console.log(
+          'This deployment is set to auto-promote; canaries are being checked now'
+        );
         // return "This deployment is set to auto-promote; canaries are being checked now";
         return false;
       } else {
+        console.log(
+          'This deployment requires manual promotion and things are being checked now'
+        );
         // return "This deployment requires manual promotion and things are being checked now";
         return false;
       }

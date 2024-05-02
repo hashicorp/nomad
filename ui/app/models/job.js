@@ -55,9 +55,6 @@ export default class Job extends Model {
   @attr({ defaultValue: () => ({}) }) latestDeploymentSummary;
 
   get hasActiveCanaries() {
-    // console.log('tell me about ur active canaries plz', this.allocBlocks, this.allocations, this.activeDeploymentID);
-    // TODO: Monday/Tuesday: go over AllocBlocks.{all}.canary and if there are any? make the latestDeployment lookup,
-    // and check to see if it requires promotion / isnt yet promoted.
     if (!this.latestDeploymentSummary.isActive) {
       return false;
     }
@@ -71,13 +68,7 @@ export default class Job extends Model {
       })
       .flat()
       .any((n) => !!n);
-    // return this.activeDeploymentID;
   }
-  // TODO: moved to job-row
-  // get requiresPromotion() {
-  //   console.log('getting requiresPromotion', this.activeDeploymentID, this.runningDeployment);
-  //   return this.runningDeployment;
-  // }
 
   @attr() childStatuses;
 
@@ -203,6 +194,16 @@ export default class Job extends Model {
         if (allocationsOfShowableType[status]) {
           // If status is failed or lost, we only want to show it IF it's used up its restarts/rescheds.
           // Otherwise, we'd be showing an alloc that had been replaced.
+
+          // TODO: We can't know about .willNotRestart and .willNotReschedule here, as we don't have access to alloc.followUpEvaluation.
+          // in deploying.js' newVersionAllocBlocks, we can know to ignore a canary if it has been rescheduled by virtue of seeing its .hasBeenRescheduled,
+          // which checks allocation.followUpEvaluation. This is not currently possible here.
+          // As such, we should count our running/pending canaries first, and if our expected count is still not filled, we can look to failed canaries.
+          // The goal of this is that any failed allocation that gets rescheduled would first have its place in relevantAllocs eaten up by a running/pending allocation,
+          // leaving it on the outside of what the user sees.
+
+          // ^--- actually, scratch this. We should just get alloc.FollowupEvalID. If it's not null, we can assume it's been rescheduled.
+
           if (alloc.willNotRestart) {
             if (!alloc.willNotReschedule) {
               // Dont count it
