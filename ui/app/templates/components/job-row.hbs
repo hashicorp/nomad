@@ -81,8 +81,7 @@
           <JobStatus::AllocationStatusRow
             @allocBlocks={{@job.allocBlocks}}
             @steady={{true}}
-            {{!-- TODO: compact temporarily removed for testing --}}
-            {{!-- @compact={{true}} --}}
+            @compact={{true}}
             @runningAllocs={{@job.allocBlocks.running.healthy.nonCanary.length}}
             @groupCountSum={{@job.expectedRunningAllocCount}}
           />

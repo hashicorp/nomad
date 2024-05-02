@@ -8,44 +8,12 @@
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
-import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
-import { computed } from '@ember/object';
 
 export default class JobRow extends Component {
   @service router;
   @service store;
   @service system;
-
-  // @tracked fullActiveDeploymentObject = {};
-
-  // /**
-  //  * If our job has an activeDeploymentID, as determined by the statuses endpoint,
-  //  * we check if this component's fullActiveDeploymentObject has the same ID.
-  //  * If it does, we don't need to do any fetching: we can simply check this.fullActiveDeploymentObject.requiresPromotion
-  //  * If it doesn't, we need to fetch the deployment with the activeDeploymentID
-  //  * and set it to this.fullActiveDeploymentObject, then check this.fullActiveDeploymentObject.requiresPromotion.
-  //  */
-  // get requiresPromotion() {
-  //   if (!this.args.job.hasActiveCanaries || !this.args.job.activeDeploymentID) {
-  //     return false;
-  //   }
-
-  //   if (this.fullActiveDeploymentObject && this.fullActiveDeploymentObject.id === this.args.job.activeDeploymentID) {
-  //     return this.fullActiveDeploymentObject.requiresPromotion;
-  //   }
-
-  //   this.fetchActiveDeployment();
-  //   return false;
-  // }
-
-  // @action
-  // async fetchActiveDeployment() {
-  //   if (this.args.job.hasActiveCanaries && this.args.job.activeDeploymentID) {
-  //     let deployment = await this.store.findRecord('deployment', this.args.job.activeDeploymentID);
-  //     this.fullActiveDeploymentObject = deployment;
-  //   }
-  // }
 
   /**
    * Promotion of a deployment will error if the canary allocations are not of status "Healthy";
@@ -63,45 +31,14 @@ export default class JobRow extends Component {
   }
 
   /**
-   * Similar to the below, but cares if any non-old canaries have failed, regardless of their rescheduled status.
+   * Used to inform the user that an allocation has entered into a perment state of failure:
+   * That is, it has exhausted its restarts and its reschedules and is in a terminal state.
    */
-  get someCanariesHaveRescheduled() {
-    // TODO: Weird thing where alloc.isUnhealthy right away, because alloc.DeploymentStatus.Healthy is false.
-    // But that doesn't seem right: health check in that state should be unknown or null, perhaps.
-    const relevantAllocs = this.args.job.allocations.filter(
-      (a) => !a.isOld && a.isCanary
-    );
-    console.log(
-      'relevantAllocs',
-      relevantAllocs,
-      relevantAllocs.map((a) => a.jobVersion),
-      relevantAllocs.map((a) => a.clientStatus),
-      relevantAllocs.map((a) => a.isUnhealthy)
-    );
-
-    return relevantAllocs.some(
-      (a) =>
-        a.clientStatus === 'failed' ||
-        a.clientStatus === 'lost' ||
-        a.isUnhealthy
-    );
-  }
-
   get someCanariesHaveFailedAndWontReschedule() {
-    let availableSlotsToFill = this.args.job.expectedRunningAllocCount;
-    let runningOrPendingCanaries = this.args.job.allocations.filter(
-      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled
-    );
     const relevantAllocs = this.args.job.allocations.filter(
       (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled
     );
-    console.log(
-      'relevantAllocs',
-      relevantAllocs,
-      relevantAllocs.map((a) => a.jobVersion),
-      relevantAllocs.map((a) => a.clientStatus),
-      relevantAllocs.map((a) => a.isUnhealthy)
-    );
+
     return relevantAllocs.some(
       (a) =>
         a.clientStatus === 'failed' ||
@@ -110,16 +47,8 @@ export default class JobRow extends Component {
     );
   }
 
+  // eslint-disable-next-line require-yield
   @task(function* () {
-    // ID: jobDeployments[0]?.id,
-    // IsActive: jobDeployments[0]?.status === 'running',
-    // // IsActive: true,
-    // JobVersion: jobDeployments[0]?.versionNumber,
-    // Status: jobDeployments[0]?.status,
-    // StatusDescription: jobDeployments[0]?.statusDescription,
-    // AllAutoPromote: false,
-    // RequiresPromotion: true, // TODO: lever
-
     /**
      * @typedef DeploymentSummary
      * @property {string} id
@@ -135,12 +64,6 @@ export default class JobRow extends Component {
      */
     let latestDeploymentSummary = this.args.job.latestDeploymentSummary;
 
-    // console.log(
-    //   'checking if requries promotion',
-    //   this.args.job.name,
-    //   latestDeploymentSummary,
-    //   this.args.job.hasActiveCanaries
-    // );
     // Early return false if we don't have an active deployment
     if (!latestDeploymentSummary.isActive) {
       return false;
@@ -158,11 +81,8 @@ export default class JobRow extends Component {
         console.log('canaries are healthy.');
         return 'canary-promote';
       }
-      // if (this.someCanariesHaveFailedAndWontReschedule) {
-      if (this.someCanariesHaveRescheduled) {
-        // TODO: I'm uncertain about when to alert the user here. It seems like it might be important
-        // enough to let them know when ANY canary has to be rescheduled, but there's an argument to be
-        // made that we oughtn't bother them until it's un-reschedulable.
+
+      if (this.someCanariesHaveFailedAndWontReschedule) {
         console.log('some canaries have failed.');
         return 'canary-failure';
       }

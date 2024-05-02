@@ -179,7 +179,6 @@ export default class JobSerializer extends ApplicationSerializer {
           data: {
             id: alloc.ID,
             type: 'allocation',
-            // TODO: This is too much manual pushing! I should take attributes as they come in.
             attributes: {
               clientStatus: alloc.ClientStatus,
               deploymentStatus: {
@@ -188,6 +187,14 @@ export default class JobSerializer extends ApplicationSerializer {
               },
               jobVersion: alloc.JobVersion,
               nodeID: alloc.NodeID,
+            },
+            relationships: {
+              followUpEvaluation: alloc.FollowupEvalID && {
+                data: {
+                  id: alloc.FollowupEvalID,
+                  type: 'evaluation',
+                },
+              },
             },
           },
         });

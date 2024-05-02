@@ -111,6 +111,7 @@ export default class IndexRoute extends Route.extend(
    * @returns {Object}
    */
   handleErrors(error) {
+    console.log('handling error', error);
     error.errors.forEach((err) => {
       this.notifications.add({
         title: err.title,
