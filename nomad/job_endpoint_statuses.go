@@ -255,15 +255,16 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) 
 	}
 	for _, a := range allocs {
 		alloc := structs.JobStatusAlloc{
-			ID:           a.ID,
-			Group:        a.TaskGroup,
-			ClientStatus: a.ClientStatus,
-			NodeID:       a.NodeID,
-			JobVersion:   a.Job.Version,
+			ID:             a.ID,
+			Group:          a.TaskGroup,
+			ClientStatus:   a.ClientStatus,
+			NodeID:         a.NodeID,
+			JobVersion:     a.Job.Version,
+			FollowupEvalID: a.FollowupEvalID,
 		}
 		if a.DeploymentStatus != nil {
 			alloc.DeploymentStatus.Canary = a.DeploymentStatus.IsCanary()
-			alloc.DeploymentStatus.Healthy = a.DeploymentStatus.IsHealthy()
+			alloc.DeploymentStatus.Healthy = a.DeploymentStatus.Healthy
 		}
 		uiJob.Allocs = append(uiJob.Allocs, alloc)
 

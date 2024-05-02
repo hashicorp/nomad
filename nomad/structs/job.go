@@ -51,11 +51,12 @@ type JobStatusAlloc struct {
 	NodeID           string
 	DeploymentStatus JobStatusDeployment
 	JobVersion       uint64
+	FollowupEvalID   string
 }
 
 type JobStatusDeployment struct {
 	Canary  bool
-	Healthy bool
+	Healthy *bool
 }
 
 type JobStatusLatestDeployment struct {
