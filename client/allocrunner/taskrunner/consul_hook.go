@@ -79,7 +79,8 @@ func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 			}
 
 			env := map[string]string{
-				"CONSUL_TOKEN": token.SecretID,
+				"CONSUL_TOKEN":      token.SecretID,
+				"CONSUL_HTTP_TOKEN": token.SecretID,
 			}
 
 			resp.Env = env
