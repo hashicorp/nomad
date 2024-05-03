@@ -98,9 +98,11 @@ func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
 	return procstats.List(l.command)
 }
 
-// killOrphans kills processes that ended up reparented to Nomad when the
-// executor was unexpectedly killed.
-func (l *LibcontainerExecutor) killOrphans(nomadRelativePath string) {
+// cleanOldProcessesInCGroup kills processes that ended up reparented to Nomad when the
+// executor was unexpectedly killed and nomad can reconnect to.
+func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath string) {
+	l.logger.Debug("removing old processes", "path", nomadRelativePath)
+
 	root := cgroupslib.GetDefautlRoot()
 	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
 	if err != nil {
@@ -147,8 +149,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
 
-	l.logger.Debug("       c goup path ", containerCfg.Cgroups.Path)
-	l.killOrphans(containerCfg.Cgroups.Path)
+	l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path)
 	container, err := factory.Create(l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
@@ -220,7 +221,8 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		go l.wait()
 
 		signal := l.catchSignals(ctx)
-		err = container.Signal(signal, true)
+
+		err = l.Signal(signal)
 		if err != nil {
 			l.logger.Error("failed send signal to process(%s): %v", l.id, err)
 		}
@@ -373,8 +375,9 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 	case <-l.userProcExited:
 		return nil
 	case <-time.After(time.Second * 15):
-		return fmt.Errorf("process failed to exit after 15 seconds")
 	}
+
+	return fmt.Errorf("process failed to exit after 15 seconds")
 }
 
 // UpdateResources updates the resource isolation with new values to be enforced
