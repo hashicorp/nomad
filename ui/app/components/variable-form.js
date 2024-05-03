@@ -394,14 +394,8 @@ export default class VariableFormComponent extends Component {
    *
    * @param {string} value
    */
-  @action updateCode(value, codemirror) {
-    codemirror.performLint();
+  @action updateCode(value) {
     try {
-      const hasLintErrors = codemirror?.state.lint.marked?.length > 0;
-      if (hasLintErrors || !JSON.parse(value)) {
-        throw new Error('Invalid JSON');
-      }
-
       // "myString" is valid JSON, but it's not a valid Variable.
       // Ditto for an array of objects. We expect a single object to be a Variable.
       const hasFormatErrors =
