@@ -42,7 +42,8 @@ type SetupConsulCommand struct {
 	client    *api.Client
 	clientCfg *api.Config
 
-	jwksURL string
+	jwksURL        string
+	jwksCACertPath string
 
 	consulEnt bool
 	destroy   bool
@@ -71,6 +72,10 @@ Setup Consul options:
     URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
     signatures. Defaults to http://localhost:4646/.well-known/jwks.json.
 
+  -jwks-ca-file <path>
+    Path to a CA certificate file that will be used to validate the
+    JWKS URL if it uses TLS
+
   -destroy
     Removes all configuration components this command created from the
     Consul cluster.
@@ -86,9 +91,10 @@ Setup Consul options:
 func (s *SetupConsulCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-jwks-url": complete.PredictAnything,
-			"-destroy":  complete.PredictSet("true", "false"),
-			"-y":        complete.PredictSet("true", "false"),
+			"-jwks-url":     complete.PredictAnything,
+			"-jwks-ca-file": complete.PredictAnything,
+			"-destroy":      complete.PredictSet("true", "false"),
+			"-y":            complete.PredictSet("true", "false"),
 		})
 }
 
@@ -110,6 +116,7 @@ func (s *SetupConsulCommand) Run(args []string) int {
 	flags.BoolVar(&s.destroy, "destroy", false, "")
 	flags.BoolVar(&s.autoYes, "y", false, "")
 	flags.StringVar(&s.jwksURL, "jwks-url", "http://localhost:4646/.well-known/jwks.json", "")
+	flags.StringVar(&s.jwksCACertPath, "jwks-ca-file", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -429,6 +436,14 @@ func (s *SetupConsulCommand) renderAuthMethod(name string, desc string) (*api.AC
 	authConfig["JWKSURL"] = s.jwksURL
 	authConfig["BoundAudiences"] = []string{consulAud}
 	authConfig["JWTSupportedAlgs"] = []string{"RS256"}
+
+	if s.jwksCACertPath != "" {
+		caCert, err := os.ReadFile(s.jwksCACertPath)
+		if err != nil {
+			return nil, fmt.Errorf("could not read -jwks-certfile: %v", err)
+		}
+		authConfig["JWKSCACert"] = string(caCert)
+	}
 
 	method := &api.ACLAuthMethod{
 		Name:          name,

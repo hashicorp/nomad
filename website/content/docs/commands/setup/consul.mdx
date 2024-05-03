@@ -32,6 +32,9 @@ nomad setup consul [options]
 - `-jwks-url`: URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
   signatures. Defaults to `http://localhost:4646/.well-known/jwks.json`.
 
+- `-jwks-ca-file`: Path to a CA certificate file that will be used to validate
+  the JWKS URL if it uses TLS.
+
 - `-destroy`: Removes all configuration components this command created from the
   Consul cluster.
 
