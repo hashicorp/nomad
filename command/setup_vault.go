@@ -45,7 +45,8 @@ type SetupVaultCommand struct {
 	vLogical *api.Logical
 	ns       string
 
-	jwksURL string
+	jwksURL        string
+	jwksCACertPath string
 
 	destroy bool
 	autoYes bool
@@ -82,6 +83,10 @@ Setup Vault options:
     URL of Nomad's JWKS endpoint contacted by Vault to verify JWT
     signatures. Defaults to http://localhost:4646/.well-known/jwks.json.
 
+  -jwks-ca-file <path>
+    Path to a CA certificate file that will be used to validate the
+    JWKS URL if it uses TLS
+
   -destroy
     Removes all configuration components this command created from the
     Vault cluster.
@@ -112,9 +117,10 @@ Setup Vault options when using -check:
 func (s *SetupVaultCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-jwks-url": complete.PredictAnything,
-			"-destroy":  complete.PredictSet("true", "false"),
-			"-y":        complete.PredictSet("true", "false"),
+			"-jwks-url":     complete.PredictAnything,
+			"-jwks-ca-file": complete.PredictAnything,
+			"-destroy":      complete.PredictSet("true", "false"),
+			"-y":            complete.PredictSet("true", "false"),
 
 			// Options for -check.
 			"-check":   complete.PredictSet("true", "false"),
@@ -142,6 +148,7 @@ func (s *SetupVaultCommand) Run(args []string) int {
 	flags.BoolVar(&s.destroy, "destroy", false, "")
 	flags.BoolVar(&s.autoYes, "y", false, "")
 	flags.StringVar(&s.jwksURL, "jwks-url", "http://localhost:4646/.well-known/jwks.json", "")
+	flags.StringVar(&s.jwksCACertPath, "jwks-ca-file", "", "")
 
 	// Options for -check.
 	flags.BoolVar(&s.check, "check", false, "")
@@ -484,6 +491,14 @@ func (s *SetupVaultCommand) renderAuthMethod() (map[string]any, error) {
 
 	authConfig["jwks_url"] = s.jwksURL
 	authConfig["default_role"] = vaultRole
+
+	if s.jwksCACertPath != "" {
+		caCert, err := os.ReadFile(s.jwksCACertPath)
+		if err != nil {
+			return nil, fmt.Errorf("could not read -jwks-certfile: %v", err)
+		}
+		authConfig["jwks_ca_pem"] = string(caCert)
+	}
 
 	return authConfig, nil
 }
