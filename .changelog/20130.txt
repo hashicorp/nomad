@@ -1,0 +1,3 @@
+```release-note:improvement
+api: new /v1/jobs/statuses endpoint collates details about jobs' allocs and latest deployment, intended for use in the updated UI jobs index page
+```

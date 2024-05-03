@@ -992,10 +992,30 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	return nil
 }
 
+// These constants are for readiness signalling via the systemd notify protocol.
+// The functions we send these messages to are no-op on non-Linux systems. See
+// also https://www.man7.org/linux/man-pages/man3/sd_notify.3.html
+const (
+	sdReady     = "READY=1"
+	sdReloading = "RELOADING=1"
+	sdStopping  = "STOPPING=1"
+	sdMonotonic = "MONOTONIC_USEC=%d"
+)
+
 // handleSignals blocks until we get an exit-causing signal
 func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+
+	// Signal readiness only once signal handlers are setup
+	sdSock, err := openNotify()
+	if err != nil {
+		c.agent.logger.Debug("notify socket could not be accessed", "error", err)
+	}
+	if sdSock != nil {
+		defer sdSock.Close()
+	}
+	sdNotify(sdSock, sdReady)
 
 	// Wait for a signal
 WAIT:
@@ -1020,7 +1040,10 @@ WAIT:
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
+		sdNotify(sdSock, sdReloading)
+		sdNotify(sdSock, fmt.Sprintf(sdMonotonic, time.Now().UnixMicro()))
 		c.handleReload()
+		sdNotify(sdSock, sdReady)
 		goto WAIT
 	}
 
@@ -1038,6 +1061,7 @@ WAIT:
 	}
 
 	// Attempt a graceful leave
+	sdNotify(sdSock, sdStopping)
 	gracefulCh := make(chan struct{})
 	c.Ui.Output("Gracefully shutting down agent...")
 	go func() {

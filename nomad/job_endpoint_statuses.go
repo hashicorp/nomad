@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// Statuses looks up info about jobs, their allocs, and latest deployment.
 func (j *Job) Statuses(
 	args *structs.JobStatusesRequest,
 	reply *structs.JobStatusesResponse) error {
@@ -25,7 +26,7 @@ func (j *Job) Statuses(
 	if done, err := j.srv.forward("Job.Statuses", args, args, reply); done {
 		return err
 	}
-	j.srv.MeasureRPCRate("jobs", structs.RateMetricList, args)
+	j.srv.MeasureRPCRate("job", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -37,7 +38,7 @@ func (j *Job) Statuses(
 	// to quickly deny the request if the token lacks permissions for that ns,
 	// rather than iterating the whole jobs table and filtering out every job.
 	if len(args.Jobs) > 0 {
-		nses := set.New[string](0)
+		nses := set.New[string](1)
 		for _, j := range args.Jobs {
 			nses.Insert(j.Namespace)
 		}
@@ -64,7 +65,7 @@ func (j *Job) Statuses(
 	if errors.Is(err, structs.ErrPermissionDenied) {
 		// return empty jobs if token isn't authorized for any
 		// namespace, matching other endpoints
-		reply.Jobs = make([]structs.UIJob, 0)
+		reply.Jobs = make([]structs.JobStatusesJob, 0)
 		return nil
 	} else if err != nil {
 		return err
@@ -90,7 +91,12 @@ func (j *Job) Statuses(
 	args.QueryOptions.Reverse = !args.QueryOptions.Reverse
 	sort := state.QueryOptionSort(args.QueryOptions)
 
-	// setup the blocking query
+	// special blocking note: this endpoint employs an unconventional method
+	// of determining the reply.Index in order to avoid unblocking when
+	// something changes "off page" -- instead of using the latest index
+	// from any/all of the state tables queried here (all of: "jobs", "allocs",
+	// "deployments"), we use the highest ModifyIndex of all items encountered
+	// while iterating.
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -138,19 +144,19 @@ func (j *Job) Statuses(
 				})
 			}
 
-			jobs := make([]structs.UIJob, 0)
+			jobs := make([]structs.JobStatusesJob, 0)
 			newJobs := set.New[structs.NamespacedID](0)
 			pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 				func(raw interface{}) error {
 					job := raw.(*structs.Job)
 
 					// this is where the sausage is made
-					uiJob, highestIndexOnPage, err := UIJobFromJob(ws, state, job)
+					jsj, highestIndexOnPage, err := jobStatusesJobFromJob(ws, state, job)
 					if err != nil {
 						return err
 					}
 
-					jobs = append(jobs, uiJob)
+					jobs = append(jobs, jsj)
 					newJobs.Insert(job.NamespacedID())
 
 					// by using the highest index we find on any job/alloc/
@@ -191,10 +197,10 @@ func (j *Job) Statuses(
 	return j.srv.blockingRPC(&opts)
 }
 
-func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) (structs.UIJob, uint64, error) {
-	idx := job.ModifyIndex
+func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) (structs.JobStatusesJob, uint64, error) {
+	highestIdx := job.ModifyIndex
 
-	uiJob := structs.UIJob{
+	jsj := structs.JobStatusesJob{
 		NamespacedID: structs.NamespacedID{
 			ID:        job.ID,
 			Namespace: job.Namespace,
@@ -206,27 +212,27 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) 
 		Priority:    job.Priority,
 		Version:     job.Version,
 		ParentID:    job.ParentID,
+		SubmitTime:  job.SubmitTime,
+		ModifyIndex: job.ModifyIndex,
 		// included here for completeness, populated below.
 		Allocs:           nil,
 		GroupCountSum:    0,
 		ChildStatuses:    nil,
 		LatestDeployment: nil,
-		SubmitTime:       job.SubmitTime,
-		ModifyIndex:      job.ModifyIndex,
 	}
 
 	// the GroupCountSum will map to how many allocations we expect to run
 	// (for service jobs)
 	for _, tg := range job.TaskGroups {
-		uiJob.GroupCountSum += tg.Count
+		jsj.GroupCountSum += tg.Count
 	}
 
 	// collect the statuses of child jobs
 	if job.IsParameterized() || job.IsPeriodic() {
-		uiJob.ChildStatuses = make([]string, 0) // set to not-nil
+		jsj.ChildStatuses = make([]string, 0) // set to not-nil
 		children, err := store.JobsByIDPrefix(ws, job.Namespace, job.ID, state.SortDefault)
 		if err != nil {
-			return uiJob, idx, err
+			return jsj, highestIdx, err
 		}
 		for {
 			child := children.Next()
@@ -238,23 +244,23 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) 
 			if j.ParentID != job.ID {
 				continue
 			}
-			if j.ModifyIndex > idx {
-				idx = j.ModifyIndex
+			if j.ModifyIndex > highestIdx {
+				highestIdx = j.ModifyIndex
 			}
-			uiJob.ChildStatuses = append(uiJob.ChildStatuses, j.Status)
+			jsj.ChildStatuses = append(jsj.ChildStatuses, j.Status)
 		}
 		// no allocs or deployments for parameterized/period jobs,
 		// so we're done here.
-		return uiJob, idx, err
+		return jsj, highestIdx, err
 	}
 
 	// collect info about allocations
 	allocs, err := store.AllocsByJob(ws, job.Namespace, job.ID, true)
 	if err != nil {
-		return uiJob, idx, err
+		return jsj, highestIdx, err
 	}
 	for _, a := range allocs {
-		alloc := structs.JobStatusAlloc{
+		jsa := structs.JobStatusesAlloc{
 			ID:             a.ID,
 			Group:          a.TaskGroup,
 			ClientStatus:   a.ClientStatus,
@@ -263,23 +269,23 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) 
 			FollowupEvalID: a.FollowupEvalID,
 		}
 		if a.DeploymentStatus != nil {
-			alloc.DeploymentStatus.Canary = a.DeploymentStatus.IsCanary()
-			alloc.DeploymentStatus.Healthy = a.DeploymentStatus.Healthy
+			jsa.DeploymentStatus.Canary = a.DeploymentStatus.IsCanary()
+			jsa.DeploymentStatus.Healthy = a.DeploymentStatus.Healthy
 		}
-		uiJob.Allocs = append(uiJob.Allocs, alloc)
+		jsj.Allocs = append(jsj.Allocs, jsa)
 
-		if a.ModifyIndex > idx {
-			idx = a.ModifyIndex
+		if a.ModifyIndex > highestIdx {
+			highestIdx = a.ModifyIndex
 		}
 	}
 
 	// look for latest deployment
 	deploy, err := store.LatestDeploymentByJobID(ws, job.Namespace, job.ID)
 	if err != nil {
-		return uiJob, idx, err
+		return jsj, highestIdx, err
 	}
 	if deploy != nil {
-		uiJob.LatestDeployment = &structs.JobStatusLatestDeployment{
+		jsj.LatestDeployment = &structs.JobStatusesLatestDeployment{
 			ID:                deploy.ID,
 			IsActive:          deploy.Active(),
 			JobVersion:        deploy.JobVersion,
@@ -289,9 +295,9 @@ func UIJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) 
 			RequiresPromotion: deploy.RequiresPromotion(),
 		}
 
-		if deploy.ModifyIndex > idx {
-			idx = deploy.ModifyIndex
+		if deploy.ModifyIndex > highestIdx {
+			highestIdx = deploy.ModifyIndex
 		}
 	}
-	return uiJob, idx, nil
+	return jsj, highestIdx, nil
 }

@@ -1,3 +1,36 @@
+## 1.7.7 (April 16, 2024)
+
+SECURITY:
+
+* artifact: Updated `go-getter` dependency to v1.7.4 to address CVE-2024-3817 [[GH-20391](https://github.com/hashicorp/nomad/issues/20391)]
+
+IMPROVEMENTS:
+
+* autopilot: add Enterprise health information to autopilot API [[GH-20153](https://github.com/hashicorp/nomad/issues/20153)]
+* cli: Collect only one heap profile per `operator debug` interval [[GH-20219](https://github.com/hashicorp/nomad/issues/20219)]
+* consul/connect: Added support for TLS configuration, headers configuration, and request limit configuration to ingress service block [[GH-16753](https://github.com/hashicorp/nomad/issues/16753)]
+* consul/connect: Added support for destination partition in `upstream` block [[GH-20167](https://github.com/hashicorp/nomad/issues/20167)]
+* scheduler: Record exhausted node metrics for devices when preemption fails to find an allocation to evict [[GH-20346](https://github.com/hashicorp/nomad/issues/20346)]
+* ui: When you re-bind keyboard shortcuts they now correctly show up in shift-held hints [[GH-20235](https://github.com/hashicorp/nomad/issues/20235)]
+
+BUG FIXES:
+
+* agent: allow configuration of in-memory telemetry sink [[GH-20166](https://github.com/hashicorp/nomad/issues/20166)]
+* api: Fixed a bug where `AllocDirStats` field was missing from Read Stats client API [[GH-20261](https://github.com/hashicorp/nomad/issues/20261)]
+* cli: Fixed a bug where `operator debug` did not respect the `-pprof-interval` flag and would take only one profile [[GH-20206](https://github.com/hashicorp/nomad/issues/20206)]
+* cni: Fixed a regression where default DNS set by `dockerd` or other task drivers was not respected [[GH-20189](https://github.com/hashicorp/nomad/issues/20189)]
+* config: Fixed a bug where IPv6 addresses were not accepted without ports for `client.servers` blocks [[GH-20324](https://github.com/hashicorp/nomad/issues/20324)]
+* consul: Fixed a bug where services with interpolation would not get correctly signed Workload Identities [[GH-20344](https://github.com/hashicorp/nomad/issues/20344)]
+* deployments: Fixed a goroutine leak when jobs are purged [[GH-20348](https://github.com/hashicorp/nomad/issues/20348)]
+* deps: Updated consul-template dependency to 0.37.4 to fix a resource leak [[GH-20234](https://github.com/hashicorp/nomad/issues/20234)]
+* docker: Fixed a bug where cpuset cgroup would not be updated on cgroup v1 systems [[GH-20294](https://github.com/hashicorp/nomad/issues/20294)]
+* docker: Fixed a bug where cpuset would not be updated on cgroup v2 systems using cgroupfs [[GH-20276](https://github.com/hashicorp/nomad/issues/20276)]
+* drain: Fixed a bug where Workload Identity tokens could not be used to drain a node [[GH-20317](https://github.com/hashicorp/nomad/issues/20317)]
+* namespace/node pool: Fixed a bug where the `-region` flag would not be respected for namespace and node pool updates if ACLs were disabled [[GH-20220](https://github.com/hashicorp/nomad/issues/20220)]
+* state: Fixed a bug where restarting a server could fail if the Raft logs include a drain update that used a now-expired token [[GH-20317](https://github.com/hashicorp/nomad/issues/20317)]
+* template: Fixed a bug where a partial `client.template` block would cause defaults for unspecified fields to be ignored [[GH-20165](https://github.com/hashicorp/nomad/issues/20165)]
+* ui: Fix an issue where the job status box would error if an allocation had no task events [[GH-20383](https://github.com/hashicorp/nomad/issues/20383)]
+
 ## 1.7.6 (March 12, 2024)
 
 SECURITY:
@@ -196,6 +229,25 @@ BUG FIXES:
 * variables: Fixed a bug where poststop tasks were not allowed access to Variables [[GH-18754](https://github.com/hashicorp/nomad/issues/18754)]
 * vault: Fixed a bug where poststop tasks would not get a Vault token [[GH-19268](https://github.com/hashicorp/nomad/issues/19268)]
 * vault: Fixed an issue that could cause Nomad to attempt to renew a Vault token that is already expired [[GH-18985](https://github.com/hashicorp/nomad/issues/18985)]
+
+## 1.6.10 (April 16, 2024)
+
+SECURITY:
+
+artifact: Updated go-getter dependency to v1.7.4 to address CVE-2024-3817 [GH-20391]
+BUG FIXES:
+
+api: Fixed a bug where AllocDirStats field was missing from Read Stats client API [GH-20261]
+cli: Fixed a bug where operator debug did not respect the -pprof-interval flag and would take only one profile [GH-20206]
+cni: Fixed a regression where default DNS set by dockerd or other task drivers was not respected [GH-20189]
+config: Fixed a bug where IPv6 addresses were not accepted without ports for client.servers blocks [GH-20324]
+deployments: Fixed a goroutine leak when jobs are purged [GH-20348]
+deps: Updated consul-template dependency to 0.37.4 to fix a resource leak [GH-20234]
+drain: Fixed a bug where Workload Identity tokens could not be used to drain a node [GH-20317]
+namespace/node pool: Fixed a bug where the -region flag would not be respected for namespace and node pool updates if ACLs were disabled [GH-20220]
+state: Fixed a bug where restarting a server could fail if the Raft logs include a drain update that used a now-expired token [GH-20317]
+template: Fixed a bug where a partial client.template block would cause defaults for unspecified fields to be ignored [GH-20165]
+ui: Fix an issue where the job status box would error if an allocation had no task events [GH-20383]
 
 ## 1.6.9 (March 12, 2024)
 
@@ -478,6 +530,22 @@ BUG FIXES:
 * ui: fixed a handful of UX-related bugs during variable editing [[GH-17319](https://github.com/hashicorp/nomad/issues/17319)]
 * ui: fixes an issue where the allocations table on child (periodic, parameterized) job pages wouldn't update when accessed via their parent [[GH-17214](https://github.com/hashicorp/nomad/issues/17214)]
 * ui: preserve newlines when displaying shown variables in non-json mode [[GH-17343](https://github.com/hashicorp/nomad/issues/17343)]
+
+## 1.5.17 (April 16, 2024)
+SECURITY:
+
+artifact: Updated go-getter dependency to v1.7.4 to address CVE-2024-3817 [GH-20391]
+BUG FIXES:
+
+* api: Fixed a bug where AllocDirStats field was missing from Read Stats client API [GH-20261]
+* cli: Fixed a bug where operator debug did not respect the -pprof-interval flag and would take only one profile [GH-20206]
+* cni: Fixed a regression where default DNS set by dockerd or other task drivers was not respected [GH-20189]
+* config: Fixed a bug where IPv6 addresses were not accepted without ports for client.servers blocks [GH-20324]
+* deployments: Fixed a goroutine leak when jobs are purged [GH-20348]
+* deps: Updated consul-template dependency to 0.37.4 to fix a resource leak [GH-20234]
+* drain: Fixed a bug where Workload Identity tokens could not be used to drain a node [GH-20317]
+* state: Fixed a bug where restarting a server could fail if the Raft logs include a drain update that used a now-expired token [GH-20317]
+* template: Fixed a bug where a partial client.template block would cause defaults for unspecified fields to be ignored [GH-20165]
 
 ## 1.5.16 (March 12, 2024)
 

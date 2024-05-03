@@ -232,14 +232,14 @@ func TestJob_Statuses(t *testing.T) {
 		}
 		// start the query
 		// note: queries that are expected to remain blocked leak this goroutine
-		// unless some other test coincidentally frees it up
+		// unless some other test (or cleanup) coincidentally unblocks it
 		go func() {
 			resp = doRequest(t, req)
 			cancel()
 		}()
-		// give it a moment for the rpc to actually start up
+		// give it a moment for the rpc to actually start up and begin blocking
 		// FLAKE ALERT: if this job is flaky, this might be why.
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 100)
 		return ctx
 	}
 	mustBlock := func(t *testing.T, ctx context.Context) {

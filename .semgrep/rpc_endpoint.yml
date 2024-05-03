@@ -112,13 +112,9 @@ rules:
   # authorization, as nil ACLs are always programmer errors.
   - id: "rpc-authz-bypass"
     patterns:
-      # Pattern that will accidentally bypass authorization checks.
+      # Pattern that may accidentally bypass authorization checks.
       - pattern: |
-          ...
-          if aclObj != nil && aclObj.$ACL_CHECK(...) {
-          ...
-          }
-          ...
+          aclObj == nil
 
     message: "RPC method ACL check $ACL_CHECK appears to bypass authorization by first checking for nil ACLs"
     languages:

@@ -25,7 +25,7 @@ var (
 	nodeNumber int32 = 0
 )
 
-func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
+func TestACLServer(t testing.TB, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
 	server, cleanup := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		if cb != nil {
@@ -181,7 +181,7 @@ func TestServerErr(t testing.TB, cb func(*Config)) (*Server, func(), error) {
 	return nil, nil, fmt.Errorf("error starting test server: %w", err)
 }
 
-func TestJoin(t testing.T, servers ...*Server) {
+func TestJoin(t testing.TB, servers ...*Server) {
 	for i := 0; i < len(servers)-1; i++ {
 		addr := fmt.Sprintf("127.0.0.1:%d",
 			servers[i].config.SerfConfig.MemberlistConfig.BindPort)

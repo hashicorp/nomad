@@ -55,7 +55,7 @@ func rpcClient(t testing.TB, s *Server) rpc.ClientCodec {
 
 // rpcClientWithTLS is a test helper method to return a ClientCodec to use to
 // make RPC calls to the passed server via mTLS
-func rpcClientWithTLS(t *testing.T, srv *Server, cfg *config.TLSConfig) rpc.ClientCodec {
+func rpcClientWithTLS(t testing.TB, srv *Server, cfg *config.TLSConfig) rpc.ClientCodec {
 	t.Helper()
 
 	// configure TLS, ignoring client-side validation

@@ -4,7 +4,6 @@
 package reconnectingpicker
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -262,7 +261,6 @@ func TestPickReconnectingAlloc_BestScore(t *testing.T) {
 func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 	rp := New(hclog.NewNullLogger())
 	now := time.Now()
-	fmt.Println(now)
 	taskGroupNoLeader := &structs.TaskGroup{
 		Name: "taskGroupNoLeader",
 		Tasks: []*structs.Task{

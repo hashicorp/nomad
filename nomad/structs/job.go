@@ -16,50 +16,66 @@ const (
 	JobServiceRegistrationsRPCMethod = "Job.GetServiceRegistrations"
 )
 
-type UIJob struct {
-	NamespacedID
-	Name             string
-	Type             string
-	NodePool         string
-	Datacenters      []string
-	Priority         int
-	Allocs           []JobStatusAlloc
-	GroupCountSum    int
-	ChildStatuses    []string
-	ParentID         string
-	LatestDeployment *JobStatusLatestDeployment
-	Version          uint64
-	SubmitTime       int64
-	ModifyIndex      uint64
-}
-
+// JobStatusesRequest is used on the Job.Statuses RPC endpoint
+// to get job/alloc/deployment status for jobs.
 type JobStatusesRequest struct {
-	Jobs            []NamespacedID
+	// Jobs may be optionally provided to request a subset of specific jobs.
+	Jobs []NamespacedID
+	// IncludeChildren will include child (batch) jobs in the response.
 	IncludeChildren bool
 	QueryOptions
 }
 
+// JobStatusesResponse is the response from Job.Statuses RPC endpoint.
 type JobStatusesResponse struct {
-	Jobs []UIJob
+	Jobs []JobStatusesJob
 	QueryMeta
 }
 
-type JobStatusAlloc struct {
+// JobStatusesJob collates information about a Job, its Allocation(s),
+// and latest Deployment.
+type JobStatusesJob struct {
+	NamespacedID
+	Name        string
+	Type        string
+	NodePool    string
+	Datacenters []string
+	Priority    int
+	Version     uint64
+	SubmitTime  int64
+	ModifyIndex uint64
+	// Allocs contains information about current allocations
+	Allocs []JobStatusesAlloc
+	// GroupCountSum is the sum of all group{count=X} values,
+	// can be compared against number of running allocs to determine
+	// overall health for "service" jobs.
+	GroupCountSum int
+	// ChildStatuses contains the statuses of child (batch) jobs
+	ChildStatuses []string
+	// ParentID is set on child (batch) jobs, specifying the parent job ID
+	ParentID         string
+	LatestDeployment *JobStatusesLatestDeployment
+}
+
+// JobStatusesAlloc contains a subset of Allocation info.
+type JobStatusesAlloc struct {
 	ID               string
 	Group            string
 	ClientStatus     string
 	NodeID           string
-	DeploymentStatus JobStatusDeployment
+	DeploymentStatus JobStatusesDeployment
 	JobVersion       uint64
 	FollowupEvalID   string
 }
 
-type JobStatusDeployment struct {
+// JobStatusesDeployment contains a subset of AllocDeploymentStatus info.
+type JobStatusesDeployment struct {
 	Canary  bool
 	Healthy *bool
 }
 
-type JobStatusLatestDeployment struct {
+// JobStatusesLatestDeployment contains a subset of the latest Deployment.
+type JobStatusesLatestDeployment struct {
 	ID                string
 	IsActive          bool
 	JobVersion        uint64

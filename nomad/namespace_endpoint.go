@@ -276,7 +276,7 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 				ns := raw.(*structs.Namespace)
 
 				// Only return namespaces allowed by acl
-				if aclObj == nil || aclObj.AllowNamespace(ns.Name) {
+				if aclObj.AllowNamespace(ns.Name) {
 					reply.Namespaces = append(reply.Namespaces, ns)
 				}
 			}

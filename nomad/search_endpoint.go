@@ -393,7 +393,7 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 		if err != nil {
 			return nil, err
 		}
-		if aclObj == nil || aclObj.IsManagement() {
+		if aclObj.IsManagement() {
 			return iter, nil
 		}
 		return memdb.NewFilterIterator(iter, nodePoolCapFilter(aclObj)), nil
@@ -410,17 +410,11 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 		if err != nil {
 			return nil, err
 		}
-		if aclObj == nil {
-			return iter, nil
-		}
 		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
 	case structs.Variables:
 		iter, err := store.GetVariablesByPrefix(ws, prefix)
 		if err != nil {
 			return nil, err
-		}
-		if aclObj == nil {
-			return iter, nil
 		}
 		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
 	default:
@@ -471,7 +465,7 @@ func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespac
 			return nil, err
 		}
 
-		if aclObj == nil || aclObj.IsManagement() {
+		if aclObj.IsManagement() {
 			return iter, nil
 		}
 		return memdb.NewFilterIterator(iter, nodePoolCapFilter(aclObj)), nil
@@ -498,9 +492,6 @@ func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespac
 func nsCapIterFilter(iter memdb.ResultIterator, err error, aclObj *acl.ACL) (memdb.ResultIterator, error) {
 	if err != nil {
 		return nil, err
-	}
-	if aclObj == nil {
-		return iter, nil
 	}
 	return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
 }
@@ -667,7 +658,7 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 //
 // Returns true if aclObj is nil or is for a management token
 func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) bool {
-	if aclObj == nil || aclObj.IsManagement() {
+	if aclObj.IsManagement() {
 		return true
 	}
 
@@ -893,10 +884,6 @@ func sufficientFuzzySearchPerms(aclObj *acl.ACL, namespace string, context struc
 func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.Context) []structs.Context {
 	desired := expandContext(context)
 
-	// If ACLs aren't enabled return all contexts
-	if aclObj == nil {
-		return desired
-	}
 	if aclObj.IsManagement() {
 		return desired
 	}
