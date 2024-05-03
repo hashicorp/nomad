@@ -90,6 +90,11 @@ func TestJobEndpoint_Statuses(t *testing.T) {
 				name: "bad-method", method: "LOL",
 				expectCode: 405, expectErr: ErrInvalidMethod,
 			},
+			{
+				name:       "bad-request-param",
+				params:     "?include_children=not-a-bool",
+				expectCode: 400, expectErr: `Failed to parse value of "include_children"`,
+			},
 
 			{
 				name:      "get-ok",

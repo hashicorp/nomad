@@ -28,7 +28,7 @@ func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	if includeChildren, err := parseBool(req, "include_children"); err != nil {
-		return nil, err
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	} else if includeChildren != nil {
 		args.IncludeChildren = *includeChildren
 	}
@@ -55,7 +55,7 @@ func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Requ
 		args.Jobs = make([]structs.NamespacedID, len(in.Jobs))
 		for i, j := range in.Jobs {
 			if j.Namespace == "" {
-				j.Namespace = "default"
+				j.Namespace = structs.DefaultNamespace
 			}
 			args.Jobs[i] = structs.NamespacedID{
 				ID:        j.ID,

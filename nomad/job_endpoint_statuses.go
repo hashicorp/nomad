@@ -26,7 +26,7 @@ func (j *Job) Statuses(
 	if done, err := j.srv.forward("Job.Statuses", args, args, reply); done {
 		return err
 	}
-	j.srv.MeasureRPCRate("jobs", structs.RateMetricList, args)
+	j.srv.MeasureRPCRate("job", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -38,7 +38,7 @@ func (j *Job) Statuses(
 	// to quickly deny the request if the token lacks permissions for that ns,
 	// rather than iterating the whole jobs table and filtering out every job.
 	if len(args.Jobs) > 0 {
-		nses := set.New[string](0)
+		nses := set.New[string](1)
 		for _, j := range args.Jobs {
 			nses.Insert(j.Namespace)
 		}
@@ -260,7 +260,7 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		return jsj, highestIdx, err
 	}
 	for _, a := range allocs {
-		alloc := structs.JobStatusesAlloc{
+		jsa := structs.JobStatusesAlloc{
 			ID:             a.ID,
 			Group:          a.TaskGroup,
 			ClientStatus:   a.ClientStatus,
@@ -269,10 +269,10 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 			FollowupEvalID: a.FollowupEvalID,
 		}
 		if a.DeploymentStatus != nil {
-			alloc.DeploymentStatus.Canary = a.DeploymentStatus.IsCanary()
-			alloc.DeploymentStatus.Healthy = a.DeploymentStatus.Healthy
+			jsa.DeploymentStatus.Canary = a.DeploymentStatus.IsCanary()
+			jsa.DeploymentStatus.Healthy = a.DeploymentStatus.Healthy
 		}
-		jsj.Allocs = append(jsj.Allocs, alloc)
+		jsj.Allocs = append(jsj.Allocs, jsa)
 
 		if a.ModifyIndex > highestIdx {
 			highestIdx = a.ModifyIndex
