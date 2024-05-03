@@ -239,7 +239,7 @@ func TestJob_Statuses(t *testing.T) {
 		}()
 		// give it a moment for the rpc to actually start up and begin blocking
 		// FLAKE ALERT: if this job is flaky, this might be why.
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 100)
 		return ctx
 	}
 	mustBlock := func(t *testing.T, ctx context.Context) {

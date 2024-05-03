@@ -87,42 +87,42 @@ func TestJobEndpoint_Statuses(t *testing.T) {
 			expectHeaders []string
 		}{
 			{
-				name: "bad-method", method: "LOL",
+				name: "bad method", method: "LOL",
 				expectCode: 405, expectErr: ErrInvalidMethod,
 			},
 			{
-				name:       "bad-request-param",
+				name:       "bad request param",
 				params:     "?include_children=not-a-bool",
 				expectCode: 400, expectErr: `Failed to parse value of "include_children"`,
 			},
 
 			{
-				name:      "get-ok",
+				name:      "get ok",
 				expectIDs: []string{"parent"},
 			},
 			{
-				name:      "get-all-namespaces",
+				name:      "get all namespaces",
 				params:    "?namespace=*",
 				expectIDs: []string{"otherNS", "parent"},
 			},
 			{
-				name:      "get-all-reverse",
+				name:      "get all reverse",
 				params:    "?namespace=*&reverse=true",
 				expectIDs: []string{"parent", "otherNS"},
 			},
 			{
-				name:          "get-one-page",
+				name:          "get one page",
 				params:        "?namespace=*&per_page=1",
 				expectIDs:     []string{"otherNS"},
 				expectHeaders: []string{"X-Nomad-NextToken"},
 			},
 			{
-				name:      "get-children",
+				name:      "get children",
 				params:    "?include_children=true",
 				expectIDs: []string{"parent/child", "parent"},
 			},
 			{
-				name: "get-children-filter",
+				name: "get children filter",
 				// this is how the UI does parent job pages
 				params:    "?include_children=true&filter=ParentID == parent",
 				expectIDs: []string{"parent/child"},
@@ -131,30 +131,30 @@ func TestJobEndpoint_Statuses(t *testing.T) {
 			// POST and GET are interchangeable, but by convention, the UI will
 			// POST when sending a request body, so here we test like that too.
 			{
-				name:       "post-no-jobs",
+				name:       "post no jobs",
 				method:     "POST",
 				body:       `{"jobs": []}`,
 				expectCode: 400, expectErr: "no jobs in request",
 			},
 			{
-				name:   "post-bad-body",
+				name:   "post bad body",
 				method: "POST", body: "{malformed",
 				expectCode: 400, expectErr: "error decoding request: invalid character 'm'",
 			},
 			{
-				name:      "post-nonexistent-job",
+				name:      "post nonexistent job",
 				method:    "POST",
 				body:      `{"jobs": [{"id": "whatever", "namespace": "nope"}]}`,
 				expectIDs: []string{},
 			},
 			{
-				name:      "post-single-job",
+				name:      "post single job",
 				method:    "POST",
 				body:      `{"jobs": [{"id": "parent"}]}`,
 				expectIDs: []string{"parent"},
 			},
 			{
-				name:   "post-all-namespaces",
+				name:   "post all namespaces",
 				method: "POST",
 				// no ?namespace param required, because we default to "*"
 				// if there is a request body (and ns query is "default")
@@ -162,7 +162,7 @@ func TestJobEndpoint_Statuses(t *testing.T) {
 				expectIDs: []string{"otherNS", "parent"},
 			},
 			{
-				name:   "post-auto-namespace",
+				name:   "post auto namespace",
 				method: "POST",
 				// namespace gets overridden by the RPC endpoint,
 				// because jobs in the request body are all one namespace.
@@ -171,14 +171,14 @@ func TestJobEndpoint_Statuses(t *testing.T) {
 				expectIDs: []string{"parent"},
 			},
 			{
-				name:   "post-auto-namespaces-other",
+				name:   "post auto namespaces other",
 				method: "POST",
 				// "other" namespace should be auto-detected, as it's the only one
 				body:      `{"jobs": [{"id": "otherNS", "namespace": "other"}]}`,
 				expectIDs: []string{"otherNS"},
 			},
 			{
-				name:   "post-wrong-namespace-param",
+				name:   "post wrong namespace param",
 				method: "POST",
 				params: "?namespace=nope",
 				// namespace can not be auto-detected, since there are two here,
