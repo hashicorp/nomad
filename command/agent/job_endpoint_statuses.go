@@ -11,7 +11,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// JobStatusesRequest looks up the status of jobs' allocs and deployments,
+// primarily for use in the UI on the /ui/jobs index page.
 func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var out structs.JobStatusesResponse
 	args := structs.JobStatusesRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -67,7 +70,6 @@ func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Requ
 		}
 	}
 
-	var out structs.JobStatusesResponse
 	if err := s.agent.RPC("Job.Statuses", &args, &out); err != nil {
 		return nil, err
 	}

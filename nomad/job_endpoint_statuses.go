@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// Statuses looks up info about jobs, their allocs, and latest deployment.
 func (j *Job) Statuses(
 	args *structs.JobStatusesRequest,
 	reply *structs.JobStatusesResponse) error {
@@ -90,7 +91,12 @@ func (j *Job) Statuses(
 	args.QueryOptions.Reverse = !args.QueryOptions.Reverse
 	sort := state.QueryOptionSort(args.QueryOptions)
 
-	// setup the blocking query
+	// special blocking note: this endpoint employs an unconventional method
+	// of determining the reply.Index in order to avoid unblocking when
+	// something changes "off page" -- instead of using the latest index
+	// from any/all of the state tables queried here (all of: "jobs", "allocs",
+	// "deployments"), we use the highest ModifyIndex of all items encountered
+	// while iterating.
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -192,7 +198,7 @@ func (j *Job) Statuses(
 }
 
 func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) (structs.JobStatusesJob, uint64, error) {
-	idx := job.ModifyIndex
+	highestIdx := job.ModifyIndex
 
 	jsj := structs.JobStatusesJob{
 		NamespacedID: structs.NamespacedID{
@@ -226,7 +232,7 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		jsj.ChildStatuses = make([]string, 0) // set to not-nil
 		children, err := store.JobsByIDPrefix(ws, job.Namespace, job.ID, state.SortDefault)
 		if err != nil {
-			return jsj, idx, err
+			return jsj, highestIdx, err
 		}
 		for {
 			child := children.Next()
@@ -238,20 +244,20 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 			if j.ParentID != job.ID {
 				continue
 			}
-			if j.ModifyIndex > idx {
-				idx = j.ModifyIndex
+			if j.ModifyIndex > highestIdx {
+				highestIdx = j.ModifyIndex
 			}
 			jsj.ChildStatuses = append(jsj.ChildStatuses, j.Status)
 		}
 		// no allocs or deployments for parameterized/period jobs,
 		// so we're done here.
-		return jsj, idx, err
+		return jsj, highestIdx, err
 	}
 
 	// collect info about allocations
 	allocs, err := store.AllocsByJob(ws, job.Namespace, job.ID, true)
 	if err != nil {
-		return jsj, idx, err
+		return jsj, highestIdx, err
 	}
 	for _, a := range allocs {
 		alloc := structs.JobStatusesAlloc{
@@ -268,15 +274,15 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		}
 		jsj.Allocs = append(jsj.Allocs, alloc)
 
-		if a.ModifyIndex > idx {
-			idx = a.ModifyIndex
+		if a.ModifyIndex > highestIdx {
+			highestIdx = a.ModifyIndex
 		}
 	}
 
 	// look for latest deployment
 	deploy, err := store.LatestDeploymentByJobID(ws, job.Namespace, job.ID)
 	if err != nil {
-		return jsj, idx, err
+		return jsj, highestIdx, err
 	}
 	if deploy != nil {
 		jsj.LatestDeployment = &structs.JobStatusesLatestDeployment{
@@ -289,9 +295,9 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 			RequiresPromotion: deploy.RequiresPromotion(),
 		}
 
-		if deploy.ModifyIndex > idx {
-			idx = deploy.ModifyIndex
+		if deploy.ModifyIndex > highestIdx {
+			highestIdx = deploy.ModifyIndex
 		}
 	}
-	return jsj, idx, nil
+	return jsj, highestIdx, nil
 }
