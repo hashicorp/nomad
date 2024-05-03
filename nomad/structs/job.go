@@ -16,6 +16,75 @@ const (
 	JobServiceRegistrationsRPCMethod = "Job.GetServiceRegistrations"
 )
 
+// JobStatusesRequest is used on the Job.Statuses RPC endpoint
+// to get job/alloc/deployment status for jobs.
+type JobStatusesRequest struct {
+	// Jobs may be optionally provided to request a subset of specific jobs.
+	Jobs []NamespacedID
+	// IncludeChildren will include child (batch) jobs in the response.
+	IncludeChildren bool
+	QueryOptions
+}
+
+// JobStatusesResponse is the response from Job.Statuses RPC endpoint.
+type JobStatusesResponse struct {
+	Jobs []JobStatusesJob
+	QueryMeta
+}
+
+// JobStatusesJob collates information about a Job, its Allocation(s),
+// and latest Deployment.
+type JobStatusesJob struct {
+	NamespacedID
+	Name        string
+	Type        string
+	NodePool    string
+	Datacenters []string
+	Priority    int
+	Version     uint64
+	SubmitTime  int64
+	ModifyIndex uint64
+	// Allocs contains information about current allocations
+	Allocs []JobStatusesAlloc
+	// GroupCountSum is the sum of all group{count=X} values,
+	// can be compared against number of running allocs to determine
+	// overall health for "service" jobs.
+	GroupCountSum int
+	// ChildStatuses contains the statuses of child (batch) jobs
+	ChildStatuses []string
+	// ParentID is set on child (batch) jobs, specifying the parent job ID
+	ParentID         string
+	LatestDeployment *JobStatusesLatestDeployment
+}
+
+// JobStatusesAlloc contains a subset of Allocation info.
+type JobStatusesAlloc struct {
+	ID               string
+	Group            string
+	ClientStatus     string
+	NodeID           string
+	DeploymentStatus JobStatusesDeployment
+	JobVersion       uint64
+	FollowupEvalID   string
+}
+
+// JobStatusesDeployment contains a subset of AllocDeploymentStatus info.
+type JobStatusesDeployment struct {
+	Canary  bool
+	Healthy *bool
+}
+
+// JobStatusesLatestDeployment contains a subset of the latest Deployment.
+type JobStatusesLatestDeployment struct {
+	ID                string
+	IsActive          bool
+	JobVersion        uint64
+	Status            string
+	StatusDescription string
+	AllAutoPromote    bool
+	RequiresPromotion bool
+}
+
 // JobServiceRegistrationsRequest is the request object used to list all
 // service registrations belonging to the specified Job.ID.
 type JobServiceRegistrationsRequest struct {

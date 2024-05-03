@@ -1544,3 +1544,12 @@ func (j *Jobs) ActionExec(ctx context.Context,
 
 	return s.run(ctx)
 }
+
+// JobStatusesRequest is used to get statuses for jobs,
+// their allocations and deployments.
+type JobStatusesRequest struct {
+	// Jobs may be optionally provided to request a subset of specific jobs.
+	Jobs []NamespacedID
+	// IncludeChildren will include child (batch) jobs in the response.
+	IncludeChildren bool
+}
