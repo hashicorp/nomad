@@ -86,6 +86,7 @@ type AllocVolumes struct {
 // relevant data that we need to persist about the volume.
 type CSIVolumeStub struct {
 	VolumeID         string
+	VolumeNamespace  string
 	VolumeExternalID string
 	PluginID         string
 	ExternalNodeID   string

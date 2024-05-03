@@ -323,6 +323,7 @@ func (c *csiHook) claimVolumes(results map[string]*volumePublishResult) error {
 
 		// populate data we'll write later to disk
 		result.stub.VolumeID = resp.Volume.ID
+		result.stub.VolumeNamespace = resp.Volume.Namespace
 		result.stub.VolumeExternalID = resp.Volume.RemoteID()
 		result.stub.PluginID = resp.Volume.PluginID
 		result.publishContext = resp.PublishContext
@@ -532,7 +533,8 @@ func (c *csiHook) unmountImpl(result *volumePublishResult) error {
 	}
 
 	return manager.UnmountVolume(c.shutdownCtx,
-		result.stub.VolumeID, result.stub.VolumeExternalID, c.alloc.ID, usageOpts)
+		result.stub.VolumeNamespace, result.stub.VolumeID,
+		result.stub.VolumeExternalID, c.alloc.ID, usageOpts)
 }
 
 // Shutdown will get called when the client is gracefully

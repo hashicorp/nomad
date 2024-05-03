@@ -845,14 +845,15 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 	}
 
 	req := &cstructs.ClientCSINodeDetachVolumeRequest{
-		PluginID:       vol.PluginID,
-		VolumeID:       vol.ID,
-		ExternalID:     vol.RemoteID(),
-		AllocID:        claim.AllocationID,
-		NodeID:         claim.NodeID,
-		AttachmentMode: claim.AttachmentMode,
-		AccessMode:     claim.AccessMode,
-		ReadOnly:       claim.Mode == structs.CSIVolumeClaimRead,
+		PluginID:        vol.PluginID,
+		VolumeID:        vol.ID,
+		VolumeNamespace: vol.Namespace,
+		ExternalID:      vol.RemoteID(),
+		AllocID:         claim.AllocationID,
+		NodeID:          claim.NodeID,
+		AttachmentMode:  claim.AttachmentMode,
+		AccessMode:      claim.AccessMode,
+		ReadOnly:        claim.Mode == structs.CSIVolumeClaimRead,
 	}
 	err := v.srv.RPC("ClientCSI.NodeDetachVolume",
 		req, &cstructs.ClientCSINodeDetachVolumeResponse{})
@@ -1295,11 +1296,12 @@ func (v *CSIVolume) nodeExpandVolume(vol *structs.CSIVolume, plugin *structs.CSI
 
 		resp := &cstructs.ClientCSINodeExpandVolumeResponse{}
 		req := &cstructs.ClientCSINodeExpandVolumeRequest{
-			PluginID:   plugin.ID,
-			VolumeID:   vol.ID,
-			ExternalID: vol.ExternalID,
-			Capacity:   capacity,
-			Claim:      claim,
+			PluginID:        plugin.ID,
+			VolumeID:        vol.ID,
+			VolumeNamespace: vol.Namespace,
+			ExternalID:      vol.ExternalID,
+			Capacity:        capacity,
+			Claim:           claim,
 		}
 		if err := v.srv.RPC("ClientCSI.NodeExpandVolume", req, resp); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
