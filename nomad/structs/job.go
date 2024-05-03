@@ -16,23 +16,6 @@ const (
 	JobServiceRegistrationsRPCMethod = "Job.GetServiceRegistrations"
 )
 
-type UIJob struct {
-	NamespacedID
-	Name             string
-	Type             string
-	NodePool         string
-	Datacenters      []string
-	Priority         int
-	Allocs           []JobStatusAlloc
-	GroupCountSum    int
-	ChildStatuses    []string
-	ParentID         string
-	LatestDeployment *JobStatusLatestDeployment
-	Version          uint64
-	SubmitTime       int64
-	ModifyIndex      uint64
-}
-
 type JobStatusesRequest struct {
 	Jobs            []NamespacedID
 	IncludeChildren bool
@@ -40,26 +23,43 @@ type JobStatusesRequest struct {
 }
 
 type JobStatusesResponse struct {
-	Jobs []UIJob
+	Jobs []JobStatusesJob
 	QueryMeta
 }
 
-type JobStatusAlloc struct {
+type JobStatusesJob struct {
+	NamespacedID
+	Name             string
+	Type             string
+	NodePool         string
+	Datacenters      []string
+	Priority         int
+	Allocs           []JobStatusesAlloc
+	GroupCountSum    int
+	ChildStatuses    []string
+	ParentID         string
+	LatestDeployment *JobStatusesLatestDeployment
+	Version          uint64
+	SubmitTime       int64
+	ModifyIndex      uint64
+}
+
+type JobStatusesAlloc struct {
 	ID               string
 	Group            string
 	ClientStatus     string
 	NodeID           string
-	DeploymentStatus JobStatusDeployment
+	DeploymentStatus JobStatusesDeployment
 	JobVersion       uint64
 	FollowupEvalID   string
 }
 
-type JobStatusDeployment struct {
+type JobStatusesDeployment struct {
 	Canary  bool
 	Healthy *bool
 }
 
-type JobStatusLatestDeployment struct {
+type JobStatusesLatestDeployment struct {
 	ID                string
 	IsActive          bool
 	JobVersion        uint64

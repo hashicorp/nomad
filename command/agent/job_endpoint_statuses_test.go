@@ -216,7 +216,7 @@ func TestJobEndpoint_Statuses(t *testing.T) {
 				must.Eq(t, tc.expectCode, result.StatusCode)
 
 				// check response body
-				jobs := raw.([]structs.UIJob)
+				jobs := raw.([]structs.JobStatusesJob)
 				gotIDs := make([]string, len(jobs))
 				for i, j := range jobs {
 					gotIDs[i] = j.ID
