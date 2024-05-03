@@ -4076,7 +4076,6 @@ func TestJobEndpoint_BatchDeregister(t *testing.T) {
 	var resp2 structs.JobBatchDeregisterResponse
 	require.Nil(msgpackrpc.CallWithCodec(codec, structs.JobBatchDeregisterRPCMethod, dereg, &resp2))
 	require.NotZero(resp2.Index)
-	require.Nil(resp2.JobEvals)
 
 	// Check for the job in the FSM
 	state := s1.fsm.State()

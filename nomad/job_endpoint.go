@@ -942,10 +942,10 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		return err
 	}
 
-	// This RPC endpoint is only called from the Nomad server leader when
-	// performing garbage collection, therefore we can get away with a simple
-	// management check to ensure the caller can trigger this functionality as
-	// the leader token is always a management token.
+	// This RPC endpoint is only called from a Nomad server using the leader
+	// ACL when performing garbage collection, therefore we can get away with a
+	// simple management check to ensure the caller can trigger this
+	// functionality as the leader token is always a management token.
 	if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
@@ -953,9 +953,6 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 	// Validate the arguments
 	if len(args.Jobs) == 0 {
 		return fmt.Errorf("given no jobs to deregister")
-	}
-	if len(args.Evals) != 0 {
-		return fmt.Errorf("evaluations should not be populated")
 	}
 
 	// Commit this update via Raft

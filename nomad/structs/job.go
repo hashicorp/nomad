@@ -31,12 +31,6 @@ type JobBatchDeregisterRequest struct {
 	// Jobs is the set of jobs to deregister.
 	Jobs map[NamespacedID]*JobDeregisterOptions
 
-	// Evals is the set of evaluations to create.
-	//
-	// Deprecated: the job batch deregister endpoint no longer generates an
-	// eval per job.
-	Evals []*Evaluation
-
 	// SubmitTime is the time at which the job was requested to be stopped.
 	//
 	// Deprecated: The job batch deregister endpoint is only used by internal
@@ -61,13 +55,6 @@ type JobDeregisterOptions struct {
 
 // JobBatchDeregisterResponse is used to respond to a batch job deregistration.
 type JobBatchDeregisterResponse struct {
-
-	// JobEvals maps the job to its created evaluation.
-	//
-	// Deprecated: The job batch deregister endpoint is only used by internal
-	// garbage collection which no longer creates and evaluation per job GC.
-	JobEvals map[NamespacedID]string
-
 	QueryMeta
 }
 
