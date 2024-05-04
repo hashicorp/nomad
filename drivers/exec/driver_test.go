@@ -23,9 +23,11 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -831,6 +833,40 @@ func TestExecDriver_OOMKilled(t *testing.T) {
 	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
+func TestDriver_Config_setDeniedIds(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("denied_host_ids", func(t *testing.T) {
+		invalidUidRange := "invalid denied_host_uids"
+		invalidGidRange := "invalid denied_host_gids"
+
+		for _, tc := range []struct {
+			uidRanges string
+			gidRanges string
+			errorStr  *string
+		}{
+			{uidRanges: "", gidRanges: "", errorStr: nil},
+			{uidRanges: "1-10", gidRanges: "1-10", errorStr: nil},
+			{uidRanges: "10-1", gidRanges: "", errorStr: &invalidUidRange},
+			{uidRanges: "", gidRanges: "10-1", errorStr: &invalidGidRange},
+		} {
+
+			err := (&Config{
+				DefaultModePID:    "private",
+				DefaultModeIPC:    "private",
+				DeniedHostUidsStr: tc.uidRanges,
+				DeniedHostGidsStr: tc.gidRanges,
+			}).setDeniedIds()
+
+			if tc.errorStr == nil {
+				must.NoError(t, err)
+			} else {
+				must.ErrorContains(t, err, *tc.errorStr)
+			}
+		}
+	})
+}
+
 func TestDriver_Config_validate(t *testing.T) {
 	ci.Parallel(t)
 	t.Run("pid/ipc", func(t *testing.T) {
@@ -872,8 +908,48 @@ func TestDriver_Config_validate(t *testing.T) {
 	})
 }
 
+func TestDriver_TaskConfig_validateUserIds(t *testing.T) {
+	ci.Parallel(t)
+
+	current, err := users.Current()
+	require.NoError(t, err)
+	currentUid := os.Getuid()
+	nobodyUid, _, _, err := users.LookupUnix("nobody")
+	require.NoError(t, err)
+
+	allowAll := []validators.IDRange{}
+	denyCurrent := []validators.IDRange{{Lower: uint64(currentUid), Upper: uint64(currentUid)}}
+	denyNobody := []validators.IDRange{{Lower: uint64(nobodyUid), Upper: uint64(nobodyUid)}}
+	configAllowCurrent := Config{DeniedHostUids: allowAll}
+	configDenyCurrent := Config{DeniedHostUids: denyCurrent}
+	configDenyAnonymous := Config{DeniedHostUids: denyNobody}
+	driverConfigNoUserSpecified := drivers.TaskConfig{User: "nobody"}
+	driverConfigSpecifyCurrent := drivers.TaskConfig{User: current.Name}
+	currentUserErrStr := fmt.Sprintf("running as uid %d is disallowed", currentUid)
+	anonUserErrStr := fmt.Sprintf("running as uid %d is disallowed", nobodyUid)
+
+	for _, tc := range []struct {
+		config       Config
+		driverConfig drivers.TaskConfig
+		expectedErr  string
+	}{
+		{config: configAllowCurrent, driverConfig: driverConfigSpecifyCurrent, expectedErr: ""},
+		{config: configDenyCurrent, driverConfig: driverConfigNoUserSpecified, expectedErr: ""},
+		{config: configDenyCurrent, driverConfig: driverConfigSpecifyCurrent, expectedErr: currentUserErrStr},
+		{config: configDenyAnonymous, driverConfig: driverConfigNoUserSpecified, expectedErr: anonUserErrStr},
+	} {
+		err := (&TaskConfig{}).validateUserIds(&tc.driverConfig, &tc.config)
+		if tc.expectedErr == "" {
+			must.NoError(t, err)
+		} else {
+			must.ErrorContains(t, err, tc.expectedErr)
+		}
+	}
+}
+
 func TestDriver_TaskConfig_validate(t *testing.T) {
 	ci.Parallel(t)
+
 	t.Run("pid/ipc", func(t *testing.T) {
 		for _, tc := range []struct {
 			pidMode, ipcMode string
@@ -889,7 +965,7 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{pidMode: "", ipcMode: "host", exp: nil},
 			{pidMode: "other", ipcMode: "host", exp: errors.New(`pid_mode must be "private" or "host", got "other"`)},
 		} {
-			require.Equal(t, tc.exp, (&TaskConfig{
+			must.Eq(t, tc.exp, (&TaskConfig{
 				ModePID: tc.pidMode,
 				ModeIPC: tc.ipcMode,
 			}).validate())
@@ -907,7 +983,7 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{adds: []string{"chown", "sys_time"}, exp: nil},
 			{adds: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_add configured with capabilities not supported by system: not_valid")},
 		} {
-			require.Equal(t, tc.exp, (&TaskConfig{
+			must.Eq(t, tc.exp, (&TaskConfig{
 				CapAdd: tc.adds,
 			}).validate())
 		}
@@ -924,7 +1000,7 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{drops: []string{"chown", "sys_time"}, exp: nil},
 			{drops: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_drop configured with capabilities not supported by system: not_valid")},
 		} {
-			require.Equal(t, tc.exp, (&TaskConfig{
+			must.Eq(t, tc.exp, (&TaskConfig{
 				CapDrop: tc.drops,
 			}).validate())
 		}
