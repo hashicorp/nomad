@@ -293,13 +293,7 @@ module('Acceptance | jobs list', function (hooks) {
   testFacet('Type', {
     facet: JobsList.facets.type,
     paramName: 'type',
-    expectedOptions: [
-      'batch',
-      'service',
-      'system',
-      'sysbatch',
-      // TODO: add Parameterized and Periodic
-    ],
+    expectedOptions: ['batch', 'service', 'system', 'sysbatch'],
     async beforeEach() {
       server.createList('job', 2, { createAllocations: false, type: 'batch' });
       server.createList('job', 2, {
@@ -322,9 +316,6 @@ module('Acceptance | jobs list', function (hooks) {
     },
     filter(job, selection) {
       let displayType = job.type;
-      // TODO: if/when we allow for parameterized/batch filtering, uncomment these.
-      // if (job.parameterized) displayType = 'parameterized';
-      // if (job.periodic) displayType = 'periodic';
       return selection.includes(displayType);
     },
   });

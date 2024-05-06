@@ -43,7 +43,16 @@ export default class Job extends Model {
     }
   }
 
-  @attr() latestDeploymentSummary; // TODO: model this out
+  /**
+   * @typedef {Object} LatestDeploymentSummary
+   * @property {boolean} IsActive - Whether the deployment is currently active
+   * @property {number} JobVersion - The version of the job that was deployed
+   * @property {string} Status - The status of the deployment
+   * @property {string} StatusDescription - A description of the deployment status
+   * @property {boolean} AllAutoPromote - Whether all allocations were auto-promoted
+   * @property {boolean} RequiresPromotion - Whether the deployment requires promotion
+   */
+  @attr() latestDeploymentSummary;
 
   @attr() childStatuses;
 
@@ -273,12 +282,7 @@ export default class Job extends Model {
       ...this.allocBlocks.unplaced?.healthy?.nonCanary,
     ];
 
-    // TODO: GroupCountSum for a parameterized parent job is the count present at group level, but that's not quite true, as the parent job isn't expecting any allocs, its children are. Chat with BFF about this.
-
-    // TODO: handle garbage collected cases not showing "failed" for batch jobs here maybe?
-
     if (failedOrLostAllocs.length >= totalAllocs) {
-      // TODO: when totalAllocs only cares about latest version, change back to ===
       return { label: 'Failed', state: 'critical' };
     } else {
       return { label: 'Degraded', state: 'warning' };

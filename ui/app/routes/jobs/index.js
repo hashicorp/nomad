@@ -71,7 +71,6 @@ export default class IndexRoute extends Route.extend(
     try {
       let jobs = await this.store.query('job', currentParams, {
         adapterOptions: {
-          method: 'GET', // TODO: default
           abortController: this.watchList.jobsIndexIDsController,
         },
       });
@@ -176,7 +175,6 @@ export default class IndexRoute extends Route.extend(
 
   @action
   willTransition(transition) {
-    // TODO: Something is preventing jobs -> job -> jobs -> job.
     if (!transition.intent.name?.startsWith(this.routeName)) {
       this.watchList.jobsIndexDetailsController.abort();
       this.watchList.jobsIndexIDsController.abort();

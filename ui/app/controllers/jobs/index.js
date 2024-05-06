@@ -21,7 +21,7 @@ export default class JobsIndexController extends Controller {
   @service system;
   @service store;
   @service userSettings;
-  @service watchList; // TODO: temp
+  @service watchList;
 
   @tracked pageSize;
 
@@ -168,7 +168,6 @@ export default class JobsIndexController extends Controller {
     return this.store
       .query('job', params, {
         adapterOptions: {
-          method: 'GET', // TODO: default
           abortController: this.watchList.jobsIndexIDsController,
         },
       })
@@ -223,7 +222,6 @@ export default class JobsIndexController extends Controller {
     return prevPageToken;
   }
 
-  // TODO: set up isEnabled to check blockingQueries rather than just use while (true)
   @restartableTask *watchJobIDs(
     params,
     throttle = Ember.testing ? 0 : JOB_LIST_THROTTLE

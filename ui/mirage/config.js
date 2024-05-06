@@ -241,7 +241,7 @@ export default function () {
                 ID: alloc.id,
               };
             });
-          job.ChildStatuses = null; // TODO: handle parent job here
+          job.ChildStatuses = null;
           job.Datacenters = j.Datacenters;
           job.DeploymentID = j.DeploymentID;
           job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
