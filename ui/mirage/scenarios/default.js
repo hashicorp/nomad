@@ -68,11 +68,23 @@ function jobsIndexTestCluster(server) {
   for (let i = 0; i < jobsToCreate; i++) {
     let groupCount = Math.floor(Math.random() * 2) + 1;
     server.create('job', {
+      name: `Job ${i + 1}`,
       resourceSpec: Array(groupCount).fill('M: 256, C: 500'),
       groupAllocCount: Math.floor(Math.random() * 3) + 1,
       modifyIndex: i + 1,
     });
   }
+  server.create('job', 'periodic', {
+    name: 'Periodic Job',
+    modifyIndex: jobsToCreate + 1,
+    childrenCount: 3,
+  });
+
+  server.create('job', 'parameterized', {
+    name: 'Parameterized Job',
+    modifyIndex: jobsToCreate + 2,
+    childrenCount: 5,
+  });
 }
 
 function smallCluster(server) {

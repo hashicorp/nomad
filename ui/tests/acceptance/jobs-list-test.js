@@ -481,6 +481,78 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(currentURL(), '/jobs/run');
   });
 
+  test('Parent/child jobs are displayed correctly', async function (assert) {
+    localStorage.setItem('nomadPageSize', '10');
+    createJobs(server, 5);
+
+    let periodicJob = server.create('job', 'periodic', {
+      name: 'periodic',
+      id: 'periodic',
+      childrenCount: 10,
+    });
+
+    // Set all children of that job to have a status of "running"
+    server.db.jobs.where({ parentId: periodicJob.id }).forEach((job) => {
+      server.db.jobs.update(job.id, { status: 'running' });
+    });
+
+    await JobsList.visit();
+
+    assert.dom('[data-test-job-row="periodic"]').exists();
+    assert
+      .dom('.job-row')
+      .exists(
+        { count: 6 },
+        'Even though a periodic job has 10 children, only the parent is shown'
+      );
+
+    assert.dom('.allocation-status-row').exists({ count: 5 });
+    assert
+      .dom('[data-test-job-row="periodic"] .allocation-status-row')
+      .doesNotExist('Parent job doesnt have an allocs chart');
+
+    assert
+      .dom('[data-test-job-row="periodic"] [data-test-job-status]')
+      .hasText('10 running jobs', 'Parent job status indicates running jobs');
+
+    server.db.jobs.where({ parentId: periodicJob.id }).forEach((job) => {
+      server.db.jobs.update(job.id, { status: 'dead' });
+    });
+
+    const controller = this.owner.lookup('controller:jobs.index');
+    let currentParams = {
+      per_page: 10,
+    };
+
+    // We have to wait for watchJobIDs to trigger the "dueling query" with watchJobs.
+    // Since we can't await the watchJobs promise, we set a reasonably short timeout
+    // to check the state of the list after the dueling query has completed.
+    await controller.watchJobIDs.perform(currentParams, 0);
+
+    let parentStatusUpdated = assert.async(); // watch for this to say "My tests oughta be passing by now"
+    const duelingQueryUpdateTime = 200;
+
+    assert.timeout(500);
+
+    setTimeout(async () => {
+      assert
+        .dom('[data-test-job-row="periodic"] [data-test-job-status]')
+        .hasText(
+          '10 completed jobs',
+          'Parent job status indicates complete jobs'
+        );
+      parentStatusUpdated();
+
+      await click('[data-test-job-row="periodic"]');
+      assert
+        .dom('[data-test-child-job-row]')
+        .exists({ count: 10 }, 'All children are shown');
+    }, duelingQueryUpdateTime);
+
+    await percySnapshot(assert);
+    localStorage.removeItem('nomadPageSize');
+  });
+
   module('Pagination', function () {
     module('Buttons are appropriately disabled', function () {
       test('when there are no jobs', async function (assert) {

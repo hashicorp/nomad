@@ -154,9 +154,19 @@
               <B.Td data-test-job-namespace>{{B.data.namespace.id}}</B.Td>
             {{/if}}
             <B.Td data-test-job-status>
-              {{#unless B.data.childStatuses}}
+              {{#if (not (eq B.data.childStatuses null))}}
+                {{#if B.data.childStatusBreakdown.running}}
+                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.running}} running {{pluralize "job" B.data.childStatusBreakdown.running}}" @color="highlight" @size="large" />
+                {{else if B.data.childStatusBreakdown.pending}}
+                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.pending}} pending {{pluralize "job" B.data.childStatusBreakdown.pending}}" @color="neutral" @size="large" />
+                {{else if B.data.childStatusBreakdown.dead}}
+                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.dead}} completed {{pluralize "job" B.data.childStatusBreakdown.dead}}" @color="neutral" @size="large" />
+                {{else if (not B.data.childStatuses.length)}}
+                  <Hds::Badge @icon="corner-down-right" @text="No child jobs" @color="neutral" @size="large" />
+                {{/if}}
+              {{else}}
                 <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
-              {{/unless}}
+              {{/if}}
             </B.Td>
             <B.Td data-test-job-type={{B.data.type}}>
               {{B.data.type}}
@@ -167,11 +177,12 @@
             <B.Td>
               <div class="job-status-panel compact">
                 {{#unless B.data.assumeGC}}
-                  {{#if B.data.childStatuses}}
-                    {{B.data.childStatuses.length}} child jobs;<br />
-                    {{#each-in B.data.childStatusBreakdown as |status count|}}
-                      {{count}} {{status}}<br />
-                    {{/each-in}}
+                  {{#if (not (eq B.data.childStatuses null))}}
+                    {{#if B.data.childStatuses.length}}
+                      <Hds::Link::Standalone @icon="chevron-right" @text="View {{B.data.childStatuses.length}} child {{pluralize "job" B.data.childStatuses.length}}" @route="jobs.job.index" @model={{B.data.idWithNamespace}} @iconPosition="trailing" />
+                    {{else}}
+                      --
+                    {{/if}}
                   {{else}}
                     <JobStatus::AllocationStatusRow
                       @allocBlocks={{B.data.allocBlocks}}

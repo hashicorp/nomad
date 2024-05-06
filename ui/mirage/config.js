@@ -123,6 +123,12 @@ export default function () {
         // We'll assume at most "and" combinations, and only positive filters
         // (no "not Type contains sys" or similar)
         let filteredJson = json;
+
+        // Filter out all child jobs
+        if (!req.queryParams.include_children) {
+          filteredJson = filteredJson.filter((job) => !job.ParentID);
+        }
+
         if (req.queryParams.filter) {
           // Format will be something like "Name contains NAME" or "Type == sysbatch" or combinations thereof
           const filterConditions = req.queryParams.filter
@@ -223,6 +229,14 @@ export default function () {
         })
         .map((j) => {
           let job = {};
+
+          // get children that may have been created
+          let children = null;
+          if (j.Periodic || j.Parameterized) {
+            children = allJobs.filter((child) => {
+              return child.ParentID === j.ID;
+            });
+          }
           job.ID = j.ID;
           job.Name = j.Name;
           job.ModifyIndex = j.ModifyIndex;
@@ -241,7 +255,7 @@ export default function () {
                 ID: alloc.id,
               };
             });
-          job.ChildStatuses = null;
+          job.ChildStatuses = children ? children.mapBy('Status') : null;
           job.Datacenters = j.Datacenters;
           job.DeploymentID = j.DeploymentID;
           job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(

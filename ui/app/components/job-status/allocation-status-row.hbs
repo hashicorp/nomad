@@ -55,7 +55,11 @@
     </div>
   {{/if}}
   {{#if @compact}}
-    {{@runningAllocs}}/{{@groupCountSum}}
+    {{#if (eq @allocationTallyMode "complete")}}
+      {{@completeAllocs}}/{{@groupCountSum}}
+    {{else}}
+      {{@runningAllocs}}/{{@groupCountSum}}
+    {{/if}}
   {{/if}}
 </div>
        
