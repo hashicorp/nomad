@@ -594,6 +594,19 @@ module('Acceptance | tokens', function (hooks) {
     );
   });
 
+  test('When ACLs are disabled, the user is redirected to the profile settings page', async function (assert) {
+    // Update the existing agent to have ACLs set to false
+    server.db.agents.update(server.db.agents[0].id, {
+      config: {
+        ACL: {
+          Enabled: false,
+        },
+      },
+    });
+    await visit('/settings/tokens');
+    assert.equal(currentURL(), '/settings/user-settings');
+  });
+
   test('Tokens are shown on the Access Control Policies index page', async function (assert) {
     allScenarios.policiesTestCluster(server);
     let firstPolicy = server.db.policies.sort((a, b) => {

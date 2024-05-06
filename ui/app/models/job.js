@@ -209,8 +209,6 @@ export default class Job extends Model {
       };
     }
 
-    // console.log('allocBlocks for', this.name, 'is', allocationsOfShowableType);
-
     return allocationsOfShowableType;
   }
 
