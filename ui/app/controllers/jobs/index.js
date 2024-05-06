@@ -180,6 +180,8 @@ export default class JobsIndexController extends Controller {
   }
 
   jobAllocsQuery(params) {
+    // TODO: Noticing a pattern with long-running jobs with alloc changes, where there are multiple POST statuses blocking queries being held open at once.
+    // This is a problem and I should get to the bottom of it.
     this.watchList.jobsIndexDetailsController.abort();
     this.watchList.jobsIndexDetailsController = new AbortController();
     params.namespace = '*';

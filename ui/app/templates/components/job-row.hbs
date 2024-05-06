@@ -3,71 +3,111 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<td data-test-job-name
+<@tableBody.Tr
   {{keyboard-shortcut
     enumerated=true
     action=(action "gotoJob" @job)
   }}
+  {{on "click" (action this.gotoJob @job)}}
+  {{did-insert this.requiresPromotionTask.perform}}
+  {{did-update this.requiresPromotionTask.perform @job.latestDeploymentSummary.id @job.hasActiveCanaries}}
+  class="job-row {{if @job.assumeGC "assume-gc"}}"
+  data-test-job-row={{@job.plainId}}
+  data-test-modify-index={{@job.modifyIndex}}
 >
-  <LinkTo
-    @route="jobs.job.index"
-    @model={{this.job.idWithNamespace}}
-    class="is-primary"
-  >
-    {{this.job.name}}
 
-    {{#if this.job.meta.structured.pack}}
-      <span data-test-pack-tag class="tag is-pack">
-        {{x-icon "box" class= "test"}}
-        <span>Pack</span>
-      </span>
-    {{/if}}
-
-  </LinkTo>
-</td>
-{{#if (not (eq @context "child"))}}
-  {{#if this.system.shouldShowNamespaces}}
-    <td data-test-job-namespace>
-      {{this.job.namespace.name}}
-    </td>
-  {{/if}}
-{{/if}}
-{{#if (eq @context "child")}}
-  <td data-test-job-submit-time>
-    {{format-month-ts this.job.submitTime}}
-  </td>
-{{/if}}
-<td data-test-job-status>
-  <span class="tag {{this.job.statusClass}}">
-    {{this.job.status}}
-  </span>
-</td>
-{{#if (not (eq @context "child"))}}
-  <td data-test-job-type>
-    {{this.job.displayType.type}}
-  </td>
-  <td data-test-job-node-pool>
-    {{#if this.job.nodePool}}{{this.job.nodePool}}{{else}}-{{/if}}
-  </td>
-  <td data-test-job-priority>
-    {{this.job.priority}}
-  </td>
-{{/if}}
-<td data-test-job-allocations>
-  <div class="inline-chart">
-    {{#if this.job.hasChildren}}
-      {{#if (gt this.job.totalChildren 0)}}
-        <ChildrenStatusBar @job={{this.job}} @isNarrow={{true}} />
-      {{else}}
-        <em class="is-faded">
-          No Children
-        </em>
-      {{/if}}
+  <@tableBody.Td data-test-job-name>
+    {{#if @job.assumeGC}}
+      {{@job.name}}
     {{else}}
-      <AllocationStatusBar
-        @allocationContainer={{this.job}}
-        @isNarrow={{true}}
-      />
+    <LinkTo
+      @route="jobs.job.index"
+      @model={{@job.idWithNamespace}}
+      class="is-primary"
+    >
+      {{@job.name}}
+      {{!-- TODO: going to lose .meta with statuses endpoint! --}}
+      {{#if @job.meta.structured.pack}}
+        <span data-test-pack-tag class="tag is-pack">
+          {{x-icon "box" class= "test"}}
+          <span>Pack</span>
+        </span>
+      {{/if}}
+    </LinkTo>
     {{/if}}
-  </div>
-</td>
+  </@tableBody.Td>
+
+  {{#if this.system.shouldShowNamespaces}}
+    <@tableBody.Td data-test-job-namespace>{{@job.namespace.id}}</@tableBody.Td>
+  {{/if}}
+  <@tableBody.Td data-test-job-status>
+    {{#unless @job.childStatuses}}
+      <div class="status-cell">
+        <Hds::Badge @text="{{capitalize @job.aggregateAllocStatus.label}}" @color={{@job.aggregateAllocStatus.state}} @size="large" />
+        {{#if this.latestDeploymentFailed}}
+          <Hds::Button
+            {{hds-tooltip "Your latest deployment failed. Click to view the deployment."
+            options=(hash placement="right")}}
+            @text="Deployments"
+            @size="small"
+            @icon="alert-triangle"
+            @isIconOnly={{true}}
+            @color="critical"
+            @route="jobs.job.deployments"
+            @model={{@job}}
+          />
+        {{/if}}
+      </div>
+    {{/unless}}
+  </@tableBody.Td>
+  <@tableBody.Td data-test-job-type={{@job.type}}>
+    {{@job.type}}
+  </@tableBody.Td>
+
+  {{#if this.system.shouldShowNodepools}}
+    <@tableBody.Td data-test-job-node-pool>{{@job.nodePool}}</@tableBody.Td>
+  {{/if}}
+
+  <@tableBody.Td>
+    <div class="job-status-panel compact">
+      {{#unless @job.assumeGC}}
+        {{#if @job.childStatuses}}
+          {{@job.childStatuses.length}} child jobs;<br />
+          {{#each-in @job.childStatusBreakdown as |status count|}}
+            {{count}} {{status}}<br />
+          {{/each-in}}
+        {{else}}
+          <div class="status-cell">
+          <JobStatus::AllocationStatusRow
+            @allocBlocks={{@job.allocBlocks}}
+            @steady={{true}}
+            @compact={{true}}
+            @runningAllocs={{@job.allocBlocks.running.healthy.nonCanary.length}}
+            @groupCountSum={{@job.expectedRunningAllocCount}}
+          />
+          {{#if this.requiresPromotionTask.isRunning}}
+            Loading...
+          {{else if this.requiresPromotionTask.lastSuccessful.value}}
+            {{#if (eq this.requiresPromotionTask.lastSuccessful.value "canary-promote")}}
+              <Hds::Button
+                {{hds-tooltip "All canaries have passed their health checks"
+                options=(hash placement="right")}}
+                @text="Promote"
+                @icon="rocket"
+                @color="primary"
+                @size="small"
+                {{on "click" (perform this.promote)}}
+              />
+            {{else if (eq this.requiresPromotionTask.lastSuccessful.value "canary-failure")}}
+              <FlightIcon
+                {{hds-tooltip "Some canaries have failed; you will have to investigate"
+                  options=(hash placement="right")}}
+                @name="alert-triangle" @color="#c84034" />
+            {{/if}}
+          {{/if}}
+        </div>
+        {{/if}}
+      {{/unless}}
+    </div>
+  </@tableBody.Td>
+</@tableBody.Tr>

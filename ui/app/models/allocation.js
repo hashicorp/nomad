@@ -71,12 +71,12 @@ export default class Allocation extends Model {
     return (
       this.willNotRestart &&
       !this.get('nextAllocation.content') &&
-      !this.get('followUpEvaluation.content')
+      !this.belongsTo('followUpEvaluation').id()
     );
   }
 
   get hasBeenRescheduled() {
-    return this.get('followUpEvaluation.content');
+    return Boolean(this.belongsTo('followUpEvaluation').id());
   }
 
   get hasBeenRestarted() {
@@ -131,7 +131,7 @@ export default class Allocation extends Model {
   preemptedByAllocation;
   @attr('boolean') wasPreempted;
 
-  @belongsTo('evaluation') followUpEvaluation;
+  @belongsTo('evaluation', { async: true }) followUpEvaluation;
 
   @computed('clientStatus')
   get statusClass() {

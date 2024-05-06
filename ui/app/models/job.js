@@ -52,7 +52,23 @@ export default class Job extends Model {
    * @property {boolean} AllAutoPromote - Whether all allocations were auto-promoted
    * @property {boolean} RequiresPromotion - Whether the deployment requires promotion
    */
-  @attr() latestDeploymentSummary;
+  @attr({ defaultValue: () => ({}) }) latestDeploymentSummary;
+
+  get hasActiveCanaries() {
+    if (!this.latestDeploymentSummary.isActive) {
+      return false;
+    }
+    return Object.keys(this.allocBlocks)
+      .map((status) => {
+        return Object.keys(this.allocBlocks[status])
+          .map((health) => {
+            return this.allocBlocks[status][health].canary.length;
+          })
+          .flat();
+      })
+      .flat()
+      .any((n) => !!n);
+  }
 
   @attr() childStatuses;
 
@@ -75,6 +91,9 @@ export default class Job extends Model {
   // We set this flag to true to let the user know that the job has been removed without simply nixing it from view.
   @attr('boolean', { defaultValue: false }) assumeGC;
 
+  /**
+   * @returns {Array<{label: string}>}
+   */
   get allocTypes() {
     return jobAllocStatuses[this.type].map((type) => {
       return {
@@ -123,87 +142,174 @@ export default class Job extends Model {
   get allocBlocks() {
     let availableSlotsToFill = this.expectedRunningAllocCount;
 
+    let isDeploying = this.latestDeploymentSummary.isActive;
     // Initialize allocationsOfShowableType with empty arrays for each clientStatus
     /**
      * @type {AllocationBlock}
      */
     let allocationsOfShowableType = this.allocTypes.reduce(
-      (accumulator, type) => {
-        accumulator[type.label] = { healthy: { nonCanary: [] } };
-        return accumulator;
+      (categories, type) => {
+        categories[type.label] = {
+          healthy: { canary: [], nonCanary: [] },
+          unhealthy: { canary: [], nonCanary: [] },
+          health_unknown: { canary: [], nonCanary: [] },
+        };
+        return categories;
       },
       {}
     );
 
-    // First accumulate the Running/Pending allocations
-    for (const alloc of this.allocations.filter(
-      (a) => a.clientStatus === 'running' || a.clientStatus === 'pending'
-    )) {
-      if (availableSlotsToFill === 0) {
-        break;
-      }
-
-      const status = alloc.clientStatus;
-      allocationsOfShowableType[status].healthy.nonCanary.push(alloc);
-      availableSlotsToFill--;
-    }
-    // TODO: return early here if !availableSlotsToFill
-    // Sort all allocs by jobVersion in descending order
-    const sortedAllocs = this.allocations
-      .filter(
-        (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending'
-      )
-      .sort((a, b) => {
-        // First sort by jobVersion
-        if (a.jobVersion > b.jobVersion) return 1;
-        if (a.jobVersion < b.jobVersion) return -1;
-
-        // If jobVersion is the same, sort by status order
-        // For example, we may have some allocBlock slots to fill, and need to determine
-        // if the user expects to see, from non-running/non-pending allocs, some old "failed" ones
-        // or "lost" or "complete" ones, etc. jobAllocStatuses give us this order.
-        if (a.jobVersion === b.jobVersion) {
-          return (
-            jobAllocStatuses[this.type].indexOf(b.clientStatus) -
-            jobAllocStatuses[this.type].indexOf(a.clientStatus)
-          );
-        } else {
-          return 0;
+    if (isDeploying) {
+      // Start with just the new-version allocs
+      let allocationsOfDeploymentVersion = this.allocations.filter(
+        (a) => !a.isOld
+      );
+      // For each of them, check to see if we still have slots to fill, based on our desired Count
+      for (let alloc of allocationsOfDeploymentVersion) {
+        if (availableSlotsToFill <= 0) {
+          break;
         }
-      })
-      .reverse();
+        let status = alloc.clientStatus;
+        let canary = alloc.isCanary ? 'canary' : 'nonCanary';
+        // TODO: do I need to dig into alloc.DeploymentStatus for these?
 
-    // Iterate over the sorted allocs
-    for (const alloc of sortedAllocs) {
-      if (availableSlotsToFill === 0) {
-        break;
+        // Health status only matters in the context of a "running" allocation.
+        // However, healthy/unhealthy is never purged when an allocation moves to a different clientStatus
+        // Thus, we should only show something as "healthy" in the event that it is running.
+        // Otherwise, we'd have arbitrary groupings based on previous health status.
+        let health;
+
+        if (status === 'running') {
+          if (alloc.isHealthy) {
+            health = 'healthy';
+          } else if (alloc.isUnhealthy) {
+            health = 'unhealthy';
+          } else {
+            health = 'health_unknown';
+          }
+        } else {
+          health = 'health_unknown';
+        }
+
+        if (allocationsOfShowableType[status]) {
+          // If status is failed or lost, we only want to show it IF it's used up its restarts/rescheds.
+          // Otherwise, we'd be showing an alloc that had been replaced.
+
+          // TODO: We can't know about .willNotRestart and .willNotReschedule here, as we don't have access to alloc.followUpEvaluation.
+          // in deploying.js' newVersionAllocBlocks, we can know to ignore a canary if it has been rescheduled by virtue of seeing its .hasBeenRescheduled,
+          // which checks allocation.followUpEvaluation. This is not currently possible here.
+          // As such, we should count our running/pending canaries first, and if our expected count is still not filled, we can look to failed canaries.
+          // The goal of this is that any failed allocation that gets rescheduled would first have its place in relevantAllocs eaten up by a running/pending allocation,
+          // leaving it on the outside of what the user sees.
+
+          // ^--- actually, scratch this. We should just get alloc.FollowupEvalID. If it's not null, we can assume it's been rescheduled.
+
+          if (alloc.willNotRestart) {
+            if (!alloc.willNotReschedule) {
+              // Dont count it
+              continue;
+            }
+          }
+          allocationsOfShowableType[status][health][canary].push(alloc);
+          availableSlotsToFill--;
+        }
       }
+    } else {
+      // First accumulate the Running/Pending allocations
+      for (const alloc of this.allocations.filter(
+        (a) => a.clientStatus === 'running' || a.clientStatus === 'pending'
+      )) {
+        if (availableSlotsToFill === 0) {
+          break;
+        }
 
-      const status = alloc.clientStatus;
-      // If the alloc has another clientStatus, add it to the corresponding list
-      // as long as we haven't reached the expectedRunningAllocCount limit for that clientStatus
-      if (
-        this.allocTypes.map(({ label }) => label).includes(status) &&
-        allocationsOfShowableType[status].healthy.nonCanary.length <
-          this.expectedRunningAllocCount
-      ) {
+        const status = alloc.clientStatus;
+        // console.log('else and pushing with', status, 'and', alloc);
+        // We are not actively deploying in this condition,
+        // so we can assume Healthy and Non-Canary
         allocationsOfShowableType[status].healthy.nonCanary.push(alloc);
         availableSlotsToFill--;
       }
+      // TODO: return early here if !availableSlotsToFill
+
+      // So, we've tried filling our desired Count with running/pending allocs.
+      // If we still have some slots remaining, we should sort our other allocations
+      // by version number, descending, and then by status order (arbitrary, via allocation-client-statuses.js).
+      let sortedAllocs;
+
+      // Sort all allocs by jobVersion in descending order
+      sortedAllocs = this.allocations
+        .filter(
+          (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending'
+        )
+        .sort((a, b) => {
+          // First sort by jobVersion
+          if (a.jobVersion > b.jobVersion) return 1;
+          if (a.jobVersion < b.jobVersion) return -1;
+
+          // If jobVersion is the same, sort by status order
+          // For example, we may have some allocBlock slots to fill, and need to determine
+          // if the user expects to see, from non-running/non-pending allocs, some old "failed" ones
+          // or "lost" or "complete" ones, etc. jobAllocStatuses give us this order.
+          if (a.jobVersion === b.jobVersion) {
+            return (
+              jobAllocStatuses[this.type].indexOf(b.clientStatus) -
+              jobAllocStatuses[this.type].indexOf(a.clientStatus)
+            );
+          } else {
+            return 0;
+          }
+        })
+        .reverse();
+
+      // Iterate over the sorted allocs
+      for (const alloc of sortedAllocs) {
+        if (availableSlotsToFill === 0) {
+          break;
+        }
+
+        const status = alloc.clientStatus;
+        // If the alloc has another clientStatus, add it to the corresponding list
+        // as long as we haven't reached the expectedRunningAllocCount limit for that clientStatus
+        if (
+          this.allocTypes.map(({ label }) => label).includes(status) &&
+          allocationsOfShowableType[status].healthy.nonCanary.length <
+            this.expectedRunningAllocCount
+        ) {
+          allocationsOfShowableType[status].healthy.nonCanary.push(alloc);
+          availableSlotsToFill--;
+        }
+      }
     }
 
-    // Handle unplaced allocs
+    // // Handle unplaced allocs
+    // if (availableSlotsToFill > 0) {
+    //   // TODO: JSDoc types for unhealty and health unknown aren't optional, but should be.
+    //   allocationsOfShowableType['unplaced'] = {
+    //     healthy: {
+    //       nonCanary: Array(availableSlotsToFill)
+    //         .fill()
+    //         .map(() => {
+    //           return { clientStatus: 'unplaced' };
+    //         }),
+    //     },
+    //   };
+    // }
+
+    // Fill unplaced slots if availableSlotsToFill > 0
     if (availableSlotsToFill > 0) {
-      // TODO: JSDoc types for unhealty and health unknown aren't optional, but should be.
       allocationsOfShowableType['unplaced'] = {
-        healthy: {
-          nonCanary: Array(availableSlotsToFill)
-            .fill()
-            .map(() => {
-              return { clientStatus: 'unplaced' };
-            }),
-        },
+        healthy: { canary: [], nonCanary: [] },
+        unhealthy: { canary: [], nonCanary: [] },
+        health_unknown: { canary: [], nonCanary: [] },
       };
+      allocationsOfShowableType['unplaced']['healthy']['nonCanary'] = Array(
+        availableSlotsToFill
+      )
+        .fill()
+        .map(() => {
+          return { clientStatus: 'unplaced' };
+        });
     }
 
     // console.log('allocBlocks for', this.name, 'is', allocationsOfShowableType);
@@ -232,7 +338,7 @@ export default class Job extends Model {
     let totalAllocs = this.expectedRunningAllocCount;
 
     // If deploying:
-    if (this.latestDeploymentSummary?.IsActive) {
+    if (this.latestDeploymentSummary.isActive) {
       return { label: 'Deploying', state: 'highlight' };
     }
 

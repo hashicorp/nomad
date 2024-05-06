@@ -42,3 +42,10 @@
     justify-self: end;
   }
 }
+
+// TODO: make this a little cleaner.
+.status-cell {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}

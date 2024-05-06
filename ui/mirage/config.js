@@ -222,10 +222,24 @@ export default function () {
           });
         })
         .map((j) => {
+          let jobDeployments = server.db.deployments.where({
+            jobId: j.ID,
+            namespace: j.Namespace,
+          });
           let job = {};
           job.ID = j.ID;
           job.Name = j.Name;
           job.ModifyIndex = j.ModifyIndex;
+          job.LatestDeployment = {
+            ID: jobDeployments[0]?.id,
+            IsActive: jobDeployments[0]?.status === 'running',
+            // IsActive: true,
+            JobVersion: jobDeployments[0]?.versionNumber,
+            Status: jobDeployments[0]?.status,
+            StatusDescription: jobDeployments[0]?.statusDescription,
+            AllAutoPromote: false,
+            RequiresPromotion: true, // TODO: lever
+          };
           job.Allocs = server.db.allocations
             .where({ jobId: j.ID, namespace: j.Namespace })
             .map((alloc) => {
