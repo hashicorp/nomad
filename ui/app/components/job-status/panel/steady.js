@@ -11,13 +11,8 @@ import { jobAllocStatuses } from '../../../utils/allocation-client-statuses';
 export default class JobStatusPanelSteadyComponent extends Component {
   @alias('args.job') job;
 
-  // TODO: use the job model for this
   get allocTypes() {
-    return jobAllocStatuses[this.args.job.type].map((type) => {
-      return {
-        label: type,
-      };
-    });
+    return this.args.job.allocTypes;
   }
 
   /**

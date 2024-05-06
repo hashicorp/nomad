@@ -63,8 +63,6 @@ export default Factory.extend({
 
   childrenCount: () => faker.random.number({ min: 1, max: 2 }),
 
-  // TODO: Use the model's aggregateAllocStatus as a property here
-
   meta: null,
 
   periodic: trait({
