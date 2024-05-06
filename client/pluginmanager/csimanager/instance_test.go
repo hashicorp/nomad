@@ -18,7 +18,7 @@ import (
 )
 
 func setupTestNodeInstanceManager(t *testing.T) (*fake.Client, *instanceManager) {
-	tp := &fake.Client{}
+	tp := fake.NewClient()
 
 	logger := testlog.HCLogger(t)
 	pinfo := &dynamicplugins.PluginInfo{

@@ -19,11 +19,11 @@ func TestBuildBasicFingerprint_Node(t *testing.T) {
 
 		Capabilities          *csi.PluginCapabilitySet
 		CapabilitiesErr       error
-		CapabilitiesCallCount int64
+		CapabilitiesCallCount int
 
 		NodeInfo          *csi.NodeGetInfoResponse
 		NodeInfoErr       error
-		NodeInfoCallCount int64
+		NodeInfoCallCount int
 
 		ExpectedCSIInfo *structs.CSIInfo
 		ExpectedErr     error
@@ -136,8 +136,9 @@ func TestBuildBasicFingerprint_Node(t *testing.T) {
 			require.Equal(t, test.ExpectedCSIInfo, info)
 			require.Equal(t, test.ExpectedErr, err)
 
-			require.Equal(t, test.CapabilitiesCallCount, client.PluginGetCapabilitiesCallCount)
-			require.Equal(t, test.NodeInfoCallCount, client.NodeGetInfoCallCount)
+			counts := client.Counts()
+			require.Equal(t, test.CapabilitiesCallCount, counts["PluginGetCapabilities"])
+			require.Equal(t, test.NodeInfoCallCount, counts["NodeGetInfo"])
 		})
 	}
 }
@@ -148,11 +149,11 @@ func TestBuildControllerFingerprint(t *testing.T) {
 
 		Capabilities          *csi.ControllerCapabilitySet
 		CapabilitiesErr       error
-		CapabilitiesCallCount int64
+		CapabilitiesCallCount int
 
 		ProbeResponse  bool
 		ProbeErr       error
-		ProbeCallCount int64
+		ProbeCallCount int
 
 		ExpectedControllerInfo *structs.CSIControllerInfo
 		ExpectedErr            error
@@ -212,8 +213,9 @@ func TestBuildControllerFingerprint(t *testing.T) {
 			require.Equal(t, test.ExpectedControllerInfo, info.ControllerInfo)
 			require.Equal(t, test.ExpectedErr, err)
 
-			require.Equal(t, test.CapabilitiesCallCount, client.ControllerGetCapabilitiesCallCount)
-			require.Equal(t, test.ProbeCallCount, client.PluginProbeCallCount)
+			counts := client.Counts()
+			require.Equal(t, test.CapabilitiesCallCount, counts["ControllerGetCapabilities"])
+			require.Equal(t, test.ProbeCallCount, counts["PluginProbe"])
 		})
 	}
 }
@@ -224,7 +226,7 @@ func TestBuildNodeFingerprint(t *testing.T) {
 
 		Capabilities          *csi.NodeCapabilitySet
 		CapabilitiesErr       error
-		CapabilitiesCallCount int64
+		CapabilitiesCallCount int
 
 		ExpectedCSINodeInfo *structs.CSINodeInfo
 		ExpectedErr         error
@@ -274,7 +276,7 @@ func TestBuildNodeFingerprint(t *testing.T) {
 			require.Equal(t, test.ExpectedCSINodeInfo, info.NodeInfo)
 			require.Equal(t, test.ExpectedErr, err)
 
-			require.Equal(t, test.CapabilitiesCallCount, client.NodeGetCapabilitiesCallCount)
+			require.Equal(t, test.CapabilitiesCallCount, client.Counts()["NodeGetCapabilities"])
 		})
 	}
 }

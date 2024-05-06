@@ -90,7 +90,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 			// Step 2: Test Setup
 			tmpPath := t.TempDir()
 
-			csiFake := &csifake.Client{}
+			csiFake := csifake.NewClient()
 			eventer := func(e *structs.NodeEvent) {}
 			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake,
 				tmpPath, tmpPath, true, "i-example")
@@ -190,7 +190,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			tmpPath := t.TempDir()
 
-			csiFake := &csifake.Client{}
+			csiFake := csifake.NewClient()
 			csiFake.NextNodeStageVolumeErr = tc.PluginErr
 
 			eventer := func(e *structs.NodeEvent) {}
@@ -221,7 +221,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 		UsageOptions         *UsageOptions
 		PluginErr            error
 		ExpectedErr          error
-		ExpectedCSICallCount int64
+		ExpectedCSICallCount int
 	}{
 		{
 			Name: "Returns an error when the plugin returns an error",
@@ -249,7 +249,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			tmpPath := t.TempDir()
 
-			csiFake := &csifake.Client{}
+			csiFake := csifake.NewClient()
 			csiFake.NextNodeUnstageVolumeErr = tc.PluginErr
 
 			eventer := func(e *structs.NodeEvent) {}
@@ -266,7 +266,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodeUnstageVolumeCallCount)
+			require.Equal(t, tc.ExpectedCSICallCount, csiFake.Counts()["NodeUnstageVolume"])
 		})
 	}
 }
@@ -285,7 +285,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 		UsageOptions             *UsageOptions
 		PluginErr                error
 		ExpectedErr              error
-		ExpectedCSICallCount     int64
+		ExpectedCSICallCount     int
 		ExpectedVolumeCapability *csi.VolumeCapability
 	}{
 		{
@@ -373,7 +373,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			tmpPath := t.TempDir()
 
-			csiFake := &csifake.Client{}
+			csiFake := csifake.NewClient()
 			csiFake.NextNodePublishVolumeErr = tc.PluginErr
 
 			eventer := func(e *structs.NodeEvent) {}
@@ -389,7 +389,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodePublishVolumeCallCount)
+			require.Equal(t, tc.ExpectedCSICallCount, csiFake.Counts()["NodePublishVolume"])
 
 			if tc.ExpectedVolumeCapability != nil {
 				require.Equal(t, tc.ExpectedVolumeCapability, csiFake.PrevVolumeCapability)
@@ -411,7 +411,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 		UsageOptions         *UsageOptions
 		PluginErr            error
 		ExpectedErr          error
-		ExpectedCSICallCount int64
+		ExpectedCSICallCount int
 	}{
 		{
 			Name:       "Returns an error when the plugin returns an error",
@@ -441,7 +441,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			tmpPath := t.TempDir()
 
-			csiFake := &csifake.Client{}
+			csiFake := csifake.NewClient()
 			csiFake.NextNodeUnpublishVolumeErr = tc.PluginErr
 
 			eventer := func(e *structs.NodeEvent) {}
@@ -458,7 +458,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodeUnpublishVolumeCallCount)
+			require.Equal(t, tc.ExpectedCSICallCount, csiFake.Counts()["NodeUnpublishVolume"])
 		})
 	}
 }
@@ -471,7 +471,7 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 
 	tmpPath := t.TempDir()
 
-	csiFake := &csifake.Client{}
+	csiFake := csifake.NewClient()
 
 	var events []*structs.NodeEvent
 	eventer := func(e *structs.NodeEvent) {
