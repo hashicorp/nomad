@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -18,104 +19,102 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
-var _ csi.CSIPlugin = &Client{}
+var _ csi.CSIPlugin = NewClient()
 
 // Client is a mock implementation of the csi.CSIPlugin interface for use in testing
 // external components
 type Client struct {
-	Mu sync.RWMutex
+	lock   sync.RWMutex
+	counts map[string]int
 
 	NextPluginInfoResponse *base.PluginInfoResponse
 	NextPluginInfoErr      error
-	PluginInfoCallCount    int64
 
 	NextPluginProbeResponse bool
 	NextPluginProbeErr      error
-	PluginProbeCallCount    int64
 
 	NextPluginGetInfoNameResponse    string
 	NextPluginGetInfoVersionResponse string
 	NextPluginGetInfoErr             error
-	PluginGetInfoCallCount           int64
 
 	NextPluginGetCapabilitiesResponse *csi.PluginCapabilitySet
 	NextPluginGetCapabilitiesErr      error
-	PluginGetCapabilitiesCallCount    int64
 
 	NextControllerGetCapabilitiesResponse *csi.ControllerCapabilitySet
 	NextControllerGetCapabilitiesErr      error
-	ControllerGetCapabilitiesCallCount    int64
 
 	NextControllerPublishVolumeResponse *csi.ControllerPublishVolumeResponse
 	NextControllerPublishVolumeErr      error
-	ControllerPublishVolumeCallCount    int64
 
 	NextControllerUnpublishVolumeResponse *csi.ControllerUnpublishVolumeResponse
 	NextControllerUnpublishVolumeErr      error
-	ControllerUnpublishVolumeCallCount    int64
 
 	NextControllerCreateVolumeResponse *csi.ControllerCreateVolumeResponse
 	NextControllerCreateVolumeErr      error
-	ControllerCreateVolumeCallCount    int64
 
-	NextControllerDeleteVolumeErr   error
-	ControllerDeleteVolumeCallCount int64
+	NextControllerDeleteVolumeErr error
 
 	NextControllerListVolumesResponse *csi.ControllerListVolumesResponse
 	NextControllerListVolumesErr      error
-	ControllerListVolumesCallCount    int64
 
-	NextControllerValidateVolumeErr   error
-	ControllerValidateVolumeCallCount int64
+	NextControllerValidateVolumeErr error
 
 	NextControllerCreateSnapshotResponse *csi.ControllerCreateSnapshotResponse
 	NextControllerCreateSnapshotErr      error
-	ControllerCreateSnapshotCallCount    int64
 
-	NextControllerDeleteSnapshotErr   error
-	ControllerDeleteSnapshotCallCount int64
+	NextControllerDeleteSnapshotErr error
 
 	NextControllerListSnapshotsResponse *csi.ControllerListSnapshotsResponse
 	NextControllerListSnapshotsErr      error
-	ControllerListSnapshotsCallCount    int64
 
 	NextControllerExpandVolumeResponse *csi.ControllerExpandVolumeResponse
 	NextControllerExpandVolumeErr      error
-	ControllerExpandVolumeCallCount    int64
 
 	NextNodeGetCapabilitiesResponse *csi.NodeCapabilitySet
 	NextNodeGetCapabilitiesErr      error
-	NodeGetCapabilitiesCallCount    int64
 
 	NextNodeGetInfoResponse *csi.NodeGetInfoResponse
 	NextNodeGetInfoErr      error
-	NodeGetInfoCallCount    int64
 
-	NextNodeStageVolumeErr   error
-	NodeStageVolumeCallCount int64
+	NextNodeStageVolumeErr error
 
-	NextNodeUnstageVolumeErr   error
-	NodeUnstageVolumeCallCount int64
+	NextNodeUnstageVolumeErr error
 
-	PrevVolumeCapability       *csi.VolumeCapability
-	NextNodePublishVolumeErr   error
-	NodePublishVolumeCallCount int64
+	PrevVolumeCapability     *csi.VolumeCapability
+	NextNodePublishVolumeErr error
 
-	NextNodeUnpublishVolumeErr   error
-	NodeUnpublishVolumeCallCount int64
+	NextNodeUnpublishVolumeErr error
 
 	NextNodeExpandVolumeResponse *csi.NodeExpandVolumeResponse
 	NextNodeExpandVolumeErr      error
-	NodeExpandVolumeCallCount    int64
+}
+
+func NewClient() *Client {
+	return &Client{
+		counts: map[string]int{},
+	}
+}
+
+// Counts returns a copy of the count tracking map
+func (c *Client) Counts() map[string]int {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return maps.Clone(c.counts)
+}
+
+// Reset clears the RPC count tracking
+func (c *Client) Reset() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts = map[string]int{}
 }
 
 // PluginInfo describes the type and version of a plugin.
 func (c *Client) PluginInfo() (*base.PluginInfoResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	c.PluginInfoCallCount++
-
+	c.counts["PluginInfo"]++
 	return c.NextPluginInfoResponse, c.NextPluginInfoErr
 }
 
@@ -132,11 +131,10 @@ func (c *Client) SetConfig(a *base.Config) error {
 
 // PluginProbe is used to verify that the plugin is in a healthy state
 func (c *Client) PluginProbe(ctx context.Context) (bool, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	c.PluginProbeCallCount++
-
+	c.counts["PluginProbe"]++
 	return c.NextPluginProbeResponse, c.NextPluginProbeErr
 }
 
@@ -144,11 +142,10 @@ func (c *Client) PluginProbe(ctx context.Context) (bool, error) {
 // Response:
 //   - string: name, the name of the plugin in domain notation format.
 func (c *Client) PluginGetInfo(ctx context.Context) (string, string, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	c.PluginGetInfoCallCount++
-
+	c.counts["PluginGetInfo"]++
 	return c.NextPluginGetInfoNameResponse, c.NextPluginGetInfoVersionResponse, c.NextPluginGetInfoErr
 }
 
@@ -156,118 +153,109 @@ func (c *Client) PluginGetInfo(ctx context.Context) (string, string, error) {
 // identity service. This currently only looks for the CONTROLLER_SERVICE and
 // Accessible Topology Support
 func (c *Client) PluginGetCapabilities(ctx context.Context) (*csi.PluginCapabilitySet, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	c.PluginGetCapabilitiesCallCount++
-
+	c.counts["PluginGetCapabilities"]++
 	return c.NextPluginGetCapabilitiesResponse, c.NextPluginGetCapabilitiesErr
 }
 
 func (c *Client) ControllerGetCapabilities(ctx context.Context) (*csi.ControllerCapabilitySet, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	c.ControllerGetCapabilitiesCallCount++
-
+	c.counts["ControllerGetCapabilities"]++
 	return c.NextControllerGetCapabilitiesResponse, c.NextControllerGetCapabilitiesErr
 }
 
 // ControllerPublishVolume is used to attach a remote volume to a node
 func (c *Client) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest, opts ...grpc.CallOption) (*csi.ControllerPublishVolumeResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	c.ControllerPublishVolumeCallCount++
-
+	c.counts["ControllerPublishVolume"]++
 	return c.NextControllerPublishVolumeResponse, c.NextControllerPublishVolumeErr
 }
 
 // ControllerUnpublishVolume is used to attach a remote volume to a node
 func (c *Client) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest, opts ...grpc.CallOption) (*csi.ControllerUnpublishVolumeResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	c.ControllerUnpublishVolumeCallCount++
-
+	c.counts["ControllerUnpublishVolume"]++
 	return c.NextControllerUnpublishVolumeResponse, c.NextControllerUnpublishVolumeErr
 }
 
 func (c *Client) ControllerValidateCapabilities(ctx context.Context, req *csi.ControllerValidateVolumeRequest, opts ...grpc.CallOption) error {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	c.ControllerValidateVolumeCallCount++
-
+	c.counts["ControllerValidateVolume"]++
 	return c.NextControllerValidateVolumeErr
 }
 
 func (c *Client) ControllerCreateVolume(ctx context.Context, in *csi.ControllerCreateVolumeRequest, opts ...grpc.CallOption) (*csi.ControllerCreateVolumeResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-	c.ControllerCreateVolumeCallCount++
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["ControllerCreateVolume"]++
 	return c.NextControllerCreateVolumeResponse, c.NextControllerCreateVolumeErr
 }
 
 func (c *Client) ControllerDeleteVolume(ctx context.Context, req *csi.ControllerDeleteVolumeRequest, opts ...grpc.CallOption) error {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-	c.ControllerDeleteVolumeCallCount++
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["ControllerDeleteVolume"]++
 	return c.NextControllerDeleteVolumeErr
 }
 
 func (c *Client) ControllerListVolumes(ctx context.Context, req *csi.ControllerListVolumesRequest, opts ...grpc.CallOption) (*csi.ControllerListVolumesResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-	c.ControllerListVolumesCallCount++
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["ControllerListVolumes"]++
 	return c.NextControllerListVolumesResponse, c.NextControllerListVolumesErr
 }
 
 func (c *Client) ControllerCreateSnapshot(ctx context.Context, req *csi.ControllerCreateSnapshotRequest, opts ...grpc.CallOption) (*csi.ControllerCreateSnapshotResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-	c.ControllerCreateSnapshotCallCount++
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["ControllerCreateSnapshot"]++
 	return c.NextControllerCreateSnapshotResponse, c.NextControllerCreateSnapshotErr
 }
 
 func (c *Client) ControllerDeleteSnapshot(ctx context.Context, req *csi.ControllerDeleteSnapshotRequest, opts ...grpc.CallOption) error {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-	c.ControllerDeleteSnapshotCallCount++
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["ControllerDeleteSnapshot"]++
 	return c.NextControllerDeleteSnapshotErr
 }
 
 func (c *Client) ControllerListSnapshots(ctx context.Context, req *csi.ControllerListSnapshotsRequest, opts ...grpc.CallOption) (*csi.ControllerListSnapshotsResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-	c.ControllerListSnapshotsCallCount++
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["ControllerListSnapshots"]++
 	return c.NextControllerListSnapshotsResponse, c.NextControllerListSnapshotsErr
 }
 
 func (c *Client) ControllerExpandVolume(ctx context.Context, in *csi.ControllerExpandVolumeRequest, opts ...grpc.CallOption) (*csi.ControllerExpandVolumeResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-	c.ControllerExpandVolumeCallCount++
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["ControllerExpandVolume"]++
 	return c.NextControllerExpandVolumeResponse, c.NextControllerExpandVolumeErr
 }
 
 func (c *Client) NodeGetCapabilities(ctx context.Context) (*csi.NodeCapabilitySet, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-
-	c.NodeGetCapabilitiesCallCount++
-
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["NodeGetCapabilities"]++
 	return c.NextNodeGetCapabilitiesResponse, c.NextNodeGetCapabilitiesErr
 }
 
 // NodeGetInfo is used to return semantic data about the current node in
 // respect to the SP.
 func (c *Client) NodeGetInfo(ctx context.Context) (*csi.NodeGetInfoResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-
-	c.NodeGetInfoCallCount++
-
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["NodeGetInfo"]++
 	return c.NextNodeGetInfoResponse, c.NextNodeGetInfoErr
 }
 
@@ -275,11 +263,9 @@ func (c *Client) NodeGetInfo(ctx context.Context) (*csi.NodeGetInfoResponse, err
 // to prepare a volume for usage on a host. If err == nil, the response should
 // be assumed to be successful.
 func (c *Client) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, opts ...grpc.CallOption) error {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-
-	c.NodeStageVolumeCallCount++
-
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["NodeStageVolume"]++
 	return c.NextNodeStageVolumeErr
 }
 
@@ -289,38 +275,31 @@ func (c *Client) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 //
 // If err == nil, the response should be assumed to be successful.
 func (c *Client) NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string, opts ...grpc.CallOption) error {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-
-	c.NodeUnstageVolumeCallCount++
-
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["NodeUnstageVolume"]++
 	return c.NextNodeUnstageVolumeErr
 }
 
 func (c *Client) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, opts ...grpc.CallOption) error {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.PrevVolumeCapability = req.VolumeCapability
-	c.NodePublishVolumeCallCount++
-
+	c.counts["NodePublishVolume"]++
 	return c.NextNodePublishVolumeErr
 }
 
 func (c *Client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath string, opts ...grpc.CallOption) error {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-
-	c.NodeUnpublishVolumeCallCount++
-
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["NodeUnpublishVolume"]++
 	return c.NextNodeUnpublishVolumeErr
 }
 
 func (c *Client) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest, opts ...grpc.CallOption) (*csi.NodeExpandVolumeResponse, error) {
-	c.Mu.Lock()
-	defer c.Mu.Unlock()
-
-	c.NodeExpandVolumeCallCount++
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts["NodeExpandVolume"]++
 	return c.NextNodeExpandVolumeResponse, c.NextNodeExpandVolumeErr
 }
 
