@@ -87,6 +87,7 @@ Router.map(function () {
 
   this.route('settings', function () {
     this.route('tokens');
+    this.route('user-settings');
   });
 
   // if we don't include function() the outlet won't render

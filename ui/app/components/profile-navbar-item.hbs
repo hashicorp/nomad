@@ -15,9 +15,19 @@
     <dd.Interactive {{on "click" this.signOut}} @text="Sign Out" @color="critical" data-test-profile-dropdown-sign-out-link />
   </Hds::Dropdown>
 {{else}}
-  <LinkTo data-test-header-signin-link @route="settings.tokens" class="navbar-item" {{keyboard-shortcut menuLevel=true pattern=(array "g" "p") }}>
-    Sign In
-  </LinkTo>
+  <span class="profile-link"
+    {{keyboard-shortcut menuLevel=true pattern=(array "g" "p") }}
+  >
+    <Hds::Button
+      data-test-header-signin-link
+      @route="settings.tokens"
+      @text="Profile and Sign In"
+      @icon="user-circle"
+      @isIconOnly={{true}}
+      @color="secondary"
+      @size="medium"
+    />
+  </span>
 {{/if}}
 
 {{yield}}
