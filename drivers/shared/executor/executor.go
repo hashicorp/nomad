@@ -151,6 +151,35 @@ type ExecCommand struct {
 
 	// Capabilities are the linux capabilities to be enabled by the task driver.
 	Capabilities []string
+
+	// OverrideCgroupV2 allows overriding the unified cgroup the task will be
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV2 string
+
+	// OverrideCgroupV1 allows overriding per-controller cgroups the task will
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV1 map[string]string
+}
+
+func (c *ExecCommand) getCgroupOr(controller, fallback string) string {
+	switch cgroupslib.GetMode() {
+	case cgroupslib.OFF:
+		return ""
+	case cgroupslib.CG2:
+		if c.OverrideCgroupV2 != "" {
+			return c.OverrideCgroupV2
+		}
+	case cgroupslib.CG1:
+		path, exists := c.OverrideCgroupV1[controller]
+		if exists {
+			return cgroupslib.CustomPathCG1(controller, path)
+		}
+	}
+	return fallback
 }
 
 // CpusetCgroup returns the path to the cgroup in which the Nomad client will
@@ -166,7 +195,10 @@ func (c *ExecCommand) CpusetCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
-	return c.Resources.LinuxResources.CpusetCgroupPath
+
+	// lookup the custom cgroup (cpuset controller on cgroups v1) or use the
+	// predetermined fallback
+	return c.getCgroupOr("cpuset", c.Resources.LinuxResources.CpusetCgroupPath)
 }
 
 // StatsCgroup returns the path to the cgroup Nomad client will use to inspect
@@ -181,14 +213,19 @@ func (c *ExecCommand) StatsCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
-	switch cgroupslib.GetMode() {
-	case cgroupslib.CG1:
+
+	// figure out the freezer cgroup path nomad created for use as fallback
+	// (in cgroups v2 its just the unified cgroup)
+	fallback := c.Resources.LinuxResources.CpusetCgroupPath
+	if cgroupslib.GetMode() == cgroupslib.CG1 {
 		taskName := filepath.Base(c.TaskDir)
 		allocID := filepath.Base(filepath.Dir(c.TaskDir))
-		return cgroupslib.PathCG1(allocID, taskName, "freezer")
-	default:
-		return c.CpusetCgroup()
+		fallback = cgroupslib.PathCG1(allocID, taskName, "freezer")
 	}
+
+	// lookup the custom cgroup (pids controller on cgroups v1) or use
+	// the predetermined fallback
+	return c.getCgroupOr("pids", fallback)
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
@@ -331,8 +368,12 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 
 	// setup containment (i.e. cgroups on linux)
 	if cleanup, err := e.configureResourceContainer(command, os.Getpid()); err != nil {
-		// keep going; some folks run nomad as non-root and expect this driver to still work
-		e.logger.Warn("failed to configure container, process isolation will not work", "error", err)
+		e.logger.Error("failed to configure container, process isolation will not work", "error", err)
+		if os.Geteuid() == 0 || e.usesCustomCgroup() {
+			return nil, fmt.Errorf("unable to configure cgroups: %w", err)
+		}
+		// keep going if we are not root; some folks run nomad as non-root and
+		// expect this driver to still work
 	} else {
 		defer cleanup()
 	}
@@ -665,6 +706,11 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 		case ch <- procstats.Aggregate(e.systemCpuStats, stats):
 		}
 	}
+}
+
+// usesCustomCgroup whether cgroup_v1_override or cgroup_v2_override is set
+func (e *UniversalExecutor) usesCustomCgroup() bool {
+	return len(e.command.OverrideCgroupV1) > 0 || e.command.OverrideCgroupV2 != ""
 }
 
 // lookupBin looks for path to the binary to run by looking for the binary in
