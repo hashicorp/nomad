@@ -10,6 +10,7 @@ import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
+import { get } from '@ember/object';
 
 @classic
 export default class JobAdapter extends WatchableNamespaceIDs {
@@ -201,5 +202,66 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       (region ? `&region=${region}` : '');
 
     return wsUrl;
+  }
+
+  // TODO: Handle the in-job-page query for pack meta per https://github.com/hashicorp/nomad/pull/14833
+  query(store, type, query, snapshotRecordArray, options) {
+    options = options || {};
+    options.adapterOptions = options.adapterOptions || {};
+
+    const method = get(options, 'adapterOptions.method') || 'GET';
+    const url = this.urlForQuery(query, type.modelName, method);
+
+    let index = query.index || 1;
+
+    if (index && index > 1) {
+      query.index = index;
+    }
+
+    const signal = get(options, 'adapterOptions.abortController.signal');
+
+    return this.ajax(url, method, {
+      signal,
+      data: query,
+    }).then((payload) => {
+      // If there was a request body, append it to the payload
+      // We can use this in our serializer to maintain returned job order,
+      // even if one of the requested jobs is not found (has been GC'd) so as
+      // not to jostle the user's view.
+      if (query.jobs) {
+        payload._requestBody = query;
+      }
+      return payload;
+    });
+  }
+
+  handleResponse(status, headers) {
+    /**
+     * @type {Object}
+     */
+    const result = super.handleResponse(...arguments);
+    if (result) {
+      result.meta = result.meta || {};
+      if (headers['x-nomad-nexttoken']) {
+        result.meta.nextToken = headers['x-nomad-nexttoken'];
+      }
+      if (headers['x-nomad-index']) {
+        result.meta.index = headers['x-nomad-index'];
+      }
+    }
+    return result;
+  }
+
+  urlForQuery(query, modelName, method) {
+    let baseUrl = `/${this.namespace}/jobs/statuses`;
+    if (method === 'POST' && query.index) {
+      baseUrl += baseUrl.includes('?') ? '&' : '?';
+      baseUrl += `index=${query.index}`;
+    }
+    if (method === 'POST' && query.jobs) {
+      baseUrl += baseUrl.includes('?') ? '&' : '?';
+      baseUrl += 'namespace=*';
+    }
+    return baseUrl;
   }
 }

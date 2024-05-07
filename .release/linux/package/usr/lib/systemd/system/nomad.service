@@ -26,6 +26,7 @@ After=network-online.target
 # StartLimitInterval = 10s
 
 [Service]
+Type=notify
 EnvironmentFile=-/etc/nomad.d/nomad.env
 ExecReload=/bin/kill -HUP $MAINPID
 ExecStart=/usr/bin/nomad agent -config /etc/nomad.d

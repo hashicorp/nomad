@@ -255,10 +255,13 @@ module('Acceptance | keyboard', function (hooks) {
       await visit('/');
 
       await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+
+      let keyboardService = this.owner.lookup('service:keyboard');
+      let hints = keyboardService.keyCommands.filter((c) => c.element);
       assert.equal(
         document.querySelectorAll('[data-test-keyboard-hint]').length,
-        7,
-        'Shows 7 hints by default'
+        hints.length,
+        'Shows correct number of hints by default'
       );
       await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
 
@@ -333,7 +336,7 @@ module('Acceptance | keyboard', function (hooks) {
       let token = server.create('token', { type: 'management' });
       window.localStorage.nomadTokenSecret = token.secretId;
       server.createList('job', 3, { createAllocations: true, type: 'system' });
-      const jobID = server.db.jobs.sortBy('modifyIndex').reverse()[0].id;
+      const jobID = server.db.jobs[0].id;
       await visit(`/jobs/${jobID}@default`);
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {

@@ -254,6 +254,15 @@ func jobTableSchema() *memdb.TableSchema {
 					Field: "NodePool",
 				},
 			},
+			// ModifyIndex allows sorting by last-changed
+			"modify_index": {
+				Name:         "modify_index",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UintFieldIndex{
+					Field: "ModifyIndex",
+				},
+			},
 		},
 	}
 }

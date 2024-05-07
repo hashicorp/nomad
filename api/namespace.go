@@ -156,3 +156,12 @@ func (n NamespaceIndexSort) Less(i, j int) bool {
 func (n NamespaceIndexSort) Swap(i, j int) {
 	n[i], n[j] = n[j], n[i]
 }
+
+// NamespacedID is used for things that are unique only per-namespace,
+// such as jobs.
+type NamespacedID struct {
+	// Namespace is the Name of the Namespace
+	Namespace string
+	// ID is the ID of the namespaced object (e.g. Job ID)
+	ID string
+}

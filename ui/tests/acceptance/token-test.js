@@ -194,12 +194,11 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
     await Tokens.secret(secretId).submit();
 
-    server.pretender.get('/v1/jobs', function () {
+    server.pretender.get('/v1/jobs/statuses', function () {
       return [200, {}, '[]'];
     });
 
     await Jobs.visit();
-
     // If jobs are lingering in the store, they would show up
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');
   });
@@ -272,7 +271,7 @@ module('Acceptance | tokens', function (hooks) {
         },
       ],
     };
-    server.pretender.get('/v1/jobs', function () {
+    server.pretender.get('/v1/jobs/statuses', function () {
       return [500, {}, JSON.stringify(expiredServerError)];
     });
 
@@ -298,7 +297,7 @@ module('Acceptance | tokens', function (hooks) {
         },
       ],
     };
-    server.pretender.get('/v1/jobs', function () {
+    server.pretender.get('/v1/jobs/statuses', function () {
       return [500, {}, JSON.stringify(notFoundServerError)];
     });
 
@@ -595,6 +594,19 @@ module('Acceptance | tokens', function (hooks) {
     );
   });
 
+  test('When ACLs are disabled, the user is redirected to the profile settings page', async function (assert) {
+    // Update the existing agent to have ACLs set to false
+    server.db.agents.update(server.db.agents[0].id, {
+      config: {
+        ACL: {
+          Enabled: false,
+        },
+      },
+    });
+    await visit('/settings/tokens');
+    assert.equal(currentURL(), '/settings/user-settings');
+  });
+
   test('Tokens are shown on the Access Control Policies index page', async function (assert) {
     allScenarios.policiesTestCluster(server);
     let firstPolicy = server.db.policies.sort((a, b) => {
@@ -843,8 +855,7 @@ module('Acceptance | tokens', function (hooks) {
 
       // Pop over to the jobs page and make sure the Run button is disabled
       await visit('/jobs');
-      assert.dom('[data-test-run-job]').hasTagName('button');
-      assert.dom('[data-test-run-job]').isDisabled();
+      assert.dom('[data-test-run-job]').hasAttribute('disabled');
 
       // Sign out, and sign back in as a high-level role token
       await Tokens.visit();

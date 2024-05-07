@@ -34,7 +34,6 @@
     </Hds::PageHeader>
 
     <div class="status-notifications">
-
       {{#if (eq this.signInStatus "failure")}}
         <Hds::Alert data-test-token-error @type="inline" @color="critical"
           @onDismiss={{action (mut this.signInStatus) null}}
@@ -95,7 +94,7 @@
     </div>
 
     {{#if this.canSignIn}}
-      <div class="column sign-in-methods">
+      <div class="sign-in-methods">
         {{#if this.nonTokenAuthMethods.length}}
           <h3 class="title is-4">Sign in with SSO</h3>
           <p>Sign in to Nomad using the configured authorization provider. After logging in, the policies and rules for the token will be listed.</p>
