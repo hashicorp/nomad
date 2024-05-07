@@ -185,7 +185,7 @@ func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
 	// Call to the leader to issue the reap
 	for _, req := range c.partitionJobReap(jobs, leaderACL, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.JobBatchDeregisterResponse
-		if err := c.srv.RPC("Job.BatchDeregister", req, &resp); err != nil {
+		if err := c.srv.RPC(structs.JobBatchDeregisterRPCMethod, req, &resp); err != nil {
 			c.logger.Error("batch job reap failed", "error", err)
 			return err
 		}

@@ -165,7 +165,6 @@ func jsonifyJobBatchDeregisterRequest(v *structs.JobBatchDeregisterRequest) inte
 		Evals []*structs.Evaluation
 		structs.WriteRequest
 	}
-	data.Evals = v.Evals
 	data.WriteRequest = v.WriteRequest
 
 	data.Jobs = make(map[string]*structs.JobDeregisterOptions, len(v.Jobs))

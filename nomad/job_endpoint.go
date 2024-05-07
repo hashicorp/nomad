@@ -922,10 +922,13 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	return nil
 }
 
-// BatchDeregister is used to remove a set of jobs from the cluster.
+// BatchDeregister is used to remove a set of jobs from the cluster. This
+// endpoint is used for garbage collection purposes only and is not exposed via
+// the HTTP API. It is the responsibility of the caller to ensure the jobs are
+// eligible for GC and that they have no running or pending allocs or evals.
 func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *structs.JobBatchDeregisterResponse) error {
 	authErr := j.srv.Authenticate(j.ctx, args)
-	if done, err := j.srv.forward("Job.BatchDeregister", args, args, reply); done {
+	if done, err := j.srv.forward(structs.JobBatchDeregisterRPCMethod, args, args, reply); done {
 		return err
 	}
 	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
@@ -939,68 +942,18 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		return err
 	}
 
+	// This RPC endpoint is only called from a Nomad server using the leader
+	// ACL when performing garbage collection, therefore we can get away with a
+	// simple management check to ensure the caller can trigger this
+	// functionality as the leader token is always a management token.
+	if !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate the arguments
 	if len(args.Jobs) == 0 {
 		return fmt.Errorf("given no jobs to deregister")
 	}
-	if len(args.Evals) != 0 {
-		return fmt.Errorf("evaluations should not be populated")
-	}
-
-	// Loop through checking for permissions
-	for jobNS := range args.Jobs {
-		// Check for submit-job permissions
-		if !aclObj.AllowNsOp(jobNS.Namespace, acl.NamespaceCapabilitySubmitJob) {
-			return structs.ErrPermissionDenied
-		}
-	}
-
-	// Grab a snapshot
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-
-	// Loop through to create evals
-	for jobNS, options := range args.Jobs {
-		if options == nil {
-			return fmt.Errorf("no deregister options provided for %v", jobNS)
-		}
-
-		job, err := snap.JobByID(nil, jobNS.Namespace, jobNS.ID)
-		if err != nil {
-			return err
-		}
-
-		// If the job is periodic or parameterized, we don't create an eval.
-		if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
-			continue
-		}
-
-		priority := j.srv.config.JobDefaultPriority
-		jtype := structs.JobTypeService
-		if job != nil {
-			priority = job.Priority
-			jtype = job.Type
-		}
-
-		// Create a new evaluation
-		now := time.Now().UnixNano()
-		eval := &structs.Evaluation{
-			ID:          uuid.Generate(),
-			Namespace:   jobNS.Namespace,
-			Priority:    priority,
-			Type:        jtype,
-			TriggeredBy: structs.EvalTriggerJobDeregister,
-			JobID:       jobNS.ID,
-			Status:      structs.EvalStatusPending,
-			CreateTime:  now,
-			ModifyTime:  now,
-		}
-		args.Evals = append(args.Evals, eval)
-	}
-
-	args.SubmitTime = time.Now().UnixNano()
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobBatchDeregisterRequestType, args)
