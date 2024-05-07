@@ -1,0 +1,3 @@
+```release-note:improvement
+core: Do not create evaluations within batch deregister endpoint during job garbage collection
+```
