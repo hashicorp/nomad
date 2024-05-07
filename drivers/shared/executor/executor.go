@@ -708,6 +708,11 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 	}
 }
 
+// usesCustomCgroup whether cgroup_v1_override or cgroup_v2_override is set
+func (e *UniversalExecutor) usesCustomCgroup() bool {
+	return len(e.command.OverrideCgroupV1) > 0 || e.command.OverrideCgroupV2 != ""
+}
+
 // lookupBin looks for path to the binary to run by looking for the binary in
 // the following locations, in-order:
 // task/local/, task/, on the host file system, in host $PATH
