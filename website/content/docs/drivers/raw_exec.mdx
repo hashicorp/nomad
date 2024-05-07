@@ -37,6 +37,16 @@ The `raw_exec` driver supports the following configuration in the job spec:
   variables](/nomad/docs/runtime/interpolation) will be interpreted before
   launching the task.
 
+- `cgroup_v1_override` - (Optional) A map of controller names to paths. The
+  task will be added to these cgroups. The task will fail if these cgroups do
+  not exist. **WARNING:** May conflict with other Nomad driver's cgroups and
+  have unintended side effects.
+
+- `cgroup_v2_override` - (Optional) Adds the task to a unified cgroup path.
+  Paths may be relative to the cgroupfs root or absolute.  **WARNING:** May
+  conflict with other Nomad driver's cgroups and have unintended side
+  effects.
+
 ~> The `task.user` field cannot be set on a Task using the `raw_exec` driver if
 the Nomad client has been hardened according to the [production][hardening] guide.
 
