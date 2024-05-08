@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// TODO: Several of these are placeholders. Fill them out with real policies or remove them.
+
 import countLimitsPolicy from './sentinel_policy_templates/count-limits';
 import noFridaysPolicy from './sentinel_policy_templates/no-friday-deploys';
 import alwaysFailPolicy from './sentinel_policy_templates/always-fail';

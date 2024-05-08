@@ -9,15 +9,13 @@ import { inject as service } from '@ember/service';
 
 export default class SentinelPoliciesIndexController extends Controller {
   @service router;
-  @service notifications;
-  @service can;
 
   @action openPolicy(policy) {
     this.router.transitionTo('sentinel-policies.policy', policy.name);
   }
 
   @action goToNewPolicy() {
-    this.router.transitionTo('sentinel-policies.policy.new');
+    this.router.transitionTo('sentinel-policies.new');
   }
 
   get columns() {

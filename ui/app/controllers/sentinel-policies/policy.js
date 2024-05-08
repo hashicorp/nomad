@@ -13,7 +13,6 @@ import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 export default class SentinelPoliciesPolicyController extends Controller {
   @service notifications;
   @service router;
-  @service store;
 
   @task(function* () {
     try {

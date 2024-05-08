@@ -6,7 +6,7 @@
 <section class="section">
   <header class="acl-explainer">
     <p>
-      {{!-- TODO: perhaps add description here --}}
+      Nomad integrates with <a href="https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel" target="_blank" rel="noopener noreferrer">HashiCorp Sentinel</a> to allow operators to express policies as code and have those policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with that policy.
     </p>
     <div>
       {{#if (can "write sentinel-policy")}}
