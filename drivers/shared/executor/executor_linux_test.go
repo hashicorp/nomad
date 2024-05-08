@@ -858,8 +858,12 @@ func TestExecCommand_getCgroupOr_v1_relative(t *testing.T) {
 	must.Eq(t, result2, "/sys/fs/cgroup/cpuset/custom/path")
 }
 
-func createCGroup(fullpath string) error {
-	return os.MkdirAll(fullpath, 0755)
+func createCGroup(fullpath string) (cgroupslib.Interface, error) {
+	if err := os.MkdirAll(fullpath, 0755); err != nil {
+		return nil, err
+	}
+
+	return cgroupslib.OpenPath(fullpath), nil
 }
 
 func TestExecutor_CleanOldProcessesInCGroup(t *testing.T) {
@@ -877,14 +881,13 @@ func TestExecutor_CleanOldProcessesInCGroup(t *testing.T) {
 
 	execCmd := testExecCmd.command
 	execCmd.Cmd = "/bin/sleep"
-	execCmd.Args = []string{"20"}
-
+	execCmd.Args = []string{"1"}
 	execCmd.ResourceLimits = true
 	execCmd.ModePID = "private"
 	execCmd.ModeIPC = "private"
 
 	// Create the CGroup the executor's command will run in and populate it with one process
-	err := createCGroup(fullCGroupPath)
+	cgInterface, err := createCGroup(fullCGroupPath)
 	must.NoError(t, err)
 
 	cmd := exec.Command("/bin/sleep", "3000")
@@ -901,7 +904,6 @@ func TestExecutor_CleanOldProcessesInCGroup(t *testing.T) {
 	pid := cmd.Process.Pid
 	must.Positive(t, pid)
 
-	cgInterface := cgroupslib.OpenPath(fullCGroupPath)
 	err = cgInterface.Write("cgroup.procs", strconv.Itoa(pid))
 	must.NoError(t, err)
 
