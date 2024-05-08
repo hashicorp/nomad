@@ -862,7 +862,7 @@ func createCGroup(fullpath string) error {
 	return os.MkdirAll(fullpath, 0755)
 }
 
-func TestExecutor2_OOMKilled(t *testing.T) {
+func TestExecutor_CleanOldProcessesInCGroup(t *testing.T) {
 	ci.Parallel(t)
 
 	testutil.ExecCompatible(t)
@@ -923,6 +923,7 @@ func TestExecutor2_OOMKilled(t *testing.T) {
 	must.NoError(t, err)
 	must.One(t, pids.Size())
 	must.True(t, pids.Contains(ps.Pid))
+	must.False(t, pids.Contains(pid))
 
 	estate, err := executor.Wait(context.Background())
 	must.NoError(t, err)
