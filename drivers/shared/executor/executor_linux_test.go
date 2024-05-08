@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -855,4 +856,78 @@ func TestExecCommand_getCgroupOr_v1_relative(t *testing.T) {
 	must.Eq(t, result, "/sys/fs/cgroup/pids/custom/path")
 	result2 := ec.getCgroupOr("cpuset", "/sys/fs/cgroup/cpuset/nomad/abc123")
 	must.Eq(t, result2, "/sys/fs/cgroup/cpuset/custom/path")
+}
+
+func createCGroup(fullpath string) error {
+	return os.MkdirAll(fullpath, 0755)
+}
+
+func TestExecutor2_OOMKilled(t *testing.T) {
+	ci.Parallel(t)
+
+	testutil.ExecCompatible(t)
+	testutil.CgroupsCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+
+	allocDir := testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	fullCGroupPath := testExecCmd.command.Resources.LinuxResources.CpusetCgroupPath
+
+	execCmd := testExecCmd.command
+	execCmd.Cmd = "/bin/sleep"
+	execCmd.Args = []string{"20"}
+
+	execCmd.ResourceLimits = true
+	execCmd.ModePID = "private"
+	execCmd.ModeIPC = "private"
+
+	// Create the CGroup the executor's command will run in and populate it with one process
+	err := createCGroup(fullCGroupPath)
+	must.NoError(t, err)
+
+	cmd := exec.Command("/bin/sleep", "3000")
+	err = cmd.Start()
+	must.NoError(t, err)
+
+	go func() {
+		err := cmd.Wait()
+		//This process will be killed by the executor as a prerequisite to run
+		// the executors command.
+		must.Error(t, err)
+	}()
+
+	pid := cmd.Process.Pid
+	must.Positive(t, pid)
+
+	cgInterface := cgroupslib.OpenPath(fullCGroupPath)
+	err = cgInterface.Write("cgroup.procs", strconv.Itoa(pid))
+	must.NoError(t, err)
+
+	pids, err := cgInterface.PIDs()
+	must.NoError(t, err)
+	must.One(t, pids.Size())
+
+	// Run the executor normally and make sure the process that was originally running
+	// as part of the CGroup was killed, and only the executor's process is running.
+	execInterface := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
+	executor := execInterface.(*LibcontainerExecutor)
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	must.NoError(t, err)
+	must.Positive(t, ps.Pid)
+
+	pids, err = cgInterface.PIDs()
+	must.NoError(t, err)
+	must.One(t, pids.Size())
+	must.True(t, pids.Contains(ps.Pid))
+
+	estate, err := executor.Wait(context.Background())
+	must.NoError(t, err)
+	must.Zero(t, estate.ExitCode)
+
+	must.NoError(t, executor.Shutdown("", 0))
+	executor.Wait(context.Background())
 }
