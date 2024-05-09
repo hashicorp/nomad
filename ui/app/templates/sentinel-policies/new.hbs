@@ -6,20 +6,21 @@
 <Breadcrumb @crumb={{hash label="New" args=(array "sentinel-policies.new")}} />
 {{page-title "Add Sentinel Job"}}
 <section class="section">
-  <header class="run-job-header">
-    <h1 class="title is-3">Create Sentinel Policy</h1>
-    <p>
-      Sentinel policies check job submissions to ensure certain rules are met.
-    </p>
-    <Hds::ButtonSet>
+	<Hds::PageHeader class="variable-title" as |PH|>
+		<PH.Title>Create Sentinel Policy</PH.Title>
+    <PH.Description>
+      Nomad integrates with <Hds::Link::Inline @icon="collections" @href="https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel">HashiCorp Sentinel</Hds::Link::Inline> to allow operators to express policies as code and have those policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with that policy.
+    </PH.Description>
+		<PH.Actions>
       <Hds::Button
         @text="Start from a template"
         @color="secondary"
         @route="sentinel-policies.gallery"
         data-test-choose-template
       />
-    </Hds::ButtonSet>
-  </header>
+		</PH.Actions>
+	</Hds::PageHeader>
+
   <SentinelPolicyEditor @policy={{this.model}} />
 
 </section>

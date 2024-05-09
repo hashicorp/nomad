@@ -3,28 +3,30 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<Breadcrumb @crumb={{hash label=model.name args=(array "sentinel-policies.policy" model.name)}} />
-{{page-title "Edit Sentinel Policy"}}
+<Breadcrumb @crumb={{hash label=this.model.name args=(array "sentinel-policies.policy" model.name)}} />
+{{page-title (concat "Sentinel Policy: " this.model.name)}}
+
 <section class="section">
-	<h1 class="title with-flex" data-test-title>
-		<div>
-			{{this.model.name}}
-		</div>
-		{{#if (can "destroy sentinel-policy")}}
-			<div>
-				<TwoStepButton
-					data-test-delete-policy
-					@alignRight={{true}}
-					@idleText="Delete Sentinel Policy"
-					@cancelText="Cancel"
-					@confirmText="Yes, Delete Policy"
-					@confirmationMessage="Are you sure?"
-					@awaitingConfirmation={{this.deletePolicy.isRunning}}
-					@disabled={{this.deletePolicy.isRunning}}
-					@onConfirm={{perform this.deletePolicy}}
-				/>
-			</div>
-		{{/if}}
-	</h1>
+	<Hds::PageHeader class="variable-title" as |PH|>
+		<PH.Title>{{this.model.name}}</PH.Title>
+		<PH.Actions>
+			{{#if (can "destroy sentinel-policy")}}
+				<div>
+					<TwoStepButton
+						data-test-delete-policy
+						@alignRight={{true}}
+						@idleText="Delete Sentinel Policy"
+						@cancelText="Cancel"
+						@confirmText="Yes, Delete Policy"
+						@confirmationMessage="Are you sure?"
+						@awaitingConfirmation={{this.deletePolicy.isRunning}}
+						@disabled={{this.deletePolicy.isRunning}}
+						@onConfirm={{perform this.deletePolicy}}
+					/>
+				</div>
+			{{/if}}
+		</PH.Actions>
+	</Hds::PageHeader>
+
 	<SentinelPolicyEditor @policy={{this.model}} />
 </section>

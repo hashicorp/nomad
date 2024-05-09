@@ -1,61 +1,46 @@
 {{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: BUSL-1.1
+Copyright (c) HashiCorp, Inc.
+SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 <section class="section">
-  <header class="acl-explainer">
-    <p>
-      Nomad integrates with <a href="https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel" target="_blank" rel="noopener noreferrer">HashiCorp Sentinel</a> to allow operators to express policies as code and have those policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with that policy.
-    </p>
-    <div>
+  <Hds::PageHeader class="variable-title" as |PH|>
+    <PH.Title>Sentinel Policies</PH.Title>
+    <PH.Description>
+      Nomad integrates with <Hds::Link::Inline @icon="collections" @href="https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel">HashiCorp Sentinel</Hds::Link::Inline> to allow operators to express policies as code and have those policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with that policy.
+    </PH.Description>
+    <PH.Actions>
       {{#if (can "write sentinel-policy")}}
-        <Hds::Button
-          @text="Create Policy"
-          @icon="plus"
-          @route="sentinel-policies.new"
+        <span
           {{keyboard-shortcut
-            pattern=(array "n" "p")
+            pattern=(array "n" "p" )
             action=(action this.goToNewPolicy)
             label="Create Policy"
           }}
-          data-test-create-sentinel-policy
-        />
+        >
+          <Hds::Button @text="Create Policy" @icon="plus" @route="sentinel-policies.new" data-test-create-sentinel-policy />
+        </span>
       {{else}}
-        <Hds::Button
-          @text="Create Policy"
-          @icon="plus"
-          disabled
-          data-test-disabled-create-sentinel-policy
-        />
+        <Hds::Button @text="Create Policy" @icon="plus" disabled data-test-disabled-create-sentinel-policy />
       {{/if}}
-    </div>
-  </header>
+    </PH.Actions>
+  </Hds::PageHeader>
 
-{{#if this.model}}
-  <Hds::Table @caption="A list of policies for this cluster" class="acl-table"
-      @model={{this.model}}
-      @columns={{this.columns}}
-      @sortBy="name"
-  >
-      <:body as |B|>
-      <B.Tr
-          {{keyboard-shortcut
-          enumerated=true
-          action=(action "openPolicy" B.data)
-          }}
-          data-test-sentinel-policy-row
-      >
-          <B.Td>
-            <LinkTo data-test-sentinel-policy-name={{B.data.name}} @route="sentinel-policies.policy" @model={{B.data.name}}>{{B.data.name}}</LinkTo>
-          </B.Td>
-          <B.Td>{{B.data.description}}</B.Td>
-          <B.Td>{{B.data.enforcementLevel}}</B.Td>
+  {{#if this.model}}
+  <Hds::Table @caption="A list of policies for this cluster" class="acl-table" @model={{this.model}}
+    @columns={{this.columns}} @sortBy="name">
+    <:body as |B|>
+      <B.Tr {{keyboard-shortcut enumerated=true action=(action "openPolicy" B.data) }} data-test-sentinel-policy-row>
+        <B.Td>
+          <LinkTo data-test-sentinel-policy-name={{B.data.name}} @route="sentinel-policies.policy"
+            @model={{B.data.name}}>{{B.data.name}}</LinkTo>
+        </B.Td>
+        <B.Td>{{B.data.description}}</B.Td>
+        <B.Td>{{B.data.enforcementLevel}}</B.Td>
       </B.Tr>
-      </:body>
+    </:body>
   </Hds::Table>
-{{ else }}
-
+  {{else}}
   <div data-test-empty-jobs-list class="empty-message">
     <h3 data-test-empty-jobs-list-headline class="empty-message-headline">
       No Sentinel Policies
@@ -65,5 +50,5 @@
       by <LinkTo @route="sentinel-policies.gallery">creating one from the policy gallery</LinkTo>.
     </p>
   </div>
-{{/if}}
+  {{/if}}
 </section>
