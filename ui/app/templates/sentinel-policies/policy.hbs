@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<Breadcrumb @crumb={{hash label=this.model.name args=(array "sentinel-policies.policy" model.name)}} />
+<Breadcrumb @crumb={{hash label=this.model.name args=(array "sentinel-policies.policy" this.model.name)}} />
 {{page-title (concat "Sentinel Policy: " this.model.name)}}
 
 <section class="section">

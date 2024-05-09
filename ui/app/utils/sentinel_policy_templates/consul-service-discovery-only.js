@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// TODO: Make into a real sentinel policy
+
 export default `
 # Test policy only allows Docker based tasks
 main = rule { all_drivers_docker }
