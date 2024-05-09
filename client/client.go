@@ -3236,7 +3236,11 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 	// Emit unallocated
 	unallocatedMem := total.Memory.MemoryMB - res.Memory.MemoryMB - allocated.Flattened.Memory.MemoryMB
 	unallocatedDisk := total.Disk.DiskMB - res.Disk.DiskMB - allocated.Shared.DiskMB
-	unallocatedCpu := int64(total.Processors.Topology.UsableCompute()) - res.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
+
+	// The UsableCompute function call already subtracts and accounts for any
+	// reserved CPU within the client configuration. Therefore, we do not need
+	// to subtract that here.
+	unallocatedCpu := int64(total.Processors.Topology.UsableCompute()) - allocated.Flattened.Cpu.CpuShares
 
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), baseLabels)
