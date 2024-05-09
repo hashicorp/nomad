@@ -37,6 +37,21 @@ SPDX-License-Identifier: BUSL-1.1
         </B.Td>
         <B.Td>{{B.data.description}}</B.Td>
         <B.Td>{{B.data.enforcementLevel}}</B.Td>
+        {{#if (can "destroy sentinel-policy")}}
+          <B.Td>
+            <TwoStepButton
+              data-test-delete-policy
+              @idleText="Delete"
+              @inlineText={{true}}
+              @cancelText="Cancel"
+              @confirmText="Yes, Delete Policy"
+              @confirmationMessage="Are you sure?"
+              @awaitingConfirmation={{this.deletePolicy.isRunning}}
+              @disabled={{this.deletePolicy.isRunning}}
+              @onConfirm={{perform this.deletePolicy B.data}}
+            />
+          </B.Td>
+        {{/if}}
       </B.Tr>
     </:body>
   </Hds::Table>
