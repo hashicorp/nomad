@@ -89,7 +89,10 @@ func (*Sysfs) discoverCosts(st *Topology, readerFunc pathReaderFn) {
 		}
 
 		for i, c := range strings.Fields(s) {
-			cost, _ := strconv.Atoi(c)
+			cost, err := strconv.ParseUint(c, 10, 8)
+			if err != nil {
+				return err
+			}
 			st.Distances[id][i] = Cost(cost)
 		}
 		return nil
@@ -110,8 +113,14 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 			st.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0})
 			const node = 0
 			const socket = 0
-			cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
-			base, _ := getNumeric[hw.KHz](cpuBaseFile, readerFunc, core)
+			cpuMax, err := getNumericKHz(cpuMaxFile, readerFunc, core)
+			if err != nil {
+				return err
+			}
+			base, err := getNumericKHz(cpuBaseFile, readerFunc, core)
+			if err != nil {
+				return err
+			}
 			st.insert(node, socket, core, Performance, cpuMax, base)
 			return nil
 		})
@@ -126,9 +135,18 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 			cores := idset.Parse[hw.CoreID](string(s))
 			_ = cores.ForEach(func(core hw.CoreID) error {
 				// best effort, zero values are defaults
-				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, readerFunc, core)
-				cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
-				base, _ := getNumeric[hw.KHz](cpuBaseFile, readerFunc, core)
+				socket, err := getNumericSocketID(cpuSocketFile, readerFunc, core)
+				if err != nil {
+					return err
+				}
+				cpuMax, err := getNumericKHz(cpuMaxFile, readerFunc, core)
+				if err != nil {
+					return err
+				}
+				base, err := getNumericKHz(cpuBaseFile, readerFunc, core)
+				if err != nil {
+					return err
+				}
 				siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, readerFunc, core)
 
 				// if we get an incorrect core number, this means we're not getting the right
@@ -154,17 +172,30 @@ func getIDSet[T idset.ID](path string, readerFunc pathReaderFn, args ...any) (*i
 	return idset.Parse[T](string(s)), nil
 }
 
-func getNumeric[T int | idset.ID](path string, readerFunc pathReaderFn, args ...any) (T, error) {
+func getNumericKHz(path string, readerFunc pathReaderFn, args ...any) (hw.KHz, error) {
 	path = fmt.Sprintf(path, args...)
 	s, err := readerFunc(path)
 	if err != nil {
 		return 0, err
 	}
-	i, err := strconv.Atoi(strings.TrimSpace(string(s)))
+	i, err := strconv.ParseUint(strings.TrimSpace(string(s)), 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	return T(i), nil
+	return hw.KHz(i), nil
+}
+
+func getNumericSocketID(path string, readerFunc pathReaderFn, args ...any) (hw.SocketID, error) {
+	path = fmt.Sprintf(path, args...)
+	s, err := readerFunc(path)
+	if err != nil {
+		return 0, err
+	}
+	i, err := strconv.ParseUint(strings.TrimSpace(string(s)), 10, 8)
+	if err != nil {
+		return 0, err
+	}
+	return hw.SocketID(i), nil
 }
 
 func getString(path string, readerFunc pathReaderFn, args ...any) (string, error) {

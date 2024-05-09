@@ -5,6 +5,7 @@ package dynamic
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 
@@ -38,7 +39,7 @@ func Parse(user string) (UGID, error) {
 	}
 
 	i, err := strconv.ParseUint(values[1], 10, 64)
-	if err != nil {
+	if err != nil || i > uint64(math.MaxInt32) {
 		return none, ErrCannotParse
 	}
 
