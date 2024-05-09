@@ -105,7 +105,7 @@ export default class TokenEditorComponent extends Component {
 
       if (shouldRedirectAfterSave) {
         this.router.transitionTo(
-          'access-control.tokens.token',
+          'administration.tokens.token',
           this.activeToken.id
         );
       }

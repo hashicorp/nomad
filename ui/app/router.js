@@ -118,7 +118,7 @@ Router.map(function () {
     });
   });
 
-  this.route('access-control', function () {
+  this.route('administration', function () {
     this.route('policies', function () {
       this.route('new');
       this.route('policy', {
