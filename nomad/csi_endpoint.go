@@ -1795,7 +1795,8 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 		return structs.ErrPermissionDenied
 	}
 
-	withAllocs := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+	ns := args.RequestNamespace()
+	withAllocs := aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")
@@ -1819,18 +1820,23 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 				return nil
 			}
 
+			// if we're not allowed access to the namespace at all, we skip this
+			// copy as an optimization. withAllocs will be true for the wildcard
+			// namespace
 			if withAllocs {
 				plug, err = snap.CSIPluginDenormalize(ws, plug.Copy())
 				if err != nil {
 					return err
 				}
 
-				// Filter the allocation stubs by our namespace. withAllocs
-				// means we're allowed
+				// Filter the allocation stubs by allowed namespace
 				var as []*structs.AllocListStub
 				for _, a := range plug.Allocations {
-					if a.Namespace == args.RequestNamespace() {
-						as = append(as, a)
+					if ns == structs.AllNamespacesSentinel || a.Namespace == ns {
+						if aclObj.AllowNsOp(a.Namespace, acl.NamespaceCapabilityReadJob) {
+							fmt.Println("allow for", a.Namespace)
+							as = append(as, a)
+						}
 					}
 				}
 				plug.Allocations = as
