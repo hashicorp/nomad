@@ -46,12 +46,6 @@ Router.map(function () {
     this.route('summary', { path: '*slug' });
   });
 
-  this.route('sentinel-policies', function () {
-    this.route('new');
-    this.route('gallery');
-    this.route('policy', { path: '/:id' });
-  });
-
   this.route('clients', function () {
     this.route('client', { path: '/:node_id' }, function () {
       this.route('monitor');
@@ -144,6 +138,11 @@ Router.map(function () {
       this.route('acl-namespace', {
         path: '/:name',
       });
+    });
+    this.route('sentinel-policies', function () {
+      this.route('new');
+      this.route('gallery');
+      this.route('policy', { path: '/:id' });
     });
   });
   // Mirage-only route for testing OIDC flow

@@ -65,8 +65,10 @@ export default class SentinelPolicyEditorComponent extends Component {
       });
 
       if (shouldRedirectAfterSave) {
-        // TODO: GO TO THE SHOW PAGE INSTEAD
-        this.router.transitionTo('sentinel-policies.policy', this.policy.name);
+        this.router.transitionTo(
+          'administration.sentinel-policies.policy',
+          this.policy.name
+        );
       }
     } catch (err) {
       let message = err.errors?.length

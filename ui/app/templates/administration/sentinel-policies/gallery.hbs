@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<Breadcrumb @crumb={{hash label="Gallery" args=(array "sentinel-policies.gallery" )}} />
+<Breadcrumb @crumb={{hash label="Gallery" args=(array "administration.sentinel-policies.gallery" )}} />
 {{page-title "Sentinel Policy Gallery"}}
 <section class="section">
   <Hds::PageHeader class="variable-title" as |PH|>
@@ -27,9 +27,9 @@
   </main>
   <footer class="buttonset">
     <Hds::ButtonSet class="button-group">
-      <Hds::Button @text="Apply" @route="sentinel-policies.new" @query={{hash template=this.selectedTemplate}}
+      <Hds::Button @text="Apply" @route="administration.sentinel-policies.new" @query={{hash template=this.selectedTemplate}}
         disabled={{is-equal this.selectedTemplate null}} data-test-apply />
-      <Hds::Button @text="Cancel" @route="sentinel-policies.new" @color="secondary" data-test-cancel />
+      <Hds::Button @text="Cancel" @route="administration.sentinel-policies.new" @color="secondary" data-test-cancel />
     </Hds::ButtonSet>
   </footer>
 </section>

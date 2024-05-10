@@ -5,4 +5,4 @@
 
 import Controller from '@ember/controller';
 
-export default class SentinelPoliciesController extends Controller {}
+export default class AdministrationSentinelPoliciesController extends Controller {}

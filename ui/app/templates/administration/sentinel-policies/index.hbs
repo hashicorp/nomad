@@ -18,8 +18,9 @@ SPDX-License-Identifier: BUSL-1.1
             label="Create Policy"
           }}
         >
-          <Hds::Button @text="Create Policy" @icon="plus" @route="sentinel-policies.new" data-test-create-sentinel-policy />
+          <Hds::Button @text="Create from Scratch" @icon="plus" @route="administration.sentinel-policies.new" data-test-create-sentinel-policy />
         </span>
+        <Hds::Button @text="Create from Template" @icon="plus" @route="administration.sentinel-policies.gallery" />
       {{else}}
         <Hds::Button @text="Create Policy" @icon="plus" disabled data-test-disabled-create-sentinel-policy />
       {{/if}}
@@ -32,7 +33,7 @@ SPDX-License-Identifier: BUSL-1.1
     <:body as |B|>
       <B.Tr {{keyboard-shortcut enumerated=true action=(action "openPolicy" B.data) }} data-test-sentinel-policy-row>
         <B.Td>
-          <LinkTo data-test-sentinel-policy-name={{B.data.name}} @route="sentinel-policies.policy"
+          <LinkTo data-test-sentinel-policy-name={{B.data.name}} @route="administration.sentinel-policies.policy"
             @model={{B.data.name}}>{{B.data.name}}</LinkTo>
         </B.Td>
         <B.Td>{{B.data.description}}</B.Td>
@@ -61,8 +62,8 @@ SPDX-License-Identifier: BUSL-1.1
       No Sentinel Policies
     </h3>
     <p class="empty-message-body">
-      Get started by <LinkTo @route="sentinel-policies.new">creating a policy from scratch</LinkTo> or
-      by <LinkTo @route="sentinel-policies.gallery">creating one from the policy gallery</LinkTo>.
+      Get started by <LinkTo @route="administration.sentinel-policies.new">creating a policy from scratch</LinkTo> or
+      by <LinkTo @route="administration.sentinel-policies.gallery">creating one from the policy gallery</LinkTo>.
     </p>
   </div>
   {{/if}}

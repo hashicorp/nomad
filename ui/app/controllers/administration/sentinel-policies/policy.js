@@ -23,7 +23,7 @@ export default class SentinelPoliciesPolicyController extends Controller {
         type: `success`,
         destroyOnClick: false,
       });
-      this.router.transitionTo('sentinel-policies.index');
+      this.router.transitionTo('administration.sentinel-policies.index');
     } catch (err) {
       // A failed delete resulted in errors when you then navigated away and back
       // to the show page rollbackWithoutChangedAttrs fixes it, but there might

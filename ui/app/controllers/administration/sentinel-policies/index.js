@@ -13,11 +13,14 @@ export default class SentinelPoliciesIndexController extends Controller {
   @service notifications;
 
   @action openPolicy(policy) {
-    this.router.transitionTo('sentinel-policies.policy', policy.name);
+    this.router.transitionTo(
+      'administration.sentinel-policies.policy',
+      policy.name
+    );
   }
 
   @action goToNewPolicy() {
-    this.router.transitionTo('sentinel-policies.new');
+    this.router.transitionTo('administration.sentinel-policies.new');
   }
 
   get columns() {

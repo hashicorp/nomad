@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<Breadcrumb @crumb={{hash label="New" args=(array "sentinel-policies.new")}} />
+<Breadcrumb @crumb={{hash label="New" args=(array "administration.sentinel-policies.new")}} />
 {{page-title "Create a Policy"}}
 <section class="section">
 	<Hds::PageHeader class="variable-title" as |PH|>
@@ -15,7 +15,7 @@
       <Hds::Button
         @text="Start from a template"
         @color="secondary"
-        @route="sentinel-policies.gallery"
+        @route="administration.sentinel-policies.gallery"
         data-test-choose-template
       />
 		</PH.Actions>

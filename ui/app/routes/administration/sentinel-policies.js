@@ -8,7 +8,7 @@ import Route from '@ember/routing/route';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class ClientsRoute extends Route {
+export default class AdministrationSentinelPoliciesRoute extends Route {
   @service store;
 
   model() {
