@@ -138,6 +138,13 @@ func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath strin
 
 	for _, pid := range orphansPIDs {
 		l.logger.Info("killing orphaned process", "pid", pid)
+
+		// Avoid bringind down the whole node by mistake, very unlikly case,
+		// but it's better to be sure.
+		if pid == 1 {
+			continue
+		}
+
 		err := syscall.Kill(pid, syscall.SIGKILL)
 		if err != nil {
 			l.logger.Error("unable to send signal to process", "pid", pid, "error", err)
@@ -368,9 +375,8 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 	case <-l.userProcExited:
 		return nil
 	case <-time.After(time.Second * 15):
+		return fmt.Errorf("process failed to exit after 15 seconds")
 	}
-
-	return fmt.Errorf("process failed to exit after 15 seconds")
 }
 
 // UpdateResources updates the resource isolation with new values to be enforced
