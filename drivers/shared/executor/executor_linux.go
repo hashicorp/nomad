@@ -114,7 +114,7 @@ func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath strin
 		l.logger.Info("killing process:", orphansPIDs)
 		err := syscall.Kill(pid, syscall.SIGKILL)
 		if err != nil {
-			l.logger.Error("unable to send signal to process", pid, err)
+			l.logger.Error("unable to send signal to process", "pid", pid, "error", err)
 		}
 	}
 }
