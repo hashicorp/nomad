@@ -1017,12 +1017,12 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	s.parseRegion(req, r)
 	s.parseToken(req, &b.AuthToken)
 	if err := parseConsistency(resp, req, b); err != nil {
-		return false
+		return true
 	}
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
 	if err := parsePagination(resp, req, b); err != nil {
-		return false
+		return true
 	}
 	parseFilter(req, b)
 	parseReverse(req, b)
