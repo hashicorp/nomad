@@ -3160,8 +3160,40 @@ func (s *StateStore) DeleteCSIPlugin(index uint64, id string) error {
 	if err != nil {
 		return err
 	}
+
+	jobIDs := set.New[structs.NamespacedID](1)
+	for _, alloc := range plug.Allocations {
+		jobIDs.Insert(structs.NamespacedID{Namespace: alloc.Namespace, ID: alloc.JobID})
+	}
+
+	// after denormalization of allocs, remove any ControllerJobs or NodeJobs
+	// that no longer have allocations and have been either purged or updated to
+	// no longer include the plugin
+	removeInvalidJobs := func(jobDescs structs.JobDescriptions) {
+		for ns, namespacedJobDescs := range jobDescs {
+			for jobID := range namespacedJobDescs {
+				if !jobIDs.Contains(structs.NamespacedID{Namespace: ns, ID: jobID}) {
+					job, err := s.JobByID(nil, ns, jobID)
+					if err != nil { // programmer error in JobByID only
+						s.logger.Error("could not query JobByID", "error", err)
+						continue
+					}
+					if job == nil { // job was purged
+						jobDescs.Delete(&structs.Job{ID: jobID, Namespace: ns})
+					} else if !job.HasPlugin(plug.ID) {
+						// job was updated to a different plugin ID
+						jobDescs.Delete(job)
+					}
+				}
+			}
+		}
+	}
+
+	removeInvalidJobs(plug.ControllerJobs)
+	removeInvalidJobs(plug.NodeJobs)
+
 	if !plug.IsEmpty() {
-		return fmt.Errorf("plugin in use")
+		return structs.ErrCSIPluginInUse
 	}
 
 	err = txn.Delete("csi_plugins", plug)

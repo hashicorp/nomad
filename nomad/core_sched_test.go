@@ -2351,38 +2351,59 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 
 	// Attempt the GC
 	index++
 	gc := srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
-	require.NoError(t, core.Process(gc))
+	must.NoError(t, core.Process(gc))
 
 	// Should not be gone (plugin in use)
 	ws := memdb.NewWatchSet()
 	plug, err := store.CSIPluginByID(ws, "foo")
-	require.NotNil(t, plug)
-	require.NoError(t, err)
+	must.NotNil(t, plug)
+	must.NoError(t, err)
 
-	// Empty the plugin
+	// Empty the plugin but add a job
 	plug = plug.Copy()
 	plug.Controllers = map[string]*structs.CSIInfo{}
 	plug.Nodes = map[string]*structs.CSIInfo{}
 
+	job := mock.CSIPluginJob(structs.CSIPluginTypeController, plug.ID)
 	index++
-	err = store.UpsertCSIPlugin(index, plug)
-	require.NoError(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+	plug.ControllerJobs.Add(job, 1)
+
+	index++
+	must.NoError(t, store.UpsertCSIPlugin(index, plug))
 
 	// Retry
 	index++
 	gc = srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
-	require.NoError(t, core.Process(gc))
+	must.NoError(t, core.Process(gc))
 
-	// Should be gone
+	// Should not be gone (plugin in use)
+	ws = memdb.NewWatchSet()
 	plug, err = store.CSIPluginByID(ws, "foo")
-	require.Nil(t, plug)
-	require.NoError(t, err)
+	must.NotNil(t, plug)
+	must.NoError(t, err)
+
+	// Update the job with a different pluginID
+	job = job.Copy()
+	job.TaskGroups[0].Tasks[0].CSIPluginConfig.ID = "another-plugin-id"
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+
+	// Retry
+	index++
+	gc = srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
+	must.NoError(t, core.Process(gc))
+
+	// Should now be gone
+	plug, err = store.CSIPluginByID(ws, "foo")
+	must.Nil(t, plug)
+	must.NoError(t, err)
 }
 
 func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
