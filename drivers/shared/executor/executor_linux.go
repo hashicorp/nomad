@@ -132,7 +132,7 @@ func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath strin
 	root := cgroupslib.GetDefaultRoot()
 	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
 	if err != nil {
-		l.logger.Error("unable to get orphaned task PIDs", "error" err)
+		l.logger.Error("unable to get orphaned task PIDs", "error", err)
 		return
 	}
 
