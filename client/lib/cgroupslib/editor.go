@@ -21,7 +21,7 @@ const (
 	root = "/sys/fs/cgroup"
 )
 
-func GetDefautlRoot() string {
+func GetDefaultRoot() string {
 	return root
 }
 
