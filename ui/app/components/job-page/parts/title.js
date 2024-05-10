@@ -118,7 +118,6 @@ export default class Title extends Component {
   startJob;
 
   get description() {
-    console.log('getUI', this.job.ui?.Description);
     if (!this.job.ui?.Description) {
       return null;
     }
@@ -131,7 +130,6 @@ export default class Title extends Component {
   }
 
   get links() {
-    console.log('gettin links', this.job.ui);
     return this.job.ui?.Links;
   }
 }

@@ -37,18 +37,6 @@
       {{#if @job.nodePool}}{{@job.nodePool}}{{else}}-{{/if}}
     </span>
 
-    {{!-- {{#if @job.ui.Links.length}}
-      <span data-test-job-links class="pair">
-        <span class="term">Links</span>
-        {{#each @job.ui.Links as |link|}}
-          <a href="{{link.Url}}" target="_blank" rel="noopener noreferrer" class="term">
-            <span>{{link.Label}}</span>
-          </a>
-        {{/each}}
-      </span>
-    {{/if}}
- --}}
-
     {{yield to="after-namespace"}}
   </div>
 
