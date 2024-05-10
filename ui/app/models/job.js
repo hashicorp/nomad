@@ -296,10 +296,6 @@ export default class Job extends Model {
     return !!this.meta?.structured?.pack;
   }
 
-  get jobLinks() {
-    return this.meta?.structured?.links ?? [];
-  }
-
   // True when the job is the parent periodic or parameterized jobs
   // Instances of periodic or parameterized jobs are false for both properties
   @attr('boolean') periodic;
