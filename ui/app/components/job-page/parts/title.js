@@ -11,6 +11,8 @@ import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 import jsonToHcl from 'nomad-ui/utils/json-to-hcl';
+import { marked } from 'marked';
+import { htmlSafe } from '@ember/template';
 
 @classic
 @tagName('')
@@ -114,4 +116,22 @@ export default class Title extends Component {
     }
   })
   startJob;
+
+  get description() {
+    console.log('getUI', this.job.ui?.Description);
+    if (!this.job.ui?.Description) {
+      return null;
+    }
+    // Put <br /> on newlines, use github-flavoured-markdown.
+    marked.use({
+      gfm: true,
+      breaks: true,
+    });
+    return htmlSafe(marked.parse(this.job.ui.Description));
+  }
+
+  get links() {
+    console.log('gettin links', this.job.ui);
+    return this.job.ui?.Links;
+  }
 }

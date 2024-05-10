@@ -5,10 +5,6 @@
 
 {{! template-lint-disable no-inline-styles }}
 
-{{#if this.description}}
-  <p data-test-job-description class="boxed-section">{{this.description}}</p>
-{{/if}}
-
 <div class="boxed-section is-small">
   <div class="boxed-section-body inline-definitions">
     <span class="label" style="width: 6.125rem;">Job Details</span>
@@ -41,7 +37,7 @@
       {{#if @job.nodePool}}{{@job.nodePool}}{{else}}-{{/if}}
     </span>
 
-    {{#if @job.ui.Links.length}}
+    {{!-- {{#if @job.ui.Links.length}}
       <span data-test-job-links class="pair">
         <span class="term">Links</span>
         {{#each @job.ui.Links as |link|}}
@@ -51,7 +47,7 @@
         {{/each}}
       </span>
     {{/if}}
-
+ --}}
 
     {{yield to="after-namespace"}}
   </div>

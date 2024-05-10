@@ -14,6 +14,20 @@
     {{/if}}
     {{yield}}
   </PH.Title>
+  {{#if this.description}}
+    <PH.Description data-test-job-description>
+      {{this.description}}
+    </PH.Description>
+    {{#if this.links}}
+      <PH.Generic>
+        <div class="job-ui-links">
+          {{#each this.links as |link|}}
+            <Hds::Button @color="secondary" @isInline={{true}} @text={{link.Label}} @icon="external-link" @iconPosition="trailing" @href={{link.Url}} />
+          {{/each}}
+        </div>
+      </PH.Generic>
+    {{/if}}
+  {{/if}}
   <PH.Actions>
 
       {{#if (not (eq this.job.status "dead"))}}
