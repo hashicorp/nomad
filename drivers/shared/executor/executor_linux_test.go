@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	tu "github.com/hashicorp/nomad/testutil"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -933,4 +935,41 @@ func TestExecutor_CleanOldProcessesInCGroup(t *testing.T) {
 
 	must.NoError(t, executor.Shutdown("", 0))
 	executor.Wait(context.Background())
+}
+
+func TestExecutor_SignalCatching(t *testing.T) {
+	ci.Parallel(t)
+
+	testutil.ExecCompatible(t)
+	testutil.CgroupsCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+
+	allocDir := testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	execCmd := testExecCmd.command
+	execCmd.Cmd = "/bin/sleep"
+	execCmd.Args = []string{"100"}
+	execCmd.ResourceLimits = true
+	execCmd.ModePID = "private"
+	execCmd.ModeIPC = "private"
+
+	execInterface := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
+
+	ps, err := execInterface.Launch(execCmd)
+	must.NoError(t, err)
+	must.Positive(t, ps.Pid)
+
+	executor := execInterface.(*LibcontainerExecutor)
+	status, err := executor.container.OCIState()
+	must.NoError(t, err)
+	must.Eq(t, specs.StateRunning, status.Status)
+
+	executor.sigChan <- syscall.SIGTERM
+	time.Sleep(1 * time.Second)
+
+	status, err = executor.container.OCIState()
+	must.NoError(t, err)
+	must.Eq(t, specs.StateStopped, status.Status)
 }
