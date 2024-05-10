@@ -4657,6 +4657,13 @@ func (j *Job) Validate() error {
 		}
 	}
 
+	const MaxDescriptionCharacters = 1000
+	if j.Ui != nil {
+		if len(j.Ui.Description) > MaxDescriptionCharacters {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("UI description must be under 1000 characters, currently %d", len(j.Ui.Description)))
+		}
+	}
+
 	// Check for duplicate task groups
 	taskGroups := make(map[string]int)
 	for idx, tg := range j.TaskGroups {

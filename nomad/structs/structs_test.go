@@ -343,6 +343,17 @@ func TestJob_Validate(t *testing.T) {
 			},
 		},
 		{
+			name: "job description is too long",
+			job: &Job{
+				Ui: &JobUIConfig{
+					Description: strings.Repeat("a", 1015),
+				},
+			},
+			expErr: []string{
+				"UI description must be under 1000 characters",
+			},
+		},
+		{
 			name: "job task group is type invalid",
 			job: &Job{
 				Region:      "global",
