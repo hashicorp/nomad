@@ -240,7 +240,7 @@ func (l *LibcontainerExecutor) catchSignals(ctx context.Context) os.Signal {
 	sigch := make(chan os.Signal, 4)
 	defer close(sigch)
 
-	l.logger.Debug("waiting for signls")
+	l.logger.Trace("waiting for signals")
 	signal.Notify(sigch, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
 	defer signal.Stop(sigch)
 
