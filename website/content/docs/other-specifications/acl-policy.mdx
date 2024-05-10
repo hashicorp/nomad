@@ -461,6 +461,14 @@ agent {
 }
 ```
 
+Additionally, ACL policies for users who can read jobs that mount CSI volumes
+should include the following rules.
+
+```hcl
+plugin {
+  policy = "read"
+}
+```
 
 [Secure Nomad with Access Control]: /nomad/tutorials/access-control
 [hcl]: https://github.com/hashicorp/hcl
