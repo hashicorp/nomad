@@ -79,9 +79,32 @@ type LibcontainerExecutor struct {
 	userProc       *libcontainer.Process
 	userProcExited chan interface{}
 	exitState      *ProcessState
+	sigChan        chan os.Signal
+}
+
+func (l *LibcontainerExecutor) catchSignals() {
+	l.logger.Trace("waiting for signals")
+	defer signal.Stop(l.sigChan)
+	defer close(l.sigChan)
+
+	signal.Notify(l.sigChan, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
+	for {
+		signal := <-l.sigChan
+		l.logger.Info("                ******  catching it", signal)
+		if signal == syscall.SIGTERM || signal == syscall.SIGKILL || signal == syscall.SIGINT {
+			l.Shutdown("SIGINT", 0)
+			break
+		}
+
+		if l.container != nil {
+			l.container.Signal(signal, false)
+		}
+	}
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger, compute cpustats.Compute) Executor {
+	sigch := make(chan os.Signal, 4)
+
 	le := &LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger.Named("isolated_executor"),
@@ -89,7 +112,11 @@ func NewExecutorWithIsolation(logger hclog.Logger, compute cpustats.Compute) Exe
 		totalCpuStats:  cpustats.New(compute),
 		userCpuStats:   cpustats.New(compute),
 		systemCpuStats: cpustats.New(compute),
+		sigChan:        sigch,
 	}
+
+	go le.catchSignals()
+
 	le.processStats = procstats.New(compute, le)
 	return le
 }
@@ -211,45 +238,13 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// start a goroutine to wait on the process to complete, so Wait calls can
 	// be multiplexed
 	l.userProcExited = make(chan interface{})
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go func() {
-		defer cancel()
-
-		go l.wait()
-
-		signal := l.catchSignals(ctx)
-
-		err = l.Signal(signal)
-		if err != nil {
-			l.logger.Error("failed send signal to process(%s): %v", l.id, err)
-		}
-	}()
+	go l.wait()
 
 	return &ProcessState{
 		Pid:      pid,
 		ExitCode: -1,
 		Time:     time.Now(),
 	}, nil
-}
-
-func (l *LibcontainerExecutor) catchSignals(ctx context.Context) os.Signal {
-
-	sigch := make(chan os.Signal, 4)
-	defer close(sigch)
-
-	l.logger.Trace("waiting for signals")
-	signal.Notify(sigch, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
-	defer signal.Stop(sigch)
-
-	select {
-	case <-ctx.Done():
-		return nil
-
-	case s := <-sigch:
-		return s
-	}
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
