@@ -103,7 +103,7 @@ func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
 func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath string) {
 	l.logger.Info("removing old processes", "path", nomadRelativePath)
 
-	root := cgroupslib.GetDefautlRoot()
+	root := cgroupslib.GetDefaultRoot()
 	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
 	if err != nil {
 		l.logger.Error("unable to get orphan allocs PIDs", err)
