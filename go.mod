@@ -24,7 +24,6 @@ require (
 	github.com/container-storage-interface/spec v1.7.0
 	github.com/containerd/go-cni v1.1.9
 	github.com/containernetworking/cni v1.1.2
-	github.com/containernetworking/plugins v1.2.0
 	github.com/coreos/go-iptables v0.6.0
 	github.com/creack/pty v1.1.18
 	github.com/docker/cli v24.0.6+incompatible
@@ -244,6 +243,8 @@ require (
 	github.com/mrunalp/fileutils v0.5.1 // indirect
 	github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2 // indirect
 	github.com/oklog/run v1.1.0 // indirect
+	github.com/onsi/ginkgo/v2 v2.6.1 // indirect
+	github.com/onsi/gomega v1.24.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b // indirect
 	github.com/opencontainers/selinux v1.11.0 // indirect
