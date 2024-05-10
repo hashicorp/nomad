@@ -7,7 +7,7 @@ import { module, test } from 'qunit';
 import { currentURL, triggerKeyEvent } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import AccessControl from 'nomad-ui/tests/pages/administration';
+import Administration from 'nomad-ui/tests/pages/administration';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import { allScenarios } from '../../mirage/scenarios/default';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -28,7 +28,7 @@ module('Acceptance | access control', function (hooks) {
 
   test('Access Control is only accessible by a management user', async function (assert) {
     assert.expect(7);
-    await AccessControl.visit();
+    await Administration.visit();
 
     assert.equal(
       currentURL(),
@@ -36,14 +36,14 @@ module('Acceptance | access control', function (hooks) {
       'redirected to the jobs page if a non-management token on /administration'
     );
 
-    await AccessControl.visitTokens();
+    await Administration.visitTokens();
     assert.equal(
       currentURL(),
       '/jobs',
       'redirected to the jobs page if a non-management token on /tokens'
     );
 
-    assert.dom('[data-test-gutter-link="access-control"]').doesNotExist();
+    assert.dom('[data-test-gutter-link="administration"]').doesNotExist();
 
     await Tokens.visit();
     const managementToken = server.db.tokens.findBy(
@@ -52,9 +52,9 @@ module('Acceptance | access control', function (hooks) {
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
 
-    assert.dom('[data-test-gutter-link="access-control"]').exists();
+    assert.dom('[data-test-gutter-link="administration"]').exists();
 
-    await AccessControl.visit();
+    await Administration.visit();
     assert.equal(
       currentURL(),
       '/administration',
@@ -63,7 +63,7 @@ module('Acceptance | access control', function (hooks) {
 
     await a11yAudit(assert);
 
-    await AccessControl.visitTokens();
+    await Administration.visitTokens();
     assert.equal(
       currentURL(),
       '/administration/tokens',
@@ -79,7 +79,7 @@ module('Acceptance | access control', function (hooks) {
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
 
-    await AccessControl.visit();
+    await Administration.visit();
     assert.dom('[data-test-tokens-card]').exists();
     assert.dom('[data-test-roles-card]').exists();
     assert.dom('[data-test-policies-card]').exists();
@@ -112,7 +112,7 @@ module('Acceptance | access control', function (hooks) {
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
 
-    await AccessControl.visit();
+    await Administration.visit();
 
     assert.equal(currentURL(), '/administration');
 

@@ -10,7 +10,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
-import AccessControl from 'nomad-ui/tests/pages/administration';
+import Administration from 'nomad-ui/tests/pages/administration';
 import percySnapshot from '@percy/ember';
 
 module('Acceptance | roles', function (hooks) {
@@ -27,7 +27,7 @@ module('Acceptance | roles', function (hooks) {
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
-    await AccessControl.visitRoles();
+    await Administration.visitRoles();
   });
 
   hooks.afterEach(async function () {
@@ -105,7 +105,7 @@ module('Acceptance | roles', function (hooks) {
     await percySnapshot(assert);
 
     // Go back to the roles index
-    await AccessControl.visitRoles();
+    await Administration.visitRoles();
     let readerRoleRow = find('[data-test-role-row="reader-edited"]');
     assert.dom(readerRoleRow).exists();
     assert.equal(
@@ -202,7 +202,7 @@ module('Acceptance | roles', function (hooks) {
     await click('button[data-test-save-role]');
     assert.dom('.flash-message.alert-success').exists();
 
-    await AccessControl.visitRoles();
+    await Administration.visitRoles();
     const readerRoleRow = find('[data-test-role-row="reader"]');
     const readerRolePolicies = readerRoleRow
       .querySelector('[data-test-role-policies]')
@@ -243,7 +243,7 @@ module('Acceptance | roles', function (hooks) {
 
     await percySnapshot(assert);
 
-    await AccessControl.visitTokens();
+    await Administration.visitTokens();
     assert
       .dom('[data-test-token-name="Example Token for reader"]')
       .exists(
@@ -280,18 +280,18 @@ module('Acceptance | roles', function (hooks) {
     await click('button[data-test-save-role]');
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(currentURL(), '/administration/roles/1'); // default id created via mirage
-    await AccessControl.visitRoles();
+    await Administration.visitRoles();
     assert.dom('[data-test-role-row="test-role"]').exists();
 
     // Now, try deleting all policies then doing this again. There'll be a warning on the roles/new page.
-    await AccessControl.visitPolicies();
+    await Administration.visitPolicies();
     const policyRows = findAll('[data-test-policy-row]');
     for (const row of policyRows) {
       const deleteButton = row.querySelector('[data-test-delete-policy]');
       await click(deleteButton);
     }
     assert.dom('[data-test-empty-policies-list-headline]').exists();
-    await AccessControl.visitRoles();
+    await Administration.visitRoles();
     await click('[data-test-create-role]');
     assert.dom('.empty-message').exists();
     assert

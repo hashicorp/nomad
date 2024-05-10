@@ -881,6 +881,23 @@ export default function () {
     return this.serialize(policies.all());
   });
 
+  this.get('/sentinel/policies', function (schema, req) {
+    return this.serialize(schema.sentinelPolicies.all());
+  });
+
+  this.post('/sentinel/policy/:id', function (schema, req) {
+    const { Name, Description, Rules } = JSON.parse(req.requestBody);
+    return server.create('sentinelPolicy', {
+      name: Name,
+      description: Description,
+      rules: Rules,
+    });
+  });
+
+  this.get('/sentinel/policy/:id', function ({ sentinelPolicies }, req) {
+    return this.serialize(sentinelPolicies.findBy({ name: req.params.id }));
+  });
+
   this.delete('/acl/policy/:id', function (schema, request) {
     const { id } = request.params;
 

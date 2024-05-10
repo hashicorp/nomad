@@ -10,7 +10,7 @@
     <li><LinkTo @route="administration.roles" @activeClass="is-active">Roles</LinkTo></li>
     <li><LinkTo @route="administration.policies" @activeClass="is-active">Policies</LinkTo></li>
     <li><LinkTo @route="administration.namespaces" @activeClass="is-active">Namespaces</LinkTo></li>
-    {{#if (can "list sentinel policies")}}
+    {{#if (can "list sentinel-policy")}}
       <li><LinkTo @route="administration.sentinel-policies" @activeClass="is-active">Sentinel Policies</LinkTo></li>
     {{/if}}
   </ul>

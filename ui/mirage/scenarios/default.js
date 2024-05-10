@@ -90,6 +90,7 @@ function jobsIndexTestCluster(server) {
 function smallCluster(server) {
   faker.seed(1);
   server.create('feature', { name: 'Dynamic Application Sizing' });
+  server.create('feature', { name: 'Sentinel Policies' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node-pool', 2);
   server.createList('node', 5);
@@ -604,6 +605,7 @@ function variableTestCluster(server) {
 }
 
 function policiesTestCluster(server) {
+  server.create('feature', { name: 'Sentinel Policies' });
   faker.seed(1);
   createTokens(server);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');

@@ -21,7 +21,7 @@ import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
-import AccessControl from 'nomad-ui/tests/pages/administration';
+import Administration from 'nomad-ui/tests/pages/administration';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
@@ -885,7 +885,7 @@ module('Acceptance | tokens', function (hooks) {
       );
       const { secretId } = managementToken;
       await Tokens.secret(secretId).submit();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
     });
 
     hooks.afterEach(async function () {
@@ -1141,7 +1141,7 @@ module('Acceptance | tokens', function (hooks) {
       await fillIn('[data-test-token-name-input]', 'Mud-Token');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert.dom('[data-test-token-name="Mud-Token"]').exists({ count: 1 });
     });
 
@@ -1199,7 +1199,7 @@ module('Acceptance | tokens', function (hooks) {
 
       await percySnapshot(assert);
 
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       // Policies cell for our clay token should read "No Policies"
       const clayToken = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
       const clayTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
@@ -1231,7 +1231,7 @@ module('Acceptance | tokens', function (hooks) {
       await click(find('[data-test-confirm-button]'));
 
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert.dom('[data-test-token-name="cl4y-t0k3n"]').doesNotExist();
     });
     test('New Token creation', async function (assert) {
@@ -1240,7 +1240,7 @@ module('Acceptance | tokens', function (hooks) {
       await fillIn('[data-test-token-name-input]', 'Timeless Token');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert
         .dom('[data-test-token-name="Timeless Token"]')
         .exists({ count: 1 });
@@ -1260,7 +1260,7 @@ module('Acceptance | tokens', function (hooks) {
       await click('.expiration-time input[value="8h"]');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert.dom('[data-test-token-name="TTL Token"]').exists({ count: 1 });
       const ttlTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
         row.textContent.includes('TTL Token')
@@ -1288,7 +1288,7 @@ module('Acceptance | tokens', function (hooks) {
       await fillIn('[data-test-token-expiration-time-input]', soonString);
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert
         .dom('[data-test-token-name="Expiring Token"]')
         .exists({ count: 1 });
