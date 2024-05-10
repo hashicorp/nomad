@@ -35,7 +35,9 @@ export default class AdministrationRoute extends Route.extend(
       roles: this.store.findAll('role', { reload: true }),
       tokens: this.store.findAll('token', { reload: true }),
       namespaces: this.store.findAll('namespace', { reload: true }),
-      sentinelPolicies: this.store.findAll('sentinel-policy', { reload: true }),
+      sentinelPolicies: this.can.can('list sentinel-policy')
+        ? this.store.findAll('sentinel-policy', { reload: true })
+        : [],
     });
   }
 

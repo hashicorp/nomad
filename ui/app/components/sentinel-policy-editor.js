@@ -41,6 +41,12 @@ export default class SentinelPolicyEditorComponent extends Component {
           `Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.`
         );
       }
+      if (this.policy.description?.length > 256) {
+        throw new Error(
+          `Policy description must be under 256 characters long.`
+        );
+      }
+
       const shouldRedirectAfterSave = this.policy.isNew;
       // Because we set the ID for adapter/serialization reasons just before save here,
       // that becomes a barrier to our Unique Name validation. So we explicltly exclude
