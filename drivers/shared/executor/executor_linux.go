@@ -186,7 +186,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		Init:   true,
 	}
 
-	l.logger.Debug("launching", "command", command.Args)
 	if command.User != "" {
 		process.User = command.User
 	}
