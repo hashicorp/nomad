@@ -127,7 +127,7 @@ func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
 // cleanOldProcessesInCGroup kills processes that might ended up orphans when the
 // executor was unexpectedly killed and nomad can't reconnect to them.
 func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath string) {
-	l.logger.Debug("looking old processes", "path", nomadRelativePath)
+	l.logger.Debug("looking for old processes", "path", nomadRelativePath)
 
 	root := cgroupslib.GetDefaultRoot()
 	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
