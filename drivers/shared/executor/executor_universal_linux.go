@@ -11,8 +11,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/users"
@@ -143,13 +143,13 @@ func (e *UniversalExecutor) getAllPids() (resources.PIDs, error) {
 func withNetworkIsolation(f func() error, spec *drivers.NetworkIsolationSpec) error {
 	if spec != nil && spec.Path != "" {
 		// Get a handle to the target network namespace
-		netNS, err := ns.GetNS(spec.Path)
+		netNS, err := nsutil.GetNS(spec.Path)
 		if err != nil {
 			return err
 		}
 
 		// Start the container in the network namespace
-		return netNS.Do(func(ns.NetNS) error {
+		return netNS.Do(func(nsutil.NetNS) error {
 			return f()
 		})
 	}
