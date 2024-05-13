@@ -1834,7 +1834,6 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 				for _, a := range plug.Allocations {
 					if ns == structs.AllNamespacesSentinel || a.Namespace == ns {
 						if aclObj.AllowNsOp(a.Namespace, acl.NamespaceCapabilityReadJob) {
-							fmt.Println("allow for", a.Namespace)
 							as = append(as, a)
 						}
 					}
