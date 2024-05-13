@@ -3387,6 +3387,15 @@ func TestTaskGroupDiff(t *testing.T) {
 								Config: map[string]interface{}{
 									"foo": "baz",
 								},
+								VolumeMounts: []*VolumeMount{
+									{
+										Volume:          "vol0",
+										Destination:     "/path",
+										ReadOnly:        false,
+										PropagationMode: "private",
+										SELinuxLabel:    "Z",
+									},
+								},
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
@@ -7922,6 +7931,131 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			Name: "VolumeMounts added",
+			Old:  &Task{},
+			New: &Task{
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume:          "vol0",
+						Destination:     "/path",
+						ReadOnly:        true,
+						PropagationMode: "private",
+						SELinuxLabel:    "Z",
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "VolumeMount",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Destination",
+								Old:  "",
+								New:  "/path",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PropagationMode",
+								Old:  "",
+								New:  "private",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ReadOnly",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "SELinuxLabel",
+								Old:  "",
+								New:  "Z",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Volume",
+								Old:  "",
+								New:  "vol0",
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			Name: "VolumeMounts edited",
+			Old: &Task{
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume:          "vol0",
+						Destination:     "/path",
+						ReadOnly:        false,
+						PropagationMode: "bidirectional",
+						SELinuxLabel:    "z",
+					},
+				},
+			},
+			New: &Task{
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume:          "vol1",
+						Destination:     "/local",
+						ReadOnly:        true,
+						PropagationMode: "private",
+						SELinuxLabel:    "Z",
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "VolumeMount",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Destination",
+								Old:  "/path",
+								New:  "/local",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "PropagationMode",
+								Old:  "bidirectional",
+								New:  "private",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ReadOnly",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "SELinuxLabel",
+								Old:  "z",
+								New:  "Z",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Volume",
+								Old:  "vol0",
+								New:  "vol1",
+							},
+						},
+					},
+				},
+			},
+		},
+
 		{
 			Name: "Vault added",
 			Old:  &Task{},

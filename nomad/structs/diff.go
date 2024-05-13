@@ -582,6 +582,11 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, aDiffs...)
 	}
 
+	// volume_mount diff
+	if vDiffs := volumeMountsDiffs(t.VolumeMounts, other.VolumeMounts, contextual); vDiffs != nil {
+		diff.Objects = append(diff.Objects, vDiffs...)
+	}
+
 	return diff, nil
 }
 
@@ -2415,6 +2420,58 @@ func volumeCSIMountOptionsDiff(oldMO, newMO *CSIMountOptions, contextual bool) *
 	if setDiff != nil {
 		diff.Objects = append(diff.Objects, setDiff)
 	}
+	return diff
+}
+
+func volumeMountsDiffs(oldMounts, newMounts []*VolumeMount, contextual bool) []*ObjectDiff {
+	var diffs []*ObjectDiff
+
+	for i := 0; i < len(oldMounts) && i < len(newMounts); i++ {
+		oldMount := oldMounts[i]
+		newMount := newMounts[i]
+
+		if diff := volumeMountDiff(oldMount, newMount, contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for i := len(newMounts); i < len(oldMounts); i++ {
+		if diff := volumeMountDiff(oldMounts[i], nil, contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for i := len(oldMounts); i < len(newMounts); i++ {
+		if diff := volumeMountDiff(nil, newMounts[i], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+
+	return diffs
+}
+
+func volumeMountDiff(oldMount, newMount *VolumeMount, contextual bool) *ObjectDiff {
+	if reflect.DeepEqual(oldMount, newMount) {
+		return nil
+	}
+
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "VolumeMount"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+	if oldMount == nil && newMount != nil {
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(newMount, nil, true)
+	} else if oldMount != nil && newMount == nil {
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(oldMount, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(oldMount, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(newMount, nil, true)
+	}
+
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 	return diff
 }
 

@@ -1319,21 +1319,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	if len(apiTask.VolumeMounts) > 0 {
-		structsTask.VolumeMounts = []*structs.VolumeMount{}
-		for _, mount := range apiTask.VolumeMounts {
-			if mount != nil && mount.Volume != nil {
-				structsTask.VolumeMounts = append(structsTask.VolumeMounts,
-					&structs.VolumeMount{
-						Volume:          *mount.Volume,
-						Destination:     *mount.Destination,
-						ReadOnly:        *mount.ReadOnly,
-						PropagationMode: *mount.PropagationMode,
-						SELinuxLabel:    *mount.SELinuxLabel,
-					})
-			}
-		}
-	}
+	structsTask.VolumeMounts = apiVolumeMountsToStructs(apiTask.VolumeMounts)
 
 	if len(apiTask.ScalingPolicies) > 0 {
 		structsTask.ScalingPolicies = []*structs.ScalingPolicy{}
@@ -1985,6 +1971,7 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 	if in == nil {
 		return nil
 	}
+
 	return &structs.SidecarTask{
 		Name:          in.Name,
 		Driver:        in.Driver,
@@ -1997,7 +1984,32 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 		KillSignal:    in.KillSignal,
 		KillTimeout:   in.KillTimeout,
 		LogConfig:     apiLogConfigToStructs(in.LogConfig),
+		VolumeMounts:  apiVolumeMountsToStructs(in.VolumeMounts),
 	}
+}
+
+func apiVolumeMountsToStructs(in []*api.VolumeMount) []*structs.VolumeMount {
+	if in == nil {
+		return nil
+	}
+	if len(in) == 0 {
+		return []*structs.VolumeMount{}
+	}
+
+	out := []*structs.VolumeMount{}
+	for _, mount := range in {
+		if mount != nil && mount.Volume != nil {
+			out = append(out,
+				&structs.VolumeMount{
+					Volume:          *mount.Volume,
+					Destination:     *mount.Destination,
+					ReadOnly:        *mount.ReadOnly,
+					PropagationMode: *mount.PropagationMode,
+					SELinuxLabel:    *mount.SELinuxLabel,
+				})
+		}
+	}
+	return out
 }
 
 func apiConsulToStructs(in *api.Consul) *structs.Consul {
