@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -323,13 +323,13 @@ func (*UniversalExecutor) computeMemory(command *ExecCommand) (int64, int64) {
 func withNetworkIsolation(f func() error, spec *drivers.NetworkIsolationSpec) error {
 	if spec != nil && spec.Path != "" {
 		// Get a handle to the target network namespace
-		netNS, err := ns.GetNS(spec.Path)
+		netNS, err := nsutil.GetNS(spec.Path)
 		if err != nil {
 			return err
 		}
 
 		// Start the container in the network namespace
-		return netNS.Do(func(ns.NetNS) error {
+		return netNS.Do(func(nsutil.NetNS) error {
 			return f()
 		})
 	}
