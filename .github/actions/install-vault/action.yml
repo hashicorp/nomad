@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 name: install-vault
+description: install HashiCorp Vault
 inputs:
   version:
     required: false
+    description: install HashiCorp Vault
     default: 1.2.4
 runs:
   using: composite
