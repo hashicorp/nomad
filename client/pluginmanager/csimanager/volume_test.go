@@ -94,7 +94,8 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 			eventer := func(e *structs.NodeEvent) {}
 			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake,
 				tmpPath, tmpPath, true, "i-example")
-			expectedStagingPath := manager.stagingDirForVolume(tmpPath, tc.Volume.ID, tc.UsageOptions)
+			expectedStagingPath := manager.stagingDirForVolume(tmpPath,
+				tc.Volume.Namespace, tc.Volume.ID, tc.UsageOptions)
 
 			if tc.CreateDirAheadOfTime {
 				err := os.MkdirAll(expectedStagingPath, 0700)
@@ -258,6 +259,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			ctx := context.Background()
 
 			err := manager.unstageVolume(ctx,
+				tc.Volume.Namespace,
 				tc.Volume.ID, tc.Volume.RemoteID(), tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
@@ -514,7 +516,7 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	require.Equal(t, "true", e.Details["success"])
 	events = events[1:]
 
-	err = manager.UnmountVolume(ctx, vol.ID, vol.RemoteID(), alloc.ID, usage)
+	err = manager.UnmountVolume(ctx, vol.Namespace, vol.ID, vol.RemoteID(), alloc.ID, usage)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, len(events))
