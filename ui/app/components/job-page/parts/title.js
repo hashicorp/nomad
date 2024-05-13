@@ -130,7 +130,7 @@ export default class Title extends Component {
     });
 
     const purifyConfig = {
-      FORBID_TAGS: ['script', 'style', 'input'],
+      FORBID_TAGS: ['script', 'style'],
       FORBID_ATTR: ['onerror', 'onload'],
     };
     const rawDescription = marked.parse(this.job.ui.Description);

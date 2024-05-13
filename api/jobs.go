@@ -943,6 +943,46 @@ type JobUILink struct {
 	URL   string `hcl:"url,optional"`
 }
 
+func (j *JobUIConfig) Canonicalize() {
+	if j == nil {
+		return
+	}
+
+	if j.Description == "" {
+		j.Description = ""
+	}
+
+	if len(j.Links) == 0 {
+		j.Links = nil
+	}
+}
+
+func (j *JobUIConfig) Copy() *JobUIConfig {
+	if j == nil {
+		return nil
+	}
+
+	copy := new(JobUIConfig)
+	copy.Description = j.Description
+
+	for _, link := range j.Links {
+		copy.Links = append(copy.Links, link.Copy())
+	}
+
+	return copy
+}
+
+func (j *JobUILink) Copy() *JobUILink {
+	if j == nil {
+		return nil
+	}
+
+	return &JobUILink{
+		Label: j.Label,
+		URL:   j.URL,
+	}
+}
+
 func (js *JobSubmission) Canonicalize() {
 	if js == nil {
 		return
@@ -1117,6 +1157,10 @@ func (j *Job) Canonicalize() {
 	}
 	for _, a := range j.Affinities {
 		a.Canonicalize()
+	}
+
+	if j.UI != nil {
+		j.UI.Canonicalize()
 	}
 }
 

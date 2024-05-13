@@ -4472,6 +4472,33 @@ type JobUILink struct {
 	Url   string
 }
 
+func (j *JobUIConfig) Copy() *JobUIConfig {
+	if j == nil {
+		return nil
+	}
+	copy := new(JobUIConfig)
+	copy.Description = j.Description
+
+	if j.Links != nil {
+		links := make([]JobUILink, len(j.Links))
+		for i, link := range j.Links {
+			links[i] = *link.Copy()
+		}
+		copy.Links = links
+	}
+	return copy
+}
+
+func (l *JobUILink) Copy() *JobUILink {
+	if l == nil {
+		return nil
+	}
+	copy := new(JobUILink)
+	copy.Label = l.Label
+	copy.Url = l.Url
+	return copy
+}
+
 // NamespacedID returns the namespaced id useful for logging
 func (j *Job) NamespacedID() NamespacedID {
 	return NamespacedID{
@@ -4567,6 +4594,7 @@ func (j *Job) Copy() *Job {
 	nj.Constraints = CopySliceConstraints(nj.Constraints)
 	nj.Affinities = CopySliceAffinities(nj.Affinities)
 	nj.Multiregion = nj.Multiregion.Copy()
+	nj.UI = nj.UI.Copy()
 
 	if j.TaskGroups != nil {
 		tgs := make([]*TaskGroup, len(nj.TaskGroups))
@@ -4658,9 +4686,9 @@ func (j *Job) Validate() error {
 	}
 
 	const MaxDescriptionCharacters = 1000
-	if j.Ui != nil {
-		if len(j.Ui.Description) > MaxDescriptionCharacters {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("UI description must be under 1000 characters, currently %d", len(j.Ui.Description)))
+	if j.UI != nil {
+		if len(j.UI.Description) > MaxDescriptionCharacters {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("UI description must be under 1000 characters, currently %d", len(j.UI.Description)))
 		}
 	}
 

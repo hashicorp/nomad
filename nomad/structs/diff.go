@@ -151,6 +151,11 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 		diff.Objects = append(diff.Objects, mrDiff)
 	}
 
+	// UI diff
+	if uiDiff := uiDiff(j.UI, other.UI, contextual); uiDiff != nil {
+		diff.Objects = append(diff.Objects, uiDiff)
+	}
+
 	// Check to see if there is a diff. We don't use reflect because we are
 	// filtering quite a few fields that will change on each diff.
 	if diff.Type == DiffTypeNone {
@@ -2317,6 +2322,88 @@ Loop:
 	} else {
 		return nil
 	}
+
+	return diff
+}
+
+func uiDiff(old, new *JobUIConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "UI"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &JobUIConfig{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &JobUIConfig{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	if linkDiffs := linkDiffs(old.Links, new.Links, contextual); len(linkDiffs) > 0 {
+		diff.Objects = append(diff.Objects, linkDiffs...)
+
+	}
+
+	// Sort
+	sort.Sort(FieldDiffs(diff.Fields))
+	sort.Sort(ObjectDiffs(diff.Objects))
+
+	return diff
+}
+
+func linkDiffs(old, new []JobUILink, contextual bool) []*ObjectDiff {
+	var diffs []*ObjectDiff
+
+	for i := 0; i < len(old) && i < len(new); i++ {
+		if diff := linkDiff(old[i], new[i], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	// Deleted links
+	for i := len(new); i < len(old); i++ {
+		emptyNew := JobUILink{} // Simulate an empty new link
+		if diff := linkDiff(old[i], emptyNew, contextual); diff != nil {
+			diff.Type = DiffTypeDeleted // Mark the diff as a deletion
+			diffs = append(diffs, diff)
+		}
+	}
+
+	// New links
+	for i := len(old); i < len(new); i++ {
+		emptyOld := JobUILink{} // Simulate an empty old link
+		if diff := linkDiff(emptyOld, new[i], contextual); diff != nil {
+			diff.Type = DiffTypeAdded // Mark the diff as an addition
+			diffs = append(diffs, diff)
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
+
+func linkDiff(old, new JobUILink, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Link"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+	if reflect.DeepEqual(old, new) {
+		return nil
+	}
+
+	diff.Type = DiffTypeEdited
+	oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+
+	// Diff the primitive fields
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	return diff
 }
