@@ -345,7 +345,7 @@ func TestJob_Validate(t *testing.T) {
 		{
 			name: "job description is too long",
 			job: &Job{
-				Ui: &JobUIConfig{
+				UI: &JobUIConfig{
 					Description: strings.Repeat("a", 1015),
 				},
 			},

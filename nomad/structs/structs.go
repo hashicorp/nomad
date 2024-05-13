@@ -4459,7 +4459,7 @@ type Job struct {
 	JobModifyIndex uint64
 
 	// Links and Description fields for the Web UI
-	Ui *JobUIConfig
+	UI *JobUIConfig
 }
 
 type JobUIConfig struct {

@@ -22,7 +22,8 @@ The following will provide the Web UI with a job description and a pair of links
 
 ## `ui` Parameters
 
-- `description` `(string: "")` - The markdown-enabled description of the job
+- `description` `(string: "")` - The markdown-enabled description of the job. We
+  support [GitHub Flavored Markdown](https://github.github.com/gfm/).
 - `link` `(map<string|string>: nil)` - A link that should show up in the header
   of the job index page in the Web UI. A job can have any number of links, and
   they must contain both a string `label` and `url`.
@@ -35,11 +36,11 @@ job "docs" {
     description = "A job that uses **Nomad Variables**"
     link {
       label = "Learn more about Nomad"
-      url = "https://developer.hashicorp.com/nomad"
+      url   = "https://developer.hashicorp.com/nomad"
     }
     link {
-      label = "Nomad on Github"
-      url = "https://github.com/hashicorp/nomad"
+      label = "Nomad on GitHub"
+      url   = "https://github.com/hashicorp/nomad"
     }
   }
   # ...

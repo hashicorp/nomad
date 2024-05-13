@@ -992,7 +992,7 @@ type Job struct {
 	Meta             map[string]string       `hcl:"meta,block"`
 	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
 	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
-	Ui               *JobUIConfig            `hcl:"ui,block"`
+	UI               *JobUIConfig            `hcl:"ui,block"`
 
 	/* Fields set by server, not sourced from job config file */
 
