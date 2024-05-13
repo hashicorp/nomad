@@ -21,7 +21,7 @@
   {{/if}}
   {{#if this.links}}
     <PH.Generic>
-      <div class="job-ui-links">
+      <div class="job-ui-links" data-test-job-links>
         {{#each this.links as |link|}}
           <Hds::Button @color="secondary" @isInline={{true}} @text={{link.Label}} @icon="external-link" @iconPosition="trailing" @href={{link.Url}} />
         {{/each}}

@@ -351,6 +351,27 @@ module('Acceptance | ui block', function (hooks) {
       .exists({ count: 2 }, 'Job links exists when defined in HCL');
     await percySnapshot(assert);
   });
+
+  test('job sanitizes input', async function (assert) {
+    server.create('node-pool');
+    server.create('node');
+    server.create('job', {
+      id: 'xss-job',
+      ui: {
+        Description: '<script>alert("XSS");</script><p>Safe text</p>',
+      },
+    });
+
+    await JobDetail.visit({ id: 'xss-job' });
+
+    assert
+      .dom('[data-test-job-description]')
+      .hasText('Safe text', 'Description should only contain safe text');
+
+    assert
+      .dom('[data-test-job-description] script')
+      .doesNotExist('Should not render script tags');
+  });
 });
 
 module('Acceptance | job detail (with namespaces)', function (hooks) {

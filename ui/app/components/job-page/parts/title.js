@@ -13,6 +13,7 @@ import classic from 'ember-classic-decorator';
 import jsonToHcl from 'nomad-ui/utils/json-to-hcl';
 import { marked } from 'marked';
 import { htmlSafe } from '@ember/template';
+import DOMPurify from 'dompurify';
 
 @classic
 @tagName('')
@@ -121,12 +122,27 @@ export default class Title extends Component {
     if (!this.job.ui?.Description) {
       return null;
     }
+
     // Put <br /> on newlines, use github-flavoured-markdown.
     marked.use({
       gfm: true,
       breaks: true,
     });
-    return htmlSafe(marked.parse(this.job.ui.Description));
+
+    const purifyConfig = {
+      FORBID_TAGS: ['script', 'style', 'input'],
+      FORBID_ATTR: ['onerror', 'onload'],
+    };
+    const rawDescription = marked.parse(this.job.ui.Description);
+    if (typeof rawDescription !== 'string') {
+      console.error(
+        'Expected a string from marked.parse(), received:',
+        typeof rawDescription
+      );
+      return null;
+    }
+    const cleanDescription = DOMPurify.sanitize(rawDescription, purifyConfig);
+    return htmlSafe(cleanDescription);
   }
 
   get links() {
