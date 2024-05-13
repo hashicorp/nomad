@@ -527,7 +527,7 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 		AccessMode:     req.AccessMode,
 	}
 
-	err = manager.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
+	err = manager.UnmountVolume(ctx, req.VolumeNamespace, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
 	if err != nil && !errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
 		// if the unmounting previously happened but the server failed to
 		// checkpoint, we'll get an error from Unmount but can safely
@@ -565,7 +565,7 @@ func (c *CSI) NodeExpandVolume(req *structs.ClientCSINodeExpandVolumeRequest, re
 		return err
 	}
 
-	newCapacity, err := manager.ExpandVolume(ctx,
+	newCapacity, err := manager.ExpandVolume(ctx, req.VolumeNamespace,
 		req.VolumeID, req.ExternalID, req.Claim.AllocationID, usageOpts, req.Capacity)
 
 	if err != nil && !errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
