@@ -2478,10 +2478,24 @@ func TestCSIPluginEndpoint_ACLNamespaceFilterAlloc(t *testing.T) {
 		must.Eq(t, structs.DefaultNamespace, a.Namespace)
 	}
 
+	// filter out all allocs
 	p2 := mock.PluginPolicy("read")
 	t2 := mock.CreatePolicyAndToken(t, s, 1004, "plugin-read2", p2)
 	req.AuthToken = t2.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req, resp)
 	must.NoError(t, err)
 	must.Eq(t, 0, len(resp.Plugin.Allocations))
+
+	// wildcard namespace filter
+	p3 := mock.PluginPolicy("read") +
+		mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob})
+	t3 := mock.CreatePolicyAndToken(t, s, 1005, "plugin-read", p3)
+
+	req.Namespace = structs.AllNamespacesSentinel
+	req.AuthToken = t3.SecretID
+	resp = &structs.CSIPluginGetResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req, resp)
+	must.NoError(t, err)
+	must.Eq(t, 1, len(resp.Plugin.Allocations))
+	must.Eq(t, ns1.Name, resp.Plugin.Allocations[0].Namespace)
 }
