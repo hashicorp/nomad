@@ -139,7 +139,7 @@ func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath strin
 	for _, pid := range orphansPIDs {
 		l.logger.Info("killing orphaned process", "pid", pid)
 
-		// Avoid bringind down the whole node by mistake, very unlikly case,
+		// Avoid bringing down the whole node by mistake, very unlikely case,
 		// but it's better to be sure.
 		if pid == 1 {
 			continue
