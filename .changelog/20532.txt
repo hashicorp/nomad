@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where volumes in different namespaces but the same ID would fail to stage on the same client
+```

@@ -33,6 +33,12 @@ func (c *CallCounter) Get() map[string]int {
 	return maps.Clone(c.counts)
 }
 
+func (c *CallCounter) Reset() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.counts = make(map[string]int)
+}
+
 func (c *CallCounter) AssertCalled(t testing.T, name string) {
 	t.Helper()
 	counts := c.Get()
