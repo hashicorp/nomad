@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strings"
@@ -68,19 +69,73 @@ type LibcontainerExecutor struct {
 	userProc       *libcontainer.Process
 	userProcExited chan interface{}
 	exitState      *ProcessState
+	sigChan        chan os.Signal
+}
+
+func (l *LibcontainerExecutor) catchSignals() {
+	l.logger.Trace("waiting for signals")
+	defer signal.Stop(l.sigChan)
+	defer close(l.sigChan)
+
+	signal.Notify(l.sigChan, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
+	for {
+		signal := <-l.sigChan
+		if signal == syscall.SIGTERM || signal == syscall.SIGINT {
+			l.Shutdown("SIGINT", 0)
+			break
+		}
+
+		if l.container != nil {
+			l.container.Signal(signal, false)
+		}
+	}
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger, cpuTotalTicks uint64) Executor {
 	logger = logger.Named("isolated_executor")
 	stats.SetCpuTotalTicks(cpuTotalTicks)
 
-	return &LibcontainerExecutor{
+	sigch := make(chan os.Signal, 4)
+
+	le := LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger,
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
 		pidCollector:   newPidCollector(logger),
+		sigChan:        sigch,
+	}
+
+	go le.catchSignals()
+	return le
+}
+
+// cleanOldProcessesInCGroup kills processes that might ended up orphans when the
+// executor was unexpectedly killed and nomad can't reconnect to them.
+func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath string) {
+	l.logger.Debug("looking for old processes", "path", nomadRelativePath)
+
+	root := cgutil.CgroupRoot
+	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
+	if err != nil {
+		l.logger.Error("unable to get orphaned task PIDs", "error", err)
+		return
+	}
+
+	for _, pid := range orphansPIDs {
+		l.logger.Info("killing orphaned process", "pid", pid)
+
+		// Avoid bringing down the whole node by mistake, very unlikely case,
+		// but it's better to be sure.
+		if pid == 1 {
+			continue
+		}
+
+		err := syscall.Kill(pid, syscall.SIGKILL)
+		if err != nil {
+			l.logger.Error("unable to send signal to process", "pid", pid, "error", err)
+		}
 	}
 }
 
@@ -114,6 +169,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
 
+	l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path)
 	container, err := factory.Create(l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
@@ -153,6 +209,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	if command.User != "" {
 		process.User = command.User
 	}
+
 	l.userProc = process
 
 	l.totalCpuStats = stats.NewCpuStats()
