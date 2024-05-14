@@ -1426,7 +1426,8 @@ func (t *SidecarTask) Equal(o *SidecarTask) bool {
 		return false
 	}
 
-	if !slices.Equal(t.VolumeMounts, o.VolumeMounts) {
+	if !slices.EqualFunc(t.VolumeMounts, o.VolumeMounts,
+		func(tVM, oVM *VolumeMount) bool { return tVM.Equal(oVM) }) {
 		return false
 	}
 

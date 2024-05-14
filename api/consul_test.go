@@ -263,6 +263,20 @@ func TestSidecarTask_Canonicalize(t *testing.T) {
 		st.Canonicalize()
 		must.Eq(t, exp, st.Resources)
 	})
+
+	t.Run("non empty sidecar_task volume_mount", func(t *testing.T) {
+		st := &SidecarTask{
+			VolumeMounts: []*VolumeMount{{
+				Volume:      pointerOf("vol0"),
+				Destination: pointerOf("/local/foo"),
+			}},
+		}
+		st.Canonicalize()
+		must.Eq(t, pointerOf(false), st.VolumeMounts[0].ReadOnly)
+		must.Eq(t, pointerOf("private"), st.VolumeMounts[0].PropagationMode)
+		must.Eq(t, pointerOf(""), st.VolumeMounts[0].SELinuxLabel)
+	})
+
 }
 
 func TestConsulGateway_Canonicalize(t *testing.T) {
