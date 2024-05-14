@@ -1184,7 +1184,7 @@ func parseQueryMeta(resp *http.Response, q *QueryMeta) error {
 	if err != nil {
 		return fmt.Errorf("Failed to parse X-Nomad-LastContact: %v", err)
 	}
-	if last > uint64(math.MaxInt64) {
+	if last > math.MaxInt64 {
 		return fmt.Errorf("Last contact duration is out of range: %d", last)
 	}
 	q.LastContact = time.Duration(last) * time.Millisecond
