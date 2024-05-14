@@ -90,9 +90,6 @@ func (*Sysfs) discoverCosts(st *Topology, readerFunc pathReaderFn) {
 
 		for i, c := range strings.Fields(s) {
 			cost, _ := strconv.ParseUint(c, 10, 8)
-			if err != nil {
-				return err
-			}
 			st.Distances[id][i] = Cost(cost)
 		}
 		return nil
