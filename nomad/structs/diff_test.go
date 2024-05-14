@@ -1744,6 +1744,142 @@ func TestJobDiff(t *testing.T) {
 				ID:   "vault-job",
 			},
 		},
+
+		// UI block is added
+		{
+			Old: &Job{
+				UI: &JobUIConfig{},
+			},
+			New: &Job{
+				UI: &JobUIConfig{
+					Description: "a job description",
+					Links: []JobUILink{{
+						Label: "example",
+						Url:   "http://example.com",
+					}},
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "UI",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Description",
+								Old:  "",
+								New:  "a job description",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Link",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Label",
+										Old:  "",
+										New:  "example",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Url",
+										Old:  "",
+										New:  "http://example.com",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+
+		// UI block is edited
+		{
+			Old: &Job{
+				UI: &JobUIConfig{
+					Description: "old job description",
+					Links: []JobUILink{{
+						Label: "foo example",
+						Url:   "http://foo.example.com",
+					}},
+				},
+			},
+			New: &Job{
+				UI: &JobUIConfig{
+					Description: "new job description",
+					Links: []JobUILink{
+						{
+							Label: "bar example",
+							Url:   "http://bar.example.com",
+						},
+						{
+							Label: "baz example",
+							Url:   "http://baz.example.com",
+						},
+					},
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "UI",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Description",
+								Old:  "old job description",
+								New:  "new job description",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Link",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "Label",
+										Old:  "foo example",
+										New:  "bar example",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Url",
+										Old:  "http://foo.example.com",
+										New:  "http://bar.example.com",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Link",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Label",
+										Old:  "",
+										New:  "baz example",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Url",
+										Old:  "",
+										New:  "http://baz.example.com",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
