@@ -684,6 +684,19 @@ func testJob() *Job {
 		AllAtOnce:   false,
 		Datacenters: []string{"*"},
 		NodePool:    NodePoolDefault,
+		UI: &JobUIConfig{
+			Description: "A job",
+			Links: []JobUILink{
+				{
+					Label: "Nomad Project",
+					Url:   "https://nomadproject.io",
+				},
+				{
+					Label: "Nomad on GitHub",
+					Url:   "https://github.com/hashicorp/nomad",
+				},
+			},
+		},
 		Constraints: []*Constraint{
 			{
 				LTarget: "$attr.kernel.name",
