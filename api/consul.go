@@ -115,6 +115,7 @@ type SidecarTask struct {
 	LogConfig     *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
 	ShutdownDelay *time.Duration         `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	KillSignal    string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
+	VolumeMounts  []*VolumeMount         `hcl:"volume_mount,block"`
 }
 
 func (st *SidecarTask) Canonicalize() {
@@ -152,6 +153,10 @@ func (st *SidecarTask) Canonicalize() {
 
 	if st.ShutdownDelay == nil {
 		st.ShutdownDelay = pointerOf(time.Duration(0))
+	}
+
+	for _, vm := range st.VolumeMounts {
+		vm.Canonicalize()
 	}
 }
 

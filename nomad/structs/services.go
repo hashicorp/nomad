@@ -1370,6 +1370,10 @@ type SidecarTask struct {
 	// KillSignal is the kill signal to use for the task. This is an optional
 	// specification and defaults to SIGINT
 	KillSignal string
+
+	// VolumeMounts is a list of Volume name <-> mount configurations that will be
+	// attached to this task.
+	VolumeMounts []*VolumeMount
 }
 
 func (t *SidecarTask) Equal(o *SidecarTask) bool {
@@ -1422,6 +1426,11 @@ func (t *SidecarTask) Equal(o *SidecarTask) bool {
 		return false
 	}
 
+	if !slices.EqualFunc(t.VolumeMounts, o.VolumeMounts,
+		func(tVM, oVM *VolumeMount) bool { return tVM.Equal(oVM) }) {
+		return false
+	}
+
 	return true
 }
 
@@ -1450,6 +1459,8 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	if t.ShutdownDelay != nil {
 		nt.ShutdownDelay = pointer.Of(*t.ShutdownDelay)
 	}
+
+	nt.VolumeMounts = CopySliceVolumeMount(t.VolumeMounts)
 
 	return nt
 }
@@ -1522,6 +1533,10 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 
 	if t.KillSignal != "" {
 		task.KillSignal = t.KillSignal
+	}
+
+	if t.VolumeMounts != nil {
+		task.VolumeMounts = t.VolumeMounts
 	}
 }
 

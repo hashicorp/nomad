@@ -3945,13 +3945,13 @@ func TestConversion_apiJobSubmissionToStructs(t *testing.T) {
 
 func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 	ci.Parallel(t)
-	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
+	must.Nil(t, apiConnectSidecarTaskToStructs(nil))
 	delay := time.Duration(200)
 	timeout := time.Duration(1000)
 	config := make(map[string]interface{})
 	env := make(map[string]string)
 	meta := make(map[string]string)
-	require.Equal(t, &structs.SidecarTask{
+	must.Eq(t, &structs.SidecarTask{
 		Name:   "name",
 		Driver: "driver",
 		User:   "user",
@@ -3970,6 +3970,15 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		},
 		ShutdownDelay: &delay,
 		KillSignal:    "SIGTERM",
+		VolumeMounts: []*structs.VolumeMount{
+			{
+				Volume:          "vol0",
+				Destination:     "/local/foo",
+				ReadOnly:        true,
+				PropagationMode: "private",
+				SELinuxLabel:    "Z",
+			},
+		},
 	}, apiConnectSidecarTaskToStructs(&api.SidecarTask{
 		Name:   "name",
 		Driver: "driver",
@@ -3989,6 +3998,37 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		},
 		ShutdownDelay: &delay,
 		KillSignal:    "SIGTERM",
+		VolumeMounts: []*api.VolumeMount{
+			{
+				Volume:          pointer.Of("vol0"),
+				Destination:     pointer.Of("/local/foo"),
+				ReadOnly:        pointer.Of(true),
+				PropagationMode: pointer.Of("private"),
+				SELinuxLabel:    pointer.Of("Z"),
+			},
+		},
+	}))
+}
+
+func TestConversion_apiVolumeMountsToStructs(t *testing.T) {
+	ci.Parallel(t)
+	must.Nil(t, apiVolumeMountsToStructs(nil))
+	must.Eq(t, []*structs.VolumeMount{
+		{
+			Volume:          "vol0",
+			Destination:     "/local/foo",
+			ReadOnly:        true,
+			PropagationMode: "private",
+			SELinuxLabel:    "Z",
+		},
+	}, apiVolumeMountsToStructs([]*api.VolumeMount{
+		{
+			Volume:          pointer.Of("vol0"),
+			Destination:     pointer.Of("/local/foo"),
+			ReadOnly:        pointer.Of(true),
+			PropagationMode: pointer.Of("private"),
+			SELinuxLabel:    pointer.Of("Z"),
+		},
 	}))
 }
 
