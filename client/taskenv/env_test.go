@@ -339,6 +339,13 @@ func TestEnvironment_AllValues(t *testing.T) {
 		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
 	)
 
+	// Setting the network status ensures we trigger the addNomadAllocNetwork
+	// for the test.
+	env = env.SetNetworkStatus(&structs.AllocNetworkStatus{
+		InterfaceName: "eth0",
+		Address:       "172.26.64.19",
+	})
+
 	// Add a host environment variable which matches a task variable. It means
 	// we can test to ensure the allocation ID variable from the task overrides
 	// that found on the host. The second entry tests to ensure other host env
@@ -438,6 +445,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_PORT_admin":                          "9000",
 		"NOMAD_ALLOC_PORT_admin":                    "9000",
 		"NOMAD_HOST_PORT_admin":                     "32000",
+		"NOMAD_ALLOC_INTERFACE_admin":               "eth0",
+		"NOMAD_ALLOC_IP_admin":                      "172.26.64.19",
+		"NOMAD_ALLOC_ADDR_admin":                    "172.26.64.19:9000",
 
 		// Env vars from the host.
 		"LC_CTYPE": "C.UTF-8",
@@ -812,6 +822,58 @@ func TestEnvironment_Upstreams(t *testing.T) {
 	require.Equal(t, "5678", env["NOMAD_UPSTREAM_PORT_bar"])
 	require.Equal(t, "127.0.0.1:1234", env["foo"])
 	require.Equal(t, "1234", env["bar"])
+}
+
+func Test_addNetNamespacePort(t *testing.T) {
+	testCases := []struct {
+		inputPorts     structs.AllocatedPorts
+		inputNetwork   *structs.AllocNetworkStatus
+		expectedOutput map[string]string
+		name           string
+	}{
+		{
+			inputPorts: structs.AllocatedPorts{
+				{Label: "http", To: 80},
+			},
+			inputNetwork: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.64.11",
+			},
+			expectedOutput: map[string]string{
+				"NOMAD_ALLOC_INTERFACE_http": "eth0",
+				"NOMAD_ALLOC_IP_http":        "172.26.64.11",
+				"NOMAD_ALLOC_ADDR_http":      "172.26.64.11:80",
+			},
+			name: "single input port",
+		},
+		{
+			inputPorts: structs.AllocatedPorts{
+				{Label: "http", To: 80},
+				{Label: "https", To: 443},
+			},
+			inputNetwork: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.64.11",
+			},
+			expectedOutput: map[string]string{
+				"NOMAD_ALLOC_INTERFACE_http":  "eth0",
+				"NOMAD_ALLOC_IP_http":         "172.26.64.11",
+				"NOMAD_ALLOC_ADDR_http":       "172.26.64.11:80",
+				"NOMAD_ALLOC_INTERFACE_https": "eth0",
+				"NOMAD_ALLOC_IP_https":        "172.26.64.11",
+				"NOMAD_ALLOC_ADDR_https":      "172.26.64.11:443",
+			},
+			name: "multiple input ports",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			inputMap := make(map[string]string)
+			addNomadAllocNetwork(inputMap, tc.inputPorts, tc.inputNetwork)
+			assert.Equal(t, tc.expectedOutput, inputMap, tc.name)
+		})
+	}
 }
 
 func TestEnvironment_SetPortMapEnvs(t *testing.T) {

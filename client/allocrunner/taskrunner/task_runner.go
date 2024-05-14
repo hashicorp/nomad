@@ -258,6 +258,12 @@ type TaskRunner struct {
 	networkIsolationLock sync.Mutex
 	networkIsolationSpec *drivers.NetworkIsolationSpec
 
+	// allocNetworkStatus is provided from the allocrunner and allows us to
+	// include this information as env vars for the task. When manipulating
+	// this the allocNetworkStatusLock should be used.
+	allocNetworkStatusLock sync.Mutex
+	allocNetworkStatus     *structs.AllocNetworkStatus
+
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
@@ -1454,6 +1460,19 @@ func (tr *TaskRunner) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
 	tr.networkIsolationLock.Lock()
 	tr.networkIsolationSpec = n
 	tr.networkIsolationLock.Unlock()
+}
+
+// SetNetworkStatus is called from the allocrunner to propagate the
+// network status of an allocation. This call occurs once the network hook has
+// run and allows this information to be exported as env vars within the
+// taskenv.
+func (tr *TaskRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
+	tr.allocNetworkStatusLock.Lock()
+	tr.allocNetworkStatus = s
+	tr.allocNetworkStatusLock.Unlock()
+
+	// Update the taskenv builder.
+	tr.envBuilder = tr.envBuilder.SetNetworkStatus(s)
 }
 
 // triggerUpdate if there isn't already an update pending. Should be called

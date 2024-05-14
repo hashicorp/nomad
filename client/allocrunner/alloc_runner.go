@@ -928,6 +928,12 @@ func (ar *allocRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
 	ans := s.Copy()
 	ar.state.NetworkStatus = ans
 	ar.hookResources.SetAllocNetworkStatus(ans)
+
+	// Iterate each task runner and add the status information. This allows the
+	// task to build the environment variables with this information available.
+	for _, tr := range ar.tasks {
+		tr.SetNetworkStatus(ans)
+	}
 }
 
 func (ar *allocRunner) NetworkStatus() *structs.AllocNetworkStatus {
