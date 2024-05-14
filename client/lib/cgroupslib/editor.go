@@ -21,6 +21,10 @@ const (
 	root = "/sys/fs/cgroup"
 )
 
+func GetDefaultRoot() string {
+	return root
+}
+
 // OpenPath creates a handle for modifying cgroup interface files under
 // the given directory.
 //
