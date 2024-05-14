@@ -246,7 +246,12 @@ export default class JobAdapter extends WatchableNamespaceIDs {
         result.meta.nextToken = headers['x-nomad-nexttoken'];
       }
       if (headers['x-nomad-index']) {
-        result.meta.index = headers['x-nomad-index'];
+        // Query won't block if the index is 0 (see also watch-list.getIndexFor for prior art)
+        if (headers['x-nomad-index'] === '0') {
+          result.meta.index = 1;
+        } else {
+          result.meta.index = headers['x-nomad-index'];
+        }
       }
     }
     return result;
