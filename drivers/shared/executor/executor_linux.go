@@ -97,7 +97,7 @@ func NewExecutorWithIsolation(logger hclog.Logger, cpuTotalTicks uint64) Executo
 
 	sigch := make(chan os.Signal, 4)
 
-	le := LibcontainerExecutor{
+	le := &LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger,
 		totalCpuStats:  stats.NewCpuStats(),

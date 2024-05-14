@@ -890,12 +890,12 @@ func TestUniversalExecutor_NoCgroup(t *testing.T) {
 
 }
 
-func createCGroup(fullpath string) (cgroupslib.Interface, error) {
+func createCGroup(fullpath string) (cgutil.Interface, error) {
 	if err := os.MkdirAll(fullpath, 0755); err != nil {
 		return nil, err
 	}
 
-	return cgroupslib.OpenPath(fullpath), nil
+	return cgutil.OpenPath(strings.Trim(fullpath, cgutil.CgroupRoot)), nil
 }
 
 func TestExecutor_CleanOldProcessesInCGroup(t *testing.T) {
@@ -945,7 +945,7 @@ func TestExecutor_CleanOldProcessesInCGroup(t *testing.T) {
 
 	// Run the executor normally and make sure the process that was originally running
 	// as part of the CGroup was killed, and only the executor's process is running.
-	execInterface := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
+	execInterface := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
 	executor := execInterface.(*LibcontainerExecutor)
 	defer executor.Shutdown("SIGKILL", 0)
 
@@ -985,7 +985,7 @@ func TestExecutor_SignalCatching(t *testing.T) {
 	execCmd.ModePID = "private"
 	execCmd.ModeIPC = "private"
 
-	execInterface := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
+	execInterface := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
 
 	ps, err := execInterface.Launch(execCmd)
 	must.NoError(t, err)
