@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -1078,6 +1079,9 @@ func parseQueryMeta(resp *http.Response, q *QueryMeta) error {
 	last, err := strconv.ParseUint(header.Get("X-Nomad-LastContact"), 10, 64)
 	if err != nil {
 		return fmt.Errorf("Failed to parse X-Nomad-LastContact: %v", err)
+	}
+	if last > math.MaxInt64 {
+		return fmt.Errorf("Last contact duration is out of range: %d", last)
 	}
 	q.LastContact = time.Duration(last) * time.Millisecond
 	q.NextToken = header.Get("X-Nomad-NextToken")
