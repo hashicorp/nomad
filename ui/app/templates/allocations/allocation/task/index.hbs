@@ -78,6 +78,16 @@
       {{/if}}
     </PH.Actions>
   </Hds::PageHeader>
+  {{#if this.model.task.schedule}}
+    <Hds::Alert @type="inline" @icon="delay" @color="highlight" as |A|>
+      <A.Title>This task has a defined schedule</A.Title>
+      <A.Description>This job is currently following a predefined schedule. You can unschedule the task to manage it manually or reschedule it to follow the defined schedule again.</A.Description>
+      <A.Button @text="Force Pause" @color="secondary" />
+      <A.Button @text="Remove from Schedule" @color="secondary" />
+    </Hds::Alert>
+    <Hds::Separator />
+  {{/if}}
+
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">
