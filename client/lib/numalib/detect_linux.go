@@ -89,7 +89,7 @@ func (*Sysfs) discoverCosts(st *Topology, readerFunc pathReaderFn) {
 		}
 
 		for i, c := range strings.Fields(s) {
-			cost, _ := strconv.Atoi(c)
+			cost, _ := strconv.ParseUint(c, 10, 8)
 			st.Distances[id][i] = Cost(cost)
 		}
 		return nil
@@ -110,8 +110,8 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 			st.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0})
 			const node = 0
 			const socket = 0
-			cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
-			base, _ := getNumeric[hw.KHz](cpuBaseFile, readerFunc, core)
+			cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, 64, readerFunc, core)
+			base, _ := getNumeric[hw.KHz](cpuBaseFile, 64, readerFunc, core)
 			st.insert(node, socket, core, Performance, cpuMax, base)
 			return nil
 		})
@@ -126,9 +126,9 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 			cores := idset.Parse[hw.CoreID](string(s))
 			_ = cores.ForEach(func(core hw.CoreID) error {
 				// best effort, zero values are defaults
-				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, readerFunc, core)
-				cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, readerFunc, core)
-				base, _ := getNumeric[hw.KHz](cpuBaseFile, readerFunc, core)
+				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, 8, readerFunc, core)
+				cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, 64, readerFunc, core)
+				base, _ := getNumeric[hw.KHz](cpuBaseFile, 64, readerFunc, core)
 				siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, readerFunc, core)
 
 				// if we get an incorrect core number, this means we're not getting the right
@@ -154,13 +154,13 @@ func getIDSet[T idset.ID](path string, readerFunc pathReaderFn, args ...any) (*i
 	return idset.Parse[T](string(s)), nil
 }
 
-func getNumeric[T int | idset.ID](path string, readerFunc pathReaderFn, args ...any) (T, error) {
+func getNumeric[T int | idset.ID](path string, maxSize int, readerFunc pathReaderFn, args ...any) (T, error) {
 	path = fmt.Sprintf(path, args...)
 	s, err := readerFunc(path)
 	if err != nil {
 		return 0, err
 	}
-	i, err := strconv.Atoi(strings.TrimSpace(string(s)))
+	i, err := strconv.ParseUint(strings.TrimSpace(string(s)), 10, maxSize)
 	if err != nil {
 		return 0, err
 	}
