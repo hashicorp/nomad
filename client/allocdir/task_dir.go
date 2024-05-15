@@ -170,6 +170,11 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 			return fmt.Errorf("Failed to lookup user: %v", err)
 		}
 
+		nobodyUID, nobodyGID, _, err := dynamic.LookupUser("nobody")
+		if err != nil {
+			return fmt.Errorf("Failed to lookup nobody user: %v", err)
+		}
+
 		// create the task unique directory under the client mounts path
 		parent := filepath.Dir(t.MountsAllocDir)
 		if err = os.MkdirAll(parent, fileMode710); err != nil {
@@ -179,10 +184,20 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 			return fmt.Errorf("Failed to chown task mount directory: %v", err)
 		}
 
-		// create the task, alloc, and secrets mount points
-		mountDir(t.Dir, t.MountsTaskDir, uid, gid, fileMode710)
-		mountDir(filepath.Join(t.AllocDir, "/alloc"), t.MountsAllocDir, uid, gid, fileMode710)
-		mountDir(t.SecretsDir, t.MountsSecretsDir, uid, gid, fileMode710)
+		// create the taskdir mount point
+		if err = mountDir(t.Dir, t.MountsTaskDir, uid, gid, fileMode710); err != nil {
+			return fmt.Errorf("Failed to mount task dir: %v", err)
+		}
+
+		// create the allocdir mount point (owned by nobody)
+		if err = mountDir(filepath.Join(t.AllocDir, "/alloc"), t.MountsAllocDir, nobodyUID, nobodyGID, fileMode777); err != nil {
+			return fmt.Errorf("Failed to mount alloc dir: %v", err)
+		}
+
+		// create the secretsdir mount point
+		if err = mountDir(t.SecretsDir, t.MountsSecretsDir, uid, gid, fileMode710); err != nil {
+			return fmt.Errorf("Failed to mount secrets dir: %v", err)
+		}
 	}
 
 	return nil
