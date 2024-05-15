@@ -1131,6 +1131,12 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	if err := txn.Insert("index", &IndexEntry{"nodes", txn.Index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
+
+	// Deregister any services on the node in the same transaction
+	if copyNode.Status == structs.NodeStatusDown {
+		s.deleteServiceRegistrationByNodeIDTxn(txn, txn.Index, copyNode.ID)
+	}
+
 	return nil
 }
 
@@ -3629,6 +3635,10 @@ func (s *StateStore) DeleteEval(index uint64, evals, allocs []string, userInitia
 		// Mark that we have made a successful modification to the allocs
 		// table.
 		allocsTableUpdated = true
+
+		if err := s.deleteServiceRegistrationByAllocIDTxn(txn, index, alloc); err != nil {
+			return fmt.Errorf("service registration delete for alloc failed: %v", err)
+		}
 	}
 
 	// Update the indexes
@@ -3975,6 +3985,13 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
+
+	if copyAlloc.ClientTerminalStatus() {
+		if err := s.deleteServiceRegistrationByAllocIDTxn(txn, index, copyAlloc.ID); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
