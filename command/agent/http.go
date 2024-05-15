@@ -897,21 +897,23 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 }
 
 // parseConsistency is used to parse the ?stale query params.
-func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.QueryOptions) {
+func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.QueryOptions) error {
 	query := req.URL.Query()
 	if staleVal, ok := query["stale"]; ok {
 		if len(staleVal) == 0 || staleVal[0] == "" {
 			b.AllowStale = true
-			return
+			return nil
 		}
 		staleQuery, err := strconv.ParseBool(staleVal[0])
 		if err != nil {
+			errMsg := "Expect `true` or `false` for `stale` query string parameter"
 			resp.WriteHeader(http.StatusBadRequest)
-			_, _ = resp.Write([]byte(fmt.Sprintf("Expect `true` or `false` for `stale` query string parameter, got %s", staleVal[0])))
-			return
+			resp.Write([]byte(errMsg))
+			return CodedError(http.StatusBadRequest, errMsg)
 		}
 		b.AllowStale = staleQuery
 	}
+	return nil
 }
 
 // parsePrefix is used to parse the ?prefix query param
@@ -1008,27 +1010,36 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
 	s.parseToken(req, &b.AuthToken)
-	parseConsistency(resp, req, b)
+	if err := parseConsistency(resp, req, b); err != nil {
+		return true
+	}
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
-	parsePagination(req, b)
+	if err := parsePagination(resp, req, b); err != nil {
+		return true
+	}
 	parseFilter(req, b)
 	parseReverse(req, b)
 	return parseWait(resp, req, b)
 }
 
 // parsePagination parses the pagination fields for QueryOptions
-func parsePagination(req *http.Request, b *structs.QueryOptions) {
+func parsePagination(resp http.ResponseWriter, req *http.Request, b *structs.QueryOptions) error {
 	query := req.URL.Query()
 	rawPerPage := query.Get("per_page")
 	if rawPerPage != "" {
 		perPage, err := strconv.ParseInt(rawPerPage, 10, 32)
-		if err == nil {
-			b.PerPage = int32(perPage)
+		if err != nil {
+			errMsg := "Expect a number for `per_page` query string parameter"
+			resp.WriteHeader(http.StatusBadRequest)
+			resp.Write([]byte(errMsg))
+			return CodedError(http.StatusBadRequest, errMsg)
 		}
+		b.PerPage = int32(perPage)
 	}
 
 	b.NextToken = query.Get("next_token")
+	return nil
 }
 
 // parseFilter parses the filter query parameter for QueryOptions
