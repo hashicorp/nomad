@@ -1,0 +1,3 @@
+```release-note:bug
+services: Fixed bug where Nomad services might not be deregistered when nodes are marked down or allocations are terminal
+```

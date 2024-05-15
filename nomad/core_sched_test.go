@@ -37,8 +37,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusFailed
 	store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
-	err := store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
-	require.Nil(t, err)
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
 
 	// Insert mock job with rescheduling disabled
 	job := mock.Job()
@@ -47,8 +46,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
-	require.Nil(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job))
 
 	// Insert "dead" alloc
 	alloc := mock.Alloc()
@@ -64,10 +62,22 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 	alloc2.JobID = eval.JobID
 	alloc2.TaskGroup = job.TaskGroups[0].Name
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2}))
+
+	// Insert service for "dead" alloc
+	service := &structs.ServiceRegistration{
+		ID:          fmt.Sprintf("_nomad-task-%s-group-api-countdash-api-http", alloc.ID),
+		ServiceName: "countdash-api",
+		Namespace:   eval.Namespace,
+		NodeID:      alloc.NodeID,
+		Datacenter:  "dc1",
+		JobID:       eval.JobID,
+		AllocID:     alloc.ID,
+		Address:     "192.168.200.200",
+		Port:        29001,
 	}
+	must.NoError(t, store.UpsertServiceRegistrations(
+		structs.MsgTypeTestSetup, 1002, []*structs.ServiceRegistration{service}))
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
@@ -75,43 +85,30 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
-	err = core.Process(gc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, core.Process(gc))
 
 	// Should be gone
 	ws := memdb.NewWatchSet()
 	out, err := store.EvalByID(ws, eval.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != nil {
-		t.Fatalf("bad: %v", out)
-	}
+	must.NoError(t, err)
+	must.Nil(t, out, must.Sprint("expected eval to be GC'd"))
 
 	outA, err := store.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA != nil {
-		t.Fatalf("bad: %v", outA)
-	}
+	must.NoError(t, err)
+	must.Nil(t, outA, must.Sprint("expected alloc to be GC'd"))
 
 	outA2, err := store.AllocByID(ws, alloc2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA2 != nil {
-		t.Fatalf("bad: %v", outA2)
-	}
+	must.NoError(t, err)
+	must.Nil(t, outA2, must.Sprint("expected alloc to be GC'd"))
+
+	services, err := store.GetServiceRegistrationsByNodeID(nil, alloc.NodeID)
+	must.NoError(t, err)
+	must.Len(t, 0, services)
 }
 
 // Tests GC behavior on allocations being rescheduled
