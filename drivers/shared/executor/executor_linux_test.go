@@ -7,10 +7,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -27,6 +29,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -885,4 +888,118 @@ func TestUniversalExecutor_NoCgroup(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+}
+
+func createCGroup(fullpath string) (cgutil.Interface, error) {
+	if err := os.MkdirAll(fullpath, 0755); err != nil {
+		return nil, err
+	}
+
+	return cgutil.OpenPath(strings.Trim(fullpath, cgutil.CgroupRoot)), nil
+}
+
+func TestExecutor_CleanOldProcessesInCGroup(t *testing.T) {
+	ci.Parallel(t)
+
+	testutil.ExecCompatible(t)
+	testutil.CgroupsCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+
+	allocDir := testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	fullCGroupPath := testExecCmd.command.Resources.LinuxResources.CpusetCgroupPath
+
+	execCmd := testExecCmd.command
+	execCmd.Cmd = "/bin/sleep"
+	execCmd.Args = []string{"1"}
+	execCmd.ResourceLimits = true
+	execCmd.ModePID = "private"
+	execCmd.ModeIPC = "private"
+
+	// Create the CGroup the executor's command will run in and populate it with one process
+	cgInterface, err := createCGroup(fullCGroupPath)
+	must.NoError(t, err)
+
+	cmd := exec.Command("/bin/sleep", "3000")
+	err = cmd.Start()
+	must.NoError(t, err)
+
+	go func() {
+		err := cmd.Wait()
+		//This process will be killed by the executor as a prerequisite to run
+		// the executors command.
+		must.Error(t, err)
+	}()
+
+	pid := cmd.Process.Pid
+	must.Positive(t, pid)
+
+	err = cgInterface.Write("cgroup.procs", strconv.Itoa(pid))
+	must.NoError(t, err)
+
+	pids, err := cgInterface.PIDs()
+	must.NoError(t, err)
+	must.One(t, pids.Size())
+
+	// Run the executor normally and make sure the process that was originally running
+	// as part of the CGroup was killed, and only the executor's process is running.
+	execInterface := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+	executor := execInterface.(*LibcontainerExecutor)
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	must.NoError(t, err)
+	must.Positive(t, ps.Pid)
+
+	pids, err = cgInterface.PIDs()
+	must.NoError(t, err)
+	must.One(t, pids.Size())
+	must.True(t, pids.Contains(ps.Pid))
+	must.False(t, pids.Contains(pid))
+
+	estate, err := executor.Wait(context.Background())
+	must.NoError(t, err)
+	must.Zero(t, estate.ExitCode)
+
+	must.NoError(t, executor.Shutdown("", 0))
+	executor.Wait(context.Background())
+}
+
+func TestExecutor_SignalCatching(t *testing.T) {
+	ci.Parallel(t)
+
+	testutil.ExecCompatible(t)
+	testutil.CgroupsCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+
+	allocDir := testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	execCmd := testExecCmd.command
+	execCmd.Cmd = "/bin/sleep"
+	execCmd.Args = []string{"100"}
+	execCmd.ResourceLimits = true
+	execCmd.ModePID = "private"
+	execCmd.ModeIPC = "private"
+
+	execInterface := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+
+	ps, err := execInterface.Launch(execCmd)
+	must.NoError(t, err)
+	must.Positive(t, ps.Pid)
+
+	executor := execInterface.(*LibcontainerExecutor)
+	status, err := executor.container.OCIState()
+	must.NoError(t, err)
+	must.Eq(t, specs.StateRunning, status.Status)
+
+	executor.sigChan <- syscall.SIGTERM
+	time.Sleep(1 * time.Second)
+
+	status, err = executor.container.OCIState()
+	must.NoError(t, err)
+	must.Eq(t, specs.StateStopped, status.Status)
 }
