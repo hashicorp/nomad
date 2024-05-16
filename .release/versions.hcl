@@ -16,7 +16,4 @@ active_versions {
   version "1.6.x" {
     ce_active = true
   }
-  version "1.5.x" {
-    ce_active = true
-  }
 }
