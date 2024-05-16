@@ -91,10 +91,10 @@ func (c Core) String() string {
 
 func (c Core) MHz() hw.MHz {
 	switch {
-	case c.BaseSpeed > 0:
-		return c.BaseSpeed
 	case c.MaxSpeed > 0:
 		return c.MaxSpeed
+	case c.BaseSpeed > 0:
+		return c.BaseSpeed
 	}
 	return c.GuessSpeed
 }
