@@ -2000,8 +2000,6 @@ func TestTask_Canonicalize(t *testing.T) {
 				Artifacts:       []*TaskArtifact{},
 				VolumeMounts:    []*VolumeMount{},
 				ScalingPolicies: []*ScalingPolicy{},
-				Identities:      []*WorkloadIdentity{},
-				Actions:         []*Action{},
 			},
 		},
 	}
