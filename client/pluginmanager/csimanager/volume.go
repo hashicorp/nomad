@@ -253,16 +253,16 @@ func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume,
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
+	// Claim before we stage/publish to prevent interleaved Unmount for another
+	// alloc from unstaging between stage/publish steps below
+	v.usageTracker.Claim(alloc.ID, vol.ID, vol.Namespace, usage)
+
 	if v.requiresStaging {
 		err = v.stageVolume(ctx, vol, usage, publishContext)
 	}
 
 	if err == nil {
 		mountInfo, err = v.publishVolume(ctx, vol, alloc, usage, publishContext)
-	}
-
-	if err == nil {
-		v.usageTracker.Claim(alloc.ID, vol.ID, vol.Namespace, usage)
 	}
 
 	event := structs.NewNodeEvent().
@@ -274,6 +274,7 @@ func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume,
 	} else {
 		event.AddDetail("success", "false")
 		event.AddDetail("error", err.Error())
+		v.usageTracker.Free(alloc.ID, vol.ID, vol.Namespace, usage)
 	}
 
 	v.eventer(event)
