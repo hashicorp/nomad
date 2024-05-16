@@ -85,7 +85,7 @@ jobs:
           make dev
   tests-api:
     needs: [mods]
-    runs-on: [custom, xl, 22.04]
+    runs-on: custom-linux-xl-nomad-22.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
