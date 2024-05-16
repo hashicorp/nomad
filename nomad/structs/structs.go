@@ -4951,11 +4951,23 @@ func (j *Job) IsMultiregion() bool {
 	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
 }
 
-// IsPlugin returns whether a job is implements a plugin (currently just CSI)
+// IsPlugin returns whether a job implements a plugin (currently just CSI)
 func (j *Job) IsPlugin() bool {
 	for _, tg := range j.TaskGroups {
 		for _, task := range tg.Tasks {
 			if task.CSIPluginConfig != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// HasPlugin returns whether a job implements a specific plugin ID
+func (j *Job) HasPlugin(id string) bool {
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.CSIPluginConfig != nil && task.CSIPluginConfig.ID == id {
 				return true
 			}
 		}

@@ -2171,9 +2171,8 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 		},
 	}
 	respGet := &structs.CSIPluginGetResponse{}
-	err := msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet)
-	require.NoError(t, err)
-	require.NotNil(t, respGet.Plugin)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet))
+	must.NotNil(t, respGet.Plugin)
 
 	// Delete plugin
 	reqDel := &structs.CSIPluginDeleteRequest{
@@ -2186,18 +2185,17 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 	respDel := &structs.CSIPluginDeleteResponse{}
 
 	// Improper permissions
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
-	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+	err := msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 	// Retry with management permissions
 	reqDel.AuthToken = srv.getLeaderAcl()
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
-	require.EqualError(t, err, "plugin in use")
+	must.NoError(t, err) // plugin is in use but this does not return an error
 
 	// Plugin was not deleted
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet)
-	require.NoError(t, err)
-	require.NotNil(t, respGet.Plugin)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet))
+	must.NotNil(t, respGet.Plugin)
 
 	// Empty the plugin
 	plugin := respGet.Plugin.Copy()
@@ -2206,21 +2204,17 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 
 	index, _ := state.LatestIndex()
 	index++
-	err = state.UpsertCSIPlugin(index, plugin)
-	require.NoError(t, err)
+	must.NoError(t, state.UpsertCSIPlugin(index, plugin))
 
 	// Retry now that it's empty
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
-	require.NoError(t, err)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel))
 
 	// Plugin is deleted
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet)
-	require.NoError(t, err)
-	require.Nil(t, respGet.Plugin)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet))
+	must.Nil(t, respGet.Plugin)
 
 	// Safe to call on already-deleted plugnis
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
-	require.NoError(t, err)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel))
 }
 
 func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {

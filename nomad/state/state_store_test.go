@@ -3983,16 +3983,17 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 	}
 
 	// helper function for test assertions
-	checkPlugin := func(counts pluginCounts) *structs.CSIPlugin {
+	checkPlugin := func(t *testing.T, plugID string, counts pluginCounts) *structs.CSIPlugin {
+		t.Helper()
 		plug, err := store.CSIPluginByID(memdb.NewWatchSet(), plugID)
-		require.NotNil(t, plug, "plugin was nil")
-		require.NoError(t, err)
-		require.Equal(t, counts.controllerFingerprints, len(plug.Controllers), "controllers fingerprinted")
-		require.Equal(t, counts.nodeFingerprints, len(plug.Nodes), "nodes fingerprinted")
-		require.Equal(t, counts.controllersHealthy, plug.ControllersHealthy, "controllers healthy")
-		require.Equal(t, counts.nodesHealthy, plug.NodesHealthy, "nodes healthy")
-		require.Equal(t, counts.controllersExpected, plug.ControllersExpected, "controllers expected")
-		require.Equal(t, counts.nodesExpected, plug.NodesExpected, "nodes expected")
+		must.NotNil(t, plug, must.Sprint("plugin was nil"))
+		must.NoError(t, err)
+		must.MapLen(t, counts.controllerFingerprints, plug.Controllers, must.Sprint("controllers fingerprinted"))
+		must.MapLen(t, counts.nodeFingerprints, plug.Nodes, must.Sprint("nodes fingerprinted"))
+		must.Eq(t, counts.controllersHealthy, plug.ControllersHealthy, must.Sprint("controllers healthy"))
+		must.Eq(t, counts.nodesHealthy, plug.NodesHealthy, must.Sprint("nodes healthy"))
+		must.Eq(t, counts.controllersExpected, plug.ControllersExpected, must.Sprint("controllers expected"))
+		must.Eq(t, counts.nodesExpected, plug.NodesExpected, must.Sprint("nodes expected"))
 		return plug.Copy()
 	}
 
@@ -4011,7 +4012,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		for _, id := range allocIDs {
 			alloc, err := store.AllocByID(ws, id)
-			require.NoError(t, err)
+			must.NoError(t, err)
 			alloc = alloc.Copy()
 			transform(alloc)
 			allocs = append(allocs, alloc)
@@ -4026,7 +4027,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			// transaction setup bugs
 			err = store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIndex(store), allocs)
 		}
-		require.NoError(t, err)
+		must.NoError(t, err)
 		return allocs
 	}
 
@@ -4037,13 +4038,13 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		node = node.Copy()
 		transform(node)
 		err = store.UpsertNode(structs.MsgTypeTestSetup, nextIndex(store), node)
-		require.NoError(t, err)
+		must.NoError(t, err)
 	}
 
 	nodes := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
 	for _, node := range nodes {
 		err = store.UpsertNode(structs.MsgTypeTestSetup, nextIndex(store), node)
-		require.NoError(t, err)
+		must.NoError(t, err)
 	}
 
 	// Note: these are all subtests for clarity but are expected to be
@@ -4066,7 +4067,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		//
 		// TODO: that's the current code but we really should be able
 		// to figure out the system jobs too
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 0,
 			nodeFingerprints:       0,
 			controllersHealthy:     0,
@@ -4074,7 +4075,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          0,
 		})
-		require.False(t, plug.ControllerRequired)
+		must.False(t, plug.ControllerRequired)
 	})
 
 	t.Run("plan apply upserts allocations", func(t *testing.T) {
@@ -4109,10 +4110,10 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			allocs = append(allocs, nodeAlloc)
 		}
 		err = store.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(store), allocs)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		// node plugin now has expected counts too
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 0,
 			nodeFingerprints:       0,
 			controllersHealthy:     0,
@@ -4120,7 +4121,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          3,
 		})
-		require.False(t, plug.ControllerRequired)
+		must.False(t, plug.ControllerRequired)
 	})
 
 	t.Run("client upserts alloc status", func(t *testing.T) {
@@ -4130,7 +4131,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		})
 
 		// plugin still has allocs but no fingerprints
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 0,
 			nodeFingerprints:       0,
 			controllersHealthy:     0,
@@ -4138,7 +4139,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          3,
 		})
-		require.False(t, plug.ControllerRequired)
+		must.False(t, plug.ControllerRequired)
 	})
 
 	t.Run("client upserts node fingerprints", func(t *testing.T) {
@@ -4179,7 +4180,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		}
 
 		// plugins have been fingerprinted so we have healthy counts
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 2,
 			nodeFingerprints:       3,
 			controllersHealthy:     2,
@@ -4187,21 +4188,21 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          3,
 		})
-		require.True(t, plug.ControllerRequired)
+		must.True(t, plug.ControllerRequired)
 	})
 
 	t.Run("node marked for drain", func(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		nodeAllocs, err := store.AllocsByNode(ws, nodes[0].ID)
-		require.NoError(t, err)
-		require.Len(t, nodeAllocs, 2)
+		must.NoError(t, err)
+		must.Len(t, 2, nodeAllocs)
 
 		updateAllocsFn([]string{nodeAllocs[0].ID, nodeAllocs[1].ID},
 			SERVER, func(alloc *structs.Allocation) {
 				alloc.DesiredStatus = structs.AllocDesiredStatusStop
 			})
 
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 2,
 			nodeFingerprints:       3,
 			controllersHealthy:     2,
@@ -4209,7 +4210,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2, // job summary hasn't changed
 			nodesExpected:          3, // job summary hasn't changed
 		})
-		require.True(t, plug.ControllerRequired)
+		must.True(t, plug.ControllerRequired)
 	})
 
 	t.Run("client removes fingerprints after node drain", func(t *testing.T) {
@@ -4218,7 +4219,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			node.CSINodePlugins = nil
 		})
 
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 1,
 			nodeFingerprints:       2,
 			controllersHealthy:     1,
@@ -4226,20 +4227,20 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          3,
 		})
-		require.True(t, plug.ControllerRequired)
+		must.True(t, plug.ControllerRequired)
 	})
 
 	t.Run("client updates alloc status to stopped after node drain", func(t *testing.T) {
 		nodeAllocs, err := store.AllocsByNode(memdb.NewWatchSet(), nodes[0].ID)
-		require.NoError(t, err)
-		require.Len(t, nodeAllocs, 2)
+		must.NoError(t, err)
+		must.Len(t, 2, nodeAllocs)
 
 		updateAllocsFn([]string{nodeAllocs[0].ID, nodeAllocs[1].ID}, CLIENT,
 			func(alloc *structs.Allocation) {
 				alloc.ClientStatus = structs.AllocClientStatusComplete
 			})
 
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 1,
 			nodeFingerprints:       2,
 			controllersHealthy:     1,
@@ -4247,7 +4248,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2, // still 2 because count=2
 			nodesExpected:          2, // has to use nodes we're actually placed on
 		})
-		require.True(t, plug.ControllerRequired)
+		must.True(t, plug.ControllerRequired)
 	})
 
 	t.Run("job stop with purge", func(t *testing.T) {
@@ -4258,15 +4259,15 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			PluginID:  plugID,
 		}
 		err = store.UpsertCSIVolume(nextIndex(store), []*structs.CSIVolume{vol})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		err = store.DeleteJob(nextIndex(store), structs.DefaultNamespace, controllerJobID)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		err = store.DeleteJob(nextIndex(store), structs.DefaultNamespace, nodeJobID)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 1, // no changes till we get fingerprint
 			nodeFingerprints:       2,
 			controllersHealthy:     1,
@@ -4274,8 +4275,8 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    0,
 			nodesExpected:          0,
 		})
-		require.True(t, plug.ControllerRequired)
-		require.False(t, plug.IsEmpty())
+		must.True(t, plug.ControllerRequired)
+		must.False(t, plug.IsEmpty())
 
 		for _, node := range nodes {
 			updateNodeFn(node.ID, func(node *structs.Node) {
@@ -4283,7 +4284,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			})
 		}
 
-		plug = checkPlugin(pluginCounts{
+		plug = checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 0,
 			nodeFingerprints:       2, // haven't removed fingerprints yet
 			controllersHealthy:     0,
@@ -4291,8 +4292,8 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    0,
 			nodesExpected:          0,
 		})
-		require.True(t, plug.ControllerRequired)
-		require.False(t, plug.IsEmpty())
+		must.True(t, plug.ControllerRequired)
+		must.False(t, plug.IsEmpty())
 
 		for _, node := range nodes {
 			updateNodeFn(node.ID, func(node *structs.Node) {
@@ -4302,13 +4303,13 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 
 		ws := memdb.NewWatchSet()
 		plug, err := store.CSIPluginByID(ws, plugID)
-		require.NoError(t, err)
-		require.Nil(t, plug, "plugin was not deleted")
+		must.NoError(t, err)
+		must.Nil(t, plug, must.Sprint("plugin was not deleted"))
 
 		vol, err = store.CSIVolumeByID(ws, vol.Namespace, vol.ID)
-		require.NoError(t, err)
-		require.NotNil(t, vol, "volume should be queryable even if plugin is deleted")
-		require.False(t, vol.Schedulable)
+		must.NoError(t, err)
+		must.NotNil(t, vol, must.Sprint("volume should be queryable even if plugin is deleted"))
+		must.False(t, vol.Schedulable)
 	})
 }
 
