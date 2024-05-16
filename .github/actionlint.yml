@@ -4,11 +4,7 @@
 self-hosted-runner:
   # Labels of self-hosted runner in array of string
   labels:
-    - custom
-    - xl
-    - 22.04
-    - linux
-    - xxl
-    - 20.04
     - custom-windows-medium
     - windows-2019-16core
+    - custom-linux-xxl-nomad-20.04
+    - custom-linux-xl-nomad-22.04
