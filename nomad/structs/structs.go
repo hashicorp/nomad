@@ -4510,10 +4510,22 @@ func (j *Job) Canonicalize() {
 		return
 	}
 
-	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// Ensure that an empty and nil map or array are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(j.Meta) == 0 {
 		j.Meta = nil
+	}
+
+	if len(j.Constraints) == 0 {
+		j.Constraints = nil
+	}
+
+	if len(j.Affinities) == 0 {
+		j.Affinities = nil
+	}
+
+	if len(j.Spreads) == 0 {
+		j.Spreads = nil
 	}
 
 	// Ensure the job is in a namespace.
@@ -6730,10 +6742,22 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 // Canonicalize is used to canonicalize fields in the TaskGroup.
 func (tg *TaskGroup) Canonicalize(job *Job) {
-	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// Ensure that an empty and nil map or array are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(tg.Meta) == 0 {
 		tg.Meta = nil
+	}
+
+	if len(tg.Constraints) == 0 {
+		tg.Constraints = nil
+	}
+
+	if len(tg.Affinities) == 0 {
+		tg.Affinities = nil
+	}
+
+	if len(tg.Spreads) == 0 {
+		tg.Spreads = nil
 	}
 
 	// Set the default restart policy.
@@ -7794,7 +7818,7 @@ func (t *Task) Copy() *Task {
 
 // Canonicalize canonicalizes fields in the task.
 func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
-	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// Ensure that an empty and nil map or array are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(t.Meta) == 0 {
 		t.Meta = nil
@@ -7804,6 +7828,17 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	}
 	if len(t.Env) == 0 {
 		t.Env = nil
+	}
+	if len(t.Constraints) == 0 {
+		t.Constraints = nil
+	}
+
+	if len(t.Affinities) == 0 {
+		t.Affinities = nil
+	}
+
+	if len(t.VolumeMounts) == 0 {
+		t.VolumeMounts = nil
 	}
 
 	for _, service := range t.Services {
