@@ -1877,8 +1877,9 @@ func TestServiceSched_JobModify(t *testing.T) {
 		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
-	// Generate a fake job with allocations
+	// Generate a fake job with allocations (task group has count=10)
 	job := mock.Job()
+	job.ID = "my-job"
 	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
@@ -1887,7 +1888,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = nodes[i].ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.Name = structs.AllocName(job.ID, "web", uint(i))
 		allocs = append(allocs, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
@@ -1899,9 +1900,10 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.NodeID = nodes[i].ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.Name = structs.AllocName(job.ID, "web", uint(i))
 		alloc.DesiredStatus = structs.AllocDesiredStatusStop
 		alloc.ClientStatus = structs.AllocClientStatusFailed // #10446
+		alloc.NextAllocation = allocs[i].ID
 		terminal = append(terminal, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), terminal))
@@ -1945,26 +1947,45 @@ func TestServiceSched_JobModify(t *testing.T) {
 	if len(update) != len(allocs) {
 		t.Fatalf("bad: %#v", plan)
 	}
+	fmt.Println("--------------------------")
+	fmt.Println("updated")
+	for _, alloc := range update {
+		fmt.Printf("\t%s (%s): %s/%s\n", alloc.ID, alloc.Name, alloc.DesiredStatus, alloc.ClientStatus)
+	}
 
 	// Ensure the plan allocated
 	var planned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 10 {
-		t.Fatalf("bad: %#v", plan)
+	must.Len(t, 10, planned, must.Sprintf("expected 10 planned allocs: %#v", plan))
+	fmt.Println("--------------------------")
+	fmt.Println("planned")
+	for _, alloc := range planned {
+		fmt.Printf("\t%s (%s): %s/%s\n", alloc.ID, alloc.Name, alloc.DesiredStatus, alloc.ClientStatus)
 	}
 
 	// Lookup the allocations by JobID
-	ws := memdb.NewWatchSet()
-	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	out, err := h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
 	require.NoError(t, err)
 
 	// Ensure all allocations placed
-	out, _ = structs.FilterTerminalAllocs(out)
-	if len(out) != 10 {
-		t.Fatalf("bad: %#v", out)
+	out, termMap := structs.FilterTerminalAllocs(out)
+
+	fmt.Println("--------------------------")
+	fmt.Println("non-terminal")
+	for _, alloc := range out {
+		fmt.Printf("\t%s (%s): %s/%s\n", alloc.ID, alloc.Name, alloc.DesiredStatus, alloc.ClientStatus)
 	}
+	fmt.Println("terminal")
+	for _, alloc := range termMap {
+		fmt.Printf("\t%s (%s): %s/%s\n", alloc.ID, alloc.Name, alloc.DesiredStatus, alloc.ClientStatus)
+	}
+
+	must.Len(t, 10, out, must.Sprint("expected 10 non-terminal allocs"))
+	// if len(out) != 10 {
+	// 	t.Fatalf("bad: %#v", out)
+	// }
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
@@ -3731,6 +3752,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 
 	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			fmt.Println("--------------------------------------")
 			h := NewHarness(t)
 
 			// Node, which is down
@@ -3795,7 +3817,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			alloc, err = h.State.AllocByID(nil, alloc.ID)
 			must.NoError(t, err)
 
-			// Allocations have been transitioned to lost
+			// Allocation have been transitioned to lost
 			must.Eq(t, structs.AllocDesiredStatusStop, alloc.DesiredStatus)
 			must.Eq(t, structs.AllocClientStatusLost, alloc.ClientStatus)
 			// At least 1, 2 if we manually set the tc.when
@@ -3807,13 +3829,13 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 				must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 				must.NoError(t, h.Process(NewServiceScheduler, eval))
 
-				as, err := h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
+				allocs, err := h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
 				must.NoError(t, err)
-				must.Len(t, 2, as)
+				must.Len(t, 2, allocs)
 
-				a2 := as[0]
+				a2 := allocs[0]
 				if a2.ID == alloc.ID {
-					a2 = as[1]
+					a2 = allocs[1]
 				}
 
 				must.Eq(t, structs.AllocClientStatusPending, a2.ClientStatus)
@@ -4688,7 +4710,9 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 		h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// -----------------------------------
-	// first reschedule which works as expected
+	// first reschedule which works with delay as expected
+
+	fmt.Println("[0] -------------------------------")
 
 	// Process the evaluation and assert we have a plan
 	must.NoError(t, h.Process(NewServiceScheduler, eval))
@@ -4714,7 +4738,10 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
 		h.NextIndex(), []*structs.Evaluation{followupEval}))
 
-	// Process the follow-up eval, which results in a replacement and stop
+	fmt.Println("[1] -------------------------------")
+
+	// Follow-up delay "expires", so process the follow-up eval, which results
+	// in a replacement and stop
 	must.NoError(t, h.Process(NewServiceScheduler, followupEval))
 	must.Len(t, 2, h.Plans)
 	must.MapLen(t, 1, h.Plans[1].NodeUpdate)     // stop
@@ -4736,7 +4763,7 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	}
 
 	// -----------------------------------
-	// second reschedule but it blocks
+	// Replacement alloc fails, second reschedule but it blocks because of delay
 
 	alloc, err = h.State.AllocByID(ws, replacementAllocID)
 	must.NoError(t, err)
@@ -4751,6 +4778,8 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	eval.ID = uuid.Generate()
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
 		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	fmt.Println("[2] -------------------------------")
 
 	// Process the evaluation and assert we have a plan
 	must.NoError(t, h.Process(NewServiceScheduler, eval))
@@ -4779,6 +4808,9 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	node.NodeResources.Memory.MemoryMB = 200
 	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
+	fmt.Println("[3] -------------------------------")
+	fmt.Println("    alloc to replace:", replacementAllocID)
+
 	// Process the follow-up eval, which results in a stop but not a replacement
 	must.NoError(t, h.Process(NewServiceScheduler, followupEval))
 	must.Len(t, 4, h.Plans)
@@ -4800,9 +4832,12 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	node.NodeResources.Memory.MemoryMB = 8000
 	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
+	fmt.Println("[4] -------------------------------")
+	fmt.Println("    never replaced alloc:", replacementAllocID)
+
 	must.NoError(t, h.Process(NewServiceScheduler, blockedEval))
 	must.Len(t, 5, h.Plans)
-	must.MapLen(t, 0, h.Plans[4].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[4].NodeUpdate)     // stop
 	must.MapLen(t, 1, h.Plans[4].NodeAllocation) // place
 
 	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
@@ -4813,7 +4848,7 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 		if alloc.ID != failedAllocID && alloc.ID != replacementAllocID {
 			must.NotNil(t, alloc.RescheduleTracker,
 				must.Sprint("replacement alloc should have reschedule tracker"))
-			must.Len(t, 1, alloc.RescheduleTracker.Events)
+			must.Len(t, 2, alloc.RescheduleTracker.Events)
 		}
 	}
 }

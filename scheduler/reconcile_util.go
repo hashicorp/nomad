@@ -395,6 +395,8 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 	rescheduleLater := []*delayedRescheduleInfo{}
 
 	for _, alloc := range a {
+		fmt.Printf("[*] checking alloc %q (%s/%s)\n\tPrev: %q Next: %q\n", alloc.ID, alloc.DesiredStatus, alloc.ClientStatus, alloc.PreviousAllocation, alloc.NextAllocation)
+
 		// Ignore disconnecting allocs that are already unknown. This can happen
 		// in the case of canaries that are interrupted by a disconnect.
 		if isDisconnecting && alloc.ClientStatus == structs.AllocClientStatusUnknown {
@@ -408,21 +410,26 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		// Only failed or disconnecting allocs should be rescheduled.
 		// Protects against a bug allowing rescheduling running allocs.
 		if alloc.NextAllocation != "" && alloc.TerminalStatus() {
+			// DEBUG
+			fmt.Printf("[*] ignoring terminal alloc %q w/ NextAllocation %q\n", alloc.ID, alloc.NextAllocation)
 			continue
 		}
 
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
 		if isUntainted && !isDisconnecting {
+			fmt.Printf("[*] isUntainted alloc %q\n", alloc.ID)
 			untainted[alloc.ID] = alloc
 		}
 
 		if ignore {
+			fmt.Printf("[*] ignoring alloc %q w/ PreviousAllocation %q\n", alloc.ID, alloc.PreviousAllocation)
 			continue
 		}
 
 		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID, deployment, isDisconnecting)
 		if eligibleNow {
 			rescheduleNow[alloc.ID] = alloc
+			fmt.Printf("[*] rescheduleNow alloc %q\n", alloc.ID)
 			continue
 		}
 
@@ -432,6 +439,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 
 		if eligibleLater {
 			rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
+			fmt.Printf("[*] rescheduleLater alloc %q\n", alloc.ID)
 		}
 
 	}

@@ -11090,7 +11090,9 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 		return time.Time{}, false
 	}
 
-	if a.DesiredStatus == AllocDesiredStatusStop || a.ClientStatus != AllocClientStatusFailed || failTime.IsZero() || reschedulePolicy == nil {
+	if (a.DesiredStatus == AllocDesiredStatusStop && a.NextAllocation != "") ||
+		(a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
+		failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false
 	}
 
