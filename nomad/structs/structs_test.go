@@ -791,9 +791,9 @@ func TestJob_Canonicalize(t *testing.T) {
 
 	for _, c := range cases {
 		c.job.Canonicalize()
-		kopy := c.job.Copy()
-		if !reflect.DeepEqual(c.job, kopy) {
-			t.Fatalf("Canonicalize() returned a Job that changed after copy; before %#v; after %#v", c.job, kopy)
+		copied := c.job.Copy()
+		if !reflect.DeepEqual(c.job, copied) {
+			t.Fatalf("Canonicalize() returned a Job that changed after copy; before %#v; after %#v", c.job, copied)
 		}
 	}
 }
@@ -2037,9 +2037,9 @@ func TestTaskGroup_Canonicalize(t *testing.T) {
 
 	for _, c := range cases {
 		c.tg.Canonicalize(job)
-		kopy := c.tg.Copy()
-		if !reflect.DeepEqual(c.tg, kopy) {
-			t.Fatalf("Canonicalize() returned a TaskGroup that changed after copy; before %#v; after %#v", c.tg, kopy)
+		copied := c.tg.Copy()
+		if !reflect.DeepEqual(c.tg, copied) {
+			t.Fatalf("Canonicalize() returned a TaskGroup that changed after copy; before %#v; after %#v", c.tg, copied)
 		}
 	}
 }
@@ -2248,9 +2248,9 @@ func TestTask_Canonicalize(t *testing.T) {
 
 	for _, c := range cases {
 		c.task.Canonicalize(job, tg)
-		kopy := c.task.Copy()
-		if !reflect.DeepEqual(c.task, kopy) {
-			t.Fatalf("Canonicalize() returned a Task that changed after copy; before %#v; after %#v", c.task, kopy)
+		copied := c.task.Copy()
+		if !reflect.DeepEqual(c.task, copied) {
+			t.Fatalf("Canonicalize() returned a Task that changed after copy; before %#v; after %#v", c.task, copied)
 		}
 	}
 }
