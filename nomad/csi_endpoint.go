@@ -1869,7 +1869,7 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 	}
 
 	_, index, err := v.srv.raftApply(structs.CSIPluginDeleteRequestType, args)
-	if err != nil {
+	if err != nil && !errors.Is(err, structs.ErrCSIPluginInUse) {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "delete")
 		return err
 	}
