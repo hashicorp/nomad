@@ -20,7 +20,15 @@ SPDX-License-Identifier: BUSL-1.1
         >
           <Hds::Button @text="Create from Scratch" @icon="plus" @route="administration.sentinel-policies.new" data-test-create-sentinel-policy />
         </span>
-        <Hds::Button @text="Create from Template" @icon="plus" @route="administration.sentinel-policies.gallery" />
+        <span
+          {{keyboard-shortcut
+            pattern=(array "n" "t" "p")
+            action=(action this.goToTemplateGallery)
+            label="Create Policy from Template"
+          }}
+        >
+          <Hds::Button @text="Create from Template" @icon="plus" @route="administration.sentinel-policies.gallery" />
+        </span>
       {{else}}
         <Hds::Button @text="Create Policy" @icon="plus" disabled data-test-disabled-create-sentinel-policy />
       {{/if}}

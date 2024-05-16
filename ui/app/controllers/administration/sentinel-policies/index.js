@@ -23,6 +23,10 @@ export default class SentinelPoliciesIndexController extends Controller {
     this.router.transitionTo('administration.sentinel-policies.new');
   }
 
+  @action goToTemplateGallery() {
+    this.router.transitionTo('administration.sentinel-policies.gallery');
+  }
+
   get columns() {
     return [
       {
