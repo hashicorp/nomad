@@ -13,8 +13,10 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -110,6 +112,7 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 		name                 string
 		inputCfg             *ServiceRegistrationHandlerCfg
 		inputWorkload        *serviceregistration.WorkloadServices
+		returnedDeleteErr    error
 		expectedRPCs         map[string]int
 		expectedError        error
 		expWatch, expUnWatch int
@@ -138,26 +141,39 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 			expWatch:      0,
 			expUnWatch:    2,
 		},
+		{
+			name: "failed deregister",
+			inputCfg: &ServiceRegistrationHandlerCfg{
+				Enabled:        true,
+				CheckWatcher:   new(mockCheckWatcher),
+				BackoffMax:     75 * time.Millisecond,
+				BackoffInitial: 50 * time.Millisecond,
+			},
+			inputWorkload:     mockWorkload(),
+			returnedDeleteErr: errors.New("unrecoverable error"),
+			expectedRPCs:      map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 4},
+			expectedError:     nil,
+			expWatch:          0,
+			expUnWatch:        2,
+		},
 	}
-
-	// Create a logger we can use for all tests.
-	log := hclog.NewNullLogger()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 
 			// Add the mock RPC functionality.
-			mockRPC := mockRPC{callCounts: map[string]int{}}
+			mockRPC := mockRPC{
+				callCounts:        map[string]int{},
+				deleteResponseErr: tc.returnedDeleteErr,
+			}
 			tc.inputCfg.RPCFn = mockRPC.RPC
 
 			// Create the handler and run the tests.
-			h := NewServiceRegistrationHandler(log, tc.inputCfg)
+			h := NewServiceRegistrationHandler(testlog.HCLogger(t), tc.inputCfg)
 
 			h.RemoveWorkload(tc.inputWorkload)
 
-			require.Eventually(t, func() bool {
-				return assert.Equal(t, tc.expectedRPCs, mockRPC.calls())
-			}, 100*time.Millisecond, 10*time.Millisecond)
+			must.Eq(t, tc.expectedRPCs, mockRPC.calls())
 			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
@@ -647,6 +663,9 @@ type mockRPC struct {
 	// lock should be used to access this.
 	callCounts map[string]int
 	l          sync.RWMutex
+
+	deleteResponseErr error
+	upsertResponseErr error
 }
 
 // calls returns the mapping counting the number of calls made to each RPC
@@ -659,12 +678,17 @@ func (mr *mockRPC) calls() map[string]int {
 
 // RPC mocks the server RPCs, acting as though any request succeeds.
 func (mr *mockRPC) RPC(method string, _, _ interface{}) error {
+	mr.l.Lock()
+	defer mr.l.Unlock()
+
 	switch method {
-	case structs.ServiceRegistrationUpsertRPCMethod, structs.ServiceRegistrationDeleteByIDRPCMethod:
-		mr.l.Lock()
+	case structs.ServiceRegistrationUpsertRPCMethod:
 		mr.callCounts[method]++
-		mr.l.Unlock()
-		return nil
+		return mr.upsertResponseErr
+
+	case structs.ServiceRegistrationDeleteByIDRPCMethod:
+		mr.callCounts[method]++
+		return mr.deleteResponseErr
 	default:
 		return fmt.Errorf("unexpected RPC method: %v", method)
 	}
