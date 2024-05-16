@@ -948,10 +948,6 @@ func (j *JobUIConfig) Canonicalize() {
 		return
 	}
 
-	if j.Description == "" {
-		j.Description = ""
-	}
-
 	if len(j.Links) == 0 {
 		j.Links = nil
 	}
