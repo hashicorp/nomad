@@ -295,7 +295,10 @@ your Vault and Nomad clusters are configured and deployed.
 It is highly recommended to use [mutual TLS][tutorial_mtls] in production
 deployments of Nomad. With mTLS enabled, the [`tls.verify_https_client`][]
 configuration must be set to `false` since it is not possible to provide client
-certificates to the Vault auth method.
+certificates to the Vault auth method. Nomad's CA certificate should be
+specified in the Vault auth method's
+[`jwks_ca_pem`](https://developer.hashicorp.com/vault/api-docs/auth/jwt#jwks_ca_pem)
+parameter.
 
 Alternatively, you may expose Nomad's JWKS URL from a proxy or a load balancer
 that handles the mutual TLS connection to Nomad and exposes the JWKS URL
