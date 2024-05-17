@@ -120,7 +120,7 @@ func NewExecutorWithIsolation(logger hclog.Logger, compute cpustats.Compute) Exe
 	return le
 }
 
-func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
+func (l *LibcontainerExecutor) ListProcesses() set.Collection[int] {
 	return procstats.List(l.command)
 }
 

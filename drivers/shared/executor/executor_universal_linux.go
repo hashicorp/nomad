@@ -102,7 +102,7 @@ func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(
 	}
 }
 
-func (e *UniversalExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
+func (e *UniversalExecutor) ListProcesses() set.Collection[procstats.ProcessID] {
 	return procstats.List(e.command)
 }
 
