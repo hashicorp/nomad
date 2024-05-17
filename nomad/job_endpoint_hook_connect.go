@@ -375,7 +375,7 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 				customizedTLS := service.Connect.IsCustomizedTLS()
 
 				task := newConnectGatewayTask(prefix, service.Name,
-					service.GetConsulClusterName(g), netHost, customizedTLS)
+					service.GetConsulClusterName(g), groupConnectGuessTaskDriver(g), netHost, customizedTLS)
 				g.Tasks = append(g.Tasks, task)
 
 				// the connect.sidecar_task block can also be used to configure
@@ -494,7 +494,7 @@ func gatewayBindAddressesIngressForBridge(ingress *structs.ConsulIngressConfigEn
 	return addresses
 }
 
-func newConnectGatewayTask(prefix, service, cluster string, netHost, customizedTls bool) *structs.Task {
+func newConnectGatewayTask(prefix, service, cluster string, driver string, netHost, customizedTls bool) *structs.Task {
 	constraints := structs.Constraints{
 		connectGatewayVersionConstraint(cluster),
 		connectListenerConstraint(cluster),
@@ -506,7 +506,7 @@ func newConnectGatewayTask(prefix, service, cluster string, netHost, customizedT
 		// Name is used in container name so must start with '[A-Za-z0-9]'
 		Name:          fmt.Sprintf("%s-%s", prefix, service),
 		Kind:          structs.NewTaskKind(prefix, service),
-		Driver:        "docker",
+		Driver:        driver,
 		Config:        connectGatewayDriverConfig(netHost),
 		ShutdownDelay: 5 * time.Second,
 		LogConfig: &structs.LogConfig{

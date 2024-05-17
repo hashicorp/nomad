@@ -201,7 +201,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_BridgeNetwork(t *tes
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
 		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway",
-			structs.ConsulDefaultCluster, false, true),
+			structs.ConsulDefaultCluster, "docker", false, true),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -241,7 +241,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_HostNetwork(t *testi
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
 		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway",
-			structs.ConsulDefaultCluster, true, false),
+			structs.ConsulDefaultCluster, "docker", true, false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -256,6 +256,36 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_HostNetwork(t *testi
 	// Test that the hook is idempotent
 	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
 	require.Exactly(t, expTG, job.TaskGroups[0])
+}
+
+func TestJobEndpointConnect_groupConnectHook_IngressGateway_GuessPodman(t *testing.T) {
+	ci.Parallel(t)
+
+	// Test that the injected gateway task makes use of the podman driver if there
+	// is another task in the group that uses podman.
+	job := mock.ConnectIngressGatewayJob("Host", false)
+	job.Meta = map[string]string{"gateway_name": "my-gateway"}
+	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
+
+	// setup a task using podman
+	job.TaskGroups[0].Tasks = []*structs.Task{{
+		Name:   "mytask",
+		Driver: "podman",
+		Config: make(map[string]interface{}),
+	}}
+
+	expTG := job.TaskGroups[0].Copy()
+	expTG.Tasks = append(expTG.Tasks,
+		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway",
+			structs.ConsulDefaultCluster, "podman", false, false),
+	)
+	expTG.Services[0].Name = "my-gateway"
+	expTG.Tasks[1].Canonicalize(job, expTG)
+	expTG.Networks[0].Canonicalize()
+	expTG.Services[0].Connect.Gateway.Proxy = gatewayProxy(expTG.Services[0].Connect.Gateway, "host")
+
+	must.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
+	must.Eq(t, expTG, job.TaskGroups[0])
 }
 
 func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testing.T) {
@@ -344,7 +374,7 @@ func TestJobEndpointConnect_groupConnectHook_TerminatingGateway(t *testing.T) {
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
 		newConnectGatewayTask(structs.ConnectTerminatingPrefix, "my-gateway",
-			structs.ConsulDefaultCluster, false, false),
+			structs.ConsulDefaultCluster, "docker", false, false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -379,7 +409,7 @@ func TestJobEndpointConnect_groupConnectHook_MeshGateway(t *testing.T) {
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
 		newConnectGatewayTask(structs.ConnectMeshPrefix, "my-gateway",
-			structs.ConsulDefaultCluster, false, false),
+			structs.ConsulDefaultCluster, "docker", false, false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Services[0].PortLabel = "public_port"
@@ -770,7 +800,7 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 
 	t.Run("ingress", func(t *testing.T) {
 		task := newConnectGatewayTask(structs.ConnectIngressPrefix, "foo",
-			structs.ConsulDefaultCluster, true, false)
+			structs.ConsulDefaultCluster, "docker", true, false)
 		must.Eq(t, "connect-ingress-foo", task.Name)
 		must.Eq(t, "connect-ingress:foo", string(task.Kind))
 		must.Eq(t, "${attr.consul.version}", task.Constraints[0].LTarget)
@@ -781,7 +811,7 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 
 	t.Run("terminating", func(t *testing.T) {
 		task := newConnectGatewayTask(structs.ConnectTerminatingPrefix, "bar",
-			structs.ConsulDefaultCluster, true, false)
+			structs.ConsulDefaultCluster, "docker", true, false)
 		must.Eq(t, "connect-terminating-bar", task.Name)
 		must.Eq(t, "connect-terminating:bar", string(task.Kind))
 		must.Eq(t, "${attr.consul.version}", task.Constraints[0].LTarget)
@@ -793,7 +823,7 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 	// this case can only happen on ENT but gets run in CE code
 	t.Run("terminating nondefault (ENT)", func(t *testing.T) {
 		task := newConnectGatewayTask(structs.ConnectTerminatingPrefix, "bar",
-			"nondefault", true, false)
+			"nondefault", "docker", true, false)
 		must.Eq(t, "connect-terminating-bar", task.Name)
 		must.Eq(t, "connect-terminating:bar", string(task.Kind))
 		must.Eq(t, "${attr.consul.nondefault.version}", task.Constraints[0].LTarget)
@@ -807,7 +837,7 @@ func TestJobEndpointConnect_newConnectGatewayTask_bridge(t *testing.T) {
 	ci.Parallel(t)
 
 	task := newConnectGatewayTask(structs.ConnectIngressPrefix, "service1",
-		structs.ConsulDefaultCluster, false, false)
+		structs.ConsulDefaultCluster, "docker", false, false)
 	require.NotContains(t, task.Config, "network_mode")
 }
 
