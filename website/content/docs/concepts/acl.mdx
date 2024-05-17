@@ -72,6 +72,13 @@ is directly related to a single auth method, and therefore only evaluated by
 login attempts using that method. All binding rules mapped to an auth method
 are evaluated during each login attempt.
 
+<Note>
+  Binding rules are evaluated in no specific order, and should there be an
+  overlap in their selectors or scope, a "sum" of all the binding rules will be
+  applied, thus the least granular binding rules will always override the more
+  granular ones, as long as they apply to the same auth method and identity.
+</Note>
+
 A successful selector match between an SSO provider claim and a binding rule
 will result in the generated ACL token having the identified ACL role or policy
 assigned to it. If the `BindType` parameter is `management`, the ACL token
