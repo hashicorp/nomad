@@ -258,6 +258,36 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_HostNetwork(t *testi
 	require.Exactly(t, expTG, job.TaskGroups[0])
 }
 
+func TestJobEndpointConnect_groupConnectHook_IngressGateway_GuessPodman(t *testing.T) {
+	ci.Parallel(t)
+
+	// Test that the injected gateway task makes use of the podman driver if there
+	// is another task in the group that uses podman.
+	job := mock.ConnectIngressGatewayJob("Host", false)
+	job.Meta = map[string]string{"gateway_name": "my-gateway"}
+	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
+
+	// setup a task using podman
+	job.TaskGroups[0].Tasks = []*structs.Task{{
+		Name:   "mytask",
+		Driver: "podman",
+		Config: make(map[string]interface{}),
+	}}
+
+	expTG := job.TaskGroups[0].Copy()
+	expTG.Tasks = append(expTG.Tasks,
+		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway",
+			structs.ConsulDefaultCluster, "podman", false, false),
+	)
+	expTG.Services[0].Name = "my-gateway"
+	expTG.Tasks[1].Canonicalize(job, expTG)
+	expTG.Networks[0].Canonicalize()
+	expTG.Services[0].Connect.Gateway.Proxy = gatewayProxy(expTG.Services[0].Connect.Gateway, "host")
+
+	must.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
+	must.Eq(t, expTG, job.TaskGroups[0])
+}
+
 func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testing.T) {
 	ci.Parallel(t)
 
