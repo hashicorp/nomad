@@ -1240,6 +1240,7 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 							cniLoopbackConstraint,
 							cniPortMapConstraint,
 							cniConsulConstraint,
+							tproxyConstraint,
 						},
 					},
 				},

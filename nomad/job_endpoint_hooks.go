@@ -143,6 +143,14 @@ var (
 		RTarget: ">= 1.4.2",
 		Operand: structs.ConstraintSemver,
 	}
+
+	// tproxyConstraint is an implicit constraint added to jobs making use of
+	// transparent proxy mode
+	tproxyConstraint = &structs.Constraint{
+		LTarget: attrNomadVersion,
+		RTarget: ">= 1.8.0-dev",
+		Operand: structs.ConstraintSemver,
+	}
 )
 
 type admissionController interface {
@@ -335,6 +343,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 		if transparentProxyTaskGroups.Contains(tg.Name) {
 			mutateConstraint(constraintMatcherLeft, tg, cniConsulConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, tproxyConstraint)
 		}
 	}
 
