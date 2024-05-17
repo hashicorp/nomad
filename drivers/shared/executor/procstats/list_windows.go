@@ -42,7 +42,7 @@ func list(executorPID int, processes func() ([]ps.Process, error)) set.Collectio
 
 	all, err := processes()
 	if err != nil {
-		return set.New[ProcessID](0)
+		return family
 	}
 
 	m := mapping(all)
