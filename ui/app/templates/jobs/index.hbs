@@ -20,7 +20,7 @@
           />
 
           {{#each this.filterFacets as |group|}}
-            <S.Dropdown data-test-facet={{group.label}} as |dd|>
+            <S.Dropdown data-test-facet={{group.label}} @height="300px" as |dd|>
               <dd.ToggleButton
                 @text={{group.label}}
                 @color="secondary"
@@ -44,7 +44,7 @@
           {{/each}}
 
           {{#if this.system.shouldShowNamespaces}}
-            <S.Dropdown data-test-facet="Namespace" as |dd|>
+            <S.Dropdown data-test-facet="Namespace" @height="300px" as |dd|>
               <dd.ToggleButton
                 @text="Namespace"
                 @color="secondary"
