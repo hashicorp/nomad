@@ -4590,23 +4590,23 @@ func (j *Job) Copy() *Job {
 	}
 	nj := new(Job)
 	*nj = *j
-	nj.Datacenters = slices.Clone(nj.Datacenters)
-	nj.Constraints = CopySliceConstraints(nj.Constraints)
-	nj.Affinities = CopySliceAffinities(nj.Affinities)
-	nj.Multiregion = nj.Multiregion.Copy()
-	nj.UI = nj.UI.Copy()
+	nj.Datacenters = slices.Clone(j.Datacenters)
+	nj.Constraints = CopySliceConstraints(j.Constraints)
+	nj.Affinities = CopySliceAffinities(j.Affinities)
+	nj.Multiregion = j.Multiregion.Copy()
+	nj.UI = j.UI.Copy()
 
 	if j.TaskGroups != nil {
-		tgs := make([]*TaskGroup, len(nj.TaskGroups))
-		for i, tg := range nj.TaskGroups {
+		tgs := make([]*TaskGroup, len(j.TaskGroups))
+		for i, tg := range j.TaskGroups {
 			tgs[i] = tg.Copy()
 		}
 		nj.TaskGroups = tgs
 	}
 
-	nj.Periodic = nj.Periodic.Copy()
-	nj.Meta = maps.Clone(nj.Meta)
-	nj.ParameterizedJob = nj.ParameterizedJob.Copy()
+	nj.Periodic = j.Periodic.Copy()
+	nj.Meta = maps.Clone(j.Meta)
+	nj.ParameterizedJob = j.ParameterizedJob.Copy()
 	return nj
 }
 
