@@ -3519,11 +3519,11 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
-
 func TestServiceSched_NodeDown(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
+		name       string
 		desired    string
 		client     string
 		migrate    bool
@@ -3532,36 +3532,43 @@ func TestServiceSched_NodeDown(t *testing.T) {
 		lost       bool
 	}{
 		{
+			name:    "should stop is running should be lost",
 			desired: structs.AllocDesiredStatusStop,
 			client:  structs.AllocClientStatusRunning,
 			lost:    true,
 		},
 		{
+			name:    "should run is pending should be migrate",
 			desired: structs.AllocDesiredStatusRun,
 			client:  structs.AllocClientStatusPending,
 			migrate: true,
 		},
 		{
+			name:    "should run is running should be migrate",
 			desired: structs.AllocDesiredStatusRun,
 			client:  structs.AllocClientStatusRunning,
 			migrate: true,
 		},
 		{
+			name:     "should run is lost should be terminal",
 			desired:  structs.AllocDesiredStatusRun,
 			client:   structs.AllocClientStatusLost,
 			terminal: true,
 		},
 		{
+			name:     "should run is complete should be terminal",
 			desired:  structs.AllocDesiredStatusRun,
 			client:   structs.AllocClientStatusComplete,
 			terminal: true,
 		},
 		{
+			name:       "should run is failed should reschedule",
 			desired:    structs.AllocDesiredStatusRun,
 			client:     structs.AllocClientStatusFailed,
 			reschedule: true,
 		},
 		{
+			name:    "should evict is running should be lost",
 			desired: structs.AllocDesiredStatusEvict,
 			client:  structs.AllocClientStatusRunning,
 			lost:    true,
@@ -3569,17 +3576,17 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		t.Run(fmt.Sprintf(""), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			h := NewHarness(t)
 
 			// Register a node
 			node := mock.Node()
 			node.Status = structs.NodeStatusDown
-			require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 			// Generate a fake job with allocations and an update policy.
 			job := mock.Job()
-			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+			must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 			alloc := mock.Alloc()
 			alloc.Job = job
@@ -3594,7 +3601,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 			alloc.DesiredTransition.Migrate = pointer.Of(tc.migrate)
 
 			allocs := []*structs.Allocation{alloc}
-			require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+			must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 			// Create a mock evaluation to deal with drain
 			eval := &structs.Evaluation{
@@ -3606,31 +3613,30 @@ func TestServiceSched_NodeDown(t *testing.T) {
 				NodeID:      node.ID,
 				Status:      structs.EvalStatusPending,
 			}
-			require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 			// Process the evaluation
 			err := h.Process(NewServiceScheduler, eval)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			if tc.terminal {
-				// No plan for terminal state allocs
-				require.Len(t, h.Plans, 0)
+				must.Len(t, 0, h.Plans, must.Sprint("expected no plan"))
 			} else {
-				require.Len(t, h.Plans, 1)
+				must.Len(t, 1, h.Plans, must.Sprint("expected plan"))
 
 				plan := h.Plans[0]
 				out := plan.NodeUpdate[node.ID]
-				require.Len(t, out, 1)
+				must.Len(t, 1, out)
 
 				outAlloc := out[0]
 				if tc.migrate {
-					require.NotEqual(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
+					must.NotEq(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
 				} else if tc.reschedule {
-					require.Equal(t, structs.AllocClientStatusFailed, outAlloc.ClientStatus)
+					must.Eq(t, structs.AllocClientStatusFailed, outAlloc.ClientStatus)
 				} else if tc.lost {
-					require.Equal(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
+					must.Eq(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
 				} else {
-					require.Fail(t, "unexpected alloc update")
+					t.Fatal("unexpected alloc update")
 				}
 			}
 
