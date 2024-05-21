@@ -4366,7 +4366,7 @@ func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
 		jobUI := &api.JobUIConfig{}
 		expected := &structs.JobUIConfig{
 			Description: "",
-			Links:       []structs.JobUILink{},
+			Links:       nil,
 		}
 		result := ApiJobUIConfigToStructs(jobUI)
 		must.Eq(t, expected, result)
@@ -4379,7 +4379,7 @@ func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
 		}
 		expected := &structs.JobUIConfig{
 			Description: "",
-			Links:       []structs.JobUILink{},
+			Links:       nil,
 		}
 		result := ApiJobUIConfigToStructs(jobUI)
 		must.Eq(t, expected, result)

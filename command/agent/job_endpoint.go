@@ -2080,13 +2080,20 @@ func ApiJobUIConfigToStructs(jobUI *api.JobUIConfig) *structs.JobUIConfig {
 	if jobUI == nil {
 		return nil
 	}
-	links := make([]structs.JobUILink, len(jobUI.Links))
-	for i, link := range jobUI.Links {
-		links[i] = structs.JobUILink{
-			Label: link.Label,
-			Url:   link.URL,
+
+	var links []structs.JobUILink
+	if len(jobUI.Links) > 0 {
+		links = make([]structs.JobUILink, len(jobUI.Links))
+		for i, link := range jobUI.Links {
+			links[i] = structs.JobUILink{
+				Label: link.Label,
+				Url:   link.URL,
+			}
 		}
+	} else {
+		links = nil
 	}
+
 	return &structs.JobUIConfig{
 		Description: jobUI.Description,
 		Links:       links,
