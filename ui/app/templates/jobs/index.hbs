@@ -11,7 +11,7 @@
         <Hds::SegmentedGroup as |S|>
 
           <JobSearchBox
-            @searchText={{this.searchText}}
+            @searchText={{this.rawSearchText}}
             @onSearchTextChange={{queue
               this.updateSearchText
               this.updateFilter
@@ -275,7 +275,7 @@
         {{#if this.filter}}
           <A.Header data-test-empty-jobs-list-headline @title="No Matches" />
           <A.Body
-            @text="No jobs match your current filter selection."
+            @text="No jobs match your current filter selection: {{this.filter}}"
           />
         <A.Footer @hasDivider={{true}}>
           <Hds::Button

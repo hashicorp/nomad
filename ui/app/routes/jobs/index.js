@@ -164,7 +164,9 @@ export default class IndexRoute extends Route.extend(
       Ember.testing ? 0 : DEFAULT_THROTTLE
     );
 
-    controller.parseFilter();
+    if (!this.hasBeenInitialized) {
+      controller.parseFilter();
+    }
 
     this.hasBeenInitialized = true;
   }

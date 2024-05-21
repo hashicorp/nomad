@@ -28,6 +28,7 @@ export default class JobsIndexController extends Controller {
   constructor() {
     super(...arguments);
     this.pageSize = this.userSettings.pageSize;
+    this.rawSearchText = this.searchText || '';
   }
 
   queryParams = [
@@ -451,6 +452,7 @@ export default class JobsIndexController extends Controller {
 
     // Combine all unmatched filter parts into the searchText
     this.searchText = unmatchedFilters.join(' and ');
+    this.rawSearchText = this.searchText;
   }
 
   @computed(
@@ -497,9 +499,11 @@ export default class JobsIndexController extends Controller {
 
   @tracked filter = '';
   @tracked searchText = '';
+  @tracked rawSearchText = '';
 
   @action resetFilters() {
     this.searchText = '';
+    this.rawSearchText = '';
     this.filterFacets.forEach((group) => {
       group.options.forEach((option) => {
         set(option, 'checked', false);
