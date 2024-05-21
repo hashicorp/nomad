@@ -13,7 +13,7 @@ We are pleased to announce the following Nomad updates.
 
 - **Long Term Support Release (Enterprise):** Nomad 1.8.0 now introduces a long term supported release which provides extended maintenance (two years of critical fixes provided through minor releases and efficient upgrades (support for direct upgrades from one LTS release to the next). 
 
-- **exec2 (beta)** The exec2 driver is used to execute a command for a task. It offers a security model optimized for running 'ordinary' processes with very low startup times and minimal overhead in terms of CPU, disk, and memory utilization. The exec2 driver leverages kernel features such as the Landlock LSM, cgroups v2, and the unshare system utility. Due these enhancements, tasks no longer require leveraging filesystem isolation based on chroot, which provide an enhanced security profile and improved performance for the Nomad operator.
+- **exec2 task driver(beta):** The exec2 driver is used to execute a command for a task. It offers a security model optimized for running 'ordinary' processes with very low startup times and minimal overhead in terms of CPU, disk, and memory utilization. The exec2 driver leverages kernel features such as the Landlock LSM, cgroups v2, and the unshare system utility. Due these enhancements, tasks no longer require leveraging filesystem isolation based on chroot, which provide an enhanced security profile and improved performance for the Nomad operator.
 
 
 
