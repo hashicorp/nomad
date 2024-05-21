@@ -111,6 +111,33 @@ export default class IndexRoute extends Route.extend(
    * @returns {Object}
    */
   handleErrors(error) {
+    const knownKeys = {
+      Name: 'Name',
+      Status: 'Status',
+      StatusDescription: 'StatusDescription',
+      Region: 'Region',
+      NodePool: 'NodePool',
+      Namespace: 'Namespace',
+      Version: 'Version',
+      Priority: 'Priority',
+      Stop: 'Stop',
+      Type: 'Type',
+      ID: 'ID',
+      AllAtOnce: 'AllAtOnce',
+      Datacenters: 'Datacenters',
+      Dispatched: 'Dispatched',
+      ConsulToken: 'ConsulToken',
+      ConsulNamespace: 'ConsulNamespace',
+      VaultToken: 'VaultToken',
+      VaultNamespace: 'VaultNamespace',
+      NomadTokenID: 'NomadTokenID',
+      Stable: 'Stable',
+      SubmitTime: 'SubmitTime',
+      CreateIndex: 'CreateIndex',
+      ModifyIndex: 'ModifyIndex',
+      JobModifyIndex: 'JobModifyIndex',
+    };
+
     error.errors.forEach((err) => {
       this.notifications.add({
         title: err.title,
@@ -120,13 +147,47 @@ export default class IndexRoute extends Route.extend(
       });
     });
 
+    let err = error.errors[0];
     // if it's an innocuous-enough seeming "You mistyped something while searching" error,
     // handle it with a notification and don't throw. Otherwise, throw.
     if (
-      error.errors[0].detail.includes("couldn't find key") ||
-      error.errors[0].detail.includes('failed to read filter expression')
+      err?.detail.includes("couldn't find key") ||
+      err?.detail.includes('failed to read filter expression')
     ) {
-      return error;
+      // eslint-disable-next-line
+      this.controllerFor('jobs.index').set('jobIDs', []);
+      // eslint-disable-next-line
+      this.controllerFor('jobs.index').set('jobs', []);
+
+      let humanizedError = err.detail;
+      let errorLink = null;
+
+      if (err.detail.includes('failed to read filter expression')) {
+        errorLink = {
+          label: 'Learn more about Filter Expressions',
+          url: 'https://developer.hashicorp.com/nomad/api-docs#creating-expressions',
+        };
+      } else {
+        const keyMatch = err.detail.match(
+          /couldn't find key: struct field with name "([^"]+)"/
+        );
+        if (keyMatch && keyMatch[1]) {
+          const incorrectKey = keyMatch[1];
+          const correctKey =
+            knownKeys[
+              incorrectKey.charAt(0).toUpperCase() +
+                incorrectKey.slice(1).toLowerCase()
+            ];
+          if (correctKey) {
+            humanizedError = `Did you mean "${correctKey}"?`;
+          } else {
+            let possibleKeys = Object.values(knownKeys).join('", "');
+            humanizedError = `Did you mistype a key? Valid keys include "${possibleKeys}".`;
+          }
+        }
+      }
+
+      return { error: humanizedError, errorLink };
     } else {
       throw error;
     }
@@ -134,6 +195,11 @@ export default class IndexRoute extends Route.extend(
 
   setupController(controller, model) {
     super.setupController(controller, model);
+
+    if (!this.hasBeenInitialized) {
+      controller.parseFilter();
+    }
+    this.hasBeenInitialized = true;
 
     if (!model.jobs) {
       return;
@@ -163,12 +229,6 @@ export default class IndexRoute extends Route.extend(
       this.getCurrentParams(),
       Ember.testing ? 0 : DEFAULT_THROTTLE
     );
-
-    if (!this.hasBeenInitialized) {
-      controller.parseFilter();
-    }
-
-    this.hasBeenInitialized = true;
   }
 
   startWatchers(controller) {

@@ -554,5 +554,13 @@ export default class JobsIndexController extends Controller {
     }
   }
 
+  get humanizedFilterError() {
+    let baseString = `No jobs match your current filter selection: ${this.filter}.`;
+    if (this.model.error) {
+      return `${baseString} ${this.model.error}`;
+    }
+    return baseString;
+  }
+
   //#endregion filtering and searching
 }

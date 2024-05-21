@@ -275,7 +275,7 @@
         {{#if this.filter}}
           <A.Header data-test-empty-jobs-list-headline @title="No Matches" />
           <A.Body
-            @text="No jobs match your current filter selection: {{this.filter}}"
+            @text={{this.humanizedFilterError}}
           />
         <A.Footer @hasDivider={{true}}>
           <Hds::Button
@@ -289,6 +289,9 @@
           {{!-- TODO: HDS4.0, convert to F.LinkStandalone --}}
           <Hds::Link::Standalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
             @iconPosition="trailing" />
+          {{#if this.model.errorLink}}
+            <Hds::Link::Standalone @icon="alert-triangle" @text={{this.model.errorLink.label}} @href="{{this.model.errorLink.url}}" @iconPosition="trailing" />
+          {{/if}}
         </A.Footer>
         {{else}}
           <A.Header data-test-empty-jobs-list-headline @title="No Jobs" />
