@@ -4359,7 +4359,7 @@ func Test_apiWorkloadIdentityToStructs(t *testing.T) {
 
 func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
 	t.Run("nil jobUI", func(t *testing.T) {
-		require.Nil(t, ApiJobUIConfigToStructs(nil))
+		must.Nil(t, ApiJobUIConfigToStructs(nil))
 	})
 
 	t.Run("empty jobUI", func(t *testing.T) {
@@ -4369,7 +4369,7 @@ func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
 			Links:       []structs.JobUILink{},
 		}
 		result := ApiJobUIConfigToStructs(jobUI)
-		require.Equal(t, expected, result)
+		must.Eq(t, expected, result)
 	})
 
 	t.Run("jobUI with empty description and links", func(t *testing.T) {
@@ -4382,7 +4382,7 @@ func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
 			Links:       []structs.JobUILink{},
 		}
 		result := ApiJobUIConfigToStructs(jobUI)
-		require.Equal(t, expected, result)
+		must.Eq(t, expected, result)
 	})
 
 	t.Run("jobUI with links", func(t *testing.T) {
@@ -4401,6 +4401,6 @@ func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
 			},
 		}
 		result := ApiJobUIConfigToStructs(jobUI)
-		require.Equal(t, expected, result)
+		must.Eq(t, expected, result)
 	})
 }
