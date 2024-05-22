@@ -4464,7 +4464,7 @@ type Job struct {
 
 type JobUIConfig struct {
 	Description string
-	Links       []JobUILink
+	Links       []*JobUILink
 }
 
 type JobUILink struct {
@@ -4480,9 +4480,9 @@ func (j *JobUIConfig) Copy() *JobUIConfig {
 	copy.Description = j.Description
 
 	if j.Links != nil {
-		links := make([]JobUILink, len(j.Links))
+		links := make([]*JobUILink, len(j.Links))
 		for i, link := range j.Links {
-			links[i] = *link.Copy()
+			links[i] = link.Copy()
 		}
 		copy.Links = links
 	}

@@ -686,7 +686,7 @@ func testJob() *Job {
 		NodePool:    NodePoolDefault,
 		UI: &JobUIConfig{
 			Description: "A job",
-			Links: []JobUILink{
+			Links: []*JobUILink{
 				{
 					Label: "Nomad Project",
 					Url:   "https://nomadproject.io",

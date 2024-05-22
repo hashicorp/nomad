@@ -1753,7 +1753,7 @@ func TestJobDiff(t *testing.T) {
 			New: &Job{
 				UI: &JobUIConfig{
 					Description: "a job description",
-					Links: []JobUILink{{
+					Links: []*JobUILink{{
 						Label: "example",
 						Url:   "http://example.com",
 					}},
@@ -1803,7 +1803,7 @@ func TestJobDiff(t *testing.T) {
 			Old: &Job{
 				UI: &JobUIConfig{
 					Description: "old job description",
-					Links: []JobUILink{{
+					Links: []*JobUILink{{
 						Label: "foo example",
 						Url:   "http://foo.example.com",
 					}},
@@ -1812,7 +1812,7 @@ func TestJobDiff(t *testing.T) {
 			New: &Job{
 				UI: &JobUIConfig{
 					Description: "new job description",
-					Links: []JobUILink{
+					Links: []*JobUILink{
 						{
 							Label: "bar example",
 							Url:   "http://bar.example.com",

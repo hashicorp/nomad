@@ -2360,11 +2360,11 @@ func uiDiff(old, new *JobUIConfig, contextual bool) *ObjectDiff {
 	return diff
 }
 
-func linkDiffs(old, new []JobUILink, contextual bool) []*ObjectDiff {
+func linkDiffs(old, new []*JobUILink, contextual bool) []*ObjectDiff {
 	var diffs []*ObjectDiff
 
 	for i := 0; i < len(old) && i < len(new); i++ {
-		if diff := linkDiff(old[i], new[i], contextual); diff != nil {
+		if diff := linkDiff(*old[i], *new[i], contextual); diff != nil {
 			diffs = append(diffs, diff)
 		}
 	}
@@ -2372,7 +2372,7 @@ func linkDiffs(old, new []JobUILink, contextual bool) []*ObjectDiff {
 	// Deleted links
 	for i := len(new); i < len(old); i++ {
 		emptyNew := JobUILink{} // Simulate an empty new link
-		if diff := linkDiff(old[i], emptyNew, contextual); diff != nil {
+		if diff := linkDiff(*old[i], emptyNew, contextual); diff != nil {
 			diff.Type = DiffTypeDeleted // Mark the diff as a deletion
 			diffs = append(diffs, diff)
 		}
@@ -2381,7 +2381,7 @@ func linkDiffs(old, new []JobUILink, contextual bool) []*ObjectDiff {
 	// New links
 	for i := len(old); i < len(new); i++ {
 		emptyOld := JobUILink{} // Simulate an empty old link
-		if diff := linkDiff(emptyOld, new[i], contextual); diff != nil {
+		if diff := linkDiff(emptyOld, *new[i], contextual); diff != nil {
 			diff.Type = DiffTypeAdded // Mark the diff as an addition
 			diffs = append(diffs, diff)
 		}

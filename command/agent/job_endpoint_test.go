@@ -4395,7 +4395,7 @@ func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
 		}
 		expected := &structs.JobUIConfig{
 			Description: "Test description",
-			Links: []structs.JobUILink{
+			Links: []*structs.JobUILink{
 				{Label: "Link 1", Url: "http://example.com/1"},
 				{Label: "Link 2", Url: "http://example.com/2"},
 			},
