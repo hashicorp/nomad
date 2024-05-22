@@ -44,7 +44,6 @@ export default class IndexController extends Controller {
     );
   }
 
-  // force pause task
   @task(function* () {
     try {
       yield this.model.forcePause();
@@ -56,7 +55,6 @@ export default class IndexController extends Controller {
     } catch (err) {
       this.set('error', {
         title: 'Could Not Force Pause Task',
-        // description: messageForError(err, 'manage allocation lifecycle'),
       });
     }
   })
@@ -73,7 +71,6 @@ export default class IndexController extends Controller {
     } catch (err) {
       this.set('error', {
         title: 'Could Not Force Run Task',
-        // description: messageForError(err, 'manage allocation lifecycle'),
       });
     }
   })
@@ -90,7 +87,6 @@ export default class IndexController extends Controller {
     } catch (err) {
       this.set('error', {
         title: 'Could Not put back on schedule',
-        // description: messageForError(err, 'manage allocation lifecycle'),
       });
     }
   })

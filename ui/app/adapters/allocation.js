@@ -41,7 +41,7 @@ export default class AllocationAdapter extends Watchable {
       .then(handleFSResponse);
   }
 
-  // TODO: / note: TaskName vs Task as key for PUT data differs from restart above
+  // note: TaskName vs Task as key for PUT data differs from restart above
   forcePause(allocation, taskName) {
     const prefix = `${this.host || '/'}${this.urlPrefix()}`;
     const url = `${prefix}/client/allocation/${allocation.id}/pause`;
