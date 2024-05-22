@@ -177,7 +177,7 @@ func (c *AllocPauseCommand) Run(args []string) int {
 }
 
 func (c *AllocPauseCommand) Synopsis() string {
-	return "Pause a running allocation"
+	return "Pause a running task"
 }
 
 func (c *AllocPauseCommand) AutocompleteFlags() complete.Flags {

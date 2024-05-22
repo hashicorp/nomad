@@ -109,7 +109,7 @@ type JobStatusesAlloc struct {
 	JobVersion       uint64
 	FollowupEvalID   string
 	// HasPausedTask is true if any of the tasks in the allocation
-	// are Paused (Enterprise feature)
+	// are Paused (Enterprise)
 	HasPausedTask bool
 }
 

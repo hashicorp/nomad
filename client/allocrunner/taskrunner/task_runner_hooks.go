@@ -190,8 +190,7 @@ func (tr *TaskRunner) initHooks() {
 		tr.runnerHooks = append(tr.runnerHooks, newRemoteTaskHook(tr, hookLogger))
 	}
 
-	// Enterprise only - If this task has a pause schedule, initialize the pause
-	// watcher.
+	// If this task has a pause schedule, initialize the pause (Enterprise)
 	if task.Schedule != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newPauseHook(tr, hookLogger))
 	}

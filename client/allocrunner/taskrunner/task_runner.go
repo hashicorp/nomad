@@ -282,7 +282,7 @@ type TaskRunner struct {
 	users dynamic.Pool
 
 	// pauser controls whether the task should be run or stopped based on a
-	// schedule. Enterprise only.
+	// schedule. (Enterprise)
 	pauser *pauseGate
 }
 
@@ -620,7 +620,7 @@ MAIN:
 			goto RESTART
 		}
 
-		// Enterprise only - Unblocks when the task runner is allowed to continue.
+		// Unblocks when the task runner is allowed to continue. (Enterprise)
 		if err := tr.pauser.Wait(); err != nil {
 			tr.logger.Error("pause scheduled failed", "error", err)
 			tr.restartTracker.SetStartError(err)

@@ -253,7 +253,6 @@ func (a *Allocations) GetPauseState(alloc *Allocation, q *QueryOptions, task str
 	var resp AllocGetPauseResponse
 	qm, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/pause", &resp, q)
 	state := resp.ScheduleState
-	// TODO convert into simplified state
 	return state, qm, err
 }
 

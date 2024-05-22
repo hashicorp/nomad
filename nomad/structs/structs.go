@@ -9081,7 +9081,7 @@ const (
 	TaskSkippingShutdownDelay = "Skipping shutdown delay"
 
 	// TaskRunning indicates a task is running due to a schedule or schedule
-	// override. Enterprise only.
+	// override. (Enterprise)
 	TaskRunning = "Running"
 )
 

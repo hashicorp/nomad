@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/cronexpr"
 )
 
+// TaskScheduleState represents the scheduled execution state of a task (Enterprise)
 type TaskScheduleState string
 
 func (t TaskScheduleState) Stop() bool {
