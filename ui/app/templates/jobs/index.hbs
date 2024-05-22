@@ -274,9 +274,46 @@
       <Hds::ApplicationState data-test-empty-jobs-list as |A|>
         {{#if this.filter}}
           <A.Header data-test-empty-jobs-list-headline @title="No Matches" />
-          <A.Body
-            @text={{this.humanizedFilterError}}
-          />
+          <A.Body>
+            {{this.humanizedFilterError}}
+            <br><br>
+            {{#if this.model.error.correction}}
+              Did you mean
+              <Hds::Button
+                @text={{this.model.error.correction.correctKey}}
+                @isInline={{true}}
+                @color="tertiary"
+                @icon="bulb"
+                @iconPosition="trailing"
+                {{on "click" (action this.correctFilterKey this.model.error.correction)}}
+
+              />?
+            {{else if this.model.error.suggestion}}
+              <ul>
+              {{#each this.model.error.suggestion as |suggestion|}}
+                <li><Hds::Button
+                  @text={{suggestion.key}}
+                  @isInline={{true}}
+                  @size="small"
+                  @color="tertiary"
+                  @icon="bulb"
+                  {{on "click" (action this.suggestFilter suggestion)}}
+                /></li>
+              {{/each}}
+              </ul>
+            {{else}}
+            {{!-- This is the "Nothing was found for your otherwise valid filter" option. Give them suggestions --}}
+              Did you know: you can try using filter expressions to search through your jobs.
+              Try <Hds::Button
+                @text="(Status == dead) and (Type != batch)"
+                @isInline={{true}}
+                @color="tertiary"
+                @icon="bulb"
+                @iconPosition="trailing"
+                {{on "click" (action this.suggestFilter (hash example="(Status == dead) and (Type != batch)"))}}
+              />
+            {{/if}}
+          </A.Body>
         <A.Footer @hasDivider={{true}}>
           <Hds::Button
             @text="Reset Filters"
@@ -289,8 +326,8 @@
           {{!-- TODO: HDS4.0, convert to F.LinkStandalone --}}
           <Hds::Link::Standalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
             @iconPosition="trailing" />
-          {{#if this.model.errorLink}}
-            <Hds::Link::Standalone @icon="alert-triangle" @text={{this.model.errorLink.label}} @href="{{this.model.errorLink.url}}" @iconPosition="trailing" />
+          {{#if this.model.error.errorLink}}
+            <Hds::Link::Standalone @icon="alert-triangle" @text={{this.model.error.errorLink.label}} @href="{{this.model.error.errorLink.url}}" @iconPosition="trailing" />
           {{/if}}
         </A.Footer>
         {{else}}

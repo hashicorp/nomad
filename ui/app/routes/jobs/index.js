@@ -111,33 +111,104 @@ export default class IndexRoute extends Route.extend(
    * @returns {Object}
    */
   handleErrors(error) {
-    const knownKeys = {
-      Name: 'Name',
-      Status: 'Status',
-      StatusDescription: 'StatusDescription',
-      Region: 'Region',
-      NodePool: 'NodePool',
-      Namespace: 'Namespace',
-      Version: 'Version',
-      Priority: 'Priority',
-      Stop: 'Stop',
-      Type: 'Type',
-      ID: 'ID',
-      AllAtOnce: 'AllAtOnce',
-      Datacenters: 'Datacenters',
-      Dispatched: 'Dispatched',
-      ConsulToken: 'ConsulToken',
-      ConsulNamespace: 'ConsulNamespace',
-      VaultToken: 'VaultToken',
-      VaultNamespace: 'VaultNamespace',
-      NomadTokenID: 'NomadTokenID',
-      Stable: 'Stable',
-      SubmitTime: 'SubmitTime',
-      CreateIndex: 'CreateIndex',
-      ModifyIndex: 'ModifyIndex',
-      JobModifyIndex: 'JobModifyIndex',
-    };
-
+    const knownKeys = [
+      {
+        key: 'Name',
+        example: 'Name == my-job',
+      },
+      {
+        key: 'Status',
+        example: 'Status != running',
+      },
+      {
+        key: 'StatusDescription',
+        example: 'StatusDescription contains "progress deadline"',
+      },
+      {
+        key: 'Region',
+        example: 'Region != global',
+      },
+      {
+        key: 'NodePool',
+        example: 'NodePool is not empty',
+      },
+      {
+        key: 'Namespace',
+        example: 'Namespace !== myNamespace',
+      },
+      {
+        key: 'Version',
+        example: 'Version != 0',
+      },
+      {
+        key: 'Priority',
+        example: 'Priority != 50',
+      },
+      {
+        key: 'Stop',
+        example: 'Stop == false',
+      },
+      {
+        key: 'Type',
+        example: 'Type contains sys',
+      },
+      {
+        key: 'ID',
+        example: 'ID == myJob',
+      },
+      {
+        key: 'AllAtOnce',
+        example: 'AllAtOnce == true',
+      },
+      {
+        key: 'Datacenters',
+        example: 'dc1 in Datacenters',
+      },
+      {
+        key: 'Dispatched',
+        example: 'Dispatched == false',
+      },
+      {
+        key: 'ConsulToken',
+        example: 'ConsulToken is not empty',
+      },
+      {
+        key: 'ConsulNamespace',
+        example: 'ConsulNamespace == myNamespace',
+      },
+      {
+        key: 'VaultToken',
+        example: 'VaultToken is not empty',
+      },
+      {
+        key: 'VaultNamespace',
+        example: 'VaultNamespace == myNamespace',
+      },
+      {
+        key: 'NomadTokenID',
+        example: 'NomadTokenID != myToken',
+      },
+      {
+        key: 'Stable',
+        example: 'Stable == false',
+      },
+      {
+        key: 'SubmitTime',
+        example: 'SubmitTime == 1716387219559280000',
+      },
+      {
+        key: 'CreateIndex',
+        example: 'CreateIndex != 10',
+      },
+      {
+        key: 'ModifyIndex',
+        example: 'ModifyIndex == 30',
+      },
+      {
+        key: 'JobModifyIndex',
+        example: 'JobModifyIndex == 40',
+      },
+    ];
     error.errors?.forEach((err) => {
       this.notifications.add({
         title: err.title,
@@ -165,10 +236,16 @@ export default class IndexRoute extends Route.extend(
       // eslint-disable-next-line
       this.controllerFor('jobs.index').watchJobIDs.cancelAll();
 
-      let humanizedError = err.detail || '';
+      let humanized = err.detail || '';
       let errorLink = null;
 
-      if (humanizedError.includes('failed to read filter expression')) {
+      // Two ways we can help users here:
+      // 1. They slightly mis-typed a key, so we should offer a correction
+      // 2. They tried a key that didn't look like anything we know of, so we can suggest keys they might try
+      let correction = null;
+      let suggestion = null;
+
+      if (humanized.includes('failed to read filter expression')) {
         errorLink = {
           label: 'Learn more about Filter Expressions',
           url: 'https://developer.hashicorp.com/nomad/api-docs#creating-expressions',
@@ -179,21 +256,35 @@ export default class IndexRoute extends Route.extend(
         );
         if (keyMatch && keyMatch[1]) {
           const incorrectKey = keyMatch[1];
-          const correctKey =
-            knownKeys[
-              incorrectKey.charAt(0).toUpperCase() +
-                incorrectKey.slice(1).toLowerCase()
-            ];
+          const correctKey = knownKeys.find(
+            (key) =>
+              key.key ===
+              `${incorrectKey.charAt(0).toUpperCase()}${incorrectKey
+                .slice(1)
+                .toLowerCase()}`
+          )?.key;
           if (correctKey) {
-            humanizedError = `Did you mean "${correctKey}"?`;
+            // humanized = `Did you mean "${correctKey}"?`;
+            correction = {
+              incorrectKey,
+              correctKey,
+            };
           } else {
-            let possibleKeys = Object.values(knownKeys).join('", "');
-            humanizedError = `Did you mistype a key? Valid keys include "${possibleKeys}".`;
+            // let possibleKeys = Object.values(knownKeys).join('", "');
+            humanized = `Did you mistype a key? Valid keys include:`; // "${possibleKeys}".`;
+            suggestion = knownKeys;
           }
         }
       }
 
-      return { error: humanizedError, errorLink };
+      return {
+        error: {
+          humanized,
+          errorLink,
+          correction,
+          suggestion,
+        },
+      };
     } else {
       throw error;
     }

@@ -543,7 +543,7 @@ export default class JobsIndexController extends Controller {
 
     // Check for any operator surrounded by spaces
     let isFilterExpression = operators.some((op) =>
-      newFilter.includes(` ${op} `)
+      newFilter.includes(` ${op}`)
     );
 
     if (isFilterExpression) {
@@ -556,10 +556,22 @@ export default class JobsIndexController extends Controller {
 
   get humanizedFilterError() {
     let baseString = `No jobs match your current filter selection: ${this.filter}.`;
-    if (this.model.error) {
-      return `${baseString} ${this.model.error}`;
+    if (this.model.error?.humanized) {
+      return `${baseString} ${this.model.error.humanized}`;
     }
     return baseString;
+  }
+
+  @action correctFilterKey({ incorrectKey, correctKey }) {
+    this.searchText = this.searchText.replace(incorrectKey, correctKey);
+    this.rawSearchText = this.searchText;
+    this.updateFilter();
+  }
+
+  @action suggestFilter({ example }) {
+    this.searchText = example;
+    this.rawSearchText = this.searchText;
+    this.updateFilter();
   }
 
   //#endregion filtering and searching
