@@ -225,4 +225,14 @@ export default class Allocation extends Model {
   stat(path) {
     return this.store.adapterFor('allocation').stat(this, path);
   }
+
+  forcePause(taskName) {
+    return this.store.adapterFor('allocation').forcePause(this, taskName);
+  }
+  forceRun(taskName) {
+    return this.store.adapterFor('allocation').forceRun(this, taskName);
+  }
+  reEnableSchedule(taskName) {
+    return this.store.adapterFor('allocation').reEnableSchedule(this, taskName);
+  }
 }
