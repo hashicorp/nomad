@@ -23,7 +23,7 @@ type consulHook struct {
 	allocdir                allocdir.Interface
 	widmgr                  widmgr.IdentityManager
 	consulConfigs           map[string]*structsc.ConsulConfig
-	consulClientConstructor func(*structsc.ConsulConfig, log.Logger) (consul.Client, error)
+	consulClientConstructor consul.ConsulClientFunc
 	hookResources           *cstructs.AllocHookResources
 	envBuilder              *taskenv.Builder
 
@@ -39,7 +39,7 @@ type consulHookConfig struct {
 	consulConfigs map[string]*structsc.ConsulConfig
 	// consulClientConstructor injects the function that will return a consul
 	// client (eases testing)
-	consulClientConstructor func(*structsc.ConsulConfig, log.Logger) (consul.Client, error)
+	consulClientConstructor consul.ConsulClientFunc
 
 	// hookResources is used for storing and retrieving Consul tokens
 	hookResources *cstructs.AllocHookResources

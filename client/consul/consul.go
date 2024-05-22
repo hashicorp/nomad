@@ -63,43 +63,56 @@ type consulClient struct {
 	// client is the API client to interact with consul
 	client *consulapi.Client
 
+	// partition is the Consul partition for the local agent
+	partition string
+
 	// config is the configuration to connect to consul
 	config *config.ConsulConfig
 
 	logger hclog.Logger
 }
 
-// NewConsulClient creates a new Consul client
-func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Client, error) {
-	if config == nil {
-		return nil, fmt.Errorf("nil consul config")
+// ConsulClientFunc creates a new Consul client for the specific Consul config
+type ConsulClientFunc func(config *config.ConsulConfig, logger hclog.Logger) (Client, error)
+
+// NewConsulClientFactory returns a ConsulClientFunc that closes over the
+// partition
+func NewConsulClientFactory(node *structs.Node) ConsulClientFunc {
+	partition := node.Attributes["consul.partition"]
+
+	return func(config *config.ConsulConfig, logger hclog.Logger) (Client, error) {
+		if config == nil {
+			return nil, fmt.Errorf("nil consul config")
+		}
+
+		logger = logger.Named("consul").With("name", config.Name)
+
+		c := &consulClient{
+			config:    config,
+			logger:    logger,
+			partition: partition,
+		}
+
+		// Get the Consul API configuration
+		apiConf, err := config.ApiConfig()
+		if err != nil {
+			logger.Error("error creating default Consul API config", "error", err)
+			return nil, err
+		}
+
+		// Create the API client
+		client, err := consulapi.NewClient(apiConf)
+		if err != nil {
+			logger.Error("error creating Consul client", "error", err)
+			return nil, err
+		}
+
+		useragent.SetHeaders(client)
+		c.client = client
+
+		return c, nil
+
 	}
-
-	logger = logger.Named("consul").With("name", config.Name)
-
-	c := &consulClient{
-		config: config,
-		logger: logger,
-	}
-
-	// Get the Consul API configuration
-	apiConf, err := config.ApiConfig()
-	if err != nil {
-		logger.Error("error creating default Consul API config", "error", err)
-		return nil, err
-	}
-
-	// Create the API client
-	client, err := consulapi.NewClient(apiConf)
-	if err != nil {
-		logger.Error("error creating Consul client", "error", err)
-		return nil, err
-	}
-
-	useragent.SetHeaders(client)
-	c.client = client
-
-	return c, nil
 }
 
 // DeriveTokenWithJWT takes a JWT from request and returns a consul token.
@@ -108,7 +121,10 @@ func (c *consulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLTo
 		AuthMethod:  req.AuthMethodName,
 		BearerToken: req.JWT,
 		Meta:        req.Meta,
-	}, nil)
+	}, &consulapi.WriteOptions{
+		Partition: c.partition,
+	})
+
 	return t, err
 }
 
