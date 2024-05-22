@@ -23,6 +23,8 @@ export default class Task extends Fragment {
 
   @attr() meta;
 
+  @fragment('task-schedule') schedule;
+
   @computed('taskGroup.mergedMeta', 'meta')
   get mergedMeta() {
     return {

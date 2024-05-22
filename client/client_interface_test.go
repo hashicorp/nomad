@@ -165,3 +165,11 @@ func (ar *emptyAllocRunner) LatestAllocStats(taskFilter string) (*cstructs.Alloc
 		Timestamp: 0,
 	}, nil
 }
+
+func (ar *emptyAllocRunner) SetTaskPauseState(taskName string, ps structs.TaskScheduleState) error {
+	return nil
+}
+
+func (ar *emptyAllocRunner) GetTaskPauseState(taskName string) (structs.TaskScheduleState, error) {
+	return "", nil
+}

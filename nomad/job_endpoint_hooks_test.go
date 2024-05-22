@@ -1249,6 +1249,40 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			expectedOutputError:    nil,
 			name:                   "task group with tproxy",
 		},
+		{
+			name: "task with schedule",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-schedule",
+						Tasks: []*structs.Task{
+							{
+								Name:     "task-with-schedule",
+								Schedule: &structs.TaskSchedule{}, // non-nil
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-schedule",
+						Tasks: []*structs.Task{
+							{
+								Name:     "task-with-schedule",
+								Schedule: &structs.TaskSchedule{},
+							},
+						},
+						Constraints: []*structs.Constraint{taskScheduleConstraint},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
 	}
 
 	for _, tc := range testCases {

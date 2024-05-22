@@ -1183,6 +1183,26 @@ type AllocSignalRequest struct {
 	QueryOptions
 }
 
+// AllocPauseRequest is used to set the pause state of a task in an allocation.
+type AllocPauseRequest struct {
+	AllocID       string
+	Task          string
+	ScheduleState TaskScheduleState
+	QueryOptions
+}
+
+// AllocGetPauseStateRequest is used to get the pause state of a task in an allocation.
+type AllocGetPauseStateRequest struct {
+	AllocID string
+	Task    string
+	QueryOptions
+}
+
+// AllocGetPauseStateResponse contains the pause state of a task in an allocation.
+type AllocGetPauseStateResponse struct {
+	ScheduleState TaskScheduleState
+}
+
 // AllocsGetRequest is used to query a set of allocations
 type AllocsGetRequest struct {
 	AllocIDs []string
@@ -7754,6 +7774,9 @@ type Task struct {
 
 	// Alloc-exec-like runnable commands
 	Actions []*Action
+
+	// Schedule for pausing tasks. Enterprise only.
+	Schedule *TaskSchedule
 }
 
 func (t *Task) UsesCores() bool {
@@ -8918,6 +8941,10 @@ type TaskState struct {
 	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
 	// by remote task drivers to migrate task handles between allocations.
 	TaskHandle *TaskHandle
+
+	// Enterprise Only - Paused is set to the paused state of the task. See
+	// task_sched.go
+	Paused TaskScheduleState
 }
 
 // NewTaskState returns a TaskState initialized in the Pending state.
@@ -9012,6 +9039,10 @@ const (
 	// used to determine the running length of the task.
 	TaskStarted = "Started"
 
+	// TaskPausing indicates the task is being killed, but will be
+	// started again to await the next start of its task schedule (Enterprise).
+	TaskPausing = "Pausing"
+
 	// TaskTerminated indicates that the task was started and exited.
 	TaskTerminated = "Terminated"
 
@@ -9096,6 +9127,10 @@ const (
 	// TaskSkippingShutdownDelay indicates that the task operation was
 	// configured to ignore the shutdown delay value set for the tas.
 	TaskSkippingShutdownDelay = "Skipping shutdown delay"
+
+	// TaskRunning indicates a task is running due to a schedule or schedule
+	// override. (Enterprise)
+	TaskRunning = "Running"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -11547,6 +11582,23 @@ func (a *Allocation) LastStartOfTask(taskName string) time.Time {
 	}
 
 	return task.StartedAt
+}
+
+// HasAnyPausedTasks returns true if any of the TaskStates on the alloc
+// are Paused (Enterprise feature) either due to a schedule or being forced.
+func (a *Allocation) HasAnyPausedTasks() bool {
+	if a == nil {
+		return false
+	}
+	for _, ts := range a.TaskStates {
+		if ts == nil {
+			continue
+		}
+		if ts.Paused.Stop() {
+			return true
+		}
+	}
+	return false
 }
 
 // IdentityClaims are the input to a JWT identifying a workload. It

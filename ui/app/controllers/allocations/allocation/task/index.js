@@ -43,4 +43,52 @@ export default class IndexController extends Controller {
       this.nomadActions.hasActionPermissions
     );
   }
+
+  @task(function* () {
+    try {
+      yield this.model.forcePause();
+      this.notifications.add({
+        title: 'Task Force Paused',
+        message: 'Task has been force paused',
+        color: 'success',
+      });
+    } catch (err) {
+      this.set('error', {
+        title: 'Could Not Force Pause Task',
+      });
+    }
+  })
+  forcePause;
+
+  @task(function* () {
+    try {
+      yield this.model.forceRun();
+      this.notifications.add({
+        title: 'Task Force Run',
+        message: 'Task has been force run',
+        color: 'success',
+      });
+    } catch (err) {
+      this.set('error', {
+        title: 'Could Not Force Run Task',
+      });
+    }
+  })
+  forceRun;
+
+  @task(function* () {
+    try {
+      yield this.model.reEnableSchedule();
+      this.notifications.add({
+        title: 'Task Put Back On Schedule',
+        message: 'Task has been put back on its configured schedule',
+        color: 'success',
+      });
+    } catch (err) {
+      this.set('error', {
+        title: 'Could Not put back on schedule',
+      });
+    }
+  })
+  reEnableSchedule;
 }

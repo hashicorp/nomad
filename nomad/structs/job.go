@@ -108,6 +108,9 @@ type JobStatusesAlloc struct {
 	DeploymentStatus JobStatusesDeployment
 	JobVersion       uint64
 	FollowupEvalID   string
+	// HasPausedTask is true if any of the tasks in the allocation
+	// are Paused (Enterprise)
+	HasPausedTask bool
 }
 
 // JobStatusesDeployment contains a subset of AllocDeploymentStatus info.
@@ -271,5 +274,20 @@ func (j *Job) RequiredTransparentProxy() set.Collection[string] {
 		}
 	}
 
+	return result
+}
+
+// RequiredScheduleTask collects any groups within the job that have
+// tasks with a schedule{} block for time based task execution (Enterprise)
+func (j *Job) RequiredScheduleTask() set.Collection[string] {
+	result := set.New[string](len(j.TaskGroups))
+	for _, tg := range j.TaskGroups {
+		for _, t := range tg.Tasks {
+			if t.Schedule != nil {
+				result.Insert(tg.Name)
+				break // to next TaskGroup
+			}
+		}
+	}
 	return result
 }

@@ -592,6 +592,11 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, vDiffs...)
 	}
 
+	// Schedule diff
+	if sDiff := scheduleDiff(t.Schedule, other.Schedule, contextual); sDiff != nil {
+		diff.Objects = append(diff.Objects, sDiff)
+	}
+
 	return diff, nil
 }
 
@@ -655,6 +660,19 @@ func actionDiffs(old, new []*Action, contextual bool) []*ObjectDiff {
 	sort.Sort(ObjectDiffs(diffs))
 
 	return diffs
+}
+
+func scheduleDiff(old, new *TaskSchedule, contextual bool) *ObjectDiff {
+	if reflect.DeepEqual(old, new) {
+		return nil
+	}
+	if old == nil {
+		old = &TaskSchedule{}
+	}
+	if new == nil {
+		new = &TaskSchedule{}
+	}
+	return primitiveObjectDiff(old.Cron, new.Cron, nil, "Schedule", contextual)
 }
 
 func (t *TaskDiff) GoString() string {

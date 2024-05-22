@@ -1140,7 +1140,8 @@ func (a *Agent) setupClient() error {
 		a.consulCatalog,     // self service discovery
 		a.consulProxiesFunc, // supported Envoy versions fingerprinting
 		a.consulServices,    // workload service discovery
-		nil)
+		nil,                 // use the standard set of rpcs
+	)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}

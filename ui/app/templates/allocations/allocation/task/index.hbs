@@ -78,6 +78,35 @@
       {{/if}}
     </PH.Actions>
   </Hds::PageHeader>
+  {{#if this.model.task.schedule}}
+    <Hds::Alert @type="inline" @icon="delay" @color="highlight" class="time-based-alert" as |A|>
+      {{#if (eq this.model.paused '')}}
+        <A.Title>This task is currently running on schedule</A.Title>
+        <A.Description>This task is running as per the defined schedule.</A.Description>
+        <A.Button @text="Force Pause" @color="secondary" {{on "click" (perform this.forcePause)}} />
+        <A.Button @text="Remove from Schedule" @color="secondary" {{on "click" (perform this.forceRun)}}  />
+      {{else if (eq this.model.paused 'scheduled_pause')}}
+        <A.Title>This task is currently paused on schedule</A.Title>
+        <A.Description>This task is paused and will resume on the next scheduled run.</A.Description>
+        <A.Button @text="Force Run" @color="secondary" {{on "click" (perform this.forceRun)}} />
+        <A.Button @text="Remove from Schedule" @color="secondary" {{on "click" (perform this.forcePause)}} />
+      {{else if (eq this.model.paused 'force_pause')}}
+        <A.Title>This task is manually paused</A.Title>
+        <A.Description>This task has been paused manually and is not following the schedule.</A.Description>
+        <A.Button @text="Force Run" @color="secondary" {{on "click" (perform this.forceRun)}} />
+        <A.Button @text="Put Back on Schedule" @color="secondary" {{on "click" (perform this.reEnableSchedule)}} />
+      {{else if (eq this.model.paused 'force_run')}}
+        <A.Title>This task is manually running</A.Title>
+        <A.Description>This task is running manually and is not following the schedule.</A.Description>
+        <A.Button @text="Force Pause" @color="secondary" {{on "click" (perform this.forcePause)}} />
+        <A.Button @text="Put Back on Schedule" @color="secondary" {{on "click" (perform this.reEnableSchedule)}} />
+      {{/if}}
+      <A.Generic>
+        <Hds::CodeBlock @value={{stringify-object this.model.task.schedule.cron}} @hasLineNumbers={{false}} @language="hcl" />
+      </A.Generic>
+    </Hds::Alert>
+    <Hds::Separator />
+  {{/if}}
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">
