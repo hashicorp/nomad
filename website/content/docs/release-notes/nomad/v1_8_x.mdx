@@ -11,20 +11,39 @@ We are pleased to announce the following Nomad updates.
 
 ## Release highlights
 
-- **Long Term Support Release (Enterprise):** Nomad 1.8.0 now introduces a long term supported release which provides extended maintenance (two years of critical fixes provided through minor releases and efficient upgrades (support for direct upgrades from one LTS release to the next). 
+- **Long Term Support Release (Enterprise):** Nomad 1.8.0 now introduces a long
+  term supported release which provides extended maintenance (two years of
+  critical fixes provided through minor releases and efficient upgrades
+  (support for direct upgrades from one LTS release to the next).
 
-- **Exec2 Task Driver (beta):** The `exec2` driver is used to execute a command for a task. It offers a security model optimized for running 'ordinary' processes with very low startup times and minimal overhead in terms of CPU, disk, and memory utilization. The `exec2` driver leverages kernel features such as the Landlock LSM, cgroups v2, and the unshare system utility. Due these enhancements, tasks no longer require leveraging filesystem isolation based on chroot, which provide an enhanced security profile and improved performance for the Nomad operator. Refer to [Exec2 Task Driver](/nomad/plugins/v1.8.x/drivers/exec2) for more details. 
-
+- **Exec2 Task Driver (beta):** The `exec2` driver is used to execute a
+  command for a task. It offers a security model optimized for running
+  'ordinary' processes with very low startup times and minimal overhead in
+  terms of CPU, disk, and memory utilization. The `exec2` driver leverages
+  kernel features such as the Landlock LSM, cgroups v2, and the unshare system
+  utility. Due these enhancements, tasks no longer require leveraging
+  filesystem isolation based on chroot, which provide an enhanced security
+  profile and improved performance for the Nomad operator. Refer to [Exec2 Task
+  Driver](/nomad/plugins/v1.8.x/drivers/exec2) for more details.
 
 
 ## What's deprecated
 
-- **LXC Task driver:** The [Community LXC Task Driver](/nomad/plugins/drivers/community/lxc) is now deprecated. Official support will be removed and the repo will be archived when Nomad 1.9 is released. Users are encouraged to migrate their workloads to another task driver such as the built-in Docker task driver[/nomad/docs/drivers/docker]. 
-- **ECS Task driver:** The remote [ECS Task Driver](https://developer.hashicorp.com/nomad/plugins/drivers/remote/ecs) is now deprecated. Official support will be removed and the repo will be archived when Nomad 1.9 is released. Users are encouraged to migrate their workloads to Amazon ECS or to another Nomad task driver. 
+- **LXC Task driver:** The [Community LXC Task
+  Driver](/nomad/plugins/drivers/community/lxc) is now deprecated. Official
+  support will be removed and the repo will be archived when Nomad 1.9 is
+  released. Users are encouraged to migrate their workloads to another task
+  driver such as the built-in Docker task driver[/nomad/docs/drivers/docker]. -
+  **ECS Task driver:** The remote [ECS Task
+  Driver](https://developer.hashicorp.com/nomad/plugins/drivers/remote/ecs) is
+  now deprecated. Official support will be removed and the repo will be
+  archived when Nomad 1.9 is released. Users are encouraged to migrate their
+  workloads to Amazon ECS or to another Nomad task driver.
 
 ## Upgrading
 
-For more detailed information, please refer to the [upgrade details page](/nomad/docs/upgrade/upgrade-specific) and the changelogs.
+For more detailed information, please refer to the [upgrade details
+page](/nomad/docs/upgrade/upgrade-specific) and the changelogs.
 
 ## Known issues
 
@@ -32,7 +51,8 @@ The following issues are known to exist in the v1.8.x releases:
 
 ## Changelogs
 
-The changelogs for this major release version and any maintenance versions are listed below.
+The changelogs for this major release version and any maintenance versions are
+listed below.
 
 <Note> These links take you to the changelogs on the GitHub website. </Note>
 
