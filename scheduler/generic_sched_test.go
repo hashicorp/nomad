@@ -3564,10 +3564,11 @@ func TestServiceSched_NodeDown(t *testing.T) {
 			terminal: true,
 		},
 		{
-			name:       "should run is failed should be rescheduled",
+			name:       "should run is failed should not reschedule without room",
 			desired:    structs.AllocDesiredStatusRun,
 			client:     structs.AllocClientStatusFailed,
-			reschedule: true,
+			reschedule: false,
+			terminal:   true,
 		},
 		{
 			name:    "should evict is running should be lost",
@@ -3667,7 +3668,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 				job.TaskGroups[0].StopAfterClientDisconnect = nil
 			},
 			expectBlockedEval:   true,
-			expectedAllocStates: 1,
+			expectedAllocStates: 0,
 		},
 		{
 			name: "legacy stop_after_client_disconnect reschedule now",
@@ -3677,7 +3678,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			},
 			previousStopWhen:    time.Now().UTC().Add(-10 * time.Second),
 			expectBlockedEval:   true,
-			expectedAllocStates: 2,
+			expectedAllocStates: 1,
 		},
 		{
 			name: "legacy stop_after_client_disconnect reschedule later",
@@ -3699,7 +3700,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 				}
 			},
 			expectBlockedEval:   true,
-			expectedAllocStates: 1,
+			expectedAllocStates: 0,
 		},
 		{
 			name: "StopOnClientAfter reschedule now",
@@ -3711,7 +3712,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			},
 			previousStopWhen:    time.Now().UTC().Add(-10 * time.Second),
 			expectBlockedEval:   true,
-			expectedAllocStates: 2,
+			expectedAllocStates: 1,
 		},
 		{
 			name: "StopOnClientAfter reschedule later",
@@ -3776,7 +3777,6 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			err := h.Process(NewServiceScheduler, eval)
 			must.NoError(t, err)
 			must.Eq(t, h.Evals[0].Status, structs.EvalStatusComplete)
-			must.Len(t, 1, h.Plans, must.Sprint("expected a plan"))
 
 			// One followup eval created, either delayed or blocked
 			must.Len(t, 1, h.CreateEvals)
@@ -3790,18 +3790,19 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			must.Eq(t, alloc.ID, allocs[0].ID)
 			alloc = allocs[0]
 
-			// Allocations have been transitioned to lost
-			must.Eq(t, structs.AllocDesiredStatusStop, alloc.DesiredStatus)
-			must.Eq(t, structs.AllocClientStatusLost, alloc.ClientStatus)
-
 			// 1 if rescheduled, 2 for rescheduled later
 			test.Len(t, tc.expectedAllocStates, alloc.AllocStates)
 
 			if tc.expectBlockedEval {
 				must.Eq(t, structs.EvalStatusBlocked, followupEval.Status)
+				must.Len(t, 0, h.Plans, must.Sprint("expected no plan"))
 
+				// Unreplaced allocations have not been transitioned to lost
+				must.Eq(t, structs.AllocDesiredStatusRun, alloc.DesiredStatus)
+				must.Eq(t, structs.AllocClientStatusRunning, alloc.ClientStatus)
 			} else {
 				must.Eq(t, structs.EvalStatusPending, followupEval.Status)
+				must.Len(t, 1, h.Plans, must.Sprint("expected a plan"))
 				must.NotEq(t, time.Time{}, followupEval.WaitUntil)
 
 				if tc.expectUpdate {
@@ -3813,6 +3814,10 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 					must.Len(t, 0, h.Plans[0].NodeUpdate[node.ID])
 					must.MapLen(t, 1, h.Plans[0].NodeAllocation)
 				}
+
+				// Allocations have been transitioned to lost
+				must.Eq(t, structs.AllocDesiredStatusStop, alloc.DesiredStatus)
+				must.Eq(t, structs.AllocClientStatusLost, alloc.ClientStatus)
 			}
 
 			// Register a new node, leave it up, process the followup eval
@@ -6020,9 +6025,10 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 
 	h := NewHarness(t)
 
-	// Register a draining node
+	// Register a draining node and a node we can drain to
 	node := mock.DrainNode()
 	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), mock.Node()))
 
 	// Create an alloc on the draining node
 	alloc := mock.Alloc()
@@ -6058,12 +6064,12 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	must.Eq(t, 1, len(plan.NodeUpdate[node.ID]),
 		must.Sprint("expected alloc to be evicted"))
 
-	// Ensure the plan didn't create any new allocations
+	// Ensure the plan created a new allocation
 	var planned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	must.Eq(t, 0, len(planned))
+	must.Eq(t, 1, len(planned))
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }

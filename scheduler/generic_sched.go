@@ -719,9 +719,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// Track the fact that we didn't find a placement
 				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
 
-				// If we weren't able to find a replacement for the allocation, back
-				// out the fact that we asked to stop the allocation.
-				if stopPrevAlloc {
+				// If we weren't able to find a replacement for the allocation,
+				// back out the fact that we asked to stop the allocation.
+				if prevAllocation != nil {
 					s.plan.PopUpdate(prevAllocation)
 				}
 			}
