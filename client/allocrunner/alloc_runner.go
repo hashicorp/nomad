@@ -270,9 +270,6 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
 
 	// Create alloc dir
-	//
-	// TODO(shoenig): need to decide what version of alloc dir to use, and the
-	// return value should probably now be an interface
 	ar.allocDir = allocdir.NewAllocDir(
 		ar.logger,
 		config.ClientConfig.AllocDir,
