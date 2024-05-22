@@ -14,9 +14,3 @@ func TestAllocPauseCommand_Implements(t *testing.T) {
 	ci.Parallel(t)
 	var _ cli.Command = &AllocPauseCommand{}
 }
-
-func TestAllocPauseCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Log("TODO")
-}
