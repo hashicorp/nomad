@@ -267,6 +267,7 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 			NodeID:         a.NodeID,
 			JobVersion:     a.Job.Version,
 			FollowupEvalID: a.FollowupEvalID,
+			HasPausedTask:  a.HasAnyPausedTasks(),
 		}
 		if a.DeploymentStatus != nil {
 			jsa.DeploymentStatus.Canary = a.DeploymentStatus.IsCanary()

@@ -801,6 +801,8 @@ type Task struct {
 	Identities []*WorkloadIdentity `hcl:"identity,block"`
 
 	Actions []*Action `hcl:"action,block"`
+
+	Schedule *TaskSchedule `hcl:"schedule,block"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {

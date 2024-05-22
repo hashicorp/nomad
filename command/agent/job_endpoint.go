@@ -1411,6 +1411,11 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		act := ApiActionToStructsAction(job, action)
 		structsTask.Actions = append(structsTask.Actions, act)
 	}
+
+	if apiTask.Schedule != nil {
+		sched := apiScheduleToStructsSchedule(apiTask.Schedule)
+		structsTask.Schedule = sched
+	}
 }
 
 // apiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
@@ -1459,6 +1464,21 @@ func ApiActionToStructsAction(job *structs.Job, action *api.Action) *structs.Act
 		Args:    slices.Clone(action.Args),
 		Command: action.Command,
 	}
+}
+
+func apiScheduleToStructsSchedule(s *api.TaskSchedule) *structs.TaskSchedule {
+	if s.Cron == nil {
+		return nil
+	}
+
+	sched := &structs.TaskSchedule{
+		Cron: &structs.TaskScheduleCron{
+			Start:    s.Cron.Start,
+			End:      s.Cron.End,
+			Timezone: s.Cron.Timezone,
+		},
+	}
+	return sched
 }
 
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {

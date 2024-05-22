@@ -237,6 +237,8 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 		return s.allocGC(allocID, resp, req)
 	case "signal":
 		return s.allocSignal(allocID, resp, req)
+	case "pause":
+		return s.allocPause(allocID, resp, req)
 	}
 
 	return nil, CodedError(404, resourceNotFoundErr)
@@ -381,6 +383,105 @@ func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *
 		rpcErr = s.agent.Client().RPC("ClientAllocations.Signal", &args, &reply)
 	} else if useServerRPC {
 		rpcErr = s.agent.Server().RPC("ClientAllocations.Signal", &args, &reply)
+	} else {
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
+	}
+
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return reply, rpcErr
+}
+
+func (s *HTTPServer) allocPause(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	switch req.Method {
+	case http.MethodPost, http.MethodPut:
+		return s.allocPauseSet(allocID, resp, req)
+	case http.MethodGet:
+		return s.allocPauseGet(allocID, resp, req)
+	default:
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) allocPauseGet(allocID string, resp http.ResponseWriter, req *http.Request) (any, error) {
+	// Build the request and parse the ACL token
+	task := req.URL.Query().Get("task")
+	args := structs.AllocGetPauseStateRequest{
+		AllocID: allocID,
+		Task:    task,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
+
+	// Make the RPC
+	var reply structs.AllocGetPauseStateResponse
+	var rpcErr error
+	if useLocalClient {
+		rpcErr = s.agent.Client().ClientRPC("Allocations.GetPauseState", &args, &reply)
+	} else if useClientRPC {
+		rpcErr = s.agent.Client().RPC("ClientAllocations.GetPauseState", &args, &reply)
+	} else if useServerRPC {
+		rpcErr = s.agent.Server().RPC("ClientAllocations.GetPauseState", &args, &reply)
+	} else {
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
+	}
+
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return reply, rpcErr
+}
+
+func (s *HTTPServer) allocPauseSet(allocID string, resp http.ResponseWriter, req *http.Request) (any, error) {
+	// Build the request and parse the ACL token
+	args := structs.AllocPauseRequest{
+		AllocID: allocID,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Explicitly parse the body separately to disallow overriding the allocID
+	var reqBody struct {
+		Task          string
+		ScheduleState string
+	}
+	err := json.NewDecoder(req.Body).Decode(&reqBody)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	args.Task = reqBody.Task
+
+	switch reqBody.ScheduleState {
+	case "pause":
+		args.ScheduleState = structs.TaskScheduleStateForcePause
+	case "run":
+		args.ScheduleState = structs.TaskScheduleStateForceRun
+	case "scheduled":
+		args.ScheduleState = structs.TaskScheduleStateSchedResume
+	default:
+		return nil, CodedError(400, "Not a valid task schedule state")
+	}
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
+
+	// Make the RPC
+	var reply structs.GenericResponse
+	var rpcErr error
+	if useLocalClient {
+		rpcErr = s.agent.Client().ClientRPC("Allocations.SetPauseState", &args, &reply)
+	} else if useClientRPC {
+		rpcErr = s.agent.Client().RPC("ClientAllocations.SetPauseState", &args, &reply)
+	} else if useServerRPC {
+		rpcErr = s.agent.Server().RPC("ClientAllocations.SetPauseState", &args, &reply)
 	} else {
 		rpcErr = CodedError(400, "No local Node and node_id not provided")
 	}

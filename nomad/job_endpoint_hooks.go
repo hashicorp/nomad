@@ -151,6 +151,14 @@ var (
 		RTarget: ">= 1.8.0-dev",
 		Operand: structs.ConstraintSemver,
 	}
+
+	// taskScheduleConstraint is an implicit constraint added to jobs that have
+	// tasks with a schedule{} block for time based task execution (Enterprise)
+	taskScheduleConstraint = &structs.Constraint{
+		LTarget: attrNomadVersion,
+		RTarget: ">= 1.8.0-dev",
+		Operand: structs.ConstraintSemver,
+	}
 )
 
 type admissionController interface {
@@ -269,13 +277,16 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 	transparentProxyTaskGroups := j.RequiredTransparentProxy()
 
+	taskScheduleTaskGroups := j.RequiredScheduleTask()
+
 	// Hot path where none of our things require constraints.
 	//
 	// [UPDATE THIS] if you are adding a new constraint thing!
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
 		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
 		numaTaskGroups.Empty() && bridgeNetworkingTaskGroups.Empty() &&
-		transparentProxyTaskGroups.Empty() {
+		transparentProxyTaskGroups.Empty() &&
+		taskScheduleTaskGroups.Empty() {
 		return j, nil, nil
 	}
 
@@ -344,6 +355,10 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		if transparentProxyTaskGroups.Contains(tg.Name) {
 			mutateConstraint(constraintMatcherLeft, tg, cniConsulConstraint)
 			mutateConstraint(constraintMatcherLeft, tg, tproxyConstraint)
+		}
+
+		if taskScheduleTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherLeft, tg, taskScheduleConstraint)
 		}
 	}
 

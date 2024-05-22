@@ -91,6 +91,46 @@ func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.
 	return a.c.SignalAllocation(args.AllocID, args.Task, args.Signal)
 }
 
+func (a *Allocations) SetPauseState(args *nstructs.AllocPauseRequest, reply *nstructs.GenericResponse) error {
+	defer metrics.MeasureSince([]string{"client", "allocations", "pause_set"}, time.Now())
+
+	alloc, err := a.c.GetAlloc(args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return nstructs.ErrPermissionDenied
+	}
+
+	return a.c.PauseAllocation(args.AllocID, args.Task, args.ScheduleState)
+}
+
+func (a *Allocations) GetPauseState(args *nstructs.AllocGetPauseStateRequest, reply *nstructs.AllocGetPauseStateResponse) error {
+	defer metrics.MeasureSince([]string{"client", "allocations", "pause_get"}, time.Now())
+
+	alloc, err := a.c.GetAlloc(args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+		return nstructs.ErrPermissionDenied
+	}
+
+	state, err := a.c.GetPauseAllocation(args.AllocID, args.Task)
+	if err != nil {
+		return err
+	}
+
+	reply.ScheduleState = state
+	return nil
+}
+
 // Restart is used to trigger a restart of an allocation or a subtask on a client.
 func (a *Allocations) Restart(args *nstructs.AllocRestartRequest, reply *nstructs.GenericResponse) error {
 	defer metrics.MeasureSince([]string{"client", "allocations", "restart"}, time.Now())

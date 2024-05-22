@@ -280,6 +280,10 @@ type TaskRunner struct {
 
 	// users manages the pool of dynamic workload users
 	users dynamic.Pool
+
+	// pauser controls whether the task should be run or stopped based on a
+	// schedule. Enterprise only.
+	pauser *pauseGate
 }
 
 type Config struct {
@@ -425,6 +429,9 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 
 	// Create the logger based on the allocation ID
 	tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
+
+	// Create the pauser
+	tr.pauser = newPauseGate(tr)
 
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources
@@ -611,6 +618,13 @@ MAIN:
 			tr.logger.Error("prestart failed", "error", err)
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
+		}
+
+		// Enterprise only - Unblocks when the task runner is allowed to continue.
+		if err := tr.pauser.Wait(); err != nil {
+			tr.logger.Error("pause scheduled failed", "error", err)
+			tr.restartTracker.SetStartError(err)
+			break MAIN
 		}
 
 		// Check for a terminal allocation once more before proceeding as the

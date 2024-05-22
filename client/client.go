@@ -969,6 +969,24 @@ func (c *Client) SignalAllocation(allocID, task, signal string) error {
 	return ar.Signal(task, signal)
 }
 
+// PauseAllocation sets the pause state of the given task for the allocation.
+func (c *Client) PauseAllocation(allocID, task string, scheduleState structs.TaskScheduleState) error {
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return err
+	}
+	return ar.SetTaskPauseState(task, scheduleState)
+}
+
+// GetPauseAllocation gets the pause state of the  given task for the allocation.
+func (c *Client) GetPauseAllocation(allocID, task string) (structs.TaskScheduleState, error) {
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return "", err
+	}
+	return ar.GetTaskPauseState(task)
+}
+
 // CollectAllocation garbage collects a single allocation on a node. Returns
 // true if alloc was found and garbage collected; otherwise false.
 func (c *Client) CollectAllocation(allocID string) bool {
