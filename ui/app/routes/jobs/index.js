@@ -138,7 +138,7 @@ export default class IndexRoute extends Route.extend(
       JobModifyIndex: 'JobModifyIndex',
     };
 
-    error.errors.forEach((err) => {
+    error.errors?.forEach((err) => {
       this.notifications.add({
         title: err.title,
         message: err.detail,
@@ -154,15 +154,21 @@ export default class IndexRoute extends Route.extend(
       err?.detail.includes("couldn't find key") ||
       err?.detail.includes('failed to read filter expression')
     ) {
+      this.watchList.jobsIndexDetailsController.abort();
+      this.watchList.jobsIndexIDsController.abort();
       // eslint-disable-next-line
       this.controllerFor('jobs.index').set('jobIDs', []);
       // eslint-disable-next-line
       this.controllerFor('jobs.index').set('jobs', []);
+      // eslint-disable-next-line
+      this.controllerFor('jobs.index').watchJobs.cancelAll();
+      // eslint-disable-next-line
+      this.controllerFor('jobs.index').watchJobIDs.cancelAll();
 
-      let humanizedError = err.detail;
+      let humanizedError = err.detail || '';
       let errorLink = null;
 
-      if (err.detail.includes('failed to read filter expression')) {
+      if (humanizedError.includes('failed to read filter expression')) {
         errorLink = {
           label: 'Learn more about Filter Expressions',
           url: 'https://developer.hashicorp.com/nomad/api-docs#creating-expressions',
