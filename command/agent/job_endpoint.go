@@ -1039,6 +1039,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		VaultNamespace: *job.VaultNamespace,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
+		UI:             ApiJobUIConfigToStructs(job.UI),
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -2085,6 +2086,30 @@ func ApiAffinitiesToStructs(in []*api.Affinity) []*structs.Affinity {
 	}
 
 	return out
+}
+
+func ApiJobUIConfigToStructs(jobUI *api.JobUIConfig) *structs.JobUIConfig {
+	if jobUI == nil {
+		return nil
+	}
+
+	var links []*structs.JobUILink
+	if len(jobUI.Links) > 0 {
+		links = make([]*structs.JobUILink, len(jobUI.Links))
+		for i, link := range jobUI.Links {
+			links[i] = &structs.JobUILink{
+				Label: link.Label,
+				Url:   link.URL,
+			}
+		}
+	} else {
+		links = nil
+	}
+
+	return &structs.JobUIConfig{
+		Description: jobUI.Description,
+		Links:       links,
+	}
 }
 
 func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {

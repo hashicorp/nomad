@@ -49,6 +49,11 @@ export default class JobSerializer extends ApplicationSerializer {
       hash.ParameterizedJob = true;
     }
 
+    if (hash.UI) {
+      hash.Ui = hash.UI;
+      delete hash.UI;
+    }
+
     // If the hash contains summary information, push it into the store
     // as a job-summary model.
     if (hash.JobSummary) {

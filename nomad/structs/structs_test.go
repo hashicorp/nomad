@@ -343,6 +343,17 @@ func TestJob_Validate(t *testing.T) {
 			},
 		},
 		{
+			name: "job description is too long",
+			job: &Job{
+				UI: &JobUIConfig{
+					Description: strings.Repeat("a", 1015),
+				},
+			},
+			expErr: []string{
+				"UI description must be under 1000 characters",
+			},
+		},
+		{
 			name: "job task group is type invalid",
 			job: &Job{
 				Region:      "global",
@@ -673,6 +684,19 @@ func testJob() *Job {
 		AllAtOnce:   false,
 		Datacenters: []string{"*"},
 		NodePool:    NodePoolDefault,
+		UI: &JobUIConfig{
+			Description: "A job",
+			Links: []*JobUILink{
+				{
+					Label: "Nomad Project",
+					Url:   "https://nomadproject.io",
+				},
+				{
+					Label: "Nomad on GitHub",
+					Url:   "https://github.com/hashicorp/nomad",
+				},
+			},
+		},
 		Constraints: []*Constraint{
 			{
 				LTarget: "$attr.kernel.name",

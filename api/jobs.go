@@ -933,6 +933,52 @@ type JobSubmission struct {
 	Variables string
 }
 
+type JobUIConfig struct {
+	Description string       `hcl:"description,optional"`
+	Links       []*JobUILink `hcl:"link,block"`
+}
+
+type JobUILink struct {
+	Label string `hcl:"label,optional"`
+	URL   string `hcl:"url,optional"`
+}
+
+func (j *JobUIConfig) Canonicalize() {
+	if j == nil {
+		return
+	}
+
+	if len(j.Links) == 0 {
+		j.Links = nil
+	}
+}
+
+func (j *JobUIConfig) Copy() *JobUIConfig {
+	if j == nil {
+		return nil
+	}
+
+	copy := new(JobUIConfig)
+	copy.Description = j.Description
+
+	for _, link := range j.Links {
+		copy.Links = append(copy.Links, link.Copy())
+	}
+
+	return copy
+}
+
+func (j *JobUILink) Copy() *JobUILink {
+	if j == nil {
+		return nil
+	}
+
+	return &JobUILink{
+		Label: j.Label,
+		URL:   j.URL,
+	}
+}
+
 func (js *JobSubmission) Canonicalize() {
 	if js == nil {
 		return
@@ -982,6 +1028,7 @@ type Job struct {
 	Meta             map[string]string       `hcl:"meta,block"`
 	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
 	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
+	UI               *JobUIConfig            `hcl:"ui,block"`
 
 	/* Fields set by server, not sourced from job config file */
 
@@ -1106,6 +1153,10 @@ func (j *Job) Canonicalize() {
 	}
 	for _, a := range j.Affinities {
 		a.Canonicalize()
+	}
+
+	if j.UI != nil {
+		j.UI.Canonicalize()
 	}
 }
 

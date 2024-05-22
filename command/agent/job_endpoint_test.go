@@ -4396,3 +4396,51 @@ func Test_apiWorkloadIdentityToStructs(t *testing.T) {
 		TTL:          2 * time.Hour,
 	}))
 }
+
+func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
+	t.Run("nil jobUI", func(t *testing.T) {
+		must.Nil(t, ApiJobUIConfigToStructs(nil))
+	})
+
+	t.Run("empty jobUI", func(t *testing.T) {
+		jobUI := &api.JobUIConfig{}
+		expected := &structs.JobUIConfig{
+			Description: "",
+			Links:       nil,
+		}
+		result := ApiJobUIConfigToStructs(jobUI)
+		must.Eq(t, expected, result)
+	})
+
+	t.Run("jobUI with empty description and links", func(t *testing.T) {
+		jobUI := &api.JobUIConfig{
+			Description: "",
+			Links:       []*api.JobUILink{},
+		}
+		expected := &structs.JobUIConfig{
+			Description: "",
+			Links:       nil,
+		}
+		result := ApiJobUIConfigToStructs(jobUI)
+		must.Eq(t, expected, result)
+	})
+
+	t.Run("jobUI with links", func(t *testing.T) {
+		jobUI := &api.JobUIConfig{
+			Description: "Test description",
+			Links: []*api.JobUILink{
+				{Label: "Link 1", URL: "http://example.com/1"},
+				{Label: "Link 2", URL: "http://example.com/2"},
+			},
+		}
+		expected := &structs.JobUIConfig{
+			Description: "Test description",
+			Links: []*structs.JobUILink{
+				{Label: "Link 1", Url: "http://example.com/1"},
+				{Label: "Link 2", Url: "http://example.com/2"},
+			},
+		}
+		result := ApiJobUIConfigToStructs(jobUI)
+		must.Eq(t, expected, result)
+	})
+}

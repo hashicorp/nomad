@@ -367,6 +367,36 @@ The `Job` object supports the following keys:
   the reschedule blocks are merged, with the task group's taking precedence. For more
   details on `ReschedulePolicy`, please see below.
 
+- `Ui` - Options to modify the presentation of the Job index page in the Web UI.
+  When specified, a description and any number of links will be added to the top of
+  the job page in question.
+
+  - `Description` - a markdown-enabled string description of the job
+    jobs.
+
+  - `Links` - Anchor link that will appear at the top of the job page.
+
+    - `Label` - The shown name of the link
+    - `Url` - The address that the link will point to
+
+  An example `ui` block:
+
+  ```json
+  "Ui": {
+    "Description": "A job that uses **Nomad Variables** to modify its output",
+    "Links": [
+      {
+        "Label": "Learn more about Nomad Variables",
+        "Url": "https://developer.hashicorp.com/nomad/docs/concepts/variables"
+      },
+      {
+        "Label": "See this job on Github",
+        "Url": "https://github.com/hashicorp/nomad/blob/main/ui/app/utils/default_jobs/variables.js"
+      }
+    ]
+  }
+  ```
+
 ### Task Group
 
 `TaskGroups` is a list of `TaskGroup` objects, each supports the following

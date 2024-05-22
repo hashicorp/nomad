@@ -1,0 +1,48 @@
+---
+layout: docs
+page_title: ui Block - Job Specification
+description: |-
+  The "ui" block allows lets users add description and helpful links to their
+  job page in the Nomad Web UI.
+---
+
+# `ui` Block
+
+<Placement
+  groups={[
+    ['job', 'ui'],
+  ]}
+/>
+
+The `ui` block provides options to modify the presentation of the Job index page
+in the Web UI. When specified, a description and any number of links will be
+added to the top of the job page in question.
+
+The following will provide the Web UI with a job description and a pair of links:
+
+## `ui` Parameters
+
+- `description` `(string: "")` - The markdown-enabled description of the job. We
+  support [GitHub Flavored Markdown](https://github.github.com/gfm/).
+- `link` `(map<string|string>: nil)` - A link that should show up in the header
+  of the job index page in the Web UI. A job can have any number of links, and
+  they must contain both a string `label` and `url`.
+
+## `ui` Example
+
+```hcl
+job "docs" {
+  ui {
+    description = "A job that uses **Nomad Variables**"
+    link {
+      label = "Learn more about Nomad"
+      url   = "https://developer.hashicorp.com/nomad"
+    }
+    link {
+      label = "Nomad on GitHub"
+      url   = "https://github.com/hashicorp/nomad"
+    }
+  }
+  # ...
+}
+```

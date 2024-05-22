@@ -1808,6 +1808,10 @@
         "path": "job-specification/transparent_proxy"
       },
       {
+        "title": "ui",
+        "path": "job-specification/ui"
+      },
+      {
         "title": "update",
         "path": "job-specification/update"
       },

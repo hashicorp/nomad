@@ -346,6 +346,25 @@ function smallCluster(server) {
     namespaceId: 'default',
   });
 
+  server.create('job', {
+    name: 'ui-block-job',
+    id: 'ui-block-job',
+    ui: {
+      Links: [
+        {
+          Label: 'HashiCorp',
+          Url: 'https://hashicorp.com',
+        },
+        {
+          Label: 'Nomad',
+          Url: 'https://nomadproject.io',
+        },
+      ],
+      Description:
+        'A job with a UI-block defined description and links. It has **bold text** and everything!',
+    },
+  });
+
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);

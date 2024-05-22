@@ -183,7 +183,9 @@
     "@percy/ember": "^3.0.0",
     "curved-arrows": "^0.1.0",
     "d3": "^7.3.0",
+    "dompurify": "^3.1.3",
     "lru_map": "^0.4.1",
+    "marked": "^12.0.2",
     "no-case": "^3.0.4",
     "tether": "^2.0.0",
     "title-case": "^3.0.3"
