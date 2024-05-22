@@ -237,7 +237,6 @@ export default class IndexRoute extends Route.extend(
       this.controllerFor('jobs.index').watchJobIDs.cancelAll();
 
       let humanized = err.detail || '';
-      let errorLink = null;
 
       // Two ways we can help users here:
       // 1. They slightly mis-typed a key, so we should offer a correction
@@ -245,42 +244,32 @@ export default class IndexRoute extends Route.extend(
       let correction = null;
       let suggestion = null;
 
-      if (humanized.includes('failed to read filter expression')) {
-        errorLink = {
-          label: 'Learn more about Filter Expressions',
-          url: 'https://developer.hashicorp.com/nomad/api-docs#creating-expressions',
-        };
-      } else {
-        const keyMatch = err.detail.match(
-          /couldn't find key: struct field with name "([^"]+)"/
-        );
-        if (keyMatch && keyMatch[1]) {
-          const incorrectKey = keyMatch[1];
-          const correctKey = knownKeys.find(
-            (key) =>
-              key.key ===
-              `${incorrectKey.charAt(0).toUpperCase()}${incorrectKey
-                .slice(1)
-                .toLowerCase()}`
-          )?.key;
-          if (correctKey) {
-            // humanized = `Did you mean "${correctKey}"?`;
-            correction = {
-              incorrectKey,
-              correctKey,
-            };
-          } else {
-            // let possibleKeys = Object.values(knownKeys).join('", "');
-            humanized = `Did you mistype a key? Valid keys include:`; // "${possibleKeys}".`;
-            suggestion = knownKeys;
-          }
+      const keyMatch = err.detail.match(
+        /couldn't find key: struct field with name "([^"]+)"/
+      );
+      if (keyMatch && keyMatch[1]) {
+        const incorrectKey = keyMatch[1];
+        const correctKey = knownKeys.find(
+          (key) =>
+            key.key ===
+            `${incorrectKey.charAt(0).toUpperCase()}${incorrectKey
+              .slice(1)
+              .toLowerCase()}`
+        )?.key;
+        if (correctKey) {
+          correction = {
+            incorrectKey,
+            correctKey,
+          };
+        } else {
+          humanized = `Did you mistype a key? Valid keys include:`;
+          suggestion = knownKeys;
         }
       }
 
       return {
         error: {
           humanized,
-          errorLink,
           correction,
           suggestion,
         },

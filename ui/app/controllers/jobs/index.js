@@ -574,5 +574,21 @@ export default class JobsIndexController extends Controller {
     this.updateFilter();
   }
 
+  // A list of combinatorial filters to show off filter expressions
+  // Make use of our various operators, and our various known keys
+  @computed('filter')
+  get exampleFilter() {
+    let examples = [
+      '(Status == dead) and (Type != batch)',
+      '(Version != 0) and (Namespace == default)',
+      '(StatusDescription not contains "progress deadline")',
+      '(Region != global) and (NodePool is not empty)',
+      '(Namespace != myNamespace) and (Status != running)',
+      'NodePool is not empty',
+      '(dc1 in Datacenters) or (dc2 in Datacenters)',
+    ];
+    return examples[Math.floor(Math.random() * examples.length)];
+  }
+
   //#endregion filtering and searching
 }

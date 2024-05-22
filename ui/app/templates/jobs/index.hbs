@@ -305,12 +305,14 @@
             {{!-- This is the "Nothing was found for your otherwise valid filter" option. Give them suggestions --}}
               Did you know: you can try using filter expressions to search through your jobs.
               Try <Hds::Button
-                @text="(Status == dead) and (Type != batch)"
+                @text={{this.exampleFilter}}
                 @isInline={{true}}
                 @color="tertiary"
                 @icon="bulb"
                 @iconPosition="trailing"
-                {{on "click" (action this.suggestFilter (hash example="(Status == dead) and (Type != batch)"))}}
+                {{on "click" (action this.suggestFilter
+                  (hash example=this.exampleFilter)
+                )}}
               />
             {{/if}}
           </A.Body>
@@ -324,11 +326,11 @@
           />
 
           {{!-- TODO: HDS4.0, convert to F.LinkStandalone --}}
+          <Hds::Link::Standalone @icon="docs" @text="Learn more about Filter Expressions" @href="https://developer.hashicorp.com/nomad/api-docs#creating-expressions" @iconPosition="trailing" />
+
           <Hds::Link::Standalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
             @iconPosition="trailing" />
-          {{#if this.model.error.errorLink}}
-            <Hds::Link::Standalone @icon="alert-triangle" @text={{this.model.error.errorLink.label}} @href="{{this.model.error.errorLink.url}}" @iconPosition="trailing" />
-          {{/if}}
+
         </A.Footer>
         {{else}}
           <A.Header data-test-empty-jobs-list-headline @title="No Jobs" />

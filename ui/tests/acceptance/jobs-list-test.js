@@ -186,7 +186,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.equal(
       currentURL(),
-      '/jobs?filter=Name%20contains%20foobar',
+      '/jobs?filter=Name%20contains%20%22foobar%22',
       'No page query param'
     );
   });
@@ -1020,7 +1020,7 @@ module('Acceptance | jobs list', function (hooks) {
         assert.ok(
           server.pretender.handledRequests.find((req) =>
             decodeURIComponent(req.url).includes(
-              '?filter=Name contains something-that-surely-doesnt-exist'
+              '?filter=Name contains "something-that-surely-doesnt-exist"'
             )
           ),
           'A request was made with a filter query param that assumed job name'
