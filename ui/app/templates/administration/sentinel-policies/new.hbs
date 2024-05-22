@@ -1,0 +1,26 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<Breadcrumb @crumb={{hash label="New" args=(array "administration.sentinel-policies.new")}} />
+{{page-title "Create a Policy"}}
+<section class="section">
+	<Hds::PageHeader class="variable-title" as |PH|>
+		<PH.Title>Create Sentinel Policy</PH.Title>
+    <PH.Description>
+      Nomad integrates with <Hds::Link::Inline @icon="collections" @href="https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel">HashiCorp Sentinel</Hds::Link::Inline> to allow operators to express policies as code and have those policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with that policy.
+    </PH.Description>
+		<PH.Actions>
+      <Hds::Button
+        @text="Start from a template"
+        @color="secondary"
+        @route="administration.sentinel-policies.gallery"
+        data-test-choose-template
+      />
+		</PH.Actions>
+	</Hds::PageHeader>
+
+  <SentinelPolicyEditor @policy={{this.model}} />
+
+</section>

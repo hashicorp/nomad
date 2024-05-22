@@ -21,7 +21,7 @@ import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
-import AccessControl from 'nomad-ui/tests/pages/access-control';
+import Administration from 'nomad-ui/tests/pages/administration';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
@@ -621,7 +621,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/access-control/policies');
+    await visit('/administration/policies');
     assert.dom('[data-test-policy-total-tokens]').exists();
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
       return token.policyIds.includes(firstPolicy.name);
@@ -648,9 +648,9 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/access-control/policies');
+    await visit('/administration/policies');
     await click('[data-test-policy-name]');
-    assert.equal(currentURL(), `/access-control/policies/${firstPolicy.name}`);
+    assert.equal(currentURL(), `/administration/policies/${firstPolicy.name}`);
 
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
       return token.policyIds.includes(firstPolicy.name);
@@ -692,10 +692,10 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/access-control/policies');
+    await visit('/administration/policies');
 
     await click('[data-test-policy-name]:first-child');
-    assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
+    assert.equal(currentURL(), `/administration/policies/${testPolicy.name}`);
     assert
       .dom('[data-test-policy-token-row]')
       .exists(
@@ -730,10 +730,10 @@ module('Acceptance | tokens', function (hooks) {
     );
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/access-control/policies');
+    await visit('/administration/policies');
 
     await click('[data-test-policy-name]');
-    assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
+    assert.equal(currentURL(), `/administration/policies/${testPolicy.name}`);
 
     assert
       .dom('[data-test-policy-token-row]')
@@ -885,7 +885,7 @@ module('Acceptance | tokens', function (hooks) {
       );
       const { secretId } = managementToken;
       await Tokens.secret(secretId).submit();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
     });
 
     hooks.afterEach(async function () {
@@ -894,7 +894,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     test('Tokens index, general', async function (assert) {
-      assert.equal(currentURL(), '/access-control/tokens');
+      assert.equal(currentURL(), '/administration/tokens');
       // Number of token rows equivalent to number in db
       assert
         .dom('[data-test-token-row]')
@@ -1002,7 +1002,7 @@ module('Acceptance | tokens', function (hooks) {
         (row) => row.textContent.includes(tokenToClick.name)
       );
       await click(tokenRowToClick.querySelector('[data-test-token-name] a'));
-      assert.equal(currentURL(), `/access-control/tokens/${tokenToClick.id}`);
+      assert.equal(currentURL(), `/administration/tokens/${tokenToClick.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(tokenToClick.name);
     });
 
@@ -1059,7 +1059,7 @@ module('Acceptance | tokens', function (hooks) {
 
     test('Token page, general', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
-      await visit(`/access-control/tokens/${token.id}`);
+      await visit(`/administration/tokens/${token.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(token.name);
       assert.dom('[data-test-token-accessor]').hasValue(token.accessorId);
       assert.dom('[data-test-token-secret]').hasValue(token.secretId);
@@ -1136,18 +1136,18 @@ module('Acceptance | tokens', function (hooks) {
     });
     test('Token name can be edited', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
-      await visit(`/access-control/tokens/${token.id}`);
+      await visit(`/administration/tokens/${token.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(token.name);
       await fillIn('[data-test-token-name-input]', 'Mud-Token');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert.dom('[data-test-token-name="Mud-Token"]').exists({ count: 1 });
     });
 
     test('Token policies and roles can be edited', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
-      await visit(`/access-control/tokens/${token.id}`);
+      await visit(`/administration/tokens/${token.id}`);
 
       // The policies/roles belonging to this token are checked
       const tokenPolicies = token.policyIds;
@@ -1199,7 +1199,7 @@ module('Acceptance | tokens', function (hooks) {
 
       await percySnapshot(assert);
 
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       // Policies cell for our clay token should read "No Policies"
       const clayToken = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
       const clayTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
@@ -1220,7 +1220,7 @@ module('Acceptance | tokens', function (hooks) {
     });
     test('Token can be deleted', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
-      await visit(`/access-control/tokens/${token.id}`);
+      await visit(`/administration/tokens/${token.id}`);
 
       const deleteButton = find('[data-test-delete-token] button');
       assert.dom(deleteButton).exists('delete button is present');
@@ -1231,16 +1231,16 @@ module('Acceptance | tokens', function (hooks) {
       await click(find('[data-test-confirm-button]'));
 
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert.dom('[data-test-token-name="cl4y-t0k3n"]').doesNotExist();
     });
     test('New Token creation', async function (assert) {
       await click('[data-test-create-token]');
-      assert.equal(currentURL(), '/access-control/tokens/new');
+      assert.equal(currentURL(), '/administration/tokens/new');
       await fillIn('[data-test-token-name-input]', 'Timeless Token');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert
         .dom('[data-test-token-name="Timeless Token"]')
         .exists({ count: 1 });
@@ -1254,13 +1254,13 @@ module('Acceptance | tokens', function (hooks) {
 
       // Now create one with a TTL
       await click('[data-test-create-token]');
-      assert.equal(currentURL(), '/access-control/tokens/new');
+      assert.equal(currentURL(), '/administration/tokens/new');
       await fillIn('[data-test-token-name-input]', 'TTL Token');
       // Select the "8 hours" radio within the .expiration-time div
       await click('.expiration-time input[value="8h"]');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert.dom('[data-test-token-name="TTL Token"]').exists({ count: 1 });
       const ttlTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
         row.textContent.includes('TTL Token')
@@ -1272,7 +1272,7 @@ module('Acceptance | tokens', function (hooks) {
 
       // Now create one with an expiration time
       await click('[data-test-create-token]');
-      assert.equal(currentURL(), '/access-control/tokens/new');
+      assert.equal(currentURL(), '/administration/tokens/new');
       await fillIn('[data-test-token-name-input]', 'Expiring Token');
       // select the Custom radio button
       await click('.expiration-time input[value="custom"]');
@@ -1288,7 +1288,7 @@ module('Acceptance | tokens', function (hooks) {
       await fillIn('[data-test-token-expiration-time-input]', soonString);
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert
         .dom('[data-test-token-name="Expiring Token"]')
         .exists({ count: 1 });

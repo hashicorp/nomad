@@ -60,7 +60,7 @@ export default class PolicyEditorComponent extends Component {
 
       if (shouldRedirectAfterSave) {
         this.router.transitionTo(
-          'access-control.policies.policy',
+          'administration.policies.policy',
           this.policy.id
         );
       }

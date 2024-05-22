@@ -73,7 +73,7 @@ export default class RoleEditorComponent extends Component {
       });
 
       if (shouldRedirectAfterSave) {
-        this.router.transitionTo('access-control.roles.role', this.role.id);
+        this.router.transitionTo('administration.roles.role', this.role.id);
       }
     } catch (err) {
       let message = err.errors?.length
