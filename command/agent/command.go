@@ -203,6 +203,7 @@ func (c *Command) readConfig() *Config {
 
 	// ACL options
 	flags.BoolVar(&cmdConfig.ACL.Enabled, "acl-enabled", false, "")
+	flags.StringVar(&cmdConfig.ACL.BootstrapToken, "acl-bootstrap-token", "", "")
 	flags.StringVar(&cmdConfig.ACL.ReplicationToken, "acl-replication-token", "", "")
 
 	if err := flags.Parse(c.args); err != nil {
@@ -529,6 +530,16 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 			if issuerURL.Scheme != "https" {
 				c.Ui.Warn(fmt.Sprintf(`server.oidc_issuer = "%s" is not using https. Many OIDC implementations require https.`, config.Server.OIDCIssuer))
 			}
+		}
+	}
+
+	if config.ACL.BootstrapToken != "" {
+		if config.ACL.Enabled {
+			c.Ui.Warn("ACL bootstrap token specified without ACL enabled=true; ignoring...")
+		}
+		if !helper.IsUUID(config.ACL.BootstrapToken) {
+			c.Ui.Error("ACL bootstrap token must be a UUID.")
+			return false
 		}
 	}
 

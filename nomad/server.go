@@ -553,6 +553,12 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// exist before it can start.
 	s.keyringReplicator = NewKeyringReplicator(s, encrypter)
 
+	// Check the configuration for a provided bootstrap_token to use
+	// for auto bootstrapping the ACL subsystem
+	if err := s.maybeAutoBootstrapACLs(); err != nil {
+		return s, err
+	}
+
 	// Done
 	return s, nil
 }
@@ -1651,6 +1657,42 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	// node which is rather unexpected.
 	conf.EnableNameConflictResolution = false
 	return serf.Create(conf)
+}
+
+func (s *Server) maybeAutoBootstrapACLs() error {
+	if !s.config.ACLEnabled || s.config.ACLBootstrapToken == "" {
+		// Exit without bootstrapping the ACL system
+		return nil
+	}
+
+	resp := structs.ACLTokenUpsertResponse{}
+	err := s.RPC("ACL.Bootstrap",
+		&structs.ACLTokenBootstrapRequest{BootstrapSecret: s.config.ACLBootstrapToken},
+		&resp,
+	)
+
+	if err != nil {
+		// Already bootstrapped
+		if strings.Contains(err.Error(), "ACL bootstrap already done") {
+			s.logger.Warn("ACL subsystem already bootstrapped; you should remove the bootstrap_token value from your configuration files or -acl-bootstrap-token flag from your startup flags")
+		} else {
+			// Unexpected Error
+			s.logger.Warn("error in auto bootstrap; you must manually bootstrap ACLs", "err", err)
+		}
+		return nil
+	}
+
+	// Nonsense result
+	if len(resp.Tokens) != 1 {
+		return fmt.Errorf("received incorrect token count. expected 1; got %d", len(resp.Tokens))
+	}
+
+	// Expect the provided token to be the same as the one returned
+	if s.config.ACLBootstrapToken != resp.Tokens[0].SecretID {
+		return errors.New("received unexpected bootstrap token")
+	}
+	s.logger.Info("ACL subsystem autobootstrapped")
+	return nil
 }
 
 // shouldReloadSchedulers checks the new config to determine if the scheduler worker pool
