@@ -721,7 +721,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if agentConfig.DataDir != "" {
 		conf.StateDir = filepath.Join(agentConfig.DataDir, "client")
 		conf.AllocDir = filepath.Join(agentConfig.DataDir, "alloc")
-		conf.AllocMountsDir = filepath.Join(agentConfig.DataDir, "mounts")
+		dataParent := filepath.Dir(agentConfig.DataDir)
+		conf.AllocMountsDir = filepath.Join(dataParent, "alloc_mounts")
 	}
 	if agentConfig.Client.StateDir != "" {
 		conf.StateDir = agentConfig.Client.StateDir
