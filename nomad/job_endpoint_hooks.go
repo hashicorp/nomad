@@ -450,9 +450,9 @@ func mutateConstraint[T hasConstraints](matcher constraintMatcher, taskOrTG T, c
 
 	// If we didn't find a suitable constraint match, add one.
 	if !found {
-		currentConstraints := taskOrTG.GetConstraints()
-		newConstraints := append(currentConstraints, constraint)
-		taskOrTG.SetConstraints(newConstraints)
+		constraints := taskOrTG.GetConstraints()
+		constraints = append(constraints, constraint)
+		taskOrTG.SetConstraints(constraints)
 	}
 }
 
