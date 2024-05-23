@@ -267,31 +267,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
-	// Create or Update Consul Configuration Entries defined in the job. For now
-	// Nomad only supports Configuration Entries types
-	// - "ingress-gateway" for managing Ingress Gateways
-	// - "terminating-gateway" for managing Terminating Gateways
-	//
-	// This is done as a blocking operation that prevents the job from being
-	// submitted if the configuration entries cannot be set in Consul.
-	//
-	// Every job update will re-write the Configuration Entry into Consul.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	for ns, entries := range args.Job.ConfigEntries() {
-		for service, entry := range entries.Ingress {
-			if errCE := j.srv.consulConfigEntries.SetIngressCE(ctx, ns, service, entries.Cluster, entry); errCE != nil {
-				return errCE
-			}
-		}
-		for service, entry := range entries.Terminating {
-			if errCE := j.srv.consulConfigEntries.SetTerminatingCE(ctx, ns, service, entries.Cluster, entry); errCE != nil {
-				return errCE
-			}
-		}
-	}
-
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.
 	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
@@ -307,6 +282,33 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if policyWarnings != nil {
 		warnings = append(warnings, policyWarnings)
 		reply.Warnings = helper.MergeMultierrorWarnings(warnings...)
+	}
+
+	// Create or Update Consul Configuration Entries defined in the job. For now
+	// Nomad only supports Configuration Entries types
+	// - "ingress-gateway" for managing Ingress Gateways
+	// - "terminating-gateway" for managing Terminating Gateways
+	//
+	// This is done as a blocking operation that prevents the job from being
+	// submitted if the configuration entries cannot be set in Consul.
+	//
+	// Every job update will re-write the Configuration Entry into Consul.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	for ns, entries := range args.Job.ConfigEntries() {
+		for service, entry := range entries.Ingress {
+			if errCE := j.srv.consulConfigEntries.SetIngressCE(
+				ctx, ns, service, entries.Cluster, entries.Partition, entry); errCE != nil {
+				return errCE
+			}
+		}
+		for service, entry := range entries.Terminating {
+			if errCE := j.srv.consulConfigEntries.SetTerminatingCE(
+				ctx, ns, service, entries.Cluster, entries.Partition, entry); errCE != nil {
+				return errCE
+			}
+		}
 	}
 
 	// Clear the Vault token
