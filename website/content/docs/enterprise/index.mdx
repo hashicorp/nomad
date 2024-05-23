@@ -28,9 +28,9 @@ Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as
 enhances performance and availability through Advanced Autopilot features such
 as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
 
-## Long Term Supported Releases
+## Long Term Support (LTS) Releases
 
-Nomad Enterprise initiatied the Long-Term Support (LTS) release program with
+Nomad Enterprise initiated the Long-Term Support (LTS) release program with
 Nomad 1.8. Going forward, the first major release of each calendar year will be
 an LTS release.
 
@@ -116,13 +116,16 @@ available for the specified Nomad task at hand.
 
 See the [Vault Integration documentation](/nomad/docs/integrations/vault-integration#enterprise-configuration) for more information.
 
-## Multiple Vault and Consul Clusters
+### Multiple Vault and Consul Clusters
 
-Nomad administrators can now define multiple integrations in the [vault](/nomad/docs/configuration/vault) and
-[consul](/nomad/docs/configuration/consul) portions of the Nomad agent configuration. Then, Nomad jobspec writers
-can pick which Consul or Vault cluster to use in their job. Nomad
-administrators can also set default clusters for each in Nomad namespace
-configuration, as well as deny access to certain clusters by namespace.
+Nomad Enteprise allows sepcifying multiple integrations for Consul and Vault in
+the [vault](/nomad/docs/configuration/vault) and
+[consul](/nomad/docs/configuration/consul) portions of the Nomad agent
+configuration. After the agents are configured, Nomad jobspec writers can pick
+which Consul or Vault cluster to use in their job. Nomad administrators may
+also set default clusters for each in Nomad namespace configuration, as well as
+deny access to certain clusters by namespace.
+
 
 ## Governance & Policy
 
