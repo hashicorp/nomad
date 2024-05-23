@@ -1118,6 +1118,48 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			expectedOutputError:    nil,
 		},
 		{
+			name: "task-level service",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Tasks: []*structs.Task{
+							{
+								Name: "example-task-1",
+								Services: []*structs.Service{
+									{
+										Name: "example-task-service-1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Tasks: []*structs.Task{
+							{
+								Name: "example-task-1",
+								Services: []*structs.Service{
+									{
+										Name: "example-task-service-1",
+									},
+								},
+								Constraints: []*structs.Constraint{consulServiceDiscoveryConstraint},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
+		{
 			name: "task group with numa block",
 			inputJob: &structs.Job{
 				Name: "numa",
