@@ -43,7 +43,7 @@
           },
           {
             "title": "LXC",
-            "path": "drivers/community/lxc"
+            "path": "drivers/community/lxc",
             "badge": {
               "text": "Deprecated",
               "type": "outlined",
@@ -85,7 +85,7 @@
           },
           {
             "title": "ECS",
-            "path": "drivers/remote/ecs"
+            "path": "drivers/remote/ecs",
             "badge": {
               "text": "Deprecated",
               "type": "outlined",
