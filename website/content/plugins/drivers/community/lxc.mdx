@@ -8,10 +8,13 @@ description: The LXC task driver is used to run application containers using LXC
 
 Name: `lxc`
 
+~> **Deprecation Warning!**
+The `lxc` driver is currently deprecated. We will not prioritize features or pull requests that affect the lxc driver. The external driver is available as an [open source
+repository](https://github.com/hashicorp/nomad-driver-lxc) for community ownership.
+
+
 The `lxc` driver provides an interface for using LXC for running application
 containers. You can download the external LXC driver [here][lxc-driver]. For more detailed instructions on how to set up and use this driver, please refer to the [LXC guide][lxc-guide].
-
-~> **Note:** The LXC client set up has changed in Nomad 0.9. You must use the new [plugin syntax][plugin] and install the external LXC driver in the [plugin_dir][plugin_dir] prior to upgrading. See [plugin options][plugin-options] below for an example. Note the job specification remains the same.
 
 ## Task Configuration
 

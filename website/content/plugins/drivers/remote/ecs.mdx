@@ -11,8 +11,9 @@ Name: `nomad-driver-ecs`
 
 Homepage: https://github.com/hashicorp/nomad-driver-ecs
 
-~> **Note:** The ECS Task Driver is an example Remote Task Driver and **not
-intended for production use.**
+~> **Deprecation Warning!**
+The `ecs` driver is currently deprecated. We will not prioritize features or pull requests that affect the ecs driver. The external driver is available as an [open source
+repository](https://github.com/hashicorp/nomad-driver-ecs) for community ownership.
 
 The ECS task driver plugin for Nomad allows running [AWS ECS][ecs] tasks via
 Nomad. Allocations for these jobs are scheduled onto Nomad clients like
