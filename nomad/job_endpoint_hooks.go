@@ -333,12 +333,12 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 				if service.IsConsul() {
 					mutateConstraint(constraintMatcherLeft, tg, consulConstraintFn(service))
 				}
+			}
 
-				for _, task := range tg.Tasks {
-					for _, service := range task.Services {
-						if service.IsConsul() {
-							mutateConstraint(constraintMatcherLeft, tg, consulConstraintFn(service))
-						}
+			for _, task := range tg.Tasks {
+				for _, service := range task.Services {
+					if service.IsConsul() {
+						mutateConstraint(constraintMatcherLeft, task, consulConstraintFn(service))
 					}
 				}
 			}
@@ -414,9 +414,17 @@ const (
 	constraintMatcherLeft
 )
 
+// both Tasks and TaskGroups can have constraints, and since current (1.22) Go
+// still doesn't allow us accessing fields of generic type structs, we have to
+// resort to an interface
+type hasConstraints interface {
+	GetConstraints() []*structs.Constraint
+	SetConstraints([]*structs.Constraint)
+}
+
 // mutateConstraint is a generic mutator used to set implicit constraints
 // within the task group if they are needed.
-func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, constraint *structs.Constraint) {
+func mutateConstraint[T hasConstraints](matcher constraintMatcher, taskOrTG T, constraint *structs.Constraint) {
 
 	var found bool
 
@@ -425,14 +433,14 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 	// therefore we do it here.
 	switch matcher {
 	case constraintMatcherFull:
-		for _, c := range taskGroup.Constraints {
+		for _, c := range taskOrTG.GetConstraints() {
 			if c.Equal(constraint) {
 				found = true
 				break
 			}
 		}
 	case constraintMatcherLeft:
-		for _, c := range taskGroup.Constraints {
+		for _, c := range taskOrTG.GetConstraints() {
 			if c.LTarget == constraint.LTarget {
 				found = true
 				break
@@ -442,7 +450,9 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 
 	// If we didn't find a suitable constraint match, add one.
 	if !found {
-		taskGroup.Constraints = append(taskGroup.Constraints, constraint)
+		constraints := taskOrTG.GetConstraints()
+		constraints = append(constraints, constraint)
+		taskOrTG.SetConstraints(constraints)
 	}
 }
 

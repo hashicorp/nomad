@@ -7543,6 +7543,14 @@ func (tg *TaskGroup) GetDisconnectStopTimeout() *time.Duration {
 	return nil
 }
 
+func (tg *TaskGroup) GetConstraints() []*Constraint {
+	return tg.Constraints
+}
+
+func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
+	tg.Constraints = newConstraints
+}
+
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
@@ -8375,6 +8383,14 @@ func (t *Task) Warnings() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+func (t *Task) GetConstraints() []*Constraint {
+	return t.Constraints
+}
+
+func (t *Task) SetConstraints(newConstraints []*Constraint) {
+	t.Constraints = newConstraints
 }
 
 // TaskKind identifies the special kinds of tasks using the following format:
