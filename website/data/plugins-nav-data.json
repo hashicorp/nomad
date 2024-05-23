@@ -48,7 +48,7 @@
               "text": "Deprecated",
               "type": "outlined",
               "color": "neutral"
-            },
+            }
           },
           {
             "title": "Pot",
@@ -90,7 +90,7 @@
               "text": "Deprecated",
               "type": "outlined",
               "color": "neutral"
-            },
+            }
           }
         ]
       }

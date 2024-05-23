@@ -51,6 +51,24 @@
     ]
   },
   {
+    "title": "Release Notes",
+    "routes": [
+       {
+         "title": "Overview",
+         "path": "release-notes"
+       },
+       {
+         "title": "Nomad",
+         "routes": [
+           {
+             "title": "v1.8.x",
+             "path": "release-notes/nomad/v1_8_x"
+           }
+         ]
+       }
+    ] 
+  },
+  {
     "title": "Integrations",
     "routes": [
       {
@@ -1211,27 +1229,6 @@
   {
     "title": "Glossary",
     "path": "glossary"
-  },
-  {
-    "divider": true
-  },
-  {
-    "title": "Release Notes",
-    "routes": [
-       {
-         "title": "Overview",
-         "path": "release-notes"
-       },
-       {
-         "title": "Nomad",
-         "routes": [
-           {
-             "title": "v1.8.x",
-             "path": "release-notes/nomad/v1_8_x"
-           }
-         ]
-       }
-    ] 
   },
   {
     "divider": true
