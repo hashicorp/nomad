@@ -1290,6 +1290,40 @@ module('Acceptance | jobs list', function (hooks) {
 
         localStorage.removeItem('nomadPageSize');
       });
+
+      test('Searching with a bad filter expression gives hints', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 10);
+        await JobsList.visit();
+
+        // Try with "type" instead of "Type"
+        await JobsList.search.fillIn('type == foo');
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText(
+            'No jobs match your current filter selection: type == foo'
+          );
+        assert.dom('[data-test-filter-correction]').exists();
+        await percySnapshot(assert);
+
+        await JobsList.search.fillIn('foo != bar');
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText('Did you mistype a key?');
+        assert.dom('[data-test-filter-suggestion]').exists();
+        await percySnapshot(assert);
+
+        await JobsList.search.fillIn('Name == surelyDoesntExist');
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText(
+            'No jobs match your current filter selection: Name == surelyDoesntExist'
+          );
+        assert.dom('[data-test-filter-random-suggestion]').exists();
+        await percySnapshot(assert);
+
+        localStorage.removeItem('nomadPageSize');
+      });
     });
     module('Filtering', function () {
       test('Filtering by namespace filters the list', async function (assert) {

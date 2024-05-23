@@ -280,6 +280,7 @@
             {{#if this.model.error.correction}}
               Did you mean
               <Hds::Button
+                data-test-filter-correction
                 @text={{this.model.error.correction.correctKey}}
                 @isInline={{true}}
                 @color="tertiary"
@@ -292,6 +293,7 @@
               <ul>
               {{#each this.model.error.suggestion as |suggestion|}}
                 <li><Hds::Button
+                  data-test-filter-suggestion
                   @text={{suggestion.key}}
                   @isInline={{true}}
                   @size="small"
@@ -305,6 +307,7 @@
             {{!-- This is the "Nothing was found for your otherwise valid filter" option. Give them suggestions --}}
               Did you know: you can try using filter expressions to search through your jobs.
               Try <Hds::Button
+                data-test-filter-random-suggestion
                 @text={{this.exampleFilter}}
                 @isInline={{true}}
                 @color="tertiary"

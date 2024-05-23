@@ -68,11 +68,10 @@ export default function () {
 
   const withPagination = function (fn, tokenProperty = 'ModifyIndex') {
     return function (schema, request) {
-      // if not a 200, ditch
-      if (request.status !== 200) {
-        return fn.apply(this, arguments);
-      }
       let response = fn.apply(this, arguments);
+      if (response.code && response.code !== 200) {
+        return response;
+      }
       let perPage = parseInt(request.queryParams.per_page || 25);
       let page = parseInt(request.queryParams.page || 1);
       let totalItems = response.length;
@@ -189,6 +188,7 @@ export default function () {
             'CreateIndex',
             'ModifyIndex',
             'JobModifyIndex',
+            'ParentID',
           ];
 
           // Simulate a failure if a filterCondition's field is not among the allowed
