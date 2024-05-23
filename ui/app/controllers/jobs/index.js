@@ -28,6 +28,7 @@ export default class JobsIndexController extends Controller {
   constructor() {
     super(...arguments);
     this.pageSize = this.userSettings.pageSize;
+    this.rawSearchText = this.searchText || '';
   }
 
   queryParams = [
@@ -451,6 +452,7 @@ export default class JobsIndexController extends Controller {
 
     // Combine all unmatched filter parts into the searchText
     this.searchText = unmatchedFilters.join(' and ');
+    this.rawSearchText = this.searchText;
   }
 
   @computed(
@@ -497,9 +499,11 @@ export default class JobsIndexController extends Controller {
 
   @tracked filter = '';
   @tracked searchText = '';
+  @tracked rawSearchText = '';
 
   @action resetFilters() {
     this.searchText = '';
+    this.rawSearchText = '';
     this.filterFacets.forEach((group) => {
       group.options.forEach((option) => {
         set(option, 'checked', false);
@@ -539,15 +543,51 @@ export default class JobsIndexController extends Controller {
 
     // Check for any operator surrounded by spaces
     let isFilterExpression = operators.some((op) =>
-      newFilter.includes(` ${op} `)
+      newFilter.includes(` ${op}`)
     );
 
     if (isFilterExpression) {
       this.searchText = newFilter;
     } else {
       // If it's a string without a filter operator, assume the user is trying to look up a job name
-      this.searchText = `Name contains ${newFilter}`;
+      this.searchText = `Name contains "${newFilter}"`;
     }
+  }
+
+  get humanizedFilterError() {
+    let baseString = `No jobs match your current filter selection: ${this.filter}.`;
+    if (this.model.error?.humanized) {
+      return `${baseString} ${this.model.error.humanized}`;
+    }
+    return baseString;
+  }
+
+  @action correctFilterKey({ incorrectKey, correctKey }) {
+    this.searchText = this.searchText.replace(incorrectKey, correctKey);
+    this.rawSearchText = this.searchText;
+    this.updateFilter();
+  }
+
+  @action suggestFilter({ example }) {
+    this.searchText = example;
+    this.rawSearchText = this.searchText;
+    this.updateFilter();
+  }
+
+  // A list of combinatorial filters to show off filter expressions
+  // Make use of our various operators, and our various known keys
+  @computed('filter')
+  get exampleFilter() {
+    let examples = [
+      '(Status == dead) and (Type != batch)',
+      '(Version != 0) and (Namespace == default)',
+      '(StatusDescription not contains "progress deadline")',
+      '(Region != global) and (NodePool is not empty)',
+      '(Namespace != myNamespace) and (Status != running)',
+      'NodePool is not empty',
+      '(dc1 in Datacenters) or (dc2 in Datacenters)',
+    ];
+    return examples[Math.floor(Math.random() * examples.length)];
   }
 
   //#endregion filtering and searching

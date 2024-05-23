@@ -69,6 +69,9 @@ export default function () {
   const withPagination = function (fn, tokenProperty = 'ModifyIndex') {
     return function (schema, request) {
       let response = fn.apply(this, arguments);
+      if (response.code && response.code !== 200) {
+        return response;
+      }
       let perPage = parseInt(request.queryParams.per_page || 25);
       let page = parseInt(request.queryParams.page || 1);
       let totalItems = response.length;
@@ -159,6 +162,49 @@ export default function () {
                 };
               }
             });
+
+          const allowedFields = [
+            'Name',
+            'Status',
+            'StatusDescription',
+            'Region',
+            'NodePool',
+            'Namespace',
+            'Version',
+            'Priority',
+            'Stop',
+            'Type',
+            'ID',
+            'AllAtOnce',
+            'Datacenters',
+            'Dispatched',
+            'ConsulToken',
+            'ConsulNamespace',
+            'VaultToken',
+            'VaultNamespace',
+            'NomadTokenID',
+            'Stable',
+            'SubmitTime',
+            'CreateIndex',
+            'ModifyIndex',
+            'JobModifyIndex',
+            'ParentID',
+          ];
+
+          // Simulate a failure if a filterCondition's field is not among the allowed
+          if (
+            !filterConditions.every((condition) =>
+              allowedFields.includes(condition.field)
+            )
+          ) {
+            return new Response(
+              500,
+              {},
+              'couldn\'t find key: struct field with name "' +
+                filterConditions[0].field +
+                '" in type (...extraneous)'
+            );
+          }
 
           filteredJson = filteredJson.filter((job) => {
             return filterConditions.every((condition) => {

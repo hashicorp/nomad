@@ -186,7 +186,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.equal(
       currentURL(),
-      '/jobs?filter=Name%20contains%20foobar',
+      '/jobs?filter=Name%20contains%20%22foobar%22',
       'No page query param'
     );
   });
@@ -1020,7 +1020,7 @@ module('Acceptance | jobs list', function (hooks) {
         assert.ok(
           server.pretender.handledRequests.find((req) =>
             decodeURIComponent(req.url).includes(
-              '?filter=Name contains something-that-surely-doesnt-exist'
+              '?filter=Name contains "something-that-surely-doesnt-exist"'
             )
           ),
           'A request was made with a filter query param that assumed job name'
@@ -1287,6 +1287,40 @@ module('Acceptance | jobs list', function (hooks) {
         assert
           .dom('[data-test-pager="last"]')
           .isNotDisabled('The last page button should be enabled as well.');
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Searching with a bad filter expression gives hints', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 10);
+        await JobsList.visit();
+
+        // Try with "type" instead of "Type"
+        await JobsList.search.fillIn('type == foo');
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText(
+            'No jobs match your current filter selection: type == foo'
+          );
+        assert.dom('[data-test-filter-correction]').exists();
+        await percySnapshot(assert);
+
+        await JobsList.search.fillIn('foo != bar');
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText('Did you mistype a key?');
+        assert.dom('[data-test-filter-suggestion]').exists();
+        await percySnapshot(assert);
+
+        await JobsList.search.fillIn('Name == surelyDoesntExist');
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText(
+            'No jobs match your current filter selection: Name == surelyDoesntExist'
+          );
+        assert.dom('[data-test-filter-random-suggestion]').exists();
+        await percySnapshot(assert);
 
         localStorage.removeItem('nomadPageSize');
       });

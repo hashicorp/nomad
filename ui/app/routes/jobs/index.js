@@ -111,7 +111,105 @@ export default class IndexRoute extends Route.extend(
    * @returns {Object}
    */
   handleErrors(error) {
-    error.errors.forEach((err) => {
+    const knownKeys = [
+      {
+        key: 'Name',
+        example: 'Name == my-job',
+      },
+      {
+        key: 'Status',
+        example: 'Status != running',
+      },
+      {
+        key: 'StatusDescription',
+        example: 'StatusDescription contains "progress deadline"',
+      },
+      {
+        key: 'Region',
+        example: 'Region != global',
+      },
+      {
+        key: 'NodePool',
+        example: 'NodePool is not empty',
+      },
+      {
+        key: 'Namespace',
+        example: 'Namespace !== myNamespace',
+      },
+      {
+        key: 'Version',
+        example: 'Version != 0',
+      },
+      {
+        key: 'Priority',
+        example: 'Priority != 50',
+      },
+      {
+        key: 'Stop',
+        example: 'Stop == false',
+      },
+      {
+        key: 'Type',
+        example: 'Type contains sys',
+      },
+      {
+        key: 'ID',
+        example: 'ID == myJob',
+      },
+      {
+        key: 'AllAtOnce',
+        example: 'AllAtOnce == true',
+      },
+      {
+        key: 'Datacenters',
+        example: 'dc1 in Datacenters',
+      },
+      {
+        key: 'Dispatched',
+        example: 'Dispatched == false',
+      },
+      {
+        key: 'ConsulToken',
+        example: 'ConsulToken is not empty',
+      },
+      {
+        key: 'ConsulNamespace',
+        example: 'ConsulNamespace == myNamespace',
+      },
+      {
+        key: 'VaultToken',
+        example: 'VaultToken is not empty',
+      },
+      {
+        key: 'VaultNamespace',
+        example: 'VaultNamespace == myNamespace',
+      },
+      {
+        key: 'NomadTokenID',
+        example: 'NomadTokenID != myToken',
+      },
+      {
+        key: 'Stable',
+        example: 'Stable == false',
+      },
+      {
+        key: 'SubmitTime',
+        example: 'SubmitTime == 1716387219559280000',
+      },
+      {
+        key: 'CreateIndex',
+        example: 'CreateIndex != 10',
+      },
+      {
+        key: 'ModifyIndex',
+        example: 'ModifyIndex == 30',
+      },
+      {
+        key: 'JobModifyIndex',
+        example: 'JobModifyIndex == 40',
+      },
+    ];
+    error.errors?.forEach((err) => {
       this.notifications.add({
         title: err.title,
         message: err.detail,
@@ -120,13 +218,62 @@ export default class IndexRoute extends Route.extend(
       });
     });
 
+    let err = error.errors[0];
     // if it's an innocuous-enough seeming "You mistyped something while searching" error,
     // handle it with a notification and don't throw. Otherwise, throw.
     if (
-      error.errors[0].detail.includes("couldn't find key") ||
-      error.errors[0].detail.includes('failed to read filter expression')
+      err?.detail.includes("couldn't find key") ||
+      err?.detail.includes('failed to read filter expression')
     ) {
-      return error;
+      this.watchList.jobsIndexDetailsController.abort();
+      this.watchList.jobsIndexIDsController.abort();
+      // eslint-disable-next-line
+      this.controllerFor('jobs.index').set('jobIDs', []);
+      // eslint-disable-next-line
+      this.controllerFor('jobs.index').set('jobs', []);
+      // eslint-disable-next-line
+      this.controllerFor('jobs.index').watchJobs.cancelAll();
+      // eslint-disable-next-line
+      this.controllerFor('jobs.index').watchJobIDs.cancelAll();
+
+      let humanized = err.detail || '';
+
+      // Two ways we can help users here:
+      // 1. They slightly mis-typed a key, so we should offer a correction
+      // 2. They tried a key that didn't look like anything we know of, so we can suggest keys they might try
+      let correction = null;
+      let suggestion = null;
+
+      const keyMatch = err.detail.match(
+        /couldn't find key: struct field with name "([^"]+)"/
+      );
+      if (keyMatch && keyMatch[1]) {
+        const incorrectKey = keyMatch[1];
+        const correctKey = knownKeys.find(
+          (key) =>
+            key.key ===
+            `${incorrectKey.charAt(0).toUpperCase()}${incorrectKey
+              .slice(1)
+              .toLowerCase()}`
+        )?.key;
+        if (correctKey) {
+          correction = {
+            incorrectKey,
+            correctKey,
+          };
+        } else {
+          humanized = `Did you mistype a key? Valid keys include:`;
+          suggestion = knownKeys;
+        }
+      }
+
+      return {
+        error: {
+          humanized,
+          correction,
+          suggestion,
+        },
+      };
     } else {
       throw error;
     }
@@ -134,6 +281,11 @@ export default class IndexRoute extends Route.extend(
 
   setupController(controller, model) {
     super.setupController(controller, model);
+
+    if (!this.hasBeenInitialized) {
+      controller.parseFilter();
+    }
+    this.hasBeenInitialized = true;
 
     if (!model.jobs) {
       return;
@@ -163,10 +315,6 @@ export default class IndexRoute extends Route.extend(
       this.getCurrentParams(),
       Ember.testing ? 0 : DEFAULT_THROTTLE
     );
-
-    controller.parseFilter();
-
-    this.hasBeenInitialized = true;
   }
 
   startWatchers(controller) {
