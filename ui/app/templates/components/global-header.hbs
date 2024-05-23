@@ -30,16 +30,6 @@
     {{/unless}}
   {{/if}}
   <div class="navbar-end">
-    {{#if this.config.APP.showStorybookLink}}
-      <a
-        href="/storybook/"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="navbar-item"
-      >
-        Storybook
-      </a>
-    {{/if}}
     {{#if this.system.agent.config.UI.Consul.BaseUIURL}}
       <a
         data-test-header-consul-link
