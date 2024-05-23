@@ -89,6 +89,13 @@ func Job() *structs.Job {
 								Args:    []string{"hello world"},
 							},
 						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "${attr.consul.version}",
+								RTarget: ">= 1.8.0",
+								Operand: structs.ConstraintSemver,
+							},
+						},
 						Services: []*structs.Service{
 							{
 								Name:      "${TASK}-frontend",
