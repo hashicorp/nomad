@@ -9,6 +9,7 @@ import {
   settled,
   click,
   triggerKeyEvent,
+  typeIn,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -1411,6 +1412,68 @@ module('Acceptance | jobs list', function (hooks) {
           );
 
         localStorage.removeItem('nomadPageSize');
+      });
+      test('Namespace filter options can be filtered', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        server.create('namespace', {
+          id: 'default',
+          name: 'default',
+        });
+        server.create('namespace', {
+          id: 'Bonderman',
+          name: 'Bonderman',
+        });
+        server.create('namespace', {
+          id: 'Robertson',
+          name: 'Robertson',
+        });
+        server.create('namespace', {
+          id: 'Rogers',
+          name: 'Rogers',
+        });
+        server.create('namespace', {
+          id: 'Verlander',
+          name: 'Verlander',
+        });
+        server.create('namespace', {
+          id: 'Miner',
+          name: 'Miner',
+        });
+        server.createList('job', 3, {
+          createAllocations: false,
+          namespaceId: 'default',
+          modifyIndex: 10,
+        });
+        server.createList('job', 3, {
+          createAllocations: false,
+          namespaceId: 'Bonderman',
+          modifyIndex: 10,
+        });
+        server.createList('job', 2, {
+          createAllocations: false,
+          namespaceId: 'Verlander',
+          modifyIndex: 10,
+        });
+        server.createList('job', 2, {
+          createAllocations: false,
+          namespaceId: 'Rogers',
+          modifyIndex: 10,
+        });
+        await JobsList.visit();
+
+        await JobsList.facets.namespace.toggle();
+        assert.dom('[data-test-namespace-filter-searchbox]').exists();
+        // and it should be focused
+        assert.dom('[data-test-namespace-filter-searchbox]').isFocused();
+        // and there should be 7 things there
+        assert.dom('[data-test-dropdown-option]').exists({ count: 7 });
+        await typeIn('[data-test-namespace-filter-searchbox]', 'Bonderman');
+        assert.dom('[data-test-dropdown-option]').exists({ count: 1 });
+        document.querySelector('[data-test-namespace-filter-searchbox]').value =
+          ''; // clear
+        await typeIn('[data-test-namespace-filter-searchbox]', 'n');
+        assert.dom('[data-test-dropdown-option]').exists({ count: 4 });
+        await percySnapshot(assert);
       });
       test('Namespace filter only shows up if the server has more than one namespace', async function (assert) {
         localStorage.setItem('nomadPageSize', '10');

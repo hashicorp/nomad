@@ -50,7 +50,17 @@
                 @color="secondary"
                 @badge={{get (find-by "checked" true this.namespaceFacet.options) "label"}}
               />
-              {{#each this.namespaceFacet.options as |option|}}
+              <dd.Header @hasDivider={{true}}>
+                <Hds::Form::TextInput::Base
+                  @type="search"
+                  placeholder="Filter Namespaces"
+                  @value={{this.namespaceFilter}}
+                  {{autofocus}}
+                  {{on "input" (action this.filterNamespaces )}}
+                  data-test-namespace-filter-searchbox
+                />
+              </dd.Header>
+              {{#each this.shownNamespaces as |option|}}
                 <dd.Radio
                   name={{option.key}}
                   {{on "change" (fn this.toggleNamespaceOption option dd)}}
