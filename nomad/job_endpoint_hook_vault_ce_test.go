@@ -57,4 +57,13 @@ func TestJobEndpointHook_VaultCE(t *testing.T) {
 	warnings, err := hook.Validate(job)
 	must.Len(t, 0, warnings)
 	must.NoError(t, err)
+
+	// Attempt to validate a job which details a Vault cluster name which has
+	// no configuration mapping within the server config.
+	mockJob2 := mock.Job()
+	mockJob2.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Cluster: "does-not-exist"}
+
+	warnings, err = hook.Validate(mockJob2)
+	must.Nil(t, warnings)
+	must.EqError(t, err, `Vault "does-not-exist" not enabled but used in the job`)
 }
