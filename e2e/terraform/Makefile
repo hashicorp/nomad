@@ -1,5 +1,6 @@
 PKG_PATH = $(shell pwd)/../../pkg/linux_amd64/nomad
-LICENSE_PATH ?=
+NOMAD_LICENSE_PATH ?=
+CONSUL_LICENSE_PATH ?=
 
 # deploy for quick local development testing
 
@@ -8,14 +9,16 @@ plan:
 		-var="nomad_local_binary=$(PKG_PATH)" \
 		-var="volumes=false" \
 		-var="client_count_ubuntu_jammy_amd64=3" \
-		-var="client_count_windows_2016_amd64=0"
+		-var="client_count_windows_2016_amd64=0" \
+		-var="consul_license=$(shell cat $(CONSUL_LICENSE_PATH))"
 
 apply:
 	terraform apply -auto-approve \
 		-var="nomad_local_binary=$(PKG_PATH)" \
 		-var="volumes=false" \
 		-var="client_count_ubuntu_jammy_amd64=3" \
-		-var="client_count_windows_2016_amd64=0"
+		-var="client_count_windows_2016_amd64=0" \
+		-var="consul_license=$(shell cat $(CONSUL_LICENSE_PATH))"
 
 clean: destroy tidy
 
@@ -32,7 +35,7 @@ plan_full:
 
 apply_full:
 	@terraform apply -auto-approve \
-		-var="nomad_license=$(shell cat $(LICENSE_PATH))"
+		-var="nomad_license=$(shell cat $(NOMAD_LICENSE_PATH))"
 
 clean_full: destroy_full tidy
 
