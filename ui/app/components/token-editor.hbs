@@ -25,37 +25,37 @@
 
     {{!-- Radio to select between 1, 4, 8, 24, or never --}}
     <Hds::Form::Radio::Group @layout="horizontal" @name="expiration-time" {{on "change" this.updateTokenExpirationTTL}} as |G|>
-      <G.Radio::Field
+      <G.RadioField
         @id="10m"
         @value="10m"
       as |F|>
         <F.Label>10 minutes</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="8h"
         @value="8h"
       as |F|>
         <F.Label>8 hours</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="24h"
         @value="24h"
       as |F|>
         <F.Label>24 hours</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="never"
         @value="never"
         checked={{eq @token.expirationTTL "never"}}
       as |F|>
         <F.Label>Never</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="custom"
         @value="custom"
       as |F|>
         <F.Label>Custom</F.Label>
-      </G.Radio::Field>
+      </G.RadioField>
     </Hds::Form::Radio::Group>
 
     {{#if @token.expirationTime}}
@@ -99,20 +99,20 @@
     <Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updateTokenType}} as |G|>
       <G.Legend>Client or Management token?</G.Legend>
       <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Token types documentation</Hds::Link::Inline> for more information.</G.HelperText>
-      <G.Radio::Field
+      <G.RadioField
         @id="client"
         checked={{eq @token.type "client"}}
         data-test-token-type="client"
       as |F|>
         <F.Label>Client</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="management"
         checked={{eq @token.type "management"}}
         data-test-token-type="management"
       as |F|>
         <F.Label>Management</F.Label>
-      </G.Radio::Field>
+      </G.RadioField>
     </Hds::Form::Radio::Group>
   </div>
 
