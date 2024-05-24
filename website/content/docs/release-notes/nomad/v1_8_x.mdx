@@ -11,7 +11,7 @@ We are pleased to announce the following Nomad updates.
 
 ## Release highlights
 
-- **Long Term Support Release (Enterprise):** Nomad 1.8.0 now introduces a long
+- **Long Term Support Release (Enterprise):** Nomad 1.8 introduces a long
   term supported release which provides extended maintenance (two years of
   critical fixes provided through minor releases and efficient upgrades
   (support for direct upgrades from one LTS release to the next).
@@ -26,11 +26,26 @@ We are pleased to announce the following Nomad updates.
   profile and improved performance for the Nomad operator. Refer to [Exec2 Task
   Driver](/nomad/plugins/v1.8.x/drivers/exec2) for more details.
   
-- **Transparent proxy support for Consul service mesh:**
+- **Transparent proxy support for Consul service mesh:** Transparent Proxy
+  introduces a more seamless way of dialing upstream services when Consul service
+  mesh is enabled. Users can configure services to use transparent proxy with a
+  new [`transparent_proxy`](/nomad/docs/v1.8.x/job-specification/transparent_proxy)
+  block. When a service is configured to use transparent proxy, workloads can now dial the 
+  service using a virtual IP Consul DNS name.
 
-- **Consul API Gateway for Nomad:**
+- **Consul API Gateway for Nomad:** Consul API Gateway on Nomad is now
+  officially supported. A prescriptive job specification on
+  [hashicorp-guides/cnosul-api-gateway-on-nomad](https://github.com/hashicorp-guides/consul-api-gateway-on-nomad)
+  along with a supporting [tutorial](/nomad/tutorials/integrate-consul/deploy-api-gateway-on-nomad) on
+  how to securely deploy Consul API gateway on Nomad.
 
-- 
+- **Sentinel policy management in the Web UI:** Enterprise users can manage
+  Sentinel policies directly within the Nomad UI. Users can create a Sentinel
+  policy based on a template provided from the UI or create policies directly
+  using an editor for Sentinel policies. Refer to [Sentinel policies](/nomad/tutorials/governance-and-policy/sentinel)
+  to learn more about how to use Sentinel within Nomad. 
+
+- **nomad-bench:** 
 
 
 ## What's deprecated
@@ -48,7 +63,7 @@ We are pleased to announce the following Nomad updates.
   workloads to Amazon ECS or to another Nomad task driver.
   
 - **`stop_after_client_disconnect`, `max_client_disconnect`,
-  `prevent_reschedule_on_lost` fields:** Nomad 1.8.0 introduces a [disconnect](/nomad/docs/job-specification/disconnect)
+  `prevent_reschedule_on_lost`:** Nomad 1.8.0 introduces a [disconnect](/nomad/docs/job-specification/disconnect)
   block meant to group all the configuration options related to disconnected
   client's and server's behavior, causing the deprecation of the fields
   stop_after_client_disconnect, max_client_disconnect and
@@ -58,7 +73,7 @@ We are pleased to announce the following Nomad updates.
   
 ## What's removed
 
-- **raw_exec option `no_cgroups`:**: In Nomad 1.7.0 the raw_exec plugin option
+- **raw_exec option `no_cgroups`:** In Nomad 1.7.0 the raw_exec plugin option
   for no_cgroups became ineffective. Starting in Nomad 1.8.0 attempting to set
   the no_cgroups in raw_exec plugin configuration will result in an error when
   starting the agent.
