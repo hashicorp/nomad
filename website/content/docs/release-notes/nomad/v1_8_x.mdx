@@ -35,9 +35,29 @@ We are pleased to announce the following Nomad updates.
 
 - **Consul API Gateway for Nomad:** Consul API Gateway on Nomad is now
   officially supported. A prescriptive job specification on
-  [hashicorp-guides/cnosul-api-gateway-on-nomad](https://github.com/hashicorp-guides/consul-api-gateway-on-nomad)
+  [hashicorp-guides/consul-api-gateway-on-nomad](https://github.com/hashicorp-guides/consul-api-gateway-on-nomad)
   along with a supporting [tutorial](/nomad/tutorials/integrate-consul/deploy-api-gateway-on-nomad) on
   how to securely deploy Consul API gateway on Nomad.
+  
+- **Re-worked Jobs page in the web UI with live updates:** Within the Jobs index, page Nomad has made a few improvements:
+
+  - **Prioirtize showing the current state over historical state for jobs:**
+  Previously, long-garbage-collected allocation placement failures, lost nodes,
+  and other historical representations of job state were shown alongside
+  currently running allocations. In self-healing jobs, this often meant that a
+  healthy job looked like it had failures, when in fact Nomad had replaced or
+  rescheduled those failures. Now, the jobs list tries to show accurate
+  allocation information and meaningful statuses (like "Degraded", or
+  "Recovering") to better illustrate the current state of a job. 
+  - **Server-side pagination:** For users with many thousands of jobs, the main
+  landing page for the web UI will no longer have a noticeable delay on
+  rendering. Users can control page length and filter paginated jobs
+  appropriately. 
+  - **Live updates:** Previously, users had to manually refresh
+  the page to see newly created jobs, or to hide jobs that had been stopped and
+  garbage-collected. Now, the jobs list will update in real-time as jobs are
+  created, updated, or removed. Further, any changes to allocations of jobs
+  on-page will be reflected in the status of that job in real-time.
 
 - **Sentinel policy management in the Web UI:** Enterprise users can manage
   Sentinel policies directly within the Nomad UI. Users can create a Sentinel
@@ -45,8 +65,14 @@ We are pleased to announce the following Nomad updates.
   using an editor for Sentinel policies. Refer to [Sentinel policies](/nomad/tutorials/governance-and-policy/sentinel)
   to learn more about how to use Sentinel within Nomad. 
 
-- **nomad-bench:** 
-
+- **nomad-bench:** Nomad now provides a testing framework through [nomad-bench](https://github.com/hashicorp-forge/nomad-bench) 
+  which provisions infrastructure used to run tests and benchmarks against
+  Nomad test clusters. The infrastructure consists of Nomad test clusters that
+  each have a set of servers with hundreds or thousands of simulated nodes
+  created using nomad-nodesim. The Nomad server processes are not simulated and
+  are expected to run on their own hosts, mimicking real-world deployments.
+  Metrics are then gathered from the Nomad servers for use with benchmarking
+  and load testing.
 
 ## What's deprecated
 
