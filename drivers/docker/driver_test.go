@@ -378,6 +378,49 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	require.NoError(t, d.DestroyTask(task.ID, true))
 }
 
+// TestDockerDriver_ContainerAlreadyExists asserts that when Nomad tries to start
+// a job and the container already exists, it purges it, and starts it again (as
+// opposed to trying to continuously re-create an already existing container)
+//
+// See https://github.com/hashicorp/nomad/issues/22218
+func TestDockerDriver_ContainerAlreadyExists(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client := newTestDockerClient(t)
+	driver := dockerDriverHarness(t, nil)
+	cleanup := driver.MkAllocDir(task, true)
+	defer cleanup()
+	copyImage(t, task.TaskDir(), "busybox.tar")
+
+	d, ok := driver.Impl().(*Driver)
+	must.True(t, ok)
+
+	_, err := d.createImage(task, cfg, client)
+	must.NoError(t, err)
+
+	containerCfg, err := d.createContainerConfig(task, cfg, cfg.Image)
+	must.NoError(t, err)
+
+	// create and start a container
+	c, err := d.createContainer(client, containerCfg, cfg.Image)
+	must.NoError(t, err)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    c.ID,
+		Force: true,
+	})
+
+	// now that the container is running, start the task that uses it, and assert
+	// that it doesn't end up in "container already exists" fail loop
+	_, _, err = d.StartTask(task)
+	must.NoError(t, err)
+
+	defer d.DestroyTask(task.ID, true)
+}
+
 func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
@@ -2760,8 +2803,8 @@ func waitForExist(t *testing.T, client *docker.Client, containerID string) {
 }
 
 // TestDockerDriver_CreationIdempotent asserts that createContainer and
-// and startContainers functions are idempotent, as we have some retry
-// logic there without ensureing we delete/destroy containers
+// startContainers functions are idempotent, as we have some retry logic there
+// without ensuring we delete/destroy containers
 func TestDockerDriver_CreationIdempotent(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
