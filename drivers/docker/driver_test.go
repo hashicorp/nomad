@@ -405,7 +405,7 @@ func TestDockerDriver_ContainerAlreadyExists(t *testing.T) {
 	containerCfg, err := d.createContainerConfig(task, cfg, cfg.Image)
 	must.NoError(t, err)
 
-	// create and start a container
+	// create a container
 	c, err := d.createContainer(client, containerCfg, cfg.Image)
 	must.NoError(t, err)
 	defer client.RemoveContainer(docker.RemoveContainerOptions{
@@ -413,12 +413,24 @@ func TestDockerDriver_ContainerAlreadyExists(t *testing.T) {
 		Force: true,
 	})
 
-	// now that the container is running, start the task that uses it, and assert
-	// that it doesn't end up in "container already exists" fail loop
+	// now that the container has been created, start the task that uses it, and
+	// assert that it doesn't end up in "container already exists" fail loop
 	_, _, err = d.StartTask(task)
 	must.NoError(t, err)
+	d.DestroyTask(task.ID, true)
 
-	defer d.DestroyTask(task.ID, true)
+	// let's try all of the above again, but this time with a created and running
+	// container
+	c, err = d.createContainer(client, containerCfg, cfg.Image)
+	must.NoError(t, err)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    c.ID,
+		Force: true,
+	})
+	must.NoError(t, d.startContainer(c))
+	_, _, err = d.StartTask(task)
+	must.NoError(t, err)
+	d.DestroyTask(task.ID, true)
 }
 
 func TestDockerDriver_Start_LoadImage(t *testing.T) {
