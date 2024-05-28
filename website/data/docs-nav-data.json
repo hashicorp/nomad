@@ -2318,6 +2318,10 @@
       {
         "title": "Considerations for Stateful Workloads",
         "path": "operations/stateful-workloads"
+      },
+      {
+        "title": "Benchmarking Nomad",
+        "path": "operations/benchmarking"
       }
     ]
   },
