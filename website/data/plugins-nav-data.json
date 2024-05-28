@@ -43,20 +43,16 @@
           },
           {
             "title": "LXC",
-            "path": "drivers/community/lxc"
-          },
-          {
-            "title": "Pot",
-            "path": "drivers/community/pot"
-          },
-          {
-            "title": "Rkt",
+            "path": "drivers/community/lxc",
             "badge": {
               "text": "Deprecated",
               "type": "outlined",
               "color": "neutral"
-            },
-            "path": "drivers/community/rkt"
+            }
+          },
+          {
+            "title": "Pot",
+            "path": "drivers/community/pot"
           },
           {
             "title": "Rookout",
@@ -89,7 +85,12 @@
           },
           {
             "title": "ECS",
-            "path": "drivers/remote/ecs"
+            "path": "drivers/remote/ecs",
+            "badge": {
+              "text": "Deprecated",
+              "type": "outlined",
+              "color": "neutral"
+            }
           }
         ]
       }
