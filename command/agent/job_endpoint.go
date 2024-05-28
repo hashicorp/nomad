@@ -1624,6 +1624,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 					Interval:               check.Interval,
 					Timeout:                check.Timeout,
 					InitialStatus:          check.InitialStatus,
+					Notes:                  check.Notes,
 					TLSServerName:          check.TLSServerName,
 					TLSSkipVerify:          check.TLSSkipVerify,
 					Header:                 check.Header,

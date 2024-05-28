@@ -374,14 +374,14 @@ func formatAllocNomadServiceChecks(allocID string, client *api.Client) string {
 	} else if len(statuses) == 0 {
 		return ""
 	}
-	results := []string{"Service|Task|Name|Mode|Status"}
+	results := []string{"Service|Task|Name|Mode|Status|Notes"}
 	for _, status := range statuses {
 		task := "(group)"
 		if status.Task != "" {
 			task = status.Task
 		}
-		// check | group | mode | status
-		s := fmt.Sprintf("%s|%s|%s|%s|%s", status.Service, task, status.Check, status.Mode, status.Status)
+		// check | group | mode | status | notes
+		s := fmt.Sprintf("%s|%s|%s|%s|%s|%s", status.Service, task, status.Check, status.Mode, status.Status, status.Notes)
 		results = append(results, s)
 	}
 	sort.Strings(results[1:])

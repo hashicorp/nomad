@@ -481,6 +481,6 @@ func TestAllocStatusCommand_NSD_Checks(t *testing.T) {
 	// check output
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, `Nomad Service Checks:`)
-	must.RegexMatch(t, regexp.MustCompile(`Service\s+Task\s+Name\s+Mode\s+Status`), out)
-	must.RegexMatch(t, regexp.MustCompile(`service1\s+\(group\)\s+check1\s+healthiness\s+(pending|failure)`), out)
+	must.RegexMatch(t, regexp.MustCompile(`Service\s+Task\s+Name\s+Mode\s+Status\s+Notes`), out)
+	must.RegexMatch(t, regexp.MustCompile(`service1\s+\(group\)\s+check1\s+healthiness\s+(pending|failure)\s+note1`), out)
 }

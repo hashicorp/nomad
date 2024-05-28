@@ -68,6 +68,7 @@ type ServiceCheck struct {
 	Interval               time.Duration       // Interval of the check
 	Timeout                time.Duration       // Timeout of the response from the check before consul fails the check
 	InitialStatus          string              // Initial status of the check
+	Notes                  string              // Specifies arbitrary information for humans. This is not used by Consul internally
 	TLSServerName          string              // ServerName to use for SNI and TLS verification when (Type=https and Protocol=https) or (Type=grpc and GRPCUseTLS=true)
 	TLSSkipVerify          bool                // Skip TLS verification when (type=https and Protocol=https) or (type=grpc and grpc_use_tls=true)
 	Method                 string              // HTTP Method to use (GET by default)
@@ -158,6 +159,10 @@ func (sc *ServiceCheck) Equal(o *ServiceCheck) bool {
 	}
 
 	if sc.InitialStatus != o.InitialStatus {
+		return false
+	}
+
+	if sc.Notes != o.Notes {
 		return false
 	}
 
@@ -492,6 +497,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	hashString(h, sc.Method)
 	hashString(h, sc.Body)
 	hashString(h, sc.OnUpdate)
+	hashString(h, sc.Notes)
 
 	// use name "true" to maintain ID stability
 	hashBool(h, sc.TLSSkipVerify, "true")
