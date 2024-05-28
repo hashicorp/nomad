@@ -431,6 +431,10 @@ missing: ## Check for packages not being tested
 cl: ## Create a new Changelog entry
 	@go run -modfile tools/go.mod tools/cl-entry/main.go
 
+.PHONY: cltui
+cltui: ## Create a new Changelog entry
+	@go run -modfile tools/go.mod tools/cl-entry-tui/main.go
+
 .PHONY: test
 test: GOTEST_PKGS := $(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
 test: ## Use this target as a smoke test
