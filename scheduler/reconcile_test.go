@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -2154,12 +2155,13 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 	allocs[0].ClientStatus = structs.AllocClientStatusFailed
 
 	// Mark one of them as already rescheduled once
-	allocs[0].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
 		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
 			PrevAllocID: uuid.Generate(),
 			PrevNodeID:  uuid.Generate(),
 		},
 	}}
+	allocs[1].NextAllocation = allocs[2].ID
 	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
@@ -2171,6 +2173,7 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
+	spew.Dump(r)
 
 	// Verify that no follow up evals were created
 	evals := r.desiredFollowupEvals[tgName]
