@@ -1662,12 +1662,13 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 		Policies:   []string{"foo"},
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
-	job.TaskGroups[0].Tasks[0].Constraints = []*structs.Constraint{
-		{
-			LTarget: "${attr.vault.version}",
-			Operand: "is_set",
-		},
+
+	vaultConstraint := &structs.Constraint{
+		LTarget: "${attr.vault.version}",
+		Operand: "is_set",
 	}
+	job.TaskGroups[0].Tasks[0].Constraints = []*structs.Constraint{vaultConstraint}
+
 	req := &structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -1679,20 +1680,24 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Check for the job in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByID(ws, job.Namespace, job.ID)
-	require.NoError(t, err)
-	require.NotNil(t, out)
-	require.Equal(t, resp.JobModifyIndex, out.CreateIndex)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+	must.Eq(t, resp.JobModifyIndex, out.CreateIndex)
 
 	// Assert constraint was not overridden by the server
 	outConstraints := out.TaskGroups[0].Tasks[0].Constraints
-	require.Len(t, outConstraints, 1)
-	require.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equal(outConstraints[0]))
+	for _, constraint := range outConstraints {
+		if constraint.LTarget == "${attr.vault.version}" {
+			must.Eq(t, constraint, vaultConstraint)
+		}
+	}
+	must.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equal(outConstraints[0]))
 }
 
 func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {

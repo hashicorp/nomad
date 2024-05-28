@@ -1,0 +1,3 @@
+```release-note:bug
+job endpoint: fix implicit constraint mutation for task-level services
+```
