@@ -289,6 +289,9 @@ export default function () {
           job.Allocs = server.db.allocations
             .where({ jobId: j.ID, namespace: j.Namespace })
             .map((alloc) => {
+              let taskStates = server.db.taskStates.where({
+                allocationId: alloc.id,
+              });
               return {
                 ClientStatus: alloc.clientStatus,
                 DeploymentStatus: {
@@ -299,6 +302,7 @@ export default function () {
                 JobVersion: alloc.jobVersion,
                 NodeID: alloc.nodeId,
                 ID: alloc.id,
+                HasPausedTask: taskStates.any((ts) => ts.paused),
               };
             });
           job.ChildStatuses = children ? children.mapBy('Status') : null;
