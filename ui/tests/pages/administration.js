@@ -11,4 +11,5 @@ export default create({
   visitPolicies: visitable('/administration/policies'),
   visitRoles: visitable('/administration/roles'),
   visitNamespaces: visitable('/administration/namespaces'),
+  visitSentinelPolicies: visitable('/administration/sentinel-policies'),
 });

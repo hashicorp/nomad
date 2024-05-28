@@ -44,7 +44,7 @@ SPDX-License-Identifier: BUSL-1.1
           <LinkTo data-test-sentinel-policy-name={{B.data.name}} @route="administration.sentinel-policies.policy"
             @model={{B.data.name}}>{{B.data.name}}</LinkTo>
         </B.Td>
-        <B.Td>{{B.data.description}}</B.Td>
+        <B.Td data-test-sentinel-policy-description>{{B.data.description}}</B.Td>
         <B.Td>{{B.data.enforcementLevel}}</B.Td>
         {{#if (can "destroy sentinel-policy")}}
           <B.Td>
@@ -65,8 +65,8 @@ SPDX-License-Identifier: BUSL-1.1
     </:body>
   </Hds::Table>
   {{else}}
-  <div data-test-empty-jobs-list class="empty-message">
-    <h3 data-test-empty-jobs-list-headline class="empty-message-headline">
+  <div data-test-empty-sentinel-policy-list class="empty-message">
+    <h3 data-test-empty-sentinel-policy-list-headline class="empty-message-headline">
       No Sentinel Policies
     </h3>
     <p class="empty-message-body">

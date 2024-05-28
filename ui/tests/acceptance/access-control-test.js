@@ -4,13 +4,14 @@
  */
 
 import { module, test } from 'qunit';
-import { currentURL, triggerKeyEvent } from '@ember/test-helpers';
+import { currentURL, triggerKeyEvent, click } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Administration from 'nomad-ui/tests/pages/administration';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import { allScenarios } from '../../mirage/scenarios/default';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 // Several related tests within Access Control are contained in the Tokens, Roles,
 // and Policies acceptance tests.
@@ -69,6 +70,34 @@ module('Acceptance | access control', function (hooks) {
       '/administration/tokens',
       'management token can access /administration/tokens'
     );
+  });
+
+  test('Access control does not show Sentinel Policies if they are not present in license', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    await Tokens.visit();
+    const managementToken = server.db.tokens.findBy(
+      (t) => t.type === 'management'
+    );
+    const { secretId } = managementToken;
+    await Tokens.secret(secretId).submit();
+    await Administration.visit();
+    assert.dom('[data-test-sentinel-policies-card]').doesNotExist();
+  });
+
+  test('Access control shows Sentinel Policies if they are present in license', async function (assert) {
+    allScenarios.policiesTestCluster(server, { sentinel: true });
+    await Tokens.visit();
+    const managementToken = server.db.tokens.findBy(
+      (t) => t.type === 'management'
+    );
+    const { secretId } = managementToken;
+    await Tokens.secret(secretId).submit();
+    await Administration.visit();
+
+    assert.dom('[data-test-sentinel-policies-card]').exists();
+    await percySnapshot(assert);
+    await click('[data-test-sentinel-policies-card] a');
+    assert.equal(currentURL(), '/administration/sentinel-policies');
   });
 
   test('Access control index content', async function (assert) {
