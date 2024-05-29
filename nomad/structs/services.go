@@ -459,6 +459,11 @@ func (sc *ServiceCheck) validateConsul() error {
 		return fmt.Errorf("failures_before_warning not supported for check of type %q", sc.Type)
 	}
 
+	// Arbitrary value, we could bump it if needed
+	if len(sc.Notes) > 255 {
+		return fmt.Errorf("notes must 255 characters or lower")
+	}
+
 	return nil
 }
 
