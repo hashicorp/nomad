@@ -130,7 +130,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			allocdir:                ar.allocDir,
 			widmgr:                  ar.widmgr,
 			consulConfigs:           ar.clientConfig.GetConsulConfigs(hookLogger),
-			consulClientConstructor: consul.NewConsulClient,
+			consulClientConstructor: consul.NewConsulClientFactory(config.Node),
 			hookResources:           ar.hookResources,
 			envBuilder:              newEnvBuilder,
 			logger:                  hookLogger,
