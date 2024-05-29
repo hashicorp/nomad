@@ -17,6 +17,7 @@ import (
 // a single Consul namespace.
 type ConsulConfigEntries struct {
 	Cluster     string
+	Partition   string
 	Ingress     map[string]*ConsulIngressConfigEntry
 	Terminating map[string]*ConsulTerminatingConfigEntry
 }
@@ -43,9 +44,15 @@ func (j *Job) ConfigEntries() map[string]*ConsulConfigEntries {
 				if ig := gateway.Ingress; ig != nil {
 					collection[ns].Ingress[service.Name] = ig
 					collection[ns].Cluster = service.Cluster
+					if tg.Consul != nil {
+						collection[ns].Partition = tg.Consul.Partition
+					}
 				} else if term := gateway.Terminating; term != nil {
 					collection[ns].Terminating[service.Name] = term
 					collection[ns].Cluster = service.Cluster
+					if tg.Consul != nil {
+						collection[ns].Partition = tg.Consul.Partition
+					}
 				}
 			}
 		}
