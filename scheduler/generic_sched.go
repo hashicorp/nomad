@@ -731,6 +731,13 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				if stopPrevAlloc {
 					s.plan.PopUpdate(prevAllocation)
 				}
+
+				if prevAllocation != nil {
+					if missing.IsRescheduling() {
+						annotateRescheduleTracker(prevAllocation, now)
+					}
+				}
+
 			}
 
 		}
@@ -842,6 +849,18 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 	return selectOptions
 }
 
+const (
+	RescheduleAnnotationSuccess = ""
+	RescheduleAnnotationFailed  = "failed"
+)
+
+func annotateRescheduleTracker(prev *structs.Allocation, now time.Time) {
+	if prev.RescheduleTracker == nil {
+		prev.RescheduleTracker = &structs.RescheduleTracker{}
+	}
+	prev.RescheduleTracker.Annotation = RescheduleAnnotationFailed
+}
+
 // updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
 func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, now time.Time) {
 	reschedPolicy := prev.ReschedulePolicy()
@@ -876,7 +895,8 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 	nextDelay := prev.NextDelay()
 	rescheduleEvent := structs.NewRescheduleEvent(now.UnixNano(), prev.ID, prev.NodeID, nextDelay)
 	rescheduleEvents = append(rescheduleEvents, rescheduleEvent)
-	alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
+	alloc.RescheduleTracker = &structs.RescheduleTracker{
+		Events: rescheduleEvents, Annotation: RescheduleAnnotationSuccess}
 }
 
 // findPreferredNode finds the preferred node for an allocation

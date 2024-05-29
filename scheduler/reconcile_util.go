@@ -394,8 +394,15 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 	rescheduleNow := make(map[string]*structs.Allocation)
 	rescheduleLater := []*delayedRescheduleInfo{}
 
+	fmt.Printf("[*] EvalID: %q\n", evalID)
+
 	for _, alloc := range a {
-		fmt.Printf("[*] checking alloc %q (%s/%s)\n\tPrev: %q Next: %q\n", alloc.ID, alloc.DesiredStatus, alloc.ClientStatus, alloc.PreviousAllocation, alloc.NextAllocation)
+		fmt.Printf("[*] checking alloc %q (%s/%s)\n\tPrev: %q Next: %q\n\tFollowupEvalID: %q\n\tRT: %v\n",
+			alloc.ID, alloc.DesiredStatus, alloc.ClientStatus,
+			alloc.PreviousAllocation, alloc.NextAllocation,
+			alloc.FollowupEvalID,
+			alloc.RescheduleTracker,
+		)
 
 		// Ignore disconnecting allocs that are already unknown. This can happen
 		// in the case of canaries that are interrupted by a disconnect.
@@ -411,7 +418,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		// Protects against a bug allowing rescheduling running allocs.
 		if alloc.NextAllocation != "" && alloc.TerminalStatus() {
 			// DEBUG
-			fmt.Printf("[*] ignoring terminal alloc %q w/ NextAllocation %q\n", alloc.ID, alloc.NextAllocation)
+			fmt.Printf("[*] ignoring terminal alloc %q\n", alloc.ID)
 			continue
 		}
 
@@ -422,7 +429,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		}
 
 		if ignore {
-			fmt.Printf("[*] ignoring alloc %q w/ PreviousAllocation %q\n", alloc.ID, alloc.PreviousAllocation)
+			fmt.Printf("[*] ignoring alloc %q\n", alloc.ID)
 			continue
 		}
 

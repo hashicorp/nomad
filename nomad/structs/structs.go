@@ -10512,7 +10512,8 @@ type DeploymentStatusUpdate struct {
 
 // RescheduleTracker encapsulates previous reschedule events
 type RescheduleTracker struct {
-	Events []*RescheduleEvent
+	Events     []*RescheduleEvent
+	Annotation string // TODO: find a better type for this
 }
 
 func (rt *RescheduleTracker) Copy() *RescheduleTracker {
@@ -11090,7 +11091,9 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 		return time.Time{}, false
 	}
 
-	if (a.DesiredStatus == AllocDesiredStatusStop && a.NextAllocation != "") ||
+	if (a.DesiredStatus == AllocDesiredStatusStop &&
+		a.RescheduleTracker != nil &&
+		a.RescheduleTracker.Annotation != "failed") ||
 		(a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
 		failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false

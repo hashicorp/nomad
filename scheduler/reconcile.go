@@ -462,7 +462,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	desiredChanges.Ignore += uint64(len(ignore))
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.XXXfilterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
 
 	// DEBUG
 	//	fmt.Printf("[*] untainted: %d rescheduleNow: %d rescheduleLater: %d\n", len(untainted), len(rescheduleNow), len(rescheduleLater))
