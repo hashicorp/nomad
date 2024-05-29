@@ -10,12 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 )
@@ -27,20 +29,30 @@ var _ ConsulConfigsAPI = (*consulConfigsAPI)(nil)
 func TestConsulConfigsAPI_SetCE(t *testing.T) {
 	ci.Parallel(t)
 
-	try := func(t *testing.T, expect error, f func(ConsulConfigsAPI) error) {
+	try := func(t *testing.T,
+		expectErr error,
+		expectKey string,
+		expectConfig api.ConfigEntry,
+		expectWriteOpts *api.WriteOptions,
+		f func(ConsulConfigsAPI) error) {
+
 		logger := testlog.HCLogger(t)
 		configsAPI := consul.NewMockConfigsAPI(logger)
-		configsAPI.SetError(expect)
+		configsAPI.SetError(expectErr)
 		configsAPIFunc := func(_ string) consul.ConfigAPI { return configsAPI }
 
 		c := NewConsulConfigsAPI(configsAPIFunc, logger)
 		err := f(c) // set the config entry
 
-		switch expect {
+		entry, wo := configsAPI.GetEntry(expectKey)
+		must.Eq(t, expectConfig, entry)
+		must.Eq(t, expectWriteOpts, wo)
+
+		switch expectErr {
 		case nil:
-			require.NoError(t, err)
+			must.NoError(t, err)
 		default:
-			require.Equal(t, expect, err)
+			must.EqError(t, err, expectErr.Error())
 		}
 	}
 
@@ -48,35 +60,46 @@ func TestConsulConfigsAPI_SetCE(t *testing.T) {
 
 	// existing behavior is no set namespace
 	consulNamespace := ""
+	partition := "foo"
 
 	ingressCE := new(structs.ConsulIngressConfigEntry)
 	t.Run("ingress ok", func(t *testing.T) {
-		try(t, nil, func(c ConsulConfigsAPI) error {
-			return c.SetIngressCE(
-				ctx, consulNamespace, "ig", structs.ConsulDefaultCluster, ingressCE)
-		})
+		try(t, nil, "ig",
+			&api.IngressGatewayConfigEntry{Kind: "ingress-gateway", Name: "ig"},
+			&api.WriteOptions{Partition: partition},
+			func(c ConsulConfigsAPI) error {
+				return c.SetIngressCE(
+					ctx, consulNamespace, "ig", structs.ConsulDefaultCluster, partition, ingressCE)
+			})
 	})
 
 	t.Run("ingress fail", func(t *testing.T) {
-		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
-			return c.SetIngressCE(
-				ctx, consulNamespace, "ig", structs.ConsulDefaultCluster, ingressCE)
-		})
+		try(t, errors.New("consul broke"),
+			"ig", nil, nil,
+			func(c ConsulConfigsAPI) error {
+				return c.SetIngressCE(
+					ctx, consulNamespace, "ig", structs.ConsulDefaultCluster, partition, ingressCE)
+			})
 	})
 
 	terminatingCE := new(structs.ConsulTerminatingConfigEntry)
 	t.Run("terminating ok", func(t *testing.T) {
-		try(t, nil, func(c ConsulConfigsAPI) error {
-			return c.SetTerminatingCE(
-				ctx, consulNamespace, "tg", structs.ConsulDefaultCluster, terminatingCE)
-		})
+		try(t, nil, "tg",
+			&api.TerminatingGatewayConfigEntry{Kind: "terminating-gateway", Name: "tg"},
+			&api.WriteOptions{Partition: partition},
+			func(c ConsulConfigsAPI) error {
+				return c.SetTerminatingCE(
+					ctx, consulNamespace, "tg", structs.ConsulDefaultCluster, partition, terminatingCE)
+			})
 	})
 
 	t.Run("terminating fail", func(t *testing.T) {
-		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
-			return c.SetTerminatingCE(
-				ctx, consulNamespace, "tg", structs.ConsulDefaultCluster, terminatingCE)
-		})
+		try(t, errors.New("consul broke"),
+			"tg", nil, nil,
+			func(c ConsulConfigsAPI) error {
+				return c.SetTerminatingCE(
+					ctx, consulNamespace, "tg", structs.ConsulDefaultCluster, partition, terminatingCE)
+			})
 	})
 
 	// also mesh
