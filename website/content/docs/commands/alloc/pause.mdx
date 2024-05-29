@@ -1,0 +1,74 @@
+---
+layout: docs
+page_title: 'Commands: alloc pause'
+description: |
+  Override the schedule for tasks using time based execution.
+---
+
+# Command: alloc pause
+
+<EnterpriseAlert />
+
+~> **Note:** Time based task execution is an experimental feature and subject
+to change. This feature is supported for select customers. Please refer to the
+[Upgrade Guide][upgrade] to find breaking changes. 
+
+Override the schedule for tasks using time based execution.
+
+## Usage
+
+```plaintext
+nomad alloc pause [options] <allocation> <command>
+```
+
+The `alloc pause` command allows a user to override the schedule for tasks
+that use time based execution. A user may override a task's
+[`schedule`][schedule] and force it to run or stop. The `schedule` will be
+ignored until a user resets the override.
+
+When ACLs are enabled, this command requires the `job-submit` capability for
+the allocation's namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Pause Options
+
+- `-state`: Override the current scheduled task state to be the specified state
+  or reset to the scheduled state. Must be one of `pause`, `run`, or
+  `scheduled`. When set to `pause` the task is halted. When set to `run` the
+  task is started. When set to `scheduled` the task respects its
+  [`schedule`][schedule].
+
+- `-status`: Get the current time based task execution state.
+
+- `-task`: Override the schedule of the specified task. May also be specified
+  as a positional argument.
+
+- `-verbose`: Show full information.
+
+## Examples
+
+The following command stops the `schedtask` task of the allocation `4d37a9d1`
+overriding the task's [`schedule`][schedule] block:
+
+```shell-session
+$ nomad alloc pause -state=pause 4d37a9d1 schedtask
+```
+
+The following command runs the task overriding the tasks current state or
+schedule:
+
+```shell-session
+$ nomad alloc pause -state=pause 4d37a9d1 schedtask
+```
+
+The following command returns the task to its [`schedule`][schedule]:
+
+```shell-session
+$ nomad alloc pause -state=scheduled 4d37a9d1 schedtask
+```
+
+[schedule]: /nomad/docs/job-specification/schedule
+[upgrade]: /nomad/docs/upgrade/upgrade-specific

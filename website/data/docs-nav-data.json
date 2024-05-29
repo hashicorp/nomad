@@ -455,6 +455,10 @@
             "path": "commands/alloc/logs"
           },
           {
+            "title": "pause",
+            "path": "commands/alloc/pause"
+          },
+          {
             "title": "restart",
             "path": "commands/alloc/restart"
           },
@@ -1796,6 +1800,10 @@
       {
         "title": "scaling",
         "path": "job-specification/scaling"
+      },
+      {
+        "title": "schedule",
+        "path": "job-specification/schedule"
       },
       {
         "title": "service",
