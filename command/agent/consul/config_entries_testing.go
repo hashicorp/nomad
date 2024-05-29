@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/lib/lang"
 )
 
 var _ ConfigAPI = (*MockConfigsAPI)(nil)
@@ -18,7 +19,7 @@ type MockConfigsAPI struct {
 	lock  sync.Mutex
 	state struct {
 		error   error
-		entries map[string]api.ConfigEntry
+		entries map[string]lang.Pair[api.ConfigEntry, *api.WriteOptions]
 	}
 }
 
@@ -27,8 +28,8 @@ func NewMockConfigsAPI(l hclog.Logger) *MockConfigsAPI {
 		logger: l.Named("mock_consul"),
 		state: struct {
 			error   error
-			entries map[string]api.ConfigEntry
-		}{entries: make(map[string]api.ConfigEntry)},
+			entries map[string]lang.Pair[api.ConfigEntry, *api.WriteOptions]
+		}{entries: make(map[string]lang.Pair[api.ConfigEntry, *api.WriteOptions])},
 	}
 }
 
@@ -41,7 +42,7 @@ func (m *MockConfigsAPI) Set(entry api.ConfigEntry, w *api.WriteOptions) (bool, 
 		return false, nil, m.state.error
 	}
 
-	m.state.entries[entry.GetName()] = entry
+	m.state.entries[entry.GetName()] = lang.Pair[api.ConfigEntry, *api.WriteOptions]{First: entry, Second: w}
 
 	return true, &api.WriteMeta{
 		RequestTime: 1,
@@ -55,4 +56,12 @@ func (m *MockConfigsAPI) SetError(err error) {
 	defer m.lock.Unlock()
 
 	m.state.error = err
+}
+
+// GetEntry is a helper method so that test can verify what's been written
+func (m *MockConfigsAPI) GetEntry(kind string) (api.ConfigEntry, *api.WriteOptions) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	entry := m.state.entries[kind]
+	return entry.First, entry.Second
 }
