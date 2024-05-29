@@ -70,17 +70,6 @@ module.exports = {
       },
     },
     {
-      files: ['stories/**/*.js'],
-      parserOptions: {
-        sourceType: 'module',
-      },
-      env: {
-        browser: false,
-        node: true,
-      },
-      plugins: ['node'],
-    },
-    {
       // Test files:
       files: ['tests/**/*-test.{js,ts}'],
       extends: ['plugin:qunit/recommended'],
