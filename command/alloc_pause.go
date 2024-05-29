@@ -22,11 +22,10 @@ func (c *AllocPauseCommand) Help() string {
 Usage: nomad alloc pause [options] <allocation> <task>
 
   Set the pause state of an allocation. This command is used to suspend the
-  operation of a specific alloc and its subtasks. If no task is provided then
-  all of the allocations subtasks will assume the new pause state.
+  operation of a specific task.
 
-  When ACLs are enabled, this command requires a token with the 'write-job'
-  capability for the allocation's namespace.
+  When ACLs are enabled, this command requires the job-submit capability for
+  the allocation's namespace.
 
 General Options:
 
@@ -36,9 +35,8 @@ Pause Specific Options:
 
   -state=<state>
     Specify the schedule state to apply to a task. Must be one of pause, run,
-	or scheduled. When set to pause the task is halted but the client reports
-	to the server that the task is still running. When set to run the task is
-	started regardless of the task schedule. When in scheduled state the task
+	or scheduled. When set to pause the task is halted. When set to run the task
+	is started regardless of the task schedule. When in scheduled state the task
 	respects the task schedule state in the task configuration. Defaults to
 	pause.
 
