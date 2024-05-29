@@ -1,0 +1,3 @@
+```release-note:improvement
+consul hc: add support for setting Notes field
+```
