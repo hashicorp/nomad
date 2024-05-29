@@ -93,9 +93,28 @@ func testNomadServiceJob(jobID string) *api.Job {
 			Path:     "/",
 			Interval: 1 * time.Second,
 			Timeout:  1 * time.Second,
-			Notes:    "note1",
 		}},
 		Provider: "nomad",
+	}}
+	return j
+}
+
+func testConsulServiceJob(jobID string) *api.Job {
+	j := testJob(jobID)
+	j.TaskGroups[0].Services = []*api.Service{{
+		Name:        "service1",
+		PortLabel:   "1000",
+		AddressMode: "",
+		Address:     "127.0.0.1",
+		Checks: []api.ServiceCheck{{
+			Name:     "check1",
+			Type:     "http",
+			Path:     "/",
+			Interval: 1 * time.Second,
+			Timeout:  1 * time.Second,
+			Notes:    "note1",
+		}},
+		Provider: "consul",
 	}}
 	return j
 }

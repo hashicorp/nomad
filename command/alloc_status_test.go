@@ -482,5 +482,42 @@ func TestAllocStatusCommand_NSD_Checks(t *testing.T) {
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, `Nomad Service Checks:`)
 	must.RegexMatch(t, regexp.MustCompile(`Service\s+Task\s+Name\s+Mode\s+Status\s+Notes`), out)
+	must.RegexMatch(t, regexp.MustCompile(`service1\s+\(group\)\s+check1\s+healthiness\s+(pending|failure)\s+<none>`), out)
+}
+
+func TestAllocStatusCommand_Consul_Checks(t *testing.T) {
+	ci.Parallel(t)
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	// wait for nodes
+	waitForNodes(t, client)
+
+	jobID := "job1_checks_consul"
+	job1 := testConsulServiceJob(jobID)
+
+	resp, _, err := client.Jobs().Register(job1, nil)
+	must.NoError(t, err)
+
+	// wait for registration success
+	ui := cli.NewMockUi()
+	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+	must.Zero(t, code)
+
+	// Get an alloc id
+	allocID := getAllocFromJob(t, client, jobID)
+
+	// wait for the check to be marked failure
+	waitForCheckStatus(t, client, allocID, "failure")
+
+	// Run command
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	code = cmd.Run([]string{"-address=" + url, allocID})
+	must.Zero(t, code)
+
+	// check output
+	out := ui.OutputWriter.String()
+	must.StrContains(t, out, `Nomad Service Checks:`)
+	must.RegexMatch(t, regexp.MustCompile(`Service\s+Task\s+Name\s+Mode\s+Status\s+Notes`), out)
 	must.RegexMatch(t, regexp.MustCompile(`service1\s+\(group\)\s+check1\s+healthiness\s+(pending|failure)\s+note1`), out)
 }
