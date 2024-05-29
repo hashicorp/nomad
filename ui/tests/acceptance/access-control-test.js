@@ -85,6 +85,7 @@ module('Acceptance | access control', function (hooks) {
   });
 
   test('Access control shows Sentinel Policies if they are present in license', async function (assert) {
+    assert.expect(2);
     allScenarios.policiesTestCluster(server, { sentinel: true });
     await Tokens.visit();
     const managementToken = server.db.tokens.findBy(

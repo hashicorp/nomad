@@ -27,7 +27,7 @@ SPDX-License-Identifier: BUSL-1.1
             label="Create Policy from Template"
           }}
         >
-          <Hds::Button @text="Create from Template" @icon="plus" @route="administration.sentinel-policies.gallery" />
+          <Hds::Button @text="Create from Template" @icon="plus" @route="administration.sentinel-policies.gallery" data-test-create-sentinel-policy-from-template />
         </span>
       {{else}}
         <Hds::Button @text="Create Policy" @icon="plus" disabled data-test-disabled-create-sentinel-policy />
@@ -45,7 +45,7 @@ SPDX-License-Identifier: BUSL-1.1
             @model={{B.data.name}}>{{B.data.name}}</LinkTo>
         </B.Td>
         <B.Td data-test-sentinel-policy-description>{{B.data.description}}</B.Td>
-        <B.Td>{{B.data.enforcementLevel}}</B.Td>
+        <B.Td data-test-sentinel-policy-enforcement>{{B.data.enforcementLevel}}</B.Td>
         {{#if (can "destroy sentinel-policy")}}
           <B.Td>
             <TwoStepButton

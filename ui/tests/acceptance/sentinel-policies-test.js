@@ -36,8 +36,8 @@ module('Acceptance | sentinel policies', function (hooks) {
   });
 
   test('Sentinel Policies index, general', async function (assert) {
-    // assert.expect(3);
-    // await a11yAudit(assert);
+    assert.expect(3);
+    await a11yAudit(assert);
 
     assert.equal(currentURL(), '/administration/sentinel-policies');
     assert
@@ -74,7 +74,7 @@ module('Acceptance | sentinel policies', function (hooks) {
       .exists('empty state');
   });
 
-  test('Edit Sentinel Policy: Description', async function (assert) {
+  test('Edit Sentinel Policy: Description and Enforcement Level', async function (assert) {
     const policy = server.db.sentinelPolicies.findBy(
       (sp) => sp.name === 'policy-1'
     );
@@ -87,6 +87,7 @@ module('Acceptance | sentinel policies', function (hooks) {
     assert.dom('[data-test-policy-description]').hasValue(policy.description);
 
     await fillIn('[data-test-policy-description]', 'edited description');
+    await click('[data-test-enforcement-level="hard-mandatory"]');
     await click('button[data-test-save-policy]');
     assert.dom('.flash-message.alert-success').exists();
 
@@ -100,11 +101,77 @@ module('Acceptance | sentinel policies', function (hooks) {
       '[data-test-sentinel-policy-description]'
     );
     assert.equal(rowDescription.textContent.trim(), 'edited description');
+    assert
+      .dom(policyRow.querySelector('[data-test-sentinel-policy-enforcement]'))
+      .hasText('hard-mandatory');
   });
 
-  // TO TEST:
-  // - deletion from policy page
-  // - modify enforcement level (can make in above test)
-  // - create new from scratch
-  // - create new from template
+  test('New Sentinel Policy from Scratch', async function (assert) {
+    await click('[data-test-create-sentinel-policy]');
+    assert.equal(currentURL(), '/administration/sentinel-policies/new');
+    await fillIn('[data-test-policy-name-input]', 'new-policy');
+    await fillIn('[data-test-policy-description]', 'new description');
+    await click('[data-test-enforcement-level="hard-mandatory"]');
+
+    await click('[data-test-save-policy]');
+    assert.dom('.flash-message.alert-success').exists('success message shown');
+
+    // Go back to the index
+    await Administration.visitSentinelPolicies();
+    const policyRow = find(
+      '[data-test-sentinel-policy-name="new-policy"]'
+    ).closest('[data-test-sentinel-policy-row]');
+    assert.dom(policyRow).exists('new policy row exists');
+    let rowDescription = policyRow.querySelector(
+      '[data-test-sentinel-policy-description]'
+    );
+    assert.equal(
+      rowDescription.textContent.trim(),
+      'new description',
+      'description matches new policy input'
+    );
+    assert
+      .dom(policyRow.querySelector('[data-test-sentinel-policy-enforcement]'))
+      .hasText('hard-mandatory', 'enforcement level matches new policy input');
+
+    await click('[data-test-sentinel-policy-name="new-policy"]');
+    await click('[data-test-delete-policy] [data-test-idle-button]');
+    await click('[data-test-delete-policy] [data-test-confirm-button]');
+    assert.dom('.flash-message.alert-success').exists('success message shown');
+
+    await Administration.visitSentinelPolicies();
+    assert
+      .dom('[data-test-sentinel-policy-name="new-policy"]')
+      .doesNotExist('new policy row is gone');
+  });
+
+  test('New Sentinel Policy from Template', async function (assert) {
+    assert.expect(5);
+    await click('[data-test-create-sentinel-policy-from-template]');
+    assert.equal(currentURL(), '/administration/sentinel-policies/gallery');
+    await percySnapshot(assert);
+    const template = find('[data-test-template-card="no-friday-deploys"]');
+    await click(template);
+    assert.ok(
+      find('[data-test-template-card="no-friday-deploys"]')
+        ?.closest('label')
+        .classList.contains(
+          'hds-form-radio-card--checked',
+          'template is selected on click'
+        )
+    );
+    await click('[data-test-apply]');
+    assert.equal(
+      currentURL(),
+      '/administration/sentinel-policies/new?template=no-friday-deploys',
+      'New Policy page has query param'
+    );
+
+    await percySnapshot(assert);
+
+    assert.dom('[data-test-policy-name-input]').hasValue('no-friday-deploys');
+    assert
+      .dom('[data-test-policy-description]')
+      .hasValue('Ensures that no deploys happen on a Friday');
+  });
 });

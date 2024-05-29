@@ -936,11 +936,15 @@ export default function () {
   });
 
   this.post('/sentinel/policy/:id', function (schema, req) {
-    const { Name, Description, Rules } = JSON.parse(req.requestBody);
+    const { Name, Description, EnforcementLevel, Policy, Scope } = JSON.parse(
+      req.requestBody
+    );
     return server.create('sentinelPolicy', {
       name: Name,
       description: Description,
-      rules: Rules,
+      enforcementLevel: EnforcementLevel,
+      policy: Policy,
+      scope: Scope,
     });
   });
 

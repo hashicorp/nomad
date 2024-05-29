@@ -8,8 +8,6 @@ import faker from 'nomad-ui/mirage/faker';
 import { pickOne } from '../utils';
 
 export default Factory.extend({
-  // Extra randomness appended to not conflict with the otherwise-uniq'd policies generated
-  // in factories.token.afterCreate
   id: () =>
     `${faker.hacker.verb().replace(/\s/g, '-')}-${faker.random.alphaNumeric(
       5
