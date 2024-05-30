@@ -325,6 +325,7 @@ module('Acceptance | ui block', function (hooks) {
   setupMirage(hooks);
 
   test('job renders with description', async function (assert) {
+    window.localStorage.clear();
     allScenarios.smallCluster(server);
     await JobDetail.visit({ id: 'hcl-definition-job' });
     assert
@@ -340,6 +341,7 @@ module('Acceptance | ui block', function (hooks) {
   });
 
   test('job renders with links', async function (assert) {
+    window.localStorage.clear();
     allScenarios.smallCluster(server);
     await JobDetail.visit({ id: 'hcl-definition-job' });
     assert
