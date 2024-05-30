@@ -55,6 +55,8 @@ type templateHookConfig struct {
 
 	// hookResources are used to fetch Consul tokens
 	hookResources *cstructs.AllocHookResources
+
+	hvsConfig *structs.HVS
 }
 
 type templateHook struct {
@@ -239,6 +241,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		ConsulConfig:         consulConfig,
 		VaultToken:           h.vaultToken,
 		VaultConfig:          vaultConfig,
+		HVSConfig:            h.task.HVS,
 		VaultNamespace:       h.vaultNamespace,
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.config.envBuilder,

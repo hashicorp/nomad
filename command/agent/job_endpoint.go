@@ -1366,6 +1366,14 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
+	if apiTask.HVS != nil {
+		structsTask.HVS = &structs.HVS{
+			ProjID:  apiTask.HVS.ProjId,
+			OrgID:   apiTask.HVS.OrgId,
+			WIPName: apiTask.HVS.WIPName,
+		}
+	}
+
 	if apiTask.Consul != nil {
 		structsTask.Consul = apiConsulToStructs(apiTask.Consul)
 	}
