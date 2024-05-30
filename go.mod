@@ -13,8 +13,6 @@ replace (
 // Nomad is built using the current source of the API module.
 replace github.com/hashicorp/nomad/api => ./api
 
-replace github.com/hashicorp/consul-template => ../consul-template
-
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Masterminds/sprig/v3 v3.2.3
@@ -46,7 +44,7 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/cap v0.6.0
-	github.com/hashicorp/consul-template v0.37.7-0.20240527182609-90b5a3671d50
+	github.com/hashicorp/consul-template v0.37.7-0.20240530173426-cd6165e0e64e
 	github.com/hashicorp/consul/api v1.26.1
 	github.com/hashicorp/consul/sdk v0.15.0
 	github.com/hashicorp/cronexpr v1.1.2
