@@ -538,7 +538,7 @@ CREATE:
 			}
 		}
 
-		if attempted < 5 {
+		if attempted < d.config.ContainerExistsAttempts {
 			attempted++
 			backoff = helper.Backoff(50*time.Millisecond, time.Minute, attempted)
 			time.Sleep(backoff)
