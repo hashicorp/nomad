@@ -20,7 +20,7 @@
           />
 
           {{#each this.filterFacets as |group|}}
-            <S.Dropdown data-test-facet={{group.label}} as |dd|>
+            <S.Dropdown data-test-facet={{group.label}} @height="300px" as |dd|>
               <dd.ToggleButton
                 @text={{group.label}}
                 @color="secondary"
@@ -44,13 +44,23 @@
           {{/each}}
 
           {{#if this.system.shouldShowNamespaces}}
-            <S.Dropdown data-test-facet="Namespace" as |dd|>
+            <S.Dropdown data-test-facet="Namespace" @height="300px" as |dd|>
               <dd.ToggleButton
                 @text="Namespace"
                 @color="secondary"
                 @badge={{get (find-by "checked" true this.namespaceFacet.options) "label"}}
               />
-              {{#each this.namespaceFacet.options as |option|}}
+              <dd.Header @hasDivider={{true}}>
+                <Hds::Form::TextInput::Base
+                  @type="search"
+                  placeholder="Filter Namespaces"
+                  @value={{this.namespaceFilter}}
+                  {{autofocus}}
+                  {{on "input" (action this.filterNamespaces )}}
+                  data-test-namespace-filter-searchbox
+                />
+              </dd.Header>
+              {{#each this.shownNamespaces as |option|}}
                 <dd.Radio
                   name={{option.key}}
                   {{on "change" (fn this.toggleNamespaceOption option dd)}}
