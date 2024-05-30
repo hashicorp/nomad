@@ -215,6 +215,7 @@ config {
   cap_add = ["CAP_SYS_NICE"]
   cap_drop = ["CAP_SYS_ADMIN", "CAP_SYS_TIME"]
   command = "/bin/bash"
+  container_exists_attempts = 10
   cpu_hard_limit = true
   cpu_cfs_period = 20
   devices = [
@@ -351,8 +352,6 @@ config {
 }`
 
 	expected := &TaskConfig{
-		Image:             "redis:7",
-		ImagePullTimeout:  "15m",
 		AdvertiseIPv6Addr: true,
 		Args:              []string{"command_arg1", "command_arg2"},
 		Auth: DockerAuth{
@@ -361,12 +360,13 @@ config {
 			Email:      "myemail@example.com",
 			ServerAddr: "https://example.com",
 		},
-		AuthSoftFail: true,
-		CapAdd:       []string{"CAP_SYS_NICE"},
-		CapDrop:      []string{"CAP_SYS_ADMIN", "CAP_SYS_TIME"},
-		Command:      "/bin/bash",
-		CPUHardLimit: true,
-		CPUCFSPeriod: 20,
+		AuthSoftFail:            true,
+		CapAdd:                  []string{"CAP_SYS_NICE"},
+		CapDrop:                 []string{"CAP_SYS_ADMIN", "CAP_SYS_TIME"},
+		Command:                 "/bin/bash",
+		ContainerExistsAttempts: 10,
+		CPUHardLimit:            true,
+		CPUCFSPeriod:            20,
 		Devices: []DockerDevice{
 			{
 				HostPath:          "/dev/null",
@@ -393,6 +393,8 @@ config {
 		GroupAdd:         []string{"group1", "group2"},
 		Healthchecks:     DockerHealthchecks{Disable: true},
 		Hostname:         "self.example.com",
+		Image:            "redis:7",
+		ImagePullTimeout: "15m",
 		Interactive:      true,
 		IPCMode:          "host",
 		IPv4Address:      "10.0.2.1",
@@ -685,6 +687,35 @@ func TestConfig_Capabilities(t *testing.T) {
 			caps, err := d.Capabilities()
 			must.NoError(t, err)
 			must.Eq(t, c.expected, caps)
+		})
+	}
+}
+
+func TestConfig_DriverConfig_ContainerExistsAttempts(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		config   string
+		expected uint64
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: 5,
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ container_exists_attempts = 10 }`,
+			expected: 10,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			must.Eq(t, c.expected, tc.ContainerExistsAttempts)
 		})
 	}
 }
