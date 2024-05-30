@@ -22,6 +22,7 @@ func TestExec2(t *testing.T) {
 	t.Run("testEnv", testEnv)
 	t.Run("testSecretsDir", testSecretsDir)
 	t.Run("testCountdash", testCountdash)
+	t.Run("testHTTP", testHTTP)
 }
 
 func testEnv(t *testing.T) {
@@ -77,4 +78,18 @@ func testCountdash(t *testing.T) {
 
 	dashLogs := job.TaskLogs("dashboard", "dashboard")
 	must.StrContains(t, dashLogs.Stdout, "Using counting service at http://127.0.0.1:8080")
+}
+
+func testHTTP(t *testing.T) {
+	job, cleanup := jobs3.Submit(t,
+		"./input/http.hcl",
+	)
+	t.Cleanup(cleanup)
+
+	logs := job.TaskLogs("backend", "http")
+	must.StrContains(t, logs.Stderr, `"GET / HTTP/1.1" 200 -`)        // healthcheck
+	must.StrContains(t, logs.Stderr, `"GET /hi.html HTTP/1.1" 200 -`) // curl
+
+	logs2 := job.TaskLogs("client", "curl")
+	must.StrContains(t, logs2.Stdout, "<body><p>Hello, friend!</p></body>")
 }
