@@ -371,6 +371,11 @@ module('Acceptance | exec', function (hooks) {
       namespace: namespace.id,
     });
 
+    console.log('===TEST===', task.name);
+    console.log(
+      '===TEST2===',
+      window.execTerminal.buffer.active.getLine(4).translateToString().trim()
+    );
     await settled();
 
     assert.equal(
