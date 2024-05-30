@@ -1,0 +1,3 @@
+```release-note:improvement
+docker: New container_exists_attempts config variable
+```
