@@ -11,32 +11,6 @@ job "http" {
     value     = "linux"
   }
 
-  group "client" {
-    task "curl" {
-      driver = "exec2"
-
-      config {
-        command = "bash"
-        args    = ["local/script.sh"]
-      }
-
-      template {
-        destination = "local/script.sh"
-        data        = <<EOF
-#!/usr/bin/env bash
-
-while true
-do
-  {{- range nomadService "python-http" }}
-  curl -s -S -L {{ .Address }}:{{ .Port }}/hi.html ;
-  {{ end -}}
-  sleep 2 ;
-done
-EOF
-      }
-    }
-  }
-
   group "backend" {
     network {
       mode = "bridge"
@@ -56,7 +30,7 @@ EOF
           name     = "hi"
           type     = "http"
           path     = "/"
-          interval = "5s"
+          interval = "3s"
           timeout  = "1s"
         }
       }

@@ -81,15 +81,20 @@ func testCountdash(t *testing.T) {
 }
 
 func testHTTP(t *testing.T) {
-	job, cleanup := jobs3.Submit(t,
+	job, _ := jobs3.Submit(t,
 		"./input/http.hcl",
+		jobs3.DisableCleanup(),
 	)
-	t.Cleanup(cleanup)
+
+	job2, _ := jobs3.Submit(t,
+		"./input/http_curl.hcl",
+		jobs3.DisableCleanup(),
+	)
 
 	logs := job.TaskLogs("backend", "http")
 	must.StrContains(t, logs.Stderr, `"GET / HTTP/1.1" 200 -`)        // healthcheck
 	must.StrContains(t, logs.Stderr, `"GET /hi.html HTTP/1.1" 200 -`) // curl
 
-	logs2 := job.TaskLogs("client", "curl")
+	logs2 := job2.TaskLogs("client", "curl")
 	must.StrContains(t, logs2.Stdout, "<body><p>Hello, friend!</p></body>")
 }
