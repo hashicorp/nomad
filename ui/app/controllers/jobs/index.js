@@ -392,6 +392,22 @@ export default class JobsIndexController extends Controller {
     };
   }
 
+  @tracked namespaceFilter = '';
+
+  get shownNamespaces() {
+    return this.namespaceFacet.options.filter((option) =>
+      option.label.toLowerCase().includes(this.namespaceFilter)
+    );
+  }
+
+  /**
+   * Pares down the list of namespaces
+   * @param {InputEvent & { target: HTMLInputElement }} event - The input event
+   */
+  @action filterNamespaces(event) {
+    this.namespaceFilter = event.target.value.toLowerCase();
+  }
+
   get filterFacets() {
     let facets = [this.statusFacet, this.typeFacet];
     if (this.system.shouldShowNodepools) {
