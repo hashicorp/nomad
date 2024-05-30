@@ -1132,3 +1132,19 @@ func TestIdentity(t *testing.T) {
 	must.Eq(t, "sighup", altID.ChangeSignal)
 	must.Eq(t, 2*time.Hour, altID.TTL)
 }
+
+func TestHVS(t *testing.T) {
+	ci.Parallel(t)
+	hclBytes, err := os.ReadFile("test-fixtures/hvs.hcl")
+	require.NoError(t, err)
+	job, err := ParseWithConfig(&ParseConfig{
+		Path:    "test-fixtures/hvs.hcl",
+		Body:    hclBytes,
+		AllowFS: false,
+	})
+	require.NoError(t, err)
+	hvs := job.TaskGroups[0].Tasks[0].HVS
+	require.Equal(t, hvs.OrgId, "org1")
+	require.Equal(t, hvs.ProjId, "proj1")
+	require.Equal(t, hvs.WIPName, "my_wip")
+}
