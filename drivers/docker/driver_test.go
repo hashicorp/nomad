@@ -378,11 +378,10 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	require.NoError(t, d.DestroyTask(task.ID, true))
 }
 
-// TestDockerDriver_ContainerAlreadyExists asserts that when Nomad tries to start
-// a job and the container already exists, it purges it, and starts it again (as
-// opposed to trying to continuously re-create an already existing container)
-//
-// See https://github.com/hashicorp/nomad/issues/22218
+// TestDockerDriver_ContainerAlreadyExists asserts that when Nomad tries to
+// start a job and the container already exists, it purges it (if it's not in
+// the running state), and starts it again (as opposed to trying to
+// continuously re-create an already existing container)
 func TestDockerDriver_ContainerAlreadyExists(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
