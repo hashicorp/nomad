@@ -371,19 +371,19 @@ module('Acceptance | exec', function (hooks) {
       namespace: namespace.id,
     });
 
-    console.log('===TEST===', task.name);
-    console.log(
-      '===TEST2===',
-      window.execTerminal.buffer.active.getLine(4).translateToString().trim()
-    );
-    await settled();
+    let lineReadSuccessfully = assert.async(); // watch for this to say "My tests oughta be passing by now"
+    const lineReadTimeout = 1000;
 
-    assert.equal(
-      window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
-      `$ nomad alloc exec -i -t -namespace should-show-in-example-string -task ${
-        task.name
-      } ${allocation.id.split('-')[0]} /bin/bash`
-    );
+    setTimeout(async () => {
+      assert.equal(
+        window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
+        `$ nomad alloc exec -i -t -namespace should-show-in-example-string -task ${
+          task.name
+        } ${allocation.id.split('-')[0]} /bin/bash`
+      );
+      await percySnapshot(assert); // TODO: temp
+      lineReadSuccessfully();
+    }, lineReadTimeout);
   });
 
   test('running the command opens the socket for reading/writing and detects it closing', async function (assert) {
