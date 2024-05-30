@@ -84,6 +84,10 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
+- `container_exists_attempts` - (Optional) A number of attempts to be made if
+  Nomad encounters an existing container in non-running state during task
+  creation. Defaults to `5`.
+
 - `dns_search_domains` - (Optional) A list of DNS search domains for
   the container to use. If you are using bridge networking mode with a
   `network` block in the task group, you must set all DNS options in
