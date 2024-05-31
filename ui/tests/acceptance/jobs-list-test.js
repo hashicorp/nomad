@@ -554,6 +554,53 @@ module('Acceptance | jobs list', function (hooks) {
     localStorage.removeItem('nomadPageSize');
   });
 
+  test('Jobs with schedule blocks indicate when a task is paused', async function (assert) {
+    server.create('job', {
+      name: 'regular-job-1',
+      createAllocations: true,
+    });
+    server.create('job', {
+      name: 'regular-job-2',
+      createAllocations: true,
+    });
+    server.create('job', {
+      name: 'time-based-job ',
+      id: 'time-based-job',
+      createAllocations: true,
+      type: 'service',
+      withPausedTasks: true,
+      shallow: false,
+      resourceSpec: Array(1).fill('M: 257, C: 500'),
+      groupAllocCount: 1,
+      groupTaskCount: 1,
+      allocStatusDistribution: {
+        running: 1,
+      },
+      noActiveDeployment: true,
+      status: 'running',
+      noFailedPlacements: true,
+    });
+
+    const allocID = server.db.allocations.findBy({
+      jobId: 'time-based-job',
+    }).id;
+    const groupID = server.db.taskGroups.findBy({ jobId: 'time-based-job' }).id;
+    const task = server.db.tasks.findBy({ taskGroupID: groupID });
+
+    await JobsList.visit();
+
+    assert.dom('[data-test-job-row="time-based-job"]').exists();
+    assert
+      .dom('[data-test-paused-task-indicator]')
+      .exists({ count: 1 }, 'Paused task indicator is shown');
+    await percySnapshot(assert);
+    await click('[data-test-job-row="time-based-job"]');
+    await click(`[data-test-allocation="${allocID}"]`);
+    await click(`[data-test-task-row="${task.name}"]`);
+    assert.dom('.time-based-alert').exists();
+    await percySnapshot(assert);
+  });
+
   module('Pagination', function () {
     module('Buttons are appropriately disabled', function () {
       test('when there are no jobs', async function (assert) {

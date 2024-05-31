@@ -42,3 +42,9 @@
     justify-self: end;
   }
 }
+
+.status-cell {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
