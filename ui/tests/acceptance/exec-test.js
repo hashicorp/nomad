@@ -353,6 +353,7 @@ module('Acceptance | exec', function (hooks) {
     let job = server.create('job', {
       namespaceId: namespace.id,
       createAllocations: true,
+      status: 'running',
     });
 
     let taskGroup = job.taskGroups.models.sortBy('name')[0];
@@ -371,6 +372,9 @@ module('Acceptance | exec', function (hooks) {
       namespace: namespace.id,
     });
 
+    console.log('job-in-question status', job.id, job.status);
+    console.log('job-in-question-itself to follow');
+    console.log(JSON.stringify(job));
     let lineReadSuccessfully = assert.async(); // watch for this to say "My tests oughta be passing by now"
     const lineReadTimeout = 1000;
 
