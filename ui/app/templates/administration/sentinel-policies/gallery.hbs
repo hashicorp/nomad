@@ -16,10 +16,12 @@
     <Hds::Form::RadioCard::Group as |G|>
       <G.Legend>Select a Template</G.Legend>
       {{#each this.templates as |template|}}
-      <G.RadioCard class="form-container" @layout="fixed" @maxWidth="30%" @checked={{eq template.name
-        this.selectedTemplate}} id={{template.name}} data-test-template-card={{template.name}} {{on "change"
-        this.onChange}} as |R|>
-        <R.Label data-test-template-label>{{template.displayName}}</R.Label>
+      <G.RadioCard class="form-container" @layout="fixed" @maxWidth="30%"
+        @checked={{eq template.name this.selectedTemplate}}
+        id={{template.name}}
+        {{on "change" this.onChange}}
+      as |R|>
+        <R.Label data-test-template-card={{template.name}} data-test-template-label>{{template.displayName}}</R.Label>
         <R.Description data-test-template-description>{{template.description}}</R.Description>
       </G.RadioCard>
       {{/each}}

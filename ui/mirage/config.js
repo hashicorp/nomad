@@ -936,16 +936,30 @@ export default function () {
   });
 
   this.post('/sentinel/policy/:id', function (schema, req) {
-    const { Name, Description, Rules } = JSON.parse(req.requestBody);
+    const { Name, Description, EnforcementLevel, Policy, Scope } = JSON.parse(
+      req.requestBody
+    );
     return server.create('sentinelPolicy', {
       name: Name,
       description: Description,
-      rules: Rules,
+      enforcementLevel: EnforcementLevel,
+      policy: Policy,
+      scope: Scope,
     });
   });
 
   this.get('/sentinel/policy/:id', function ({ sentinelPolicies }, req) {
     return this.serialize(sentinelPolicies.findBy({ name: req.params.id }));
+  });
+
+  this.delete('/sentinel/policy/:id', function (schema, req) {
+    const { id } = req.params;
+    server.db.sentinelPolicies.remove(id);
+    return '';
+  });
+
+  this.put('/sentinel/policy/:id', function (schema, req) {
+    return new Response(200, {}, {});
   });
 
   this.delete('/acl/policy/:id', function (schema, request) {

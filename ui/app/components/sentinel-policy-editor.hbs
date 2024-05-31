@@ -56,21 +56,21 @@
 		<G.RadioField
 			@id="advisory"
 			checked={{eq @policy.enforcementLevel "advisory"}}
-			data-test-token-type="client"
+			data-test-enforcement-level="advisory"
 		as |F|>
 			<F.Label>Advisory</F.Label>
 		</G.RadioField>
 		<G.RadioField
 			@id="soft-mandatory"
 			checked={{eq @policy.enforcementLevel "soft-mandatory"}}
-			data-test-token-type="soft-mandatory"
+			data-test-enforcement-level="soft-mandatory"
 		as |F|>
 			<F.Label>Soft Mandatory</F.Label>
 		</G.RadioField>
 		<G.RadioField
 			@id="hard-mandatory"
 			checked={{eq @policy.enforcementLevel "hard-mandatory"}}
-			data-test-token-type="hard-mandatory"
+			data-test-enforcement-level="hard-mandatory"
 		as |F|>
 			<F.Label>Hard Mandatory</F.Label>
 		</G.RadioField>
