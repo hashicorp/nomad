@@ -380,7 +380,11 @@ module('Acceptance | ui block', function (hooks) {
     assert
       .dom('[data-test-job-links] a')
       .exists({ count: 2 }, 'Job links exists when defined in HCL');
-    await percySnapshot(assert);
+    await percySnapshot(assert, {
+      percyCSS: `
+        .allocation-row td { display: none; }
+      `,
+    });
   });
 
   test('job sanitizes input', async function (assert) {
