@@ -19,6 +19,7 @@ export DEBIAN_FRONTEND=noninteractive
 echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
 
 mkdir_for_root /opt
+mkdir_for_root /opt/bin # for envoy
 mkdir_for_root /srv/data # for host volumes
 mkdir_for_root /opt/cni/bin
 
@@ -131,6 +132,16 @@ tar -C /tmp -xf /tmp/pledge-driver.tar.gz
 sudo mv /tmp/nomad-pledge-driver ${NOMAD_PLUGIN_DIR}
 sudo mv /tmp/pledge /usr/local/bin
 sudo chmod +x /usr/local/bin/pledge
+
+# Exec2
+echo "Installing Exec2 Driver"
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version v0.1.0-alpha.2 nomad-driver-exec2
+sudo chmod +x ${NOMAD_PLUGIN_DIR}/nomad-driver-exec2
+
+# Envoy
+echo "Installing Envoy"
+sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.29.4/envoy-1.29.4-linux-x86_64
+sudo chmod +x /opt/bin/envoy
 
 # ECS
 if [ -a "/tmp/linux/nomad-driver-ecs" ]; then

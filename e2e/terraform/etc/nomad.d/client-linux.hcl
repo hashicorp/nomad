@@ -51,3 +51,11 @@ plugin "nomad-pledge-driver" {
     pledge_executable = "/usr/local/bin/pledge"
   }
 }
+
+plugin "nomad-driver-exec2" {
+  config {
+    unveil_defaults = true
+    unveil_by_task  = true
+    unveil_paths    = ["r:/etc/mime.types"]
+  }
+}
