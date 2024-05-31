@@ -16,7 +16,6 @@ import moduleForJob, {
 } from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import percySnapshot from '@percy/ember';
-import { allScenarios } from '../../mirage/scenarios/default';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
   server.create('job', {
@@ -324,8 +323,40 @@ module('Acceptance | ui block', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
+  hooks.beforeEach(async function () {
+    window.localStorage.clear();
+    server.create('agent');
+    server.create('node-pool');
+    server.create('node');
+
+    server.create('job', {
+      name: 'hcl-definition-job',
+      id: 'display-hcl',
+      namespaceId: 'default',
+    });
+
+    server.create('job', {
+      name: 'ui-block-job',
+      id: 'ui-block-job',
+      ui: {
+        Links: [
+          {
+            Label: 'HashiCorp',
+            Url: 'https://hashicorp.com',
+          },
+          {
+            Label: 'Nomad',
+            Url: 'https://nomadproject.io',
+          },
+        ],
+        Description:
+          'A job with a UI-block defined description and links. It has **bold text** and everything!',
+      },
+    });
+  });
+
   test('job renders with description', async function (assert) {
-    allScenarios.smallCluster(server);
+    window.localStorage.clear();
     await JobDetail.visit({ id: 'hcl-definition-job' });
     assert
       .dom('[data-test-job-description]')
@@ -340,7 +371,7 @@ module('Acceptance | ui block', function (hooks) {
   });
 
   test('job renders with links', async function (assert) {
-    allScenarios.smallCluster(server);
+    window.localStorage.clear();
     await JobDetail.visit({ id: 'hcl-definition-job' });
     assert
       .dom('[data-test-job-links]')

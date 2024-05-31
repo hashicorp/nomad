@@ -164,19 +164,26 @@
               <B.Td data-test-job-namespace>{{B.data.namespace.id}}</B.Td>
             {{/if}}
             <B.Td data-test-job-status>
-              {{#if (not (eq B.data.childStatuses null))}}
-                {{#if B.data.childStatusBreakdown.running}}
-                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.running}} running {{pluralize "job" B.data.childStatusBreakdown.running}}" @color="highlight" @size="large" />
-                {{else if B.data.childStatusBreakdown.pending}}
-                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.pending}} pending {{pluralize "job" B.data.childStatusBreakdown.pending}}" @color="neutral" @size="large" />
-                {{else if B.data.childStatusBreakdown.dead}}
-                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.dead}} completed {{pluralize "job" B.data.childStatusBreakdown.dead}}" @color="neutral" @size="large" />
-                {{else if (not B.data.childStatuses.length)}}
-                  <Hds::Badge @icon="corner-down-right" @text="No child jobs" @color="neutral" @size="large" />
+              <div class="status-cell">
+                {{#if (not (eq B.data.childStatuses null))}}
+                  {{#if B.data.childStatusBreakdown.running}}
+                    <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.running}} running {{pluralize "job" B.data.childStatusBreakdown.running}}" @color="highlight" @size="large" />
+                  {{else if B.data.childStatusBreakdown.pending}}
+                    <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.pending}} pending {{pluralize "job" B.data.childStatusBreakdown.pending}}" @color="neutral" @size="large" />
+                  {{else if B.data.childStatusBreakdown.dead}}
+                    <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.dead}} completed {{pluralize "job" B.data.childStatusBreakdown.dead}}" @color="neutral" @size="large" />
+                  {{else if (not B.data.childStatuses.length)}}
+                    <Hds::Badge @icon="corner-down-right" @text="No child jobs" @color="neutral" @size="large" />
+                  {{/if}}
+                {{else}}
+                  <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
                 {{/if}}
-              {{else}}
-                <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
-              {{/if}}
+                {{#if B.data.hasPausedTask}}
+                  <Hds::TooltipButton @text="At least one task is paused" @placement="right" data-test-paused-task-indicator>
+                    <Hds::Badge @text="At least one task is paused" @icon="delay" @isIconOnly={{true}} @color="highlight" @size="large" />
+                  </Hds::TooltipButton>
+                {{/if}}
+              </div>
             </B.Td>
             <B.Td data-test-job-type={{B.data.type}}>
               {{B.data.type}}

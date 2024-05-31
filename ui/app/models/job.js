@@ -296,6 +296,18 @@ export default class Job extends Model {
     return !!this.meta?.structured?.pack;
   }
 
+  /**
+   * A task with a schedule block can have execution paused at specific cron-based times.
+   * If one is currently paused, an allocation at /statuses will come back with hasPausedTask=true.
+   * We should represent this to the user in the job row.
+   */
+  get hasPausedTask() {
+    if (!this.allocations) {
+      return false;
+    }
+    return this.allocations.any((alloc) => alloc.hasPausedTask);
+  }
+
   // True when the job is the parent periodic or parameterized jobs
   // Instances of periodic or parameterized jobs are false for both properties
   @attr('boolean') periodic;

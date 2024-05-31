@@ -177,6 +177,7 @@ export default class JobSerializer extends ApplicationSerializer {
                 Canary: alloc.DeploymentStatus.Canary,
               },
               nodeID: alloc.NodeID,
+              hasPausedTask: alloc.HasPausedTask,
             },
           },
         });

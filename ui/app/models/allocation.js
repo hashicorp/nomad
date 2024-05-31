@@ -49,6 +49,7 @@ export default class Allocation extends Model {
   @attr('string') desiredStatus;
   @attr() desiredTransition;
   @attr() deploymentStatus;
+  @attr() hasPausedTask;
 
   get isCanary() {
     return this.deploymentStatus?.Canary;
