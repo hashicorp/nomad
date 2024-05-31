@@ -117,6 +117,8 @@ type TaskTemplateManagerConfig struct {
 	// be nil if the task does not use Vault.
 	VaultConfig *structsc.VaultConfig
 
+	HVSConfig *structs.HVS
+
 	// VaultNamespace is the Vault namespace for the task
 	VaultNamespace string
 
@@ -984,6 +986,14 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		conf.Nomad.Retry, err = cc.TemplateConfig.NomadRetry.ToConsulTemplate()
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	if config.HVSConfig != nil {
+		conf.HCPVS = &ctconf.HCPVSConfig{
+			OrgID:   config.HVSConfig.OrgID,
+			ProjID:  config.HVSConfig.ProjID,
+			WIPName: config.HVSConfig.WIPName,
 		}
 	}
 

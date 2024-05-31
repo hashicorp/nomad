@@ -7706,6 +7706,8 @@ type Task struct {
 	// have access to.
 	Vault *Vault
 
+	HVS *HVS
+
 	// Consul configuration specific to this task. If uset, falls back to the
 	// group's Consul field.
 	Consul *Consul
@@ -10224,6 +10226,12 @@ type Vault struct {
 
 	// AllowTokenExpiration disables the Vault token refresh loop on the client
 	AllowTokenExpiration bool
+}
+
+type HVS struct {
+	ProjID  string
+	OrgID   string
+	WIPName string
 }
 
 // IdentityName returns the name of the workload identity to be used to access

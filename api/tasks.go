@@ -782,6 +782,7 @@ type Task struct {
 	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
 	Artifacts       []*TaskArtifact        `hcl:"artifact,block"`
 	Vault           *Vault                 `hcl:"vault,block"`
+	HVS             *HVS                   `hcl:"hvs,block"`
 	Consul          *Consul                `hcl:"consul,block"`
 	Templates       []*Template            `hcl:"template,block"`
 	DispatchPayload *DispatchPayloadConfig `hcl:"dispatch_payload,block"`
@@ -1017,6 +1018,12 @@ type Vault struct {
 	ChangeMode           *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
 	ChangeSignal         *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
 	AllowTokenExpiration *bool    `mapstructure:"allow_token_expiration" hcl:"allow_token_expiration,optional"`
+}
+
+type HVS struct {
+	OrgId   string `hcl:"org_id"`
+	ProjId  string `hcl:"proj_id"`
+	WIPName string `hcl:"wip_name"`
 }
 
 func (v *Vault) Canonicalize() {
