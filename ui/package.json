@@ -103,7 +103,7 @@
     "ember-on-resize-modifier": "^1.0.0",
     "ember-overridable-computed": "^1.0.0",
     "ember-page-title": "^7.0.0",
-    "ember-power-select": "^4.1.7",
+    "ember-power-select": "^7.2.0",
     "ember-qunit": "^5.1.5",
     "ember-render-helpers": "^0.2.0",
     "ember-resolver": "^8.0.3",
@@ -168,8 +168,8 @@
   },
   "dependencies": {
     "@babel/helper-string-parser": "^7.19.4",
-    "@hashicorp/design-system-components": "^3.6.0",
-    "@hashicorp/ember-flight-icons": "^4.0.4",
+    "@hashicorp/design-system-components": "^4.3.0",
+    "@hashicorp/ember-flight-icons": "^5.0.2",
     "@percy/cli": "^1.6.1",
     "@percy/ember": "^3.0.0",
     "curved-arrows": "^0.1.0",
@@ -183,7 +183,6 @@
   },
   "resolutions": {
     "ember-auto-import": "^2.4.0",
-    "ember-element-helper": "0.6.0",
     "prop-types": "^15.8.1"
   }
 }
