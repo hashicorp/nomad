@@ -1,0 +1,3 @@
+```release-note:bug
+driver: Fix cgroup rule setup for non-default devices
+```

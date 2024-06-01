@@ -677,6 +677,10 @@ func configureIsolation(cfg *runc.Config, command *ExecCommand) error {
 		cfg.Devices = append(cfg.Devices, devs...)
 	}
 
+	for _, device := range cfg.Devices {
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
+	}
+
 	cfg.Mounts = []*runc.Mount{
 		{
 			Source:      "tmpfs",
@@ -844,10 +848,6 @@ func (l *LibcontainerExecutor) newLibcontainerConfig(command *ExecCommand) (*run
 		Version: "1.0.0",
 	}
 
-	for _, device := range specconv.AllowedDevices {
-		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
-	}
-
 	configureCapabilities(cfg, command)
 
 	// children should not inherit Nomad agent oom_score_adj value
@@ -897,6 +897,7 @@ func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error
 			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)
 		}
 		ed.Path = d.TaskPath
+		ed.Allow = true // rules will be used to allow devices via cgroups
 		r[i] = ed
 	}
 
