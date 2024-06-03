@@ -981,6 +981,10 @@ type Telemetry struct {
 	// a small memory overhead.
 	DisableDispatchedJobSummaryMetrics bool `hcl:"disable_dispatched_job_summary_metrics"`
 
+	// DisableQuotaUtilizationMetrics allows to disable publishing of quota
+	// utilization metrics
+	DisableQuotaUtilizationMetrics bool `hcl:"disable_quota_utilization_metrics"`
+
 	// DisableRPCRateMetricsLabels drops the label for the identity of the
 	// requester when publishing metrics on RPC rate on the server. This may be
 	// useful to control metrics collection costs in environments where request
@@ -2512,6 +2516,9 @@ func (t *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 	if b.DisableDispatchedJobSummaryMetrics {
 		result.DisableDispatchedJobSummaryMetrics = b.DisableDispatchedJobSummaryMetrics
+	}
+	if b.DisableQuotaUtilizationMetrics {
+		result.DisableQuotaUtilizationMetrics = b.DisableQuotaUtilizationMetrics
 	}
 	if b.DisableRPCRateMetricsLabels {
 		result.DisableRPCRateMetricsLabels = b.DisableRPCRateMetricsLabels

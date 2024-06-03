@@ -296,6 +296,7 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusBrokerSelectTag:            "dc:dc2",
 			PrefixFilter:                       []string{"prefix1", "prefix2"},
 			DisableDispatchedJobSummaryMetrics: true,
+			DisableQuotaUtilizationMetrics:     false,
 			DisableRPCRateMetricsLabels:        true,
 			FilterDefault:                      pointer.Of(false),
 		},
@@ -1446,7 +1447,6 @@ func TestTelemetry_Validate(t *testing.T) {
 func TestTelemetry_Parse(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	dir := t.TempDir()
 
 	file1 := filepath.Join(dir, "config1.hcl")
@@ -1454,18 +1454,20 @@ func TestTelemetry_Parse(t *testing.T) {
 		prefix_filter = ["+nomad.raft"]
 		filter_default = false
 		disable_dispatched_job_summary_metrics = true
+		disable_quota_utilization_metrics = true
 		disable_rpc_rate_metrics_labels = true
 	}`), 0600)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Works on config dir
 	config, err := LoadConfig(dir)
-	require.NoError(err)
+	must.NoError(t, err)
 
-	require.False(*config.Telemetry.FilterDefault)
-	require.Exactly([]string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
-	require.True(config.Telemetry.DisableDispatchedJobSummaryMetrics)
-	require.True(config.Telemetry.DisableRPCRateMetricsLabels)
+	must.False(t, *config.Telemetry.FilterDefault)
+	must.Eq(t, []string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
+	must.True(t, config.Telemetry.DisableDispatchedJobSummaryMetrics)
+	must.True(t, config.Telemetry.DisableQuotaUtilizationMetrics)
+	must.True(t, config.Telemetry.DisableRPCRateMetricsLabels)
 }
 
 func TestEventBroker_Parse(t *testing.T) {
