@@ -87,7 +87,6 @@ type AllocCheckStatus struct {
 	Service    string
 	Task       string
 	Status     string
-	Notes      string
 	StatusCode int
 	Timestamp  int64
 }

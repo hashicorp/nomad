@@ -93,7 +93,6 @@ func testNomadServiceJob(jobID string) *api.Job {
 			Path:     "/",
 			Interval: 1 * time.Second,
 			Timeout:  1 * time.Second,
-			Notes:    "note1",
 		}},
 		Provider: "nomad",
 	}}
