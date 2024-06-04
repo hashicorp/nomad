@@ -569,7 +569,7 @@ func groupConnectValidate(g *structs.TaskGroup) error {
 }
 
 func groupConnectUpstreamsValidate(g *structs.TaskGroup, services []*structs.Service) error {
-	listeners := make(map[string]string) // address -> service
+	listeners := make(map[string]string) // address or path-> service
 
 	var connectBlockCount int
 	var hasTproxy bool
@@ -580,7 +580,12 @@ func groupConnectUpstreamsValidate(g *structs.TaskGroup, services []*structs.Ser
 		}
 		if service.Connect.HasSidecar() && service.Connect.SidecarService.Proxy != nil {
 			for _, up := range service.Connect.SidecarService.Proxy.Upstreams {
-				listener := net.JoinHostPort(up.LocalBindAddress, strconv.Itoa(up.LocalBindPort))
+				var listener string
+				if up.LocalBindSocketPath == "" {
+					listener = net.JoinHostPort(up.LocalBindAddress, strconv.Itoa(up.LocalBindPort))
+				} else {
+					listener = up.LocalBindSocketPath
+				}
 				if s, exists := listeners[listener]; exists {
 					return fmt.Errorf(
 						"Consul Connect services %q and %q in group %q using same address for upstreams (%s)",
