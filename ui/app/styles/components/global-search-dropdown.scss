@@ -36,7 +36,8 @@
 
     &[role='listbox'] {
       border: 1px solid $grey-blue;
-      box-shadow: 0 6px 8px -2px rgba($black, 0.05), 0 8px 4px -4px rgba($black, 0.1);
+      box-shadow: 0 6px 8px -2px rgba($black, 0.05),
+        0 8px 4px -4px rgba($black, 0.1);
     }
 
     .ember-power-select-option {
@@ -56,5 +57,42 @@
     color: darken($grey-blue, 20%);
     font-size: $size-7;
     font-weight: $weight-semibold;
+  }
+}
+
+.mega-search-input {
+  z-index: 301;
+  position: relative;
+}
+
+.mega-search {
+  position: fixed;
+  background: #fff;
+  z-index: 300;
+  width: 100vw;
+  left: 0;
+  top: 0;
+  height: 0;
+  overflow: hidden;
+  z-index: $z-mega-menu;
+  transition: height 0.2s ease-out, box-shadow 0.5s ease-out;
+  box-shadow: 2px 2px 12px 3000px rgb(0, 0, 0, 0);
+
+  &.expanded {
+    // animation-name: megaSearchSlideIn;
+    // animation-duration: 2s;
+    // animation-fill-mode: both;
+    height: 20vh;
+    box-shadow: 2px 2px 12px 3000px rgb(0, 0, 0, 0.8);
+  }
+}
+@keyframes megaSearchSlideIn {
+  from {
+    opacity: 0;
+    height: 0;
+  }
+  to {
+    opacity: 1;
+    height: 20vh;
   }
 }

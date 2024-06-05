@@ -1,0 +1,47 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<Hds::Form::TextInput::Base
+  @type="search"
+  @value={{this.searchText}}
+  aria-label="Global Search"
+  placeholder="Jump to"
+  @icon="search"
+  @width="300px"
+  {{on "input" (action this.updateSearchText)}}
+
+  {{on "focus" (action this.expand)}}
+  {{on "blur" (action this.retract)}}
+  {{keyboard-shortcut 
+    label="Global Search"
+    pattern=(array "/")
+    action=(action this.focus)
+    menuLevel=true
+  }}
+  data-test-search
+  class="mega-search-input"
+/>
+cc
+<div class="mega-search {{if this.expanded "expanded"}}">
+{{#if this.expanded}}
+  {{log "EXPANDED"}}
+  {{#each this.history.recents as |recent|}}
+    <div class="recent">
+      {{!-- <LinkTo
+        @route=recent.route
+        @query=recent.query
+        @activeClass="is-active"
+        data-test-gutter-link={{recent.route}}
+      >
+        {{recent.label}}
+      </LinkTo> --}}
+      <small>{{recent.entityType}}</small><br />
+      {{or recent.label recent.identifier}}: {{recent.views.length}}
+      <hr />
+    </div>
+  {{/each}}
+dd
+{{/if}}
+</div>
