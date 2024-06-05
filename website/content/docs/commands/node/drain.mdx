@@ -9,8 +9,18 @@ description: |
 
 The `node drain` command is used to toggle drain mode on a given node. Drain
 mode prevents any new tasks from being allocated to the node, and begins
-migrating all existing allocations away. Allocations will be migrated according
-to their [`migrate`][migrate] block until the drain's deadline is reached.
+migrating all existing allocations away.
+
+The exact behavior of drained allocations depends on the job type:
+* Allocations for `service` jobs will be migrated according to their
+  [`migrate`][] block until the drain's deadline is reached. These allocations
+  are not considered rescheduled and their previous [`reschedule`][] attempts
+  will not be propagated to any replacement allocations.
+* Allocations for `batch` and `sysbatch` jobs will wait until they complete or
+  the drain's deadline is reached, whichever comes first. These allocations will
+  not be replaced.
+* Allocations for `system` job allocations will be drained last by
+  default. These allocations will be stopped but not replaced.
 
 By default the `node drain` command blocks until a node is done draining and
 all allocations have terminated. Canceling the `node drain` command _will not_
@@ -148,8 +158,8 @@ $ nomad node drain -self -monitor
 ```
 
 [eligibility]: /nomad/docs/commands/node/eligibility
-[migrate]: /nomad/docs/job-specification/migrate
 [`migrate`]: /nomad/docs/job-specification/migrate
+[`reschedule`]: /nomad/docs/job-specification/reschedule
 [node status]: /nomad/docs/commands/node/status
 [workload migration guide]: /nomad/tutorials/manage-clusters/node-drain
 [internals-csi]: /nomad/docs/concepts/plugins/csi
