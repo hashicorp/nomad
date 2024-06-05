@@ -132,7 +132,7 @@ jobs:
     strategy:
       matrix:
         goos: [linux]
-        goarch: ["arm", "arm64", "amd64"]
+        goarch: ["arm64", "amd64"]
       fail-fast: true
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -170,16 +170,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             binutils-aarch64-linux-gnu \
-            binutils-arm-linux-gnueabihf \
-            gcc-aarch64-linux-gnu \
-            gcc-arm-linux-gnueabihf \
-            gcc-multilib-arm-linux-gnueabihf
+            gcc-aarch64-linux-gnu
 
       - name: Set gcc
         run: |
-          if [ "${{ matrix.goarch }}" == "arm" ]; then
-            echo "CC=arm-linux-gnueabihf-gcc" >> "$GITHUB_ENV"
-          elif [ "${{ matrix.goarch }}" == "arm64" ]; then
+          if [ "${{ matrix.goarch }}" == "arm64" ]; then
             echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
           fi
 
