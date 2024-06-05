@@ -4795,14 +4795,29 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 
 	// Verify blocked eval was created and write it to state
 	must.Len(t, 3, h.CreateEvals)
-	blockedEval := h.CreateEvals[1]
-	must.Eq(t, structs.EvalTriggerRetryFailedAlloc, blockedEval.TriggeredBy)
+	blockedEval := h.CreateEvals[2]
+	must.Eq(t, structs.EvalTriggerQueuedAllocs, blockedEval.TriggeredBy)
+	must.Eq(t, structs.EvalStatusBlocked, blockedEval.Status)
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
-		h.NextIndex(), []*structs.Evaluation{blockedEval, followupEval}))
+		h.NextIndex(), []*structs.Evaluation{blockedEval}))
 
 	// "free up" resources on the node so the blocked eval will succeed
 	node.NodeResources.Memory.MemoryMB = 8000
 	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// if we process the blocked eval, the task state of the replacement alloc
+	// will not be old enough to be rescheduled yet and we'll get a no-op
+	must.NoError(t, h.Process(NewServiceScheduler, blockedEval))
+	must.Len(t, 4, h.Plans, must.Sprint("expected no new plan"))
+
+	// bypass the timer check by setting the alloc's follow-up eval ID to be the
+	// blocked eval
+	alloc, err = h.State.AllocByID(ws, replacementAllocID)
+	must.NoError(t, err)
+	alloc = alloc.Copy()
+	alloc.FollowupEvalID = blockedEval.ID
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Allocation{alloc}))
 
 	must.NoError(t, h.Process(NewServiceScheduler, blockedEval))
 	must.Len(t, 5, h.Plans)

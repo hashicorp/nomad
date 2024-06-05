@@ -10621,8 +10621,8 @@ type RescheduleTracker struct {
 type ResheduleTrackerAnnotation string
 
 const (
-	LastRescheduleSuccess       = "ok"
-	LastRescheduleFailedToPlace = "no placement"
+	LastRescheduleSuccess       ResheduleTrackerAnnotation = "ok"
+	LastRescheduleFailedToPlace ResheduleTrackerAnnotation = "no placement"
 )
 
 func (rt *RescheduleTracker) Copy() *RescheduleTracker {

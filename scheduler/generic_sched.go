@@ -725,6 +725,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					s.plan.PopUpdate(prevAllocation)
 				}
 
+				// If we were trying to replace a rescheduling alloc, mark the
+				// reschedule as failed so that we can retry it in the following
+				// blocked eval without dropping the reschedule tracker
 				if prevAllocation != nil {
 					if missing.IsRescheduling() {
 						annotateRescheduleTracker(prevAllocation, now)
