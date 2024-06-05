@@ -108,8 +108,8 @@ export default class HistoryService extends Service {
         views: [now],
         lastVisit: now,
         transitionFrom:
-          fromRoute.attributes.id && fromRouteEntityType
-            ? { entityType: fromRouteEntityType, id: fromRoute.attributes.id }
+          fromRoute?.attributes.id && fromRouteEntityType
+            ? { entityType: fromRouteEntityType, id: fromRoute?.attributes.id }
             : null,
       };
       recents.push(recentObjectToAdd);
@@ -129,11 +129,26 @@ export default class HistoryService extends Service {
     // }
   }
 
-  get jumpToRecommendations() {
+  get recommendations() {
     // order recents by views length
-    return this.recents
-      .sort((a, b) => b.views.length - a.views.length)
-      .slice(0, 3);
+    let recents = this.recents;
+    recents.forEach((r) => (r.reason = null)); // TODO: temp
+    console.log('CURRENT ROUTE CONST NAME', this.router.currentRoute, recents);
+    let routeRelevantRecents = recents.filter((r) => {
+      // check to see if currentROute matches transitionFrom.entityType and id
+      return (
+        r.transitionFrom?.entityType ===
+          this.router.currentRoute.attributes.constructor.name &&
+        r.transitionFrom?.id === this.router.currentRoute.attributes.id
+      );
+    });
+    console.log('RRR', routeRelevantRecents);
+    routeRelevantRecents.forEach(
+      (r) => (r.reason = 'Recently viewed after your current page')
+    );
+    let sortedRecents = recents.sort((a, b) => b.views.length - a.views.length);
+    return [...routeRelevantRecents, ...sortedRecents].slice(0, 4);
+    return sortedRecents.slice(0, 4);
     // TODO: do some smooth things like make lastVisit matter, and make sure it's not the current route
     // and even some advanced stuff like checking transitionFrom to see if it's a related entity
   }
