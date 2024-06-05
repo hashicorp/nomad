@@ -255,6 +255,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"alloc pause": func() (cli.Command, error) {
+			return &AllocPauseCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc stop": func() (cli.Command, error) {
 			return &AllocStopCommand{
 				Meta: meta,
@@ -692,6 +697,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 
 		"operator autopilot set-config": func() (cli.Command, error) {
 			return &OperatorAutopilotSetCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator autopilot health": func() (cli.Command, error) {
+			return &OperatorAutopilotHealthCommand{
 				Meta: meta,
 			}, nil
 		},

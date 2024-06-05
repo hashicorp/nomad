@@ -637,13 +637,13 @@ func (a *Alloc) signServices(
 	// services can be on the level of task groups or tasks
 	for _, tg := range job.TaskGroups {
 		for _, service := range tg.Services {
-			if service.IdentityHandle().Equal(wid) {
+			if service.IdentityHandle(nil).Equal(wid) {
 				return true, a.signIdentities(alloc, service.Identity, idReq, reply, now)
 			}
 		}
 		for _, task := range tg.Tasks {
 			for _, service := range task.Services {
-				if service.IdentityHandle().Equal(wid) {
+				if service.IdentityHandle(nil).Equal(wid) {
 					return true, a.signIdentities(alloc, service.Identity, idReq, reply, now)
 				}
 			}

@@ -13,13 +13,14 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 )
 
 // Allocations endpoint is used for interacting with client allocations
@@ -88,6 +89,46 @@ func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.
 	}
 
 	return a.c.SignalAllocation(args.AllocID, args.Task, args.Signal)
+}
+
+func (a *Allocations) SetPauseState(args *nstructs.AllocPauseRequest, reply *nstructs.GenericResponse) error {
+	defer metrics.MeasureSince([]string{"client", "allocations", "pause_set"}, time.Now())
+
+	alloc, err := a.c.GetAlloc(args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return nstructs.ErrPermissionDenied
+	}
+
+	return a.c.PauseAllocation(args.AllocID, args.Task, args.ScheduleState)
+}
+
+func (a *Allocations) GetPauseState(args *nstructs.AllocGetPauseStateRequest, reply *nstructs.AllocGetPauseStateResponse) error {
+	defer metrics.MeasureSince([]string{"client", "allocations", "pause_get"}, time.Now())
+
+	alloc, err := a.c.GetAlloc(args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+		return nstructs.ErrPermissionDenied
+	}
+
+	state, err := a.c.GetPauseAllocation(args.AllocID, args.Task)
+	if err != nil {
+		return err
+	}
+
+	reply.ScheduleState = state
+	return nil
 }
 
 // Restart is used to trigger a restart of an allocation or a subtask on a client.
@@ -286,7 +327,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	}
 
 	// check node access
-	if capabilities.FSIsolation == drivers.FSIsolationNone {
+	if capabilities.FSIsolation == fsisolation.None {
 		exec := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocNodeExec)
 		if !exec {
 			return nil, nstructs.ErrPermissionDenied

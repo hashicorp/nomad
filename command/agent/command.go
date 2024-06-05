@@ -110,6 +110,7 @@ func (c *Command) readConfig() *Config {
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.AllocMountsDir, "alloc-mounts-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
 	flags.StringVar(&servers, "servers", "", "")
@@ -351,6 +352,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	if err := config.Telemetry.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("telemetry block invalid: %v", err))
+		return false
+	}
+
 	// Set up the TLS configuration properly if we have one.
 	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
 	// constructor-type actions like this.
@@ -377,10 +383,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 
 	// Verify the paths are absolute.
 	dirs := map[string]string{
-		"data-dir":   config.DataDir,
-		"plugin-dir": config.PluginDir,
-		"alloc-dir":  config.Client.AllocDir,
-		"state-dir":  config.Client.StateDir,
+		"data-dir":         config.DataDir,
+		"plugin-dir":       config.PluginDir,
+		"alloc-dir":        config.Client.AllocDir,
+		"alloc-mounts-dir": config.Client.AllocMountsDir,
+		"state-dir":        config.Client.StateDir,
 	}
 	for k, dir := range dirs {
 		if dir == "" {
@@ -488,8 +495,12 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		// The config is valid if the top-level data-dir is set or if both
 		// alloc-dir and state-dir are set.
 		if config.Client.Enabled && config.DataDir == "" {
-			if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
-				c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+			missing := config.Client.AllocDir == "" ||
+				config.Client.AllocMountsDir == "" ||
+				config.Client.StateDir == "" ||
+				config.PluginDir == ""
+			if missing {
+				c.Ui.Error("Must specify the state, alloc-dir, alloc-mounts-dir and plugin-dir if data-dir is omitted.")
 				return false
 			}
 		}
@@ -981,10 +992,30 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	return nil
 }
 
+// These constants are for readiness signalling via the systemd notify protocol.
+// The functions we send these messages to are no-op on non-Linux systems. See
+// also https://www.man7.org/linux/man-pages/man3/sd_notify.3.html
+const (
+	sdReady     = "READY=1"
+	sdReloading = "RELOADING=1"
+	sdStopping  = "STOPPING=1"
+	sdMonotonic = "MONOTONIC_USEC=%d"
+)
+
 // handleSignals blocks until we get an exit-causing signal
 func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+
+	// Signal readiness only once signal handlers are setup
+	sdSock, err := openNotify()
+	if err != nil {
+		c.agent.logger.Debug("notify socket could not be accessed", "error", err)
+	}
+	if sdSock != nil {
+		defer sdSock.Close()
+	}
+	sdNotify(sdSock, sdReady)
 
 	// Wait for a signal
 WAIT:
@@ -1009,7 +1040,10 @@ WAIT:
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
+		sdNotify(sdSock, sdReloading)
+		sdNotify(sdSock, fmt.Sprintf(sdMonotonic, time.Now().UnixMicro()))
 		c.handleReload()
+		sdNotify(sdSock, sdReady)
 		goto WAIT
 	}
 
@@ -1027,6 +1061,7 @@ WAIT:
 	}
 
 	// Attempt a graceful leave
+	sdNotify(sdSock, sdStopping)
 	gracefulCh := make(chan struct{})
 	c.Ui.Output("Gracefully shutting down agent...")
 	go func() {
@@ -1149,14 +1184,8 @@ func (c *Command) handleReload() {
 	}
 }
 
-// setupTelemetry is used ot setup the telemetry sub-systems
+// setupTelemetry is used to set up the telemetry sub-systems.
 func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
-	/* Setup telemetry
-	Aggregate on 10 second intervals for 1 minute. Expose the
-	metrics over stderr when there is a SIGUSR1 received.
-	*/
-	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
-	metrics.DefaultInmemSignal(inm)
 
 	var telConfig *Telemetry
 	if config.Telemetry == nil {
@@ -1164,6 +1193,9 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	} else {
 		telConfig = config.Telemetry
 	}
+
+	inm := metrics.NewInmemSink(telConfig.inMemoryCollectionInterval, telConfig.inMemoryRetentionPeriod)
+	metrics.DefaultInmemSignal(inm)
 
 	metricsConf := metrics.DefaultConfig("nomad")
 	metricsConf.EnableHostname = !telConfig.DisableHostname

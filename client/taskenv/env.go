@@ -120,6 +120,11 @@ const (
 	// UpstreamPrefix is the prefix for passing upstream IP and ports to the alloc
 	UpstreamPrefix = "NOMAD_UPSTREAM_"
 
+	// AllocPrefix is a general purpose alloc prefix. It is currently used as
+	// the env var prefix used to export network namespace information
+	// including IP, Port, and interface.
+	AllocPrefix = "NOMAD_ALLOC_"
+
 	// VaultToken is the environment variable for passing the Vault token
 	VaultToken = "VAULT_TOKEN"
 
@@ -446,6 +451,9 @@ type Builder struct {
 	// and affect network env vars.
 	networks []*structs.NetworkResource
 
+	networkStatus  *structs.AllocNetworkStatus
+	allocatedPorts structs.AllocatedPorts
+
 	// hookEnvs are env vars set by hooks and stored by hook name to
 	// support adding/removing vars from multiple hooks (eg HookA adds A:1,
 	// HookB adds A:2, HookA removes A, A should equal 2)
@@ -564,6 +572,12 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 
 	// Build the Consul Connect upstream env vars
 	buildUpstreamsEnv(envMap, b.upstreams)
+
+	// Build the network namespace information if we have the required detail
+	// available.
+	if b.networkStatus != nil && b.allocatedPorts != nil {
+		addNomadAllocNetwork(envMap, b.allocatedPorts, b.networkStatus)
+	}
 
 	// Build the Vault Token
 	if b.injectVaultToken && b.vaultToken != "" {
@@ -816,6 +830,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 
 		// Add any allocated host ports
 		if alloc.AllocatedResources.Shared.Ports != nil {
+			b.allocatedPorts = alloc.AllocatedResources.Shared.Ports
 			addPorts(b.otherPorts, alloc.AllocatedResources.Shared.Ports)
 		}
 	}
@@ -960,6 +975,13 @@ func (b *Builder) setUpstreamsLocked(upstreams []structs.ConsulUpstream) *Builde
 	return b
 }
 
+func (b *Builder) SetNetworkStatus(netStatus *structs.AllocNetworkStatus) *Builder {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.networkStatus = netStatus
+	return b
+}
+
 // buildUpstreamsEnv builds NOMAD_UPSTREAM_{IP,PORT,ADDR}_{destination} vars
 func buildUpstreamsEnv(envMap map[string]string, upstreams []structs.ConsulUpstream) {
 	// Proxy sidecars always bind to localhost
@@ -975,6 +997,18 @@ func buildUpstreamsEnv(envMap map[string]string, upstreams []structs.ConsulUpstr
 		envMap[UpstreamPrefix+"ADDR_"+cleanName] = net.JoinHostPort(ip, port)
 		envMap[UpstreamPrefix+"IP_"+cleanName] = ip
 		envMap[UpstreamPrefix+"PORT_"+cleanName] = port
+	}
+}
+
+// addNomadAllocNetwork builds NOMAD_ALLOC_{IP,INTERFACE,ADDR}_{port_label}
+// vars. NOMAD_ALLOC_PORT_* is handled within addPorts and therefore omitted
+// from this function.
+func addNomadAllocNetwork(envMap map[string]string, p structs.AllocatedPorts, netStatus *structs.AllocNetworkStatus) {
+	for _, allocatedPort := range p {
+		portStr := strconv.Itoa(allocatedPort.To)
+		envMap[AllocPrefix+"INTERFACE_"+allocatedPort.Label] = netStatus.InterfaceName
+		envMap[AllocPrefix+"IP_"+allocatedPort.Label] = netStatus.Address
+		envMap[AllocPrefix+"ADDR_"+allocatedPort.Label] = net.JoinHostPort(netStatus.Address, portStr)
 	}
 }
 

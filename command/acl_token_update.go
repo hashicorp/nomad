@@ -32,9 +32,6 @@ Update Options:
   -type="client"
     Sets the type of token. Must be one of "client" or "management".
 
-  -global=false
-    Toggles the global mode of the token. Global tokens are replicated to all regions.
-
   -policy=""
     Specifies a policy to associate with the token. Can be specified multiple times,
     but only with client type tokens.
@@ -48,7 +45,6 @@ func (c *ACLTokenUpdateCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"name":   complete.PredictAnything,
 			"type":   complete.PredictAnything,
-			"global": complete.PredictNothing,
 			"policy": complete.PredictAnything,
 		})
 }
@@ -65,13 +61,11 @@ func (*ACLTokenUpdateCommand) Name() string { return "acl token update" }
 
 func (c *ACLTokenUpdateCommand) Run(args []string) int {
 	var name, tokenType string
-	var global bool
 	var policies []string
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&name, "name", "", "")
 	flags.StringVar(&tokenType, "type", "", "")
-	flags.BoolVar(&global, "global", false, "")
 	flags.Var((funcVar)(func(s string) error {
 		policies = append(policies, s)
 		return nil
@@ -111,11 +105,6 @@ func (c *ACLTokenUpdateCommand) Run(args []string) int {
 
 	if tokenType != "" {
 		token.Type = tokenType
-	}
-
-	// This will default to false if the user does not specify it
-	if global != token.Global {
-		token.Global = global
 	}
 
 	if len(policies) != 0 {

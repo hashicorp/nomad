@@ -42,11 +42,12 @@ advertise {
 }
 
 client {
-  enabled    = true
-  state_dir  = "/tmp/client-state"
-  alloc_dir  = "/tmp/alloc"
-  servers    = ["a.b.c:80", "127.0.0.1:1234"]
-  node_class = "linux-medium-64bit"
+  enabled          = true
+  state_dir        = "/tmp/client-state"
+  alloc_dir        = "/tmp/alloc"
+  alloc_mounts_dir = "/tmp/mounts"
+  servers          = ["a.b.c:80", "127.0.0.1:1234"]
+  node_class       = "linux-medium-64bit"
 
   meta {
     foo = "bar"
@@ -199,13 +200,15 @@ audit {
 }
 
 telemetry {
-  statsite_address           = "127.0.0.1:1234"
-  statsd_address             = "127.0.0.1:2345"
-  prometheus_metrics         = true
-  disable_hostname           = true
-  collection_interval        = "3s"
-  publish_allocation_metrics = true
-  publish_node_metrics       = true
+  in_memory_collection_interval = "1m"
+  in_memory_retention_period    = "24h"
+  statsite_address              = "127.0.0.1:1234"
+  statsd_address                = "127.0.0.1:2345"
+  prometheus_metrics            = true
+  disable_hostname              = true
+  collection_interval           = "3s"
+  publish_allocation_metrics    = true
+  publish_node_metrics          = true
 }
 
 leave_on_interrupt = true

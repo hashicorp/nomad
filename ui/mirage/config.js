@@ -37,12 +37,20 @@ export default function () {
 
   const nomadIndices = {}; // used for tracking blocking queries
   const server = this;
-  const withBlockingSupport = function (fn) {
+  const withBlockingSupport = function (
+    fn,
+    { pagination = false, tokenProperty = 'ModifyIndex' } = {}
+  ) {
     return function (schema, request) {
+      let handler = fn;
+      if (pagination) {
+        handler = withPagination(handler, tokenProperty);
+      }
+
       // Get the original response
       let { url } = request;
       url = url.replace(/index=\d+[&;]?/, '');
-      const response = fn.apply(this, arguments);
+      let response = handler.apply(this, arguments);
 
       // Get and increment the appropriate index
       nomadIndices[url] || (nomadIndices[url] = 2);
@@ -55,6 +63,37 @@ export default function () {
         return response;
       }
       return new Response(200, { 'x-nomad-index': index }, response);
+    };
+  };
+
+  const withPagination = function (fn, tokenProperty = 'ModifyIndex') {
+    return function (schema, request) {
+      let response = fn.apply(this, arguments);
+      if (response.code && response.code !== 200) {
+        return response;
+      }
+      let perPage = parseInt(request.queryParams.per_page || 25);
+      let page = parseInt(request.queryParams.page || 1);
+      let totalItems = response.length;
+      let totalPages = Math.ceil(totalItems / perPage);
+      let hasMore = page < totalPages;
+
+      let paginatedItems = response.slice((page - 1) * perPage, page * perPage);
+
+      let nextToken = null;
+      if (hasMore) {
+        nextToken = response[page * perPage][tokenProperty];
+      }
+
+      if (nextToken) {
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': nextToken },
+          paginatedItems
+        );
+      } else {
+        return new Response(200, {}, paginatedItems);
+      }
     };
   };
 
@@ -71,6 +110,221 @@ export default function () {
             : job.NamespaceID === namespace;
         })
         .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+    })
+  );
+
+  this.get(
+    '/jobs/statuses',
+    withBlockingSupport(
+      function ({ jobs }, req) {
+        const namespace = req.queryParams.namespace || 'default';
+        let nextToken = req.queryParams.next_token || 0;
+        let reverse = req.queryParams.reverse === 'true';
+        const json = this.serialize(jobs.all());
+
+        // Let's implement a very basic handling of ?filter here.
+        // We'll assume at most "and" combinations, and only positive filters
+        // (no "not Type contains sys" or similar)
+        let filteredJson = json;
+
+        // Filter out all child jobs
+        if (!req.queryParams.include_children) {
+          filteredJson = filteredJson.filter((job) => !job.ParentID);
+        }
+
+        if (req.queryParams.filter) {
+          // Format will be something like "Name contains NAME" or "Type == sysbatch" or combinations thereof
+          const filterConditions = req.queryParams.filter
+            .split(' and ')
+            .map((condition) => {
+              // Dropdowns user parenthesis wrapping; remove them for mock/test purposes
+              // We want to test multiple conditions within parens, like "(Type == system or Type == sysbatch)"
+              // So if we see parenthesis, we should re-split on "or" and treat them as separate conditions.
+              if (condition.startsWith('(') && condition.endsWith(')')) {
+                condition = condition.slice(1, -1);
+              }
+              if (condition.includes(' or ')) {
+                // multiple or condition
+                return {
+                  field: condition.split(' ')[0],
+                  operator: '==',
+                  parts: condition.split(' or ').map((part) => {
+                    return part.split(' ')[2];
+                  }),
+                };
+              } else {
+                const parts = condition.split(' ');
+
+                return {
+                  field: parts[0],
+                  operator: parts[1],
+                  value: parts.slice(2).join(' ').replace(/['"]+/g, ''),
+                };
+              }
+            });
+
+          const allowedFields = [
+            'Name',
+            'Status',
+            'StatusDescription',
+            'Region',
+            'NodePool',
+            'Namespace',
+            'Version',
+            'Priority',
+            'Stop',
+            'Type',
+            'ID',
+            'AllAtOnce',
+            'Datacenters',
+            'Dispatched',
+            'ConsulToken',
+            'ConsulNamespace',
+            'VaultToken',
+            'VaultNamespace',
+            'NomadTokenID',
+            'Stable',
+            'SubmitTime',
+            'CreateIndex',
+            'ModifyIndex',
+            'JobModifyIndex',
+            'ParentID',
+          ];
+
+          // Simulate a failure if a filterCondition's field is not among the allowed
+          if (
+            !filterConditions.every((condition) =>
+              allowedFields.includes(condition.field)
+            )
+          ) {
+            return new Response(
+              500,
+              {},
+              'couldn\'t find key: struct field with name "' +
+                filterConditions[0].field +
+                '" in type (...extraneous)'
+            );
+          }
+
+          filteredJson = filteredJson.filter((job) => {
+            return filterConditions.every((condition) => {
+              if (condition.parts) {
+                // Making a shortcut assumption that any condition.parts situations
+                // will be == as operator for testing sake.
+                return condition.parts.some((part) => {
+                  return job[condition.field] === part;
+                });
+              }
+              if (condition.operator === 'contains') {
+                return (
+                  job[condition.field] &&
+                  job[condition.field].includes(condition.value)
+                );
+              } else if (condition.operator === '==') {
+                return job[condition.field] === condition.value;
+              } else if (condition.operator === '!=') {
+                return job[condition.field] !== condition.value;
+              }
+              return true;
+            });
+          });
+        }
+
+        let sortedJson = filteredJson
+          .sort((a, b) =>
+            reverse
+              ? a.ModifyIndex - b.ModifyIndex
+              : b.ModifyIndex - a.ModifyIndex
+          )
+          .filter((job) => {
+            if (namespace === '*') return true;
+            return namespace === 'default'
+              ? !job.NamespaceID || job.NamespaceID === 'default'
+              : job.NamespaceID === namespace;
+          })
+          .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+        if (nextToken) {
+          sortedJson = sortedJson.filter((job) =>
+            reverse
+              ? job.ModifyIndex >= nextToken
+              : job.ModifyIndex <= nextToken
+          );
+        }
+        return sortedJson;
+      },
+      { pagination: true, tokenProperty: 'ModifyIndex' }
+    )
+  );
+
+  this.post(
+    '/jobs/statuses',
+    withBlockingSupport(function ({ jobs }, req) {
+      const body = JSON.parse(req.requestBody);
+      const requestedJobs = body.jobs || [];
+      const allJobs = this.serialize(jobs.all());
+
+      let returnedJobs = allJobs
+        .filter((job) => {
+          return requestedJobs.some((requestedJob) => {
+            return (
+              job.ID === requestedJob.id &&
+              (requestedJob.namespace === 'default' ||
+                job.NamespaceID === requestedJob.namespace)
+            );
+          });
+        })
+        .map((j) => {
+          let job = {};
+
+          // get children that may have been created
+          let children = null;
+          if (j.Periodic || j.Parameterized) {
+            children = allJobs.filter((child) => {
+              return child.ParentID === j.ID;
+            });
+          }
+          job.ID = j.ID;
+          job.Name = j.Name;
+          job.ModifyIndex = j.ModifyIndex;
+          job.Allocs = server.db.allocations
+            .where({ jobId: j.ID, namespace: j.Namespace })
+            .map((alloc) => {
+              let taskStates = server.db.taskStates.where({
+                allocationId: alloc.id,
+              });
+              return {
+                ClientStatus: alloc.clientStatus,
+                DeploymentStatus: {
+                  Canary: false,
+                  Healthy: true,
+                },
+                Group: alloc.taskGroup,
+                JobVersion: alloc.jobVersion,
+                NodeID: alloc.nodeId,
+                ID: alloc.id,
+                HasPausedTask: taskStates.any((ts) => ts.paused),
+              };
+            });
+          job.ChildStatuses = children ? children.mapBy('Status') : null;
+          job.Datacenters = j.Datacenters;
+          job.DeploymentID = j.DeploymentID;
+          job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
+            (a, b) => a + b,
+            0
+          );
+          job.Namespace = j.NamespaceID;
+          job.NodePool = j.NodePool;
+          job.Type = j.Type;
+          job.Priority = j.Priority;
+          job.Version = j.Version;
+          return job;
+        });
+      // sort by modifyIndex, descending
+      returnedJobs
+        .sort((a, b) => b.ID.localeCompare(a.ID))
+        .sort((a, b) => b.ModifyIndex - a.ModifyIndex);
+
+      return returnedJobs;
     })
   );
 
@@ -675,6 +929,37 @@ export default function () {
 
   this.get('/acl/policies', function ({ policies }, req) {
     return this.serialize(policies.all());
+  });
+
+  this.get('/sentinel/policies', function (schema, req) {
+    return this.serialize(schema.sentinelPolicies.all());
+  });
+
+  this.post('/sentinel/policy/:id', function (schema, req) {
+    const { Name, Description, EnforcementLevel, Policy, Scope } = JSON.parse(
+      req.requestBody
+    );
+    return server.create('sentinelPolicy', {
+      name: Name,
+      description: Description,
+      enforcementLevel: EnforcementLevel,
+      policy: Policy,
+      scope: Scope,
+    });
+  });
+
+  this.get('/sentinel/policy/:id', function ({ sentinelPolicies }, req) {
+    return this.serialize(sentinelPolicies.findBy({ name: req.params.id }));
+  });
+
+  this.delete('/sentinel/policy/:id', function (schema, req) {
+    const { id } = req.params;
+    server.db.sentinelPolicies.remove(id);
+    return '';
+  });
+
+  this.put('/sentinel/policy/:id', function (schema, req) {
+    return new Response(200, {}, {});
   });
 
   this.delete('/acl/policy/:id', function (schema, request) {

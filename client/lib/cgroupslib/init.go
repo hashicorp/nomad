@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 )
@@ -285,4 +286,24 @@ func LinuxResourcesPath(allocID, task string, reserveCores bool) string {
 	default:
 		return filepath.Join(root, NomadCgroupParent, partition, scopeCG2(allocID, task))
 	}
+}
+
+// CustomPathCG1 returns the absolute directory path of the cgroup directory of
+// the given controller. If path is already absolute (starts with /), that
+// value is used without modification.
+func CustomPathCG1(controller, path string) string {
+	if strings.HasPrefix(path, "/") {
+		return path
+	}
+	return filepath.Join(root, controller, path)
+}
+
+// CustomPathCG2 returns the absolute directory path of the given cgroup path.
+// If the path is already absolute (starts with /), that value is used without
+// modification.
+func CustomPathCG2(path string) string {
+	if strings.HasPrefix(path, "/") || path == "" {
+		return path
+	}
+	return filepath.Join(root, path)
 }

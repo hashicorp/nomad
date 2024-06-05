@@ -153,6 +153,9 @@ meta.connect.sidecar_image = custom/envoy-${NOMAD_envoy_version}:latest
 
 - `kill_signal` `(string:SIGINT)` - Kill signal to use for the task, defaults to SIGINT.
 
+- `volume_mount` <code>([VolumeMount][]: nil)</code> - Specifies where a group
+  volume should be mounted.
+
 ## `sidecar_task` Examples
 
 The following example configures resources for the sidecar task and other configuration.
@@ -184,3 +187,4 @@ The following example configures resources for the sidecar task and other config
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
 [nodemeta]: /nomad/docs/configuration/client#meta
 [worker_threads]: https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
+[volumemount]: /nomad/docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'

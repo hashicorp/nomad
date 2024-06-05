@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/go-sockaddr"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pool"
@@ -41,7 +41,7 @@ import (
 
 // rpcClient is a test helper method to return a ClientCodec to use to make rpc
 // calls to the passed server.
-func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
+func rpcClient(t testing.TB, s *Server) rpc.ClientCodec {
 	t.Helper()
 	addr := s.config.RPCAddr
 	conn, err := net.DialTimeout("tcp", addr.String(), time.Second)
@@ -55,7 +55,7 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 
 // rpcClientWithTLS is a test helper method to return a ClientCodec to use to
 // make RPC calls to the passed server via mTLS
-func rpcClientWithTLS(t *testing.T, srv *Server, cfg *config.TLSConfig) rpc.ClientCodec {
+func rpcClientWithTLS(t testing.TB, srv *Server, cfg *config.TLSConfig) rpc.ClientCodec {
 	t.Helper()
 
 	// configure TLS, ignoring client-side validation

@@ -84,6 +84,10 @@ func getMode(artifact *structs.TaskArtifact) getter.ClientMode {
 	}
 }
 
+func isInsecure(artifact *structs.TaskArtifact) bool {
+	return artifact.GetterInsecure
+}
+
 func getHeaders(env interfaces.EnvReplacer, artifact *structs.TaskArtifact) map[string][]string {
 	m := artifact.GetterHeaders
 	if len(m) == 0 {

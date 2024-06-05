@@ -1,8 +1,6 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-//go:build linux
-
 // Package dynamic provides a way of allocating UID/GID to be used by Nomad
 // tasks with no associated service users managed by the operating system.
 package dynamic
@@ -18,13 +16,16 @@ import (
 )
 
 var (
-	ErrPoolExhausted = errors.New("users: credentials exhausted")
-	ErrReleaseUnused = errors.New("users: release of unused credentials")
+	ErrPoolExhausted = errors.New("users: uid/gid pool exhausted")
+	ErrReleaseUnused = errors.New("users: release of unused uid/gid")
 	ErrCannotParse   = errors.New("users: unable to parse uid/gid from username")
 )
 
 // none indicates no dynamic user
 const none = 0
+
+// doNotEnable indicates functionality should be disabled
+const doNotEnable = -1
 
 // A UGID is a combination User (UID) and Group (GID). Since Nomad is
 // allocating these values together from the same pool it can ensure they are
@@ -62,10 +63,20 @@ type PoolConfig struct {
 	MaxUGID int
 }
 
+// disable will return true if either min or max is set to Disable (-1),
+// indicating the client should not enable the dynamic workload users
+// functionality
+func (p *PoolConfig) disable() bool {
+	return p.MinUGID == doNotEnable || p.MaxUGID == doNotEnable
+}
+
 // New creates a Pool with the given PoolConfig options.
 func New(opts *PoolConfig) Pool {
 	if opts == nil {
 		panic("bug: users pool cannot be nil")
+	}
+	if opts.disable() {
+		return new(noopPool)
 	}
 	if opts.MinUGID < 0 {
 		panic("bug: users pool min must be >= 0")
@@ -81,6 +92,20 @@ func New(opts *PoolConfig) Pool {
 		lock: new(sync.Mutex),
 		used: set.New[UGID](defaultPoolCapacity),
 	}
+}
+
+// noopPool is an implementation of Pool that does not allow acquiring ugids
+type noopPool struct{}
+
+func (*noopPool) Restore(UGID) {}
+func (*noopPool) Acquire() (UGID, error) {
+	return 0, errors.New("dynamic workload users disabled")
+}
+func (*noopPool) Release(UGID) error {
+	// avoid giving an error if a client is restarted with a new config
+	// that disables dynamic workload users but still has a task running
+	// making use of one
+	return nil
 }
 
 type pool struct {

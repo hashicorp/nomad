@@ -152,18 +152,19 @@ of `capabilities`. This includes:
 - `read-job-scaling` - Allows inspecting the current scaling of a job.
 - `scale-job`: Allows scaling a job up or down.
 - `sentinel-override` - Allows soft mandatory policies to be overridden.
+- `submit-recommendation` - Allows submitting vertical job scaling recommendations.
 
 The coarse-grained policy permissions are shorthand for the following fine-
 grained namespace capabilities:
 
 <!-- markdownlint-disable -->
 
-| Policy  | Capabilities                                                                                                                                                                                                                                                    |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deny`  | deny                                                                                                                                                                                                                                                            |
-| `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                      |
-| `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job |
-| `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                             |
+| Policy  | Capabilities                                                                                                                                                                                                                                                                                              |
+|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `deny`  | deny                                                                                                                                                                                                                                                                                                      |
+| `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                                                                |
+| `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job<br />submit-recommendation |
+| `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                                                                       |
 
 <!-- markdownlint-enable -->
 
@@ -460,6 +461,14 @@ agent {
 }
 ```
 
+Additionally, ACL policies for users who can read jobs that mount CSI volumes
+should include the following rules.
+
+```hcl
+plugin {
+  policy = "read"
+}
+```
 
 [Secure Nomad with Access Control]: /nomad/tutorials/access-control
 [hcl]: https://github.com/hashicorp/hcl
@@ -482,3 +491,5 @@ agent {
 [host_volumes]: /nomad/docs/configuration/client#host_volume-block
 [api_plugins]: /nomad/api-docs/plugins/
 [Variables]: /nomad/docs/concepts/variables
+[federated]: /nomad/tutorials/manage-clusters/federation
+[`authoritative_region`]: /nomad/docs/configuration/server#authoritative_region

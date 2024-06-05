@@ -1,14 +1,30 @@
 # Packer Builds
 
-These builds are run as-needed to update the AMIs used by the end-to-end test infrastructure.
-
+These builds are run as-needed to update the AMIs used by the end-to-end test
+infrastructure.
 
 ## What goes here?
 
-* steps that aren't specific to a given Nomad build: ex. all Linux instances need `jq` and `awscli`.
-* steps that aren't specific to a given EC2 instance: nothing that includes an IP address.
+* steps that aren't specific to a given Nomad build: ex. all Linux instances
+  need `jq` and `awscli`.
+* steps that aren't specific to a given EC2 instance: nothing that includes an
+  IP address.
 * steps that infrequently change: the version of Consul or Vault we ship.
 
+## How is this used?
+
+The AMIs built by these Packer configs are tagged with `BuilderSha`, which has
+the value of the most recent commit that touched this directory.
+
+The nightly E2E job runs a script to see if there are any AMIs that match the
+most recent commit that touched this directory, and if there aren't it will then
+build the AMIs. Then most recent AMI with a matching SHA is used for the nightly
+E2E run.
+
+If you are changing this directory to build an AMI for testing, it's recommended
+that you change the name of the AMI or make sure that you've locally committed
+your changes so that your test AMI doesn't get picked up in the next nightly E2E
+run.
 
 ## Running Packer builds
 

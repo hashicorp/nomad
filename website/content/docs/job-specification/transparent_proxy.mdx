@@ -1,0 +1,174 @@
+---
+layout: docs
+page_title: transparent_proxy Block - Job Specification
+description: |-
+  The "transparent_proxy" block allows specifying options for configuring Envoy
+  in Consul Connect transparent proxy mode.
+---
+
+# `transparent_proxy` Block
+
+<Placement
+  groups={[
+    'job',
+    'group',
+    'service',
+    'connect',
+    'sidecar_service',
+    'proxy',
+    'transparent_proxy',
+  ]}
+/>
+
+The `transparent_proxy` block configures the Envoy sidecar proxy to act as a
+Consul Connect [transparent proxy][tproxy]. This simplifies the configuration of
+Consul Connect by eliminating the need to configure [`upstreams`][] blocks in
+Nomad. Instead, the Envoy proxy will determines its configuration entirely from
+Consul [service intentions][].
+
+When transparent proxy is enabled traffic will automatically flow through the
+Envoy proxy. If the local Consul agent is serving DNS, Nomad will also set up
+the task's nameservers to use Consul. This lets your workload use the [virtual
+IP][] DNS name from Consul, rather than configuring a `template` block that
+queries services.
+
+Using transparent proxy has some important restrictions:
+
+* You can only have a single `connect` block in any task group that uses
+  transparent proxy.
+* You cannot set a [`network.dns`][] block on the allocation (unless you set
+  [`no_dns`](#no_dns), see below).
+* The node where the allocation is placed must be configured as described in
+  the Service Mesh integration documentation for [Transparent Proxy][].
+
+## `transparent_proxy` Parameters
+
+* `exclude_inbound_ports` `([]string: nil)` - A list of inbound ports to exclude
+  from the inbound traffic redirection. This allows traffic on these ports to
+  bypass the Envoy proxy. These ports can be specified as either [network port
+  labels][port_labels] or as numeric ports. Nomad will automatically add the
+  following to this list:
+  * The [`local_path_port`][] of any [`expose`][] block.
+  * The port of any service check with [`expose=true`][check_expose] set.
+  * The port of any `network.port` with a [`static`][] value.
+* `exclude_outbound_cidrs` `([]string: nil)` - A list of CIDR subnets that
+  should be excluded from outbound traffic redirection. This allows traffic to
+  these subnets to bypass the Envoy proxy. Note this is independent of
+  `exclude_outbound_ports`; CIDR subnets listed here are excluded regardless of
+  the port.
+* `exclude_outbound_ports` `([]int: nil)` - A list of port numbers that should
+  be excluded from outbound traffic redirection. This allows traffic to these
+  subnets to bypass the Envoy proxy. Note this is independent of
+  `exclude_outbound_cidrs`; ports listed here are excluded regardless of the
+  CIDR.
+* `exclude_uids` `([]string: nil)` - A list of Unix user IDs (UIDs) that should
+  be excluded from outbound traffic redirection. When unset, only the Envoy
+  proxy's user will be allowed to bypass the iptables rule.
+* `no_dns` `(bool: false)` - By default, Consul will be set as the nameserver
+  for the workload and IP tables rules will redirect DNS queries to Consul. If
+  you want only external DNS, set `no_dns=true`. You will need to add your own
+  CIDR and port exclusions for your DNS nameserver. You cannot set
+  [`network.dns`][] if `no_dns=false`.
+* `outbound_port` `(int: 15001)` - The port that Envoy will bind on inside the
+  network namespace. The iptables rules created by `consul-cni` will force
+  traffic to flow to this port. You should only set this value if you have
+  specifically set the [`outbound_listener_port`][] in your Consul proxy
+  configuration. You can change the default value for a given node via [client
+  metadata](#client-metadata) (see below).
+* `uid` `(string "101")` - The Unix user ID (UID) used by the Envoy proxy. You
+  should only set this value if you have a custom build of the Envoy container
+  image which uses a different UID. You can change the default value for a given
+  node via [client metadata](#client-metadata) (see below).
+
+## Client Metadata
+
+You can change the default [`outbound_port`](#outbound_port) and [`uid`](#uid)
+for a given client node by updating the node metadata via the [`nomad node meta
+apply`][] command. The attributes that can be updated are:
+
+* `connect.transparent_proxy.default_uid`: Sets the default value of
+  [`uid`](#uid) for this node.
+* `connect.transparent_proxy.default_outbound_port`: Sets the default value of
+  [`outbound_port`](#outbound_port) for this node.
+
+For example, to set the default value for the `uid` field to 120:
+
+```shell-session
+$ nomad node meta apply connect.transparent_proxy.default_uid=120
+$ nomad node meta read -json | jq -r '.Dynamic | ."connect.transparent_proxy.default_uid"'
+120
+```
+
+You should not normally need to set these values unless you are using custom
+Envoy images.
+
+## Examples
+
+### Minimal Example
+
+The following example is a minimal transparent proxy specification. Note that
+with transparent proxy, you will not need to configure an `upstreams` block.
+
+```hcl
+sidecar_service {
+  proxy {
+    transparent_proxy {
+    }
+  }
+}
+```
+
+If you had a downstream task group `count-dashboard` that needed to connect to
+an upstream task group `count-api` listening on port 9001, you could create a
+Consul service intention with the following specification:
+
+```hcl
+Kind = "service-intentions"
+Name = "count-api"
+Sources = [
+  {
+    Name   = "count-dashboard"
+    Action = "allow"
+  }
+]
+```
+
+And then the downstream service `count-dashboard` could reach the `count-api`
+service by making requests to `http://count-api.virtual.consul`.
+
+### External DNS
+
+The following example is a transparent proxy specification where external DNS is
+used. To find the address of other allocations in this configuration, you will
+need to use a [`template`][] block to query Consul.
+
+```hcl
+sidecar_service {
+  proxy {
+    transparent_proxy {
+      excluded_outbound_ports = [53]
+      excluded_outbound_cidrs = ["208.67.222.222/32", "208.67.220.220/32"]
+      no_dns                  = true
+    }
+  }
+}
+```
+
+[tproxy]: /consul/docs/k8s/connect/transparent-proxy
+[`upstreams`]: /nomad/docs/job-specification/upstreams
+[service intentions]: /consul/docs/connect/config-entries/service-intentions
+[virtual IP]: /consul/docs/services/discovery/dns-static-lookups#service-virtual-ip-lookups
+[`consul-cni`]: https://releases.hashicorp.com/consul-cni
+[cni_plugins]: /nomad/docs/networking/cni#cni-reference-plugins
+[consul_dns_port]: /consul/docs/agent/config/config-files#dns_port
+[`recursors`]: /consul/docs/agent/config/config-files#recursors
+[port_labels]: /nomad/docs/job-specification/network#port-parameters
+[`local_path_port`]: /nomad/docs/job-specification/expose#local_path_port
+[`expose`]: /nomad/docs/job-specification/expose
+[check_expose]: /nomad/docs/job-specification/service#expose
+[`static`]: /nomad/docs/job-specification/network#static
+[`outbound_listener_port`]: /consul/docs/connect/proxies/proxy-config-reference#outbound_listener_port
+[`template`]: /nomad/docs/job-specification/template#consul-integration
+[`nomad node meta apply`]: /nomad/docs/commands/node/meta/apply
+[`network.dns`]: /nomad/docs/job-specification/network#dns-parameters
+[Transparent Proxy]: /nomad/docs/integrations/consul/service-mesh#transparent-proxy

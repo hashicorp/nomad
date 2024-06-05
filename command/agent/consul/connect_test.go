@@ -375,6 +375,7 @@ func TestConnect_connectUpstreams(t *testing.T) {
 			}, {
 				DestinationName:      "bar",
 				DestinationPeer:      "10.0.0.1:6379",
+				DestinationPartition: "infra",
 				DestinationType:      "tcp",
 				DestinationNamespace: "ns2",
 				LocalBindPort:        9000,
@@ -391,6 +392,7 @@ func TestConnect_connectUpstreams(t *testing.T) {
 				DestinationName:      "bar",
 				DestinationNamespace: "ns2",
 				DestinationPeer:      "10.0.0.1:6379",
+				DestinationPartition: "infra",
 				DestinationType:      "tcp",
 				LocalBindPort:        9000,
 				LocalBindSocketPath:  "/var/run/testsocket.sock",

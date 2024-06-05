@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Collect only one heap profile per `operator debug` interval
+```

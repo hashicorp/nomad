@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -102,7 +102,7 @@ func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(
 	}
 }
 
-func (e *UniversalExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
+func (e *UniversalExecutor) ListProcesses() set.Collection[procstats.ProcessID] {
 	return procstats.List(e.command)
 }
 
@@ -134,7 +134,9 @@ func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid
 	// manually configure cgroup for cpu / memory constraints
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
-		e.configureCG1(cgroup, command)
+		if err := e.configureCG1(cgroup, command); err != nil {
+			return nil, err
+		}
 		cgCleanup = e.enterCG1(cgroup, command.CpusetCgroup())
 	default:
 		e.configureCG2(cgroup, command)
@@ -189,11 +191,26 @@ func (e *UniversalExecutor) enterCG1(statsCgroup, cpusetCgroup string) func() {
 	}
 }
 
-func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
-
+func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) error {
 	// some drivers like qemu entirely own resource management
 	if command.Resources == nil || command.Resources.LinuxResources == nil {
-		return
+		return nil
+	}
+
+	// if custom cgroups are set join those instead of configuring the /nomad
+	// cgroups we are not going to use
+	if len(e.command.OverrideCgroupV1) > 0 {
+		pid := unix.Getpid()
+		for controller, path := range e.command.OverrideCgroupV1 {
+			absPath := cgroupslib.CustomPathCG1(controller, path)
+			ed := cgroupslib.OpenPath(absPath)
+			err := ed.Write("cgroup.procs", strconv.Itoa(pid))
+			if err != nil {
+				e.logger.Error("unable to write to custom cgroup", "error", err)
+				return fmt.Errorf("unable to write to custom cgroup: %v", err)
+			}
+		}
+		return nil
 	}
 
 	// write memory limits
@@ -222,10 +239,11 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 		ed = cgroupslib.OpenPath(cpusetPath)
 		_ = ed.Write("cpuset.cpus", cpuSet)
 	}
+
+	return nil
 }
 
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
-
 	// some drivers like qemu entirely own resource management
 	if command.Resources == nil || command.Resources.LinuxResources == nil {
 		return
@@ -305,13 +323,13 @@ func (*UniversalExecutor) computeMemory(command *ExecCommand) (int64, int64) {
 func withNetworkIsolation(f func() error, spec *drivers.NetworkIsolationSpec) error {
 	if spec != nil && spec.Path != "" {
 		// Get a handle to the target network namespace
-		netNS, err := ns.GetNS(spec.Path)
+		netNS, err := nsutil.GetNS(spec.Path)
 		if err != nil {
 			return err
 		}
 
 		// Start the container in the network namespace
-		return netNS.Do(func(ns.NetNS) error {
+		return netNS.Do(func(nsutil.NetNS) error {
 			return f()
 		})
 	}

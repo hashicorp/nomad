@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: namespace dropdown gets a search field and supports many namespaces
+```

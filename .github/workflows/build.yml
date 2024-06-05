@@ -76,7 +76,7 @@ jobs:
 
   build-other:
     needs: [get-go-version, get-product-version]
-    runs-on: [ custom, linux, xxl, 20.04 ]
+    runs-on: custom-linux-xxl-nomad-20.04
     strategy:
       matrix:
         goos: [windows]
@@ -128,7 +128,7 @@ jobs:
 
   build-linux:
     needs: [get-go-version, get-product-version]
-    runs-on: [ custom, linux, xxl, 20.04 ]
+    runs-on: custom-linux-xxl-nomad-20.04
     strategy:
       matrix:
         goos: [linux]
@@ -197,6 +197,13 @@ jobs:
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+      - name: Copy license file
+        env:
+          LICENSE_DIR: ".release/linux/package/usr/share/doc/${{ env.PKG_NAME }}"
+        run: |
+          mkdir -p "$LICENSE_DIR"
+          cp LICENSE "$LICENSE_DIR/LICENSE.txt"
 
       - name: Package
         uses: hashicorp/actions-packaging-linux@v1
@@ -297,7 +304,7 @@ jobs:
     needs:
       - get-product-version
       - build-linux
-    runs-on: [ custom, linux, xxl, 20.04 ]
+    runs-on: custom-linux-xxl-nomad-20.04
     strategy:
       matrix:
         arch: ["arm64", "amd64"]

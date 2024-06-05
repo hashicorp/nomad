@@ -534,6 +534,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	// Setup telemetry related config
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
+	conf.DisableQuotaUtilizationMetrics = agentConfig.Telemetry.DisableQuotaUtilizationMetrics
 	conf.DisableRPCRateMetricsLabels = agentConfig.Telemetry.DisableRPCRateMetricsLabels
 
 	if d, err := time.ParseDuration(agentConfig.Limits.RPCHandshakeTimeout); err != nil {
@@ -721,12 +722,17 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if agentConfig.DataDir != "" {
 		conf.StateDir = filepath.Join(agentConfig.DataDir, "client")
 		conf.AllocDir = filepath.Join(agentConfig.DataDir, "alloc")
+		dataParent := filepath.Dir(agentConfig.DataDir)
+		conf.AllocMountsDir = filepath.Join(dataParent, "alloc_mounts")
 	}
 	if agentConfig.Client.StateDir != "" {
 		conf.StateDir = agentConfig.Client.StateDir
 	}
 	if agentConfig.Client.AllocDir != "" {
 		conf.AllocDir = agentConfig.Client.AllocDir
+	}
+	if agentConfig.Client.AllocMountsDir != "" {
+		conf.AllocMountsDir = agentConfig.Client.AllocMountsDir
 	}
 	if agentConfig.Client.NetworkInterface != "" {
 		conf.NetworkInterface = agentConfig.Client.NetworkInterface
@@ -762,7 +768,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
 
 	if agentConfig.Client.TemplateConfig != nil {
-		conf.TemplateConfig = agentConfig.Client.TemplateConfig.Copy()
+		conf.TemplateConfig = conf.TemplateConfig.Merge(agentConfig.Client.TemplateConfig)
 	}
 
 	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
@@ -894,6 +900,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid artifact config: %v", err)
 	}
+
 	conf.Artifact = artifactConfig
 
 	drainConfig, err := clientconfig.DrainConfigFromAgent(agentConfig.Client.Drain)
@@ -901,6 +908,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		return nil, fmt.Errorf("invalid drain_on_shutdown config: %v", err)
 	}
 	conf.Drain = drainConfig
+
+	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
 
 	return conf, nil
 }
@@ -1132,7 +1141,8 @@ func (a *Agent) setupClient() error {
 		a.consulCatalog,     // self service discovery
 		a.consulProxiesFunc, // supported Envoy versions fingerprinting
 		a.consulServices,    // workload service discovery
-		nil)
+		nil,                 // use the standard set of rpcs
+	)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}

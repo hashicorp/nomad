@@ -31,6 +31,8 @@ export default Factory.extend({
   name: (id) => `task-${dasherize(faker.hacker.noun())}-${id}`,
   driver: () => faker.helpers.randomize(DRIVERS),
 
+  schedule: null,
+
   originalResources: generateResources,
   resources: function () {
     // Generate resources the usual way, but transform to the old
@@ -114,6 +116,17 @@ export default Factory.extend({
         },
       ];
       task.update({ actions: actionsData });
+    }
+
+    if (task.withSchedule) {
+      const schedule = server.create('task-schedule', {
+        cron: {
+          End: '41 13',
+          Start: '40 13 * * * *',
+          Timezone: 'America/New_York',
+        },
+      });
+      task.update({ schedule: schedule });
     }
   },
 });

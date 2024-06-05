@@ -4,14 +4,12 @@
 // Package pointer provides helper functions related to Go pointers.
 package pointer
 
-import (
-	"golang.org/x/exp/constraints"
-)
+import "cmp"
 
 // Primitive represents basic types that are safe to do basic comparisons by
 // pointer dereference (checking nullity first).
 type Primitive interface {
-	constraints.Ordered | bool
+	cmp.Ordered | bool
 }
 
 // Of returns a pointer to a.

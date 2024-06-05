@@ -371,6 +371,7 @@ message DriverCapabilities {
         NONE = 0;
         CHROOT = 1;
         IMAGE = 2;
+        UNVEIL= 3;
     }
     // FsIsolation indicates what kind of filesystem isolation a driver supports.
     FSIsolation fs_isolation = 3;
@@ -396,6 +397,10 @@ message DriverCapabilities {
     // disable_log_collection indicates whether the driver has the capability of
     // disabling log collection
     bool disable_log_collection = 8;
+
+    // dynamic_workload_users indicates the task is capable of using UID/GID
+    // assigned from the Nomad client as user credentials for the task.
+    bool dynamic_workload_users = 9;
 }
 
 message NetworkIsolationSpec {

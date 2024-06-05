@@ -54,7 +54,7 @@ type Capabilities struct {
     Exec bool
 
     //FSIsolation indicates what kind of filesystem isolation the driver supports.
-    FSIsolation FSIsolation
+    FSIsolation fsisolation.Mode
 
     //NetIsolationModes lists the set of isolation modes supported by the driver
     NetIsolationModes []NetIsolationMode
@@ -75,15 +75,23 @@ type Capabilities struct {
     // DisableLogCollection indicates this driver has disabled log collection
     // and the client should not start a logmon process.
     DisableLogCollection bool
+
+    // DynamicWorkloadUsers indicates this driver is capable (but not required)
+    // of making use of a UID/GID not backed by a user known to the operating
+    // system. The allocation of a unique, not-in-use UID/GID is managed by the
+    // Nomad client ensuring no overlap.
+    DynamicWorkloadUsers bool
 }
 ```
 
 The file system isolation options are:
 
-- `FSIsolationImage`: The task driver isolates tasks as machine images.
-- `FSIsolationChroot`: The task driver isolates tasks with `chroot` or
+- `fsisolation.Image`: The task driver isolates tasks as machine images.
+- `fsisolation.Chroot`: The task driver isolates tasks with `chroot` or
   `pivot_root`.
-- `FSIsolationNone`: The task driver has no filesystem isolation.
+- `fsisolation.Unveil`: The task driver isolates tasks with the
+  [Landlock LSM][landlock] or other [`unveil`][unveil] like system.
+- `fsisolation.None`: The task driver has no filesystem isolation.
 
 The network isolation modes are:
 
@@ -170,6 +178,13 @@ location. Prior to starting the task through the driver, the Nomad client
 creates FIFOs for stdout and stderr. These paths are given to the driver in the
 `TaskConfig`. The [`fifo` package][fifopackage] can be used to support
 cross platform writing to these paths.
+
+#### Dynamic Workload Users
+
+Nomad is capable of dynamically allocating unused UID/GID values for use by
+task drivers when launching a task. These UID/GID values are deallocated when
+the task is destroyed. The pool of available UID/GID values can be controlled
+in client config via the [users][users] block.
 
 #### TaskHandle Schema Versioning
 
@@ -258,3 +273,7 @@ inside the running container. `ExecTask` is called for Consul script checks.
 [taskhandle]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskHandle
 [fifopackage]: https://godoc.org/github.com/hashicorp/nomad/client/lib/fifo
 [rtd]: /nomad/plugins/drivers/remote
+[landlock]: https://docs.kernel.org/userspace-api/landlock.html
+[unveil]: https://man.openbsd.org/unveil
+[users]: /nomad/docs/configuration/client#users-block
+

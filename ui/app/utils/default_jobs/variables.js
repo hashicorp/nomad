@@ -12,6 +12,18 @@ job "variables-example" {
   # This can be omitted and it will default to ["*"]
   datacenters = ["*"]
 
+  ui {
+    description = "A job that uses **Nomad Variables** to modify its output"
+    link {
+      label = "Learn more about Nomad Variables"
+      url = "https://developer.hashicorp.com/nomad/docs/concepts/variables"
+    }
+    link {
+      label = "See this job on Github"
+      url = "https://github.com/hashicorp/nomad/blob/main/ui/app/utils/default_jobs/variables.js"
+    }
+  }
+
   group "web" {
 
     network {

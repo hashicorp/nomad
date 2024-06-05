@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/idset"
@@ -1662,12 +1662,13 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 		Policies:   []string{"foo"},
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
-	job.TaskGroups[0].Tasks[0].Constraints = []*structs.Constraint{
-		{
-			LTarget: "${attr.vault.version}",
-			Operand: "is_set",
-		},
+
+	vaultConstraint := &structs.Constraint{
+		LTarget: "${attr.vault.version}",
+		Operand: "is_set",
 	}
+	job.TaskGroups[0].Tasks[0].Constraints = []*structs.Constraint{vaultConstraint}
+
 	req := &structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -1679,20 +1680,24 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Check for the job in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByID(ws, job.Namespace, job.ID)
-	require.NoError(t, err)
-	require.NotNil(t, out)
-	require.Equal(t, resp.JobModifyIndex, out.CreateIndex)
+	must.NoError(t, err)
+	must.NotNil(t, out)
+	must.Eq(t, resp.JobModifyIndex, out.CreateIndex)
 
 	// Assert constraint was not overridden by the server
 	outConstraints := out.TaskGroups[0].Tasks[0].Constraints
-	require.Len(t, outConstraints, 1)
-	require.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equal(outConstraints[0]))
+	for _, constraint := range outConstraints {
+		if constraint.LTarget == "${attr.vault.version}" {
+			must.Eq(t, constraint, vaultConstraint)
+		}
+	}
+	must.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equal(outConstraints[0]))
 }
 
 func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
@@ -4074,7 +4079,7 @@ func TestJobEndpoint_BatchDeregister(t *testing.T) {
 		},
 	}
 	var resp2 structs.JobBatchDeregisterResponse
-	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", dereg, &resp2))
+	require.Nil(msgpackrpc.CallWithCodec(codec, structs.JobBatchDeregisterRPCMethod, dereg, &resp2))
 	require.NotZero(resp2.Index)
 
 	// Check for the job in the FSM
@@ -4087,26 +4092,6 @@ func TestJobEndpoint_BatchDeregister(t *testing.T) {
 	out, err = state.JobByID(nil, job2.Namespace, job2.ID)
 	require.Nil(err)
 	require.Nil(out)
-
-	// Lookup the evaluation
-	for jobNS, eval := range resp2.JobEvals {
-		expectedJob := job
-		if jobNS.ID != job.ID {
-			expectedJob = job2
-		}
-
-		eval, err := state.EvalByID(nil, eval)
-		require.Nil(err)
-		require.NotNil(eval)
-		require.EqualValues(resp2.Index, eval.CreateIndex)
-		require.Equal(expectedJob.Priority, eval.Priority)
-		require.Equal(expectedJob.Type, eval.Type)
-		require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
-		require.Equal(expectedJob.ID, eval.JobID)
-		require.Equal(structs.EvalStatusPending, eval.Status)
-		require.NotZero(eval.CreateTime)
-		require.NotZero(eval.ModifyTime)
-	}
 }
 
 func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
@@ -4145,7 +4130,7 @@ func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
 
 	// Expect failure for request without a token
 	var resp structs.JobBatchDeregisterResponse
-	err := msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", req, &resp)
+	err := msgpackrpc.CallWithCodec(codec, structs.JobBatchDeregisterRPCMethod, req, &resp)
 	require.NotNil(err)
 	require.True(structs.IsErrPermissionDenied(err))
 
@@ -4155,7 +4140,7 @@ func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
 	req.AuthToken = invalidToken.SecretID
 
 	var invalidResp structs.JobDeregisterResponse
-	err = msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", req, &invalidResp)
+	err = msgpackrpc.CallWithCodec(codec, structs.JobBatchDeregisterRPCMethod, req, &invalidResp)
 	require.NotNil(err)
 	require.True(structs.IsErrPermissionDenied(err))
 
@@ -4163,19 +4148,9 @@ func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
 	req.AuthToken = root.SecretID
 
 	var validResp structs.JobDeregisterResponse
-	err = msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", req, &validResp)
+	err = msgpackrpc.CallWithCodec(codec, structs.JobBatchDeregisterRPCMethod, req, &validResp)
 	require.Nil(err)
 	require.NotEqual(validResp.Index, 0)
-
-	// Expect success with a valid token
-	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
-		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
-	req.AuthToken = validToken.SecretID
-
-	var validResp2 structs.JobDeregisterResponse
-	err = msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", req, &validResp2)
-	require.Nil(err)
-	require.NotEqual(validResp2.Index, 0)
 }
 
 func TestJobEndpoint_Deregister_Priority(t *testing.T) {

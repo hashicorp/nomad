@@ -927,7 +927,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required          |
 | ---------------- | --------------------- |
-| `NO`             | `namespace:read-job`` |
+| `NO`             | `namespace:read-job`  |
 
 ### Parameters
 
@@ -958,4 +958,86 @@ $ curl \
 }
 ```
 
+## Override Pause Schedule State
+
+<EnterpriseAlert />
+
+The endpoint is used to override the [`schedule`][schedule] for tasks using
+time based execution.
+
+| Method         | Path                                    | Produces           |
+| -------------- | --------------------------------------- | ------------------ |
+| `POST` / `PUT` | `/v1/client/allocation/:alloc_id/pause` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required                |
+| ---------------- | --------------------------- |
+| `NO`             | `namespace:job-submit`      |
+
+### Parameters
+
+- `:alloc_id` `(string: <required>)`- Specifies the UUID of the allocation. This
+  must be the full UUID, not the short 8-character one. This is specified as
+  part of the path.
+
+### Sample Request
+
+```shell-session
+$ echo '{"Task": "schedtask", "ScheduleState": "run"}' | \
+  nomad operator api /v1/client/allocation/23f520cc-629a-46ff-395f-0661e7aa939e/pause
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 0
+}
+```
+
+## Read Pause Schedule State
+
+<EnterpriseAlert />
+
+Retrieve the [`schedule`][schedule] state for a task using time based execution.
+
+| Method | Path                                    | Produces           |
+| ------ | --------------------------------------- | ------------------ |
+| `GET`  | `/v1/client/allocation/:alloc_id/pause` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required              |
+| ---------------- | ------------------------- |
+| `NO`             | `namespace:read-job`      |
+
+### Parameters
+
+- `:alloc_id` `(string: <required>)`- Specifies the UUID of the allocation. This
+  must be the full UUID, not the short 8-character one. This is specified as
+  part of the path.
+
+- `task` - Specifies the task from which to retrieve the time based task
+  execution state.
+
+### Sample Request
+
+```shell-session
+$ nomad operator api /v1/client/allocation/23f520cc-629a-46ff-395f-0661e7aa939e/pause?task=schedtask
+```
+
+### Sample Response
+
+```json
+{
+  "ScheduleState": "scheduled_pause"
+}
+```
+
 [`shutdown_delay`]: /nomad/docs/job-specification/group#shutdown_delay
+[schedule]: /nomad/docs/job-specification/schedule

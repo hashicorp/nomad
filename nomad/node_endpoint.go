@@ -692,31 +692,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, true)
 		}
 
-		// Identify the service registrations current placed on the downed
-		// node.
-		serviceRegistrations, err := n.srv.State().GetServiceRegistrationsByNodeID(ws, args.NodeID)
-		if err != nil {
-			n.logger.Error("looking up service registrations for node failed",
-				"node_id", args.NodeID, "error", err)
-			return err
-		}
-
-		// If the node has service registrations assigned to it, delete these
-		// via Raft.
-		if l := len(serviceRegistrations); l > 0 {
-			n.logger.Debug("deleting service registrations on node due to down state",
-				"num_service_registrations", l, "node_id", args.NodeID)
-
-			deleteRegReq := structs.ServiceRegistrationDeleteByNodeIDRequest{NodeID: args.NodeID}
-
-			_, index, err = n.srv.raftApply(structs.ServiceRegistrationDeleteByNodeIDRequestType, &deleteRegReq)
-			if err != nil {
-				n.logger.Error("failed to delete service registrations for node",
-					"node_id", args.NodeID, "error", err)
-				return err
-			}
-		}
-
 	default:
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
 		if err != nil {
@@ -777,7 +752,10 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node event must not be set")
 	}
 
-	// Look for the node
+	// The AuthenticatedIdentity is unexported so won't be written via
+	// Raft. Record the identity string so it can be written to LastDrain
+	args.UpdatedBy = args.GetIdentity().String()
+
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err

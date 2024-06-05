@@ -29,19 +29,6 @@ import (
 // This can be a read or write transaction.
 type Txn = *txn
 
-// SortOption represents how results can be sorted.
-type SortOption bool
-
-const (
-	// SortDefault indicates that the result should be returned using the
-	// default go-memdb ResultIterator order.
-	SortDefault SortOption = false
-
-	// SortReverse indicates that the result should be returned using the
-	// reversed go-memdb ResultIterator order.
-	SortReverse SortOption = true
-)
-
 // NodeUpsertOption represents options to configure a NodeUpsert operation.
 type NodeUpsertOption uint8
 
@@ -846,44 +833,29 @@ func (s *StateStore) DeleteDeploymentTxn(index uint64, deploymentIDs []string, t
 	return nil
 }
 
-// DeleteAlloc is used to delete a set of allocations by ID
-func (s *StateStore) DeleteAlloc(index uint64, allocIDs []string) error {
-	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
+// deleteAllocsForJobTxn deletes all the allocations for a given job, ensuring
+// that any associated server-side resources like quotas are also cleaned up,
+// but not client-side resources like CSI volumes, which are resolved by the
+// client
+func (s *StateStore) deleteAllocsForJobTxn(txn Txn, index uint64, namespace, jobID string) error {
 
-	err := s.DeleteAllocTxn(index, allocIDs, txn)
-	if err == nil {
-		return txn.Commit()
+	allocs, err := s.AllocsByJob(nil, namespace, jobID, true)
+	if err != nil {
+		return fmt.Errorf("alloc lookup for job %s failed: %w", jobID, err)
 	}
 
-	return err
-}
-
-// DeleteAllocTxn is used to delete a set of allocs by ID, like DeleteALloc but
-// in a transaction. Useful when making multiple modifications atomically.
-func (s *StateStore) DeleteAllocTxn(index uint64, allocIDs []string, txn Txn) error {
-	if len(allocIDs) == 0 {
-		return nil
-	}
-
-	for _, allocID := range allocIDs {
-		// Lookup the alloc
-		existing, err := txn.First("allocs", "id", allocID)
-		if err != nil {
-			return fmt.Errorf("alloc lookup failed: %v", err)
+	for _, existing := range allocs {
+		if !existing.ClientTerminalStatus() {
+			stopped := existing.Copy()
+			stopped.ClientStatus = structs.AllocClientStatusComplete
+			s.updateEntWithAlloc(index, stopped, existing, txn)
 		}
-		if existing == nil {
-			continue
-		}
-
-		// Delete the alloc
 		if err := txn.Delete("allocs", existing); err != nil {
-			return fmt.Errorf("alloc delete failed: %v", err)
+			return fmt.Errorf("alloc delete failed: %w", err)
 		}
 	}
-
 	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+		return fmt.Errorf("index update failed: %w", err)
 	}
 
 	return nil
@@ -1159,6 +1131,12 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	if err := txn.Insert("index", &IndexEntry{"nodes", txn.Index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
+
+	// Deregister any services on the node in the same transaction
+	if copyNode.Status == structs.NodeStatusDown {
+		s.deleteServiceRegistrationByNodeIDTxn(txn, txn.Index, copyNode.ID)
+	}
+
 	return nil
 }
 
@@ -1997,18 +1975,8 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		}
 	}
 
-	// Delete job allocs
-	allocs, err := s.AllocsByJob(nil, namespace, job.ID, true)
-	if err != nil {
-		return fmt.Errorf("alloc lookup for job %s failed: %v", job.ID, err)
-	}
-
-	allocIDs := []string{}
-	for _, a := range allocs {
-		allocIDs = append(allocIDs, a.ID)
-	}
-
-	if err := s.DeleteAllocTxn(index, allocIDs, txn); err != nil {
+	// Delete allocs associated with the job
+	if err := s.deleteAllocsForJobTxn(txn, index, namespace, job.ID); err != nil {
 		return err
 	}
 
@@ -2272,14 +2240,14 @@ func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn
 
 // JobsByIDPrefix is used to lookup a job by prefix. If querying all namespaces
 // the prefix will not be filtered by an index.
-func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
+func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string, sort SortOption) (memdb.ResultIterator, error) {
 	if namespace == structs.AllNamespacesSentinel {
 		return s.jobsByIDPrefixAllNamespaces(ws, id)
 	}
 
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("jobs", "id_prefix", namespace, id)
+	iter, err := getSorted(txn, sort, "jobs", "id_prefix", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -2397,11 +2365,11 @@ func (s *StateStore) JobVersions(ws memdb.WatchSet) (memdb.ResultIterator, error
 }
 
 // Jobs returns an iterator over all the jobs
-func (s *StateStore) Jobs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) Jobs(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	// Walk the entire jobs table
-	iter, err := txn.Get("jobs", "id")
+	iter, err := getSorted(txn, sort, "jobs", "id")
 	if err != nil {
 		return nil, err
 	}
@@ -2412,15 +2380,14 @@ func (s *StateStore) Jobs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 }
 
 // JobsByNamespace returns an iterator over all the jobs for the given namespace
-func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
-	return s.jobsByNamespaceImpl(ws, namespace, txn)
+	return s.jobsByNamespaceImpl(ws, namespace, txn, sort)
 }
 
 // jobsByNamespaceImpl returns an iterator over all the jobs for the given namespace
-func (s *StateStore) jobsByNamespaceImpl(ws memdb.WatchSet, namespace string, txn *txn) (memdb.ResultIterator, error) {
-	// Walk the entire jobs table
-	iter, err := txn.Get("jobs", "id_prefix", namespace, "")
+func (s *StateStore) jobsByNamespaceImpl(ws memdb.WatchSet, namespace string, txn *txn, sort SortOption) (memdb.ResultIterator, error) {
+	iter, err := getSorted(txn, sort, "jobs", "id_prefix", namespace, "")
 	if err != nil {
 		return nil, err
 	}
@@ -2480,6 +2447,20 @@ func (s *StateStore) JobsByPool(ws memdb.WatchSet, pool string) (memdb.ResultIte
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get("jobs", "pool", pool)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// JobsByModifyIndex returns an iterator over all jobs, sorted by ModifyIndex.
+func (s *StateStore) JobsByModifyIndex(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := getSorted(txn, sort, "jobs", "modify_index")
 	if err != nil {
 		return nil, err
 	}
@@ -3185,8 +3166,40 @@ func (s *StateStore) DeleteCSIPlugin(index uint64, id string) error {
 	if err != nil {
 		return err
 	}
+
+	jobIDs := set.New[structs.NamespacedID](1)
+	for _, alloc := range plug.Allocations {
+		jobIDs.Insert(structs.NamespacedID{Namespace: alloc.Namespace, ID: alloc.JobID})
+	}
+
+	// after denormalization of allocs, remove any ControllerJobs or NodeJobs
+	// that no longer have allocations and have been either purged or updated to
+	// no longer include the plugin
+	removeInvalidJobs := func(jobDescs structs.JobDescriptions) {
+		for ns, namespacedJobDescs := range jobDescs {
+			for jobID := range namespacedJobDescs {
+				if !jobIDs.Contains(structs.NamespacedID{Namespace: ns, ID: jobID}) {
+					job, err := s.JobByID(nil, ns, jobID)
+					if err != nil { // programmer error in JobByID only
+						s.logger.Error("could not query JobByID", "error", err)
+						continue
+					}
+					if job == nil { // job was purged
+						jobDescs.Delete(&structs.Job{ID: jobID, Namespace: ns})
+					} else if !job.HasPlugin(plug.ID) {
+						// job was updated to a different plugin ID
+						jobDescs.Delete(job)
+					}
+				}
+			}
+		}
+	}
+
+	removeInvalidJobs(plug.ControllerJobs)
+	removeInvalidJobs(plug.NodeJobs)
+
 	if !plug.IsEmpty() {
-		return fmt.Errorf("plugin in use")
+		return structs.ErrCSIPluginInUse
 	}
 
 	err = txn.Delete("csi_plugins", plug)
@@ -3654,6 +3667,10 @@ func (s *StateStore) DeleteEval(index uint64, evals, allocs []string, userInitia
 		// Mark that we have made a successful modification to the allocs
 		// table.
 		allocsTableUpdated = true
+
+		if err := s.deleteServiceRegistrationByAllocIDTxn(txn, index, alloc); err != nil {
+			return fmt.Errorf("service registration delete for alloc failed: %v", err)
+		}
 	}
 
 	// Update the indexes
@@ -4000,6 +4017,13 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
+
+	if copyAlloc.ClientTerminalStatus() {
+		if err := s.deleteServiceRegistrationByAllocIDTxn(txn, index, copyAlloc.ID); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -6936,7 +6960,7 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 		}
 
 		// Ensure that the namespace doesn't have any non-terminal jobs
-		iter, err := s.jobsByNamespaceImpl(nil, name, txn)
+		iter, err := s.jobsByNamespaceImpl(nil, name, txn, SortDefault)
 		if err != nil {
 			return err
 		}

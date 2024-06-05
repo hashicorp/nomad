@@ -3945,13 +3945,13 @@ func TestConversion_apiJobSubmissionToStructs(t *testing.T) {
 
 func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 	ci.Parallel(t)
-	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
+	must.Nil(t, apiConnectSidecarTaskToStructs(nil))
 	delay := time.Duration(200)
 	timeout := time.Duration(1000)
 	config := make(map[string]interface{})
 	env := make(map[string]string)
 	meta := make(map[string]string)
-	require.Equal(t, &structs.SidecarTask{
+	must.Eq(t, &structs.SidecarTask{
 		Name:   "name",
 		Driver: "driver",
 		User:   "user",
@@ -3970,6 +3970,15 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		},
 		ShutdownDelay: &delay,
 		KillSignal:    "SIGTERM",
+		VolumeMounts: []*structs.VolumeMount{
+			{
+				Volume:          "vol0",
+				Destination:     "/local/foo",
+				ReadOnly:        true,
+				PropagationMode: "private",
+				SELinuxLabel:    "Z",
+			},
+		},
 	}, apiConnectSidecarTaskToStructs(&api.SidecarTask{
 		Name:   "name",
 		Driver: "driver",
@@ -3989,6 +3998,37 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		},
 		ShutdownDelay: &delay,
 		KillSignal:    "SIGTERM",
+		VolumeMounts: []*api.VolumeMount{
+			{
+				Volume:          pointer.Of("vol0"),
+				Destination:     pointer.Of("/local/foo"),
+				ReadOnly:        pointer.Of(true),
+				PropagationMode: pointer.Of("private"),
+				SELinuxLabel:    pointer.Of("Z"),
+			},
+		},
+	}))
+}
+
+func TestConversion_apiVolumeMountsToStructs(t *testing.T) {
+	ci.Parallel(t)
+	must.Nil(t, apiVolumeMountsToStructs(nil))
+	must.Eq(t, []*structs.VolumeMount{
+		{
+			Volume:          "vol0",
+			Destination:     "/local/foo",
+			ReadOnly:        true,
+			PropagationMode: "private",
+			SELinuxLabel:    "Z",
+		},
+	}, apiVolumeMountsToStructs([]*api.VolumeMount{
+		{
+			Volume:          pointer.Of("vol0"),
+			Destination:     pointer.Of("/local/foo"),
+			ReadOnly:        pointer.Of(true),
+			PropagationMode: pointer.Of("private"),
+			SELinuxLabel:    pointer.Of("Z"),
+		},
 	}))
 }
 
@@ -4027,6 +4067,7 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		DestinationName:      "upstream",
 		DestinationNamespace: "ns2",
 		DestinationPeer:      "10.0.0.1:6379",
+		DestinationPartition: "infra",
 		DestinationType:      "tcp",
 		LocalBindPort:        8000,
 		LocalBindSocketPath:  "/var/run/testsocket.sock",
@@ -4038,6 +4079,7 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		DestinationName:      "upstream",
 		DestinationNamespace: "ns2",
 		DestinationPeer:      "10.0.0.1:6379",
+		DestinationPartition: "infra",
 		DestinationType:      "tcp",
 		LocalBindPort:        8000,
 		LocalBindSocketPath:  "/var/run/testsocket.sock",
@@ -4182,6 +4224,33 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 						Services: []*structs.ConsulIngressService{{
 							Name:  "ingress1",
 							Hosts: []string{"host1"},
+							TLS: &structs.ConsulGatewayTLSConfig{
+								SDS: &structs.ConsulGatewayTLSSDSConfig{
+									ClusterName:  "foo",
+									CertResource: "bar",
+								},
+							},
+							RequestHeaders: &structs.ConsulHTTPHeaderModifiers{
+								Add: map[string]string{
+									"test": "testvalue",
+								},
+								Set: map[string]string{
+									"test1": "testvalue1",
+								},
+								Remove: []string{"test2"},
+							},
+							ResponseHeaders: &structs.ConsulHTTPHeaderModifiers{
+								Add: map[string]string{
+									"test": "testvalue",
+								},
+								Set: map[string]string{
+									"test1": "testvalue1",
+								},
+								Remove: []string{"test2"},
+							},
+							MaxConnections:        pointer.Of(uint32(5120)),
+							MaxPendingRequests:    pointer.Of(uint32(512)),
+							MaxConcurrentRequests: pointer.Of(uint32(2048)),
 						}},
 					}},
 				},
@@ -4202,6 +4271,33 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 							Services: []*api.ConsulIngressService{{
 								Name:  "ingress1",
 								Hosts: []string{"host1"},
+								TLS: &api.ConsulGatewayTLSConfig{
+									SDS: &api.ConsulGatewayTLSSDSConfig{
+										ClusterName:  "foo",
+										CertResource: "bar",
+									},
+								},
+								RequestHeaders: &api.ConsulHTTPHeaderModifiers{
+									Add: map[string]string{
+										"test": "testvalue",
+									},
+									Set: map[string]string{
+										"test1": "testvalue1",
+									},
+									Remove: []string{"test2"},
+								},
+								ResponseHeaders: &api.ConsulHTTPHeaderModifiers{
+									Add: map[string]string{
+										"test": "testvalue",
+									},
+									Set: map[string]string{
+										"test1": "testvalue1",
+									},
+									Remove: []string{"test2"},
+								},
+								MaxConnections:        pointer.Of(uint32(5120)),
+								MaxPendingRequests:    pointer.Of(uint32(512)),
+								MaxConcurrentRequests: pointer.Of(uint32(2048)),
 							}},
 						}},
 					},
@@ -4299,4 +4395,52 @@ func Test_apiWorkloadIdentityToStructs(t *testing.T) {
 		ChangeSignal: "SIGHUP",
 		TTL:          2 * time.Hour,
 	}))
+}
+
+func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
+	t.Run("nil jobUI", func(t *testing.T) {
+		must.Nil(t, ApiJobUIConfigToStructs(nil))
+	})
+
+	t.Run("empty jobUI", func(t *testing.T) {
+		jobUI := &api.JobUIConfig{}
+		expected := &structs.JobUIConfig{
+			Description: "",
+			Links:       nil,
+		}
+		result := ApiJobUIConfigToStructs(jobUI)
+		must.Eq(t, expected, result)
+	})
+
+	t.Run("jobUI with empty description and links", func(t *testing.T) {
+		jobUI := &api.JobUIConfig{
+			Description: "",
+			Links:       []*api.JobUILink{},
+		}
+		expected := &structs.JobUIConfig{
+			Description: "",
+			Links:       nil,
+		}
+		result := ApiJobUIConfigToStructs(jobUI)
+		must.Eq(t, expected, result)
+	})
+
+	t.Run("jobUI with links", func(t *testing.T) {
+		jobUI := &api.JobUIConfig{
+			Description: "Test description",
+			Links: []*api.JobUILink{
+				{Label: "Link 1", URL: "http://example.com/1"},
+				{Label: "Link 2", URL: "http://example.com/2"},
+			},
+		}
+		expected := &structs.JobUIConfig{
+			Description: "Test description",
+			Links: []*structs.JobUILink{
+				{Label: "Link 1", Url: "http://example.com/1"},
+				{Label: "Link 2", Url: "http://example.com/2"},
+			},
+		}
+		result := ApiJobUIConfigToStructs(jobUI)
+		must.Eq(t, expected, result)
+	})
 }

@@ -22,10 +22,11 @@ client {
 
 ## `client` Parameters
 
-- `alloc_dir` `(string: "[data_dir]/alloc")` - Specifies the directory to use
-  for allocation data. By default, this is the top-level
-  [data_dir](/nomad/docs/configuration#data_dir) suffixed with
-  "alloc", like `"/opt/nomad/alloc"`. This must be an absolute path.
+- `alloc_dir` `(string: "")` - Specifies the directory to use for allocation
+  data. When this parameter is empty, Nomad will generate the path using the
+  [top-level `data_dir`][top_level_data_dir] suffixed with `alloc`, like
+  `"/opt/nomad/alloc"`. This must be an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
   Specifies a key-value mapping that defines the chroot environment for jobs
@@ -107,7 +108,9 @@ client {
   servers this client should join. This list is used to register the client with
   the server nodes and advertise the available resources so that the agent can
   receive work. This may be specified as an IP address or DNS, with or without
-  the port. If the port is omitted, the default port of `4647` is used.
+  the port. If the port is omitted, the default port of `4647` is used. If you
+  are specifying IPv6 addresses, they must be in URL format with brackets
+  (ex. `"[2001:db8::1]"`).
 
 - `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
   how the Nomad client will connect to Nomad servers. The `start_join` field
@@ -115,10 +118,11 @@ client {
   the server address or use go-discover syntax for auto-discovery. See the
   documentation for more detail.
 
-- `state_dir` `(string: "[data_dir]/client")` - Specifies the directory to use
-  to store client state. By default, this is - the top-level
-  [data_dir](/nomad/docs/configuration#data_dir) suffixed with
-  "client", like `"/opt/nomad/client"`. This must be an absolute path.
+- `state_dir` `(string: "")` - Specifies the directory to use to store client
+  state. When this parameter is empty, Nomad will generate the path using the
+  [top-level `data_dir`][top_level_data_dir] suffixed with `client`, like
+  `"/opt/nomad/client"`. This must be an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
   attempts to garbage collect terminal allocation directories.
@@ -190,6 +194,9 @@ client {
 - `cgroup_parent` `(string: "/nomad")` - Specifies the cgroup parent for which cgroup
   subsystems managed by Nomad will be mounted under. Currently this only applies to the
   `cpuset` subsystems. This field is ignored on non Linux platforms.
+
+- `users` <code>([Users](#users-block): nil)</code> - Specifies options
+  concerning Nomad client's use of operating system users.
 
 ### `chroot_env` Parameters
 
@@ -432,6 +439,13 @@ see the [drivers documentation](/nomad/docs/drivers).
   isolation should be disabled for artifact downloads. Applies only to systems
   where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
 
+- `filesystem_isolation_extra_paths` `([]string: nil)` - Allow extra paths
+  in the filesystem isolation. Paths are specified in the form `[kind]:[mode]:[path]`
+  where `kind` must be either `f` or `d` (file or directory) and 
+  `mode` must be zero or more of `r`, `w`, `c`, `x` (read, write, create, execute) e.g. 
+  `f:r:/dev/urandom` would enable reading the /dev/urandom file, 
+  `d:rx:/opt/bin` would enable reading and executing from the /opt/bin directory
+
 - `set_environment_variables` `(string:"")` - Specifies a comma separated list
   of environment variables that should be inherited by the artifact sandbox from
   the Nomad client's environment. By default a minimal environment is set including
@@ -672,6 +686,27 @@ client {
   complete without stopping system job allocations. By default system jobs (and
   CSI plugins) are stopped last.
 
+### `users` Block
+
+The `users` block controls aspects of Nomad client's use of operating system
+users.
+
+```hcl
+client {
+  users {
+    dynamic_user_min = 80000
+    dynamic_user_max = 89999
+  }
+}
+```
+
+- `dynamic_user_min` `(int: 80000)` - The lowest UID/GID to allocate for task
+  drivers capable of making use of dynamic workload users.
+
+- `dynamic_user_max` `(int: 89999)` - The highest UID/GID to allocate for task
+  drivers capable of making use of dynamic workload users.
+
+
 ## `client` Examples
 
 ### Common Setup
@@ -737,10 +772,11 @@ client {
 [metadata_constraint]: /nomad/docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
 [runtime_var_interpolation]: /nomad/docs/runtime/interpolation
 [task working directory]: /nomad/docs/runtime/environment#task-directories 'Task directories'
-[go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
+[go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
 [landlock]: https://docs.kernel.org/userspace-api/landlock.html
 [`leave_on_interrupt`]: /nomad/docs/configuration#leave_on_interrupt
 [`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate
 [migrate]: /nomad/docs/job-specification/migrate
 [`nomad node drain -self -no-deadline`]: /nomad/docs/commands/node/drain
 [`TimeoutStopSec`]: https://www.freedesktop.org/software/systemd/man/systemd.service.html#TimeoutStopSec=
+[top_level_data_dir]: /nomad/docs/configuration#data_dir

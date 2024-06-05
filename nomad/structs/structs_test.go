@@ -343,6 +343,17 @@ func TestJob_Validate(t *testing.T) {
 			},
 		},
 		{
+			name: "job description is too long",
+			job: &Job{
+				UI: &JobUIConfig{
+					Description: strings.Repeat("a", 1015),
+				},
+			},
+			expErr: []string{
+				"UI description must be under 1000 characters",
+			},
+		},
+		{
 			name: "job task group is type invalid",
 			job: &Job{
 				Region:      "global",
@@ -673,6 +684,19 @@ func testJob() *Job {
 		AllAtOnce:   false,
 		Datacenters: []string{"*"},
 		NodePool:    NodePoolDefault,
+		UI: &JobUIConfig{
+			Description: "A job",
+			Links: []*JobUILink{
+				{
+					Label: "Nomad Project",
+					Url:   "https://nomadproject.io",
+				},
+				{
+					Label: "Nomad on GitHub",
+					Url:   "https://github.com/hashicorp/nomad",
+				},
+			},
+		},
 		Constraints: []*Constraint{
 			{
 				LTarget: "$attr.kernel.name",
@@ -763,6 +787,38 @@ func TestJob_Copy(t *testing.T) {
 	c := j.Copy()
 	if !reflect.DeepEqual(j, c) {
 		t.Fatalf("Copy() returned an unequal Job; got %#v; want %#v", c, j)
+	}
+}
+
+func TestJob_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	cases := []struct {
+		job *Job
+	}{
+		{
+			job: testJob(),
+		},
+		{
+			job: &Job{},
+		},
+		{
+			job: &Job{
+				Datacenters: []string{},
+				Constraints: []*Constraint{},
+				Affinities:  []*Affinity{},
+				Spreads:     []*Spread{},
+				TaskGroups:  []*TaskGroup{},
+				Meta:        map[string]string{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c.job.Canonicalize()
+		copied := c.job.Copy()
+		if !reflect.DeepEqual(c.job, copied) {
+			t.Fatalf("Canonicalize() returned a Job that changed after copy; before %#v; after %#v", c.job, copied)
+		}
 	}
 }
 
@@ -1977,6 +2033,41 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 	}
 }
 
+func TestTaskGroup_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	job := testJob()
+	cases := []struct {
+		tg *TaskGroup
+	}{
+		{
+			tg: job.TaskGroups[0],
+		},
+		{
+			tg: &TaskGroup{},
+		},
+		{
+			tg: &TaskGroup{
+				Constraints: []*Constraint{},
+				Tasks:       []*Task{},
+				Meta:        map[string]string{},
+				Affinities:  []*Affinity{},
+				Spreads:     []*Spread{},
+				Networks:    []*NetworkResource{},
+				Services:    []*Service{},
+				Volumes:     map[string]*VolumeRequest{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c.tg.Canonicalize(job)
+		copied := c.tg.Copy()
+		if !reflect.DeepEqual(c.tg, copied) {
+			t.Fatalf("Canonicalize() returned a TaskGroup that changed after copy; before %#v; after %#v", c.tg, copied)
+		}
+	}
+}
+
 func TestTask_Validate(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2145,6 +2236,46 @@ func TestTask_Validate_Resources(t *testing.T) {
 				require.Contains(t, err.Error(), tc.err)
 			}
 		})
+	}
+}
+
+func TestTask_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	job := testJob()
+	tg := job.TaskGroups[0]
+	cases := []struct {
+		task *Task
+	}{
+		{
+			task: tg.Tasks[0],
+		},
+		{
+			task: &Task{},
+		},
+		{
+			task: &Task{
+				Config:          map[string]interface{}{},
+				Env:             map[string]string{},
+				Services:        []*Service{},
+				Templates:       []*Template{},
+				Constraints:     []*Constraint{},
+				Affinities:      []*Affinity{},
+				Meta:            map[string]string{},
+				Artifacts:       []*TaskArtifact{},
+				VolumeMounts:    []*VolumeMount{},
+				ScalingPolicies: []*ScalingPolicy{},
+				Identities:      []*WorkloadIdentity{},
+				Actions:         []*Action{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c.task.Canonicalize(job, tg)
+		copied := c.task.Copy()
+		if !reflect.DeepEqual(c.task, copied) {
+			t.Fatalf("Canonicalize() returned a Task that changed after copy; before %#v; after %#v", c.task, copied)
+		}
 	}
 }
 
@@ -4785,6 +4916,16 @@ func TestTaskArtifact_Hash(t *testing.T) {
 			GetterMode:   "g",
 			RelativeDest: "i",
 		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:     "g",
+			GetterInsecure: true,
+			RelativeDest:   "i",
+		},
 	}
 
 	// Map of hash to source
@@ -5887,6 +6028,123 @@ func TestAllocation_NeedsToReconnect(t *testing.T) {
 
 			got := alloc.NeedsToReconnect()
 			require.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestAllocation_RescheduleTimeOnDisconnect(t *testing.T) {
+	ci.Parallel(t)
+	testNow := time.Now()
+
+	testAlloc := MockAlloc()
+
+	testCases := []struct {
+		name            string
+		taskGroup       string
+		disconnectGroup *DisconnectStrategy
+		expected        bool
+		expectedTime    time.Time
+	}{
+		{
+			name:         "missing_task_group",
+			taskGroup:    "missing-task-group",
+			expected:     false,
+			expectedTime: time.Time{},
+		},
+		{
+			name:            "missing_disconnect_group",
+			taskGroup:       "web",
+			disconnectGroup: nil,
+			expected:        true,
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
+		},
+		{
+			name:            "empty_disconnect_group",
+			taskGroup:       "web",
+			disconnectGroup: &DisconnectStrategy{},
+			expected:        true,
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
+		},
+		{
+			name:      "replace_enabled",
+			taskGroup: "web",
+			disconnectGroup: &DisconnectStrategy{
+				Replace: pointer.Of(true),
+			},
+			expected:     true,
+			expectedTime: testNow,
+		},
+		{
+			name:      "replace_disabled",
+			taskGroup: "web",
+			disconnectGroup: &DisconnectStrategy{
+				Replace: pointer.Of(false),
+			},
+			expected:     false,
+			expectedTime: testNow,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := testAlloc.Copy()
+
+			alloc.TaskGroup = tc.taskGroup
+			alloc.Job.TaskGroups[0].Disconnect = tc.disconnectGroup
+
+			time, eligible := alloc.RescheduleTimeOnDisconnect(testNow)
+
+			must.Eq(t, tc.expected, eligible)
+			must.Eq(t, tc.expectedTime, time)
+		})
+	}
+}
+
+func TestAllocation_LastStartOfTask(t *testing.T) {
+	ci.Parallel(t)
+	testNow := time.Now()
+
+	alloc := MockAlloc()
+	alloc.TaskStates = map[string]*TaskState{
+		"task-with-restarts": {
+			StartedAt:   testNow.Add(-30 * time.Minute),
+			Restarts:    3,
+			LastRestart: testNow.Add(-5 * time.Minute),
+		},
+		"task-without-restarts": {
+			StartedAt: testNow.Add(-30 * time.Minute),
+			Restarts:  0,
+		},
+	}
+
+	testCases := []struct {
+		name     string
+		taskName string
+		expected time.Time
+	}{
+		{
+			name:     "missing_task",
+			taskName: "missing-task",
+			expected: time.Time{},
+		},
+		{
+			name:     "task_with_restarts",
+			taskName: "task-with-restarts",
+			expected: testNow.Add(-5 * time.Minute),
+		},
+		{
+			name:     "task_without_restarts",
+			taskName: "task-without-restarts",
+			expected: testNow.Add(-30 * time.Minute),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc.TaskGroup = "web"
+			got := alloc.LastStartOfTask(tc.taskName)
+
+			must.Eq(t, tc.expected, got)
 		})
 	}
 }
@@ -7355,6 +7613,7 @@ func TestDNSConfig_Equal(t *testing.T) {
 
 	must.Equal[*DNSConfig](t, nil, nil)
 	must.NotEqual[*DNSConfig](t, nil, new(DNSConfig))
+	must.NotEqual[*DNSConfig](t, nil, &DNSConfig{Servers: []string{"8.8.8.8"}})
 
 	must.StructEqual(t, &DNSConfig{
 		Servers:  []string{"8.8.8.8", "8.8.4.4"},
@@ -8112,7 +8371,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				name:           path,
 				group:          tg.Name,
 				wid:            s.Identity,
-				wiHandle:       s.IdentityHandle(),
+				wiHandle:       s.IdentityHandle(nil),
 				expectedClaims: expectedClaims[path],
 			})
 		}
@@ -8141,7 +8400,7 @@ func TestNewIdentityClaims(t *testing.T) {
 					name:           path,
 					group:          tg.Name,
 					wid:            s.Identity,
-					wiHandle:       s.IdentityHandle(),
+					wiHandle:       s.IdentityHandle(nil),
 					expectedClaims: expectedClaims[path],
 				})
 			}

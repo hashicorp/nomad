@@ -39,11 +39,17 @@ documentation][] for more information.
   best-effort attempt to migrate the data from the previous allocation, even if
   the previous allocation was on another client. Enabling `migrate`
   automatically enables `sticky` as well. During data migration, the task will
-  block starting until the data migration has completed. Migration is atomic and
-  any partially migrated data will be removed if an error is encountered. Note
-  that data migration will not take place if a client garbage collects a failed
-  allocation or if the allocation has been intentionally stopped via `nomad
-  alloc stop`, because the original allocation has already been removed.
+  block starting until the data migration has completed.
+
+  Successful migration requires that the clients can reach each other directly
+  over the Nomad HTTP port. Any failure of the transfer will result in data
+  loss, so this feature is only suitable for data that can be recreated at the
+  destination (for example, cache data). Migration is atomic and any partially
+  migrated data will be removed from the destination if an error is
+  encountered. Note that data migration will not take place if a client garbage
+  collects a failed allocation or if the allocation has been intentionally
+  stopped via `nomad alloc stop`, because the original allocation has already
+  been removed.
 
 - `size` `(int: 300)` - Specifies the size of the ephemeral disk in MB. The
   current Nomad ephemeral storage implementation does not enforce this limit;
@@ -52,21 +58,6 @@ documentation][] for more information.
 - `sticky` `(bool: false)` - Specifies that Nomad should make a best-effort
   attempt to place the updated allocation on the same machine. This will move
   the `local/` and `alloc/data` directories to the new allocation.
-
-## `ephemeral_disk` Examples
-
-The following examples only show the `ephemeral_disk` blocks. Remember that the
-`ephemeral_disk` block is only valid in the placements listed above.
-
-### Sticky Volumes
-
-This example shows enabling sticky volumes with Nomad using ephemeral disks:
-
-```hcl
-ephemeral_disk {
-  sticky = true
-}
-```
 
 [resources]: /nomad/docs/job-specification/resources 'Nomad resources Job Specification'
 [filesystem internals]: /nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads 'Filesystem internals documentation'

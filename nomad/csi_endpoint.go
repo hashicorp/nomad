@@ -845,14 +845,15 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 	}
 
 	req := &cstructs.ClientCSINodeDetachVolumeRequest{
-		PluginID:       vol.PluginID,
-		VolumeID:       vol.ID,
-		ExternalID:     vol.RemoteID(),
-		AllocID:        claim.AllocationID,
-		NodeID:         claim.NodeID,
-		AttachmentMode: claim.AttachmentMode,
-		AccessMode:     claim.AccessMode,
-		ReadOnly:       claim.Mode == structs.CSIVolumeClaimRead,
+		PluginID:        vol.PluginID,
+		VolumeID:        vol.ID,
+		VolumeNamespace: vol.Namespace,
+		ExternalID:      vol.RemoteID(),
+		AllocID:         claim.AllocationID,
+		NodeID:          claim.NodeID,
+		AttachmentMode:  claim.AttachmentMode,
+		AccessMode:      claim.AccessMode,
+		ReadOnly:        claim.Mode == structs.CSIVolumeClaimRead,
 	}
 	err := v.srv.RPC("ClientCSI.NodeDetachVolume",
 		req, &cstructs.ClientCSINodeDetachVolumeResponse{})
@@ -992,7 +993,7 @@ func (v *CSIVolume) lookupExternalNodeID(vol *structs.CSIVolume, claim *structs.
 		return "", fmt.Errorf("%s: %s", structs.ErrUnknownNodePrefix, claim.NodeID)
 	}
 
-	// get the the storage provider's ID for the client node (not
+	// get the storage provider's ID for the client node (not
 	// Nomad's ID for the node)
 	targetCSIInfo, ok := targetNode.CSINodePlugins[vol.PluginID]
 	if !ok || targetCSIInfo.NodeInfo == nil {
@@ -1295,11 +1296,12 @@ func (v *CSIVolume) nodeExpandVolume(vol *structs.CSIVolume, plugin *structs.CSI
 
 		resp := &cstructs.ClientCSINodeExpandVolumeResponse{}
 		req := &cstructs.ClientCSINodeExpandVolumeRequest{
-			PluginID:   plugin.ID,
-			VolumeID:   vol.ID,
-			ExternalID: vol.ExternalID,
-			Capacity:   capacity,
-			Claim:      claim,
+			PluginID:        plugin.ID,
+			VolumeID:        vol.ID,
+			VolumeNamespace: vol.Namespace,
+			ExternalID:      vol.ExternalID,
+			Capacity:        capacity,
+			Claim:           claim,
 		}
 		if err := v.srv.RPC("ClientCSI.NodeExpandVolume", req, resp); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -1795,8 +1797,8 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 		return structs.ErrPermissionDenied
 	}
 
-	withAllocs := aclObj == nil ||
-		aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+	ns := args.RequestNamespace()
+	withAllocs := aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")
@@ -1820,18 +1822,22 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 				return nil
 			}
 
+			// if we're not allowed access to the namespace at all, we skip this
+			// copy as an optimization. withAllocs will be true for the wildcard
+			// namespace
 			if withAllocs {
 				plug, err = snap.CSIPluginDenormalize(ws, plug.Copy())
 				if err != nil {
 					return err
 				}
 
-				// Filter the allocation stubs by our namespace. withAllocs
-				// means we're allowed
+				// Filter the allocation stubs by allowed namespace
 				var as []*structs.AllocListStub
 				for _, a := range plug.Allocations {
-					if a.Namespace == args.RequestNamespace() {
-						as = append(as, a)
+					if ns == structs.AllNamespacesSentinel || a.Namespace == ns {
+						if aclObj.AllowNsOp(a.Namespace, acl.NamespaceCapabilityReadJob) {
+							as = append(as, a)
+						}
 					}
 				}
 				plug.Allocations = as
@@ -1868,7 +1874,7 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 	}
 
 	_, index, err := v.srv.raftApply(structs.CSIPluginDeleteRequestType, args)
-	if err != nil {
+	if err != nil && !errors.Is(err, structs.ErrCSIPluginInUse) {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "delete")
 		return err
 	}

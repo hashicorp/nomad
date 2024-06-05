@@ -11,16 +11,28 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 )
 
+// Node attributes acquired via fingerprinting.
 const (
 	attrVaultVersion      = `${attr.vault.version}`
 	attrConsulVersion     = `${attr.consul.version}`
 	attrNomadVersion      = `${attr.nomad.version}`
 	attrNomadServiceDisco = `${attr.nomad.service_discovery}`
+	attrBridgeCNI         = `${attr.plugins.cni.version.bridge}`
+	attrFirewallCNI       = `${attr.plugins.cni.version.firewall}`
+	attrHostLocalCNI      = `${attr.plugins.cni.version.host-local}`
+	attrLoopbackCNI       = `${attr.plugins.cni.version.loopback}`
+	attrPortMapCNI        = `${attr.plugins.cni.version.portmap}`
+	attrConsulCNI         = `${attr.plugins.cni.version.consul-cni}`
 )
+
+// cniMinVersion is the version expression for the minimum CNI version supported
+// for the CNI container-networking plugins. Support was added at v0.4.0, so
+// we set the minimum to that.
+const cniMinVersion = ">= 0.4.0"
 
 var (
 	// vaultConstraint is the implicit constraint added to jobs requesting a
@@ -77,6 +89,75 @@ var (
 		LTarget: "${attr.kernel.name}",
 		RTarget: "linux",
 		Operand: "=",
+	}
+
+	// cniBridgeConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniBridgeConstraint = &structs.Constraint{
+		LTarget: attrBridgeCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniFirewallConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniFirewallConstraint = &structs.Constraint{
+		LTarget: attrFirewallCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniHostLocalConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniHostLocalConstraint = &structs.Constraint{
+		LTarget: attrHostLocalCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniLoopbackConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniLoopbackConstraint = &structs.Constraint{
+		LTarget: attrLoopbackCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniPortMapConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniPortMapConstraint = &structs.Constraint{
+		LTarget: attrPortMapCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniConsulConstraint is an implicit constraint added to jobs making use of
+	// transparent proxy mode.
+	cniConsulConstraint = &structs.Constraint{
+		LTarget: attrConsulCNI,
+		RTarget: ">= 1.4.2",
+		Operand: structs.ConstraintSemver,
+	}
+
+	// tproxyConstraint is an implicit constraint added to jobs making use of
+	// transparent proxy mode
+	tproxyConstraint = &structs.Constraint{
+		LTarget: attrNomadVersion,
+		RTarget: ">= 1.8.0-dev",
+		Operand: structs.ConstraintSemver,
+	}
+
+	// taskScheduleConstraint is an implicit constraint added to jobs that have
+	// tasks with a schedule{} block for time based task execution (Enterprise)
+	taskScheduleConstraint = &structs.Constraint{
+		LTarget: attrNomadVersion,
+		RTarget: ">= 1.8.0-dev",
+		Operand: structs.ConstraintSemver,
 	}
 )
 
@@ -192,12 +273,20 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// Identify which task groups are utilizing NUMA resources.
 	numaTaskGroups := j.RequiredNUMA()
 
+	bridgeNetworkingTaskGroups := j.RequiredBridgeNetwork()
+
+	transparentProxyTaskGroups := j.RequiredTransparentProxy()
+
+	taskScheduleTaskGroups := j.RequiredScheduleTask()
+
 	// Hot path where none of our things require constraints.
 	//
 	// [UPDATE THIS] if you are adding a new constraint thing!
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
 		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
-		numaTaskGroups.Empty() {
+		numaTaskGroups.Empty() && bridgeNetworkingTaskGroups.Empty() &&
+		transparentProxyTaskGroups.Empty() &&
+		taskScheduleTaskGroups.Empty() {
 		return j, nil, nil
 	}
 
@@ -206,7 +295,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// this single loop, with a new constraintMatcher if needed.
 	for _, tg := range j.TaskGroups {
 		// If the task group utilises Vault, run the mutator.
-		vaultTasks := maps.Keys(vaultBlocks[tg.Name])
+		vaultTasks := lang.MapKeys(vaultBlocks[tg.Name])
 		sort.Strings(vaultTasks)
 		for _, vaultTask := range vaultTasks {
 			vaultBlock := vaultBlocks[tg.Name][vaultTask]
@@ -244,15 +333,32 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 				if service.IsConsul() {
 					mutateConstraint(constraintMatcherLeft, tg, consulConstraintFn(service))
 				}
+			}
 
-				for _, task := range tg.Tasks {
-					for _, service := range task.Services {
-						if service.IsConsul() {
-							mutateConstraint(constraintMatcherLeft, tg, consulConstraintFn(service))
-						}
+			for _, task := range tg.Tasks {
+				for _, service := range task.Services {
+					if service.IsConsul() {
+						mutateConstraint(constraintMatcherLeft, task, consulConstraintFn(service))
 					}
 				}
 			}
+		}
+
+		if bridgeNetworkingTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherLeft, tg, cniBridgeConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniFirewallConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniHostLocalConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniLoopbackConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniPortMapConstraint)
+		}
+
+		if transparentProxyTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherLeft, tg, cniConsulConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, tproxyConstraint)
+		}
+
+		if taskScheduleTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherLeft, tg, taskScheduleConstraint)
 		}
 	}
 
@@ -308,9 +414,17 @@ const (
 	constraintMatcherLeft
 )
 
+// both Tasks and TaskGroups can have constraints, and since current (1.22) Go
+// still doesn't allow us accessing fields of generic type structs, we have to
+// resort to an interface
+type hasConstraints interface {
+	GetConstraints() []*structs.Constraint
+	SetConstraints([]*structs.Constraint)
+}
+
 // mutateConstraint is a generic mutator used to set implicit constraints
 // within the task group if they are needed.
-func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, constraint *structs.Constraint) {
+func mutateConstraint[T hasConstraints](matcher constraintMatcher, taskOrTG T, constraint *structs.Constraint) {
 
 	var found bool
 
@@ -319,14 +433,14 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 	// therefore we do it here.
 	switch matcher {
 	case constraintMatcherFull:
-		for _, c := range taskGroup.Constraints {
+		for _, c := range taskOrTG.GetConstraints() {
 			if c.Equal(constraint) {
 				found = true
 				break
 			}
 		}
 	case constraintMatcherLeft:
-		for _, c := range taskGroup.Constraints {
+		for _, c := range taskOrTG.GetConstraints() {
 			if c.LTarget == constraint.LTarget {
 				found = true
 				break
@@ -336,7 +450,9 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 
 	// If we didn't find a suitable constraint match, add one.
 	if !found {
-		taskGroup.Constraints = append(taskGroup.Constraints, constraint)
+		constraints := taskOrTG.GetConstraints()
+		constraints = append(constraints, constraint)
+		taskOrTG.SetConstraints(constraints)
 	}
 }
 

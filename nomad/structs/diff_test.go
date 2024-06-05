@@ -1744,6 +1744,142 @@ func TestJobDiff(t *testing.T) {
 				ID:   "vault-job",
 			},
 		},
+
+		// UI block is added
+		{
+			Old: &Job{
+				UI: &JobUIConfig{},
+			},
+			New: &Job{
+				UI: &JobUIConfig{
+					Description: "a job description",
+					Links: []*JobUILink{{
+						Label: "example",
+						Url:   "http://example.com",
+					}},
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "UI",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Description",
+								Old:  "",
+								New:  "a job description",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Link",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Label",
+										Old:  "",
+										New:  "example",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Url",
+										Old:  "",
+										New:  "http://example.com",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+
+		// UI block is edited
+		{
+			Old: &Job{
+				UI: &JobUIConfig{
+					Description: "old job description",
+					Links: []*JobUILink{{
+						Label: "foo example",
+						Url:   "http://foo.example.com",
+					}},
+				},
+			},
+			New: &Job{
+				UI: &JobUIConfig{
+					Description: "new job description",
+					Links: []*JobUILink{
+						{
+							Label: "bar example",
+							Url:   "http://bar.example.com",
+						},
+						{
+							Label: "baz example",
+							Url:   "http://baz.example.com",
+						},
+					},
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "UI",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Description",
+								Old:  "old job description",
+								New:  "new job description",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Link",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "Label",
+										Old:  "foo example",
+										New:  "bar example",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Url",
+										Old:  "http://foo.example.com",
+										New:  "http://bar.example.com",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Link",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Label",
+										Old:  "",
+										New:  "baz example",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Url",
+										Old:  "",
+										New:  "http://baz.example.com",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
@@ -3387,6 +3523,15 @@ func TestTaskGroupDiff(t *testing.T) {
 								Config: map[string]interface{}{
 									"foo": "baz",
 								},
+								VolumeMounts: []*VolumeMount{
+									{
+										Volume:          "vol0",
+										Destination:     "/path",
+										ReadOnly:        false,
+										PropagationMode: "private",
+										SELinuxLabel:    "Z",
+									},
+								},
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
@@ -3489,6 +3634,15 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									Config: map[string]interface{}{
 										"foo": "qux",
+									},
+									TransparentProxy: &ConsulTransparentProxy{
+										UID:                  "101",
+										OutboundPort:         15001,
+										ExcludeInboundPorts:  []string{"www", "9000"},
+										ExcludeOutboundPorts: []uint16{4443},
+										ExcludeOutboundCIDRs: []string{"10.0.0.0/8"},
+										ExcludeUIDs:          []string{"1", "10"},
+										NoDNS:                true,
 									},
 								},
 							},
@@ -3832,6 +3986,12 @@ func TestTaskGroupDiff(t *testing.T) {
 															},
 															{
 																Type: DiffTypeNone,
+																Name: "DestinationPartition",
+																Old:  "",
+																New:  "",
+															},
+															{
+																Type: DiffTypeNone,
 																Name: "DestinationPeer",
 																Old:  "",
 																New:  "",
@@ -3915,6 +4075,92 @@ func TestTaskGroupDiff(t *testing.T) {
 																		New:  "http",
 																	},
 																},
+															},
+														},
+													},
+													{
+														Type: DiffTypeAdded,
+														Name: "TransparentProxy",
+														Objects: []*ObjectDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "ExcludeInboundPorts",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeInboundPorts",
+																		Old:  "",
+																		New:  "9000",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeInboundPorts",
+																		Old:  "",
+																		New:  "www",
+																	},
+																},
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "ExcludeOutboundPorts",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeOutboundPorts",
+																		Old:  "",
+																		New:  "4443",
+																	},
+																},
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "ExcludeOutboundCIDRs",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeOutboundCIDRs",
+																		Old:  "",
+																		New:  "10.0.0.0/8",
+																	},
+																},
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "ExcludeUIDs",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeUIDs",
+																		Old:  "",
+																		New:  "1",
+																	},
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "ExcludeUIDs",
+																		Old:  "",
+																		New:  "10",
+																	},
+																},
+															},
+														},
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "NoDNS",
+																Old:  "",
+																New:  "true",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "OutboundPort",
+																Old:  "",
+																New:  "15001",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "UID",
+																Old:  "",
+																New:  "101",
 															},
 														},
 													},
@@ -5627,6 +5873,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "GetterInsecure",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "GetterMode",
 								Old:  "",
 								New:  "file",
@@ -5659,6 +5911,13 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "GetterHeaders[User]",
 								Old:  "user1",
+								New:  "",
+							},
+
+							{
+								Type: DiffTypeDeleted,
+								Name: "GetterInsecure",
+								Old:  "false",
 								New:  "",
 							},
 							{
@@ -7808,6 +8067,131 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			Name: "VolumeMounts added",
+			Old:  &Task{},
+			New: &Task{
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume:          "vol0",
+						Destination:     "/path",
+						ReadOnly:        true,
+						PropagationMode: "private",
+						SELinuxLabel:    "Z",
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "VolumeMount",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Destination",
+								Old:  "",
+								New:  "/path",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PropagationMode",
+								Old:  "",
+								New:  "private",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ReadOnly",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "SELinuxLabel",
+								Old:  "",
+								New:  "Z",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Volume",
+								Old:  "",
+								New:  "vol0",
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			Name: "VolumeMounts edited",
+			Old: &Task{
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume:          "vol0",
+						Destination:     "/path",
+						ReadOnly:        false,
+						PropagationMode: "bidirectional",
+						SELinuxLabel:    "z",
+					},
+				},
+			},
+			New: &Task{
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume:          "vol1",
+						Destination:     "/local",
+						ReadOnly:        true,
+						PropagationMode: "private",
+						SELinuxLabel:    "Z",
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "VolumeMount",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Destination",
+								Old:  "/path",
+								New:  "/local",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "PropagationMode",
+								Old:  "bidirectional",
+								New:  "private",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ReadOnly",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "SELinuxLabel",
+								Old:  "z",
+								New:  "Z",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Volume",
+								Old:  "vol0",
+								New:  "vol1",
+							},
+						},
+					},
+				},
+			},
+		},
+
 		{
 			Name: "Vault added",
 			Old:  &Task{},
@@ -9927,14 +10311,15 @@ func TestServicesDiff(t *testing.T) {
 								LocalServicePort:    8080,
 								Upstreams: []ConsulUpstream{
 									{
-										DestinationName:     "count-api",
-										LocalBindPort:       8080,
-										Datacenter:          "dc2",
-										LocalBindAddress:    "127.0.0.1",
-										LocalBindSocketMode: "0700",
-										LocalBindSocketPath: "/tmp/redis_5678.sock",
-										DestinationPeer:     "cloud-services",
-										DestinationType:     "service",
+										DestinationName:      "count-api",
+										LocalBindPort:        8080,
+										Datacenter:           "dc2",
+										LocalBindAddress:     "127.0.0.1",
+										LocalBindSocketMode:  "0700",
+										LocalBindSocketPath:  "/tmp/redis_5678.sock",
+										DestinationPeer:      "cloud-services",
+										DestinationPartition: "infra",
+										DestinationType:      "service",
 										MeshGateway: ConsulMeshGateway{
 											Mode: "remote",
 										},
@@ -9968,6 +10353,13 @@ func TestServicesDiff(t *testing.T) {
 													Fields: []*FieldDiff{
 														{
 															Type:        DiffTypeAdded,
+															Name:        "DestinationPartition",
+															Old:         "",
+															New:         "infra",
+															Annotations: nil,
+														},
+														{
+															Type:        DiffTypeAdded,
 															Name:        "DestinationPeer",
 															Old:         "",
 															New:         "cloud-services",
@@ -9996,6 +10388,10 @@ func TestServicesDiff(t *testing.T) {
 														},
 													},
 													Objects: nil,
+												},
+												{
+													Type: DiffTypeNone,
+													Name: "TransparentProxy",
 												},
 											},
 										},

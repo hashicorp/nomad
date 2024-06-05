@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -104,7 +105,11 @@ func (w *prefixStderr) Write(p []byte) (int, error) {
 
 	// decrease likely hood of partial line writes that may mess up test
 	// indicator success detection
-	buf := make([]byte, 0, len(w.prefix)+len(p))
+	totalLength := len(w.prefix) + len(p)
+	if totalLength < 0 || totalLength > math.MaxInt32 {
+		return 0, fmt.Errorf("Total length of the prefix message is out of range: %d", totalLength)
+	}
+	buf := make([]byte, 0, totalLength)
 	buf = append(buf, w.prefix...)
 	buf = append(buf, p...)
 

@@ -29,6 +29,8 @@ type taskHandle struct {
 	// for all calls that aren't Wait() or Stop() (and their variations).
 	dockerClient *docker.Client
 
+	dockerCGroupDriver string
+
 	// infinityClient is useful for
 	// - the Wait docker API call(s) (no limit on container lifetime)
 	// - the Stop docker API call(s) (context with task kill_timeout required)
@@ -254,25 +256,33 @@ func (h *taskHandle) startCpusetFixer() {
 		return
 	}
 
-	cgroup := h.containerCgroup
-	if cgroup == "" {
-		// The api does not actually set this value, so we are left to compute it ourselves.
-		// Luckily this is documented,
-		// https://docs.docker.com/config/containers/runmetrics/#find-the-cgroup-for-a-given-container
-		switch cgroupslib.GetMode() {
-		case cgroupslib.CG1:
-			cgroup = "/sys/fs/cgroup/cpuset/docker/" + h.containerID
-		default:
-			// systemd driver; not sure if we need to consider cgroupfs driver
-			cgroup = "/sys/fs/cgroup/system.slice/docker-" + h.containerID + ".scope"
-		}
-	}
-
 	go (&cpuset{
 		doneCh:      h.doneCh,
 		source:      h.task.Resources.LinuxResources.CpusetCgroupPath,
-		destination: cgroup,
+		destination: h.dockerCgroup(),
 	}).watch()
+}
+
+// dockerCgroup returns the path to the cgroup docker will use for the container.
+//
+// The api does not provide this value, so we are left to compute it ourselves.
+//
+// https://docs.docker.com/config/containers/runmetrics/#find-the-cgroup-for-a-given-container
+func (h *taskHandle) dockerCgroup() string {
+	cgroup := h.containerCgroup
+	if cgroup == "" {
+		mode := cgroupslib.GetMode()
+		usingCgroupfs := h.dockerCGroupDriver == "cgroupfs"
+		switch {
+		case mode == cgroupslib.CG1:
+			cgroup = "/sys/fs/cgroup/cpuset/docker/" + h.containerID
+		case mode == cgroupslib.CG2 && usingCgroupfs:
+			cgroup = "/sys/fs/cgroup/docker/" + h.containerID
+		default:
+			cgroup = "/sys/fs/cgroup/system.slice/docker-" + h.containerID + ".scope"
+		}
+	}
+	return cgroup
 }
 
 func (h *taskHandle) run() {

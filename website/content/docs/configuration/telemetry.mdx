@@ -33,11 +33,23 @@ parameters on this page are grouped by the telemetry provider.
 
 The following options are available on all telemetry configurations.
 
+- `in_memory_collection_interval` `(duration: 10s)` Configures the in-memory
+  sink collection interval. This sink is always configured and backs the JSON
+  metrics API endpoint. This option is particularly useful for debugging or
+  development purposes, where aggressive collection is required.
+
+- `in_memory_retention_period` `(duration: 1m)` Configures the in-memory sink
+  retention period. This sink is always configured and backs the JSON metrics
+  API endpoint. This option is particularly useful for debugging or development
+  purposes.
+
 - `disable_hostname` `(bool: false)` - Specifies if gauge values should be
   prefixed with the local hostname.
 
 - `collection_interval` `(duration: 1s)` - Specifies the time interval at which
-  the Nomad agent collects telemetry data.
+  the Nomad agent collects telemetry data. For metrics tools that scrape metrics
+  (for example, Prometheus), you should ensure this value is less than or equal
+  to the value of any scrape interval.
 
 - `use_node_name` `(bool: false)` - Specifies if gauge values should be
   prefixed with the name of the node, instead of the hostname. If set it will
@@ -70,6 +82,12 @@ The following options are available on all telemetry configurations.
   summary statistics. Since each job has a small memory overhead for tracking
   summary statistics, it is sometimes desired to trade these statistics for
   more memory when dispatching high volumes of jobs.
+
+- `disable_quota_utilization_metrics` `(bool: false)` - Specifies if Nomad
+  should publish metrics about quota utilization (a Nomad Enterprise feature).
+  Since each quota utilization check requires a relatively expensive check
+  against Nomad's state store, users with many namespaces and many quotas may
+  want to disable these metrics.
 
 ### `statsite`
 

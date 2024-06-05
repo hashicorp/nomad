@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	cstate "github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -53,13 +54,16 @@ type WIDMgr struct {
 	logger hclog.Logger
 }
 
-func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, logger hclog.Logger) *WIDMgr {
+func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, logger hclog.Logger, envBuilder *taskenv.Builder) *WIDMgr {
 	widspecs := map[structs.WIHandle]*structs.WorkloadIdentity{}
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
+	allocEnv := envBuilder.Build()
+
 	for _, service := range tg.Services {
 		if service.Identity != nil {
-			widspecs[*service.IdentityHandle()] = service.Identity
+			handle := *service.IdentityHandle(allocEnv.ReplaceEnv)
+			widspecs[handle] = service.Identity
 		}
 	}
 
@@ -69,9 +73,12 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, 
 			widspecs[*task.IdentityHandle(id)] = id
 		}
 
+		// update the builder for this task
+		taskEnv := envBuilder.UpdateTask(a, task).Build()
 		for _, service := range task.Services {
 			if service.Identity != nil {
-				widspecs[*service.IdentityHandle()] = service.Identity
+				handle := *service.IdentityHandle(taskEnv.ReplaceEnv)
+				widspecs[handle] = service.Identity
 			}
 		}
 	}
@@ -237,6 +244,12 @@ func (m *WIDMgr) restoreStoredIdentities() (bool, error) {
 	}
 
 	return hasExpired, nil
+}
+
+// SignForTesting signs all the identities in m.widspec, typically with the mock
+// signer. This should only be used for testing downstream hooks.
+func (m *WIDMgr) SignForTesting() {
+	m.getInitialIdentities()
 }
 
 // getInitialIdentities fetches all signed identities or returns an error. It

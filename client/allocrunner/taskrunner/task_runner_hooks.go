@@ -63,6 +63,7 @@ func (tr *TaskRunner) initHooks() {
 	alloc := tr.Alloc()
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
+		newDynamicUsersHook(tr.killCtx, tr.driverCapabilities.DynamicWorkloadUsers, tr.logger, tr.users),
 		newTaskDirHook(tr, hookLogger),
 		newIdentityHook(tr, hookLogger),
 		newLogMonHook(tr, hookLogger),
@@ -187,6 +188,11 @@ func (tr *TaskRunner) initHooks() {
 	// hook.
 	if tr.driverCapabilities.RemoteTasks {
 		tr.runnerHooks = append(tr.runnerHooks, newRemoteTaskHook(tr, hookLogger))
+	}
+
+	// If this task has a pause schedule, initialize the pause (Enterprise)
+	if task.Schedule != nil {
+		tr.runnerHooks = append(tr.runnerHooks, newPauseHook(tr, hookLogger))
 	}
 }
 

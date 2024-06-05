@@ -4,13 +4,14 @@
  */
 
 import { module, test } from 'qunit';
-import { currentURL, triggerKeyEvent } from '@ember/test-helpers';
+import { currentURL, triggerKeyEvent, click } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import AccessControl from 'nomad-ui/tests/pages/access-control';
+import Administration from 'nomad-ui/tests/pages/administration';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import { allScenarios } from '../../mirage/scenarios/default';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 // Several related tests within Access Control are contained in the Tokens, Roles,
 // and Policies acceptance tests.
@@ -28,22 +29,22 @@ module('Acceptance | access control', function (hooks) {
 
   test('Access Control is only accessible by a management user', async function (assert) {
     assert.expect(7);
-    await AccessControl.visit();
+    await Administration.visit();
 
     assert.equal(
       currentURL(),
       '/jobs',
-      'redirected to the jobs page if a non-management token on /access-control'
+      'redirected to the jobs page if a non-management token on /administration'
     );
 
-    await AccessControl.visitTokens();
+    await Administration.visitTokens();
     assert.equal(
       currentURL(),
       '/jobs',
       'redirected to the jobs page if a non-management token on /tokens'
     );
 
-    assert.dom('[data-test-gutter-link="access-control"]').doesNotExist();
+    assert.dom('[data-test-gutter-link="administration"]').doesNotExist();
 
     await Tokens.visit();
     const managementToken = server.db.tokens.findBy(
@@ -52,23 +53,52 @@ module('Acceptance | access control', function (hooks) {
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
 
-    assert.dom('[data-test-gutter-link="access-control"]').exists();
+    assert.dom('[data-test-gutter-link="administration"]').exists();
 
-    await AccessControl.visit();
+    await Administration.visit();
     assert.equal(
       currentURL(),
-      '/access-control',
-      'management token can access /access-control'
+      '/administration',
+      'management token can access /administration'
     );
 
     await a11yAudit(assert);
 
-    await AccessControl.visitTokens();
+    await Administration.visitTokens();
     assert.equal(
       currentURL(),
-      '/access-control/tokens',
-      'management token can access /access-control/tokens'
+      '/administration/tokens',
+      'management token can access /administration/tokens'
     );
+  });
+
+  test('Access control does not show Sentinel Policies if they are not present in license', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    await Tokens.visit();
+    const managementToken = server.db.tokens.findBy(
+      (t) => t.type === 'management'
+    );
+    const { secretId } = managementToken;
+    await Tokens.secret(secretId).submit();
+    await Administration.visit();
+    assert.dom('[data-test-sentinel-policies-card]').doesNotExist();
+  });
+
+  test('Access control shows Sentinel Policies if they are present in license', async function (assert) {
+    assert.expect(2);
+    allScenarios.policiesTestCluster(server, { sentinel: true });
+    await Tokens.visit();
+    const managementToken = server.db.tokens.findBy(
+      (t) => t.type === 'management'
+    );
+    const { secretId } = managementToken;
+    await Tokens.secret(secretId).submit();
+    await Administration.visit();
+
+    assert.dom('[data-test-sentinel-policies-card]').exists();
+    await percySnapshot(assert);
+    await click('[data-test-sentinel-policies-card] a');
+    assert.equal(currentURL(), '/administration/sentinel-policies');
   });
 
   test('Access control index content', async function (assert) {
@@ -79,7 +109,7 @@ module('Acceptance | access control', function (hooks) {
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
 
-    await AccessControl.visit();
+    await Administration.visit();
     assert.dom('[data-test-tokens-card]').exists();
     assert.dom('[data-test-roles-card]').exists();
     assert.dom('[data-test-policies-card]').exists();
@@ -112,16 +142,16 @@ module('Acceptance | access control', function (hooks) {
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
 
-    await AccessControl.visit();
+    await Administration.visit();
 
-    assert.equal(currentURL(), '/access-control');
+    assert.equal(currentURL(), '/administration');
 
     await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
       shiftKey: true,
     });
     assert.equal(
       currentURL(),
-      `/access-control/tokens`,
+      `/administration/tokens`,
       'Shift+ArrowRight takes you to the next tab (Tokens)'
     );
 
@@ -130,7 +160,7 @@ module('Acceptance | access control', function (hooks) {
     });
     assert.equal(
       currentURL(),
-      `/access-control/roles`,
+      `/administration/roles`,
       'Shift+ArrowRight takes you to the next tab (Roles)'
     );
 
@@ -139,7 +169,7 @@ module('Acceptance | access control', function (hooks) {
     });
     assert.equal(
       currentURL(),
-      `/access-control/policies`,
+      `/administration/policies`,
       'Shift+ArrowRight takes you to the next tab (Policies)'
     );
 
@@ -148,7 +178,7 @@ module('Acceptance | access control', function (hooks) {
     });
     assert.equal(
       currentURL(),
-      `/access-control/namespaces`,
+      `/administration/namespaces`,
       'Shift+ArrowRight takes you to the next tab (Namespaces)'
     );
 
@@ -157,7 +187,7 @@ module('Acceptance | access control', function (hooks) {
     });
     assert.equal(
       currentURL(),
-      `/access-control`,
+      `/administration`,
       'Shift+ArrowLeft takes you back to the Access Control index page'
     );
   });

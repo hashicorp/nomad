@@ -5,6 +5,7 @@ package consul
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/maps"
 )
 
 func TestSyncLogic_maybeTweakTaggedAddresses(t *testing.T) {
@@ -708,6 +708,15 @@ func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
 	try(t, "different destination peer", func(p proxy) {
 		diff := upstream1()
 		diff.DestinationPeer = "foo"
+		p.Upstreams = []api.Upstream{
+			diff,
+			upstream2(),
+		}
+	})
+
+	try(t, "different destination partition", func(p proxy) {
+		diff := upstream1()
+		diff.DestinationPartition = "foo"
 		p.Upstreams = []api.Upstream{
 			diff,
 			upstream2(),

@@ -38,6 +38,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
@@ -257,6 +258,12 @@ type TaskRunner struct {
 	networkIsolationLock sync.Mutex
 	networkIsolationSpec *drivers.NetworkIsolationSpec
 
+	// allocNetworkStatus is provided from the allocrunner and allows us to
+	// include this information as env vars for the task. When manipulating
+	// this the allocNetworkStatusLock should be used.
+	allocNetworkStatusLock sync.Mutex
+	allocNetworkStatus     *structs.AllocNetworkStatus
+
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
@@ -270,6 +277,13 @@ type TaskRunner struct {
 
 	// widmgr manages workload identities
 	widmgr widmgr.IdentityManager
+
+	// users manages the pool of dynamic workload users
+	users dynamic.Pool
+
+	// pauser controls whether the task should be run or stopped based on a
+	// schedule. (Enterprise)
+	pauser *pauseGate
 }
 
 type Config struct {
@@ -345,6 +359,9 @@ type Config struct {
 
 	// WIDMgr manages workload identities
 	WIDMgr widmgr.IdentityManager
+
+	// Users manages a pool of dynamic workload users
+	Users dynamic.Pool
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -407,10 +424,14 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		getter:                  config.Getter,
 		wranglers:               config.Wranglers,
 		widmgr:                  config.WIDMgr,
+		users:                   config.Users,
 	}
 
 	// Create the logger based on the allocation ID
 	tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
+
+	// Create the pauser
+	tr.pauser = newPauseGate(tr)
 
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources
@@ -597,6 +618,13 @@ MAIN:
 			tr.logger.Error("prestart failed", "error", err)
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
+		}
+
+		// Unblocks when the task runner is allowed to continue. (Enterprise)
+		if err := tr.pauser.Wait(); err != nil {
+			tr.logger.Error("pause scheduled failed", "error", err)
+			tr.restartTracker.SetStartError(err)
+			break MAIN
 		}
 
 		// Check for a terminal allocation once more before proceeding as the
@@ -1117,7 +1145,7 @@ func (tr *TaskRunner) persistLocalState() error {
 func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	task := tr.Task()
 	alloc := tr.Alloc()
-	invocationid := uuid.Generate()[:8]
+	invocationid := uuid.Short()
 	taskResources := tr.taskResources
 	ports := tr.Alloc().AllocatedResources.Shared.Ports
 	env := tr.envBuilder.Build()
@@ -1446,6 +1474,19 @@ func (tr *TaskRunner) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
 	tr.networkIsolationLock.Lock()
 	tr.networkIsolationSpec = n
 	tr.networkIsolationLock.Unlock()
+}
+
+// SetNetworkStatus is called from the allocrunner to propagate the
+// network status of an allocation. This call occurs once the network hook has
+// run and allows this information to be exported as env vars within the
+// taskenv.
+func (tr *TaskRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
+	tr.allocNetworkStatusLock.Lock()
+	tr.allocNetworkStatus = s
+	tr.allocNetworkStatusLock.Unlock()
+
+	// Update the taskenv builder.
+	tr.envBuilder = tr.envBuilder.SetNetworkStatus(s)
 }
 
 // triggerUpdate if there isn't already an update pending. Should be called

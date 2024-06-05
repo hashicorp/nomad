@@ -5,11 +5,12 @@ package nomad
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -37,8 +38,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusFailed
 	store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
-	err := store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
-	require.Nil(t, err)
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
 
 	// Insert mock job with rescheduling disabled
 	job := mock.Job()
@@ -47,8 +47,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
-	require.Nil(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job))
 
 	// Insert "dead" alloc
 	alloc := mock.Alloc()
@@ -64,10 +63,22 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 	alloc2.JobID = eval.JobID
 	alloc2.TaskGroup = job.TaskGroups[0].Name
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2}))
+
+	// Insert service for "dead" alloc
+	service := &structs.ServiceRegistration{
+		ID:          fmt.Sprintf("_nomad-task-%s-group-api-countdash-api-http", alloc.ID),
+		ServiceName: "countdash-api",
+		Namespace:   eval.Namespace,
+		NodeID:      alloc.NodeID,
+		Datacenter:  "dc1",
+		JobID:       eval.JobID,
+		AllocID:     alloc.ID,
+		Address:     "192.168.200.200",
+		Port:        29001,
 	}
+	must.NoError(t, store.UpsertServiceRegistrations(
+		structs.MsgTypeTestSetup, 1002, []*structs.ServiceRegistration{service}))
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
@@ -75,43 +86,30 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
-	err = core.Process(gc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, core.Process(gc))
 
 	// Should be gone
 	ws := memdb.NewWatchSet()
 	out, err := store.EvalByID(ws, eval.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != nil {
-		t.Fatalf("bad: %v", out)
-	}
+	must.NoError(t, err)
+	must.Nil(t, out, must.Sprint("expected eval to be GC'd"))
 
 	outA, err := store.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA != nil {
-		t.Fatalf("bad: %v", outA)
-	}
+	must.NoError(t, err)
+	must.Nil(t, outA, must.Sprint("expected alloc to be GC'd"))
 
 	outA2, err := store.AllocByID(ws, alloc2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outA2 != nil {
-		t.Fatalf("bad: %v", outA2)
-	}
+	must.NoError(t, err)
+	must.Nil(t, outA2, must.Sprint("expected alloc to be GC'd"))
+
+	services, err := store.GetServiceRegistrationsByNodeID(nil, alloc.NodeID)
+	must.NoError(t, err)
+	must.Len(t, 0, services)
 }
 
 // Tests GC behavior on allocations being rescheduled
@@ -1736,6 +1734,132 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	}
 }
 
+func TestCoreScheduler_jobGC(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create our test server and ensure we have a leader before continuing.
+	testServer, testServerCleanup := TestServer(t, nil)
+	defer testServerCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	testFn := func(inputJob *structs.Job) {
+
+		// Create and upsert a job which has a completed eval and 2 running
+		// allocations associated.
+		inputJob.Status = structs.JobStatusRunning
+
+		mockEval1 := mock.Eval()
+		mockEval1.JobID = inputJob.ID
+		mockEval1.Namespace = inputJob.Namespace
+		mockEval1.Status = structs.EvalStatusComplete
+
+		mockJob1Alloc1 := mock.Alloc()
+		mockJob1Alloc1.EvalID = mockEval1.ID
+		mockJob1Alloc1.JobID = inputJob.ID
+		mockJob1Alloc1.ClientStatus = structs.AllocClientStatusRunning
+
+		mockJob1Alloc2 := mock.Alloc()
+		mockJob1Alloc2.EvalID = mockEval1.ID
+		mockJob1Alloc2.JobID = inputJob.ID
+		mockJob1Alloc2.ClientStatus = structs.AllocClientStatusRunning
+
+		must.NoError(t,
+			testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, inputJob))
+		must.NoError(t,
+			testServer.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval1}))
+		must.NoError(t,
+			testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{
+				mockJob1Alloc1, mockJob1Alloc2}))
+
+		// Trigger a run of the job GC using the forced GC max index value to
+		// ensure all objects that can be GC'd are.
+		stateSnapshot, err := testServer.fsm.State().Snapshot()
+		must.NoError(t, err)
+		coreScheduler := NewCoreScheduler(testServer, stateSnapshot)
+
+		testJobGCEval1 := testServer.coreJobEval(structs.CoreJobForceGC, math.MaxUint64)
+		must.NoError(t, coreScheduler.Process(testJobGCEval1))
+
+		// Ensure the eval, allocations, and job are still present within state and
+		// have not been removed.
+		evalList, err := testServer.fsm.State().EvalsByJob(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Len(t, 1, evalList)
+		must.Eq(t, mockEval1, evalList[0])
+
+		allocList, err := testServer.fsm.State().AllocsByJob(nil, inputJob.Namespace, inputJob.ID, true)
+		must.NoError(t, err)
+		must.Len(t, 2, allocList)
+
+		jobInfo, err := testServer.fsm.State().JobByID(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Eq(t, inputJob, jobInfo)
+
+		// Mark the job as stopped.
+		inputJob.Stop = true
+
+		must.NoError(t,
+			testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 20, nil, inputJob))
+
+		// Force another GC, again the objects should exist in state, particularly
+		// the job as it has non-terminal allocs.
+		stateSnapshot, err = testServer.fsm.State().Snapshot()
+		must.NoError(t, err)
+		coreScheduler = NewCoreScheduler(testServer, stateSnapshot)
+
+		testJobGCEval2 := testServer.coreJobEval(structs.CoreJobForceGC, math.MaxUint64)
+		must.NoError(t, coreScheduler.Process(testJobGCEval2))
+
+		evalList, err = testServer.fsm.State().EvalsByJob(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Len(t, 1, evalList)
+		must.Eq(t, mockEval1, evalList[0])
+
+		allocList, err = testServer.fsm.State().AllocsByJob(nil, inputJob.Namespace, inputJob.ID, true)
+		must.NoError(t, err)
+		must.Len(t, 2, allocList)
+
+		jobInfo, err = testServer.fsm.State().JobByID(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Eq(t, inputJob, jobInfo)
+
+		// Mark that the allocations have reached a terminal state.
+		mockJob1Alloc1.DesiredStatus = structs.AllocDesiredStatusStop
+		mockJob1Alloc1.ClientStatus = structs.AllocClientStatusComplete
+		mockJob1Alloc2.DesiredStatus = structs.AllocDesiredStatusStop
+		mockJob1Alloc2.ClientStatus = structs.AllocClientStatusComplete
+
+		must.NoError(t,
+			testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 30, []*structs.Allocation{
+				mockJob1Alloc1, mockJob1Alloc2}))
+
+		// Force another GC. This time all objects are in a terminal state, so
+		// should be removed.
+		stateSnapshot, err = testServer.fsm.State().Snapshot()
+		must.NoError(t, err)
+		coreScheduler = NewCoreScheduler(testServer, stateSnapshot)
+
+		testJobGCEval3 := testServer.coreJobEval(structs.CoreJobForceGC, math.MaxUint64)
+		must.NoError(t, coreScheduler.Process(testJobGCEval3))
+
+		evalList, err = testServer.fsm.State().EvalsByJob(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Len(t, 0, evalList)
+
+		allocList, err = testServer.fsm.State().AllocsByJob(nil, inputJob.Namespace, inputJob.ID, true)
+		must.NoError(t, err)
+		must.Len(t, 0, allocList)
+
+		jobInfo, err = testServer.fsm.State().JobByID(nil, inputJob.Namespace, inputJob.ID)
+		must.NoError(t, err)
+		must.Nil(t, jobInfo)
+	}
+
+	for _, job := range []*structs.Job{mock.Job(), mock.BatchJob(), mock.SystemBatchJob()} {
+		testFn(job)
+	}
+}
+
 func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2224,38 +2348,59 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 
 	// Attempt the GC
 	index++
 	gc := srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
-	require.NoError(t, core.Process(gc))
+	must.NoError(t, core.Process(gc))
 
 	// Should not be gone (plugin in use)
 	ws := memdb.NewWatchSet()
 	plug, err := store.CSIPluginByID(ws, "foo")
-	require.NotNil(t, plug)
-	require.NoError(t, err)
+	must.NotNil(t, plug)
+	must.NoError(t, err)
 
-	// Empty the plugin
+	// Empty the plugin but add a job
 	plug = plug.Copy()
 	plug.Controllers = map[string]*structs.CSIInfo{}
 	plug.Nodes = map[string]*structs.CSIInfo{}
 
+	job := mock.CSIPluginJob(structs.CSIPluginTypeController, plug.ID)
 	index++
-	err = store.UpsertCSIPlugin(index, plug)
-	require.NoError(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+	plug.ControllerJobs.Add(job, 1)
+
+	index++
+	must.NoError(t, store.UpsertCSIPlugin(index, plug))
 
 	// Retry
 	index++
 	gc = srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
-	require.NoError(t, core.Process(gc))
+	must.NoError(t, core.Process(gc))
 
-	// Should be gone
+	// Should not be gone (plugin in use)
+	ws = memdb.NewWatchSet()
 	plug, err = store.CSIPluginByID(ws, "foo")
-	require.Nil(t, plug)
-	require.NoError(t, err)
+	must.NotNil(t, plug)
+	must.NoError(t, err)
+
+	// Update the job with a different pluginID
+	job = job.Copy()
+	job.TaskGroups[0].Tasks[0].CSIPluginConfig.ID = "another-plugin-id"
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+
+	// Retry
+	index++
+	gc = srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
+	must.NoError(t, core.Process(gc))
+
+	// Should now be gone
+	plug, err = store.CSIPluginByID(ws, "foo")
+	must.Nil(t, plug)
+	must.NoError(t, err)
 }
 
 func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {

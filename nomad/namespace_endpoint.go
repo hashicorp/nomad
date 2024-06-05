@@ -30,7 +30,11 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	reply *structs.GenericResponse) error {
 
 	authErr := n.srv.Authenticate(n.ctx, args)
-	args.Region = n.srv.config.AuthoritativeRegion
+	if n.srv.config.ACLEnabled || args.Region == "" {
+		// only forward to the authoritative region if ACLs are enabled,
+		// otherwise we silently write to the local region
+		args.Region = n.srv.config.AuthoritativeRegion
+	}
 	if done, err := n.srv.forward("Namespace.UpsertNamespaces", args, args, reply); done {
 		return err
 	}
@@ -77,7 +81,11 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply *structs.GenericResponse) error {
 
 	authErr := n.srv.Authenticate(n.ctx, args)
-	args.Region = n.srv.config.AuthoritativeRegion
+	if n.srv.config.ACLEnabled || args.Region == "" {
+		// only forward to the authoritative region if ACLs are enabled,
+		// otherwise we silently write to the local region
+		args.Region = n.srv.config.AuthoritativeRegion
+	}
 	if done, err := n.srv.forward("Namespace.DeleteNamespaces", args, args, reply); done {
 		return err
 	}
@@ -174,7 +182,7 @@ func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
 		return false, err
 	}
 
-	iter, err := snap.JobsByNamespace(nil, namespace)
+	iter, err := snap.JobsByNamespace(nil, namespace, state.SortDefault)
 	if err != nil {
 		return false, err
 	}
@@ -268,7 +276,7 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 				ns := raw.(*structs.Namespace)
 
 				// Only return namespaces allowed by acl
-				if aclObj == nil || aclObj.AllowNamespace(ns.Name) {
+				if aclObj.AllowNamespace(ns.Name) {
 					reply.Namespaces = append(reply.Namespaces, ns)
 				}
 			}

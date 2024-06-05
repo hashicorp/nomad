@@ -21,12 +21,12 @@ description: |-
 />
 
 The `upstreams` block allows configuring various options for managing upstream
-services that a [Consul
-Connect](/nomad/docs/integrations/consul-connect) proxy routes to. It
-is valid only within the context of a `proxy` block.
+services that a [Consul Connect][] proxy routes to. It is valid only within the
+context of a `proxy` block.
 
-For Consul-specific details see the [Consul Connect
-Guide](/consul/tutorials/get-started-vms/virtual-machine-gs-service-discovery).
+For Consul-specific details see the [Consul Connect Guide][]. Note that using
+`upstream` may not be necessary if you have configured the proxy with the
+[`transparent_proxy`][] block.
 
 ```hcl
 job "countdash" {
@@ -82,10 +82,11 @@ job "countdash" {
 ## `upstreams` Parameters
 
 - `config` `(map: nil)` - Upstream configuration that is opaque to Nomad and passed
-  directly to Consul. See [Consul Connect documentation](/consul/docs/connect/registration/service-registration#upstream-configuration-reference)
+  directly to Consul. See [Consul Connect documentation][consul_expose_path_ref]
   for details. Keys and values support [runtime variable interpolation][interpolation].
 - `destination_name` `(string: <required>)` - Name of the upstream service.
 - `destination_namespace` `(string: <required>)` - Name of the upstream Consul namespace.
+- `destination_partition` `(string: "")` - Name of the Cluster admin partition containing the upstream service.
 - `destination_peer` `(string: "")` - Name of the peer cluster containing the upstream service.
 - `destination_type` - `(string: "service")` - The type of discovery query the proxy should use for finding service mesh instances.
 - `local_bind_port` - `(int: <required>)` - The port the proxy will receive
@@ -134,6 +135,9 @@ and a local bind port.
     }
 ```
 
+[Consul Connect]: /nomad/docs/integrations/consul-connect
+[Consul Connect Guide]: /consul/tutorials/get-started-vms/virtual-machine-gs-service-discovery
+[`transparent_proxy`]: /nomad/docs/job-specification/transparent_proxy
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
@@ -143,3 +147,4 @@ and a local bind port.
 [service_defaults_mode]: /consul/docs/connect/config-entries/service-defaults#meshgateway
 [mesh_gateway_param]: /nomad/docs/job-specification/upstreams#mesh_gateway-parameters
 [mesh_gateways]: /consul/docs/connect/gateways/mesh-gateway/service-to-service-traffic-datacenters#mesh-gateways
+[consul_expose_path_ref]: /consul/docs/connect/proxies/proxy-config-reference#expose-paths-configuration-reference

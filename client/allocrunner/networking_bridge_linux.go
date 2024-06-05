@@ -43,7 +43,7 @@ type bridgeNetworkConfigurator struct {
 	logger hclog.Logger
 }
 
-func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool) (*bridgeNetworkConfigurator, error) {
+func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, bridgeName, ipRange string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool, node *structs.Node) (*bridgeNetworkConfigurator, error) {
 	b := &bridgeNetworkConfigurator{
 		bridgeName:  bridgeName,
 		allocSubnet: ipRange,
@@ -59,7 +59,20 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange string, 
 		b.allocSubnet = defaultNomadAllocSubnet
 	}
 
-	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, buildNomadBridgeNetConfig(*b))
+	var netCfg []byte
+
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	for _, svc := range tg.Services {
+		if svc.Connect.HasTransparentProxy() {
+			netCfg = buildNomadBridgeNetConfig(*b, true)
+			break
+		}
+	}
+	if netCfg == nil {
+		netCfg = buildNomadBridgeNetConfig(*b, false)
+	}
+
+	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, netCfg, node)
 	if err != nil {
 		return nil, err
 	}
@@ -139,16 +152,24 @@ func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs
 	return b.cni.Teardown(ctx, alloc, spec)
 }
 
-func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator) []byte {
+func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator, withConsulCNI bool) []byte {
+	var consulCNI string
+	if withConsulCNI {
+		consulCNI = consulCNIBlock
+	}
+
 	return []byte(fmt.Sprintf(nomadCNIConfigTemplate,
 		b.bridgeName,
 		b.hairpinMode,
 		b.allocSubnet,
-		cniAdminChainName))
+		cniAdminChainName,
+		consulCNI,
+	))
 }
 
 // Update website/content/docs/networking/cni.mdx when the bridge configuration
-// is modified.
+// is modified. If CNI plugins are added or versions need to be updated for new
+// fields, add a new constraint to nomad/job_endpoint_hooks.go
 const nomadCNIConfigTemplate = `{
 	"cniVersion": "0.4.0",
 	"name": "nomad",
@@ -186,7 +207,14 @@ const nomadCNIConfigTemplate = `{
 			"type": "portmap",
 			"capabilities": {"portMappings": true},
 			"snat": true
-		}
+		}%s
 	]
 }
+`
+
+const consulCNIBlock = `,
+		{
+			"type": "consul-cni",
+			"log_level": "debug"
+		}
 `

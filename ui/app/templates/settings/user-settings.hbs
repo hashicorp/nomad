@@ -1,0 +1,35 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{page-title "User Settings"}}
+<section class="section">
+  <Hds::Alert @type="inline" @title="Local Storage Settings" as |A|>
+    <A.Title>User Settings</A.Title>
+    <A.Description>These settings will be saved to your browser settings via Local Storage.</A.Description>
+    <A.Generic>
+      <Hds::Separator/>
+      <Hds::Form::Toggle::Group as |G|>
+        <G.ToggleField
+          name="word-wrap"
+          @id="word-wrap"
+          checked={{this.wordWrap}}
+          {{on "change" (action (mut this.wordWrap) (not this.wordWrap))}}
+        as |F|>
+          <F.Label>Word Wrap</F.Label>
+          <F.HelperText>Wrap lines of text in logs and exec terminals in the UI</F.HelperText>
+        </G.ToggleField>
+        <G.ToggleField
+          name="jostle"
+          @id="jostle"
+          checked={{this.liveUpdateJobsIndex}}
+          {{on "change" (action (mut this.liveUpdateJobsIndex) (not this.liveUpdateJobsIndex))}}
+        as |F|>
+          <F.Label>Live Updates to <LinkTo @route="jobs.index">Jobs Index</LinkTo></F.Label>
+          <F.HelperText>When enabled, new or removed jobs will pop into and out of view on your jobs page. When disabled, you will be notified that changes are pending.</F.HelperText>
+        </G.ToggleField>
+      </Hds::Form::Toggle::Group>
+    </A.Generic>
+  </Hds::Alert>
+</section>

@@ -435,7 +435,7 @@ func cloneWithTimeout(httpClient *http.Client, t time.Duration) (*http.Client, e
 	return &nc, nil
 }
 
-// ConfigureTLS applies a set of TLS configurations to the the HTTP client.
+// ConfigureTLS applies a set of TLS configurations to the HTTP client.
 func ConfigureTLS(httpClient *http.Client, tlsConfig *TLSConfig) error {
 	if tlsConfig == nil {
 		return nil
@@ -1183,6 +1183,9 @@ func parseQueryMeta(resp *http.Response, q *QueryMeta) error {
 	last, err := strconv.ParseUint(header.Get("X-Nomad-LastContact"), 10, 64)
 	if err != nil {
 		return fmt.Errorf("Failed to parse X-Nomad-LastContact: %v", err)
+	}
+	if last > math.MaxInt64 {
+		return fmt.Errorf("Last contact duration is out of range: %d", last)
 	}
 	q.LastContact = time.Duration(last) * time.Millisecond
 	q.NextToken = header.Get("X-Nomad-NextToken")

@@ -5,7 +5,6 @@ package structs
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -41,7 +40,7 @@ func TestJobConfig_Validate_LostAfter_Disconnect(t *testing.T) {
 	must.NoError(t, err)
 }
 
-func TestDisconnectStategy_Validate(t *testing.T) {
+func TestDisconnectStrategy_Validate(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
@@ -117,7 +116,42 @@ func TestDisconnectStategy_Validate(t *testing.T) {
 	}
 }
 
-func TestJobConfig_Validate_StopAferClient_Disconnect(t *testing.T) {
+func TestReconcileStrategy(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name            string
+		disconnectBlock *DisconnectStrategy
+		expected        string
+	}{
+		{
+			name:            "nil_disconnect_default_to_best_score",
+			disconnectBlock: nil,
+			expected:        ReconcileOptionBestScore,
+		},
+		{
+			name:            "empty_reconcile_default_to_best_score",
+			disconnectBlock: &DisconnectStrategy{},
+			expected:        ReconcileOptionBestScore,
+		},
+		{
+			name: "longest_running",
+			disconnectBlock: &DisconnectStrategy{
+				Reconcile: ReconcileOptionLongestRunning,
+			},
+			expected: ReconcileOptionLongestRunning,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rs := c.disconnectBlock.ReconcileStrategy()
+			must.Eq(t, c.expected, rs)
+		})
+	}
+}
+
+func TestJobConfig_Validate_StopAfterClient_Disconnect(t *testing.T) {
 	ci.Parallel(t)
 	// Setup a system Job with Disconnect.StopOnClientAfter set, which is invalid
 	job := testJob()
@@ -153,7 +187,7 @@ func TestJobConfig_Validate_StopAferClient_Disconnect(t *testing.T) {
 
 // Test using stop_after_client_disconnect, remove after its deprecated  in favor
 // of Disconnect.StopOnClientAfter introduced in 1.8.0.
-func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
+func TestJobConfig_Validate_StopAfterClientDisconnect(t *testing.T) {
 	ci.Parallel(t)
 	// Setup a system Job with stop_after_client_disconnect set, which is invalid
 	job := testJob()
@@ -227,7 +261,6 @@ func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
 
 	err := job.Validate()
 	must.Error(t, errors.Unwrap(err))
-	fmt.Println("what?", err.Error(), "what?")
 	must.StrContains(t, err.Error(), "max_client_disconnect cannot be negative")
 	must.StrContains(t, err.Error(), "Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect")
 

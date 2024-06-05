@@ -11,12 +11,12 @@ package scheduler
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 // placementResult is an allocation that must be placed. It potentially has a
@@ -293,9 +293,9 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		}
 
 		if alloc.TerminalStatus() && !reconnect {
-			// Terminal allocs, if supportsDisconnectedClient and not reconnect,
+			// Server-terminal allocs, if supportsDisconnectedClient and not reconnect,
 			// are probably stopped replacements and should be ignored
-			if supportsDisconnectedClients {
+			if supportsDisconnectedClients && alloc.ServerTerminalStatus() {
 				ignore[alloc.ID] = alloc
 				continue
 			}
@@ -505,7 +505,7 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 	var eligible bool
 	switch {
 	case isDisconnecting:
-		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(now)
+		rescheduleTime, eligible = alloc.RescheduleTimeOnDisconnect(now)
 
 	case alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.FollowupEvalID == evalID:
 		lastDisconnectTime := alloc.LastUnknown()

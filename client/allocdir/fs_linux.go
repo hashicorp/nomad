@@ -1,6 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
+//go:build linux
+
 package allocdir
 
 import (
@@ -24,11 +26,26 @@ const (
 // linkDir bind mounts src to dst as Linux doesn't support hardlinking
 // directories.
 func linkDir(src, dst string) error {
-	if err := os.MkdirAll(dst, 0777); err != nil {
+	if err := os.MkdirAll(dst, fileMode777); err != nil {
 		return err
 	}
 
 	return syscall.Mount(src, dst, "", syscall.MS_BIND, "")
+}
+
+// mountDir bind mounts old to next using the given file mode.
+func mountDir(old, next string, uid, gid int, mode os.FileMode) error {
+	if err := os.MkdirAll(next, mode); err != nil {
+		return err
+	}
+	opts := unix.MS_BIND | unix.MS_NOSUID | unix.MS_NOATIME
+	if err := unix.Mount(old, next, "", uintptr(opts), ""); err != nil {
+		return err
+	}
+	if err := os.Chmod(next, mode); err != nil {
+		return err
+	}
+	return os.Chown(next, uid, gid)
 }
 
 // unlinkDir unmounts a bind mounted directory as Linux doesn't support
@@ -48,7 +65,7 @@ func unlinkDir(dir string) error {
 func createSecretDir(dir string) error {
 	// Only mount the tmpfs if we are root
 	if unix.Geteuid() == 0 {
-		if err := os.MkdirAll(dir, 0777); err != nil {
+		if err := os.MkdirAll(dir, fileMode777); err != nil {
 			return err
 		}
 
@@ -65,7 +82,7 @@ func createSecretDir(dir string) error {
 		}
 
 		// Create the marker file so we don't try to mount more than once
-		f, err := os.OpenFile(marker, os.O_RDWR|os.O_CREATE, 0666)
+		f, err := os.OpenFile(marker, os.O_RDWR|os.O_CREATE, fileMode666)
 		if err != nil {
 			// Hard fail since if this fails something is really wrong
 			return err
@@ -74,7 +91,7 @@ func createSecretDir(dir string) error {
 		return nil
 	}
 
-	return os.MkdirAll(dir, 0777)
+	return os.MkdirAll(dir, fileMode777)
 }
 
 // createSecretDir removes the secrets dir folder

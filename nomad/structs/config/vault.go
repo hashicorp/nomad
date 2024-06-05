@@ -137,6 +137,9 @@ func DefaultVaultConfig() *VaultConfig {
 
 // IsEnabled returns whether the config enables Vault integration
 func (c *VaultConfig) IsEnabled() bool {
+	if c == nil {
+		return false
+	}
 	return c.Enabled != nil && *c.Enabled
 }
 

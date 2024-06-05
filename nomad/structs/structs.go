@@ -31,7 +31,7 @@ import (
 
 	jwt "github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/cronexpr"
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/go-version"
@@ -660,6 +660,10 @@ type NodeUpdateDrainRequest struct {
 	// Meta is user-provided metadata relating to the drain operation
 	Meta map[string]string
 
+	// UpdatedBy represents the AuthenticatedIdentity of the request, so that we
+	// can record it in the LastDrain data without re-authenticating in the FSM.
+	UpdatedBy string
+
 	WriteRequest
 }
 
@@ -787,29 +791,6 @@ type JobDeregisterRequest struct {
 	SubmitTime int64
 
 	WriteRequest
-}
-
-// JobBatchDeregisterRequest is used to batch deregister jobs and upsert
-// evaluations.
-type JobBatchDeregisterRequest struct {
-	// Jobs is the set of jobs to deregister
-	Jobs map[NamespacedID]*JobDeregisterOptions
-
-	// Evals is the set of evaluations to create.
-	Evals []*Evaluation
-
-	// SubmitTime is the time at which the job was requested to be stopped
-	SubmitTime int64
-
-	WriteRequest
-}
-
-// JobDeregisterOptions configures how a job is deregistered.
-type JobDeregisterOptions struct {
-	// Purge controls whether the deregister purges the job from the system or
-	// whether the job is just marked as stopped and will be removed by the
-	// garbage collector
-	Purge bool
 }
 
 // JobEvaluateRequest is used when we just need to re-evaluate a target job
@@ -1202,6 +1183,26 @@ type AllocSignalRequest struct {
 	QueryOptions
 }
 
+// AllocPauseRequest is used to set the pause state of a task in an allocation.
+type AllocPauseRequest struct {
+	AllocID       string
+	Task          string
+	ScheduleState TaskScheduleState
+	QueryOptions
+}
+
+// AllocGetPauseStateRequest is used to get the pause state of a task in an allocation.
+type AllocGetPauseStateRequest struct {
+	AllocID string
+	Task    string
+	QueryOptions
+}
+
+// AllocGetPauseStateResponse contains the pause state of a task in an allocation.
+type AllocGetPauseStateResponse struct {
+	ScheduleState TaskScheduleState
+}
+
 // AllocsGetRequest is used to query a set of allocations
 type AllocsGetRequest struct {
 	AllocIDs []string
@@ -1492,13 +1493,6 @@ type JobDeregisterResponse struct {
 	JobModifyIndex  uint64
 	VolumeEvalID    string
 	VolumeEvalIndex uint64
-	QueryMeta
-}
-
-// JobBatchDeregisterResponse is used to respond to a batch job deregistration
-type JobBatchDeregisterResponse struct {
-	// JobEvals maps the job to its created evaluation
-	JobEvals map[NamespacedID]string
 	QueryMeta
 }
 
@@ -2851,7 +2845,7 @@ func (d *DNSConfig) IsZero() bool {
 	if d == nil {
 		return true
 	}
-	return len(d.Options) == 0 || len(d.Searches) == 0 || len(d.Servers) == 0
+	return len(d.Options) == 0 && len(d.Searches) == 0 && len(d.Servers) == 0
 }
 
 // NetworkResource is used to represent available network
@@ -3004,6 +2998,13 @@ func (ns Networks) NetIndex(n *NetworkResource) int {
 		}
 	}
 	return -1
+}
+
+// Modes returns the set of network modes used by our NetworkResource blocks.
+func (ns Networks) Modes() *set.Set[string] {
+	return set.FromFunc(ns, func(nr *NetworkResource) string {
+		return nr.Mode
+	})
 }
 
 // RequestedDevice is used to request a device for a task.
@@ -4471,9 +4472,51 @@ type Job struct {
 	SubmitTime int64
 
 	// Raft Indexes
-	CreateIndex    uint64
-	ModifyIndex    uint64
+	CreateIndex uint64
+	// ModifyIndex is the index at which any state of the job last changed
+	ModifyIndex uint64
+	// JobModifyIndex is the index at which the job *specification* last changed
 	JobModifyIndex uint64
+
+	// Links and Description fields for the Web UI
+	UI *JobUIConfig
+}
+
+type JobUIConfig struct {
+	Description string
+	Links       []*JobUILink
+}
+
+type JobUILink struct {
+	Label string
+	Url   string
+}
+
+func (j *JobUIConfig) Copy() *JobUIConfig {
+	if j == nil {
+		return nil
+	}
+	copy := new(JobUIConfig)
+	copy.Description = j.Description
+
+	if j.Links != nil {
+		links := make([]*JobUILink, len(j.Links))
+		for i, link := range j.Links {
+			links[i] = link.Copy()
+		}
+		copy.Links = links
+	}
+	return copy
+}
+
+func (l *JobUILink) Copy() *JobUILink {
+	if l == nil {
+		return nil
+	}
+	copy := new(JobUILink)
+	copy.Label = l.Label
+	copy.Url = l.Url
+	return copy
 }
 
 // NamespacedID returns the namespaced id useful for logging
@@ -4511,6 +4554,15 @@ func (j *Job) GetCreateIndex() uint64 {
 	return j.CreateIndex
 }
 
+// GetModifyIndex implements the ModifyIndexGetter interface, required for
+// pagination.
+func (j *Job) GetModifyIndex() uint64 {
+	if j == nil {
+		return 0
+	}
+	return j.ModifyIndex
+}
+
 // Canonicalize is used to canonicalize fields in the Job. This should be
 // called when registering a Job.
 func (j *Job) Canonicalize() {
@@ -4518,10 +4570,22 @@ func (j *Job) Canonicalize() {
 		return
 	}
 
-	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// Ensure that an empty and nil map or array are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(j.Meta) == 0 {
 		j.Meta = nil
+	}
+
+	if len(j.Constraints) == 0 {
+		j.Constraints = nil
+	}
+
+	if len(j.Affinities) == 0 {
+		j.Affinities = nil
+	}
+
+	if len(j.Spreads) == 0 {
+		j.Spreads = nil
 	}
 
 	// Ensure the job is in a namespace.
@@ -4558,22 +4622,23 @@ func (j *Job) Copy() *Job {
 	}
 	nj := new(Job)
 	*nj = *j
-	nj.Datacenters = slices.Clone(nj.Datacenters)
-	nj.Constraints = CopySliceConstraints(nj.Constraints)
-	nj.Affinities = CopySliceAffinities(nj.Affinities)
-	nj.Multiregion = nj.Multiregion.Copy()
+	nj.Datacenters = slices.Clone(j.Datacenters)
+	nj.Constraints = CopySliceConstraints(j.Constraints)
+	nj.Affinities = CopySliceAffinities(j.Affinities)
+	nj.Multiregion = j.Multiregion.Copy()
+	nj.UI = j.UI.Copy()
 
 	if j.TaskGroups != nil {
-		tgs := make([]*TaskGroup, len(nj.TaskGroups))
-		for i, tg := range nj.TaskGroups {
+		tgs := make([]*TaskGroup, len(j.TaskGroups))
+		for i, tg := range j.TaskGroups {
 			tgs[i] = tg.Copy()
 		}
 		nj.TaskGroups = tgs
 	}
 
-	nj.Periodic = nj.Periodic.Copy()
-	nj.Meta = maps.Clone(nj.Meta)
-	nj.ParameterizedJob = nj.ParameterizedJob.Copy()
+	nj.Periodic = j.Periodic.Copy()
+	nj.Meta = maps.Clone(j.Meta)
+	nj.ParameterizedJob = j.ParameterizedJob.Copy()
 	return nj
 }
 
@@ -4649,6 +4714,13 @@ func (j *Job) Validate() error {
 				outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
 				mErr.Errors = append(mErr.Errors, outer)
 			}
+		}
+	}
+
+	const MaxDescriptionCharacters = 1000
+	if j.UI != nil {
+		if len(j.UI.Description) > MaxDescriptionCharacters {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("UI description must be under 1000 characters, currently %d", len(j.UI.Description)))
 		}
 	}
 
@@ -4889,11 +4961,23 @@ func (j *Job) IsMultiregion() bool {
 	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
 }
 
-// IsPlugin returns whether a job is implements a plugin (currently just CSI)
+// IsPlugin returns whether a job implements a plugin (currently just CSI)
 func (j *Job) IsPlugin() bool {
 	for _, tg := range j.TaskGroups {
 		for _, task := range tg.Tasks {
 			if task.CSIPluginConfig != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// HasPlugin returns whether a job implements a specific plugin ID
+func (j *Job) HasPlugin(id string) bool {
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.CSIPluginConfig != nil && task.CSIPluginConfig.ID == id {
 				return true
 			}
 		}
@@ -6738,10 +6822,22 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 // Canonicalize is used to canonicalize fields in the TaskGroup.
 func (tg *TaskGroup) Canonicalize(job *Job) {
-	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// Ensure that an empty and nil map or array are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(tg.Meta) == 0 {
 		tg.Meta = nil
+	}
+
+	if len(tg.Constraints) == 0 {
+		tg.Constraints = nil
+	}
+
+	if len(tg.Affinities) == 0 {
+		tg.Affinities = nil
+	}
+
+	if len(tg.Spreads) == 0 {
+		tg.Spreads = nil
 	}
 
 	// Set the default restart policy.
@@ -7447,6 +7543,14 @@ func (tg *TaskGroup) GetDisconnectStopTimeout() *time.Duration {
 	return nil
 }
 
+func (tg *TaskGroup) GetConstraints() []*Constraint {
+	return tg.Constraints
+}
+
+func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
+	tg.Constraints = newConstraints
+}
+
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
@@ -7678,6 +7782,9 @@ type Task struct {
 
 	// Alloc-exec-like runnable commands
 	Actions []*Action
+
+	// Schedule for pausing tasks. Enterprise only.
+	Schedule *TaskSchedule
 }
 
 func (t *Task) UsesCores() bool {
@@ -7802,7 +7909,7 @@ func (t *Task) Copy() *Task {
 
 // Canonicalize canonicalizes fields in the task.
 func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
-	// Ensure that an empty and nil map are treated the same to avoid scheduling
+	// Ensure that an empty and nil map or array are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(t.Meta) == 0 {
 		t.Meta = nil
@@ -7812,6 +7919,17 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	}
 	if len(t.Env) == 0 {
 		t.Env = nil
+	}
+	if len(t.Constraints) == 0 {
+		t.Constraints = nil
+	}
+
+	if len(t.Affinities) == 0 {
+		t.Affinities = nil
+	}
+
+	if len(t.VolumeMounts) == 0 {
+		t.VolumeMounts = nil
 	}
 
 	for _, service := range t.Services {
@@ -8265,6 +8383,14 @@ func (t *Task) Warnings() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+func (t *Task) GetConstraints() []*Constraint {
+	return t.Constraints
+}
+
+func (t *Task) SetConstraints(newConstraints []*Constraint) {
+	t.Constraints = newConstraints
 }
 
 // TaskKind identifies the special kinds of tasks using the following format:
@@ -8831,6 +8957,10 @@ type TaskState struct {
 	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
 	// by remote task drivers to migrate task handles between allocations.
 	TaskHandle *TaskHandle
+
+	// Enterprise Only - Paused is set to the paused state of the task. See
+	// task_sched.go
+	Paused TaskScheduleState
 }
 
 // NewTaskState returns a TaskState initialized in the Pending state.
@@ -8925,6 +9055,10 @@ const (
 	// used to determine the running length of the task.
 	TaskStarted = "Started"
 
+	// TaskPausing indicates the task is being killed, but will be
+	// started again to await the next start of its task schedule (Enterprise).
+	TaskPausing = "Pausing"
+
 	// TaskTerminated indicates that the task was started and exited.
 	TaskTerminated = "Terminated"
 
@@ -9009,6 +9143,10 @@ const (
 	// TaskSkippingShutdownDelay indicates that the task operation was
 	// configured to ignore the shutdown delay value set for the tas.
 	TaskSkippingShutdownDelay = "Skipping shutdown delay"
+
+	// TaskRunning indicates a task is running due to a schedule or schedule
+	// override. (Enterprise)
+	TaskRunning = "Running"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -9449,6 +9587,10 @@ type TaskArtifact struct {
 	// Defaults to "any" but can be set to "file" or "dir".
 	GetterMode string
 
+	// GetterInsecure is a flag to disable SSL certificate verification when
+	// downloading the artifact using go-getter.
+	GetterInsecure bool
+
 	// RelativeDest is the download destination given relative to the task's
 	// directory.
 	RelativeDest string
@@ -9467,6 +9609,8 @@ func (ta *TaskArtifact) Equal(o *TaskArtifact) bool {
 		return false
 	case ta.GetterMode != o.GetterMode:
 		return false
+	case ta.GetterInsecure != o.GetterInsecure:
+		return false
 	case ta.RelativeDest != o.RelativeDest:
 		return false
 	}
@@ -9478,11 +9622,12 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 		return nil
 	}
 	return &TaskArtifact{
-		GetterSource:  ta.GetterSource,
-		GetterOptions: maps.Clone(ta.GetterOptions),
-		GetterHeaders: maps.Clone(ta.GetterHeaders),
-		GetterMode:    ta.GetterMode,
-		RelativeDest:  ta.RelativeDest,
+		GetterSource:   ta.GetterSource,
+		GetterOptions:  maps.Clone(ta.GetterOptions),
+		GetterHeaders:  maps.Clone(ta.GetterHeaders),
+		GetterMode:     ta.GetterMode,
+		GetterInsecure: ta.GetterInsecure,
+		RelativeDest:   ta.RelativeDest,
 	}
 }
 
@@ -9522,6 +9667,7 @@ func (ta *TaskArtifact) Hash() string {
 	hashStringMap(h, ta.GetterHeaders)
 
 	_, _ = h.Write([]byte(ta.GetterMode))
+	_, _ = h.Write([]byte(strconv.FormatBool(ta.GetterInsecure)))
 	_, _ = h.Write([]byte(ta.RelativeDest))
 	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
@@ -11074,6 +11220,16 @@ func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
 	return a.nextRescheduleTime(t, reschedulePolicy)
 }
 
+func (a *Allocation) RescheduleTimeOnDisconnect(now time.Time) (time.Time, bool) {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil || tg.Disconnect == nil || tg.Disconnect.Replace == nil {
+		// Kept to maintain backwards compatibility with behavior prior to 1.8.0
+		return a.NextRescheduleTimeByTime(now)
+	}
+
+	return now, *tg.Disconnect.Replace
+}
+
 // ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
 func (a *Allocation) ShouldClientStop() bool {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
@@ -11428,6 +11584,39 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
+// LastStartOfTask returns the time of the last start event for the given task
+// using the allocations TaskStates. If the task has not started, the zero time
+// will be returned.
+func (a *Allocation) LastStartOfTask(taskName string) time.Time {
+	task := a.TaskStates[taskName]
+	if task == nil {
+		return time.Time{}
+	}
+
+	if task.Restarts > 0 {
+		return task.LastRestart
+	}
+
+	return task.StartedAt
+}
+
+// HasAnyPausedTasks returns true if any of the TaskStates on the alloc
+// are Paused (Enterprise feature) either due to a schedule or being forced.
+func (a *Allocation) HasAnyPausedTasks() bool {
+	if a == nil {
+		return false
+	}
+	for _, ts := range a.TaskStates {
+		if ts == nil {
+			continue
+		}
+		if ts.Paused.Stop() {
+			return true
+		}
+	}
+	return false
+}
+
 // IdentityClaims are the input to a JWT identifying a workload. It
 // should never be serialized to msgpack unsigned.
 type IdentityClaims struct {
@@ -11480,6 +11669,9 @@ func NewIdentityClaims(job *Job, alloc *Allocation, wihandle *WIHandle, wid *Wor
 	switch wihandle.WorkloadType {
 	case WorkloadTypeService:
 		serviceName := wihandle.WorkloadIdentifier
+		if wihandle.InterpolatedWorkloadIdentifier != "" {
+			serviceName = wihandle.InterpolatedWorkloadIdentifier
+		}
 		claims.ServiceName = serviceName
 
 		// Find task name if this is a task service.

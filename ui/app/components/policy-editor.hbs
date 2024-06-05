@@ -26,12 +26,12 @@
 				class="policy-editor"
 				data-test-policy-editor
 				{{code-mirror
-          screenReaderLabel="Policy definition"
-          theme="hashi"
-          mode="ruby"
-          content=@policy.rules
-          onUpdate=this.updatePolicyRules
-          autofocus=false
+					screenReaderLabel="Policy definition"
+					theme="hashi"
+					mode="ruby"
+					content=@policy.rules
+					onUpdate=this.updatePolicyRules
+					autofocus=false
 					extraKeys=(hash Cmd-Enter=this.save)
 				}} />
 		</div>

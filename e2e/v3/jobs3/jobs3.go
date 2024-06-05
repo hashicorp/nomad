@@ -37,6 +37,7 @@ type Submission struct {
 	timeout       time.Duration
 	verbose       bool
 	detach        bool
+	dispatcher    bool
 
 	// jobspec mutator funcs
 	mutators []func(string) string
@@ -47,6 +48,8 @@ type Submission struct {
 	waitComplete *set.Set[string] // groups to wait until complete
 	inNamespace  string
 	authToken    string
+
+	legacyConsulToken string
 }
 
 func (sub *Submission) queryOptions() *nomadapi.QueryOptions {
@@ -299,6 +302,9 @@ func (sub *Submission) run() {
 	if job.Type == nil {
 		job.Type = pointer.Of("service")
 	}
+	if sub.legacyConsulToken != "" {
+		job.ConsulToken = pointer.Of(sub.legacyConsulToken)
+	}
 
 	writeOpts := &nomadapi.WriteOptions{
 		Namespace: sub.inNamespace,
@@ -320,6 +326,10 @@ func (sub *Submission) run() {
 		sub.t.Cleanup(func() {
 			f(sub)
 		})
+	}
+
+	if sub.dispatcher {
+		return
 	}
 
 	evalID := regResp.EvalID
@@ -588,6 +598,14 @@ func PreCleanup(cb func(*Submission)) Option {
 	}
 }
 
+// Dispatcher indicates the job is the parent for dispatched jobs, so we
+// shouldn't wait for evals or deployments
+func Dispatcher() Option {
+	return func(sub *Submission) {
+		sub.dispatcher = true
+	}
+}
+
 // defaultPreCleanup looks for blocked evals, alloc errors, and task events
 // only when the test has failed.
 func defaultPreCleanup(job *Submission) {
@@ -626,4 +644,10 @@ func SkipEvalComplete() Option {
 // healthy.
 func SkipDeploymentHealthy() Option {
 	panic("not yet implemented")
+}
+
+func LegacyConsulToken(token string) Option {
+	return func(c *Submission) {
+		c.legacyConsulToken = token
+	}
 }

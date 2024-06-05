@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
@@ -283,6 +284,11 @@ var (
 			hclspec.NewAttr("infra_image_pull_timeout", "string", false),
 			hclspec.NewLiteral(`"5m"`),
 		),
+		// number of attempts to try to purge an existing container if it already exists
+		"container_exists_attempts": hclspec.NewDefault(
+			hclspec.NewAttr("container_exists_attempts", "number", false),
+			hclspec.NewLiteral(`5`),
+		),
 
 		// the duration that the driver will wait for activity from the Docker engine during an image pull
 		// before canceling the request
@@ -349,6 +355,7 @@ var (
 			hclspec.NewAttr("cpu_cfs_period", "number", false),
 			hclspec.NewLiteral(`100000`),
 		),
+		"container_exists_attempts": hclspec.NewAttr("container_exists_attempts", "number", false),
 		"devices": hclspec.NewBlockList("devices", hclspec.NewObject(map[string]*hclspec.Spec{
 			"host_path":          hclspec.NewAttr("host_path", "string", false),
 			"container_path":     hclspec.NewAttr("container_path", "string", false),
@@ -414,7 +421,7 @@ var (
 	driverCapabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: drivers.FSIsolationImage,
+		FSIsolation: fsisolation.Image,
 		NetIsolationModes: []drivers.NetIsolationMode{
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
@@ -426,60 +433,61 @@ var (
 )
 
 type TaskConfig struct {
-	Image             string             `codec:"image"`
-	AdvertiseIPv6Addr bool               `codec:"advertise_ipv6_address"`
-	Args              []string           `codec:"args"`
-	Auth              DockerAuth         `codec:"auth"`
-	AuthSoftFail      bool               `codec:"auth_soft_fail"`
-	CapAdd            []string           `codec:"cap_add"`
-	CapDrop           []string           `codec:"cap_drop"`
-	Command           string             `codec:"command"`
-	CPUCFSPeriod      int64              `codec:"cpu_cfs_period"`
-	CPUHardLimit      bool               `codec:"cpu_hard_limit"`
-	CPUSetCPUs        string             `codec:"cpuset_cpus"`
-	Devices           []DockerDevice     `codec:"devices"`
-	DNSSearchDomains  []string           `codec:"dns_search_domains"`
-	DNSOptions        []string           `codec:"dns_options"`
-	DNSServers        []string           `codec:"dns_servers"`
-	Entrypoint        []string           `codec:"entrypoint"`
-	ExtraHosts        []string           `codec:"extra_hosts"`
-	ForcePull         bool               `codec:"force_pull"`
-	GroupAdd          []string           `codec:"group_add"`
-	Healthchecks      DockerHealthchecks `codec:"healthchecks"`
-	Hostname          string             `codec:"hostname"`
-	Init              bool               `codec:"init"`
-	Interactive       bool               `codec:"interactive"`
-	IPCMode           string             `codec:"ipc_mode"`
-	IPv4Address       string             `codec:"ipv4_address"`
-	IPv6Address       string             `codec:"ipv6_address"`
-	Isolation         string             `codec:"isolation"`
-	Labels            hclutils.MapStrStr `codec:"labels"`
-	LoadImage         string             `codec:"load"`
-	Logging           DockerLogging      `codec:"logging"`
-	MacAddress        string             `codec:"mac_address"`
-	MemoryHardLimit   int64              `codec:"memory_hard_limit"`
-	Mounts            []DockerMount      `codec:"mount"`
-	NetworkAliases    []string           `codec:"network_aliases"`
-	NetworkMode       string             `codec:"network_mode"`
-	Runtime           string             `codec:"runtime"`
-	PidsLimit         int64              `codec:"pids_limit"`
-	PidMode           string             `codec:"pid_mode"`
-	Ports             []string           `codec:"ports"`
-	PortMap           hclutils.MapStrInt `codec:"port_map"`
-	Privileged        bool               `codec:"privileged"`
-	ImagePullTimeout  string             `codec:"image_pull_timeout"`
-	ReadonlyRootfs    bool               `codec:"readonly_rootfs"`
-	SecurityOpt       []string           `codec:"security_opt"`
-	ShmSize           int64              `codec:"shm_size"`
-	StorageOpt        map[string]string  `codec:"storage_opt"`
-	Sysctl            hclutils.MapStrStr `codec:"sysctl"`
-	TTY               bool               `codec:"tty"`
-	Ulimit            hclutils.MapStrStr `codec:"ulimit"`
-	UTSMode           string             `codec:"uts_mode"`
-	UsernsMode        string             `codec:"userns_mode"`
-	Volumes           []string           `codec:"volumes"`
-	VolumeDriver      string             `codec:"volume_driver"`
-	WorkDir           string             `codec:"work_dir"`
+	Image                   string             `codec:"image"`
+	AdvertiseIPv6Addr       bool               `codec:"advertise_ipv6_address"`
+	Args                    []string           `codec:"args"`
+	Auth                    DockerAuth         `codec:"auth"`
+	AuthSoftFail            bool               `codec:"auth_soft_fail"`
+	CapAdd                  []string           `codec:"cap_add"`
+	CapDrop                 []string           `codec:"cap_drop"`
+	Command                 string             `codec:"command"`
+	ContainerExistsAttempts uint64             `codec:"container_exists_attempts"`
+	CPUCFSPeriod            int64              `codec:"cpu_cfs_period"`
+	CPUHardLimit            bool               `codec:"cpu_hard_limit"`
+	CPUSetCPUs              string             `codec:"cpuset_cpus"`
+	Devices                 []DockerDevice     `codec:"devices"`
+	DNSSearchDomains        []string           `codec:"dns_search_domains"`
+	DNSOptions              []string           `codec:"dns_options"`
+	DNSServers              []string           `codec:"dns_servers"`
+	Entrypoint              []string           `codec:"entrypoint"`
+	ExtraHosts              []string           `codec:"extra_hosts"`
+	ForcePull               bool               `codec:"force_pull"`
+	GroupAdd                []string           `codec:"group_add"`
+	Healthchecks            DockerHealthchecks `codec:"healthchecks"`
+	Hostname                string             `codec:"hostname"`
+	Init                    bool               `codec:"init"`
+	Interactive             bool               `codec:"interactive"`
+	IPCMode                 string             `codec:"ipc_mode"`
+	IPv4Address             string             `codec:"ipv4_address"`
+	IPv6Address             string             `codec:"ipv6_address"`
+	Isolation               string             `codec:"isolation"`
+	Labels                  hclutils.MapStrStr `codec:"labels"`
+	LoadImage               string             `codec:"load"`
+	Logging                 DockerLogging      `codec:"logging"`
+	MacAddress              string             `codec:"mac_address"`
+	MemoryHardLimit         int64              `codec:"memory_hard_limit"`
+	Mounts                  []DockerMount      `codec:"mount"`
+	NetworkAliases          []string           `codec:"network_aliases"`
+	NetworkMode             string             `codec:"network_mode"`
+	Runtime                 string             `codec:"runtime"`
+	PidsLimit               int64              `codec:"pids_limit"`
+	PidMode                 string             `codec:"pid_mode"`
+	Ports                   []string           `codec:"ports"`
+	PortMap                 hclutils.MapStrInt `codec:"port_map"`
+	Privileged              bool               `codec:"privileged"`
+	ImagePullTimeout        string             `codec:"image_pull_timeout"`
+	ReadonlyRootfs          bool               `codec:"readonly_rootfs"`
+	SecurityOpt             []string           `codec:"security_opt"`
+	ShmSize                 int64              `codec:"shm_size"`
+	StorageOpt              map[string]string  `codec:"storage_opt"`
+	Sysctl                  hclutils.MapStrStr `codec:"sysctl"`
+	TTY                     bool               `codec:"tty"`
+	Ulimit                  hclutils.MapStrStr `codec:"ulimit"`
+	UTSMode                 string             `codec:"uts_mode"`
+	UsernsMode              string             `codec:"userns_mode"`
+	Volumes                 []string           `codec:"volumes"`
+	VolumeDriver            string             `codec:"volume_driver"`
+	WorkDir                 string             `codec:"work_dir"`
 
 	// MountsList supports the pre-1.0 mounts array syntax
 	MountsList []DockerMount `codec:"mounts"`
@@ -647,6 +655,7 @@ type DriverConfig struct {
 	InfraImage                    string        `codec:"infra_image"`
 	InfraImagePullTimeout         string        `codec:"infra_image_pull_timeout"`
 	infraImagePullTimeoutDuration time.Duration `codec:"-"`
+	ContainerExistsAttempts       uint64        `codec:"container_exists_attempts"`
 	DisableLogCollection          bool          `codec:"disable_log_collection"`
 	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
 	PidsLimit                     int64         `codec:"pids_limit"`

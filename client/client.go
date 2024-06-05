@@ -6,6 +6,7 @@ package client
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/rpc"
 	"os"
@@ -56,14 +57,15 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/v3/host"
-	"golang.org/x/exp/maps"
 )
 
 const (
@@ -113,16 +115,6 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
-
-	// defaultConnectLogLevel is the log level set in the node meta by default
-	// to be used by Consul Connect sidecar tasks.
-	defaultConnectLogLevel = "info"
-
-	// defaultConnectProxyConcurrency is the default number of worker threads the
-	// connect sidecar should be configured to use.
-	//
-	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
-	defaultConnectProxyConcurrency = "1"
 )
 
 var (
@@ -339,6 +331,9 @@ type Client struct {
 
 	// widsigner signs workload identities
 	widsigner widmgr.IdentitySigner
+
+	// users is a pool of dynamic workload users
+	users dynamic.Pool
 }
 
 var (
@@ -470,6 +465,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	} else {
 		c.topology = numalib.NoImpl(ir.Topology)
 	}
+
+	// Create the dynamic workload users pool
+	c.users = dynamic.New(&dynamic.PoolConfig{
+		MinUGID: cfg.Users.MinDynamicUser,
+		MaxUGID: cfg.Users.MaxDynamicUser,
+	})
 
 	// Create the cpu core partition manager
 	c.partitions = cgroupslib.GetPartition(
@@ -682,10 +683,17 @@ func (c *Client) init() error {
 
 	c.stateDB = db
 
-	// Ensure the alloc dir exists if we have one
+	// Ensure the alloc mounts dir exists if we are configured with a custom path.
+	if conf.AllocMountsDir != "" {
+		if err := os.MkdirAll(conf.AllocMountsDir, 0o711); err != nil {
+			return fmt.Errorf("failed creating alloc mounts dir: %w", err)
+		}
+	}
+
+	// Ensure the alloc dir exists if we are configured with a custom path.
 	if conf.AllocDir != "" {
-		if err := os.MkdirAll(conf.AllocDir, 0711); err != nil {
-			return fmt.Errorf("failed creating alloc dir: %s", err)
+		if err := os.MkdirAll(conf.AllocDir, 0o711); err != nil {
+			return fmt.Errorf("failed creating alloc dir: %w", err)
 		}
 	} else {
 		// Otherwise make a temp directory to use.
@@ -700,12 +708,13 @@ func (c *Client) init() error {
 		}
 
 		// Change the permissions to have the execute bit
-		if err := os.Chmod(p, 0711); err != nil {
+		if err := os.Chmod(p, 0o711); err != nil {
 			return fmt.Errorf("failed to change directory permissions for the AllocDir: %v", err)
 		}
 
 		conf = c.UpdateConfig(func(c *config.Config) {
 			c.AllocDir = p
+			c.AllocMountsDir = p
 		})
 	}
 
@@ -958,6 +967,24 @@ func (c *Client) SignalAllocation(allocID, task, signal string) error {
 	}
 
 	return ar.Signal(task, signal)
+}
+
+// PauseAllocation sets the pause state of the given task for the allocation.
+func (c *Client) PauseAllocation(allocID, task string, scheduleState structs.TaskScheduleState) error {
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return err
+	}
+	return ar.SetTaskPauseState(task, scheduleState)
+}
+
+// GetPauseAllocation gets the pause state of the  given task for the allocation.
+func (c *Client) GetPauseAllocation(allocID, task string) (structs.TaskScheduleState, error) {
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return "", err
+	}
+	return ar.GetTaskPauseState(task)
 }
 
 // CollectAllocation garbage collects a single allocation on a node. Returns
@@ -1554,11 +1581,17 @@ func (c *Client) setupNode() error {
 	if _, ok := node.Meta[envoy.GatewayMetaParam]; !ok {
 		node.Meta[envoy.GatewayMetaParam] = envoy.ImageFormat
 	}
-	if _, ok := node.Meta["connect.log_level"]; !ok {
-		node.Meta["connect.log_level"] = defaultConnectLogLevel
+	if _, ok := node.Meta[envoy.DefaultConnectLogLevelParam]; !ok {
+		node.Meta[envoy.DefaultConnectLogLevelParam] = envoy.DefaultConnectLogLevel
 	}
-	if _, ok := node.Meta["connect.proxy_concurrency"]; !ok {
-		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
+	if _, ok := node.Meta[envoy.DefaultConnectProxyConcurrencyParam]; !ok {
+		node.Meta[envoy.DefaultConnectProxyConcurrencyParam] = envoy.DefaultConnectProxyConcurrency
+	}
+	if _, ok := node.Meta[envoy.DefaultTransparentProxyUIDParam]; !ok {
+		node.Meta[envoy.DefaultTransparentProxyUIDParam] = envoy.DefaultTransparentProxyUID
+	}
+	if _, ok := node.Meta[envoy.DefaultTransparentProxyOutboundPortParam]; !ok {
+		node.Meta[envoy.DefaultTransparentProxyOutboundPortParam] = envoy.DefaultTransparentProxyOutboundPort
 	}
 
 	// Since node.Meta will get dynamic metadata merged in, save static metadata
@@ -2772,6 +2805,7 @@ func (c *Client) newAllocRunnerConfig(
 		WIDSigner:           c.widsigner,
 		Wranglers:           c.wranglers,
 		Partitions:          c.partitions,
+		Users:               c.users,
 	}
 }
 
@@ -3236,7 +3270,11 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 	// Emit unallocated
 	unallocatedMem := total.Memory.MemoryMB - res.Memory.MemoryMB - allocated.Flattened.Memory.MemoryMB
 	unallocatedDisk := total.Disk.DiskMB - res.Disk.DiskMB - allocated.Shared.DiskMB
-	unallocatedCpu := int64(total.Processors.Topology.UsableCompute()) - res.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
+
+	// The UsableCompute function call already subtracts and accounts for any
+	// reserved CPU within the client configuration. Therefore, we do not need
+	// to subtract that here.
+	unallocatedCpu := int64(total.Processors.Topology.UsableCompute()) - allocated.Flattened.Cpu.CpuShares
 
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), baseLabels)
@@ -3459,7 +3497,7 @@ func (p *pendingClientUpdates) nextBatch(c *Client, updateTicks int) []*structs.
 
 	// Clear here so that allocrunners can queue up the next set of updates
 	// while we're waiting to hear from the server
-	maps.Clear(p.updates)
+	lang.MapClear(p.updates)
 
 	return toSync
 

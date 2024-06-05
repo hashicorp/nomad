@@ -96,6 +96,16 @@
 
 .radio-group {
   padding: 16px 0px;
+
+  .hds-form-radio-card--checked {
+    background-color: var(--token-color-surface-action);
+  }
+
+  .hds-form-radio-card__control-wrapper {
+    height: 0;
+    padding: 0;
+    overflow: hidden;
+  }
 }
 
 .button-group {

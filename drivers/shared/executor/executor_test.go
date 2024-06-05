@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	tu "github.com/hashicorp/nomad/testutil"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/shoenig/test/must"
@@ -75,11 +76,11 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), t.TempDir(), alloc.ID)
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), t.TempDir(), t.TempDir(), alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	if err := allocDir.NewTaskDir(task.Name).Build(false, nil); err != nil {
+	if err := allocDir.NewTaskDir(task.Name).Build(fsisolation.None, nil, task.User); err != nil {
 		allocDir.Destroy()
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
@@ -647,9 +648,9 @@ func TestExecutor_Start_NonExecutableBinaries(t *testing.T) {
 			// need to configure path in chroot with that file if using isolation executor
 			if _, ok := executor.(*UniversalExecutor); !ok {
 				taskName := filepath.Base(testExecCmd.command.TaskDir)
-				err := allocDir.NewTaskDir(taskName).Build(true, map[string]string{
+				err := allocDir.NewTaskDir(taskName).Build(fsisolation.Chroot, map[string]string{
 					tmpDir: tmpDir,
-				})
+				}, "nobody")
 				require.NoError(err)
 			}
 

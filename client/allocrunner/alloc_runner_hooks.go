@@ -114,7 +114,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		).SetAllocDir(ar.allocDir.AllocDirPath())
 	}
 
-	// Create a taskenv.TaskEnv which is used for read only purposes by the
+	// Create a *taskenv.TaskEnv which is used for read only purposes by the
 	// newNetworkHook and newChecksHook.
 	builtTaskEnv := newEnvBuilder().Build()
 
@@ -130,8 +130,9 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			allocdir:                ar.allocDir,
 			widmgr:                  ar.widmgr,
 			consulConfigs:           ar.clientConfig.GetConsulConfigs(hookLogger),
-			consulClientConstructor: consul.NewConsulClient,
+			consulClientConstructor: consul.NewConsulClientFactory(config.Node),
 			hookResources:           ar.hookResources,
+			envBuilder:              newEnvBuilder,
 			logger:                  hookLogger,
 		}),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),

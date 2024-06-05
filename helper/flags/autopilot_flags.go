@@ -94,6 +94,10 @@ func (u *UintValue) Set(v string) error {
 	}
 
 	parsed, err := strconv.ParseUint(v, 0, bits.UintSize)
+	if err != nil {
+		return err
+	}
+
 	*(u.v) = (uint)(parsed)
 	return err
 }

@@ -32,6 +32,15 @@ export default class OptimizeRoute extends Route {
         .map((j) => j.reload()),
     ]);
 
+    // reload the /allocations for each job,
+    // as the jobs-index-provided ones are less detailed than what
+    // the optimize/recommendation components require
+    await RSVP.all(
+      jobs
+        .filter((job) => job)
+        .map((j) => this.store.query('allocation', { job_id: j.id }))
+    );
+
     return {
       summaries: summaries.sortBy('submitTime').reverse(),
       namespaces,

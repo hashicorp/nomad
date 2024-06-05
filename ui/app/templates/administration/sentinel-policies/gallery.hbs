@@ -1,0 +1,37 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<Breadcrumb @crumb={{hash label="Gallery" args=(array "administration.sentinel-policies.gallery" )}} />
+{{page-title "Sentinel Policy Gallery"}}
+<section class="section">
+  <Hds::PageHeader class="variable-title" as |PH|>
+    <PH.Title>Choose a Template</PH.Title>
+    <PH.Description>
+      Select a policy template below. You will have an opportunity to modify the policy before it is submitted.
+    </PH.Description>
+  </Hds::PageHeader>
+  <main class="radio-group" data-test-template-list>
+    <Hds::Form::RadioCard::Group as |G|>
+      <G.Legend>Select a Template</G.Legend>
+      {{#each this.templates as |template|}}
+      <G.RadioCard class="form-container" @layout="fixed" @maxWidth="30%"
+        @checked={{eq template.name this.selectedTemplate}}
+        id={{template.name}}
+        {{on "change" this.onChange}}
+      as |R|>
+        <R.Label data-test-template-card={{template.name}} data-test-template-label>{{template.displayName}}</R.Label>
+        <R.Description data-test-template-description>{{template.description}}</R.Description>
+      </G.RadioCard>
+      {{/each}}
+    </Hds::Form::RadioCard::Group>
+  </main>
+  <footer class="buttonset">
+    <Hds::ButtonSet class="button-group">
+      <Hds::Button @text="Apply" @route="administration.sentinel-policies.new" @query={{hash template=this.selectedTemplate}}
+        disabled={{is-equal this.selectedTemplate null}} data-test-apply />
+      <Hds::Button @text="Cancel" @route="administration.sentinel-policies.new" @color="secondary" data-test-cancel />
+    </Hds::ButtonSet>
+  </footer>
+</section>

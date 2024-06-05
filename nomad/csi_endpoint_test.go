@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
@@ -2161,9 +2161,8 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 		},
 	}
 	respGet := &structs.CSIPluginGetResponse{}
-	err := msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet)
-	require.NoError(t, err)
-	require.NotNil(t, respGet.Plugin)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet))
+	must.NotNil(t, respGet.Plugin)
 
 	// Delete plugin
 	reqDel := &structs.CSIPluginDeleteRequest{
@@ -2176,18 +2175,17 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 	respDel := &structs.CSIPluginDeleteResponse{}
 
 	// Improper permissions
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
-	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+	err := msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 	// Retry with management permissions
 	reqDel.AuthToken = srv.getLeaderAcl()
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
-	require.EqualError(t, err, "plugin in use")
+	must.NoError(t, err) // plugin is in use but this does not return an error
 
 	// Plugin was not deleted
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet)
-	require.NoError(t, err)
-	require.NotNil(t, respGet.Plugin)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet))
+	must.NotNil(t, respGet.Plugin)
 
 	// Empty the plugin
 	plugin := respGet.Plugin.Copy()
@@ -2196,21 +2194,17 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 
 	index, _ := state.LatestIndex()
 	index++
-	err = state.UpsertCSIPlugin(index, plugin)
-	require.NoError(t, err)
+	must.NoError(t, state.UpsertCSIPlugin(index, plugin))
 
 	// Retry now that it's empty
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
-	require.NoError(t, err)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel))
 
 	// Plugin is deleted
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet)
-	require.NoError(t, err)
-	require.Nil(t, respGet.Plugin)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet))
+	must.Nil(t, respGet.Plugin)
 
 	// Safe to call on already-deleted plugnis
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
-	require.NoError(t, err)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel))
 }
 
 func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
@@ -2478,10 +2472,24 @@ func TestCSIPluginEndpoint_ACLNamespaceFilterAlloc(t *testing.T) {
 		must.Eq(t, structs.DefaultNamespace, a.Namespace)
 	}
 
+	// filter out all allocs
 	p2 := mock.PluginPolicy("read")
 	t2 := mock.CreatePolicyAndToken(t, s, 1004, "plugin-read2", p2)
 	req.AuthToken = t2.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req, resp)
 	must.NoError(t, err)
 	must.Eq(t, 0, len(resp.Plugin.Allocations))
+
+	// wildcard namespace filter
+	p3 := mock.PluginPolicy("read") +
+		mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob})
+	t3 := mock.CreatePolicyAndToken(t, s, 1005, "plugin-read", p3)
+
+	req.Namespace = structs.AllNamespacesSentinel
+	req.AuthToken = t3.SecretID
+	resp = &structs.CSIPluginGetResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req, resp)
+	must.NoError(t, err)
+	must.Eq(t, 1, len(resp.Plugin.Allocations))
+	must.Eq(t, ns1.Name, resp.Plugin.Allocations[0].Namespace)
 }

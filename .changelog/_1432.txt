@@ -1,0 +1,3 @@
+```release-note:bug
+quota (Enterprise): Fixed a bug where quota usage would not be freed if a job was purged
+```

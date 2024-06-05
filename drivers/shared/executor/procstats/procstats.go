@@ -36,7 +36,7 @@ type ProcessStats interface {
 // A ProcessList is anything (i.e. a task driver) that implements ListProcesses
 // for gathering the list of process IDs associated with a task.
 type ProcessList interface {
-	ListProcesses() *set.Set[ProcessID]
+	ListProcesses() set.Collection[ProcessID]
 }
 
 // Aggregate combines a given ProcUsages with the Tracker for the Client.

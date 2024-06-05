@@ -28,6 +28,28 @@ Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as
 enhances performance and availability through Advanced Autopilot features such
 as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
 
+### Long Term Support (LTS) Releases
+
+Nomad Enterprise initiated the Long-Term Support (LTS) release program with
+Nomad 1.8. Going forward, the first major release of each calendar year will be
+an LTS release.
+
+LTS releases have the following benefits for Nomad operators:
+
+- **Extended maintenance:** Two years of critical fixes provided through minor
+releases 
+- **Efficient upgrades:** Support for direct upgrades from one LTS release
+to the next, reducing major-version upgrade risk and improving operational
+efficiency.
+
+LTS releases reduce operational overhead and risk by letting organizations
+receive critical fixes in minor releases without having to upgrade their major
+version more than once a year. Once you’ve upgraded to Nomad Enterprise 1.8,
+you will be running on a maintained LTS release that will allow you to easily
+upgrade to the next LTS major release when it's available. For more
+information, refer to HashiCorp’s multi-product LTS statement.
+
+
 ### Automated Upgrades
 
 Automated Upgrades allows operators to deploy a complete cluster of new
@@ -93,6 +115,17 @@ retrieve a Vault token based on a job's defined Vault Namespace and make it
 available for the specified Nomad task at hand.
 
 See the [Vault Integration documentation](/nomad/docs/integrations/vault-integration#enterprise-configuration) for more information.
+
+### Multiple Vault and Consul Clusters
+
+Nomad Enteprise allows sepcifying multiple integrations for Consul and Vault in
+the [vault](/nomad/docs/configuration/vault) and
+[consul](/nomad/docs/configuration/consul) portions of the Nomad agent
+configuration. After the agents are configured, Nomad jobspec writers can pick
+which Consul or Vault cluster to use in their job. Nomad administrators may
+also set default clusters for each in Nomad namespace configuration, as well as
+deny access to certain clusters by namespace.
+
 
 ## Governance & Policy
 

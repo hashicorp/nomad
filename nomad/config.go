@@ -360,6 +360,10 @@ type Config struct {
 	// publishing Job summary metrics
 	DisableDispatchedJobSummaryMetrics bool
 
+	// DisableQuotaUtilizationMetrics allows to disable publishing of quota
+	// utilization metrics
+	DisableQuotaUtilizationMetrics bool
+
 	// DisableRPCRateMetricsLabels drops the label for the identity of the
 	// requester when publishing metrics on RPC rate on the server. This may be
 	// useful to control metrics collection costs in environments where request
@@ -637,6 +641,9 @@ func DefaultConfig() *Config {
 	// to communicate between DC's
 	c.SerfConfig.MemberlistConfig = memberlist.DefaultWANConfig()
 	c.SerfConfig.MemberlistConfig.BindPort = DefaultSerfPort
+
+	c.SerfConfig.MsgpackUseNewTimeFormat = true
+	c.SerfConfig.MemberlistConfig.MsgpackUseNewTimeFormat = true
 
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false

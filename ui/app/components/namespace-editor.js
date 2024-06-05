@@ -78,7 +78,7 @@ export default class NamespaceEditorComponent extends Component {
 
       if (shouldRedirectAfterSave) {
         this.router.transitionTo(
-          'access-control.namespaces.acl-namespace',
+          'administration.namespaces.acl-namespace',
           this.namespace.name
         );
       }

@@ -1118,6 +1118,48 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			expectedOutputError:    nil,
 		},
 		{
+			name: "task-level service",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Tasks: []*structs.Task{
+							{
+								Name: "example-task-1",
+								Services: []*structs.Service{
+									{
+										Name: "example-task-service-1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Tasks: []*structs.Task{
+							{
+								Name: "example-task-1",
+								Services: []*structs.Service{
+									{
+										Name: "example-task-service-1",
+									},
+								},
+								Constraints: []*structs.Constraint{consulServiceDiscoveryConstraint},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
+		{
 			name: "task group with numa block",
 			inputJob: &structs.Job{
 				Name: "numa",
@@ -1154,6 +1196,129 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 								},
 							},
 						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
+		{
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-bridge",
+						Networks: []*structs.NetworkResource{
+							{Mode: "bridge"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-bridge",
+						Networks: []*structs.NetworkResource{
+							{Mode: "bridge"},
+						},
+						Constraints: []*structs.Constraint{
+							cniBridgeConstraint,
+							cniFirewallConstraint,
+							cniHostLocalConstraint,
+							cniLoopbackConstraint,
+							cniPortMapConstraint,
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+			name:                   "task group with bridge network",
+		},
+		{
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-tproxy",
+						Services: []*structs.Service{{
+							Connect: &structs.ConsulConnect{
+								SidecarService: &structs.ConsulSidecarService{
+									Proxy: &structs.ConsulProxy{
+										TransparentProxy: &structs.ConsulTransparentProxy{},
+									},
+								},
+							},
+						}},
+						Networks: []*structs.NetworkResource{
+							{Mode: "bridge"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-tproxy",
+						Services: []*structs.Service{{
+							Connect: &structs.ConsulConnect{
+								SidecarService: &structs.ConsulSidecarService{
+									Proxy: &structs.ConsulProxy{
+										TransparentProxy: &structs.ConsulTransparentProxy{},
+									},
+								},
+							},
+						}},
+						Networks: []*structs.NetworkResource{
+							{Mode: "bridge"},
+						},
+						Constraints: []*structs.Constraint{
+							consulServiceDiscoveryConstraint,
+							cniBridgeConstraint,
+							cniFirewallConstraint,
+							cniHostLocalConstraint,
+							cniLoopbackConstraint,
+							cniPortMapConstraint,
+							cniConsulConstraint,
+							tproxyConstraint,
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+			name:                   "task group with tproxy",
+		},
+		{
+			name: "task with schedule",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-schedule",
+						Tasks: []*structs.Task{
+							{
+								Name:     "task-with-schedule",
+								Schedule: &structs.TaskSchedule{}, // non-nil
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-schedule",
+						Tasks: []*structs.Task{
+							{
+								Name:     "task-with-schedule",
+								Schedule: &structs.TaskSchedule{},
+							},
+						},
+						Constraints: []*structs.Constraint{taskScheduleConstraint},
 					},
 				},
 			},

@@ -10,7 +10,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
-import AccessControl from 'nomad-ui/tests/pages/access-control';
+import Administration from 'nomad-ui/tests/pages/administration';
 import percySnapshot from '@percy/ember';
 
 module('Acceptance | roles', function (hooks) {
@@ -27,7 +27,7 @@ module('Acceptance | roles', function (hooks) {
     );
     const { secretId } = managementToken;
     await Tokens.secret(secretId).submit();
-    await AccessControl.visitRoles();
+    await Administration.visitRoles();
   });
 
   hooks.afterEach(async function () {
@@ -39,7 +39,7 @@ module('Acceptance | roles', function (hooks) {
     assert.expect(3);
     await a11yAudit(assert);
 
-    assert.equal(currentURL(), '/access-control/roles');
+    assert.equal(currentURL(), '/administration/roles');
 
     assert
       .dom('[data-test-role-row]')
@@ -78,7 +78,7 @@ module('Acceptance | roles', function (hooks) {
     assert.equal(policiesCellTags[1].textContent.trim(), 'job-reader');
 
     await click(policiesCellTags[0].querySelector('a'));
-    assert.equal(currentURL(), '/access-control/policies/client-reader');
+    assert.equal(currentURL(), '/administration/policies/client-reader');
     assert.dom('[data-test-title]').containsText('client-reader');
   });
 
@@ -86,7 +86,7 @@ module('Acceptance | roles', function (hooks) {
     assert.expect(8);
     const role = server.db.roles.findBy((r) => r.name === 'reader');
     await click('[data-test-role-name="reader"] a');
-    assert.equal(currentURL(), `/access-control/roles/${role.id}`);
+    assert.equal(currentURL(), `/administration/roles/${role.id}`);
 
     assert.dom('[data-test-role-name-input]').hasValue(role.name);
     assert.dom('[data-test-role-description-input]').hasValue(role.description);
@@ -99,13 +99,13 @@ module('Acceptance | roles', function (hooks) {
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(
       currentURL(),
-      `/access-control/roles/${role.name}`,
+      `/administration/roles/${role.name}`,
       'remain on page after save'
     );
     await percySnapshot(assert);
 
     // Go back to the roles index
-    await AccessControl.visitRoles();
+    await Administration.visitRoles();
     let readerRoleRow = find('[data-test-role-row="reader-edited"]');
     assert.dom(readerRoleRow).exists();
     assert.equal(
@@ -119,7 +119,7 @@ module('Acceptance | roles', function (hooks) {
   test('Edit Role: Policies', async function (assert) {
     const role = server.db.roles.findBy((r) => r.name === 'reader');
     await click('[data-test-role-name="reader"] a');
-    assert.equal(currentURL(), `/access-control/roles/${role.id}`);
+    assert.equal(currentURL(), `/administration/roles/${role.id}`);
 
     // Policies table is sortable
 
@@ -202,7 +202,7 @@ module('Acceptance | roles', function (hooks) {
     await click('button[data-test-save-role]');
     assert.dom('.flash-message.alert-success').exists();
 
-    await AccessControl.visitRoles();
+    await Administration.visitRoles();
     const readerRoleRow = find('[data-test-role-row="reader"]');
     const readerRolePolicies = readerRoleRow
       .querySelector('[data-test-role-policies]')
@@ -219,7 +219,7 @@ module('Acceptance | roles', function (hooks) {
     const role = server.db.roles.findBy((r) => r.name === 'reader');
 
     await click('[data-test-role-name="reader"] a');
-    assert.equal(currentURL(), `/access-control/roles/${role.id}`);
+    assert.equal(currentURL(), `/administration/roles/${role.id}`);
     assert.dom('table.tokens').exists();
 
     // "Reader" role has a single token with it applied by default
@@ -243,7 +243,7 @@ module('Acceptance | roles', function (hooks) {
 
     await percySnapshot(assert);
 
-    await AccessControl.visitTokens();
+    await Administration.visitTokens();
     assert
       .dom('[data-test-token-name="Example Token for reader"]')
       .exists(
@@ -254,7 +254,7 @@ module('Acceptance | roles', function (hooks) {
   test('Edit Role: Deletion', async function (assert) {
     const role = server.db.roles.findBy((r) => r.name === 'reader');
     await click('[data-test-role-name="reader"] a');
-    assert.equal(currentURL(), `/access-control/roles/${role.id}`);
+    assert.equal(currentURL(), `/administration/roles/${role.id}`);
     const deleteButton = find('[data-test-delete-role] button');
     assert.dom(deleteButton).exists('delete button is present');
     await click(deleteButton);
@@ -263,12 +263,12 @@ module('Acceptance | roles', function (hooks) {
       .exists('confirmation message is present');
     await click(find('[data-test-confirm-button]'));
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/access-control/roles');
+    assert.equal(currentURL(), '/administration/roles');
     assert.dom('[data-test-role-row="reader"]').doesNotExist();
   });
   test('New Role', async function (assert) {
     await click('[data-test-create-role]');
-    assert.equal(currentURL(), '/access-control/roles/new');
+    assert.equal(currentURL(), '/administration/roles/new');
     await fillIn('[data-test-role-name-input]', 'test-role');
     await click('button[data-test-save-role]');
     assert
@@ -279,19 +279,19 @@ module('Acceptance | roles', function (hooks) {
     await click('[data-test-role-policies] tbody tr input');
     await click('button[data-test-save-role]');
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/access-control/roles/1'); // default id created via mirage
-    await AccessControl.visitRoles();
+    assert.equal(currentURL(), '/administration/roles/1'); // default id created via mirage
+    await Administration.visitRoles();
     assert.dom('[data-test-role-row="test-role"]').exists();
 
     // Now, try deleting all policies then doing this again. There'll be a warning on the roles/new page.
-    await AccessControl.visitPolicies();
+    await Administration.visitPolicies();
     const policyRows = findAll('[data-test-policy-row]');
     for (const row of policyRows) {
       const deleteButton = row.querySelector('[data-test-delete-policy]');
       await click(deleteButton);
     }
     assert.dom('[data-test-empty-policies-list-headline]').exists();
-    await AccessControl.visitRoles();
+    await Administration.visitRoles();
     await click('[data-test-create-role]');
     assert.dom('.empty-message').exists();
     assert

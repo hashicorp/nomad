@@ -4,9 +4,10 @@
 package helper
 
 import (
+	"maps"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"golang.org/x/exp/maps"
 )
 
 var (

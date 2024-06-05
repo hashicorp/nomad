@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
@@ -503,6 +503,15 @@ func TestParseConsistency(t *testing.T) {
 	parseConsistency(resp, req, &b)
 	must.False(t, b.AllowStale)
 	must.EqOp(t, 400, resp.Code)
+	must.EqOp(t, "Expect `true` or `false` for `stale` query string parameter", resp.Body.String())
+
+	req, err = http.NewRequest(http.MethodGet, "/v1/jobs?stale=random", nil)
+	must.NoError(t, err)
+	resp = httptest.NewRecorder()
+	parseConsistency(resp, req, &b)
+	must.False(t, b.AllowStale)
+	must.EqOp(t, 400, resp.Code)
+	must.EqOp(t, "Expect `true` or `false` for `stale` query string parameter", resp.Body.String())
 
 	b = structs.QueryOptions{}
 	req, err = http.NewRequest(http.MethodGet, "/v1/catalog/nodes?consistent", nil)
@@ -721,7 +730,8 @@ func TestParsePagination(t *testing.T) {
 
 			require.NoError(t, err)
 			opts := &structs.QueryOptions{}
-			parsePagination(req, opts)
+			resp := httptest.NewRecorder()
+			parsePagination(resp, req, opts)
 			require.Equal(t, tc.ExpectedNextToken, opts.NextToken)
 			require.Equal(t, tc.ExpectedPerPage, opts.PerPage)
 		})

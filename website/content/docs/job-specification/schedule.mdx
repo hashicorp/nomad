@@ -1,0 +1,73 @@
+---
+layout: docs
+page_title: schedule Block - Job Specification
+description: |-
+  Time based task execution is enabled by using the "schedule" task block.
+---
+
+# `schedule` Block
+
+<EnterpriseAlert />
+
+<Placement groups={['job', 'group', 'task', 'periodic']} />
+
+~> **Note:** Time based task execution is an experimental feature and subject
+to change. This feature is supported for select customers. Please refer to the
+[Upgrade Guide][upgrade] to find breaking changes. 
+
+Time based task execution is enabled by using the `schedule` block. The
+`schedule` block controls when a task is allowed to be running.
+
+Unlike [`periodic`][periodic] jobs, the `schedule` block applies to individual
+tasks. The Nomad Client starts and stops tasks at the specified time without
+interaction with the Nomad Servers. This means time based task execution works
+even when a Client is disconnected from Servers. The task's resources remain
+allocated even outside the `schedule` when the task itself is stopped.
+
+```hcl
+job "docs" {
+  group "tbte" {
+    task "scheduled" {
+      schedule {
+        cron {
+          start    = "30 9 * * MON-FRI *"
+          end      = "0 16"
+          timezone = "America/New_York"
+        }
+      }
+    }
+  }
+}
+```
+
+## `schedule` Parameters
+
+The `schedule` block must have a `cron` block containing:
+
+- `start` `(string: <required>)` - When the task should be started. Specified in 6 field
+  [cron format][cron] (no seconds) without `,` or `/` characters.
+
+- `end` `(string: <required>)` - When the task should be stopped
+  ([`kill_signal`][kill_signal] and [`kill_timeout`][kill_timeout] apply).
+  Specified in 2 field [cron format][cron] (minute and hour) without `,` or `/`
+  characters.
+
+- `timezone` `(string: "Local")` - What time zone the `start` and `end` times
+  are specified in. Defaults to the local time zone of the Nomad Client the job
+  is scheduled onto.
+
+## Limitations
+
+- Job deployments outside of the specified `schedule` will be unable to
+  succeed. To update a job using time based task execution outside of its
+  schedule, do a [force
+  update](/nomad/docs/job-specification/update#max_parallel-0).
+
+- Overnight schedules are currently not supported. Adjusting the `timezone`
+  should allow converting overnight schedules to times within a single day.
+
+[periodic]: /nomad/docs/job-specification/periodic
+[kill_signal]: /nomad/docs/job-specification/task#kill_signal
+[kill_timeout]: /nomad/docs/job-specification/task#kill_timeout
+[cron]: https://github.com/hashicorp/cronexpr#implementation 'List of cron expressions'
+[upgrade]: /nomad/docs/upgrade/upgrade-specific

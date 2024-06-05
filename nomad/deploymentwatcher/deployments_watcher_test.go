@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	mocker "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -2080,4 +2081,54 @@ func watchersCount(w *Watcher) int {
 	defer w.l.Unlock()
 
 	return len(w.watchers)
+}
+
+// TestWatcher_PurgeDeployment tests that we don't leak watchers if a job is purged
+func TestWatcher_PurgeDeployment(t *testing.T) {
+	ci.Parallel(t)
+	w, m := defaultTestDeploymentWatcher(t)
+
+	// clear UpdateDeploymentStatus default expectation
+	m.Mock.ExpectedCalls = nil
+
+	// Create a job and a deployment
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
+	must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
+
+	// require that we get a call to UpsertDeploymentStatusUpdate
+	matchConfig := &matchDeploymentStatusUpdateConfig{
+		DeploymentID:      d.ID,
+		Status:            structs.DeploymentStatusPaused,
+		StatusDescription: structs.DeploymentStatusDescriptionPaused,
+	}
+	matcher := matchDeploymentStatusUpdateRequest(matchConfig)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(matcher)).Return(nil)
+
+	w.SetEnabled(true, m.state)
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			if watchersCount(w) != 1 {
+				return fmt.Errorf("expected 1 deployment")
+			}
+			return nil
+		}),
+		wait.Attempts(100),
+		wait.Gap(10*time.Millisecond),
+	))
+
+	must.NoError(t, m.state.DeleteJob(m.nextIndex(), j.Namespace, j.ID))
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			if watchersCount(w) != 0 {
+				return fmt.Errorf("expected deployment watcher to be stopped")
+			}
+			return nil
+		}),
+		wait.Attempts(500),
+		wait.Gap(10*time.Millisecond),
+	))
 }
