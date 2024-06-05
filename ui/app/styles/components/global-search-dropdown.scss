@@ -71,7 +71,7 @@
   justify-content: center;
   align-items: center;
   .mega-search-input {
-    width: 30em;
+    width: 350px;
   }
 }
 
@@ -79,55 +79,58 @@
   position: fixed;
   background: #fff;
   z-index: 300;
-  width: 100vw;
-  left: 0;
-  top: 0;
-  height: 0;
+  width: 800px;
+  left: calc(50% - 400px);
+  top: -30vh;
+  height: 30vh;
   overflow: hidden;
   z-index: $z-mega-menu;
-  transition: height 0.2s ease-out, box-shadow 0.5s ease-out;
+  transition: top 0.1s ease-out, box-shadow 0.5s ease-out;
+  // transition: box-shadow 0.5s ease-out;
   box-shadow: 2px 2px 12px 3000px rgb(0, 0, 0, 0);
   display: grid;
   grid-template-rows: 1fr auto;
   gap: 0.5rem;
   color: $black;
-  padding-left: 2rem;
-  padding-right: 2rem;
+  border-radius: 0 0 0.5rem 0.5rem;
+  overflow: auto;
 
   &.expanded {
     // animation-name: megaSearchSlideIn;
     // animation-duration: 2s;
     // animation-fill-mode: both;
-    height: 30vh;
-    padding-top: 50px; // offset search box
+    // height: 30vh;
+    top: 0;
+    padding: 50px; // offset search box
     box-shadow: 2px 2px 12px 3000px rgb(0, 0, 0, 0.8);
   }
 
   .recents {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    width: 100%;
+    // grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    // width: 100%;
     gap: 0.5rem;
     padding: 0.5rem;
 
     h3 {
       font-weight: bold;
       font-size: 1.5rem;
-      grid-column: -1 / 1;
+      // grid-column: -1 / 1;
     }
 
     .recent a {
-      border-radius: 0.25rem;
-      padding: 0.5rem;
+      // border-radius: 0.25rem;
+      // padding: 0.5rem;
       // background-color: $grey-blue;
-      background-color: var(--token-color-surface-faint);
+      // background-color: var(--token-color-surface-faint);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      height: 100%;
+      // height: 100%;
       color: $black;
-      border: 1px solid #ddd;
+      // border: 1px solid #ddd;
       transition: 0.2s;
+      text-decoration: none;
 
       &:hover {
         background-color: var(--token-color-surface-strong);
@@ -138,9 +141,16 @@
         font-weight: bold;
         flex-grow: 1;
         display: flex;
-        // align-items: center;
+        gap: 0.25rem;
+        align-items: baseline;
+        small {
+          font-size: 0.75rem;
+          font-weight: normal;
+          font-style: italic;
+          opacity: 0.75;
+        }
       }
-      header,
+      // header,
       footer {
         font-size: 0.75rem;
       }

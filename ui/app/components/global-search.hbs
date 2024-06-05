@@ -35,18 +35,28 @@
 >
   {{#if this.expanded}}
     {{log "EXPANDED"}}
+    {{#if this.results}}
     <div class="results">
       TODO: Search results here...
     </div>
+    {{else}}
+    <div class="recent-searches">
+      <h3>Recent Searches:</h3>
+      TODO: Recent searches here...
+    </div>
+    {{/if}}
     <div class="recents">
-      <h3>Jump to:</h3>
+      <h3>Recently Visited:</h3>
       {{#each this.history.recommendations as |recent|}}
         <div class="recent">
           <LinkTo
             @route="jobs.index"
           >
-            <header>{{recent.entityType}}</header>
-            <h4>{{or recent.label recent.identifier}}</h4>
+            {{!-- <header>{{recent.entityType}}</header> --}}
+            <h4>
+              {{or recent.label recent.identifier}}
+              <small>{{recent.entityType}}</small>
+            </h4>
             <footer>
               <em>
                 {{#if recent.reason}}
