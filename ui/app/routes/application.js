@@ -19,6 +19,7 @@ export default class ApplicationRoute extends Route {
   @service store;
   @service token;
   @service router;
+  @service history;
 
   queryParams = {
     region: {

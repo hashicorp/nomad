@@ -150,6 +150,25 @@
           </li>
         {{/if}}
       </ul>
+      <div>
+        {{!-- TODO: TEMP --}}
+        {{log "HISTORY" this.history}}
+        {{#each this.history.recents as |recent|}}
+          <div class="recent">
+            {{!-- <LinkTo
+              @route=recent.route
+              @query=recent.query
+              @activeClass="is-active"
+              data-test-gutter-link={{recent.route}}
+            >
+              {{recent.label}}
+            </LinkTo> --}}
+            <small>{{recent.entityType}}</small><br />
+            {{or recent.label recent.identifier}}: {{recent.views.length}}
+            <hr />
+          </div>
+        {{/each}}
+      </div>
     </aside>
     {{#if this.system.agent.version}}
       <footer class="gutter-footer">
