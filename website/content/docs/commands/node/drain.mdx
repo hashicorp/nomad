@@ -14,7 +14,7 @@ migrating all existing allocations away.
 The exact behavior of drained allocations depends on the job type:
 * Allocations for `service` jobs will be migrated according to their
   [`migrate`][] block until the drain's deadline is reached. These allocations
-  are not considered recheduled and their previous [`reschedule`][] attempts
+  are not considered rescheduled and their previous [`reschedule`][] attempts
   will not be propagated to any replacement allocations.
 * Allocations for `batch` and `sysbatch` jobs will wait until they complete or
   the drain's deadline is reached, whichever comes first. These allocations will
