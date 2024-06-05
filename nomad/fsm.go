@@ -101,6 +101,7 @@ var snapshotTypeStrings = map[SnapshotType]string{
 	ACLAuthMethodSnapshot:                "ACLAuthMethod",
 	ACLBindingRuleSnapshot:               "ACLBindingRule",
 	NodePoolSnapshot:                     "NodePool",
+	JobSubmissionSnapshot:                "JobSubmission",
 	NamespaceSnapshot:                    "Namespace",
 }
 

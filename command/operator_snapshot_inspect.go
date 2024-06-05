@@ -13,7 +13,7 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/raft"
@@ -38,8 +38,9 @@ type SnapshotInspectFormat struct {
 // SnapshotInfo is used for passing snapshot stat
 // information between functions
 type SnapshotInfo struct {
-	Stats     map[nomad.SnapshotType]typeStats
-	TotalSize int
+	Stats      map[nomad.SnapshotType]typeStats
+	TotalSize  int
+	TotalCount int
 }
 
 // countingReader helps keep track of the bytes we have read
@@ -141,7 +142,7 @@ func (c *OperatorSnapshotInspectCommand) Run(args []string) int {
 	}
 
 	// print human-readable output
-	c.Ui.Output(formatListWithSpaces([]string{
+	c.Ui.Output(formatKV([]string{
 		fmt.Sprintf("Created|%s", extractTimeFromName(meta.ID)),
 		fmt.Sprintf("ID|%s", meta.ID),
 		fmt.Sprintf("Size|%s", humanize.IBytes(uint64(meta.Size))),
@@ -151,18 +152,17 @@ func (c *OperatorSnapshotInspectCommand) Run(args []string) int {
 	}))
 	c.Ui.Output("")
 
-	output := []string{
-		"Type|Count|Size",
-		"----|-----|----",
-	}
+	output := []string{"Type|Count|Size"}
 
 	for _, stat := range stats {
 		output = append(output, fmt.Sprintf("%s|%d|%s", stat.Name, stat.Count, humanize.IBytes(uint64(stat.Sum))))
 	}
-	output = append(output, "----|-----|----")
-	output = append(output, fmt.Sprintf("Total|-|%s", humanize.IBytes(uint64(info.TotalSize))))
+	output = append(output,
+		" | | ",
+		fmt.Sprintf("Total|%v|%s", info.TotalCount, humanize.IBytes(uint64(info.TotalSize))),
+	)
 
-	c.Ui.Output(formatList(output))
+	c.Ui.Output(formatListWithSpaces(output))
 	return 0
 }
 
@@ -205,6 +205,7 @@ func inspect(file io.Reader) (*raft.SnapshotMeta, *SnapshotInfo, error) {
 		stat.Sum += size
 		stat.Count++
 		info.TotalSize = cr.read
+		info.TotalCount++
 		info.Stats[snapType] = stat
 
 		return nil
