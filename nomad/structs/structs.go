@@ -10615,14 +10615,14 @@ type RescheduleTracker struct {
 
 	// LastReschedule represents whether the most recent attempt to reschedule
 	// the allocation (if any) was successful
-	LastReschedule ResheduleTrackerAnnotation
+	LastReschedule RescheduleTrackerAnnotation
 }
 
-type ResheduleTrackerAnnotation string
+type RescheduleTrackerAnnotation string
 
 const (
-	LastRescheduleSuccess       ResheduleTrackerAnnotation = "ok"
-	LastRescheduleFailedToPlace ResheduleTrackerAnnotation = "no placement"
+	LastRescheduleSuccess       RescheduleTrackerAnnotation = "ok"
+	LastRescheduleFailedToPlace RescheduleTrackerAnnotation = "no placement"
 )
 
 func (rt *RescheduleTracker) Copy() *RescheduleTracker {
