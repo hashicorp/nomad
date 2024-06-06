@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -63,8 +64,8 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 		cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 		code := cmd.Run([]string{filepath.Join(tmpDir, "invalid.snap")})
-		require.NotZero(t, code)
-		require.Contains(t, ui.ErrorWriter.String(), "Error verifying snapshot")
+		must.Positive(t, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "Error inspecting snapshot")
 	})
 }
 
