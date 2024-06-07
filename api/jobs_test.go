@@ -727,9 +727,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 									RenderTemplates: pointerOf(false),
 								},
 								Resources: &Resources{
-									CPU:      pointerOf(500),
-									Cores:    pointerOf(0),
-									MemoryMB: pointerOf(256),
+									CPU:         pointerOf(500),
+									Cores:       pointerOf(0),
+									MemoryMB:    pointerOf(256),
+									OOMScoreAdj: pointerOf(0),
 									Networks: []*NetworkResource{
 										{
 											MBits: pointerOf(10),
