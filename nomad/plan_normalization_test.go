@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 // This test compares the size of the normalized + OmitEmpty raft plan log entry
@@ -23,11 +23,12 @@ import (
 func TestPlanNormalize(t *testing.T) {
 	ci.Parallel(t)
 
-	// This size was calculated using the older ApplyPlanResultsRequest format, in which allocations
-	// didn't use OmitEmpty and only the job was normalized in the stopped and preempted allocs.
-	// The newer format uses OmitEmpty and uses a minimal set of fields for the diff of the
-	// stopped and preempted allocs. The file for the older format hasn't been checked in, because
-	// it's not a good idea to check-in a 20mb file to the git repo.
+	// This size was calculated using the older ApplyPlanResultsRequest format, in
+	// which allocations didn't use OmitEmpty and only the job was normalized in the
+	// stopped and preempted allocs. The newer format uses OmitEmpty and uses a
+	// minimal set of fields for the diff of the stopped and preempted allocs. The
+	// file for the older format hasn't been checked in, because it's not a good idea
+	// to check-in a 20mb file to the git repo.
 	unoptimizedLogSize := 19460168
 
 	numUpdatedAllocs := 10000
@@ -68,5 +69,5 @@ func TestPlanNormalize(t *testing.T) {
 	}
 
 	optimizedLogSize := buf.Len()
-	assert.Less(t, float64(optimizedLogSize)/float64(unoptimizedLogSize), 0.67)
+	must.Less(t, 0.691, float64(optimizedLogSize)/float64(unoptimizedLogSize))
 }
