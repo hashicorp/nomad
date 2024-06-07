@@ -29,9 +29,10 @@ func TestResources_Canonicalize(t *testing.T) {
 				MemoryMB: pointerOf(1024),
 			},
 			expected: &Resources{
-				CPU:      pointerOf(0),
-				Cores:    pointerOf(2),
-				MemoryMB: pointerOf(1024),
+				CPU:         pointerOf(0),
+				Cores:       pointerOf(2),
+				MemoryMB:    pointerOf(1024),
+				OOMScoreAdj: pointerOf(0),
 			},
 		},
 		{
@@ -41,9 +42,10 @@ func TestResources_Canonicalize(t *testing.T) {
 				MemoryMB: pointerOf(1024),
 			},
 			expected: &Resources{
-				CPU:      pointerOf(500),
-				Cores:    pointerOf(0),
-				MemoryMB: pointerOf(1024),
+				CPU:         pointerOf(500),
+				Cores:       pointerOf(0),
+				MemoryMB:    pointerOf(1024),
+				OOMScoreAdj: pointerOf(0),
 			},
 		},
 	}
