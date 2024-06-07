@@ -3838,10 +3838,11 @@ func (a *AllocatedResources) Canonicalize() {
 
 // AllocatedTaskResources are the set of resources allocated to a task.
 type AllocatedTaskResources struct {
-	Cpu      AllocatedCpuResources
-	Memory   AllocatedMemoryResources
-	Networks Networks
-	Devices  []*AllocatedDeviceResource
+	Cpu         AllocatedCpuResources
+	Memory      AllocatedMemoryResources
+	Networks    Networks
+	Devices     []*AllocatedDeviceResource
+	OOMScoreAdj int
 }
 
 func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
@@ -3878,6 +3879,7 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 
 	a.Cpu.Add(&delta.Cpu)
 	a.Memory.Add(&delta.Memory)
+	a.OOMScoreAdj += delta.OOMScoreAdj
 
 	for _, n := range delta.Networks {
 		// Find the matching interface by IP or CIDR
@@ -3907,6 +3909,7 @@ func (a *AllocatedTaskResources) Max(other *AllocatedTaskResources) {
 
 	a.Cpu.Max(&other.Cpu)
 	a.Memory.Max(&other.Memory)
+	a.OOMScoreAdj = max(a.OOMScoreAdj, other.OOMScoreAdj)
 
 	for _, n := range other.Networks {
 		// Find the matching interface by IP or CIDR
@@ -3942,6 +3945,7 @@ func (a *AllocatedTaskResources) Comparable() *ComparableResources {
 				MemoryMB:    a.Memory.MemoryMB,
 				MemoryMaxMB: a.Memory.MemoryMaxMB,
 			},
+			OOMScoreAdj: a.OOMScoreAdj,
 		},
 	}
 	ret.Flattened.Networks = append(ret.Flattened.Networks, a.Networks...)
