@@ -22,18 +22,14 @@ func TestEquivalentToHCL1(t *testing.T) {
 
 	hclSpecDir := "../jobspec/test-fixtures/"
 	fis, err := os.ReadDir(hclSpecDir)
-	must.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, fi := range fis {
 		name := fi.Name()
 
-		if name != "basic.hcl" {
-			continue
-		}
-
 		t.Run(name, func(t *testing.T) {
 			f, err := os.Open(hclSpecDir + name)
-			must.NoError(t, err)
+			require.NoError(t, err)
 			defer f.Close()
 
 			job1, err := jobspec.Parse(f)
@@ -44,9 +40,9 @@ func TestEquivalentToHCL1(t *testing.T) {
 			f.Seek(0, 0)
 
 			job2, err := Parse(name, f)
-			must.NoError(t, err)
+			require.NoError(t, err)
 
-			must.Eq(t, job1, job2)
+			require.Equal(t, job1, job2)
 		})
 	}
 }
