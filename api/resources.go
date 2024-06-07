@@ -18,7 +18,7 @@ type Resources struct {
 	Networks    []*NetworkResource `hcl:"network,block"`
 	Devices     []*RequestedDevice `hcl:"device,block"`
 	NUMA        *NUMAResource      `hcl:"numa,block"`
-	OOMScoreAdj *int               `hcl:"oom_score_adj,optional"`
+	OOMScoreAdj *int               `mapstructure:"oom_score_adj" hcl:"oom_score_adj,optional"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad

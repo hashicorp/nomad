@@ -629,6 +629,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		"network",
 		"device",
 		"cores",
+		"oom_score_adj",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")

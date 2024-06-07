@@ -245,9 +245,10 @@ job "binstore-storagelocker" {
       }
 
       resources {
-        cpu        = 500
-        memory     = 128
-        memory_max = 256
+        cpu           = 500
+        memory        = 128
+        memory_max    = 256
+        oom_score_adj = 2
 
         network {
           mbits = "100"
