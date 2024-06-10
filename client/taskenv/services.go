@@ -45,6 +45,7 @@ func InterpolateService(taskEnv *TaskEnv, origService *structs.Service) *structs
 		check.Protocol = taskEnv.ReplaceEnv(check.Protocol)
 		check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
 		check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
+		check.Notes = taskEnv.ReplaceEnv(check.Notes)
 		check.Method = taskEnv.ReplaceEnv(check.Method)
 		check.GRPCService = taskEnv.ReplaceEnv(check.GRPCService)
 		check.Header = interpolateMapStringSliceString(taskEnv, check.Header)

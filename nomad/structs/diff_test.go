@@ -3840,6 +3840,12 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeNone,
+										Name: "Notes",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
 										Name: "OnUpdate",
 										Old:  "",
 										New:  "",
@@ -7607,6 +7613,7 @@ func TestTaskDiff(t *testing.T) {
 								Interval:      1 * time.Second,
 								Timeout:       1 * time.Second,
 								InitialStatus: "critical",
+								Notes:         "a note",
 								Header: map[string][]string{
 									"Foo": {"bar"},
 								},
@@ -7635,6 +7642,7 @@ func TestTaskDiff(t *testing.T) {
 								Interval:      1 * time.Second,
 								Timeout:       1 * time.Second,
 								InitialStatus: "passing",
+								Notes:         "another note",
 								Method:        "POST",
 								Header: map[string][]string{
 									"Foo":  {"bar", "baz"},
@@ -7787,6 +7795,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Name",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Notes",
+										Old:  "a note",
+										New:  "another note",
 									},
 									{
 										Type: DiffTypeEdited,
