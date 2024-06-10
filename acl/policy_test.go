@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -895,6 +896,49 @@ func TestParse_BadInput(t *testing.T) {
 		t.Run(fmt.Sprintf("%d: %v", i, c), func(t *testing.T) {
 			_, err := Parse(c)
 			assert.Error(t, err)
+		})
+	}
+}
+
+func TestPluginPolicy_isValid(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name              string
+		inputPluginPolicy *PluginPolicy
+		expectedOutput    bool
+	}{
+		{
+			name:              "policy deny",
+			inputPluginPolicy: &PluginPolicy{Policy: "deny"},
+			expectedOutput:    true,
+		},
+		{
+			name:              "policy read",
+			inputPluginPolicy: &PluginPolicy{Policy: "read"},
+			expectedOutput:    true,
+		},
+		{
+			name:              "policy list",
+			inputPluginPolicy: &PluginPolicy{Policy: "list"},
+			expectedOutput:    true,
+		},
+		{
+			name:              "policy write",
+			inputPluginPolicy: &PluginPolicy{Policy: "write"},
+			expectedOutput:    true,
+		},
+		{
+			name:              "policy invalid",
+			inputPluginPolicy: &PluginPolicy{Policy: "invalid"},
+			expectedOutput:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputPluginPolicy.isValid()
+			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
 }
