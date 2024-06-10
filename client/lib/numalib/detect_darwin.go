@@ -30,8 +30,8 @@ type MacOS struct{}
 
 func (m *MacOS) ScanSystem(top *Topology) {
 	// all apple hardware is non-numa; just assume as much
-	top.NodeIDs = idset.Empty[hw.NodeID]()
-	top.NodeIDs.Insert(nodeID)
+	top.nodeIDs = idset.Empty[hw.NodeID]()
+	top.nodeIDs.Insert(nodeID)
 
 	// arch specific detection
 	switch m1cpu.IsAppleSilicon() {

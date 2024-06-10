@@ -71,10 +71,7 @@ func topologyFromLegacyLinux(old LegacyNodeCpuResources) *numalib.Topology {
 
 	withheld := (frequency * hw.MHz(old.TotalCpuCores)) - hw.MHz(old.CpuShares)
 
-	return &numalib.Topology{
-		// legacy: assume one node with id 0
-		NodeIDs: idset.From[hw.NodeID]([]hw.NodeID{0}),
-
+	t := &numalib.Topology{
 		// legacy: with one node the distance matrix is 1-D
 		Distances: numalib.SLIT{{10}},
 
@@ -87,4 +84,8 @@ func topologyFromLegacyLinux(old LegacyNodeCpuResources) *numalib.Topology {
 		// legacy: set since we can compute the value
 		OverrideWitholdCompute: withheld,
 	}
+
+	// legacy: assume one node with id 0
+	t.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
+	return t
 }

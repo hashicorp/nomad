@@ -192,7 +192,7 @@ func (s *Set[T]) Size() int {
 
 // Empty returns whether the set is empty.
 func (s *Set[T]) Empty() bool {
-	if s == nil {
+	if s == nil || s.items == nil {
 		return true
 	}
 	return s.items.Empty()

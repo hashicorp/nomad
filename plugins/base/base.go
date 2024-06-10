@@ -118,13 +118,15 @@ func nomadTopologyFromProto(pb *proto.ClientTopology) *numalib.Topology {
 	if pb == nil {
 		return nil
 	}
-	return &numalib.Topology{
-		NodeIDs:                idset.FromFunc(pb.NodeIds, func(i uint32) hw.NodeID { return hw.NodeID(i) }),
+	t := &numalib.Topology{
 		Distances:              nomadTopologyDistancesFromProto(pb.Distances),
 		Cores:                  nomadTopologyCoresFromProto(pb.Cores),
 		OverrideTotalCompute:   hw.MHz(pb.OverrideTotalCompute),
 		OverrideWitholdCompute: hw.MHz(pb.OverrideWitholdCompute),
 	}
+	t.SetNodes(idset.FromFunc(pb.NodeIds, func(i uint32) hw.NodeID { return hw.NodeID(i) }))
+
+	return t
 }
 
 func nomadTopologyDistancesFromProto(pb *proto.ClientTopologySLIT) numalib.SLIT {
@@ -166,7 +168,7 @@ func nomadTopologyToProto(top *numalib.Topology) *proto.ClientTopology {
 		return nil
 	}
 	return &proto.ClientTopology{
-		NodeIds:                helper.ConvertSlice(top.NodeIDs.Slice(), func(id hw.NodeID) uint32 { return uint32(id) }),
+		NodeIds:                helper.ConvertSlice(top.GetNodes().Slice(), func(id hw.NodeID) uint32 { return uint32(id) }),
 		Distances:              nomadTopologyDistancesToProto(top.Distances),
 		Cores:                  nomadTopologyCoresToProto(top.Cores),
 		OverrideTotalCompute:   uint64(top.OverrideTotalCompute),

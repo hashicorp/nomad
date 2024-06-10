@@ -85,7 +85,7 @@ func TestSysfs_discoverOnline(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sy := &Sysfs{}
 			sy.discoverOnline(st, tt.readerFunc)
-			must.Eq(t, tt.expectedIDSet, st.NodeIDs)
+			must.Eq(t, tt.expectedIDSet, st.GetNodes())
 		})
 	}
 }
@@ -113,7 +113,7 @@ func TestSysfs_discoverCosts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sy := &Sysfs{}
-			st.NodeIDs = tt.nodeIDs
+			st.SetNodes(tt.nodeIDs)
 			sy.discoverCosts(st, tt.readerFunc)
 			must.Eq(t, tt.expectedDistances, st.Distances)
 		})
@@ -136,7 +136,8 @@ func TestSysfs_discoverCores(t *testing.T) {
 
 		// issue#19372
 		{"one node and bad sys data", oneNode, badSysData, &Topology{
-			NodeIDs: oneNode,
+			nodeIDs: oneNode,
+			Nodes:   oneNode.Slice(),
 			Cores: []Core{
 				{
 					SocketID:  0,
@@ -157,7 +158,8 @@ func TestSysfs_discoverCores(t *testing.T) {
 			},
 		}},
 		{"two nodes and good sys data", twoNodes, goodSysData, &Topology{
-			NodeIDs: twoNodes,
+			nodeIDs: twoNodes,
+			Nodes:   twoNodes.Slice(),
 			Cores: []Core{
 				{
 					SocketID:  1,
@@ -197,7 +199,7 @@ func TestSysfs_discoverCores(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sy := &Sysfs{}
-			st.NodeIDs = tt.nodeIDs
+			st.SetNodes(tt.nodeIDs)
 			sy.discoverCores(st, tt.readerFunc)
 			must.Eq(t, tt.expectedTopology, st)
 		})
