@@ -1224,6 +1224,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"command",
 			"args",
 			"initial_status",
+			"notes",
 			"tls_skip_verify",
 			"header",
 			"method",

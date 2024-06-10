@@ -2729,6 +2729,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Interval:      4 * time.Second,
 								Timeout:       2 * time.Second,
 								InitialStatus: "ok",
+								Notes:         "this is a check",
 								CheckRestart: &api.CheckRestart{
 									Limit:          3,
 									IgnoreWarnings: true,
@@ -2838,6 +2839,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Interval:               4 * time.Second,
 										Timeout:                2 * time.Second,
 										InitialStatus:          "ok",
+										Notes:                  "this is a check",
 										SuccessBeforePassing:   3,
 										FailuresBeforeCritical: 4,
 										FailuresBeforeWarning:  2,
@@ -3163,6 +3165,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Interval:      4 * time.Second,
 								Timeout:       2 * time.Second,
 								InitialStatus: "ok",
+								Notes:         "this is a check",
 								CheckRestart: &structs.CheckRestart{
 									Grace:          11 * time.Second,
 									Limit:          3,
@@ -3274,6 +3277,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Interval:               4 * time.Second,
 										Timeout:                2 * time.Second,
 										InitialStatus:          "ok",
+										Notes:                  "this is a check",
 										GRPCService:            "foo.Bar",
 										GRPCUseTLS:             true,
 										SuccessBeforePassing:   3,
