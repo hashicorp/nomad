@@ -25,7 +25,7 @@ jobs:
       - name: Set ticket type
         id: set-ticket-type
         run: |
-          echo "TYPE=GH Issue" >> $GITHUB_OUTPUT
+          echo "TYPE=GH Issue" >> "$GITHUB_OUTPUT"
           
       - name: Create ticket if an issue is labeled with hcc/jira
         if: github.event.action == 'labeled' && github.event.label.name == 'hcc/jira'
