@@ -2498,7 +2498,7 @@ func (r *Resources) Validate() error {
 	}
 
 	if r.OOMScoreAdj < 0 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("OOMScoreAdj value (%d) must be a positive integer", r.OOMScoreAdj))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("OOMScoreAdj value (%d) must not be negative", r.OOMScoreAdj))
 	}
 
 	return mErr.ErrorOrNil()

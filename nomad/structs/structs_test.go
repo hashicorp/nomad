@@ -2229,7 +2229,7 @@ func TestTask_Validate_Resources(t *testing.T) {
 			res: &Resources{
 				OOMScoreAdj: -3,
 			},
-			err: "OOMScoreAdj value (-3) must be a positive integer",
+			err: "OOMScoreAdj value (-3) must not be negative",
 		},
 	}
 

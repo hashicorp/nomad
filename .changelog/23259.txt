@@ -1,3 +1,0 @@
-```release-note:improvement
-resources: Added new oom_score_adj field
-```
