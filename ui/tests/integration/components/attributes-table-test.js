@@ -9,6 +9,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import flat from 'flat';
+// TODO: remove flat here and from deps altogether
 
 const { flatten } = flat;
 
