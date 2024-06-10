@@ -43,6 +43,7 @@ func TestInterpolateServices(t *testing.T) {
 					Protocol:      "${checkproto}",
 					PortLabel:     "${checklabel}",
 					InitialStatus: "${checkstatus}",
+					Notes:         "${checknotes}",
 					Method:        "${checkmethod}",
 					Header: map[string][]string{
 						"${checkheaderk}": {"${checkheaderv}"},
@@ -71,6 +72,7 @@ func TestInterpolateServices(t *testing.T) {
 			"checkproto":   "checkproto",
 			"checklabel":   "checklabel",
 			"checkstatus":  "checkstatus",
+			"checknotes":   "checknotes",
 			"checkmethod":  "checkmethod",
 			"checkheaderk": "checkheaderk",
 			"checkheaderv": "checkheaderv",
@@ -104,6 +106,7 @@ func TestInterpolateServices(t *testing.T) {
 					Protocol:      "checkproto",
 					PortLabel:     "checklabel",
 					InitialStatus: "checkstatus",
+					Notes:         "checknotes",
 					Method:        "checkmethod",
 					Header: map[string][]string{
 						"checkheaderk": {"checkheaderv"},
