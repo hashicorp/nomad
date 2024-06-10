@@ -461,7 +461,7 @@ func (sc *ServiceCheck) validateConsul() error {
 
 	// Arbitrary value, we could bump it if needed
 	if len(sc.Notes) > 255 {
-		return fmt.Errorf("notes must 255 characters or lower")
+		return fmt.Errorf("notes must not be longer than 255 characters")
 	}
 
 	return nil

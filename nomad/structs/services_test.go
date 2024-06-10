@@ -2011,7 +2011,7 @@ func TestService_Validate(t *testing.T) {
 				},
 			},
 			expErr:    true,
-			expErrStr: "notes must 255 characters or lower",
+			expErrStr: "notes must not be longer than 255 characters",
 		},
 	}
 
