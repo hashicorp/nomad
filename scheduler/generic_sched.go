@@ -730,7 +730,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// blocked eval without dropping the reschedule tracker
 				if prevAllocation != nil {
 					if missing.IsRescheduling() {
-						annotateRescheduleTracker(prevAllocation, now)
+						annotateRescheduleTracker(prevAllocation, structs.LastRescheduleFailedToPlace)
 					}
 				}
 
@@ -845,11 +845,11 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 	return selectOptions
 }
 
-func annotateRescheduleTracker(prev *structs.Allocation, now time.Time) {
+func annotateRescheduleTracker(prev *structs.Allocation, note structs.RescheduleTrackerAnnotation) {
 	if prev.RescheduleTracker == nil {
 		prev.RescheduleTracker = &structs.RescheduleTracker{}
 	}
-	prev.RescheduleTracker.LastReschedule = structs.LastRescheduleFailedToPlace
+	prev.RescheduleTracker.LastReschedule = note
 }
 
 // updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
@@ -889,6 +889,7 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 	alloc.RescheduleTracker = &structs.RescheduleTracker{
 		Events:         rescheduleEvents,
 		LastReschedule: structs.LastRescheduleSuccess}
+	annotateRescheduleTracker(prev, structs.LastRescheduleSuccess)
 }
 
 // findPreferredNode finds the preferred node for an allocation
