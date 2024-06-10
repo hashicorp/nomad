@@ -414,6 +414,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
 		if isUntainted && !isDisconnecting {
 			untainted[alloc.ID] = alloc
+			continue // these allocs can never be rescheduled, so skip checking
 		}
 
 		if ignore {
@@ -447,6 +448,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 // If desired state is stop - ignore
 //
 // Filtering logic for service jobs:
+// Never untainted
 // If desired state is stop/evict - ignore
 // If client status is complete/lost - ignore
 func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bool) {
@@ -459,6 +461,9 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 		case structs.AllocDesiredStatusStop:
 			if alloc.RanSuccessfully() {
 				return true, false
+			}
+			if alloc.LastRescheduleFailed() {
+				return false, false
 			}
 			return false, true
 		case structs.AllocDesiredStatusEvict:
@@ -476,6 +481,10 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	// Handle service jobs
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+		if alloc.LastRescheduleFailed() {
+			return false, false
+		}
+
 		return false, true
 	}
 

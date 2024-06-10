@@ -5370,7 +5370,10 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 		alloc := Allocation{}
 		alloc.DesiredStatus = state.DesiredStatus
 		alloc.ClientStatus = state.ClientStatus
-		alloc.RescheduleTracker = &RescheduleTracker{state.RescheduleTrackers}
+		alloc.RescheduleTracker = &RescheduleTracker{
+			Events:         state.RescheduleTrackers,
+			LastReschedule: "",
+		}
 
 		t.Run(state.Desc, func(t *testing.T) {
 			if got := alloc.ShouldReschedule(state.ReschedulePolicy, state.FailTime); got != state.ShouldReschedule {
