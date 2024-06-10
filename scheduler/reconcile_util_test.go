@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -1420,6 +1421,7 @@ func TestReconcile_shouldFilter(t *testing.T) {
 		failed        bool
 		desiredStatus string
 		clientStatus  string
+		rt            *structs.RescheduleTracker
 
 		untainted bool
 		ignore    bool
@@ -1476,6 +1478,19 @@ func TestReconcile_shouldFilter(t *testing.T) {
 			ignore:        false,
 		},
 		{
+			description:   "batch last reschedule failed",
+			batch:         false,
+			failed:        true,
+			desiredStatus: structs.AllocDesiredStatusStop,
+			clientStatus:  structs.AllocClientStatusFailed,
+			untainted:     false,
+			ignore:        false,
+			rt: &structs.RescheduleTracker{
+				Events:         []*structs.RescheduleEvent{},
+				LastReschedule: structs.LastRescheduleFailedToPlace,
+			},
+		},
+		{
 			description:   "service running",
 			batch:         false,
 			failed:        false,
@@ -1520,14 +1535,28 @@ func TestReconcile_shouldFilter(t *testing.T) {
 			untainted:     false,
 			ignore:        true,
 		},
+		{
+			description:   "service client reschedule failed",
+			batch:         false,
+			failed:        true,
+			desiredStatus: structs.AllocDesiredStatusStop,
+			clientStatus:  structs.AllocClientStatusFailed,
+			untainted:     false,
+			ignore:        false,
+			rt: &structs.RescheduleTracker{
+				Events:         []*structs.RescheduleEvent{},
+				LastReschedule: structs.LastRescheduleFailedToPlace,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			alloc := &structs.Allocation{
-				DesiredStatus: tc.desiredStatus,
-				TaskStates:    map[string]*structs.TaskState{"task": {State: structs.TaskStateDead, Failed: tc.failed}},
-				ClientStatus:  tc.clientStatus,
+				DesiredStatus:     tc.desiredStatus,
+				TaskStates:        map[string]*structs.TaskState{"task": {State: structs.TaskStateDead, Failed: tc.failed}},
+				ClientStatus:      tc.clientStatus,
+				RescheduleTracker: tc.rt,
 			}
 
 			untainted, ignore := shouldFilter(alloc, tc.batch)
@@ -1836,13 +1865,26 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 	rescheduleTG := &structs.TaskGroup{
 		Name: "rescheduleTG",
 		ReschedulePolicy: &structs.ReschedulePolicy{
-			Attempts:  1,
-			Unlimited: false,
+			Attempts:      2,
+			Interval:      time.Hour,
+			Delay:         0,
+			DelayFunction: "constant",
+			MaxDelay:      -1,
+			Unlimited:     false,
 		},
 	}
 	testJob.TaskGroups[0] = rescheduleTG
 
 	now := time.Now()
+
+	rt := &structs.RescheduleTracker{
+		Events: []*structs.RescheduleEvent{{
+			RescheduleTime: now.Add(-24 * time.Hour).UnixNano(),
+			PrevAllocID:    uuid.Generate(),
+			PrevNodeID:     uuid.Generate(),
+			Delay:          0,
+		}},
+	}
 
 	type testCase struct {
 		name                        string
@@ -1903,21 +1945,53 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 			isBatch:         true,
 			all: allocSet{
 				"rescheduleNow1": {
-					ID:           "rescheduleNow1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					TaskGroup:    "rescheduleTG",
+					ID:                "rescheduleNow1",
+					ClientStatus:      structs.AllocClientStatusRunning,
+					Job:               testJob,
+					TaskGroup:         "rescheduleTG",
+					RescheduleTracker: rt,
 				},
 			},
 			untainted: allocSet{},
 			resNow: allocSet{
 				"rescheduleNow1": {
-					ID:           "rescheduleNow1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					TaskGroup:    "rescheduleTG",
+					ID:                "rescheduleNow1",
+					ClientStatus:      structs.AllocClientStatusRunning,
+					Job:               testJob,
+					TaskGroup:         "rescheduleTG",
+					RescheduleTracker: rt,
 				},
 			},
+			resLater: []*delayedRescheduleInfo{},
+		},
+
+		{
+			name:            "batch successfully complete should not reschedule",
+			isDisconnecting: false,
+			isBatch:         true,
+			all: allocSet{
+				"batchComplete1": {
+					ID:                "batchComplete1",
+					ClientStatus:      structs.AllocClientStatusComplete,
+					Job:               testJob,
+					TaskGroup:         "rescheduleTG",
+					RescheduleTracker: rt,
+					TaskStates: map[string]*structs.TaskState{
+						"task": {State: structs.TaskStateDead, Failed: false}},
+				},
+			},
+			untainted: allocSet{
+				"batchComplete1": {
+					ID:                "batchComplete1",
+					ClientStatus:      structs.AllocClientStatusComplete,
+					Job:               testJob,
+					TaskGroup:         "rescheduleTG",
+					RescheduleTracker: rt,
+					TaskStates: map[string]*structs.TaskState{
+						"task": {State: structs.TaskStateDead, Failed: false}},
+				},
+			},
+			resNow:   allocSet{},
 			resLater: []*delayedRescheduleInfo{},
 		},
 		{
@@ -1949,19 +2023,21 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 			isBatch:         false,
 			all: allocSet{
 				"rescheduleNow1": {
-					ID:           "rescheduleNow1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					TaskGroup:    "rescheduleTG",
+					ID:                "rescheduleNow1",
+					ClientStatus:      structs.AllocClientStatusRunning,
+					Job:               testJob,
+					TaskGroup:         "rescheduleTG",
+					RescheduleTracker: rt,
 				},
 			},
 			untainted: allocSet{},
 			resNow: allocSet{
 				"rescheduleNow1": {
-					ID:           "rescheduleNow1",
-					ClientStatus: structs.AllocClientStatusRunning,
-					Job:          testJob,
-					TaskGroup:    "rescheduleTG",
+					ID:                "rescheduleNow1",
+					ClientStatus:      structs.AllocClientStatusRunning,
+					Job:               testJob,
+					TaskGroup:         "rescheduleTG",
+					RescheduleTracker: rt,
 				},
 			},
 			resLater: []*delayedRescheduleInfo{},
@@ -1975,6 +2051,40 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					ID:           "disconnection1",
 					ClientStatus: structs.AllocClientStatusUnknown,
 					Job:          testJob,
+				},
+			},
+			untainted: allocSet{},
+			resNow:    allocSet{},
+			resLater:  []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service previously rescheduled alloc should not reschedule",
+			isDisconnecting: false,
+			isBatch:         false,
+			all: allocSet{
+				"failed1": {
+					ID:             "failed1",
+					ClientStatus:   structs.AllocClientStatusFailed,
+					NextAllocation: uuid.Generate(),
+					Job:            testJob,
+					TaskGroup:      "rescheduleTG",
+				},
+			},
+			untainted: allocSet{},
+			resNow:    allocSet{},
+			resLater:  []*delayedRescheduleInfo{},
+		},
+		{
+			name:            "service complete should be ignored",
+			isDisconnecting: false,
+			isBatch:         false,
+			all: allocSet{
+				"complete1": {
+					ID:            "complete1",
+					DesiredStatus: structs.AllocDesiredStatusStop,
+					ClientStatus:  structs.AllocClientStatusComplete,
+					Job:           testJob,
+					TaskGroup:     "rescheduleTG",
 				},
 			},
 			untainted: allocSet{},

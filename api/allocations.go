@@ -558,7 +558,8 @@ type GenericResponse struct {
 
 // RescheduleTracker encapsulates previous reschedule events
 type RescheduleTracker struct {
-	Events []*RescheduleEvent
+	Events         []*RescheduleEvent
+	LastReschedule string
 }
 
 // RescheduleEvent is used to keep track of previous attempts at rescheduling an allocation
