@@ -185,6 +185,10 @@ export default class JobStatusPanelSteadyComponent extends Component {
     return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRestarted);
   }
 
+  get runningAllocs() {
+    return this.job.allocations.filter((a) => a.clientStatus === 'running');
+  }
+
   get completedAllocs() {
     return this.job.allocations.filter(
       (a) => !a.isOld && a.clientStatus === 'complete'
