@@ -17,8 +17,6 @@ import (
 // versions of Vault CE
 func usable(v, minimum *version.Version) bool {
 	switch {
-	case v.Prerelease() != "":
-		return false
 	case v.Metadata() != "":
 		return false
 	case v.LessThan(minimum):
