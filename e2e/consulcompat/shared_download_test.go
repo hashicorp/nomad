@@ -19,9 +19,6 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-// TODO: it would be good if we can add the latest non-GA'd beta/release
-// candidate version as well; that'll give us some lead time on any breaking
-// changes
 const (
 	binDir           = "consul-bins"
 	minConsulVersion = "1.16.0"
