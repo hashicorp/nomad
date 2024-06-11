@@ -67,22 +67,23 @@ func (*Sysfs) available() bool {
 func (*Sysfs) discoverOnline(st *Topology, readerFunc pathReaderFn) {
 	ids, err := getIDSet[hw.NodeID](nodeOnline, readerFunc)
 	if err == nil {
-		st.NodeIDs = ids
+		st.nodeIDs = ids
+		st.Nodes = st.nodeIDs.Slice()
 	}
 }
 
 func (*Sysfs) discoverCosts(st *Topology, readerFunc pathReaderFn) {
-	if st.NodeIDs.Empty() {
+	if st.nodeIDs.Empty() {
 		return
 	}
 
-	dimension := st.NodeIDs.Size()
-	st.Distances = make(SLIT, st.NodeIDs.Size())
+	dimension := st.nodeIDs.Size()
+	st.Distances = make(SLIT, st.nodeIDs.Size())
 	for i := 0; i < dimension; i++ {
 		st.Distances[i] = make([]Cost, dimension)
 	}
 
-	_ = st.NodeIDs.ForEach(func(id hw.NodeID) error {
+	_ = st.nodeIDs.ForEach(func(id hw.NodeID) error {
 		s, err := getString(distanceFile, readerFunc, id)
 		if err != nil {
 			return err
@@ -104,20 +105,21 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 	st.Cores = make([]Core, onlineCores.Size())
 
 	switch {
-	case st.NodeIDs == nil:
+	case st.nodeIDs == nil:
 		// We did not find node data, no node to associate with
 		_ = onlineCores.ForEach(func(core hw.CoreID) error {
-			st.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0})
+			st.nodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0})
 			const node = 0
 			const socket = 0
 			cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, 64, readerFunc, core)
 			base, _ := getNumeric[hw.KHz](cpuBaseFile, 64, readerFunc, core)
 			st.insert(node, socket, core, Performance, cpuMax, base)
+			st.Nodes = st.nodeIDs.Slice()
 			return nil
 		})
 	default:
 		// We found node data, associate cores to nodes
-		_ = st.NodeIDs.ForEach(func(node hw.NodeID) error {
+		_ = st.nodeIDs.ForEach(func(node hw.NodeID) error {
 			s, err := readerFunc(fmt.Sprintf(cpulistFile, node))
 			if err != nil {
 				return err
@@ -231,7 +233,7 @@ func (s *Fallback) ScanSystem(top *Topology) {
 	broken := false
 
 	switch {
-	case top.NodeIDs.Empty():
+	case top.nodeIDs.Empty():
 		broken = true
 	case len(top.Distances) == 0:
 		broken = true
@@ -251,7 +253,8 @@ func (s *Fallback) ScanSystem(top *Topology) {
 
 	// we have a broken topology; reset it and fallback to the generic scanner
 	// basically treating this client like a windows / unsupported OS
-	top.NodeIDs = nil
+	top.nodeIDs = nil
+	top.Nodes = nil
 	top.Distances = nil
 	top.Cores = nil
 

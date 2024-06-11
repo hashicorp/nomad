@@ -173,7 +173,7 @@ func (f *CPUFingerprint) setNUMA(response *FingerprintResponse) {
 		return
 	}
 
-	nodes := f.top.Nodes()
+	nodes := f.top.GetNodes()
 	response.AddAttribute("numa.node.count", f.nodes(nodes.Size()))
 
 	nodes.ForEach(func(id hw.NodeID) error {
