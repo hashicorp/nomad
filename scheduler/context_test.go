@@ -43,7 +43,6 @@ func cpuResources(shares int) (structs.LegacyNodeCpuResources, structs.NodeProce
 	n := &structs.NodeResources{
 		Processors: structs.NodeProcessorResources{
 			Topology: &numalib.Topology{
-				NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 				Distances: numalib.SLIT{[]numalib.Cost{10}},
 				Cores: []numalib.Core{{
 					SocketID:  0,
@@ -56,6 +55,7 @@ func cpuResources(shares int) (structs.LegacyNodeCpuResources, structs.NodeProce
 			},
 		},
 	}
+	n.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 
 	// polyfill the legacy struct
 	n.Compatibility()

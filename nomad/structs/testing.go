@@ -55,13 +55,14 @@ func MockBasicTopology() *numalib.Topology {
 			BaseSpeed: 3500,
 		}
 	}
-	return &numalib.Topology{
-		NodeIDs:                idset.From[hw.NodeID]([]hw.NodeID{0}),
+	t := &numalib.Topology{
 		Distances:              numalib.SLIT{[]numalib.Cost{10}},
 		Cores:                  cores,
 		OverrideTotalCompute:   0,
 		OverrideWitholdCompute: 0,
 	}
+	t.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
+	return t
 }
 
 // MockWorkstationTopology returns a numalib.Topology that looks like a typical
@@ -82,11 +83,12 @@ func MockWorkstationTopology() *numalib.Topology {
 			BaseSpeed: 3_000,
 		}
 	}
-	return &numalib.Topology{
-		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1}),
+	t := &numalib.Topology{
 		Distances: numalib.SLIT{[]numalib.Cost{10, 20}, {20, 10}},
 		Cores:     cores,
 	}
+	t.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0, 1}))
+	return t
 }
 
 // MockR6aTopology returns a numalib.Topology that looks like an EC2 r6a.metal
@@ -133,11 +135,12 @@ func MockR6aTopology() *numalib.Topology {
 		[]numalib.Cost{32, 32, 12, 10},
 	}
 
-	return &numalib.Topology{
-		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2, 3}),
+	t := &numalib.Topology{
 		Distances: distances,
 		Cores:     cores,
 	}
+	t.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2, 3}))
+	return t
 }
 
 func MockNode() *Node {

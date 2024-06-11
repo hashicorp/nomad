@@ -133,7 +133,6 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 	node := mock.Node()
 	node.NodeResources.Processors = structs.NodeProcessorResources{
 		Topology: &numalib.Topology{
-			NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 			Distances: numalib.SLIT{[]numalib.Cost{10}},
 			Cores: []numalib.Core{{
 				ID:        0,
@@ -142,6 +141,7 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 			}},
 		},
 	}
+	node.NodeResources.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	node.NodeResources.Compatibility()
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
