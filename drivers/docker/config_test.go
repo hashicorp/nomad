@@ -476,6 +476,7 @@ config {
 		},
 		NetworkAliases: []string{"redis"},
 		NetworkMode:    "host",
+		OOMScoreAdj:    1000,
 		PidsLimit:      2000,
 		PidMode:        "host",
 		Ports:          []string{"http", "https"},
