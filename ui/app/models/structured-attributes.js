@@ -7,10 +7,7 @@ import { set } from '@ember/object';
 import { get, computed } from '@ember/object';
 import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
-// import flat from 'flat';
 import PathTree from 'nomad-ui/utils/path-tree';
-
-// const { unflatten } = flat;
 
 export default class StructuredAttributes extends Fragment {
   @attr() raw;

@@ -17,6 +17,7 @@ import { trimPath } from '../helpers/trim-path';
  * @property {string} path - the folder path containing our "file", relative to parent
  * @property {string} name - the variable "file" name
  * @property {string} absoluteFilePath - the folder path containing our "file", absolute
+ * @property {string} prefix - the path prefix
  * @property {VariableModel} variable - the variable itself
  */
 
