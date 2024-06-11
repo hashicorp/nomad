@@ -7235,7 +7235,7 @@ func TestNodeResources_Merge(t *testing.T) {
 	}
 
 	topo2 := MockBasicTopology()
-	topo2.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2})
+	topo2.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2}))
 
 	res.Merge(&NodeResources{
 		Processors: NodeProcessorResources{topo2},
