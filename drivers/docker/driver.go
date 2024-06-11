@@ -1053,6 +1053,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	}
 
+	// oom_score_adj is only supported on linux
+	if runtime.GOOS == "linux" {
+		hostConfig.OomScoreAdj = driverConfig.OOMScoreAdj
+	}
+
 	loggingDriver := driverConfig.Logging.Type
 	if loggingDriver == "" {
 		loggingDriver = driverConfig.Logging.Driver

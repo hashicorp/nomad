@@ -285,6 +285,9 @@ The `docker` driver supports the following configuration in the job spec. Only
   firewalld enabled. This behavior is often caused by the CNI plugin not registering the group
   network as trusted and can be resolved as described in the [network block] documentation.
 
+- `oom_score_adj` - (Optional) A positive integer to indicate the likelihood of
+  the task being OOM killed (valid only for Linux). Defaults to 0.
+
 - `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
   the PID namespace with the host. Note that this also requires the Nomad agent
   to be configured to allow privileged containers.

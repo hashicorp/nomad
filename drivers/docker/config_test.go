@@ -314,6 +314,7 @@ config {
   ]
   network_aliases = ["redis"]
   network_mode = "host"
+  oom_score_adj = 1000
   pids_limit = 2000
 	pid_mode = "host"
 	ports = ["http", "https"]
@@ -716,6 +717,35 @@ func TestConfig_DriverConfig_ContainerExistsAttempts(t *testing.T) {
 			var tc DriverConfig
 			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
 			must.Eq(t, c.expected, tc.ContainerExistsAttempts)
+		})
+	}
+}
+
+func TestConfig_DriverConfig_OOMScoreAdj(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		config   string
+		expected int
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: 0,
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ oom_score_adj = 1001 }`,
+			expected: 1001,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			must.Eq(t, c.expected, tc.OOMScoreAdj)
 		})
 	}
 }
