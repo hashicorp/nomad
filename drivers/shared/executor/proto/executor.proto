@@ -52,7 +52,7 @@ message LaunchRequest {
     repeated string capabilities = 19;
     string cgroup_v2_override = 20;
     map<string,string> cgroup_v1_override = 21;
-    int64 oom_score_adj = 22;
+    int32 oom_score_adj = 22;
 }
 
 message LaunchResponse {

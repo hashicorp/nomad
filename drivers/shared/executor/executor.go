@@ -166,7 +166,7 @@ type ExecCommand struct {
 
 	// OOMScoreAdj allows setting oom_score_adj (likelihood of process being
 	// OOM killed) on Linux systems
-	OOMScoreAdj int64
+	OOMScoreAdj int32
 }
 
 func (c *ExecCommand) getCgroupOr(controller, fallback string) string {

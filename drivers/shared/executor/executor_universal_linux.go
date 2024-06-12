@@ -280,7 +280,7 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	_ = ed.Write("cpuset.cpus", cpusetCpus)
 }
 
-func (e *UniversalExecutor) setOomAdj(oomScore int64) error {
+func (e *UniversalExecutor) setOomAdj(oomScore int32) error {
 	// children should not inherit Nomad agent oom_score_adj value
 	//
 	// /proc/self/oom_score_adj should work on both cgroups v1 and v2 systems

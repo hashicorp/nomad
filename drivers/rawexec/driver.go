@@ -356,7 +356,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Resources:        cfg.Resources.Copy(),
 		OverrideCgroupV2: cgroupslib.CustomPathCG2(driverConfig.OverrideCgroupV2),
 		OverrideCgroupV1: driverConfig.OverrideCgroupV1,
-		OOMScoreAdj:      driverConfig.OOMScoreAdj,
+		OOMScoreAdj:      int32(driverConfig.OOMScoreAdj),
 	}
 
 	// ensure only one of cgroups_v1_override and cgroups_v2_override have been
