@@ -331,18 +331,22 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
+	index++
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	// Create an initial volume claim request; we expect it to fail
 	// because there's no such volume yet.
 	claimReq := &structs.CSIVolumeClaimRequest{
 		VolumeID:       id0,
 		AllocationID:   alloc.ID,
+		NodeID:         node.ID,
 		Claim:          structs.CSIVolumeClaimWrite,
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: structs.DefaultNamespace,
+			AuthToken: node.SecretID,
 		},
 	}
 	claimResp := &structs.CSIVolumeClaimResponse{}
@@ -475,10 +479,6 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	ns := structs.DefaultNamespace
 	state := srv.fsm.State()
 
-	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
-		mock.PluginPolicy("read")
-	accessToken := mock.CreatePolicyAndToken(t, state, 1001, "claim", policy)
-
 	codec := rpcClient(t, srv)
 	id0 := uuid.Generate()
 
@@ -528,17 +528,17 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	claimReq := &structs.CSIVolumeClaimRequest{
 		VolumeID:     id0,
 		AllocationID: alloc.ID,
+		NodeID:       node.ID,
 		Claim:        structs.CSIVolumeClaimWrite,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: ns,
-			AuthToken: accessToken.SecretID,
 		},
 	}
 	claimResp := &structs.CSIVolumeClaimResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
-	// Because the node is not registered
-	require.EqualError(t, err, "controller publish: controller attach volume: No path to node")
+	// Because we passed no auth token
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 	// The node SecretID is authorized for all policies
 	claimReq.AuthToken = node.SecretID
