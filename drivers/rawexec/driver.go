@@ -156,6 +156,9 @@ type TaskConfig struct {
 	//
 	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
 	OverrideCgroupV1 hclutils.MapStrStr `codec:"cgroup_v1_override"`
+
+	// OOMScoreAdj sets the oom_score_adj on Linux systems
+	OOMScoreAdj int `codec:"oom_score_adj"`
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -353,6 +356,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Resources:        cfg.Resources.Copy(),
 		OverrideCgroupV2: cgroupslib.CustomPathCG2(driverConfig.OverrideCgroupV2),
 		OverrideCgroupV1: driverConfig.OverrideCgroupV1,
+		OOMScoreAdj:      driverConfig.OOMScoreAdj,
 	}
 
 	// ensure only one of cgroups_v1_override and cgroups_v2_override have been
