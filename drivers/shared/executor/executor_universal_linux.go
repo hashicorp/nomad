@@ -6,6 +6,8 @@
 package executor
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"os/exec"
@@ -281,11 +283,14 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 }
 
 func (e *UniversalExecutor) setOomAdj(oomScore int32) error {
-	// children should not inherit Nomad agent oom_score_adj value
-	//
 	// /proc/self/oom_score_adj should work on both cgroups v1 and v2 systems
 	// range is -1000 to 1000; 0 is the default
-	return os.WriteFile("/proc/self/oom_score_adj", []byte(strconv.Itoa(int(oomScore))), 0644)
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, oomScore)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile("/proc/self/oom_score_adj", buf.Bytes(), 0644)
 }
 
 func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {
