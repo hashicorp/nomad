@@ -990,8 +990,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	hostConfig := &docker.HostConfig{
 		// do not set cgroup parent anymore
 
-		Memory:            memory,            // hard limit
-		MemoryReservation: memoryReservation, // soft limit
+		Memory:            memory,                   // hard limit
+		MemoryReservation: memoryReservation,        // soft limit
+		OomScoreAdj:       driverConfig.OOMScoreAdj, // ignored on platforms other than linux
 
 		CPUShares:  task.Resources.LinuxResources.CPUShares,
 		CPUSetCPUs: task.Resources.LinuxResources.CpusetCpus,
