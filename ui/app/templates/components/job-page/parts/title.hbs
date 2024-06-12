@@ -6,7 +6,7 @@
 <Hds::PageHeader class="job-page-header" as |PH|>
   <PH.Title data-test-job-name>
     {{or this.title this.job.name}}
-    {{#if @job.meta.structured.pack}}
+    {{#if @job.meta.structured.root.children.pack}}
       <span data-test-pack-tag class="tag is-hollow">
         {{x-icon "box" class= "test"}}
         <span>Pack</span>
