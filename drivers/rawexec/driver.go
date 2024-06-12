@@ -90,6 +90,7 @@ var (
 		"args":               hclspec.NewAttr("args", "list(string)", false),
 		"cgroup_v2_override": hclspec.NewAttr("cgroup_v2_override", "string", false),
 		"cgroup_v1_override": hclspec.NewAttr("cgroup_v1_override", "list(map(string))", false),
+		"oom_score_adj":      hclspec.NewAttr("oom_score_adj", "number", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
