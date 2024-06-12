@@ -290,7 +290,7 @@
   }
 
   .is-faded {
-    color: $grey-light;
+    color: darken($grey-light, 10%);
   }
 }
 
