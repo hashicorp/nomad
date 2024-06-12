@@ -120,7 +120,7 @@ func TestUniversalExecutor_setOomAdj(t *testing.T) {
 	p, err := executor.Launch(execCmd)
 	must.NoError(t, err)
 
-	oomScore, err := os.ReadFile(fmt.Sprintf("/proc/%s/oom_score_adj", p.Pid))
+	oomScore, err := os.ReadFile(fmt.Sprintf("/proc/%d/oom_score_adj", p.Pid))
 	must.NoError(t, err)
 
 	must.Eq(t, string(oomScore), string(execCmd.OOMScoreAdj))
