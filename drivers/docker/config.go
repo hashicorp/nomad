@@ -290,6 +290,13 @@ var (
 			hclspec.NewLiteral(`5`),
 		),
 
+		// oom_score_adj is the positive integer that can be used to mark the task as
+		// more likely to be OOM killed
+		"oom_score_adj": hclspec.NewDefault(
+			hclspec.NewAttr("oom_score_adj", "number", false),
+			hclspec.NewLiteral(`0`),
+		),
+
 		// the duration that the driver will wait for activity from the Docker engine during an image pull
 		// before canceling the request
 		"pull_activity_timeout": hclspec.NewDefault(
@@ -392,6 +399,7 @@ var (
 		"mounts":          hclspec.NewBlockList("mounts", mountBodySpec),
 		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
+		"oom_score_adj":   hclspec.NewAttr("oom_score_adj", "number", false),
 		"runtime":         hclspec.NewAttr("runtime", "string", false),
 		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
 		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
@@ -469,6 +477,7 @@ type TaskConfig struct {
 	Mounts                  []DockerMount      `codec:"mount"`
 	NetworkAliases          []string           `codec:"network_aliases"`
 	NetworkMode             string             `codec:"network_mode"`
+	OOMScoreAdj             int                `codec:"oom_score_adj"`
 	Runtime                 string             `codec:"runtime"`
 	PidsLimit               int64              `codec:"pids_limit"`
 	PidMode                 string             `codec:"pid_mode"`
@@ -660,6 +669,7 @@ type DriverConfig struct {
 	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
 	PidsLimit                     int64         `codec:"pids_limit"`
 	pullActivityTimeoutDuration   time.Duration `codec:"-"`
+	OOMScoreAdj                   int           `codec:"oom_score_adj"`
 	ExtraLabels                   []string      `codec:"extra_labels"`
 	Logging                       LoggingConfig `codec:"logging"`
 
