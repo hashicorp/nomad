@@ -624,10 +624,10 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		if hdr.Typeflag == tar.TypeSymlink {
 			escapes, err := escapingfs.PathEscapesAllocDir(dest, "", hdr.Linkname)
 			if err != nil {
-				return fmt.Errorf("error evaluating path %q: %w", hdr.Linkname, err)
+				return fmt.Errorf("error evaluating symlink: %w", err)
 			}
 			if escapes {
-				return fmt.Errorf("archive contains file that escapes alloc dir")
+				return fmt.Errorf("archive contains symlink that escapes alloc dir")
 			}
 
 			if err = os.Symlink(hdr.Linkname, filepath.Join(dest, hdr.Name)); err != nil {
