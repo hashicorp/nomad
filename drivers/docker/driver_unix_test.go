@@ -712,7 +712,7 @@ func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
-		Image:            "https://gcr.io/google_containers/pause:0.8.0",
+		Image:            "https://gcr.io/google_containers/pause:3.2",
 		ImagePullTimeout: "5m",
 	}
 	task := &drivers.TaskConfig{
