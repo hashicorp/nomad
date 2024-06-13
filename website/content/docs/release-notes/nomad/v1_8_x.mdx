@@ -52,23 +52,25 @@ We are pleased to announce the following Nomad updates.
   rescheduled those failures. Now, the jobs list tries to show accurate
   allocation information and meaningful statuses (like "Degraded", or
   "Recovering") to better illustrate the current state of a job.
+
   - **Server-side pagination:** For users with many thousands of jobs, the main
   landing page for the web UI will no longer have a noticeable delay on
   rendering. Users can control page length and filter paginated jobs
   appropriately.
+
   - **Live updates:** Previously, users had to manually refresh
   the page to see newly created jobs, or to hide jobs that had been stopped and
   garbage-collected. Now, the jobs list will update in real-time as jobs are
   created, updated, or removed. Further, any changes to allocations of jobs
   on-page will be reflected in the status of that job in real-time.
 
-- **Time based task execution:** Using a CRON-like syntax, operators can now
+- **Time based task execution (Enterprise) :** Using a CRON-like syntax, operators can now
   [schedule](/nomad/docs/job-specification/schedule) when tasks should execute
   and when they should stop. This provides governance for tasks executed from
   jobs, and allows operators to easily opt-in or opt-out of a schedule that
-  governs when the task can run through the web based UI.
+  governs when the task can run through the web based UI or through the [CLI](/nomad/docs/commands/alloc/pause).
 
-- **Sentinel policy management in the Web UI:** Enterprise users can manage
+- **Sentinel policy management in the Web UI (Enterprise):** Enterprise users can manage
   Sentinel policies directly within the Nomad UI. Users can create a Sentinel
   policy based on a template provided from the UI or create policies directly
   using an editor for Sentinel policies. Refer to [Sentinel
