@@ -16,8 +16,11 @@ used to document those details separately from the standard upgrade flow.
 ## Nomad 1.8.1 (UNRELEASED)
 
 <EnterpriseAlert inline />
+
 Nomad Enterprise 1.8.1 includes an updated version of the Sentinel library. Users
-that have built custom Sentinel plugins must recompile them using Sentinel SDK v4.
+that have built custom Sentinel plugins must recompile them using an SDK
+supporting Sentinel Plugin Protocol Version 3. Consult the Sentinel
+[SDK Compatibility Matrix](https://github.com/hashicorp/sentinel-sdk?tab=readme-ov-file#sdk-compatibility-matrix) for appropriate Sentinel SDK versions.
 
 ## Nomad 1.8.0
 
