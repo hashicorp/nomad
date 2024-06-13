@@ -744,6 +744,7 @@ func TestExecutor_cmdDevices(t *testing.T) {
 			Major:       1,
 			Minor:       3,
 			Permissions: "rwm",
+			Allow:       true,
 		},
 		Path: "/task/dev/null",
 	}
@@ -972,4 +973,35 @@ func TestExecutor_SignalCatching(t *testing.T) {
 	status, err = executor.container.OCIState()
 	must.NoError(t, err)
 	must.Eq(t, specs.StateStopped, status.Status)
+}
+
+// non-default devices must be present in cgroup device rules
+func TestCgroupDeviceRules(t *testing.T) {
+	ci.Parallel(t)
+	testutil.ExecCompatible(t)
+	testExecCmd := testExecutorCommand(t)
+	command := testExecCmd.command
+
+	allocDir := testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	command.Devices = append(command.Devices,
+		// /dev/fuse is not in the default device list
+		&drivers.DeviceConfig{
+			HostPath:    "/dev/fuse",
+			TaskPath:    "/dev/fuse",
+			Permissions: "rwm",
+		})
+	execInterface := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
+	executor := execInterface.(*LibcontainerExecutor)
+	cfg, err := executor.newLibcontainerConfig(command)
+	must.NoError(t, err)
+
+	must.SliceContains(t, cfg.Cgroups.Devices, &devices.Rule{
+		Type:        'c',
+		Major:       0x0a,
+		Minor:       0xe5,
+		Permissions: "rwm",
+		Allow:       true,
+	})
 }
