@@ -8,6 +8,8 @@ package executor
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -109,7 +111,6 @@ func TestUniversalExecutor_setOomAdj(t *testing.T) {
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	execCmd.Cmd = "sleep"
 	execCmd.Args = []string{"infinity"}
-
 	execCmd.OOMScoreAdj = 1000
 
 	factory.configureExecCmd(t, execCmd)
@@ -123,5 +124,6 @@ func TestUniversalExecutor_setOomAdj(t *testing.T) {
 	oomScore, err := os.ReadFile(fmt.Sprintf("/proc/%d/oom_score_adj", p.Pid))
 	must.NoError(t, err)
 
-	must.Eq(t, string(oomScore), string(execCmd.OOMScoreAdj))
+	oomScoreInt, _ := strconv.Atoi(strings.TrimSuffix(string(oomScore), "\n"))
+	must.Eq(t, execCmd.OOMScoreAdj, int32(oomScoreInt))
 }
