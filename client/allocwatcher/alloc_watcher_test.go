@@ -276,3 +276,40 @@ func TestPrevAlloc_StreamAllocDir_Error(t *testing.T) {
 		t.Fatalf("expected foo.txt to be size 1 but found %d", fi.Size())
 	}
 }
+
+// TestPrevAlloc_StreamAllocDir_FileEscape asserts that an error is returned
+// when the tar archive contains a file that escapes the allocation directory.
+func TestPrevAlloc_StreamAllocDir_FileEscape(t *testing.T) {
+	ci.Parallel(t)
+
+	// This test only unit tests streamAllocDir so we only need a partially
+	// complete remotePrevAlloc
+	prevAlloc := &remotePrevAlloc{
+		logger:      testlog.HCLogger(t),
+		allocID:     "123",
+		prevAllocID: "abc",
+		migrate:     true,
+	}
+
+	// Create a tar archive with a file that escapes the allocation directory
+	tarBuf := bytes.NewBuffer(nil)
+	tw := tar.NewWriter(tarBuf)
+	err := tw.WriteHeader(&tar.Header{
+		Name:     "../escape.txt",
+		Mode:     0666,
+		Size:     1,
+		ModTime:  time.Now(),
+		Typeflag: tar.TypeReg,
+	})
+	require.NoError(t, err)
+	_, err = tw.Write([]byte{'a'})
+	require.NoError(t, err)
+	err = tw.Close()
+	require.NoError(t, err)
+
+	// Attempt to stream the allocation directory
+	dest := t.TempDir()
+	err = prevAlloc.streamAllocDir(context.Background(), io.NopCloser(tarBuf), dest)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "archive contains file that escapes alloc dir")
+}
