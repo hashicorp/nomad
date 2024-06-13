@@ -230,6 +230,33 @@ net.bridge.bridge-nf-call-iptables = 1
 
 </CodeBlockConfig>
 
+<h3>Install `consul-cni` for Service Mesh</h3>
+
+If the `transparent_proxy` block is used for Consul Service Mesh, then the 
+`consul-cni` CNI Plugin must be installed to redirect outbound traffic to 
+the Envoy proxy.
+
+<Tabs>
+
+<Tab heading="CentOS/RHEL">
+Install the `consul-cni` plugin on each client node.  
+
+```shell-session
+$ sudo yum -y install consul-cni
+```
+</Tab>
+<Tab heading="Ubuntu/Debian">
+
+Install the `consul-cni` plugin on each client node.  
+
+```shell-session
+$ sudo apt-get update && sudo apt-get install consul-cni
+```
+
+</Tab>
+</Tabs> 
+
+
 <h3>Verify cgroup controllers</h3>
 
 On Linux, Nomad uses cgroups to control resource usage of tasks. If one or more
