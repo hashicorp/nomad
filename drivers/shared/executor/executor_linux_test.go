@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -997,15 +996,12 @@ func TestCgroupDeviceRules(t *testing.T) {
 	executor := execInterface.(*LibcontainerExecutor)
 	cfg, err := executor.newLibcontainerConfig(command)
 	must.NoError(t, err)
-	rules := make([]devices.Rule, len(cfg.Cgroups.Devices))
-	for i, rule := range cfg.Cgroups.Devices {
-		rules[i] = *rule
-	}
-	must.True(t, slices.Contains(rules, devices.Rule{
+
+	must.SliceContains(t, cfg.Cgroups.Devices, &devices.Rule{
 		Type:        'c',
-		Major:       0xa,
+		Major:       0x0a,
 		Minor:       0xe5,
 		Permissions: "rwm",
 		Allow:       true,
-	}))
+	})
 }
