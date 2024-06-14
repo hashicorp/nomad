@@ -1466,7 +1466,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 	// control when we get a Consul SI token
 	token := uuid.Generate()
 	waitCh := make(chan struct{})
-	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
+	deriveFn := func(context.Context, *structs.Allocation, []string) (map[string]string, error) {
 		<-waitCh
 		return map[string]string{task.Name: token}, nil
 	}
@@ -1530,7 +1530,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 	// control when we get a Consul SI token (recoverable failure on first call)
 	token := uuid.Generate()
 	deriveCount := 0
-	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
+	deriveFn := func(context.Context, *structs.Allocation, []string) (map[string]string, error) {
 		if deriveCount > 0 {
 
 			return map[string]string{task.Name: token}, nil

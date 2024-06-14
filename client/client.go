@@ -4,6 +4,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -28,7 +29,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
-	consulApi "github.com/hashicorp/nomad/client/consul"
+	consulApiShim "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -232,7 +233,7 @@ type Client struct {
 
 	// consulProxiesFunc gets an interface to Nomad's custom Consul client for
 	// looking up supported envoy versions
-	consulProxiesFunc consulApi.SupportedProxiesAPIFunc
+	consulProxiesFunc consulApiShim.SupportedProxiesAPIFunc
 
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses for self
 	// service discovery
@@ -256,7 +257,7 @@ type Client struct {
 
 	// tokensClient is Nomad Client's custom Consul client for requesting Consul
 	// Service Identity tokens through Nomad Server.
-	tokensClient consulApi.ServiceIdentityAPI
+	tokensClient consulApiShim.ServiceIdentityAPI
 
 	// vaultClients is used to interact with Vault for token and secret renewals
 	vaultClients map[string]vaultclient.VaultClient
@@ -348,7 +349,7 @@ var (
 // registered via https://golang.org/pkg/net/rpc/#Server.RegisterName in place
 // of the client's normal RPC handlers. This allows server tests to override
 // the behavior of the client.
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxiesFunc consulApi.SupportedProxiesAPIFunc, consulServices serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxiesFunc consulApiShim.SupportedProxiesAPIFunc, consulServices serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -2813,7 +2814,7 @@ func (c *Client) newAllocRunnerConfig(
 // identity tokens.
 // DEPRECATED: remove in 1.9.0
 func (c *Client) setupConsulTokenClient() error {
-	tc := consulApi.NewIdentitiesClient(c.logger, c.deriveSIToken)
+	tc := consulApiShim.NewIdentitiesClient(c.logger, c.deriveSIToken)
 	c.tokensClient = tc
 	return nil
 }
@@ -2960,7 +2961,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 // deriveSIToken takes an allocation and a set of tasks and derives Consul
 // Service Identity tokens for each of the tasks by requesting them from the
 // Nomad Server.
-func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
+func (c *Client) deriveSIToken(ctx context.Context, alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
 	tasks, err := verifiedTasks(c.logger, alloc, taskNames)
 	if err != nil {
 		return nil, err
@@ -3001,7 +3002,36 @@ func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (m
 	// https://www.consul.io/api/acl/tokens.html#read-a-token
 	// https://www.consul.io/docs/internals/security.html
 
+	consulConfigs := c.config.GetConsulConfigs(c.logger)
+	consulClientConstructor := consulApiShim.NewConsulClientFactory(c.Node())
+
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tgNs := tg.Consul.GetNamespace()
+
+	for task, secretID := range resp.Tokens {
+		t := tg.LookupTask(task)
+		ns := t.Consul.GetNamespace()
+		if ns == "" {
+			ns = tgNs
+		}
+		cluster := tg.LookupTask(task).GetConsulClusterName(tg)
+		consulConfig := consulConfigs[cluster]
+		consulClient, err := consulClientConstructor(consulConfig, c.logger)
+		if err != nil {
+			return nil, err
+		}
+
+		err = consulClient.TokenPreflightCheck(ctx, &consulapi.ACLToken{
+			Namespace: ns,
+			SecretID:  secretID,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	m := maps.Clone(resp.Tokens)
+
 	return m, nil
 }
 
