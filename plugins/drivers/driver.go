@@ -408,7 +408,12 @@ type LinuxResources struct {
 	CPUQuota         int64
 	CPUShares        int64
 	MemoryLimitBytes int64
-	OOMScoreAdj      int64
+
+	// OOMScoreAdj field in LinuxResources is never used and left for
+	// compatibility reasons. Docker, raw_exec and exec2 drivers allow tasks to
+	// set per-task oom_score_adj values using their own TaskConfig OOMScoreAdj
+	// fields
+	OOMScoreAdj int64
 
 	CpusetCpus       string
 	CpusetCgroupPath string
