@@ -206,6 +206,16 @@ $ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/rel
   sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
 
+If the `transparent_proxy` block is used for Consul Service Mesh, then the 
+`consul-cni` CNI Plugin must be installed on each client node to redirect inbound 
+and outbound traffic for services to the Envoy proxy. The following commands
+assume that reference CNI plugins have already been installed. 
+
+```shell-session
+$ curl -L -o consul-cni.zip "https://releases.hashicorp.com/consul-cni/1.5.0/consul-cni-1.5.0_linux_$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)".zip && \
+  unzip consul-cni.zip -d /opt/cni/bin 
+```
+
 Ensure your Linux operating system distribution has been configured to allow
 container traffic through the bridge network to be routed via iptables. These
 tunables can be set as follows.
@@ -229,18 +239,6 @@ net.bridge.bridge-nf-call-iptables = 1
 ```
 
 </CodeBlockConfig>
-
-<h3>Install `consul-cni` for Consul service mesh</h3>
-
-If the `transparent_proxy` block is used for Consul Service Mesh, then the 
-`consul-cni` CNI Plugin must be installed on each client node to redirect inbound 
-and outbound traffic for services to the Envoy proxy. The following commands
-assume that reference CNI plugins have already been installed. 
-
-```shell-session
-$ curl -L -o consul-cni.zip "https://releases.hashicorp.com/consul-cni/1.5.0/consul-cni-1.5.0_linux_$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)".zip && \
-  unzip consul-cni.zip -d /opt/cni/bin 
-```
 
 <h3>Verify cgroup controllers</h3>
 
@@ -310,32 +308,6 @@ $ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/rel
   sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
 
-Ensure your Linux operating system distribution has been configured to allow
-container traffic through the bridge network to be routed via iptables. These
-tunables can be set as follows.
-
-```shell-session
-$ echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables && \
-  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables && \
-  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
-```
-
-To preserve these settings on startup of a client node, add a file including the
-following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
-that directory.
-
-<CodeBlockConfig filename="/etc/sysctl.d/bridge.conf">
-
-```ini
-net.bridge.bridge-nf-call-arptables = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-iptables = 1
-```
-
-</CodeBlockConfig>
-
-<h3>Install `consul-cni` for Consul service mesh</h3>
-
 If the `transparent_proxy` block is used for Consul Service Mesh, then the 
 `consul-cni` CNI Plugin must be installed on each client node to redirect inbound 
 and outbound traffic for services to the Envoy proxy. The following commands
@@ -361,7 +333,48 @@ $ sudo apt-get install -y consul-cni
 ```
 
 </Tab>
+<Tab heading="Fedora">
+
+Install the `consul-cni` plugin on each client node.  
+
+```shell-session
+$ sudo dnf -y install consul-cni
+```
+
+</Tab>
+<Tab heading="Amazon Linux">
+
+Install the `consul-cni` plugin on each client node.  
+
+```shell-session
+$ sudo yum -y install consul-cni
+```
+</Tab>
 </Tabs> 
+
+Ensure your Linux operating system distribution has been configured to allow
+container traffic through the bridge network to be routed via iptables. These
+tunables can be set as follows.
+
+```shell-session
+$ echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables && \
+  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables && \
+  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+To preserve these settings on startup of a client node, add a file including the
+following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
+that directory.
+
+<CodeBlockConfig filename="/etc/sysctl.d/bridge.conf">
+
+```ini
+net.bridge.bridge-nf-call-arptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+```
+
+</CodeBlockConfig>
 
 <h3>Verify cgroup controllers</h3>
 
