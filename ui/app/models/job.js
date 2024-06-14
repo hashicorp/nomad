@@ -241,7 +241,7 @@ export default class Job extends Model {
     }
 
     // if manually stopped by a user:
-    if (this.stopped) {
+    if (this.status === 'dead' && this.stopped) {
       return {
         label: 'Stopped',
         state: 'neutral',

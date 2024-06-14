@@ -97,7 +97,8 @@ type JobStatusesJob struct {
 	// ParentID is set on child (batch) jobs, specifying the parent job ID
 	ParentID         string
 	LatestDeployment *JobStatusesLatestDeployment
-	Stop bool // has the job been manually stopped?
+	Stop             bool // has the job been manually stopped?
+	Status           string
 }
 
 // JobStatusesAlloc contains a subset of Allocation info.
