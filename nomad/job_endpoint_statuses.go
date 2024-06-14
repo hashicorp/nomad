@@ -219,6 +219,7 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		GroupCountSum:    0,
 		ChildStatuses:    nil,
 		LatestDeployment: nil,
+		Stop: 				job.Stop,
 	}
 
 	// the GroupCountSum will map to how many allocations we expect to run
