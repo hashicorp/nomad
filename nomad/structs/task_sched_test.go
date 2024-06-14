@@ -12,6 +12,34 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+func FuzzTaskScheduleCron(f *testing.F) {
+	// valid values to compare against varying "now"s
+	sched := TaskScheduleCron{
+		Start:    "0 11 * * * *",
+		End:      "0 13",
+		Timezone: "UTC", // this timezone must match the fake "now" in Fuzz()
+	}
+
+	// seed the corpus with some target "now"s to time-travel to
+	// args: year, month, day, hour, minute
+	f.Add(0, 0, 0, 0, 0)        // zero
+	f.Add(1970, 1, 0, 0, 0)     // epoch start
+	f.Add(2000, 1, 0, 0, 0)     // y2k
+	f.Add(2024, 12, 31, 23, 59) // end of this year
+	f.Add(2038, 1, 19, 3, 0)    // y2kv2
+
+	// regression tests:
+	// schedule should be valid on the last day of the month.
+	f.Add(2024, 6, 30, 12, 0)
+
+	f.Fuzz(func(t *testing.T, year, month, day, hour, minute int) {
+		now := time.Date(year, time.Month(month), day, hour, minute, 0, 0, time.UTC)
+		_, _, err := sched.Next(now)
+		must.NoError(t, err,
+			must.Sprintf("from=%q start=%q end=%q", now, sched.Start, sched.End))
+	})
+}
+
 func TestTaskScheduleCron(t *testing.T) {
 	ci.Parallel(t)
 
@@ -112,6 +140,14 @@ func TestTaskScheduleCron(t *testing.T) {
 			tz:         "America/New_York",
 			expectNext: 23*time.Hour + 30*time.Minute, // monday morning
 			expectEnd:  (24 + 6) * time.Hour,          // monday afternoon
+		},
+		{
+			name:       "end of the month",     // regression test for false "end cannot be sooner than start"
+			now:        "2024-06-30T10:00:00Z", // june has 30 days
+			start:      "0 9 * * * *",          // start before now
+			end:        "0 11",                 // end after now
+			expectNext: 0,                      // should be running
+			expectEnd:  time.Hour,
 		},
 		// errors
 		{
