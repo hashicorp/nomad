@@ -201,7 +201,8 @@ CNI plugins installed.
 The following commands install the CNI reference plugins.
 
 ```shell-session
-$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.5.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v1.5.0.tgz && \
+$ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
+$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.5.0/cni-plugins-linux-${ARCH_CNI}"-v1.5.0.tgz && \
   sudo mkdir -p /opt/cni/bin && \
   sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
@@ -212,7 +213,8 @@ and outbound traffic for services to the Envoy proxy. The following commands
 assume that reference CNI plugins have already been installed. 
 
 ```shell-session
-$ curl -L -o consul-cni.zip "https://releases.hashicorp.com/consul-cni/1.5.0/consul-cni-1.5.0_linux_$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)".zip && \
+$ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
+$ curl -L -o consul-cni.zip "https://releases.hashicorp.com/consul-cni/1.5.0/consul-cni-1.5.0_linux_${ARCH_CNI}".zip && \
   unzip consul-cni.zip -d /opt/cni/bin 
 ```
 
