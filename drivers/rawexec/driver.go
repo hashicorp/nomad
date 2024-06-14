@@ -328,6 +328,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
+	if driverConfig.OOMScoreAdj < 0 {
+		return nil, nil, fmt.Errorf("oom_score_adj must not be negative")
+	}
+
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
