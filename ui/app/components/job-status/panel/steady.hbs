@@ -32,7 +32,7 @@
           All allocations have completed successfully
         {{else}}
           <strong>
-              {{@job.runningAllocs ~}}
+              {{this.runningAllocs.length ~}}
               {{#unless this.atMostOneAllocPerNode ~}}
                 {{#if (eq @job.type "batch") ~}}
                   /{{this.totalNonCompletedAllocs}}
@@ -42,7 +42,7 @@
               {{/unless}}
           </strong>
           {{#if (eq @job.type "batch") ~}}Remaining{{/if}}
-          {{pluralize "Allocation" @job.runningAllocs}} Running
+          {{pluralize "Allocation" this.runningAllocs.length}} Running
         {{/if}}
       </h3>
       <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}} />
