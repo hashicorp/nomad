@@ -209,6 +209,7 @@ $ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/rel
   sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
 
+
 <h4>Install consul-cni CNI plugin</h4>
 
 If the `transparent_proxy` block is used for Consul Service Mesh, then the 
@@ -222,7 +223,7 @@ $ curl -L -o consul-cni.zip "https://releases.hashicorp.com/consul-cni/1.5.0/con
   sudo unzip consul-cni.zip -d /opt/cni/bin 
 ```
 
-<h4>Configure bridge network to route traffic through iptables</h4>
+<h3>Configure bridge network to route traffic through iptables</h3>
 
 Ensure your Linux operating system distribution has been configured to allow
 container traffic through the bridge network to be routed via iptables. These
@@ -318,6 +319,7 @@ $ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/rel
   sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
 
+
 <h4>Install consul-cni CNI plugin</h4>
 
 If the `transparent_proxy` block is used for Consul Service Mesh, then the 
@@ -364,7 +366,7 @@ $ sudo yum -y install consul-cni
 </Tab>
 </Tabs> 
 
-<h4>Configure bridge network to route traffic through iptables</h4>
+<h3>Configure bridge network to route traffic through iptables</h3>
 
 Ensure your Linux operating system distribution has been configured to allow
 container traffic through the bridge network to be routed via iptables. These
