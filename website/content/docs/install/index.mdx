@@ -220,7 +220,7 @@ assume that reference CNI plugins have already been installed.
 ```shell-session
 $ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
 $ curl -L -o consul-cni.zip "https://releases.hashicorp.com/consul-cni/1.5.0/consul-cni_1.5.0_linux_${ARCH_CNI}".zip && \
-  sudo unzip consul-cni.zip -d /opt/cni/bin 
+  sudo unzip consul-cni.zip -d /opt/cni/bin -x LICENSE.txt
 ```
 
 <h3>Configure bridge network to route traffic through iptables</h3>
