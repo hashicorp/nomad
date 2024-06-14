@@ -4,7 +4,6 @@
 package structs
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
