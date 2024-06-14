@@ -589,10 +589,10 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 
 		escapes, err := escapingfs.PathEscapesAllocDir(dest, "", hdr.Name)
 		if err != nil {
-			return fmt.Errorf("error evaluating path: %w", err)
+			return fmt.Errorf("error evaluating symlink: %w", err)
 		}
 		if escapes {
-			return fmt.Errorf("archive contains file that escapes alloc dir")
+			return fmt.Errorf("archive contains symlink that escapes alloc dir")
 		}
 
 		if hdr.Name == errorFilename {

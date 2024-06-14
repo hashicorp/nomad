@@ -109,9 +109,8 @@ func TestPrevAlloc_StreamAllocDir_BadSymlink(t *testing.T) {
 	buf, err := testTar(dir)
 	rc := io.NopCloser(buf)
 
-	dir1 := t.TempDir()
 	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
-	err = prevAlloc.streamAllocDir(context.Background(), rc, dir1)
+	err = prevAlloc.streamAllocDir(context.Background(), rc, dir)
 	must.EqError(t, err, "archive contains symlink that escapes alloc dir")
 }
 
