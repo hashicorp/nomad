@@ -50,6 +50,9 @@ The `raw_exec` driver supports the following configuration in the job spec:
 ~> The `task.user` field cannot be set on a Task using the `raw_exec` driver if
 the Nomad client has been hardened according to the [production][hardening] guide.
 
+- `oom_score_adj` - (Optional) A positive integer to indicate the likelihood of
+  the task being OOM killed (valid only for Linux). Defaults to 0.
+
 ## Examples
 
 To run a binary present on the Node:
@@ -152,7 +155,7 @@ manage the process tree. Cgroups are used on Linux when Nomad is being run with
 appropriate privileges, and the cgroup system is mounted.
 
 If the cluster is configured with memory oversubscription enabled, a task using
-the `raw_exec` driver can be configured to have no maximum memory limit by 
+the `raw_exec` driver can be configured to have no maximum memory limit by
 setting `memory_max = -1`.
 
 ```hcl
