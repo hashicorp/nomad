@@ -152,7 +152,7 @@ func (t TaskScheduleCron) Next(from time.Time) (time.Duration, time.Duration, er
 
 	// next end must be on the same day as next start
 	if endNext.Day() > startNext.Day() {
-		return 0, 0, fmt.Errorf("end cannot be sooner than start")
+		return 0, 0, fmt.Errorf("end cannot be sooner than start; end=%q, start=%q", endNext, startNext)
 	}
 
 	// we're in the midst of it right now!
