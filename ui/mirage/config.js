@@ -307,7 +307,7 @@ export default function () {
             });
           job.ChildStatuses = children ? children.mapBy('Status') : null;
           job.Datacenters = j.Datacenters;
-          job.DeploymentID = j.DeploymentID;
+          job.LatestDeployment = j.LatestDeployment;
           job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
             (a, b) => a + b,
             0

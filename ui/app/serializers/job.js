@@ -62,6 +62,12 @@ export default class JobSerializer extends ApplicationSerializer {
       });
     }
 
+    // job.stop is reserved as a method (points to adapter method) so we rename it here
+    if (hash.Stop) {
+      hash.Stopped = hash.Stop;
+      delete hash.Stop;
+    }
+
     return super.normalize(typeHash, hash);
   }
 
