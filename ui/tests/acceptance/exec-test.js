@@ -353,6 +353,7 @@ module('Acceptance | exec', function (hooks) {
     let job = server.create('job', {
       namespaceId: namespace.id,
       createAllocations: true,
+      status: 'running',
     });
 
     let taskGroup = job.taskGroups.models.sortBy('name')[0];

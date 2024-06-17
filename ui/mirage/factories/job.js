@@ -202,6 +202,9 @@ export default Factory.extend({
   // When true, the job's groups' tasks will have actions blocks
   withActions: false,
 
+  // When true, the job will simulate a "scheduled" block's paused state
+  withPausedTasks: false,
+
   afterCreate(job, server) {
     Ember.assert(
       '[Mirage] No node pools! make sure node pools are created before jobs',
@@ -238,6 +241,7 @@ export default Factory.extend({
       createRecommendations: job.createRecommendations,
       shallow: job.shallow,
       allocStatusDistribution: job.allocStatusDistribution,
+      withPausedTasks: job.withPausedTasks,
     };
 
     if (job.groupTaskCount) {

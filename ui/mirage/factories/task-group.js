@@ -54,6 +54,9 @@ export default Factory.extend({
   // When set, passed into tasks to set resource values
   resourceSpec: null,
 
+  // When true, the group will simulate a "scheduled" block's paused state
+  withPausedTasks: false,
+
   afterCreate(group, server) {
     let taskIds = [];
     let volumes = Object.keys(group.volumes);
@@ -110,6 +113,7 @@ export default Factory.extend({
             ReadOnly: faker.random.boolean(),
           })),
           createRecommendations: group.createRecommendations,
+          withSchedule: group.withPausedTasks,
         });
       });
       taskIds = tasks.mapBy('id');
@@ -166,6 +170,7 @@ export default Factory.extend({
                 Canary: false,
                 Healthy: false,
               },
+              withPausedTasks: group.withPausedTasks,
             };
 
             if (group.withRescheduling) {
@@ -189,6 +194,7 @@ export default Factory.extend({
               rescheduleAttempts: group.withRescheduling
                 ? faker.random.number({ min: 1, max: 5 })
                 : 0,
+              withPausedTasks: group.withPausedTasks,
             };
 
             if (group.withRescheduling) {
