@@ -94,36 +94,24 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 
 func TestPrevAlloc_StreamAllocDir_BadSymlink(t *testing.T) {
 	ci.Parallel(t)
+	ctestutil.RequireRoot(t)
 
 	dir := t.TempDir()
 	sensitiveDir := t.TempDir()
 
 	fooDir := filepath.Join(dir, "foo")
-	err := os.Mkdir(fooDir, 0777)
-	must.NoError(t, err)
+	must.NoError(t, os.Mkdir(fooDir, 0777))
 
 	// Create sensitive -> foo/bar symlink
-	err = os.Symlink(sensitiveDir, filepath.Join(dir, "foo", "baz"))
-	must.NoError(t, err)
-
-	// Add logging to check if the symlink was created correctly
-	symlinkDest, err := os.Readlink(filepath.Join(dir, "foo", "baz"))
-	if err != nil {
-		t.Fatalf("Failed to read symlink: %v", err)
-	}
-	t.Logf("Symlink points to: %s", symlinkDest)
+	must.NoError(t, os.Symlink(sensitiveDir, filepath.Join(dir, "foo", "baz")))
 
 	buf, err := testTar(dir)
+	must.NoError(t, err)
 	rc := io.NopCloser(buf)
 
+	dir1 := t.TempDir()
 	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
-	err = prevAlloc.streamAllocDir(context.Background(), rc, dir)
-	if err != nil {
-		t.Logf("streamAllocDir error: %v", err)
-	} else {
-		t.Error("Expected error from streamAllocDir, got nil")
-	}
-	must.EqError(t, err, "archive contains symlink that escapes alloc dir")
+	must.EqError(t, prevAlloc.streamAllocDir(context.Background(), rc, dir1), "archive contains symlink that escapes alloc dir")
 }
 
 func testTar(dir string) (*bytes.Buffer, error) {
