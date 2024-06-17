@@ -6,12 +6,10 @@
 <Breadcrumb @crumb={{hash label=this.policy.name args=(array "administration.policies.policy" this.policy.name)}} />
 {{page-title "Policy"}}
 <section class="section">
-	<h1 class="title with-flex" data-test-title>
-		<div>
-			{{this.policy.name}}
-		</div>
-		{{#if (can "destroy policy")}}
-			<div>
+  <Hds::PageHeader as |PH|>
+    <PH.Title>{{this.policy.name}}</PH.Title>
+    {{#if (can "destroy policy")}}
+      <PH.Actions>
         <TwoStepButton
           data-test-delete-policy
           @alignRight={{true}}
@@ -23,9 +21,9 @@
           @disabled={{this.deletePolicy.isRunning}}
           @onConfirm={{perform this.deletePolicy}}
         />
-			</div>
-		{{/if}}
-	</h1>
+      </PH.Actions>
+    {{/if}}
+  </Hds::PageHeader>
 	<PolicyEditor
 		@policy={{this.policy}}
 	/>
