@@ -7,7 +7,7 @@
 {{page-title "Policy"}}
 <section class="section">
   <Hds::PageHeader as |PH|>
-    <PH.Title>{{this.policy.name}}</PH.Title>
+    <PH.Title data-test-title>{{this.policy.name}}</PH.Title>
     {{#if (can "destroy policy")}}
       <PH.Actions>
         <TwoStepButton
