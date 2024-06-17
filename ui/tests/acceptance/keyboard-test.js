@@ -271,8 +271,10 @@ module('Acceptance | keyboard', function (hooks) {
         'Hints disappear when you release Shift'
       );
 
-      triggerEvent('.page-layout', 'keydown', { key: 'Meta' });
-      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      await triggerEvent('.page-layout', 'keydown', {
+        key: 'Shift',
+        metaKey: true,
+      });
       assert.equal(
         document.querySelectorAll('[data-test-keyboard-hint]').length,
         0,
