@@ -32,6 +32,7 @@ export default class Job extends Model {
   @attr('number') modifyIndex;
   @attr('date') submitTime;
   @attr('string') nodePool; // Jobs are related to Node Pools either directly or via its Namespace, but no relationship.
+  @attr('boolean') stopped;
   @attr() ui;
 
   @attr('number') groupCountSum;
@@ -89,7 +90,7 @@ export default class Job extends Model {
 
   /**
    * @typedef {Object} CurrentStatus
-   * @property {"Healthy"|"Failed"|"Deploying"|"Degraded"|"Recovering"|"Complete"|"Running"|"Removed"} label - The current status of the job
+   * @property {"Healthy"|"Failed"|"Deploying"|"Degraded"|"Recovering"|"Complete"|"Running"|"Removed"|"Stopped"} label - The current status of the job
    * @property {"highlight"|"success"|"warning"|"critical"|"neutral"} state -
    */
 
@@ -224,6 +225,7 @@ export default class Job extends Model {
    * - Degraded: A deployment is not taking place, and some allocations are failed, lost, or unplaced
    * - Failed: All allocations are failed, lost, or unplaced
    * - Removed: The job appeared in our initial query, but has since been garbage collected
+   * - Stopped: The job has been manually stopped (and not purged or yet garbage collected) by a user
    * @returns {CurrentStatus}
    */
   /**
@@ -236,6 +238,14 @@ export default class Job extends Model {
     // If deploying:
     if (this.latestDeploymentSummary?.IsActive) {
       return { label: 'Deploying', state: 'highlight' };
+    }
+
+    // if manually stopped by a user:
+    if (this.status === 'dead' && this.stopped) {
+      return {
+        label: 'Stopped',
+        state: 'neutral',
+      };
     }
 
     // If the job was requested initially, but a subsequent request for it was

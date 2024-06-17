@@ -554,6 +554,138 @@ module('Acceptance | jobs list', function (hooks) {
     localStorage.removeItem('nomadPageSize');
   });
 
+  test('aggregateAllocStatus reflects job status correctly', async function (assert) {
+    const defaultJobParams = {
+      createAllocations: true,
+      shallow: true,
+      resourceSpec: Array(1).fill('M: 257, C: 500'),
+      groupAllocCount: 10,
+      noActiveDeployment: true,
+      noFailedPlacements: true,
+      status: 'running',
+      type: 'service',
+    };
+
+    server.create('job', {
+      ...defaultJobParams,
+      id: 'healthy-job',
+      allocStatusDistribution: {
+        running: 1,
+      },
+    });
+
+    server.create('job', {
+      ...defaultJobParams,
+      id: 'degraded-job',
+      allocStatusDistribution: {
+        running: 0.9,
+        failed: 0.1,
+      },
+    });
+
+    server.create('job', {
+      ...defaultJobParams,
+      id: 'recovering-job',
+      allocStatusDistribution: {
+        running: 0.9,
+        pending: 0.1,
+      },
+    });
+
+    server.create('job', {
+      ...defaultJobParams,
+      id: 'completed-job',
+      allocStatusDistribution: {
+        complete: 1,
+      },
+      type: 'batch',
+    });
+
+    server.create('job', {
+      ...defaultJobParams,
+      id: 'running-job',
+      allocStatusDistribution: {
+        running: 1,
+      },
+      type: 'batch',
+    });
+
+    server.create('job', {
+      ...defaultJobParams,
+      id: 'failed-job',
+      allocStatusDistribution: {
+        failed: 1,
+      },
+    });
+
+    server.create('job', {
+      ...defaultJobParams,
+      id: 'failed-garbage-collected-job',
+      type: 'service',
+      allocStatusDistribution: {
+        unknown: 1,
+      },
+      status: 'running',
+    });
+
+    server.create('job', {
+      ...defaultJobParams,
+      id: 'stopped-job',
+      type: 'service',
+      allocStatusDistribution: {
+        unknown: 1,
+      },
+      status: 'dead',
+      stopped: true,
+    });
+
+    server.create('job', {
+      ...defaultJobParams,
+      id: 'deploying-job',
+      allocStatusDistribution: {
+        running: 0.5,
+        pending: 0.5,
+      },
+      noActiveDeployment: false,
+      activeDeployment: true,
+    });
+
+    await JobsList.visit();
+
+    assert
+      .dom('[data-test-job-row="healthy-job"] [data-test-job-status]')
+      .hasText('Healthy', 'Healthy job is healthy');
+    // and all the rest
+    assert
+      .dom('[data-test-job-row="degraded-job"] [data-test-job-status]')
+      .hasText('Degraded', 'Degraded job is degraded');
+    assert
+      .dom('[data-test-job-row="recovering-job"] [data-test-job-status]')
+      .hasText('Recovering', 'Recovering job is recovering');
+    assert
+      .dom('[data-test-job-row="completed-job"] [data-test-job-status]')
+      .hasText('Complete', 'Completed job is completed');
+    assert
+      .dom('[data-test-job-row="running-job"] [data-test-job-status]')
+      .hasText('Running', 'Running job is running');
+    assert
+      .dom('[data-test-job-row="failed-job"] [data-test-job-status]')
+      .hasText('Failed', 'Failed job is failed');
+    assert
+      .dom(
+        '[data-test-job-row="failed-garbage-collected-job"] [data-test-job-status]'
+      )
+      .hasText('Failed', 'Failed garbage collected job is failed');
+    assert
+      .dom('[data-test-job-row="stopped-job"] [data-test-job-status]')
+      .hasText('Stopped', 'Stopped job is stopped');
+    assert
+      .dom('[data-test-job-row="deploying-job"] [data-test-job-status]')
+      .hasText('Deploying', 'Deploying job is deploying');
+
+    await percySnapshot(assert);
+  });
+
   test('Jobs with schedule blocks indicate when a task is paused', async function (assert) {
     server.create('job', {
       name: 'regular-job-1',

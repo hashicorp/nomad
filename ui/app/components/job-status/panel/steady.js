@@ -201,8 +201,8 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
   /**
    * @typedef {Object} CurrentStatus
-   * @property {"Healthy"|"Failed"|"Degraded"|"Recovering"|"Complete"|"Running"} label - The current status of the job
-   * @property {"highlight"|"success"|"warning"|"critical"} state -
+   * @property {"Healthy"|"Failed"|"Degraded"|"Recovering"|"Complete"|"Running"|"Stopped"} label - The current status of the job
+   * @property {"highlight"|"success"|"warning"|"critical"|"neutral"} state -
    */
 
   /**
@@ -212,6 +212,13 @@ export default class JobStatusPanelSteadyComponent extends Component {
   get currentStatus() {
     // If all allocs are running, the job is Healthy
     const totalAllocs = this.totalAllocs;
+
+    if (this.job.status === 'dead' && this.job.stopped) {
+      return {
+        label: 'Stopped',
+        state: 'neutral',
+      };
+    }
 
     if (this.job.type === 'batch' || this.job.type === 'sysbatch') {
       // If all the allocs are complete, the job is Complete
