@@ -380,7 +380,7 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `cpu` `(int: 0)` - Specifies the amount of CPU to reserve, in MHz.
 
-- `cores` `(int: 0)` - Specifies the cpuset of CPU cores to reserve. Only
+- `cores` `(string: "")` - Specifies the cpuset of CPU cores to reserve. Only
   supported on Linux.
 
   ```hcl
@@ -441,9 +441,9 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `filesystem_isolation_extra_paths` `([]string: nil)` - Allow extra paths
   in the filesystem isolation. Paths are specified in the form `[kind]:[mode]:[path]`
-  where `kind` must be either `f` or `d` (file or directory) and 
-  `mode` must be zero or more of `r`, `w`, `c`, `x` (read, write, create, execute) e.g. 
-  `f:r:/dev/urandom` would enable reading the /dev/urandom file, 
+  where `kind` must be either `f` or `d` (file or directory) and
+  `mode` must be zero or more of `r`, `w`, `c`, `x` (read, write, create, execute) e.g.
+  `f:r:/dev/urandom` would enable reading the /dev/urandom file,
   `d:rx:/opt/bin` would enable reading and executing from the /opt/bin directory
 
 - `set_environment_variables` `(string:"")` - Specifies a comma separated list
