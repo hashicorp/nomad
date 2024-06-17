@@ -106,11 +106,23 @@ func TestPrevAlloc_StreamAllocDir_BadSymlink(t *testing.T) {
 	err = os.Symlink(sensitiveDir, filepath.Join(dir, "foo", "baz"))
 	must.NoError(t, err)
 
+	// Add logging to check if the symlink was created correctly
+	symlinkDest, err := os.Readlink(filepath.Join(dir, "foo", "baz"))
+	if err != nil {
+		t.Fatalf("Failed to read symlink: %v", err)
+	}
+	t.Logf("Symlink points to: %s", symlinkDest)
+
 	buf, err := testTar(dir)
 	rc := io.NopCloser(buf)
 
 	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
 	err = prevAlloc.streamAllocDir(context.Background(), rc, dir)
+	if err != nil {
+		t.Logf("streamAllocDir error: %v", err)
+	} else {
+		t.Error("Expected error from streamAllocDir, got nil")
+	}
 	must.EqError(t, err, "archive contains symlink that escapes alloc dir")
 }
 
