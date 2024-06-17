@@ -270,6 +270,16 @@ module('Acceptance | keyboard', function (hooks) {
         0,
         'Hints disappear when you release Shift'
       );
+
+      triggerEvent('.page-layout', 'keydown', { key: 'Meta' });
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      assert.equal(
+        document.querySelectorAll('[data-test-keyboard-hint]').length,
+        0,
+        'Hints do not show up when holding down Command+Shift'
+      );
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
+      await triggerEvent('.page-layout', 'keyup', { key: 'Meta' });
     });
   });
 

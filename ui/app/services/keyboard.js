@@ -348,6 +348,13 @@ export default class KeyboardService extends Service {
       const shifted = event.getModifierState('Shift');
       if (type === 'press') {
         if (key === 'Shift') {
+          // if cmd or ctrl are pressed, don't show hints — this is likely a user trying to take a screenshot.
+          if (
+            event.getModifierState('Meta') ||
+            event.getModifierState('Control')
+          ) {
+            return;
+          }
           this.displayHints = true;
         } else {
           if (!DISALLOWED_KEYS.includes(key)) {
