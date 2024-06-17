@@ -44,7 +44,7 @@ type Submission struct {
 	// preCleanup funcs to run before deregistering the job
 	preCleanup []func(*Submission)
 
-	vars         *set.Set[string] // key=value
+	vars         Vars
 	waitComplete *set.Set[string] // groups to wait until complete
 	inNamespace  string
 	authToken    string
@@ -306,6 +306,12 @@ func (sub *Submission) run() {
 		job.ConsulToken = pointer.Of(sub.legacyConsulToken)
 	}
 
+	registerOpts := &nomadapi.RegisterOptions{
+		Submission: &nomadapi.JobSubmission{
+			Source:    sub.jobSpec,
+			Variables: sub.vars.String(),
+		},
+	}
 	writeOpts := &nomadapi.WriteOptions{
 		Namespace: sub.inNamespace,
 		AuthToken: sub.authToken,
@@ -313,7 +319,7 @@ func (sub *Submission) run() {
 
 	jobsAPI := sub.nomadClient.Jobs()
 	sub.logf("register (%s) job: %q", *job.Type, sub.jobID)
-	regResp, _, err := jobsAPI.Register(job, writeOpts)
+	regResp, _, err := jobsAPI.RegisterOpts(job, registerOpts, writeOpts)
 	must.NoError(sub.t, err)
 
 	if !sub.noCleanup {
@@ -527,7 +533,7 @@ func initialize(t *testing.T, filename string) *Submission {
 		jobID:        jobID,
 		origJobID:    jobID,
 		timeout:      20 * time.Second,
-		vars:         set.New[string](0),
+		vars:         Vars{},
 		waitComplete: set.New[string](0),
 		preCleanup:   []func(*Submission){defaultPreCleanup},
 	}
@@ -579,8 +585,26 @@ func Verbose(on bool) Option {
 // Set an HCL variable.
 func Var(key, value string) Option {
 	return func(sub *Submission) {
-		sub.vars.Insert(fmt.Sprintf("%s=%s", key, value))
+		sub.vars[key] = value
 	}
+}
+
+type Vars map[string]string
+
+func (v Vars) Slice() []string {
+	s := make([]string, 0, len(v))
+	for k, v := range v {
+		s = append(s, fmt.Sprintf("%s=%s", k, v))
+	}
+	return s
+}
+
+func (v Vars) String() string {
+	s := ""
+	for k, v := range v {
+		s = s + fmt.Sprintf("%s=%q\n", k, v)
+	}
+	return s
 }
 
 // WaitComplete will wait until all allocations of the given group are
