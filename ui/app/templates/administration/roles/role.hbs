@@ -5,12 +5,13 @@
 <Breadcrumb @crumb={{hash label=this.role.name args=(array "administration.roles.role" this.role.id)}} />
 {{page-title "Role"}}
 <section class="section">
-	<h1 class="title with-flex" data-test-title>
-		<div>
-			Edit Role
-		</div>
-		{{#if (can "destroy role")}}
-      <TwoStepButton
+  <Hds::PageHeader as |PH|>
+    <PH.Title data-test-title>
+      {{this.role.name}}
+    </PH.Title>
+    {{#if (can "destroy role")}}
+      <PH.Actions>
+        <TwoStepButton
           data-test-delete-role
           @alignRight={{true}}
           @idleText="Delete Role"
@@ -21,8 +22,9 @@
           @disabled={{this.deleteRole.isRunning}}
           @onConfirm={{perform this.deleteRole}}
         />
-		{{/if}}
-	</h1>
+      </PH.Actions>
+    {{/if}}
+  </Hds::PageHeader>
 	<RoleEditor
 		@role={{this.role}}
     @policies={{this.policies}}

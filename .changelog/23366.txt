@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Update headers in the Admin section to use the HashiCorp Design System
+```

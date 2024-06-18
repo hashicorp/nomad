@@ -6,9 +6,9 @@
 <Breadcrumb @crumb={{hash label="New" args=(array "administration.roles.new")}} />
 {{page-title "Create Role"}}
 <section class="section">
-	<h1 class="title with-flex" data-test-title>
-		Create Role
-	</h1>
+  <Hds::PageHeader as |PH|>
+    <PH.Title data-test-title>Create Role</PH.Title>
+  </Hds::PageHeader>
   {{#if this.model.policies.length}}
   <RoleEditor
     @role={{this.model.role}}
