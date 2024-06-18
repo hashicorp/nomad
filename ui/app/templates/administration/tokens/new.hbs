@@ -6,9 +6,9 @@
 <Breadcrumb @crumb={{hash label="New" args=(array "administration.tokens.new")}} />
 {{page-title "Create Token"}}
 <section class="section">
-	<h1 class="title with-flex" data-test-title>
-		Create Token
-	</h1>
+  <Hds::PageHeader as |PH|>
+    <PH.Title>Create Token</PH.Title>
+  </Hds::PageHeader>
   <TokenEditor
     @token={{this.model.token}}
     @roles={{this.model.roles}}
