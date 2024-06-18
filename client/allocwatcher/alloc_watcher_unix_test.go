@@ -105,7 +105,7 @@ func TestPrevAlloc_StreamAllocDir_BadSymlink(t *testing.T) {
 	// Create sensitive -> foo/bar symlink
 	must.NoError(t, os.Symlink(sensitiveDir, filepath.Join(dir, "foo", "baz")))
 
-	buf, err := testTar(dir)
+	buf, err := testTarWithoutSymlinkFollow(dir)
 	must.NoError(t, err)
 	rc := io.NopCloser(buf)
 
@@ -164,6 +164,64 @@ func testTar(dir string) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	tw.Close()
+
+	return buf, nil
+}
+
+func testTarWithoutSymlinkFollow(dir string) (*bytes.Buffer, error) {
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+
+	err := filepath.Walk(dir, func(file string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("error from filepath.Walk(): %s", err)
+		}
+
+		// Use os.Lstat to get file info without following symbolic links
+		fi, err = os.Lstat(file)
+		if err != nil {
+			return err
+		}
+
+		header, err := tar.FileInfoHeader(fi, "")
+		if err != nil {
+			return fmt.Errorf("error creating file header: %v", err)
+		}
+
+		// If the file is a symbolic link, manually add a header for the symbolic link
+		if fi.Mode()&os.ModeSymlink != 0 {
+			link, err := os.Readlink(file)
+			if err != nil {
+				return err
+			}
+			header.Linkname = link
+		}
+
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+
+		// If the file is not a regular file, don't write any content
+		if !fi.Mode().IsRegular() {
+			return nil
+		}
+
+		f, err := os.Open(file)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		_, err = io.Copy(tw, f)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
 
 	return buf, nil
 }
