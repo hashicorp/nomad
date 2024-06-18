@@ -251,7 +251,7 @@ func (a *Allocations) SetPauseState(alloc *Allocation, q *QueryOptions, task, st
 // The ?task=<task> query parameter must be set.
 func (a *Allocations) GetPauseState(alloc *Allocation, q *QueryOptions, task string) (string, *QueryMeta, error) {
 	var resp AllocGetPauseResponse
-	qm, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/pause", &resp, q)
+	qm, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/pause?task="+task, &resp, q)
 	state := resp.ScheduleState
 	return state, qm, err
 }
