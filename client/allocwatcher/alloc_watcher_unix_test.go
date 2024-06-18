@@ -94,24 +94,25 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 
 func TestPrevAlloc_StreamAllocDir_BadSymlink(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.RequireRoot(t)
 
 	dir := t.TempDir()
 	sensitiveDir := t.TempDir()
 
 	fooDir := filepath.Join(dir, "foo")
-	must.NoError(t, os.Mkdir(fooDir, 0777))
+	err := os.Mkdir(fooDir, 0777)
+	must.NoError(t, err)
 
 	// Create sensitive -> foo/bar symlink
-	must.NoError(t, os.Symlink(sensitiveDir, filepath.Join(dir, "foo", "baz")))
-
-	buf, err := testTarWithoutSymlinkFollow(dir)
+	err = os.Symlink(sensitiveDir, filepath.Join(dir, "foo", "baz"))
 	must.NoError(t, err)
+
+	buf, err := testTar(dir)
 	rc := io.NopCloser(buf)
 
 	dir1 := t.TempDir()
 	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
-	must.EqError(t, prevAlloc.streamAllocDir(context.Background(), rc, dir1), "archive contains symlink that escapes alloc dir")
+	err = prevAlloc.streamAllocDir(context.Background(), rc, dir1)
+	must.EqError(t, err, "archive contains symlink that escapes alloc dir")
 }
 
 func testTar(dir string) (*bytes.Buffer, error) {

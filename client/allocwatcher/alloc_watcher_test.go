@@ -311,5 +311,5 @@ func TestPrevAlloc_StreamAllocDir_FileEscape(t *testing.T) {
 	dest := t.TempDir()
 	err = prevAlloc.streamAllocDir(context.Background(), io.NopCloser(tarBuf), dest)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "archive contains symlink that escapes alloc dir")
+	require.Contains(t, err.Error(), "archive contains directory that escapes alloc dir")
 }
