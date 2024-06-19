@@ -100,7 +100,7 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 
 	// Create the network resources from the interface
 	disallowLinkLocal := cfg.ReadBoolDefault(networkDisallowLinkLocalOption, networkDisallowLinkLocalDefault)
-	nwResources, err := f.createNetworkResources(mbits, intf, disallowLinkLocal)
+	nwResources, err := f.createNetworkResources(mbits, intf, disallowLinkLocal, cfg.IgnoreIPv6)
 	if err != nil {
 		return err
 	}
@@ -169,6 +169,12 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 			} else {
 				family = structs.NodeNetworkAF_IPv6
 			}
+
+			// Skip IPv6 if the user has requested it
+			if conf.IgnoreIPv6 && family == structs.NodeNetworkAF_IPv6 {
+				continue
+			}
+
 			for _, alias := range deriveAddressAliases(iface, ip, conf) {
 				newAddr := structs.NodeNetworkAddress{
 					Address: ip.String(),
@@ -257,7 +263,7 @@ func deriveAddressAliases(iface net.Interface, addr net.IP, config *config.Confi
 }
 
 // createNetworkResources creates network resources for every IP
-func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.Interface, disallowLinkLocal bool) ([]*structs.NetworkResource, error) {
+func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.Interface, disallowLinkLocal bool, ignoreIPv6 bool) ([]*structs.NetworkResource, error) {
 	// Find the interface with the name
 	addrs, err := f.interfaceDetector.Addrs(intf)
 	if err != nil {
@@ -268,12 +274,6 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 	linkLocals := make([]*structs.NetworkResource, 0)
 
 	for _, addr := range addrs {
-		// Create a new network resource
-		newNetwork := &structs.NetworkResource{
-			Mode:   "host",
-			Device: intf.Name,
-			MBits:  throughput,
-		}
 
 		// Find the IP Addr and the CIDR from the Address
 		var ip net.IP
@@ -284,10 +284,24 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 			ip = v.IP
 		}
 
+		/*
+			if ip.To4() == nil && ignoreIPv6 {
+				continue
+			}
+		*/
+
+		// Create a new network resource
+		newNetwork := &structs.NetworkResource{
+			Mode:   "host",
+			Device: intf.Name,
+			MBits:  throughput,
+		}
+
 		newNetwork.IP = ip.String()
 		if ip.To4() != nil {
 			newNetwork.CIDR = newNetwork.IP + "/32"
 		} else {
+			//continue // force IPv4, ignore IPv6
 			newNetwork.CIDR = newNetwork.IP + "/128"
 		}
 

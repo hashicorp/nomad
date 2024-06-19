@@ -256,6 +256,8 @@ type ClientConfig struct {
 	// Interface to use for network fingerprinting
 	NetworkInterface string `hcl:"network_interface"`
 
+	IgnoreIPv6 bool `hcl:"ignore_ipv6"`
+
 	// NetworkSpeed is used to override any detected or default network link
 	// speed.
 	NetworkSpeed int `hcl:"network_speed"`
@@ -2265,6 +2267,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.NetworkInterface != "" {
 		result.NetworkInterface = b.NetworkInterface
 	}
+
+	result.IgnoreIPv6 = result.IgnoreIPv6 || b.IgnoreIPv6
+
 	if b.NetworkSpeed != 0 {
 		result.NetworkSpeed = b.NetworkSpeed
 	}

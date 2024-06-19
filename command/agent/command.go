@@ -116,6 +116,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&servers, "servers", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
+	flags.BoolVar(&cmdConfig.Client.IgnoreIPv6, "ignore-ipv6", false, "")
 	flags.IntVar(&cmdConfig.Client.NetworkSpeed, "network-speed", 0, "")
 
 	// General options
