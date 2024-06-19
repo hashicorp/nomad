@@ -1,3 +1,36 @@
+## 1.8.1 (June 19, 2024)
+
+SECURITY:
+
+* build: Updated Go to 1.22.4 to address Go stdlib vulnerabilities CVE-2024-24789 and CVE-2024-24790 [[GH-23172](https://github.com/hashicorp/nomad/issues/23172)]
+
+IMPROVEMENTS:
+
+* api: Add support for setting Notes field for Consul health checks [[GH-22397](https://github.com/hashicorp/nomad/issues/22397)]
+* cli: `operator snapshot inspect` now includes details of data in snapshot [[GH-18372](https://github.com/hashicorp/nomad/issues/18372)]
+* docker: Added container_exists_attempts plugin configuration variable [[GH-22419](https://github.com/hashicorp/nomad/issues/22419)]
+* docker: Added support for oom_score_adj [[GH-23297](https://github.com/hashicorp/nomad/issues/23297)]
+* exec: Fixed a bug where `exec` driver tasks would fail on older versions of glibc [[GH-23331](https://github.com/hashicorp/nomad/issues/23331)]
+* metrics (Enterprise): Publish quota utilization as metrics [[GH-22912](https://github.com/hashicorp/nomad/issues/22912)]
+* raw_exec: Added support for oom_score_adj [[GH-23308](https://github.com/hashicorp/nomad/issues/23308)]
+* ui: adds a Stopped label for jobs that a user has manually stopped [[GH-23328](https://github.com/hashicorp/nomad/issues/23328)]
+* ui: namespace dropdown gets a search field and supports many namespaces [[GH-20626](https://github.com/hashicorp/nomad/issues/20626)]
+* ui: shorten client/node metadata/attributes display and make parent-terminal attributes show up [[GH-23290](https://github.com/hashicorp/nomad/issues/23290)]
+
+BUG FIXES:
+
+* acl: Fix plugin policy validation when checking write permissions [[GH-23274](https://github.com/hashicorp/nomad/issues/23274)]
+* api: (Enterprise) fixed Allocations.GetPauseState method discarding the task argument [[GH-23377](https://github.com/hashicorp/nomad/issues/23377)]
+* client: Fixed a bug where empty task directories would be left behind [[GH-23237](https://github.com/hashicorp/nomad/issues/23237)]
+* connect: fix validation with multiple socket paths [[GH-22312](https://github.com/hashicorp/nomad/issues/22312)]
+* consul: (Enterprise) Fixed a bug where gateway config entries were written before Sentinel policies were enforced [[GH-22228](https://github.com/hashicorp/nomad/issues/22228)]
+* consul: Fixed a bug where Consul admin partition was not used to login via Consul JWT auth method [[GH-22226](https://github.com/hashicorp/nomad/issues/22226)]
+* consul: Fixed a bug where gateway config entries were written to the Nomad server agent's Consul partition and not the client's partition [[GH-22228](https://github.com/hashicorp/nomad/issues/22228)]
+* driver: Fixed a bug where the exec, java, and raw_exec drivers would not configure cgroups to allow access to devices provided by device plugins [[GH-22518](https://github.com/hashicorp/nomad/issues/22518)]
+* scheduler: Fixed a bug where rescheduled allocations that could not be placed would later ignore their reschedule policy limits [[GH-12319](https://github.com/hashicorp/nomad/issues/12319)]
+* task schedule: Fixed a bug where schedules wrongly errored as invalid on the last day of the month [[GH-23329](https://github.com/hashicorp/nomad/issues/23329)]
+* ui: unbind job detail running allocations count from job-summary endpoint [[GH-23306](https://github.com/hashicorp/nomad/issues/23306)]
+
 ## 1.8.0 (May 28, 2024)
 
 IMPROVEMENTS:
