@@ -172,6 +172,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	// Check that the node resources (after subtracting reserved) are a
 	// super set of those that are being allocated
 	available := node.NodeResources.Comparable()
+	available.Subtract(node.ReservedResources.Comparable())
 	if superset, dimension := available.Superset(used); !superset {
 		return false, dimension, used, nil
 	}
