@@ -24,7 +24,7 @@ import (
 type TokenDeriverFunc func(context.Context, *structs.Allocation, []string) (map[string]string, error)
 
 // ServiceIdentityAPI is the interface the Nomad Client uses to request Consul
-// Service Identity tokens through Nomad Server.
+// Service Identity tokens through Nomad Server. (Deprecated: will be removed in 1.9.0)
 //
 // ACL requirements
 // - acl:write (used by Server only)
@@ -54,7 +54,7 @@ type JWTLoginRequest struct {
 }
 
 // Client is the interface that the nomad client uses to interact with
-// Consul.
+// Consul tokens
 type Client interface {
 	// DeriveTokenWithJWT logs into Consul using JWT and retrieves a Consul ACL
 	// token.
@@ -202,8 +202,7 @@ func (c *consulClient) TokenPreflightCheck(pctx context.Context, t *consulapi.AC
 		retry++
 		backoff := helper.Backoff(
 			c.preflightCheckBaseInterval, c.preflightCheckBaseInterval*2, retry)
-		c.logger.Trace("waiting for Consul stale query on token",
-			"error", err, "backoff", backoff)
+		c.logger.Trace("Consul token not ready", "error", err, "backoff", backoff)
 		timer.Reset(backoff)
 		select {
 		case <-ctx.Done():
