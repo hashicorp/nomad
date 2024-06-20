@@ -183,6 +183,10 @@ func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
 		h.logger.Error("error retrieving node by id", "error", err)
 		return false, false
 	}
+	if node == nil {
+		h.logger.Error("node not found", "node_id", id)
+		return false, false
+	}
 
 	// Exit if the node is already down or just initializing.
 	if node.Status == structs.NodeStatusDown || node.Status == structs.NodeStatusInit {
