@@ -1,0 +1,3 @@
+```release-note:security
+core: Adding escape to arbitrary file access on streamAllocDir
+```
