@@ -6,6 +6,7 @@ package nomad
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -198,6 +199,16 @@ func (j *Job) Statuses(
 func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *structs.Job) (structs.JobStatusesJob, uint64, error) {
 	highestIdx := job.ModifyIndex
 
+	isPack := false
+	if job.Meta != nil {
+		for key, value := range job.Meta {
+			if strings.HasPrefix(key, "pack") && value != "" {
+				isPack = true
+				break
+			}
+		}
+	}
+
 	jsj := structs.JobStatusesJob{
 		NamespacedID: structs.NamespacedID{
 			ID:        job.ID,
@@ -219,6 +230,7 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		LatestDeployment: nil,
 		Stop:             job.Stop,
 		Status:           job.Status,
+		IsPack:           isPack,
 	}
 
 	// the GroupCountSum will map to how many allocations we expect to run
