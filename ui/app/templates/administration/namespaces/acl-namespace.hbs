@@ -6,14 +6,12 @@
 {{page-title "Namespace"}}
 
 <section class="section">
-	<h1 class="title with-flex" data-test-title>
-		<div>
-			{{this.model.name}}
-		</div>
-		{{#if (and (not (eq this.model.name "default"))  (can "destroy namespace"))}}
-			<TwoStepButton
+  <Hds::PageHeader as |PH|>
+    <PH.Title data-test-title>{{this.model.name}}</PH.Title>
+    {{#if (and (not (eq this.model.name "default"))  (can "destroy namespace"))}}
+      <PH.Actions>
+        <TwoStepButton
           data-test-delete-namespace
-          @alignRight={{true}}
           @idleText="Delete Namespace"
           @cancelText="Cancel"
           @confirmText="Yes, Delete Namespace"
@@ -22,16 +20,17 @@
           @disabled={{this.deleteNamespace.isRunning}}
           @onConfirm={{perform this.deleteNamespace}}
         />
-		{{/if}}
-	</h1>
+      </PH.Actions>
+    {{/if}}
+  </Hds::PageHeader>
 
-<Hds::Alert @type="inline" @color="highlight" @icon="info" class="related-entities notification" as |A|>
-  <A.Title>Related Resources</A.Title>
-  <A.Description>
-    View this namespace's <<Hds::Link::Inline @route="jobs" @query={{hash namespace=this.model.name}}>jobs</<Hds::Link::Inline>
-      or <<Hds::Link::Inline @route="variables" @query={{hash namespace=this.model.name}}>variables</<Hds::Link::Inline>.
-  </A.Description>
-</Hds::Alert>
+  <Hds::Alert @type="inline" @color="highlight" @icon="info" class="related-entities notification" as |A|>
+    <A.Title>Related Resources</A.Title>
+    <A.Description>
+      View this namespace's <<Hds::Link::Inline @route="jobs" @query={{hash namespace=this.model.name}}>jobs</<Hds::Link::Inline>
+        or <<Hds::Link::Inline @route="variables" @query={{hash namespace=this.model.name}}>variables</<Hds::Link::Inline>.
+    </A.Description>
+  </Hds::Alert>
 
-<NamespaceEditor @namespace={{this.model}} />
+  <NamespaceEditor @namespace={{this.model}} />
 </section>

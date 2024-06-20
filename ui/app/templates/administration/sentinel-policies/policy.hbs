@@ -9,8 +9,8 @@
 <section class="section">
 	<Hds::PageHeader class="variable-title" as |PH|>
 		<PH.Title>{{this.model.name}}</PH.Title>
-		<PH.Actions>
-			{{#if (can "destroy sentinel-policy")}}
+		{{#if (can "destroy sentinel-policy")}}
+			<PH.Actions>
 				<div>
 					<TwoStepButton
 						data-test-delete-policy
@@ -24,8 +24,8 @@
 						@onConfirm={{perform this.deletePolicy}}
 					/>
 				</div>
-			{{/if}}
-		</PH.Actions>
+			</PH.Actions>
+		{{/if}}
 	</Hds::PageHeader>
 
 	<SentinelPolicyEditor @policy={{this.model}} />
