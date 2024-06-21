@@ -87,7 +87,7 @@ BUG FIXES:
 * ui: Show the namespace in the web UI exec command hint [[GH-20218](https://github.com/hashicorp/nomad/issues/20218)]
 * windows: Fixed a regression where scanning task processes was inefficient [[GH-20619](https://github.com/hashicorp/nomad/issues/20619)]
 
-## 1.7.9 (June 19, 2024)
+## 1.7.9 Enterprise (June 19, 2024)
 
 SECURITY:
 
@@ -109,7 +109,7 @@ BUG FIXES:
 * driver: Fixed a bug where the exec, java, and raw_exec drivers would not configure cgroups to allow access to devices provided by device plugins [[GH-22518](https://github.com/hashicorp/nomad/issues/22518)]
 * scheduler: Fixed a bug where rescheduled allocations that could not be placed would later ignore their reschedule policy limits [[GH-12319](https://github.com/hashicorp/nomad/issues/12319)]
 
-## 1.7.8 (May 28, 2024)
+## 1.7.8 Enterprise (May 28, 2024)
 
 SECURITY:
 
@@ -377,7 +377,7 @@ BUG FIXES:
 * vault: Fixed a bug where poststop tasks would not get a Vault token [[GH-19268](https://github.com/hashicorp/nomad/issues/19268)]
 * vault: Fixed an issue that could cause Nomad to attempt to renew a Vault token that is already expired [[GH-18985](https://github.com/hashicorp/nomad/issues/18985)]
 
-## 1.6.12 (June 19, 2024)
+## 1.6.12 Enterprise (June 19, 2024)
 
 SECURITY:
 
@@ -396,7 +396,7 @@ BUG FIXES:
 * driver: Fixed a bug where the exec, java, and raw_exec drivers would not configure cgroups to allow access to devices provided by device plugins [[GH-22518](https://github.com/hashicorp/nomad/issues/22518)]
 * scheduler: Fixed a bug where rescheduled allocations that could not be placed would later ignore their reschedule policy limits [[GH-12319](https://github.com/hashicorp/nomad/issues/12319)]
 
-## 1.6.11 (May 28, 2024)
+## 1.6.11 Enterprise (May 28, 2024)
 
 SECURITY:
 
