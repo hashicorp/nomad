@@ -105,6 +105,7 @@ func node2k() *Node {
 						Grade:     numalib.Performance,
 						BaseSpeed: 1000,
 					}},
+					OverrideWitholdCompute: 1000, // set by client reserved field
 				},
 			},
 			Memory: NodeMemoryResources{

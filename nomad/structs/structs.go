@@ -3191,7 +3191,7 @@ func (n *NodeResources) Comparable() *ComparableResources {
 	c := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares:     int64(n.Processors.Topology.UsableCompute()),
+				CpuShares:     int64(n.Processors.Topology.TotalCompute()),
 				ReservedCores: reservableCores,
 			},
 			Memory: AllocatedMemoryResources{
