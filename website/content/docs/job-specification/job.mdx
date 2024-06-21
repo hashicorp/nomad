@@ -28,6 +28,10 @@ job "docs" {
 
   group "example" {
     # ...
+    
+    task "docs" {
+      # ...
+    }
   }
 
   meta {
@@ -45,10 +49,6 @@ job "docs" {
   priority = 100
 
   region = "north-america"
-
-  task "docs" {
-    # ...
-  }
 
   update {
     # ...
