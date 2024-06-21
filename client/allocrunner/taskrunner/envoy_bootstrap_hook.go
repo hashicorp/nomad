@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"oss.indeed.com/go/libtime"
 	"oss.indeed.com/go/libtime/decay"
 )
 
@@ -148,7 +149,7 @@ type envoyBootstrapHook struct {
 	envoyBootstrapMaxJitter time.Duration
 
 	// envoyBootstrapExpSleep controls exponential waiting
-	envoyBootstrapExpSleep func(time.Duration)
+	envoyBootstrapExpSleep libtime.Sleeper
 
 	// consulServices queries the Consul service catalog for preflight checks
 	consulServices allocServicesClient
@@ -171,7 +172,7 @@ func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
 		envoyBootstrapWaitTime:   waitTime,
 		envoyBootstrapInitialGap: initialGap,
 		envoyBootstrapMaxJitter:  envoyBootstrapMaxJitter,
-		envoyBootstrapExpSleep:   time.Sleep,
+		envoyBootstrapExpSleep:   libtime.NewSleeper(),
 		consulServices:           c.consulServices,
 		logger:                   c.logger.Named(envoyBootstrapHookName),
 	}
@@ -339,6 +340,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		MaxSleepTime:   h.envoyBootstrapWaitTime,
 		InitialGapSize: h.envoyBootstrapInitialGap,
 		MaxJitterSize:  h.envoyBootstrapMaxJitter,
+		Sleeper:        h.envoyBootstrapExpSleep,
 	}
 
 	err = h.servicePreflightCheck(ctx, backoffOpts, proxyID)

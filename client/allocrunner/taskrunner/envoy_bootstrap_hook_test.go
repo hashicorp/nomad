@@ -660,16 +660,12 @@ func TestEnvoyBootstrapHook_CommandFailed(t *testing.T) {
 		Addr: testConsul.HTTPAddr,
 	}, consulNamespace, newMockAllocServicesClient(tg.Services[0], nil), mock.Node(), logger))
 
-	// Keep track of the retry backoff iterations
-	iterations := 0
-
-	// Lower the allowable wait time for testing
+	// Lower the allowable wait time for testing and keep track of retry backoff
+	// iterations
 	h.envoyBootstrapWaitTime = 1 * time.Second
 	h.envoyBootstrapInitialGap = 100 * time.Millisecond
-	h.envoyBootstrapExpSleep = func(d time.Duration) {
-		iterations++
-		time.Sleep(d)
-	}
+	sleeper := &mockSleeper{}
+	h.envoyBootstrapExpSleep = sleeper
 
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
@@ -690,15 +686,21 @@ func TestEnvoyBootstrapHook_CommandFailed(t *testing.T) {
 	// should hit at least 2 iterations
 	minimum := begin.Add(h.envoyBootstrapWaitTime)
 	must.True(t, time.Now().After(minimum))
-
-	// TODO(tgross): this isn't actually configured correctly to work and was
-	// passing incorrectly
-	// must.Greater(t, 2, iterations)
+	must.GreaterEq(t, 2, sleeper.iterations)
 
 	// No bootstrap config file should be written
 	_, err = os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
 	must.Error(t, err)
 	must.True(t, os.IsNotExist(err))
+}
+
+type mockSleeper struct {
+	iterations int
+}
+
+func (m *mockSleeper) Sleep(d time.Duration) {
+	m.iterations++
+	time.Sleep(d)
 }
 
 func TestEnvoyBootstrapHook_PreflightFailed(t *testing.T) {
@@ -761,16 +763,12 @@ func TestEnvoyBootstrapHook_PreflightFailed(t *testing.T) {
 		Addr: consulConfig.Address,
 	}, consulNamespace, serviceClient, mock.Node(), logger))
 
-	// Keep track of the retry backoff iterations
-	iterations := 0
-
-	// Lower the allowable wait time for testing
-	h.envoyBootstrapWaitTime = 3 * time.Second
-	h.envoyBootstrapInitialGap = 1 * time.Second
-	h.envoyBootstrapExpSleep = func(d time.Duration) {
-		iterations++
-		time.Sleep(d)
-	}
+	// Lower the allowable wait time for testing and keep track of retry backoff
+	// iterations
+	h.envoyBootstrapWaitTime = 1 * time.Second
+	h.envoyBootstrapInitialGap = 100 * time.Millisecond
+	sleeper := &mockSleeper{}
+	h.envoyBootstrapExpSleep = sleeper
 
 	// Create the prestart request
 	req := &interfaces.TaskPrestartRequest{
@@ -792,10 +790,7 @@ func TestEnvoyBootstrapHook_PreflightFailed(t *testing.T) {
 	// should hit at least 2 iterations
 	minimum := begin.Add(h.envoyBootstrapWaitTime)
 	must.True(t, time.Now().After(minimum))
-
-	// TODO(tgross): this isn't actually configured correctly to work and was
-	// passing incorrectly
-	// must.Greater(t, 2, iterations)
+	must.GreaterEq(t, 2, sleeper.iterations)
 
 	// No bootstrap config file should be written
 	_, err = os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
