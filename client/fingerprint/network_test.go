@@ -289,12 +289,12 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 	}{
 		{
 			name:         "Loopback IPv6",
-			config:       &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", IgnoreIPv6: false},
+			config:       &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", PreferredAddressFamily: "ipv6"},
 			expectedCIDR: loCIDRv6,
 		},
 		{
 			name:         "Loopback IPv4",
-			config:       &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", IgnoreIPv6: true},
+			config:       &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", PreferredAddressFamily: "ipv4"},
 			expectedCIDR: loCIDRv4,
 		},
 	}
@@ -327,12 +327,12 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 				t.Fatalf("Bad IP match: %s", ip)
 			}
 
-	if len(response.NodeResources.Networks) == 0 {
+			if len(response.NodeResources.Networks) == 0 {
 				t.Fatal("Expected to find Network Resources")
 			}
 
 			// Test at least the first Network Resource
-	net := response.NodeResources.Networks[0]
+			net := response.NodeResources.Networks[0]
 			if net.IP == "" {
 				t.Fatal("Expected Network Resource to not be empty")
 			}

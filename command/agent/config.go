@@ -256,7 +256,10 @@ type ClientConfig struct {
 	// Interface to use for network fingerprinting
 	NetworkInterface string `hcl:"network_interface"`
 
-	IgnoreIPv6 bool `hcl:"ignore_ipv6"`
+	// Sort the IP addresses by the preferred IP family. This is useful when
+	// the interface has multiple IP addresses and the client should prefer
+	// one over the other.
+	PreferredAddressFamily structs.NodeNetworkAF `hcl:"preferred_address_family"`
 
 	// NetworkSpeed is used to override any detected or default network link
 	// speed.
@@ -2268,7 +2271,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.NetworkInterface = b.NetworkInterface
 	}
 
-	result.IgnoreIPv6 = result.IgnoreIPv6 || b.IgnoreIPv6
+	if b.PreferredAddressFamily != "" {
+		result.PreferredAddressFamily = b.PreferredAddressFamily
+	}
 
 	if b.NetworkSpeed != 0 {
 		result.NetworkSpeed = b.NetworkSpeed

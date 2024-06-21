@@ -738,7 +738,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.NetworkInterface = agentConfig.Client.NetworkInterface
 	}
 
-	conf.IgnoreIPv6 = agentConfig.Client.IgnoreIPv6
+	conf.PreferredAddressFamily = agentConfig.Client.PreferredAddressFamily
 
 	conf.ChrootEnv = agentConfig.Client.ChrootEnv
 	conf.Options = agentConfig.Client.Options

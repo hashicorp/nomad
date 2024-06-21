@@ -6,6 +6,7 @@ package fingerprint
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 
 	log "github.com/hashicorp/go-hclog"
@@ -100,7 +101,7 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 
 	// Create the network resources from the interface
 	disallowLinkLocal := cfg.ReadBoolDefault(networkDisallowLinkLocalOption, networkDisallowLinkLocalDefault)
-	nwResources, err := f.createNetworkResources(mbits, intf, disallowLinkLocal, cfg.IgnoreIPv6)
+	nwResources, err := f.createNetworkResources(mbits, intf, disallowLinkLocal, cfg.PreferredAddressFamily)
 	if err != nil {
 		return err
 	}
@@ -170,11 +171,6 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 				family = structs.NodeNetworkAF_IPv6
 			}
 
-			// Skip IPv6 if the user has requested it
-			if conf.IgnoreIPv6 && family == structs.NodeNetworkAF_IPv6 {
-				continue
-			}
-
 			for _, alias := range deriveAddressAliases(iface, ip, conf) {
 				newAddr := structs.NodeNetworkAddress{
 					Address: ip.String(),
@@ -196,6 +192,9 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 			}
 		}
 
+		sortNodeNetworkAddresses(networkAddrs, conf.PreferredAddressFamily)
+		sortNodeNetworkAddresses(linkLocalAddrs, conf.PreferredAddressFamily)
+
 		if len(networkAddrs) == 0 && len(linkLocalAddrs) > 0 {
 			if disallowLinkLocal {
 				f.logger.Debug("ignoring detected link-local address on interface", "interface", iface.Name)
@@ -210,6 +209,9 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 			nets = append(nets, newNetwork)
 		}
 	}
+
+	sortNodeNetworkResources(nets, conf.PreferredAddressFamily)
+
 	return nets, nil
 }
 
@@ -263,7 +265,7 @@ func deriveAddressAliases(iface net.Interface, addr net.IP, config *config.Confi
 }
 
 // createNetworkResources creates network resources for every IP
-func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.Interface, disallowLinkLocal bool, ignoreIPv6 bool) ([]*structs.NetworkResource, error) {
+func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.Interface, disallowLinkLocal bool, preferredAF structs.NodeNetworkAF) ([]*structs.NetworkResource, error) {
 	// Find the interface with the name
 	addrs, err := f.interfaceDetector.Addrs(intf)
 	if err != nil {
@@ -283,12 +285,6 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 		case *net.IPAddr:
 			ip = v.IP
 		}
-
-		/*
-			if ip.To4() == nil && ignoreIPv6 {
-				continue
-			}
-		*/
 
 		// Create a new network resource
 		newNetwork := &structs.NetworkResource{
@@ -314,6 +310,9 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 
 		nwResources = append(nwResources, newNetwork)
 	}
+
+	sortNetworkResources(nwResources, preferredAF)
+	sortNetworkResources(linkLocals, preferredAF)
 
 	if len(nwResources) == 0 && len(linkLocals) != 0 {
 		if disallowLinkLocal {
@@ -348,4 +347,117 @@ func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, e
 	}
 
 	return f.interfaceDetector.InterfaceByName(deviceName)
+}
+
+func sortNetworkResources(res []*structs.NetworkResource, preferredAF structs.NodeNetworkAF) {
+	if preferredAF == structs.NodeNetworkAF_IPv4 {
+		sort.Sort(NetworkResourcesByIPv4(res))
+	} else if preferredAF == structs.NodeNetworkAF_IPv6 {
+		sort.Sort(NetworkResourcesByIPv6(res))
+	} else {
+		// no-op
+	}
+}
+
+func sortNodeNetworkResources(res []*structs.NodeNetworkResource, preferredAF structs.NodeNetworkAF) {
+	if preferredAF == structs.NodeNetworkAF_IPv4 {
+		sort.Sort(NodeNetworkResourcesByIPv4(res))
+	} else if preferredAF == structs.NodeNetworkAF_IPv6 {
+		sort.Sort(NodeNetworkResourcesByIPv4(res))
+	} else {
+		// no-op
+	}
+}
+
+func sortNodeNetworkAddresses(res []structs.NodeNetworkAddress, preferredAF structs.NodeNetworkAF) {
+	if preferredAF == structs.NodeNetworkAF_IPv4 {
+		sort.Sort(NodeNetworkAddressesByIPv4(res))
+	} else if preferredAF == structs.NodeNetworkAF_IPv6 {
+		sort.Sort(NodeNetworkAddressesByIPv6(res))
+	} else {
+		// no-op
+	}
+}
+
+// NodeNetworkResourcesByIPv4 sorts the networks so that IPv4 addresses are preferred
+type NodeNetworkResourcesByIPv4 []*structs.NodeNetworkResource
+
+func (r NodeNetworkResourcesByIPv4) Len() int      { return len(r) }
+func (r NodeNetworkResourcesByIPv4) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r NodeNetworkResourcesByIPv4) Less(i, j int) bool {
+	sort.Sort(NodeNetworkAddressesByIPv4(r[i].Addresses))
+	sort.Sort(NodeNetworkAddressesByIPv4(r[j].Addresses))
+
+	if len(r[i].Addresses) == 0 && len(r[j].Addresses) == 0 {
+		return false
+	} else if len(r[i].Addresses) == 0 {
+		return false
+	} else if len(r[j].Addresses) == 0 {
+		return true
+	} else if r[i].Addresses[0].Family == structs.NodeNetworkAF_IPv4 && r[j].Addresses[0].Family == structs.NodeNetworkAF_IPv6 {
+		return true
+	}
+
+	return false
+}
+
+// NodeNetworkResourcesByIPv4First sorts the networks so that IPv4 addresses are preferred
+type NodeNetworkResourcesByIPv6 []*structs.NodeNetworkResource
+
+func (r NodeNetworkResourcesByIPv6) Len() int      { return len(r) }
+func (r NodeNetworkResourcesByIPv6) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r NodeNetworkResourcesByIPv6) Less(i, j int) bool {
+	if len(r[i].Addresses) == 0 {
+		return false
+	} else if len(r[j].Addresses) == 0 {
+		return true
+	}
+
+	return r[i].Addresses[0].Family == structs.NodeNetworkAF_IPv6 &&
+		r[j].Addresses[0].Family == structs.NodeNetworkAF_IPv4
+
+}
+
+// NodeNetworkAddressesByIPv6First sorts the addresses so that IPv6 addresses are preferred
+type NodeNetworkAddressesByIPv4 []structs.NodeNetworkAddress
+
+func (a NodeNetworkAddressesByIPv4) Len() int      { return len(a) }
+func (a NodeNetworkAddressesByIPv4) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a NodeNetworkAddressesByIPv4) Less(i, j int) bool {
+	return a[i].Family == structs.NodeNetworkAF_IPv4 && a[j].Family == structs.NodeNetworkAF_IPv6
+}
+
+// NodeNetworkAddressesByIPv6 sorts the addresses so that IPv6 addresses are preferred
+type NodeNetworkAddressesByIPv6 []structs.NodeNetworkAddress
+
+func (a NodeNetworkAddressesByIPv6) Len() int      { return len(a) }
+func (a NodeNetworkAddressesByIPv6) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a NodeNetworkAddressesByIPv6) Less(i, j int) bool {
+	return a[i].Family == structs.NodeNetworkAF_IPv6 && a[j].Family == structs.NodeNetworkAF_IPv4
+}
+
+// NetworkResourcesByIPv4 sorts the networks so that IPv4 addresses are preferred
+type NetworkResourcesByIPv4 []*structs.NetworkResource
+
+func (p NetworkResourcesByIPv4) Len() int      { return len(p) }
+func (p NetworkResourcesByIPv4) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p NetworkResourcesByIPv4) Less(i, j int) bool {
+	// Prefer IPv4 addresses over IPv6 addresses
+	if net.ParseIP(p[i].IP).To4() != nil && net.ParseIP(p[j].IP).To4() == nil {
+		return true
+	}
+	return false
+}
+
+// NetworkResourcesByIPv6 sorts the networks so that IPv6 addresses are preferred
+type NetworkResourcesByIPv6 []*structs.NetworkResource
+
+func (p NetworkResourcesByIPv6) Len() int      { return len(p) }
+func (p NetworkResourcesByIPv6) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p NetworkResourcesByIPv6) Less(i, j int) bool {
+	// Prefer IPv6 addresses over IPv4 addresses
+	if net.ParseIP(p[i].IP).To4() == nil && net.ParseIP(p[j].IP).To4() != nil {
+		return true
+	}
+	return false
 }

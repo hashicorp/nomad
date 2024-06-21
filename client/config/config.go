@@ -116,8 +116,8 @@ type Config struct {
 	// Network interface to be used in network fingerprinting
 	NetworkInterface string
 
-	// Flag to ignore IPv6 addresses in network fingerprinting
-	IgnoreIPv6 bool
+	// Preferred address family to be used in network fingerprinting
+	PreferredAddressFamily structs.NodeNetworkAF
 
 	// Network speed is the default speed of network interfaces if they can not
 	// be determined dynamically.
