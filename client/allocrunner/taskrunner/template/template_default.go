@@ -8,11 +8,18 @@ package template
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"log"
+	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/template/renderer"
+	"github.com/hashicorp/consul-template/renderer"
+	"github.com/hashicorp/consul-template/signals"
+	trenderer "github.com/hashicorp/nomad/client/allocrunner/taskrunner/template/renderer"
+	"github.com/hashicorp/nomad/helper/subproc"
 )
 
 // createPlatformSandbox is a no-op outside of windows
@@ -65,7 +72,7 @@ func renderTemplateInSandbox(cfg *sandboxConfig) (string, int, error) {
 
 	out, err := cmd.CombinedOutput()
 	code := cmd.ProcessState.ExitCode()
-	if code == renderer.ExitWouldRenderButDidnt {
+	if code == trenderer.ExitWouldRenderButDidnt {
 		err = nil // erase the "exit code 117" error
 	}
 
@@ -103,4 +110,175 @@ func readTemplateFromSandbox(cfg *sandboxConfig) ([]byte, []byte, int, error) {
 	stdout := outb.Bytes()
 	stderr := errb.Bytes()
 	return stdout, stderr, cmd.ProcessState.ExitCode(), err
+}
+
+func isSandboxEnabled(cfg *TaskTemplateManagerConfig) bool {
+	if cfg.ClientConfig != nil && cfg.ClientConfig.TemplateConfig != nil && cfg.ClientConfig.TemplateConfig.DisableSandbox {
+		return false
+	}
+	return true
+}
+
+type sandboxConfig struct {
+	thisBin     string
+	sandboxPath string
+	destPath    string
+	sourcePath  string
+	perms       string
+	user        string
+	group       string
+	taskID      string
+	contents    []byte
+}
+
+func ReaderFn(taskID, taskDir string, sandboxEnabled bool) func(string) ([]byte, error) {
+	if !sandboxEnabled {
+		return nil
+	}
+	thisBin := subproc.Self()
+
+	return func(src string) ([]byte, error) {
+
+		sandboxCfg := &sandboxConfig{
+			thisBin:     thisBin,
+			sandboxPath: taskDir,
+			sourcePath:  src,
+			taskID:      taskID,
+		}
+
+		stdout, stderr, code, err := readTemplateFromSandbox(sandboxCfg)
+		if err != nil && code != 0 {
+			return nil, fmt.Errorf("%v: %s", err, string(stderr))
+		}
+
+		// this will get wrapped in CT log formatter
+		fmt.Fprintf(os.Stderr, "[DEBUG] %s", string(stderr))
+		return stdout, nil
+	}
+}
+
+func RenderFn(taskID, taskDir string, sandboxEnabled bool) func(*renderer.RenderInput) (*renderer.RenderResult, error) {
+	if !sandboxEnabled {
+		return nil
+	}
+	thisBin := subproc.Self()
+
+	return func(i *renderer.RenderInput) (*renderer.RenderResult, error) {
+		wouldRender := false
+		didRender := false
+
+		sandboxCfg := &sandboxConfig{
+			thisBin:     thisBin,
+			sandboxPath: taskDir,
+			destPath:    i.Path,
+			perms:       strconv.FormatUint(uint64(i.Perms), 8),
+			user:        i.User,
+			group:       i.Group,
+			taskID:      taskID,
+			contents:    i.Contents,
+		}
+
+		logs, code, err := renderTemplateInSandbox(sandboxCfg)
+		if err != nil {
+			if len(logs) > 0 {
+				log.Printf("[ERROR] %v: %s", err, logs)
+			} else {
+				log.Printf("[ERROR] %v", err)
+			}
+			return &renderer.RenderResult{
+				DidRender:   false,
+				WouldRender: false,
+				Contents:    []byte{},
+			}, fmt.Errorf("template render subprocess failed: %w", err)
+		}
+		if code == trenderer.ExitWouldRenderButDidnt {
+			didRender = false
+			wouldRender = true
+		} else {
+			didRender = true
+			wouldRender = true
+		}
+
+		// the subprocess emits logs matching the consul-template runner, but we
+		// CT doesn't support hclog, so we just print the whole output here to
+		// stderr the same way CT does so the results look seamless
+		if len(logs) > 0 {
+			log.Printf("[DEBUG] %s", logs)
+		}
+
+		result := &renderer.RenderResult{
+			DidRender:   didRender,
+			WouldRender: wouldRender,
+			Contents:    i.Contents,
+		}
+		return result, nil
+	}
+}
+
+func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateManager, error) {
+	// Check pre-conditions
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
+	tm := &TaskTemplateManager{
+		config:     config,
+		shutdownCh: make(chan struct{}),
+	}
+
+	// Parse the signals that we need
+	for _, tmpl := range config.Templates {
+		if tmpl.ChangeSignal == "" {
+			continue
+		}
+
+		sig, err := signals.Parse(tmpl.ChangeSignal)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse signal %q", tmpl.ChangeSignal)
+		}
+
+		if tm.signals == nil {
+			tm.signals = make(map[string]os.Signal)
+		}
+
+		tm.signals[tmpl.ChangeSignal] = sig
+	}
+
+	// the platform sandbox needs to be created before we construct the runner
+	// so that reading the template is sandboxed
+	err := createPlatformSandbox(config)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the consul-template runner
+	runner, lookup, err := templateRunner(config)
+	if err != nil {
+		return nil, err
+	}
+	tm.runner = runner
+	tm.lookup = lookup
+
+	go tm.run()
+	return tm, nil
+}
+
+// Stop is used to stop the consul-template runner
+func (tm *TaskTemplateManager) Stop() {
+	tm.shutdownLock.Lock()
+	defer tm.shutdownLock.Unlock()
+
+	if tm.shutdown {
+		return
+	}
+
+	close(tm.shutdownCh)
+	tm.shutdown = true
+
+	// Stop the consul-template runner
+	if tm.runner != nil {
+		tm.runner.Stop()
+	}
+
+	destroyPlatformSandbox(tm.config)
 }
