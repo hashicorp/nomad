@@ -250,6 +250,55 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(currentURL(), '/settings/tokens');
   });
 
+  test('when a gateway timeout error occurs, appropriate options are shown', async function (assert) {
+    // Initial request is fine
+    await JobsList.visit();
+
+    assert.dom('#jobs-list-cache-warning').doesNotExist();
+
+    server.pretender.get('/v1/jobs/statuses', () => [
+      504,
+      {
+        errors: [
+          {
+            status: '504',
+          },
+        ],
+      },
+      null,
+    ]);
+    const controller = this.owner.lookup('controller:jobs.index');
+    let currentParams = {
+      per_page: 10,
+    };
+
+    await controller.watchJobIDs.perform(currentParams, 0);
+    // Manually set its "isRunning" attribute for testing purposes
+    // (existence of one of the buttons depends on blocking query running, which Ember testing doesnt really support)
+    controller.watchJobIDs.isRunning = true;
+    await settled();
+
+    assert.dom('#jobs-list-cache-warning').exists();
+
+    assert
+      .dom('.flash-message.alert-critical')
+      .exists('A toast error message pops up.');
+
+    await percySnapshot(assert);
+
+    await click('[data-test-pause-fetching]');
+    assert
+      .dom('.flash-message.alert-critical')
+      .doesNotExist('Error message removed when fetrching is paused');
+    assert.dom('#jobs-list-cache-warning').exists('Cache warning remains');
+
+    server.pretender.get('/v1/jobs/statuses', () => [200, {}, null]);
+    await click('[data-test-restart-fetching]');
+    assert
+      .dom('#jobs-list-cache-warning')
+      .doesNotExist('Cache warning removed when fetching is restarted');
+  });
+
   function typeForJob(job) {
     return job.periodic
       ? 'periodic'

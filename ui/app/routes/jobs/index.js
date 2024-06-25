@@ -81,10 +81,8 @@ export default class IndexRoute extends Route.extend(
       });
     } catch (error) {
       try {
-        console.log('route jobs index catch try 1');
         notifyForbidden(this)(error);
       } catch (secondaryError) {
-        console.log('route jobs index catch try 2');
         return this.handleErrors(error);
       }
     }

@@ -8,11 +8,12 @@
   {{#if this.showingCachedJobs}}
     <Hds::Alert @type="inline" @color="warning" id="jobs-list-cache-warning" as |A|>
       <A.Title>Error fetching jobs — shown jobs are cached</A.Title>
-      <A.Description>Jobs shown are cached and may be out of date. Often, this is due to a short timeout in proxy configurations. Consider increasing the timeout.</A.Description>
+      <A.Description>Jobs shown are cached and may be out of date. This is often due to a short timeout in proxy configurations.</A.Description>
       {{#if this.watchJobIDs.isRunning}}
-        <A.Button @text="Stop polling for job updates" @color="secondary" {{on "click" this.pauseJobFetching}} />
+        <A.Button data-test-pause-fetching @text="Stop polling for job updates" @color="secondary" {{on "click" this.pauseJobFetching}} />
       {{/if}}
-      <A.Button @text="Manually fetch jobs" @color="secondary" {{on "click" this.restartJobList}} />
+      <A.Button data-test-restart-fetching @text="Manually fetch jobs" @color="secondary" {{on "click" this.restartJobList}} />
+      <A.LinkStandalone @size="medium" @color="primary" @icon="learn-link" @iconPosition="trailing" @text="Tutorial: Configure reverse proxy for Nomad's web UI" @href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/reverse-proxy-ui#extend-connection-timeout" />
     </Hds::Alert>
   {{/if}}
 

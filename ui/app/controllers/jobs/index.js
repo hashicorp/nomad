@@ -161,7 +161,6 @@ export default class JobsIndexController extends Controller {
    * In case the user wants to specifically stop polling for new jobs
    */
   @action pauseJobFetching() {
-    // this.showingCachedJobs = false;
     let notification = this.notifications.queue.find(
       (n) => n.title === 'Error fetching jobs'
     );
@@ -204,7 +203,6 @@ export default class JobsIndexController extends Controller {
    */
   notifyFetchError(e) {
     const firstError = e.errors[0];
-    console.log('firstError', firstError);
     this.notifications.add({
       title: 'Error fetching jobs',
       message: `The backend returned an error with status ${firstError.status} while fetching jobs`,
@@ -330,8 +328,14 @@ export default class JobsIndexController extends Controller {
           this.pendingJobIDs = jobIDs;
           this.pendingJobs = newJobs;
         }
+        if (Ember.testing) {
+          break;
+        }
         yield timeout(throttle);
       } else {
+        if (Ember.testing) {
+          break;
+        }
         // This returns undefined on page change / cursorAt change, resulting from the aborting of the old query.
         yield timeout(throttle);
         this.watchJobs.perform(this.jobIDs, throttle);
