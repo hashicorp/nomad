@@ -98,6 +98,10 @@ type QueryOptions struct {
 	// Currently only supported by specific endpoints.
 	Reverse bool
 
+	// Resources specifies whether to include the AllocatedResources
+	// field in the response.
+	Resources bool
+
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
 	ctx context.Context
@@ -712,6 +716,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	}
 	if q.Reverse {
 		r.params.Set("reverse", "true")
+	}
+	if q.Resources {
+		r.params.Set("resources", "true")
 	}
 	for k, v := range q.Params {
 		r.params.Set(k, v)
