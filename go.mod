@@ -56,7 +56,7 @@ require (
 	github.com/hashicorp/go-discover v0.0.0-20220621183603-a413e131e836
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 	github.com/hashicorp/go-getter v1.7.4
-	github.com/hashicorp/go-hclog v1.6.2
+	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.15
 	github.com/hashicorp/go-memdb v1.3.4
@@ -210,7 +210,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-msgpack v1.1.6-0.20240304204939-8824e8ccc35f // indirect
-	github.com/hashicorp/go-retryablehttp v0.7.2 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
 	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.7 // indirect
