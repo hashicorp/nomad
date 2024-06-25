@@ -491,7 +491,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	}
 
 	if !hasValidPreferredIPFamilyValue(config.Client.PreferredAddressFamily) {
-		c.Ui.Error(fmt.Sprintf("Invalid preferred-ip-family value: %s (valid values: %s, %s)",
+		c.Ui.Error(fmt.Sprintf("Invalid preferred-address-family value: %s (valid values: %s, %s)",
 			config.Client.PreferredAddressFamily,
 			structs.NodeNetworkAF_IPv4, structs.NodeNetworkAF_IPv6),
 		)
@@ -1563,10 +1563,10 @@ Client Options:
   -network-interface
     Forces the network fingerprinter to use the specified network interface.
   
-  -preferred-ip-family
+  -preferred-address-family
     Specify which IP family to prefer when selecting an IP address of the
-	network interface. Valid values are "ipv4" and "ipv6". When not specified,
-	the agent will not sort the addresses and use the first one.
+    network interface. Valid values are "ipv4" and "ipv6". When not specified,
+    the agent will not sort the addresses and use the first one.
 
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
