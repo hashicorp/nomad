@@ -616,11 +616,11 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	}
 
 	// Download the image
-	return d.pullImage(task, driverConfig, client, repo, tag)
+	return d.pullImage(task, driverConfig, repo, tag)
 }
 
 // pullImage creates an image by pulling it from a docker registry
-func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, client *docker.Client, repo, tag string) (id string, err error) {
+func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, repo, tag string) (id string, err error) {
 	authOptions, err := d.resolveRegistryAuthentication(driverConfig, repo)
 	if err != nil {
 		if driverConfig.AuthSoftFail {
