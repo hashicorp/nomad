@@ -3193,10 +3193,11 @@ func TestDriver_createImage_validateContainerAdmin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			client := newTestDockerClient(t)
 			dh := dockerDriverHarness(t, nil)
 			d := dh.Impl().(*Driver)
 
-			got, err := d.createImage(tt.taskCfg, tt.driverCfg, nil)
+			got, err := d.createImage(tt.taskCfg, tt.driverCfg, client)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Driver.createImage() error = %v, wantErr %v", err, tt.wantErr)
 				return
