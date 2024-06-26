@@ -11,7 +11,6 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -89,17 +88,15 @@ type consulClient struct {
 // ConsulClientFunc creates a new Consul client for the specific Consul config
 type ConsulClientFunc func(config *config.ConsulConfig, logger hclog.Logger) (Client, error)
 
+// NodeGetter breaks a circular dependency between client/config.Config and this
+// package
+type NodeGetter interface {
+	GetNode() *structs.Node
+}
+
 // NewConsulClientFactory returns a ConsulClientFunc that closes over the
 // partition
-func NewConsulClientFactory(node *structs.Node) ConsulClientFunc {
-
-	// these node values will be evaluated at the time we create the hooks, so
-	// we don't need to worry about them changing out from under us
-	partition := node.Attributes["consul.partition"]
-	preflightCheckTimeout := durationFromMeta(
-		node, "consul.token_preflight_check.timeout", time.Second*10)
-	preflightCheckBaseInterval := durationFromMeta(
-		node, "consul.token_preflight_check.base", time.Millisecond*500)
+func NewConsulClientFactory(nodeGetter NodeGetter) ConsulClientFunc {
 
 	return func(config *config.ConsulConfig, logger hclog.Logger) (Client, error) {
 		if config == nil {
@@ -107,6 +104,13 @@ func NewConsulClientFactory(node *structs.Node) ConsulClientFunc {
 		}
 
 		logger = logger.Named("consul").With("name", config.Name)
+
+		node := nodeGetter.GetNode()
+		partition := node.Attributes["consul.partition"]
+		preflightCheckTimeout := durationFromMeta(
+			node, "consul.token_preflight_check.timeout", time.Second*10)
+		preflightCheckBaseInterval := durationFromMeta(
+			node, "consul.token_preflight_check.base", time.Millisecond*500)
 
 		c := &consulClient{
 			config:                     config,

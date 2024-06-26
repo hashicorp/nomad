@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 )
@@ -65,6 +66,12 @@ func newMockConsulServer() *mockConsulServer {
 	return srv
 }
 
+type testClientCfg struct{ node *structs.Node }
+
+func (c *testClientCfg) GetNode() *structs.Node {
+	return c.node
+}
+
 // TestConsul_TokenPreflightCheck verifies the retry logic for
 func TestConsul_TokenPreflightCheck(t *testing.T) {
 
@@ -74,7 +81,9 @@ func TestConsul_TokenPreflightCheck(t *testing.T) {
 	node := mock.Node()
 	node.Meta["consul.token_preflight_check.timeout"] = "100ms"
 	node.Meta["consul.token_preflight_check.base"] = "10ms"
-	factory := NewConsulClientFactory(node)
+	clientCfg := &testClientCfg{node}
+
+	factory := NewConsulClientFactory(clientCfg)
 
 	cfg := &config.ConsulConfig{
 		Addr: consulSrv.httpSrv.URL,

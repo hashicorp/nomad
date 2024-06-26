@@ -3003,7 +3003,7 @@ func (c *Client) deriveSIToken(ctx context.Context, alloc *structs.Allocation, t
 	// https://www.consul.io/docs/internals/security.html
 
 	consulConfigs := c.config.GetConsulConfigs(c.logger)
-	consulClientConstructor := consulApiShim.NewConsulClientFactory(c.Node())
+	consulClientConstructor := consulApiShim.NewConsulClientFactory(c.config)
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	tgNs := tg.Consul.GetNamespace()
