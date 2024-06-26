@@ -3143,3 +3143,67 @@ func TestDockerDriver_GroupAdd(t *testing.T) {
 
 	require.Exactly(t, cfg.GroupAdd, container.HostConfig.GroupAdd)
 }
+
+func TestDriver_createImage_validateContainerAdmin(t *testing.T) {
+	ci.Parallel(t)
+	if runtime.GOOS != "windows" {
+		t.Skip("we only validate ContainerAdmin on windows")
+	}
+
+	tests := []struct {
+		name      string
+		taskCfg   *drivers.TaskConfig
+		driverCfg *TaskConfig
+		wantErr   bool
+		want      string
+	}{
+		{
+			"normal user",
+			&drivers.TaskConfig{
+				ID:   uuid.Generate(),
+				Name: "redis-demo",
+				User: "nomadUser",
+			},
+			&TaskConfig{Privileged: false},
+			false,
+			"",
+		},
+		{
+			"ContainerAdmin, non-priviliged",
+			&drivers.TaskConfig{
+				ID:   uuid.Generate(),
+				Name: "redis-demo",
+				User: "nomadUser",
+			},
+			&TaskConfig{Privileged: false},
+			true,
+			containerAdminErrMsg,
+		},
+		{
+			"ContainerAdmin, non-priviliged, but hyper-v",
+			&drivers.TaskConfig{
+				ID:   uuid.Generate(),
+				Name: "redis-demo",
+				User: "nomadUser",
+			},
+			&TaskConfig{Privileged: false, Isolation: "hyper-v"},
+			true,
+			containerAdminErrMsg,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dh := dockerDriverHarness(t, nil)
+			d := dh.Impl().(*Driver)
+
+			got, err := d.createImage(tt.taskCfg, tt.driverCfg, nil)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Driver.createImage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Driver.createImage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
