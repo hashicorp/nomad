@@ -21,13 +21,14 @@ var (
 	imageNotFoundMatcher = regexp.MustCompile(`Error: image .+ not found`)
 )
 
-// pullFuture is a sharable future for retrieving a pulled images ID and any
-// error that may have occurred during the pull.
+// pullFuture is a sharable future for retrieving a pulled images ID and user,
+// and any error that may have occurred during the pull.
 type pullFuture struct {
 	waitCh chan struct{}
 
-	err     error
-	imageID string
+	err       error
+	imageID   string
+	imageUser string
 }
 
 // newPullFuture returns a new pull future
@@ -45,14 +46,15 @@ func (p *pullFuture) wait() *pullFuture {
 
 // result returns the results of the future and should only ever be called after
 // wait returns.
-func (p *pullFuture) result() (imageID string, err error) {
-	return p.imageID, p.err
+func (p *pullFuture) result() (imageID, imageUser string, err error) {
+	return p.imageID, p.imageUser, p.err
 }
 
 // set is used to set the results and unblock any waiter. This may only be
 // called once.
-func (p *pullFuture) set(imageID string, err error) {
+func (p *pullFuture) set(imageID, imageUser string, err error) {
 	p.imageID = imageID
+	p.imageUser = imageUser
 	p.err = err
 	close(p.waitCh)
 }
@@ -135,7 +137,7 @@ func newDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
 // error that occurred during the pull
 func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string,
-	emitFn LogEventFn, pullTimeout, pullActivityTimeout time.Duration) (imageID string, err error) {
+	emitFn LogEventFn, pullTimeout, pullActivityTimeout time.Duration) (imageID, imageUser string, err error) {
 	// Get the future
 	d.imageLock.Lock()
 	future, ok := d.pullFutures[image]
@@ -149,7 +151,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 	d.imageLock.Unlock()
 
 	// We unlock while we wait since this can take a while
-	id, err := future.wait().result()
+	id, user, err := future.wait().result()
 
 	d.imageLock.Lock()
 	defer d.imageLock.Unlock()
@@ -164,7 +166,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 		d.incrementImageReferenceImpl(id, image, callerID)
 	}
 
-	return id, err
+	return id, user, err
 }
 
 // pullImageImpl is the implementation of pulling an image. The results are
@@ -200,14 +202,14 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 
 	if ctxErr := ctx.Err(); ctxErr == context.DeadlineExceeded {
 		d.logger.Error("timeout pulling container", "image_ref", dockerImageRef(repo, tag))
-		future.set("", recoverablePullError(ctxErr, image))
+		future.set("", "", recoverablePullError(ctxErr, image))
 		return
 	}
 
 	if err != nil {
 		d.logger.Error("failed pulling container", "image_ref", dockerImageRef(repo, tag),
 			"error", err)
-		future.set("", recoverablePullError(err, image))
+		future.set("", "", recoverablePullError(err, image))
 		return
 	}
 
@@ -216,11 +218,11 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 	dockerImage, err := d.client.InspectImage(image)
 	if err != nil {
 		d.logger.Error("failed getting image id", "image_name", image, "error", err)
-		future.set("", recoverableErrTimeouts(err))
+		future.set("", "", recoverableErrTimeouts(err))
 		return
 	}
 
-	future.set(dockerImage.ID, nil)
+	future.set(dockerImage.ID, dockerImage.Config.User, err)
 }
 
 // IncrementImageReference is used to increment an image reference count

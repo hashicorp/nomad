@@ -616,17 +616,23 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	}
 
 	// Download the image
-	return d.pullImage(task, driverConfig, repo, tag)
+	imageID, imageUser, err := d.pullImage(task, driverConfig, repo, tag)
+
+	// validate the image user (windows only)
+	if err := d.validateImageUser(imageUser, task.User, driverConfig.Privileged); err != nil {
+		return "", err
+	}
+	return imageID, err
 }
 
 // pullImage creates an image by pulling it from a docker registry
-func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, repo, tag string) (id string, err error) {
+func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, repo, tag string) (id, user string, err error) {
 	authOptions, err := d.resolveRegistryAuthentication(driverConfig, repo)
 	if err != nil {
 		if driverConfig.AuthSoftFail {
 			d.logger.Warn("Failed to find docker repo auth", "repo", repo, "error", err)
 		} else {
-			return "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
+			return "", "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
 		}
 	}
 
@@ -647,7 +653,7 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, r
 
 	pullDur, err := time.ParseDuration(driverConfig.ImagePullTimeout)
 	if err != nil {
-		return "", fmt.Errorf("Failed to parse image_pull_timeout: %v", err)
+		return "", "", fmt.Errorf("Failed to parse image_pull_timeout: %v", err)
 	}
 
 	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), pullDur, d.config.pullActivityTimeoutDuration)

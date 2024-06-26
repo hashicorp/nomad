@@ -12,3 +12,7 @@ import (
 func getPortBinding(ip string, port string) docker.PortBinding {
 	return docker.PortBinding{HostIP: ip, HostPort: port}
 }
+
+func (d *Driver) validateImageUser(user, taskUser string, privileged bool) error {
+	return nil
+}
