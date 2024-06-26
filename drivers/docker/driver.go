@@ -619,7 +619,7 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID, imageUser, err := d.pullImage(task, driverConfig, repo, tag)
 
 	// validate the image user (windows only)
-	if err := d.validateImageUser(imageUser, task.User, driverConfig.Privileged); err != nil {
+	if err := d.validateImageUser(imageUser, task.User, driverConfig); err != nil {
 		return "", err
 	}
 	return imageID, err
