@@ -349,7 +349,6 @@ config {
     "/host-path:/container-path:rw",
   ]
   volume_driver = "host"
-  windows_allow_insecure_container_admin = true
   work_dir = "/tmp/workdir"
 }`
 

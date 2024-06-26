@@ -222,7 +222,12 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 		return
 	}
 
-	future.set(dockerImage.ID, dockerImage.Config.User, err)
+	var imageUser string
+	if dockerImage.Config != nil {
+		imageUser = dockerImage.Config.User
+	}
+
+	future.set(dockerImage.ID, imageUser, err)
 }
 
 // IncrementImageReference is used to increment an image reference count
