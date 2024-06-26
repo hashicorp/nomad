@@ -1,1 +1,2 @@
-nomad-generate
+build/
+*.generated.go

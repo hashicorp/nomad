@@ -3,39 +3,53 @@ package main
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/shoenig/test/must"
 )
 
 func TestAnalyze_Copy(t *testing.T) {
-	require := require.New(t)
 
-	g := &Generator{
-		packageDir:     "../../nomad/structs",
-		typeNames:      []string{"Job"},
-		methods:        []string{"Job.Copy"},
-		excludedFields: []string{"Payload"},
-		typeSpecs:      map[string]*TypeSpecNode{},
+	logger := testlog.HCLogger(t)
+
+	pkgs, err := loadPackages(logger, "./testdata")
+	must.NoError(t, err)
+
+	g := NewGenerator("./testdata", logger)
+	g.files = pkgs[0].Files
+	g.fileset = pkgs[0].FileSet
+
+	results, err := analyze(logger, pkgs[0])
+	must.NoError(t, err)
+
+	var copyResult *Result
+	for _, result := range results {
+		if result.Method == "Copy" {
+			copyResult = result
+			break
+		}
+	}
+	must.NotNil(t, copyResult)
+
+	types := map[string]*TypeSpecNode{}
+	for _, typeSpecNode := range copyResult.Targets {
+		types[typeSpecNode.Name] = typeSpecNode
 	}
 
-	pkgs, err := g.loadPackages()
-	require.NoError(err)
+	must.MapContainsKey(t, types, "Job")
+	must.MapContainsKey(t, types, "Multiregion")
+	must.MapContainsKey(t, types, "MultiregionStrategy")
+	must.MapContainsKey(t, types, "MultiregionRegion")
+	must.MapContainsKey(t, types, "PeriodicConfig")
+	must.MapContainsKey(t, types, "ParameterizedJobConfig")
+	must.MapContainsKey(t, types, "TaskGroupSummary",
+		must.Sprint("TaskGroupSummary should have a Copy method even though it has only primitive fields"))
 
-	err = g.parsePackages(pkgs)
-	require.NoError(err)
+	must.MapContainsKey(t, types, "Service",
+		must.Sprint("Service is not a child of Job but is Copy"))
 
-	g.analyze()
+	must.MapNotContainsKey(t, types, "UpdateStrategy",
+		must.Sprint("UpdateStrategy has a Copy method"))
 
-	require.True(g.typeSpecs["Job"].isCopier())
-	require.Len(g.typeSpecs["Job"].fields, 3) // 3 pointer fields
-
-	got := func(typespec string) bool {
-		return g.typeSpecs[typespec].isCopier()
-	}
-
-	require.True(got("Multiregion"), "Multiregion has pointer and array fields")
-	require.True(got("PeriodicConfig"), "PeriodicConfig has a pointer field")
-	require.True(got("ParameterizedJobConfig"), "ParameterizedJobConfig has array fields")
-	require.True(got("UpdateStrategy"), "UpdateStrategy has a Copy method")
-
-	require.False(got("TaskGroupSummary"), "TaskGroupSummary has only primitive fields")
+	must.True(t, types["Job"].IsCopy())
+	must.Len(t, 9, types["Job"].Fields)
 }

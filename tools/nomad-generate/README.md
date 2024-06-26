@@ -1,48 +1,69 @@
-# Boilerplate method generator for nomad/structs
+# Boilerplate method generator
 
-Developers are required to implement methods like Copy, Equals, Diff,
-and Merge for many of the types in the structs package, and this is both
-time-consuming and error prone, having resulted in several correctness bugs
-from failing to copy objects retrieved from go-memdb or failing to compare
-objects during plans.
+Developers are required to implement methods like `Copy`, `Equals`, `Diff`, and
+`Merge` for many of the types in the structs package, and this is both
+time-consuming and error prone, having resulted in several correctness bugs from
+failing to copy objects retrieved from go-memdb or failing to compare objects
+during plans.
 
-This is a prototype tool to use with go:generate directives that can generate
-methods automatically for our developers. Future change sets will include
-documentation for developers and porting the existing  methods to use this tool.
-We'll continue to debug and refine the tool as we go.
+This is a prototype tool to use `go generate` directives that can generate
+methods recursively for deeply nested types automatically, while only having to
+annotate the "top level" struct (ex. `structs.Job`). We'll continue to debug and
+refine the tool as we go.
 
 ## Status
 
-![experimental](https://camo.githubusercontent.com/8ad47215ae8b556345c074d2636cdf5e8a7f54068c110d1a1795501b43fab52e/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f7374617475732d6578706572696d656e74616c2d454141413332)
-
-The current API is still experimental and is expected to change. Specific planned changes
-are detailed below.
+The current tool is still experimental and is expected to change.
 
 ## Usage
 
-To mark a struct in nomad/structs for generation, add a `go:generate` directive
-to the source file for the struct. The following example shows how to work with the current
-prototype.
+To mark a package for generation, add a `go:generate` directive one of the
+source files of the package as follows:
 
-`//go:generate -type Job -method=Job.Copy -method Job.Equals -exclude Job.Stop -exclude Job.CreateIndex`
+`//go:generate nomad-generate`
 
-The current prototype expects a single `go:generate` per package. This has been
-expedient for prototyping purposes, but the current plan is to refactor to a
-separate directive per type approach.
+Then add a comment to the docstring for just the top-level type you want to
+generate methods for. It must start the line with `nomad-generate:` and finish
+with a comma-separated list of method names.
 
-### Flags
+```go
+// Foo is a foo that bars.
+// nomad-generate: Copy,Diff
+type Foo struct {
+  Field1 *Bar
+  Field2 map[string]Baz
+  Field3 []*Qux
+}
+```
 
-- `-type` - The set of types to generate methods for. To target multiple types,
-  repeat as separate flags. **Expect this to change to a per directive approach.**
-- `-method` - The set of methods to generate for each targeted. Currently, this
-  flag requires you to pass methods in the form of `StructName.MethodName` e.g.
-  `Job.Equals`. To target multiple methods, repeat as separate flags. To target all
-  possible methods, pass `StructName.All`. **Expect this to change to a per directive approach.**
-- `-exclude` - The set of fields to exclude when generating code for each targeted. Currently,
-  this  flag requires you to pass fields in the form of `StructName.FieldName` e.g.
-  `Job.CreateIndex`. To target multiple fields, repeat as separate flags.
-  **Expect this to change to a per directive approach.**
-- `-packageDir` - The relative path to the source directory containing structs to
-  generate methods for. This currently defaults to the well known location of the
-  `nomad/structs` package, but could be overridden to test against other packages.
-  
+The tool will generate the same methods for all "child" struct and pointer types
+found in the top-level type's fields, recursively. So in the example above,
+we'll generate the `Copy` and `Diff` methods for the `Foo`, `Bar`, `Baz`, and
+`Qux` types.
+
+## How It Works
+
+This tool uses `go/ast` and `go/packages` to read Go code just as the Go
+toolchain does, analyzes it to determine a graph of structs that need to
+implement the requested methods, and then uses `text/template` to render a
+templatized chunk of code for each type and method.
+
+Roughly there are 5 steps.
+* Loading all the package files with `go/package`
+* Parse the docstrings using `go/doc` to find the `nomad-generate` annotations
+  so we know what methods and top-level targets we want.
+* Walk the AST and build a "graph" of all types (`ast.TypeSpec`) in the package.
+* For each method, trace the graph from each of the top-level type to find all
+  its children, and collect these types in a `Result`.
+* Send the `Result` object to `text/template` to render it to file.
+
+## Future Work
+
+Future change sets will include:
+
+* Finalizing the methods we can generate, with `Copy` and `Diff` as priority
+  targets.
+* Replace the existing hand-generated methods.
+* Parse struct tags or comments to exclude fields from method generation.
+* A `reflect`-based testing tool that can populate a large nested struct for use
+  with testing the generated methods.
