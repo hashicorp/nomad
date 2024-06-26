@@ -144,20 +144,19 @@
               {{#if B.data.assumeGC}}
                 {{B.data.name}}
               {{else}}
-              <LinkTo
-                @route="jobs.job.index"
-                @model={{B.data.idWithNamespace}}
-                class="is-primary"
-              >
-                {{B.data.name}}
-                {{!-- TODO: going to lose .meta with statuses endpoint! --}}
-                {{#if B.data.meta.structured.pack}}
+                <LinkTo
+                  @route="jobs.job.index"
+                  @model={{B.data.idWithNamespace}}
+                  class="is-primary"
+                >
+                  {{B.data.name}}
+                </LinkTo>
+                {{#if B.data.isPack}}
                   <span data-test-pack-tag class="tag is-pack">
                     {{x-icon "box" class= "test"}}
                     <span>Pack</span>
                   </span>
                 {{/if}}
-              </LinkTo>
               {{/if}}
             </B.Td>
             {{#if this.system.shouldShowNamespaces}}

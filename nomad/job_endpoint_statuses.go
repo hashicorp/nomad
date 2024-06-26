@@ -223,6 +223,8 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		Status:           job.Status,
 	}
 
+	_, jsj.IsPack = job.Meta["pack.name"]
+
 	// the GroupCountSum will map to how many allocations we expect to run
 	// (for service jobs)
 	for _, tg := range job.TaskGroups {

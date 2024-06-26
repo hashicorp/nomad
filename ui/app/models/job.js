@@ -302,9 +302,7 @@ export default class Job extends Model {
   }
   @fragment('structured-attributes') meta;
 
-  get isPack() {
-    return !!this.meta?.structured?.pack;
-  }
+  @attr('boolean') isPack;
 
   /**
    * A task with a schedule block can have execution paused at specific cron-based times.

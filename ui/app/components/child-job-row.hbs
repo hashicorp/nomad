@@ -17,7 +17,7 @@
     >
       {{@job.name}}
 
-      {{#if @job.meta.structured.pack}}
+      {{#if @job.isPack}}
         <span data-test-pack-tag class="tag is-pack">
           {{x-icon "box" class= "test"}}
           <span>Pack</span>
