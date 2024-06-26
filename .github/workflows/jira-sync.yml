@@ -52,7 +52,7 @@ jobs:
         uses: tomhjp/gh-action-jira-search@04700b457f317c3e341ce90da5a3ff4ce058f2fa # v0.2.2
         with:
           # cf[10089] is Issue Link (use JIRA API to retrieve)
-          jql: 'issuetype = "${{ steps.set-ticket-type.outputs.TYPE }}" and cf[10089] = "${{ github.event.issue.html_url || github.event.pull_request.html_url }}"'
+          jql: 'cf[10089] = "${{ github.event.issue.html_url || github.event.pull_request.html_url }}"'
 
       - name: Sync comment
         if: github.event.action == 'created' && steps.search.outputs.issue
