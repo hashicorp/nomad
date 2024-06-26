@@ -1,0 +1,3 @@
+```release-note:improvement
+docker: Validate that containers aren't running as ContainerAdmin on windows
+```
