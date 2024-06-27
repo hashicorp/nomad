@@ -978,9 +978,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	// Only windows supports alternative isolations modes
-	isolationMode := driverConfig.Isolation
-	if runtime.GOOS != "windows" && isolationMode != "" {
-		return c, fmt.Errorf("Failed to create container configuration, cannot use isolation mode \"%s\" on %s", isolationMode, runtime.GOOS)
+	if runtime.GOOS != "windows" {
+		driverConfig.Isolation = ""
 	}
 
 	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
