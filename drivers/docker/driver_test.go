@@ -343,7 +343,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	var err error
 
 	if runtime.GOOS != "windows" {
-		imageID, err = d.Impl().(*Driver).loadImage(task, &taskCfg, client)
+		imageID, _, err = d.Impl().(*Driver).loadImage(task, &taskCfg, client)
 	} else {
 		image, lErr := client.InspectImage(taskCfg.Image)
 		err = lErr
@@ -398,7 +398,7 @@ func TestDockerDriver_ContainerAlreadyExists(t *testing.T) {
 	d, ok := driver.Impl().(*Driver)
 	must.True(t, ok)
 
-	_, err := d.createImage(task, cfg, client)
+	_, _, err := d.createImage(task, cfg, client)
 	must.NoError(t, err)
 
 	containerCfg, err := d.createContainerConfig(task, cfg, cfg.Image)
@@ -2834,7 +2834,7 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 	d, ok := driver.Impl().(*Driver)
 	require.True(t, ok)
 
-	_, err := d.createImage(task, cfg, client)
+	_, _, err := d.createImage(task, cfg, client)
 	require.NoError(t, err)
 
 	containerCfg, err := d.createContainerConfig(task, cfg, cfg.Image)
