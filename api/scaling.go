@@ -57,8 +57,15 @@ type ScalingRequest struct {
 	Error   bool
 	Meta    map[string]interface{}
 	WriteRequest
+
 	// this is effectively a job update, so we need the ability to override policy.
 	PolicyOverride bool
+
+	// If EnforceIndex is set then the job will only be scaled if the passed
+	// JobModifyIndex matches the current Jobs index. If the index is zero,
+	// EnforceIndex is ignored.
+	EnforceIndex   bool
+	JobModifyIndex uint64
 }
 
 // ScalingPolicy is the user-specified API object for an autoscaling policy

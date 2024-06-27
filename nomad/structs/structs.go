@@ -859,8 +859,16 @@ type JobScaleRequest struct {
 	Message string
 	Error   bool
 	Meta    map[string]interface{}
+
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
+
+	// If EnforceIndex is set then the job will only be scaled if the passed
+	// JobModifyIndex matches the current Jobs index. If the index is zero,
+	// EnforceIndex is ignored.
+	EnforceIndex   bool
+	JobModifyIndex uint64
+
 	WriteRequest
 }
 
