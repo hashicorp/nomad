@@ -1019,3 +1019,7 @@ func (c *Config) GetDefaultConsul() *structsc.ConsulConfig {
 func (c *Config) GetDefaultVault() *structsc.VaultConfig {
 	return c.VaultConfigs[structs.VaultDefaultCluster]
 }
+
+func (c *Config) GetNode() *structs.Node {
+	return c.Node
+}
