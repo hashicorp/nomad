@@ -1094,6 +1094,14 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			return structs.NewErrRPCCoded(400, "job scaling blocked due to active deployment")
 		}
 
+		// If JobModifyIndex set, check it before trying to apply
+		if args.JobModifyIndex > 0 {
+			if args.JobModifyIndex != job.JobModifyIndex {
+				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
+					RegisterEnforceIndexErrPrefix, args.JobModifyIndex, job.JobModifyIndex)
+			}
+		}
+
 		// Commit the job update
 		_, jobModifyIndex, err := j.srv.raftApply(
 			structs.JobRegisterRequestType,
