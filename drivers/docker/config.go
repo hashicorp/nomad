@@ -307,6 +307,13 @@ var (
 		// disable_log_collection indicates whether docker driver should collect logs of docker
 		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
+
+		// windows_allow_insecure_container_admin indicates that on windows,
+		// docker checks the task.user field or, if unset, the container image
+		// manifest after pulling the container, to see if it's running as
+		// ContainerAdmin. If so, exits with an error unless the task config has
+		// privileged=true.
+		"windows_allow_insecure_container_admin": hclspec.NewAttr("windows_allow_insecure_container_admin", "bool", false),
 	})
 
 	// mountBodySpec is the hcl specification for the `mount` block
@@ -653,25 +660,26 @@ type ContainerGCConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint                      string        `codec:"endpoint"`
-	Auth                          AuthConfig    `codec:"auth"`
-	TLS                           TLSConfig     `codec:"tls"`
-	GC                            GCConfig      `codec:"gc"`
-	Volumes                       VolumeConfig  `codec:"volumes"`
-	AllowPrivileged               bool          `codec:"allow_privileged"`
-	AllowCaps                     []string      `codec:"allow_caps"`
-	GPURuntimeName                string        `codec:"nvidia_runtime"`
-	InfraImage                    string        `codec:"infra_image"`
-	InfraImagePullTimeout         string        `codec:"infra_image_pull_timeout"`
-	infraImagePullTimeoutDuration time.Duration `codec:"-"`
-	ContainerExistsAttempts       uint64        `codec:"container_exists_attempts"`
-	DisableLogCollection          bool          `codec:"disable_log_collection"`
-	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
-	PidsLimit                     int64         `codec:"pids_limit"`
-	pullActivityTimeoutDuration   time.Duration `codec:"-"`
-	OOMScoreAdj                   int           `codec:"oom_score_adj"`
-	ExtraLabels                   []string      `codec:"extra_labels"`
-	Logging                       LoggingConfig `codec:"logging"`
+	Endpoint                           string        `codec:"endpoint"`
+	Auth                               AuthConfig    `codec:"auth"`
+	TLS                                TLSConfig     `codec:"tls"`
+	GC                                 GCConfig      `codec:"gc"`
+	Volumes                            VolumeConfig  `codec:"volumes"`
+	AllowPrivileged                    bool          `codec:"allow_privileged"`
+	AllowCaps                          []string      `codec:"allow_caps"`
+	GPURuntimeName                     string        `codec:"nvidia_runtime"`
+	InfraImage                         string        `codec:"infra_image"`
+	InfraImagePullTimeout              string        `codec:"infra_image_pull_timeout"`
+	infraImagePullTimeoutDuration      time.Duration `codec:"-"`
+	ContainerExistsAttempts            uint64        `codec:"container_exists_attempts"`
+	DisableLogCollection               bool          `codec:"disable_log_collection"`
+	PullActivityTimeout                string        `codec:"pull_activity_timeout"`
+	PidsLimit                          int64         `codec:"pids_limit"`
+	pullActivityTimeoutDuration        time.Duration `codec:"-"`
+	OOMScoreAdj                        int           `codec:"oom_score_adj"`
+	WindowsAllowInsecureContainerAdmin bool          `codec:"windows_allow_insecure_container_admin"`
+	ExtraLabels                        []string      `codec:"extra_labels"`
+	Logging                            LoggingConfig `codec:"logging"`
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
