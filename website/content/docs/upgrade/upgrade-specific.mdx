@@ -60,6 +60,18 @@ In Nomad 1.7.0 the `raw_exec` plugin option for `no_cgroups` became ineffective.
 Starting in Nomad 1.8.0 attempting to set the `no_cgroups` in `raw_exec` plugin
 configuration will result in an error when starting the agent.
 
+## Nomad 1.7.10 (UNRELEASED)
+
+<EnterpriseAlert inline />
+
+#### New `windows_allow_insecure_container_admin` configuration option for Docker driver
+
+In 1.7.10, Nomad will refuse to run jobs that use the Docker driver on Windows
+with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
+provide a more secure environment for these jobs, and this behavior can be
+overridden by setting the new `windows_allow_insecure_container_admin` Docker
+plugin configuration option to `true` or by setting `privileged=true`.
+
 ## Nomad 1.7.2
 
 Nomad 1.7.2 fixes a critical bug in CPU fingerprinting in Nomad 1.7.0 and
@@ -206,6 +218,18 @@ setting `no_cgroups` would disable the mechanism where Nomad used the freezer
 cgroup to halt the process group of a Task before issuing a kill signal to each
 process. Starting in Nomad 1.7.0 this behavior is always enabled (and a similar
 mechanism has always been enabled on cgroups v2 systems).
+
+## Nomad 1.6.13 (UNRELEASED)
+
+<EnterpriseAlert inline />
+
+#### New `windows_allow_insecure_container_admin` configuration option for Docker driver
+
+In 1.6.13, Nomad will refuse to run jobs that use the Docker driver on Windows
+with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
+provide a more secure environment for these jobs, and this behavior can be
+overridden by setting the new `windows_allow_insecure_container_admin` Docker
+plugin configuration option to `true` or by setting `privileged=true`.
 
 ## Nomad 1.6.0
 
