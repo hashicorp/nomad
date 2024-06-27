@@ -751,6 +751,35 @@ func TestConfig_DriverConfig_OOMScoreAdj(t *testing.T) {
 	}
 }
 
+func TestConfig_DriverConfig_WindowsAllowInsecureContainerAdmin(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		config   string
+		expected bool
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: false,
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ windows_allow_insecure_container_admin = true }`,
+			expected: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			must.Eq(t, c.expected, tc.WindowsAllowInsecureContainerAdmin)
+		})
+	}
+}
+
 func TestConfig_DriverConfig_InfraImagePullTimeout(t *testing.T) {
 	ci.Parallel(t)
 

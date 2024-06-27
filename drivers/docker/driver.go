@@ -340,8 +340,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("Failed to create long operations docker client: %v", err)
 	}
 
-	id, err := d.createImage(cfg, &driverConfig, dockerClient)
+	id, user, err := d.createImage(cfg, &driverConfig, dockerClient)
 	if err != nil {
+		return nil, nil, err
+	}
+
+	// validate the image user (windows only)
+	if err := validateImageUser(user, cfg.User, &driverConfig, d.config); err != nil {
 		return nil, nil, err
 	}
 
@@ -593,7 +598,7 @@ START:
 
 // createImage creates a docker image either by pulling it from a registry or by
 // loading it from the file system
-func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig, client *docker.Client) (string, error) {
+func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig, client *docker.Client) (string, string, error) {
 	image := driverConfig.Image
 	repo, tag := parseDockerImage(image)
 
@@ -606,7 +611,11 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 		if dockerImage, _ := client.InspectImage(image); dockerImage != nil {
 			// Image exists so just increment its reference count
 			d.coordinator.IncrementImageReference(dockerImage.ID, image, task.ID)
-			return dockerImage.ID, nil
+			var user string
+			if dockerImage.Config != nil {
+				user = dockerImage.Config.User
+			}
+			return dockerImage.ID, user, nil
 		}
 	}
 
@@ -616,17 +625,17 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	}
 
 	// Download the image
-	return d.pullImage(task, driverConfig, client, repo, tag)
+	return d.pullImage(task, driverConfig, repo, tag)
 }
 
 // pullImage creates an image by pulling it from a docker registry
-func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, client *docker.Client, repo, tag string) (id string, err error) {
+func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, repo, tag string) (id, user string, err error) {
 	authOptions, err := d.resolveRegistryAuthentication(driverConfig, repo)
 	if err != nil {
 		if driverConfig.AuthSoftFail {
 			d.logger.Warn("Failed to find docker repo auth", "repo", repo, "error", err)
 		} else {
-			return "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
+			return "", "", fmt.Errorf("Failed to find docker auth for repo %q: %v", repo, err)
 		}
 	}
 
@@ -647,7 +656,7 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 
 	pullDur, err := time.ParseDuration(driverConfig.ImagePullTimeout)
 	if err != nil {
-		return "", fmt.Errorf("Failed to parse image_pull_timeout: %v", err)
+		return "", "", fmt.Errorf("Failed to parse image_pull_timeout: %v", err)
 	}
 
 	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), pullDur, d.config.pullActivityTimeoutDuration)
@@ -680,28 +689,32 @@ func (d *Driver) resolveRegistryAuthentication(driverConfig *TaskConfig, repo st
 }
 
 // loadImage creates an image by loading it from the file system
-func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, client *docker.Client) (id string, err error) {
+func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, client *docker.Client) (id string, user string, err error) {
 
 	archive := filepath.Join(task.TaskDir().LocalDir, driverConfig.LoadImage)
 	d.logger.Debug("loading image from disk", "archive", archive)
 
 	f, err := os.Open(archive)
 	if err != nil {
-		return "", fmt.Errorf("unable to open image archive: %v", err)
+		return "", "", fmt.Errorf("unable to open image archive: %v", err)
 	}
 
 	if err := client.LoadImage(docker.LoadImageOptions{InputStream: f}); err != nil {
-		return "", err
+		return "", "", err
 	}
 	f.Close()
 
 	dockerImage, err := client.InspectImage(driverConfig.Image)
 	if err != nil {
-		return "", recoverableErrTimeouts(err)
+		return "", "", recoverableErrTimeouts(err)
 	}
 
 	d.coordinator.IncrementImageReference(dockerImage.ID, driverConfig.Image, task.ID)
-	return dockerImage.ID, nil
+	var imageUser string
+	if dockerImage.Config != nil {
+		imageUser = dockerImage.Config.User
+	}
+	return dockerImage.ID, imageUser, nil
 }
 
 func (d *Driver) convertAllocPathsForWindowsLCOW(task *drivers.TaskConfig, image string) error {
