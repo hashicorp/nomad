@@ -20,7 +20,7 @@ func tweakCapabilities(basics, adds, drops []string) ([]string, error) {
 	return nil, nil
 }
 
-var containerAdminErrMsg = "running container as ContainerAdmin with is unsafe; change the container user, set task configuration to privileged or disable windows_allow_insecure_container_admin to disable this check"
+var containerAdminErrMsg = "running container as ContainerAdmin is unsafe; change the container user, set task configuration to privileged or enable windows_allow_insecure_container_admin to disable this check"
 
 func (d *Driver) validateImageUser(user, taskUser string, driverConfig *TaskConfig) error {
 	// we're only interested in the case where isolation is set to "process"
