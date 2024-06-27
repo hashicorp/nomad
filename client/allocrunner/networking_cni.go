@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/go-set/v2"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -27,7 +28,6 @@ import (
 	"github.com/coreos/go-iptables/iptables"
 	consulIPTables "github.com/hashicorp/consul/sdk/iptables"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -102,6 +102,19 @@ const (
 	ConsulIPTablesConfigEnvVar = "CONSUL_IPTABLES_CONFIG"
 )
 
+// Adds user inputted custom CNI args to cniArgs map
+func addCustomCNIArgs(tg *structs.TaskGroup, cniArgs map[string]string) {
+	for _, net := range tg.Networks {
+		if net.CNI == nil {
+			continue
+		}
+		for k, v := range net.CNI.Args {
+			cniArgs[k] = v
+		}
+	}
+
+}
+
 // Setup calls the CNI plugins with the add action
 func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
 	if err := c.ensureCNIInitialized(); err != nil {
@@ -113,6 +126,10 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		// should ignore any arguments they don't understand
 		"IgnoreUnknown": "true",
 	}
+
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+
+	addCustomCNIArgs(tg, cniArgs)
 
 	portMaps := getPortMapping(alloc, c.ignorePortMappingHostIP)
 

@@ -205,6 +205,87 @@ func TestCNI_cniToAllocNet_Invalid(t *testing.T) {
 	require.Nil(t, allocNet)
 }
 
+// TestCNI_addCustomCNIArgs fails if given a task group with a
+// network resource including CNI Args calling addCustomCNIArgs does not
+// result in the expected map of CNI Args created.
+func TestCNI_addCustomCNIArgs(t *testing.T) {
+	ci.Parallel(t)
+	cniArgs := map[string]string{
+		// CNI plugins are called one after the other with the same set of
+		// arguments. Passing IgnoreUnknown=true signals to plugins that they
+		// should ignore any arguments they don't understand
+		"IgnoreUnknown": "true",
+	}
+	alloc := mock.ConnectAlloc()
+
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			CNI: &structs.CNIArgs{
+				Args: map[string]string{
+					"first_arg": "example",
+					"new_arg":   "example_2",
+				},
+			},
+		},
+	}
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg.Networks = []*structs.NetworkResource{{
+		Mode: "bridge",
+		CNI: &structs.CNIArgs{
+			Args: map[string]string{
+				"first_arg": "example",
+				"new_arg":   "example_2",
+			},
+		},
+	}}
+	addCustomCNIArgs(tg, cniArgs)
+	var actualMap = map[string]string{
+		"IgnoreUnknown": "true",
+		"first_arg":     "example",
+		"new_arg":       "example_2",
+	}
+	test.Eq(t, actualMap, cniArgs)
+
+}
+
+// TestCNI_noCNIArgs fails if given a task group with a
+// network resource with no CNI Args specified, calling addCustomCNIArgs does not
+// result in a map with no args (except for "IgnoreUnknown" :"true").
+func TestCNI_noCNIArgs(t *testing.T) {
+	ci.Parallel(t)
+
+	cniArgs := map[string]string{
+		// CNI plugins are called one after the other with the same set of
+		// arguments. Passing IgnoreUnknown=true signals to plugins that they
+		// should ignore any arguments they don't understand
+		"IgnoreUnknown": "true",
+	}
+	alloc := mock.ConnectAlloc()
+
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			CNI: &structs.CNIArgs{
+				Args: map[string]string{
+					"first_arg": "example",
+					"new_arg":   "example_2",
+				},
+			},
+		},
+	}
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg.Networks = []*structs.NetworkResource{{
+		Mode: "bridge",
+	}}
+	addCustomCNIArgs(tg, cniArgs)
+	var actualMap = map[string]string{
+		"IgnoreUnknown": "true",
+	}
+	test.Eq(t, actualMap, cniArgs)
+
+}
+
 func TestCNI_setupTproxyArgs(t *testing.T) {
 	ci.Parallel(t)
 
