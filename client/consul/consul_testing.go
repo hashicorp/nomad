@@ -4,6 +4,7 @@
 package consul
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 
@@ -46,5 +47,9 @@ func (mc *MockConsulClient) RevokeTokens(tokens []*consulapi.ACLToken) error {
 	for _, token := range tokens {
 		delete(mc.tokens, token.AccessorID)
 	}
+	return nil
+}
+
+func (mc *MockConsulClient) TokenPreflightCheck(_ context.Context, _ *consulapi.ACLToken) error {
 	return nil
 }
