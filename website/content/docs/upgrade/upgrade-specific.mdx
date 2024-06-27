@@ -13,7 +13,17 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
-## Nomad 1.8.1 (UNRELEASED)
+## Nomad 1.8.2 (UNRELEASED)
+
+#### New `windows_allow_insecure_container_admin` configuration option for Docker driver
+
+In 1.8.2, Nomad will refuse to run jobs that use the Docker driver on Windows
+with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
+provide a more secure environment for these jobs, and this behavior can be
+overridden by setting the new `windows_allow_insecure_container_admin` Docker
+plugin configuration option to `true`.
+
+## Nomad 1.8.1
 
 <EnterpriseAlert inline />
 
@@ -2067,3 +2077,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [validate]: /nomad/docs/commands/job/validate
 [vault_grace]: /nomad/docs/job-specification/template
 [Workload Identity]: /nomad/docs/concepts/workload-identity
+[Process Isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container#process-isolation
