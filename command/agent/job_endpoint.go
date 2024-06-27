@@ -668,7 +668,6 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		Message:        args.Message,
 		Error:          args.Error,
 		Meta:           args.Meta,
-		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 	}
 	// parseWriteRequest overrides Namespace, Region and AuthToken

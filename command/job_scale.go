@@ -161,7 +161,6 @@ func (j *JobScaleCommand) Run(args []string) int {
 		},
 		Message:        msg,
 		PolicyOverride: false,
-		EnforceIndex:   checkIndex > 0,
 		JobModifyIndex: checkIndex,
 	}
 

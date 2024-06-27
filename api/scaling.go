@@ -61,10 +61,8 @@ type ScalingRequest struct {
 	// this is effectively a job update, so we need the ability to override policy.
 	PolicyOverride bool
 
-	// If EnforceIndex is set then the job will only be scaled if the passed
-	// JobModifyIndex matches the current Jobs index. If the index is zero,
-	// EnforceIndex is ignored.
-	EnforceIndex   bool
+	// If JobModifyIndex is set then the job will only be scaled if it matches
+	// the current Jobs index. The JobModifyIndex is ignored if 0.
 	JobModifyIndex uint64
 }
 
