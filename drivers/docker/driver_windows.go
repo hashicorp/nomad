@@ -30,7 +30,7 @@ func (d *Driver) validateImageUser(user, taskUser string, driverConfig *TaskConf
 		return nil
 	}
 
-	if (user == "ContainerAdmin" || taskUser == "ContainerAdmin") && !driverConfig.Privileged {
+	if user == "ContainerAdmin" && (taskUser == "ContainerAdmin" || taskUser == "") && !driverConfig.Privileged {
 		return errors.New(containerAdminErrMsg)
 	}
 	return nil
