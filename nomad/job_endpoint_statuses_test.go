@@ -21,22 +21,32 @@ func TestJob_Statuses_ACL(t *testing.T) {
 	t.Cleanup(cleanup)
 	testutil.WaitForLeader(t, s.RPC)
 
+	job1 := mock.MinJob()
+	job2 := mock.MinJob()
+	job2.Namespace = "infra"
+	must.NoError(t, s.State().UpsertNamespaces(100, []*structs.Namespace{{Name: "infra"}}))
+	must.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 101, nil, job1))
+	must.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 102, nil, job2))
+
 	insufficientToken := mock.CreatePolicyAndToken(t, s.State(), 1, "job-lister",
 		mock.NamespacePolicy("default", "", []string{"list-jobs"}))
 	happyToken := mock.CreatePolicyAndToken(t, s.State(), 2, "job-reader",
-		mock.NamespacePolicy("default", "", []string{"read-job"}))
+		mock.NamespacePolicy("*", "", []string{"read-job"}))
 
 	for _, tc := range []struct {
-		name, token, err string
+		name, token, err, ns string
+		expectJobs           int
 	}{
-		{"no token", "", "Permission denied"},
-		{"insufficient perms", insufficientToken.SecretID, "Permission denied"},
-		{"happy token", happyToken.SecretID, ""},
+		{"no token", "", "Permission denied", "", 0},
+		{"insufficient perms", insufficientToken.SecretID, "Permission denied", "", 0},
+		{"happy token specific ns", happyToken.SecretID, "", "infra", 1},
+		{"happy token wildcard ns", happyToken.SecretID, "", "*", 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := &structs.JobStatusesRequest{}
 			req.QueryOptions.Region = "global"
 			req.QueryOptions.AuthToken = tc.token
+			req.QueryOptions.Namespace = tc.ns
 
 			var resp structs.JobStatusesResponse
 			err := s.RPC("Job.Statuses", &req, &resp)
@@ -45,6 +55,8 @@ func TestJob_Statuses_ACL(t *testing.T) {
 				must.ErrorContains(t, err, tc.err)
 			} else {
 				must.NoError(t, err)
+				must.Len(t, tc.expectJobs, resp.Jobs,
+					must.Sprint("expected jobs to be filtered by namespace"))
 			}
 		})
 	}
