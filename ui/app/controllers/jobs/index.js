@@ -22,6 +22,7 @@ export default class JobsIndexController extends Controller {
   @service store;
   @service userSettings;
   @service watchList;
+  @service notifications;
 
   @tracked pageSize;
 
@@ -156,11 +157,69 @@ export default class JobsIndexController extends Controller {
     );
   }
 
+  /**
+   * In case the user wants to specifically stop polling for new jobs
+   */
+  @action pauseJobFetching() {
+    let notification = this.notifications.queue.find(
+      (n) => n.title === 'Error fetching jobs'
+    );
+    if (notification) {
+      notification.destroyMessage();
+    }
+    this.watchList.jobsIndexIDsController.abort();
+    this.watchList.jobsIndexDetailsController.abort();
+    this.watchJobIDs.cancelAll();
+    this.watchJobs.cancelAll();
+  }
+
+  @action restartJobList() {
+    this.showingCachedJobs = false;
+    let notification = this.notifications.queue.find(
+      (n) => n.title === 'Error fetching jobs'
+    );
+    if (notification) {
+      notification.destroyMessage();
+    }
+    this.watchList.jobsIndexIDsController.abort();
+    this.watchList.jobsIndexDetailsController.abort();
+    this.watchJobIDs.cancelAll();
+    this.watchJobs.cancelAll();
+    this.watchJobIDs.perform({}, JOB_LIST_THROTTLE);
+    this.watchJobs.perform(this.jobIDs, JOB_DETAILS_THROTTLE);
+  }
+
   @localStorageProperty('nomadLiveUpdateJobsIndex', true) liveUpdatesEnabled;
 
   // #endregion pagination
 
   //#region querying
+
+  /**
+   *
+   * Let the user know that there was difficulty fetching jobs, but don't overload their screen with notifications.
+   * Set showingCachedJobs to tell the template to prompt them to extend timeouts
+   * @param {Error} e
+   */
+  notifyFetchError(e) {
+    const firstError = e.errors[0];
+    this.notifications.add({
+      title: 'Error fetching jobs',
+      message: `The backend returned an error with status ${firstError.status} while fetching jobs`,
+      color: 'critical',
+      sticky: true,
+      preventDuplicates: true,
+    });
+    // Specific check for a proxy timeout error
+    if (
+      !this.showingCachedJobs &&
+      (firstError.status === '502' || firstError.status === '504')
+    ) {
+      this.showingCachedJobs = true;
+    }
+  }
+
+  @tracked showingCachedJobs = false;
 
   jobQuery(params) {
     this.watchList.jobsIndexIDsController.abort();
@@ -172,9 +231,17 @@ export default class JobsIndexController extends Controller {
           abortController: this.watchList.jobsIndexIDsController,
         },
       })
+      .then((jobs) => {
+        this.showingCachedJobs = false;
+        return jobs;
+      })
       .catch((e) => {
         if (e.name !== 'AbortError') {
           console.log('error fetching job ids', e);
+          this.notifyFetchError(e);
+        }
+        if (this.jobs.length) {
+          return this.jobs;
         }
         return;
       });
@@ -194,6 +261,10 @@ export default class JobsIndexController extends Controller {
       .catch((e) => {
         if (e.name !== 'AbortError') {
           console.log('error fetching job allocs', e);
+          this.notifyFetchError(e);
+        }
+        if (this.jobs.length) {
+          return this.jobs;
         }
         return;
       });
@@ -257,8 +328,14 @@ export default class JobsIndexController extends Controller {
           this.pendingJobIDs = jobIDs;
           this.pendingJobs = newJobs;
         }
+        if (Ember.testing) {
+          break;
+        }
         yield timeout(throttle);
       } else {
+        if (Ember.testing) {
+          break;
+        }
         // This returns undefined on page change / cursorAt change, resulting from the aborting of the old query.
         yield timeout(throttle);
         this.watchJobs.perform(this.jobIDs, throttle);
