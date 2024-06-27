@@ -22,15 +22,15 @@ func tweakCapabilities(basics, adds, drops []string) ([]string, error) {
 
 var containerAdminErrMsg = "running container as ContainerAdmin is unsafe; change the container user, set task configuration to privileged or enable windows_allow_insecure_container_admin to disable this check"
 
-func (d *Driver) validateImageUser(user, taskUser string, driverConfig *TaskConfig) error {
+func validateImageUser(user, taskUser string, taskDriverConfig *TaskConfig, driverConfig *DriverConfig) error {
 	// we're only interested in the case where isolation is set to "process"
 	// (it's also the default) and when windows_allow_insecure_container_admin
 	// is explicitly set to true in the config
-	if d.config.WindowsAllowInsecureContainerAdmin || driverConfig.Isolation == "hyper-v" {
+	if driverConfig.WindowsAllowInsecureContainerAdmin || taskDriverConfig.Isolation == "hyper-v" {
 		return nil
 	}
 
-	if user == "ContainerAdmin" && (taskUser == "ContainerAdmin" || taskUser == "") && !driverConfig.Privileged {
+	if user == "ContainerAdmin" && (taskUser == "ContainerAdmin" || taskUser == "") && !taskDriverConfig.Privileged {
 		return errors.New(containerAdminErrMsg)
 	}
 	return nil

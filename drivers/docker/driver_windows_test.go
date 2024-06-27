@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 )
 
 func newTaskConfig(variant string, command []string) TaskConfig {
@@ -32,63 +33,99 @@ func newTaskConfig(variant string, command []string) TaskConfig {
 func copyImage(t *testing.T, taskDir *allocdir.TaskDir, image string) {
 }
 
-func TestDriver_createImage_validateContainerAdmin(t *testing.T) {
+func Test_validateImageUser(t *testing.T) {
 	ci.Parallel(t)
 
+	taskCfg := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "busybox-demo",
+		User: "nomadUser",
+	}
+	taskDriverCfg := newTaskConfig("", []string{"sh", "-c", "sleep 1"})
+
 	tests := []struct {
-		name      string
-		taskCfg   *drivers.TaskConfig
-		driverCfg *TaskConfig
-		wantErr   bool
-		want      string
+		name          string
+		taskUser      string
+		containerUser string
+		privileged    bool
+		isolation     string
+		driverConfig  *DriverConfig
+		wantErr       bool
+		want          string
 	}{
 		{
 			"normal user",
-			&drivers.TaskConfig{
-				ID:   uuid.Generate(),
-				Name: "redis-demo",
-				User: "nomadUser",
-			},
-			&TaskConfig{Privileged: false},
+			"nomadUser",
+			"nomadUser",
+			false,
+			"process",
+			&DriverConfig{},
 			false,
 			"",
 		},
 		{
-			"ContainerAdmin, non-priviliged",
-			&drivers.TaskConfig{
-				ID:   uuid.Generate(),
-				Name: "redis-demo",
-				User: "nomadUser",
-			},
-			&TaskConfig{Privileged: false},
+			"ContainerAdmin image user, non-priviliged",
+			"",
+			"ContainerAdmin",
+			false,
+			"process",
+			&DriverConfig{},
 			true,
 			containerAdminErrMsg,
 		},
 		{
-			"ContainerAdmin, non-priviliged, but hyper-v",
-			&drivers.TaskConfig{
-				ID:   uuid.Generate(),
-				Name: "redis-demo",
-				User: "nomadUser",
-			},
-			&TaskConfig{Privileged: false, Isolation: "hyper-v"},
+			"ContainerAdmin image user, non-priviliged, but hyper-v",
+			"",
+			"ContainerAdmin",
+			false,
+			"hyper-v",
+			&DriverConfig{},
+			false,
+			"",
+		},
+		{
+			"ContainerAdmin task user, non-priviliged",
+			"",
+			"ContainerAdmin",
+			false,
+			"process",
+			&DriverConfig{},
 			true,
 			containerAdminErrMsg,
+		},
+		{
+			"ContainerAdmin image user, non-priviliged, but overriden by task user",
+			"ContainerUser",
+			"ContainerAdmin",
+			false,
+			"process",
+			&DriverConfig{},
+			false,
+			"",
+		},
+		{
+			"ContainerAdmin image user, non-priviliged, but overriden by windows_allow_insecure_container_admin",
+			"ContainerAdmin",
+			"ContainerAdmin",
+			false,
+			"process",
+			&DriverConfig{WindowsAllowInsecureContainerAdmin: true},
+			false,
+			"",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := newTestDockerClient(t)
-			dh := dockerDriverHarness(t, nil)
-			d := dh.Impl().(*Driver)
+			taskCfg.User = tt.taskUser
+			taskDriverCfg.Privileged = tt.privileged
+			taskDriverCfg.Isolation = tt.isolation
 
-			got, err := d.createImage(tt.taskCfg, tt.driverCfg, client)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Driver.createImage() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("Driver.createImage() = %v, want %v", got, tt.want)
+			err := validateImageUser(tt.containerUser, tt.taskUser, &taskDriverCfg, tt.driverConfig)
+			if tt.wantErr {
+				must.Error(t, err)
+				must.Eq(t, tt.want, containerAdminErrMsg)
+			} else {
+				must.NoError(t, err)
 			}
 		})
 	}
