@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
@@ -49,6 +50,11 @@ General Options:
 
 Scale Options:
 
+  -check-index
+    If set, the job is only scaled if the passed job modify index matches the
+    server side version. Ignored if value of zero is passed. If a non-zero value
+    is passed, it ensures that the job is being updated from a known state.
+
   -detach
     Return immediately instead of entering monitor mode. After job scaling,
     the evaluation ID will be printed to the screen, which can be used to
@@ -68,8 +74,9 @@ func (j *JobScaleCommand) Synopsis() string {
 func (j *JobScaleCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(j.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detach":  complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"-check-index": complete.PredictNothing,
+			"-detach":      complete.PredictNothing,
+			"-verbose":     complete.PredictNothing,
 		})
 }
 
@@ -79,9 +86,11 @@ func (j *JobScaleCommand) Name() string { return "job scale" }
 // Run satisfies the cli.Command Run function.
 func (j *JobScaleCommand) Run(args []string) int {
 	var detach, verbose bool
+	var checkIndex uint64
 
 	flags := j.Meta.FlagSet(j.Name(), FlagSetClient)
 	flags.Usage = func() { j.Ui.Output(j.Help()) }
+	flags.Uint64Var(&checkIndex, "check-index", 0, "")
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	if err := flags.Parse(args); err != nil {
@@ -144,7 +153,18 @@ func (j *JobScaleCommand) Run(args []string) int {
 
 	// Perform the scaling action.
 	w := &api.WriteOptions{Namespace: namespace}
-	resp, _, err := client.Jobs().Scale(jobID, groupString, &count, msg, false, nil, w)
+	req := &api.ScalingRequest{
+		Count: pointer.Of(int64(count)),
+		Target: map[string]string{
+			"Job":   jobID,
+			"Group": groupString,
+		},
+		Message:        msg,
+		PolicyOverride: false,
+		JobModifyIndex: checkIndex,
+	}
+
+	resp, _, err := client.Jobs().ScaleWithRequest(jobID, req, w)
 	if err != nil {
 		j.Ui.Error(fmt.Sprintf("Error submitting scaling request: %s", err))
 		return 1

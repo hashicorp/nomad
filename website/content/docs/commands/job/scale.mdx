@@ -41,6 +41,11 @@ not used.
 
 ## Scale Options
 
+- `-check-index`: If set, the job is only scaled if the passed job modify index
+  matches the server side version. Ignored if value of zero is passed. If a
+  non-zero value is passed, it ensures that the job is being updated from a
+  known state.
+
 - `-detach`: Return immediately instead of entering monitor mode. After the
   scale command is submitted, a new evaluation ID is printed to the screen,
   which can be used to examine the evaluation using the [eval status] command.
