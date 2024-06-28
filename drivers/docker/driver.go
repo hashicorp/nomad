@@ -81,7 +81,7 @@ const (
 	dockerLabelNodeID           = "com.hashicorp.nomad.node_id"
 	dockerLabelParentJobID      = "com.hashicorp.nomad.parent_job_id"
 	windowsIsolationModeProcess = "process"
-	windowsIsolationModeHyperV  = "hyper-v"
+	windowsIsolationModeHyperV  = "hyperv"
 )
 
 type pauseContainerStore struct {
