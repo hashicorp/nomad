@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -533,6 +534,70 @@ func NewClient(config *Config) (*Client, error) {
 		httpClient: httpClient,
 	}
 	return client, nil
+}
+
+func nomadTaskSocketPath() string {
+	secretsDir := os.Getenv("NOMAD_SECRETS_DIR")
+	if secretsDir == "" {
+		return ""
+	}
+	socketPath := filepath.Join(secretsDir, "api.sock")
+	if _, err := os.Stat(socketPath); err != nil {
+		return ""
+	}
+	return socketPath
+}
+
+// ModifyConfigFunc is used to modify a Config.
+type ModifyConfigFunc func(c *Config)
+
+// TaskClient returns a client with default configuration for use by a Nomad task
+// leveraging Workload Identity and the unix domain socket Nomad creates for such tasks.
+//
+// Must only be used in the context of a Nomad Task with Workload Identity enabled.
+func TaskClient(f ModifyConfigFunc) *Client {
+	// lookup our workload identity token; if it is not set then just return
+	// nil because we are not running in the context of a nomad task with identity
+	token := os.Getenv("NOMAD_TOKEN")
+	if token == "" {
+		return nil
+	}
+
+	// find our socket file; it it's not there just return nil because we are
+	// not running in the context of a nomad task with identity
+	socket := nomadTaskSocketPath()
+	if socket == "" {
+		return nil
+	}
+
+	// create a default config with an address and headers suitable for talking over
+	// the Task API
+	config := Config{
+		Address:  "http://nomad" + socket,
+		SecretID: token,
+		Headers: map[string][]string{
+			"Authorization": {fmt.Sprintf("Bearer %s", token)},
+		},
+	}
+
+	// apply the config modification callback if set
+	if f != nil {
+		f(&config)
+	}
+
+	// create an http client with a transport attuned to our API socket
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", socket)
+			},
+		},
+	}
+
+	return &Client{
+		config:     config,
+		httpClient: httpClient,
+	}
 }
 
 // Close closes the client's idle keep-alived connections. The default
