@@ -988,11 +988,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			return c, fmt.Errorf("Failed to create container configuration, cannot use isolation mode \"%s\" on %s", driverConfig.Isolation, runtime.GOOS)
 		}
 	} else {
-		if !slices.Contains(windowsIsolationModes, driverConfig.Isolation) {
-			return c, fmt.Errorf("Unsupported isolation mode \"%s\"", driverConfig.Isolation)
-		}
 		if driverConfig.Isolation == "" {
 			driverConfig.Isolation = windowsIsolationModeHyperV
+		}
+		if !slices.Contains(windowsIsolationModes, driverConfig.Isolation) {
+			return c, fmt.Errorf("Unsupported isolation mode \"%s\"", driverConfig.Isolation)
 		}
 	}
 
