@@ -17,16 +17,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-template/renderer"
-	"github.com/hashicorp/consul-template/signals"
 	trenderer "github.com/hashicorp/nomad/client/allocrunner/taskrunner/template/renderer"
 	"github.com/hashicorp/nomad/helper/subproc"
 )
-
-// createPlatformSandbox is a no-op outside of windows
-func createPlatformSandbox(_ *TaskTemplateManagerConfig) error { return nil }
-
-// destroyPlatformSandbox is a no-op outside of windows
-func destroyPlatformSandbox(_ *TaskTemplateManagerConfig) error { return nil }
 
 // renderTemplateInSandbox runs the template-render command in a subprocess that
 // will chroot itself to prevent a task from swapping a directory between the
@@ -112,51 +105,6 @@ func readTemplateFromSandbox(cfg *sandboxConfig) ([]byte, []byte, int, error) {
 	return stdout, stderr, cmd.ProcessState.ExitCode(), err
 }
 
-func isSandboxEnabled(cfg *TaskTemplateManagerConfig) bool {
-	if cfg.ClientConfig != nil && cfg.ClientConfig.TemplateConfig != nil && cfg.ClientConfig.TemplateConfig.DisableSandbox {
-		return false
-	}
-	return true
-}
-
-type sandboxConfig struct {
-	thisBin     string
-	sandboxPath string
-	destPath    string
-	sourcePath  string
-	perms       string
-	user        string
-	group       string
-	taskID      string
-	contents    []byte
-}
-
-func ReaderFn(taskID, taskDir string, sandboxEnabled bool) func(string) ([]byte, error) {
-	if !sandboxEnabled {
-		return nil
-	}
-	thisBin := subproc.Self()
-
-	return func(src string) ([]byte, error) {
-
-		sandboxCfg := &sandboxConfig{
-			thisBin:     thisBin,
-			sandboxPath: taskDir,
-			sourcePath:  src,
-			taskID:      taskID,
-		}
-
-		stdout, stderr, code, err := readTemplateFromSandbox(sandboxCfg)
-		if err != nil && code != 0 {
-			return nil, fmt.Errorf("%v: %s", err, string(stderr))
-		}
-
-		// this will get wrapped in CT log formatter
-		fmt.Fprintf(os.Stderr, "[DEBUG] %s", string(stderr))
-		return stdout, nil
-	}
-}
-
 func RenderFn(taskID, taskDir string, sandboxEnabled bool) func(*renderer.RenderInput) (*renderer.RenderResult, error) {
 	if !sandboxEnabled {
 		return nil
@@ -215,70 +163,28 @@ func RenderFn(taskID, taskDir string, sandboxEnabled bool) func(*renderer.Render
 	}
 }
 
-func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateManager, error) {
-	// Check pre-conditions
-	if err := config.Validate(); err != nil {
-		return nil, err
+func ReaderFn(taskID, taskDir string, sandboxEnabled bool) func(string) ([]byte, error) {
+	if !sandboxEnabled {
+		return nil
 	}
+	thisBin := subproc.Self()
 
-	tm := &TaskTemplateManager{
-		config:     config,
-		shutdownCh: make(chan struct{}),
-	}
+	return func(src string) ([]byte, error) {
 
-	// Parse the signals that we need
-	for _, tmpl := range config.Templates {
-		if tmpl.ChangeSignal == "" {
-			continue
+		sandboxCfg := &sandboxConfig{
+			thisBin:     thisBin,
+			sandboxPath: taskDir,
+			sourcePath:  src,
+			taskID:      taskID,
 		}
 
-		sig, err := signals.Parse(tmpl.ChangeSignal)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to parse signal %q", tmpl.ChangeSignal)
+		stdout, stderr, code, err := readTemplateFromSandbox(sandboxCfg)
+		if err != nil && code != 0 {
+			return nil, fmt.Errorf("%v: %s", err, string(stderr))
 		}
 
-		if tm.signals == nil {
-			tm.signals = make(map[string]os.Signal)
-		}
-
-		tm.signals[tmpl.ChangeSignal] = sig
+		// this will get wrapped in CT log formatter
+		fmt.Fprintf(os.Stderr, "[DEBUG] %s", string(stderr))
+		return stdout, nil
 	}
-
-	// the platform sandbox needs to be created before we construct the runner
-	// so that reading the template is sandboxed
-	err := createPlatformSandbox(config)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the consul-template runner
-	runner, lookup, err := templateRunner(config)
-	if err != nil {
-		return nil, err
-	}
-	tm.runner = runner
-	tm.lookup = lookup
-
-	go tm.run()
-	return tm, nil
-}
-
-// Stop is used to stop the consul-template runner
-func (tm *TaskTemplateManager) Stop() {
-	tm.shutdownLock.Lock()
-	defer tm.shutdownLock.Unlock()
-
-	if tm.shutdown {
-		return
-	}
-
-	close(tm.shutdownCh)
-	tm.shutdown = true
-
-	// Stop the consul-template runner
-	if tm.runner != nil {
-		tm.runner.Stop()
-	}
-
-	destroyPlatformSandbox(tm.config)
 }
