@@ -101,14 +101,16 @@
     data-test-plan
     @text="Plan"
   />
-  {{#if @data.job.isNew}}
-    <Hds::Button
-      @text="Save as template"
-      @color="secondary"
-      @route="jobs.run.templates.new"
-      {{on "click" @fns.onSaveAs}}
-      data-test-save-as-template
-    />
+  {{#if (can "write variable" path="nomad/job-templates/*" namespace="*")}}
+    {{#if @data.job.isNew}}
+      <Hds::Button
+        @text="Save as template"
+        @color="secondary"
+        @route="jobs.run.templates.new"
+        {{on "click" @fns.onSaveAs}}
+        data-test-save-as-template
+      />
+    {{/if}}
   {{/if}}
   <Hds::Button
     @text="Save as .nomad.hcl"
