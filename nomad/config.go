@@ -330,6 +330,10 @@ type Config struct {
 	// ACLEnabled controls if ACL enforcement and management is enabled.
 	ACLEnabled bool
 
+	// ACLBootstrapToken, when set, causes Nomad to automatically bootstrap
+	// the acl subsystem using the given token.
+	ACLBootstrapToken string
+
 	// ReplicationBackoff is how much we backoff when replication errors.
 	// This is a tunable knob for testing primarily.
 	ReplicationBackoff time.Duration

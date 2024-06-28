@@ -32,6 +32,17 @@ acl {
   clients whenever they are accessible. In this scenario, the client will
   enforce ACLs, so both servers and clients should have ACLs enabled.
 
+- `bootstrap_token` `(string: "")` - Specifies the Secret ID of the ACL token
+  to use as the initial management token and to automatically bootstrap the
+  ACL subsystem.
+
+  <Note>
+  Once the cluster's ACL subsystem has been bootstrapped, this
+  value is no longer consulted and you should remove this value from the
+  configuration. Nomad writes a log event on startup if this value is set and
+  no longer necessary.
+  </Note>
+
 - `token_ttl` `(string: "30s")` - Specifies the maximum time-to-live (TTL) for
   cached ACL tokens. This does not affect servers, since they do not cache tokens.
   Setting this value lower reduces how stale a token can be, but increases
