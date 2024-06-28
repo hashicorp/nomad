@@ -21,11 +21,11 @@ func isSandboxEnabled(cfg *TaskTemplateManagerConfig) bool {
 type sandboxConfig struct{}
 
 func ReaderFn(taskID, taskDir string, sandboxEnabled bool) func(string) ([]byte, error) {
-	return nil
+	return os.ReadFile
 }
 
 func RenderFn(taskID, taskDir string, sandboxEnabled bool) func(*renderer.RenderInput) (*renderer.RenderResult, error) {
-	return nil
+	return renderer.Render
 }
 
 func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateManager, error) {
