@@ -389,12 +389,9 @@ var (
 		"ipc_mode":           hclspec.NewAttr("ipc_mode", "string", false),
 		"ipv4_address":       hclspec.NewAttr("ipv4_address", "string", false),
 		"ipv6_address":       hclspec.NewAttr("ipv6_address", "string", false),
-		"isolation": hclspec.NewDefault(
-			hclspec.NewAttr("isolation", "string", false),
-			hclspec.NewLiteral("hyper-v"),
-		),
-		"labels": hclspec.NewAttr("labels", "list(map(string))", false),
-		"load":   hclspec.NewAttr("load", "string", false),
+		"isolation":          hclspec.NewAttr("isolation", "string", false),
+		"labels":             hclspec.NewAttr("labels", "list(map(string))", false),
+		"load":               hclspec.NewAttr("load", "string", false),
 		"logging": hclspec.NewBlock("logging", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"type":   hclspec.NewAttr("type", "string", false),
 			"driver": hclspec.NewAttr("driver", "string", false),

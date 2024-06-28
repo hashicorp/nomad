@@ -65,18 +65,23 @@ var (
 
 	// Nvidia-container-runtime environment variable names
 	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
+
+	// We support "process" and "hyper-v" isolation modes on windows
+	windowsIsolationModes = []string{windowsIsolationModeProcess, windowsIsolationModeHyperV}
 )
 
 const (
-	dockerLabelAllocID       = "com.hashicorp.nomad.alloc_id"
-	dockerLabelJobName       = "com.hashicorp.nomad.job_name"
-	dockerLabelJobID         = "com.hashicorp.nomad.job_id"
-	dockerLabelTaskGroupName = "com.hashicorp.nomad.task_group_name"
-	dockerLabelTaskName      = "com.hashicorp.nomad.task_name"
-	dockerLabelNamespace     = "com.hashicorp.nomad.namespace"
-	dockerLabelNodeName      = "com.hashicorp.nomad.node_name"
-	dockerLabelNodeID        = "com.hashicorp.nomad.node_id"
-	dockerLabelParentJobID   = "com.hashicorp.nomad.parent_job_id"
+	dockerLabelAllocID          = "com.hashicorp.nomad.alloc_id"
+	dockerLabelJobName          = "com.hashicorp.nomad.job_name"
+	dockerLabelJobID            = "com.hashicorp.nomad.job_id"
+	dockerLabelTaskGroupName    = "com.hashicorp.nomad.task_group_name"
+	dockerLabelTaskName         = "com.hashicorp.nomad.task_name"
+	dockerLabelNamespace        = "com.hashicorp.nomad.namespace"
+	dockerLabelNodeName         = "com.hashicorp.nomad.node_name"
+	dockerLabelNodeID           = "com.hashicorp.nomad.node_id"
+	dockerLabelParentJobID      = "com.hashicorp.nomad.parent_job_id"
+	windowsIsolationModeProcess = "process"
+	windowsIsolationModeHyperV  = "hyper-v"
 )
 
 type pauseContainerStore struct {
@@ -977,9 +982,18 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
-	// Only windows supports alternative isolations modes
+	// Validate isolation modes on windows
 	if runtime.GOOS != "windows" {
-		driverConfig.Isolation = ""
+		if driverConfig.Isolation != "" {
+			return c, fmt.Errorf("Failed to create container configuration, cannot use isolation mode \"%s\" on %s", driverConfig.Isolation, runtime.GOOS)
+		}
+	} else {
+		if !slices.Contains(windowsIsolationModes, driverConfig.Isolation) {
+			return c, fmt.Errorf("Unsupported isolation mode \"%s\"", driverConfig.Isolation)
+		}
+		if driverConfig.Isolation == "" {
+			driverConfig.Isolation = windowsIsolationModeHyperV
+		}
 	}
 
 	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
