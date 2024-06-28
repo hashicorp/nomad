@@ -27,9 +27,6 @@ export default class IndexRoute extends Route.extend(
   @service notifications;
 
   queryParams = {
-    qpNamespace: {
-      refreshModel: true,
-    },
     cursorAt: {
       refreshModel: true,
     },
@@ -55,9 +52,6 @@ export default class IndexRoute extends Route.extend(
     if (filter) {
       queryParams.filter = filter;
     }
-    // namespace
-    queryParams.namespace = queryParams.qpNamespace;
-    delete queryParams.qpNamespace;
     delete queryParams.pageSize;
     delete queryParams.cursorAt;
 
@@ -218,7 +212,7 @@ export default class IndexRoute extends Route.extend(
       });
     });
 
-    let err = error.errors[0];
+    let err = error.errors?.objectAt(0);
     // if it's an innocuous-enough seeming "You mistyped something while searching" error,
     // handle it with a notification and don't throw. Otherwise, throw.
     if (
