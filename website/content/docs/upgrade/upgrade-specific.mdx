@@ -78,6 +78,12 @@ provide a more secure environment for these jobs, and this behavior can be
 overridden by setting the new `windows_allow_insecure_container_admin` Docker
 plugin configuration option to `true` or by setting `privileged=true`.
 
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.7.10 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyper-v`, since `hyper-v` provides a much more secure execution
+environment.
+
 ## Nomad 1.7.2
 
 Nomad 1.7.2 fixes a critical bug in CPU fingerprinting in Nomad 1.7.0 and
@@ -236,6 +242,12 @@ with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
 provide a more secure environment for these jobs, and this behavior can be
 overridden by setting the new `windows_allow_insecure_container_admin` Docker
 plugin configuration option to `true` or by setting `privileged=true`.
+
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.6.13 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyper-v`, since `hyper-v` provides a much more secure execution
+environment.
 
 ## Nomad 1.6.0
 
