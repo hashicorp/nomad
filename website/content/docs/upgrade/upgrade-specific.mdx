@@ -23,6 +23,12 @@ provide a more secure environment for these jobs, and this behavior can be
 overridden by setting the new `windows_allow_insecure_container_admin` Docker
 plugin configuration option to `true` or by setting `privileged=true`.
 
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.8.2 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyperv`, since `hyperv` provides a much more secure execution
+environment.
+
 ## Nomad 1.8.1
 
 <EnterpriseAlert inline />
@@ -71,6 +77,12 @@ with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
 provide a more secure environment for these jobs, and this behavior can be
 overridden by setting the new `windows_allow_insecure_container_admin` Docker
 plugin configuration option to `true` or by setting `privileged=true`.
+
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.7.10 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyperv`, since `hyperv` provides a much more secure execution
+environment.
 
 ## Nomad 1.7.2
 
@@ -230,6 +242,12 @@ with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
 provide a more secure environment for these jobs, and this behavior can be
 overridden by setting the new `windows_allow_insecure_container_admin` Docker
 plugin configuration option to `true` or by setting `privileged=true`.
+
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.6.13 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyperv`, since `hyperv` provides a much more secure execution
+environment.
 
 ## Nomad 1.6.0
 
