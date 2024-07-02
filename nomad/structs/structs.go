@@ -2664,6 +2664,7 @@ func (r *Resources) Add(delta *Resources) {
 
 	r.CPU += delta.CPU
 	r.MemoryMB += delta.MemoryMB
+	r.Cores += delta.Cores
 	if delta.MemoryMaxMB > 0 {
 		r.MemoryMaxMB += delta.MemoryMaxMB
 	} else {
