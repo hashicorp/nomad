@@ -449,14 +449,14 @@ export default class JobsIndexController extends Controller {
   @computed('namespaceFacet.{filter,options}')
   get filteredNamespaceOptions() {
     return this.namespaceFacet.options.filter((ns) =>
-      ns.key.toLowerCase().includes(this.namespaceFacet.filter)
+      ns.key.toLowerCase().includes(this.namespaceFacet.filter.toLowerCase())
     );
   }
 
   @computed('nodePoolFacet.{filter,options}')
   get filteredNodePoolOptions() {
     return this.nodePoolFacet.options.filter((np) =>
-      np.key.toLowerCase().includes(this.nodePoolFacet.filter)
+      np.key.toLowerCase().includes(this.nodePoolFacet.filter.toLowerCase())
     );
   }
 
@@ -487,9 +487,15 @@ export default class JobsIndexController extends Controller {
     // The system service's shouldShowNamespaces is a getter, and therefore cannot be made to be async,
     // and since we only want to parseFilter a single time, we can use a simpler check to establish whether
     // we should show the namespace facet, rendering the whole "check checkboxes based on queryParams" logic quicker.
+    console.log(
+      'namespaces on the model?',
+      this.model.namespaces,
+      this.model.namespaces.length > 1
+    );
     if ((this.model.namespaces || []).length > 1) {
       facets.push(this.namespaceFacet);
     }
+    console.log('thus facets', facets);
     return facets;
   }
 
