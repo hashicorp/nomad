@@ -134,3 +134,6 @@ e2e/remotetasks/input/ecs.vars
 
 # Tools files
 tools/missing/missing
+
+# allow security scanner file
+!scan.hcl
