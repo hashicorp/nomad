@@ -81,7 +81,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          message_path: flakiness-report.md
+          message-path: flakiness-report.md
 permissions:
   contents: read
   pull-requests: write
