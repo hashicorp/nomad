@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	vaultapi "github.com/hashicorp/vault/api"
 )
 
 // MockVaultClient is used for testing the vaultclient integration and is safe
@@ -161,8 +160,6 @@ func (vc *MockVaultClient) SetRenewable(renewable bool) {
 	defer vc.mu.Unlock()
 	vc.renewable = renewable
 }
-
-func (vc *MockVaultClient) GetConsulACL(string, string) (*vaultapi.Secret, error) { return nil, nil }
 
 // LegacyTokens returns the tokens generated using the legacy flow.
 func (vc *MockVaultClient) LegacyTokens() map[string]string {
