@@ -449,14 +449,14 @@ export default class JobsIndexController extends Controller {
   @computed('namespaceFacet.{filter,options}')
   get filteredNamespaceOptions() {
     return this.namespaceFacet.options.filter((ns) =>
-      ns.key.toLowerCase().includes(this.namespaceFacet.filter)
+      ns.key.toLowerCase().includes(this.namespaceFacet.filter.toLowerCase())
     );
   }
 
   @computed('nodePoolFacet.{filter,options}')
   get filteredNodePoolOptions() {
     return this.nodePoolFacet.options.filter((np) =>
-      np.key.toLowerCase().includes(this.nodePoolFacet.filter)
+      np.key.toLowerCase().includes(this.nodePoolFacet.filter.toLowerCase())
     );
   }
 
