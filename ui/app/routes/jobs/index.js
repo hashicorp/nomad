@@ -46,6 +46,7 @@ export default class IndexRoute extends Route.extend(
       queryParams.next_token = queryParams.cursorAt;
     }
     queryParams.per_page = queryParams.pageSize;
+    queryParams.namespace = '*';
 
     /* eslint-disable ember/no-controller-access-in-routes */
     let filter = this.controllerFor('jobs.index').filter;
