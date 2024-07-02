@@ -23,7 +23,7 @@ export default class JobController extends Controller {
     return this.model;
   }
 
-  @action notFoundJobHandler() {
+  @action async notFoundJobHandler() {
     if (
       this.watchers.job.isError &&
       this.watchers.job.error?.errors?.some((e) => e.status === '404')
@@ -35,8 +35,8 @@ export default class JobController extends Controller {
         color: 'critical',
         sticky: true,
       });
+      await this.router.transitionTo('jobs');
       this.store.unloadRecord(this.job);
-      this.router.transitionTo('jobs');
     }
   }
 }
