@@ -18,6 +18,7 @@ type Resources struct {
 	Networks    []*NetworkResource `hcl:"network,block"`
 	Devices     []*RequestedDevice `hcl:"device,block"`
 	NUMA        *NUMAResource      `hcl:"numa,block"`
+	OOMScoreAdj *int               `mapstructure:"oom_score_adj" hcl:"oom_score_adj,optional"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
@@ -45,6 +46,11 @@ func (r *Resources) Canonicalize() {
 		r.CPU = pointerOf(0)
 	}
 
+	// default oom_score_adj is 0, and it can never be negative
+	if r.OOMScoreAdj == nil {
+		r.OOMScoreAdj = pointerOf(0)
+	}
+
 	if r.MemoryMB == nil {
 		r.MemoryMB = defaultResources.MemoryMB
 	}
@@ -61,9 +67,10 @@ func (r *Resources) Canonicalize() {
 // and should be kept in sync.
 func DefaultResources() *Resources {
 	return &Resources{
-		CPU:      pointerOf(100),
-		Cores:    pointerOf(0),
-		MemoryMB: pointerOf(300),
+		CPU:         pointerOf(100),
+		Cores:       pointerOf(0),
+		MemoryMB:    pointerOf(300),
+		OOMScoreAdj: pointerOf(0),
 	}
 }
 
@@ -74,9 +81,10 @@ func DefaultResources() *Resources {
 // IN nomad/structs/structs.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      pointerOf(1),
-		Cores:    pointerOf(0),
-		MemoryMB: pointerOf(10),
+		CPU:         pointerOf(1),
+		Cores:       pointerOf(0),
+		MemoryMB:    pointerOf(10),
+		OOMScoreAdj: pointerOf(0),
 	}
 }
 
@@ -102,6 +110,9 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if other.NUMA != nil {
 		r.NUMA = other.NUMA.Copy()
+	}
+	if other.OOMScoreAdj != nil {
+		r.OOMScoreAdj = other.OOMScoreAdj
 	}
 }
 

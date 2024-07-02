@@ -321,6 +321,7 @@ func TestParse(t *testing.T) {
 									CPU:         intToPtr(500),
 									MemoryMB:    intToPtr(128),
 									MemoryMaxMB: intToPtr(256),
+									OOMScoreAdj: intToPtr(2),
 									Networks: []*api.NetworkResource{
 										{
 											MBits:         intToPtr(100),

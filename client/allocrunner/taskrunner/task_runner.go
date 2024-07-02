@@ -1204,6 +1204,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 				CPUShares:        taskResources.Cpu.CpuShares,
 				CpusetCpus:       strings.Join(cpusetCpus, ","),
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Processors.Topology.UsableCompute()),
+				OOMScoreAdj:      int64(taskResources.OOMScoreAdj),
 			},
 			Ports: &ports,
 		},
