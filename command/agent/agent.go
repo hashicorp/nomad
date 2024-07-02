@@ -737,6 +737,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if agentConfig.Client.NetworkInterface != "" {
 		conf.NetworkInterface = agentConfig.Client.NetworkInterface
 	}
+
+	conf.PreferredAddressFamily = agentConfig.Client.PreferredAddressFamily
+
 	conf.ChrootEnv = agentConfig.Client.ChrootEnv
 	conf.Options = agentConfig.Client.Options
 	if agentConfig.Client.NetworkSpeed != 0 {
