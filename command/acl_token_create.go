@@ -154,6 +154,14 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Show warning if policy doesn't exist
+	for _, policy := range tk.Policies {
+		_, _, err := client.ACLPolicies().Info(policy, nil)
+		if err != nil {
+			c.Ui.Warn(fmt.Sprintf("Error fetching info on %s policy: %s", policy, err))
+		}
+	}
+
 	// Create the bootstrap token
 	token, _, err := client.ACLTokens().Create(tk, nil)
 	if err != nil {
