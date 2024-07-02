@@ -276,7 +276,7 @@ func TestNetworkFingerprint_default_device_absent(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_default_device(t *testing.T) {
-
+	ci.Parallel(t)
 	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -297,12 +297,15 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 			config:       &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", PreferredAddressFamily: "ipv4"},
 			expectedCIDR: loCIDRv4,
 		},
+		{
+			name:         "Loopback No preferred address family",
+			config:       &config.Config{NetworkSpeed: 100, NetworkInterface: "lo"},
+			expectedCIDR: loCIDRv6,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			//ci.Parallel(t)
-
 			request := &FingerprintRequest{Config: tc.config, Node: node}
 			var response FingerprintResponse
 			err := f.Fingerprint(request, &response)

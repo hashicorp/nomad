@@ -486,11 +486,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
-	hasValidPreferredIPFamilyValue := func(family structs.NodeNetworkAF) bool {
-		return family == "" || family == structs.NodeNetworkAF_IPv4 || family == structs.NodeNetworkAF_IPv6
-	}
-
-	if !hasValidPreferredIPFamilyValue(config.Client.PreferredAddressFamily) {
+	if err := config.Client.PreferredAddressFamily.Validate(); err != nil {
 		c.Ui.Error(fmt.Sprintf("Invalid preferred-address-family value: %s (valid values: %s, %s)",
 			config.Client.PreferredAddressFamily,
 			structs.NodeNetworkAF_IPv4, structs.NodeNetworkAF_IPv6),

@@ -2729,6 +2729,14 @@ const (
 	NodeNetworkAF_IPv6 NodeNetworkAF = "ipv6"
 )
 
+// Validate validates that NodeNetworkAF has a legal value.
+func (n NodeNetworkAF) Validate() error {
+	if n == "" || n == NodeNetworkAF_IPv4 || n == NodeNetworkAF_IPv6 {
+		return nil
+	}
+	return fmt.Errorf(`network address family must be one of: "", %q, %q`, NodeNetworkAF_IPv4, NodeNetworkAF_IPv6)
+}
+
 type NodeNetworkAddress struct {
 	Family        NodeNetworkAF
 	Alias         string
