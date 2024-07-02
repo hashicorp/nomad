@@ -587,6 +587,12 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 				p.prevAllocID, p.allocID, err)
 		}
 
+		if escapes, err := escapingfs.PathEscapesAllocDir(dest, "", hdr.Name); err != nil {
+			return fmt.Errorf("error evaluating directory: %w", err)
+		} else if escapes {
+			return fmt.Errorf("archive contains directory that escapes alloc dir")
+		}
+
 		if hdr.Name == errorFilename {
 			// Error snapshotting on the remote side, try to read
 			// the message out of the file and return it.
@@ -618,12 +624,12 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 				return fmt.Errorf("error creating symlink: %w", err)
 			}
 
-			escapes, err := escapingfs.PathEscapesAllocDir(dest, "", hdr.Name)
-			if err != nil {
-				return fmt.Errorf("error evaluating symlink: %w", err)
-			}
-			if escapes {
-				return fmt.Errorf("archive contains symlink that escapes alloc dir")
+			for _, path := range []string{hdr.Name, hdr.Linkname} {
+				if escapes, err := escapingfs.PathEscapesAllocDir(dest, "", path); err != nil {
+					return fmt.Errorf("error evaluating symlink: %w", err)
+				} else if escapes {
+					return fmt.Errorf("archive contains symlink that escapes alloc dir")
+				}
 			}
 
 			continue
