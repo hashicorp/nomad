@@ -4399,12 +4399,6 @@ func TestTaskGroupDiff(t *testing.T) {
 								New:  "bar",
 							},
 							{
-								Type: DiffTypeAdded,
-								Name: "MBits",
-								Old:  "",
-								New:  "200",
-							},
-							{
 								Type: DiffTypeNone,
 								Name: "Mode",
 								Old:  "",
@@ -4458,12 +4452,6 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Hostname",
 								Old:  "foo",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "MBits",
-								Old:  "100",
 								New:  "",
 							},
 							{
@@ -6087,14 +6075,6 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeAdded,
 								Name: "Network",
-								Fields: []*FieldDiff{
-									{
-										Type: DiffTypeAdded,
-										Name: "MBits",
-										Old:  "",
-										New:  "200",
-									},
-								},
 								Objects: []*ObjectDiff{
 									{
 										Type: DiffTypeAdded,
@@ -6143,14 +6123,6 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeDeleted,
 								Name: "Network",
-								Fields: []*FieldDiff{
-									{
-										Type: DiffTypeDeleted,
-										Name: "MBits",
-										Old:  "100",
-										New:  "",
-									},
-								},
 								Objects: []*ObjectDiff{
 									{
 										Type: DiffTypeDeleted,

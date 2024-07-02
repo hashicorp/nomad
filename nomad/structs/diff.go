@@ -2523,7 +2523,7 @@ func (r *Resources) Diff(other *Resources, contextual bool) *ObjectDiff {
 func (n *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Network"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
-	filter := []string{"Device", "CIDR", "IP"}
+	filter := []string{"Device", "CIDR", "IP", "MBits"}
 
 	if reflect.DeepEqual(n, other) {
 		return nil
@@ -2628,6 +2628,10 @@ func disconectStrategyDiffs(old, new *DisconnectStrategy, contextual bool) *Obje
 // networkResourceDiffs diffs a set of NetworkResources. If contextual diff is enabled,
 // non-changed fields will still be returned.
 func networkResourceDiffs(old, new []*NetworkResource, contextual bool) []*ObjectDiff {
+	// This function will not allow Network Resources to have a diffType of DiffTypeEdited
+	// as hash keys for old and new would only be equivalent if new and old are equivalent
+	// (no changes found between them). Despite this behavior, a hash must be used to find possible
+	// differences between new and old since Network Resources are not ordered.
 	makeSet := func(objects []*NetworkResource) map[string]*NetworkResource {
 		objMap := make(map[string]*NetworkResource, len(objects))
 		for _, obj := range objects {
