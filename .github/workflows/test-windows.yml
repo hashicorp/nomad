@@ -50,9 +50,9 @@ jobs:
       - name: Docker Info
         run: docker version
       - run: git config --global core.autocrlf false
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup go
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version-file: ".go-version"
       - name: Show installed Go version
@@ -90,7 +90,7 @@ jobs:
             github.com/hashicorp/nomad/client/lib/fifo \
             github.com/hashicorp/nomad/client/logmon \
             github.com/hashicorp/nomad/client/allocrunner/taskrunner/template
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: results.xml
           path: results.xml
