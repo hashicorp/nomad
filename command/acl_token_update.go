@@ -12,6 +12,9 @@ import (
 
 type ACLTokenUpdateCommand struct {
 	Meta
+
+	roleNames []string
+	roleIDs   []string
 }
 
 func (c *ACLTokenUpdateCommand) Help() string {
@@ -35,6 +38,12 @@ Update Options:
   -policy=""
     Specifies a policy to associate with the token. Can be specified multiple times,
     but only with client type tokens.
+
+  -role-id
+    ID of a role to use for this token. May be specified multiple times.
+	
+  -role-name
+    Name of a role to use for this token. May be specified multiple times.
 `
 
 	return strings.TrimSpace(helpText)
@@ -70,6 +79,14 @@ func (c *ACLTokenUpdateCommand) Run(args []string) int {
 		policies = append(policies, s)
 		return nil
 	}), "policy", "")
+	flags.Var((funcVar)(func(s string) error {
+		c.roleNames = append(c.roleNames, s)
+		return nil
+	}), "role-name", "")
+	flags.Var((funcVar)(func(s string) error {
+		c.roleIDs = append(c.roleIDs, s)
+		return nil
+	}), "role-id", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -109,6 +126,11 @@ func (c *ACLTokenUpdateCommand) Run(args []string) int {
 
 	if len(policies) != 0 {
 		token.Policies = policies
+	}
+
+	roles := generateACLTokenRoleLinks(c.roleNames, c.roleIDs)
+	if len(roles) != 0 {
+		token.Roles = roles
 	}
 
 	// Update the token
