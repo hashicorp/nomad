@@ -117,7 +117,7 @@ export default function () {
     '/jobs/statuses',
     withBlockingSupport(
       function ({ jobs }, req) {
-        const namespace = req.queryParams.namespace || 'default';
+        const namespace = req.queryParams.namespace || '*';
         let nextToken = req.queryParams.next_token || 0;
         let reverse = req.queryParams.reverse === 'true';
         const json = this.serialize(jobs.all());
@@ -149,7 +149,12 @@ export default function () {
                   field: condition.split(' ')[0],
                   operator: '==',
                   parts: condition.split(' or ').map((part) => {
-                    return part.split(' ')[2];
+                    return (
+                      part
+                        .split(' ')[2]
+                        // mirage only: strip quotes
+                        .replace(/['"]+/g, '')
+                    );
                   }),
                 };
               } else {

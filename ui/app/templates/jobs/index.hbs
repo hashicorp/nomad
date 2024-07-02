@@ -38,53 +38,49 @@
               @color="secondary"
               @count={{get (filter-by "checked" true group.options) "length"}}
             />
-            {{#each group.options as |option|}}
-              <dd.Checkbox
-                {{on "change" (fn this.toggleOption option)}}
-                @value={{option.key}}
-                checked={{option.checked}}
-                data-test-dropdown-option={{option.key}}
-              >
-                {{option.key}}
-              </dd.Checkbox>
+            {{#if group.filterable}}
+              <dd.Header @hasDivider={{true}}>
+                <Hds::Form::TextInput::Base
+                  @type="search"
+                  placeholder="Filter {{group.label}}"
+                  @value={{group.filter}}
+                  {{autofocus}}
+                  {{on "input" (action (mut group.filter) value="target.value") }}
+                  data-test-namespace-filter-searchbox
+                />
+              </dd.Header>
+              {{#each (get this (concat "filtered" (capitalize group.label) "Options")) as |option|}}
+                <dd.Checkbox
+                  {{on "change" (fn this.toggleOption option)}}
+                  @value={{option.key}}
+                  checked={{option.checked}}
+                  data-test-dropdown-option={{option.key}}
+                >
+                  {{option.key}}
+                </dd.Checkbox>
+              {{else}}
+                <dd.Generic data-test-dropdown-empty>
+                  No {{group.label}} filters match {{group.filter}}
+                </dd.Generic>
+              {{/each}}
             {{else}}
-              <dd.Generic data-test-dropdown-empty>
-                No {{group.label}} filters
-              </dd.Generic>
-            {{/each}}
+              {{#each group.options as |option|}}
+                <dd.Checkbox
+                  {{on "change" (fn this.toggleOption option)}}
+                  @value={{option.key}}
+                  checked={{option.checked}}
+                  data-test-dropdown-option={{option.key}}
+                >
+                  {{option.key}}
+                </dd.Checkbox>
+              {{else}}
+                <dd.Generic data-test-dropdown-empty>
+                  No {{group.label}} filters
+                </dd.Generic>
+              {{/each}}
+            {{/if}}
           </S.Dropdown>
         {{/each}}
-
-        {{#if this.system.shouldShowNamespaces}}
-          <S.Dropdown data-test-facet="Namespace" @height="300px" as |dd|>
-            <dd.ToggleButton
-              @text="Namespace"
-              @color="secondary"
-              @badge={{get (find-by "checked" true this.namespaceFacet.options) "label"}}
-            />
-            <dd.Header @hasDivider={{true}}>
-              <Hds::Form::TextInput::Base
-                @type="search"
-                placeholder="Filter Namespaces"
-                @value={{this.namespaceFilter}}
-                {{autofocus}}
-                {{on "input" (action this.filterNamespaces )}}
-                data-test-namespace-filter-searchbox
-              />
-            </dd.Header>
-            {{#each this.shownNamespaces as |option|}}
-              <dd.Radio
-                name={{option.key}}
-                {{on "change" (fn this.toggleNamespaceOption option dd)}}
-                @value={{option.key}}
-                checked={{option.checked}}
-                data-test-dropdown-option={{option.key}}
-              >
-                {{option.label}}
-              </dd.Radio>
-            {{/each}}
-          </S.Dropdown>
-        {{/if}}
 
         {{#if this.filter}}
           <S.Button
@@ -122,7 +118,6 @@
           disabled={{not (can "run job")}}
           title={{if (can "run job") null "You don’t have permission to run jobs"}}
           @route="jobs.run"
-          @query={{hash namespace=this.qpNamespace}}
         />
       </div>
 
