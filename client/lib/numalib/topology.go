@@ -164,9 +164,6 @@ func (st *Topology) SupportsNUMA() bool {
 
 // GetNodes returns the set of NUMA Node IDs.
 func (st *Topology) GetNodes() *idset.Set[hw.NodeID] {
-	if !st.SupportsNUMA() {
-		return nil
-	}
 	if st.nodeIDs.Empty() {
 		st.nodeIDs = idset.From[hw.NodeID](st.Nodes)
 	}
