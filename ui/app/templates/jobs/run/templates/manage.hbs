@@ -20,8 +20,11 @@
             <:body as |B|>
                 <B.Tr>
                     <B.Td>
-                        {{#if B.data.isDefaultJobTemplate}}
-                            {{format-template-label B.data.path}}
+                        {{#if (or
+                          B.data.isDefaultJobTemplate
+                          (not (can "write variable" path="nomad/job-templates/*" namespace="*"))
+                        )}}
+                          {{format-template-label B.data.path}}
                         {{else}}
 													<LinkTo @route="jobs.run.templates.template" @model={{concat B.data.path "@" B.data.namespace}} data-test-edit-template={{B.data.path}}>
 														{{format-template-label B.data.path}}

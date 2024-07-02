@@ -16,7 +16,7 @@
           Paste or author HCL or JSON to submit to your cluster, or select from a list of templates. A plan will be requested before the job is submitted. You can also attach a job spec by uploading a job file or dragging &amp; dropping a file to the editor.
         </p>
 
-        {{#if (can "write variable" path="*" namespace="*")}}
+        {{#if (can "read variable" path="nomad/job-templates/*" namespace="*")}}
           <Hds::ButtonSet>
             <label
               class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium"
