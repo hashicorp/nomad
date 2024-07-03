@@ -115,6 +115,28 @@ func TestPrevAlloc_StreamAllocDir_BadSymlink(t *testing.T) {
 	must.EqError(t, err, "archive contains symlink that escapes alloc dir")
 }
 
+func TestPrevAlloc_StreamAllocDir_BadSymlink_Linkname(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a tar archive with a symlink that attempts to escape the allocation directory
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	must.NoError(t, tw.WriteHeader(&tar.Header{
+		Typeflag: tar.TypeSymlink,
+		Name:     "symlink",
+		Linkname: "../escape_attempt",
+		Mode:     0600,
+	}))
+	must.NoError(t, tw.Close())
+
+	newDir := t.TempDir()
+	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
+	err := prevAlloc.streamAllocDir(context.Background(), io.NopCloser(&buf), newDir)
+
+	must.Error(t, err)
+	must.EqError(t, err, "archive contains symlink that escapes alloc dir")
+}
+
 func testTar(dir string) (*bytes.Buffer, error) {
 
 	buf := new(bytes.Buffer)

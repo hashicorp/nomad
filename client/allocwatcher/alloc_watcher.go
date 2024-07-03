@@ -588,9 +588,9 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		}
 
 		if escapes, err := escapingfs.PathEscapesAllocDir(dest, "", hdr.Name); err != nil {
-			return fmt.Errorf("error evaluating directory: %w", err)
+			return fmt.Errorf("error evaluating object: %w", err)
 		} else if escapes {
-			return fmt.Errorf("archive contains directory that escapes alloc dir")
+			return fmt.Errorf("archive contains object that escapes alloc dir")
 		}
 
 		if hdr.Name == errorFilename {
