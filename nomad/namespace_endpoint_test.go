@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -488,7 +489,6 @@ func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
 
 func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -502,7 +502,7 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
 	// Create a job in one
 	j := mock.Job()
 	j.Namespace = ns1.Name
-	assert.Nil(s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j))
+	must.Nil(t, s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j))
 
 	// Lookup the namespaces
 	req := &structs.NamespaceDeleteRequest{
@@ -511,9 +511,8 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
 	}
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
-	if assert.NotNil(err) {
-		assert.Contains(err.Error(), "has non-terminal jobs")
-	}
+	must.NotNil(t, err)
+	must.StrContains(t, err.Error(), "has non-terminal jobs")
 }
 
 func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Federated_ACL(t *testing.T) {

@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -141,8 +142,8 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 }
 
 // nonTerminalNamespaces returns whether the set of regions in which the
-// namespaces contains non-terminal jobs, checking all federated regions
-// including this one.
+// namespaces contains non-terminal jobs, allocations, volumes, variables or
+// quotas, checking all federated regions including this one.
 func (n *Namespace) nonTerminalNamespaces(authToken, namespace string) ([]string, error) {
 	regions := n.srv.Regions()
 	thisRegion := n.srv.Region()
@@ -174,19 +175,19 @@ func (n *Namespace) nonTerminalNamespaces(authToken, namespace string) ([]string
 	return terminal, nil
 }
 
-// namespaceTerminalLocally returns if the namespace contains only terminal jobs
-// in the local region .
+// namespaceTerminalLocally returns true if the namespace contains only
+// terminal jobs, allocations, volumes or variables in the local region.
 func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return false, err
 	}
 
+	// check for jobs
 	iter, err := snap.JobsByNamespace(nil, namespace, state.SortDefault)
 	if err != nil {
 		return false, err
 	}
-
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -199,13 +200,72 @@ func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
 		}
 	}
 
+	// check for allocs
+	iter, err = snap.AllocsByNamespace(nil, namespace)
+	if err != nil {
+		return false, err
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		alloc := raw.(*structs.Allocation)
+		if !slices.Contains(terminalAllocationStatuses, alloc.ClientStatus) {
+			return false, nil
+		}
+	}
+
+	// check for volumes
+	iter, err = snap.CSIVolumesByNamespace(nil, namespace, "")
+	if err != nil {
+		return false, err
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		vol := raw.(*structs.CSIVolume)
+		if vol.Namespace == namespace {
+			return false, nil
+		}
+	}
+
+	// check for variables
+	iter, err = snap.GetVariablesByNamespace(nil, namespace)
+	if err != nil {
+		return false, err
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		v := raw.(*structs.VariableEncrypted)
+		if v.VariableMetadata.Namespace == namespace {
+			return false, nil
+		}
+	}
+
 	return true, nil
 }
 
-// namespaceTerminalInRegion returns if the namespace contains only terminal
-// jobs in the given region .
+// if an alloc has one of these statuses, we consider it terminal
+var terminalAllocationStatuses = []string{
+	structs.AllocClientStatusComplete,
+	structs.AllocClientStatusLost,
+	structs.AllocClientStatusFailed,
+	structs.AllocClientStatusUnknown,
+}
+
+// namespaceTerminalInRegion returns true if the namespace contains only
+// terminal jobs, allocations, volumes or variables in the given region.
 func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region string) (bool, error) {
-	req := &structs.JobListRequest{
+	jobReq := &structs.JobListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:     region,
 			Namespace:  namespace,
@@ -214,16 +274,88 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 		},
 	}
 
-	var resp structs.JobListResponse
-	done, err := n.srv.forward("Job.List", req, req, &resp)
+	var jobResp structs.JobListResponse
+	done, err := n.srv.forward("Job.List", jobReq, jobReq, &jobResp)
 	if !done {
 		return false, fmt.Errorf("unexpectedly did not forward Job.List to region %q", region)
 	} else if err != nil {
 		return false, err
 	}
 
-	for _, job := range resp.Jobs {
+	for _, job := range jobResp.Jobs {
 		if job.Status != structs.JobStatusDead {
+			return false, nil
+		}
+	}
+
+	// check allocations
+	allocReq := &structs.AllocListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     region,
+			Namespace:  namespace,
+			AllowStale: false,
+			AuthToken:  authToken,
+		},
+	}
+
+	var allocResp structs.AllocListResponse
+	done, err = n.srv.forward("Alloc.List", allocReq, allocReq, &allocResp)
+	if !done {
+		return false, fmt.Errorf("unexpectedly did not forward Alloc.List to region %q", region)
+	} else if err != nil {
+		return false, err
+	}
+
+	for _, alloc := range allocResp.Allocations {
+		if !slices.Contains(terminalAllocationStatuses, alloc.ClientStatus) {
+			return false, nil
+		}
+	}
+
+	// check volumes
+	volumesReq := &structs.CSIVolumeListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     region,
+			Namespace:  namespace,
+			AllowStale: false,
+			AuthToken:  authToken,
+		},
+	}
+
+	var volumesResp structs.CSIVolumeListResponse
+	done, err = n.srv.forward("CSIVolume.List", volumesReq, volumesReq, &volumesResp)
+	if !done {
+		return false, fmt.Errorf("unexpectedly did not forward CSIVolume.List to region %q", region)
+	} else if err != nil {
+		return false, err
+	}
+
+	for _, volume := range volumesResp.Volumes {
+		if volume.Namespace == namespace {
+			return false, nil
+		}
+	}
+
+	// check variables
+	varReq := &structs.VariablesListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     region,
+			Namespace:  namespace,
+			AllowStale: false,
+			AuthToken:  authToken,
+		},
+	}
+
+	var varResp structs.VariablesListResponse
+	done, err = n.srv.forward("Variables.List", varReq, varReq, &varResp)
+	if !done {
+		return false, fmt.Errorf("unexpectedly did not forward Variables.List to region %q", region)
+	} else if err != nil {
+		return false, err
+	}
+
+	for _, v := range varResp.Data {
+		if v.Namespace == namespace {
 			return false, nil
 		}
 	}
