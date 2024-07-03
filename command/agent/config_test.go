@@ -1742,3 +1742,40 @@ func TestParseMultipleIPTemplates(t *testing.T) {
 		})
 	}
 }
+
+// this test makes sure Consul configs with and without WI merging happens
+// correctly; here to assure we don't introduce regressions
+func Test_mergeConsulConfigs(t *testing.T) {
+	ci.Parallel(t)
+
+	c0 := &Config{
+		Consuls: []*config.ConsulConfig{
+			{
+				Token:                "foo",
+				AllowUnauthenticated: pointer.Of(true),
+			},
+		},
+	}
+
+	c1 := &Config{
+		Consuls: []*config.ConsulConfig{
+			{
+				ServiceIdentity: &config.WorkloadIdentityConfig{
+					Audience: []string{"consul.io"},
+					TTL:      pointer.Of(time.Hour),
+				},
+				TaskIdentity: &config.WorkloadIdentityConfig{
+					Audience: []string{"consul.io"},
+					TTL:      pointer.Of(time.Hour),
+				},
+			},
+		},
+	}
+
+	result := c0.Merge(c1)
+
+	must.Eq(t, c1.Consuls[0].ServiceIdentity, result.Consuls[0].ServiceIdentity)
+	must.Eq(t, c1.Consuls[0].TaskIdentity, result.Consuls[0].TaskIdentity)
+	must.Eq(t, c0.Consuls[0].Token, result.Consuls[0].Token)
+	must.Eq(t, c0.Consuls[0].AllowUnauthenticated, result.Consuls[0].AllowUnauthenticated)
+}
