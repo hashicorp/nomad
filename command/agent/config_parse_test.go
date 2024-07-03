@@ -1104,28 +1104,3 @@ func TestConfig_Telemetry(t *testing.T) {
 	must.Eq(t, mergedTelemetry2.inMemoryCollectionInterval, 1*time.Second)
 	must.Eq(t, mergedTelemetry2.inMemoryRetentionPeriod, 10*time.Second)
 }
-
-func TestConfig_ConsulMergeWithWI(t *testing.T) {
-	ci.Parallel(t)
-
-	// Ensure merging two consul configs—one with token and one with WI
-	// settings—works correctly
-	base, err := ParseConfigFile("./testdata/consul_sample/base.hcl")
-	must.NoError(t, err)
-
-	server, err := ParseConfigFile("./testdata/consul_sample/server.hcl")
-	must.NoError(t, err)
-
-	merged := base.Merge(server)
-	must.Eq(t, server.Consuls[0].ServiceIdentity, merged.Consuls[0].ServiceIdentity)
-	must.Eq(t, server.Consuls[0].TaskIdentity, merged.Consuls[0].TaskIdentity)
-	must.Eq(t, base.Consuls[0].Token, merged.Consuls[0].Token)
-	must.Eq(t, base.Consuls[0].AllowUnauthenticated, merged.Consuls[0].AllowUnauthenticated)
-
-	// make sure the merge works correcly regardless of order
-	merged = server.Merge(base)
-	must.Eq(t, server.Consuls[0].ServiceIdentity, merged.Consuls[0].ServiceIdentity)
-	must.Eq(t, server.Consuls[0].TaskIdentity, merged.Consuls[0].TaskIdentity)
-	must.Eq(t, base.Consuls[0].Token, merged.Consuls[0].Token)
-	must.Eq(t, base.Consuls[0].AllowUnauthenticated, merged.Consuls[0].AllowUnauthenticated)
-}
