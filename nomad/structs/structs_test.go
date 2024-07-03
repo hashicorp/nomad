@@ -3711,6 +3711,7 @@ func TestResource_Add(t *testing.T) {
 
 	r1 := &Resources{
 		CPU:      2000,
+		Cores:    100,
 		MemoryMB: 2048,
 		DiskMB:   10000,
 		Networks: []*NetworkResource{
@@ -3723,6 +3724,7 @@ func TestResource_Add(t *testing.T) {
 	}
 	r2 := &Resources{
 		CPU:      2000,
+		Cores:    100,
 		MemoryMB: 1024,
 		DiskMB:   5000,
 		Networks: []*NetworkResource{
@@ -3737,9 +3739,11 @@ func TestResource_Add(t *testing.T) {
 	r1.Add(r2)
 
 	expect := &Resources{
-		CPU:      3000,
-		MemoryMB: 3072,
-		DiskMB:   15000,
+		CPU:         4000,
+		Cores:       200,
+		MemoryMB:    3072,
+		MemoryMaxMB: 1024,
+		DiskMB:      15000,
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "10.0.0.0/8",
@@ -3749,9 +3753,7 @@ func TestResource_Add(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
-		t.Fatalf("bad: %#v %#v", expect, r1)
-	}
+	must.Eq(t, expect, r1)
 }
 
 func TestResource_Add_Network(t *testing.T) {
