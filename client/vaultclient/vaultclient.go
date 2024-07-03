@@ -15,7 +15,6 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -64,9 +63,6 @@ type VaultClient interface {
 	// DeriveTokenWithJWT returns a Vault ACL token using the JWT login
 	// endpoint, along with whether or not the token is renewable.
 	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, bool, error)
-
-	// GetConsulACL fetches the Consul ACL token required for the task
-	GetConsulACL(string, string) (*vaultapi.Secret, error)
 
 	// RenewToken renews a token with the given increment and adds it to
 	// the min-heap for periodic renewal.
@@ -250,13 +246,11 @@ func (c *vaultClient) Stop() {
 }
 
 // unlockAndUnset is used to unset the vault token on the client, restore the
-// client's namespace, and release the lock. Helper method for deferring a call
-// that does both.
-func (c *vaultClient) unlockAndUnset(previousNs string) {
+// client's default configured namespace, and release the lock. Helper method
+// for deferring a call that does both.
+func (c *vaultClient) unlockAndUnset() {
 	c.client.SetToken("")
-	if previousNs != "" {
-		c.client.SetNamespace(previousNs)
-	}
+	c.client.SetNamespace(c.config.Namespace)
 	c.lock.Unlock()
 }
 
@@ -273,7 +267,7 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	}
 
 	c.lock.Lock()
-	defer c.unlockAndUnset(c.client.Namespace())
+	defer c.unlockAndUnset()
 
 	// Use the token supplied to interact with vault
 	c.client.SetToken("")
@@ -297,7 +291,7 @@ func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginReques
 	}
 
 	c.lock.Lock()
-	defer c.unlockAndUnset(c.client.Namespace())
+	defer c.unlockAndUnset()
 
 	// Make sure the login request is not passing any token and that we're using
 	// the expected namespace to login
@@ -328,29 +322,6 @@ func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginReques
 	}
 
 	return s.Auth.ClientToken, s.Auth.Renewable, nil
-}
-
-// GetConsulACL creates a vault API client and reads from vault a consul ACL
-// token used by the task.
-func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error) {
-	if !c.config.IsEnabled() {
-		return nil, fmt.Errorf("vault client not enabled")
-	}
-	if token == "" {
-		return nil, fmt.Errorf("missing token")
-	}
-	if path == "" {
-		return nil, fmt.Errorf("missing consul ACL token vault path")
-	}
-
-	c.lock.Lock()
-	defer c.unlockAndUnset(c.client.Namespace())
-
-	// Use the token supplied to interact with vault
-	c.client.SetToken(token)
-
-	// Read the consul ACL token and return the secret directly
-	return c.client.Logical().Read(path)
 }
 
 // RenewToken renews the supplied token for a given duration (in seconds) and
