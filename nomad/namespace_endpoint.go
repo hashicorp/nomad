@@ -16,6 +16,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// terminalAllocationStatuses lists allocation statutes that we consider
+// terminal
+var terminalAllocationStatuses = []string{
+	structs.AllocClientStatusComplete,
+	structs.AllocClientStatusLost,
+	structs.AllocClientStatusFailed,
+	structs.AllocClientStatusUnknown,
+}
+
 // Namespace endpoint is used for manipulating namespaces
 type Namespace struct {
 	srv *Server
@@ -114,15 +123,29 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 		}
 	}
 
-	// Check that the deleting namespaces do not have non-terminal jobs in both
-	// this region and all federated regions
 	var mErr multierror.Error
 	for _, ns := range args.Namespaces {
-		nonTerminal, err := n.nonTerminalNamespaces(args.AuthToken, ns)
-		if err != nil {
-			_ = multierror.Append(&mErr, err)
-		} else if len(nonTerminal) != 0 {
-			_ = multierror.Append(&mErr, fmt.Errorf("namespace %q has non-terminal jobs in regions: %v", ns, nonTerminal))
+		// do a check across jobs, allocations, volumes and variables to make sure we're
+		// not leaving any objects associated with the namespace hanging
+		type objectCheck struct {
+			localCheckFunc  func(string, *state.StateSnapshot) (bool, error)
+			remoteCheckFunc func(string, string, string) (bool, error)
+			errorMsg        string
+		}
+		objects := []objectCheck{
+			{n.namespaceTerminalJobsLocally, n.namespaceTerminalJobsInRegion, "namespace %q has non-terminal jobs in regions: %v"},
+			{n.namespaceTerminalAllocsLocally, n.namespaceTerminalAllocsInRegion, "namespace %q has non-terminal allocations in regions: %v"},
+			{n.namespaceNoAssociatedVolumesLocally, n.namespaceNoAssociatedVolumesInRegion, "namespace %q has volumes associated with it in regions: %v"},
+			{n.namespaceNoAssociatedVarsLocally, n.namespaceNoAssociatedVarsInRegion, "namespace %q has variables associated with it in regions: %v"},
+		}
+
+		for _, object := range objects {
+			leftovers, err := n.nonTerminalObjectsInNS(args.AuthToken, ns, object.localCheckFunc, object.remoteCheckFunc)
+			if err != nil {
+				_ = multierror.Append(&mErr, err)
+			} else if len(leftovers) != 0 {
+				_ = multierror.Append(&mErr, fmt.Errorf(object.errorMsg, ns, leftovers))
+			}
 		}
 	}
 
@@ -141,16 +164,25 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	return nil
 }
 
-// nonTerminalNamespaces returns whether the set of regions in which the
-// namespaces contains non-terminal jobs, allocations, volumes, variables or
-// quotas, checking all federated regions including this one.
-func (n *Namespace) nonTerminalNamespaces(authToken, namespace string) ([]string, error) {
+// nonTerminalJobsInNS returns whether the set of regions in which the
+// namespaces contains non-terminal jobs, allocations, volumes or other objects
+// associated with the namespace, checking all federated regions including this
+// one.
+func (n *Namespace) nonTerminalObjectsInNS(
+	authToken, namespace string,
+	localCheckFunc func(string, *state.StateSnapshot) (bool, error),
+	remoteCheckFunc func(string, string, string) (bool, error),
+) ([]string, error) {
 	regions := n.srv.Regions()
 	thisRegion := n.srv.Region()
 	terminal := make([]string, 0, len(regions))
 
 	// Check if this region is terminal
-	localTerminal, err := n.namespaceTerminalLocally(namespace)
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	localTerminal, err := localCheckFunc(namespace, snap)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +195,7 @@ func (n *Namespace) nonTerminalNamespaces(authToken, namespace string) ([]string
 			continue
 		}
 
-		remoteTerminal, err := n.namespaceTerminalInRegion(authToken, namespace, region)
+		remoteTerminal, err := remoteCheckFunc(authToken, namespace, region)
 		if err != nil {
 			return nil, err
 		}
@@ -175,15 +207,9 @@ func (n *Namespace) nonTerminalNamespaces(authToken, namespace string) ([]string
 	return terminal, nil
 }
 
-// namespaceTerminalLocally returns true if the namespace contains only
-// terminal jobs, allocations, volumes or variables in the local region.
-func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
-	snap, err := n.srv.fsm.State().Snapshot()
-	if err != nil {
-		return false, err
-	}
-
-	// check for jobs
+// namespaceTerminalJobsLocally returns true if the namespace contains only
+// terminal jobs in the local region.
+func (n *Namespace) namespaceTerminalJobsLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
 	iter, err := snap.JobsByNamespace(nil, namespace, state.SortDefault)
 	if err != nil {
 		return false, err
@@ -200,8 +226,13 @@ func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
 		}
 	}
 
-	// check for allocs
-	iter, err = snap.AllocsByNamespace(nil, namespace)
+	return true, nil
+}
+
+// namespaceTerminalAllocsLocally returns true if the namespace contains only
+// terminal allocations in the local region.
+func (n *Namespace) namespaceTerminalAllocsLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
+	iter, err := snap.AllocsByNamespace(nil, namespace)
 	if err != nil {
 		return false, err
 	}
@@ -217,8 +248,13 @@ func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
 		}
 	}
 
-	// check for volumes
-	iter, err = snap.CSIVolumesByNamespace(nil, namespace, "")
+	return true, nil
+}
+
+// namespaceNoAssociatedVolumesLocally returns true if there are no CSI volumes
+// associated with this namespace in the local region
+func (n *Namespace) namespaceNoAssociatedVolumesLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
+	iter, err := snap.CSIVolumesByNamespace(nil, namespace, "")
 	if err != nil {
 		return false, err
 	}
@@ -234,8 +270,14 @@ func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
 		}
 	}
 
+	return true, nil
+}
+
+// namespaceNoAssociatedVarsLocally returns true if there are no variables
+// associated with this namespace in the local region
+func (n *Namespace) namespaceNoAssociatedVarsLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
 	// check for variables
-	iter, err = snap.GetVariablesByNamespace(nil, namespace)
+	iter, err := snap.GetVariablesByNamespace(nil, namespace)
 	if err != nil {
 		return false, err
 	}
@@ -254,17 +296,9 @@ func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
 	return true, nil
 }
 
-// if an alloc has one of these statuses, we consider it terminal
-var terminalAllocationStatuses = []string{
-	structs.AllocClientStatusComplete,
-	structs.AllocClientStatusLost,
-	structs.AllocClientStatusFailed,
-	structs.AllocClientStatusUnknown,
-}
-
-// namespaceTerminalInRegion returns true if the namespace contains only
-// terminal jobs, allocations, volumes or variables in the given region.
-func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region string) (bool, error) {
+// namespaceTerminalJobsInRegion returns true if the namespace contains only
+// terminal jobs in the given region.
+func (n *Namespace) namespaceTerminalJobsInRegion(authToken, namespace, region string) (bool, error) {
 	jobReq := &structs.JobListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:     region,
@@ -287,8 +321,12 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 			return false, nil
 		}
 	}
+	return true, nil
+}
 
-	// check allocations
+// namespaceTerminalAllocsInRegion returns true if the namespace contains only
+// terminal allocations in the given region.
+func (n *Namespace) namespaceTerminalAllocsInRegion(authToken, namespace, region string) (bool, error) {
 	allocReq := &structs.AllocListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:     region,
@@ -299,7 +337,7 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 	}
 
 	var allocResp structs.AllocListResponse
-	done, err = n.srv.forward("Alloc.List", allocReq, allocReq, &allocResp)
+	done, err := n.srv.forward("Alloc.List", allocReq, allocReq, &allocResp)
 	if !done {
 		return false, fmt.Errorf("unexpectedly did not forward Alloc.List to region %q", region)
 	} else if err != nil {
@@ -311,8 +349,12 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 			return false, nil
 		}
 	}
+	return true, nil
+}
 
-	// check volumes
+// namespaceNoAssociatedVolumesInRegion returns true if there are no volumes
+// associated with the namespace in the given region.
+func (n *Namespace) namespaceNoAssociatedVolumesInRegion(authToken, namespace, region string) (bool, error) {
 	volumesReq := &structs.CSIVolumeListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:     region,
@@ -323,7 +365,7 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 	}
 
 	var volumesResp structs.CSIVolumeListResponse
-	done, err = n.srv.forward("CSIVolume.List", volumesReq, volumesReq, &volumesResp)
+	done, err := n.srv.forward("CSIVolume.List", volumesReq, volumesReq, &volumesResp)
 	if !done {
 		return false, fmt.Errorf("unexpectedly did not forward CSIVolume.List to region %q", region)
 	} else if err != nil {
@@ -335,7 +377,12 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 			return false, nil
 		}
 	}
+	return true, nil
+}
 
+// namespaceNoAssociatedVarsInRegion returns true if there are no variables
+// associated with the namespace in the given region.
+func (n *Namespace) namespaceNoAssociatedVarsInRegion(authToken, namespace, region string) (bool, error) {
 	// check variables
 	varReq := &structs.VariablesListRequest{
 		QueryOptions: structs.QueryOptions{
@@ -347,7 +394,7 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 	}
 
 	var varResp structs.VariablesListResponse
-	done, err = n.srv.forward("Variables.List", varReq, varReq, &varResp)
+	done, err := n.srv.forward("Variables.List", varReq, varReq, &varResp)
 	if !done {
 		return false, fmt.Errorf("unexpectedly did not forward Variables.List to region %q", region)
 	} else if err != nil {
@@ -359,7 +406,6 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 			return false, nil
 		}
 	}
-
 	return true, nil
 }
 
