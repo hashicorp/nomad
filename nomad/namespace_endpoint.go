@@ -137,6 +137,7 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 			{n.namespaceTerminalAllocsLocally, n.namespaceTerminalAllocsInRegion, "namespace %q has non-terminal allocations in regions: %v"},
 			{n.namespaceNoAssociatedVolumesLocally, n.namespaceNoAssociatedVolumesInRegion, "namespace %q has volumes associated with it in regions: %v"},
 			{n.namespaceNoAssociatedVarsLocally, n.namespaceNoAssociatedVarsInRegion, "namespace %q has variables associated with it in regions: %v"},
+			{n.namespaceNoAssociatedQuotasLocally, nil, "namespace %q has quotas associated with it: %v"},
 		}
 
 		for _, object := range objects {
@@ -195,12 +196,14 @@ func (n *Namespace) nonTerminalObjectsInNS(
 			continue
 		}
 
-		remoteTerminal, err := remoteCheckFunc(authToken, namespace, region)
-		if err != nil {
-			return nil, err
-		}
-		if !remoteTerminal {
-			terminal = append(terminal, region)
+		if remoteCheckFunc != nil {
+			remoteTerminal, err := remoteCheckFunc(authToken, namespace, region)
+			if err != nil {
+				return nil, err
+			}
+			if !remoteTerminal {
+				terminal = append(terminal, region)
+			}
 		}
 	}
 
@@ -296,6 +299,20 @@ func (n *Namespace) namespaceNoAssociatedVarsLocally(namespace string, snap *sta
 	return true, nil
 }
 
+// namespaceNoAssociatedQuotasLocally returns true if there are no quotas
+// associated with this namespace in the local region
+func (n *Namespace) namespaceNoAssociatedQuotasLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
+	ns, err := snap.NamespaceByName(nil, namespace)
+	if err != nil {
+		return false, err
+	}
+	if ns.Quota != "" {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 // namespaceTerminalJobsInRegion returns true if the namespace contains only
 // terminal jobs in the given region.
 func (n *Namespace) namespaceTerminalJobsInRegion(authToken, namespace, region string) (bool, error) {
@@ -383,7 +400,6 @@ func (n *Namespace) namespaceNoAssociatedVolumesInRegion(authToken, namespace, r
 // namespaceNoAssociatedVarsInRegion returns true if there are no variables
 // associated with the namespace in the given region.
 func (n *Namespace) namespaceNoAssociatedVarsInRegion(authToken, namespace, region string) (bool, error) {
-	// check variables
 	varReq := &structs.VariablesListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:     region,
