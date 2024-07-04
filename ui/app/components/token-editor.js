@@ -15,6 +15,7 @@ export default class TokenEditorComponent extends Component {
   @service notifications;
   @service router;
   @service store;
+  @service system;
 
   @alias('args.roles') roles;
   @alias('args.token') activeToken;

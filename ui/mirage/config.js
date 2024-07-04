@@ -1045,6 +1045,7 @@ export default function () {
   });
 
   this.get('/regions', function ({ regions }) {
+    console.log('get regions and', regions.all());
     return this.serialize(regions.all());
   });
 

@@ -95,6 +95,42 @@
   </div>
   {{/unless}}
 
+  {{!-- Global or Local --}}
+  {{#if @token.isNew}}
+    {{!-- {{log "SYSTEM REGION INFO" this.system.regions this.system.defaultRegion this.system.activeRegion this.system}} --}}
+    {{#if this.system.regions.length}}
+      <Hds::Form::Radio::Group data-test-global-token-group @layout="horizontal" @name="regional-or-global" {{on "change" this.updateTokenLocality}} as |G|>
+        <G.Legend>Token Region</G.Legend>
+        {{!-- <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Token types documentation</Hds::Link::Inline> for more information.</G.HelperText> --}}
+        <G.RadioField
+          @id="active-region"
+          {{!-- checked={{eq @token.type "client"}} --}}
+          data-test-locality="active-region"
+        as |F|>
+          <F.Label>{{this.system.activeRegion}}</F.Label>
+        </G.RadioField>
+        {{#if this.system.defaultRegion.region}}
+          {{#unless (eq this.system.activeRegion this.system.defaultRegion.region)}}
+            <G.RadioField
+              @id="default-region"
+              {{!-- checked={{eq @token.type "management"}} --}}
+              data-test-locality="default-region"
+            as |F|>
+              <F.Label>{{this.system.defaultRegion.region}} (authoritative region)</F.Label>
+            </G.RadioField>
+          {{/unless}}
+        {{/if}}
+        <G.RadioField
+          @id="global"
+          {{!-- checked={{eq @token.type "management"}} --}}
+          data-test-locality="global"
+        as |F|>
+          <F.Label>Global</F.Label>
+        </G.RadioField>
+      </Hds::Form::Radio::Group>
+    {{/if}}
+  {{/if}}
+
   <div>
     <Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updateTokenType}} as |G|>
       <G.Legend>Client or Management token?</G.Legend>

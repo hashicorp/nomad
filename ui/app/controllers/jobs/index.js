@@ -240,7 +240,7 @@ export default class JobsIndexController extends Controller {
           console.log('error fetching job ids', e);
           this.notifyFetchError(e);
         }
-        if (this.jobs.length) {
+        if (this.jobs?.length) {
           return this.jobs;
         }
         return;
@@ -263,7 +263,7 @@ export default class JobsIndexController extends Controller {
           console.log('error fetching job allocs', e);
           this.notifyFetchError(e);
         }
-        if (this.jobs.length) {
+        if (this.jobs?.length) {
           return this.jobs;
         }
         return;

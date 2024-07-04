@@ -1144,6 +1144,28 @@ module('Acceptance | tokens', function (hooks) {
       await Administration.visitTokens();
       assert.dom('[data-test-token-name="Mud-Token"]').exists({ count: 1 });
     });
+    test('When no regions are present, Tokens are by default regional', async function (assert) {
+      await visit('/administration/tokens/new');
+      assert.dom('[data-test-token-global]').doesNotExist();
+
+      await fillIn('[data-test-token-name-input]', 'Capt. Steven Hiller');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      const token = server.db.tokens.findBy(
+        (t) => t.name === 'Capt. Steven Hiller'
+      );
+      assert.equal(token.global, false);
+    });
+
+    test('When regions are present, Tokens are by default regional, but can be made global', async function (assert) {
+      server.create('region', { id: 'America' });
+      server.create('region', { id: 'washington-dc' });
+      console.log('regions created');
+      // TODO: the mirage call to /regions happens before they are created here. Set them up in a module.beforeEach.
+      await visit('/administration/tokens/new');
+      assert.dom('[data-test-token-global]').exists();
+      // await this.pauseTest();
+    });
 
     test('Token policies and roles can be edited', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
