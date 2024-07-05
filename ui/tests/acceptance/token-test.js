@@ -1154,7 +1154,7 @@ module('Acceptance | tokens', function (hooks) {
       const token = server.db.tokens.findBy(
         (t) => t.name === 'Capt. Steven Hiller'
       );
-      assert.equal(token.global, false);
+      assert.false(token.global);
     });
 
     test('When regions are present, Tokens are by default regional, but can be made global', async function (assert) {

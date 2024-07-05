@@ -13,16 +13,22 @@ export default class RegionSwitcher extends Component {
   @service system;
   @service router;
   @service store;
+  @service token;
 
   @computed('system.regions')
   get sortedRegions() {
     return this.get('system.regions').toArray().sort();
   }
 
-  gotoRegion(region) {
-    this.router.transitionTo('jobs', {
-      queryParams: { region },
-    });
+  async gotoRegion(region) {
+    // Reset token
+    this.token.reset();
+    // Note: redundant but as long as we're using PowerSelect, the implicit set('activeRegion')
+    // is not something we can await, so we do it explicitly here.
+    this.system.set('activeRegion', region);
+    await this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+
+    this.router.transitionTo({ queryParams: { region } });
   }
 
   get keyCommands() {
