@@ -100,20 +100,21 @@
     {{!-- {{log "SYSTEM REGION INFO" this.system.regions this.system.defaultRegion this.system.activeRegion this.system}} --}}
     {{#if this.system.regions.length}}
       <Hds::Form::Radio::Group data-test-global-token-group @layout="horizontal" @name="regional-or-global" {{on "change" this.updateTokenLocality}} as |G|>
-        <G.Legend>Token Region</G.Legend>
+        <G.Legend>Token Region ((({{this.tokenRegion}})))</G.Legend>
         {{!-- <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Token types documentation</Hds::Link::Inline> for more information.</G.HelperText> --}}
         <G.RadioField
-          @id="active-region"
-          {{!-- checked={{eq @token.type "client"}} --}}
+          @id={{this.system.activeRegion}}
+          checked={{eq this.tokenRegion this.system.activeRegion}}
           data-test-locality="active-region"
         as |F|>
           <F.Label>{{this.system.activeRegion}}</F.Label>
         </G.RadioField>
         {{#if this.system.defaultRegion.region}}
+          {{!-- template-lint-disable simple-unless --}}
           {{#unless (eq this.system.activeRegion this.system.defaultRegion.region)}}
             <G.RadioField
-              @id="default-region"
-              {{!-- checked={{eq @token.type "management"}} --}}
+              @id={{this.system.defaultRegion.region}}
+              checked={{eq this.tokenRegion this.system.defaultRegion.region}}
               data-test-locality="default-region"
             as |F|>
               <F.Label>{{this.system.defaultRegion.region}} (authoritative region)</F.Label>
@@ -122,10 +123,10 @@
         {{/if}}
         <G.RadioField
           @id="global"
-          {{!-- checked={{eq @token.type "management"}} --}}
+          checked={{eq this.tokenRegion "global"}}
           data-test-locality="global"
         as |F|>
-          <F.Label>Global</F.Label>
+          <F.Label>global</F.Label>
         </G.RadioField>
       </Hds::Form::Radio::Group>
     {{/if}}

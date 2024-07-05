@@ -31,6 +31,22 @@ export default class TokenAdapter extends ApplicationAdapter {
 
   createRecord(_store, type, snapshot) {
     let data = this.serialize(snapshot);
+    console.log(
+      'token createRecord, what is its region',
+      data.region,
+      data.global,
+      data,
+      snapshot
+    );
+    if (snapshot.adapterOptions?.region) {
+      // ajaxOptions will try to append a particular region here.
+      // we want instead fo overwrite it with the token's region.
+      // this.region = data.region;
+      return this.ajax(`${this.buildURL()}/token`, 'POST', {
+        data,
+        regionOverride: snapshot.adapterOptions.region,
+      });
+    }
     return this.ajax(`${this.buildURL()}/token`, 'POST', { data });
   }
 

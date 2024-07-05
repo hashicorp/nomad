@@ -22,7 +22,7 @@ export default class RegionSwitcher extends Component {
 
   async gotoRegion(region) {
     // Reset token
-    this.token.reset();
+    // this.token.reset();
     // Note: redundant but as long as we're using PowerSelect, the implicit set('activeRegion')
     // is not something we can await, so we do it explicitly here.
     this.system.set('activeRegion', region);
