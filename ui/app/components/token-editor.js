@@ -84,16 +84,7 @@ export default class TokenEditorComponent extends Component {
   }
 
   @action updateTokenLocality(event) {
-    console.log('udpateTokenLocality', event.target.id);
     this.tokenRegion = event.target.id;
-    // if (this.tokenRegion === 'global') {
-    //   this.activeToken.global = true;
-    //   this.activeToken.region = '';
-    // } else {
-    //   this.activeToken.global = false;
-    //   // do I need to do anything else here or just wait until save??
-    //   this.activeToken.region = this.tokenRegion;
-    // }
   }
 
   @action async save() {
@@ -113,17 +104,8 @@ export default class TokenEditorComponent extends Component {
 
       if (this.tokenRegion === 'global') {
         this.activeToken.global = true;
-        // set to authoritative region
-        // this.activeToken.region = this.system.get('defaultRegion.region');
-        console.log(
-          'and thus',
-          this.activeToken.region,
-          this.system.get('defaultRegion.region')
-        );
       } else {
-        console.log('setting region to', this.tokenRegion);
         this.activeToken.global = false;
-        // this.activeToken.region = this.tokenRegion;
       }
 
       // Sets to "never" for auto-selecting the radio button;
@@ -137,8 +119,6 @@ export default class TokenEditorComponent extends Component {
       const adapterRegion = this.activeToken.global
         ? this.system.get('defaultRegion.region')
         : this.tokenRegion;
-
-      console.log('about to save and', adapterRegion);
 
       await this.activeToken.save({
         adapterOptions: adapterRegion ? { region: adapterRegion } : {},

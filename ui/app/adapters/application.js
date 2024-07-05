@@ -58,24 +58,15 @@ export default class ApplicationAdapter extends RESTAdapter {
   }
 
   ajaxOptions(url, verb, options = {}) {
-    // console.log('+++ is ajaxOptions for', url, ' ever hit?', this.get('system.shouldIncludeRegion'));
     options.data || (options.data = {});
     if (options.regionOverride || this.get('system.shouldIncludeRegion')) {
       // Region should only ever be a query param. The default ajaxOptions
       // behavior is to include data attributes in the requestBody for PUT
       // and POST requests. This works around that.
       const region = options.regionOverride || this.get('system.activeRegion');
-      console.log(
-        'region ultimately will be',
-        region,
-        'override?',
-        options.regionOverride
-      );
-      // console.log('ajaxOptions, system activeRegion check?', region)
       if (region) {
         url = associateRegion(url, region);
       }
-      console.log('so url then', url);
     }
     return super.ajaxOptions(url, verb, options);
   }

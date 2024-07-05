@@ -1144,28 +1144,6 @@ module('Acceptance | tokens', function (hooks) {
       await Administration.visitTokens();
       assert.dom('[data-test-token-name="Mud-Token"]').exists({ count: 1 });
     });
-    test('When no regions are present, Tokens are by default regional', async function (assert) {
-      await visit('/administration/tokens/new');
-      assert.dom('[data-test-token-global]').doesNotExist();
-
-      await fillIn('[data-test-token-name-input]', 'Capt. Steven Hiller');
-      await click('[data-test-token-save]');
-      assert.dom('.flash-message.alert-success').exists();
-      const token = server.db.tokens.findBy(
-        (t) => t.name === 'Capt. Steven Hiller'
-      );
-      assert.false(token.global);
-    });
-
-    test('When regions are present, Tokens are by default regional, but can be made global', async function (assert) {
-      server.create('region', { id: 'America' });
-      server.create('region', { id: 'washington-dc' });
-      console.log('regions created');
-      // TODO: the mirage call to /regions happens before they are created here. Set them up in a module.beforeEach.
-      await visit('/administration/tokens/new');
-      assert.dom('[data-test-token-global]').exists();
-      // await this.pauseTest();
-    });
 
     test('Token policies and roles can be edited', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
@@ -1324,5 +1302,168 @@ module('Acceptance | tokens', function (hooks) {
         .dom(expiringTokenExpirationCell)
         .hasText('in 2 hours', 'Expiration time is relativized and rounded');
     });
+
+    test('When no regions are present, Tokens are by default regional', async function (assert) {
+      await visit('/administration/tokens/new');
+      assert.dom('[data-test-global-token-group]').doesNotExist();
+
+      await fillIn('[data-test-token-name-input]', 'Capt. Steven Hiller');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      const token = server.db.tokens.findBy(
+        (t) => t.name === 'Capt. Steven Hiller'
+      );
+      assert.false(token.global);
+    });
+  });
+});
+
+module('Tokens and Regions', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(function () {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    faker.seed(1);
+
+    server.create('region', { id: 'america' });
+    server.create('region', { id: 'washington-dc' });
+    server.create('region', { id: 'new-york' });
+    server.create('region', { id: 'alien-ship' });
+
+    server.create('agent');
+    server.create('node-pool');
+    server.create('namespace');
+    node = server.create('node');
+    job = server.create('job');
+    managementToken = server.create('token');
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+  });
+  test('When regions are present, Tokens are by default regional, but can be made global', async function (assert) {
+    await visit('/administration/tokens/new');
+    assert.dom('[data-test-global-token-group]').exists();
+  });
+
+  test('A global token can be created, and gets saved in the authoritative region', async function (assert) {
+    await visit('/administration/tokens/new');
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('america', 'america is the default selected region');
+    assert
+      .dom('[data-test-locality]')
+      .exists(
+        { count: 2 },
+        'When in the authoritative/default region, only it and global are region options'
+      );
+
+    // change region from dropdown
+    await selectChoose('[data-test-region-switcher-parent]', 'washington-dc');
+
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('washington-dc', 'washington-dc is the selected region');
+    assert.dom('[data-test-locality="active-region"]').isChecked();
+
+    assert
+      .dom('[data-test-locality]')
+      .exists(
+        { count: 3 },
+        'When in a region other than the authoritative one, the authoritative group becomes an third option in addition to current region and global'
+      );
+
+    await fillIn('[data-test-token-name-input]', 'Thomas J. Whitmore');
+    await click('[data-test-locality="global"]');
+    assert.dom('[data-test-locality="global"]').isChecked();
+
+    await click('[data-test-token-type="management"]');
+    await click('[data-test-token-save]');
+
+    let globalToken = server.db.tokens.findBy(
+      (t) => t.name === 'Thomas J. Whitmore'
+    );
+    assert.ok(globalToken.global, 'Token has Global set to true');
+    assert.dom('.flash-message.alert-success').exists();
+    let tokenRequest = server.pretender.handledRequests.find((req) => {
+      return req.url.includes('acl/token') && req.method === 'POST';
+    });
+    assert.equal(
+      tokenRequest.queryParams.region,
+      'america',
+      'Global token is saved in the authoritative region, regardless of active UI region'
+    );
+    await percySnapshot(assert);
+  });
+
+  test('A token can be created in a non-authoritative region', async function (assert) {
+    await visit('/administration/tokens/new');
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('america', 'america is the default selected region');
+    assert
+      .dom('[data-test-locality]')
+      .exists(
+        { count: 2 },
+        'When in the authoritative/default region, only it and global are region options'
+      );
+
+    // change region from dropdown
+    await selectChoose('[data-test-region-switcher-parent]', 'alien-ship');
+
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('alien-ship', 'alien-ship is the selected region');
+    assert.dom('[data-test-locality="active-region"]').isChecked();
+
+    await fillIn('[data-test-token-name-input]', 'David Levinson');
+    await click('[data-test-token-type="management"]');
+    await click('[data-test-token-save]');
+    assert.dom('.flash-message.alert-success').exists();
+    let token = server.db.tokens.findBy((t) => t.name === 'David Levinson');
+
+    assert.notOk(token.global, 'Token is not global');
+    const tokenRequest = server.pretender.handledRequests.find((req) => {
+      return req.url.includes('acl/token') && req.method === 'POST';
+    });
+
+    assert.equal(
+      tokenRequest.queryParams.region,
+      'alien-ship',
+      'Token is saved in the selected region'
+    );
+  });
+
+  test('A non-global token can be created in the authoritative region', async function (assert) {
+    await visit('/administration/tokens/new');
+
+    // change region from dropdown
+    await selectChoose('[data-test-region-switcher-parent]', 'new-york');
+
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('new-york', 'new-york is the selected region');
+    assert.dom('[data-test-locality="active-region"]').isChecked();
+
+    await click('[data-test-locality="default-region"]');
+    assert.dom('[data-test-locality="default-region"]').isChecked();
+
+    await fillIn('[data-test-token-name-input]', 'Russell Casse');
+    await click('[data-test-token-type="management"]');
+    // await this.pauseTest();
+
+    await click('[data-test-token-save]');
+    assert.dom('.flash-message.alert-success').exists();
+    let token = server.db.tokens.findBy((t) => t.name === 'Russell Casse');
+    assert.notOk(token.global, 'Token is not global');
+    const tokenRequest = server.pretender.handledRequests.find((req) => {
+      return req.url.includes('acl/token') && req.method === 'POST';
+    });
+
+    assert.equal(
+      tokenRequest.queryParams.region,
+      'america',
+      'Token is saved in the authoritative region'
+    );
   });
 });

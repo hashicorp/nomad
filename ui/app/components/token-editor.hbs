@@ -95,19 +95,17 @@
   </div>
   {{/unless}}
 
-  {{!-- Global or Local --}}
   {{#if @token.isNew}}
-    {{!-- {{log "SYSTEM REGION INFO" this.system.regions this.system.defaultRegion this.system.activeRegion this.system}} --}}
-    {{#if this.system.regions.length}}
+    {{#if this.system.shouldShowRegions}}
       <Hds::Form::Radio::Group data-test-global-token-group @layout="horizontal" @name="regional-or-global" {{on "change" this.updateTokenLocality}} as |G|>
-        <G.Legend>Token Region ((({{this.tokenRegion}})))</G.Legend>
-        {{!-- <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Token types documentation</Hds::Link::Inline> for more information.</G.HelperText> --}}
+        <G.Legend>Token Region</G.Legend>
+        <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-replication-settings">ACL token fundamentals: Token replication settings</Hds::Link::Inline> for more information.</G.HelperText>
         <G.RadioField
           @id={{this.system.activeRegion}}
           checked={{eq this.tokenRegion this.system.activeRegion}}
           data-test-locality="active-region"
         as |F|>
-          <F.Label>{{this.system.activeRegion}}</F.Label>
+          <F.Label data-test-active-region-label>{{this.system.activeRegion}}</F.Label>
         </G.RadioField>
         {{#if this.system.defaultRegion.region}}
           {{!-- template-lint-disable simple-unless --}}
