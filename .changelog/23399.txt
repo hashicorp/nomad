@@ -1,0 +1,3 @@
+```release-note:bug
+plugins: Fix panic on systems that don't support NUMA
+```
