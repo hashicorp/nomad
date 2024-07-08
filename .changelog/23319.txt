@@ -1,0 +1,3 @@
+```release-note:security
+migration: Added a check for relative paths escaping the allocation directory when unpacking archive during migration, to harden clients against compromised peer clients sending malicious archives
+```
