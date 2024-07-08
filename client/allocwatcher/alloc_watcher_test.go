@@ -301,15 +301,13 @@ func TestPrevAlloc_StreamAllocDir_FileEscape(t *testing.T) {
 		ModTime:  time.Now(),
 		Typeflag: tar.TypeReg,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	_, err = tw.Write([]byte{'a'})
-	require.NoError(t, err)
-	err = tw.Close()
-	require.NoError(t, err)
+	t.Cleanup(tw.Close)
+	must.NoError(t, err)
 
 	// Attempt to stream the allocation directory
 	dest := t.TempDir()
 	err = prevAlloc.streamAllocDir(context.Background(), io.NopCloser(tarBuf), dest)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "archive contains object that escapes alloc dir")
+	must.EqError(t, err, "archive contains object that escapes alloc dir")
 }
