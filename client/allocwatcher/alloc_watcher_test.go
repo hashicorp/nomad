@@ -303,7 +303,7 @@ func TestPrevAlloc_StreamAllocDir_FileEscape(t *testing.T) {
 	})
 	must.NoError(t, err)
 	_, err = tw.Write([]byte{'a'})
-	t.Cleanup(tw.Close)
+	t.Cleanup(func() {tw.Close})
 	must.NoError(t, err)
 
 	// Attempt to stream the allocation directory

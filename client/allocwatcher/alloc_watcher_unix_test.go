@@ -121,7 +121,7 @@ func TestPrevAlloc_StreamAllocDir_BadSymlink_Linkname(t *testing.T) {
 	// Create a tar archive with a symlink that attempts to escape the allocation directory
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
-	t.Cleanup(tw.Close)
+	t.Cleanup(func() {tw.Close})
 	must.NoError(t, tw.WriteHeader(&tar.Header{
 		Typeflag: tar.TypeSymlink,
 		Name:     "symlink",
