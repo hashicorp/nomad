@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -303,7 +304,7 @@ func TestPrevAlloc_StreamAllocDir_FileEscape(t *testing.T) {
 	})
 	must.NoError(t, err)
 	_, err = tw.Write([]byte{'a'})
-	t.Cleanup(func() {tw.Close})
+	t.Cleanup(func() { tw.Close() })
 	must.NoError(t, err)
 
 	// Attempt to stream the allocation directory
