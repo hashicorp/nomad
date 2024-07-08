@@ -10,6 +10,7 @@ import {
   click,
   triggerKeyEvent,
   typeIn,
+  visit,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -216,7 +217,7 @@ module('Acceptance | jobs list', function (hooks) {
     assert.equal(JobsList.jobs.length, 2, 'All jobs by default');
 
     const firstNamespace = server.db.namespaces[0];
-    await JobsList.visit({ namespace: firstNamespace.id });
+    await JobsList.visit({ filter: `Namespace == ${firstNamespace.id}` });
     assert.equal(JobsList.jobs.length, 1, 'One job in the default namespace');
     assert.equal(
       JobsList.jobs.objectAt(0).name,
@@ -225,7 +226,7 @@ module('Acceptance | jobs list', function (hooks) {
     );
 
     const secondNamespace = server.db.namespaces[1];
-    await JobsList.visit({ namespace: secondNamespace.id });
+    await JobsList.visit({ filter: `Namespace == ${secondNamespace.id}` });
 
     assert.equal(
       JobsList.jobs.length,
@@ -323,11 +324,11 @@ module('Acceptance | jobs list', function (hooks) {
     );
   });
 
-  testSingleSelectFacet('Namespace', {
+  testFacet('Namespace', {
     facet: JobsList.facets.namespace,
     paramName: 'namespace',
-    expectedOptions: ['All', 'default', 'namespace-2'],
-    optionToSelect: 'namespace-2',
+    expectedOptions: ['default', 'namespace-2'],
+    dynamicStrings: true,
     async beforeEach() {
       server.create('namespace', { id: 'default' });
       server.create('namespace', { id: 'namespace-2' });
@@ -336,7 +337,7 @@ module('Acceptance | jobs list', function (hooks) {
       await JobsList.visit();
     },
     filter(job, selection) {
-      return job.namespaceId === selection;
+      return selection.includes(job.namespaceId);
     },
   });
 
@@ -1581,7 +1582,7 @@ module('Acceptance | jobs list', function (hooks) {
           modifyIndex: 9,
         });
 
-        // By default, start on "All" namespace
+        // By default, start without a namespace filter applied
         await JobsList.visit();
         assert
           .dom('.job-row')
@@ -1603,7 +1604,7 @@ module('Acceptance | jobs list', function (hooks) {
 
         // Toggle ns-2 namespace
         await JobsList.facets.namespace.toggle();
-        await JobsList.facets.namespace.options[2].toggle();
+        await JobsList.facets.namespace.options[1].toggle();
 
         assert
           .dom('.job-row')
@@ -1618,8 +1619,8 @@ module('Acceptance | jobs list', function (hooks) {
           );
 
         // Switch to default namespace
-        await JobsList.facets.namespace.toggle();
-        await JobsList.facets.namespace.options[1].toggle();
+        await JobsList.facets.namespace.options[1].toggle(); //ns-2 off
+        await JobsList.facets.namespace.options[0].toggle(); //default on
 
         assert
           .dom('.job-row')
@@ -1637,6 +1638,27 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('[data-test-pager="next"]')
           .isDisabled(
             '10 jobs in "Default" namespace, so second page is not available'
+          );
+
+        // Turn both on
+        await JobsList.facets.namespace.options[1].toggle(); //ns-2 on, default was already on
+
+        assert
+          .dom('.job-row')
+          .exists(
+            { count: 10 },
+            'Both-on should show 10 jobs in the default namespace.'
+          );
+        assert
+          .dom('[data-test-job-row="ns-2-job"]')
+          .doesNotExist(
+            'The job in the ns-2 namespace should not appear on the first page.'
+          );
+
+        assert
+          .dom('[data-test-pager="next"]')
+          .isNotDisabled(
+            '11 jobs with both namespaces filtered, so second page is available'
           );
 
         localStorage.removeItem('nomadPageSize');
@@ -1693,8 +1715,8 @@ module('Acceptance | jobs list', function (hooks) {
         assert.dom('[data-test-namespace-filter-searchbox]').exists();
         // and it should be focused
         assert.dom('[data-test-namespace-filter-searchbox]').isFocused();
-        // and there should be 7 things there
-        assert.dom('[data-test-dropdown-option]').exists({ count: 7 });
+        // and there should be 6 things there
+        assert.dom('[data-test-dropdown-option]').exists({ count: 6 });
         await typeIn('[data-test-namespace-filter-searchbox]', 'Bonderman');
         assert.dom('[data-test-dropdown-option]').exists({ count: 1 });
         document.querySelector('[data-test-namespace-filter-searchbox]').value =
@@ -1724,10 +1746,13 @@ module('Acceptance | jobs list', function (hooks) {
             'Namespace filter should not appear with only one namespace.'
           );
 
-        let system = this.owner.lookup('service:system');
-        system.shouldShowNamespaces = true;
+        server.create('namespace', {
+          id: 'Bonderman',
+          name: 'Bonderman',
+        });
 
-        await settled();
+        await visit('/clients'); // go to another page to force a full refresh
+        await JobsList.visit();
 
         assert
           .dom('[data-test-facet="Namespace"]')
@@ -1988,7 +2013,7 @@ async function facetOptions(assert, beforeEach, facet, expectedOptions) {
 
 function testFacet(
   label,
-  { facet, paramName, beforeEach, filter, expectedOptions }
+  { facet, paramName, beforeEach, filter, expectedOptions, dynamicStrings }
 ) {
   test(`the ${label} facet has the correct options`, async function (assert) {
     await facetOptions(assert, beforeEach, facet, expectedOptions);
@@ -2061,57 +2086,15 @@ function testFacet(
     selection.forEach((selection) => {
       let capitalizedParamName =
         paramName.charAt(0).toUpperCase() + paramName.slice(1);
+      // allowing for the possibility of "-" or other characters in the string, we wrap the filter parameter in quotes for namespaces and node pools
       assert.ok(
         currentURL().includes(
-          encodeURIComponent(`${capitalizedParamName} == ${selection}`)
+          dynamicStrings
+            ? encodeURIComponent(`${capitalizedParamName} == "${selection}"`)
+            : encodeURIComponent(`${capitalizedParamName} == ${selection}`)
         ),
         `URL has the correct query param key and value for ${selection}`
       );
     });
-  });
-}
-
-function testSingleSelectFacet(
-  label,
-  { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
-) {
-  test(`the ${label} facet has the correct options`, async function (assert) {
-    await facetOptions(assert, beforeEach, facet, expectedOptions);
-  });
-
-  test(`the ${label} facet filters the jobs list by ${label}`, async function (assert) {
-    await beforeEach();
-    await facet.toggle();
-
-    const option = facet.options.findOneBy('label', optionToSelect);
-    const selection = option.label;
-    await option.toggle();
-
-    const expectedJobs = server.db.jobs
-      .filter((job) => filter(job, selection))
-      .sortBy('modifyIndex')
-      .reverse();
-
-    JobsList.jobs.forEach((job, index) => {
-      assert.equal(
-        job.id,
-        expectedJobs[index].id,
-        `Job at ${index} is ${expectedJobs[index].id}`
-      );
-    });
-  });
-
-  test(`selecting an option in the ${label} facet updates the ${paramName} query param`, async function (assert) {
-    await beforeEach();
-    await facet.toggle();
-
-    const option = facet.options.objectAt(1);
-    const selection = option.label;
-    await option.toggle();
-
-    assert.ok(
-      currentURL().includes(`${paramName}=${selection}`),
-      'URL has the correct query param key and value'
-    );
   });
 }
