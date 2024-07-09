@@ -10809,6 +10809,14 @@ const (
 	AllocClientStatusUnknown  = "unknown"
 )
 
+// terminalAllocationStatuses lists allocation statutes that we consider
+// terminal
+var terminalAllocationStatuses = []string{
+	AllocClientStatusComplete,
+	AllocClientStatusFailed,
+	AllocClientStatusLost,
+}
+
 // Allocation is used to allocate the placement of a task group to a node.
 type Allocation struct {
 	// msgpack omit empty fields during serialization
@@ -11126,12 +11134,7 @@ func (a *Allocation) ServerTerminalStatus() bool {
 
 // ClientTerminalStatus returns if the client status is terminal and will no longer transition
 func (a *Allocation) ClientTerminalStatus() bool {
-	switch a.ClientStatus {
-	case AllocClientStatusComplete, AllocClientStatusFailed, AllocClientStatusLost:
-		return true
-	default:
-		return false
-	}
+	return slices.Contains(terminalAllocationStatuses, a.ClientStatus)
 }
 
 // ShouldReschedule returns if the allocation is eligible to be rescheduled according
@@ -11830,6 +11833,11 @@ func (a *AllocListStub) SetEventDisplayMessages() {
 // to its ReschedulePolicy and the current state of its reschedule trackers
 func (a *AllocListStub) RescheduleEligible(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
 	return a.RescheduleTracker.RescheduleEligible(reschedulePolicy, failTime)
+}
+
+// ClientTerminalStatus returns if the client status is terminal and will no longer transition
+func (a *AllocListStub) ClientTerminalStatus() bool {
+	return slices.Contains(terminalAllocationStatuses, a.ClientStatus)
 }
 
 func setDisplayMsg(taskStates map[string]*TaskState) {
