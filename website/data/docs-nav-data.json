@@ -2133,10 +2133,6 @@
             "href": "/tools/autoscaling/agent/policy_eval"
           },
           {
-            "title": "source",
-            "href": "/tools/autoscaling/agent/source"
-          },
-          {
             "title": "strategy",
             "href": "/tools/autoscaling/agent/strategy"
           },
