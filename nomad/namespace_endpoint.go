@@ -123,8 +123,8 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	var mErr multierror.Error
 	for _, ns := range args.Namespaces {
 		// make sure this namespace exists before we start making costly checks
-		_, err := snap.NamespaceByName(nil, ns)
-		if err != nil {
+		exists, _ := snap.NamespaceByName(nil, ns)
+		if exists == nil {
 			continue
 		}
 
@@ -303,9 +303,9 @@ func (n *Namespace) namespaceNoAssociatedVarsLocally(namespace string, snap *sta
 // namespaceNoAssociatedQuotasLocally returns true if there are no quotas
 // associated with this namespace in the local region
 func (n *Namespace) namespaceNoAssociatedQuotasLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
-	ns, err := snap.NamespaceByName(nil, namespace)
-	if err != nil {
-		return false, err
+	ns, _ := snap.NamespaceByName(nil, namespace)
+	if ns == nil {
+		return false, fmt.Errorf("namespace %s does not exist", ns)
 	}
 	if ns.Quota != "" {
 		return false, nil
