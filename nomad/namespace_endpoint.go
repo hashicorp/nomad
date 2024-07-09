@@ -5,7 +5,6 @@ package nomad
 
 import (
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -15,15 +14,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-// terminalAllocationStatuses lists allocation statutes that we consider
-// terminal
-var terminalAllocationStatuses = []string{
-	structs.AllocClientStatusComplete,
-	structs.AllocClientStatusLost,
-	structs.AllocClientStatusFailed,
-	structs.AllocClientStatusUnknown,
-}
 
 // Namespace endpoint is used for manipulating namespaces
 type Namespace struct {
@@ -123,8 +113,21 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 		}
 	}
 
+	// snapshot the state once, because we'll be doing many checks and want
+	// consistend state
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
 	var mErr multierror.Error
 	for _, ns := range args.Namespaces {
+		// make sure this namespace exists before we start making costly checks
+		_, err := snap.NamespaceByName(nil, ns)
+		if err != nil {
+			continue
+		}
+
 		// do a check across jobs, allocations, volumes and variables to make sure we're
 		// not leaving any objects associated with the namespace hanging
 		type objectCheck struct {
@@ -141,11 +144,8 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 		}
 
 		for _, object := range objects {
-			leftovers, err := n.nonTerminalObjectsInNS(args.AuthToken, ns, object.localCheckFunc, object.remoteCheckFunc)
-			if err != nil {
+			if err := n.nonTerminalObjectsInNS(args.AuthToken, ns, snap, object.localCheckFunc, object.remoteCheckFunc, object.errorMsg); err != nil {
 				_ = multierror.Append(&mErr, err)
-			} else if len(leftovers) != 0 {
-				_ = multierror.Append(&mErr, fmt.Errorf(object.errorMsg, ns, leftovers))
 			}
 		}
 	}
@@ -171,21 +171,18 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 // one.
 func (n *Namespace) nonTerminalObjectsInNS(
 	authToken, namespace string,
+	snap *state.StateSnapshot,
 	localCheckFunc func(string, *state.StateSnapshot) (bool, error),
 	remoteCheckFunc func(string, string, string) (bool, error),
-) ([]string, error) {
+	errorMsg string,
+) error {
 	regions := n.srv.Regions()
 	thisRegion := n.srv.Region()
 	terminal := make([]string, 0, len(regions))
 
-	// Check if this region is terminal
-	snap, err := n.srv.fsm.State().Snapshot()
-	if err != nil {
-		return nil, err
-	}
 	localTerminal, err := localCheckFunc(namespace, snap)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !localTerminal {
 		terminal = append(terminal, thisRegion)
@@ -199,7 +196,7 @@ func (n *Namespace) nonTerminalObjectsInNS(
 		if remoteCheckFunc != nil {
 			remoteTerminal, err := remoteCheckFunc(authToken, namespace, region)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if !remoteTerminal {
 				terminal = append(terminal, region)
@@ -207,7 +204,11 @@ func (n *Namespace) nonTerminalObjectsInNS(
 		}
 	}
 
-	return terminal, nil
+	if len(terminal) != 0 {
+		return fmt.Errorf(errorMsg, namespace, terminal)
+	}
+
+	return nil
 }
 
 // namespaceTerminalJobsLocally returns true if the namespace contains only
@@ -246,7 +247,7 @@ func (n *Namespace) namespaceTerminalAllocsLocally(namespace string, snap *state
 		}
 
 		alloc := raw.(*structs.Allocation)
-		if !slices.Contains(terminalAllocationStatuses, alloc.ClientStatus) {
+		if !alloc.ClientTerminalStatus() {
 			return false, nil
 		}
 	}
@@ -362,7 +363,7 @@ func (n *Namespace) namespaceTerminalAllocsInRegion(authToken, namespace, region
 	}
 
 	for _, alloc := range allocResp.Allocations {
-		if !slices.Contains(terminalAllocationStatuses, alloc.ClientStatus) {
+		if !alloc.ClientTerminalStatus() {
 			return false, nil
 		}
 	}
