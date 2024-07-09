@@ -89,7 +89,8 @@ jobs:
             github.com/hashicorp/nomad/drivers/docker \
             github.com/hashicorp/nomad/client/lib/fifo \
             github.com/hashicorp/nomad/client/logmon \
-            github.com/hashicorp/nomad/client/allocrunner/taskrunner/template
+            github.com/hashicorp/nomad/client/allocrunner/taskrunner/template \
+            github.com/hashicorp/nomad/plugins/base
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: results.xml

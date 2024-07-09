@@ -55,6 +55,19 @@ func Test_nomadTopologyToProto(t *testing.T) {
 		OverrideTotalCompute:   90_000,
 		OverrideWitholdCompute: 2000,
 	}, pb)
+
+	// make sure we don't panic in case of empty nodes, vide
+	// https://github.com/hashicorp/nomad/issues/23385
+	top2 := &numalib.Topology{}
+
+	pb2 := nomadTopologyToProto(top2)
+	must.Eq(t, &proto.ClientTopology{
+		NodeIds:                []uint32{},
+		Distances:              &proto.ClientTopologySLIT{Dimension: 0, Values: []uint32{}},
+		Cores:                  nil,
+		OverrideTotalCompute:   0,
+		OverrideWitholdCompute: 0,
+	}, pb2)
 }
 
 func Test_nomadTopologyFromProto(t *testing.T) {
