@@ -420,20 +420,21 @@ BUG FIXES:
 
 SECURITY:
 
-artifact: Updated go-getter dependency to v1.7.4 to address CVE-2024-3817 [GH-20391]
+* artifact: Updated `go-getter` dependency to v1.7.4 to address CVE-2024-3817 [[GH-20391](https://github.com/hashicorp/nomad/issues/20391)]
+
 BUG FIXES:
 
-api: Fixed a bug where AllocDirStats field was missing from Read Stats client API [GH-20261]
-cli: Fixed a bug where operator debug did not respect the -pprof-interval flag and would take only one profile [GH-20206]
-cni: Fixed a regression where default DNS set by dockerd or other task drivers was not respected [GH-20189]
-config: Fixed a bug where IPv6 addresses were not accepted without ports for client.servers blocks [GH-20324]
-deployments: Fixed a goroutine leak when jobs are purged [GH-20348]
-deps: Updated consul-template dependency to 0.37.4 to fix a resource leak [GH-20234]
-drain: Fixed a bug where Workload Identity tokens could not be used to drain a node [GH-20317]
-namespace/node pool: Fixed a bug where the -region flag would not be respected for namespace and node pool updates if ACLs were disabled [GH-20220]
-state: Fixed a bug where restarting a server could fail if the Raft logs include a drain update that used a now-expired token [GH-20317]
-template: Fixed a bug where a partial client.template block would cause defaults for unspecified fields to be ignored [GH-20165]
-ui: Fix an issue where the job status box would error if an allocation had no task events [GH-20383]
+* api: Fixed a bug where `AllocDirStats` field was missing from Read Stats client API [[GH-20261](https://github.com/hashicorp/nomad/issues/20261)]
+* cli: Fixed a bug where `operator debug` did not respect the `-pprof-interval` flag and would take only one profile [[GH-20206](https://github.com/hashicorp/nomad/issues/20206)]
+* cni: Fixed a regression where default DNS set by `dockerd` or other task drivers was not respected [[GH-20189](https://github.com/hashicorp/nomad/issues/20189)]
+* config: Fixed a bug where IPv6 addresses were not accepted without ports for `client.servers` blocks [[GH-20324](https://github.com/hashicorp/nomad/issues/20324)]
+* deployments: Fixed a goroutine leak when jobs are purged [[GH-20348](https://github.com/hashicorp/nomad/issues/20348)]
+* deps: Updated consul-template dependency to 0.37.4 to fix a resource leak [[GH-20234](https://github.com/hashicorp/nomad/issues/20234)]
+* drain: Fixed a bug where Workload Identity tokens could not be used to drain a node [[GH-20317](https://github.com/hashicorp/nomad/issues/20317)]
+* namespace/node pool: Fixed a bug where the `-region` flag would not be respected for namespace and node pool updates if ACLs were disabled [[GH-20220](https://github.com/hashicorp/nomad/issues/20220)]
+* state: Fixed a bug where restarting a server could fail if the Raft logs include a drain update that used a now-expired token [[GH-20317](https://github.com/hashicorp/nomad/issues/20317)]
+* template: Fixed a bug where a partial `client.template` block would cause defaults for unspecified fields to be ignored [[GH-20165](https://github.com/hashicorp/nomad/issues/20165)]
+* ui: Fix an issue where the job status box would error if an allocation had no task events [[GH-20383](https://github.com/hashicorp/nomad/issues/20383)]
 
 ## 1.6.9 (March 12, 2024)
 
