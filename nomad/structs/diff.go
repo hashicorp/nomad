@@ -2663,6 +2663,10 @@ func (n *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectD
 		diff.Objects = append(diff.Objects, dnsDiff)
 	}
 
+	if cniDiff := n.CNI.Diff(other.CNI, contextual); cniDiff != nil {
+		diff.Objects = append(diff.Objects, cniDiff)
+	}
+
 	return diff
 }
 
@@ -2704,6 +2708,21 @@ func (d *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	return diff
+}
+
+// Diff returns a diff of two CNIArgs structs
+func (d *CNIArgs) Diff(other *CNIArgs, contextual bool) *ObjectDiff {
+	if d.Equal(other) {
+		return nil
+	}
+	if d == nil {
+		d = &CNIArgs{}
+	}
+	if other == nil {
+		other = &CNIArgs{}
+	}
+
+	return primitiveObjectDiff(d.Args, other.Args, nil, "CNIArgs", contextual)
 }
 
 func disconectStrategyDiffs(old, new *DisconnectStrategy, contextual bool) *ObjectDiff {

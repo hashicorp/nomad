@@ -5221,6 +5221,86 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
+		{TestCase: "TaskGroup CNI edited",
+			Contextual: false,
+			Old: &TaskGroup{
+				Networks: Networks{
+					{
+						DNS: &DNSConfig{
+							Servers: []string{"1.1.1.1"},
+						},
+					},
+				},
+			},
+			New: &TaskGroup{
+				Networks: Networks{
+					{
+						DNS: &DNSConfig{
+							Servers: []string{"1.1.1.1"},
+						},
+						CNI: &CNIArgs{
+							Args: map[string]string{
+								"example": "example1",
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeAdded,
+								Name: "DNS",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Servers",
+										Old:  "",
+										New:  "1.1.1.1",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "CNIArgs",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "example",
+										Old:  "",
+										New:  "example1",
+									},
+								},
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "DNS",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Servers",
+										Old:  "1.1.1.1",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
