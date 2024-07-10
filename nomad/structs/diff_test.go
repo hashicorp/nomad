@@ -6049,6 +6049,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "0",
 								New:  "0",
 							},
+							{
+								Type: DiffTypeNone,
+								Name: "OOMScoreAdj",
+								Old:  "0",
+								New:  "0",
+							},
 						},
 					},
 				},
@@ -6151,6 +6157,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MemoryMaxMB",
 								Old:  "200",
 								New:  "300",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "OOMScoreAdj",
+								Old:  "0",
+								New:  "0",
 							},
 						},
 					},
@@ -6498,6 +6510,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "MemoryMaxMB",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "OOMScoreAdj",
 								Old:  "0",
 								New:  "0",
 							},

@@ -2432,6 +2432,7 @@ type Resources struct {
 	Networks    Networks
 	Devices     ResourceDevices
 	NUMA        *NUMA
+	OOMScoreAdj int
 }
 
 const (
@@ -2444,9 +2445,10 @@ const (
 // be kept in sync.
 func DefaultResources() *Resources {
 	return &Resources{
-		CPU:      100,
-		Cores:    0,
-		MemoryMB: 300,
+		CPU:         100,
+		Cores:       0,
+		MemoryMB:    300,
+		OOMScoreAdj: 0,
 	}
 }
 
@@ -2457,9 +2459,10 @@ func DefaultResources() *Resources {
 // api/resources.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      1,
-		Cores:    0,
-		MemoryMB: 10,
+		CPU:         1,
+		Cores:       0,
+		MemoryMB:    10,
+		OOMScoreAdj: 0,
 	}
 }
 
@@ -2502,6 +2505,10 @@ func (r *Resources) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("MemoryMaxMB value (%d) should be larger than MemoryMB value (%d)", r.MemoryMaxMB, r.MemoryMB))
 	}
 
+	if r.OOMScoreAdj < 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("OOMScoreAdj value (%d) must not be negative", r.OOMScoreAdj))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2529,6 +2536,9 @@ func (r *Resources) Merge(other *Resources) {
 	if len(other.Devices) != 0 {
 		r.Devices = other.Devices
 	}
+	if other.OOMScoreAdj > 0 {
+		r.OOMScoreAdj = other.OOMScoreAdj
+	}
 }
 
 // Equal Resources.
@@ -2548,7 +2558,8 @@ func (r *Resources) Equal(o *Resources) bool {
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
 		r.Networks.Equal(&o.Networks) &&
-		r.Devices.Equal(&o.Devices)
+		r.Devices.Equal(&o.Devices) &&
+		r.OOMScoreAdj == o.OOMScoreAdj
 }
 
 // ResourceDevices are part of Resources.
@@ -2645,6 +2656,7 @@ func (r *Resources) Copy() *Resources {
 		Networks:    r.Networks.Copy(),
 		Devices:     r.Devices.Copy(),
 		NUMA:        r.NUMA.Copy(),
+		OOMScoreAdj: r.OOMScoreAdj,
 	}
 }
 
@@ -2671,6 +2683,7 @@ func (r *Resources) Add(delta *Resources) {
 		r.MemoryMaxMB += delta.MemoryMB
 	}
 	r.DiskMB += delta.DiskMB
+	r.OOMScoreAdj += delta.OOMScoreAdj
 
 	for _, n := range delta.Networks {
 		// Find the matching interface by IP or CIDR
@@ -3834,10 +3847,11 @@ func (a *AllocatedResources) Canonicalize() {
 
 // AllocatedTaskResources are the set of resources allocated to a task.
 type AllocatedTaskResources struct {
-	Cpu      AllocatedCpuResources
-	Memory   AllocatedMemoryResources
-	Networks Networks
-	Devices  []*AllocatedDeviceResource
+	Cpu         AllocatedCpuResources
+	Memory      AllocatedMemoryResources
+	Networks    Networks
+	Devices     []*AllocatedDeviceResource
+	OOMScoreAdj int
 }
 
 func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
@@ -3874,6 +3888,7 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 
 	a.Cpu.Add(&delta.Cpu)
 	a.Memory.Add(&delta.Memory)
+	a.OOMScoreAdj += delta.OOMScoreAdj
 
 	for _, n := range delta.Networks {
 		// Find the matching interface by IP or CIDR
@@ -3903,6 +3918,7 @@ func (a *AllocatedTaskResources) Max(other *AllocatedTaskResources) {
 
 	a.Cpu.Max(&other.Cpu)
 	a.Memory.Max(&other.Memory)
+	a.OOMScoreAdj = max(a.OOMScoreAdj, other.OOMScoreAdj)
 
 	for _, n := range other.Networks {
 		// Find the matching interface by IP or CIDR
@@ -3938,6 +3954,7 @@ func (a *AllocatedTaskResources) Comparable() *ComparableResources {
 				MemoryMB:    a.Memory.MemoryMB,
 				MemoryMaxMB: a.Memory.MemoryMaxMB,
 			},
+			OOMScoreAdj: a.OOMScoreAdj,
 		},
 	}
 	ret.Flattened.Networks = append(ret.Flattened.Networks, a.Networks...)

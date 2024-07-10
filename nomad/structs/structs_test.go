@@ -2158,6 +2158,7 @@ func TestTask_Validate_Resources(t *testing.T) {
 				MemoryMB:    1000,
 				MemoryMaxMB: 2000,
 				IOPS:        1000,
+				OOMScoreAdj: 3,
 				Networks: []*NetworkResource{
 					{
 						Mode:   "host",
@@ -2223,6 +2224,13 @@ func TestTask_Validate_Resources(t *testing.T) {
 				MemoryMaxMB: -1,
 			},
 		},
+		{
+			name: "oom_score_adj with a negative value",
+			res: &Resources{
+				OOMScoreAdj: -3,
+			},
+			err: "OOMScoreAdj value (-3) must not be negative",
+		},
 	}
 
 	for i := range cases {
@@ -2230,10 +2238,10 @@ func TestTask_Validate_Resources(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.res.Validate()
 			if tc.err == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.err)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), tc.err)
 			}
 		})
 	}
