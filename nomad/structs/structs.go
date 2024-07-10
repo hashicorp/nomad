@@ -7191,7 +7191,7 @@ func (tg *TaskGroup) validateNetworks() error {
 		// Validate the cniArgs in each network resource. Make sure there are no duplicate Args in
 		// different network resources
 		if net.CNI != nil {
-			for k, _ := range net.CNI.Args {
+			for k := range net.CNI.Args {
 				if cniArgKeys.Contains(k) {
 					err := fmt.Errorf("duplicate CNI arg %v", k)
 					mErr.Errors = append(mErr.Errors, err)

@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/go-set/v2"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -28,6 +27,7 @@ import (
 	"github.com/coreos/go-iptables/iptables"
 	consulIPTables "github.com/hashicorp/consul/sdk/iptables"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -103,8 +103,8 @@ const (
 )
 
 // Adds user inputted custom CNI args to cniArgs map
-func addCustomCNIArgs(tg *structs.TaskGroup, cniArgs map[string]string) {
-	for _, net := range tg.Networks {
+func addCustomCNIArgs(networks []*structs.NetworkResource, cniArgs map[string]string) {
+	for _, net := range networks {
 		if net.CNI == nil {
 			continue
 		}
@@ -112,7 +112,6 @@ func addCustomCNIArgs(tg *structs.TaskGroup, cniArgs map[string]string) {
 			cniArgs[k] = v
 		}
 	}
-
 }
 
 // Setup calls the CNI plugins with the add action
@@ -129,7 +128,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
-	addCustomCNIArgs(tg, cniArgs)
+	addCustomCNIArgs(tg.Networks, cniArgs)
 
 	portMaps := getPortMapping(alloc, c.ignorePortMappingHostIP)
 
