@@ -30,6 +30,49 @@
           <F.HelperText>When enabled, new or removed jobs will pop into and out of view on your jobs page. When disabled, you will be notified that changes are pending.</F.HelperText>
         </G.ToggleField>
       </Hds::Form::Toggle::Group>
+
+    <Hds::Separator/>
+    <Hds::Form::Label @controlId="control-ID">
+      Default Namespace
+    </Hds::Form::Label>
+    <Hds::Dropdown @height="300px" @listPosition="bottom-left" as |dd|>
+      <dd.ToggleButton
+        @text={{or this.defaultNamespace "No default set"}}
+        @color="secondary"
+      />
+      <dd.Header @hasDivider={{true}}>
+        <Hds::Form::TextInput::Base
+          @type="search"
+          placeholder="Filter namespaces"
+          @value={{this.namespaceFilter}}
+          {{autofocus}}
+          {{on "input" (action (mut this.namespaceFilter) value="target.value") }}
+          data-test-namespace-filter-searchbox
+        />
+      </dd.Header>
+      {{#each this.filteredNamespaces as |option|}}
+        <dd.Radio
+          {{on "change" (fn this.setDefaultNamespace option.id)}}
+          @value={{option.id}}
+          checked={{eq option.id this.defaultNamespace}}
+          data-test-dropdown-option={{option.id}}
+        >
+          {{option.id}}
+        </dd.Radio>
+      {{else}}
+        <dd.Generic data-test-dropdown-empty>
+          No namespaces match {{this.namespaceFilter}}
+        </dd.Generic>
+      {{/each}}
+
+      <dd.Footer>
+        {{#if this.defaultNamespace}}
+          <Hds::Button @text="Unset default namespace" @isFullWidth={{true}} @color="secondary" @size="small" {{on "click" (action this.setDefaultNamespace null)}} />
+        {{/if}}
+      </dd.Footer>
+
+    </Hds::Dropdown>
+
     </A.Generic>
   </Hds::Alert>
 </section>

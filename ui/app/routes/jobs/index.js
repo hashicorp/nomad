@@ -15,6 +15,7 @@ import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import { action } from '@ember/object';
 import Ember from 'ember';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 const DEFAULT_THROTTLE = 2000;
 
@@ -40,6 +41,19 @@ export default class IndexRoute extends Route.extend(
 
   hasBeenInitialized = false;
 
+  @localStorageProperty('nomadDefaultNamespace') defaultNamespace;
+
+  establishDefaults(filter) {
+    if (this.defaultNamespace) {
+      if (!filter.includes('Namespace')) {
+        filter = filter
+          ? `${filter} and (Namespace == "${this.defaultNamespace}")`
+          : `(Namespace == "${this.defaultNamespace}")`;
+      }
+    }
+    return filter;
+  }
+
   getCurrentParams() {
     let queryParams = this.paramsFor(this.routeName); // Get current query params
     if (queryParams.cursorAt) {
@@ -57,6 +71,24 @@ export default class IndexRoute extends Route.extend(
     delete queryParams.cursorAt;
 
     return { ...queryParams };
+  }
+
+  beforeModel(transition) {
+    // Handle defaults from localStorage properties
+    if (!this.hasBeenInitialized) {
+      // Get current filter from query params
+      let filter = transition.to.queryParams.filter || '';
+      let updatedFilter = this.establishDefaults(filter);
+
+      if (updatedFilter !== filter) {
+        transition.abort();
+        this.replaceWith('jobs.index', {
+          queryParams: {
+            filter: updatedFilter,
+          },
+        });
+      }
+    }
   }
 
   async model(/*params*/) {

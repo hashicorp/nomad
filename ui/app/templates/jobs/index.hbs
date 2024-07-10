@@ -56,7 +56,7 @@
                   checked={{option.checked}}
                   data-test-dropdown-option={{option.key}}
                 >
-                  {{option.key}}
+                  {{option.key}} {{#if (eq option.key this.defaultNamespace)}}(default){{/if}}
                 </dd.Checkbox>
               {{else}}
                 <dd.Generic data-test-dropdown-empty>
