@@ -2860,6 +2860,9 @@ func (d *DNSConfig) IsZero() bool {
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
+	// msgpack omit empty fields during serialization
+	_struct bool `codec:",omitempty"` // nolint: structcheck
+
 	Mode          string     // Mode of the network
 	Device        string     // Name of the device
 	CIDR          string     // CIDR block of addresses
