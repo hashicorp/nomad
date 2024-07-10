@@ -765,3 +765,40 @@ func isTty() bool {
 	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
 	return isStdinTerminal && isStdoutTerminal
 }
+
+// getByPrefix makes a prefix list query and tries to find an exact match if
+// available, or returns a list of options if multiple objects match the prefix
+// and there's no exact match
+func getByPrefix[T any](
+	objName string,
+	queryFn func(*api.QueryOptions) ([]*T, *api.QueryMeta, error),
+	prefixCompareFn func(obj *T, prefix string) bool,
+	opts *api.QueryOptions,
+) (*T, []*T, error) {
+	objs, _, err := queryFn(opts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error querying %s: %s", objName, err)
+	}
+	switch len(objs) {
+	case 0:
+		return nil, nil, fmt.Errorf("No %s with prefix or ID %q found", objName, opts.Prefix)
+	case 1:
+		return objs[0], nil, nil
+	default:
+		// List queries often sort by by CreateIndex, not by ID, so we need to
+		// search for exact matches but account for multiple exact ID matches
+		// across namespaces
+		var match *T
+		exactMatchesCount := 0
+		for _, obj := range objs {
+			if prefixCompareFn(obj, opts.Prefix) {
+				exactMatchesCount++
+				match = obj
+			}
+		}
+		if exactMatchesCount == 1 {
+			return match, nil, nil
+		}
+		return nil, objs, nil
+	}
+}
