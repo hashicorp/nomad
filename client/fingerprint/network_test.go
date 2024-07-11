@@ -283,24 +283,24 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name         string
-		config       *config.Config
-		expectedCIDR string
+		name       string
+		config     *config.Config
+		expectedIP string
 	}{
 		{
-			name:         "Loopback IPv6",
-			config:       &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", PreferredAddressFamily: "ipv6"},
-			expectedCIDR: loCIDRv6,
+			name:       "Loopback IPv6",
+			config:     &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", PreferredAddressFamily: "ipv6"},
+			expectedIP: loIPv6,
 		},
 		{
-			name:         "Loopback IPv4",
-			config:       &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", PreferredAddressFamily: "ipv4"},
-			expectedCIDR: loCIDRv4,
+			name:       "Loopback IPv4",
+			config:     &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", PreferredAddressFamily: "ipv4"},
+			expectedIP: "127.0.0.0", // CIDR 127.0.0.1/8 result in 127.0.0.0 IP ?
 		},
 		{
-			name:         "Loopback No preferred address family",
-			config:       &config.Config{NetworkSpeed: 100, NetworkInterface: "lo"},
-			expectedCIDR: loCIDRv6,
+			name:       "Loopback No preferred address family",
+			config:     &config.Config{NetworkSpeed: 100, NetworkInterface: "lo"},
+			expectedIP: loIPv6,
 		},
 	}
 
@@ -336,11 +336,11 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 
 			// Test at least the first Network Resource
 			net := response.NodeResources.Networks[0]
-			if net.IP == "" {
-				t.Fatal("Expected Network Resource to not be empty")
+			if !strings.EqualFold(tc.expectedIP, net.IP) {
+				t.Errorf("Expected IP %s; got %s", tc.expectedIP, net.IP)
 			}
-			if strings.ToUpper(net.CIDR) == strings.ToUpper(tc.expectedCIDR) {
-				t.Errorf("Expected CIDR %s; got %s", tc.expectedCIDR, net.IP)
+			if net.CIDR == "" {
+				t.Fatal("Expected Network Resource to have a CIDR")
 			}
 			if net.Device == "" {
 				t.Fatal("Expected Network Resource to have a Device Name")

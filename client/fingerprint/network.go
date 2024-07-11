@@ -296,7 +296,6 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 		if ip.To4() != nil {
 			newNetwork.CIDR = newNetwork.IP + "/32"
 		} else {
-			//continue // force IPv4, ignore IPv6
 			newNetwork.CIDR = newNetwork.IP + "/128"
 		}
 
