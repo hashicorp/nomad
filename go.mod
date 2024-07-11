@@ -114,7 +114,7 @@ require (
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/shirou/gopsutil/v3 v3.23.9
-	github.com/shoenig/go-landlock v1.2.0
+	github.com/shoenig/go-landlock v1.2.1
 	github.com/shoenig/go-m1cpu v0.1.6
 	github.com/shoenig/test v1.7.1
 	github.com/stretchr/testify v1.9.0
