@@ -3800,11 +3800,13 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	return c
 }
 
-// OldTaskResources returns the pre-0.9.0 map of task resources
+// OldTaskResources returns the pre-0.9.0 map of task resources. This
+// functionality is still used within the scheduling code.
 func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
 	m := make(map[string]*Resources, len(a.Tasks))
 	for name, res := range a.Tasks {
 		m[name] = &Resources{
+			Cores:       len(res.Cpu.ReservedCores),
 			CPU:         int(res.Cpu.CpuShares),
 			MemoryMB:    int(res.Memory.MemoryMB),
 			MemoryMaxMB: int(res.Memory.MemoryMaxMB),
