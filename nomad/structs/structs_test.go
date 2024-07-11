@@ -5188,22 +5188,26 @@ func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 	assert.Equal(t, expectedAlloc, appendedAlloc)
 }
 
-func TestAllocation_MsgPackTags(t *testing.T) {
+func TestMsgPackTags(t *testing.T) {
 	ci.Parallel(t)
-	planType := reflect.TypeOf(Allocation{})
 
-	msgPackTags, _ := planType.FieldByName("_struct")
+	cases := []struct {
+		name   string
+		typeOf reflect.Type
+	}{
+		{"Allocation", reflect.TypeOf(Allocation{})},
+		{"Evaluation", reflect.TypeOf(Evaluation{})},
+		{"NetworkResource", reflect.TypeOf(NetworkResource{})},
+		{"Plan", reflect.TypeOf(Plan{})},
+	}
 
-	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
-}
-
-func TestEvaluation_MsgPackTags(t *testing.T) {
-	ci.Parallel(t)
-	planType := reflect.TypeOf(Evaluation{})
-
-	msgPackTags, _ := planType.FieldByName("_struct")
-
-	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			field, ok := tc.typeOf.FieldByName("_struct")
+			must.True(t, ok, must.Sprint("_struct field not found"))
+			must.Eq(t, `codec:",omitempty"`, field.Tag, must.Sprint("bad _struct tag"))
+		})
+	}
 }
 
 func TestAllocation_Terminated(t *testing.T) {
