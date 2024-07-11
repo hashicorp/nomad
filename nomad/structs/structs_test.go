@@ -2020,10 +2020,10 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 				Name: "testing-duplicate-cni-arg-keys",
 				Networks: []*NetworkResource{
 					{
-						CNI: &CNIArgs{Args: map[string]string{"static": "first_value"}},
+						CNI: &CNIConfig{Args: map[string]string{"static": "first_value"}},
 					},
 					{
-						CNI: &CNIArgs{Args: map[string]string{"static": "new_value"}},
+						CNI: &CNIConfig{Args: map[string]string{"static": "new_value"}},
 					},
 				},
 			},
@@ -2034,13 +2034,13 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 				Name: "testing-valid-cni-arg-keys",
 				Networks: []*NetworkResource{
 					{
-						CNI: &CNIArgs{Args: map[string]string{"static": "first_value"}},
+						CNI: &CNIConfig{Args: map[string]string{"static": "first_value"}},
 					},
 					{
-						CNI: &CNIArgs{Args: map[string]string{"new_key": "new_value"}},
+						CNI: &CNIConfig{Args: map[string]string{"new_key": "new_value"}},
 					},
 					{
-						CNI: &CNIArgs{Args: map[string]string{"newest_key": "new_value", "second_key": "second_value"}},
+						CNI: &CNIConfig{Args: map[string]string{"newest_key": "new_value", "second_key": "second_value"}},
 					},
 				},
 			},
@@ -2216,7 +2216,7 @@ func TestTask_Validate_Resources(t *testing.T) {
 								HostNetwork: "loopback",
 							},
 						},
-						CNI: &CNIArgs{map[string]string{"static": "new_val"}},
+						CNI: &CNIConfig{map[string]string{"static": "new_val"}},
 					},
 				},
 			},
@@ -2349,7 +2349,7 @@ func TestNetworkResource_Copy(t *testing.T) {
 						HostNetwork: "public",
 					},
 				},
-				CNI: &CNIArgs{Args: map[string]string{"foo": "bar", "hello": "world"}},
+				CNI: &CNIConfig{Args: map[string]string{"foo": "bar", "hello": "world"}},
 			},
 			name: "fully populated input check",
 		},

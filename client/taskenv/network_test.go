@@ -88,37 +88,25 @@ func Test_InterpolateNetworks(t *testing.T) {
 			inputTaskEnv: testEnv,
 			inputNetworks: structs.Networks{
 				{
-					CNI: &structs.CNIArgs{
-						Args: map[string]string{"static": "example"},
+					CNI: &structs.CNIConfig{
+						Args: map[string]string{
+							"static": "example",
+							"second": "${foo}-opt",
+						},
 					},
 				},
 			},
 			expectedOutputNetworks: structs.Networks{
 				{
-					CNI: &structs.CNIArgs{
-						Args: map[string]string{"static": "example"},
+					CNI: &structs.CNIConfig{
+						Args: map[string]string{
+							"static": "example",
+							"second": "bar-opt",
+						},
 					},
 				},
 			},
-			name: "non-interpolated cni args",
-		},
-		{
-			inputTaskEnv: testEnv,
-			inputNetworks: structs.Networks{
-				{
-					CNI: &structs.CNIArgs{
-						Args: map[string]string{"static": "${foo}-opt"},
-					},
-				},
-			},
-			expectedOutputNetworks: structs.Networks{
-				{
-					CNI: &structs.CNIArgs{
-						Args: map[string]string{"static": "bar-opt"},
-					},
-				},
-			},
-			name: "interpolated cni args",
+			name: "interpolated and non-interpolated cni args",
 		},
 	}
 

@@ -211,40 +211,45 @@ func TestCNI_addCustomCNIArgs(t *testing.T) {
 		"default": "yup",
 	}
 
-	network := []*structs.NetworkResource{{
-		CNI: &structs.CNIArgs{
+	networkWithArgs := []*structs.NetworkResource{{
+		CNI: &structs.CNIConfig{
 			Args: map[string]string{
 				"first_arg": "example",
 				"new_arg":   "example_2",
 			},
 		},
 	}}
-	addCustomCNIArgs(network, cniArgs)
-	var expectMap = map[string]string{
-		"default":   "yup",
-		"first_arg": "example",
-		"new_arg":   "example_2",
-	}
-	test.Eq(t, expectMap, cniArgs)
-
-}
-
-func TestCNI_noCNIArgs(t *testing.T) {
-	ci.Parallel(t)
-
-	cniArgs := map[string]string{
-		"default": "yup",
-	}
-
-	network := []*structs.NetworkResource{{
+	networkWithoutArgs := []*structs.NetworkResource{{
 		Mode: "bridge",
 	}}
-	addCustomCNIArgs(network, cniArgs)
-	var expectMap = map[string]string{
-		"default": "yup",
+	testCases := []struct {
+		name      string
+		network   []*structs.NetworkResource
+		expectMap map[string]string
+	}{
+		{
+			name:    "cni args not specified",
+			network: networkWithoutArgs,
+			expectMap: map[string]string{
+				"default": "yup",
+			},
+		}, {
+			name:    "cni args specified",
+			network: networkWithArgs,
+			expectMap: map[string]string{
+				"default":   "yup",
+				"first_arg": "example",
+				"new_arg":   "example_2",
+			},
+		},
 	}
-	test.Eq(t, expectMap, cniArgs)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			addCustomCNIArgs(tc.network, cniArgs)
+			test.Eq(t, tc.expectMap, cniArgs)
 
+		})
+	}
 }
 
 func TestCNI_setupTproxyArgs(t *testing.T) {

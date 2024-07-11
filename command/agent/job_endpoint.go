@@ -1554,7 +1554,7 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 			}
 		}
 		if nw.CNI != nil {
-			out[i].CNI = &structs.CNIArgs{
+			out[i].CNI = &structs.CNIConfig{
 				Args: nw.CNI.Args,
 			}
 		}

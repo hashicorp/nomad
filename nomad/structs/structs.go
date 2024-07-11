@@ -2872,7 +2872,7 @@ type NetworkResource struct {
 	DNS           *DNSConfig // DNS Configuration
 	ReservedPorts []Port     // Host Reserved ports
 	DynamicPorts  []Port     // Host Dynamically assigned ports
-	CNI           *CNIArgs   //CNIArgs Configuration
+	CNI           *CNIConfig // CNIConfig Configuration
 }
 
 func (n *NetworkResource) Hash() uint32 {
@@ -7193,7 +7193,7 @@ func (tg *TaskGroup) validateNetworks() error {
 		if net.CNI != nil {
 			for k := range net.CNI.Args {
 				if cniArgKeys.Contains(k) {
-					err := fmt.Errorf("duplicate CNI arg %v", k)
+					err := fmt.Errorf("duplicate CNI arg %q", k)
 					mErr.Errors = append(mErr.Errors, err)
 				} else {
 					cniArgKeys.Insert(k)

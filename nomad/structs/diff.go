@@ -2710,19 +2710,19 @@ func (d *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
 	return diff
 }
 
-// Diff returns a diff of two CNIArgs structs
-func (d *CNIArgs) Diff(other *CNIArgs, contextual bool) *ObjectDiff {
+// Diff returns a diff of two CNIConfig structs
+func (d *CNIConfig) Diff(other *CNIConfig, contextual bool) *ObjectDiff {
 	if d.Equal(other) {
 		return nil
 	}
 	if d == nil {
-		d = &CNIArgs{}
+		d = &CNIConfig{}
 	}
 	if other == nil {
-		other = &CNIArgs{}
+		other = &CNIConfig{}
 	}
 
-	return primitiveObjectDiff(d.Args, other.Args, nil, "CNIArgs", contextual)
+	return primitiveObjectDiff(d.Args, other.Args, nil, "CNIConfig", contextual)
 }
 
 func disconectStrategyDiffs(old, new *DisconnectStrategy, contextual bool) *ObjectDiff {

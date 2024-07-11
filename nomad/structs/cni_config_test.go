@@ -12,17 +12,17 @@ import (
 func TestCNIConfig_Equal(t *testing.T) {
 	ci.Parallel(t)
 
-	must.Equal[*CNIArgs](t, nil, nil)
-	must.NotEqual[*CNIArgs](t, nil, new(CNIArgs))
-	must.NotEqual[*CNIArgs](t, nil, &CNIArgs{Args: map[string]string{"first": "second"}})
+	must.Equal[*CNIConfig](t, nil, nil)
+	must.NotEqual[*CNIConfig](t, nil, new(CNIConfig))
+	must.NotEqual[*CNIConfig](t, nil, &CNIConfig{Args: map[string]string{"first": "second"}})
 
-	must.StructEqual(t, &CNIArgs{
+	must.StructEqual(t, &CNIConfig{
 		Args: map[string]string{
 			"arg":     "example_1",
 			"new_arg": "example_2",
 		},
-	}, []must.Tweak[*CNIArgs]{{
+	}, []must.Tweak[*CNIConfig]{{
 		Field: "Args",
-		Apply: func(c *CNIArgs) { c.Args = map[string]string{"different": "arg"} },
+		Apply: func(c *CNIConfig) { c.Args = map[string]string{"different": "arg"} },
 	}})
 }

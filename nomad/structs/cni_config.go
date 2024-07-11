@@ -5,11 +5,11 @@ package structs
 
 import "reflect"
 
-type CNIArgs struct {
+type CNIConfig struct {
 	Args map[string]string
 }
 
-func (d *CNIArgs) Copy() *CNIArgs {
+func (d *CNIConfig) Copy() *CNIConfig {
 	if d == nil {
 		return nil
 	}
@@ -17,12 +17,12 @@ func (d *CNIArgs) Copy() *CNIArgs {
 	for k, v := range d.Args {
 		newMap[k] = v
 	}
-	return &CNIArgs{
+	return &CNIConfig{
 		Args: newMap,
 	}
 }
 
-func (d *CNIArgs) Equal(o *CNIArgs) bool {
+func (d *CNIConfig) Equal(o *CNIConfig) bool {
 	if d == nil || o == nil {
 		return d == o
 	}

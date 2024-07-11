@@ -5221,24 +5221,15 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
-		{TestCase: "TaskGroup CNI edited",
+		{TestCase: "TaskGroup CNI added",
 			Contextual: false,
 			Old: &TaskGroup{
-				Networks: Networks{
-					{
-						DNS: &DNSConfig{
-							Servers: []string{"1.1.1.1"},
-						},
-					},
-				},
+				Networks: Networks{},
 			},
 			New: &TaskGroup{
 				Networks: Networks{
 					{
-						DNS: &DNSConfig{
-							Servers: []string{"1.1.1.1"},
-						},
-						CNI: &CNIArgs{
+						CNI: &CNIConfig{
 							Args: map[string]string{
 								"example": "example1",
 							},
@@ -5256,19 +5247,7 @@ func TestTaskGroupDiff(t *testing.T) {
 
 							{
 								Type: DiffTypeAdded,
-								Name: "DNS",
-								Fields: []*FieldDiff{
-									{
-										Type: DiffTypeAdded,
-										Name: "Servers",
-										Old:  "",
-										New:  "1.1.1.1",
-									},
-								},
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "CNIArgs",
+								Name: "CNIConfig",
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
@@ -5280,10 +5259,196 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 						},
 					},
+				},
+			},
+		},
+		{TestCase: "TaskGroup CNI deleted",
+			Contextual: false,
+			Old: &TaskGroup{
+				Networks: Networks{
+					{
+						CNI: &CNIConfig{
+							Args: map[string]string{
+								"example": "example1",
+							},
+						},
+					},
+				},
+			},
+			New: &TaskGroup{
+				Networks: Networks{},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
 					{
 						Type: DiffTypeDeleted,
 						Name: "Network",
 						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeDeleted,
+								Name: "CNIConfig",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "example",
+										Old:  "example1",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{TestCase: "TaskGroup CNI edited",
+			Contextual: false,
+			Old: &TaskGroup{
+				Networks: Networks{
+					{
+						CNI: &CNIConfig{
+							Args: map[string]string{
+								"example": "example1",
+							},
+						},
+					},
+				},
+			},
+			New: &TaskGroup{
+				Networks: Networks{
+					{
+						CNI: &CNIConfig{
+							Args: map[string]string{
+								"example": "example2",
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeAdded,
+								Name: "CNIConfig",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "example",
+										Old:  "",
+										New:  "example2",
+									},
+								},
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeDeleted,
+								Name: "CNIConfig",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "example",
+										Old:  "example1",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{TestCase: "TaskGroup Networks edited behavior",
+			Contextual: false,
+			Old: &TaskGroup{
+				Networks: Networks{
+					{
+						DNS: &DNSConfig{
+							Servers: []string{"1.1.1.1"},
+						},
+					},
+				},
+			},
+			New: &TaskGroup{
+				Networks: Networks{
+					{
+						DNS: &DNSConfig{
+							Servers: []string{"1.1.1.1"},
+						},
+						DynamicPorts: []Port{
+							{
+								Label:       "bar",
+								To:          8081,
+								HostNetwork: "public",
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeAdded,
+								Name: "Dynamic Port",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "HostNetwork",
+										Old:  "",
+										New:  "public",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Label",
+										Old:  "",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "To",
+										Old:  "",
+										New:  "8081",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DNS",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Servers",
+										Old:  "",
+										New:  "1.1.1.1",
+									},
+								},
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
 							{
 								Type: DiffTypeDeleted,
 								Name: "DNS",
