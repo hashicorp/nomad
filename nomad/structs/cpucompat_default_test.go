@@ -27,7 +27,6 @@ func TestNUMA_topologyFromLegacy_plain(t *testing.T) {
 	result := topologyFromLegacy(old)
 
 	exp := &numalib.Topology{
-		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 		Distances: numalib.SLIT{{10}},
 		Cores: []numalib.Core{
 			makeLegacyCore(0),
@@ -38,12 +37,12 @@ func TestNUMA_topologyFromLegacy_plain(t *testing.T) {
 		OverrideTotalCompute:   12800,
 		OverrideWitholdCompute: 0,
 	}
-
+	exp.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	// only compares compute total
 	must.Equal(t, exp, result)
 
 	// check underlying fields
-	must.Eq(t, exp.NodeIDs, result.NodeIDs)
+	must.Eq(t, exp.GetNodes(), result.GetNodes())
 	must.Eq(t, exp.Distances, result.Distances)
 	must.Eq(t, exp.Cores, result.Cores)
 	must.Eq(t, exp.OverrideTotalCompute, result.OverrideTotalCompute)
