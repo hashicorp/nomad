@@ -2628,7 +2628,7 @@ func (r *Resources) Diff(other *Resources, contextual bool) *ObjectDiff {
 func (n *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Network"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
-	filter := []string{"Device", "CIDR", "IP", "MBits"}
+	filter := []string{"_struct", "Device", "CIDR", "IP", "MBits"}
 
 	if reflect.DeepEqual(n, other) {
 		return nil
