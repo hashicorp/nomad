@@ -95,6 +95,41 @@
   </div>
   {{/unless}}
 
+  {{#if @token.isNew}}
+    {{#if this.system.shouldShowRegions}}
+      <Hds::Form::Radio::Group data-test-global-token-group @layout="horizontal" @name="regional-or-global" {{on "change" this.updateTokenLocality}} as |G|>
+        <G.Legend>Token Region</G.Legend>
+        <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-replication-settings">ACL token fundamentals: Token replication settings</Hds::Link::Inline> for more information.</G.HelperText>
+        <G.RadioField
+          @id={{this.system.activeRegion}}
+          checked={{eq this.tokenRegion this.system.activeRegion}}
+          data-test-locality="active-region"
+        as |F|>
+          <F.Label data-test-active-region-label>{{this.system.activeRegion}}</F.Label>
+        </G.RadioField>
+        {{#if this.system.defaultRegion.region}}
+          {{!-- template-lint-disable simple-unless --}}
+          {{#unless (eq this.system.activeRegion this.system.defaultRegion.region)}}
+            <G.RadioField
+              @id={{this.system.defaultRegion.region}}
+              checked={{eq this.tokenRegion this.system.defaultRegion.region}}
+              data-test-locality="default-region"
+            as |F|>
+              <F.Label>{{this.system.defaultRegion.region}} (authoritative region)</F.Label>
+            </G.RadioField>
+          {{/unless}}
+        {{/if}}
+        <G.RadioField
+          @id="global"
+          checked={{eq this.tokenRegion "global"}}
+          data-test-locality="global"
+        as |F|>
+          <F.Label>global</F.Label>
+        </G.RadioField>
+      </Hds::Form::Radio::Group>
+    {{/if}}
+  {{/if}}
+
   <div>
     <Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updateTokenType}} as |G|>
       <G.Legend>Client or Management token?</G.Legend>

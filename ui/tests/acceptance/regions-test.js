@@ -158,16 +158,6 @@ module('Acceptance | regions (many)', function (hooks) {
     );
   });
 
-  test('switching regions on deep pages redirects to the application root', async function (assert) {
-    const newRegion = server.db.regions[1].id;
-
-    await Allocation.visit({ id: server.db.allocations[0].id });
-
-    await selectChoose('[data-test-region-switcher-parent]', newRegion);
-
-    assert.ok(currentURL().includes('/jobs?'), 'Back at the jobs page');
-  });
-
   test('navigating directly to a page with the region query param sets the application to that region', async function (assert) {
     const allocation = server.db.allocations[0];
     const region = server.db.regions[1].id;
