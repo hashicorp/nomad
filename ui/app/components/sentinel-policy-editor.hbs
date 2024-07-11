@@ -52,7 +52,7 @@
 	<div>
 		<Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updatePolicyEnforcementLevel}} as |G|>
 		<G.Legend>Enforcement Level</G.Legend>
-		<G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Sentinel Policy documentation</Hds::Link::Inline> for more information.</G.HelperText>
+		<G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/sentinel/docs/concepts/enforcement-levels">Sentinel Policy documentation</Hds::Link::Inline> for more information.</G.HelperText>
 		<G.RadioField
 			@id="advisory"
 			checked={{eq @policy.enforcementLevel "advisory"}}
