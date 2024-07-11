@@ -188,7 +188,7 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 	sort.Sort(api.QuotaLimitSort(spec.Limits))
 
 	limits := make([]string, len(spec.Limits)+1)
-	limits[0] = "Region|CPU Usage|Memory Usage|Memory Max Usage|Variables Usage"
+	limits[0] = "Region|CPU Usage|Core Usage|Memory Usage|Memory Max Usage|Variables Usage"
 	i := 0
 	for _, specLimit := range spec.Limits {
 		i++
@@ -206,12 +206,13 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 
 		used, ok := lookupUsage()
 		if !ok {
+			cores := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.Cores))
 			cpu := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.CPU))
 			memory := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.MemoryMB))
 			memoryMax := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.MemoryMaxMB))
 
 			vars := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.VariablesLimit))
-			limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s", specLimit.Region, cpu, memory, memoryMax, vars)
+			limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars)
 			continue
 		}
 
@@ -222,12 +223,13 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 			return *v
 		}
 
+		cores := fmt.Sprintf("%d / %s", orZero(used.RegionLimit.Cores), formatQuotaLimitInt(specLimit.RegionLimit.Cores))
 		cpu := fmt.Sprintf("%d / %s", orZero(used.RegionLimit.CPU), formatQuotaLimitInt(specLimit.RegionLimit.CPU))
 		memory := fmt.Sprintf("%d / %s", orZero(used.RegionLimit.MemoryMB), formatQuotaLimitInt(specLimit.RegionLimit.MemoryMB))
 		memoryMax := fmt.Sprintf("%d / %s", orZero(used.RegionLimit.MemoryMaxMB), formatQuotaLimitInt(specLimit.RegionLimit.MemoryMaxMB))
 
 		vars := fmt.Sprintf("%d / %s", orZero(used.VariablesLimit), formatQuotaLimitInt(specLimit.VariablesLimit))
-		limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s", specLimit.Region, cpu, memory, memoryMax, vars)
+		limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars)
 	}
 
 	return formatList(limits)

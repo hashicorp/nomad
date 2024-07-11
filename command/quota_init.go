@@ -119,6 +119,7 @@ description = "Limit the shared default namespace"
 limit {
   region = "global"
   region_limit {
+    cores      = 0
     cpu        = 2500
     memory     = 1000
     memory_max = 1000
@@ -135,6 +136,7 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
 		{
 			"Region": "global",
 			"RegionLimit": {
+				"Cores": 0,
 				"CPU": 2500,
 				"MemoryMB": 1000,
 				"MemoryMaxMB": 1000
