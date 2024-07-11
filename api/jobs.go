@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/cronexpr"
@@ -996,6 +997,15 @@ func (js *JobSubmission) Canonicalize() {
 
 	if len(js.VariableFlags) == 0 {
 		js.VariableFlags = nil
+	}
+
+	// if there are multiline variables, make sure we escape the newline
+	// characters to preserve them. This way, when the job gets stopped and
+	// restarted in the UI, variable values will be parsed correctly.
+	for k, v := range js.VariableFlags {
+		if strings.Contains(v, "\n") {
+			js.VariableFlags[k] = strings.ReplaceAll(v, "\n", "\\n")
+		}
 	}
 }
 
