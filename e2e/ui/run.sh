@@ -92,7 +92,7 @@ _get_svc_ip() {
 stop_proxy() {
   # make sure addr isn't still pointed at the proxy
   export NOMAD_ADDR="${NOMAD_ADDR/6464/4646}"
-  nomad job stop -namespace=proxy nomad-proxy
+  nomad job stop -purge -namespace=proxy nomad-proxy
   nomad namespace delete proxy
 }
 
