@@ -75,7 +75,7 @@ All other operating systems use the `host` networking mode.
     currently supported for the `docker`, `exec`, `raw_exec`, and `java` task
     drivers.
   - `host` - Each task will join the host network namespace and a shared network
-    namespace is not created. This matches the current behavior in Nomad 0.9.
+    namespace is not created.
   - `cni/<cni network name>` - Task group will have an isolated network namespace
     with the network configured by CNI.
 

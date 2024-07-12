@@ -144,8 +144,7 @@ client {
   relatively low to avoid high resource usage during garbage collections.
 
 - `no_host_uuid` `(bool: true)` - By default a random node UUID will be
-  generated, but setting this to `false` will use the system's UUID. Before
-  Nomad 0.6 the default was to use the system UUID.
+  generated, but setting this to `false` will use the system's UUID.
 
 - `cni_path` `(string: "/opt/cni/bin")` - Sets the search path that is used for
   CNI plugin discovery. Multiple paths can be searched using colon delimited
@@ -231,7 +230,7 @@ environment with the most commonly used parts of the operating system. Please
 see the [Nomad `exec` driver documentation](/nomad/docs/drivers/exec#chroot) for
 the full list.
 
-As of Nomad 1.2, Nomad will never attempt to embed the `alloc_dir` in the
+Nomad will never attempt to embed the `alloc_dir` in the
 chroot as doing so would cause infinite recursion.
 
 ### `options` Parameters
