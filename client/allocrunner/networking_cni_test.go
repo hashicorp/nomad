@@ -205,6 +205,53 @@ func TestCNI_cniToAllocNet_Invalid(t *testing.T) {
 	require.Nil(t, allocNet)
 }
 
+func TestCNI_addCustomCNIArgs(t *testing.T) {
+	ci.Parallel(t)
+	cniArgs := map[string]string{
+		"default": "yup",
+	}
+
+	networkWithArgs := []*structs.NetworkResource{{
+		CNI: &structs.CNIConfig{
+			Args: map[string]string{
+				"first_arg": "example",
+				"new_arg":   "example_2",
+			},
+		},
+	}}
+	networkWithoutArgs := []*structs.NetworkResource{{
+		Mode: "bridge",
+	}}
+	testCases := []struct {
+		name      string
+		network   []*structs.NetworkResource
+		expectMap map[string]string
+	}{
+		{
+			name:    "cni args not specified",
+			network: networkWithoutArgs,
+			expectMap: map[string]string{
+				"default": "yup",
+			},
+		}, {
+			name:    "cni args specified",
+			network: networkWithArgs,
+			expectMap: map[string]string{
+				"default":   "yup",
+				"first_arg": "example",
+				"new_arg":   "example_2",
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			addCustomCNIArgs(tc.network, cniArgs)
+			test.Eq(t, tc.expectMap, cniArgs)
+
+		})
+	}
+}
+
 func TestCNI_setupTproxyArgs(t *testing.T) {
 	ci.Parallel(t)
 

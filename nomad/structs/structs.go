@@ -2872,6 +2872,7 @@ type NetworkResource struct {
 	DNS           *DNSConfig // DNS Configuration
 	ReservedPorts []Port     // Host Reserved ports
 	DynamicPorts  []Port     // Host Dynamically assigned ports
+	CNI           *CNIConfig // CNIConfig Configuration
 }
 
 func (n *NetworkResource) Hash() uint32 {
@@ -7147,6 +7148,7 @@ func (tg *TaskGroup) validateNetworks() error {
 	portLabels := make(map[string]string)
 	// host_network -> static port tracking
 	staticPortsIndex := make(map[string]map[int]string)
+	cniArgKeys := set.New[string](len(tg.Networks))
 
 	for _, net := range tg.Networks {
 		for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
@@ -7184,6 +7186,26 @@ func (tg *TaskGroup) validateNetworks() error {
 			} else if port.To > math.MaxUint16 {
 				err := fmt.Errorf("Port %q cannot be mapped to a port (%d) greater than %d", port.Label, port.To, math.MaxUint16)
 				mErr.Errors = append(mErr.Errors, err)
+			}
+		}
+		// Validate the cniArgs in each network resource. Make sure there are no duplicate Args in
+		// different network resources or illegal characters (;) in key or value ;)
+		if net.CNI != nil {
+			for k, v := range net.CNI.Args {
+				if cniArgKeys.Contains(k) {
+					err := fmt.Errorf("duplicate CNI arg %q", k)
+					mErr.Errors = append(mErr.Errors, err)
+				} else {
+					cniArgKeys.Insert(k)
+				}
+				if strings.Contains(k, ";") {
+					err := fmt.Errorf("invalid ';' character in CNI arg key %q", k)
+					mErr.Errors = append(mErr.Errors, err)
+				}
+				if strings.Contains(v, ";") {
+					err := fmt.Errorf("invalid ';' character in CNI arg value %q", v)
+					mErr.Errors = append(mErr.Errors, err)
+				}
 			}
 		}
 

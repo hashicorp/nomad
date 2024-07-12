@@ -1,0 +1,3 @@
+```release-note:improvement
+cni: allow users to input CNI args in job specification
+```
