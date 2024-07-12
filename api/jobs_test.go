@@ -1496,6 +1496,15 @@ func TestJobs_JobSubmission_Canonicalize(t *testing.T) {
 		js.Canonicalize()
 		must.Nil(t, js.VariableFlags)
 	})
+
+	t.Run("multiline var values", func(t *testing.T) {
+		js := &JobSubmission{
+			Source:        "abc123",
+			VariableFlags: map[string]string{"test": "foo\nbar"},
+		}
+		js.Canonicalize()
+		must.Eq(t, js.VariableFlags["test"], "foo\\nbar")
+	})
 }
 
 func TestJobs_JobSubmission_Copy(t *testing.T) {
