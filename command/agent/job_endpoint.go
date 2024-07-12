@@ -908,6 +908,8 @@ func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmis
 	if submission == nil {
 		return nil
 	}
+
+	submission.Canonicalize()
 	return &structs.JobSubmission{
 		Source:        submission.Source,
 		Format:        submission.Format,
