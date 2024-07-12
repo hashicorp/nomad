@@ -116,6 +116,9 @@ type Config struct {
 	// Network interface to be used in network fingerprinting
 	NetworkInterface string
 
+	// Preferred address family to be used in network fingerprinting
+	PreferredAddressFamily structs.NodeNetworkAF
+
 	// Network speed is the default speed of network interfaces if they can not
 	// be determined dynamically.
 	NetworkSpeed int
