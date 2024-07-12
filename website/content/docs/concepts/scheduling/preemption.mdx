@@ -17,17 +17,13 @@ run high priority jobs even under resource contention across the cluster.
 Every job in Nomad has a priority associated with it. Priorities impact scheduling at the evaluation and planning
 stages by sorting the respective queues accordingly (higher priority jobs get moved ahead in the queues).
 
-Prior to Nomad 0.9, when a cluster is at capacity, any allocations that result from a newly scheduled or updated
-job remain in the pending state until sufficient resources become available - regardless of the defined priority.
-This leads to priority inversion, where a low priority task can prevent high priority tasks from completing.
-
 Nomad has preemption capabilities for service, batch, and system jobs. The Nomad scheduler can be configured to evict lower priority running allocations
 to free up capacity for new allocations resulting from relatively higher priority jobs, sending evicted allocations back
 into the plan queue.
 
 # Details
 
-Preemption is enabled by default in Nomad 0.9 for system jobs. Operators can use the [scheduler config](/nomad/api-docs/operator#update-scheduler-configuration) API endpoint to disable preemption.
+Preemption is enabled by default for system jobs. Operators can use the [scheduler config](/nomad/api-docs/operator#update-scheduler-configuration) API endpoint to disable preemption.
 
 Nomad uses the [job priority](/nomad/docs/job-specification/job#priority) field to determine what running allocations can be preempted.
 In order to prevent a cascade of preemptions due to jobs close in priority being preempted, only allocations from jobs with a priority

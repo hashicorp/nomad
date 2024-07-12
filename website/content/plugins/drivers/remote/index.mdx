@@ -19,10 +19,9 @@ lost tasks. If a new node is not immediately available but started later,
 it will start a new instance of the remote task instead of reconnecting to the
 old one. Follow [#10592][gh-10592] for the fix.
 
-Nomad 1.1.0 introduces support for Remote Task Drivers. Remote Task Drivers
-allow custom task driver plugins to execute tasks using nonlocal runtimes such
-as cloud container runtimes. Without this support, task driver plugins trying
-to manage remote tasks would run into the following problems:
+Remote Task Drivers allow custom task driver plugins to execute tasks using nonlocal
+runtimes such as cloud container runtimes. Without this support, task driver plugins
+trying to manage remote tasks would run into the following problems:
 
 1. When [draining][drain] a node, Nomad stops all allocations on that node
    before rescheduling them.
@@ -39,8 +38,8 @@ manage them without restarting the task. Likewise if the Nomad node managing
 the remote task is drained, a new Nomad node should manage the remote task
 without requiring it be stopped and restarted.
 
-The Remote Task Driver feature in Nomad 1.1.0 improves these behaviors for
-custom plugins that advertise the [`RemoteTasks` capability][remote-cap].
+The Remote Task Driver feature improves these behaviors for custom plugins that
+ advertise the [`RemoteTasks` capability][remote-cap].
 
 ## Caveats
 
