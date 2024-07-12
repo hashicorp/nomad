@@ -18,7 +18,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.5.3
-	github.com/aws/aws-sdk-go v1.44.184
+	github.com/aws/aws-sdk-go v1.44.210
 	github.com/brianvoe/gofakeit/v6 v6.20.1
 	github.com/container-storage-interface/spec v1.10.0
 	github.com/containerd/go-cni v1.1.9
@@ -58,6 +58,10 @@ require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.15
+	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.9
+	github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.11
+	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.12
+	github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.11
 	github.com/hashicorp/go-memdb v1.3.4
 	github.com/hashicorp/go-msgpack/v2 v2.1.2
 	github.com/hashicorp/go-multierror v1.1.1
@@ -139,13 +143,19 @@ require (
 	cloud.google.com/go/compute v1.23.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.1 // indirect
+	cloud.google.com/go/kms v1.15.0 // indirect
 	cloud.google.com/go/storage v1.30.1 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/azure-sdk-for-go v56.3.0+incompatible // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/keyvault/azkeys v0.10.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/keyvault/internal v0.7.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
-	github.com/Azure/go-autorest/autorest v0.11.20 // indirect
-	github.com/Azure/go-autorest/autorest/adal v0.9.15 // indirect
+	github.com/Azure/go-autorest/autorest v0.11.29 // indirect
+	github.com/Azure/go-autorest/autorest/adal v0.9.22 // indirect
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.1 // indirect
 	github.com/Azure/go-autorest/autorest/azure/cli v0.4.0 // indirect
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
@@ -153,6 +163,7 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.1.1 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/DataDog/datadog-go v3.2.0+incompatible // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -196,7 +207,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gojuno/minimock/v3 v3.0.6 // indirect
-	github.com/golang-jwt/jwt/v4 v4.4.3 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
@@ -213,6 +224,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
+	github.com/hashicorp/go-secure-stdlib/awsutil v0.1.6 // indirect
 	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.7 // indirect
 	github.com/hashicorp/go-secure-stdlib/reloadutil v0.1.1 // indirect
 	github.com/hashicorp/go-secure-stdlib/tlsutil v0.1.2 // indirect
@@ -228,6 +240,7 @@ require (
 	github.com/joyent/triton-go v0.0.0-20190112182421-51ffac552869 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/linode/linodego v0.7.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -250,6 +263,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/opencontainers/selinux v1.11.0 // indirect
 	github.com/packethost/packngo v0.1.1-0.20180711074735-b9cb5096f54c // indirect
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect

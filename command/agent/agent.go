@@ -614,6 +614,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	conf.Reporting = agentConfig.Reporting
 
+	conf.KEKProviderConfigs = agentConfig.KEKProviders
+
 	return conf, nil
 }
 

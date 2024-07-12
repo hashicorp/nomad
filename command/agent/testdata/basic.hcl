@@ -349,3 +349,13 @@ reporting {
     enabled = true
   }
 }
+
+keyring "awskms" {
+  active     = true
+  region     = "us-east-1"
+  kms_key_id = "alias/kms-nomad-keyring"
+}
+
+keyring "aead" {
+  active = false
+}

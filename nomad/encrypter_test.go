@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,9 +23,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -51,10 +55,10 @@ func (s *mockSigner) SignClaims(c *structs.IdentityClaims) (token, keyID string,
 func TestEncrypter_LoadSave(t *testing.T) {
 	ci.Parallel(t)
 
-	srv, cleanupSrv := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-	t.Cleanup(cleanupSrv)
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
 
 	tmpDir := t.TempDir()
 	encrypter, err := NewEncrypter(srv, tmpDir)
@@ -73,7 +77,7 @@ func TestEncrypter_LoadSave(t *testing.T) {
 
 			// startup code path
 			gotKey, err := encrypter.loadKeyFromStore(
-				filepath.Join(tmpDir, key.Meta.KeyID+".nks.json"))
+				filepath.Join(tmpDir, key.Meta.KeyID+".aead.nks.json"))
 			must.NoError(t, err)
 			must.NoError(t, encrypter.addCipher(gotKey))
 			must.Greater(t, 0, len(gotKey.RSAKey))
@@ -84,6 +88,33 @@ func TestEncrypter_LoadSave(t *testing.T) {
 			must.Greater(t, 0, len(active.rootKey.RSAKey))
 		})
 	}
+
+	t.Run("legacy aead wrapper", func(t *testing.T) {
+		key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+		must.NoError(t, err)
+
+		// create a wrapper file identical to those before we had external KMS
+		kekWrapper, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
+		kekWrapper.Provider = ""
+		kekWrapper.ProviderID = ""
+		kekWrapper.EncryptedDataEncryptionKey = kekWrapper.WrappedDataEncryptionKey.Ciphertext
+		kekWrapper.EncryptedRSAKey = kekWrapper.WrappedRSAKey.Ciphertext
+		kekWrapper.WrappedDataEncryptionKey = nil
+		kekWrapper.WrappedRSAKey = nil
+
+		buf, err := json.Marshal(kekWrapper)
+		must.NoError(t, err)
+
+		path := filepath.Join(tmpDir, key.Meta.KeyID+".nks.json")
+		err = os.WriteFile(path, buf, 0o600)
+		must.NoError(t, err)
+
+		gotKey, err := encrypter.loadKeyFromStore(path)
+		must.NoError(t, err)
+		must.NoError(t, encrypter.addCipher(gotKey))
+		must.Greater(t, 0, len(gotKey.RSAKey))
+	})
+
 }
 
 // TestEncrypter_Restore exercises the entire reload of a keystore,
@@ -253,7 +284,7 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	keyID1 := listResp.Keys[0].KeyID
 
 	keyPath := filepath.Join(leader.GetConfig().DataDir, "keystore",
-		keyID1+nomadKeystoreExtension)
+		keyID1+".aead.nks.json")
 	_, err := os.Stat(keyPath)
 	must.NoError(t, err, must.Sprint("expected key to be found in leader keystore"))
 
@@ -264,7 +295,7 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 		return func() bool {
 			for _, srv := range servers {
 				keyPath := filepath.Join(srv.GetConfig().DataDir, "keystore",
-					keyID+nomadKeystoreExtension)
+					keyID+".aead.nks.json")
 				if _, err := os.Stat(keyPath); err != nil {
 					return false
 				}
@@ -302,7 +333,7 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	must.NotNil(t, getResp.Key, must.Sprint("expected key to be found on leader"))
 
 	keyPath = filepath.Join(leader.GetConfig().DataDir, "keystore",
-		keyID2+nomadKeystoreExtension)
+		keyID2+".aead.nks.json")
 	_, err = os.Stat(keyPath)
 	must.NoError(t, err, must.Sprint("expected key to be found in leader keystore"))
 
@@ -638,4 +669,64 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 	// Ensure that verifying the old JWT still works
 	_, err = srv.encrypter.VerifyClaim(oldRawJWT)
 	must.NoError(t, err)
+}
+
+func TestEncrypter_TransitConfigFallback(t *testing.T) {
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{
+			VaultConfigs: map[string]*config.VaultConfig{structs.VaultDefaultCluster: {
+				Addr:          "https://localhost:8203",
+				TLSCaPath:     "/etc/certs/ca",
+				TLSCertFile:   "/var/certs/vault.crt",
+				TLSKeyFile:    "/var/certs/vault.key",
+				TLSSkipVerify: pointer.Of(true),
+				TLSServerName: "foo",
+				Token:         "vault-token",
+			}},
+			KEKProviderConfigs: []*structs.KEKProviderConfig{
+				{
+					Provider: "transit",
+					Name:     "no-fallback",
+					Config: map[string]string{
+						"address":         "https://localhost:8203",
+						"token":           "vault-token",
+						"tls_ca_cert":     "/etc/certs/ca",
+						"tls_client_cert": "/var/certs/vault.crt",
+						"tls_client_key":  "/var/certs/vault.key",
+						"tls_server_name": "foo",
+						"tls_skip_verify": "true",
+					},
+				},
+				{
+					Provider: "transit",
+					Name:     "fallback-to-vault-block",
+				},
+				{
+					Provider: "transit",
+					Name:     "fallback-to-env",
+				},
+			},
+		},
+	}
+
+	providers := srv.config.KEKProviderConfigs
+	expect := maps.Clone(providers[0].Config)
+
+	fallbackVaultConfig(providers[0], srv.config.GetDefaultVault())
+	must.Eq(t, expect, providers[0].Config, must.Sprint("expected no change"))
+
+	fallbackVaultConfig(providers[1], srv.config.GetDefaultVault())
+	must.Eq(t, expect, providers[1].Config, must.Sprint("expected fallback to vault block"))
+
+	t.Setenv("VAULT_ADDR", "https://localhost:8203")
+	t.Setenv("VAULT_TOKEN", "vault-token")
+	t.Setenv("VAULT_CACERT", "/etc/certs/ca")
+	t.Setenv("VAULT_CLIENT_CERT", "/var/certs/vault.crt")
+	t.Setenv("VAULT_CLIENT_KEY", "/var/certs/vault.key")
+	t.Setenv("VAULT_TLS_SERVER_NAME", "foo")
+	t.Setenv("VAULT_SKIP_VERIFY", "true")
+
+	fallbackVaultConfig(providers[2], &config.VaultConfig{})
+	must.Eq(t, expect, providers[2].Config, must.Sprint("expected fallback to env"))
 }
