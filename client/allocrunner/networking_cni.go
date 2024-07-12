@@ -102,6 +102,18 @@ const (
 	ConsulIPTablesConfigEnvVar = "CONSUL_IPTABLES_CONFIG"
 )
 
+// Adds user inputted custom CNI args to cniArgs map
+func addCustomCNIArgs(networks []*structs.NetworkResource, cniArgs map[string]string) {
+	for _, net := range networks {
+		if net.CNI == nil {
+			continue
+		}
+		for k, v := range net.CNI.Args {
+			cniArgs[k] = v
+		}
+	}
+}
+
 // Setup calls the CNI plugins with the add action
 func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
 	if err := c.ensureCNIInitialized(); err != nil {
@@ -113,6 +125,10 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		// should ignore any arguments they don't understand
 		"IgnoreUnknown": "true",
 	}
+
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+
+	addCustomCNIArgs(tg.Networks, cniArgs)
 
 	portMaps := getPortMapping(alloc, c.ignorePortMappingHostIP)
 

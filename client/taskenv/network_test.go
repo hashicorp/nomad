@@ -84,6 +84,30 @@ func Test_InterpolateNetworks(t *testing.T) {
 			},
 			name: "interpolated dns servers",
 		},
+		{
+			inputTaskEnv: testEnv,
+			inputNetworks: structs.Networks{
+				{
+					CNI: &structs.CNIConfig{
+						Args: map[string]string{
+							"static": "example",
+							"second": "${foo}-opt",
+						},
+					},
+				},
+			},
+			expectedOutputNetworks: structs.Networks{
+				{
+					CNI: &structs.CNIConfig{
+						Args: map[string]string{
+							"static": "example",
+							"second": "bar-opt",
+						},
+					},
+				},
+			},
+			name: "interpolated and non-interpolated cni args",
+		},
 	}
 
 	for _, tc := range testCases {

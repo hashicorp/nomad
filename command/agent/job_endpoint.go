@@ -1555,6 +1555,11 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 				Options:  nw.DNS.Options,
 			}
 		}
+		if nw.CNI != nil {
+			out[i].CNI = &structs.CNIConfig{
+				Args: nw.CNI.Args,
+			}
+		}
 
 		if l := len(nw.DynamicPorts); l != 0 {
 			out[i].DynamicPorts = make([]structs.Port, l)
