@@ -6,6 +6,7 @@ package scheduler
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
@@ -901,4 +902,53 @@ func preemptionScore(netPriority float64) float64 {
 
 	// This function manifests as an s curve that asympotically moves towards zero for large values of netPriority
 	return 1.0 / (1 + math.Exp(rate*(netPriority-origin)))
+}
+
+// NodeCarbonScoreIterator is used to score nodes according to their carbon impact.
+type NodeCarbonScoreIterator struct {
+	ctx              Context
+	source           RankIterator
+	carbonAwareNodes map[string]*structs.Node
+}
+
+// NewNodeCarbonScoreIterator is used to create a NodeCarbonScoreIterator that integrates the
+// fingerprinted carbon score for placement onto nodes.
+func NewNodeCarbonScoreIterator(ctx Context, source RankIterator) *NodeCarbonScoreIterator {
+	iter := &NodeCarbonScoreIterator{
+		ctx:    ctx,
+		source: source,
+	}
+	return iter
+}
+
+func (iter *NodeCarbonScoreIterator) SetEnergyAwareNodes(carbonAwareNodes map[string]*structs.Node) {
+	iter.carbonAwareNodes = carbonAwareNodes
+}
+
+func (iter *NodeCarbonScoreIterator) Next() *RankedNode {
+	option := iter.source.Next()
+	if option == nil {
+		return nil
+	}
+
+	node, ok := iter.carbonAwareNodes[option.Node.ID]
+	if ok {
+		score, err := strconv.ParseFloat(node.Attributes["energy.carbon.score"], 64)
+		if err != nil {
+			// TODO: Figure out what to do here.
+			score = 0
+		}
+		option.Scores = append(option.Scores, score)
+		iter.ctx.Metrics().ScoreNode(option.Node, "node-carbon-score", score)
+	} else {
+		// TODO: Validate copy pasta logic.
+		iter.ctx.Metrics().ScoreNode(option.Node, "node-carbon-score", 0)
+	}
+
+	return option
+}
+
+func (iter *NodeCarbonScoreIterator) Reset() {
+	iter.carbonAwareNodes = make(map[string]*structs.Node)
+	iter.source.Reset()
 }
