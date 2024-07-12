@@ -74,8 +74,8 @@ The available capabilities for Variables are as follows:
 
 ## Task Access to Variables
 
-Tasks can only access Variables with the [`template`] block. The
-[workload identity] for each task grants it automatic read and list access to
+Tasks can access Variables with the [`template`] block or using the [Task API].
+The [workload identity] for each task grants it automatic read and list access to
 Variables found at Nomad-owned paths with the prefix `nomad/jobs/`, followed by
 the job ID, task group name, and task name. This is equivalent to the following
 policy:
@@ -248,3 +248,4 @@ implementation or the [Nomad Autoscaler][] High Availability implementation.
 [Go Package]: https://pkg.go.dev/github.com/hashicorp/nomad/api
 [implementation]: https://github.com/hashicorp/nomad/blob/release/1.7.0/command/var_lock.go#L240
 [Nomad Autoscaler]: https://github.com/hashicorp/nomad-autoscaler/blob/v0.4.0/command/agent.go#L392
+[Task API]: nomad/api-docs/task-api
