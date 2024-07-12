@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -31,6 +32,50 @@ export default class SystemService extends Service {
     );
   }
 
+  /**
+   * @typedef {Object} Agent
+   * @property {Config} config
+   * @property {string} version
+   */
+
+  /**
+   * @typedef {Object} Config
+   * @property {UI} UI
+   */
+
+  /**
+   * @typedef {Object} PeerApp
+   * @property {string} BaseUIURL
+   */
+
+  /**
+   * @typedef {Object} UILabel
+   * @property {string} BackgroundColor
+   * @property {string} Text
+   * @property {string} TextColor
+   */
+
+  /**
+   * @typedef {Object} Defaults
+   * @property {string} Region
+   * @property {string} Namespace
+   * @property {string} NodePool
+   */
+
+  /**
+   * @typedef {Object} UI
+   * @property {UILabel} Label
+   * @property {Defaults} Defaults
+   * @property {PeerApp} Consul
+   * @property {PeerApp} Vault
+   * @property {boolean} Enabled
+   * @property {Object} ContentSecurityPolicy
+   */
+
+  /**
+   * Fetches the agent information for the current token
+   * @type {Promise<Agent>}
+   */
   @computed
   get agent() {
     const token = this.token;
@@ -39,6 +84,7 @@ export default class SystemService extends Service {
         .authorizedRawRequest(`/${namespace}/agent/self`)
         .then(jsonWithDefault({}))
         .then((agent) => {
+          console.log('agent', agent);
           if (agent?.config?.Version) {
             const { Version, VersionPrerelease, VersionMetadata } =
               agent.config.Version;
