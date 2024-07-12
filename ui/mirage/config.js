@@ -735,9 +735,8 @@ export default function () {
   });
 
   this.post('/acl/token', function (schema, request) {
-    const { Name, Policies, Type, ExpirationTTL, ExpirationTime } = JSON.parse(
-      request.requestBody
-    );
+    const { Name, Policies, Type, ExpirationTTL, ExpirationTime, Global } =
+      JSON.parse(request.requestBody);
 
     function parseDuration(duration) {
       const [_, value, unit] = duration.match(/(\d+)(\w)/);
@@ -763,6 +762,7 @@ export default function () {
       type: Type,
       id: faker.random.uuid(),
       expirationTime,
+      global: Global,
       createTime: new Date().toISOString(),
     });
   });
