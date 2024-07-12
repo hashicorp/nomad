@@ -7189,14 +7189,22 @@ func (tg *TaskGroup) validateNetworks() error {
 			}
 		}
 		// Validate the cniArgs in each network resource. Make sure there are no duplicate Args in
-		// different network resources
+		// different network resources or illegal characters (;) in key or value ;)
 		if net.CNI != nil {
-			for k := range net.CNI.Args {
+			for k, v := range net.CNI.Args {
 				if cniArgKeys.Contains(k) {
 					err := fmt.Errorf("duplicate CNI arg %q", k)
 					mErr.Errors = append(mErr.Errors, err)
 				} else {
 					cniArgKeys.Insert(k)
+				}
+				if strings.Contains(k, ";") {
+					err := fmt.Errorf("invalid ';' character in CNI arg key %q", k)
+					mErr.Errors = append(mErr.Errors, err)
+				}
+				if strings.Contains(v, ";") {
+					err := fmt.Errorf("invalid ';' character in CNI arg value %q", v)
+					mErr.Errors = append(mErr.Errors, err)
 				}
 			}
 		}

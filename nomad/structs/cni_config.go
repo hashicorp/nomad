@@ -3,7 +3,9 @@
 
 package structs
 
-import "reflect"
+import (
+	"maps"
+)
 
 type CNIConfig struct {
 	Args map[string]string
@@ -26,5 +28,5 @@ func (d *CNIConfig) Equal(o *CNIConfig) bool {
 	if d == nil || o == nil {
 		return d == o
 	}
-	return reflect.DeepEqual(d.Args, o.Args)
+	return maps.Equal(d.Args, o.Args)
 }

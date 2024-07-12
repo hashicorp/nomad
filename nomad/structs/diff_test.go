@@ -5371,7 +5371,7 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
-		{TestCase: "TaskGroup Networks edited behavior",
+		{TestCase: "Editing Networks deletes and re-adds",
 			Contextual: false,
 			Old: &TaskGroup{
 				Networks: Networks{

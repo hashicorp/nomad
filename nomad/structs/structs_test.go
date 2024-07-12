@@ -2045,6 +2045,28 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 				},
 			},
 		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-invalid-character-cni-arg-key",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static;": "first_value"}},
+					},
+				},
+			},
+			ErrContains: "invalid ';' character in CNI arg key \"static;",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-invalid-character-cni-arg-value",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static": "first_value;"}},
+					},
+				},
+			},
+			ErrContains: "invalid ';' character in CNI arg value \"first_value;",
+		},
 	}
 
 	for i := range cases {

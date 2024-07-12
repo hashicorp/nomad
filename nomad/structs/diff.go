@@ -2712,14 +2712,14 @@ func (d *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
 
 // Diff returns a diff of two CNIConfig structs
 func (d *CNIConfig) Diff(other *CNIConfig, contextual bool) *ObjectDiff {
-	if d.Equal(other) {
-		return nil
-	}
 	if d == nil {
 		d = &CNIConfig{}
 	}
 	if other == nil {
 		other = &CNIConfig{}
+	}
+	if d.Equal(other) {
+		return nil
 	}
 
 	return primitiveObjectDiff(d.Args, other.Args, nil, "CNIConfig", contextual)
