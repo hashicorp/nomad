@@ -256,6 +256,11 @@ type ClientConfig struct {
 	// Interface to use for network fingerprinting
 	NetworkInterface string `hcl:"network_interface"`
 
+	// Sort the IP addresses by the preferred IP family. This is useful when
+	// the interface has multiple IP addresses and the client should prefer
+	// one over the other.
+	PreferredAddressFamily structs.NodeNetworkAF `hcl:"preferred_address_family"`
+
 	// NetworkSpeed is used to override any detected or default network link
 	// speed.
 	NetworkSpeed int `hcl:"network_speed"`
@@ -2265,6 +2270,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.NetworkInterface != "" {
 		result.NetworkInterface = b.NetworkInterface
 	}
+
+	if b.PreferredAddressFamily != "" {
+		result.PreferredAddressFamily = b.PreferredAddressFamily
+	}
+
 	if b.NetworkSpeed != 0 {
 		result.NetworkSpeed = b.NetworkSpeed
 	}
