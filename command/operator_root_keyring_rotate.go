@@ -6,6 +6,7 @@ package command
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
@@ -36,6 +37,12 @@ Keyring Options:
     will immediately return and the re-encryption process will run
     asynchronously on the leader.
 
+  -prepublish
+    Set a duration for which to prepublish the new key (ex. "1h"). The currently
+    active key will be unchanged but the new public key will be available in the
+    JWKS endpoint. Multiple keys can be prepublished and they will be promoted to
+    active in order of publish time, at most once every root_key_gc_interval.
+
   -verbose
     Show full information.
 `
@@ -50,8 +57,9 @@ func (c *OperatorRootKeyringRotateCommand) Synopsis() string {
 func (c *OperatorRootKeyringRotateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-full":    complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"-full":       complete.PredictNothing,
+			"-prepublish": complete.PredictNothing,
+			"-verbose":    complete.PredictNothing,
 		})
 }
 
@@ -65,11 +73,13 @@ func (c *OperatorRootKeyringRotateCommand) Name() string {
 
 func (c *OperatorRootKeyringRotateCommand) Run(args []string) int {
 	var rotateFull, verbose bool
+	var prepublishDuration time.Duration
 
 	flags := c.Meta.FlagSet("root keyring rotate", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&rotateFull, "full", false, "full key rotation")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.DurationVar(&prepublishDuration, "prepublish", 0, "prepublish key")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -88,8 +98,16 @@ func (c *OperatorRootKeyringRotateCommand) Run(args []string) int {
 		return 1
 	}
 
+	publishTime := int64(0)
+	if prepublishDuration > 0 {
+		publishTime = time.Now().UnixNano() + prepublishDuration.Nanoseconds()
+	}
+
 	resp, _, err := client.Keyring().Rotate(
-		&api.KeyringRotateOptions{Full: rotateFull}, nil)
+		&api.KeyringRotateOptions{
+			Full:        rotateFull,
+			PublishTime: publishTime,
+		}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("error: %s", err))
 		return 1

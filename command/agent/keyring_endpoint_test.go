@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,57 +29,83 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		// List (get bootstrap key)
 
 		req, err := http.NewRequest(http.MethodGet, "/v1/operator/keyring/keys", nil)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		obj, err := s.Server.KeyringRequest(respW, req)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		listResp := obj.([]*structs.RootKeyMeta)
-		require.Len(t, listResp, 1)
-		oldKeyID := listResp[0].KeyID
+		must.Len(t, 1, listResp)
+		key0 := listResp[0].KeyID
 
 		// Rotate
 
 		req, err = http.NewRequest(http.MethodPut, "/v1/operator/keyring/rotate", nil)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		obj, err = s.Server.KeyringRequest(respW, req)
-		require.NoError(t, err)
-		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+		must.NoError(t, err)
+		must.NotEq(t, "", respW.HeaderMap.Get("X-Nomad-Index"))
 		rotateResp := obj.(structs.KeyringRotateRootKeyResponse)
-		require.NotNil(t, rotateResp.Key)
-		require.True(t, rotateResp.Key.Active())
-		newID1 := rotateResp.Key.KeyID
+		must.NotNil(t, rotateResp.Key)
+		must.True(t, rotateResp.Key.Active())
+		key1 := rotateResp.Key.KeyID
+
+		// Rotate with prepublish
+
+		publishTime := time.Now().Add(24 * time.Hour).UnixNano()
+		req, err = http.NewRequest(http.MethodPut,
+			fmt.Sprintf("/v1/operator/keyring/rotate?publish_time=%d", publishTime), nil)
+		must.NoError(t, err)
+		obj, err = s.Server.KeyringRequest(respW, req)
+		must.NoError(t, err)
+		must.NotEq(t, "", respW.HeaderMap.Get("X-Nomad-Index"))
+		rotateResp = obj.(structs.KeyringRotateRootKeyResponse)
+		must.NotNil(t, rotateResp.Key)
+		must.True(t, rotateResp.Key.Prepublished())
+		key2 := rotateResp.Key.KeyID
 
 		// List
 
 		req, err = http.NewRequest(http.MethodGet, "/v1/operator/keyring/keys", nil)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		obj, err = s.Server.KeyringRequest(respW, req)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		listResp = obj.([]*structs.RootKeyMeta)
-		require.Len(t, listResp, 2)
+		must.Len(t, 3, listResp)
 		for _, key := range listResp {
-			if key.KeyID == newID1 {
-				require.True(t, key.Active(), "new key should be active")
-			} else {
-				require.False(t, key.Active(), "initial key should be inactive")
+			switch key.KeyID {
+			case key0:
+				must.True(t, key.Inactive(), must.Sprint("initial key should be inactive"))
+			case key1:
+				must.True(t, key.Active(), must.Sprint("new key should be active"))
+			case key2:
+				must.True(t, key.Prepublished(),
+					must.Sprint("prepublished key should not be active"))
 			}
 		}
 
-		// Delete the old key and verify its gone
+		// Delete the original key and verify its gone
 
-		req, err = http.NewRequest(http.MethodDelete, "/v1/operator/keyring/key/"+oldKeyID, nil)
-		require.NoError(t, err)
+		req, err = http.NewRequest(http.MethodDelete, "/v1/operator/keyring/key/"+key0, nil)
+		must.NoError(t, err)
 		obj, err = s.Server.KeyringRequest(respW, req)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		req, err = http.NewRequest(http.MethodGet, "/v1/operator/keyring/keys", nil)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		obj, err = s.Server.KeyringRequest(respW, req)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		listResp = obj.([]*structs.RootKeyMeta)
-		require.Len(t, listResp, 1)
-		require.Equal(t, newID1, listResp[0].KeyID)
-		require.True(t, listResp[0].Active())
-		require.Len(t, listResp, 1)
+		must.Len(t, 2, listResp)
+		for _, key := range listResp {
+			switch key.KeyID {
+			case key0:
+				t.Fatalf("initial key should have been deleted")
+			case key1:
+				must.True(t, key.Active(), must.Sprint("new key should be active"))
+			case key2:
+				must.True(t, key.Prepublished(),
+					must.Sprint("prepublished key should not be active"))
+			}
+		}
 	})
 }
 

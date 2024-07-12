@@ -50,13 +50,20 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 	if args.Algorithm == "" {
 		args.Algorithm = structs.EncryptionAlgorithmAES256GCM
 	}
+	if args.Full && args.PublishTime > 0 {
+		return fmt.Errorf("keyring cannot be prepublished and full rotated at the same time")
+	}
 
 	rootKey, err := structs.NewRootKey(args.Algorithm)
 	if err != nil {
 		return err
 	}
 
-	rootKey.Meta.SetActive()
+	if args.PublishTime != 0 {
+		rootKey.Meta.SetPrepublished(args.PublishTime)
+	} else {
+		rootKey.Meta.SetActive()
+	}
 
 	// make sure it's been added to the local keystore before we write
 	// it to raft, so that followers don't try to Get a key that

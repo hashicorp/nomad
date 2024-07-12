@@ -228,10 +228,14 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
+	store := srv.fsm.State()
+	key0, err := store.GetActiveRootKeyMeta(nil)
+	must.NoError(t, err)
+
 	// Setup an existing key
 	key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
-	require.NoError(t, err)
-	key.Meta.SetActive()
+	must.NoError(t, err)
+	key1 := key.Meta
 
 	updateReq := &structs.KeyringUpdateRootKeyRequest{
 		RootKey: key,
@@ -242,7 +246,7 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	}
 	var updateResp structs.KeyringUpdateRootKeyResponse
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Rotate the key
 
@@ -253,14 +257,13 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	}
 	var rotateResp structs.KeyringRotateRootKeyResponse
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
-	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 	rotateReq.AuthToken = rootToken.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
-	require.NoError(t, err)
-	require.NotEqual(t, updateResp.Index, rotateResp.Index)
-
-	newID := rotateResp.Key.KeyID
+	must.NoError(t, err)
+	must.Greater(t, updateResp.Index, rotateResp.Index)
+	key2 := rotateResp.Key
 
 	// Verify we have a new key and the old one is inactive
 
@@ -272,31 +275,62 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	}
 	var listResp structs.KeyringListRootKeyMetaResponse
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-	require.NoError(t, err)
-
-	require.Greater(t, listResp.Index, updateResp.Index)
-	require.Len(t, listResp.Keys, 3) // bootstrap + old + new
+	must.NoError(t, err)
+	must.Greater(t, updateResp.Index, listResp.Index)
+	must.Len(t, 3, listResp.Keys) // bootstrap + old + new
 
 	for _, keyMeta := range listResp.Keys {
-		if keyMeta.KeyID != newID {
-			require.False(t, keyMeta.Active(), "expected old keys to be inactive")
-		} else {
-			require.True(t, keyMeta.Active(), "expected new key to be inactive")
+		switch keyMeta.KeyID {
+		case key0.KeyID, key1.KeyID:
+			must.True(t, keyMeta.Inactive(), must.Sprint("older keys must be inactive"))
+		case key2.KeyID:
+			must.True(t, keyMeta.Active(), must.Sprint("expected new key to be active"))
 		}
 	}
 
 	getReq := &structs.KeyringGetRootKeyRequest{
-		KeyID: newID,
+		KeyID: key2.KeyID,
 		QueryOptions: structs.QueryOptions{
 			Region: "global",
 		},
 	}
 	var getResp structs.KeyringGetRootKeyResponse
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
-	require.NoError(t, err)
+	must.NoError(t, err)
+	must.Len(t, 32, getResp.Key.Key)
 
-	gotKey := getResp.Key
-	require.Len(t, gotKey.Key, 32)
+	// Rotate the key with prepublishing
+
+	publishTime := time.Now().Add(24 * time.Hour).UnixNano()
+	rotateResp = structs.KeyringRotateRootKeyResponse{}
+	rotateReq = &structs.KeyringRotateRootKeyRequest{
+		PublishTime: publishTime,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: rootToken.SecretID,
+		},
+	}
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
+	must.NoError(t, err)
+	must.Greater(t, updateResp.Index, rotateResp.Index)
+	key3 := rotateResp.Key
+
+	listResp = structs.KeyringListRootKeyMetaResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+	must.NoError(t, err)
+	must.Greater(t, updateResp.Index, listResp.Index)
+	must.Len(t, 4, listResp.Keys) // bootstrap + old + new + prepublished
+
+	for _, keyMeta := range listResp.Keys {
+		switch keyMeta.KeyID {
+		case key0.KeyID, key1.KeyID:
+			must.True(t, keyMeta.Inactive(), must.Sprint("older keys must be inactive"))
+		case key2.KeyID:
+			must.True(t, keyMeta.Active(), must.Sprint("expected active key to remain active"))
+		case key3.KeyID:
+			must.True(t, keyMeta.Prepublished(), must.Sprint("expected new key to be prepublished"))
+		}
+	}
 }
 
 // TestKeyringEndpoint_ListPublic asserts the Keyring.ListPublic RPC returns
