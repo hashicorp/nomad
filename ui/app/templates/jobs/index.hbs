@@ -57,6 +57,7 @@
                   data-test-dropdown-option={{option.key}}
                 >
                   {{option.key}} {{#if (eq option.key this.defaultNamespace)}}(default){{/if}}
+                  {{!-- TODO: default here no longer works because array --}}
                 </dd.Checkbox>
               {{else}}
                 <dd.Generic data-test-dropdown-empty>

@@ -13,6 +13,16 @@ import { namespace } from '../adapters/application';
 import jsonWithDefault from '../utils/json-with-default';
 import classic from 'ember-classic-decorator';
 import { task } from 'ember-concurrency';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
+import { tracked } from '@glimmer/tracking';
+
+/**
+ * @typedef {Object} RenderedDefaults
+ * @property {string} [region]
+ * @property {string[]} [namespace]
+ * @property {string[]} [nodePool]
+ */
+
 @classic
 export default class SystemService extends Service {
   @service token;
@@ -120,6 +130,44 @@ export default class SystemService extends Service {
       promise: token
         .authorizedRawRequest(`/${namespace}/regions`)
         .then(jsonWithDefault([])),
+    });
+  }
+
+  @localStorageProperty('nomadDefaultNamespace') userDefaultNamespace;
+  @localStorageProperty('nomadDefaultNodePool') userDefaultNodePool;
+  @localStorageProperty('nomadDefaultRegion') userDefaultRegion;
+
+  @tracked agentDefaults = {};
+
+  /**
+   * First read agent config for cluster-level defaults,
+   * then check localStorageProperties for user-level overrides.
+   * @type {Promise<RenderedDefaults>}
+   */
+  @computed(
+    'agent',
+    'agentDefaults.{Namespace,NodePool,Region}',
+    'userDefaultNamespace',
+    'userDefaultNodePool',
+    'userDefaultRegion'
+  )
+  get defaults() {
+    return this.agent.then((agent) => {
+      /**
+       * @type {Defaults}
+       */
+      // eslint-disable-next-line ember/no-side-effects
+      this.agentDefaults = agent.config.UI.Defaults;
+      if (!this.agentDefaults) return {};
+      return {
+        region: this.userDefaultRegion || this.agentDefaults.Region,
+        namespace: (this.userDefaultNamespace || this.agentDefaults.Namespace)
+          .split(',')
+          .map((ns) => ns.trim()),
+        nodePool: (this.userDefaultNodePool || this.agentDefaults.NodePool)
+          .split(',')
+          .map((np) => np.trim()),
+      };
     });
   }
 
