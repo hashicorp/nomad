@@ -6,6 +6,7 @@ package fingerprint
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 
 	log "github.com/hashicorp/go-hclog"
@@ -100,7 +101,7 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 
 	// Create the network resources from the interface
 	disallowLinkLocal := cfg.ReadBoolDefault(networkDisallowLinkLocalOption, networkDisallowLinkLocalDefault)
-	nwResources, err := f.createNetworkResources(mbits, intf, disallowLinkLocal)
+	nwResources, err := f.createNetworkResources(mbits, intf, disallowLinkLocal, cfg.PreferredAddressFamily)
 	if err != nil {
 		return err
 	}
@@ -169,6 +170,7 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 			} else {
 				family = structs.NodeNetworkAF_IPv6
 			}
+
 			for _, alias := range deriveAddressAliases(iface, ip, conf) {
 				newAddr := structs.NodeNetworkAddress{
 					Address: ip.String(),
@@ -190,6 +192,9 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 			}
 		}
 
+		sortNodeNetworkAddresses(networkAddrs, conf.PreferredAddressFamily)
+		sortNodeNetworkAddresses(linkLocalAddrs, conf.PreferredAddressFamily)
+
 		if len(networkAddrs) == 0 && len(linkLocalAddrs) > 0 {
 			if disallowLinkLocal {
 				f.logger.Debug("ignoring detected link-local address on interface", "interface", iface.Name)
@@ -204,6 +209,9 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 			nets = append(nets, newNetwork)
 		}
 	}
+
+	sortNodeNetworkResources(nets, conf.PreferredAddressFamily)
+
 	return nets, nil
 }
 
@@ -257,7 +265,7 @@ func deriveAddressAliases(iface net.Interface, addr net.IP, config *config.Confi
 }
 
 // createNetworkResources creates network resources for every IP
-func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.Interface, disallowLinkLocal bool) ([]*structs.NetworkResource, error) {
+func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.Interface, disallowLinkLocal bool, preferredAF structs.NodeNetworkAF) ([]*structs.NetworkResource, error) {
 	// Find the interface with the name
 	addrs, err := f.interfaceDetector.Addrs(intf)
 	if err != nil {
@@ -301,6 +309,9 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 		nwResources = append(nwResources, newNetwork)
 	}
 
+	sortNetworkResources(nwResources, preferredAF)
+	sortNetworkResources(linkLocals, preferredAF)
+
 	if len(nwResources) == 0 && len(linkLocals) != 0 {
 		if disallowLinkLocal {
 			f.logger.Debug("ignoring detected link-local address on interface", "interface", intf.Name)
@@ -334,4 +345,78 @@ func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, e
 	}
 
 	return f.interfaceDetector.InterfaceByName(deviceName)
+}
+
+// Define a type for the comparison function
+type LessFunc[T any] func(a, b T) bool
+
+// Generic sort function
+func sortResources[T any](res []T, less LessFunc[T]) {
+	sort.Slice(res, func(i, j int) bool {
+		return less(res[i], res[j])
+	})
+}
+
+// Less functions for each resource type and address family
+func lessNetworkResourceIPv4(a, b *structs.NetworkResource) bool {
+	return net.ParseIP(a.IP).To4() != nil && net.ParseIP(b.IP).To4() == nil
+}
+
+func lessNetworkResourceIPv6(a, b *structs.NetworkResource) bool {
+	return net.ParseIP(a.IP).To4() == nil && net.ParseIP(b.IP).To4() != nil
+}
+
+func lessNodeNetworkResourceIPv4(a, b *structs.NodeNetworkResource) bool {
+	if len(a.Addresses) == 0 && len(b.Addresses) == 0 {
+		return false
+	} else if len(a.Addresses) == 0 {
+		return false
+	} else if len(b.Addresses) == 0 {
+		return true
+	} else if a.Addresses[0].Family == structs.NodeNetworkAF_IPv4 && b.Addresses[0].Family == structs.NodeNetworkAF_IPv6 {
+		return true
+	}
+	return false
+}
+
+func lessNodeNetworkResourceIPv6(a, b *structs.NodeNetworkResource) bool {
+	if len(a.Addresses) == 0 {
+		return false
+	} else if len(b.Addresses) == 0 {
+		return true
+	}
+	return a.Addresses[0].Family == structs.NodeNetworkAF_IPv6 && b.Addresses[0].Family == structs.NodeNetworkAF_IPv4
+}
+
+func lessNodeNetworkAddressIPv4(a, b structs.NodeNetworkAddress) bool {
+	return a.Family == structs.NodeNetworkAF_IPv4 && b.Family == structs.NodeNetworkAF_IPv6
+}
+
+func lessNodeNetworkAddressIPv6(a, b structs.NodeNetworkAddress) bool {
+	return a.Family == structs.NodeNetworkAF_IPv6 && b.Family == structs.NodeNetworkAF_IPv4
+}
+
+// Sorting functions for different resource types and address families
+func sortNetworkResources(res []*structs.NetworkResource, preferredAF structs.NodeNetworkAF) {
+	if preferredAF == structs.NodeNetworkAF_IPv4 {
+		sortResources(res, lessNetworkResourceIPv4)
+	} else if preferredAF == structs.NodeNetworkAF_IPv6 {
+		sortResources(res, lessNetworkResourceIPv6)
+	}
+}
+
+func sortNodeNetworkResources(res []*structs.NodeNetworkResource, preferredAF structs.NodeNetworkAF) {
+	if preferredAF == structs.NodeNetworkAF_IPv4 {
+		sortResources(res, lessNodeNetworkResourceIPv4)
+	} else if preferredAF == structs.NodeNetworkAF_IPv6 {
+		sortResources(res, lessNodeNetworkResourceIPv6)
+	}
+}
+
+func sortNodeNetworkAddresses(res []structs.NodeNetworkAddress, preferredAF structs.NodeNetworkAF) {
+	if preferredAF == structs.NodeNetworkAF_IPv4 {
+		sortResources(res, lessNodeNetworkAddressIPv4)
+	} else if preferredAF == structs.NodeNetworkAF_IPv6 {
+		sortResources(res, lessNodeNetworkAddressIPv6)
+	}
 }
