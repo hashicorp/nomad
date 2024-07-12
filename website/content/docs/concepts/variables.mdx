@@ -74,7 +74,7 @@ The available capabilities for Variables are as follows:
 
 ## Task Access to Variables
 
-In Nomad 1.4.0 tasks can only access Variables with the [`template`] block. The
+Tasks can only access Variables with the [`template`] block. The
 [workload identity] for each task grants it automatic read and list access to
 Variables found at Nomad-owned paths with the prefix `nomad/jobs/`, followed by
 the job ID, task group name, and task name. This is equivalent to the following

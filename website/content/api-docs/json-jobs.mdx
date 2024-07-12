@@ -274,7 +274,6 @@ The `Job` object supports the following keys:
   only used to transfer the token and is not stored after job submission.
 
 - `Namespace` - The namespace to execute the job in, defaults to "default".
-  Prior to Nomad 1.0 namespaces were Enterprise-only.
 
 - `ParameterizedJob` - Specifies the job as a parameterized job such that it can
   be dispatched against. The `ParameterizedJob` object supports the following
@@ -586,8 +585,7 @@ The `Task` object supports the following keys:
     AWS EC2 instance set this to `${attr.unique.platform.aws.public-ipv4}`.
 
   - `AddressMode`: Specifies what address (host or driver-specific) this
-    service should advertise. This setting is supported in Docker since
-    Nomad 0.6 and rkt since Nomad 0.7. Valid options are:
+    service should advertise. Valid options are:
 
     - `auto` - Allows the driver to determine whether the host or driver
       address should be used. Defaults to `host` and only implemented by
@@ -616,9 +614,8 @@ The `Task` object supports the following keys:
     - `AddressMode`: Same as `AddressMode` on `Service`. Unlike services,
       checks do not have an `auto` address mode as there's no way for
       Nomad to know which is the best address to use for checks. Consul
-      needs access to the address for any HTTP or TCP checks. Added in
-      Nomad 0.7.1. Unlike `PortLabel`, this setting is _not_ inherited
-      from the `Service`.
+      needs access to the address for any HTTP or TCP checks. Unlike `PortLabel`,
+       this setting is _not_ inherited from the `Service`.
 
     - `PortLabel`: Specifies the label of the port on which the check will
       be performed. Note this is the _label_ of the port and not the port
@@ -628,9 +625,8 @@ The `Task` object supports the following keys:
       supplied, this value takes precedence over the `Service.PortLabel`
       value. This is useful for services which operate on multiple ports.
       `http` and `tcp` checks require a port while `script` checks do not.
-      Checks will use the host IP and ports by default. In Nomad 0.7.1 or
-      later numeric ports may be used if `AddressMode: "driver"` is set on
-      the check.
+      Checks will use the host IP and ports by default. Numeric ports may be 
+      used if `AddressMode: "driver"` is set on the check.
 
     - `Header`: Headers for HTTP checks. Should be an object where the values
       are an array of values. Headers will be written once for each value.
@@ -661,7 +657,7 @@ The `Task` object supports the following keys:
       checks.
 
     - `TLSSkipVerify`: If true, Consul will not attempt to verify the
-      certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
+      certificate when performing HTTPS checks. 
 
     - `CheckRestart`: `CheckRestart` is an object which enables
       restarting of tasks based upon Consul health checks.
@@ -1099,10 +1095,9 @@ creates a convenient way to ship configuration files that are populated from
 environment variables, Consul data, Vault secrets, or just general
 configurations within a Nomad task.
 
-Nomad utilizes a tool called [Consul Template][ct]. Since Nomad v0.5.3, the
-template can reference [Nomad's runtime environment variables][env]. For a full
-list of the API template functions, please refer to the [Consul Template
-README][ct].
+Nomad utilizes a tool called [Consul Template][ct]. The template can reference 
+[Nomad's runtime environment variables][env]. For a full list of the API template
+ functions, please refer to the [Consul Template README][ct].
 
 `Template` object supports following attributes:
 

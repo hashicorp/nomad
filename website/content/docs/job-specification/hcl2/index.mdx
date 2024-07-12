@@ -94,20 +94,7 @@ passing `-hcl1` to use Nomad's HCL1 parser instead.
 
 ### Blocks
 
-Nomad 0.12 and earlier allowed a few variations for defining blocks. For example, the following variations of `meta` were accepted:
-
-```hcl
-meta {
-  # meta attributes can be quoted or not
-  "team"       = "..."
-  organization = "..."
-}
-
-# meta can be an assignment to a map
-meta = { "team" = "...", organization = "..." }
-```
-
-Starting with Nomad 1.0 and the HCL2 parser, only the block syntax with unquoted attributes is accepted:
+Block syntax is as follows, using unquoted attributes and quoted values:
 
 ```hcl
 meta {
@@ -191,6 +178,4 @@ above example, `data` is read as `"hello\n world\n "` in HCL1, but `"hello\n wor
 
 ### Decimals
 
-Nomad 0.12 and earlier accepted small decimal values without a leading zero
-(e.g. `.3`, `.59`, `.9`). In such case, Nomad 1.0 requires a leading zero (e.g.
-`0.3`, `0.59`, `0.9`).
+HCL2 requires a leading zero for decimal values lower than 1 (e.g. `0.3`, `0.59`, `0.9`).
