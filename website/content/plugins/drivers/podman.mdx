@@ -47,7 +47,7 @@ $ wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/s
 Add the official HashiCorp Linux test repository.
 
 ```shell-session
-$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) test" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 ```
 
 Update and install.
@@ -70,8 +70,6 @@ Use `yum-config-manager` to add the official HashiCorp Linux repository.
 ```shell-session
 $ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
 ```
-
-Edit the repo file at `/etc/yum.repos.d/hashicorp.repo` and set `enabled=1` for `[hashicorp-test]`.
 
 Install.
 
