@@ -79,3 +79,29 @@ func (s *System) ReconcileJobSummaries(args *structs.GenericRequest, reply *stru
 	reply.Index = index
 	return nil
 }
+
+// Portland gl;hf 🏴🏴🏴
+func (s *System) Portland(args *structs.PortlandRequest, reply *structs.GenericResponse) error {
+	authErr := s.srv.Authenticate(s.ctx, args)
+	if done, err := s.srv.forward("System.Portland", args, args, reply); done {
+		return err
+	}
+	s.srv.MeasureRPCRate("system", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	// Check management level permissions
+	if aclObj, err := s.srv.ResolveACL(args); err != nil {
+		return err
+	} else if !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	_, index, err := s.srv.raftApply(structs.PortlandRequestType, args)
+	if err != nil {
+		return fmt.Errorf("Portland failed, moving to Amsterdam: %v", err)
+	}
+	reply.Index = index
+	return nil
+}
