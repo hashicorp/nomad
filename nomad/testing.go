@@ -75,6 +75,7 @@ func TestConfigForServer(t testing.TB) *Config {
 	config.SerfConfig.MemberlistConfig.ProbeTimeout = 50 * time.Millisecond
 	config.SerfConfig.MemberlistConfig.ProbeInterval = 100 * time.Millisecond
 	config.SerfConfig.MemberlistConfig.GossipInterval = 100 * time.Millisecond
+	config.SerfConfig.MemberlistConfig.PushPullInterval = 500 * time.Millisecond
 
 	// Tighten the Raft timing
 	config.RaftConfig.LeaderLeaseTimeout = 50 * time.Millisecond
@@ -182,14 +183,16 @@ func TestServerErr(t testing.TB, cb func(*Config)) (*Server, func(), error) {
 }
 
 func TestJoin(t testing.TB, servers ...*Server) {
-	for i := 0; i < len(servers)-1; i++ {
+	addrs := make([]string, len(servers))
+	for i := 0; i < len(servers); i++ {
 		addr := fmt.Sprintf("127.0.0.1:%d",
 			servers[i].config.SerfConfig.MemberlistConfig.BindPort)
+		addrs[i] = addr
+	}
 
-		for j := i + 1; j < len(servers); j++ {
-			num, err := servers[j].Join([]string{addr})
-			must.NoError(t, err)
-			must.Eq(t, 1, num)
-		}
+	for i := 0; i < len(servers); i++ {
+		num, err := servers[i].Join(addrs)
+		must.NoError(t, err)
+		must.Eq(t, len(addrs), num)
 	}
 }
