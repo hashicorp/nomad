@@ -5,7 +5,7 @@
 # setup script for Ubuntu Linux 22.04. Assumes that Packer has placed
 # build-time config files at /tmp/linux
 
-set -euo pipefail
+set -xeuo pipefail
 
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
 
@@ -22,6 +22,7 @@ mkdir_for_root /opt
 mkdir_for_root /opt/bin # for envoy
 mkdir_for_root /srv/data # for host volumes
 mkdir_for_root /opt/cni/bin
+mkdir_for_root /opt/cni/config
 
 # Dependencies
 sudo apt-get update
@@ -116,6 +117,10 @@ echo "Installing CNI plugins"
 wget -q -O - \
      https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-amd64-v1.0.0.tgz \
     | sudo tar -C /opt/cni/bin -xz
+
+# Copy cni_args plugin and network configuration files into opt/cni/bin and opt/cni/config
+sudo mv /tmp/linux/cni_args.conflist /opt/cni/config
+sudo mv /tmp/linux/cni_args.sh /opt/cni/bin
 
 # Podman
 echo "Installing Podman"
