@@ -49,21 +49,6 @@ const (
 	defaultCNIInterfacePrefix = "eth"
 )
 
-type nsOpts struct {
-	args  map[string]string
-	ports []cni.PortMapping
-}
-
-func (o *nsOpts) WithArgs(args map[string]string) cni.NamespaceOpts {
-	o.args = args
-	return cni.WithLabels(args)
-}
-
-func (o *nsOpts) WithCapabilityPortMap(ports []cni.PortMapping) cni.NamespaceOpts {
-	o.ports = ports
-	return cni.WithCapabilityPortMap(ports)
-}
-
 type cniNetworkConfigurator struct {
 	cni                     cni.CNI
 	cniConf                 []byte
@@ -169,8 +154,8 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	for attempt := 1; ; attempt++ {
 		var err error
 		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path,
-			c.nsOpts.WithCapabilityPortMap(portMaps.ports),
-			c.nsOpts.WithArgs(cniArgs),
+			c.nsOpts.withCapabilityPortMap(portMaps.ports),
+			c.nsOpts.withArgs(cniArgs),
 		); err != nil {
 			c.logger.Warn("failed to configure network", "error", err, "attempt", attempt)
 			switch attempt {
@@ -605,6 +590,22 @@ func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
 	} else {
 		return err
 	}
+}
+
+// nsOpts keeps track of NamespaceOpts usage, mainly for test assertions.
+type nsOpts struct {
+	args  map[string]string
+	ports []cni.PortMapping
+}
+
+func (o *nsOpts) withArgs(args map[string]string) cni.NamespaceOpts {
+	o.args = args
+	return cni.WithLabels(args)
+}
+
+func (o *nsOpts) withCapabilityPortMap(ports []cni.PortMapping) cni.NamespaceOpts {
+	o.ports = ports
+	return cni.WithCapabilityPortMap(ports)
 }
 
 // portMappings is a wrapper around a slice of cni.PortMapping that lets us

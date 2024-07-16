@@ -8,6 +8,7 @@ package allocrunner
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"net"
 	"testing"
 
@@ -19,93 +20,163 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
-// FakeCNIPlugin is a fake plugin used for test.
-type FakeCNIPlugin struct {
-	StatusErr error
-	LoadErr   error
-	m         *MockSetupManager
-	name      *cni.Namespace
-}
+func TestSetup(t *testing.T) {
+	ci.Parallel(t)
 
-// NewFakeCNIPlugin create a FakeCNIPlugin.
-func NewFakeCNIPlugin() *FakeCNIPlugin {
-
-	callCounts := testutil.NewCallCounter()
-	callCounts.Reset()
-	return &FakeCNIPlugin{
-		m: &MockSetupManager{
-			CallCounter: callCounts,
+	testCases := []struct {
+		name         string
+		modAlloc     func(*structs.Allocation)
+		setupErrors  []string
+		expectResult *structs.AllocNetworkStatus
+		expectErr    string
+		expectArgs   map[string]string
+	}{
+		{
+			name: "defaults",
+			expectResult: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "99.99.99.99",
+			},
+			expectArgs: map[string]string{
+				"IgnoreUnknown": "true",
+			},
 		},
-	}
-}
-
-type MockSetupManager struct {
-	CallCounter *testutil.CallCounter
-}
-
-// Setup setups the network of PodSandbox.
-func (f *FakeCNIPlugin) Setup(ctx context.Context, id, path string, opts ...cni.NamespaceOpts) (*cni.Result, error) {
-
-	if f.m.CallCounter != nil {
-		f.m.CallCounter.Inc("Setup")
-	}
-	var numOfCalls = f.m.CallCounter.Get()["Setup"]
-	if numOfCalls == 1 {
-		return nil, errors.New("first error")
-	} else {
-		cniResult := &cni.Result{
-			Interfaces: map[string]*cni.Config{
-				"cali39179aa3-74": {},
-				"eth0": {
-					IPConfigs: []*cni.IPConfig{
-						{
-							IP: net.IPv4(192, 168, 135, 232),
+		{
+			name:        "error once and succeed on retry",
+			setupErrors: []string{"sad day"},
+			expectResult: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "99.99.99.99",
+			},
+			expectArgs: map[string]string{
+				"IgnoreUnknown": "true",
+			},
+		},
+		{
+			name:        "error too many times",
+			setupErrors: []string{"sad day", "sad again", "the last straw"},
+			expectErr:   "sad day", // should return the first error
+		},
+		{
+			name: "with cni args",
+			modAlloc: func(a *structs.Allocation) {
+				tg := a.Job.LookupTaskGroup(a.TaskGroup)
+				tg.Networks = []*structs.NetworkResource{{
+					CNI: &structs.CNIConfig{
+						Args: map[string]string{
+							"first_arg": "example",
+							"new_arg":   "example_2",
 						},
 					},
+				}}
+			},
+			expectResult: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "99.99.99.99",
+			},
+			expectArgs: map[string]string{
+				"IgnoreUnknown": "true",
+				"first_arg":     "example",
+				"new_arg":       "example_2",
+			},
+		},
+		{
+			name: "with args and tproxy",
+			modAlloc: func(a *structs.Allocation) {
+				tg := a.Job.LookupTaskGroup(a.TaskGroup)
+				tg.Networks = []*structs.NetworkResource{{
+					CNI: &structs.CNIConfig{
+						Args: map[string]string{
+							"extra_arg": "example",
+						},
+					},
+					DNS: &structs.DNSConfig{},
+					ReservedPorts: []structs.Port{
+						{
+							Label:       "http",
+							Value:       9002,
+							To:          9002,
+							HostNetwork: "default",
+						},
+					},
+				}}
+				tg.Services[0].PortLabel = "http"
+				tg.Services[0].Connect.SidecarService.Proxy = &structs.ConsulProxy{
+					TransparentProxy: &structs.ConsulTransparentProxy{},
+				}
+			},
+			expectResult: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "99.99.99.99",
+				DNS: &structs.DNSConfig{
+					Servers: []string{"192.168.1.117"},
 				},
 			},
-			// cni.Result will return a single empty struct, not an empty slice
-			DNS: []types.DNS{{}},
-		}
-
-		return cniResult, nil
+			expectArgs: map[string]string{
+				"IgnoreUnknown":          "true",
+				"extra_arg":              "example",
+				"CONSUL_IPTABLES_CONFIG": `{"ConsulDNSIP":"192.168.1.117","ConsulDNSPort":8600,"ProxyUserID":"101","ProxyInboundPort":9999,"ProxyOutboundPort":15001,"ExcludeInboundPorts":["9002"],"ExcludeOutboundPorts":null,"ExcludeOutboundCIDRs":null,"ExcludeUIDs":null,"NetNS":"/var/run/docker/netns/nonsense-ns","IptablesProvider":null}`,
+			},
+		},
 	}
-}
 
-// SetupSerially sets up the network of PodSandbox without doing the interfaces in parallel.
-func (f *FakeCNIPlugin) SetupSerially(ctx context.Context, id, path string, opts ...cni.NamespaceOpts) (*cni.Result, error) {
-	return nil, nil
-}
+	nodeAddrs := map[string]string{
+		"consul.dns.addr": "192.168.1.117",
+		"consul.dns.port": "8600",
+	}
+	nodeMeta := map[string]string{
+		"connect.transparent_proxy.default_outbound_port": "15001",
+		"connect.transparent_proxy.default_uid":           "101",
+	}
 
-// Remove teardown the network of PodSandbox.
-func (f *FakeCNIPlugin) Remove(ctx context.Context, id, path string, opts ...cni.NamespaceOpts) error {
-	return nil
-}
+	src := rand.NewSource(1000)
+	r := rand.New(src)
 
-// Check the network of PodSandbox.
-func (f *FakeCNIPlugin) Check(ctx context.Context, id, path string, opts ...cni.NamespaceOpts) error {
-	return nil
-}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakePlugin := newMockCNIPlugin()
+			fakePlugin.setupErrors = tc.setupErrors
 
-// Status get the status of the plugin.
-func (f *FakeCNIPlugin) Status() error {
-	return f.StatusErr
-}
+			c := &cniNetworkConfigurator{
+				nodeAttrs: nodeAddrs,
+				nodeMeta:  nodeMeta,
+				logger:    testlog.HCLogger(t),
+				cni:       fakePlugin,
+				rand:      r,
+				nsOpts:    &nsOpts{},
+			}
 
-// Load loads the network config.
-func (f *FakeCNIPlugin) Load(opts ...cni.Opt) error {
-	return f.LoadErr
-}
+			alloc := mock.ConnectAlloc()
+			if tc.modAlloc != nil {
+				tc.modAlloc(alloc)
+			}
 
-// GetConfig returns a copy of the CNI plugin configurations as parsed by CNI
-func (f *FakeCNIPlugin) GetConfig() *cni.ConfigResult {
-	return nil
+			spec := &drivers.NetworkIsolationSpec{
+				Mode:   "group",
+				Path:   "/var/run/docker/netns/nonsense-ns",
+				Labels: map[string]string{"docker_sandbox_container_id": "bogus"},
+			}
+
+			// method under test
+			result, err := c.Setup(context.Background(), alloc, spec)
+			if tc.expectErr == "" {
+				must.NoError(t, err)
+				must.Eq(t, tc.expectResult, result)
+				must.Eq(t, tc.expectArgs, c.nsOpts.args)
+				expectCalls := len(tc.setupErrors) + 1
+				must.Eq(t, fakePlugin.counter.Get()["Setup"], expectCalls,
+					must.Sprint("unexpected call count"))
+			} else {
+				must.Nil(t, result, must.Sprint("expect nil result on error"))
+				must.ErrorContains(t, err, tc.expectErr)
+			}
+		})
+	}
 }
 
 type mockIPTables struct {
@@ -334,168 +405,6 @@ func TestCNI_addCustomCNIArgs(t *testing.T) {
 			test.Eq(t, tc.expectMap, cniArgs)
 
 		})
-	}
-}
-
-func TestSetup(t *testing.T) {
-	ci.Parallel(t)
-	ctx := context.Background()
-
-	nodeMeta := map[string]string{
-		"connect.transparent_proxy.default_outbound_port": "15001",
-		"connect.transparent_proxy.default_uid":           "101",
-	}
-
-	nodeAttrs := map[string]string{
-		"consul.dns.addr": "192.168.1.117",
-		"consul.dns.port": "8600",
-	}
-
-	allocWithCNIArgs := mock.ConnectAlloc()
-	allocWithoutCNIArgs := mock.ConnectAlloc()
-	allocWithTProxy := mock.ConnectAlloc()
-
-	tg3 := allocWithTProxy.Job.LookupTaskGroup(allocWithTProxy.TaskGroup)
-	tg := allocWithCNIArgs.Job.LookupTaskGroup(allocWithCNIArgs.TaskGroup)
-	tg.Networks = []*structs.NetworkResource{{
-		Mode: "bridge",
-		CNI: &structs.CNIArgs{
-			Args: map[string]string{
-				"first_arg": "example",
-				"new_arg":   "example_2",
-			},
-		},
-	}}
-
-	tg3.Networks = []*structs.NetworkResource{{
-		Mode: "bridge",
-		DNS:  &structs.DNSConfig{},
-		ReservedPorts: []structs.Port{ // non-Connect port
-			{
-				Label:       "http",
-				Value:       9002,
-				To:          9002,
-				HostNetwork: "default",
-			},
-		},
-		DynamicPorts: []structs.Port{ // Connect port
-			{
-				Label:       "connect-proxy-count-dashboard",
-				Value:       0,
-				To:          -1,
-				HostNetwork: "default",
-			},
-			{
-				Label:       "health",
-				Value:       0,
-				To:          9000,
-				HostNetwork: "default",
-			},
-		},
-		CNI: &structs.CNIArgs{
-			Args: map[string]string{
-				"first_arg": "example",
-				"new_arg":   "example_2",
-			},
-		},
-	}}
-	tg3.Services[0].PortLabel = "9002"
-	tg3.Services[0].Connect.SidecarService.Proxy = &structs.ConsulProxy{
-		LocalServiceAddress: "",
-		LocalServicePort:    0,
-		Upstreams:           []structs.ConsulUpstream{},
-		Expose:              &structs.ConsulExposeConfig{},
-		Config:              map[string]interface{}{},
-	}
-	tg3.Services[0].Connect.SidecarService.Proxy.TransparentProxy = &structs.ConsulTransparentProxy{}
-
-	spec := &drivers.NetworkIsolationSpec{
-		Mode:        "group",
-		Path:        "/var/run/docker/netns/a2ece01ea7bc",
-		Labels:      map[string]string{"docker_sandbox_container_id": "4a77cdaad5"},
-		HostsConfig: &drivers.HostsConfig{},
-	}
-
-	src := rand.NewSource(1000)
-	r := rand.New(src)
-
-	testCases := []struct {
-		name         string
-		cluster      string
-		alloc        *structs.Allocation
-		expectAlloc  *structs.AllocNetworkStatus
-		expectErr    string
-		CNI          *FakeCNIPlugin
-		expectedArgs map[string]string
-	}{
-		{
-			name:  "cni args not specified",
-			alloc: allocWithoutCNIArgs,
-			CNI:   NewFakeCNIPlugin(),
-			expectAlloc: &structs.AllocNetworkStatus{
-				InterfaceName: "eth0",
-				Address:       "192.168.135.232",
-			},
-			expectedArgs: map[string]string{
-				"IgnoreUnknown": "true",
-			},
-		},
-		{
-			name:  "cni args specified",
-			alloc: allocWithCNIArgs,
-			CNI:   NewFakeCNIPlugin(),
-			expectAlloc: &structs.AllocNetworkStatus{
-				InterfaceName: "eth0",
-				Address:       "192.168.135.232",
-			},
-			expectedArgs: map[string]string{
-				"IgnoreUnknown": "true",
-				"first_arg":     "example",
-				"new_arg":       "example_2",
-			},
-		},
-		{
-			name:  "iptables / tproxy args and CNI args specified",
-			alloc: allocWithTProxy,
-			CNI:   NewFakeCNIPlugin(),
-			expectAlloc: &structs.AllocNetworkStatus{
-				InterfaceName: "eth0",
-				Address:       "192.168.135.232",
-				DNS: &structs.DNSConfig{
-					Servers: []string{"192.168.1.117"},
-				},
-			},
-			expectedArgs: map[string]string{
-				"IgnoreUnknown":          "true",
-				"first_arg":              "example",
-				"new_arg":                "example_2",
-				"CONSUL_IPTABLES_CONFIG": `{"ConsulDNSIP":"192.168.1.117","ConsulDNSPort":8600,"ProxyUserID":"101","ProxyInboundPort":9999,"ProxyOutboundPort":15001,"ExcludeInboundPorts":["9002"],"ExcludeOutboundPorts":null,"ExcludeOutboundCIDRs":null,"ExcludeUIDs":null,"NetNS":"/var/run/docker/netns/a2ece01ea7bc","IptablesProvider":null}`,
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-
-			c := &cniNetworkConfigurator{
-				nodeAttrs: nodeAttrs,
-				nodeMeta:  nodeMeta,
-				logger:    testlog.HCLogger(t),
-				cni:       tc.CNI,
-				rand:      r,
-				nsOpts:    &nsOpts{},
-			}
-
-			givenAlloc, err := c.Setup(ctx, tc.alloc, spec)
-			if tc.expectErr == "" {
-				must.NoError(t, err)
-				must.Eq(t, tc.expectedArgs, c.nsOpts.args)
-				must.Eq(t, tc.expectAlloc, givenAlloc)
-				must.Eq(t, tc.CNI.m.CallCounter.Get()["Setup"], 2)
-			} else {
-				must.EqError(t, err, tc.expectErr)
-			}
-		})
-
 	}
 }
 
