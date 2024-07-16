@@ -49,15 +49,30 @@ const (
 	defaultCNIInterfacePrefix = "eth"
 )
 
+type nsOpts struct {
+	args  map[string]string
+	ports []cni.PortMapping
+}
+
+func (o *nsOpts) WithArgs(args map[string]string) cni.NamespaceOpts {
+	o.args = args
+	return cni.WithLabels(args)
+}
+
+func (o *nsOpts) WithCapabilityPortMap(ports []cni.PortMapping) cni.NamespaceOpts {
+	o.ports = ports
+	return cni.WithCapabilityPortMap(ports)
+}
+
 type cniNetworkConfigurator struct {
 	cni                     cni.CNI
 	cniConf                 []byte
 	ignorePortMappingHostIP bool
 	nodeAttrs               map[string]string
 	nodeMeta                map[string]string
-
-	rand   *rand.Rand
-	logger log.Logger
+	rand                    *rand.Rand
+	logger                  log.Logger
+	nsOpts                  *nsOpts
 }
 
 func newCNINetworkConfigurator(logger log.Logger, cniPath, cniInterfacePrefix, cniConfDir, networkName string, ignorePortMappingHostIP bool, node *structs.Node) (*cniNetworkConfigurator, error) {
@@ -77,6 +92,7 @@ func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfaceP
 		ignorePortMappingHostIP: ignorePortMappingHostIP,
 		nodeAttrs:               node.Attributes,
 		nodeMeta:                node.Meta,
+		nsOpts:                  &nsOpts{},
 	}
 	if cniPath == "" {
 		if cniPath = os.Getenv(envCNIPath); cniPath == "" {
@@ -153,8 +169,8 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	for attempt := 1; ; attempt++ {
 		var err error
 		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path,
-			cni.WithCapabilityPortMap(portMaps.ports),
-			cni.WithLabels(cniArgs), // "labels" turn into CNI_ARGS
+			c.nsOpts.WithCapabilityPortMap(portMaps.ports),
+			c.nsOpts.WithArgs(cniArgs),
 		); err != nil {
 			c.logger.Warn("failed to configure network", "error", err, "attempt", attempt)
 			switch attempt {
