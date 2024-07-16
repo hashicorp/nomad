@@ -11,7 +11,9 @@ sign task [workload identities][]. The servers store key metadata in raft, but
 the encryption key material is stored in a separate file in the `keystore`
 subdirectory of the Nomad [data directory][]. These files have the extension
 `.nks.json`. The key material in each file is wrapped in a unique key encryption
-key (KEK) that is not shared between servers.
+key (KEK) that is not shared between servers. Nomad servers can use an external
+KMS or Vault transit encryption to wrap the key material using the [`keyring`][]
+configuration block.
 
 Under normal operations the keyring is entirely managed by Nomad, but this
 section provides administrators additional context around key replication and
@@ -62,5 +64,6 @@ keyring rotate`][] once the servers have joined.
 [variables]: /nomad/docs/concepts/variables
 [workload identities]: /nomad/docs/concepts/workload-identity
 [data directory]: /nomad/docs/configuration#data_dir
+[`keyring`]: /nomad/docs/configuration/keyring
 [`nomad operator root keyring rotate -full`]: /nomad/docs/commands/operator/root/keyring-rotate
 [`nomad operator root keyring rotate`]: /nomad/docs/commands/operator/root/keyring-rotate
