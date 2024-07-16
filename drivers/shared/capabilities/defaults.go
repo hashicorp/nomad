@@ -6,6 +6,7 @@ package capabilities
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 
 	"github.com/syndtr/gocapability/capability"
 )
@@ -64,6 +65,11 @@ func Supported() *Set {
 			continue
 		}
 		s.Add(c.String())
+	}
+
+	// workaround for Windows that doesn't support NET_RAW
+	if runtime.GOOS == "windows" {
+		s.Remove([]string{"NET_RAW"})
 	}
 
 	return s
