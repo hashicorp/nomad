@@ -12,7 +12,7 @@ import docker "github.com/fsouza/go-dockerclient"
 // configuration.
 //
 // https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-func DockerDefaults(info *docker.DockerInfo) *Set {
+func DockerDefaults(info *docker.Env) *Set {
 	defaults := NomadDefaults()
 	defaults.Add("NET_RAW")
 	return defaults

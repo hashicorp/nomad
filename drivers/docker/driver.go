@@ -1115,14 +1115,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if err != nil {
 		return c, err
 	}
-	info, err := client.Info()
-	if err != nil {
-		return c, err
-	}
+	ver, _ := client.Version()
 
 	// set add/drop capabilities
 	if hostConfig.CapAdd, hostConfig.CapDrop, err = capabilities.Delta(
-		capabilities.DockerDefaults(info), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
+		capabilities.DockerDefaults(ver), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
 	); err != nil {
 		return c, err
 	}
