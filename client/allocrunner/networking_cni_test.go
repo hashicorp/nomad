@@ -6,7 +6,9 @@
 package allocrunner
 
 import (
+	"context"
 	"errors"
+	"math/rand"
 	"net"
 	"testing"
 
@@ -22,6 +24,160 @@ import (
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSetup(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name         string
+		modAlloc     func(*structs.Allocation)
+		setupErrors  []string
+		expectResult *structs.AllocNetworkStatus
+		expectErr    string
+		expectArgs   map[string]string
+	}{
+		{
+			name: "defaults",
+			expectResult: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "99.99.99.99",
+			},
+			expectArgs: map[string]string{
+				"IgnoreUnknown": "true",
+			},
+		},
+		{
+			name:        "error once and succeed on retry",
+			setupErrors: []string{"sad day"},
+			expectResult: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "99.99.99.99",
+			},
+			expectArgs: map[string]string{
+				"IgnoreUnknown": "true",
+			},
+		},
+		{
+			name:        "error too many times",
+			setupErrors: []string{"sad day", "sad again", "the last straw"},
+			expectErr:   "sad day", // should return the first error
+		},
+		{
+			name: "with cni args",
+			modAlloc: func(a *structs.Allocation) {
+				tg := a.Job.LookupTaskGroup(a.TaskGroup)
+				tg.Networks = []*structs.NetworkResource{{
+					CNI: &structs.CNIConfig{
+						Args: map[string]string{
+							"first_arg": "example",
+							"new_arg":   "example_2",
+						},
+					},
+				}}
+			},
+			expectResult: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "99.99.99.99",
+			},
+			expectArgs: map[string]string{
+				"IgnoreUnknown": "true",
+				"first_arg":     "example",
+				"new_arg":       "example_2",
+			},
+		},
+		{
+			name: "with args and tproxy",
+			modAlloc: func(a *structs.Allocation) {
+				tg := a.Job.LookupTaskGroup(a.TaskGroup)
+				tg.Networks = []*structs.NetworkResource{{
+					CNI: &structs.CNIConfig{
+						Args: map[string]string{
+							"extra_arg": "example",
+						},
+					},
+					DNS: &structs.DNSConfig{},
+					ReservedPorts: []structs.Port{
+						{
+							Label:       "http",
+							Value:       9002,
+							To:          9002,
+							HostNetwork: "default",
+						},
+					},
+				}}
+				tg.Services[0].PortLabel = "http"
+				tg.Services[0].Connect.SidecarService.Proxy = &structs.ConsulProxy{
+					TransparentProxy: &structs.ConsulTransparentProxy{},
+				}
+			},
+			expectResult: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "99.99.99.99",
+				DNS: &structs.DNSConfig{
+					Servers: []string{"192.168.1.117"},
+				},
+			},
+			expectArgs: map[string]string{
+				"IgnoreUnknown":          "true",
+				"extra_arg":              "example",
+				"CONSUL_IPTABLES_CONFIG": `{"ConsulDNSIP":"192.168.1.117","ConsulDNSPort":8600,"ProxyUserID":"101","ProxyInboundPort":9999,"ProxyOutboundPort":15001,"ExcludeInboundPorts":["9002"],"ExcludeOutboundPorts":null,"ExcludeOutboundCIDRs":null,"ExcludeUIDs":null,"NetNS":"/var/run/docker/netns/nonsense-ns","IptablesProvider":null}`,
+			},
+		},
+	}
+
+	nodeAddrs := map[string]string{
+		"consul.dns.addr": "192.168.1.117",
+		"consul.dns.port": "8600",
+	}
+	nodeMeta := map[string]string{
+		"connect.transparent_proxy.default_outbound_port": "15001",
+		"connect.transparent_proxy.default_uid":           "101",
+	}
+
+	src := rand.NewSource(1000)
+	r := rand.New(src)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakePlugin := newMockCNIPlugin()
+			fakePlugin.setupErrors = tc.setupErrors
+
+			c := &cniNetworkConfigurator{
+				nodeAttrs: nodeAddrs,
+				nodeMeta:  nodeMeta,
+				logger:    testlog.HCLogger(t),
+				cni:       fakePlugin,
+				rand:      r,
+				nsOpts:    &nsOpts{},
+			}
+
+			alloc := mock.ConnectAlloc()
+			if tc.modAlloc != nil {
+				tc.modAlloc(alloc)
+			}
+
+			spec := &drivers.NetworkIsolationSpec{
+				Mode:   "group",
+				Path:   "/var/run/docker/netns/nonsense-ns",
+				Labels: map[string]string{"docker_sandbox_container_id": "bogus"},
+			}
+
+			// method under test
+			result, err := c.Setup(context.Background(), alloc, spec)
+			if tc.expectErr == "" {
+				must.NoError(t, err)
+				must.Eq(t, tc.expectResult, result)
+				must.Eq(t, tc.expectArgs, c.nsOpts.args)
+				expectCalls := len(tc.setupErrors) + 1
+				must.Eq(t, fakePlugin.counter.Get()["Setup"], expectCalls,
+					must.Sprint("unexpected call count"))
+			} else {
+				must.Nil(t, result, must.Sprint("expect nil result on error"))
+				must.ErrorContains(t, err, tc.expectErr)
+			}
+		})
+	}
+}
 
 type mockIPTables struct {
 	listCall  [2]string

@@ -7197,7 +7197,7 @@ func (tg *TaskGroup) validateNetworks() error {
 			}
 		}
 		// Validate the cniArgs in each network resource. Make sure there are no duplicate Args in
-		// different network resources or illegal characters (;) in key or value ;)
+		// different network resources or invalid characters (;) in key or value ;)
 		if net.CNI != nil {
 			for k, v := range net.CNI.Args {
 				if cniArgKeys.Contains(k) {
@@ -7206,6 +7206,11 @@ func (tg *TaskGroup) validateNetworks() error {
 				} else {
 					cniArgKeys.Insert(k)
 				}
+				// CNI_ARGS is a ";"-separated string of "key=val", so a ";"
+				// in either key or val would confuse plugins (or libraries)
+				// that parse that string.
+				// Pre-validating this here protects job authors from submitting
+				// a job that will most likely error later on the client anyway.
 				if strings.Contains(k, ";") {
 					err := fmt.Errorf("invalid ';' character in CNI arg key %q", k)
 					mErr.Errors = append(mErr.Errors, err)
