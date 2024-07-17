@@ -1115,7 +1115,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if err != nil {
 		return c, err
 	}
-	ver, _ := client.Version()
+	ver, err := client.Version()
+	if err != nil {
+		return c, err
+	}
 
 	// set add/drop capabilities
 	if hostConfig.CapAdd, hostConfig.CapDrop, err = capabilities.Delta(
