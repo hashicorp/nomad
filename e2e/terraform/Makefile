@@ -1,32 +1,29 @@
-PKG_PATH = $(shell pwd)/../../pkg/linux_amd64/nomad
+PKG_PATH ?= $(shell pwd)/../../pkg/linux_amd64/nomad
 NOMAD_LICENSE_PATH ?=
 CONSUL_LICENSE_PATH ?=
 
 # deploy for quick local development testing
 
-plan:
-	terraform plan \
-		-var="nomad_local_binary=$(PKG_PATH)" \
-		-var="volumes=false" \
-		-var="client_count_ubuntu_jammy_amd64=3" \
-		-var="client_count_windows_2016_amd64=0" \
-		-var="consul_license=$(shell cat $(CONSUL_LICENSE_PATH))"
+custom.tfvars:
+	echo 'nomad_local_binary = "$(PKG_PATH)"' > custom.tfvars
+	echo 'volumes = false' >> custom.tfvars
+	echo 'client_count_ubuntu_jammy_amd64 = 3' >> custom.tfvars
+	echo 'client_count_windows_2016_amd64 = 0' >> custom.tfvars
+	echo 'consul_license = "$(shell cat $(CONSUL_LICENSE_PATH))"' >> custom.tfvars
+	echo 'nomad_license = "$(shell cat $(NOMAD_LICENSE_PATH))"' >> custom.tfvars
 
-apply:
-	terraform apply -auto-approve \
-		-var="nomad_local_binary=$(PKG_PATH)" \
-		-var="volumes=false" \
-		-var="client_count_ubuntu_jammy_amd64=3" \
-		-var="client_count_windows_2016_amd64=0" \
-		-var="consul_license=$(shell cat $(CONSUL_LICENSE_PATH))"
+.PHONY: plan apply clean destroy plan_full apply_full clean_full destroy_full tidy
+
+plan: custom.tfvars
+	terraform plan -var-file=custom.tfvars
+
+apply: custom.tfvars
+	terraform apply -var-file=custom.tfvars -auto-approve
+
+destroy: custom.tfvars
+	terraform destroy -var-file=custom.tfvars -auto-approve
 
 clean: destroy tidy
-
-destroy:
-	terraform destroy -auto-approve \
-		-var="nomad_local_binary=$(PKG_PATH)" \
-		-var="client_count_ubuntu_jammy_amd64=3" \
-		-var="client_count_windows_2016_amd64=0"
 
 # deploy what's in E2E nightly
 
@@ -35,6 +32,7 @@ plan_full:
 
 apply_full:
 	@terraform apply -auto-approve \
+		-var="consul_license=$(shell cat $(CONSUL_LICENSE_PATH))" \
 		-var="nomad_license=$(shell cat $(NOMAD_LICENSE_PATH))"
 
 clean_full: destroy_full tidy
@@ -53,3 +51,4 @@ tidy:
 	rm -rf uploads/*
 	git checkout uploads/README.md
 	rm -f terraform.tfstate.*.backup
+	rm custom.tfvars
