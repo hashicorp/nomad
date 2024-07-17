@@ -1109,9 +1109,20 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 	hostConfig.Privileged = driverConfig.Privileged
 
+	// get docker client info (we need to know the runtime to adjust
+	// OS-specific capabilities)
+	client, err := d.getDockerClient()
+	if err != nil {
+		return c, err
+	}
+	ver, err := client.Version()
+	if err != nil {
+		return c, err
+	}
+
 	// set add/drop capabilities
 	if hostConfig.CapAdd, hostConfig.CapDrop, err = capabilities.Delta(
-		capabilities.DockerDefaults(), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
+		capabilities.DockerDefaults(ver), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
 	); err != nil {
 		return c, err
 	}
