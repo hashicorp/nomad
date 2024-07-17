@@ -66,27 +66,6 @@ sudo apt-get install -y \
      consul-enterprise \
      nomad
 
-# TODO(tgross: replace with downloading the binary from releases.hashicorp.com
-# once the official 1.4.2 release has shipped
-echo "Installing consul-cni plugin"
-sudo apt-get install -y build-essential git
-
-pushd /tmp
-curl -LO https://go.dev/dl/go1.22.2.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.22.2.linux-amd64.tar.gz
-git clone --depth=1 https://github.com/hashicorp/consul-k8s.git
-pushd consul-k8s
-export PATH="$PATH:/usr/local/go/bin"
-make control-plane-dev
-
-sudo mv control-plane/cni/bin/consul-cni /opt/cni/bin
-sudo chown root:root /opt/cni/bin/consul-cni
-sudo chmod +x /opt/cni/bin/consul-cni
-popd
-popd
-# save us a bunch of disk space
-/usr/local/go/bin/go clean -cache -modcache
-
 # Note: neither service will start on boot because we haven't enabled
 # the systemd unit file and we haven't uploaded any configuration
 # files for Consul and Nomad
@@ -117,6 +96,9 @@ echo "Installing CNI plugins"
 wget -q -O - \
      https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-amd64-v1.0.0.tgz \
     | sudo tar -C /opt/cni/bin -xz
+
+echo "Installing consul-cni plugin"
+sudo hc-install install --path /opt/cni/bin --version 1.5.1 consul-cni
 
 # Copy cni_args plugin and network configuration files into opt/cni/bin and opt/cni/config
 sudo mv /tmp/linux/cni_args.conflist /opt/cni/config
