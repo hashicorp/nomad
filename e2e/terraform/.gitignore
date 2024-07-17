@@ -1,2 +1,3 @@
 *.zip
 uploads/
+custom.tfvars

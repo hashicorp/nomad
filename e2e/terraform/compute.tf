@@ -40,7 +40,7 @@ resource "aws_instance" "client_ubuntu_jammy_amd64" {
 }
 
 resource "aws_instance" "client_windows_2016_amd64" {
-  ami                    = data.aws_ami.windows_2016_amd64.image_id
+  ami                    = data.aws_ami.windows_2016_amd64[0].image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.clients.id]
@@ -105,6 +105,8 @@ data "aws_ami" "ubuntu_jammy_amd64" {
 }
 
 data "aws_ami" "windows_2016_amd64" {
+  count = var.client_count_windows_2016_amd64 > 0 ? 1 : 0
+
   most_recent = true
   owners      = ["self"]
 
