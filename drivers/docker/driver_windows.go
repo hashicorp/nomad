@@ -16,10 +16,6 @@ func getPortBinding(ip string, port string) docker.PortBinding {
 	return docker.PortBinding{HostIP: "", HostPort: port}
 }
 
-func tweakCapabilities(basics, adds, drops []string) ([]string, error) {
-	return nil, nil
-}
-
 var containerAdminErrMsg = "running container as ContainerAdmin is unsafe; change the container user, set task configuration to privileged or enable windows_allow_insecure_container_admin to disable this check"
 
 func validateImageUser(user, taskUser string, taskDriverConfig *TaskConfig, driverConfig *DriverConfig) error {

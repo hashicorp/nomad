@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
@@ -195,13 +194,6 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 				"image_delay": "1s",
 			},
 		}
-	}
-
-	// If on windows, "allow" (don't attempt to drop) linux capabilities.
-	// https://github.com/hashicorp/nomad/issues/15181
-	// TODO: this should instead get fixed properly in capabilities package.
-	if _, ok := cfg["allow_caps"]; !ok && runtime.GOOS == "windows" {
-		cfg["allow_caps"] = capabilities.DockerDefaults().Slice(false)
 	}
 
 	plugLoader, err := loader.NewPluginLoader(&loader.PluginLoaderConfig{
