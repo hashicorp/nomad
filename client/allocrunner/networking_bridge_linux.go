@@ -72,7 +72,11 @@ func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, b
 		netCfg = buildNomadBridgeNetConfig(*b, false)
 	}
 
-	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, netCfg, node)
+	parser := &cniConfParser{
+		listBytes: netCfg,
+	}
+
+	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, parser, node)
 	if err != nil {
 		return nil, err
 	}
