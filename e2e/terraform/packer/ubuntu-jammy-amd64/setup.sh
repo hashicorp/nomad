@@ -100,9 +100,12 @@ wget -q -O - \
 echo "Installing consul-cni plugin"
 sudo hc-install install --path /opt/cni/bin --version 1.5.1 consul-cni
 
-# Copy cni_args plugin and network configuration files into opt/cni/bin and opt/cni/config
-sudo mv /tmp/linux/cni_args.conflist /opt/cni/config
-sudo mv /tmp/linux/cni_args.sh /opt/cni/bin
+echo "Installing custom test plugins"
+# for .conf and .json config tests
+sudo mv /tmp/linux/cni/loopback.* /opt/cni/config/
+# cni_args test plugin and network config
+sudo mv /tmp/linux/cni/cni_args.conflist /opt/cni/config/
+sudo mv /tmp/linux/cni/cni_args.sh /opt/cni/bin/
 
 # Podman
 echo "Installing Podman"
