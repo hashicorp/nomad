@@ -348,6 +348,20 @@ var basicConfig = &Config{
 			Enabled: pointer.Of(true),
 		},
 	},
+	KEKProviders: []*structs.KEKProviderConfig{
+		{
+			Provider: "aead",
+			Active:   false,
+		},
+		{
+			Provider: "awskms",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"kms_key_id": "alias/kms-nomad-keyring",
+			},
+		},
+	},
 }
 
 var pluginConfig = &Config{
@@ -481,6 +495,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 	must.NoError(t, err)
 
 	actual, err := ParseConfigFile(path)
+	must.NoError(t, err)
 
 	// The Vault connection retry interval is an internal only configuration
 	// option, and therefore needs to be added here to ensure the test passes.
@@ -548,6 +563,7 @@ func TestConfig_Parse(t *testing.T) {
 			}
 			actual = oldDefault.Merge(actual)
 
+			must.Eq(t, tc.Result.KEKProviders, actual.KEKProviders)
 			must.Eq(t, tc.Result, removeHelperAttributes(actual))
 		})
 	}
@@ -751,6 +767,16 @@ var sample0 = &Config{
 		CleanupDeadServers: pointer.Of(true),
 	},
 	Reporting: config.DefaultReporting(),
+	KEKProviders: []*structs.KEKProviderConfig{
+		{
+			Provider: "awskms",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"kms_key_id": "alias/kms-nomad-keyring",
+			},
+		},
+	},
 }
 
 func TestConfig_ParseSample0(t *testing.T) {
@@ -868,6 +894,20 @@ var sample1 = &Config{
 	},
 	Reporting: &config.ReportingConfig{
 		&config.LicenseReportingConfig{},
+	},
+	KEKProviders: []*structs.KEKProviderConfig{
+		{
+			Provider: "aead",
+			Active:   false,
+		},
+		{
+			Provider: "awskms",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"kms_key_id": "alias/kms-nomad-keyring",
+			},
+		},
 	},
 }
 

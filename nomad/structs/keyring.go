@@ -9,10 +9,12 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
+	"maps"
 	"net/url"
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
+	wrapping "github.com/hashicorp/go-kms-wrapping/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -84,6 +86,59 @@ type RootKeyMeta struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 	State       RootKeyState
+}
+
+// KEKProviderName enum are the built-in KEK providers.
+type KEKProviderName string
+
+const (
+	KEKProviderAEAD          KEKProviderName = "aead"
+	KEKProviderAWSKMS                        = "awskms"
+	KEKProviderAzureKeyVault                 = "azurekeyvault"
+	KEKProviderGCPCloudKMS                   = "gcpckms"
+	KEKProviderVaultTransit                  = "transit"
+)
+
+// KEKProviderConfig is the server configuration for an external KMS provider
+// the server will use as a Key Encryption Key (KEK) for encrypting/decrypting
+// the DEK.
+type KEKProviderConfig struct {
+	Provider string            `hcl:",key"`
+	Name     string            `hcl:"name"`
+	Active   bool              `hcl:"active"`
+	Config   map[string]string `hcl:"-" json:"-"`
+
+	// ExtraKeysHCL gets used by HCL to surface unknown keys. The parser will
+	// then read these keys to create the Config map, so that we don't need a
+	// nested "config" block/map in the config file
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+func (c *KEKProviderConfig) Copy() *KEKProviderConfig {
+	return &KEKProviderConfig{
+		Provider: c.Provider,
+		Active:   c.Active,
+		Name:     c.Name,
+		Config:   maps.Clone(c.Config),
+	}
+}
+
+// Merge is used to merge two configurations. Note that Provider and Name should
+// always be identical before we merge.
+func (c *KEKProviderConfig) Merge(o *KEKProviderConfig) *KEKProviderConfig {
+	result := c.Copy()
+	result.Active = o.Active
+	for k, v := range o.Config {
+		result.Config[k] = v
+	}
+	return result
+}
+
+func (c *KEKProviderConfig) ID() string {
+	if c.Name == "" {
+		return c.Provider
+	}
+	return c.Provider + "." + c.Name
 }
 
 // RootKeyState enum describes the lifecycle of a root key.
@@ -192,13 +247,24 @@ func (rkm *RootKeyMeta) Validate() error {
 }
 
 // KeyEncryptionKeyWrapper is the struct that gets serialized for the on-disk
-// KMS wrapper. This struct includes the server-specific key-wrapping key and
-// should never be sent over RPC.
+// KMS wrapper. When using the AEAD provider, this struct includes the
+// server-specific key-wrapping key. This struct should never be sent over RPC
+// or written to Raft.
 type KeyEncryptionKeyWrapper struct {
-	Meta                       *RootKeyMeta
-	EncryptedDataEncryptionKey []byte `json:"DEK"`
-	EncryptedRSAKey            []byte `json:"RSAKey"`
-	KeyEncryptionKey           []byte `json:"KEK"`
+	Meta *RootKeyMeta
+
+	Provider                 string             `json:"Provider,omitempty"`
+	ProviderID               string             `json:"ProviderID,omitempty"`
+	WrappedDataEncryptionKey *wrapping.BlobInfo `json:"WrappedDEK,omitempty"`
+	WrappedRSAKey            *wrapping.BlobInfo `json:"WrappedRSAKey,omitempty"`
+	KeyEncryptionKey         []byte             `json:"KEK,omitempty"`
+
+	// These fields were used for AEAD before we added support for external
+	// KMS. The wrapped key returned from the go-kms-wrapper library includes
+	// the ciphertext but we need all the fields in order to decrypt. We'll
+	// leave these fields so we can load keys from older servers.
+	EncryptedDataEncryptionKey []byte `json:"DEK,omitempty"`
+	EncryptedRSAKey            []byte `json:"RSAKey,omitempty"`
 }
 
 // EncryptionAlgorithm chooses which algorithm is used for
@@ -261,7 +327,7 @@ type KeyringGetRootKeyResponse struct {
 
 // KeyringUpdateRootKeyMetaRequest is used internally for key
 // replication so that we have a request wrapper for writing the
-// metadata to the FSM without including the key material
+// metadata to the FSM without including the key material.
 type KeyringUpdateRootKeyMetaRequest struct {
 	RootKeyMeta *RootKeyMeta
 	Rekey       bool

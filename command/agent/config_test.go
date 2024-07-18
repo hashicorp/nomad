@@ -1779,3 +1779,74 @@ func Test_mergeConsulConfigs(t *testing.T) {
 	must.Eq(t, c0.Consuls[0].Token, result.Consuls[0].Token)
 	must.Eq(t, c0.Consuls[0].AllowUnauthenticated, result.Consuls[0].AllowUnauthenticated)
 }
+
+func Test_mergeKEKProviderConfigs(t *testing.T) {
+	ci.Parallel(t)
+
+	left := []*structs.KEKProviderConfig{
+		{
+			// incomplete config with name
+			Provider: "awskms",
+			Name:     "foo",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSFODNN7EXAMPLE",
+			},
+		},
+		{
+			// empty config
+			Provider: "aead",
+		},
+	}
+	right := []*structs.KEKProviderConfig{
+		{
+			// same awskms.foo provider with fields to merge
+			Provider: "awskms",
+			Name:     "foo",
+			Active:   false,
+			Config: map[string]string{
+				"access_key": "AKIAIOSXABCD7EXAMPLE",
+				"secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+				"kms_key_id": "19ec80b0-dfdd-4d97-8164-c6examplekey",
+			},
+		},
+		{
+			// same awskms provider, different name
+			Provider: "awskms",
+			Name:     "bar",
+			Active:   false,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSFODNN7EXAMPLE",
+			},
+		},
+	}
+
+	result := mergeKEKProviderConfigs(left, right)
+	must.Eq(t, []*structs.KEKProviderConfig{
+		{
+			Provider: "aead",
+		},
+		{
+			Provider: "awskms",
+			Name:     "bar",
+			Active:   false,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSFODNN7EXAMPLE",
+			},
+		},
+		{
+			Provider: "awskms",
+			Name:     "foo",
+			Active:   false, // should be flipped
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSXABCD7EXAMPLE",                     // override
+				"secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", // added
+				"kms_key_id": "19ec80b0-dfdd-4d97-8164-c6examplekey",     // added
+			},
+		},
+	}, result)
+}

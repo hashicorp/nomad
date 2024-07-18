@@ -11,13 +11,16 @@
   "data_dir": "/opt/data/nomad/data",
   "datacenter": "dc1",
   "enable_syslog": true,
+  "keyring": {
+    "aead": {}
+  },
   "leave_on_interrupt": true,
   "leave_on_terminate": true,
   "log_level": "INFO",
   "region": "global",
   "server": {
     "bootstrap_expect": 3,
-    "enabled": true,
+    "enabled": true
   },
   "syslog_facility": "LOCAL0",
   "telemetry": {
