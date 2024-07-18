@@ -288,7 +288,7 @@ func (h *Harness) Scheduler(factory Factory) Scheduler {
 		}
 	}()
 
-	return factory(logger, eventsCh, h.Snapshot(false), h)
+	return factory(logger, eventsCh, h.Snapshot(), h)
 }
 
 // Process is used to process an evaluation given a factory
