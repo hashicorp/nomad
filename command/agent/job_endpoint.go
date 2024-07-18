@@ -668,6 +668,7 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		Message:        args.Message,
 		Error:          args.Error,
 		Meta:           args.Meta,
+		JobModifyIndex: args.JobModifyIndex,
 	}
 	// parseWriteRequest overrides Namespace, Region and AuthToken
 	// based on values from the original http request
@@ -907,6 +908,8 @@ func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmis
 	if submission == nil {
 		return nil
 	}
+
+	submission.Canonicalize()
 	return &structs.JobSubmission{
 		Source:        submission.Source,
 		Format:        submission.Format,
@@ -1552,6 +1555,11 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 				Options:  nw.DNS.Options,
 			}
 		}
+		if nw.CNI != nil {
+			out[i].CNI = &structs.CNIConfig{
+				Args: nw.CNI.Args,
+			}
+		}
 
 		if l := len(nw.DynamicPorts); l != 0 {
 			out[i].DynamicPorts = make([]structs.Port, l)
@@ -1624,6 +1632,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 					Interval:               check.Interval,
 					Timeout:                check.Timeout,
 					InitialStatus:          check.InitialStatus,
+					Notes:                  check.Notes,
 					TLSServerName:          check.TLSServerName,
 					TLSSkipVerify:          check.TLSSkipVerify,
 					Header:                 check.Header,

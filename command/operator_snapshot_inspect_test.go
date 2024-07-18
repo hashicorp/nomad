@@ -64,7 +64,7 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 
 		code := cmd.Run([]string{filepath.Join(tmpDir, "invalid.snap")})
 		must.Positive(t, code)
-		must.StrContains(t, ui.ErrorWriter.String(), "Error verifying snapshot")
+		must.StrContains(t, ui.ErrorWriter.String(), "Error inspecting snapshot")
 	})
 }
 

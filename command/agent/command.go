@@ -116,6 +116,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&servers, "servers", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
+	flags.StringVar((*string)(&cmdConfig.Client.PreferredAddressFamily), "preferred-address-family", "", "ipv4 or ipv6")
 	flags.IntVar(&cmdConfig.Client.NetworkSpeed, "network-speed", 0, "")
 
 	// General options
@@ -482,6 +483,14 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 
 	if err := config.Client.Artifact.Validate(); err != nil {
 		c.Ui.Error(fmt.Sprintf("client.artifact block invalid: %v", err))
+		return false
+	}
+
+	if err := config.Client.PreferredAddressFamily.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("Invalid preferred-address-family value: %s (valid values: %s, %s)",
+			config.Client.PreferredAddressFamily,
+			structs.NodeNetworkAF_IPv4, structs.NodeNetworkAF_IPv6),
+		)
 		return false
 	}
 
@@ -1549,6 +1558,11 @@ Client Options:
 
   -network-interface
     Forces the network fingerprinter to use the specified network interface.
+  
+  -preferred-address-family
+    Specify which IP family to prefer when selecting an IP address of the
+    network interface. Valid values are "ipv4" and "ipv6". When not specified,
+    the agent will not sort the addresses and use the first one.
 
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not

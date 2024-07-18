@@ -22,6 +22,7 @@ export default class JobsIndexController extends Controller {
   @service store;
   @service userSettings;
   @service watchList;
+  @service notifications;
 
   @tracked pageSize;
 
@@ -31,19 +32,12 @@ export default class JobsIndexController extends Controller {
     this.rawSearchText = this.searchText || '';
   }
 
-  queryParams = [
-    'cursorAt',
-    'pageSize',
-    { qpNamespace: 'namespace' },
-    'filter',
-  ];
+  queryParams = ['cursorAt', 'pageSize', 'filter'];
 
   isForbidden = false;
 
   @tracked jobQueryIndex = 0;
   @tracked jobAllocsQueryIndex = 0;
-
-  @tracked qpNamespace = '*';
 
   get tableColumns() {
     return [
@@ -156,11 +150,69 @@ export default class JobsIndexController extends Controller {
     );
   }
 
+  /**
+   * In case the user wants to specifically stop polling for new jobs
+   */
+  @action pauseJobFetching() {
+    let notification = this.notifications.queue.find(
+      (n) => n.title === 'Error fetching jobs'
+    );
+    if (notification) {
+      notification.destroyMessage();
+    }
+    this.watchList.jobsIndexIDsController.abort();
+    this.watchList.jobsIndexDetailsController.abort();
+    this.watchJobIDs.cancelAll();
+    this.watchJobs.cancelAll();
+  }
+
+  @action restartJobList() {
+    this.showingCachedJobs = false;
+    let notification = this.notifications.queue.find(
+      (n) => n.title === 'Error fetching jobs'
+    );
+    if (notification) {
+      notification.destroyMessage();
+    }
+    this.watchList.jobsIndexIDsController.abort();
+    this.watchList.jobsIndexDetailsController.abort();
+    this.watchJobIDs.cancelAll();
+    this.watchJobs.cancelAll();
+    this.watchJobIDs.perform({}, JOB_LIST_THROTTLE);
+    this.watchJobs.perform(this.jobIDs, JOB_DETAILS_THROTTLE);
+  }
+
   @localStorageProperty('nomadLiveUpdateJobsIndex', true) liveUpdatesEnabled;
 
   // #endregion pagination
 
   //#region querying
+
+  /**
+   *
+   * Let the user know that there was difficulty fetching jobs, but don't overload their screen with notifications.
+   * Set showingCachedJobs to tell the template to prompt them to extend timeouts
+   * @param {Error} e
+   */
+  notifyFetchError(e) {
+    const firstError = e.errors?.objectAt(0);
+    this.notifications.add({
+      title: 'Error fetching jobs',
+      message: `The backend returned an error with status ${firstError.status} while fetching jobs`,
+      color: 'critical',
+      sticky: true,
+      preventDuplicates: true,
+    });
+    // Specific check for a proxy timeout error
+    if (
+      !this.showingCachedJobs &&
+      (firstError.status === '502' || firstError.status === '504')
+    ) {
+      this.showingCachedJobs = true;
+    }
+  }
+
+  @tracked showingCachedJobs = false;
 
   jobQuery(params) {
     this.watchList.jobsIndexIDsController.abort();
@@ -172,9 +224,17 @@ export default class JobsIndexController extends Controller {
           abortController: this.watchList.jobsIndexIDsController,
         },
       })
+      .then((jobs) => {
+        this.showingCachedJobs = false;
+        return jobs;
+      })
       .catch((e) => {
         if (e.name !== 'AbortError') {
           console.log('error fetching job ids', e);
+          this.notifyFetchError(e);
+        }
+        if (this.jobs?.length) {
+          return this.jobs;
         }
         return;
       });
@@ -194,6 +254,10 @@ export default class JobsIndexController extends Controller {
       .catch((e) => {
         if (e.name !== 'AbortError') {
           console.log('error fetching job allocs', e);
+          this.notifyFetchError(e);
+        }
+        if (this.jobs?.length) {
+          return this.jobs;
         }
         return;
       });
@@ -257,8 +321,14 @@ export default class JobsIndexController extends Controller {
           this.pendingJobIDs = jobIDs;
           this.pendingJobs = newJobs;
         }
+        if (Ember.testing) {
+          break;
+        }
         yield timeout(throttle);
       } else {
+        if (Ember.testing) {
+          break;
+        }
         // This returns undefined on page change / cursorAt change, resulting from the aborting of the old query.
         yield timeout(throttle);
         this.watchJobs.perform(this.jobIDs, throttle);
@@ -356,40 +426,38 @@ export default class JobsIndexController extends Controller {
     label: 'NodePool',
     options: (this.model.nodePools || []).map((nodePool) => ({
       key: nodePool.name,
-      string: `NodePool == ${nodePool.name}`,
+      string: `NodePool == "${nodePool.name}"`,
       checked: false,
     })),
+    filterable: true,
+    filter: '',
   };
 
-  @computed('system.shouldShowNamespaces', 'model.namespaces.[]', 'qpNamespace')
-  get namespaceFacet() {
-    if (!this.system.shouldShowNamespaces) {
-      return null;
-    }
+  @tracked namespaceFacet = {
+    label: 'Namespace',
+    options: [
+      ...(this.model.namespaces || []).map((ns) => ({
+        key: ns.name,
+        string: `Namespace == "${ns.name}"`,
+        checked: false,
+      })),
+    ],
+    filterable: true,
+    filter: '',
+  };
 
-    const availableNamespaces = (this.model.namespaces || []).map(
-      (namespace) => ({
-        key: namespace.name,
-        label: namespace.name,
-      })
+  @computed('namespaceFacet.{filter,options}')
+  get filteredNamespaceOptions() {
+    return this.namespaceFacet.options.filter((ns) =>
+      ns.key.toLowerCase().includes(this.namespaceFacet.filter.toLowerCase())
     );
+  }
 
-    availableNamespaces.unshift({
-      key: '*',
-      label: 'All',
-    });
-
-    let selectedNamespaces = this.qpNamespace || '*';
-    availableNamespaces.forEach((opt) => {
-      if (selectedNamespaces.includes(opt.key)) {
-        opt.checked = true;
-      }
-    });
-
-    return {
-      label: 'Namespace',
-      options: availableNamespaces,
-    };
+  @computed('nodePoolFacet.{filter,options}')
+  get filteredNodePoolOptions() {
+    return this.nodePoolFacet.options.filter((np) =>
+      np.key.toLowerCase().includes(this.nodePoolFacet.filter.toLowerCase())
+    );
   }
 
   @tracked namespaceFilter = '';
@@ -412,6 +480,15 @@ export default class JobsIndexController extends Controller {
     let facets = [this.statusFacet, this.typeFacet];
     if (this.system.shouldShowNodepools) {
       facets.push(this.nodePoolFacet);
+    }
+    // Note: there is a timing problem with using system.shouldShowNamespaces here, and that's
+    // due to parseFilter() below depending on this and being called a single time from the route's
+    // setupController.
+    // The system service's shouldShowNamespaces is a getter, and therefore cannot be made to be async,
+    // and since we only want to parseFilter a single time, we can use a simpler check to establish whether
+    // we should show the namespace facet, rendering the whole "check checkboxes based on queryParams" logic quicker.
+    if ((this.model.namespaces || []).length > 1) {
+      facets.push(this.namespaceFacet);
     }
     return facets;
   }
@@ -476,7 +553,8 @@ export default class JobsIndexController extends Controller {
     'nodePoolFacet.options.@each.checked',
     'searchText',
     'statusFacet.options.@each.checked',
-    'typeFacet.options.@each.checked'
+    'typeFacet.options.@each.checked',
+    'namespaceFacet.options.@each.checked'
   )
   get computedFilter() {
     let parts = this.searchText ? [this.searchText] : [];
@@ -500,13 +578,6 @@ export default class JobsIndexController extends Controller {
     this.updateFilter();
   }
 
-  // Radio button set
-  @action
-  toggleNamespaceOption(option, dropdown) {
-    this.qpNamespace = option.key;
-    dropdown.close();
-  }
-
   @action
   updateFilter() {
     this.cursorAt = null;
@@ -525,7 +596,9 @@ export default class JobsIndexController extends Controller {
         set(option, 'checked', false);
       });
     });
-    this.qpNamespace = '*';
+    this.namespaceFacet?.options.forEach((option) => {
+      set(option, 'checked', false);
+    });
     this.updateFilter();
   }
 

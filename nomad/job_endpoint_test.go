@@ -133,7 +133,6 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 	node := mock.Node()
 	node.NodeResources.Processors = structs.NodeProcessorResources{
 		Topology: &numalib.Topology{
-			NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 			Distances: numalib.SLIT{[]numalib.Cost{10}},
 			Cores: []numalib.Core{{
 				ID:        0,
@@ -142,6 +141,7 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 			}},
 		},
 	}
+	node.NodeResources.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	node.NodeResources.Compatibility()
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
@@ -7747,6 +7747,52 @@ func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
 			require.Greater(resp.EvalCreateIndex, resp.JobModifyIndex)
 		}
 	}
+}
+
+func TestJobEndpoint_ScaleEnforceIndex(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	store := s1.fsm.State()
+
+	job := mock.Job()
+	originalCount := job.TaskGroups[0].Count
+	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	must.NoError(t, err)
+
+	groupName := job.TaskGroups[0].Name
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: groupName,
+		},
+		Count:   pointer.Of(int64(originalCount + 1)),
+		Message: "because of the load",
+		Meta: map[string]interface{}{
+			"metrics": map[string]string{
+				"1": "a",
+				"2": "b",
+			},
+			"other": "value",
+		},
+		PolicyOverride: false,
+		EnforceIndex:   true,
+		JobModifyIndex: 1000000,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	must.EqError(t, err,
+		"Enforcing job modify index 1000000: job exists with conflicting job modify index: 1000")
+
+	events, _, _ := store.ScalingEventsByJob(nil, job.Namespace, job.ID)
+	must.Len(t, 0, events[groupName])
 }
 
 func TestJobEndpoint_Scale_InformationalEventsShouldNotBeBlocked(t *testing.T) {

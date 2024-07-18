@@ -134,8 +134,8 @@ job "example" {
   this value takes precedence over the `service.port` value. This is useful for
   services which operate on multiple ports. `grpc`, `http`, and `tcp` checks
   require a port while `script` checks do not. Checks will use the host IP and
-  ports by default. In Nomad 0.7.1 or later numeric ports may be used if
-  `address_mode="driver"` is set on the check.
+  ports by default. Numeric ports may be used if `address_mode="driver"` is set 
+  on the check.
 
 - `protocol` `(string: "http")` - Specifies the protocol for the HTTP-based
   health checks. Valid options are `http` and `https`.

@@ -1,0 +1,3 @@
+```release-note:improvement
+exec: Fixed a bug where `exec` driver tasks would fail on older versions of glibc
+```

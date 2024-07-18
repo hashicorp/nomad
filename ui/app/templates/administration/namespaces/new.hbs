@@ -6,8 +6,8 @@
 <Breadcrumb @crumb={{hash label="New" args=(array "administration.namespaces.new")}} />
 {{page-title "Create Namespace"}}
 <section class="section">
-	<h1 class="title with-flex" data-test-title>
-		Create Namespace
-	</h1>
-    <NamespaceEditor @namespace={{this.model}}/>
+  <Hds::PageHeader as |PH|>
+    <PH.Title>Create Namespace</PH.Title>
+  </Hds::PageHeader>
+  <NamespaceEditor @namespace={{this.model}}/>
 </section>

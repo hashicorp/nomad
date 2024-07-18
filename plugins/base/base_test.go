@@ -15,7 +15,6 @@ import (
 
 func Test_nomadTopologyToProto(t *testing.T) {
 	top := &numalib.Topology{
-		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1}),
 		Distances: numalib.SLIT{{10, 20}, {20, 10}},
 		Cores: []numalib.Core{
 			{
@@ -32,6 +31,7 @@ func Test_nomadTopologyToProto(t *testing.T) {
 		OverrideTotalCompute:   90_000,
 		OverrideWitholdCompute: 2000,
 	}
+	top.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0, 1}))
 
 	pb := nomadTopologyToProto(top)
 	must.Eq(t, &proto.ClientTopology{
@@ -55,6 +55,19 @@ func Test_nomadTopologyToProto(t *testing.T) {
 		OverrideTotalCompute:   90_000,
 		OverrideWitholdCompute: 2000,
 	}, pb)
+
+	// make sure we don't panic in case of empty nodes, vide
+	// https://github.com/hashicorp/nomad/issues/23385
+	top2 := &numalib.Topology{}
+
+	pb2 := nomadTopologyToProto(top2)
+	must.Eq(t, &proto.ClientTopology{
+		NodeIds:                []uint32{},
+		Distances:              &proto.ClientTopologySLIT{Dimension: 0, Values: []uint32{}},
+		Cores:                  nil,
+		OverrideTotalCompute:   0,
+		OverrideWitholdCompute: 0,
+	}, pb2)
 }
 
 func Test_nomadTopologyFromProto(t *testing.T) {
@@ -80,8 +93,7 @@ func Test_nomadTopologyFromProto(t *testing.T) {
 		OverrideWitholdCompute: 2000,
 	}
 	top := nomadTopologyFromProto(pb)
-	must.Eq(t, &numalib.Topology{
-		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1}),
+	expect := &numalib.Topology{
 		Distances: numalib.SLIT{{10, 20}, {20, 10}},
 		Cores: []numalib.Core{
 			{
@@ -97,7 +109,9 @@ func Test_nomadTopologyFromProto(t *testing.T) {
 		},
 		OverrideTotalCompute:   90_000,
 		OverrideWitholdCompute: 2000,
-	}, top)
+	}
+	expect.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0, 1}))
+	must.Eq(t, expect, top)
 }
 
 func Test_nomadTopologyDistancesToProto(t *testing.T) {

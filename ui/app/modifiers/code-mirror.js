@@ -31,6 +31,8 @@ export default class CodeMirrorModifier extends Modifier {
       this.element = element;
       this.args = { positional, named };
       this._setup();
+    } else {
+      this.didUpdateArguments();
     }
   }
 

@@ -3,17 +3,23 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{#each-in this.attributes as |key value|}}
-  {{#if (is-object value)}}
-    <tr data-test-attributes-section>
-      <td data-test-heading class="is-subheading" colspan="2">
-        {{#if this.prefix}}<span class="is-faded" data-test-prefix>{{this.prefix}}.</span>{{/if}}{{key}}
-      </td>
-    </tr>
-    <AttributesSection @prefix={{if this.prefix (concat this.prefix "." key) key}} @attributes={{value}}
-    @key={{key}} @value={{value}} @editable={{@editable}} @onKVSave={{@onKVSave}} @copyable={{@copyable}} />
-  {{else}}
-    <MetadataKv @prefix={{this.prefix}}
-    @key={{key}} @value={{value}} @editable={{@editable}} @onKVSave={{@onKVSave}} @copyable={{@copyable}} />
-  {{/if}}
+{{#each this.attributes.files as |file|}}
+  <MetadataKv
+    @prefix={{file.prefix}}
+    @key={{file.name}}
+    @value={{file.variable.value}}
+    @editable={{@editable}}
+    @onKVSave={{@onKVSave}}
+    @copyable={{@copyable}}
+  />
+{{/each}}
+{{#each-in this.attributes.children as |key value|}}
+  <AttributesSection
+    @attributes={{value}}
+    @key={{key}}
+    @value={{value}}
+    @editable={{@editable}}
+    @onKVSave={{@onKVSave}}
+    @copyable={{@copyable}}
+  />
 {{/each-in}}

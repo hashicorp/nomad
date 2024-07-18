@@ -141,11 +141,6 @@ func (t TaskScheduleCron) Next(from time.Time) (time.Duration, time.Duration, er
 		return 0, 0, fmt.Errorf("invalid end time in schedule: %q; %w", t.End, err)
 	}
 
-	// next end must be later than next start on the same day
-	if end.Next(from).Day() > start.Next(from).Day() {
-		return 0, 0, fmt.Errorf("end cannot be sooner than start")
-	}
-
 	startNext := start.Next(from)
 	// we'll check the previous start to see if we are currently between it
 	// and the previous run's end, i.e. it should be running right now!
@@ -154,6 +149,11 @@ func (t TaskScheduleCron) Next(from time.Time) (time.Duration, time.Duration, er
 	// generate ends from starts, so they always come after
 	endNext := end.Next(startNext)
 	endPrev := end.Next(startPrev)
+
+	// next end must be on the same day as next start
+	if endNext.Day() > startNext.Day() {
+		return 0, 0, fmt.Errorf("end cannot be sooner than start; end=%q, start=%q", endNext, startNext)
+	}
 
 	// we're in the midst of it right now!
 	if startPrev.Before(from) && endPrev.After(from) {

@@ -190,6 +190,9 @@ type Config struct {
 	// Reporting is used to enable go census reporting
 	Reporting *config.ReportingConfig `hcl:"reporting,block"`
 
+	// KEKProviders are used to wrap the Nomad keyring
+	KEKProviders []*structs.KEKProviderConfig `hcl:"keyring"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -255,6 +258,11 @@ type ClientConfig struct {
 
 	// Interface to use for network fingerprinting
 	NetworkInterface string `hcl:"network_interface"`
+
+	// Sort the IP addresses by the preferred IP family. This is useful when
+	// the interface has multiple IP addresses and the client should prefer
+	// one over the other.
+	PreferredAddressFamily structs.NodeNetworkAF `hcl:"preferred_address_family"`
 
 	// NetworkSpeed is used to override any detected or default network link
 	// speed.
@@ -981,6 +989,10 @@ type Telemetry struct {
 	// a small memory overhead.
 	DisableDispatchedJobSummaryMetrics bool `hcl:"disable_dispatched_job_summary_metrics"`
 
+	// DisableQuotaUtilizationMetrics allows to disable publishing of quota
+	// utilization metrics
+	DisableQuotaUtilizationMetrics bool `hcl:"disable_quota_utilization_metrics"`
+
 	// DisableRPCRateMetricsLabels drops the label for the identity of the
 	// requester when publishing metrics on RPC rate on the server. This may be
 	// useful to control metrics collection costs in environments where request
@@ -1444,6 +1456,7 @@ func DefaultConfig() *Config {
 		DisableUpdateCheck: pointer.Of(false),
 		Limits:             config.DefaultLimits(),
 		Reporting:          config.DefaultReporting(),
+		KEKProviders:       []*structs.KEKProviderConfig{},
 	}
 
 	return cfg
@@ -1669,6 +1682,8 @@ func (c *Config) Merge(b *Config) *Config {
 
 	result.Limits = c.Limits.Merge(b.Limits)
 
+	result.KEKProviders = mergeKEKProviderConfigs(result.KEKProviders, b.KEKProviders)
+
 	return &result
 }
 
@@ -1740,6 +1755,40 @@ func mergeConsulConfigs(left, right []*config.ConsulConfig) []*config.ConsulConf
 	return results
 }
 
+func mergeKEKProviderConfigs(left, right []*structs.KEKProviderConfig) []*structs.KEKProviderConfig {
+	if len(left) == 0 {
+		return right
+	}
+	if len(right) == 0 {
+		return left
+	}
+	results := []*structs.KEKProviderConfig{}
+	doMerge := func(dstConfigs, srcConfigs []*structs.KEKProviderConfig) []*structs.KEKProviderConfig {
+		for _, src := range srcConfigs {
+			var found bool
+			for i, dst := range dstConfigs {
+				if dst.Provider == src.Provider && dst.Name == src.Name {
+					dstConfigs[i] = dst.Merge(src)
+					found = true
+					break
+				}
+			}
+			if !found {
+				dstConfigs = append(dstConfigs, src)
+			}
+		}
+		return dstConfigs
+	}
+
+	results = doMerge(results, left)
+	results = doMerge(results, right)
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ID() < results[j].ID()
+	})
+
+	return results
+}
+
 // Copy returns a deep copy safe for mutation.
 func (c *Config) Copy() *Config {
 	if c == nil {
@@ -1773,6 +1822,7 @@ func (c *Config) Copy() *Config {
 	nc.Limits = c.Limits.Copy()
 	nc.Audit = c.Audit.Copy()
 	nc.Reporting = c.Reporting.Copy()
+	nc.KEKProviders = helper.CopySlice(c.KEKProviders)
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -2261,6 +2311,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.NetworkInterface != "" {
 		result.NetworkInterface = b.NetworkInterface
 	}
+
+	if b.PreferredAddressFamily != "" {
+		result.PreferredAddressFamily = b.PreferredAddressFamily
+	}
+
 	if b.NetworkSpeed != 0 {
 		result.NetworkSpeed = b.NetworkSpeed
 	}
@@ -2512,6 +2567,9 @@ func (t *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 	if b.DisableDispatchedJobSummaryMetrics {
 		result.DisableDispatchedJobSummaryMetrics = b.DisableDispatchedJobSummaryMetrics
+	}
+	if b.DisableQuotaUtilizationMetrics {
+		result.DisableQuotaUtilizationMetrics = b.DisableQuotaUtilizationMetrics
 	}
 	if b.DisableRPCRateMetricsLabels {
 		result.DisableRPCRateMetricsLabels = b.DisableRPCRateMetricsLabels

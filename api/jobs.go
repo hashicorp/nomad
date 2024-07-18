@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/cronexpr"
@@ -215,8 +216,7 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
-// Scale is used to retrieve information about a particular
-// job given its unique ID.
+// Scale is used to scale a job.
 func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool, meta map[string]interface{},
 	q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 
@@ -234,6 +234,17 @@ func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool
 		Message: message,
 		Meta:    meta,
 	}
+	var resp JobRegisterResponse
+	qm, err := j.client.put(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// ScaleWithRequest is used to scale a job, giving the caller complete control
+// over the ScalingRequest
+func (j *Jobs) ScaleWithRequest(jobID string, req *ScalingRequest, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	var resp JobRegisterResponse
 	qm, err := j.client.put(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), req, &resp, q)
 	if err != nil {
@@ -986,6 +997,15 @@ func (js *JobSubmission) Canonicalize() {
 
 	if len(js.VariableFlags) == 0 {
 		js.VariableFlags = nil
+	}
+
+	// if there are multiline variables, make sure we escape the newline
+	// characters to preserve them. This way, when the job gets stopped and
+	// restarted in the UI, variable values will be parsed correctly.
+	for k, v := range js.VariableFlags {
+		if strings.Contains(v, "\n") {
+			js.VariableFlags[k] = strings.ReplaceAll(v, "\n", "\\n")
+		}
 	}
 }
 

@@ -29,7 +29,6 @@ export default class IndexController extends Controller.extend(
   @controller('clients') clientsController;
 
   @alias('model.nodes') nodes;
-  @alias('model.agents') agents;
 
   queryParams = [
     {

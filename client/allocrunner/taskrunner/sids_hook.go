@@ -151,7 +151,8 @@ func (h *sidsHook) Prestart(
 		}
 	}
 
-	// need to ask for a new SI token & persist it to disk
+	// COMPAT(1.9): this code path exists only to support the legacy (non-WI)
+	// workflow. remove for 1.9.0.
 	if token == "" {
 		if token, err = h.deriveSIToken(ctx); err != nil {
 			return err
@@ -255,7 +256,7 @@ func (h *sidsHook) kill(ctx context.Context, reason error) {
 func (h *sidsHook) tryDerive(ctx context.Context, ch chan<- siDerivationResult) {
 	for attempt := 0; backoff(ctx, attempt); attempt++ {
 
-		tokens, err := h.sidsClient.DeriveSITokens(h.alloc, []string{h.task.Name})
+		tokens, err := h.sidsClient.DeriveSITokens(ctx, h.alloc, []string{h.task.Name})
 
 		switch {
 		case err == nil:

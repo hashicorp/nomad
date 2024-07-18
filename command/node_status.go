@@ -830,7 +830,7 @@ func (c *NodeStatusCommand) formatDeviceAttributes(node *api.Node) {
 		}
 
 		if first {
-			c.Ui.Output("\n[bold]Device Group Attributes[reset]")
+			c.Ui.Output(c.Colorize().Color("\n[bold]Device Group Attributes[reset]"))
 			first = false
 		} else {
 			c.Ui.Output("")

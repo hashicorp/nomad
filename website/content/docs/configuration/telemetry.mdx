@@ -83,6 +83,12 @@ The following options are available on all telemetry configurations.
   summary statistics, it is sometimes desired to trade these statistics for
   more memory when dispatching high volumes of jobs.
 
+- `disable_quota_utilization_metrics` `(bool: false)` - Specifies if Nomad
+  should publish metrics about quota utilization (a Nomad Enterprise feature).
+  Since each quota utilization check requires a relatively expensive check
+  against Nomad's state store, users with many namespaces and many quotas may
+  want to disable these metrics.
+
 ### `statsite`
 
 These `telemetry` parameters apply to

@@ -270,7 +270,7 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 
 	// Alloc selects node with host volume 'unique'.
 	selectOptions := &SelectOptions{
-		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0),
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 0),
 	}
 	option := stack.Select(job.TaskGroups[0], selectOptions)
 	must.NotNil(t, option)
@@ -291,7 +291,7 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 
 	// First alloc selects node with host volume 'per_alloc[0]'.
 	selectOptions = &SelectOptions{
-		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0),
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 0),
 	}
 	option = stack.Select(job.TaskGroups[0], selectOptions)
 	must.NotNil(t, option)
@@ -299,7 +299,7 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 
 	// Second alloc selects node with host volume 'per_alloc[1]'.
 	selectOptions = &SelectOptions{
-		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 1),
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 1),
 	}
 	option = stack.Select(job.TaskGroups[0], selectOptions)
 	must.NotNil(t, option)
@@ -308,7 +308,7 @@ func TestServiceStack_Select_HostVolume(t *testing.T) {
 	// Third alloc must select node with host volume 'per_alloc[2]', but none
 	// of the nodes available can fulfil this requirement.
 	selectOptions = &SelectOptions{
-		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 2),
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 2),
 	}
 	option = stack.Select(job.TaskGroups[0], selectOptions)
 	must.Nil(t, option)
@@ -383,7 +383,7 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	stack.SetJob(job)
 
 	selectOptions := &SelectOptions{
-		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0)}
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 0)}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
 	must.NotNil(t, node, must.Sprintf("missing node %#v", ctx.Metrics()))
 

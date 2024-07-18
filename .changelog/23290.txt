@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: shorten client/node metadata/attributes display and make parent-terminal attributes show up
+```

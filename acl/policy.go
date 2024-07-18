@@ -191,7 +191,7 @@ func isPolicyValid(policy string) bool {
 
 func (p *PluginPolicy) isValid() bool {
 	switch p.Policy {
-	case PolicyDeny, PolicyRead, PolicyList:
+	case PolicyDeny, PolicyRead, PolicyList, PolicyWrite:
 		return true
 	default:
 		return false

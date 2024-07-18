@@ -677,3 +677,33 @@ func TestVaultClient_RenewalConcurrent(t *testing.T) {
 		}
 	}
 }
+
+func TestVaultClient_NamespaceReset(t *testing.T) {
+
+	// Mock Vault API that always returns an error
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, "error")
+	}))
+	defer ts.Close()
+
+	conf := structsc.DefaultVaultConfig()
+	conf.Addr = ts.URL
+	conf.Enabled = pointer.Of(true)
+
+	for _, ns := range []string{"", "foo"} {
+		conf.Namespace = ns
+
+		vc, err := NewVaultClient(conf, testlog.HCLogger(t), nil)
+		must.NoError(t, err)
+		vc.Start()
+
+		_, _, err = vc.DeriveTokenWithJWT(context.Background(), JWTLoginRequest{
+			JWT:       "bogus",
+			Namespace: "bar",
+		})
+		must.Error(t, err)
+		must.Eq(t, ns, vc.client.Namespace(),
+			must.Sprintf("expected %q, not %q", ns, vc.client.Namespace()))
+	}
+}

@@ -55,9 +55,9 @@ type cniNetworkConfigurator struct {
 	ignorePortMappingHostIP bool
 	nodeAttrs               map[string]string
 	nodeMeta                map[string]string
-
-	rand   *rand.Rand
-	logger log.Logger
+	rand                    *rand.Rand
+	logger                  log.Logger
+	nsOpts                  *nsOpts
 }
 
 func newCNINetworkConfigurator(logger log.Logger, cniPath, cniInterfacePrefix, cniConfDir, networkName string, ignorePortMappingHostIP bool, node *structs.Node) (*cniNetworkConfigurator, error) {
@@ -77,6 +77,7 @@ func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfaceP
 		ignorePortMappingHostIP: ignorePortMappingHostIP,
 		nodeAttrs:               node.Attributes,
 		nodeMeta:                node.Meta,
+		nsOpts:                  &nsOpts{},
 	}
 	if cniPath == "" {
 		if cniPath = os.Getenv(envCNIPath); cniPath == "" {
@@ -102,6 +103,18 @@ const (
 	ConsulIPTablesConfigEnvVar = "CONSUL_IPTABLES_CONFIG"
 )
 
+// Adds user inputted custom CNI args to cniArgs map
+func addCustomCNIArgs(networks []*structs.NetworkResource, cniArgs map[string]string) {
+	for _, net := range networks {
+		if net.CNI == nil {
+			continue
+		}
+		for k, v := range net.CNI.Args {
+			cniArgs[k] = v
+		}
+	}
+}
+
 // Setup calls the CNI plugins with the add action
 func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
 	if err := c.ensureCNIInitialized(); err != nil {
@@ -113,6 +126,10 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		// should ignore any arguments they don't understand
 		"IgnoreUnknown": "true",
 	}
+
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+
+	addCustomCNIArgs(tg.Networks, cniArgs)
 
 	portMaps := getPortMapping(alloc, c.ignorePortMappingHostIP)
 
@@ -137,8 +154,8 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	for attempt := 1; ; attempt++ {
 		var err error
 		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path,
-			cni.WithCapabilityPortMap(portMaps.ports),
-			cni.WithLabels(cniArgs), // "labels" turn into CNI_ARGS
+			c.nsOpts.withCapabilityPortMap(portMaps.ports),
+			c.nsOpts.withArgs(cniArgs),
 		); err != nil {
 			c.logger.Warn("failed to configure network", "error", err, "attempt", attempt)
 			switch attempt {
@@ -573,6 +590,22 @@ func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
 	} else {
 		return err
 	}
+}
+
+// nsOpts keeps track of NamespaceOpts usage, mainly for test assertions.
+type nsOpts struct {
+	args  map[string]string
+	ports []cni.PortMapping
+}
+
+func (o *nsOpts) withArgs(args map[string]string) cni.NamespaceOpts {
+	o.args = args
+	return cni.WithLabels(args)
+}
+
+func (o *nsOpts) withCapabilityPortMap(ports []cni.PortMapping) cni.NamespaceOpts {
+	o.ports = ports
+	return cni.WithCapabilityPortMap(ports)
 }
 
 // portMappings is a wrapper around a slice of cni.PortMapping that lets us

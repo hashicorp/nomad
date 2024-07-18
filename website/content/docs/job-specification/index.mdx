@@ -132,9 +132,9 @@ job "docs" {
 }
 ```
 
-Note that starting with Nomad 0.10, the `service` block can also be specified at the group level. This
-allows job specification authors to create and register services with Consul Connect support. A service
-block specified at the group level must include a [connect][] block, like the following snippet.
+The `service` block can also be specified at the group level. This allows job specification authors
+to create and register services with Consul Service Mesh. A service block specified at the group 
+level must include a [`connect`][] block, like the following snippet.
 
 ```hcl
 service {

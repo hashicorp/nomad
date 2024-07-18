@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,12 +19,16 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -50,10 +55,10 @@ func (s *mockSigner) SignClaims(c *structs.IdentityClaims) (token, keyID string,
 func TestEncrypter_LoadSave(t *testing.T) {
 	ci.Parallel(t)
 
-	srv, cleanupSrv := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-	t.Cleanup(cleanupSrv)
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
 
 	tmpDir := t.TempDir()
 	encrypter, err := NewEncrypter(srv, tmpDir)
@@ -72,7 +77,7 @@ func TestEncrypter_LoadSave(t *testing.T) {
 
 			// startup code path
 			gotKey, err := encrypter.loadKeyFromStore(
-				filepath.Join(tmpDir, key.Meta.KeyID+".nks.json"))
+				filepath.Join(tmpDir, key.Meta.KeyID+".aead.nks.json"))
 			must.NoError(t, err)
 			must.NoError(t, encrypter.addCipher(gotKey))
 			must.Greater(t, 0, len(gotKey.RSAKey))
@@ -83,6 +88,33 @@ func TestEncrypter_LoadSave(t *testing.T) {
 			must.Greater(t, 0, len(active.rootKey.RSAKey))
 		})
 	}
+
+	t.Run("legacy aead wrapper", func(t *testing.T) {
+		key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+		must.NoError(t, err)
+
+		// create a wrapper file identical to those before we had external KMS
+		kekWrapper, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
+		kekWrapper.Provider = ""
+		kekWrapper.ProviderID = ""
+		kekWrapper.EncryptedDataEncryptionKey = kekWrapper.WrappedDataEncryptionKey.Ciphertext
+		kekWrapper.EncryptedRSAKey = kekWrapper.WrappedRSAKey.Ciphertext
+		kekWrapper.WrappedDataEncryptionKey = nil
+		kekWrapper.WrappedRSAKey = nil
+
+		buf, err := json.Marshal(kekWrapper)
+		must.NoError(t, err)
+
+		path := filepath.Join(tmpDir, key.Meta.KeyID+".nks.json")
+		err = os.WriteFile(path, buf, 0o600)
+		must.NoError(t, err)
+
+		gotKey, err := encrypter.loadKeyFromStore(path)
+		must.NoError(t, err)
+		must.NoError(t, encrypter.addCipher(gotKey))
+		must.Greater(t, 0, len(gotKey.RSAKey))
+	})
+
 }
 
 // TestEncrypter_Restore exercises the entire reload of a keystore,
@@ -200,7 +232,7 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 		c.BootstrapExpect = 3
 		c.NumSchedulers = 0
 	})
-	defer cleanupSRV1()
+	t.Cleanup(cleanupSRV1)
 
 	// add two more servers after we've bootstrapped
 
@@ -208,21 +240,19 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 		c.BootstrapExpect = 3
 		c.NumSchedulers = 0
 	})
-	defer cleanupSRV2()
+	t.Cleanup(cleanupSRV2)
 	srv3, cleanupSRV3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.NumSchedulers = 0
 	})
-	defer cleanupSRV3()
+	t.Cleanup(cleanupSRV3)
 
-	TestJoin(t, srv1, srv2)
-	TestJoin(t, srv1, srv3)
-
+	servers := []*Server{srv1, srv2, srv3}
+	TestJoin(t, servers...)
 	testutil.WaitForKeyring(t, srv1.RPC, "global")
 	testutil.WaitForKeyring(t, srv2.RPC, "global")
 	testutil.WaitForKeyring(t, srv3.RPC, "global")
 
-	servers := []*Server{srv1, srv2, srv3}
 	var leader *Server
 
 	for _, srv := range servers {
@@ -230,7 +260,7 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 			leader = srv
 		}
 	}
-	require.NotNil(t, leader, "expected there to be a leader")
+	must.NotNil(t, leader, must.Sprint("expected there to be a leader"))
 	codec := rpcClient(t, leader)
 	t.Logf("leader is %s", leader.config.NodeName)
 
@@ -243,17 +273,20 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	}
 	var listResp structs.KeyringListRootKeyMetaResponse
 
-	require.Eventually(t, func() bool {
-		msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-		return len(listResp.Keys) == 1
-	}, time.Second*5, time.Second, "expected keyring to be initialized")
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+			return len(listResp.Keys) == 1
+		}),
+		wait.Timeout(time.Second*5), wait.Gap(200*time.Millisecond)),
+		must.Sprint("expected keyring to be initialized"))
 
 	keyID1 := listResp.Keys[0].KeyID
 
 	keyPath := filepath.Join(leader.GetConfig().DataDir, "keystore",
-		keyID1+nomadKeystoreExtension)
+		keyID1+".aead.nks.json")
 	_, err := os.Stat(keyPath)
-	require.NoError(t, err, "expected key to be found in leader keystore")
+	must.NoError(t, err, must.Sprint("expected key to be found in leader keystore"))
 
 	// Helper function for checking that a specific key has been
 	// replicated to followers
@@ -262,7 +295,7 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 		return func() bool {
 			for _, srv := range servers {
 				keyPath := filepath.Join(srv.GetConfig().DataDir, "keystore",
-					keyID+nomadKeystoreExtension)
+					keyID+".aead.nks.json")
 				if _, err := os.Stat(keyPath); err != nil {
 					return false
 				}
@@ -272,12 +305,12 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	}
 
 	// Assert that the bootstrap key has been replicated to followers
-	require.Eventually(t, checkReplicationFn(keyID1),
-		time.Second*5, time.Second,
-		"expected keys to be replicated to followers after bootstrap")
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(checkReplicationFn(keyID1)),
+		wait.Timeout(time.Second*5), wait.Gap(200*time.Millisecond)),
+		must.Sprint("expected keys to be replicated to followers after bootstrap"))
 
 	// Assert that key rotations are replicated to followers
-
 	rotateReq := &structs.KeyringRotateRootKeyRequest{
 		WriteRequest: structs.WriteRequest{
 			Region: "global",
@@ -285,7 +318,7 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	}
 	var rotateResp structs.KeyringRotateRootKeyResponse
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	keyID2 := rotateResp.Key.KeyID
 
 	getReq := &structs.KeyringGetRootKeyRequest{
@@ -296,32 +329,32 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	}
 	var getResp structs.KeyringGetRootKeyResponse
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
-	require.NoError(t, err)
-	require.NotNil(t, getResp.Key, "expected key to be found on leader")
+	must.NoError(t, err)
+	must.NotNil(t, getResp.Key, must.Sprint("expected key to be found on leader"))
 
 	keyPath = filepath.Join(leader.GetConfig().DataDir, "keystore",
-		keyID2+nomadKeystoreExtension)
+		keyID2+".aead.nks.json")
 	_, err = os.Stat(keyPath)
-	require.NoError(t, err, "expected key to be found in leader keystore")
+	must.NoError(t, err, must.Sprint("expected key to be found in leader keystore"))
 
-	require.Eventually(t, checkReplicationFn(keyID2),
-		time.Second*5, time.Second,
-		"expected keys to be replicated to followers after rotation")
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(checkReplicationFn(keyID2)),
+		wait.Timeout(time.Second*5), wait.Gap(200*time.Millisecond)),
+		must.Sprint("expected keys to be replicated to followers after rotation"))
 
 	// Scenario: simulate a key rotation that doesn't get replicated
 	// before a leader election by stopping replication, rotating the
 	// key, and triggering a leader election.
-
 	for _, srv := range servers {
 		srv.keyringReplicator.stop()
 	}
 
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	keyID3 := rotateResp.Key.KeyID
 
 	err = leader.leadershipTransfer()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	testutil.WaitForLeader(t, leader.RPC)
 
@@ -336,9 +369,10 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 		go srv.keyringReplicator.run(ctx)
 	}
 
-	require.Eventually(t, checkReplicationFn(keyID3),
-		time.Second*5, time.Second,
-		"expected keys to be replicated to followers after election")
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(checkReplicationFn(keyID3)),
+		wait.Timeout(time.Second*5), wait.Gap(200*time.Millisecond)),
+		must.Sprint("expected keys to be replicated to followers after election"))
 
 	// Scenario: new members join the cluster
 
@@ -353,16 +387,15 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	})
 	defer cleanupSRV5()
 
-	TestJoin(t, srv4, srv5)
-	TestJoin(t, srv5, srv1)
 	servers = []*Server{srv1, srv2, srv3, srv4, srv5}
-
+	TestJoin(t, servers...)
 	testutil.WaitForLeader(t, srv4.RPC)
 	testutil.WaitForLeader(t, srv5.RPC)
 
-	require.Eventually(t, checkReplicationFn(keyID3),
-		time.Second*5, time.Second,
-		"expected new servers to get replicated keys")
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(checkReplicationFn(keyID3)),
+		wait.Timeout(time.Second*5), wait.Gap(200*time.Millisecond)),
+		must.Sprint("expected new servers to get replicated key"))
 
 	// Scenario: reload a snapshot
 
@@ -377,19 +410,18 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 	sink := &MockSink{buf, false}
 	must.NoError(t, snapshot.Persist(sink))
-
 	must.NoError(t, srv5.fsm.Restore(sink))
 
 	// rotate the key
 
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	keyID4 := rotateResp.Key.KeyID
 
-	require.Eventually(t, checkReplicationFn(keyID4),
-		time.Second*5, time.Second,
-		"expected new servers to get replicated keys after snapshot restore")
-
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(checkReplicationFn(keyID4)),
+		wait.Timeout(time.Second*5), wait.Gap(200*time.Millisecond)),
+		must.Sprint("expected new servers to get replicated keys after snapshot restore"))
 }
 
 func TestEncrypter_EncryptDecrypt(t *testing.T) {
@@ -637,4 +669,64 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 	// Ensure that verifying the old JWT still works
 	_, err = srv.encrypter.VerifyClaim(oldRawJWT)
 	must.NoError(t, err)
+}
+
+func TestEncrypter_TransitConfigFallback(t *testing.T) {
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{
+			VaultConfigs: map[string]*config.VaultConfig{structs.VaultDefaultCluster: {
+				Addr:          "https://localhost:8203",
+				TLSCaPath:     "/etc/certs/ca",
+				TLSCertFile:   "/var/certs/vault.crt",
+				TLSKeyFile:    "/var/certs/vault.key",
+				TLSSkipVerify: pointer.Of(true),
+				TLSServerName: "foo",
+				Token:         "vault-token",
+			}},
+			KEKProviderConfigs: []*structs.KEKProviderConfig{
+				{
+					Provider: "transit",
+					Name:     "no-fallback",
+					Config: map[string]string{
+						"address":         "https://localhost:8203",
+						"token":           "vault-token",
+						"tls_ca_cert":     "/etc/certs/ca",
+						"tls_client_cert": "/var/certs/vault.crt",
+						"tls_client_key":  "/var/certs/vault.key",
+						"tls_server_name": "foo",
+						"tls_skip_verify": "true",
+					},
+				},
+				{
+					Provider: "transit",
+					Name:     "fallback-to-vault-block",
+				},
+				{
+					Provider: "transit",
+					Name:     "fallback-to-env",
+				},
+			},
+		},
+	}
+
+	providers := srv.config.KEKProviderConfigs
+	expect := maps.Clone(providers[0].Config)
+
+	fallbackVaultConfig(providers[0], srv.config.GetDefaultVault())
+	must.Eq(t, expect, providers[0].Config, must.Sprint("expected no change"))
+
+	fallbackVaultConfig(providers[1], srv.config.GetDefaultVault())
+	must.Eq(t, expect, providers[1].Config, must.Sprint("expected fallback to vault block"))
+
+	t.Setenv("VAULT_ADDR", "https://localhost:8203")
+	t.Setenv("VAULT_TOKEN", "vault-token")
+	t.Setenv("VAULT_CACERT", "/etc/certs/ca")
+	t.Setenv("VAULT_CLIENT_CERT", "/var/certs/vault.crt")
+	t.Setenv("VAULT_CLIENT_KEY", "/var/certs/vault.key")
+	t.Setenv("VAULT_TLS_SERVER_NAME", "foo")
+	t.Setenv("VAULT_SKIP_VERIFY", "true")
+
+	fallbackVaultConfig(providers[2], &config.VaultConfig{})
+	must.Eq(t, expect, providers[2].Config, must.Sprint("expected fallback to env"))
 }

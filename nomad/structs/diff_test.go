@@ -3840,6 +3840,12 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeNone,
+										Name: "Notes",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
 										Name: "OnUpdate",
 										Old:  "",
 										New:  "",
@@ -4535,12 +4541,6 @@ func TestTaskGroupDiff(t *testing.T) {
 								New:  "bar",
 							},
 							{
-								Type: DiffTypeAdded,
-								Name: "MBits",
-								Old:  "",
-								New:  "200",
-							},
-							{
 								Type: DiffTypeNone,
 								Name: "Mode",
 								Old:  "",
@@ -4594,12 +4594,6 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Hostname",
 								Old:  "foo",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "MBits",
-								Old:  "100",
 								New:  "",
 							},
 							{
@@ -5219,6 +5213,251 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "evaluation_interval",
 										Old:  "5s",
 										New:  "10s",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{TestCase: "TaskGroup CNI added",
+			Contextual: false,
+			Old: &TaskGroup{
+				Networks: Networks{},
+			},
+			New: &TaskGroup{
+				Networks: Networks{
+					{
+						CNI: &CNIConfig{
+							Args: map[string]string{
+								"example": "example1",
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeAdded,
+								Name: "CNIConfig",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "example",
+										Old:  "",
+										New:  "example1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{TestCase: "TaskGroup CNI deleted",
+			Contextual: false,
+			Old: &TaskGroup{
+				Networks: Networks{
+					{
+						CNI: &CNIConfig{
+							Args: map[string]string{
+								"example": "example1",
+							},
+						},
+					},
+				},
+			},
+			New: &TaskGroup{
+				Networks: Networks{},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeDeleted,
+								Name: "CNIConfig",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "example",
+										Old:  "example1",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{TestCase: "TaskGroup CNI edited",
+			Contextual: false,
+			Old: &TaskGroup{
+				Networks: Networks{
+					{
+						CNI: &CNIConfig{
+							Args: map[string]string{
+								"example": "example1",
+							},
+						},
+					},
+				},
+			},
+			New: &TaskGroup{
+				Networks: Networks{
+					{
+						CNI: &CNIConfig{
+							Args: map[string]string{
+								"example": "example2",
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeAdded,
+								Name: "CNIConfig",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "example",
+										Old:  "",
+										New:  "example2",
+									},
+								},
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeDeleted,
+								Name: "CNIConfig",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "example",
+										Old:  "example1",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{TestCase: "Editing Networks deletes and re-adds",
+			Contextual: false,
+			Old: &TaskGroup{
+				Networks: Networks{
+					{
+						DNS: &DNSConfig{
+							Servers: []string{"1.1.1.1"},
+						},
+					},
+				},
+			},
+			New: &TaskGroup{
+				Networks: Networks{
+					{
+						DNS: &DNSConfig{
+							Servers: []string{"1.1.1.1"},
+						},
+						DynamicPorts: []Port{
+							{
+								Label:       "bar",
+								To:          8081,
+								HostNetwork: "public",
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeAdded,
+								Name: "Dynamic Port",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "HostNetwork",
+										Old:  "",
+										New:  "public",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Label",
+										Old:  "",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "To",
+										Old:  "",
+										New:  "8081",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DNS",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Servers",
+										Old:  "",
+										New:  "1.1.1.1",
+									},
+								},
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Network",
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeDeleted,
+								Name: "DNS",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Servers",
+										Old:  "1.1.1.1",
+										New:  "",
 									},
 								},
 							},
@@ -6223,14 +6462,6 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeAdded,
 								Name: "Network",
-								Fields: []*FieldDiff{
-									{
-										Type: DiffTypeAdded,
-										Name: "MBits",
-										Old:  "",
-										New:  "200",
-									},
-								},
 								Objects: []*ObjectDiff{
 									{
 										Type: DiffTypeAdded,
@@ -6279,14 +6510,6 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeDeleted,
 								Name: "Network",
-								Fields: []*FieldDiff{
-									{
-										Type: DiffTypeDeleted,
-										Name: "MBits",
-										Old:  "100",
-										New:  "",
-									},
-								},
 								Objects: []*ObjectDiff{
 									{
 										Type: DiffTypeDeleted,
@@ -7607,6 +7830,7 @@ func TestTaskDiff(t *testing.T) {
 								Interval:      1 * time.Second,
 								Timeout:       1 * time.Second,
 								InitialStatus: "critical",
+								Notes:         "a note",
 								Header: map[string][]string{
 									"Foo": {"bar"},
 								},
@@ -7635,6 +7859,7 @@ func TestTaskDiff(t *testing.T) {
 								Interval:      1 * time.Second,
 								Timeout:       1 * time.Second,
 								InitialStatus: "passing",
+								Notes:         "another note",
 								Method:        "POST",
 								Header: map[string][]string{
 									"Foo":  {"bar", "baz"},
@@ -7787,6 +8012,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Name",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Notes",
+										Old:  "a note",
+										New:  "another note",
 									},
 									{
 										Type: DiffTypeEdited,

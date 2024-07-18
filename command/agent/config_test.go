@@ -296,6 +296,7 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusBrokerSelectTag:            "dc:dc2",
 			PrefixFilter:                       []string{"prefix1", "prefix2"},
 			DisableDispatchedJobSummaryMetrics: true,
+			DisableQuotaUtilizationMetrics:     false,
 			DisableRPCRateMetricsLabels:        true,
 			FilterDefault:                      pointer.Of(false),
 		},
@@ -1446,7 +1447,6 @@ func TestTelemetry_Validate(t *testing.T) {
 func TestTelemetry_Parse(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	dir := t.TempDir()
 
 	file1 := filepath.Join(dir, "config1.hcl")
@@ -1454,18 +1454,20 @@ func TestTelemetry_Parse(t *testing.T) {
 		prefix_filter = ["+nomad.raft"]
 		filter_default = false
 		disable_dispatched_job_summary_metrics = true
+		disable_quota_utilization_metrics = true
 		disable_rpc_rate_metrics_labels = true
 	}`), 0600)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Works on config dir
 	config, err := LoadConfig(dir)
-	require.NoError(err)
+	must.NoError(t, err)
 
-	require.False(*config.Telemetry.FilterDefault)
-	require.Exactly([]string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
-	require.True(config.Telemetry.DisableDispatchedJobSummaryMetrics)
-	require.True(config.Telemetry.DisableRPCRateMetricsLabels)
+	must.False(t, *config.Telemetry.FilterDefault)
+	must.Eq(t, []string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
+	must.True(t, config.Telemetry.DisableDispatchedJobSummaryMetrics)
+	must.True(t, config.Telemetry.DisableQuotaUtilizationMetrics)
+	must.True(t, config.Telemetry.DisableRPCRateMetricsLabels)
 }
 
 func TestEventBroker_Parse(t *testing.T) {
@@ -1739,4 +1741,112 @@ func TestParseMultipleIPTemplates(t *testing.T) {
 			require.Equal(t, tc.expectedOut, out)
 		})
 	}
+}
+
+// this test makes sure Consul configs with and without WI merging happens
+// correctly; here to assure we don't introduce regressions
+func Test_mergeConsulConfigs(t *testing.T) {
+	ci.Parallel(t)
+
+	c0 := &Config{
+		Consuls: []*config.ConsulConfig{
+			{
+				Token:                "foo",
+				AllowUnauthenticated: pointer.Of(true),
+			},
+		},
+	}
+
+	c1 := &Config{
+		Consuls: []*config.ConsulConfig{
+			{
+				ServiceIdentity: &config.WorkloadIdentityConfig{
+					Audience: []string{"consul.io"},
+					TTL:      pointer.Of(time.Hour),
+				},
+				TaskIdentity: &config.WorkloadIdentityConfig{
+					Audience: []string{"consul.io"},
+					TTL:      pointer.Of(time.Hour),
+				},
+			},
+		},
+	}
+
+	result := c0.Merge(c1)
+
+	must.Eq(t, c1.Consuls[0].ServiceIdentity, result.Consuls[0].ServiceIdentity)
+	must.Eq(t, c1.Consuls[0].TaskIdentity, result.Consuls[0].TaskIdentity)
+	must.Eq(t, c0.Consuls[0].Token, result.Consuls[0].Token)
+	must.Eq(t, c0.Consuls[0].AllowUnauthenticated, result.Consuls[0].AllowUnauthenticated)
+}
+
+func Test_mergeKEKProviderConfigs(t *testing.T) {
+	ci.Parallel(t)
+
+	left := []*structs.KEKProviderConfig{
+		{
+			// incomplete config with name
+			Provider: "awskms",
+			Name:     "foo",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSFODNN7EXAMPLE",
+			},
+		},
+		{
+			// empty config
+			Provider: "aead",
+		},
+	}
+	right := []*structs.KEKProviderConfig{
+		{
+			// same awskms.foo provider with fields to merge
+			Provider: "awskms",
+			Name:     "foo",
+			Active:   false,
+			Config: map[string]string{
+				"access_key": "AKIAIOSXABCD7EXAMPLE",
+				"secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+				"kms_key_id": "19ec80b0-dfdd-4d97-8164-c6examplekey",
+			},
+		},
+		{
+			// same awskms provider, different name
+			Provider: "awskms",
+			Name:     "bar",
+			Active:   false,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSFODNN7EXAMPLE",
+			},
+		},
+	}
+
+	result := mergeKEKProviderConfigs(left, right)
+	must.Eq(t, []*structs.KEKProviderConfig{
+		{
+			Provider: "aead",
+		},
+		{
+			Provider: "awskms",
+			Name:     "bar",
+			Active:   false,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSFODNN7EXAMPLE",
+			},
+		},
+		{
+			Provider: "awskms",
+			Name:     "foo",
+			Active:   false, // should be flipped
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSXABCD7EXAMPLE",                     // override
+				"secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", // added
+				"kms_key_id": "19ec80b0-dfdd-4d97-8164-c6examplekey",     // added
+			},
+		},
+	}, result)
 }

@@ -2015,6 +2015,58 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 			},
 			ErrContains: "Hostname is not a valid DNS name",
 		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-duplicate-cni-arg-keys",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static": "first_value"}},
+					},
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static": "new_value"}},
+					},
+				},
+			},
+			ErrContains: "duplicate CNI arg",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-valid-cni-arg-keys",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static": "first_value"}},
+					},
+					{
+						CNI: &CNIConfig{Args: map[string]string{"new_key": "new_value"}},
+					},
+					{
+						CNI: &CNIConfig{Args: map[string]string{"newest_key": "new_value", "second_key": "second_value"}},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-invalid-character-cni-arg-key",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static;": "first_value"}},
+					},
+				},
+			},
+			ErrContains: "invalid ';' character in CNI arg key \"static;",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-invalid-character-cni-arg-value",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static": "first_value;"}},
+					},
+				},
+			},
+			ErrContains: "invalid ';' character in CNI arg value \"first_value;",
+		},
 	}
 
 	for i := range cases {
@@ -2186,6 +2238,7 @@ func TestTask_Validate_Resources(t *testing.T) {
 								HostNetwork: "loopback",
 							},
 						},
+						CNI: &CNIConfig{map[string]string{"static": "new_val"}},
 					},
 				},
 			},
@@ -2318,6 +2371,7 @@ func TestNetworkResource_Copy(t *testing.T) {
 						HostNetwork: "public",
 					},
 				},
+				CNI: &CNIConfig{Args: map[string]string{"foo": "bar", "hello": "world"}},
 			},
 			name: "fully populated input check",
 		},
@@ -3711,6 +3765,7 @@ func TestResource_Add(t *testing.T) {
 
 	r1 := &Resources{
 		CPU:      2000,
+		Cores:    100,
 		MemoryMB: 2048,
 		DiskMB:   10000,
 		Networks: []*NetworkResource{
@@ -3723,6 +3778,7 @@ func TestResource_Add(t *testing.T) {
 	}
 	r2 := &Resources{
 		CPU:      2000,
+		Cores:    100,
 		MemoryMB: 1024,
 		DiskMB:   5000,
 		Networks: []*NetworkResource{
@@ -3737,9 +3793,11 @@ func TestResource_Add(t *testing.T) {
 	r1.Add(r2)
 
 	expect := &Resources{
-		CPU:      3000,
-		MemoryMB: 3072,
-		DiskMB:   15000,
+		CPU:         4000,
+		Cores:       200,
+		MemoryMB:    3072,
+		MemoryMaxMB: 1024,
+		DiskMB:      15000,
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "10.0.0.0/8",
@@ -3749,9 +3807,7 @@ func TestResource_Add(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
-		t.Fatalf("bad: %#v %#v", expect, r1)
-	}
+	must.Eq(t, expect, r1)
 }
 
 func TestResource_Add_Network(t *testing.T) {
@@ -5186,22 +5242,26 @@ func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 	assert.Equal(t, expectedAlloc, appendedAlloc)
 }
 
-func TestAllocation_MsgPackTags(t *testing.T) {
+func TestMsgPackTags(t *testing.T) {
 	ci.Parallel(t)
-	planType := reflect.TypeOf(Allocation{})
 
-	msgPackTags, _ := planType.FieldByName("_struct")
+	cases := []struct {
+		name   string
+		typeOf reflect.Type
+	}{
+		{"Allocation", reflect.TypeOf(Allocation{})},
+		{"Evaluation", reflect.TypeOf(Evaluation{})},
+		{"NetworkResource", reflect.TypeOf(NetworkResource{})},
+		{"Plan", reflect.TypeOf(Plan{})},
+	}
 
-	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
-}
-
-func TestEvaluation_MsgPackTags(t *testing.T) {
-	ci.Parallel(t)
-	planType := reflect.TypeOf(Evaluation{})
-
-	msgPackTags, _ := planType.FieldByName("_struct")
-
-	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			field, ok := tc.typeOf.FieldByName("_struct")
+			must.True(t, ok, must.Sprint("_struct field not found"))
+			must.Eq(t, `codec:",omitempty"`, field.Tag, must.Sprint("bad _struct tag"))
+		})
+	}
 }
 
 func TestAllocation_Terminated(t *testing.T) {
@@ -5370,7 +5430,10 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 		alloc := Allocation{}
 		alloc.DesiredStatus = state.DesiredStatus
 		alloc.ClientStatus = state.ClientStatus
-		alloc.RescheduleTracker = &RescheduleTracker{state.RescheduleTrackers}
+		alloc.RescheduleTracker = &RescheduleTracker{
+			Events:         state.RescheduleTrackers,
+			LastReschedule: "",
+		}
 
 		t.Run(state.Desc, func(t *testing.T) {
 			if got := alloc.ShouldReschedule(state.ReschedulePolicy, state.FailTime); got != state.ShouldReschedule {
@@ -7232,7 +7295,7 @@ func TestNodeResources_Merge(t *testing.T) {
 	}
 
 	topo2 := MockBasicTopology()
-	topo2.NodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2})
+	topo2.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2}))
 
 	res.Merge(&NodeResources{
 		Processors: NodeProcessorResources{topo2},

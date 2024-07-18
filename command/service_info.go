@@ -123,23 +123,15 @@ func (s *ServiceInfoCommand) Run(args []string) int {
 		Prefix:    serviceID,
 		Namespace: ns,
 	}
-	services, _, err := client.Services().List(&opts)
+
+	ns, serviceID, possible, err := getServiceByPrefix(client.Services(), &opts)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error listing service registrations: %s", err))
 		return 1
 	}
-	switch len(services) {
-	case 0:
-		s.Ui.Error(fmt.Sprintf("No service registrations with prefix %q found", serviceID))
-		return 1
-	case 1:
-		ns = services[0].Namespace
-		if len(services[0].Services) > 0 { // should always be valid
-			serviceID = services[0].Services[0].ServiceName
-		}
-	default:
+	if len(possible) > 0 {
 		s.Ui.Error(fmt.Sprintf("Prefix matched multiple services\n\n%s",
-			formatServiceListOutput(s.Meta.namespace, services)))
+			formatServiceListOutput(s.Meta.namespace, possible)))
 		return 1
 	}
 
@@ -293,4 +285,62 @@ func argsWithNewPageToken(osArgs []string, nextToken string) string {
 		}
 	}
 	return strings.Join(newArgs, " ")
+}
+
+func getServiceByPrefix(client *api.Services, opts *api.QueryOptions) (ns, id string, possible []*api.ServiceRegistrationListStub, err error) {
+	possible, _, err = client.List(opts)
+	if err != nil {
+		return
+	}
+
+	switch len(possible) {
+	case 0:
+		err = fmt.Errorf("No service registrations with prefix %q found", opts.Prefix)
+		return
+	case 1: // single namespace
+		ns = possible[0].Namespace
+		services := possible[0].Services
+		switch len(services) {
+		case 0:
+			// should never happen because we should never get an empty stub
+			err = fmt.Errorf("No service registrations with prefix %q found", opts.Prefix)
+			return
+		case 1:
+			id = services[0].ServiceName
+			possible = nil
+			return
+		default:
+			for _, service := range services {
+				if service.ServiceName == opts.Prefix { // exact match
+					id = service.ServiceName
+					possible = nil
+					return
+				}
+			}
+			return
+		}
+	default: // multiple namespaces, so we passed '*' namespace arg
+		exactMatchesCount := 0
+		for _, stub := range possible {
+			for _, service := range stub.Services {
+				if service.ServiceName == opts.Prefix {
+					id = service.ServiceName
+					exactMatchesCount++
+					continue
+				}
+			}
+		}
+		switch exactMatchesCount {
+		case 0:
+			// should never happen because we should never get an empty stub
+			err = fmt.Errorf("No service registrations with prefix %q found", opts.Prefix)
+			return
+		case 1:
+			possible = nil
+			return
+		default:
+			return
+		}
+	}
+
 }

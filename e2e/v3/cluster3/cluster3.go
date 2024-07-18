@@ -27,6 +27,7 @@ type Cluster struct {
 	vaultClient  *vaultapi.Client
 
 	timeout        time.Duration
+	enterprise     bool
 	leaderReady    bool
 	consulReady    bool
 	vaultReady     bool
@@ -36,6 +37,8 @@ type Cluster struct {
 }
 
 func (c *Cluster) wait() {
+	c.t.Helper()
+
 	errCh := make(chan error)
 
 	statusAPI := c.nomadClient.Status()
@@ -149,11 +152,24 @@ func (c *Cluster) wait() {
 		err := <-errCh
 		must.NoError(c.t, err)
 	}
+
+	// t.Skip() should not be run in a goroutine, so this check is separate,
+	// and by the time the above have passed, retries should not be necessary.
+	if c.enterprise {
+		_, _, err := c.nomadClient.Operator().LicenseGet(nil)
+		if err != nil && err.Error() == "Nomad Enterprise only endpoint" {
+			c.t.Skip("not an enterprise cluster")
+		} else {
+			must.NoError(c.t, err, must.Sprint("expect running Enterprise cluster"))
+		}
+	}
 }
 
 type Option func(c *Cluster)
 
 func Establish(t *testing.T, opts ...Option) {
+	t.Helper()
+
 	c := &Cluster{
 		t:       t,
 		timeout: 10 * time.Second,
@@ -184,6 +200,12 @@ func (c *Cluster) setClients() {
 	vaultClient, vaultErr := vaultapi.NewClient(vConfig)
 	must.NoError(c.t, vaultErr, must.Sprint("failed to create vault api client"))
 	c.vaultClient = vaultClient
+}
+
+func Enterprise() Option {
+	return func(c *Cluster) {
+		c.enterprise = true
+	}
 }
 
 func Timeout(timeout time.Duration) Option {

@@ -2389,24 +2389,35 @@ The table below shows this endpoint's support for
 
 - `Count` `(int: <optional>)` - Specifies the new task group count.
 
-- `Target` `(json: required)` - JSON map containing the target of the scaling operation.
-  Must contain a field `Group` with the name of the task group that is the target of this scaling action.
+- `EnforceIndex` `(bool: false)` - If set, the job will only be registered if
+  the passed `JobModifyIndex` matches the current job's index. If the index is
+  zero, the register only occurs if the job is new. This paradigm allows
+  check-and-set style job updating.
 
-- `Message` `(string: <optional>)` - Description of the scale action, persisted as part of the scaling event.
-  Indicates information or reason for scaling; one of `Message` or `Error` must be provided.
+- `Error` `(string: <optional>)` - Description of the scale action, persisted as
+  part of the scaling event.  Indicates an error state preventing scaling; one
+  of `Message` or `Error` must be provided.
 
-- `Error` `(string: <optional>)` - Description of the scale action, persisted as part of the scaling event.
-  Indicates an error state preventing scaling; one of `Message` or `Error` must be provided.
+- `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
+  current job is at.
+
+- `Message` `(string: <optional>)` - Description of the scale action, persisted
+  as part of the scaling event.  Indicates information or reason for scaling;
+  one of `Message` or `Error` must be provided.
 
 - `Meta` `(json: <optional>)` - JSON block that is persisted as part of the scaling event.
 
-- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
-  will be overridden. This allows a job to be scaled when it would be denied
-  by policy.
-
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
-enabled, this value must match a namespace that the token is allowed to
-access. This is specified as a query string parameter.
+   enabled, this value must match a namespace that the token is allowed to
+   access. This is specified as a query string parameter.
+
+- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel
+  policies will be overridden. This allows a job to be scaled when it would be
+  denied by policy.
+
+- `Target` `(json: required)` - JSON map containing the target of the scaling
+  operation.  Must contain a field `Group` with the name of the task group that
+  is the target of this scaling action.
 
 ### Sample Payload
 

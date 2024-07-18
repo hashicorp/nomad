@@ -198,13 +198,31 @@ Nomad uses CNI plugins to configure network namespaces when using the `bridge`
 network mode. All Linux Nomad client nodes using network namespaces must have
 CNI plugins installed.
 
+<h4>Install reference CNI plugins</h4>
+
 The following commands install the CNI reference plugins.
 
 ```shell-session
-$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.5.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v1.5.0.tgz && \
+$ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
+$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.5.0/cni-plugins-linux-${ARCH_CNI}"-v1.5.0.tgz && \
   sudo mkdir -p /opt/cni/bin && \
   sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
+ 
+<h4>Install consul-cni CNI plugin</h4>
+
+If the `transparent_proxy` block is used for Consul Service Mesh, then the 
+`consul-cni` CNI Plugin must be installed on each client node to redirect inbound 
+and outbound traffic for services to the Envoy proxy. The following commands
+assume that reference CNI plugins have already been installed. 
+
+```shell-session
+$ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
+$ curl -L -o consul-cni.zip "https://releases.hashicorp.com/consul-cni/1.5.0/consul-cni_1.5.0_linux_${ARCH_CNI}".zip && \
+  sudo unzip consul-cni.zip -d /opt/cni/bin -x LICENSE.txt
+```
+
+<h3>Configure bridge network to route traffic through iptables</h3>
 
 Ensure your Linux operating system distribution has been configured to allow
 container traffic through the bridge network to be routed via iptables. These
@@ -290,6 +308,8 @@ Nomad uses CNI plugins to configure network namespaces when using the `bridge`
 network mode. All Linux Nomad client nodes using network namespaces must have
 CNI plugins installed.
 
+<h4>Install reference CNI plugins</h4>
+
 The following commands install the CNI reference plugins.
 
 ```shell-session
@@ -297,6 +317,54 @@ $ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/rel
   sudo mkdir -p /opt/cni/bin && \
   sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
+ 
+<h4>Install consul-cni CNI plugin</h4>
+
+If the `transparent_proxy` block is used for Consul Service Mesh, then the 
+`consul-cni` CNI Plugin must be installed on each client node to redirect inbound 
+and outbound traffic for services to the Envoy proxy. The following commands
+assume that the linux packages repositories have already been added using `apt` or 
+`yum` and that the reference CNI plugins have already been installed. 
+
+<Tabs>
+
+<Tab heading="CentOS/RHEL">
+
+Install the `consul-cni` plugin on each client node.  
+
+```shell-session
+$ sudo yum -y install consul-cni
+```
+</Tab>
+<Tab heading="Ubuntu/Debian">
+
+Install the `consul-cni` plugin on each client node.  
+
+```shell-session
+$ sudo apt-get install -y consul-cni
+```
+
+</Tab>
+<Tab heading="Fedora">
+
+Install the `consul-cni` plugin on each client node.  
+
+```shell-session
+$ sudo dnf -y install consul-cni
+```
+
+</Tab>
+<Tab heading="Amazon Linux">
+
+Install the `consul-cni` plugin on each client node.  
+
+```shell-session
+$ sudo yum -y install consul-cni
+```
+</Tab>
+</Tabs> 
+
+<h3>Configure bridge network to route traffic through iptables</h3>
 
 Ensure your Linux operating system distribution has been configured to allow
 container traffic through the bridge network to be routed via iptables. These

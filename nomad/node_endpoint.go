@@ -740,7 +740,8 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() &&
+		!(aclObj.AllowClientOp() && args.GetIdentity().ClientID == args.NodeID) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1008,7 +1009,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowNodeRead() {
+	if !aclObj.AllowClientOp() && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 

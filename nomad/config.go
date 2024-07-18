@@ -360,6 +360,10 @@ type Config struct {
 	// publishing Job summary metrics
 	DisableDispatchedJobSummaryMetrics bool
 
+	// DisableQuotaUtilizationMetrics allows to disable publishing of quota
+	// utilization metrics
+	DisableQuotaUtilizationMetrics bool
+
 	// DisableRPCRateMetricsLabels drops the label for the identity of the
 	// requester when publishing metrics on RPC rate on the server. This may be
 	// useful to control metrics collection costs in environments where request
@@ -430,6 +434,9 @@ type Config struct {
 	// If this is not configured the /.well-known/openid-configuration endpoint
 	// will not be available.
 	OIDCIssuer string
+
+	// KEKProviders are used to wrap the Nomad keyring
+	KEKProviderConfigs []*structs.KEKProviderConfig
 }
 
 func (c *Config) Copy() *Config {
@@ -458,6 +465,7 @@ func (c *Config) Copy() *Config {
 	nc.AutopilotConfig = c.AutopilotConfig.Copy()
 	nc.LicenseConfig = c.LicenseConfig.Copy()
 	nc.SearchConfig = c.SearchConfig.Copy()
+	nc.KEKProviderConfigs = helper.CopySlice(c.KEKProviderConfigs)
 
 	return &nc
 }

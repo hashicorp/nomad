@@ -148,8 +148,9 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
 
-- `isolation` - (Optional) One of `"hyper-v"`, `"process"`, or `"default"`
-  (which is the same as `process`). Enables [Windows isolation][] modes.
+- `isolation` - (Optional) Specifies [Windows isolation][] mode: `"hyperv"` or
+  `"process"`. Defaults to `"hyperv"`.
+
 
 - `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
   containers on start.
@@ -284,6 +285,9 @@ The `docker` driver supports the following configuration in the job spec. Only
   containers from reaching networks outside of the bridge interface on systems with
   firewalld enabled. This behavior is often caused by the CNI plugin not registering the group
   network as trusted and can be resolved as described in the [network block] documentation.
+
+- `oom_score_adj` - (Optional) A positive integer to indicate the likelihood of
+  the task being OOM killed (valid only for Linux). Defaults to 0.
 
 - `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
   the PID namespace with the host. Note that this also requires the Nomad agent
@@ -747,8 +751,6 @@ a task maps with the `ports` field.
 
 ### Advertising Container IPs
 
-_New in Nomad 0.6._
-
 When using network plugins like `weave` that assign containers a routable IP
 address, that address will automatically be used in any `service`
 advertisements for the task. You may override what address is advertised by
@@ -1000,6 +1002,11 @@ host system.
   wait before cancelling an in-progress pull of the Docker image as specified in
   `infra_image`. Defaults to `"5m"`.
 
+- `windows_allow_insecure_container_admin` - Indicates that on windows, docker
+  checks the `task.user` field or, if unset, the container image manifest after
+  pulling the container, to see if it's running as `ContainerAdmin`. If so, exits
+  with an error unless the task config has `privileged=true`. Defaults to `false`.
+
 ## Client Configuration
 
 ~> Note: client configuration options will soon be deprecated. Please use
@@ -1170,7 +1177,7 @@ reasons, it is recommended to use full virtualization like
 
 ### Dangling Containers
 
-Nomad 0.10.2 introduces a detector and a reaper for dangling Docker containers,
+Nomad has a detector and a reaper for dangling Docker containers,
 containers that Nomad starts yet does not manage or track. Though rare, they
 lead to unexpectedly running services, potentially with stale versions.
 

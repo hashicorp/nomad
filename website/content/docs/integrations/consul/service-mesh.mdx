@@ -188,7 +188,7 @@ Consul service mesh sidecar proxy. All Nomad client nodes using network namespac
 must have these CNI plugins [installed][cni_install].
 
 To use [`transparent_proxy`][] mode, Nomad client nodes will also need the
-[`consul-cni`][] plugin installed.
+[`consul-cni`][] plugin installed. See the Linux post-installation [steps](/nomad/docs/install#post-installation-steps) for more detail on how to install CNI plugins.
 
 ## Run the Service Mesh-enabled Services
 
@@ -481,6 +481,21 @@ only be accessible from the host filesystem. However, the sidecar task secrets
 directory may not be available in systems where it is mounted in a temporary
 filesystem.
 
+Bootstrapping the Envoy proxy requires that the Consul ACL token and service
+registration have successfully replicated to whichever Consul server the local
+Consul agent is connected to. Nomad clients poll for this value with exponential
+backoff and a timeout. You can adjust the timeouts on a given node by setting
+node metadata values via the command line or in the [`client.meta`][] agent
+configuration block. The default values are shown below:
+
+```shell-session
+nomad node meta apply -node-id $nodeID \
+    consul.token_preflight_check.timeout=10s \
+    consul.token_preflight_check.base=500ms \
+    consul.service_preflight_check.timeout=60s \
+    consul.service_preflight_check.base=1s
+```
+
 [count-dashboard]: /img/count-dashboard.png
 [consul_acl]: https://github.com/hashicorp/consul/issues/7414
 [gh-9907]: https://github.com/hashicorp/nomad/issues/9907
@@ -499,3 +514,4 @@ filesystem.
 [cni_plugins]: /nomad/docs/networking/cni#cni-reference-plugins
 [consul_dns_port]: /consul/docs/agent/config/config-files#dns_port
 [`network.dns`]: /nomad/docs/job-specification/network#dns-parameters
+[`client.meta`]: /nomad/docs/configuration/client#meta

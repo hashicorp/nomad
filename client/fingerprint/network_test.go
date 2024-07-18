@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -73,6 +74,13 @@ var (
 	}
 )
 
+const (
+	loIPv4   = "127.0.0.1"
+	loCIDRv4 = loIPv4 + "/8"
+	loIPv6   = "2001:DB8::"
+	loCIDRv6 = loIPv6 + "/48"
+)
+
 // A fake network detector which returns no devices
 type NetworkInterfaceDetectorNoDevices struct {
 }
@@ -107,8 +115,8 @@ func (n *NetworkInterfaceDetectorOnlyLo) InterfaceByName(name string) (*net.Inte
 
 func (n *NetworkInterfaceDetectorOnlyLo) Addrs(intf *net.Interface) ([]net.Addr, error) {
 	if intf.Name == "lo" {
-		_, ipnet1, _ := net.ParseCIDR("127.0.0.1/8")
-		_, ipnet2, _ := net.ParseCIDR("2001:DB8::/48")
+		_, ipnet1, _ := net.ParseCIDR(loCIDRv6)
+		_, ipnet2, _ := net.ParseCIDR(loCIDRv4)
 		return []net.Addr{ipnet1, ipnet2}, nil
 	}
 
@@ -149,8 +157,8 @@ func (n *NetworkInterfaceDetectorMultipleInterfaces) InterfaceByName(name string
 
 func (n *NetworkInterfaceDetectorMultipleInterfaces) Addrs(intf *net.Interface) ([]net.Addr, error) {
 	if intf.Name == "lo" {
-		_, ipnet1, _ := net.ParseCIDR("127.0.0.1/8")
-		_, ipnet2, _ := net.ParseCIDR("2001:DB8::/48")
+		_, ipnet1, _ := net.ParseCIDR(loCIDRv6)
+		_, ipnet2, _ := net.ParseCIDR(loCIDRv4)
 		return []net.Addr{ipnet1, ipnet2}, nil
 	}
 
@@ -269,54 +277,78 @@ func TestNetworkFingerprint_default_device_absent(t *testing.T) {
 
 func TestNetworkFingerPrint_default_device(t *testing.T) {
 	ci.Parallel(t)
-
 	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
-	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "lo"}
 
-	request := &FingerprintRequest{Config: cfg, Node: node}
-	var response FingerprintResponse
-	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !response.Detected {
-		t.Fatalf("expected response to be applicable")
-	}
-
-	attributes := response.Attributes
-	if len(attributes) == 0 {
-		t.Fatalf("should apply")
-	}
-
-	assertNodeAttributeContains(t, attributes, "unique.network.ip-address")
-
-	ip := attributes["unique.network.ip-address"]
-	match := net.ParseIP(ip)
-	if match == nil {
-		t.Fatalf("Bad IP match: %s", ip)
+	testCases := []struct {
+		name       string
+		config     *config.Config
+		expectedIP string
+	}{
+		{
+			name:       "Loopback IPv6",
+			config:     &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", PreferredAddressFamily: "ipv6"},
+			expectedIP: loIPv6,
+		},
+		{
+			name:       "Loopback IPv4",
+			config:     &config.Config{NetworkSpeed: 100, NetworkInterface: "lo", PreferredAddressFamily: "ipv4"},
+			expectedIP: "127.0.0.0", // CIDR 127.0.0.1/8 result in 127.0.0.0 IP ?
+		},
+		{
+			name:       "Loopback No preferred address family",
+			config:     &config.Config{NetworkSpeed: 100, NetworkInterface: "lo"},
+			expectedIP: loIPv6,
+		},
 	}
 
-	if len(response.NodeResources.Networks) == 0 {
-		t.Fatal("Expected to find Network Resources")
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			request := &FingerprintRequest{Config: tc.config, Node: node}
+			var response FingerprintResponse
+			err := f.Fingerprint(request, &response)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
 
-	// Test at least the first Network Resource
-	net := response.NodeResources.Networks[0]
-	if net.IP == "" {
-		t.Fatal("Expected Network Resource to not be empty")
-	}
-	if net.CIDR == "" {
-		t.Fatal("Expected Network Resource to have a CIDR")
-	}
-	if net.Device == "" {
-		t.Fatal("Expected Network Resource to have a Device Name")
-	}
-	if net.MBits == 0 {
-		t.Fatal("Expected Network Resource to have a non-zero bandwidth")
+			if !response.Detected {
+				t.Fatalf("expected response to be applicable")
+			}
+
+			attributes := response.Attributes
+			if len(attributes) == 0 {
+				t.Fatalf("should apply")
+			}
+
+			assertNodeAttributeContains(t, attributes, "unique.network.ip-address")
+
+			ip := attributes["unique.network.ip-address"]
+			match := net.ParseIP(ip)
+			if match == nil {
+				t.Fatalf("Bad IP match: %s", ip)
+			}
+
+			if len(response.NodeResources.Networks) == 0 {
+				t.Fatal("Expected to find Network Resources")
+			}
+
+			// Test at least the first Network Resource
+			net := response.NodeResources.Networks[0]
+			if !strings.EqualFold(tc.expectedIP, net.IP) {
+				t.Errorf("Expected IP %s; got %s", tc.expectedIP, net.IP)
+			}
+			if net.CIDR == "" {
+				t.Fatal("Expected Network Resource to have a CIDR")
+			}
+			if net.Device == "" {
+				t.Fatal("Expected Network Resource to have a Device Name")
+			}
+			if net.MBits == 0 {
+				t.Fatal("Expected Network Resource to have a non-zero bandwidth")
+			}
+		})
 	}
 }
 

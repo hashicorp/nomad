@@ -50,13 +50,13 @@ jobs:
     if: always() && (needs.backport.result == 'failure' || needs.backport-ent.result == 'failure')
     runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - uses: ./.github/actions/vault-secrets
         with:
           paths: |-
             kv/data/teams/nomad/slack-webhooks feed-nomad | SLACK_FEED_NOMAD ;
       - name: Send slack notification on failure
-        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        uses: slackapi/slack-github-action@70cd7be8e40a46e8b0eced40b0de447bdb42f68e # v1.26.0
         with:
           payload: |
             {

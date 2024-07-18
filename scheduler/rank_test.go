@@ -1279,7 +1279,6 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 	state, ctx := testContext(t)
 
 	topology := &numalib.Topology{
-		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 		Distances: numalib.SLIT{[]numalib.Cost{10}},
 		Cores: []numalib.Core{{
 			ID:        0,
@@ -1291,6 +1290,7 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 			BaseSpeed: 1024,
 		}},
 	}
+	topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	legacyCpuResources, processorResources := cpuResourcesFrom(topology)
 
 	nodes := []*RankedNode{

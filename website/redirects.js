@@ -84,4 +84,9 @@ module.exports = [
     destination: '/nomad/docs/integrations/consul/service-mesh',
     permanent: true,
   },
+  {
+    source: '/nomad/tools/autoscaling/agent/source',
+    destination: '/nomad/tools/autoscaling/agent/policy',
+    permanent: true,
+  },
 ]

@@ -95,7 +95,6 @@ func node2k() *Node {
 		NodeResources: &NodeResources{
 			Processors: NodeProcessorResources{
 				Topology: &numalib.Topology{
-					NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 					Distances: numalib.SLIT{[]numalib.Cost{10}},
 					Cores: []numalib.Core{{
 						ID:        0,
@@ -106,6 +105,7 @@ func node2k() *Node {
 						Grade:     numalib.Performance,
 						BaseSpeed: 1000,
 					}},
+					OverrideWitholdCompute: 1000, // set by client reserved field
 				},
 			},
 			Memory: NodeMemoryResources{
@@ -148,6 +148,7 @@ func node2k() *Node {
 			},
 		},
 	}
+	n.NodeResources.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	n.NodeResources.Compatibility()
 	return n
 }
@@ -521,7 +522,6 @@ func TestScoreFitBinPack(t *testing.T) {
 	node.NodeResources = &NodeResources{
 		Processors: NodeProcessorResources{
 			Topology: &numalib.Topology{
-				NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 				Distances: numalib.SLIT{[]numalib.Cost{10}},
 				Cores: []numalib.Core{{
 					ID:        0,
@@ -534,6 +534,7 @@ func TestScoreFitBinPack(t *testing.T) {
 			MemoryMB: 8192,
 		},
 	}
+	node.NodeResources.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	node.NodeResources.Compatibility()
 	node.ReservedResources = &NodeReservedResources{
 		Cpu: NodeReservedCpuResources{

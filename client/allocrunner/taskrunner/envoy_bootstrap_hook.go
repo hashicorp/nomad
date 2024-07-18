@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"oss.indeed.com/go/libtime"
 	"oss.indeed.com/go/libtime/decay"
 )
 
@@ -38,7 +39,7 @@ const (
 	// envoyBootstrapInitialGap is the initial amount of time the envoy bootstrap
 	// retry loop will wait, exponentially increasing each iteration, not including
 	// jitter.
-	envoyBoostrapInitialGap = 1 * time.Second
+	envoyBootstrapInitialGap = 1 * time.Second
 
 	// envoyBootstrapMaxJitter is the maximum amount of jitter applied to the
 	// wait gap each iteration of the envoy bootstrap retry loop.
@@ -76,10 +77,16 @@ func newConsulTransportConfig(cc *config.ConsulConfig) consulTransportConfig {
 	}
 }
 
+type allocServicesClient interface {
+	AllocRegistrations(allocID string) (*serviceregistration.AllocRegistration, error)
+}
+
 type envoyBootstrapHookConfig struct {
 	alloc           *structs.Allocation
 	consul          consulTransportConfig
 	consulNamespace string
+	consulServices  allocServicesClient
+	node            *structs.Node
 	logger          hclog.Logger
 }
 
@@ -94,11 +101,13 @@ func decodeTriState(b *bool) string {
 	}
 }
 
-func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.ConsulConfig, consulNamespace string, logger hclog.Logger) *envoyBootstrapHookConfig {
+func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.ConsulConfig, consulNamespace string, consulServices allocServicesClient, node *structs.Node, logger hclog.Logger) *envoyBootstrapHookConfig {
 	return &envoyBootstrapHookConfig{
 		alloc:           alloc,
 		consul:          newConsulTransportConfig(consul),
 		consulNamespace: consulNamespace,
+		consulServices:  consulServices,
+		node:            node,
 		logger:          logger,
 	}
 }
@@ -134,28 +143,38 @@ type envoyBootstrapHook struct {
 	envoyBootstrapWaitTime time.Duration
 
 	// envoyBootstrapInitialGap is the initial wait gap when retrying
-	envoyBoostrapInitialGap time.Duration
+	envoyBootstrapInitialGap time.Duration
 
 	// envoyBootstrapMaxJitter is the maximum amount of jitter applied to retries
 	envoyBootstrapMaxJitter time.Duration
 
 	// envoyBootstrapExpSleep controls exponential waiting
-	envoyBootstrapExpSleep func(time.Duration)
+	envoyBootstrapExpSleep libtime.Sleeper
+
+	// consulServices queries the Consul service catalog for preflight checks
+	consulServices allocServicesClient
 
 	// logger is used to log things
 	logger hclog.Logger
 }
 
 func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
+
+	waitTime := durationFromMeta(c.node,
+		"consul.service_preflight_check.timeout", envoyBootstrapWaitTime)
+	initialGap := durationFromMeta(c.node,
+		"consul.service_preflight_check.base", envoyBootstrapInitialGap)
+
 	return &envoyBootstrapHook{
-		alloc:                   c.alloc,
-		consulConfig:            c.consul,
-		consulNamespace:         c.consulNamespace,
-		envoyBootstrapWaitTime:  envoyBootstrapWaitTime,
-		envoyBoostrapInitialGap: envoyBoostrapInitialGap,
-		envoyBootstrapMaxJitter: envoyBootstrapMaxJitter,
-		envoyBootstrapExpSleep:  time.Sleep,
-		logger:                  c.logger.Named(envoyBootstrapHookName),
+		alloc:                    c.alloc,
+		consulConfig:             c.consul,
+		consulNamespace:          c.consulNamespace,
+		envoyBootstrapWaitTime:   waitTime,
+		envoyBootstrapInitialGap: initialGap,
+		envoyBootstrapMaxJitter:  envoyBootstrapMaxJitter,
+		envoyBootstrapExpSleep:   libtime.NewSleeper(),
+		consulServices:           c.consulServices,
+		logger:                   c.logger.Named(envoyBootstrapHookName),
 	}
 }
 
@@ -281,7 +300,8 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	}
 	h.logger.Debug("check for SI token for task", "task", req.Task.Name, "exists", siToken != "")
 
-	bootstrap := h.newEnvoyBootstrapArgs(h.alloc.TaskGroup, service, grpcAddr, envoyAdminBind, envoyReadyBind, siToken, bootstrapFilePath)
+	proxyID := h.proxyServiceID(h.alloc.TaskGroup, service)
+	bootstrap := h.newEnvoyBootstrapArgs(service, grpcAddr, envoyAdminBind, envoyReadyBind, siToken, bootstrapFilePath, proxyID)
 
 	// Create command line arguments
 	bootstrapArgs := bootstrap.args()
@@ -316,13 +336,20 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	// keep track of latest error returned from exec-ing consul envoy bootstrap
 	var cmdErr error
 
-	// Since Consul services are registered asynchronously with this task
-	// hook running, retry until timeout or success.
 	backoffOpts := decay.BackoffOptions{
 		MaxSleepTime:   h.envoyBootstrapWaitTime,
-		InitialGapSize: h.envoyBoostrapInitialGap,
+		InitialGapSize: h.envoyBootstrapInitialGap,
 		MaxJitterSize:  h.envoyBootstrapMaxJitter,
+		Sleeper:        h.envoyBootstrapExpSleep,
 	}
+
+	err = h.servicePreflightCheck(ctx, backoffOpts, proxyID)
+	if err != nil {
+		return err
+	}
+
+	// Since Consul services are registered asynchronously with this task
+	// hook running, retry until timeout or success.
 	backoffErr := decay.Backoff(func() (bool, error) {
 		// If hook is killed, just stop.
 		select {
@@ -486,12 +513,11 @@ func (h *envoyBootstrapHook) proxyServiceID(group string, service *structs.Servi
 //
 // https://www.consul.io/commands/connect/envoy#consul-connect-envoy
 func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
-	group string, service *structs.Service,
-	grpcAddr, envoyAdminBind, envoyReadyBind, siToken, filepath string,
+	service *structs.Service,
+	grpcAddr, envoyAdminBind, envoyReadyBind, siToken, filepath, proxyID string,
 ) envoyBootstrapArgs {
 
 	namespace := h.getConsulNamespace()
-	proxyID := h.proxyServiceID(group, service)
 
 	var gateway string
 	switch {
@@ -607,4 +633,62 @@ func (h *envoyBootstrapHook) maybeLoadSIToken(task, dir string) (string, error) 
 	}
 	h.logger.Trace("recovered pre-existing SI token", "task", task)
 	return string(token), nil
+}
+
+func (h *envoyBootstrapHook) servicePreflightCheck(
+	ctx context.Context, backoffOpts decay.BackoffOptions, proxyServiceID string) error {
+
+	// keep track of latest error returned from Consul or from missing service
+	var apiErr error
+	var allocServices *serviceregistration.AllocRegistration
+
+	backoffErr := decay.Backoff(func() (bool, error) {
+		// If hook is killed, just stop.
+		select {
+		case <-ctx.Done():
+			return false, nil
+		default:
+		}
+
+		allocServices, apiErr = h.consulServices.AllocRegistrations(h.alloc.ID)
+		if apiErr != nil {
+			return true, apiErr
+		}
+
+		if allocServices != nil {
+			for _, taskServices := range allocServices.Tasks {
+				for id := range taskServices.Services {
+					if id == proxyServiceID {
+						return false, nil
+					}
+				}
+			}
+		}
+		apiErr = fmt.Errorf("missing %q", proxyServiceID)
+		return true, apiErr
+	}, backoffOpts)
+
+	// Wrap the last error we saw set that as our status.
+	if backoffErr != nil {
+		return structs.NewRecoverableError(
+			fmt.Errorf("%w: %v; see: <https://developer.hashicorp.com/nomad/s/envoy-bootstrap-error>",
+				errEnvoyBootstrapError,
+				apiErr,
+			),
+			true)
+	}
+
+	return nil
+}
+
+func durationFromMeta(node *structs.Node, key string, defaultDur time.Duration) time.Duration {
+	val := node.Meta[key]
+	if key == "" {
+		return defaultDur
+	}
+	d, err := time.ParseDuration(val)
+	if err != nil || d == 0 {
+		return defaultDur
+	}
+	return d
 }
