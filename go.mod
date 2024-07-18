@@ -57,7 +57,7 @@ require (
 	github.com/hashicorp/go-getter v1.7.5
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
-	github.com/hashicorp/go-kms-wrapping/v2 v2.0.15
+	github.com/hashicorp/go-kms-wrapping/v2 v2.0.16
 	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.9
 	github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.11
 	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.12
@@ -146,10 +146,10 @@ require (
 	cloud.google.com/go/kms v1.15.0 // indirect
 	cloud.google.com/go/storage v1.30.1 // indirect
 	dario.cat/mergo v1.0.0 // indirect
-	github.com/Azure/azure-sdk-for-go v56.3.0+incompatible // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0 // indirect
+	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.11.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/keyvault/azkeys v0.10.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/keyvault/internal v0.7.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
