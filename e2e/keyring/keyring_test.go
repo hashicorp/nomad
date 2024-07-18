@@ -36,12 +36,12 @@ func TestKeyringRotation(t *testing.T) {
 	newCurrentKeys, newActiveKeyID := getKeyMeta(t, nc)
 	must.NotEq(t, "", newActiveKeyID, must.Sprint("expected an active key"))
 	must.Eq(t, activeKeyID, newActiveKeyID, must.Sprint("active key should not have rotated yet"))
-	must.Greater(t, len(currentKeys), len(newCurrentKeys))
+	must.Greater(t, len(currentKeys), len(newCurrentKeys), must.Sprint("expected more keys after prepublishing"))
 
 	keyset = getJWKS(t)
-	must.Len(t, len(newCurrentKeys), keyset.Keys)
+	must.Len(t, len(newCurrentKeys), keyset.Keys, must.Sprint("number of keys in jwks keyset should match keyring"))
 	for _, key := range keyset.Keys {
-		must.MapContainsKey(t, newCurrentKeys, key.KeyID)
+		must.MapContainsKey(t, newCurrentKeys, key.KeyID, must.Sprint("jwks keyset contains unexpected key"))
 	}
 	must.SliceContainsFunc(t, keyset.Keys, newKeyID, func(a jose.JSONWebKey, b string) bool {
 		return a.KeyID == b
@@ -49,6 +49,7 @@ func TestKeyringRotation(t *testing.T) {
 }
 
 func getKeyMeta(t *testing.T, nc *api.Client) (map[string]*api.RootKeyMeta, string) {
+	t.Helper()
 	keyMetas, _, err := nc.Keyring().List(nil)
 	must.NoError(t, err)
 
