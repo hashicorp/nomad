@@ -45,7 +45,7 @@ These parameters apply to the `keyring` stanza in the Nomad configuration file:
   decryption.
 
 - `key_id_prefix` `(string: "")`: An optional string to add to the key id of
-  values wrapped by this transit keyring.  This can help disambiguate between two
+  values wrapped by this transit keyring. This can help disambiguate between two
   transit keyring.
 
 - `mount_path` `(string: <required>)`: The mount path to the transit secret
@@ -56,17 +56,20 @@ These parameters apply to the `keyring` stanza in the Nomad configuration file:
   outside of Vault, such as Vault Agent.
 
 Set the following parameters in the `keyring` block. If not set here, Nomad uses
-the values set in the server's [`vault`][vault_config] block. You must set required fields either here or the `vault` block.
+the values set in the server's [`vault`][vault_config] block. You must set
+required fields either here or the `vault` block.
 
-- `address` `(string: <required>)`: The full address to the Vault cluster.  Alternately specify via the `VAULT_ADDR` environment variable.
+- `address` `(string: <required>)`: The full address to the Vault cluster.
+  Alternately specify via the `VAULT_ADDR` environment variable.
 
-- `token` `(string: <required>)`: The Vault token to use.  Alternately specify via the `VAULT_TOKEN` environment variable.
+- `token` `(string: <required>)`: The Vault token to use. Alternately specify
+  via the `VAULT_TOKEN` environment variable.
 
 - `namespace` `(string: "")`: The namespace path to the transit secret engine.
    Alternately specify via the `VAULT_NAMESPACE` environment variable.
 
-- `tls_ca_cert` `(string: "")`: Specifies the path to the CA certificate file used
-  for communication with the Vault server.  Alternately specify via the
+- `tls_ca_cert` `(string: "")`: Specifies the path to the CA certificate file
+  used for communication with the Vault server. Alternately specify via the
   `VAULT_CACERT` environment variable.
 
 - `tls_client_cert` `(string: "")`: Specifies the path to the client certificate
@@ -74,11 +77,11 @@ the values set in the server's [`vault`][vault_config] block. You must set requi
   `VAULT_CLIENT_CERT` environment variable.
 
 - `tls_client_key` `(string: "")`: Specifies the path to the private key for
-  communication with the Vault server.  Alternately specify via the
+  communication with the Vault server. Alternately specify via the
   `VAULT_CLIENT_KEY` environment variable.
 
 - `tls_server_name` `(string: "")`: Name to use as the SNI host when connecting
-  to the Vault server via TLS.  Alternately specify via the
+  to the Vault server via TLS. Alternately specify via the
   `VAULT_TLS_SERVER_NAME` environment variable.
 
 - `tls_skip_verify` `(bool: "false")`: Disable verification of TLS certificates.
@@ -95,8 +98,8 @@ or as configuration parameters.
 as part of the keyring's parameters, we strongly recommended that you set these
 values via environment variables.
 
-The Vault authentication token needs the following permissions on the
-transit key:
+The Vault authentication token needs the following permissions on the transit
+key:
 
 ```hcl
 path "<mount path>/encrypt/<key name>" {
@@ -109,14 +112,16 @@ path "<mount path>/decrypt/<key name>" {
 ```
 
 Other considerations for the token used:
-* It should probably be an [orphan token][], otherwise when the parent token expires or gets revoked the keyring breaks.
-* Consider making it a [periodic token][] and not setting an explicit max TTL, otherwise at some point it ceases to be renewable.
+* It should probably be an [orphan token][], otherwise when the parent token
+  expires or gets revoked the keyring breaks.
+* Consider making it a [periodic token][] and not setting an explicit max TTL,
+  otherwise at some point it ceases to be renewable.
 
 ## Key rotation
 
-This keyring supports key rotation using the Transit Secret Engine's key rotation
-endpoints. Refer to [Vault docs][rotate_doc]. Old keys must not be disabled or deleted and
-are used to decrypt older data.
+This keyring supports key rotation using the Transit Secret Engine's key
+rotation endpoints. Refer to [Vault docs][rotate_doc]. Old keys must not be
+disabled or deleted and are used to decrypt older data.
 
 [orphan token]: /vault/docs/concepts/tokens#token-hierarchies-and-orphan-tokens
 [periodic token]: /vault/docs/concepts/tokens#periodic-tokens

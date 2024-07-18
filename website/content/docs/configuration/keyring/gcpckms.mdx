@@ -36,7 +36,8 @@ These parameters apply to the `keyring` stanza in the Nomad configuration file:
   running under Google App Engine, Google Compute Engine, or Google Kubernetes
   Engine.
 
-- `project` `(string: <required>)`: The GCP project ID to use. Alternately specify via the `GOOGLE_PROJECT` environment variable.
+- `project` `(string: <required>)`: The GCP project ID to use. Alternately
+  specify via the `GOOGLE_PROJECT` environment variable.
 
 - `region` `(string: <required>)`: The GCP region/location where the key ring
   lives. Alternately specify via the `GOOGLE_REGION` environment variable.
@@ -57,9 +58,9 @@ GCP authentication values:
 - `GOOGLE_PROJECT`
 - `GOOGLE_REGION`
 
-Note: The client uses the official Google SDK and the specified
-credentials, environment credentials, or [application default credentials][] in
-that order, if you do not provide the aforementioned GCP-specific values. 
+Note: The client uses the official Google SDK and the specified credentials,
+environment credentials, or [application default credentials][] in that order,
+if you do not provide the aforementioned GCP-specific values.
 
 The service account needs the following minimum permissions on the crypto key:
 
@@ -76,16 +77,16 @@ roles/cloudkms.cryptoKeyEncrypterDecrypter
 cloudkms.cryptoKeys.get
 ```
 
-Use `cloudkms.cryptoKeys.get` permission for retrieving metadata information
-of keys from CloudKMS within this engine initialization process.
+Use `cloudkms.cryptoKeys.get` permission for retrieving metadata information of
+keys from CloudKMS within this engine initialization process.
 
 ## Key rotation
 
 This keyring supports rotating keys defined in Google Cloud KMS
 [doc][rotating_keys]. Both scheduled rotation and manual rotation is supported
 for CKMS since the key information. Old keys version must not be disabled or
-deleted and are used to decrypt older data. Any new or updated data is
-encrypted with the primary key version.
+deleted and are used to decrypt older data. Any new or updated data is encrypted
+with the primary key version.
 
 
 [application default credentials]: https://developers.google.com/identity/protocols/application-default-credentials

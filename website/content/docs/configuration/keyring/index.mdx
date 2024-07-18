@@ -14,9 +14,10 @@ for encrypting [variables][] and signing [workload identities][]. By default,
 Nomad encrypts the key material with a unique key encryption key (KEK) that is
 not shared between servers, and writes the wrapped key material to disk as
 described in [Key Management][]. Nomad refers to this as `"aead"`. Using the
-`keyring` configuration block, Nomad servers can instead use an external key management system (KMS) or
-Vault transit encryption. The encrypted key is stored on disk but is now
-protected against offline attacks because the KEK is not present in the file.
+`keyring` configuration block, Nomad servers can instead use an external key
+management system (KMS) or Vault transit encryption. The encrypted key is stored
+on disk but is now protected against offline attacks because the KEK is not
+present in the file.
 
 All `keyring` blocks require a label for the KMS type. Each external KMS has its
 own configuration options. The `keyring` block only applies to Nomad servers,
@@ -55,9 +56,9 @@ All `keyring` blocks support the following parameters.
 ## Migrating Keyrings
 
 To migrate to a new keyring, add the new `keyring` block to the servers with
-`active=true`, and restart the servers. The server starts using the new
-keyring wrapper when the current key is rotated either periodically or via the
-[`nomad operator root keyring rotate`][keyring_rotate_cmd] command.
+`active=true`, and restart the servers. The server starts using the new keyring
+wrapper when the current key is rotated either periodically or via the [`nomad
+operator root keyring rotate`][keyring_rotate_cmd] command.
 
 Adding or removing a keyring requires restarting the Nomad server. You should
 not remove a keyring until all keys it wraps have been garbage collected. You
@@ -75,8 +76,8 @@ Keyring high availability provides the means to configure multiple active
 `keyring` blocks, in order to have resilience against an outage of an external
 KMS. When there are multiple `keyring` blocks with `active = true`, Nomad
 Enterprise encrypts each key it creates in all the active KMS providers. On
-startup, Nomad tries each KMS provider in order until it finds a provider
-that can decrypt each key.
+startup, Nomad tries each KMS provider in order until it finds a provider that
+can decrypt each key.
 
 In this example high availability configuration, both `keyring` blocks use the
 `"awskms"` provider, but each block uses a different KMS key in a different AWS
