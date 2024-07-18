@@ -18,7 +18,7 @@ require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/Microsoft/go-winio v0.6.1
-	github.com/absolutelightning/go-memdb v1.0.77
+	github.com/absolutelightning/go-memdb v1.0.78
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.5.3
 	github.com/aws/aws-sdk-go v1.44.210
