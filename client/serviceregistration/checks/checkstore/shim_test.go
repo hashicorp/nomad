@@ -403,7 +403,7 @@ func TestShim_Snapshot(t *testing.T) {
 		Status: "passing",
 	}))
 
-	snap := s.Snapshot(false)
+	snap := s.Snapshot()
 	must.MapEq(t, map[string]string{
 		id1: "passing",
 		id2: "failing",
