@@ -434,6 +434,9 @@ type Config struct {
 	// If this is not configured the /.well-known/openid-configuration endpoint
 	// will not be available.
 	OIDCIssuer string
+
+	// KEKProviders are used to wrap the Nomad keyring
+	KEKProviderConfigs []*structs.KEKProviderConfig
 }
 
 func (c *Config) Copy() *Config {
@@ -462,6 +465,7 @@ func (c *Config) Copy() *Config {
 	nc.AutopilotConfig = c.AutopilotConfig.Copy()
 	nc.LicenseConfig = c.LicenseConfig.Copy()
 	nc.SearchConfig = c.SearchConfig.Copy()
+	nc.KEKProviderConfigs = helper.CopySlice(c.KEKProviderConfigs)
 
 	return &nc
 }

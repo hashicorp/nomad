@@ -204,6 +204,14 @@
       "Access-Control-Allow-Origin": "*"
     }
   ],
+  "keyring": {
+    "awskms": {
+      "active": true,
+      "region": "us-east-1",
+      "kms_key_id": "alias/kms-nomad-keyring"
+    },
+    "aead": {}
+  },
   "leave_on_interrupt": true,
   "leave_on_terminate": true,
   "log_file": "/var/log/nomad.log",
