@@ -114,7 +114,7 @@ func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.De
 	}
 
 	// Lookup the deployment
-	snap, err := d.srv.fsm.State().Snapshot()
+	snap, err := d.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 	}
 
 	// Lookup the deployment
-	snap, err := d.srv.fsm.State().Snapshot()
+	snap, err := d.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -212,7 +212,7 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 	}
 
 	// Lookup the deployment
-	snap, err := d.srv.fsm.State().Snapshot()
+	snap, err := d.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (d *Deployment) Run(args *structs.DeploymentRunRequest, reply *structs.Depl
 	}
 
 	// Lookup the deployment
-	snap, err := d.srv.fsm.State().Snapshot()
+	snap, err := d.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func (d *Deployment) Unblock(args *structs.DeploymentUnblockRequest, reply *stru
 	}
 
 	// Lookup the deployment
-	snap, err := d.srv.fsm.State().Snapshot()
+	snap, err := d.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -353,7 +353,7 @@ func (d *Deployment) Cancel(args *structs.DeploymentCancelRequest, reply *struct
 	}
 
 	// Lookup the deployment
-	snap, err := d.srv.fsm.State().Snapshot()
+	snap, err := d.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 	}
 
 	// Lookup the deployment
-	snap, err := d.srv.fsm.State().Snapshot()
+	snap, err := d.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}

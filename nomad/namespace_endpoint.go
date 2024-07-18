@@ -115,7 +115,7 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 
 	// snapshot the state once, because we'll be doing many checks and want
 	// consistend state
-	snap, err := n.srv.fsm.State().Snapshot()
+	snap, err := n.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}

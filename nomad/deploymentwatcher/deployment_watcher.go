@@ -174,7 +174,7 @@ func (w *deploymentWatcher) SetAllocHealth(
 		}
 
 		// Get the allocations for the deployment
-		snap, err := w.state.Snapshot()
+		snap, err := w.state.Snapshot(false)
 		if err != nil {
 			return err
 		}
@@ -653,7 +653,7 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 // rolled back to an earlier stable version by examining the allocations in the
 // deployment.
 func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
-	snap, err := w.state.Snapshot()
+	snap, err := w.state.Snapshot(false)
 	if err != nil {
 		return false, false, err
 	}
@@ -753,7 +753,7 @@ func (w *deploymentWatcher) doneGroups(d *structs.Deployment) map[string]bool {
 	}
 
 	// Collect the allocations by the task group
-	snap, err := w.state.Snapshot()
+	snap, err := w.state.Snapshot(false)
 	if err != nil {
 		return nil
 	}
@@ -790,7 +790,7 @@ func (w *deploymentWatcher) doneGroups(d *structs.Deployment) map[string]bool {
 
 // latestStableJob returns the latest stable job. It may be nil if none exist
 func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
-	snap, err := w.state.Snapshot()
+	snap, err := w.state.Snapshot(false)
 	if err != nil {
 		return nil, err
 	}
@@ -977,7 +977,7 @@ func (w *deploymentWatcher) jobEvalStatus() (latestIndex uint64, err error) {
 		return 0, err
 	}
 
-	snap, err := w.state.Snapshot()
+	snap, err := w.state.Snapshot(false)
 	if err != nil {
 		return 0, err
 	}

@@ -2181,7 +2181,7 @@ func (s *Server) isSingleServerCluster() bool {
 }
 
 func (s *Server) GetClientNodesCount() (int, error) {
-	stateSnapshot, err := s.State().Snapshot()
+	stateSnapshot, err := s.State().Snapshot(false)
 	if err != nil {
 		return 0, err
 	}

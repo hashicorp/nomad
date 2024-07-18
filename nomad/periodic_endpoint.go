@@ -52,7 +52,7 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	}
 
 	// Lookup the job
-	snap, err := p.srv.fsm.State().Snapshot()
+	snap, err := p.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}

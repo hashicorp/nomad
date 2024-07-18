@@ -227,7 +227,7 @@ func (s *Server) forwardClientRPC(method, nodeID string, args, reply any) error 
 	}
 
 	// Check if the node even exists and is compatible with NodeRpc
-	snap, err := s.State().Snapshot()
+	snap, err := s.State().Snapshot(false)
 	if err != nil {
 		return err
 	}

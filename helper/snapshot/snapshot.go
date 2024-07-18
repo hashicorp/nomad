@@ -33,7 +33,7 @@ type Snapshot struct {
 // temporary file.
 func New(logger hclog.Logger, r *raft.Raft) (*Snapshot, error) {
 	// Take the snapshot.
-	future := r.Snapshot()
+	future := r.Snapshot(false)
 	if err := future.Error(); err != nil {
 		return nil, fmt.Errorf("Raft error when taking snapshot: %v", err)
 	}

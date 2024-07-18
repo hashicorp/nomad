@@ -880,7 +880,7 @@ RUN_QUERY:
 	// calls to the state store not all wrapped within the same transaction.
 	state = r.srv.fsm.State()
 	abandonCh := state.AbandonCh()
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 	stateSnap := &snap.StateStore
 
 	// We can skip all watch tracking if this isn't a blocking query.

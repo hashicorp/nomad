@@ -623,7 +623,7 @@ func TestDrainingJobWatcher_HandleTaskGroup(t *testing.T) {
 			}
 
 			must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
-			snap, err := store.Snapshot()
+			snap, err := store.Snapshot(false)
 			must.NoError(t, err)
 
 			res := newJobResult()
@@ -674,7 +674,7 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
-	snap, err := state.Snapshot()
+	snap, err := state.Snapshot(false)
 	require.Nil(err)
 
 	// Handle before and after indexes as both service and batch
@@ -747,7 +747,7 @@ func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
 	allocs[0].NodeID = uuid.Generate()
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
-	snap, err := state.Snapshot()
+	snap, err := state.Snapshot(false)
 	require.Nil(err)
 
 	// Handle before and after indexes as both service and batch

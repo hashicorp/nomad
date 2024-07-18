@@ -268,7 +268,7 @@ func (h *Harness) NextIndex() uint64 {
 
 // Snapshot is used to snapshot the current state
 func (h *Harness) Snapshot() State {
-	snap, _ := h.State.Snapshot()
+	snap, _ := h.State.Snapshot(false)
 	return snap
 }
 
@@ -288,7 +288,7 @@ func (h *Harness) Scheduler(factory Factory) Scheduler {
 		}
 	}()
 
-	return factory(logger, eventsCh, h.Snapshot(), h)
+	return factory(logger, eventsCh, h.Snapshot(false), h)
 }
 
 // Process is used to process an evaluation given a factory

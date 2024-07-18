@@ -287,7 +287,7 @@ func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 	}
 
 	// Get the job the deployment is referencing
-	snap, err := w.state.Snapshot()
+	snap, err := w.state.Snapshot(false)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +330,7 @@ func (w *Watcher) removeByIDLocked(id string) {
 // a watcher. If the deployment does not exist or is terminal an error is
 // returned.
 func (w *Watcher) forceAdd(dID string) (*deploymentWatcher, error) {
-	snap, err := w.state.Snapshot()
+	snap, err := w.state.Snapshot(false)
 	if err != nil {
 		return nil, err
 	}

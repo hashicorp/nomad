@@ -127,7 +127,7 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 	}
 
 	// Lookup the allocation
-	snap, err := f.srv.State().Snapshot()
+	snap, err := f.srv.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	}
 
 	// Lookup the allocation
-	snap, err := f.srv.State().Snapshot()
+	snap, err := f.srv.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	}
 
 	// Retrieve the allocation
-	snap, err := f.srv.State().Snapshot()
+	snap, err := f.srv.State().Snapshot(false)
 	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
@@ -382,7 +382,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	}
 
 	// Retrieve the allocation
-	snap, err := f.srv.State().Snapshot()
+	snap, err := f.srv.State().Snapshot(false)
 	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return

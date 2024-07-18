@@ -8313,7 +8313,7 @@ func TestJobEndpoint_Scale_BatchJob(t *testing.T) {
 
 	// Pull the generated evaluation from state and ensure the detailed type
 	// matches the jobspec.
-	testFMSSnapshot, err := testServer.fsm.State().Snapshot()
+	testFMSSnapshot, err := testServer.fsm.State().Snapshot(false)
 	must.NoError(t, err)
 
 	scaleEval, err := testFMSSnapshot.EvalByID(nil, resp.EvalID)

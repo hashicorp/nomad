@@ -322,7 +322,7 @@ func (n *NodePool) nodePoolRegionsInUse(token, poolName string) ([]string, []str
 	hasNonTerminal := make([]string, 0, len(regions))
 
 	// Check if the pool in use in this region
-	snap, err := n.srv.State().Snapshot()
+	snap, err := n.srv.State().Snapshot(false)
 	if err != nil {
 		return nil, nil, err
 	}

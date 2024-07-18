@@ -88,7 +88,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			snap, err := state.Snapshot()
+			snap, err := state.Snapshot(false)
 			if err != nil {
 				return err
 			}
@@ -209,7 +209,7 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			snap, err := state.Snapshot()
+			snap, err := state.Snapshot(false)
 			if err != nil {
 				return err
 			}
@@ -317,7 +317,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
 
-		snap, err := v.srv.State().Snapshot()
+		snap, err := v.srv.State().Snapshot(false)
 		if err != nil {
 			return err
 		}
@@ -780,7 +780,7 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 	v.logger.Trace("node unpublish", "vol", vol.ID)
 
 	// We need a new snapshot after each checkpoint
-	snap, err := v.srv.fsm.State().Snapshot()
+	snap, err := v.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -885,7 +885,7 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 	}
 
 	// We need a new snapshot after each checkpoint
-	snap, err := v.srv.fsm.State().Snapshot()
+	snap, err := v.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -1084,7 +1084,7 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		}
 
 		// if the volume already exists, we'll update it instead
-		snap, err := v.srv.State().Snapshot()
+		snap, err := v.srv.State().Snapshot(false)
 		if err != nil {
 			return err
 		}
@@ -1439,7 +1439,7 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 	if !allowVolume(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
-	snap, err := v.srv.fsm.State().Snapshot()
+	snap, err := v.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -1499,7 +1499,7 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 		return structs.ErrPermissionDenied
 	}
 
-	state, err := v.srv.fsm.State().Snapshot()
+	state, err := v.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -1601,7 +1601,7 @@ func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply
 		return structs.ErrPermissionDenied
 	}
 
-	stateSnap, err := v.srv.fsm.State().Snapshot()
+	stateSnap, err := v.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -1669,7 +1669,7 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 	if !allowVolume(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
-	snap, err := v.srv.fsm.State().Snapshot()
+	snap, err := v.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -1811,7 +1811,7 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			snap, err := state.Snapshot()
+			snap, err := state.Snapshot(false)
 			if err != nil {
 				return err
 			}

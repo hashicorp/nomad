@@ -119,7 +119,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Snapshot the state
-	snap, err := s1.State().Snapshot()
+	snap, err := s1.State().Snapshot(false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 
 	// Snapshot the state
-	snap, err = s1.State().Snapshot()
+	snap, err = s1.State().Snapshot(false)
 	assert.Nil(err)
 
 	// Apply the plan
@@ -314,7 +314,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	}
 
 	// Snapshot the state
-	snap, err := s1.State().Snapshot()
+	snap, err := s1.State().Snapshot(false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -472,7 +472,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
@@ -611,7 +611,7 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 			},
 		},
 	}
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
@@ -636,7 +636,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	node2 := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2)
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
@@ -694,7 +694,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	node2 := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2)
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
@@ -743,7 +743,7 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
@@ -771,7 +771,7 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 	node := mock.Node()
 	node.Status = structs.NodeStatusInit
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
@@ -798,7 +798,7 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.DrainNode()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
@@ -823,7 +823,7 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 	ci.Parallel(t)
 	state := testStateStore(t)
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	nodeID := "12345678-abcd-efab-cdef-123456789abc"
 	alloc := mock.Alloc()
@@ -862,7 +862,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	alloc2.NodeID = node.ID
 	state.UpsertJobSummary(1200, mock.JobSummary(alloc2.JobID))
 
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 	plan := &structs.Plan{
 		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
@@ -922,7 +922,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 	alloc2.NodeID = node.ID
 	state.UpsertJobSummary(1200, mock.JobSummary(alloc2.JobID))
 
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 	plan := &structs.Plan{
 		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
@@ -947,7 +947,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	plan := &structs.Plan{
 		Job: alloc.Job,
@@ -980,7 +980,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	plan := &structs.Plan{
 		Job: alloc.Job,
@@ -1011,7 +1011,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	allocEvict := new(structs.Allocation)
 	*allocEvict = *alloc
@@ -1050,7 +1050,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
@@ -1083,7 +1083,7 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	node.Status = structs.NodeStatusDown
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	allocEvict := new(structs.Allocation)
 	*allocEvict = *alloc
@@ -1116,7 +1116,7 @@ func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
 	node := mock.Node()
 	node.Status = structs.NodeStatusDisconnected
 	_ = state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	snap, _ := state.Snapshot()
+	snap, _ := state.Snapshot(false)
 
 	unknownAlloc := mock.Alloc()
 	unknownAlloc.ClientStatus = structs.AllocClientStatusUnknown

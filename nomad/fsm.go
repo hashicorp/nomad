@@ -1484,7 +1484,7 @@ func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
-	snap, err := n.state.Snapshot()
+	snap, err := n.state.Snapshot(true)
 	if err != nil {
 		return nil, err
 	}
@@ -1994,7 +1994,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		return err
 	}
 
-	snap, err := n.state.Snapshot()
+	snap, err := n.state.Snapshot(false)
 	if err != nil {
 		return fmt.Errorf("unable to create snapshot: %v", err)
 	}

@@ -125,7 +125,7 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
 
 			// retrieve all the key metadata
-			snap, err := k.srv.fsm.State().Snapshot()
+			snap, err := k.srv.fsm.State().Snapshot(false)
 			if err != nil {
 				return err
 			}
@@ -213,7 +213,7 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 	}
 
 	// lookup any existing key and validate the update
-	snap, err := k.srv.fsm.State().Snapshot()
+	snap, err := k.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -255,7 +255,7 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
 
 			// retrieve the key metadata
-			snap, err := k.srv.fsm.State().Snapshot()
+			snap, err := k.srv.fsm.State().Snapshot(false)
 			if err != nil {
 				return err
 			}
@@ -317,7 +317,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	}
 
 	// lookup any existing key and validate the delete
-	snap, err := k.srv.fsm.State().Snapshot()
+	snap, err := k.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}
@@ -373,7 +373,7 @@ func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.Keyrin
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
 
 			// retrieve all the key metadata
-			snap, err := k.srv.fsm.State().Snapshot()
+			snap, err := k.srv.fsm.State().Snapshot(false)
 			if err != nil {
 				return err
 			}

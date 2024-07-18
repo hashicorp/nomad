@@ -2377,7 +2377,7 @@ func TestFSM_DeleteACLTokens(t *testing.T) {
 
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 	// Snapshot
-	snap, err := fsm.Snapshot()
+	snap, err := fsm.Snapshot(false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2392,7 +2392,7 @@ func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 
 	// Try to restore on a new FSM
 	fsm2 := testFSM(t)
-	snap, err = fsm2.Snapshot()
+	snap, err = fsm2.Snapshot(false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

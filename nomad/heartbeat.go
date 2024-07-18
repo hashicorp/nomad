@@ -58,7 +58,7 @@ func newNodeHeartbeater(s *Server) *nodeHeartbeater {
 // the previously known set of timers.
 func (h *nodeHeartbeater) initializeHeartbeatTimers() error {
 	// Scan all nodes and reset their timer
-	snap, err := h.srv.fsm.State().Snapshot()
+	snap, err := h.srv.fsm.State().Snapshot(false)
 	if err != nil {
 		return err
 	}

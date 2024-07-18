@@ -485,7 +485,7 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 // is connected to a different server, a serverParts describing the server to which the
 // client bound RPC should be forwarded.
 func (a *Agent) findClientConn(nodeID string) (*nodeConnState, *serverParts, error) {
-	snap, err := a.srv.State().Snapshot()
+	snap, err := a.srv.State().Snapshot(false)
 	if err != nil {
 		return nil, nil, structs.NewErrRPCCoded(500, err.Error())
 	}

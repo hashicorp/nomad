@@ -24,5 +24,5 @@ type StatusGetter struct {
 //
 // returns checkID => checkStatus
 func (s StatusGetter) Get() (map[string]string, error) {
-	return s.shim.Snapshot(), nil
+	return s.shim.Snapshot(false), nil
 }
