@@ -401,7 +401,7 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 
 	t.Logf("taking snapshot of node5")
 
-	snapshot, err := srv5.fsm.Snapshot(false)
+	snapshot, err := srv5.fsm.Snapshot()
 	must.NoError(t, err)
 
 	defer snapshot.Release()

@@ -221,12 +221,8 @@ func (s *StateStore) Config() *StateStoreConfig {
 // Snapshot is used to create a point in time snapshot. Because
 // we use MemDB, we just need to snapshot the state of the underlying
 // database.
-func (s *StateStore) Snapshot(deep bool) (*StateSnapshot, error) {
-	memDBSnap := s.db.memdb
-
-	if deep {
-		memDBSnap = memDBSnap.Snapshot()
-	}
+func (s *StateStore) Snapshot(write bool) (*StateSnapshot, error) {
+	memDBSnap := s.db.memdb.Snapshot(write)
 
 	store := StateStore{
 		logger: s.logger,
