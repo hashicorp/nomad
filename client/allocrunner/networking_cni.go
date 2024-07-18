@@ -11,6 +11,7 @@ package allocrunner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -51,7 +52,7 @@ const (
 
 type cniNetworkConfigurator struct {
 	cni                     cni.CNI
-	cniConf                 []byte
+	confParser              *cniConfParser
 	ignorePortMappingHostIP bool
 	nodeAttrs               map[string]string
 	nodeMeta                map[string]string
@@ -61,17 +62,17 @@ type cniNetworkConfigurator struct {
 }
 
 func newCNINetworkConfigurator(logger log.Logger, cniPath, cniInterfacePrefix, cniConfDir, networkName string, ignorePortMappingHostIP bool, node *structs.Node) (*cniNetworkConfigurator, error) {
-	cniConf, err := loadCNIConf(cniConfDir, networkName)
+	parser, err := loadCNIConf(cniConfDir, networkName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load CNI config: %v", err)
 	}
 
-	return newCNINetworkConfiguratorWithConf(logger, cniPath, cniInterfacePrefix, ignorePortMappingHostIP, cniConf, node)
+	return newCNINetworkConfiguratorWithConf(logger, cniPath, cniInterfacePrefix, ignorePortMappingHostIP, parser, node)
 }
 
-func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfacePrefix string, ignorePortMappingHostIP bool, cniConf []byte, node *structs.Node) (*cniNetworkConfigurator, error) {
+func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfacePrefix string, ignorePortMappingHostIP bool, parser *cniConfParser, node *structs.Node) (*cniNetworkConfigurator, error) {
 	conf := &cniNetworkConfigurator{
-		cniConf:                 cniConf,
+		confParser:              parser,
 		rand:                    rand.New(rand.NewSource(time.Now().Unix())),
 		logger:                  logger,
 		ignorePortMappingHostIP: ignorePortMappingHostIP,
@@ -118,7 +119,7 @@ func addCustomCNIArgs(networks []*structs.NetworkResource, cniArgs map[string]st
 // Setup calls the CNI plugins with the add action
 func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
 	if err := c.ensureCNIInitialized(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cni not initialized: %w", err)
 	}
 	cniArgs := map[string]string{
 		// CNI plugins are called one after the other with the same set of
@@ -444,7 +445,26 @@ func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.Result) (*structs.AllocN
 	return netStatus, nil
 }
 
-func loadCNIConf(confDir, name string) ([]byte, error) {
+// cniConfParser parses different config formats as appropriate
+type cniConfParser struct {
+	listBytes []byte
+	confBytes []byte
+}
+
+// getOpt produces a cni.Opt to load with cni.CNI.Load()
+func (c *cniConfParser) getOpt() (cni.Opt, error) {
+	if len(c.listBytes) > 0 {
+		return cni.WithConfListBytes(c.listBytes), nil
+	}
+	if len(c.confBytes) > 0 {
+		return cni.WithConf(c.confBytes), nil
+	}
+	// theoretically should never be reached
+	return nil, errors.New("no CNI network config found")
+}
+
+// loadCNIConf looks in confDir for a CNI config with the specified name
+func loadCNIConf(confDir, name string) (*cniConfParser, error) {
 	files, err := cnilibrary.ConfFiles(confDir, []string{".conf", ".conflist", ".json"})
 	switch {
 	case err != nil:
@@ -463,7 +483,9 @@ func loadCNIConf(confDir, name string) ([]byte, error) {
 				return nil, fmt.Errorf("failed to load CNI config list file %s: %v", confFile, err)
 			}
 			if confList.Name == name {
-				return confList.Bytes, nil
+				return &cniConfParser{
+					listBytes: confList.Bytes,
+				}, nil
 			}
 		} else {
 			conf, err := cnilibrary.ConfFromFile(confFile)
@@ -471,7 +493,9 @@ func loadCNIConf(confDir, name string) ([]byte, error) {
 				return nil, fmt.Errorf("failed to load CNI config file %s: %v", confFile, err)
 			}
 			if conf.Network.Name == name {
-				return conf.Bytes, nil
+				return &cniConfParser{
+					confBytes: conf.Bytes,
+				}, nil
 			}
 		}
 	}
@@ -585,11 +609,14 @@ func (c *cniNetworkConfigurator) forceCleanup(ipt IPTables, allocID string) erro
 }
 
 func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
-	if err := c.cni.Status(); cni.IsCNINotInitialized(err) {
-		return c.cni.Load(cni.WithConfListBytes(c.cniConf))
-	} else {
+	if err := c.cni.Status(); !cni.IsCNINotInitialized(err) {
 		return err
 	}
+	opt, err := c.confParser.getOpt()
+	if err != nil {
+		return err
+	}
+	return c.cni.Load(opt)
 }
 
 // nsOpts keeps track of NamespaceOpts usage, mainly for test assertions.

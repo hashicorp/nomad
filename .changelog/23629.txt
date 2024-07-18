@@ -1,0 +1,3 @@
+```release-note:bug
+cni: .conf and .json config files are now parsed properly
+```
