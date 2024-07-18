@@ -11,7 +11,7 @@ description: >-
 
 The GCP Cloud KMS keyring configures Nomad to use GCP Cloud KMS to wrap its
 keyring. This example shows configuring GCP Cloud KMS keyring through the Nomad
-configuration file by providing all the required values:
+configuration file by providing all the required values.
 
 ```hcl
 keyring "gcpckms" {
@@ -31,16 +31,15 @@ keyring "gcpckms" {
 These parameters apply to the `keyring` stanza in the Nomad configuration file:
 
 - `credentials` `(string: <required>)`: The path to the credentials JSON file to
-  use. May be also specified by the `GOOGLE_CREDENTIALS` or
+  use. Alternately specify via the `GOOGLE_CREDENTIALS` or
   `GOOGLE_APPLICATION_CREDENTIALS` environment variable or set automatically if
-  running under Google App Engine, Google Compute Engine or Google Kubernetes
+  running under Google App Engine, Google Compute Engine, or Google Kubernetes
   Engine.
 
-- `project` `(string: <required>)`: The GCP project ID to use. May also be
-  specified by the `GOOGLE_PROJECT` environment variable.
+- `project` `(string: <required>)`: The GCP project ID to use. Alternately specify via the `GOOGLE_PROJECT` environment variable.
 
 - `region` `(string: <required>)`: The GCP region/location where the key ring
-  lives. May also be specified by the `GOOGLE_REGION` environment variable.
+  lives. Alternately specify via the `GOOGLE_REGION` environment variable.
 
 - `key_ring` `(string: <required>)`: The GCP CKMS key ring to use.
 
@@ -49,7 +48,7 @@ These parameters apply to the `keyring` stanza in the Nomad configuration file:
 
 ## Authentication &amp; permissions
 
-Authentication-related values must be provided, either as environment
+You must provide authentication-related values either as environment
 variables or as configuration parameters.
 
 GCP authentication values:
@@ -58,9 +57,9 @@ GCP authentication values:
 - `GOOGLE_PROJECT`
 - `GOOGLE_REGION`
 
-Note: The client uses the official Google SDK and will use the specified
+Note: The client uses the official Google SDK and the specified
 credentials, environment credentials, or [application default credentials][] in
-that order, if the above GCP specific values are not provided.
+that order, if you do not provide the aforementioned GCP-specific values. 
 
 The service account needs the following minimum permissions on the crypto key:
 
@@ -77,7 +76,7 @@ roles/cloudkms.cryptoKeyEncrypterDecrypter
 cloudkms.cryptoKeys.get
 ```
 
-`cloudkms.cryptoKeys.get` permission is used for retrieving metadata information
+Use `cloudkms.cryptoKeys.get` permission for retrieving metadata information
 of keys from CloudKMS within this engine initialization process.
 
 ## Key rotation
@@ -85,7 +84,7 @@ of keys from CloudKMS within this engine initialization process.
 This keyring supports rotating keys defined in Google Cloud KMS
 [doc][rotating_keys]. Both scheduled rotation and manual rotation is supported
 for CKMS since the key information. Old keys version must not be disabled or
-deleted and are used to decrypt older data. Any new or updated data will be
+deleted and are used to decrypt older data. Any new or updated data is
 encrypted with the primary key version.
 
 

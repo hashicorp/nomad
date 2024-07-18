@@ -14,7 +14,7 @@ for encrypting [variables][] and signing [workload identities][]. By default,
 Nomad encrypts the key material with a unique key encryption key (KEK) that is
 not shared between servers, and writes the wrapped key material to disk as
 described in [Key Management][]. Nomad refers to this as `"aead"`. Using the
-`keyring` configuration block, Nomad servers can instead use an external KMS or
+`keyring` configuration block, Nomad servers can instead use an external key management system (KMS) or
 Vault transit encryption. The encrypted key is stored on disk but is now
 protected against offline attacks because the KEK is not present in the file.
 
@@ -55,7 +55,7 @@ All `keyring` blocks support the following parameters.
 ## Migrating Keyrings
 
 To migrate to a new keyring, add the new `keyring` block to the servers with
-`active=true`, and restart the servers. The server will start using the new
+`active=true`, and restart the servers. The server starts using the new
 keyring wrapper when the current key is rotated either periodically or via the
 [`nomad operator root keyring rotate`][keyring_rotate_cmd] command.
 
@@ -74,8 +74,8 @@ keyring list`][keyring_list_cmd].
 Keyring high availability provides the means to configure multiple active
 `keyring` blocks, in order to have resilience against an outage of an external
 KMS. When there are multiple `keyring` blocks with `active = true`, Nomad
-Enterprise will encrypt each key it creates in all the active KMS providers. On
-startup, Nomad will try each KMS provider in order until it finds a provider
+Enterprise encrypts each key it creates in all the active KMS providers. On
+startup, Nomad tries each KMS provider in order until it finds a provider
 that can decrypt each key.
 
 In this example high availability configuration, both `keyring` blocks use the

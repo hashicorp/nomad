@@ -10,7 +10,7 @@ description: >-
 
 The AWS KMS keyring configures Nomad to use AWS KMS to wrap its keyring. This
 example shows configuring Azure Key Vault seal through the Vault configuration
-file by providing all the required values:
+file by providing all the required values.
 
 ```hcl
 seal "azurekeyvault" {
@@ -31,19 +31,16 @@ seal "azurekeyvault" {
 These parameters apply to the `keyring` block in the Nomad configuration file:
 
 - `tenant_id` `(string: <required>)`: The tenant id for the Azure Active
-  Directory organization. May also be specified by the `AZURE_TENANT_ID`
-  environment variable.
+  Directory organization. Alternately specify via the `AZURE_TENANT_ID` environment variable.
 
 - `client_id` `(string: <required or MSI>)`: The client id for credentials to
-  query the Azure APIs.  May also be specified by the `AZURE_CLIENT_ID`
-  environment variable.
+  query the Azure APIs.  Alternately specify via the `AZURE_CLIENT_ID` environment variable.
 
 - `client_secret` `(string: <required or MSI>)`: The client secret for
-  credentials to query the Azure APIs.  May also be specified by the
-  `AZURE_CLIENT_SECRET` environment variable.
+  credentials to query the Azure APIs.  Alternately specify via the `AZURE_CLIENT_SECRET` environment variable.
 
 - `environment` `(string: "AZUREPUBLICCLOUD")`: The Azure Cloud environment API
-  endpoints to use. May also be specified by the `AZURE_ENVIRONMENT` environment
+  endpoints to use. Alternately specify via the `AZURE_ENVIRONMENT` environment
   variable.
 
 - `vault_name` `(string: <required>)`: The Key Vault vault to use the encryption
@@ -53,13 +50,13 @@ These parameters apply to the `keyring` block in the Nomad configuration file:
   decryption.
 
 - `resource` `(string: "vault.azure.net")`: The AZ KeyVault resource's DNS
-  Suffix to connect to.  May also be specified in the `AZURE_AD_RESOURCE`
+  Suffix to connect to.  Alternately specify via the `AZURE_AD_RESOURCE`
   environment variable.  Needs to be changed to connect to Azure's Managed HSM
   KeyVault instance type.
 
 ## Authentication
 
-Authentication-related values must be provided, either as environment variables
+You must provide authentication-related values either as environment variables
 or as configuration parameters.
 
 Azure authentication values:
@@ -70,23 +67,16 @@ Azure authentication values:
 - `AZURE_ENVIRONMENT`
 - `AZURE_AD_RESOURCE`
 
-~> **Note:** If Nomad is hosted on Azure, Vault can use Managed Service
-Identities (MSI) to access Azure instead of an environment and shared client id
-and secret. MSI must be [enabled][msi_enabled] on the VMs hosting Nomad, and it
-is the preferred configuration since MSI prevents your Azure credentials from
-being stored as clear text.
+~> **Note:** If Nomad is hosted on Azure, Vault can use Managed Service Identities (MSI) to access Azure instead of an environment and shared client id and secret. MSI must be [enabled][msi_enabled] on the VMs hosting Nomad. We recommend this configuration since MSI prevents your Azure credentials from being stored as clear text.
 
--> **Note:** If you are using a Managed HSM KeyVault, `AZURE_AD_RESOURCE` or the
-`resource` configuration parameter must be specified; usually this should point
-to `managedhsm.azure.net`, but could point to other suffixes depending on Azure
-environment.
+-> **Note:** If you are using a Managed HSM KeyVault, you must specify `AZURE_AD_RESOURCE` or the `resource` configuration parameter; usually this should point to `managedhsm.azure.net` but could point to other suffixes depending on Azure environment.
 
 ## Key rotation
 
 This seal supports rotating keys defined in Azure Key Vault. Key metadata is
 stored with the encrypted data to ensure the correct key is used during
 decryption operations. Set up Azure Key Vault with [key rotation][] using Azure
-Automation Account and Vault will recognize newly rotated keys.
+Automation Account so Vault recognizes newly rotated keys.
 
 [msi_enabled]: https://docs.microsoft.com/en-us/azure/active-directory/managed-service-identity/qs-configure-portal-windows-vm
 [key rotation]: https://docs.microsoft.com/en-us/azure/key-vault/key-vault-key-rotation-log-monitoring

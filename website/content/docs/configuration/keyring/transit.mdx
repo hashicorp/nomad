@@ -10,7 +10,7 @@ description: |-
 
 The Vault transit keyring configures Nomad to use Vault's Transit Secret Engine
 to wrap its keyring. This example shows configuring Vault Transit through the
-Nomad configuration file by providing all the required values:
+Nomad configuration file by providing all the required values.
 
 ```hcl
 keyring "transit" {
@@ -55,50 +55,47 @@ These parameters apply to the `keyring` stanza in the Nomad configuration file:
   token in case the lifecycle of the token is managed with some other mechanism
   outside of Vault, such as Vault Agent.
 
-The following parameters can be set in the `keyring` block but will fallback to
-the values set in the server's [`vault`][vault_config] block if not set
-here. Fields indicated as required must be set either here or the `vault` block.
+Set the following parameters in the `keyring` block. If not set here, Nomad uses
+the values set in the server's [`vault`][vault_config] block. You must set required fields either here or the `vault` block.
 
-- `address` `(string: <required>)`: The full address to the Vault cluster.  This
-  may also be specified by the `VAULT_ADDR` environment variable.
+- `address` `(string: <required>)`: The full address to the Vault cluster.  Alternately specify via the `VAULT_ADDR` environment variable.
 
-- `token` `(string: <required>)`: The Vault token to use. This may also be
-  specified by the `VAULT_TOKEN` environment variable.
+- `token` `(string: <required>)`: The Vault token to use.  Alternately specify via the `VAULT_TOKEN` environment variable.
 
 - `namespace` `(string: "")`: The namespace path to the transit secret engine.
-  This may also be supplied using the `VAULT_NAMESPACE` environment variable.
+   Alternately specify via the `VAULT_NAMESPACE` environment variable.
 
 - `tls_ca_cert` `(string: "")`: Specifies the path to the CA certificate file used
-  for communication with the Vault server. This may also be specified using the
+  for communication with the Vault server.  Alternately specify via the
   `VAULT_CACERT` environment variable.
 
 - `tls_client_cert` `(string: "")`: Specifies the path to the client certificate
-  for communication with the Vault server. This may also be specified using the
+  for communication with the Vault server. Alternately specify via the
   `VAULT_CLIENT_CERT` environment variable.
 
 - `tls_client_key` `(string: "")`: Specifies the path to the private key for
-  communication with the Vault server. This may also be specified using the
+  communication with the Vault server.  Alternately specify via the
   `VAULT_CLIENT_KEY` environment variable.
 
 - `tls_server_name` `(string: "")`: Name to use as the SNI host when connecting
-  to the Vault server via TLS. This may also be specified via the
+  to the Vault server via TLS.  Alternately specify via the
   `VAULT_TLS_SERVER_NAME` environment variable.
 
 - `tls_skip_verify` `(bool: "false")`: Disable verification of TLS certificates.
   Using this option is highly discouraged and decreases the security of data
-  transmissions to and from the Vault server. This may also be specified using the
+  transmissions to and from the Vault server. Alternately specify via the
   `VAULT_SKIP_VERIFY` environment variable.
 
 ## Authentication
 
-Authentication-related values must be provided, either as environment variables
+You must provide authentication-related values either as environment variables
 or as configuration parameters.
 
-~> **Note:** Although the configuration file allows you to pass in `VAULT_TOKEN`
-as part of the keyring's parameters, it is _strongly_ recommended to set these
+~> **Note:** Although the configuration file lets you to pass in `VAULT_TOKEN`
+as part of the keyring's parameters, we strongly recommended that you set these
 values via environment variables.
 
-The Vault token used to authenticate needs the following permissions on the
+The Vault authentication token needs the following permissions on the
 transit key:
 
 ```hcl
@@ -112,15 +109,13 @@ path "<mount path>/decrypt/<key name>" {
 ```
 
 Other considerations for the token used:
-* It should probably be an [orphan token][], otherwise when the parent token
-  expires or gets revoked the keyring will break.
-* Consider making it a [periodic token][] and not setting an explicit max TTL,
-  otherwise at some point it will cease to be renewable.
+* It should probably be an [orphan token][], otherwise when the parent token expires or gets revoked the keyring breaks.
+* Consider making it a [periodic token][] and not setting an explicit max TTL, otherwise at some point it ceases to be renewable.
 
 ## Key rotation
 
 This keyring supports key rotation using the Transit Secret Engine's key rotation
-endpoints. See [doc][rotate_doc]. Old keys must not be disabled or deleted and
+endpoints. Refer to [Vault docs][rotate_doc]. Old keys must not be disabled or deleted and
 are used to decrypt older data.
 
 [orphan token]: /vault/docs/concepts/tokens#token-hierarchies-and-orphan-tokens
