@@ -1484,7 +1484,7 @@ func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
-	snap, err := n.state.Snapshot(true)
+	snap, err := n.state.Snapshot(false)
 	if err != nil {
 		return nil, err
 	}
