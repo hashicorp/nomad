@@ -30,6 +30,8 @@ func TestKeyringRotation(t *testing.T) {
 	out, err := e2eutil.Commandf("nomad operator root keyring rotate -verbose -prepublish 1h")
 	must.NoError(t, err)
 	cols, err := e2eutil.ParseColumns(out)
+	must.NoError(t, err)
+	must.Greater(t, 0, len(cols))
 	newKeyID := cols[0]["Key"]
 	must.Eq(t, "prepublished", cols[0]["State"], must.Sprint("expected new key to be prepublished"))
 
