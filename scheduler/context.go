@@ -6,8 +6,8 @@ package scheduler
 import (
 	"regexp"
 
+	memdb "github.com/absolutelightning/go-memdb"
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

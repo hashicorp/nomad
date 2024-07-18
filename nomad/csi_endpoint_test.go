@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-memdb"
+	"github.com/absolutelightning/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"

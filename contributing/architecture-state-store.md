@@ -85,7 +85,7 @@ flowchart TD
       (aka State Store)")
     click writes href "https://github.com/hashicorp/nomad/tree/main/nomad/fsm.go" _blank
 
-    memdb("hashicorp/go-memdb")
+    memdb("absolutelightning/go-memdb")
 
     %% style classes
     classDef leader fill:#d5f6ea,stroke-width:4px,stroke:#1d9467

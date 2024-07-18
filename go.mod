@@ -1,6 +1,8 @@
 module github.com/hashicorp/nomad
 
-go 1.21
+go 1.22.4
+
+toolchain go1.22.5
 
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826.
 replace (
@@ -17,6 +19,7 @@ require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/Microsoft/go-winio v0.6.1
+	github.com/absolutelightning/go-memdb v1.0.77
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.5.3
 	github.com/aws/aws-sdk-go v1.44.184
@@ -59,7 +62,6 @@ require (
 	github.com/hashicorp/go-hclog v1.6.2
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.15
-	github.com/hashicorp/go-memdb v1.3.4
 	github.com/hashicorp/go-msgpack/v2 v2.1.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-netaddrs v0.1.0
@@ -158,6 +160,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.0 // indirect
 	github.com/VividCortex/ewma v1.1.1 // indirect
+	github.com/absolutelightning/go-immutable-radix v1.0.7 // indirect
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-cidr v1.0.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect

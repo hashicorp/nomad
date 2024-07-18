@@ -9,8 +9,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/absolutelightning/go-memdb"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper"

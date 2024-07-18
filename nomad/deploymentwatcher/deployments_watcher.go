@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/time/rate"
 
+	memdb "github.com/absolutelightning/go-memdb"
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/absolutelightning/go-memdb"
 	"github.com/hashicorp/go-bexpr"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/hil"
 	"github.com/hashicorp/hil/ast"
 	"github.com/hashicorp/nomad/nomad/structs"

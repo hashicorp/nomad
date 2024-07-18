@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"time"
 
+	memdb "github.com/absolutelightning/go-memdb"
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"

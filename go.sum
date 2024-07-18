@@ -258,6 +258,12 @@ github.com/VividCortex/ewma v1.1.1 h1:MnEK4VOv6n0RSY4vtRe3h11qjxL3+t0B8yOL8iMXdc
 github.com/VividCortex/ewma v1.1.1/go.mod h1:2Tkkvm3sRDVXaiyucHiACn4cqf7DpdyLvmxzcbUokwA=
 github.com/abdullin/seq v0.0.0-20160510034733-d5467c17e7af h1:DBNMBMuMiWYu0b+8KMJuWmfCkcxl09JwdlqwDZZ6U14=
 github.com/abdullin/seq v0.0.0-20160510034733-d5467c17e7af/go.mod h1:5Jv4cbFiHJMsVxt52+i0Ha45fjshj6wxYr1r19tB9bw=
+github.com/absolutelightning/go-immutable-radix v1.0.7 h1:RsNmKOEGDCdDuZiurtmgYzXxy8DdXpFJvSfHUojjfAU=
+github.com/absolutelightning/go-immutable-radix v1.0.7/go.mod h1:d1zae/VqcWHxzHWfS3slhyNQ4ecJeQSZE1j5J6ywEIU=
+github.com/absolutelightning/go-memdb v1.0.77 h1:qOtVmQRfZXMHblEvLWzIUVd0g6+LRt118o4oaoXKUHU=
+github.com/absolutelightning/go-memdb v1.0.77/go.mod h1:cT1eM6ArXrhp63yw/tNDfg6MYMOACkzmkPYS03+F2qc=
+github.com/absolutelightning/go-memdb v1.3.4 h1:XSL3NR682X/cVk2IeV0d70N4DZ9ljI885xAEU8IoK3c=
+github.com/absolutelightning/go-memdb v1.3.4/go.mod h1:uBTr1oQbtuMgd1SSGoR8YV27eT3sBHbYiNm53bMpgSg=
 github.com/agext/levenshtein v1.2.1 h1:QmvMAjj2aEICytGiWzmxoE0x2KZvE0fvmqMOfy2tjT8=
 github.com/agext/levenshtein v1.2.1/go.mod h1:JEDfjyjHDjOF/1e4FlBE/PkbqA9OfWu2ki2W0IB5558=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
@@ -649,8 +655,6 @@ github.com/hashicorp/go-immutable-radix/v2 v2.1.0 h1:CUW5RYIcysz+D3B+l1mDeXrQ7fU
 github.com/hashicorp/go-immutable-radix/v2 v2.1.0/go.mod h1:hgdqLXA4f6NIjRVisM1TJ9aOJVNRqKZj+xDGF6m7PBw=
 github.com/hashicorp/go-kms-wrapping/v2 v2.0.15 h1:f3+/VbanXOmVAaDBKwRiVmeL7EX340a4YmaTItMF4Xs=
 github.com/hashicorp/go-kms-wrapping/v2 v2.0.15/go.mod h1:0dWtzl2ilqKpavgM3id/kFK9L3tjo6fS4OhbVPSYpnQ=
-github.com/hashicorp/go-memdb v1.3.4 h1:XSL3NR682X/cVk2IeV0d70N4DZ9ljI885xAEU8IoK3c=
-github.com/hashicorp/go-memdb v1.3.4/go.mod h1:uBTr1oQbtuMgd1SSGoR8YV27eT3sBHbYiNm53bMpgSg=
 github.com/hashicorp/go-msgpack v0.5.5/go.mod h1:ahLV/dePpqEmjfWmKiqvPkv/twdG7iPBM1vqhUKIvfM=
 github.com/hashicorp/go-msgpack v1.1.6-0.20240304204939-8824e8ccc35f h1:/xqzTen8ftnKv3cKa87WEoOLtsDJYFU0ArjrKaPTTkc=
 github.com/hashicorp/go-msgpack v1.1.6-0.20240304204939-8824e8ccc35f/go.mod h1:gWVc3sv/wbDmR3rQsj1CAktEZzoz1YNK9NfGLXJ69/4=

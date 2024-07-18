@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/go-memdb"
+	"github.com/absolutelightning/go-memdb"
 )
 
 var (
