@@ -324,9 +324,6 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
-- `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
-  repository. The default value is `true`. **Deprecated as of 0.5.3**
-
 - `tty` - (Optional) `true` or `false` (default). Allocate a pseudo-TTY for the
   container.
 
@@ -647,6 +644,21 @@ plugin "docker" {
 
 !> **Be Careful!** At this time these credentials are stored in Nomad in plain
 text. Secrets management will be added in a later release.
+
+## Insecure Registries
+
+In order to pull images from a registry without TLS, you must configure the
+Docker daemon's `insecure-registries` flag. No additional Nomad client
+configuration is required. You should only allow insecure registries for
+registries running locally on the client or when the communication to the
+registry is otherwise encrypted. List the `insecure-registries` flag in the
+`dockerd` [configuration file](https://docs.docker.com/config/daemon/).
+
+```json
+{
+  "insecure-registries": ["example.local:5000"]
+}
+```
 
 ## Networking
 
