@@ -18,6 +18,9 @@ module "nomad_server" {
   tls_ca_key    = tls_private_key.ca.private_key_pem
   tls_ca_cert   = tls_self_signed_cert.ca.cert_pem
 
+  aws_region     = var.region
+  aws_kms_key_id = data.aws_kms_alias.e2e.target_key_id
+
   connection = {
     type        = "ssh"
     user        = "ubuntu"
