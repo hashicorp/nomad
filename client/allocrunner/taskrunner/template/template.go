@@ -585,7 +585,7 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 
 	if tm.handle == nil {
 		failureMsg := fmt.Sprintf(
-			"Template failed to run script %v with arguments %v because task driver doesn't support the exec operation",
+			"Template failed to run script %v with arguments %v because task driver handle is not available",
 			script.Command,
 			script.Args,
 		)
