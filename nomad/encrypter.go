@@ -23,9 +23,7 @@ import (
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/go-hclog"
-	log "github.com/hashicorp/go-hclog"
 	kms "github.com/hashicorp/go-kms-wrapping/v2"
-	wrapping "github.com/hashicorp/go-kms-wrapping/v2"
 	"github.com/hashicorp/go-kms-wrapping/v2/aead"
 	"github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2"
 	"github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2"
@@ -554,7 +552,7 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 	if wrappedDEK == nil {
 		// older KEK wrapper versions with AEAD-only have the key material in a
 		// different field
-		wrappedDEK = &wrapping.BlobInfo{Ciphertext: kekWrapper.EncryptedDataEncryptionKey}
+		wrappedDEK = &kms.BlobInfo{Ciphertext: kekWrapper.EncryptedDataEncryptionKey}
 	}
 	key, err := wrapper.Decrypt(e.srv.shutdownCtx, wrappedDEK)
 	if err != nil {
@@ -573,7 +571,7 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 	} else if len(kekWrapper.EncryptedRSAKey) > 0 {
 		// older KEK wrapper versions with AEAD-only have the key material in a
 		// different field
-		rsaKey, err = wrapper.Decrypt(e.srv.shutdownCtx, &wrapping.BlobInfo{
+		rsaKey, err = wrapper.Decrypt(e.srv.shutdownCtx, &kms.BlobInfo{
 			Ciphertext: kekWrapper.EncryptedRSAKey})
 		if err != nil {
 			return nil, fmt.Errorf("%w (rsa key): %w", ErrDecryptFailed, err)
@@ -652,7 +650,7 @@ func (e *Encrypter) newKMSWrapper(provider *structs.KEKProviderConfig, keyID str
 
 	config, ok := e.providerConfigs[provider.ID()]
 	if ok {
-		_, err := wrapper.SetConfig(context.Background(), wrapping.WithConfigMap(config.Config))
+		_, err := wrapper.SetConfig(context.Background(), kms.WithConfigMap(config.Config))
 		if err != nil {
 			return nil, err
 		}
@@ -663,7 +661,7 @@ func (e *Encrypter) newKMSWrapper(provider *structs.KEKProviderConfig, keyID str
 type KeyringReplicator struct {
 	srv       *Server
 	encrypter *Encrypter
-	logger    log.Logger
+	logger    hclog.Logger
 	stopFn    context.CancelFunc
 }
 
