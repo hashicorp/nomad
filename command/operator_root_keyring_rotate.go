@@ -37,11 +37,16 @@ Keyring Options:
     will immediately return and the re-encryption process will run
     asynchronously on the leader.
 
+  -now
+    Publish the new key immediately without prepublishing. One of -now or
+    -prepublish must be set.
+
   -prepublish
     Set a duration for which to prepublish the new key (ex. "1h"). The currently
     active key will be unchanged but the new public key will be available in the
     JWKS endpoint. Multiple keys can be prepublished and they will be promoted to
-    active in order of publish time, at most once every root_key_gc_interval.
+    active in order of publish time, at most once every root_key_gc_interval. One
+    of -now or -prepublish must be set.
 
   -verbose
     Show full information.
@@ -58,6 +63,7 @@ func (c *OperatorRootKeyringRotateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-full":       complete.PredictNothing,
+			"-now":        complete.PredictNothing,
 			"-prepublish": complete.PredictNothing,
 			"-verbose":    complete.PredictNothing,
 		})
@@ -72,12 +78,13 @@ func (c *OperatorRootKeyringRotateCommand) Name() string {
 }
 
 func (c *OperatorRootKeyringRotateCommand) Run(args []string) int {
-	var rotateFull, verbose bool
+	var rotateFull, rotateNow, verbose bool
 	var prepublishDuration time.Duration
 
 	flags := c.Meta.FlagSet("root keyring rotate", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&rotateFull, "full", false, "full key rotation")
+	flags.BoolVar(&rotateNow, "now", false, "immediately rotate without prepublish")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.DurationVar(&prepublishDuration, "prepublish", 0, "prepublish key")
 
@@ -95,6 +102,18 @@ func (c *OperatorRootKeyringRotateCommand) Run(args []string) int {
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating nomad cli client: %s", err))
+		return 1
+	}
+
+	if !rotateNow && prepublishDuration == 0 || rotateNow && prepublishDuration != 0 {
+		c.Ui.Error(`
+One of "-now" or "-prepublish" must be used.
+
+If a key has been leaked use "-now" to force immediate rotation.
+
+Otherwise please use "-prepublish <duration>" to ensure the new key is not used
+to sign workload identities before JWKS endpoints are updated.
+`)
 		return 1
 	}
 
