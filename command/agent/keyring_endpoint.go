@@ -6,6 +6,7 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -165,6 +166,15 @@ func (s *HTTPServer) keyringRotateRequest(resp http.ResponseWriter, req *http.Re
 
 	if _, ok := query["full"]; ok {
 		args.Full = true
+	}
+
+	ptRaw := query.Get("publish_time")
+	if ptRaw != "" {
+		publishTime, err := strconv.ParseInt(ptRaw, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid publish_time: %w", err)
+		}
+		args.PublishTime = publishTime
 	}
 
 	var out structs.KeyringRotateRootKeyResponse
