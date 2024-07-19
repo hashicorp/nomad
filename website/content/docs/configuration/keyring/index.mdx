@@ -13,11 +13,11 @@ The `keyring` block configures how the Nomad server protects the keyring used
 for encrypting [variables][] and signing [workload identities][]. By default,
 Nomad encrypts the key material with a unique key encryption key (KEK) that is
 not shared between servers, and writes the wrapped key material to disk as
-described in [Key Management][]. Nomad refers to this as `"aead"`. Using the
-`keyring` configuration block, Nomad servers can instead use an external key
-management system (KMS) or Vault transit encryption. The encrypted key is stored
-on disk but is now protected against offline attacks because the KEK is not
-present in the file.
+described in [Key Management][]. Nomad refers to this as `"aead"` (authenticated
+encryption with associated data). Using the `keyring` configuration block, Nomad
+servers can instead use an external key management system (KMS) or Vault transit
+encryption. The encrypted key is stored on disk but is now protected against
+offline attacks because the KEK is not present in the file.
 
 All `keyring` blocks require a label for the KMS type. Each external KMS has its
 own configuration options. The `keyring` block only applies to Nomad servers,

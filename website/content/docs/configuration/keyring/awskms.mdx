@@ -74,7 +74,8 @@ AWS authentication values:
 Note: The client uses the official AWS SDK and the specified credentials,
 environment credentials, shared file credentials, or IAM role/ECS task
 credentials in that order, if you do not provide the aforementioned AWS-specific
-values.
+values. Refer to the [AWS SDK and Tools standard credentials][aws-std-creds]
+documentation.
 
 Nomad needs the following permissions on the KMS key:
 
@@ -96,3 +97,4 @@ configuration or set to current under a key alias.
 
 [VPC Endpoint]: https://docs.aws.amazon.com/kms/latest/developerguide/kms-vpc-endpoint.html
 [rotate_docs]: https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html
+[aws-std-creds]: https://docs.aws.amazon.com/sdkref/latest/guide/standardized-credentials.html
