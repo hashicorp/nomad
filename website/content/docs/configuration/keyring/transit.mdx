@@ -1,0 +1,129 @@
+---
+layout: docs
+page_title: Vault Transit - Keyring - Configuration
+description: |-
+  The Transit keyring configures Nomad to use Vault's Transit Secret Engine as
+  the key material wrapping mechanism.
+---
+
+# `transit` keyring
+
+The Vault transit keyring configures Nomad to use Vault's Transit Secret Engine
+to wrap its keyring. This example shows configuring Vault Transit through the
+Nomad configuration file by providing all the required values.
+
+```hcl
+keyring "transit" {
+
+  active = true
+  name   = "example"
+
+  # fields specific to transit
+  address            = "https://vault:8200"
+  token              = "s.Qf1s5zigZ4OX6akYjQXJC1jY"
+  disable_renewal    = "false"
+
+  # Key configuration
+  key_name           = "transit_key_name"
+  mount_path         = "transit/"
+  namespace          = "ns1/"
+
+  # TLS Configuration
+  tls_ca_cert        = "/etc/vault/ca_cert.pem"
+  tls_client_cert    = "/etc/vault/client_cert.pem"
+  tls_client_key     = "/etc/vault/ca_cert.pem"
+  tls_server_name    = "vault"
+  tls_skip_verify    = "false"
+}
+```
+
+## `transit` parameters
+
+These parameters apply to the `keyring` stanza in the Nomad configuration file:
+
+- `key_name` `(string: <required>)`: The transit key to use for encryption and
+  decryption.
+
+- `key_id_prefix` `(string: "")`: An optional string to add to the key id of
+  values wrapped by this transit keyring. This can help disambiguate between two
+  transit keyring.
+
+- `mount_path` `(string: <required>)`: The mount path to the transit secret
+  engine.
+
+- `disable_renewal` `(string: "false")`: Disables the automatic renewal of the
+  token in case the lifecycle of the token is managed with some other mechanism
+  outside of Vault, such as Vault Agent.
+
+Set the following parameters in the `keyring` block. If not set here, Nomad uses
+the values set in the server's [`vault`][vault_config] block. You must set
+required fields either here or the `vault` block.
+
+- `address` `(string: <required>)`: The full address to the Vault cluster.
+  Alternately specify via the `VAULT_ADDR` environment variable.
+
+- `token` `(string: <required>)`: The Vault token to use. Alternately specify
+  via the `VAULT_TOKEN` environment variable.
+
+- `namespace` `(string: "")`: The namespace path to the transit secret engine.
+   Alternately specify via the `VAULT_NAMESPACE` environment variable.
+
+- `tls_ca_cert` `(string: "")`: Specifies the path to the CA certificate file
+  used for communication with the Vault server. Alternately specify via the
+  `VAULT_CACERT` environment variable.
+
+- `tls_client_cert` `(string: "")`: Specifies the path to the client certificate
+  for communication with the Vault server. Alternately specify via the
+  `VAULT_CLIENT_CERT` environment variable.
+
+- `tls_client_key` `(string: "")`: Specifies the path to the private key for
+  communication with the Vault server. Alternately specify via the
+  `VAULT_CLIENT_KEY` environment variable.
+
+- `tls_server_name` `(string: "")`: Name to use as the SNI host when connecting
+  to the Vault server via TLS. Alternately specify via the
+  `VAULT_TLS_SERVER_NAME` environment variable.
+
+- `tls_skip_verify` `(bool: "false")`: Disable verification of TLS certificates.
+  Using this option is highly discouraged and decreases the security of data
+  transmissions to and from the Vault server. Alternately specify via the
+  `VAULT_SKIP_VERIFY` environment variable.
+
+## Authentication
+
+You must provide authentication-related values either as environment variables
+or as configuration parameters.
+
+~> **Note:** Although the configuration file lets you to pass in `VAULT_TOKEN`
+as part of the keyring's parameters, we strongly recommended that you set these
+values via environment variables.
+
+The Vault authentication token needs the following permissions on the transit
+key:
+
+```hcl
+path "<mount path>/encrypt/<key name>" {
+  capabilities = ["update"]
+}
+
+path "<mount path>/decrypt/<key name>" {
+  capabilities = ["update"]
+}
+```
+
+Other considerations for the token used:
+* It should probably be an [orphan token][], otherwise when the parent token
+  expires or gets revoked the keyring breaks.
+* Consider making it a [periodic token][] and not setting an explicit max TTL,
+  otherwise at some point it ceases to be renewable.
+
+## Key rotation
+
+This keyring supports key rotation using the Transit Secret Engine's key
+rotation endpoints. Refer to [Vault docs][rotate_doc]. Old keys must not be
+disabled or deleted and are used to decrypt older data.
+
+[orphan token]: /vault/docs/concepts/tokens#token-hierarchies-and-orphan-tokens
+[periodic token]: /vault/docs/concepts/tokens#periodic-tokens
+[rotate_doc]: /vault/api-docs/secret/transit#rotate-key
+[vault_config]: https://developer.hashicorp.com/nomad/docs/configuration/vault
