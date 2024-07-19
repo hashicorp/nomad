@@ -66,7 +66,7 @@
            }
          ]
        }
-    ] 
+    ]
   },
   {
     "title": "Integrations",
@@ -235,6 +235,31 @@
       {
         "title": "consul",
         "path": "configuration/consul"
+      },
+      {
+        "title": "keyring",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "configuration/keyring"
+          },
+          {
+            "title": "AWS KMS",
+            "path": "configuration/keyring/awskms"
+          },
+          {
+            "title": "Azure Key Vault",
+            "path": "configuration/keyring/azurekeyvault"
+          },
+          {
+            "title": "GCP Cloud KMS",
+            "path": "configuration/keyring/gcpckms"
+          },
+          {
+            "title": "Vault Transit",
+            "path": "configuration/keyring/transit"
+          }
+        ]
       },
       {
         "title": "plugin",
