@@ -98,6 +98,7 @@ type JobStatusesJob struct {
 	ParentID         string
 	LatestDeployment *JobStatusesLatestDeployment
 	Stop             bool // has the job been manually stopped?
+	IsPack           bool // is pack metadata present?
 	Status           string
 }
 
