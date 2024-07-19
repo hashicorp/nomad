@@ -25,19 +25,34 @@ nomad operator root keyring rotate [options]
 ## Rotate Options
 
 - `-full`: Decrypt all existing variables and re-encrypt with the new key. This
-    command will immediately return and the re-encryption process will run
-    asynchronously on the leader.
+  command will immediately return and the re-encryption process will run
+  asynchronously on the leader.
+
+- `-now`: Publish the new key immediately without prepublishing. One of `-now`
+  or `-prepublish` must be set.
+
+- `-prepublish`: Set a duration for which to prepublish the new key
+  (ex. "1h"). The currently active key will be unchanged but the new public key
+  will be available in the JWKS endpoint. Multiple keys can be prepublished and
+  they will be promoted to active in order of publish time, at most once every
+  [`root_key_gc_interval`][]. One of `-now` or `-prepublish` must be set.
 
 - `-verbose`: Enable verbose output
 
 ## Examples
 
 ```shell-session
-$ nomad operator root keyring rotate
-Key       State   Create Time
-f19f6029  active  2022-07-11T19:14:36Z
+$ nomad operator root keyring rotate -now
+Key       State   Create Time           Publish Time
+f19f6029  active  2022-07-11T19:14:36Z  <none>
 
-$ nomad operator root keyring rotate -verbose
-Key                                   State   Create Time
-53186ac1-9002-c4b6-216d-bb19fd37a791  active  2022-07-11T19:14:47Z
+$ nomad operator root keyring rotate -now -verbose
+Key                                   State   Create Time           Publish Time
+53186ac1-9002-c4b6-216d-bb19fd37a791  active  2022-07-11T19:14:47Z  <none>
+
+$ nomad operator root keyring rotate -prepublish 1h
+Key       State   Create Time           Publish Time
+7f15e4e9  active  2022-07-11T19:15:10Z  2022-07-11T20:15:10Z
 ```
+
+[`root_key_gc_interval`]: /nomad/docs/configuration/server#root_key_gc_interval
