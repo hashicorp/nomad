@@ -157,8 +157,7 @@
               class="is-primary"
             >
               {{B.data.name}}
-              {{!-- TODO: going to lose .meta with statuses endpoint! --}}
-              {{#if B.data.meta.structured.pack}}
+              {{#if B.data.isPack}}
                 <span data-test-pack-tag class="tag is-pack">
                   {{x-icon "box" class= "test"}}
                   <span>Pack</span>
