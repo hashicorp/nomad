@@ -28,3 +28,7 @@ module "keys" {
   source  = "mitchellh/dynamic-keys/aws"
   version = "v2.0.0"
 }
+
+data "aws_kms_alias" "e2e" {
+  name = "alias/${var.aws_kms_alias}"
+}

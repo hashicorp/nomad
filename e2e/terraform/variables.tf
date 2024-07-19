@@ -87,6 +87,12 @@ variable "hcp_vault_namespace" {
   default     = "admin"
 }
 
+variable "aws_kms_alias" {
+  description = "The alias for the AWS KMS key ID"
+  type        = string
+  default     = "kms-nomad-keyring"
+}
+
 # ----------------------------------------
 # If you want to deploy multiple versions you can use these variables to
 # provide a list of builds to override the values of nomad_sha, nomad_version,
