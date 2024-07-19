@@ -236,13 +236,16 @@ server {
 - `root_key_gc_interval` `(string: "10m")` - Specifies the interval between
   [encryption key][] metadata garbage collections.
 
-- `root_key_gc_threshold` `(string: "1h")` - Specifies the minimum time that an
-  [encryption key][] must exist before it can be eligible for garbage
-  collection.
+- `root_key_gc_threshold` `(string: "1h")` - Specifies the minimum time after
+  the `root_key_rotation_threshold` has passed that an [encryption key][] must
+  exist before it can be eligible for garbage collection.
 
-- `root_key_rotation_threshold` `(string: "720h")` - Specifies the minimum time
-  that an [encryption key][] must exist before it is automatically rotated on
-  the next garbage collection interval.
+- `root_key_rotation_threshold` `(string: "720h")` - Specifies the lifetime of
+  an active [encryption key][] before it is automatically rotated on the next
+  garbage collection interval. Nomad will prepublish the replacement key at half
+  the `root_key_rotation_threshold` time so external consumers of Workload
+  Identity have time to obtain the new public key from the [JWKS URL][] before
+  it is used.
 
 - `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
   how the Nomad server will connect to other Nomad servers. The `retry_join`
@@ -517,3 +520,4 @@ work.
 [wi]: /nomad/docs/concepts/workload-identity
 [Configure for multiple regions]: /nomad/tutorials/access-control/access-control-bootstrap#configure-for-multiple-regions
 [top_level_data_dir]: /nomad/docs/configuration#data_dir
+[JWKS URL]: /nomad/api-docs/operator/keyring#list-active-public-keys

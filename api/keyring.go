@@ -34,16 +34,18 @@ type RootKeyMeta struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 	State       RootKeyState
+	PublishTime int64
 }
 
 // RootKeyState enum describes the lifecycle of a root key.
 type RootKeyState string
 
 const (
-	RootKeyStateInactive   RootKeyState = "inactive"
-	RootKeyStateActive                  = "active"
-	RootKeyStateRekeying                = "rekeying"
-	RootKeyStateDeprecated              = "deprecated"
+	RootKeyStateInactive     RootKeyState = "inactive"
+	RootKeyStateActive                    = "active"
+	RootKeyStateRekeying                  = "rekeying"
+	RootKeyStateDeprecated                = "deprecated"
+	RootKeyStatePrepublished              = "prepublished"
 )
 
 // List lists all the keyring metadata
@@ -78,6 +80,9 @@ func (k *Keyring) Rotate(opts *KeyringRotateOptions, w *WriteOptions) (*RootKeyM
 		if opts.Full {
 			qp.Set("full", "true")
 		}
+		if opts.PublishTime > 0 {
+			qp.Set("publish_time", fmt.Sprintf("%d", opts.PublishTime))
+		}
 	}
 	resp := &struct{ Key *RootKeyMeta }{}
 	wm, err := k.client.put("/v1/operator/keyring/rotate?"+qp.Encode(), nil, resp, w)
@@ -86,6 +91,7 @@ func (k *Keyring) Rotate(opts *KeyringRotateOptions, w *WriteOptions) (*RootKeyM
 
 // KeyringRotateOptions are parameters for the Rotate API
 type KeyringRotateOptions struct {
-	Full      bool
-	Algorithm EncryptionAlgorithm
+	Full        bool
+	Algorithm   EncryptionAlgorithm
+	PublishTime int64
 }
