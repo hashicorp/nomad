@@ -7340,10 +7340,10 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 		existing := raw.(*structs.RootKeyMeta)
 		rootKeyMeta.CreateIndex = existing.CreateIndex
 		rootKeyMeta.CreateTime = existing.CreateTime
-		isRotation = !existing.Active() && rootKeyMeta.Active()
+		isRotation = !existing.IsActive() && rootKeyMeta.IsActive()
 	} else {
 		rootKeyMeta.CreateIndex = index
-		isRotation = rootKeyMeta.Active()
+		isRotation = rootKeyMeta.IsActive()
 	}
 	rootKeyMeta.ModifyIndex = index
 
@@ -7369,14 +7369,14 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 			switch key.State {
 			case structs.RootKeyStateInactive:
 				if rekey {
-					key.SetRekeying()
+					key = key.MakeRekeying()
 					modified = true
 				}
 			case structs.RootKeyStateActive:
 				if rekey {
-					key.SetRekeying()
+					key = key.MakeRekeying()
 				} else {
-					key.SetInactive()
+					key = key.MakeInactive()
 				}
 				modified = true
 			case structs.RootKeyStateRekeying, structs.RootKeyStateDeprecated:
@@ -7475,7 +7475,7 @@ func (s *StateStore) GetActiveRootKeyMeta(ws memdb.WatchSet) (*structs.RootKeyMe
 			break
 		}
 		key := raw.(*structs.RootKeyMeta)
-		if key.Active() {
+		if key.IsActive() {
 			return key, nil
 		}
 	}

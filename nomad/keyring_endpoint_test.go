@@ -32,7 +32,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
 	require.NoError(t, err)
 	id := key.Meta.KeyID
-	key.Meta.SetActive()
+	key = key.MakeActive()
 
 	updateReq := &structs.KeyringUpdateRootKeyRequest{
 		RootKey:      key,
@@ -106,7 +106,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.EqualError(t, err, "active root key cannot be deleted - call rotate first")
 
 	// set inactive
-	updateReq.RootKey.Meta.SetInactive()
+	updateReq.RootKey.Meta = updateReq.RootKey.Meta.MakeInactive()
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	require.NoError(t, err)
 
@@ -142,7 +142,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 	key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
 	require.NoError(t, err)
 	id := key.Meta.KeyID
-	key.Meta.SetActive()
+	key = key.MakeActive()
 
 	updateReq := &structs.KeyringUpdateRootKeyRequest{
 		RootKey: key,
@@ -282,9 +282,9 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	for _, keyMeta := range listResp.Keys {
 		switch keyMeta.KeyID {
 		case key0.KeyID, key1.KeyID:
-			must.True(t, keyMeta.Inactive(), must.Sprint("older keys must be inactive"))
+			must.True(t, keyMeta.IsInactive(), must.Sprint("older keys must be inactive"))
 		case key2.KeyID:
-			must.True(t, keyMeta.Active(), must.Sprint("expected new key to be active"))
+			must.True(t, keyMeta.IsActive(), must.Sprint("expected new key to be active"))
 		}
 	}
 
@@ -324,11 +324,11 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	for _, keyMeta := range listResp.Keys {
 		switch keyMeta.KeyID {
 		case key0.KeyID, key1.KeyID:
-			must.True(t, keyMeta.Inactive(), must.Sprint("older keys must be inactive"))
+			must.True(t, keyMeta.IsInactive(), must.Sprint("older keys must be inactive"))
 		case key2.KeyID:
-			must.True(t, keyMeta.Active(), must.Sprint("expected active key to remain active"))
+			must.True(t, keyMeta.IsActive(), must.Sprint("expected active key to remain active"))
 		case key3.KeyID:
-			must.True(t, keyMeta.Prepublished(), must.Sprint("expected new key to be prepublished"))
+			must.True(t, keyMeta.IsPrepublished(), must.Sprint("expected new key to be prepublished"))
 		}
 	}
 }

@@ -2654,13 +2654,13 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		k := raw.(*structs.RootKeyMeta)
 		if k.KeyID == key0.KeyID {
-			must.True(t, k.Active(), must.Sprint("expected original key to be active"))
+			must.True(t, k.IsActive(), must.Sprint("expected original key to be active"))
 		} else {
 			key1 = k
 		}
 	}
 	must.NotNil(t, key1)
-	must.True(t, key1.Prepublished())
+	must.True(t, key1.IsPrepublished())
 	must.Eq(t, key0.CreateTime+time.Hour.Nanoseconds(), key1.PublishTime)
 
 	// Externally rotate with prepublish to add a second prepublished key
@@ -2681,9 +2681,9 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 		k := raw.(*structs.RootKeyMeta)
 		switch k.KeyID {
 		case key0.KeyID:
-			must.True(t, k.Active(), must.Sprint("original key should still be active"))
+			must.True(t, k.IsActive(), must.Sprint("original key should still be active"))
 		case key1.KeyID, key2.KeyID:
-			must.True(t, k.Prepublished(), must.Sprint("new key should be prepublished"))
+			must.True(t, k.IsPrepublished(), must.Sprint("new key should be prepublished"))
 		default:
 			t.Fatalf("should not have created any new keys: %#v", k)
 		}
@@ -2700,11 +2700,11 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 		k := raw.(*structs.RootKeyMeta)
 		switch k.KeyID {
 		case key0.KeyID:
-			must.True(t, k.Inactive(), must.Sprint("original key should be inactive"))
+			must.True(t, k.IsInactive(), must.Sprint("original key should be inactive"))
 		case key1.KeyID:
-			must.True(t, k.Active(), must.Sprint("prepublished key should now be active"))
+			must.True(t, k.IsActive(), must.Sprint("prepublished key should now be active"))
 		case key2.KeyID:
-			must.True(t, k.Prepublished(), must.Sprint("later prepublished key should still be prepublished"))
+			must.True(t, k.IsPrepublished(), must.Sprint("later prepublished key should still be prepublished"))
 		default:
 			t.Fatalf("should not have created any new keys: %#v", k)
 		}
@@ -2733,14 +2733,12 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	yesterday := now - (24 * time.Hour).Nanoseconds()
 
 	// insert an "old" inactive key
-	key1 := structs.NewRootKeyMeta()
-	key1.SetInactive()
+	key1 := structs.NewRootKeyMeta().MakeInactive()
 	key1.CreateTime = yesterday
 	must.NoError(t, store.UpsertRootKeyMeta(600, key1, false))
 
 	// insert an "old" and inactive key with a variable that's using it
-	key2 := structs.NewRootKeyMeta()
-	key2.SetInactive()
+	key2 := structs.NewRootKeyMeta().MakeInactive()
 	key2.CreateTime = yesterday
 	must.NoError(t, store.UpsertRootKeyMeta(700, key2, false))
 
@@ -2754,8 +2752,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	must.NoError(t, setResp.Error)
 
 	// insert an "old" key that's inactive but being used by an alloc
-	key3 := structs.NewRootKeyMeta()
-	key3.SetInactive()
+	key3 := structs.NewRootKeyMeta().MakeInactive()
 	key3.CreateTime = yesterday
 	must.NoError(t, store.UpsertRootKeyMeta(800, key3, false))
 
@@ -2767,8 +2764,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 		structs.MsgTypeTestSetup, 850, []*structs.Allocation{alloc}))
 
 	// insert an "old" key that's inactive but being used by an alloc
-	key4 := structs.NewRootKeyMeta()
-	key4.SetInactive()
+	key4 := structs.NewRootKeyMeta().MakeInactive()
 	key4.CreateTime = yesterday
 	must.NoError(t, store.UpsertRootKeyMeta(900, key4, false))
 
@@ -2781,14 +2777,12 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 		structs.MsgTypeTestSetup, 950, []*structs.Allocation{alloc2}))
 
 	// insert an inactive key older than RootKeyGCThreshold but not RootKeyRotationThreshold
-	key5 := structs.NewRootKeyMeta()
-	key5.SetInactive()
+	key5 := structs.NewRootKeyMeta().MakeInactive()
 	key5.CreateTime = now - (15 * time.Minute).Nanoseconds()
 	must.NoError(t, store.UpsertRootKeyMeta(1500, key5, false))
 
 	// prepublishing key should never be GC'd no matter how old
-	key6 := structs.NewRootKeyMeta()
-	key6.SetPrepublished(yesterday)
+	key6 := structs.NewRootKeyMeta().MakePrepublished(yesterday)
 	key6.CreateTime = yesterday
 	must.NoError(t, store.UpsertRootKeyMeta(1600, key6, false))
 
@@ -2890,7 +2884,7 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 			}
 
 			originalKey, _ := store.RootKeyMetaByID(nil, key0.KeyID)
-			return originalKey.Inactive()
+			return originalKey.IsInactive()
 		}),
 	), must.Sprint("variable rekey should be complete"))
 }

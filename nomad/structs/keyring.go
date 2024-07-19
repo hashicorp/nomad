@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
@@ -78,14 +79,30 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 }
 
 func (k *RootKey) Copy() *RootKey {
-	out := &RootKey{
+	return &RootKey{
 		Meta:   k.Meta.Copy(),
-		Key:    make([]byte, len(k.Key)),
-		RSAKey: make([]byte, len(k.RSAKey)),
+		Key:    slices.Clone(k.Key),
+		RSAKey: slices.Clone(k.RSAKey),
 	}
-	copy(out.Key, k.Key)
-	copy(out.RSAKey, k.RSAKey)
-	return out
+}
+
+// MakeInactive returns a copy of the RootKey with the meta state set to active
+func (k *RootKey) MakeActive() *RootKey {
+	return &RootKey{
+		Meta:   k.Meta.MakeActive(),
+		Key:    slices.Clone(k.Key),
+		RSAKey: slices.Clone(k.RSAKey),
+	}
+}
+
+// MakeInactive returns a copy of the RootKey with the meta state set to
+// inactive
+func (k *RootKey) MakeInactive() *RootKey {
+	return &RootKey{
+		Meta:   k.Meta.MakeInactive(),
+		Key:    slices.Clone(k.Key),
+		RSAKey: slices.Clone(k.RSAKey),
+	}
 }
 
 // RootKeyMeta is the metadata used to refer to a RootKey. It is
@@ -190,43 +207,66 @@ type RootKeyMetaStub struct {
 	State      RootKeyState
 }
 
-// Active indicates his key is the one currently being used for
-// crypto operations (at most one key can be Active)
-func (rkm *RootKeyMeta) Active() bool {
+// IsActive indicates this key is the one currently being used for crypto
+// operations (at most one key can be Active)
+func (rkm *RootKeyMeta) IsActive() bool {
 	return rkm.State == RootKeyStateActive
 }
 
-func (rkm *RootKeyMeta) SetActive() {
-	rkm.State = RootKeyStateActive
-	rkm.PublishTime = 0
+// MakeActive returns a copy of the RootKeyMeta with the state set to active
+func (rkm *RootKeyMeta) MakeActive() *RootKeyMeta {
+	out := rkm.Copy()
+	if out != nil {
+		out.State = RootKeyStateActive
+		out.PublishTime = 0
+	}
+	return out
 }
 
-// Rekeying indicates that variables encrypted with this key should be
+// IsRekeying indicates that variables encrypted with this key should be
 // rekeyed
-func (rkm *RootKeyMeta) Rekeying() bool {
+func (rkm *RootKeyMeta) IsRekeying() bool {
 	return rkm.State == RootKeyStateRekeying
 }
 
-func (rkm *RootKeyMeta) SetRekeying() {
-	rkm.State = RootKeyStateRekeying
+// MakeRekeying returns a copy of the RootKeyMeta with the state set to rekeying
+func (rkm *RootKeyMeta) MakeRekeying() *RootKeyMeta {
+	out := rkm.Copy()
+	if out != nil {
+		out.State = RootKeyStateRekeying
+	}
+	return out
 }
 
-func (rkm *RootKeyMeta) SetPrepublished(t int64) {
-	rkm.PublishTime = t
-	rkm.State = RootKeyStatePrepublished
+// MakePrepublished returns a copy of the RootKeyMeta with the state set to
+// prepublished at the time t
+func (rkm *RootKeyMeta) MakePrepublished(t int64) *RootKeyMeta {
+	out := rkm.Copy()
+	if out != nil {
+		out.PublishTime = t
+		out.State = RootKeyStatePrepublished
+	}
+	return out
 }
 
-func (rkm *RootKeyMeta) Prepublished() bool {
+// IsPrepublished indicates that this key has been published and is pending
+// being promoted to active
+func (rkm *RootKeyMeta) IsPrepublished() bool {
 	return rkm.State == RootKeyStatePrepublished
 }
 
-func (rkm *RootKeyMeta) SetInactive() {
-	rkm.State = RootKeyStateInactive
+// MakeInactive returns a copy of the RootKeyMeta with the state set to inactive
+func (rkm *RootKeyMeta) MakeInactive() *RootKeyMeta {
+	out := rkm.Copy()
+	if out != nil {
+		out.State = RootKeyStateInactive
+	}
+	return out
 }
 
-// Inactive indicates that this key is no longer being used to encrypt new
+// IsInactive indicates that this key is no longer being used to encrypt new
 // variables or workload identities.
-func (rkm *RootKeyMeta) Inactive() bool {
+func (rkm *RootKeyMeta) IsInactive() bool {
 	return rkm.State == RootKeyStateInactive || rkm.State == RootKeyStateDeprecated
 }
 

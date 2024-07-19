@@ -45,7 +45,7 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		must.NotEq(t, "", respW.HeaderMap.Get("X-Nomad-Index"))
 		rotateResp := obj.(structs.KeyringRotateRootKeyResponse)
 		must.NotNil(t, rotateResp.Key)
-		must.True(t, rotateResp.Key.Active())
+		must.True(t, rotateResp.Key.IsActive())
 		key1 := rotateResp.Key.KeyID
 
 		// Rotate with prepublish
@@ -59,7 +59,7 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		must.NotEq(t, "", respW.HeaderMap.Get("X-Nomad-Index"))
 		rotateResp = obj.(structs.KeyringRotateRootKeyResponse)
 		must.NotNil(t, rotateResp.Key)
-		must.True(t, rotateResp.Key.Prepublished())
+		must.True(t, rotateResp.Key.IsPrepublished())
 		key2 := rotateResp.Key.KeyID
 
 		// List
@@ -73,11 +73,11 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		for _, key := range listResp {
 			switch key.KeyID {
 			case key0:
-				must.True(t, key.Inactive(), must.Sprint("initial key should be inactive"))
+				must.True(t, key.IsInactive(), must.Sprint("initial key should be inactive"))
 			case key1:
-				must.True(t, key.Active(), must.Sprint("new key should be active"))
+				must.True(t, key.IsActive(), must.Sprint("new key should be active"))
 			case key2:
-				must.True(t, key.Prepublished(),
+				must.True(t, key.IsPrepublished(),
 					must.Sprint("prepublished key should not be active"))
 			}
 		}
@@ -100,9 +100,9 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 			case key0:
 				t.Fatalf("initial key should have been deleted")
 			case key1:
-				must.True(t, key.Active(), must.Sprint("new key should be active"))
+				must.True(t, key.IsActive(), must.Sprint("new key should be active"))
 			case key2:
-				must.True(t, key.Prepublished(),
+				must.True(t, key.IsPrepublished(),
 					must.Sprint("prepublished key should not be active"))
 			}
 		}

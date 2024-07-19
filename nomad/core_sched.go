@@ -932,7 +932,7 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 			break
 		}
 		keyMeta := raw.(*structs.RootKeyMeta)
-		if !keyMeta.Inactive() {
+		if !keyMeta.IsInactive() {
 			continue // never GC keys we're still using
 		}
 
@@ -1019,8 +1019,7 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (
 			c.logger.Error("prepublished key does not exist in keyring", "error", err)
 			return false, nil
 		}
-		rootKey = rootKey.Copy()
-		rootKey.Meta.SetActive()
+		rootKey = rootKey.MakeActive()
 
 		req := &structs.KeyringUpdateRootKeyRequest{
 			RootKey: rootKey,
@@ -1037,6 +1036,8 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (
 		}
 		return true, nil
 	}
+
+	// There's no prepublished key so prepublish one now
 
 	if activeKey == nil {
 		c.logger.Warn("keyring has no active key: rotate keyring to repair")
@@ -1093,7 +1094,7 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 			break
 		}
 		keyMeta := raw.(*structs.RootKeyMeta)
-		if !keyMeta.Rekeying() {
+		if !keyMeta.IsRekeying() {
 			continue
 		}
 		varIter, err := c.snap.GetVariablesByKeyID(ws, keyMeta.KeyID)
@@ -1109,8 +1110,7 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 		if err != nil {
 			return fmt.Errorf("rotated key does not exist in keyring: %w", err)
 		}
-		rootKey = rootKey.Copy()
-		rootKey.Meta.SetInactive()
+		rootKey = rootKey.MakeInactive()
 
 		req := &structs.KeyringUpdateRootKeyRequest{
 			RootKey: rootKey,

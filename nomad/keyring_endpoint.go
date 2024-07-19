@@ -60,9 +60,9 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 	}
 
 	if args.PublishTime != 0 {
-		rootKey.Meta.SetPrepublished(args.PublishTime)
+		rootKey.Meta = rootKey.Meta.MakePrepublished(args.PublishTime)
 	} else {
-		rootKey.Meta.SetActive()
+		rootKey.Meta = rootKey.Meta.MakeActive()
 	}
 
 	// make sure it's been added to the local keystore before we write
@@ -336,7 +336,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	if keyMeta == nil {
 		return nil // safe to bail out early
 	}
-	if keyMeta.Active() {
+	if keyMeta.IsActive() {
 		return fmt.Errorf("active root key cannot be deleted - call rotate first")
 	}
 
