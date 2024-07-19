@@ -13,7 +13,19 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
-## Nomad 1.8.2 (UNRELEASED)
+## Nomad 1.8.3 (UNRELEASED)
+
+#### Nomad keyring rotation
+
+In Nomad 1.8.3, the Nomad root keyring will prepublish keys at half the
+`root_key_rotation_threshold` and promote them to active once the
+`root_key_rotation_threshold` has passed. The `nomad operator root keyring
+rotate` command now requires one of two arguments: `-prepublish <duration>` to
+prepublish a key or `-now` to rotate immediately. We recommend using
+`-prepublish` to avoid outages from workload identities used to log into
+external services such as Vault or Consul.
+
+## Nomad 1.8.2
 
 #### New `windows_allow_insecure_container_admin` configuration option for Docker driver
 
