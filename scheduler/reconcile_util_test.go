@@ -137,8 +137,8 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		testJobNoMaxDisconnect       func() *structs.Job
 		testJobNoMaxDisconnectSingle func() *structs.Job
 	}{
-		// Test using max_client_disconnect, remove after its deprecated in favor
-		// of Disconnect.LostAfter introduced in 1.8.0.
+		// Test using max_client_disconnect, remove after its deprecated in
+		// favor of Disconnect.LostAfter introduced in 1.8.0.
 		{
 			name:                         "old_definitions_deprecated",
 			testJob:                      testJob_Deprecated,
@@ -148,10 +148,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		},
 		{
 			name:                         "new_definitions_using_disconnect_block",
-			testJob:                      testJob_Deprecated,
-			testJobSingle:                testJobSingle_Deprecated,
-			testJobNoMaxDisconnect:       testJobNoMaxDisconnect_Deprecated,
-			testJobNoMaxDisconnectSingle: testJobNoMaxDisconnectSingle_Deprecated,
+			testJob:                      testJob_Disconnected,
+			testJobSingle:                testJobSingle_Disconnected,
+			testJobNoMaxDisconnect:       testJobNoMaxDisconnect_Disconnected,
+			testJobNoMaxDisconnectSingle: testJobNoMaxDisconnectSingle_Disconnected,
 		},
 	}
 
