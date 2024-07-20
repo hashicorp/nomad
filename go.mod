@@ -18,7 +18,7 @@ require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/Microsoft/go-winio v0.6.1
-	github.com/absolutelightning/go-memdb v1.0.78
+	github.com/absolutelightning/go-memdb v1.0.79
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.5.3
 	github.com/aws/aws-sdk-go v1.44.210
@@ -171,7 +171,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.0 // indirect
 	github.com/VividCortex/ewma v1.1.1 // indirect
-	github.com/absolutelightning/go-immutable-radix v1.0.7 // indirect
+	github.com/absolutelightning/go-immutable-radix v1.0.8 // indirect
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-cidr v1.0.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
