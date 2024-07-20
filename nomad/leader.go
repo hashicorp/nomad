@@ -1337,7 +1337,7 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 			return
 		case <-timer.C:
 			timer.Reset(s.config.StatsCollectionInterval)
-			state, err := s.State().Snapshot(false)
+			state, err := s.State().Snapshot()
 			if err != nil {
 				s.logger.Error("failed to get state", "error", err)
 				continue
@@ -1438,7 +1438,7 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 			return
 		case <-timer.C:
 			timer.Reset(s.config.StatsCollectionInterval)
-			snap, err := s.State().Snapshot(false)
+			snap, err := s.State().Snapshot()
 			if err != nil {
 				s.logger.Error("failed to get state", "error", err)
 				continue

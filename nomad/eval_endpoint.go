@@ -202,7 +202,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 // evaluation for the job. This prevents scheduling races for the same job when
 // there are blocked evaluations.
 func (e *Eval) getWaitIndex(namespace, job string, evalModifyIndex uint64) (uint64, error) {
-	snap, err := e.srv.State().Snapshot(false)
+	snap, err := e.srv.State().Snapshot()
 	if err != nil {
 		return 0, err
 	}
@@ -341,7 +341,7 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	}
 
 	// Look for the eval
-	snap, err := e.srv.fsm.State().Snapshot(false)
+	snap, err := e.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -392,7 +392,7 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 	}
 
 	// Look for the eval
-	snap, err := e.srv.fsm.State().Snapshot(false)
+	snap, err := e.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -497,7 +497,7 @@ func (e *Eval) Delete(
 	}
 
 	// Grab the state snapshot, so we can look up relevant eval information.
-	serverStateSnapshot, err := e.srv.State().Snapshot(false)
+	serverStateSnapshot, err := e.srv.State().Snapshot()
 	if err != nil {
 		return fmt.Errorf("failed to lookup state snapshot: %v", err)
 	}
@@ -565,7 +565,7 @@ func (e *Eval) deleteEvalsByFilter(args *structs.EvalDeleteRequest) (int, uint64
 	// be missed. This imprecision is not considered to hurt this endpoint's
 	// purpose of reducing pressure on servers during periods of heavy scheduling
 	// activity.
-	snap, err := e.srv.State().Snapshot(false)
+	snap, err := e.srv.State().Snapshot()
 	if err != nil {
 		return count, index, fmt.Errorf("failed to lookup state snapshot: %v", err)
 	}

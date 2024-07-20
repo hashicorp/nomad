@@ -176,7 +176,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	// Look for the node so we can detect a state transition
-	snap, err := n.srv.fsm.State().Snapshot(false)
+	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	// Set the reply index
 	reply.Index = index
-	snap, err = n.srv.fsm.State().Snapshot(false)
+	snap, err = n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -438,7 +438,7 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 	raftApplyFn func() (interface{}, uint64, error),
 ) error {
 	// Look for the node
-	snap, err := n.srv.fsm.State().Snapshot(false)
+	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -569,7 +569,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	// Look for the node
-	snap, err := n.srv.fsm.State().Snapshot(false)
+	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -757,7 +757,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Raft. Record the identity string so it can be written to LastDrain
 	args.UpdatedBy = args.GetIdentity().String()
 
-	snap, err := n.srv.fsm.State().Snapshot(false)
+	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -864,7 +864,7 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	}
 
 	// Look for the node
-	snap, err := n.srv.fsm.State().Snapshot(false)
+	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -957,7 +957,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	}
 
 	// Look for the node
-	snap, err := n.srv.fsm.State().Snapshot(false)
+	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1649,7 +1649,7 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 	nodeID := node.ID
 
 	// Snapshot the state
-	snap, err := n.srv.fsm.State().Snapshot(false)
+	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to snapshot state: %v", err)
 	}
@@ -1806,7 +1806,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 	// * The Allocation exists on the specified Node
 	// * The Allocation contains the given tasks and they each require Vault
 	//   tokens
-	snap, err := n.srv.fsm.State().Snapshot(false)
+	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		setError(err, false)
 		return nil
@@ -2033,7 +2033,7 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	// * The Allocation contains the given tasks, and each task requires a
 	//   SI token.
 
-	snap, err := n.srv.fsm.State().Snapshot(false)
+	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		setError(err, false)
 		return nil

@@ -85,7 +85,7 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 
 // RunningChildren checks whether the passed job has any running children.
 func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
-	snap, err := s.fsm.State().Snapshot(false)
+	snap, err := s.fsm.State().Snapshot()
 	if err != nil {
 		return false, err
 	}

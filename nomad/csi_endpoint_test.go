@@ -712,7 +712,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req,
 				&structs.CSIVolumeUnpublishResponse{})
 
-			snap, snapErr := state.Snapshot(false)
+			snap, snapErr := state.Snapshot()
 			must.NoError(t, snapErr)
 
 			vol, volErr := snap.CSIVolumeByID(nil, ns, volID)

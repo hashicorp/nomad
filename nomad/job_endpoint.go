@@ -206,7 +206,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Lookup the job
-	snap, err := j.srv.State().Snapshot(false)
+	snap, err := j.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -627,7 +627,7 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	}
 
 	// Lookup the job by version
-	snap, err := j.srv.fsm.State().Snapshot(false)
+	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -700,7 +700,7 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 	}
 
 	// Lookup the job by version
-	snap, err := j.srv.fsm.State().Snapshot(false)
+	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -751,7 +751,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	}
 
 	// Lookup the job
-	snap, err := j.srv.fsm.State().Snapshot(false)
+	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -852,7 +852,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	}
 
 	// Lookup the job
-	snap, err := j.srv.fsm.State().Snapshot(false)
+	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1006,7 +1006,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 
 	// Find job
-	snap, err := j.srv.fsm.State().Snapshot(false)
+	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1792,7 +1792,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Acquire a snapshot of the state
-	snap, err := j.srv.fsm.State().Snapshot(false)
+	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -2000,7 +2000,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return fmt.Errorf("missing parameterized job ID")
 	}
 
-	snap, err := j.srv.fsm.State().Snapshot(false)
+	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}

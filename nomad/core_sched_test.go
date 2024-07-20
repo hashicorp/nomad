@@ -85,7 +85,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
@@ -188,7 +188,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -519,7 +519,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	}
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
@@ -677,7 +677,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -775,7 +775,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 			}
 
 			// Create a core scheduler
-			snap, err := store.Snapshot(false)
+			snap, err := store.Snapshot()
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
@@ -840,7 +840,7 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 			tt.Witness(2000, time.Now().UTC().Add(-1*server.config.NodeGCThreshold))
 
 			// Create a core scheduler
-			snap, err := store.Snapshot(false)
+			snap, err := store.Snapshot()
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
@@ -898,7 +898,7 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.NodeGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -956,7 +956,7 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.NodeGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1000,7 +1000,7 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	}
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1062,7 +1062,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1109,7 +1109,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	}
 
 	// Create a core scheduler
-	snap, err = store.Snapshot(false)
+	snap, err = store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1206,7 +1206,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1253,7 +1253,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	}
 
 	// Create a core scheduler
-	snap, err = store.Snapshot(false)
+	snap, err = store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1351,7 +1351,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1460,7 +1460,7 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1545,7 +1545,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 			}
 
 			// Create a core scheduler
-			snap, err := store.Snapshot(false)
+			snap, err := store.Snapshot()
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
@@ -1604,7 +1604,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	}
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1636,7 +1636,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	}
 
 	// Create a core scheduler
-	snap, err = store.Snapshot(false)
+	snap, err = store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1679,7 +1679,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	}
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1711,7 +1711,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	}
 
 	// Create a core scheduler
-	snap, err = store.Snapshot(false)
+	snap, err = store.Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1773,7 +1773,7 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 
 		// Trigger a run of the job GC using the forced GC max index value to
 		// ensure all objects that can be GC'd are.
-		stateSnapshot, err := testServer.fsm.State().Snapshot(false)
+		stateSnapshot, err := testServer.fsm.State().Snapshot()
 		must.NoError(t, err)
 		coreScheduler := NewCoreScheduler(testServer, stateSnapshot)
 
@@ -1803,7 +1803,7 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 
 		// Force another GC, again the objects should exist in state, particularly
 		// the job as it has non-terminal allocs.
-		stateSnapshot, err = testServer.fsm.State().Snapshot(false)
+		stateSnapshot, err = testServer.fsm.State().Snapshot()
 		must.NoError(t, err)
 		coreScheduler = NewCoreScheduler(testServer, stateSnapshot)
 
@@ -1835,7 +1835,7 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 
 		// Force another GC. This time all objects are in a terminal state, so
 		// should be removed.
-		stateSnapshot, err = testServer.fsm.State().Snapshot(false)
+		stateSnapshot, err = testServer.fsm.State().Snapshot()
 		must.NoError(t, err)
 		coreScheduler = NewCoreScheduler(testServer, stateSnapshot)
 
@@ -1890,7 +1890,7 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.DeploymentGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	assert.Nil(err, "Snapshot")
 	core := NewCoreScheduler(s1, snap)
 
@@ -1937,7 +1937,7 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 			assert.Nil(store.UpsertDeployment(1001, d2), "UpsertDeployment")
 
 			// Create a core scheduler
-			snap, err := store.Snapshot(false)
+			snap, err := store.Snapshot()
 			assert.Nil(err, "Snapshot")
 			core := NewCoreScheduler(server, snap)
 
@@ -1968,7 +1968,7 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Create a core scheduler
-	snap, err := s1.fsm.State().Snapshot(false)
+	snap, err := s1.fsm.State().Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2010,7 +2010,7 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Create a core scheduler
-	snap, err := s1.fsm.State().Snapshot(false)
+	snap, err := s1.fsm.State().Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2042,7 +2042,7 @@ func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create a core scheduler
-	snap, err := s1.fsm.State().Snapshot(false)
+	snap, err := s1.fsm.State().Snapshot()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2347,7 +2347,7 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	tt.Witness(index, time.Now().UTC().Add(-1*srv.config.CSIPluginGCThreshold))
 
 	// Create a core scheduler
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	must.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 
@@ -2549,7 +2549,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a core scheduler and attempt the volume claim GC
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	require.NoError(t, err)
 
 	core := NewCoreScheduler(srv, snap)
@@ -2588,7 +2588,7 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 	err := state.TestBadCSIState(t, srv.State())
 	must.NoError(t, err)
 
-	snap, err := srv.State().Snapshot(false)
+	snap, err := srv.State().Snapshot()
 	must.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 
@@ -2680,7 +2680,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	require.NoError(t, store.UpsertRootKeyMeta(1500, key5, false))
 
 	// run the core job
-	snap, err := store.Snapshot(false)
+	snap, err := store.Snapshot()
 	require.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 	eval := srv.coreJobEval(structs.CoreJobRootKeyRotateOrGC, 2000)
@@ -2880,7 +2880,7 @@ func TestCoreScheduler_ExpiredACLTokenGC(t *testing.T) {
 	testServer.fsm.timetable = tt
 
 	// Generate the core scheduler.
-	snap, err := testServer.State().Snapshot(false)
+	snap, err := testServer.State().Snapshot()
 	require.NoError(t, err)
 	coreScheduler := NewCoreScheduler(testServer, snap)
 
@@ -2982,7 +2982,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 
 	// Generate the core scheduler and trigger a forced garbage collection
 	// which should delete all expired tokens.
-	snap, err := testServer.State().Snapshot(false)
+	snap, err := testServer.State().Snapshot()
 	require.NoError(t, err)
 	coreScheduler := NewCoreScheduler(testServer, snap)
 

@@ -127,7 +127,7 @@ type streamACLDelegate struct {
 }
 
 func (a *streamACLDelegate) TokenProvider() stream.ACLTokenProvider {
-	resolver, _ := a.s.Snapshot(false)
+	resolver, _ := a.s.Snapshot()
 	return resolver
 }
 
@@ -221,8 +221,8 @@ func (s *StateStore) Config() *StateStoreConfig {
 // Snapshot is used to create a point in time snapshot. Because
 // we use MemDB, we just need to snapshot the state of the underlying
 // database.
-func (s *StateStore) Snapshot(write bool) (*StateSnapshot, error) {
-	memDBSnap := s.db.memdb.Snapshot(write)
+func (s *StateStore) Snapshot() (*StateSnapshot, error) {
+	memDBSnap := s.db.memdb.Snapshot()
 
 	store := StateStore{
 		logger: s.logger,
@@ -269,7 +269,7 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 
 		// We only need the FSM state to be as recent as the given index
 		if snapshotIndex >= index {
-			return s.Snapshot(false)
+			return s.Snapshot()
 		}
 
 		// Exponential back off
@@ -335,7 +335,7 @@ RUN_QUERY:
 	// the blocking query function. We operate on the snapshot to allow separate
 	// calls to the state store not all wrapped within the same transaction.
 	abandonCh := s.AbandonCh()
-	snap, _ := s.Snapshot(false)
+	snap, _ := s.Snapshot()
 	stateSnap := &snap.StateStore
 
 	// We can skip all watch tracking if this isn't a blocking query.
@@ -367,7 +367,7 @@ RUN_QUERY:
 
 // UpsertPlanResults is used to upsert the results of a plan.
 func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64, results *structs.ApplyPlanResultsRequest) error {
-	snapshot, err := s.Snapshot(false)
+	snapshot, err := s.Snapshot()
 	if err != nil {
 		return err
 	}

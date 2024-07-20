@@ -183,7 +183,7 @@ func (w *drainingJobWatcher) watch() {
 		waitIndex = index
 
 		// Snapshot the state store
-		snap, err := w.state.Snapshot(false)
+		snap, err := w.state.Snapshot()
 		if err != nil {
 			w.logger.Warn("failed to snapshot statestore", "error", err)
 			continue

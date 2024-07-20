@@ -434,7 +434,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	eval := mock.Eval()
 	eval.Type = "noop"
 
-	snap, err := s1.fsm.state.Snapshot(false)
+	snap, err := s1.fsm.state.Snapshot()
 	require.NoError(t, err)
 
 	err = w.invokeScheduler(snap, eval, uuid.Generate())

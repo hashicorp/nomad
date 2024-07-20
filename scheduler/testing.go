@@ -268,7 +268,7 @@ func (h *Harness) NextIndex() uint64 {
 
 // Snapshot is used to snapshot the current state
 func (h *Harness) Snapshot() State {
-	snap, _ := h.State.Snapshot(false)
+	snap, _ := h.State.Snapshot()
 	return snap
 }
 

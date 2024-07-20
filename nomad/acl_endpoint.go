@@ -348,7 +348,7 @@ func (a *ACL) requestACLToken(secretID string) (*structs.ACLToken, error) {
 		return structs.AnonymousACLToken, nil
 	}
 
-	snap, err := a.srv.fsm.State().Snapshot(false)
+	snap, err := a.srv.fsm.State().Snapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +493,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	args.ResetIndex = 0
 
 	// Snapshot the state
-	state, err := a.srv.State().Snapshot(false)
+	state, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -546,7 +546,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 
 	// Populate the response. We do a lookup against the state to
 	// pickup the proper create / modify times.
-	state, err = a.srv.State().Snapshot(false)
+	state, err = a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -641,7 +641,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	// Snapshot the state so we can perform lookups against the accessor ID if
 	// needed. Do it here, so we only need to do this once no matter how many
 	// tokens we are upserting.
-	stateSnapshot, err := a.srv.State().Snapshot(false)
+	stateSnapshot, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -747,7 +747,7 @@ func (a *ACL) upsertTokens(
 
 	// Populate the response. We do a lookup against the state to pick up the
 	// proper create / modify times.
-	stateSnapshot, err = a.srv.State().Snapshot(false)
+	stateSnapshot, err = a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -793,7 +793,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	}
 
 	// Snapshot the state
-	state, err := a.srv.State().Snapshot(false)
+	state, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1075,7 +1075,7 @@ func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.
 	a.srv.setQueryMeta(&reply.QueryMeta)
 
 	// Snapshot the state
-	state, err := a.srv.State().Snapshot(false)
+	state, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1117,7 +1117,7 @@ func (a *ACL) UpsertOneTimeToken(args *structs.OneTimeTokenUpsertRequest, reply 
 	}
 
 	// Snapshot the state
-	state, err := a.srv.State().Snapshot(false)
+	state, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1169,7 +1169,7 @@ func (a *ACL) ExchangeOneTimeToken(args *structs.OneTimeTokenExchangeRequest, re
 	}
 
 	// Snapshot the state
-	state, err := a.srv.State().Snapshot(false)
+	state, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1291,7 +1291,7 @@ func (a *ACL) UpsertRoles(
 	// Snapshot the state so we can perform lookups against the ID and policy
 	// links if needed. Do it here, so we only need to do this once no matter
 	// how many roles we are upserting.
-	stateSnapshot, err := a.srv.State().Snapshot(false)
+	stateSnapshot, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1374,7 +1374,7 @@ func (a *ACL) UpsertRoles(
 
 	// Populate the response. We do a lookup against the state to pick up the
 	// proper create / modify times.
-	stateSnapshot, err = a.srv.State().Snapshot(false)
+	stateSnapshot, err = a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1796,7 +1796,7 @@ func (a *ACL) policyNamesFromRoleLinks(roleLinks []*structs.ACLTokenRoleLink) (*
 		return policyNameSet, nil
 	}
 
-	stateSnapshot, err := a.srv.State().Snapshot(false)
+	stateSnapshot, err := a.srv.State().Snapshot()
 	if err != nil {
 		return policyNameSet, err
 	}
@@ -1879,7 +1879,7 @@ func (a *ACL) UpsertAuthMethods(
 	}
 
 	// Snapshot the state so we can make lookups to verify default method
-	stateSnapshot, err := a.srv.State().Snapshot(false)
+	stateSnapshot, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -1921,7 +1921,7 @@ func (a *ACL) UpsertAuthMethods(
 
 	// Populate the response. We do a lookup against the state to pick up the
 	// proper create / modify times.
-	stateSnapshot, err = a.srv.State().Snapshot(false)
+	stateSnapshot, err = a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -2236,7 +2236,7 @@ func (a *ACL) UpsertBindingRules(
 		return structs.NewErrRPCCoded(http.StatusBadRequest, "must specify as least one binding rule")
 	}
 
-	stateSnapshot, err := a.srv.State().Snapshot(false)
+	stateSnapshot, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -2299,7 +2299,7 @@ func (a *ACL) UpsertBindingRules(
 
 	// Populate the response. We do a lookup against the state to pick up the
 	// proper create / modify indexes.
-	stateSnapshot, err = a.srv.State().Snapshot(false)
+	stateSnapshot, err = a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -2575,7 +2575,7 @@ func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.AC
 	}
 
 	// Grab a snapshot of the state, so we can query it safely.
-	stateSnapshot, err := a.srv.fsm.State().Snapshot(false)
+	stateSnapshot, err := a.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -2674,7 +2674,7 @@ func (a *ACL) OIDCCompleteAuth(
 	}
 
 	// Grab a snapshot of the state, so we can query it safely.
-	stateSnapshot, err := a.srv.fsm.State().Snapshot(false)
+	stateSnapshot, err := a.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -2853,7 +2853,7 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	}
 
 	// Grab a snapshot of the state, so we can query it safely.
-	stateSnapshot, err := a.srv.fsm.State().Snapshot(false)
+	stateSnapshot, err := a.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}

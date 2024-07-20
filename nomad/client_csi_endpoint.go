@@ -257,7 +257,7 @@ func (a *ClientCSI) sendCSINodeRPC(nodeID, method, fwdMethod, op string, args an
 	}
 
 	// Make sure Node is valid and new enough to support RPC
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -284,7 +284,7 @@ func (a *ClientCSI) sendCSINodeRPC(nodeID, method, fwdMethod, op string, args an
 // controller plugin is expected to be running.
 func (a *ClientCSI) clientIDsForController(pluginID string) ([]string, error) {
 
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return nil, err
 	}

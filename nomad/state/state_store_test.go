@@ -10864,7 +10864,7 @@ func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testi
 		},
 	}
 
-	snap, err := state.Snapshot(false)
+	snap, err := state.Snapshot()
 	require.NoError(err)
 
 	denormalizedAllocs, err := snap.DenormalizeAllocationDiffSlice(allocDiffs)

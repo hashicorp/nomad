@@ -411,7 +411,7 @@ func IdentityToACLClaim(ai *structs.AuthenticatedIdentity, store *state.StateSto
 // by Variables endpoints, which have additional implicit policies for their
 // claims so we can't wrap them up in ResolveACL.
 func (s *Authenticator) resolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL, error) {
-	snap, err := s.getState().Snapshot(false)
+	snap, err := s.getState().Snapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +438,7 @@ func (s *Authenticator) ResolveToken(secretID string) (*acl.ACL, error) {
 	}
 
 	// Snapshot the state
-	snap, err := s.getState().Snapshot(false)
+	snap, err := s.getState().Snapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -456,7 +456,7 @@ func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, erro
 	if err != nil {
 		return nil, err
 	}
-	snap, err := s.getState().Snapshot(false)
+	snap, err := s.getState().Snapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +606,7 @@ func (s *Authenticator) resolveSecretToken(secretID string) (*structs.ACLToken, 
 		return nil, structs.ErrTokenInvalid
 	}
 
-	snap, err := s.getState().Snapshot(false)
+	snap, err := s.getState().Snapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -628,7 +628,7 @@ func (s *Authenticator) resolveSecretToken(secretID string) (*structs.ACLToken, 
 
 func (s *Authenticator) ResolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*structs.ACLPolicy, error) {
 
-	snap, err := s.getState().Snapshot(false)
+	snap, err := s.getState().Snapshot()
 	if err != nil {
 		return nil, err
 	}

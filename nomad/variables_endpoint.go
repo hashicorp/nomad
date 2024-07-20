@@ -635,7 +635,7 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 	}
 
 	// Get the variable from the SS to verify it exists and is currently lock
-	stateSnapshot, err := sv.srv.State().Snapshot(false)
+	stateSnapshot, err := sv.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}

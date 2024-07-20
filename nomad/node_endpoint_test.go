@@ -5027,7 +5027,7 @@ func TestNode_constructNodeServerInfoResponse_MissingNode(t *testing.T) {
 	var reply structs.NodeUpdateResponse
 
 	nE := NewNodeEndpoint(s, nil)
-	snap, err := s.State().Snapshot(false)
+	snap, err := s.State().Snapshot()
 	must.NoError(t, err)
 
 	// call constructNodeServerInfoResponse. Before GH #17316 this would panic

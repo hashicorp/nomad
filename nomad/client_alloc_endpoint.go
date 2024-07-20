@@ -68,7 +68,7 @@ func (a *ClientAllocations) GarbageCollectAll(args *structs.NodeSpecificRequest,
 	}
 
 	// Make sure Node is valid and new enough to support RPC
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (a *ClientAllocations) Signal(args *structs.AllocSignalRequest, reply *stru
 	}
 
 	// Find the allocation
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (a *ClientAllocations) SetPauseState(args *structs.AllocPauseRequest, reply
 	}
 
 	// Find the allocation.
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (a *ClientAllocations) GetPauseState(args *structs.AllocGetPauseStateReques
 	}
 
 	// Find the allocation.
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -277,7 +277,7 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 	}
 
 	// Find the allocation
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -330,7 +330,7 @@ func (a *ClientAllocations) Restart(args *structs.AllocRestartRequest, reply *st
 	defer metrics.MeasureSince([]string{"nomad", "client_allocations", "restart"}, time.Now())
 
 	// Find the allocation
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -383,7 +383,7 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 	defer metrics.MeasureSince([]string{"nomad", "client_allocations", "stats"}, time.Now())
 
 	// Find the allocation
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -441,7 +441,7 @@ func (a *ClientAllocations) Checks(args *cstructs.AllocChecksRequest, reply *cst
 
 	// Grab the state snapshot, as we need this to perform lookups for a number
 	// of objects, all things being well.
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -511,7 +511,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	}
 
 	// Retrieve the allocation
-	snap, err := a.srv.State().Snapshot(false)
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
