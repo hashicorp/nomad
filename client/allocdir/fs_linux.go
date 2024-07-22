@@ -78,6 +78,13 @@ func createSecretDir(dir string) error {
 		flags := uintptr(syscall.MS_NOEXEC)
 		options := fmt.Sprintf("size=%dm", secretDirTmpfsSize)
 		if err := syscall.Mount("tmpfs", dir, "tmpfs", flags, options); err != nil {
+			if err == syscall.EPERM {
+				// If we don't have permission to mount tmpfs as root,
+				// just settle for MkdirAll() and continue.
+				// This might be blocked if it in undesirable to create
+				// a mount point in a separate namespace to dockerd
+				return nil
+			}
 			return os.NewSyscallError("mount", err)
 		}
 
