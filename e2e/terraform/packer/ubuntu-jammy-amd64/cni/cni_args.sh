@@ -48,7 +48,7 @@ cat <<EOF
         {
           "address": "10.1.0.5/16",
           "gateway": "10.1.0.1",
-          "interface": 1
+          "interface": 0
         }
     ],
     "routes": [
