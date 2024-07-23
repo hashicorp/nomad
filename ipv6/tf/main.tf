@@ -2,8 +2,8 @@ variable "name" {
   default = "ipv6-testing"
 }
 
-variable "pubkey" {
-  default = "~/.ssh/linux-server.pub"
+variable "instances" {
+  default = 1
 }
 
 provider "aws" {
@@ -15,9 +15,11 @@ provider "aws" {
   }
 }
 
-resource "aws_key_pair" "linux" {
-  key_name   = "linux"
-  public_key = file(pathexpand(var.pubkey))
+module "keys" {
+  name    = var.name
+  path    = "${path.root}/keys"
+  source  = "mitchellh/dynamic-keys/aws"
+  version = "v2.0.0"
 }
 
 # fedora doesn't ipv6 by default
@@ -38,11 +40,13 @@ resource "aws_key_pair" "linux" {
 #}
 
 resource "aws_instance" "mine" {
+  count = var.instances
+
   #ami = data.aws_ami.fedora.id
   ami = "ami-0649bea3443ede307" # amazon linux
 
   instance_type = "t3.medium"
-  key_name      = aws_key_pair.linux.key_name
+  key_name      = module.keys.key_name
 
   associate_public_ip_address = true
 
@@ -52,4 +56,56 @@ resource "aws_instance" "mine" {
   ipv6_address_count = 1
 
   depends_on = [aws_internet_gateway.mine]
+
+  # TODO: packer?
+  # https://cloudinit.readthedocs.io/en/latest/reference/examples.html
+  user_data = <<-EOF
+    #cloud-config
+
+    packages:
+     - docker
+
+    runcmd:
+     - systemctl enable docker
+     - systemctl start docker
+     - mkdir -p /opt/cni/bin /opt/cni/config
+     - curl -Lo /opt/cni/bin/cni.tgz https://github.com/containernetworking/plugins/releases/download/v1.5.1/cni-plugins-linux-amd64-v1.5.1.tgz
+     - sh -c 'cd /opt/cni/bin/ && tar xzf cni.tgz && rm cni.tgz'
+     - systemctl enable nomad
+     - systemctl start nomad
+
+    write_files:
+     - encoding: b64
+       content: ${base64encode(local.agent_config)}
+       path: /opt/nomad/agent.hcl
+       owner: root
+       permissions: '0644'
+     - encoding: b64
+       content: ${base64encode(local.systemd_unit)}
+       path: /usr/lib/systemd/system/nomad.service
+       owner: root
+       permissions: '0644'
+    EOF
 }
+
+locals {
+  agent_config = templatefile("${path.module}/agent.tmpl.hcl",
+    {
+      count = var.instances,
+      name  = var.name,
+    }
+  )
+  systemd_unit = file("${path.module}/nomad.service")
+}
+
+# ansible inventory
+#resource "local_file" "inventory" {
+#  filename = "${path.module}/inventory"
+#  content  = <<-EOF
+#    all:
+#      hosts:
+#    %{for ip in aws_instance.mine.*.public_ip~}
+#        ssh -i keys/${local.random_name}.pem ubuntu@${ip}
+#    %{endfor~}
+#    EOF
+#}
