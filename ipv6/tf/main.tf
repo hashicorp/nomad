@@ -3,7 +3,11 @@ variable "name" {
 }
 
 variable "instances" {
-  default = 1
+  default = 3
+}
+
+variable "nomad_path" {
+  default = "../../pkg/linux_amd64/nomad"
 }
 
 provider "aws" {
@@ -68,11 +72,10 @@ resource "aws_instance" "mine" {
     runcmd:
      - systemctl enable docker
      - systemctl start docker
+     - systemctl enable nomad
      - mkdir -p /opt/cni/bin /opt/cni/config
      - curl -Lo /opt/cni/bin/cni.tgz https://github.com/containernetworking/plugins/releases/download/v1.5.1/cni-plugins-linux-amd64-v1.5.1.tgz
      - sh -c 'cd /opt/cni/bin/ && tar xzf cni.tgz && rm cni.tgz'
-     - systemctl enable nomad
-     - systemctl start nomad
 
     write_files:
      - encoding: b64
@@ -96,6 +99,43 @@ locals {
     }
   )
   systemd_unit = file("${path.module}/nomad.service")
+
+  server_addrs = flatten(resource.aws_instance.mine.*.ipv6_addresses)
+  encoded_addrs = jsonencode([
+    for a in local.server_addrs : "[${a}]"
+  ])
+}
+
+resource "null_resource" "files" {
+  count = var.instances
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    port        = 22
+    host        = local.server_addrs[count.index]
+    private_key = module.keys.private_key_pem
+    agent       = false # to avoid my SSH_ env vars
+    timeout     = "5m"
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "set -xe",
+      "mkdir -p ~/bin/",
+      "echo 'export PATH=$PATH:/home/ec2-user/bin' | sudo tee /etc/profile.d/nomad.sh",
+      "sudo sed -i 's/::SERVER_IPS::/${local.encoded_addrs}/' /opt/nomad/agent.hcl",
+    ]
+  }
+  provisioner "file" {
+    source      = var.nomad_path
+    destination = "/home/ec2-user/bin/nomad"
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "set -xe",
+      "chmod +x ~/bin/nomad",
+      "sudo systemctl start nomad",
+    ]
+  }
 }
 
 # ansible inventory

@@ -4,13 +4,17 @@ data_dir = "/opt/nomad/data"
 server {
   enabled          = true
   bootstrap_expect = ${count}
-  #server_join {
-  #  retry_join = []
-  #}
+  server_join {
+    # NOTE: these can be ipv6 with or without []
+    retry_join = ::SERVER_IPS::
+  }
 }
 
 client {
   enabled = true
+
+  # NOTE: ipv6 here needs [] around each addr.
+  servers = ::SERVER_IPS::
 
   #preferred_address_family = "ipv6"
 }

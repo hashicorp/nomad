@@ -23,9 +23,15 @@ output "ssh_config" {
 Host aws-${i1 + i2}
     Hostname ${ip}
     User ec2-user
-    IdentityFile ${module.keys.private_key_filepath}
+    IdentityFile ${abspath(module.keys.private_key_filepath)}
 %{endfor~}
 %{endfor~}
+EOF
+}
+
+output "env" {
+  value = <<EOF
+export NOMAD_ADDR=http://[${local.server_addrs[0]}]:4646
 EOF
 }
 
