@@ -23,10 +23,10 @@ and use, and how Nomad differs from other tools in this aspect.
 
 ## Allocation networking
 
-The base unit of scheduling in Nomad is an [allocation][], which means that all
+The base unit of scheduling in Nomad is an [allocation](/nomad/docs/concepts/architecture#allocation), which means that all
 tasks in the same allocation run in the same client and share common resources,
 such as disk and networking. Allocations can request access to network
-resources, such as ports, using the [`network`][jobspec_network] block. At its
+resources, such as ports, using the [`network`](/nomad/docs/job-specification/network) block. At its
 simplest configuration, a `network` block can be defined as:
 
 ```hcl
@@ -41,20 +41,19 @@ job "..." {
 }
 ```
 
-Nomad reserves a random port in the client between [`min_dynamic_port`][] and
-[`max_dynamic_port`][] that has not been allocated yet and creates a port
+Nomad reserves a random port in the client between [`min_dynamic_port`](/nomad/docs/configuration/client#min_dynamic_port) and [`max_dynamic_port`](/nomad/docs/configuration/client#max_dynamic_port) that has not been allocated yet and creates a port 
 mapping from the host network interface to the allocation.
 
-<!-- Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link -->
+[comment-image-source]:  https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link
+
 [![Nomad Port Mapping](/img/networking/port_mapping.png)](/img/networking/port_mapping.png)
 
 The selected port number can be accessed by tasks using the
-[`NOMAD_PORT_<label>`][runtime_environment] environment variable to bind and
+[`NOMAD_PORT_<label>`](/nomad/docs/runtime/environment#network-related-variables) environment variable to bind and
 expose the workload at the client's IP address and the given port.
 
 The specific configuration process depends on what you are running, but it is
-usually done using a configuration file rendered from a [`template`][] or
-passed directly via command line arguments:
+usually done using a configuration file rendered from a [`template`](/nomad/docs/job-specification/template#template-examples) or passed directly via command line arguments:
 
 ```hcl
 job "..." {
@@ -77,13 +76,12 @@ job "..." {
 ```
 
 It is also possible to request a specific port number, instead of a random one,
-by setting a [`static`][] value for the `port`. **This should only be used by
-specialized workloads**, such as load balancers and system jobs, since it can
+by setting a [`static`](/nomad/docs/job-specification/network#static) value for the `port`. **This should only be used by specialized workloads**, such as load balancers and system jobs, since it can
 be hard to manage them manually to avoid scheduling collisions.
 
 With the task listening at one of the client's ports, other processes can
 access it directly using the client's IP and port, but first they need to find
-these values. This process is called [service discovery][].
+these values. This process is called [service discovery](/nomad/docs/networking/service-discovery).
 
 When using IP and port to connect allocations it is important to make sure your
 network topology and routing configuration allow the Nomad clients to
@@ -91,17 +89,17 @@ communicate with each other.
 
 ## Bridge networking
 
-Linux clients support a network [`mode`][network_mode] called [`bridge`][]. A
+Linux clients support a network [`mode`](/nomad/docs/job-specification/network#mode) called [`bridge`](/nomad/docs/job-specification/network#bridge). A
 bridge network acts like a virtual network switch allowing processes connected
 to the bridge to reach each other while isolating them from others.
 
 When an allocation uses bridge networking, the Nomad agent creates a bridge
-called `nomad` (or the value set in [`bridge_network_name`][]) using the
-[`bridge` CNI plugin][cni_bridge] if one doesn't exist yet. Before using this
-mode you must first [install the CNI plugins][cni_install] into your clients.
+called `nomad` (or the value set in [`bridge_network_name`](/nomad/docs/configuration/client#bridge_network_name)) using the
+[`bridge` CNI plugin]( https://www.cni.dev/plugins/current/main/bridge/) if one doesn't exist yet. Before using this mode you must first [install the CNI plugins](/nomad/docs/install#post-installation-steps) into your clients.
 By default a single bridge is created in each Nomad client.
 
-<!-- Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link -->
+[comment-image-source]: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link
+
 [![Nomad Bridge](/img/networking/bridge.png)](/img/networking/bridge.png)
 
 Allocations that use the `bridge` network mode run in an isolated network
@@ -145,25 +143,20 @@ bridge. This results in three different network access scopes:
    network mode make sure to bind your workloads to the loopback interface
    only.
 
-Bridge networking is at the core of [service mesh][] and a requirement when
-using [Consul Service Mesh][consul_service_mesh].
+Bridge networking is at the core of [service mesh](/nomad/docs/networking/service-mesh) and a requirement when using [Consul Service Mesh](/nomad/docs/integrations/consul-connect).
 
 ### Bridge networking with Docker
 
 The Docker daemon manages its own network configuration and creates its own
-[bridge network][docker_bridge], network namespaces, and [`iptable`
-rules][docker_iptables]. Tasks using the `docker` task driver connect to the
-Docker bridge instead of using the one created by Nomad and, by default, each
+[bridge network](https://docs.docker.com/network/bridge/), network namespaces, and [`iptable`
+rules](https://docs.docker.com/network/iptables/). Tasks using the `docker` task driver connect to the Docker bridge instead of using the one created by Nomad and, by default, each
 container runs in its own Docker managed network namespace.
 
 When using `bridge` network mode, Nomad creates a placeholder container using
-the image defined in [`infra_image`][] to initialize a Docker network namespace
-that is shared by all tasks in the allocation to allow them to communicate with
+the image defined in [`infra_image`](/nomad/docs/drivers/docker#infra_image) to initialize a Docker network namespace that is shared by all tasks in the allocation to allow them to communicate with
 each other.
 
-The Docker task driver has its own task-level
-[`network_mode`][docker_network_mode] configuration. Its default value depends
-on the group-level [`network.mode`][network_mode] configuration.
+The Docker task driver has its own task-level [`network_mode`](/nomad/docs/drivers/docker#network_mode) configuration. Its default value depends on the group-level `network.mode` configuration.
 
 ~> **Warning:** The task-level `network_mode` may conflict with the group-level
    `network.mode` configuration and generate unexpected results. If you set the
@@ -192,7 +185,8 @@ group "..." {
 The diagram below illustrates what happens when a Docker task is configured
 incorrectly.
 
-<!-- Source: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link -->
+[comment-image-source]:  https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link
+
 [![Nomad Bridge](/img/networking/docker_bridge.png)](/img/networking/docker_bridge.png)
 
 The tasks in the rightmost allocation are not able to communicate with each
@@ -203,14 +197,49 @@ Since the group `network.mode` is `bridge`, Nomad creates the pause container
 to establish a shared network namespace for all tasks, but setting the
 task-level `network_mode` to `bridge` places the task in a different namespace.
 This prevents, for example, a task from communicating with its sidecar proxy in
-a [service mesh][] deployment.
+a service mesh deployment.
 
-Refer to the [`network_mode`][docker_network_mode] documentation and the
-[Networking][docker_networking] section for more information.
+Refer to the [`network_mode`](/nomad/docs/drivers/docker#network_mode) documentation and the
+[Networking](/nomad/docs/drivers/docker#networking) section for more information.
 
 -> **Note:** Docker Desktop in non-Linux environments runs a local virtual
    machine, adding an extra layer of indirection. Refer to the
-   [FAQ][faq_docker] for more details.
+   [FAQ](/nomad/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos) for more details.
+
+## Container Network Interface (CNI)
+
+Nomad has built-in support for scheduling compute resources such as
+CPU, memory, and networking. Nomad's network plugin support extends
+this to allow scheduling tasks with purpose-created or specialty network
+configurations. Network plugins are third-party plugins that conform to the
+[Container Network Interface (CNI) [specification](https://www.cni.dev/docs/spec/).
+
+Network plugins need to be installed and configured on each client. The [Nomad
+installation instructions](/nomad/docs/install#post-installation-steps) recommend installing the [CNI
+reference plugins](https://github.com/containernetworking/plugins) because certain Nomad networking features, like`bridge` network mode and Consul service mesh, leverage them to provide an
+operating-system agnostic interface to configure workload networking.
+
+Custom networking in Nomad is accomplished with a combination of CNI plugin
+binaries and CNI configuration files.
+
+### CNI reference plugins
+
+The CNCF maintains a set of reference CNI plugins for basic network operations.
+These plugins are required for Nomad's `bridge` networking mode and for integrating
+with Consul service mesh.
+
+See the Linux [post-install steps](/nomad/docs/install#post-installation-steps) for installing CNI reference plugins.
+
+To use Nomad's [`transparent_proxy`](/nomad/docs/job-specification/transparent_proxy) feature, you  also need the [`consul-cni`](https://releases.hashicorp.com/consul-cni) plugin.
+
+Spec-compliant plugins should work with Nomad, however, it's possible a plugin
+vendor has implemented their plugin to make non-standard API calls, or it is
+otherwise non-compliant with the CNI specification. In those situations the
+plugin may not function correctly in a Nomad environment. You should verify
+plugin compatibility with Nomad before deploying in production.
+
+CNI plugins are installed and configured on a per-client basis. Nomad consults
+the path given in the client's [`cni_path`](/nomad/docs/configuration/client#cni_path) to find CNI plugin executables.
 
 ## Comparing with other tools
 
@@ -240,13 +269,10 @@ services:
 
 To access a service from another container you can reference the service name
 directly, for example using `postgres://db:5432`. In order to enable this
-pattern, Docker Compose includes an [internal DNS services][docker_dns] and a
-load balancer that is transparent to user. When running in Swarm mode, Docker
-Compose also requires an overlay network to route requests across hosts.
+pattern, Docker Compose includes an [internal DNS services](https://docs.docker.com/config/containers/container-networking/#dns-services) and a load balancer that is transparent to user. When running in Swarm mode, Docker Compose also requires an overlay network to route requests across hosts.
 
 
-Kubernetes provides the [`Service`][k8s_service] abstraction that can be used
-to declare how a set of Pods are accessed.
+Kubernetes provides the [`Service`](https://kubernetes.io/docs/concepts/services-networking/service/) abstraction that can be used to declare how a set of Pods are accessed.
 
 ```yaml
 apiVersion: v1
@@ -262,70 +288,32 @@ spec:
       targetPort: 9376
 ```
 
-To access the Service you use a FQDN such as
-`my-service.prod.svc.cluster.local`. This name is resolved by the [DNS
-service][k8s_dns] which is an add-on that runs in all nodes. Along with this
-service, each node also runs a [`kube-proxy`][k8s_kubeproxy] instance to
-distribute requests to all Pods matched by the Service.
+To access the Service you use a FQDN such as `my-service.prod.svc.cluster.local`. This name is resolved by the [DNS service](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/) which is an add-on that runs in all nodes. Along with this service, each node also runs a [`kube-proxy`](https://kubernetes.io/docs/concepts/overview/components/#kube-proxy) instance to distribute requests to all Pods matched by the Service.
 
 You can use the same FQDN networking style with Nomad using [Consul's DNS
-interface][consul_dns] and configuring your clients with [DNS
-forwarding][consul_dns_forwarding], and deploying a [load
-balancer][nomad_load_balancer].
+interface](/consul/docs/services/discovery/dns-overview) and configuring your clients with [DNS
+forwarding](/consul/tutorials/networking/dns-forwarding), and deploying a [load
+balancer](/nomad/tutorials/load-balancing).
 
 Another key difference from Nomad is that in Kubernetes and Docker Compose each
 container has its own IP address, requiring a virtual network to map physical
 IP addresses to virtual ones. In case of Docker Compose in Swarm mode an
-[`overlay`][docker_overlay] is also required to enable traffic across multiple
-hosts. This allows multiple containers running the same service to listen on
+[`overlay`](https://docs.docker.com/network/overlay/) is also required to enable traffic across multiple hosts. This allows multiple containers running the same service to listen on
 the same port number.
 
 In Nomad, allocations use the IP address of the client they are running and are
 assigned random port numbers and so Nomad service discovery with DNS uses
-[`SRV` records][dns_srv] instead of `A` or `AAAA` records.
+[`SRV` records]( https://en.wikipedia.org/wiki/SRV_record) instead of `A` or `AAAA` records.
 
 ## Next topics
 
-- [Service Discovery][service discovery]
-- [Service Mesh][service mesh]
-- [Container Network Interface][cni]
+- [Service Discovery](/nomad/docs/networking/service-discovery)
+- [Service Mesh](/nomad/docs/networking/service-mesh)
+- [Container Network Interface](/nomad/docs/networking/cni)
 
 ## Additional resources
 
 - [Understanding Networking in Nomad - Karan Sharma](https://mrkaran.dev/posts/nomad-networking-explained/)
 - [Understanding Nomad Networking Patterns - Luiz Aoqui, HashiTalks: Canada 2021](https://www.youtube.com/watch?v=wTA5HxB_uuk)
 
-[`bridge_network_name`]: /nomad/docs/configuration/client#bridge_network_name
-[`bridge`]: /nomad/docs/job-specification/network#bridge
-[`infra_image`]: /nomad/docs/drivers/docker#infra_image
-[`max_dynamic_port`]: /nomad/docs/configuration/client#max_dynamic_port
-[`min_dynamic_port`]: /nomad/docs/configuration/client#min_dynamic_port
-[`static`]: /nomad/docs/job-specification/network#static
-[`template`]: /nomad/docs/job-specification/template#template-examples
-[allocation]: /nomad/docs/concepts/architecture#allocation
-[cni]: /nomad/docs/networking/cni
-[cni_bridge]: https://www.cni.dev/plugins/current/main/bridge/
-[cni_install]: /nomad/docs/install#post-installation-steps
-[consul_dns]: /consul/docs/services/discovery/dns-overview
-[consul_dns_forwarding]: /consul/tutorials/networking/dns-forwarding
-[consul_service_mesh]: /nomad/docs/integrations/consul-connect
-[dns_srv]: https://en.wikipedia.org/wiki/SRV_record
-[docker_bridge]: https://docs.docker.com/network/bridge/
-[docker_compose]: https://docs.docker.com/compose/
-[docker_dns]: https://docs.docker.com/config/containers/container-networking/#dns-services
-[docker_iptables]: https://docs.docker.com/network/iptables/
-[docker_network_mode]: /nomad/docs/drivers/docker#network_mode
-[docker_networking]: /nomad/docs/drivers/docker#networking
-[docker_overlay]: https://docs.docker.com/network/overlay/
-[docker_swarm]: https://docs.docker.com/engine/swarm/
-[faq_docker]: /nomad/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
-[jobspec_network]: /nomad/docs/job-specification/network
-[k8s_dns]: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/
-[k8s_ingress]: https://kubernetes.io/docs/concepts/services-networking/ingress/
-[k8s_kubeproxy]: https://kubernetes.io/docs/concepts/overview/components/#kube-proxy
-[k8s_service]: https://kubernetes.io/docs/concepts/services-networking/service/
-[network_mode]: /nomad/docs/job-specification/network#mode
-[nomad_load_balancer]: /nomad/tutorials/load-balancing
-[runtime_environment]: /nomad/docs/runtime/environment#network-related-variables
-[service discovery]: /nomad/docs/networking/service-discovery
-[service mesh]: /nomad/docs/networking/service-mesh
+
