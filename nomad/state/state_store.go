@@ -875,7 +875,7 @@ func (s *StateStore) UpsertScalingEvent(index uint64, req *structs.ScalingEventR
 
 	var jobEvents *structs.JobScalingEvents
 	if existing != nil {
-		jobEvents = existing.(*structs.JobScalingEvents)
+		jobEvents = existing.(*structs.JobScalingEvents).Copy()
 	} else {
 		jobEvents = &structs.JobScalingEvents{
 			Namespace:     req.Namespace,

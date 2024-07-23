@@ -6096,6 +6096,21 @@ type JobScalingEvents struct {
 	ModifyIndex uint64
 }
 
+func (j *JobScalingEvents) Copy() *JobScalingEvents {
+	if j == nil {
+		return nil
+	}
+	njse := new(JobScalingEvents)
+	*njse = *j
+
+	njse.ScalingEvents = map[string][]*ScalingEvent{}
+	for taskGroup, events := range j.ScalingEvents {
+		njse.ScalingEvents[taskGroup] = helper.CopySlice(events)
+	}
+
+	return njse
+}
+
 // NewScalingEvent method for ScalingEvent objects.
 func NewScalingEvent(message string) *ScalingEvent {
 	return &ScalingEvent{
@@ -6131,19 +6146,17 @@ type ScalingEvent struct {
 	CreateIndex uint64
 }
 
-func (e *ScalingEvent) SetError(error bool) *ScalingEvent {
-	e.Error = error
-	return e
-}
+func (e *ScalingEvent) Copy() *ScalingEvent {
+	if e == nil {
+		return nil
+	}
+	ne := new(ScalingEvent)
+	*ne = *e
 
-func (e *ScalingEvent) SetMeta(meta map[string]interface{}) *ScalingEvent {
-	e.Meta = meta
-	return e
-}
-
-func (e *ScalingEvent) SetEvalID(evalID string) *ScalingEvent {
-	e.EvalID = &evalID
-	return e
+	ne.Count = pointer.Copy(e.Count)
+	ne.Meta = maps.Clone(e.Meta)
+	ne.EvalID = pointer.Copy(e.EvalID)
+	return ne
 }
 
 // ScalingEventRequest is by for Job.Scale endpoint
