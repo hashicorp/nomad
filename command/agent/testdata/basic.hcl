@@ -348,6 +348,9 @@ reporting {
   license {
     enabled = true
   }
+
+  address         = "http://localhost:8080"
+  export_interval = "15m"
 }
 
 keyring "awskms" {

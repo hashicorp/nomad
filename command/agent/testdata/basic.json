@@ -421,6 +421,8 @@
     }
   ],
   "reporting": {
+    "address": "http://localhost:8080",
+    "export_interval": "15m",
     "license": {
       "enabled": "true"
     }
