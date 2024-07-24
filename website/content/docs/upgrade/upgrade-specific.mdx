@@ -33,13 +33,17 @@ In 1.8.2, Nomad will refuse to run jobs that use the Docker driver on Windows
 with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
 provide a more secure environment for these jobs, and this behavior can be
 overridden by setting the new `windows_allow_insecure_container_admin` Docker
-plugin configuration option to `true` or by setting `privileged=true`.
+plugin configuration option to `true` or by setting `privileged=true`. We made
+this change as a result of regressions introduced by mitigations for
+[HCSEC-2024-03](https://discuss.hashicorp.com/t/hcsec-2024-03-nomad-vulnerable-to-arbitrary-write-through-symlink-attack/62602).
 
 #### New default isolation mode for Docker on Windows
 
 Nomad 1.8.2 changes the default isolation mode for Docker tasks on Windows from
 `process` to `hyperv`, since `hyperv` provides a much more secure execution
-environment.
+environment. We made this change as a result of regressions introduced by
+mitigations for
+[HCSEC-2024-03](https://discuss.hashicorp.com/t/hcsec-2024-03-nomad-vulnerable-to-arbitrary-write-through-symlink-attack/62602).
 
 ## Nomad 1.8.1
 
@@ -141,20 +145,20 @@ authenticate to Vault and obtain a Vault token specific to the task.
 
 The existing workflow using a Vault token provided in either the agent
 configuration or at the time of job submission is deprecated and will be removed
-in Nomad 1.9. The [`vault.policies`][] field is also deprecated and will work
+in Nomad 1.10. The [`vault.policies`][] field is also deprecated and will work
 only with the existing workflow. Instead, you should configure a suitable Vault
 role and use that.
 
 The following agent configuration fields are deprecated:
-- [`vault.allow_unauthenticated`][] will be removed in Nomad 1.9. Tasks will use
+- [`vault.allow_unauthenticated`][] will be removed in Nomad 1.10. Tasks will use
   the workload identity without the user supplying a Vault token.
-- [`vault.task_token_ttl`][] will be removed in Nomad 1.9. With workload
+- [`vault.task_token_ttl`][] will be removed in Nomad 1.10. With workload
   identity, tasks will receive their TTL configuration from the Vault role.
-- [`vault.token`][] will be removed in Nomad 1.9. Nomad agents will no longer
+- [`vault.token`][] will be removed in Nomad 1.10. Nomad agents will no longer
   make requests to authenticated endpoints except with a task's workload
   identity.
 
-Before upgrading to Nomad 1.9 you will need to have configured authentication
+Before upgrading to Nomad 1.10 you will need to have configured authentication
 with Vault to work with workload identity. See [Migrating to Using Workload
 Identity with Vault][] for more details.
 
@@ -166,11 +170,11 @@ workload.
 
 The existing workflow using a Consul token provided in either the agent
 configuration or at the time of job submission is deprecated and will be removed
-in Nomad 1.9. The [`consul.allow_unauthenticated`][] agent configuration field
-will be removed in Nomad 1.9. Tasks will use the workload identity without the
+in Nomad 1.10. The [`consul.allow_unauthenticated`][] agent configuration field
+will be removed in Nomad 1.10. Tasks will use the workload identity without the
 user supplying a Consul token.
 
-Before upgrading to Nomad 1.9 you will need to have configured authentication
+Before upgrading to Nomad 1.10 you will need to have configured authentication
 with Consul to work with workload identity. See [Migrating to Using Workload
 Identity with Consul][] for more details.
 
