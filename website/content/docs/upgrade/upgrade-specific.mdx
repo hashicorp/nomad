@@ -78,7 +78,21 @@ In Nomad 1.7.0 the `raw_exec` plugin option for `no_cgroups` became ineffective.
 Starting in Nomad 1.8.0 attempting to set the `no_cgroups` in `raw_exec` plugin
 configuration will result in an error when starting the agent.
 
-## Nomad 1.7.10 (UNRELEASED)
+## Nomad 1.7.11 (UNRELEASED)
+
+<EnterpriseAlert inline />
+
+#### Nomad keyring rotation
+
+In Nomad 1.7.11, the Nomad root keyring will prepublish keys at half the
+`root_key_rotation_threshold` and promote them to active once the
+`root_key_rotation_threshold` has passed. The `nomad operator root keyring
+rotate` command now requires one of two arguments: `-prepublish <duration>` to
+prepublish a key or `-now` to rotate immediately. We recommend using
+`-prepublish` to avoid outages from workload identities used to log into
+external services such as Vault or Consul.
+
+## Nomad 1.7.10
 
 <EnterpriseAlert inline />
 
@@ -243,7 +257,21 @@ cgroup to halt the process group of a Task before issuing a kill signal to each
 process. Starting in Nomad 1.7.0 this behavior is always enabled (and a similar
 mechanism has always been enabled on cgroups v2 systems).
 
-## Nomad 1.6.13 (UNRELEASED)
+## Nomad 1.6.14 (UNRELEASED)
+
+<EnterpriseAlert inline />
+
+#### Nomad keyring rotation
+
+In Nomad 1.6.14, the Nomad root keyring will prepublish keys at half the
+`root_key_rotation_threshold` and promote them to active once the
+`root_key_rotation_threshold` has passed. The `nomad operator root keyring
+rotate` command now requires one of two arguments: `-prepublish <duration>` to
+prepublish a key or `-now` to rotate immediately. We recommend using
+`-prepublish` to avoid outages from workload identities used to log into
+external services such as Vault or Consul.
+
+## Nomad 1.6.13
 
 <EnterpriseAlert inline />
 
