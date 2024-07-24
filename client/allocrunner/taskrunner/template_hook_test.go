@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -268,4 +270,71 @@ func Test_templateHook_Prestart_Vault(t *testing.T) {
 			must.True(t, gotRequest)
 		})
 	}
+}
+
+// TestTemplateHook_RestoreChangeModeScript exercises change_mode=script
+// behavior for a task restored after a client restart
+func TestTemplateHook_RestoreChangeModeScript(t *testing.T) {
+
+	logger := testlog.HCLogger(t)
+	tmpDir := t.TempDir()
+	destPath := filepath.Join(tmpDir, "foo.txt")
+	must.NoError(t, os.WriteFile(destPath, []byte("original-content"), 0755))
+
+	clientConfig := config.DefaultConfig()
+	clientConfig.TemplateConfig.DisableSandbox = true
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
+
+	lifecycle := trtesting.NewMockTaskHooks()
+	lifecycle.HasHandle = true
+
+	events := &trtesting.MockEmitter{}
+
+	executor := &simpleExec{
+		code: 117,
+		err:  fmt.Errorf("oh no"),
+	}
+
+	hook := newTemplateHook(&templateHookConfig{
+		alloc:     alloc,
+		logger:    logger,
+		lifecycle: lifecycle,
+		events:    events,
+		templates: []*structs.Template{{
+			DestPath:     destPath,
+			EmbeddedTmpl: "changed-content",
+			ChangeMode:   structs.TemplateChangeModeScript,
+			ChangeScript: &structs.ChangeScript{
+				Command: "echo",
+				Args:    []string{"foo"},
+			},
+		}},
+		clientConfig:  clientConfig,
+		envBuilder:    envBuilder,
+		hookResources: &cstructs.AllocHookResources{},
+		driverHandle:  executor,
+	})
+	req := &interfaces.TaskPrestartRequest{
+		Alloc:   alloc,
+		Task:    task,
+		TaskDir: &allocdir.TaskDir{Dir: tmpDir},
+	}
+
+	must.NoError(t, hook.Prestart(context.TODO(), req, nil))
+
+	// self-test the test by making sure we really changed the template file
+	out, err := os.ReadFile(destPath)
+	must.NoError(t, err)
+	must.Eq(t, "changed-content", string(out))
+
+	// verify our change script executed
+	gotEvents := events.Events()
+	must.Len(t, 1, gotEvents)
+	must.Eq(t, structs.TaskHookFailed, gotEvents[0].Type)
+	must.Eq(t, "Template failed to run script echo with arguments [foo] on change: oh no Exit code: 117",
+		gotEvents[0].DisplayMessage)
+
 }
