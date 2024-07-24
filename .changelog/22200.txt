@@ -1,0 +1,3 @@
+```release-note:improvement
+agent: Added options to enable ACL auto-bootstrapping
+```

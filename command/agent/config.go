@@ -427,6 +427,11 @@ type ACLConfig struct {
 	// Enabled controls if we are enforce and manage ACLs
 	Enabled bool `hcl:"enabled"`
 
+	// BootstrapToken is used to indicate that you would like to perform
+	// automatic cluster bootstrapping using the following known token
+	// value. If set, this must be a string in UUID format.
+	BootstrapToken string `hcl:"bootstrap_token"`
+
 	// TokenTTL controls how long we cache ACL tokens. This controls
 	// how stale they can be when we are enforcing policies. Defaults
 	// to "30s". Reducing this impacts performance by forcing more
@@ -2078,6 +2083,9 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	}
 	if b.ReplicationToken != "" {
 		result.ReplicationToken = b.ReplicationToken
+	}
+	if b.BootstrapToken != "" {
+		result.BootstrapToken = b.BootstrapToken
 	}
 	return &result
 }

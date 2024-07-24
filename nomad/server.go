@@ -553,6 +553,12 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// exist before it can start.
 	s.keyringReplicator = NewKeyringReplicator(s, encrypter)
 
+	// Check the configuration for a provided bootstrap_token to use
+	// for auto bootstrapping the ACL subsystem
+	if err := s.maybeAutoBootstrapACLs(); err != nil {
+		return s, err
+	}
+
 	// Done
 	return s, nil
 }
@@ -1651,6 +1657,67 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	// node which is rather unexpected.
 	conf.EnableNameConflictResolution = false
 	return serf.Create(conf)
+}
+
+func (s *Server) maybeAutoBootstrapACLs() error {
+	if !s.config.ACLEnabled || s.config.ACLBootstrapToken == "" {
+		// Exit without bootstrapping the ACL system
+		return nil
+	}
+
+	const alreadyBootstrapped = "ACL subsystem already bootstrapped; you should remove the bootstrap_token value from your configuration files or -acl-bootstrap-token flag from your startup flags"
+	const errBootstrapping = "error in auto bootstrap; you must manually bootstrap ACLs"
+
+	// Quick check the state to see if the node is bootstrappable
+	// | ok    | idx | err    | status
+	// +-------+-----+--------+--------------------
+	// | false |  0  | != nil | state query error
+	// | false | > 0 | nil    | bootstrapped
+	// | true  |  0  | nil    | bootstrapable
+	switch ok, _, err := s.State().CanBootstrapACLToken(); {
+	case !ok && err != nil:
+		s.logger.Warn("error checking ACL bootstrap status", "err", err)
+
+	case !ok && err == nil:
+		s.logger.Warn(alreadyBootstrapped)
+		return nil
+
+	case ok:
+		break
+
+	default:
+		s.logger.Debug("reached default case", "in", "maybeAutoboostrapACLs", "ok", ok, "err", err)
+		s.logger.Warn(errBootstrapping, "err", err)
+		return nil
+	}
+
+	resp := structs.ACLTokenUpsertResponse{}
+	err := s.RPC("ACL.Bootstrap",
+		&structs.ACLTokenBootstrapRequest{BootstrapSecret: s.config.ACLBootstrapToken},
+		&resp,
+	)
+
+	if err != nil {
+		if strings.Contains(err.Error(), "ACL bootstrap already done") {
+			s.logger.Warn(alreadyBootstrapped)
+		} else {
+			// Unexpected Error
+			s.logger.Warn(errBootstrapping, "err", err)
+		}
+		return nil
+	}
+
+	// Nonsense result
+	if len(resp.Tokens) != 1 {
+		return fmt.Errorf("received incorrect token count during ACL bootstrap. expected 1; got %d", len(resp.Tokens))
+	}
+
+	// Expect the provided token to be the same as the one returned
+	if s.config.ACLBootstrapToken != resp.Tokens[0].SecretID {
+		return errors.New("received unexpected ACL bootstrap. returned token does not match input")
+	}
+	s.logger.Info("ACL subsystem autobootstrapped")
+	return nil
 }
 
 // shouldReloadSchedulers checks the new config to determine if the scheduler worker pool

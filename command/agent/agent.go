@@ -277,6 +277,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.ACL.Enabled {
 		conf.ACLEnabled = true
 	}
+	if agentConfig.ACL.BootstrapToken != "" {
+		conf.ACLBootstrapToken = agentConfig.ACL.BootstrapToken
+	}
 	if agentConfig.ACL.ReplicationToken != "" {
 		conf.ReplicationToken = agentConfig.ACL.ReplicationToken
 	}
