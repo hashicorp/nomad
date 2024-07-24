@@ -55,6 +55,11 @@ type templateHookConfig struct {
 
 	// hookResources are used to fetch Consul tokens
 	hookResources *cstructs.AllocHookResources
+
+	// driverHandle is the task driver executor used to run scripts when the
+	// template change mode is set to script. Typically this will be nil in this
+	// config struct, unless we're restoring a task after a client restart.
+	driverHandle ti.ScriptExecutor
 }
 
 type templateHook struct {
@@ -68,7 +73,10 @@ type templateHook struct {
 	managerLock     sync.Mutex
 
 	// driverHandle is the task driver executor used by the template manager to
-	// run scripts when the template change mode is set to script.
+	// run scripts when the template change mode is set to script. This value is
+	// set in the Poststart hook after the task has run, or passed in as
+	// configuration if this is a task that's being restored after a client
+	// restart.
 	//
 	// Must obtain a managerLock before changing. It may be nil.
 	driverHandle ti.ScriptExecutor
@@ -105,6 +113,7 @@ func newTemplateHook(config *templateHookConfig) *templateHook {
 		config:          config,
 		consulNamespace: config.consulNamespace,
 		logger:          config.logger.Named(templateHookName),
+		driverHandle:    config.driverHandle,
 	}
 }
 
@@ -206,7 +215,7 @@ func (h *templateHook) Poststart(_ context.Context, req *interfaces.TaskPoststar
 	} else {
 		for _, tmpl := range h.config.templates {
 			if tmpl.ChangeMode == structs.TemplateChangeModeScript {
-				return fmt.Errorf("template has change mode set to 'script' but the driver it uses does not provide exec capability")
+				return fmt.Errorf("template has change mode set to 'script' but task driver handle is not available")
 			}
 		}
 	}
