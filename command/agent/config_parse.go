@@ -179,6 +179,8 @@ func ParseConfigFile(path string) (*Config, error) {
 				c.Client.TemplateConfig.NomadRetry.MaxBackoff = d
 			},
 		},
+		{"reporting.export_interval",
+			&c.Reporting.ExportInterval, &c.Reporting.ExportIntervalHCL, nil},
 	}
 
 	// Parse durations for Consul and Vault config blocks if provided.
