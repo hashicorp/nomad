@@ -344,6 +344,9 @@ var basicConfig = &Config{
 		},
 	},
 	Reporting: &config.ReportingConfig{
+		ExportAddress:     "http://localhost:8080",
+		ExportIntervalHCL: "15m",
+		ExportInterval:    time.Minute * 15,
 		License: &config.LicenseReportingConfig{
 			Enabled: pointer.Of(true),
 		},
@@ -427,7 +430,7 @@ var pluginConfig = &Config{
 		},
 	},
 	Reporting: &config.ReportingConfig{
-		&config.LicenseReportingConfig{},
+		License: &config.LicenseReportingConfig{},
 	},
 	Consuls: []*config.ConsulConfig{},
 	Vaults:  []*config.VaultConfig{},
@@ -482,7 +485,7 @@ var nonoptConfig = &Config{
 	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
 	Reporting: &config.ReportingConfig{
-		&config.LicenseReportingConfig{},
+		License: &config.LicenseReportingConfig{},
 	},
 	Consuls: []*config.ConsulConfig{},
 	Vaults:  []*config.VaultConfig{},
@@ -563,7 +566,6 @@ func TestConfig_Parse(t *testing.T) {
 			}
 			actual = oldDefault.Merge(actual)
 
-			must.Eq(t, tc.Result.KEKProviders, actual.KEKProviders)
 			must.Eq(t, tc.Result, removeHelperAttributes(actual))
 		})
 	}
@@ -615,7 +617,7 @@ func (c *Config) addDefaults() {
 	}
 	if c.Reporting == nil {
 		c.Reporting = &config.ReportingConfig{
-			&config.LicenseReportingConfig{
+			License: &config.LicenseReportingConfig{
 				Enabled: pointer.Of(false),
 			},
 		}
@@ -893,7 +895,7 @@ var sample1 = &Config{
 		CleanupDeadServers: pointer.Of(true),
 	},
 	Reporting: &config.ReportingConfig{
-		&config.LicenseReportingConfig{},
+		License: &config.LicenseReportingConfig{},
 	},
 	KEKProviders: []*structs.KEKProviderConfig{
 		{
