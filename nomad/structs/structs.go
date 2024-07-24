@@ -6103,7 +6103,7 @@ func (j *JobScalingEvents) Copy() *JobScalingEvents {
 	njse := new(JobScalingEvents)
 	*njse = *j
 
-	njse.ScalingEvents = map[string][]*ScalingEvent{}
+	njse.ScalingEvents = make(map[string][]*ScalingEvent, len(j.ScalingEvents))
 	for taskGroup, events := range j.ScalingEvents {
 		njse.ScalingEvents[taskGroup] = helper.CopySlice(events)
 	}
