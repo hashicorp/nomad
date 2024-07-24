@@ -1,7 +1,7 @@
 job "bridge" {
   group "g" {
     network {
-      mode = "host"
+      #mode = "host"
       #mode = "bridge"
       port "http" {
         static = 8000
@@ -20,7 +20,7 @@ job "bridge" {
         command = "bash"
         args    = ["-c", "echo hi > local/index.html ; python3 -m http.server -d local/"]
         ports   = ["http"]
-        advertise_ipv6_address = true
+        #advertise_ipv6_address = true
       }
     }
     update {

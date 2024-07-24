@@ -1,5 +1,6 @@
 # https://medium.com/@mattias.holmlund/setting-up-ipv6-on-amazon-with-terraform-e14b3bfef577
 
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
 resource "aws_vpc" "mine" {
   enable_dns_support               = true
   enable_dns_hostnames             = true

@@ -107,22 +107,27 @@ locals {
 }
 
 resource "null_resource" "files" {
-  count = var.instances
+  count      = var.instances
+  depends_on = [aws_instance.mine]
   connection {
     type        = "ssh"
     user        = "ec2-user"
     port        = 22
     host        = local.server_addrs[count.index]
+    #host        = aws_instance.mine[count.index].ipv6_addresses[0]
     private_key = module.keys.private_key_pem
     agent       = false # to avoid my SSH_ env vars
     timeout     = "5m"
   }
   provisioner "remote-exec" {
+    # https://developer.hashicorp.com/terraform/language/resources/provisioners/remote-exec
     inline = [
       "set -xe",
       "mkdir -p ~/bin/",
       "echo 'export PATH=$PATH:/home/ec2-user/bin' | sudo tee /etc/profile.d/nomad.sh",
+      # TODO: DNS instead?
       "sudo sed -i 's/::SERVER_IPS::/${local.encoded_addrs}/' /opt/nomad/agent.hcl",
+      "sudo hostname aws-${count.index}; echo aws-${count.index} | sudo tee /etc/hostname",
     ]
   }
   provisioner "file" {
