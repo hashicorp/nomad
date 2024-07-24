@@ -13,6 +13,9 @@ This page show you how to...
 
 ## Prerequisities
 
+- You are familiar with [how Nomad supports Container Network Interface (CNI) plugins](/nomad/docs/networking/index.mdx#container-network-interface-plugins).
+- You are running Nomad on Linux.
+
 ## Workflow
 
 configure plugins?
@@ -21,7 +24,7 @@ install plugins on each client
 
 configure nomad clients with plugin directory etc
 
-configure bridge networking
+configure bridge networking?
 
 restart nomad
 
@@ -32,8 +35,7 @@ It contains directives for both the orchestrator and the plugins to consume.
 At plugin execution time, this configuration format is interpreted by Nomad
 and transformed into arguments for the plugins.
 
-Nomad reads the following extensions from the [`cni_config_dir`](/nomad/docs/configuration/client#cni_config_dir) —
-`/opt/cni/config` by default:
+Nomad reads the following extensions from the [`cni_config_dir`](/nomad/docs/configuration/client#cni_config_dir) — `/opt/cni/config` by default:
 
 * `.conflist` files are loaded as [network
   configurations](https://github.com/containernetworking/cni/blob/main/SPEC.md#configuration-format) that contain a list of plugin  configurations.

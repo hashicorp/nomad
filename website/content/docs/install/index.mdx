@@ -68,8 +68,7 @@ installation.
 </Tab>
 <Tab heading="Linux Packages" group="linux">
 
-HashiCorp officially maintains and signs packages for the following Linux
-distributions.
+HashiCorp officially maintains and signs packages for Ubuntu/Debian, CentOS/RHEL, Fedora, and Amazon Linux distributions.
 
 <Tabs>
 <Tab heading="Ubuntu/Debian">
@@ -192,75 +191,22 @@ colon-separated list of locations. Add the location of the Nomad binary to that
 list and save the file. Then reload your shell's configuration with the command
 `source ~/.bashrc`, replacing `bash` with the name of your shell.
 
-<h3>Install CNI plugins</h3>
+### Install CNI reference plugins
 
-Nomad uses CNI plugins to configure network namespaces when using the `bridge`
-network mode. All Linux Nomad client nodes using network namespaces must have
-CNI plugins installed.
+@include 'install/install-cni-plugins.mdx'
 
-<h4>Install reference CNI plugins</h4>
-
-The following commands install the CNI reference plugins.
-
-```shell-session
-$ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
-$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.5.0/cni-plugins-linux-${ARCH_CNI}"-v1.5.0.tgz && \
-  sudo mkdir -p /opt/cni/bin && \
-  sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
-```
  
-<h4>Install consul-cni CNI plugin</h4>
+### Install consul-cni plugin
 
-If the `transparent_proxy` block is used for Consul Service Mesh, then the 
-`consul-cni` CNI Plugin must be installed on each client node to redirect inbound 
-and outbound traffic for services to the Envoy proxy. The following commands
-assume that reference CNI plugins have already been installed. 
+@include 'install/install-consul-cni-plugin.mdx'
 
-```shell-session
-$ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
-$ curl -L -o consul-cni.zip "https://releases.hashicorp.com/consul-cni/1.5.0/consul-cni_1.5.0_linux_${ARCH_CNI}".zip && \
-  sudo unzip consul-cni.zip -d /opt/cni/bin -x LICENSE.txt
-```
+### Configure bridge network to route traffic through iptables
 
-<h3>Configure bridge network to route traffic through iptables</h3>
+@include 'install/bridge-iptables.mdx'
 
-Ensure your Linux operating system distribution has been configured to allow
-container traffic through the bridge network to be routed via iptables. These
-tunables can be set as follows.
+### Verify cgroup controllers
 
-```shell-session
-$ echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables && \
-  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables && \
-  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
-```
-
-To preserve these settings on startup of a client node, add a file including the
-following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
-that directory.
-
-<CodeBlockConfig filename="/etc/sysctl.d/bridge.conf">
-
-```ini
-net.bridge.bridge-nf-call-arptables = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-iptables = 1
-```
-
-</CodeBlockConfig>
-
-<h3>Verify cgroup controllers</h3>
-
-On Linux, Nomad uses cgroups to control resource usage of tasks. If one or more
-required cgroups are unavailable, Nomad will disable resource controls that
-require cgroups entirely. With cgroups v2, you can verify that you have all
-required controllers as follows:
-
-```shell-session
-$ cat /sys/fs/cgroup/cgroup.controllers
-cpuset cpu io memory pids
-```
-
-See the documentation on [cgroup controller requirements][] for more details.
+@include 'install/cgroup-controllers.mdx'
 
 </Tab>
 
@@ -502,4 +448,4 @@ and ensuring `GOPATH/bin` is within your `PATH`. A copy of
 
 [gpg-key]: https://apt.releases.hashicorp.com/gpg "HashiCorp GPG key"
 [go-version]: https://github.com/hashicorp/nomad/blob/main/.go-version
-[cgroup controller requirements]: /nomad/docs/install/production/requirements#hardening-nomad
+

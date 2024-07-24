@@ -1,0 +1,11 @@
+Nomad uses CNI plugins to configure network namespaces when using the `bridge`
+network mode. You must install the CNI plugins on all Linux Nomad client nodes using network namespaces. Refer to the [CNI Plugins Overview guide](https://www.cni.dev/plugins/current/) for details on the CNI reference plugins.
+
+The following commands download and then install the CNI reference plugins into the `/opt/cni/bin` directory.
+
+```shell-session
+$ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
+$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.5.1/cni-plugins-linux-${ARCH_CNI}"-v1.5.1.tgz && \
+  sudo mkdir -p /opt/cni/bin && \
+  sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
+```
