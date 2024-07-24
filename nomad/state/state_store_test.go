@@ -10636,9 +10636,10 @@ func TestStateStore_UpsertScalingEvent(t *testing.T) {
 	job := mock.Job()
 	groupName := job.TaskGroups[0].Name
 
-	newEvent := structs.NewScalingEvent("message 1").SetMeta(map[string]interface{}{
+	newEvent := structs.NewScalingEvent("message 1")
+	newEvent.Meta = map[string]interface{}{
 		"a": 1,
-	})
+	}
 
 	wsAll := memdb.NewWatchSet()
 	all, err := state.ScalingEvents(wsAll)
@@ -10709,10 +10710,11 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 
 	index := uint64(1000)
 	for i := 1; i <= structs.JobTrackedScalingEvents+10; i++ {
-		newEvent := structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+		newEvent := structs.NewScalingEvent("")
+		newEvent.Meta = map[string]interface{}{
 			"i":     i,
 			"group": group1,
-		})
+		}
 		err := state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
 			Namespace:    namespace,
 			JobID:        jobID,
@@ -10722,10 +10724,11 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 		index++
 		require.NoError(err)
 
-		newEvent = structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+		newEvent = structs.NewScalingEvent("")
+		newEvent.Meta = map[string]interface{}{
 			"i":     i,
 			"group": group2,
-		})
+		}
 		err = state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
 			Namespace:    namespace,
 			JobID:        jobID,
