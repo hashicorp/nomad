@@ -62,12 +62,12 @@ and binding rules in Consul before configuring the Nomad servers with
 Authentication][] for more details.
 
 <Warning>
-Starting in Nomad 1.9, the fallback options to use the -consul-token flag when
+Starting in Nomad 1.10, the fallback options to use the -consul-token flag when
 submitting a job, the agent's consul.token configuration, or the
 CONSUL_HTTP_TOKEN environment variable, will be removed.  This means service and
 template blocks will not be able to use the agent's Consul token or one provided
 by the job submitter. You should be prepared to migrate to the Workload Identity
-workflow for Consul and Vault before upgrading to Nomad 1.9. Refer to <a
+workflow for Consul and Vault before upgrading to Nomad 1.10. Refer to <a
 href="/nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul">Migrating
 to Using Workload Identity with Consul</a>
 </Warning>
@@ -76,7 +76,7 @@ to Using Workload Identity with Consul</a>
 
 The Nomad client will make the Consul token available to the task by writing it
 to the secret directory at `secrets/consul_token` and by injecting a
-`CONSUL_TOKEN` environment variable in the task. 
+`CONSUL_TOKEN` environment variable in the task.
 
 If the Nomad cluster is [configured][config_consul_namespace] to use [Consul Namespaces][], a
 `CONSUL_NAMESPACE` environment variable will be injected whenever `CONSUL_TOKEN`
