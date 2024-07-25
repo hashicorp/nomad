@@ -92,7 +92,12 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 
 	t.AllocDir = allocDir.AllocDir
 
-	taskDir := allocDir.NewTaskDir(t.Name)
+	task := &structs.Task{
+		Name: t.Name,
+		Env:  t.Env,
+	}
+
+	taskDir := allocDir.NewTaskDir(task)
 
 	caps, err := h.Capabilities()
 	must.NoError(h.t, err)
@@ -100,11 +105,6 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	fsi := caps.FSIsolation
 	h.logger.Trace("FS isolation", "fsi", fsi)
 	must.NoError(h.t, taskDir.Build(fsi, ci.TinyChroot, t.User))
-
-	task := &structs.Task{
-		Name: t.Name,
-		Env:  t.Env,
-	}
 
 	// Create the mock allocation
 	alloc := mock.Alloc()

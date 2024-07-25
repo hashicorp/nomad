@@ -1832,7 +1832,7 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	logger := testlog.HCLogger(t)
 	allocDir := allocdir.NewAllocDir(logger, clientConf.AllocDir, clientConf.AllocMountsDir, alloc.ID)
-	taskDir := allocDir.NewTaskDir(task.Name)
+	taskDir := allocDir.NewTaskDir(task)
 
 	containerEnv := func() *taskenv.Builder {
 		// To emulate a Docker or exec tasks we must copy the
