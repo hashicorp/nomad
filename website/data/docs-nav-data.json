@@ -61,6 +61,10 @@
          "title": "Nomad",
          "routes": [
            {
+             "title": "Upcoming",
+             "path": "release-notes/nomad/upcoming"
+           },
+           {
              "title": "v1.8.x",
              "path": "release-notes/nomad/v1_8_x"
            }
