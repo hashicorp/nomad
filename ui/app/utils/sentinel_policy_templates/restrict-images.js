@@ -4,7 +4,7 @@
  */
 
 export default `# This policy restricts which Docker images from which Docker registries are 
-allowed and also prevents use of the "latest" tag to ensure predictability
+#allowed and also prevents use of the "latest" tag to ensure predictability
 
 import "strings"
 
