@@ -318,7 +318,7 @@ func TestCNI_forceCleanup(t *testing.T) {
 			},
 		}
 		err := c.forceCleanup(ipt, "2dd71cac-2b1e-ff08-167c-735f7f9f4964")
-		must.EqError(t, err, "failed to find postrouting rule for alloc 2dd71cac-2b1e-ff08-167c-735f7f9f4964")
+		must.NoError(t, err, must.Sprint("absent rule should not error"))
 	})
 
 	t.Run("list error", func(t *testing.T) {

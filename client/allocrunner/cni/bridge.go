@@ -22,6 +22,7 @@ type NomadBridgeConfig struct {
 	BridgeName     string
 	AdminChainName string
 	IPv4Subnet     string
+	IPv6Subnet     string
 	HairpinMode    bool
 	ConsulCNI      bool
 }
@@ -39,6 +40,10 @@ func NewNomadBridgeConflist(conf NomadBridgeConfig) Conflist {
 	}
 	ipRoutes := []Route{
 		{Dst: "0.0.0.0/0"},
+	}
+	if conf.IPv6Subnet != "" {
+		ipRanges = append(ipRanges, []Range{{Subnet: conf.IPv6Subnet}})
+		ipRoutes = append(ipRoutes, Route{Dst: "::/0"})
 	}
 
 	plugins := []any{

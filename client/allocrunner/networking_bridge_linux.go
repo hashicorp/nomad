@@ -31,31 +31,33 @@ const (
 // shared bridge, configures masquerading for egress traffic and port mapping
 // for ingress
 type bridgeNetworkConfigurator struct {
-	cni         *cniNetworkConfigurator
-	allocSubnet string
-	bridgeName  string
-	hairpinMode bool
+	cni             *cniNetworkConfigurator
+	allocSubnetIPv6 string
+	allocSubnetIPv4 string
+	bridgeName      string
+	hairpinMode     bool
 
 	newIPTables func(structs.NodeNetworkAF) (IPTablesChain, error)
 
 	logger hclog.Logger
 }
 
-func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, bridgeName, ipRange string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool, node *structs.Node) (*bridgeNetworkConfigurator, error) {
+func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, bridgeName, ipv4Range, ipv6Range, cniPath string, hairpinMode, ignorePortMappingHostIP bool, node *structs.Node) (*bridgeNetworkConfigurator, error) {
 	b := &bridgeNetworkConfigurator{
-		bridgeName:  bridgeName,
-		allocSubnet: ipRange,
-		hairpinMode: hairpinMode,
-		newIPTables: newIPTablesChain,
-		logger:      log,
+		bridgeName:      bridgeName,
+		hairpinMode:     hairpinMode,
+		allocSubnetIPv4: ipv4Range,
+		allocSubnetIPv6: ipv6Range,
+		newIPTables:     newIPTablesChain,
+		logger:          log,
 	}
 
 	if b.bridgeName == "" {
 		b.bridgeName = defaultNomadBridgeName
 	}
 
-	if b.allocSubnet == "" {
-		b.allocSubnet = defaultNomadAllocSubnet
+	if b.allocSubnetIPv4 == "" {
+		b.allocSubnetIPv4 = defaultNomadAllocSubnet
 	}
 
 	var netCfg []byte
@@ -95,12 +97,22 @@ func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, b
 // ensureForwardingRules ensures that a forwarding rule is added to iptables
 // to allow traffic inbound to the bridge network
 func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
+	if b.allocSubnetIPv6 != "" {
+		ip6t, err := b.newIPTables(structs.NodeNetworkAF_IPv6)
+		if err != nil {
+			return err
+		}
+		if err = ensureChainRule(ip6t, b.bridgeName, b.allocSubnetIPv6); err != nil {
+			return err
+		}
+	}
+
 	ipt, err := b.newIPTables(structs.NodeNetworkAF_IPv4)
 	if err != nil {
 		return err
 	}
 
-	if err = ensureChainRule(ipt, b.bridgeName, b.allocSubnet); err != nil {
+	if err = ensureChainRule(ipt, b.bridgeName, b.allocSubnetIPv4); err != nil {
 		return err
 	}
 
@@ -125,7 +137,8 @@ func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator, withConsulCNI bool) 
 	conf := cni.NewNomadBridgeConflist(cni.NomadBridgeConfig{
 		BridgeName:     b.bridgeName,
 		AdminChainName: cniAdminChainName,
-		IPv4Subnet:     b.allocSubnet,
+		IPv4Subnet:     b.allocSubnetIPv4,
+		IPv6Subnet:     b.allocSubnetIPv6,
 		HairpinMode:    b.hairpinMode,
 		ConsulCNI:      withConsulCNI,
 	})

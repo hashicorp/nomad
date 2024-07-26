@@ -92,9 +92,10 @@ var basicConfig = &Config{
 		HostVolumes: []*structs.ClientHostVolumeConfig{
 			{Name: "tmp", Path: "/tmp"},
 		},
-		CNIPath:             "/tmp/cni_path",
-		BridgeNetworkName:   "custom_bridge_name",
-		BridgeNetworkSubnet: "custom_bridge_subnet",
+		CNIPath:                 "/tmp/cni_path",
+		BridgeNetworkName:       "custom_bridge_name",
+		BridgeNetworkSubnet:     "custom_bridge_subnet",
+		BridgeNetworkSubnetIPv6: "custom_bridge_subnet_ipv6",
 	},
 	Server: &ServerConfig{
 		Enabled:                   true,
