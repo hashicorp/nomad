@@ -30,8 +30,8 @@ unless there's a required change due to a security vulnerability.
 * Nomad will remove the [`tls_prefer_server_cipher_suites`][] agent configuration.
 * Nomad will remove support for Nomad client agents older than 1.6.0. Older
   nodes will fail heartbeats. Nomad servers will mark the workloads on those
-  nodes as lost and reschedule them normally according to the job's `reschedule`
-  block.
+  nodes as lost and reschedule them normally according to the job's
+  [`reschedule`][] block.
 
 ## Nomad 1.10.0 LTS
 
@@ -67,3 +67,4 @@ Nomad 1.10.0 is a Long-Term Support release for Enterprise customers.
 [vault-integration]: /nomad/docs/integrations/vault/acl
 [GH-18529]: https://github.com/hashicorp/nomad/issues/18529
 [`disconnect`]: /nomad/docs/job-specification/disconnect
+[`reschedule`]: /nomad/docs/job-specification/reschedule
