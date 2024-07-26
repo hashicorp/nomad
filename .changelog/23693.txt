@@ -1,0 +1,3 @@
+```release-note:bug
+networking: Fixed a bug where if a client have two IP on the same network host, only one can provide the same static port
+```

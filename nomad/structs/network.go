@@ -526,7 +526,8 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 
 			// Check if in use
 			if used != nil && used.Check(uint(port.Value)) {
-				return nil, fmt.Errorf("reserved port collision %s=%d", port.Label, port.Value)
+				addrErr = fmt.Errorf("reserved port collision %s=%d", port.Label, port.Value)
+				continue
 			}
 
 			allocPort = &AllocatedPortMapping{
