@@ -222,6 +222,7 @@ func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator, withConsulCNI bool) 
 		b.allocSubnetIPv4,
 		b.allocSubnetIPv6,
 		cniAdminChainName,
+		cniAdminChainName,
 		consulCNI,
 	))
 }
@@ -258,14 +259,19 @@ const nomadCNIConfigTemplate = `{
 					]
 				],
 				"routes": [
-					{ "dst": "0.0.0.0/0",
-                      "dst" : "::/0" }
+					{ "dst": "0.0.0.0/0" },
+                    { "dst" : "::/0" }
 				]
 			}
 		},
 		{
 			"type": "firewall",
 			"backend": "iptables",
+			"iptablesAdminChainName": %q
+		},
+		{
+			"type": "firewall",
+			"backend": "ip6tables",
 			"iptablesAdminChainName": %q
 		},
 		{
