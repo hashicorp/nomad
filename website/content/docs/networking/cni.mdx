@@ -1,13 +1,13 @@
 ---
 layout: docs
-page_title: CNI
+page_title: CNI and bridge networking
 description: |-
   Learn about Nomad's support for Container Network Interface (CNI) plugins, Nomad's bridge configuration, how to configure CNI plugins, and how to use CNI networks with Nomad jobs. 
 ---
 
 # Container Network Interface (CNI)
 
-This page show you how to...
+This page show you how to install the CNI reference plugins on your Linux distribution and configure your Nomad clients to use the plugins.
 
 ## Introduction
 
@@ -27,6 +27,19 @@ configure nomad clients with plugin directory etc
 configure bridge networking?
 
 restart nomad
+
+
+### Install CNI reference plugins
+
+@include 'install/install-cni-plugins.mdx'
+
+### Configure bridge network to route traffic through iptables
+
+@include 'install/bridge-iptables.mdx'
+
+### Verify cgroup controllers
+
+@include 'install/cgroup-controllers.mdx'
 
 ## CNI configuration files
 
