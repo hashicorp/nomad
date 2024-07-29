@@ -503,12 +503,3 @@ func Merge[T comparable](a, b T) T {
 	}
 	return a
 }
-
-// AddClamped adds integers but returns maxint if there's overflow
-func AddClamped(a, b int64) int64 {
-	c := a + b
-	if (c > a) == (b > 0) {
-		return c
-	}
-	return math.MaxInt64
-}

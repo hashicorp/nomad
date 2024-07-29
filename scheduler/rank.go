@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/safemath"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -371,12 +371,12 @@ OUTER:
 					CpuShares: int64(task.Resources.CPU),
 				},
 				Memory: structs.AllocatedMemoryResources{
-					MemoryMB: helper.AddClamped(
+					MemoryMB: safemath.Add(
 						int64(task.Resources.MemoryMB), int64(task.Resources.SecretsMB)),
 				},
 			}
 			if iter.memoryOversubscription {
-				taskResources.Memory.MemoryMaxMB = helper.AddClamped(
+				taskResources.Memory.MemoryMaxMB = safemath.Add(
 					int64(task.Resources.MemoryMaxMB), int64(task.Resources.SecretsMB))
 			}
 
