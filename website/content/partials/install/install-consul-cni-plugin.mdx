@@ -1,0 +1,44 @@
+If you use the `transparent_proxy` block for Consul Service Mesh, then you must install the 
+`consul-cni` plugin on each client node to redirect inbound and outbound traffic for services to the Envoy proxy. Install the reference CNI plugins before you install the Consul CNI plugin. The following commands assume that you have installed the reference CNI plugins.
+
+Install the `consul-cni` plugin on each client node.  
+
+<Tabs>
+<Tab heading="Ubuntu/Debian" group="ubuntu">
+
+```shell-session
+$ sudo apt-get install -y consul-cni
+```
+
+</Tab>
+<Tab heading="RHEL/CentOS" group="rhel">
+
+```shell-session
+$ sudo yum -y install consul-cni
+```
+
+</Tab>
+<Tab heading="Fedora" group="fedora">
+
+```shell-session
+$ sudo dnf -y install consul-cni
+```
+
+</Tab>
+<Tab heading="Amazon Linux" group="amazonlinux">
+
+```shell-session
+$ sudo yum -y install consul-cni
+```
+
+</Tab>
+<Tab heading="Manual" group="linux-manual">
+
+```shell-session
+$ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
+$ curl -L -o consul-cni.zip "https://releases.hashicorp.com/consul-cni/1.5.1/consul-cni_1.5.1_linux_${ARCH_CNI}".zip && \
+  sudo unzip consul-cni.zip -d /opt/cni/bin -x LICENSE.txt
+```
+
+</Tab>
+</Tabs> 
