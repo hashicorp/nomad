@@ -502,6 +502,88 @@ func TestNetworkIndex_AssignPortss_SmallRange(t *testing.T) {
 
 }
 
+// TestNetworkIndex_AssignPorts_TwoIp exercises assigning ports on group
+// networks with two ip matching host network
+func TestNetworkIndex_AssignPorts_TwoIp(t *testing.T) {
+	ci.Parallel(t)
+
+	n := &Node{
+		NodeResources: &NodeResources{
+			NodeNetworks: []*NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Speed:  1000,
+					Addresses: []NodeNetworkAddress{
+						{
+							Alias:   "two_ip_test",
+							Address: "192.168.0.100",
+							Family:  NodeNetworkAF_IPv4,
+						},
+					},
+				},
+				{
+					Mode:   "host",
+					Device: "eth1",
+					Speed:  1000,
+					Addresses: []NodeNetworkAddress{
+						{
+							Alias:   "two_ip_test",
+							Address: "192.168.0.101",
+							Family:  NodeNetworkAF_IPv4,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	testCases := []struct {
+		name      string
+		allocated []AllocatedPortMapping
+		ask       []Port
+		expectErr string
+	}{
+		{
+			name:      "1 reserved port asked, 2 ip, 1 already used",
+			allocated: []AllocatedPortMapping{{"static", 7000, 7000, "192.168.0.100"}},
+			ask:       []Port{{"static", 7000, 7000, "two_ip_test"}},
+			expectErr: "",
+		},
+		{
+			name: "1 reserved port asked, 2 ip, 2 already used",
+			allocated: []AllocatedPortMapping{
+				{"static", 7000, 7000, "192.168.0.100"},
+				{"static", 7000, 7000, "192.168.0.101"},
+			},
+			ask:       []Port{{"static", 7000, 7000, "two_ip_test"}},
+			expectErr: "reserved port collision static=7000",
+		},
+	}
+
+	for _, tc := range testCases {
+
+		idx := NewNetworkIndex()
+		idx.SetNode(n)
+		idx.AddReservedPorts(tc.allocated)
+
+		ask := &NetworkResource{ReservedPorts: tc.ask}
+		offer, err := idx.AssignPorts(ask)
+		if tc.expectErr != "" {
+			must.EqError(t, err, tc.expectErr)
+		} else {
+			must.NoError(t, err)
+			must.NotNil(t, offer, must.Sprint("did not get an offer"))
+
+			for _, port := range tc.ask {
+				_, ok := offer.Get(port.Label)
+				must.True(t, ok)
+			}
+		}
+	}
+
+}
+
 func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 	ci.Parallel(t)
 	idx := NewNetworkIndex()
