@@ -1,0 +1,3 @@
+```release-note:bug
+networking: The same static port can now be used more than once on host networks with multiple IPs
+```
