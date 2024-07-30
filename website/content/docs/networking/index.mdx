@@ -8,26 +8,22 @@ description: |-
 
 # Networking
 
-Nomad is a workload orchestrator and so it focuses on the scheduling aspects of
+Nomad is a workload orchestrator and focuses on the scheduling aspects of
 a deployment, touching areas such as networking as little as possible.
 
-**Networking in Nomad is usually done via _configuration_ instead of
-_infrastructure_**. This means that Nomad provides ways for you to access the
+Networking in Nomad is usually done via _configuration_ instead of
+_infrastructure_. This means that Nomad provides ways for you to access the
 information you need to connect your workloads instead of running additional
 components behind the scenes, such as DNS servers and load balancers.
 
-This can be confusing at first since it is quite different from what you may
+Nomad networking can be confusing at first since it is quite different from what you may
 be used to from other tools. This section explains how networking works in
 Nomad, some of the different patterns and configurations you are likely to find
 and use, and how Nomad differs from other tools in this aspect.
 
 ## Allocation networking
 
-The base unit of scheduling in Nomad is an [allocation](/nomad/docs/concepts/architecture#allocation), which means that all
-tasks in the same allocation run in the same client and share common resources,
-such as disk and networking. Allocations can request access to network
-resources, such as ports, using the [`network`](/nomad/docs/job-specification/network) block. At its
-simplest configuration, a `network` block can be defined as:
+The base unit of scheduling in Nomad is an [allocation](/nomad/docs/concepts/architecture#allocation), which means that all tasks in the same allocation run in the same client and share common resources, such as disk and networking. Allocations can request access to network resources, such as ports, using the [`network`](/nomad/docs/job-specification/network) block. You can define a basic `network` block as the following:
 
 ```hcl
 job "..." {
@@ -41,19 +37,15 @@ job "..." {
 }
 ```
 
-Nomad reserves a random port in the client between [`min_dynamic_port`](/nomad/docs/configuration/client#min_dynamic_port) and [`max_dynamic_port`](/nomad/docs/configuration/client#max_dynamic_port) that has not been allocated yet and creates a port 
-mapping from the host network interface to the allocation.
+Nomad reserves a random port in the client between [`min_dynamic_port`](/nomad/docs/configuration/client#min_dynamic_port) and [`max_dynamic_port`](/nomad/docs/configuration/client#max_dynamic_port) that has not been allocated yet. Nomad then creates a port mapping from the host network interface to the allocation.
 
 [comment-image-source]:  https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link
 
 [![Nomad Port Mapping](/img/networking/port_mapping.png)](/img/networking/port_mapping.png)
 
-The selected port number can be accessed by tasks using the
-[`NOMAD_PORT_<label>`](/nomad/docs/runtime/environment#network-related-variables) environment variable to bind and
-expose the workload at the client's IP address and the given port.
+Tasks can access the selected port number using the [`NOMAD_PORT_<label>`](/nomad/docs/runtime/environment#network-related-variables) environment variable to bind and expose the workload at the client's IP address and the given port.
 
-The specific configuration process depends on what you are running, but it is
-usually done using a configuration file rendered from a [`template`](/nomad/docs/job-specification/template#template-examples) or passed directly via command line arguments:
+The specific configuration process depends on what you are running. However, usually you use a [`template`](/nomad/docs/job-specification/template#template-examples) to create a configuration file such as the follwowing:
 
 ```hcl
 job "..." {
@@ -75,40 +67,29 @@ job "..." {
 }
 ```
 
-It is also possible to request a specific port number, instead of a random one,
-by setting a [`static`](/nomad/docs/job-specification/network#static) value for the `port`. **This should only be used by specialized workloads**, such as load balancers and system jobs, since it can
-be hard to manage them manually to avoid scheduling collisions.
+You you can pass configuration via command line arguments.
+
+It is also possible to request a specific port number instead of a random one by setting a [`static`](/nomad/docs/job-specification/network#static) value for the `port`. This should only be used by specialized workloads, such as load balancers and system jobs, since it can be hard to manage them manually to avoid scheduling collisions.
 
 With the task listening at one of the client's ports, other processes can
-access it directly using the client's IP and port, but first they need to find
+access the task directly using the client's IP and port, but first the processes need to find
 these values. This process is called [service discovery](/nomad/docs/networking/service-discovery).
 
-When using IP and port to connect allocations it is important to make sure your
-network topology and routing configuration allow the Nomad clients to
-communicate with each other.
+When using IP and port to connect allocations it is important to make sure your network topology and routing configuration allow the Nomad clients to communicate with each other.
 
 ## Bridge networking
 
-Linux clients support a network [`mode`](/nomad/docs/job-specification/network#mode) called [`bridge`](/nomad/docs/job-specification/network#bridge). A
-bridge network acts like a virtual network switch allowing processes connected
-to the bridge to reach each other while isolating them from others.
+Linux clients support a network [`mode`](/nomad/docs/job-specification/network#mode) called [`bridge`](/nomad/docs/job-specification/network#bridge). A bridge network acts like a virtual network switch allowing processes connected to the bridge to reach each other while isolating them from others.
 
-When an allocation uses bridge networking, the Nomad agent creates a bridge
-called `nomad` (or the value set in [`bridge_network_name`](/nomad/docs/configuration/client#bridge_network_name)) using the
-[`bridge` CNI plugin]( https://www.cni.dev/plugins/current/main/bridge/) if one doesn't exist yet. Before using this mode you must first [install the CNI plugins](/nomad/docs/install#post-installation-steps) into your clients.
-By default a single bridge is created in each Nomad client.
+When an allocation uses bridge networking, the Nomad agent creates a bridge called `nomad` (or the value set in [`bridge_network_name`](/nomad/docs/configuration/client#bridge_network_name)) using the [`bridge` CNI plugin]( https://www.cni.dev/plugins/current/main/bridge/) if one doesn't exist yet. Before using this mode you must first [install the CNI plugins](/nomad/docs/networking/cni/) into your clients. By default, Nomad creates a single bridge in each Nomad client.
 
 [comment-image-source]: https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link
 
 [![Nomad Bridge](/img/networking/bridge.png)](/img/networking/bridge.png)
 
-Allocations that use the `bridge` network mode run in an isolated network
-namespace and are connected to the bridge. This allows Nomad to map random
-ports from the host to specific port numbers inside the allocation that are
-expected by the tasks.
+Allocations that use the `bridge` network mode run in an isolated network namespace and are connected to the bridge. This allows Nomad to map random ports from the host to specific port numbers inside the allocation that tasks expect.
 
-For example, an HTTP server that listens on port `3000` by default can be
-configured with the following `network` block:
+For example, you can configure an HTTP server that listens on port `3000` by default with the following `network` block:
 
 ```hcl
 job "..." {
@@ -126,42 +107,25 @@ job "..." {
 }
 ```
 
-To allow communication between allocations in different clients, Nomad creates
-an `iptables` rule to forward requests from the host network interface to the
-bridge. This results in three different network access scopes:
+To allow communication between allocations in different clients, Nomad creates an `iptables` rule to forward requests from the host network interface to the bridge. This results in three different network access scopes:
 
-- Tasks that bind to the loopback interface (`localhost` or `127.0.0.1`) are
-  accessible only from within the allocation.
+- Tasks that bind to the loopback interface (`localhost` or `127.0.0.1`) are accessible only from within the allocation.
 
-- Tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`)
-  without `port` forwarding are only accessible from within the same client.
+- Tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`) without `port` forwarding are only accessible from within the same client.
 
-- Tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`)
-  with `port` forwarding are accessible from external sources.
+- Tasks that bind to the bridge (or other general addresses, such as `0.0.0.0`) with `port` forwarding are accessible from external sources.
 
-~> **Warning:** To prevent any type of external access when using `bridge`
-   network mode make sure to bind your workloads to the loopback interface
-   only.
+~> **Warning:** To prevent any type of external access when using `bridge` network mode make sure to bind your workloads to the loopback interface only.
 
 Bridge networking is at the core of [service mesh](/nomad/docs/networking/service-mesh) and a requirement when using [Consul Service Mesh](/nomad/docs/integrations/consul-connect).
 
 ### Bridge networking with Docker
 
-The Docker daemon manages its own network configuration and creates its own
-[bridge network](https://docs.docker.com/network/bridge/), network namespaces, and [`iptable`
-rules](https://docs.docker.com/network/iptables/). Tasks using the `docker` task driver connect to the Docker bridge instead of using the one created by Nomad and, by default, each
-container runs in its own Docker managed network namespace.
+The Docker daemon manages its own network configuration and creates its own [bridge network](https://docs.docker.com/network/bridge/), network namespaces, and [`iptable` rules](https://docs.docker.com/network/iptables/). Tasks using the `docker` task driver connect to the Docker bridge instead of using the one created by Nomad and, by default, each container runs in its own Docker managed network namespace.
 
-When using `bridge` network mode, Nomad creates a placeholder container using
-the image defined in [`infra_image`](/nomad/docs/drivers/docker#infra_image) to initialize a Docker network namespace that is shared by all tasks in the allocation to allow them to communicate with
-each other.
+When using `bridge` network mode, Nomad creates a placeholder container using the image defined in [`infra_image`](/nomad/docs/drivers/docker#infra_image) to initialize a Docker network namespace that is shared by all tasks in the allocation to allow them to communicate with each other.
 
 The Docker task driver has its own task-level [`network_mode`](/nomad/docs/drivers/docker#network_mode) configuration. Its default value depends on the group-level `network.mode` configuration.
-
-~> **Warning:** The task-level `network_mode` may conflict with the group-level
-   `network.mode` configuration and generate unexpected results. If you set the
-   group `network.mode = "bridge"` you should not set the Docker config
-   `network_mode`.
 
 ```hcl
 group "..." {
@@ -182,66 +146,43 @@ group "..." {
 }
 ```
 
-The diagram below illustrates what happens when a Docker task is configured
-incorrectly.
+~> **Warning:** The task-level `network_mode` may conflict with the group-level `network.mode` configuration and generate unexpected results. If you set the group `network.mode = "bridge"` you should not set the Docker config `network_mode`.
+
+This diagram illustrates what happens when a Docker task is configured incorrectly.
 
 [comment-image-source]:  https://drive.google.com/file/d/1q4a2ab0TyLEPdWiO2DIianAPWuPqLqZ4/view?usp=share_link
 
 [![Nomad Bridge](/img/networking/docker_bridge.png)](/img/networking/docker_bridge.png)
 
-The tasks in the rightmost allocation are not able to communicate with each
-other using their loopback interface because they were placed in different
-network namespaces.
+The tasks in the rightmost allocation are not able to communicate with each other using their loopback interface because they were placed in different network namespaces.
 
-Since the group `network.mode` is `bridge`, Nomad creates the pause container
-to establish a shared network namespace for all tasks, but setting the
-task-level `network_mode` to `bridge` places the task in a different namespace.
-This prevents, for example, a task from communicating with its sidecar proxy in
-a service mesh deployment.
+Since the group `network.mode` is `bridge`, Nomad creates the pause container to establish a shared network namespace for all tasks, but setting the task-level `network_mode` to `bridge` places the task in a different namespace. This prevents, for example, a task from communicating with its sidecar proxy in a service mesh deployment.
 
-Refer to the [`network_mode`](/nomad/docs/drivers/docker#network_mode) documentation and the
-[Networking](/nomad/docs/drivers/docker#networking) section for more information.
+Refer to the [`network_mode`](/nomad/docs/drivers/docker#network_mode) documentation and the [Networking](/nomad/docs/drivers/docker#networking) section for more information.
 
--> **Note:** Docker Desktop in non-Linux environments runs a local virtual
-   machine, adding an extra layer of indirection. Refer to the
+-> **Note:** Docker Desktop in non-Linux environments runs a local virtual machine, adding an extra layer of indirection. Refer to the
    [FAQ](/nomad/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos) for more details.
 
 ## Container Network Interface (CNI) plugins
 
-Nomad has built-in support for scheduling compute resources such as
-CPU, memory, and networking. Nomad's network plugin support extends
-this to allow scheduling tasks with purpose-created or specialty network
-configurations. Network plugins are third-party plugins that conform to the
-[Container Network Interface (CNI) [specification](https://www.cni.dev/docs/spec/).
+Nomad has built-in support for scheduling compute resources such as CPU, memory, and networking. Nomad's network plugin support extends
+this to allow scheduling tasks with specialty network configurations. Network plugins are third-party plugins that conform to the [Container Network Interface (CNI) [specification](https://www.cni.dev/docs/spec/).
 
-Network plugins need to be installed and configured on each client. The [Nomad
-installation instructions](/nomad/docs/install#post-installation-steps) recommend installing the [CNI
-reference plugins](https://github.com/containernetworking/plugins) because certain Nomad networking features, like`bridge` network mode and Consul service mesh, leverage them to provide an
-operating-system agnostic interface to configure workload networking.
+Network plugins need to be installed and configured on each client. The [Nomad installation instructions](/nomad/docs/install#post-installation-steps) recommend installing the [CNI reference plugins](https://github.com/containernetworking/plugins) because certain Nomad networking features, like`bridge` network mode and Consul service mesh, leverage them to provide an operating-system agnostic interface to configure workload networking.
 
-Custom networking in Nomad is accomplished with a combination of CNI plugin
-binaries and CNI configuration files.
+Nomad implements custom networking with a combination of CNI plugin binaries and CNI configuration files.
 
 ### CNI reference plugins
 
-The CNCF maintains a set of reference CNI plugins for basic network operations.
-These plugins are required for Nomad's `bridge` networking mode and for integrating
-with Consul service mesh.
+The CNCF maintains a set of reference CNI plugins for basic network operations. Nomad requires these plugins for `bridge` networking mode and for integrating with Consul service mesh.
 
-See the Linux [post-install steps](/nomad/docs/install#post-installation-steps) for installing CNI reference plugins.
+To use Nomad's [`transparent_proxy`](/nomad/docs/job-specification/transparent_proxy) feature, you also need the [`consul-cni`](https://releases.hashicorp.com/consul-cni) plugin.
 
-To use Nomad's [`transparent_proxy`](/nomad/docs/job-specification/transparent_proxy) feature, you  also need the [`consul-cni`](https://releases.hashicorp.com/consul-cni) plugin.
+Spec-compliant plugins should work with Nomad, however, it's possible a plugin vendor has implemented their plugin to make non-standard API calls, or it is otherwise non-compliant with the CNI specification. In those situations the plugin may not function correctly in a Nomad environment. You should verify plugin compatibility with Nomad before deploying in production.
 
-Spec-compliant plugins should work with Nomad, however, it's possible a plugin
-vendor has implemented their plugin to make non-standard API calls, or it is
-otherwise non-compliant with the CNI specification. In those situations the
-plugin may not function correctly in a Nomad environment. You should verify
-plugin compatibility with Nomad before deploying in production.
+CNI plugins are installed and configured on a per-client basis. Nomad consults the path given in the client's [`cni_path`](/nomad/docs/configuration/client#cni_path) to find CNI plugin executables.
 
-CNI plugins are installed and configured on a per-client basis. Nomad consults
-the path given in the client's [`cni_path`](/nomad/docs/configuration/client#cni_path) to find CNI plugin executables.
-
-## Comparing with other tools
+## Comparison with other tools
 
 ### Kubernetes and Docker Compose
 
