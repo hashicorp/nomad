@@ -107,6 +107,7 @@ func (c *JobInspectCommand) Run(args []string) int {
 	}
 	if withVars && !hcl {
 		c.Ui.Error("can only use -with-vars with -hcl")
+		return 1
 	}
 
 	// Get the HTTP client
