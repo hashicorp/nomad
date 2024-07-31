@@ -22,6 +22,7 @@ var supportedTLSVersions = map[string]uint16{
 	"tls10": tls.VersionTLS10,
 	"tls11": tls.VersionTLS11,
 	"tls12": tls.VersionTLS12,
+	"tls13": tls.VersionTLS13,
 }
 
 // supportedTLSCiphers are the complete list of TLS ciphers supported by Nomad
