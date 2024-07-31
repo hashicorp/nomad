@@ -18,7 +18,7 @@ Nomad implements custom networking through a combination of CNI plugin binaries 
 ## Requirements
 
 - You are familiar with [CNI plugins](https://www.cni.dev/plugins/current/).
-- You are familiar with [how Nomad supports Container Network Interface (CNI) plugins](/nomad/docs/networking/index.mdx#container-network-interface-plugins).
+- You are familiar with [how Nomad supports Container Network Interface (CNI) plugins](/nomad/docs/networking#container-network-interface-cni-plugins).
 - You are running Nomad on Linux.
 
 
@@ -29,7 +29,7 @@ Perform the following on each Nomad client:
 1. [Install CNI Reference plugins](#install-cni-reference-plugins).
 1. [Configure bridge module to route traffic through iptables](#configure-bridge-module-to-route-traffic-through-iptables).
 1. [Verify cgroup controllers](#verify-cgroup-controllers).
-1. [Create a bridge mode configuration](#create-a-bridge-mode-configuration).
+1. [Create a bridge mode configuration](#create-bridge-mode-configuration).
 1. [Configure Nomad clients](#configure-nomad-clients).
 
 ### Install CNI reference plugins
@@ -149,7 +149,7 @@ $ sudo iptables -t nat -L
 
 The CNI specification defines a network configuration format for administrators. It contains directives for both the orchestrator and the plugins to consume. At plugin execution time, this configuration format is interpreted by Nomad and transformed into arguments for the plugins.
 
-Nomad reads the following files from the [`cni_config_dir`](/nomad/docs/configuration/client#cni_config_dir) — `/opt/cni/config` by default:
+Nomad reads the following files from the [`cni_config_dir`](/nomad/docs/configuration/client#cni_config_dir) parameter — `/opt/cni/config` by default:
 
 * `.conflist`: Nomad loads these files as [network
   configurations](https://github.com/containernetworking/cni/blob/main/SPEC.md#configuration-format) that contain a list of plugin configurations.
@@ -158,7 +158,7 @@ Nomad reads the following files from the [`cni_config_dir`](/nomad/docs/configur
   configurations](https://github.com/containernetworking/cni/blob/main/SPEC.md#plugin-configuration-objects) for a specific network.
 
 
-Add the [`cni_path`](/nomad/docs/configuration/client#cni_path) and [`cni_config_dir`](/nomad/docs/configuration/client#cni_config_dir) entries to each client's `client.hcl` file.
+Add the [`cni_path`](/nomad/docs/configuration/client#cni_path) and [`cni_config_dir`](/nomad/docs/configuration/client#cni_config_dir) parameters to each client's `client.hcl` file.
 
 <CodeBlockConfig filename="/etc/nomad.d/client.hcl">
 
