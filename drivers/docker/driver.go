@@ -653,7 +653,7 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, r
 		AllocID:   task.AllocID,
 		TaskName:  task.Name,
 		Timestamp: time.Now(),
-		Message:   "Downloading image",
+		Message:   fmt.Sprintf("Downloading image %s", dockerImageRef(repo, tag)),
 		Annotations: map[string]string{
 			"image": dockerImageRef(repo, tag),
 		},
