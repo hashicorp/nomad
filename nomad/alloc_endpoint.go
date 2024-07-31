@@ -619,11 +619,23 @@ func (a *Alloc) signTasks(
 		}
 
 		widFound = true
-		claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, &idReq.WIHandle, wid).
+		builder := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, &idReq.WIHandle, wid).
 			WithTask(task).
-			WithConsul().
-			WithVault().
-			Build(now)
+			WithConsul()
+
+		var node *structs.Node
+		node, err = a.srv.State().NodeByID(nil, alloc.NodeID)
+		if err != nil {
+			return
+		}
+		builder.WithNode(node)
+
+		vaultCfg := a.srv.GetConfig().GetVaultForIdentity(wid)
+		if vaultCfg != nil && vaultCfg.DefaultIdentity != nil {
+			builder.WithVault(vaultCfg.DefaultIdentity.ExtraClaims)
+		}
+
+		claims := builder.Build(now)
 		err = a.signClaims(claims, idReq, reply)
 		break
 	}
