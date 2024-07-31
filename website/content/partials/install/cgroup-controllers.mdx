@@ -2,9 +2,6 @@ On Linux, Nomad uses cgroups to control access to resources like CPU and
 memory. Nomad supports both [cgroups v2](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html) and the legacy [cgroups
 v1](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/cgroups.html). When Nomad clients start, they determine the available cgroup controllers and include the attribute `os.cgroups.version` in their fingerprint.
 
-Nomad can only use cgroups to control resources if all the required controllers
-are available. If one or more required cgroups are not available, Nomad disables resource controls that require cgroups entirely. You most often see missing controllers on platforms used outside of datacenters, such as Raspberry Pi or similar hobbyist computers.
-
 On cgroups v2, you can verify that you have all required controllers.
 
 ```shell-session
@@ -14,7 +11,4 @@ cpuset cpu io memory pids
 
 On legacy cgroups v1, look for this same list of required controllers as directories under the directory `/sys/fs/cgroup`.
 
-To enable missing cgroups, add the appropriate boot command line arguments. For
-example, to enable the `cpuset` cgroup, add `cgroup_cpuset=1 cgroup_enable=cpuset`. Add these  arguments wherever specified by your bootloader.
-
-Refer to the [cgroup controller requirements](/nomad/docs/install/production/requirements#hardening-nomad) for more details.
+Refer to the [cgroup controller requirements](/nomad/docs/install/production/requirements#cgroup-controllers) for more details and to enable missing cgroups.

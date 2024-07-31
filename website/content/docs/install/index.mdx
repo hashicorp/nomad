@@ -9,8 +9,7 @@ description: Learn how to install Nomad on Linux, Mac, and Windows.
 Nomad is available as a pre-compiled binary or as a package for several
 operating systems. You can also [build Nomad from source](#from-source).
 
--> If you are interested in trialing Nomad without installing it locally, see the
-[Quickstart](/nomad/docs/install/quickstart) for options to get started with Nomad.
+-> If you are interested in trialing Nomad without installing it locally, see the [Quickstart](/nomad/docs/install/quickstart) for options to get started with Nomad.
 
 <Tabs>
 <Tab heading="Linux" group="linux">
@@ -185,24 +184,17 @@ installation.
 </Tabs>
 
 
-## Post-installation steps
+## Linux post-installation steps
 
 These steps are optional but can be helpful for running Nomad and to
 take advantage of additional Nomad functionalities.
 
-<Tabs>
-<Tab heading="Linux" group="linux">
-
 -> You need to run client agents as root (or with `sudo`) so that cpuset accounting and network namespaces work correctly.
-
-### Add the Nomad binary to your system path
-
-@include 'install/manual-path.mdx'
 
 ### Install CNI reference plugins
 
 @include 'install/install-cni-plugins.mdx'
- 
+
 ### Install consul-cni plugin
 
 @include 'install/install-consul-cni-plugin.mdx'
@@ -214,51 +206,6 @@ take advantage of additional Nomad functionalities.
 ### Verify cgroup controllers
 
 @include 'install/cgroup-controllers.mdx'
-
-</Tab>
-
-<Tab heading="Mac" group="mac">
-
-### Add the Nomad binary to your system path
-
-<Tabs>
-<Tab heading="Homebrew" group="mac-homebrew">
-No additional steps necessary after installing Nomad using Homebrew.
-</Tab>
-<Tab heading="Manual" group="mac-manual">
-
-Permanently add a new location to your path by editing your shell's settings
-file (usually called something like `~/.bashrc`, where the part of the filename
-after the `.` and before `rc` is the name of your shell). In that file you
-should see a line that starts with `export PATH=`, followed by a
-colon-separated list of locations. Add the location of the Nomad binary to that
-list and save the file. Then reload your shell's configuration with the command
-`source ~/.bashrc`, replacing `bash` with the name of your shell.
-</Tab>
-</Tabs>
-
-</Tab>
-
-<Tab heading="Windows" group="windows">
-
-### Add the Nomad binary to your system path
-
-<Tabs>
-<Tab heading="Chocolatey" group="windows-chocolatey">
-No additional steps necessary after installing Nomad using Chocolatey.
-</Tab>
-<Tab heading="Manual" group="windows-manual">
-
-Add a location to your path via the GUI by navigating to `Environment
-Variables` in your system settings, and looking for the variable called `PATH`.
-You should see a semicolon-separated list of locations. Add the Nomad binary's
-location to that list and then launch a new console window.
-</Tab>
-</Tabs>
-
-</Tab>
-
-</Tabs>
 
 ## Verify the Installation
 

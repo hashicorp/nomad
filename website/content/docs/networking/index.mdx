@@ -45,7 +45,7 @@ Nomad reserves a random port in the client between [`min_dynamic_port`](/nomad/d
 
 Tasks can access the selected port number using the [`NOMAD_PORT_<label>`](/nomad/docs/runtime/environment#network-related-variables) environment variable to bind and expose the workload at the client's IP address and the given port.
 
-The specific configuration process depends on what you are running. However, usually you use a [`template`](/nomad/docs/job-specification/template#template-examples) to create a configuration file or pass it directly via command line arguments such as the following:
+The specific configuration process depends on what you are running. However, usually you use a [`template`](/nomad/docs/job-specification/template#template-examples) to create a configuration file such as the following:
 
 ```hcl
 job "..." {
@@ -67,7 +67,7 @@ job "..." {
 }
 ```
 
-You you can pass configuration via command line arguments.
+You may also pass configuration via command line arguments.
 
 It is also possible to request a specific port number instead of a random one by setting a [`static`](/nomad/docs/job-specification/network#static) value for the `port`. This should only be used by specialized workloads, such as load balancers and system jobs, since it can be hard to manage them manually to avoid scheduling collisions.
 
@@ -79,7 +79,13 @@ When using IP and port to connect allocations it is important to make sure your 
 
 ## Bridge networking
 
-Linux clients support a network [`mode`](/nomad/docs/job-specification/network#mode) called [`bridge`](/nomad/docs/job-specification/network#bridge). A bridge network acts like a virtual network switch allowing processes connected to the bridge to reach each other while isolating them from others.
+Linux clients support a network [`mode`](/nomad/docs/job-specification/network#mode) called [`bridge`](/nomad/docs/job-specification/network#bridge). A bridge network acts like a virtual network switch, allowing processes connected to the bridge to reach each other while isolating them from others.
+
+### Container Network Interface (CNI) reference plugins
+
+Nomad's bridge network leverages [CNI reference plugins](https://github.com/containernetworking/plugins) to provide an operating-system agnostic interface to configure workload networking. Nomad's network plugin support extends Nomad's built-in compute resource scheduling to allow scheduling tasks with specialty network configurations, which Nomad implements with a combination of CNI reference plugins and CNI configuration files.
+
+### How bridge networking works
 
 When an allocation uses bridge networking, the Nomad agent creates a bridge called `nomad` (or the value set in [`bridge_network_name`](/nomad/docs/configuration/client#bridge_network_name)) using the [`bridge` CNI plugin]( https://www.cni.dev/plugins/current/main/bridge/) if one doesn't exist yet. Before using this mode you must first [install the CNI plugins](/nomad/docs/networking/cni/) into your clients. By default, Nomad creates a single bridge in each Nomad client.
 
@@ -163,25 +169,6 @@ Refer to the [`network_mode`](/nomad/docs/drivers/docker#network_mode) documenta
 -> **Note:** Docker Desktop in non-Linux environments runs a local virtual machine, adding an extra layer of indirection. Refer to the
    [FAQ](/nomad/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos) for more details.
 
-## Container Network Interface (CNI) plugins
-
-Nomad has built-in support for scheduling compute resources such as CPU, memory, and networking. Nomad's network plugin support extends
-this to allow scheduling tasks with specialty network configurations. Network plugins are third-party plugins that conform to the [Container Network Interface (CNI) [specification](https://www.cni.dev/docs/spec/).
-
-Network plugins need to be installed and configured on each client. The [Nomad installation instructions](/nomad/docs/install#post-installation-steps) recommend installing the [CNI reference plugins](https://github.com/containernetworking/plugins) because certain Nomad networking features, like`bridge` network mode and Consul service mesh, leverage them to provide an operating-system agnostic interface to configure workload networking.
-
-Nomad implements custom networking with a combination of CNI plugin binaries and CNI configuration files.
-
-### CNI reference plugins
-
-The CNCF maintains a set of reference CNI plugins for basic network operations. Nomad requires these plugins for `bridge` networking mode and for integrating with Consul service mesh.
-
-To use Nomad's [`transparent_proxy`](/nomad/docs/job-specification/transparent_proxy) feature, you also need the [`consul-cni`](https://releases.hashicorp.com/consul-cni) plugin.
-
-Spec-compliant plugins should work with Nomad, however, it's possible a plugin vendor has implemented their plugin to make non-standard API calls, or it is otherwise non-compliant with the CNI specification. In those situations the plugin may not function correctly in a Nomad environment. You should verify plugin compatibility with Nomad before deploying in production.
-
-CNI plugins are installed and configured on a per-client basis. Nomad consults the path given in the client's [`cni_path`](/nomad/docs/configuration/client#cni_path) to find CNI plugin executables.
-
 ## Comparison with other tools
 
 ### Kubernetes and Docker Compose
@@ -250,7 +237,7 @@ assigned random port numbers. Nomad service discovery with DNS uses
 
 - [Service Discovery](/nomad/docs/networking/service-discovery)
 - [Service Mesh](/nomad/docs/networking/service-mesh)
-- [Container Network Interface](/nomad/docs/networking/cni) plugins installation and usage guide
+- [Container Network Interface](/nomad/docs/networking/cni) plugins guide
 
 ## Additional resources
 

@@ -1,4 +1,8 @@
-Nomad's task group networks and Consul Connect integration use bridge networking and iptables to send traffic between containers. The Linux kernel bridge module has three "tunables" that control whether iptables process traffic crossing the bridge. Some operating systems (RedHat, CentOS, and Fedora in particular) configure these tunables to optimize for VM workloads where iptables rules might not be correctly configured for guest traffic.
+Nomad's task group networks and Consul Connect integration use bridge networking and iptables to send traffic between containers.
+
+~> **Warning:** New Linux versions, such as Ubuntu 24.04, may not enable bridge networking by default. Use `sudo modprobe bridge` to load the bridge module if it is missing.
+
+The Linux kernel bridge module has three "tunables" that control whether iptables process traffic crossing the bridge. Some operating systems (RedHat, CentOS, and Fedora in particular) configure these tunables to optimize for VM workloads where iptables rules might not be correctly configured for guest traffic.
 
 Ensure your Linux operating system distribution has been configured to allow
 iptables to route container traffic through the bridge network. Set these tunables to allow iptables processing for the bridge network.
