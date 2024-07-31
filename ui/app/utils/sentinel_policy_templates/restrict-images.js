@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-export default `# This policy restricts which Docker images from which Docker registries are 
-#allowed and also prevents use of the "latest" tag to ensure predictability
+export default `# This policy restricts which Docker images from which Docker registries are
+# allowed and also prevents use of the "latest" tag to ensure predictability
 
 import "strings"
 
@@ -22,13 +22,13 @@ check_task_config = func(task) {
   	status = true
     registry = "hub.docker.io"
     image = ""
-    if task.driver in ["docker", "podman"] { 
+    if task.driver in ["docker", "podman"] {
       registry_and_image = strings.split(task.config.image, ("/"))
       if length(registry_and_image) > 1 {
          registry = registry_and_image[0]
          image = registry_and_image[1]
       } else {
-         image = task.config.image        
+         image = task.config.image
       }
       # Checking the image
 	    for allowed_images as allowed {
@@ -48,7 +48,7 @@ check_task_config = func(task) {
       }
       # Check registry
       if registry not in allowed_registries {
-        print(task.config.image, "in task", task.name, "does not conform to policy, not from an allowed registry", allowed_registries)        
+        print(task.config.image, "in task", task.name, "does not conform to policy, not from an allowed registry", allowed_registries)
         status = false
       }
       return status
@@ -63,7 +63,7 @@ restrict_images = rule {
     }
   }
 }
-        
+
 # Main rule
 main = rule {
   restrict_images
