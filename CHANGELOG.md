@@ -460,7 +460,7 @@ BUG FIXES:
 * vault: Fixed a bug where poststop tasks would not get a Vault token [[GH-19268](https://github.com/hashicorp/nomad/issues/19268)]
 * vault: Fixed an issue that could cause Nomad to attempt to renew a Vault token that is already expired [[GH-18985](https://github.com/hashicorp/nomad/issues/18985)]
 
-# 1.6.13 Enterprise (July 16, 2024)
+## 1.6.13 Enterprise (July 16, 2024)
 
 BREAKING CHANGES:
 
