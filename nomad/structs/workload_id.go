@@ -76,6 +76,8 @@ type IdentityClaims struct {
 	VaultNamespace  string `json:"vault_namespace,omitempty"`
 	VaultRole       string `json:"vault_role,omitempty"`
 
+	// ExtraClaims are added based on this identity's
+	// WorkloadIdentityConfiguration, controlled by server configuration
 	ExtraClaims map[string]string `json:"extra_claims,omitempty"`
 
 	jwt.Claims
@@ -227,7 +229,9 @@ func strAttrGet[T any](x *T, fn func(x *T) string) string {
 }
 
 func (b *IdentityClaimsBuilder) interpolate() {
-
+	if len(b.extras) == 0 {
+		return
+	}
 	r := strings.NewReplacer(
 		// attributes that always exist
 		"${job.region}", b.job.Region,
@@ -310,7 +314,8 @@ type WorkloadIdentity struct {
 	TTL time.Duration
 
 	// Note: ExtraClaims is available on config/WorkloadIdentity but not
-	// available here on jobspecs
+	// available here on jobspecs because that might allow a job author to
+	// escalate their privileges if they know what claim mappings to expect.
 }
 
 // IsConsul returns true if the identity name starts with the standard prefix
