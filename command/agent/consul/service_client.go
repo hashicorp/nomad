@@ -1030,7 +1030,9 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		// Get the Consul namespace this service is in.
 		ns := servicesInConsul[id].Namespace
 
-		token := c.getServiceToken(id)
+		token := c.getServiceToken(id) // NOTE: if the ID is invalid, token will be set to an empty string!
+		fmt.Printf("this is the ID: %s\n", id)
+		fmt.Printf("this is the token: %s\n", token)
 
 		// If this service has a sidecar, we need to remove the sidecar first,
 		// otherwise Consul will produce a warning and an error when removing
@@ -1072,10 +1074,11 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			c.logger.Trace("must register service", "id", id, "exists", exists, "reason", reason)
 			token := c.getServiceToken(id)
 
+			fmt.Printf("this is the token inside c.agentServiceUpdateRequired: %s\n", token)
 			if err = c.agentAPI.ServiceRegisterOpts(
 				serviceInNomad, api.ServiceRegisterOpts{
 					ReplaceExistingChecks: exists,
-					Token:                 token,
+					Token:                 token, // NOTE: what would happen if we passed an empty token?
 				}); err != nil {
 				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 				return err
