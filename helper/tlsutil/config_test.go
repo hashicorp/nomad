@@ -949,9 +949,7 @@ func TestConfig_ParseMinVersion_Invalid(t *testing.T) {
 
 	require := require.New(t)
 
-	invalidVersions := []string{"tls13",
-		"tls15",
-	}
+	invalidVersions := []string{"ssl3", "tls14", "tls15"}
 
 	for _, version := range invalidVersions {
 		parsedVersion, err := ParseMinVersion(version)
