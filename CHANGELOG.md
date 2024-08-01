@@ -151,17 +151,9 @@ SECURITY:
 
 IMPROVEMENTS:
 
-* client: add a preferred_address_family config to prefer ipv4 or ipv6 when deducing IP from network interface [[GH-23389](https://github.com/hashicorp/nomad/issues/23389)]
-* cni: allow users to input CNI args in job specification [[GH-23538](https://github.com/hashicorp/nomad/issues/23538)]
 * deps: Updated Consul API to 1.29.1. [[GH-23436](https://github.com/hashicorp/nomad/issues/23436)]
 * deps: Updated consul-template to 0.39 to allow admin partition and sameness groups queries. [[GH-23436](https://github.com/hashicorp/nomad/issues/23436)]
 * docker: Validate that unprivileged containers aren't running as ContainerAdmin on Windows [[GH-23443](https://github.com/hashicorp/nomad/issues/23443)]
-* namespaces: Added warnings if deleting namespaces that have existing objects associated with them [[GH-23499](https://github.com/hashicorp/nomad/issues/23499)]
-* quota (Enterprise): Allow CPU cores to be configured within a quota [[GH-23543](https://github.com/hashicorp/nomad/issues/23543)]
-* scaling: Added `-check-index` support to `job scale` command [[GH-23457](https://github.com/hashicorp/nomad/issues/23457)]
-* ui: Allow users to create Global ACL tokens from the Administration UI [[GH-23506](https://github.com/hashicorp/nomad/issues/23506)]
-* ui: Update headers in the Admin section to use the HashiCorp Design System [[GH-23366](https://github.com/hashicorp/nomad/issues/23366)]
-* ui: allow for multiple namespaces in jobs index filters [[GH-23468](https://github.com/hashicorp/nomad/issues/23468)]
 
 BUG FIXES:
 
@@ -172,20 +164,11 @@ BUG FIXES:
 * cli: Fixed bug where the `service info` command would fail if the service name was a prefix of another service name in the same namespace [[GH-23502](https://github.com/hashicorp/nomad/issues/23502)]
 * cli: Fixed bug where the `volume deregister`, `volume detach`, and `volume status` commands would fail if the volume ID was a prefix of another volume ID in the same namespace [[GH-23502](https://github.com/hashicorp/nomad/issues/23502)]
 * consul: Fixed a bug where service registration and Envoy bootstrap would not wait for Consul ACL tokens and services to be replicated to the local agent [[GH-23381](https://github.com/hashicorp/nomad/issues/23381)]
-* plugins: Fix panic on systems that don't support NUMA [[GH-23399](https://github.com/hashicorp/nomad/issues/23399)]
 * qemu: Fixed a bug that prevented `qemu` tasks from running on Linux [[GH-23466](https://github.com/hashicorp/nomad/issues/23466)]
 * quota (Enterprise): Fixed a bug where a task's resource core count was not translated to CPU MHz and checked against its quota when performing a job plan [[GH-18876](https://github.com/hashicorp/nomad/issues/18876)]
 * scheduler: Fix a bug where reserved resources are not calculated correctly [[GH-23386](https://github.com/hashicorp/nomad/issues/23386)]
 * server: Fixed a bug where expiring heartbeats for garbage collected nodes could panic the server [[GH-23383](https://github.com/hashicorp/nomad/issues/23383)]
 * template: Fix template rendering on Windows [[GH-23432](https://github.com/hashicorp/nomad/issues/23432)]
-* ui: Actions run from jobs with explicit name properties now work from the web UI [[GH-23553](https://github.com/hashicorp/nomad/issues/23553)]
-* ui: Dont show keyboard nav hints when taking a screenshot [[GH-23365](https://github.com/hashicorp/nomad/issues/23365)]
-* ui: Fix an issue where a remotely purged job would prevent redirect from taking place in the web UI [[GH-23492](https://github.com/hashicorp/nomad/issues/23492)]
-* ui: Fix an issue where access to Job Templates in the UI was restricted to variable.write access [[GH-23458](https://github.com/hashicorp/nomad/issues/23458)]
-* ui: Fix the Upload Jobspec button on the Run Job page [[GH-23548](https://github.com/hashicorp/nomad/issues/23548)]
-* ui: Fixed support for namespace parameter on job statuses API [[GH-23456](https://github.com/hashicorp/nomad/issues/23456)]
-* ui: fix an issue where gateway timeouts would cause the jobs list to revert to null, gives users a Pause Fetch option [[GH-23427](https://github.com/hashicorp/nomad/issues/23427)]
-* vault: Fixed a bug where requests to derive or renew tokens could be sent to the wrong namespace [[GH-23491](https://github.com/hashicorp/nomad/issues/23491)]
 
 ## 1.7.9 Enterprise (June 19, 2024)
 
@@ -477,7 +460,7 @@ BUG FIXES:
 * vault: Fixed a bug where poststop tasks would not get a Vault token [[GH-19268](https://github.com/hashicorp/nomad/issues/19268)]
 * vault: Fixed an issue that could cause Nomad to attempt to renew a Vault token that is already expired [[GH-18985](https://github.com/hashicorp/nomad/issues/18985)]
 
-## 1.6.13 Enterprise (July 16, 2024)
+# 1.6.13 Enterprise (July 16, 2024)
 
 BREAKING CHANGES:
 
@@ -491,17 +474,9 @@ SECURITY:
 
 IMPROVEMENTS:
 
-* client: add a preferred_address_family config to prefer ipv4 or ipv6 when deducing IP from network interface [[GH-23389](https://github.com/hashicorp/nomad/issues/23389)]
-* cni: allow users to input CNI args in job specification [[GH-23538](https://github.com/hashicorp/nomad/issues/23538)]
 * deps: Updated Consul API to 1.29.1. [[GH-23436](https://github.com/hashicorp/nomad/issues/23436)]
 * deps: Updated consul-template to 0.39 to allow admin partition and sameness groups queries. [[GH-23436](https://github.com/hashicorp/nomad/issues/23436)]
 * docker: Validate that unprivileged containers aren't running as ContainerAdmin on Windows [[GH-23443](https://github.com/hashicorp/nomad/issues/23443)]
-* namespaces: Added warnings if deleting namespaces that have existing objects associated with them [[GH-23499](https://github.com/hashicorp/nomad/issues/23499)]
-* quota (Enterprise): Allow CPU cores to be configured within a quota [[GH-23543](https://github.com/hashicorp/nomad/issues/23543)]
-* scaling: Added `-check-index` support to `job scale` command [[GH-23457](https://github.com/hashicorp/nomad/issues/23457)]
-* ui: Allow users to create Global ACL tokens from the Administration UI [[GH-23506](https://github.com/hashicorp/nomad/issues/23506)]
-* ui: Update headers in the Admin section to use the HashiCorp Design System [[GH-23366](https://github.com/hashicorp/nomad/issues/23366)]
-* ui: allow for multiple namespaces in jobs index filters [[GH-23468](https://github.com/hashicorp/nomad/issues/23468)]
 
 BUG FIXES:
 
@@ -511,21 +486,10 @@ BUG FIXES:
 * cli: Fixed bug where the `scaling policy info` command would fail if the policy ID was a prefix of another policy ID [[GH-23502](https://github.com/hashicorp/nomad/issues/23502)]
 * cli: Fixed bug where the `service info` command would fail if the service name was a prefix of another service name in the same namespace [[GH-23502](https://github.com/hashicorp/nomad/issues/23502)]
 * cli: Fixed bug where the `volume deregister`, `volume detach`, and `volume status` commands would fail if the volume ID was a prefix of another volume ID in the same namespace [[GH-23502](https://github.com/hashicorp/nomad/issues/23502)]
-* consul: Fixed a bug where service registration and Envoy bootstrap would not wait for Consul ACL tokens and services to be replicated to the local agent [[GH-23381](https://github.com/hashicorp/nomad/issues/23381)]
-* plugins: Fix panic on systems that don't support NUMA [[GH-23399](https://github.com/hashicorp/nomad/issues/23399)]
-* qemu: Fixed a bug that prevented `qemu` tasks from running on Linux [[GH-23466](https://github.com/hashicorp/nomad/issues/23466)]
 * quota (Enterprise): Fixed a bug where a task's resource core count was not translated to CPU MHz and checked against its quota when performing a job plan [[GH-18876](https://github.com/hashicorp/nomad/issues/18876)]
 * scheduler: Fix a bug where reserved resources are not calculated correctly [[GH-23386](https://github.com/hashicorp/nomad/issues/23386)]
 * server: Fixed a bug where expiring heartbeats for garbage collected nodes could panic the server [[GH-23383](https://github.com/hashicorp/nomad/issues/23383)]
 * template: Fix template rendering on Windows [[GH-23432](https://github.com/hashicorp/nomad/issues/23432)]
-* ui: Actions run from jobs with explicit name properties now work from the web UI [[GH-23553](https://github.com/hashicorp/nomad/issues/23553)]
-* ui: Dont show keyboard nav hints when taking a screenshot [[GH-23365](https://github.com/hashicorp/nomad/issues/23365)]
-* ui: Fix an issue where a remotely purged job would prevent redirect from taking place in the web UI [[GH-23492](https://github.com/hashicorp/nomad/issues/23492)]
-* ui: Fix an issue where access to Job Templates in the UI was restricted to variable.write access [[GH-23458](https://github.com/hashicorp/nomad/issues/23458)]
-* ui: Fix the Upload Jobspec button on the Run Job page [[GH-23548](https://github.com/hashicorp/nomad/issues/23548)]
-* ui: Fixed support for namespace parameter on job statuses API [[GH-23456](https://github.com/hashicorp/nomad/issues/23456)]
-* ui: fix an issue where gateway timeouts would cause the jobs list to revert to null, gives users a Pause Fetch option [[GH-23427](https://github.com/hashicorp/nomad/issues/23427)]
-* vault: Fixed a bug where requests to derive or renew tokens could be sent to the wrong namespace [[GH-23491](https://github.com/hashicorp/nomad/issues/23491)]
 
 ## 1.6.12 Enterprise (June 19, 2024)
 
