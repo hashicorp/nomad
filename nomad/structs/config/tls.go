@@ -64,7 +64,7 @@ type TLSConfig struct {
 	TLSCipherSuites string `hcl:"tls_cipher_suites"`
 
 	// TLSMinVersion is used to set the minimum TLS version used for TLS
-	// connections. Should be either "tls10", "tls11", or "tls12".
+	// connections. Should be either "tls10", "tls11", "tls12", "tls13".
 	TLSMinVersion string `hcl:"tls_min_version"`
 
 	// TLSPreferServerCipherSuites controls whether the server selects the
