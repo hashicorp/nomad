@@ -409,32 +409,6 @@ func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 	assert.NotNil(cert)
 }
 
-func TestConfig_OutgoingTLS_PreferServerCipherSuites(t *testing.T) {
-	ci.Parallel(t)
-
-	require := require.New(t)
-
-	{
-		conf := &Config{
-			VerifyOutgoing: true,
-			CAFile:         cacert,
-		}
-		tlsConfig, err := conf.OutgoingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.PreferServerCipherSuites, false)
-	}
-	{
-		conf := &Config{
-			VerifyOutgoing:           true,
-			CAFile:                   cacert,
-			PreferServerCipherSuites: true,
-		}
-		tlsConfig, err := conf.OutgoingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.PreferServerCipherSuites, true)
-	}
-}
-
 func TestConfig_OutgoingTLS_TLSCipherSuites(t *testing.T) {
 	ci.Parallel(t)
 
@@ -728,27 +702,6 @@ func TestConfig_IncomingTLS_NoVerify(t *testing.T) {
 	}
 	if len(tlsC.Certificates) != 0 {
 		t.Fatalf("unexpected client cert")
-	}
-}
-
-func TestConfig_IncomingTLS_PreferServerCipherSuites(t *testing.T) {
-	ci.Parallel(t)
-
-	require := require.New(t)
-
-	{
-		conf := &Config{}
-		tlsConfig, err := conf.IncomingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.PreferServerCipherSuites, false)
-	}
-	{
-		conf := &Config{
-			PreferServerCipherSuites: true,
-		}
-		tlsConfig, err := conf.IncomingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.PreferServerCipherSuites, true)
 	}
 }
 

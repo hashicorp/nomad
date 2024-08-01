@@ -83,9 +83,6 @@ the [Enable TLS Encryption for Nomad Tutorial](/nomad/tutorials/transport-securi
 - `tls_min_version` `(string: "tls12")`- Specifies the minimum supported version
   of TLS. Accepted values are "tls10", "tls11", "tls12", "tls13".
 
-- `tls_prefer_server_cipher_suites` `(bool: false)` - Specifies whether
-  TLS connections should prefer the server's ciphersuites over the client's.
-
 - `verify_https_client` `(bool: false)` - Specifies agents should require client
   certificates for all incoming HTTPS requests, effectively upgrading
   [`tls.http=true`](#http) to mTLS. The client certificates must be signed by

@@ -67,12 +67,6 @@ type TLSConfig struct {
 	// connections. Should be either "tls10", "tls11", "tls12", "tls13".
 	TLSMinVersion string `hcl:"tls_min_version"`
 
-	// TLSPreferServerCipherSuites controls whether the server selects the
-	// client's most preferred ciphersuite, or the server's most preferred
-	// ciphersuite. If true then the server's preference, as expressed in
-	// the order of elements in CipherSuites, is used.
-	TLSPreferServerCipherSuites bool `hcl:"tls_prefer_server_cipher_suites"`
-
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -170,8 +164,6 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	new.TLSCipherSuites = t.TLSCipherSuites
 	new.TLSMinVersion = t.TLSMinVersion
 
-	new.TLSPreferServerCipherSuites = t.TLSPreferServerCipherSuites
-
 	new.SetChecksum()
 
 	return new
@@ -224,9 +216,6 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	}
 	if b.TLSMinVersion != "" {
 		result.TLSMinVersion = b.TLSMinVersion
-	}
-	if b.TLSPreferServerCipherSuites {
-		result.TLSPreferServerCipherSuites = true
 	}
 	return result
 }

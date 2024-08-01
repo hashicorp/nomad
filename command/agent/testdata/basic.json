@@ -389,7 +389,6 @@
       "rpc_upgrade_mode": true,
       "tls_cipher_suites": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
       "tls_min_version": "tls12",
-      "tls_prefer_server_cipher_suites": true,
       "verify_https_client": true,
       "verify_server_hostname": true
     }
