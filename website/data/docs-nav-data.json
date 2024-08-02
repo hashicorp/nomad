@@ -53,19 +53,23 @@
   {
     "title": "Release Notes",
     "routes": [
-      {
-        "title": "Overview",
-        "path": "release-notes"
-      },
-      {
-        "title": "Nomad",
-        "routes": [
-          {
-            "title": "v1.8.x",
-            "path": "release-notes/nomad/v1_8_x"
-          }
-        ]
-      }
+       {
+         "title": "Overview",
+         "path": "release-notes"
+       },
+       {
+         "title": "Nomad",
+         "routes": [
+           {
+             "title": "Upcoming",
+             "path": "release-notes/nomad/upcoming"
+           },
+           {
+             "title": "v1.8.x",
+             "path": "release-notes/nomad/v1_8_x"
+           }
+         ]
+       }
     ]
   },
   {
@@ -235,6 +239,31 @@
       {
         "title": "consul",
         "path": "configuration/consul"
+      },
+      {
+        "title": "keyring",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "configuration/keyring"
+          },
+          {
+            "title": "AWS KMS",
+            "path": "configuration/keyring/awskms"
+          },
+          {
+            "title": "Azure Key Vault",
+            "path": "configuration/keyring/azurekeyvault"
+          },
+          {
+            "title": "GCP Cloud KMS",
+            "path": "configuration/keyring/gcpckms"
+          },
+          {
+            "title": "Vault Transit",
+            "path": "configuration/keyring/transit"
+          }
+        ]
       },
       {
         "title": "plugin",

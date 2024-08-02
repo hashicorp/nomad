@@ -568,7 +568,7 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 	oldRootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
 	must.NoError(t, err)
 
-	oldRootKey.Meta.SetActive()
+	oldRootKey = oldRootKey.MakeActive()
 
 	// Remove RSAKey to mimic 1.6
 	oldRootKey.RSAKey = nil

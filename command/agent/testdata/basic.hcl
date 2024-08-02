@@ -290,17 +290,16 @@ vault {
 }
 
 tls {
-  http                            = true
-  rpc                             = true
-  verify_server_hostname          = true
-  ca_file                         = "foo"
-  cert_file                       = "bar"
-  key_file                        = "pipe"
-  rpc_upgrade_mode                = true
-  verify_https_client             = true
-  tls_prefer_server_cipher_suites = true
-  tls_cipher_suites               = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
-  tls_min_version                 = "tls12"
+  http                   = true
+  rpc                    = true
+  verify_server_hostname = true
+  ca_file                = "foo"
+  cert_file              = "bar"
+  key_file               = "pipe"
+  rpc_upgrade_mode       = true
+  verify_https_client    = true
+  tls_cipher_suites      = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+  tls_min_version        = "tls12"
 }
 
 sentinel {
@@ -348,6 +347,9 @@ reporting {
   license {
     enabled = true
   }
+
+  address         = "http://localhost:8080"
+  export_interval = "15m"
 }
 
 keyring "awskms" {

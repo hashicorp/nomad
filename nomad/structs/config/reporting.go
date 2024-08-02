@@ -3,7 +3,11 @@
 
 package config
 
-import "github.com/hashicorp/nomad/helper/pointer"
+import (
+	"time"
+
+	"github.com/hashicorp/nomad/helper/pointer"
+)
 
 type LicenseReportingConfig struct {
 	Enabled *bool `hcl:"enabled"`
@@ -40,6 +44,15 @@ func (lc *LicenseReportingConfig) Merge(b *LicenseReportingConfig) *LicenseRepor
 
 type ReportingConfig struct {
 	License *LicenseReportingConfig `hcl:"license,block"`
+
+	// ExportAddress overrides the Census license server. This is intended
+	// for testing and should not be configured by end-users.
+	ExportAddress string `hcl:"address" json:"-"`
+
+	// ExportInterval overrides the default export interval. This is intended
+	// for testing and should not be configured by end-users.
+	ExportInterval    time.Duration
+	ExportIntervalHCL string `hcl:"export_interval" json:"-"`
 }
 
 func (r *ReportingConfig) Copy() *ReportingConfig {
@@ -69,12 +82,21 @@ func (r *ReportingConfig) Merge(b *ReportingConfig) *ReportingConfig {
 	} else if b.License != nil {
 		result.License = result.License.Merge(b.License)
 	}
+	if r.ExportAddress == "" {
+		result.ExportAddress = b.ExportAddress
+	}
+	if r.ExportIntervalHCL == "" {
+		result.ExportIntervalHCL = b.ExportIntervalHCL
+	}
+	if r.ExportInterval == 0 {
+		result.ExportInterval = b.ExportInterval
+	}
 
 	return &result
 }
 
 func DefaultReporting() *ReportingConfig {
 	return &ReportingConfig{
-		&LicenseReportingConfig{},
+		License: &LicenseReportingConfig{},
 	}
 }

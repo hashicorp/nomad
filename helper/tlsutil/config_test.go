@@ -409,32 +409,6 @@ func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 	assert.NotNil(cert)
 }
 
-func TestConfig_OutgoingTLS_PreferServerCipherSuites(t *testing.T) {
-	ci.Parallel(t)
-
-	require := require.New(t)
-
-	{
-		conf := &Config{
-			VerifyOutgoing: true,
-			CAFile:         cacert,
-		}
-		tlsConfig, err := conf.OutgoingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.PreferServerCipherSuites, false)
-	}
-	{
-		conf := &Config{
-			VerifyOutgoing:           true,
-			CAFile:                   cacert,
-			PreferServerCipherSuites: true,
-		}
-		tlsConfig, err := conf.OutgoingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.PreferServerCipherSuites, true)
-	}
-}
-
 func TestConfig_OutgoingTLS_TLSCipherSuites(t *testing.T) {
 	ci.Parallel(t)
 
@@ -731,27 +705,6 @@ func TestConfig_IncomingTLS_NoVerify(t *testing.T) {
 	}
 }
 
-func TestConfig_IncomingTLS_PreferServerCipherSuites(t *testing.T) {
-	ci.Parallel(t)
-
-	require := require.New(t)
-
-	{
-		conf := &Config{}
-		tlsConfig, err := conf.IncomingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.PreferServerCipherSuites, false)
-	}
-	{
-		conf := &Config{
-			PreferServerCipherSuites: true,
-		}
-		tlsConfig, err := conf.IncomingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.PreferServerCipherSuites, true)
-	}
-}
-
 func TestConfig_IncomingTLS_TLSCipherSuites(t *testing.T) {
 	ci.Parallel(t)
 
@@ -949,9 +902,7 @@ func TestConfig_ParseMinVersion_Invalid(t *testing.T) {
 
 	require := require.New(t)
 
-	invalidVersions := []string{"tls13",
-		"tls15",
-	}
+	invalidVersions := []string{"ssl3", "tls14", "tls15"}
 
 	for _, version := range invalidVersions {
 		parsedVersion, err := ParseMinVersion(version)

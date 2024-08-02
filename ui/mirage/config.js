@@ -673,13 +673,8 @@ export default function () {
     return this.serialize(csiPlugins.all());
   });
 
-  this.get('/plugin/:id', function ({ csiPlugins }, { params }) {
-    if (!params.id.startsWith('csi/')) {
-      return new Response(404, {}, null);
-    }
-
-    const id = params.id.replace(/^csi\//, '');
-    const volume = csiPlugins.find(id);
+  this.get('/plugin/csi/:id', function ({ csiPlugins }, { params }) {
+    const volume = csiPlugins.find(params.id);
 
     if (!volume) {
       return new Response(404, {}, null);

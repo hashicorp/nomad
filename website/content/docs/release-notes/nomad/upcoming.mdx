@@ -1,0 +1,70 @@
+---
+layout: docs
+page_title: Upcoming
+description: >-
+  Notices of upcoming Nomad changes
+---
+
+# Upcoming
+
+Nomad strives to be backward compatible for at least 2 major releases, so for
+example, you can upgrade Nomad v1.6.x to Nomad v1.8.x. In addition, Enterprise
+customers have access to [Long Term Support (LTS)][LTS] releases.
+
+Refer to [Upgrading][] for details of the upgrade process, and [Upgrade
+Guides][] for notes on upgrading specific versions.
+
+However, from time to time it's necessary to make backwards _incompatible_
+changes to Nomad. We announce these on [changelog][], the [Release Notes][], and
+the version-specific [Upgrade Guides][]. In order to help you plan your
+upgrades, this page maintains a list of all planned future changes that might
+cause backwards incompatibilities or require operational changes. It's possible
+that a given change may happen later than intended, at which point we update
+this document. However, we do not move changes earlier than originally published
+unless there's a required change due to a security vulnerability.
+
+## Nomad 1.9.0
+
+* Nomad will remove support for HCL1 job specifications and the `-hcl1` flag on
+  the `nomad job run` and other commands. Refer to [GH-20195][] for more details.
+* Nomad will remove the [`tls_prefer_server_cipher_suites`][] agent configuration.
+* Nomad will remove support for Nomad client agents older than 1.6.0. Older
+  nodes will fail heartbeats. Nomad servers will mark the workloads on those
+  nodes as lost and reschedule them normally according to the job's
+  [`reschedule`][] block.
+
+## Nomad 1.10.0 LTS
+
+Nomad 1.10.0 is a Long-Term Support release for Enterprise customers.
+
+* Nomad will remove support for the legacy token workflow for Consul. Workloads
+  that need Consul support will require the cluster be configured to use
+  Workload Identity with Consul. Refer to [the integration
+  guide][consul-integration] for details.
+* Nomad will remove support for the legacy token workflow for Vault. Workloads
+  that need Vault support will require the cluster be configured to use Workload
+  Identity with Vault. Refer to [the integration guide][vault-integration] for
+  details.
+* Nomad will no longer create an implicit `consul` block for workloads that
+  don't register services with Consul. Jobs that require Consul tokens for
+  `template` rendering will be required to provide a `consul` block.
+* Nomad clients will no longer execute all binaries in the plugin directory on
+  startup for fingerprinting. Only plugins with an associated `plugin` block in
+  the Nomad agent configuration will be fingerprinted. Refer to [GH-18529][] for
+  more details.
+* Nomad will ignore the deprecated `stop_after_client_disconnect`,
+  `max_client_disconnect`, and `prevent_reschedule_on_lost` fields and only
+  support the [`disconnect`][] block, which covers the same functionality.
+
+[LTS]: /nomad/docs/enterprise#long-term-support-lts-releases
+[Upgrading]: /nomad/docs/upgrade
+[Upgrade Guides]: /nomad/docs/upgrade/upgrade-specific
+[changelog]: https://github.com/hashicorp/nomad/blob/main/CHANGELOG.md
+[Release Notes]: /nomad/docs/release-notes
+[GH-20195]: https://github.com/hashicorp/nomad/issues/20195
+[`tls_prefer_server_cipher_suites`]: /nomad/docs/configuration/tls#tls_prefer_server_cipher_suites
+[consul-integration]: /nomad/docs/integrations/consul/acl
+[vault-integration]: /nomad/docs/integrations/vault/acl
+[GH-18529]: https://github.com/hashicorp/nomad/issues/18529
+[`disconnect`]: /nomad/docs/job-specification/disconnect
+[`reschedule`]: /nomad/docs/job-specification/reschedule

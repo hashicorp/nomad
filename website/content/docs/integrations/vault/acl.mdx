@@ -316,10 +316,10 @@ You may also host the JWKS JSON response from Nomad in an external location
 that is reachable by the Vault servers, and use that address as the value for
 `jwks_url`.
 
-It is important to remember that the Nomad keys **are rotated periodically**,
-so both approaches should be automated and done continually. The rotation
-frequency is controlled by the [`server.root_key_rotation_threshold`][]
-configuration of the Nomad servers.
+It is important to remember that the Nomad keys **are rotated periodically**, so
+both approaches should be automated and done continually. The rotation frequency
+is controlled by the [`server.root_key_rotation_threshold`][] configuration of
+the Nomad servers. Keys will be prepublished at half the rotation threshold.
 
 ### Additional References
 
@@ -343,9 +343,9 @@ Nomad clients do not need to be provided with a Vault token.**
 
 <Note title="Deprecation Warning">
 
-This legacy workflow will be removed in Nomad 1.9. Before upgrading to Nomad 1.9
-you will need to have configured authentication with Vault as described in
-[Nomad Workload Identities](#nomad-workload-identities).
+This legacy workflow will be removed in Nomad 1.10. Before upgrading to Nomad
+1.10, you need to configure authentication with Vault as described in [Nomad
+Workload Identities](#nomad-workload-identities).
 
 </Note>
 

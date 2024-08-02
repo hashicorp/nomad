@@ -17,7 +17,23 @@ func TestCNIIntegration(t *testing.T) {
 		cluster3.LinuxClients(1),
 	)
 
+	t.Run("testConfigFormats", testConfigFormats)
 	t.Run("testArgs", testCNIArgs)
+}
+
+func testConfigFormats(t *testing.T) {
+	for _, format := range []string{
+		"conflist",
+		"conf",
+		"json",
+	} {
+		t.Run(format, func(t *testing.T) {
+			// if this does not error, config must be good.
+			jobs3.Submit(t, "./input/config_format.nomad.hcl",
+				jobs3.Var("format", format),
+			)
+		})
+	}
 }
 
 func testCNIArgs(t *testing.T) {

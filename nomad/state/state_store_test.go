@@ -10636,9 +10636,10 @@ func TestStateStore_UpsertScalingEvent(t *testing.T) {
 	job := mock.Job()
 	groupName := job.TaskGroups[0].Name
 
-	newEvent := structs.NewScalingEvent("message 1").SetMeta(map[string]interface{}{
+	newEvent := structs.NewScalingEvent("message 1")
+	newEvent.Meta = map[string]interface{}{
 		"a": 1,
-	})
+	}
 
 	wsAll := memdb.NewWatchSet()
 	all, err := state.ScalingEvents(wsAll)
@@ -10709,10 +10710,11 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 
 	index := uint64(1000)
 	for i := 1; i <= structs.JobTrackedScalingEvents+10; i++ {
-		newEvent := structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+		newEvent := structs.NewScalingEvent("")
+		newEvent.Meta = map[string]interface{}{
 			"i":     i,
 			"group": group1,
-		})
+		}
 		err := state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
 			Namespace:    namespace,
 			JobID:        jobID,
@@ -10722,10 +10724,11 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 		index++
 		require.NoError(err)
 
-		newEvent = structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+		newEvent = structs.NewScalingEvent("")
+		newEvent.Meta = map[string]interface{}{
 			"i":     i,
 			"group": group2,
-		})
+		}
 		err = state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
 			Namespace:    namespace,
 			JobID:        jobID,
@@ -10776,7 +10779,7 @@ func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
 		key := structs.NewRootKeyMeta()
 		keyIDs = append(keyIDs, key.KeyID)
 		if i == 0 {
-			key.SetActive()
+			key = key.MakeActive()
 		}
 		index++
 		require.NoError(t, store.UpsertRootKeyMeta(index, key, false))
@@ -10792,8 +10795,7 @@ func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, inactiveKey)
 	oldCreateIndex := inactiveKey.CreateIndex
-	newlyActiveKey := inactiveKey.Copy()
-	newlyActiveKey.SetActive()
+	newlyActiveKey := inactiveKey.MakeActive()
 	index++
 	require.NoError(t, store.UpsertRootKeyMeta(index, newlyActiveKey, false))
 
@@ -10806,10 +10808,10 @@ func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
 		}
 		key := raw.(*structs.RootKeyMeta)
 		if key.KeyID == newlyActiveKey.KeyID {
-			require.True(t, key.Active(), "expected updated key to be active")
+			require.True(t, key.IsActive(), "expected updated key to be active")
 			require.Equal(t, oldCreateIndex, key.CreateIndex)
 		} else {
-			require.False(t, key.Active(), "expected other keys to be inactive")
+			require.False(t, key.IsActive(), "expected other keys to be inactive")
 		}
 	}
 
@@ -10827,7 +10829,7 @@ func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
 		}
 		key := raw.(*structs.RootKeyMeta)
 		require.NotEqual(t, keyIDs[1], key.KeyID)
-		require.False(t, key.Active(), "expected remaining keys to be inactive")
+		require.False(t, key.IsActive(), "expected remaining keys to be inactive")
 		found++
 	}
 	require.Equal(t, 2, found, "expected only 2 keys remaining")

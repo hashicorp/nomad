@@ -73,3 +73,14 @@ variable "connection" {
   })
   description = "ssh connection information for remote target"
 }
+
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
+
+variable "aws_kms_key_id" {
+  type        = string
+  description = "AWS KMS key ID for encrypting and decrypting the Nomad keyring"
+  default     = ""
+}

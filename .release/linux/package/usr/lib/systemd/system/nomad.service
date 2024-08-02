@@ -26,6 +26,12 @@ After=network-online.target
 # StartLimitInterval = 10s
 
 [Service]
+
+# Nomad clients need to be run as "root" whereas Nomad servers should be run as
+# the "nomad" user. Please change this if needed.
+User=root
+Group=root
+
 Type=notify
 EnvironmentFile=-/etc/nomad.d/nomad.env
 ExecReload=/bin/kill -HUP $MAINPID

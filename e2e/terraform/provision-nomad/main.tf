@@ -26,7 +26,10 @@ resource "local_sensitive_file" "nomad_base_config" {
 }
 
 resource "local_sensitive_file" "nomad_role_config" {
-  content         = templatefile("etc/nomad.d/${var.role}-${var.platform}.hcl", {})
+  content = templatefile("etc/nomad.d/${var.role}-${var.platform}.hcl", {
+    aws_region     = var.aws_region
+    aws_kms_key_id = var.aws_kms_key_id
+  })
   filename        = "${local.upload_dir}/nomad.d/${var.role}.hcl"
   file_permission = "0600"
 }

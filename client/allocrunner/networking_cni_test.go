@@ -10,6 +10,8 @@ import (
 	"errors"
 	"math/rand"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/containerd/go-cni"
@@ -24,6 +26,98 @@ import (
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+func TestLoadCNIConf_confParser(t *testing.T) {
+	confDir := t.TempDir()
+
+	writeFile := func(t *testing.T, filename, content string) {
+		t.Helper()
+		path := filepath.Join(confDir, filename)
+		must.NoError(t, os.WriteFile(path, []byte(content), 0644))
+		t.Cleanup(func() {
+			test.NoError(t, os.Remove(path))
+		})
+	}
+
+	cases := []struct {
+		name, file, content string
+		expectErr           string
+	}{
+		{
+			name: "good-conflist",
+			file: "good.conflist", content: `
+{
+  "cniVersion": "1.0.0",
+  "name": "good-conflist",
+  "plugins": [{
+    "type": "cool-plugin"
+  }]
+}`,
+		},
+		{
+			name: "good-conf",
+			file: "good.conf", content: `
+{
+  "cniVersion": "1.0.0",
+  "name": "good-conf",
+  "type": "cool-plugin"
+}`,
+		},
+		{
+			name: "good-json",
+			file: "good.json", content: `
+{
+  "cniVersion": "1.0.0",
+  "name": "good-json",
+  "type": "cool-plugin"
+}`,
+		},
+		{
+			name:      "no-config",
+			expectErr: "no CNI network config found in",
+		},
+		{
+			name: "invalid-conflist",
+			file: "invalid.conflist", content: "{invalid}",
+			expectErr: "error parsing configuration list:",
+		},
+		{
+			name: "invalid-conf",
+			file: "invalid.conf", content: "{invalid}",
+			expectErr: "error parsing configuration:",
+		},
+		{
+			name: "invalid-json",
+			file: "invalid.json", content: "{invalid}",
+			expectErr: "error parsing configuration:",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.file != "" && tc.content != "" {
+				writeFile(t, tc.file, tc.content)
+			}
+
+			parser, err := loadCNIConf(confDir, tc.name)
+			if tc.expectErr != "" {
+				must.ErrorContains(t, err, tc.expectErr)
+				return
+			}
+			must.NoError(t, err)
+			opt, err := parser.getOpt()
+			must.NoError(t, err)
+			c, err := cni.New(opt)
+			must.NoError(t, err)
+
+			config := c.GetConfig()
+			must.Len(t, 1, config.Networks, must.Sprint("expect 1 network in config"))
+			plugins := config.Networks[0].Config.Plugins
+			must.Len(t, 1, plugins, must.Sprint("expect 1 plugin in network"))
+			must.Eq(t, "cool-plugin", plugins[0].Network.Type)
+		})
+	}
+}
 
 func TestSetup(t *testing.T) {
 	ci.Parallel(t)
