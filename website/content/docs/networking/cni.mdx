@@ -154,10 +154,10 @@ At plugin execution time, Nomad interprets your CNI network configuration and tr
 
 Nomad reads the following files from the [`cni_config_dir`](/nomad/docs/configuration/client#cni_config_dir) parameter — `/opt/cni/config` by default:
 
-* `.conflist`: Nomad loads these files as [network
+- `.conflist`: Nomad loads these files as [network
   configurations](https://www.cni.dev/docs/spec/#configuration-format) that contain a list of plugin configurations.
 
-* `.conf` and `.json`: Nomad loads these files as individual [plugin
+- `.conf` and `.json`: Nomad loads these files as individual [plugin
   configurations](https://www.cni.dev/docs/spec/#plugin-configuration-objects) for a specific network.
 
 Add the [`cni_path`](/nomad/docs/configuration/client#cni_path) and [`cni_config_dir`](/nomad/docs/configuration/client#cni_config_dir) attributes to each client's `client.hcl` file.
