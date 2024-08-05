@@ -43,7 +43,7 @@ Inspect Options:
     Output the original HCL submitted with the job. Cannot be used with -json.
 
   -with-vars
-    Include the original HCL2 variables submitted with the. Can only be used
+    Include the original HCL2 variables submitted with the job. Can only be used
     with -hcl.
 
   -t
