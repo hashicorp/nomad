@@ -72,8 +72,8 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
 	defer d.Destroy()
-	d.NewTaskDir(t1.Name)
-	d.NewTaskDir(t2.Name)
+	d.NewTaskDir(t1)
+	d.NewTaskDir(t2)
 	must.NoError(t, d.Build())
 
 	// Check that the AllocDir and each of the task directories exist.
@@ -118,10 +118,10 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	must.NoError(t, d.Build())
 
 	// Build 2 task dirs
-	td1 := d.NewTaskDir(t1.Name)
+	td1 := d.NewTaskDir(t1)
 	must.NoError(t, td1.Build(fsisolation.Chroot, nil, "nobody"))
 
-	td2 := d.NewTaskDir(t2.Name)
+	td2 := d.NewTaskDir(t2)
 	must.NoError(t, td2.Build(fsisolation.Chroot, nil, "nobody"))
 
 	// Write a file to the shared dir.
@@ -154,10 +154,10 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	must.NoError(t, d.Build())
 
 	// Build 2 task dirs
-	td1 := d.NewTaskDir(t1.Name)
+	td1 := d.NewTaskDir(t1)
 	must.NoError(t, td1.Build(fsisolation.None, nil, "nobody"))
 
-	td2 := d.NewTaskDir(t2.Name)
+	td2 := d.NewTaskDir(t2)
 	must.NoError(t, td2.Build(fsisolation.None, nil, "nobody"))
 
 	// Write a file to the shared dir.
@@ -218,12 +218,12 @@ func TestAllocDir_Move(t *testing.T) {
 	must.NoError(t, d2.Build())
 	defer d2.Destroy()
 
-	td1 := d1.NewTaskDir(t1.Name)
+	td1 := d1.NewTaskDir(t1)
 	must.NoError(t, td1.Build(fsisolation.None, nil, "nobody"))
 
 	// Create but don't build second task dir to mimic alloc/task runner
 	// behavior (AllocDir.Move() is called pre-TaskDir.Build).
-	d2.NewTaskDir(t1.Name)
+	d2.NewTaskDir(t1)
 
 	dataDir := filepath.Join(d1.SharedDir, SharedDataDir)
 
@@ -295,7 +295,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	must.NoError(t, d.Build())
 	defer func() { _ = d.Destroy() }()
 
-	td := d.NewTaskDir(t1.Name)
+	td := d.NewTaskDir(t1)
 	must.NoError(t, td.Build(fsisolation.None, nil, "nobody"))
 
 	// something to write and test reading
@@ -436,7 +436,7 @@ func TestAllocDir_SkipAllocDir(t *testing.T) {
 	}
 
 	allocDir := NewAllocDir(testlog.HCLogger(t), clientAllocDir, mountAllocDir, "test")
-	taskDir := allocDir.NewTaskDir("testtask")
+	taskDir := allocDir.NewTaskDir(t1)
 
 	must.NoError(t, allocDir.Build())
 	defer allocDir.Destroy()
@@ -446,13 +446,13 @@ func TestAllocDir_SkipAllocDir(t *testing.T) {
 	must.NoError(t, err)
 
 	// Assert other directory *was* embedded
-	embeddedOtherDir := filepath.Join(clientAllocDir, "test", "testtask", "etc")
+	embeddedOtherDir := filepath.Join(clientAllocDir, "test", t1.Name, "etc")
 	if _, err := os.Stat(embeddedOtherDir); os.IsNotExist(err) {
 		t.Fatalf("expected other directory to exist at: %q", embeddedOtherDir)
 	}
 
 	// Assert client.alloc_dir was *not* embedded
-	embeddedChroot := filepath.Join(clientAllocDir, "test", "testtask", "nomad")
+	embeddedChroot := filepath.Join(clientAllocDir, "test", t1.Name, "nomad")
 	s, err := os.Stat(embeddedChroot)
 	if s != nil {
 		t.Logf("somehow you managed to embed the chroot without causing infinite recursion!")

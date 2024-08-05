@@ -359,7 +359,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	}, consulNamespace, serviceClient, mock.Node(), logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
-		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskDir: allocDir.NewTaskDir(sidecarTask),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
 	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
@@ -457,7 +457,7 @@ func TestEnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	}, consulNamespace, serviceClient, mock.Node(), logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
-		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskDir: allocDir.NewTaskDir(sidecarTask),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
 	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
@@ -537,7 +537,7 @@ func TestEnvoyBootstrapHook_gateway_ok(t *testing.T) {
 
 	req := &interfaces.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
-		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0]),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
 	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, alloc.Job.TaskGroups[0].Tasks[0].User))
@@ -587,7 +587,7 @@ func TestEnvoyBootstrapHook_Noop(t *testing.T) {
 	}, consulNamespace, nil, mock.Node(), logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    task,
-		TaskDir: allocDir.NewTaskDir(task.Name),
+		TaskDir: allocDir.NewTaskDir(task),
 	}
 	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, task.User))
 
@@ -669,7 +669,7 @@ func TestEnvoyBootstrapHook_CommandFailed(t *testing.T) {
 
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
-		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskDir: allocDir.NewTaskDir(sidecarTask),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
 	must.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
@@ -773,7 +773,7 @@ func TestEnvoyBootstrapHook_PreflightFailed(t *testing.T) {
 	// Create the prestart request
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
-		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskDir: allocDir.NewTaskDir(sidecarTask),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
 	must.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))

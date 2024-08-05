@@ -138,7 +138,7 @@ func TestConsul_Integration(t *testing.T) {
 	t.Cleanup(func() {
 		r.NoError(allocDir.Destroy())
 	})
-	taskDir := allocDir.NewTaskDir(task.Name)
+	taskDir := allocDir.NewTaskDir(task)
 	vclient, err := vaultclient.NewMockVaultClient("default")
 	must.NoError(t, err)
 	consulClient, err := consulapi.NewClient(consulConfig)

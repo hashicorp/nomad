@@ -6199,9 +6199,10 @@ func TestTaskDiff(t *testing.T) {
 			},
 			New: &Task{
 				Resources: &Resources{
-					CPU:      200,
-					MemoryMB: 200,
-					DiskMB:   200,
+					CPU:       200,
+					MemoryMB:  200,
+					DiskMB:    200,
+					SecretsMB: 10,
 				},
 			},
 			Expected: &TaskDiff{
@@ -6228,6 +6229,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MemoryMB",
 								Old:  "100",
 								New:  "200",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "SecretsMB",
+								Old:  "0",
+								New:  "10",
 							},
 						},
 					},
@@ -6291,6 +6298,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "MemoryMaxMB",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "SecretsMB",
 								Old:  "0",
 								New:  "0",
 							},
@@ -6396,6 +6409,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MemoryMaxMB",
 								Old:  "200",
 								New:  "300",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "SecretsMB",
+								Old:  "0",
+								New:  "0",
 							},
 						},
 					},
@@ -6743,6 +6762,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "MemoryMaxMB",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "SecretsMB",
 								Old:  "0",
 								New:  "0",
 							},

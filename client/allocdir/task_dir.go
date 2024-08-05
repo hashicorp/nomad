@@ -15,6 +15,11 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 )
 
+const (
+	// defaultSecretDirTmpfsSize is the default size of the tmpfs per task in MBs
+	defaultSecretDirTmpfsSize = 1
+)
+
 // TaskDir contains all of the paths relevant to a task. All paths are on the
 // host system so drivers should mount/link into task containers as necessary.
 type TaskDir struct {
@@ -73,6 +78,9 @@ type TaskDir struct {
 	// <task_dir>/secrets/
 	SecretsDir string
 
+	// secretsInMB is the configured size of the secrets directory
+	secretsInMB int
+
 	// PrivateDir is the path to private/ directory on the host
 	//
 	// <task_dir>/private/
@@ -90,9 +98,13 @@ type TaskDir struct {
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func (d *AllocDir) newTaskDir(taskName string) *TaskDir {
+func (d *AllocDir) newTaskDir(taskName string, secretsInMB int) *TaskDir {
 	taskDir := filepath.Join(d.AllocDir, taskName)
 	taskUnique := filepath.Base(d.AllocDir) + "-" + taskName
+
+	if secretsInMB == 0 {
+		secretsInMB = defaultSecretDirTmpfsSize
+	}
 
 	return &TaskDir{
 		AllocDir:         d.AllocDir,
@@ -108,6 +120,7 @@ func (d *AllocDir) newTaskDir(taskName string) *TaskDir {
 		MountsSecretsDir: filepath.Join(d.clientAllocMountsDir, taskUnique, "secrets"),
 		skip:             set.From[string]([]string{d.clientAllocDir, d.clientAllocMountsDir}),
 		logger:           d.logger.Named("task_dir").With("task_name", taskName),
+		secretsInMB:      secretsInMB,
 	}
 }
 
@@ -147,12 +160,12 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 	}
 
 	// Create the secret directory
-	if err := allocMakeSecretsDir(t.SecretsDir, fileMode777); err != nil {
+	if err := allocMakeSecretsDir(t.SecretsDir, t.secretsInMB, fileMode777); err != nil {
 		return err
 	}
 
 	// Create the private directory
-	if err := allocMakeSecretsDir(t.PrivateDir, fileMode777); err != nil {
+	if err := allocMakeSecretsDir(t.PrivateDir, defaultSecretDirTmpfsSize, fileMode777); err != nil {
 		return err
 	}
 

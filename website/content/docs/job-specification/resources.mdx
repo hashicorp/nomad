@@ -50,6 +50,17 @@ job "docs" {
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
 
+- `secrets` <code>(`int`: &lt;optional&gt;)</code> - Specifies the size of the
+  [`secrets/`][] directory in MB, on platforms where the directory is a
+  tmpfs. If set, the scheduler adds the `secrets` value to the `memory` value
+  when allocating resources on a client, and this value will be included in the
+  allocated resources shown by the `nomad alloc status` and `nomad node status`
+  commands. If unset, the client will allocate 1 MB of tmpfs space and it will
+  not be counted for scheduling purposes or included in allocated resources. You
+  should not set this value if the workload will be placed on a platform where
+  tmpfs is unsupported, because it will still be counted for scheduling
+  purposes.
+
 ## `resources` Examples
 
 The following examples only show the `resources` blocks. Remember that the
@@ -148,3 +159,4 @@ resource utilization and considering the following suggestions:
 [np_sched_config]: /nomad/docs/other-specifications/node-pool#memory_oversubscription_enabled
 [tutorial_quota]: /nomad/tutorials/governance-and-policy/quotas
 [numa]: /nomad/docs/job-specification/numa 'Nomad NUMA Job Specification'
+[`secrets/`]: /nomad/docs/runtime/environment#secrets

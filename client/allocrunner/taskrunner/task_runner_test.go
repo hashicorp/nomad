@@ -106,7 +106,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		cleanup()
 		t.Fatalf("error building alloc dir: %v", err)
 	}
-	taskDir := allocDir.NewTaskDir(taskName)
+	taskDir := allocDir.NewTaskDir(thisTask)
 
 	// Create cgroup
 	f := cgroupslib.Factory(alloc.ID, taskName, false)
