@@ -136,6 +136,60 @@ func TestPrevAlloc_StreamAllocDir_BadSymlink_Linkname(t *testing.T) {
 	must.EqError(t, err, "archive contains symlink that escapes alloc dir")
 }
 
+func TestPrevAlloc_StreamAllocDir_SyminkWriteAttack(t *testing.T) {
+	ci.Parallel(t)
+
+	tmpDir := t.TempDir()
+	outsidePath := filepath.Join(tmpDir, "outside")
+	insidePath := "malformed_link"
+	content := "HelloWorld from outside"
+
+	// Create a tar archive with a symlink that attempts to escape the allocation directory
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	t.Cleanup(func() { tw.Close() })
+	must.NoError(t, tw.WriteHeader(&tar.Header{
+		Typeflag: tar.TypeSymlink,
+		Name:     insidePath,
+		Linkname: outsidePath,
+		Mode:     0600,
+	}))
+	must.NoError(t, tw.WriteHeader(&tar.Header{
+		Typeflag: tar.TypeReg,
+		Name:     insidePath,
+		Size:     int64(len(content)),
+		Mode:     0600,
+	}))
+	_, err := tw.Write([]byte(content))
+	must.NoError(t, err)
+
+	newDir := t.TempDir()
+	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
+	err = prevAlloc.streamAllocDir(context.Background(), io.NopCloser(&buf), newDir)
+
+	// No error expected
+	must.NoError(t, err)
+
+	// Check if the symlink target outside the alloc dir has not been written
+	_, err = os.Stat(outsidePath)
+	must.EqError(t, err, "stat "+outsidePath+": no such file or directory")
+
+	// Check if the symlink inside the alloc dir has been written
+	_, err = os.Stat(filepath.Join(newDir, insidePath))
+	must.NoError(t, err)
+
+	// Check if the content of the file inside the alloc dir is correct
+	contentBytes := make([]byte, len(content))
+	f, err := os.Open(filepath.Join(newDir, insidePath))
+	defer func() {
+		must.NoError(t, f.Close())
+	}()
+	must.NoError(t, err)
+	n, err := f.Read(contentBytes)
+	must.NoError(t, err)
+	must.Eq(t, content, string(contentBytes[:n]))
+}
+
 func testTar(dir string) (*bytes.Buffer, error) {
 
 	buf := new(bytes.Buffer)
