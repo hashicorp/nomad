@@ -33,7 +33,11 @@ run the command with a job prefix instead of the exact job ID.
 ## Inspect Options
 
 - `-version`: Display only the job at the given job version.
-- `-json` : Output the job in its JSON format.
+- `-json` : Output the job in its JSON format. Cannot be used with `-hcl`.
+- `-hcl`: Output the original HCL submitted with the job. Cannot be used with
+  `-json`.
+- `-with-vars`: Include the original HCL2 variables submitted with the job. Can
+    only be used with `-hcl`.
 - `-t` : Format and display the job using a Go template.
 
 ## Examples
