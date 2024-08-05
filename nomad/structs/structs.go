@@ -2505,7 +2505,9 @@ func (r *Resources) Validate() error {
 
 	if r.SecretsMB > r.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("SecretsMB value (%d) cannot be larger than MemoryMB value (%d)", r.SecretsMB, r.MemoryMB))
-
+	}
+	if r.SecretsMB < 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("SecretsMB value (%d) cannot be negative", r.SecretsMB))
 	}
 
 	return mErr.ErrorOrNil()
