@@ -6,8 +6,6 @@ package allocrunner
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"github.com/coreos/go-iptables/iptables"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
