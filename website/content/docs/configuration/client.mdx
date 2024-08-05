@@ -214,9 +214,8 @@ client {
 
 ### `chroot_env` Parameters
 
-Drivers based on [isolated fork/exec](/nomad/docs/drivers/exec) implement file
-system isolation using chroot on Linux. The `chroot_env` map allows the chroot
-environment to be configured using source paths on the host operating system.
+On Linux, drivers based on [isolated fork/exec](/nomad/docs/drivers/exec) implement file system isolation using chroot. The `chroot_env` map lets you configure the chroot environment using source paths on the host operating system.
+
 The mapping format is:
 
 ```text
@@ -240,13 +239,13 @@ client {
 }
 ```
 
-When `chroot_env` is unspecified, the `exec` driver will use a default chroot
-environment with the most commonly used parts of the operating system. Please
-see the [Nomad `exec` driver documentation](/nomad/docs/drivers/exec#chroot) for
+@include 'chroot-limitations.mdx'
+
+When `chroot_env` is unspecified, the `exec` driver uses a default chroot
+environment with the most commonly used parts of the operating system. Refer to the [Nomad `exec` driver documentation](/nomad/docs/drivers/exec#chroot) for
 the full list.
 
-Nomad will never attempt to embed the `alloc_dir` in the
-chroot as doing so would cause infinite recursion.
+Nomad never attempts to embed the `alloc_dir` in the chroot as doing so would cause infinite recursion.
 
 ### `options` Parameters
 
