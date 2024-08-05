@@ -9,7 +9,9 @@ description: Learn how to install Nomad on Linux, Mac, and Windows.
 Nomad is available as a pre-compiled binary or as a package for several
 operating systems. You can also [build Nomad from source](#from-source).
 
--> If you are interested in trialing Nomad without installing it locally, see the [Quickstart](/nomad/docs/install/quickstart) for options to get started with Nomad.
+-> If you are interested in trialing Nomad without installing it locally, see
+the [Quickstart](/nomad/docs/install/quickstart) for options to get started with
+Nomad.
 
 <Tabs>
 <Tab heading="Linux" group="linux">
@@ -27,13 +29,15 @@ $ sudo apt-get update && \
 Add the HashiCorp [GPG key][gpg-key].
 
 ```shell-session
-$ wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+$ wget -O- https://apt.releases.hashicorp.com/gpg | \
+  sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 ```
 
 Add the official HashiCorp Linux repository.
 
 ```shell-session
-$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+| sudo tee /etc/apt/sources.list.d/hashicorp.list
 ```
 
 Update and install.
@@ -75,7 +79,8 @@ $ sudo dnf install -y dnf-plugins-core
 Use `dnf config-manager` to add the official HashiCorp Linux repository.
 
 ```shell-session
-$ sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
+$ sudo dnf config-manager \
+  --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
 ```
 
 Install.
@@ -96,7 +101,8 @@ $ sudo yum install -y yum-utils
 Use `yum-config-manager` to add the official HashiCorp Linux repository.
 
 ```shell-session
-$ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+$ sudo yum-config-manager \
+  --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
 ```
 
 Install.
@@ -121,7 +127,8 @@ $ sudo yum -y install nomad
 <Tab heading="Homebrew" group="mac-homebrew">
 
 [Homebrew](https://brew.sh) is a free and open source package management system
-for Mac OS X. Install the official [Nomad formula](https://github.com/hashicorp/homebrew-tap) from the terminal.
+for Mac OS X. Install the official [Nomad
+formula](https://github.com/hashicorp/homebrew-tap) from the terminal.
 
 First, install the HashiCorp tap, a repository of all of the HashiCorp Homebrew
 packages.
