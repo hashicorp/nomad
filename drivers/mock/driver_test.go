@@ -138,13 +138,14 @@ func mkTestAllocDir(t *testing.T, h *dtestutil.DriverHarness, logger hclog.Logge
 
 	tc.AllocDir = allocDir.AllocDir
 
-	taskDir := allocDir.NewTaskDir(tc.Name)
-	must.NoError(t, taskDir.Build(fsisolation.None, ci.TinyChroot, tc.User))
-
 	task := &structs.Task{
-		Name: tc.Name,
-		Env:  tc.Env,
+		Name:      tc.Name,
+		Env:       tc.Env,
+		Resources: structs.MinResources(),
 	}
+
+	taskDir := allocDir.NewTaskDir(task)
+	must.NoError(t, taskDir.Build(fsisolation.None, ci.TinyChroot, tc.User))
 
 	// no logging
 	tc.StdoutPath = os.DevNull

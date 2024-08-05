@@ -23,7 +23,7 @@ func TestTaskDir_EmbedNonexistent(t *testing.T) {
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
 	defer d.Destroy()
-	td := d.NewTaskDir(t1.Name)
+	td := d.NewTaskDir(t1)
 	must.NoError(t, d.Build())
 
 	fakeDir := "/foobarbaz"
@@ -39,7 +39,7 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
 	defer d.Destroy()
-	td := d.NewTaskDir(t1.Name)
+	td := d.NewTaskDir(t1)
 	must.NoError(t, d.Build())
 
 	// Create a fake host directory, with a file, and a subfolder that contains
@@ -78,7 +78,7 @@ func TestTaskDir_NonRoot_Image(t *testing.T) {
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
 	defer d.Destroy()
-	td := d.NewTaskDir(t1.Name)
+	td := d.NewTaskDir(t1)
 	must.NoError(t, d.Build())
 	must.NoError(t, td.Build(fsisolation.Image, nil, "nobody"))
 }
@@ -93,7 +93,7 @@ func TestTaskDir_NonRoot(t *testing.T) {
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
 	defer d.Destroy()
-	td := d.NewTaskDir(t1.Name)
+	td := d.NewTaskDir(t1)
 	must.NoError(t, d.Build())
 	must.NoError(t, td.Build(fsisolation.None, nil, "nobody"))
 
@@ -117,7 +117,7 @@ func TestTaskDir_NonRoot_Unveil(t *testing.T) {
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
 	defer d.Destroy()
-	td := d.NewTaskDir(t1.Name)
+	td := d.NewTaskDir(t1)
 	must.NoError(t, d.Build())
 	must.NoError(t, td.Build(fsisolation.Unveil, nil, u.Username))
 	fi, err := os.Stat(td.MountsTaskDir)
@@ -135,7 +135,7 @@ func TestTaskDir_Root_Unveil(t *testing.T) {
 	// root, can build task dirs for another user
 	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
 	defer d.Destroy()
-	td := d.NewTaskDir(t1.Name)
+	td := d.NewTaskDir(t1)
 	must.NoError(t, d.Build())
 	must.NoError(t, td.Build(fsisolation.Unveil, nil, "nobody"))
 	fi, err := os.Stat(td.MountsTaskDir)

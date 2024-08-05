@@ -92,7 +92,7 @@ var (
 type Interface interface {
 	AllocDirFS
 
-	NewTaskDir(string) *TaskDir
+	NewTaskDir(*structs.Task) *TaskDir
 	AllocDirPath() string
 	ShareDirPath() string
 	GetTaskDir(string) *TaskDir
@@ -173,12 +173,17 @@ func NewAllocDir(logger hclog.Logger, clientAllocDir, clientMountsDir, allocID s
 }
 
 // NewTaskDir creates a new TaskDir and adds it to the AllocDirs TaskDirs map.
-func (d *AllocDir) NewTaskDir(name string) *TaskDir {
+func (d *AllocDir) NewTaskDir(task *structs.Task) *TaskDir {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	td := d.newTaskDir(name)
-	d.TaskDirs[name] = td
+	secretsSize := 0
+	if task.Resources != nil {
+		secretsSize = task.Resources.SecretsMB
+	}
+
+	td := d.newTaskDir(task.Name, secretsSize)
+	d.TaskDirs[task.Name] = td
 	return td
 }
 
@@ -717,9 +722,9 @@ func allocMkdirAll(path string, perms os.FileMode) error {
 // allocMakeSecretsDir creates a directory for sensitive items such as secrets.
 // When possible it uses a tmpfs or some other method to prevent it from
 // persisting to actual disk.
-func allocMakeSecretsDir(path string, perms os.FileMode) error {
+func allocMakeSecretsDir(path string, size int, perms os.FileMode) error {
 	// Create the private directory
-	if err := createSecretDir(path); err != nil {
+	if err := createSecretDir(path, size); err != nil {
 		return err
 	}
 	if err := dropDirPermissions(path, perms); err != nil {

@@ -80,7 +80,7 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	if err := allocDir.NewTaskDir(task.Name).Build(fsisolation.None, nil, task.User); err != nil {
+	if err := allocDir.NewTaskDir(task).Build(fsisolation.None, nil, task.User); err != nil {
 		allocDir.Destroy()
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
@@ -648,7 +648,7 @@ func TestExecutor_Start_NonExecutableBinaries(t *testing.T) {
 			// need to configure path in chroot with that file if using isolation executor
 			if _, ok := executor.(*UniversalExecutor); !ok {
 				taskName := filepath.Base(testExecCmd.command.TaskDir)
-				err := allocDir.NewTaskDir(taskName).Build(fsisolation.Chroot, map[string]string{
+				err := allocDir.NewTaskDir(&structs.Task{Name: taskName}).Build(fsisolation.Chroot, map[string]string{
 					tmpDir: tmpDir,
 				}, "nobody")
 				require.NoError(err)

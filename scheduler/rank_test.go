@@ -1249,8 +1249,9 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 			{
 				Name: "web",
 				Resources: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
+					CPU:       1024,
+					MemoryMB:  1014,
+					SecretsMB: 10,
 				},
 			},
 		},

@@ -443,6 +443,11 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	if !ok {
 		return nil, fmt.Errorf("no task resources found on allocation")
 	}
+
+	// we had to allocate the tmpfs with the memory to get correct scheduling
+	// and tracking on the node, but now that we're creating the task driver
+	// config we only care about the memory without the secrets.
+	tres.Memory.MemoryMB -= int64(tr.task.Resources.SecretsMB)
 	tr.taskResources = tres
 
 	// Build the restart tracker.

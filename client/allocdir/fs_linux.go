@@ -15,9 +15,6 @@ import (
 )
 
 const (
-	// secretDirTmpfsSize is the size of the tmpfs per task in MBs
-	secretDirTmpfsSize = 1
-
 	// secretMarker is the filename of the marker created so Nomad doesn't
 	// try to mount the secrets tmpfs more than once
 	secretMarker = ".nomad-mount"
@@ -62,7 +59,7 @@ func unlinkDir(dir string) error {
 
 // createSecretDir creates the secrets dir folder at the given path using a
 // tmpfs
-func createSecretDir(dir string) error {
+func createSecretDir(dir string, size int) error {
 	// Only mount the tmpfs if we are root
 	if unix.Geteuid() == 0 {
 		if err := os.MkdirAll(dir, fileMode777); err != nil {
@@ -76,7 +73,7 @@ func createSecretDir(dir string) error {
 		}
 
 		flags := uintptr(syscall.MS_NOEXEC)
-		options := fmt.Sprintf("size=%dm", secretDirTmpfsSize)
+		options := fmt.Sprintf("size=%dm", size)
 		if err := syscall.Mount("tmpfs", dir, "tmpfs", flags, options); err != nil {
 			return os.NewSyscallError("mount", err)
 		}

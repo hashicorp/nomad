@@ -2431,6 +2431,7 @@ type Resources struct {
 	Networks    Networks
 	Devices     ResourceDevices
 	NUMA        *NUMA
+	SecretsMB   int
 }
 
 const (
@@ -2501,6 +2502,13 @@ func (r *Resources) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("MemoryMaxMB value (%d) should be larger than MemoryMB value (%d)", r.MemoryMaxMB, r.MemoryMB))
 	}
 
+	if r.SecretsMB > r.MemoryMB {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("SecretsMB value (%d) cannot be larger than MemoryMB value (%d)", r.SecretsMB, r.MemoryMB))
+	}
+	if r.SecretsMB < 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("SecretsMB value (%d) cannot be negative", r.SecretsMB))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2528,6 +2536,9 @@ func (r *Resources) Merge(other *Resources) {
 	if len(other.Devices) != 0 {
 		r.Devices = other.Devices
 	}
+	if other.SecretsMB != 0 {
+		r.SecretsMB = other.SecretsMB
+	}
 }
 
 // Equal Resources.
@@ -2547,7 +2558,8 @@ func (r *Resources) Equal(o *Resources) bool {
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
 		r.Networks.Equal(&o.Networks) &&
-		r.Devices.Equal(&o.Devices)
+		r.Devices.Equal(&o.Devices) &&
+		r.SecretsMB == o.SecretsMB
 }
 
 // ResourceDevices are part of Resources.
@@ -2644,6 +2656,7 @@ func (r *Resources) Copy() *Resources {
 		Networks:    r.Networks.Copy(),
 		Devices:     r.Devices.Copy(),
 		NUMA:        r.NUMA.Copy(),
+		SecretsMB:   r.SecretsMB,
 	}
 }
 
@@ -2670,6 +2683,7 @@ func (r *Resources) Add(delta *Resources) {
 		r.MemoryMaxMB += delta.MemoryMB
 	}
 	r.DiskMB += delta.DiskMB
+	r.SecretsMB += delta.SecretsMB
 
 	for _, n := range delta.Networks {
 		// Find the matching interface by IP or CIDR

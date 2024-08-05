@@ -78,7 +78,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	if err := allocDir.NewTaskDir(task.Name).Build(fsisolation.Chroot, chrootEnv, task.User); err != nil {
+	if err := allocDir.NewTaskDir(task).Build(fsisolation.Chroot, chrootEnv, task.User); err != nil {
 		allocDir.Destroy()
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
