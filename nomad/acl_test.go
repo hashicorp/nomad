@@ -131,11 +131,23 @@ func TestAuthenticate_mTLS(t *testing.T) {
 		WorkloadType:       structs.WorkloadTypeTask,
 	}
 
-	claims1 := structs.NewIdentityClaims(job, alloc1, wiHandle, alloc1.LookupTask("web").Identity, time.Now())
+	task1 := alloc1.LookupTask("web")
+	claims1 := structs.NewIdentityClaimsBuilder(job, alloc1,
+		wiHandle,
+		task1.Identity).
+		WithTask(task1).
+		Build(time.Now())
+
 	claims1Token, _, err := leader.encrypter.SignClaims(claims1)
 	must.NoError(t, err, must.Sprint("could not sign claims"))
 
-	claims2 := structs.NewIdentityClaims(job, alloc2, wiHandle, alloc2.LookupTask("web").Identity, time.Now())
+	task2 := alloc2.LookupTask("web")
+	claims2 := structs.NewIdentityClaimsBuilder(job, alloc2,
+		wiHandle,
+		task2.Identity).
+		WithTask(task1).
+		Build(time.Now())
+
 	claims2Token, _, err := leader.encrypter.SignClaims(claims2)
 	must.NoError(t, err, must.Sprint("could not sign claims"))
 
