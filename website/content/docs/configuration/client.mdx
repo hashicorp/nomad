@@ -28,6 +28,15 @@ client {
   `"/opt/nomad/alloc"`. This must be an absolute path. Nomad will create the
   directory on the host, if it does not exist when the agent process starts.
 
+- `alloc_mounts_dir` `(string: "")` - Specifies the directory to use for binding
+  mounts for the [unveil file isolation mode][unveil]. When this parameter is
+  empty, Nomad will generate the path as a sibling of the [top-level
+  `data_dir`][top_level_data_dir], with the name `alloc_mounts`. For example, if
+  the `data_dir` is `/opt/nomad/data`, then the alloc mounts directory will be
+  `/opt/nomad/alloc_mounts`. This must be an absolute path and should not be
+  inside the Nomad data directory. Nomad will create the directory on the host,
+  if it does not exist when the agent process starts.
+
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
   Specifies a key-value mapping that defines the chroot environment for jobs
   using the Exec and Java drivers.
@@ -446,9 +455,9 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `filesystem_isolation_extra_paths` `([]string: nil)` - Allow extra paths
   in the filesystem isolation. Paths are specified in the form `[kind]:[mode]:[path]`
-  where `kind` must be either `f` or `d` (file or directory) and 
-  `mode` must be zero or more of `r`, `w`, `c`, `x` (read, write, create, execute) e.g. 
-  `f:r:/dev/urandom` would enable reading the /dev/urandom file, 
+  where `kind` must be either `f` or `d` (file or directory) and
+  `mode` must be zero or more of `r`, `w`, `c`, `x` (read, write, create, execute) e.g.
+  `f:r:/dev/urandom` would enable reading the /dev/urandom file,
   `d:rx:/opt/bin` would enable reading and executing from the /opt/bin directory
 
 - `set_environment_variables` `(string:"")` - Specifies a comma separated list
@@ -785,3 +794,4 @@ client {
 [`nomad node drain -self -no-deadline`]: /nomad/docs/commands/node/drain
 [`TimeoutStopSec`]: https://www.freedesktop.org/software/systemd/man/systemd.service.html#TimeoutStopSec=
 [top_level_data_dir]: /nomad/docs/configuration#data_dir
+[unveil]: /nomad/docs/concepts/plugins/task-drivers#fsisolation-unveil
