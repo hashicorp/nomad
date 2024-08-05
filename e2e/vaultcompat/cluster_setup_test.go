@@ -36,7 +36,7 @@ func roleWID(policies []string) map[string]any {
 	return map[string]any{
 		"role_type":               "jwt",
 		"bound_audiences":         "vault.io",
-		"user_claim":              "/nomad_job_id",
+		"user_claim":              "/extra_claims/nomad_workload_id",
 		"user_claim_json_pointer": true,
 		"claim_mappings": map[string]any{
 			"nomad_namespace": "nomad_namespace",
