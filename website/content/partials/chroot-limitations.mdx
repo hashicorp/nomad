@@ -1,0 +1,3 @@
+!> **Warning:** chroot doesn't copy or recreate directories and files that systemd uses. Specifically on Ubuntu, `/etc/resolv.conf` is a symlink to `/run/systemd/resolve/stub-resolv.conf`, so chroot doesn't copy or link to `resolv.conf`.
+
+In these cases, configure your job's [network block](/nomad/docs/job-specification/network) for each chroot task.
