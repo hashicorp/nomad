@@ -64,10 +64,11 @@ type Consul struct {
 
 // WorkloadIdentityConfig is the configuration for default workload identities.
 type WorkloadIdentityConfig struct {
-	Audience []string `json:"aud"`
-	Env      bool     `json:"env"`
-	File     bool     `json:"file"`
-	TTL      string   `json:"ttl"`
+	Audience    []string          `json:"aud"`
+	Env         bool              `json:"env"`
+	File        bool              `json:"file"`
+	TTL         string            `json:"ttl"`
+	ExtraClaims map[string]string `json:"extra_claims,omitempty"`
 }
 
 // Advertise is used to configure the addresses to advertise

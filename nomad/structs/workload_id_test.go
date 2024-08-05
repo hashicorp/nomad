@@ -184,6 +184,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:group-service:consul-service_group-service-http",
 				Audience: jwt.Audience{"group-service.consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// group: no consul.
 		// task:  no consul, no vault.
@@ -195,6 +196,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		"job/group/task/alt-identity": {
 			Namespace: "default",
@@ -204,6 +206,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:task:alt-identity",
 				Audience: jwt.Audience{"alt.example.com"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// No ConsulNamespace because there is no consul block at either task
 		// or group level.
@@ -216,6 +219,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// No VaultNamespace because there is no vault block at either task
 		// or group level.
@@ -229,6 +233,9 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
+			ExtraClaims: map[string]string{
+				"nomad_workload_id": "global:default:job",
+			},
 		},
 		"job/group/task/services/task-service": {
 			Namespace:   "default",
@@ -238,6 +245,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:task-service:consul-service_task-task-service-http",
 				Audience: jwt.Audience{"task-service.consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// group: no consul.
 		// task:  with consul, with vault.
@@ -249,6 +257,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:consul-vault-task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// Use task-level Consul namespace.
 		"job/group/consul-vault-task/consul_default": {
@@ -260,6 +269,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:consul-vault-task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// Use task-level Vault namespace.
 		"job/group/consul-vault-task/vault_default": {
@@ -272,6 +282,9 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
+			ExtraClaims: map[string]string{
+				"nomad_workload_id": "global:default:job",
+			},
 		},
 		// Use task-level Consul namespace for task services.
 		"job/group/consul-vault-task/services/consul-vault-task-service": {
@@ -283,6 +296,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:group:consul-vault-task-service:consul-service_consul-vault-task-service-http",
 				Audience: jwt.Audience{"consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// group: with consul.
 		// Use group-level Consul namespace for group services.
@@ -295,6 +309,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:consul-group:group-service:consul-service_group-service-http",
 				Audience: jwt.Audience{"group-service.consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// group: with consul.
 		// task:  no consul, no vault.
@@ -306,6 +321,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:consul-group:task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		"job/consul-group/task/alt-identity": {
 			Namespace: "default",
@@ -315,6 +331,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:consul-group:task:alt-identity",
 				Audience: jwt.Audience{"alt.example.com"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// Use group-level Consul namespace because task doesn't have a consul
 		// block.
@@ -327,6 +344,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:consul-group:task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		"job/consul-group/task/vault_default": {
 			Namespace: "default",
@@ -336,6 +354,9 @@ func TestNewIdentityClaims(t *testing.T) {
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:consul-group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
+			},
+			ExtraClaims: map[string]string{
+				"nomad_workload_id": "global:default:job",
 			},
 		},
 		// Use group-level Consul namespace for task service because task
@@ -349,6 +370,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:consul-group:task-service:consul-service_task-task-service-http",
 				Audience: jwt.Audience{"task-service.consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// group: no consul.
 		// task:  with consul, with vault.
@@ -360,6 +382,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:consul-group:consul-vault-task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		// Use task-level Consul namespace.
 		"job/consul-group/consul-vault-task/consul_default": {
@@ -371,6 +394,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:consul-group:consul-vault-task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 		"job/consul-group/consul-vault-task/vault_default": {
 			VaultNamespace: "vault-namespace",
@@ -381,6 +405,9 @@ func TestNewIdentityClaims(t *testing.T) {
 			Claims: jwt.Claims{
 				Subject:  "global:default:job:consul-group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
+			},
+			ExtraClaims: map[string]string{
+				"nomad_workload_id": "global:default:job",
 			},
 		},
 		// Use task-level Consul namespace for task services.
@@ -393,6 +420,7 @@ func TestNewIdentityClaims(t *testing.T) {
 				Subject:  "global:default:job:consul-group:consul-task-service:consul-service_consul-vault-task-consul-task-service-http",
 				Audience: jwt.Audience{"consul.io"},
 			},
+			ExtraClaims: map[string]string{},
 		},
 	}
 
@@ -492,7 +520,9 @@ func TestNewIdentityClaims(t *testing.T) {
 				WithTask(tc.task).
 				WithService(tc.svc).
 				WithConsul().
-				WithVault().
+				WithVault(map[string]string{
+					"nomad_workload_id": "${job.region}:${job.namespace}:${job.id}",
+				}).
 				Build(now)
 
 			must.Eq(t, tc.expectedClaims, got, must.Cmp(cmpopts.IgnoreFields(

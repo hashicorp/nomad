@@ -4,6 +4,7 @@
 package config
 
 import (
+	"maps"
 	"slices"
 	"time"
 
@@ -37,6 +38,10 @@ type WorkloadIdentityConfig struct {
 	// this identity (eg the JWT "exp" claim).
 	TTL    *time.Duration `mapstructure:"-"`
 	TTLHCL string         `mapstructure:"ttl" json:"-"`
+
+	// ExtraClaims allows a WI configuration to carry extra claims configured by
+	// the cluster administrator. Note this field is not available on jobspecs.
+	ExtraClaims map[string]string `mapstructure:"extra_claims"`
 }
 
 func (wi *WorkloadIdentityConfig) Copy() *WorkloadIdentityConfig {
@@ -56,6 +61,7 @@ func (wi *WorkloadIdentityConfig) Copy() *WorkloadIdentityConfig {
 	if wi.TTL != nil {
 		nwi.TTL = pointer.Of(*wi.TTL)
 	}
+	nwi.ExtraClaims = maps.Clone(wi.ExtraClaims)
 
 	return nwi
 }
@@ -81,6 +87,9 @@ func (wi *WorkloadIdentityConfig) Equal(other *WorkloadIdentityConfig) bool {
 		return false
 	}
 	if wi.TTLHCL != other.TTLHCL {
+		return false
+	}
+	if !maps.Equal(wi.ExtraClaims, other.ExtraClaims) {
 		return false
 	}
 
@@ -112,6 +121,13 @@ func (wi *WorkloadIdentityConfig) Merge(other *WorkloadIdentityConfig) *Workload
 	result.TTL = pointer.Merge(result.TTL, other.TTL)
 	if other.TTLHCL != "" {
 		result.TTLHCL = other.TTLHCL
+	}
+
+	if wi.ExtraClaims == nil {
+		result.ExtraClaims = map[string]string{}
+	}
+	for k, v := range other.ExtraClaims {
+		result.ExtraClaims[k] = v
 	}
 
 	return result
