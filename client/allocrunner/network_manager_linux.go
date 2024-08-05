@@ -190,7 +190,7 @@ func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config 
 
 	switch {
 	case netMode == "bridge":
-		c, err := newBridgeNetworkConfigurator(log, alloc, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.BridgeNetworkHairpinMode, config.CNIPath, ignorePortMappingHostIP, config.Node)
+		c, err := newBridgeNetworkConfigurator(log, alloc, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.BridgeNetworkAllocSubnetIPv6, config.BridgeNetworkHairpinMode, config.CNIPath, ignorePortMappingHostIP, config.Node)
 		if err != nil {
 			return nil, err
 		}

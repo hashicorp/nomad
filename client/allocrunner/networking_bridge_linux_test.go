@@ -26,26 +26,29 @@ func Test_buildNomadBridgeNetConfig(t *testing.T) {
 		{
 			name: "hairpin",
 			b: &bridgeNetworkConfigurator{
-				bridgeName:  defaultNomadBridgeName,
-				allocSubnet: defaultNomadAllocSubnet,
-				hairpinMode: true,
+				bridgeName:      defaultNomadBridgeName,
+				allocSubnetIPv6: defaultNomadAllocSubnetIPv6,
+				allocSubnetIPv4: defaultNomadAllocSubnet,
+				hairpinMode:     true,
 			},
 		},
 		{
 			name: "bad_input",
 			b: &bridgeNetworkConfigurator{
-				bridgeName:  `bad"`,
-				allocSubnet: defaultNomadAllocSubnet,
-				hairpinMode: true,
+				bridgeName:      `bad"`,
+				allocSubnetIPv6: defaultNomadAllocSubnetIPv6,
+				allocSubnetIPv4: defaultNomadAllocSubnet,
+				hairpinMode:     true,
 			},
 		},
 		{
 			name:          "consul-cni",
 			withConsulCNI: true,
 			b: &bridgeNetworkConfigurator{
-				bridgeName:  defaultNomadBridgeName,
-				allocSubnet: defaultNomadAllocSubnet,
-				hairpinMode: true,
+				bridgeName:      defaultNomadBridgeName,
+				allocSubnetIPv6: defaultNomadAllocSubnetIPv6,
+				allocSubnetIPv4: defaultNomadAllocSubnet,
+				hairpinMode:     true,
 			},
 		},
 	}

@@ -27,7 +27,10 @@ const (
 	// allocation when not specified by the client
 	defaultNomadAllocSubnet = "172.26.64.0/20" // end 172.26.79.255
 
-	defaultNomadAllocSubnetIPv6 = "2001:db8:1::/64" // docker ipv6 address to change
+	// defaultNomadAllocSubnetIPv6 is the subnet to use for host local ipv6 address
+	// allocation when not specified by the client
+	defaultNomadAllocSubnetIPv6 = "fd00::/8" // Unique local address
+
 	// cniAdminChainName is the name of the admin iptables chain used to allow
 	// forwarding traffic to allocations
 	cniAdminChainName = "NOMAD-ADMIN"
@@ -37,8 +40,7 @@ const (
 // shared bridge, configures masquerading for egress traffic and port mapping
 // for ingress
 type bridgeNetworkConfigurator struct {
-	cni *cniNetworkConfigurator
-	//allocSubnet     string
+	cni             *cniNetworkConfigurator
 	allocSubnetIPv6 string
 	allocSubnetIPv4 string
 	bridgeName      string
@@ -47,52 +49,24 @@ type bridgeNetworkConfigurator struct {
 	logger hclog.Logger
 }
 
-func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, bridgeName, ipRange string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool, node *structs.Node) (*bridgeNetworkConfigurator, error) {
-	// check if ipRange is ipv6 or ipv4? then assign each
+func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, bridgeName, ip4Range string, ipv6Range string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool, node *structs.Node) (*bridgeNetworkConfigurator, error) {
 	b := &bridgeNetworkConfigurator{
-		bridgeName:  bridgeName,
-		hairpinMode: hairpinMode,
-		//allocSubnet: ipRange,
-		logger: log,
+		bridgeName:      bridgeName,
+		hairpinMode:     hairpinMode,
+		allocSubnetIPv4: ip4Range,
+		allocSubnetIPv6: ipv6Range,
+		logger:          log,
 	}
-
 	if b.bridgeName == "" {
 		b.bridgeName = defaultNomadBridgeName
 	}
-	// check if ipRange is IPv6 or IPv4 :D
-	// ?: who gets to be assigned allocSubnet
-	if ipRange != "" {
-		if strings.Contains(ipRange, ":") {
-			b.allocSubnetIPv6 = ipRange
-		} else {
-			b.allocSubnetIPv4 = ipRange
-			//b.allocSubnet = ipRange
-		}
-	}
-	// check which protocol the host has available
-	//IPv6Available := false
-	//for _, nw := range node.NodeResources.NodeNetworks {
-	//	if nw.Mode == "host" {
-	//		for _, address := range nw.Addresses {
-	//			if address.Family == "ipv6" {
-	//				IPv6Available = true
-	//			}
-	//		}
-	//	}
-	//}
-	b.allocSubnetIPv4 = defaultNomadAllocSubnet
-	b.allocSubnetIPv6 = defaultNomadAllocSubnetIPv6
 
-	//if b.allocSubnetIPv4 == "" {
-	//	b.allocSubnetIPv4 = defaultNomadAllocSubnet
-	//	//b.allocSubnet = defaultNomadAllocSubnetIPv6
-	//	if IPv6Available {
-	//		b.allocSubnetIPv6 = defaultNomadAllocSubnetIPv6
-	//		//b.allocSubnet = defaultNomadAllocSubnetIPv6
-	//	} else {
-	//		b.allocSubnetIPv6 = ""
-	//	}
-	//}
+	if b.allocSubnetIPv4 == "" {
+		b.allocSubnetIPv4 = defaultNomadAllocSubnet
+	}
+	if b.allocSubnetIPv6 == "" {
+		b.allocSubnetIPv6 = defaultNomadAllocSubnetIPv6
+	}
 
 	var netCfg []byte
 
@@ -136,18 +110,19 @@ func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 			return err
 		}
 	}
+	if b.allocSubnetIPv4 != "" {
+		ipt, err := iptables.New()
+		if err != nil {
+			return err
+		}
 
-	ipt, err := iptables.New()
-	if err != nil {
-		return err
-	}
+		if err = ensureChain(ipt, "filter", cniAdminChainName); err != nil {
+			return err
+		}
 
-	if err = ensureChain(ipt, "filter", cniAdminChainName); err != nil {
-		return err
-	}
-
-	if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule("ipv4")); err != nil {
-		return err
+		if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule("ipv4")); err != nil {
+			return err
+		}
 	}
 
 	return nil
