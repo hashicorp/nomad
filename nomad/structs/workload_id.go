@@ -76,6 +76,10 @@ type IdentityClaims struct {
 	VaultNamespace  string `json:"vault_namespace,omitempty"`
 	VaultRole       string `json:"vault_role,omitempty"`
 
+	// ExtraClaims are added based on this identity's
+	// WorkloadIdentityConfiguration, controlled by server configuration
+	ExtraClaims map[string]string `json:"extra_claims,omitempty"`
+
 	jwt.Claims
 }
 
@@ -93,6 +97,8 @@ type IdentityClaimsBuilder struct {
 	serviceName string
 	consul      *Consul
 	vault       *Vault
+	node        *Node
+	extras      map[string]string
 }
 
 // NewIdentityClaimsBuilder returns an initialized IdentityClaimsBuilder for the
@@ -111,6 +117,7 @@ func NewIdentityClaimsBuilder(job *Job, alloc *Allocation, wihandle *WIHandle, w
 		wihandle: wihandle,
 		wid:      wid,
 		tg:       tg,
+		extras:   map[string]string{},
 	}
 }
 
@@ -125,11 +132,14 @@ func (b *IdentityClaimsBuilder) WithTask(task *Task) *IdentityClaimsBuilder {
 
 // WithVault adds the task's vault block to the builder context. This should
 // only be called after WithTask.
-func (b *IdentityClaimsBuilder) WithVault() *IdentityClaimsBuilder {
+func (b *IdentityClaimsBuilder) WithVault(extraClaims map[string]string) *IdentityClaimsBuilder {
 	if !b.wid.IsVault() || b.task == nil {
 		return b
 	}
 	b.vault = b.task.Vault
+	for k, v := range extraClaims {
+		b.extras[k] = v
+	}
 	return b
 }
 
@@ -162,11 +172,18 @@ func (b *IdentityClaimsBuilder) WithService(service *Service) *IdentityClaimsBui
 	return b
 }
 
+// WithNode add the allocation's node to the builder context.
+func (b *IdentityClaimsBuilder) WithNode(node *Node) *IdentityClaimsBuilder {
+	b.node = node
+	return b
+}
+
 // Build is the terminal method for the builder and sets all the derived values
 // on the claim. The claim ID is random (nondeterministic) so multiple calls
 // with the same values will not return equal claims by design. JWT IDs should
 // never collide.
 func (b *IdentityClaimsBuilder) Build(now time.Time) *IdentityClaims {
+	b.interpolate()
 
 	jwtnow := jwt.NewNumericDate(now.UTC())
 	claims := &IdentityClaims{
@@ -178,6 +195,7 @@ func (b *IdentityClaimsBuilder) Build(now time.Time) *IdentityClaims {
 			NotBefore: jwtnow,
 			IssuedAt:  jwtnow,
 		},
+		ExtraClaims: b.extras,
 	}
 	// If this is a child job, use the parent's ID
 	if b.job.ParentID != "" {
@@ -201,6 +219,40 @@ func (b *IdentityClaimsBuilder) Build(now time.Time) *IdentityClaims {
 	claims.ID = uuid.Generate()
 
 	return claims
+}
+
+func strAttrGet[T any](x *T, fn func(x *T) string) string {
+	if x != nil {
+		return fn(x)
+	}
+	return ""
+}
+
+func (b *IdentityClaimsBuilder) interpolate() {
+	if len(b.extras) == 0 {
+		return
+	}
+	r := strings.NewReplacer(
+		// attributes that always exist
+		"${job.region}", b.job.Region,
+		"${job.namespace}", b.job.Namespace,
+		"${job.id}", b.job.ID,
+		"${job.node_pool}", b.job.NodePool,
+		"${group.name}", b.tg.Name,
+
+		// attributes that conditionally exist
+		"${node.id}", strAttrGet(b.node, func(n *Node) string { return n.ID }),
+		"${node.datacenter}", strAttrGet(b.node, func(n *Node) string { return n.Datacenter }),
+		"${node.pool}", strAttrGet(b.node, func(n *Node) string { return n.NodePool }),
+		"${node.class}", strAttrGet(b.node, func(n *Node) string { return n.NodeClass }),
+		"${task.name}", strAttrGet(b.task, func(t *Task) string { return t.Name }),
+		"${vault.cluster}", strAttrGet(b.vault, func(v *Vault) string { return v.Cluster }),
+		"${vault.namespace}", strAttrGet(b.vault, func(v *Vault) string { return v.Namespace }),
+		"${vault.role}", strAttrGet(b.vault, func(v *Vault) string { return v.Role }),
+	)
+	for k, v := range b.extras {
+		b.extras[k] = r.Replace(v)
+	}
 }
 
 // setSubject creates the standard subject claim for workload identities.
@@ -260,6 +312,10 @@ type WorkloadIdentity struct {
 	// TTL is used to determine the expiration of the credentials created for
 	// this identity (eg the JWT "exp" claim).
 	TTL time.Duration
+
+	// Note: ExtraClaims is available on config/WorkloadIdentity but not
+	// available here on jobspecs because that might allow a job author to
+	// escalate their privileges if they know what claim mappings to expect.
 }
 
 // IsConsul returns true if the identity name starts with the standard prefix

@@ -239,6 +239,20 @@ func setupVaultJWT(t *testing.T, vc *vaultapi.Client, jwksURL string) {
 	rolePath = fmt.Sprintf("auth/%s/role/nomad-restricted", jwtPath)
 	_, err = logical.Write(rolePath, roleWID([]string{"nomad-restricted"}))
 	must.NoError(t, err)
+
+	entityOut, err := logical.Write("identity/entity", map[string]any{
+		"name":     "default:restricted_jwt",
+		"policies": []string{"nomad-restricted"},
+	})
+	must.NoError(t, err)
+	entityID := entityOut.Data["id"]
+
+	_, err = logical.Write("identity/entity-alias", map[string]any{
+		"name":           "default:restricted_jwt",
+		"canonical_id":   entityID,
+		"mount_accessor": jwtAuthAccessor,
+	})
+	must.NoError(t, err)
 }
 
 func startNomad(t *testing.T, cb func(*testutil.TestServerConfig)) (func(), *nomadapi.Client) {
@@ -285,6 +299,9 @@ func configureNomadVaultJWT(vc *vaultapi.Client) func(*testutil.TestServerConfig
 			DefaultIdentity: &testutil.WorkloadIdentityConfig{
 				Audience: []string{"vault.io"},
 				TTL:      "10m",
+				ExtraClaims: map[string]string{
+					"nomad_workload_id": "${job.namespace}:${job.id}",
+				},
 			},
 
 			// Client configs.

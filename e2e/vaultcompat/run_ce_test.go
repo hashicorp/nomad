@@ -63,4 +63,5 @@ func testVaultJWT(t *testing.T, b build) {
 
 	// Run test job.
 	runJob(t, nc, "input/cat_jwt.hcl", "default", validateJWTAllocs)
+	runJob(t, nc, "input/restricted_jwt.hcl", "default", validateJWTAllocs)
 }
