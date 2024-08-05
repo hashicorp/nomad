@@ -636,7 +636,13 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		}
 		// If the header is a file, we write to a file
 		if hdr.Typeflag == tar.TypeReg {
-			f, err := os.Create(filepath.Join(dest, hdr.Name))
+			fPath := filepath.Join(dest, hdr.Name)
+			if _, err := os.Lstat(fPath); err == nil {
+				if err := os.Remove(fPath); err != nil {
+					return fmt.Errorf("error removing existing file: %w", err)
+				}
+			}
+			f, err := os.Create(fPath)
 			if err != nil {
 				return fmt.Errorf("error creating file: %w", err)
 			}
