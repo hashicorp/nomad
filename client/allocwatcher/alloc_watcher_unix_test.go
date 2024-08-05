@@ -145,6 +145,8 @@ func TestPrevAlloc_StreamAllocDir_SyminkWriteAttack(t *testing.T) {
 	content := "HelloWorld from outside"
 
 	// Create a tar archive with a symlink that attempts to escape the allocation directory
+	// by including a header that writes to the same path and follows the symlink target
+	// outside of the sandboxed environment.
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
 	t.Cleanup(func() { tw.Close() })
