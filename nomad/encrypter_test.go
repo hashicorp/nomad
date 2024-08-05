@@ -453,7 +453,11 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	alloc := mock.Alloc()
-	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
+	task := alloc.LookupTask("web")
+
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity).
+		WithTask(task).
+		Build(time.Now())
 	e := srv.encrypter
 
 	out, _, err := e.SignClaims(claims)
@@ -486,7 +490,11 @@ func TestEncrypter_SignVerify_Issuer(t *testing.T) {
 	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	alloc := mock.Alloc()
-	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
+	task := alloc.LookupTask("web")
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity).
+		WithTask(task).
+		Build(time.Now())
+
 	e := srv.encrypter
 
 	out, _, err := e.SignClaims(claims)
@@ -511,7 +519,11 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	alloc := mock.Alloc()
-	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
+	task := alloc.LookupTask("web")
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity).
+		WithTask(task).
+		Build(time.Now())
+
 	e := srv.encrypter
 
 	keyset, err := e.activeKeySet()

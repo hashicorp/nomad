@@ -254,8 +254,11 @@ func TestAuthenticateDefault(t *testing.T) {
 				identity := task.Identity
 				wih := task.IdentityHandle(identity)
 				alloc.ClientStatus = structs.AllocClientStatusRunning
-				claims := structs.NewIdentityClaims(alloc.Job, alloc, wih, identity, time.Now())
 
+				claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
+					wih,
+					identity).
+					Build(time.Now())
 				auth := testAuthenticator(t, store, true, true)
 				token, err := auth.encrypter.(*testEncrypter).signClaim(claims)
 				must.NoError(t, err)
@@ -311,7 +314,10 @@ func TestAuthenticateDefault(t *testing.T) {
 				identity := task.Identity
 				wih := task.IdentityHandle(identity)
 				alloc.ClientStatus = structs.AllocClientStatusRunning
-				claims := structs.NewIdentityClaims(alloc.Job, alloc, wih, identity, time.Now())
+				claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
+					wih,
+					identity).
+					Build(time.Now())
 
 				auth := testAuthenticator(t, store, true, true)
 				token, err := auth.encrypter.(*testEncrypter).signClaim(claims)
@@ -898,8 +904,11 @@ func TestIdentityToACLClaim(t *testing.T) {
 	task := tg.Tasks[0]
 
 	defaultWI := &structs.WorkloadIdentity{Name: "default"}
-	claims := structs.NewIdentityClaims(alloc.Job, alloc,
-		task.IdentityHandle(defaultWI), task.Identity, time.Now())
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
+		task.IdentityHandle(defaultWI),
+		task.Identity).
+		WithTask(task).
+		Build(time.Now())
 
 	store := testStateStore(t)
 
