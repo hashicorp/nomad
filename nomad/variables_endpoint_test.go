@@ -495,15 +495,30 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		WorkloadType:       structs.WorkloadTypeTask,
 	}
 
-	claims1 := structs.NewIdentityClaims(alloc1.Job, alloc1, wiHandle, alloc1.LookupTask("web").Identity, time.Now())
+	task1 := alloc1.LookupTask("web")
+	claims1 := structs.NewIdentityClaimsBuilder(alloc1.Job, alloc1,
+		wiHandle,
+		task1.Identity).
+		WithTask(task1).
+		Build(time.Now())
 	idToken, _, err := srv.encrypter.SignClaims(claims1)
 	must.NoError(t, err)
 
-	claims2 := structs.NewIdentityClaims(alloc2.Job, alloc2, wiHandle, alloc2.LookupTask("web").Identity, time.Now())
+	task2 := alloc2.LookupTask("web")
+	claims2 := structs.NewIdentityClaimsBuilder(alloc2.Job, alloc2,
+		wiHandle,
+		task2.Identity).
+		WithTask(task2).
+		Build(time.Now())
 	noPermissionsToken, _, err := srv.encrypter.SignClaims(claims2)
 	must.NoError(t, err)
 
-	claims3 := structs.NewIdentityClaims(alloc3.Job, alloc3, wiHandle, alloc3.LookupTask("web").Identity, time.Now())
+	task3 := alloc3.LookupTask("web")
+	claims3 := structs.NewIdentityClaimsBuilder(alloc3.Job, alloc3,
+		wiHandle,
+		task3.Identity).
+		WithTask(task3).
+		Build(time.Now())
 	idDispatchToken, _, err := srv.encrypter.SignClaims(claims3)
 	must.NoError(t, err)
 
@@ -517,7 +532,12 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	idTokenParts[2] = strings.Join(sig, "")
 	invalidIDToken := strings.Join(idTokenParts, ".")
 
-	claims4 := structs.NewIdentityClaims(alloc4.Job, alloc4, wiHandle, alloc4.LookupTask("web").Identity, time.Now())
+	task4 := alloc4.LookupTask("web")
+	claims4 := structs.NewIdentityClaimsBuilder(alloc4.Job, alloc4,
+		wiHandle,
+		task4.Identity).
+		WithTask(task4).
+		Build(time.Now())
 	wiOnlyToken, _, err := srv.encrypter.SignClaims(claims4)
 	must.NoError(t, err)
 
@@ -864,7 +884,12 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 		WorkloadType:       structs.WorkloadTypeTask,
 	}
 
-	claims := structs.NewIdentityClaims(alloc.Job, alloc, wiHandle, alloc.LookupTask("web").Identity, time.Now())
+	task := alloc.LookupTask("web")
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
+		wiHandle,
+		task.Identity).
+		WithTask(task).
+		Build(time.Now())
 	token, _, err := srv.encrypter.SignClaims(claims)
 	must.NoError(t, err)
 
