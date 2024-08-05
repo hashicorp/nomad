@@ -1530,6 +1530,10 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		}
 	}
 
+	if in.SecretsMB != nil {
+		out.SecretsMB = *in.SecretsMB
+	}
+
 	return out
 }
 

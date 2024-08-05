@@ -38,7 +38,7 @@ func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
 
 	allocDir := allocdir.NewAllocDir(logger, "nomadtest_nopayload", "nomadtest_nopayload", alloc.ID)
 	defer allocDir.Destroy()
-	taskDir := allocDir.NewTaskDir(task.Name)
+	taskDir := allocDir.NewTaskDir(task)
 	require.NoError(taskDir.Build(fsisolation.None, nil, task.User))
 
 	h := newDispatchHook(alloc, logger)
@@ -84,7 +84,7 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 
 	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatchok", "nomadtest_dispatchok", alloc.ID)
 	defer allocDir.Destroy()
-	taskDir := allocDir.NewTaskDir(task.Name)
+	taskDir := allocDir.NewTaskDir(task)
 	require.NoError(taskDir.Build(fsisolation.None, nil, task.User))
 
 	h := newDispatchHook(alloc, logger)
@@ -129,7 +129,7 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 
 	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatcherr", "nomadtest_dispatcherr", alloc.ID)
 	defer allocDir.Destroy()
-	taskDir := allocDir.NewTaskDir(task.Name)
+	taskDir := allocDir.NewTaskDir(task)
 	require.NoError(taskDir.Build(fsisolation.None, nil, task.User))
 
 	h := newDispatchHook(alloc, logger)

@@ -279,7 +279,7 @@ func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 
 	request := &interfaces.TaskPrestartRequest{
 		Task:    task,
-		TaskDir: allocDir.NewTaskDir(task.Name),
+		TaskDir: allocDir.NewTaskDir(task),
 	}
 	require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, task.User))
 
@@ -340,7 +340,7 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	}, logger))
 	request := &interfaces.TaskPrestartRequest{
 		Task:    tg.Tasks[0],
-		TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(tg.Tasks[0]),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
 	require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, tg.Tasks[0].User))
@@ -402,7 +402,7 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	}, logger))
 	request := &interfaces.TaskPrestartRequest{
 		Task:    tg.Tasks[0],
-		TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(tg.Tasks[0]),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
 	require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, tg.Tasks[0].User))
@@ -485,7 +485,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 		}, logger))
 		request := &interfaces.TaskPrestartRequest{
 			Task:    tg.Tasks[0],
-			TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
+			TaskDir: allocDir.NewTaskDir(tg.Tasks[0]),
 			TaskEnv: taskenv.NewEmptyTaskEnv(), // nothing set in env block
 		}
 		require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, tg.Tasks[0].User))
@@ -612,7 +612,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 
 	request := &interfaces.TaskPrestartRequest{
 		Task:    tg.Tasks[0],
-		TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(tg.Tasks[0]),
 		TaskEnv: taskEnv, // env block is configured w/ non-default tls configs
 	}
 	require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, tg.Tasks[0].User))

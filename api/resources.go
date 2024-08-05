@@ -18,6 +18,7 @@ type Resources struct {
 	Networks    []*NetworkResource `hcl:"network,block"`
 	Devices     []*RequestedDevice `hcl:"device,block"`
 	NUMA        *NUMAResource      `hcl:"numa,block"`
+	SecretsMB   *int               `mapstructure:"secrets" hcl:"secrets,optional"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
@@ -102,6 +103,9 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if other.NUMA != nil {
 		r.NUMA = other.NUMA.Copy()
+	}
+	if other.SecretsMB != nil {
+		r.SecretsMB = other.SecretsMB
 	}
 }
 
