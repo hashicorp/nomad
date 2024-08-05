@@ -39,7 +39,8 @@ Perform the following on each Nomad client:
 1. [Create a bridge mode configuration](#create-a-cni-bridge-mode-configuration).
 1. [Configure Nomad clients](#configure-nomad-clients).
 
-After you configure and restart your Nomad clients, [use a CNI network with a job](#use-a-cni-network-with-a-job).
+After you configure and restart your Nomad clients, [use a CNI network with a
+job](#use-a-cni-network-with-a-job).
 
 ### Install CNI reference plugins
 
@@ -48,8 +49,6 @@ After you configure and restart your Nomad clients, [use a CNI network with a jo
 ### Configure bridge module to route traffic through iptables
 
 @include 'install/bridge-iptables.mdx'
-
-
 
 ## Create a CNI bridge mode configuration
 
@@ -238,6 +237,7 @@ client {
   enabled = true
   cni_path = "opt/cni/bin"
   cni_config_dir = "opt/cni/config"
+}
 ```
 
 </CodeBlockConfig>
