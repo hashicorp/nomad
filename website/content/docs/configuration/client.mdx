@@ -30,11 +30,11 @@ client {
 
 - `alloc_mounts_dir` `(string: "")` - Specifies the directory to use for binding
   mounts for the [unveil file isolation mode][unveil]. When this parameter is
-  empty, Nomad will generate the path as a sibling of the [top-level
+  empty, Nomad generates the path as a sibling of the [top-level
   `data_dir`][top_level_data_dir], with the name `alloc_mounts`. For example, if
-  the `data_dir` is `/opt/nomad/data`, then the alloc mounts directory will be
+  the `data_dir` is `/opt/nomad/data`, then the alloc mounts directory is
   `/opt/nomad/alloc_mounts`. This must be an absolute path and should not be
-  inside the Nomad data directory. Nomad will create the directory on the host,
+  inside the Nomad data directory. Nomad creates the directory on the host,
   if it does not exist when the agent process starts.
 
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
