@@ -497,6 +497,19 @@ func TestParse(t *testing.T) {
 		{
 			`
 			namespace "dev" {
+			  variables {
+                path "/nomad/job" {
+			      capabilities = ["read", "write"]
+                }
+			  }
+			}
+			`,
+			"Invalid variable path '/nomad/job' in namespace dev: cannot start with a leading '/'",
+			nil,
+		},
+		{
+			`
+			namespace "dev" {
 				policy = "read"
 
 				variables {
