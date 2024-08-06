@@ -1,0 +1,22 @@
+On Linux, Nomad uses cgroups to control access to resources like CPU and memory.
+Nomad supports both [cgroups
+v2](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html) and the
+legacy [cgroups
+v1](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/cgroups.html).
+When Nomad clients start, they determine the available cgroup controllers and
+include the attribute `os.cgroups.version` in their fingerprint.
+
+On cgroups v2, you can run the following command to verify that you have all
+required controllers.
+
+```shell-session
+$ cat /sys/fs/cgroup/cgroup.controllers
+cpuset cpu io memory pids
+```
+
+On legacy cgroups v1, this same list of required controllers appears as a series
+of sub-directories under the directory `/sys/fs/cgroup`.
+
+Refer to the [cgroup controller
+requirements](/nomad/docs/install/production/requirements#cgroup-controllers)
+for more details and to enable missing cgroups.
