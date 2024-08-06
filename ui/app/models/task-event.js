@@ -6,6 +6,7 @@
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
+import { alias } from 'ember-cli-page-object/macros';
 
 export default class TaskEvent extends Fragment {
   @fragmentOwner() state;
@@ -17,9 +18,13 @@ export default class TaskEvent extends Fragment {
   @attr('date') time;
   @attr('number') timeNanos;
   @attr('string') displayMessage;
+  @attr({ defaultValue: () => ({}) }) details;
 
   get message() {
     let message = simplifyTimeMessage(this.displayMessage);
+
+    if ('image' in this.details) message = `${message} ${this.details["image"]}`;
+    
     return message;
   }
 }
@@ -39,4 +44,8 @@ function simplifyTimeMessage(message) {
       return `${h ? h + 'h' : ''}${h || m ? m + 'm' : ''}${s}s`;
     }) || message
   );
+}
+
+function appendDetailsImage(message, image) {
+  return message + " " + image;
 }
