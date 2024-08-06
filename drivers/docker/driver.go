@@ -745,15 +745,22 @@ func (d *Driver) convertAllocPathsForWindowsLCOW(task *drivers.TaskConfig, image
 }
 
 func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
+	taskLocalBindVolume := driverConfig.VolumeDriver == ""
+	if !d.config.Volumes.Enabled && !taskLocalBindVolume {
+		return nil, fmt.Errorf("volumes are not enabled; cannot use volume driver %q", driverConfig.VolumeDriver)
+	}
+
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
 	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	taskLocalBindVolume := driverConfig.VolumeDriver == ""
-
-	if !d.config.Volumes.Enabled && !taskLocalBindVolume {
-		return nil, fmt.Errorf("volumes are not enabled; cannot use volume driver %q", driverConfig.VolumeDriver)
+	selinuxLabel := d.config.Volumes.SelinuxLabel
+	if selinuxLabel != "" {
+		// Apply SELinux Label to each built-in bind
+		for i := range binds {
+			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
+		}
 	}
 
 	for _, userbind := range driverConfig.Volumes {
@@ -782,17 +789,18 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 		}
 
 		bind := src + ":" + dst
-		if mode != "" {
-			bind += ":" + mode
+		opts := mode
+		if opts != "" {
+			if selinuxLabel != "" {
+				opts += "," + selinuxLabel
+			}
+		} else {
+			opts = selinuxLabel
+		}
+		if opts != "" {
+			bind += ":" + opts
 		}
 		binds = append(binds, bind)
-	}
-
-	if selinuxLabel := d.config.Volumes.SelinuxLabel; selinuxLabel != "" {
-		// Apply SELinux Label to each volume
-		for i := range binds {
-			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
-		}
 	}
 
 	return binds, nil
