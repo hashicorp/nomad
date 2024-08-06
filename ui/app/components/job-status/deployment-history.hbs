@@ -32,29 +32,13 @@
     <ol class="timeline">
       {{#each this.history as |deployment-log|}}
         <li class="timeline-object {{if (eq deployment-log.exitCode 1) "error"}}">
-          <div class="boxed-section-head is-light inline-definitions">
+          <div class="boxed-section-head is-light">
             <LinkTo @route="allocations.allocation" @model={{deployment-log.state.allocation.id}} class="allocation-reference">{{deployment-log.state.allocation.shortId}}</LinkTo>
             <span><strong>{{deployment-log.type}}:</strong> {{deployment-log.message}}</span>
             <span class="pull-right">
-              <span class="pair is-faded">
-                <span class="term">Exit Code</span>
-                <span class="has-emphasis" data-test-deployment-log-version>{{ deployment-log.exitCode }}</span>
-                <span data-test-deployment-log-time>|
-                  <span class="tooltip" aria-label="{{format-ts deployment-log.time}}">
-                    {{moment-from-now deployment-log.time}}
-                  </span>
-                </span>
-              </span>
-              <button data-test-deployment-log-toggle-details class="button is-light is-compact pull-right" {{action (toggle "isHidden" deployment-log)}} type="button">details</button>
+              {{format-ts deployment-log.time}}
             </span>
           </div>
-          {{#unless deployment-log.isHidden}}
-            <div data-test-deployment-log-details class="boxed-section-body">
-              <DeploymentLogDetails @deployment-log={{deployment-log}} as |deployment-log|>
-                <deployment-log.details />
-              </DeploymentLogDetails>
-            </div>
-          {{/unless}}
         </li>
       {{else}}
         {{#if this.errorState}}

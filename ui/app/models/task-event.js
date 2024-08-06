@@ -5,12 +5,9 @@
 
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
-import { tracked } from '@glimmer/tracking';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 
 export default class TaskEvent extends Fragment {
-  @tracked isHidden = true;
-
   @fragmentOwner() state;
 
   @attr('string') type;
@@ -20,15 +17,10 @@ export default class TaskEvent extends Fragment {
   @attr('date') time;
   @attr('number') timeNanos;
   @attr('string') displayMessage;
-  @attr({ defaultValue: () => ({}) }) details;
 
   get message() {
     let message = simplifyTimeMessage(this.displayMessage);
     return message;
-  }
-
-  get detailsAsArray() {
-    return Object.entries(this.details);
   }
 }
 
