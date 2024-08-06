@@ -45,7 +45,3 @@ function simplifyTimeMessage(message) {
     }) || message
   );
 }
-
-function appendDetailsImage(message, image) {
-  return message + " " + image;
-}
