@@ -1,0 +1,38 @@
+Nomad's task group networks integrate with Consul's service mesh using bridge
+networking and iptables to send traffic between containers.
+
+~> **Warning:** New Linux versions, such as Ubuntu 24.04, may not enable bridge
+networking by default. Use `sudo modprobe bridge` to load the bridge module if
+it is missing.
+
+The Linux kernel bridge module has three tunable parameters that control whether
+iptables processes traffic crossing the bridge. Some operating systems,
+including RedHat, CentOS, and Fedora, might have iptables rules that are not
+correctly configured for guest traffic because these tunable parameters are
+optimized for VM workloads.
+
+Ensure your Linux operating system distribution is configured to allow iptables
+to route container traffic through the bridge network. Run the following
+commands to set the tunable parameters to allow iptables processing for the
+bridge network.
+
+```shell-session
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+To preserve these settings on startup of a client node, add a file to
+`/etc/sysctl.d/` or remove the file your Linux distribution puts in that
+directory. The following example configures the tunable parameters for a client
+node.
+
+<CodeBlockConfig filename="/etc/sysctl.d/bridge.conf">
+
+```ini
+net.bridge.bridge-nf-call-arptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+```
+
+</CodeBlockConfig>
