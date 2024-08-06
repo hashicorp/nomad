@@ -6,7 +6,6 @@
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
-import { alias } from 'ember-cli-page-object/macros';
 
 export default class TaskEvent extends Fragment {
   @fragmentOwner() state;
