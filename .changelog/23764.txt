@@ -1,0 +1,3 @@
+```release-note:bug
+cni: network.cni jobspec updates now replace allocs to apply the new network config
+```

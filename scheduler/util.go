@@ -544,6 +544,10 @@ func networkUpdated(netA, netB []*structs.NetworkResource) comparison {
 			return difference("network dns", an.DNS, bn.DNS)
 		}
 
+		if !an.CNI.Equal(bn.CNI) {
+			return difference("network cni", an.CNI, bn.CNI)
+		}
+
 		aPorts, bPorts := networkPortMap(an), networkPortMap(bn)
 		if !aPorts.Equal(bPorts) {
 			return difference("network port map", aPorts, bPorts)
