@@ -110,6 +110,9 @@ func NewIdentityClaimsBuilder(job *Job, alloc *Allocation, wihandle *WIHandle, w
 	if tg == nil {
 		return nil
 	}
+	if wid == nil {
+		wid = DefaultWorkloadIdentity()
+	}
 
 	return &IdentityClaimsBuilder{
 		alloc:    alloc,
@@ -318,9 +321,19 @@ type WorkloadIdentity struct {
 	// escalate their privileges if they know what claim mappings to expect.
 }
 
+func DefaultWorkloadIdentity() *WorkloadIdentity {
+	return &WorkloadIdentity{
+		Name:     WorkloadIdentityDefaultName,
+		Audience: []string{WorkloadIdentityDefaultAud},
+	}
+}
+
 // IsConsul returns true if the identity name starts with the standard prefix
 // for Consul tasks and services.
 func (wi *WorkloadIdentity) IsConsul() bool {
+	if wi == nil {
+		return false
+	}
 	return strings.HasPrefix(wi.Name, ConsulTaskIdentityNamePrefix) ||
 		strings.HasPrefix(wi.Name, ConsulServiceIdentityNamePrefix)
 }
@@ -328,6 +341,9 @@ func (wi *WorkloadIdentity) IsConsul() bool {
 // IsVault returns true if the identity name starts with the standard prefix
 // for Vault tasks.
 func (wi *WorkloadIdentity) IsVault() bool {
+	if wi == nil {
+		return false
+	}
 	return strings.HasPrefix(wi.Name, WorkloadIdentityVaultPrefix)
 }
 
