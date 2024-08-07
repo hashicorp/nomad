@@ -86,15 +86,17 @@ namespace label is specified, the rule will apply to the "default"
 namespace. You may use wildcard globs (`"*"`) in the namespace label, to apply a
 rule to multiple namespaces.
 
-Only one namespace rule can apply. When an action is checked against the ACL
+Only one namespace rule can apply. When Nomad checks an action against the ACL
 Policy, the namespace rule is selected by first checking for an _exact match_,
 before falling back to a glob-based lookup. When looking up the namespace by
-glob, the matching rule with the greatest number of matched characters will be
-chosen.
+glob, Nomad chooses the rule with the greatest number of matched characters. In
+other words, Nomad chooses the rule with the _smallest character difference_,
+which is the _greatest number of matched characters_.
 
-For example the following policy will evaluate to deny for `production-web`,
-because it is 9 characters different from the `"*-web"` rule, but 13 characters
-different from the `"*"` rule.
+In this example, you have a 'production-web' namespace. For the `"*-web"` rule,
+nine characters match. The character difference is four. For the `"*"`rule, no
+characters match the rule. The character difference is thirteen. Nomad chooses
+the `"*-web"` rule since it has the greatest number of matched characters.
 
 ```hcl
 namespace "*-web" {
