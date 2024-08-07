@@ -201,7 +201,9 @@ variables block per namespace rule.
 
 A `variables` block includes one or more `path` blocks. Each `path` block is
 labeled with the path it applies to. You may use wildcard globs (`"*"`) in the
-path label, to apply the block to multiple paths in the namespace.
+path label, to apply the block to multiple paths in the namespace. Note that
+variable paths never start with a leading `/`, so Nomad will return an error if
+you submit a policy that has such a path.
 
 Each path has a list of `capabilities`. The available capabilities for Variables
 are as follows:
