@@ -398,7 +398,7 @@ func Parse(rules string) (*Policy, error) {
 				}
 				if strings.HasPrefix(pathPolicy.PathSpec, "/") {
 					return nil, fmt.Errorf(
-						"Invalid variable path '%s' in namespace %s: cannot start with a leading '/'`",
+						"Invalid variable path %q in namespace %s: cannot start with a leading '/'`",
 						pathPolicy.PathSpec, ns.Name)
 				}
 				for _, cap := range pathPolicy.Capabilities {

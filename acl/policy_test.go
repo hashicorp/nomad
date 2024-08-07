@@ -504,7 +504,7 @@ func TestParse(t *testing.T) {
 			  }
 			}
 			`,
-			"Invalid variable path '/nomad/job' in namespace dev: cannot start with a leading '/'",
+			"Invalid variable path \"/nomad/job\" in namespace dev: cannot start with a leading '/'",
 			nil,
 		},
 		{
