@@ -1,7 +1,7 @@
 ---
 layout: docs
 page_title: 'Drivers: Exec'
-description: The Exec task driver is used to run binaries using OS isolation primitives.
+description: The Exec task driver runs binaries using OS isolation primitives.
 ---
 
 # Isolated Fork/Exec Driver
@@ -229,8 +229,9 @@ on [cgroup controller requirements][] for more details.
 
 ### Chroot
 
-The chroot is populated with data in the following directories from the host
-machine:
+Chroot changes the root directory of the current process and all its child processes. Nomad uses a chroot environment to implement file system isolation.
+
+Nomad populates the chroot environment with data in the following host machine directories:
 
 ```
 [
@@ -245,13 +246,13 @@ machine:
 ]
 ```
 
-The task's chroot is populated by linking or copying the data from the host into
-the chroot. Note that this can take considerable disk space. Since Nomad v0.5.3,
-the client manages garbage collection locally which mitigates any issue this may
-create.
+Nomad populates the task's chroot environment by linking or copying the data from the host into the chroot. Note that this can take considerable disk space.
+The client manages garbage collection locally, which mitigates any issue this may create.
 
-This list is configurable through the agent client
-[configuration file](/nomad/docs/configuration/client#chroot_env).
+@include 'chroot-limitations.mdx'
+
+Configure the chroot environment list through the agent client's
+[`chroot_env` attribute](/nomad/docs/configuration/client#chroot_env).
 
 ### CPU
 
