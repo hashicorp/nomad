@@ -8055,9 +8055,10 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 
 	// If there was no default identity, always create one.
 	if t.Identity == nil {
-		t.Identity = &WorkloadIdentity{}
+		t.Identity = DefaultWorkloadIdentity()
+	} else {
+		t.Identity.Canonicalize()
 	}
-	t.Identity.Canonicalize()
 }
 
 func (t *Task) GoString() string {

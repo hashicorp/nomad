@@ -242,6 +242,10 @@ const keyIDHeader = "kid"
 // SignClaims adds the Issuer claim prior to signing.
 func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, error) {
 
+	if claims == nil {
+		return "", "", errors.New("cannot sign empty claims")
+	}
+
 	// If a key is rotated immediately following a leader election, plans that
 	// are in-flight may get signed before the new leader has the key. Allow for
 	// a short timeout-and-retry to avoid rejecting plans
