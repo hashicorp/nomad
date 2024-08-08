@@ -527,20 +527,6 @@ namespace which is created and managed by Nomad itself. Refer to Nomad's
 The Podman plugin has options which may be customized in the agent's
 configuration file.
 
-- `disable_log_collection` `(bool: false)` - Setting this to `true` will
-  disable Nomad logs collection of Podman tasks. If you don't rely on Nomad log
-  capabilities and exclusively use host based log aggregation, you may consider
-  this option to disable Nomad log collection overhead. Beware that you also
-  lose automatic log rotation.
-
-  ```hcl
-  plugin "nomad-driver-podman" {
-    config {
-      disable_log_collection = false
-    }
-  }
-  ```
-
 - `gc` block:
 
   - `container` - Defaults to `true`. This option can be used to disable Nomad
