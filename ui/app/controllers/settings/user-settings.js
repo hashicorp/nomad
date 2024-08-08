@@ -15,11 +15,12 @@ import { computed } from '@ember/object';
 export default class SettingsUserSettingsController extends Controller {
   @service notifications;
   @service system;
+  @service router;
 
   @localStorageProperty('nomadShouldWrapCode', false) wordWrap;
   @localStorageProperty('nomadLiveUpdateJobsIndex', true) liveUpdateJobsIndex;
   // @localStorageProperty('nomadDefaultNamespace') userDefaultNamespace;
-  @alias('system.userDefaultNamespace') userDefaultNamespace;
+  // @alias('system.userDefaultNamespace') userDefaultNamespace;
   // @localStorageProperty('nomadDefaultNodePool') defaultNodePool;
 
   @alias('model.namespaces') namespaces;
@@ -61,13 +62,17 @@ export default class SettingsUserSettingsController extends Controller {
   }
 
   get namespaceDropdownLabel() {
-    let userDefaultNamespaces = this.userDefaultNamespace
-      ? this.userDefaultNamespace.split(',')
+    // userDefaultNamespaces: string set in localStorage, via system service
+    let userDefaultNamespaces = this.system.userDefaultNamespace
+      ? this.system.userDefaultNamespace.split(',')
       : [];
+
+    // agentDefaultNamespaces: array set in agent config, via system service
     let agentDefaultNamespaces = this.system.agentDefaults?.Namespace
       ? this.system.agentDefaults.Namespace.split(',')
       : [];
-    if (this.userDefaultNamespace) {
+
+    if (userDefaultNamespaces.length) {
       return `${userDefaultNamespaces.length} default namespace${
         userDefaultNamespaces.length > 1 ? 's' : ''
       } (via localStorage)`;
@@ -80,17 +85,17 @@ export default class SettingsUserSettingsController extends Controller {
     }
   }
 
-  @action setAllNamespacesAsDefault() {
-    this.namespaceOptions.forEach((ns) => set(ns, 'checked', true));
-    let checkedNamespaces = this.namespaceOptions.mapBy('label');
-    set(this, 'system.userDefaultNamespace', checkedNamespaces.join(', '));
-    set(this, 'model.defaults.namespace', checkedNamespaces); // explicitly modify the model to trigger a refresh
-    this.notifications.add({
-      title: 'Default Namespace Updated',
-      message: 'All namespaces are now default',
-      color: 'success',
-    });
-  }
+  // @action setAllNamespacesAsDefault() {
+  //   this.namespaceOptions.forEach((ns) => set(ns, 'checked', true));
+  //   let checkedNamespaces = this.namespaceOptions.mapBy('label');
+  //   set(this, 'system.userDefaultNamespace', checkedNamespaces.join(', '));
+  //   set(this, 'model.defaults.namespace', checkedNamespaces); // explicitly modify the model to trigger a refresh
+  //   this.notifications.add({
+  //     title: 'Default Namespace Updated',
+  //     message: 'All namespaces are now default',
+  //     color: 'success',
+  //   });
+  // }
 
   @action setDefaultNamespace(ns, evt) {
     ns.checked = evt.target.checked;
@@ -112,4 +117,42 @@ export default class SettingsUserSettingsController extends Controller {
       color: 'success',
     });
   }
+
+  @action clearUserDefaultNamespaces() {
+    set(this, 'system.userDefaultNamespace', null);
+    this.notifications.add({
+      title: 'Default Namespaces Cleared',
+      message: this.system.agentDefaults?.Namespace
+        ? `Namespaces ${this.system.agentDefaults.Namespace} are now default via agent`
+        : 'No default namespaces set',
+      color: 'success',
+    });
+  }
+
+  get sortedRegions() {
+    console.log('sortreg', this.system.regions);
+    return this.system.regions.toArray().sort();
+  }
+
+  @action setDefaultRegion(region) {
+    this.system.userDefaultRegion = region;
+
+    // When you set region via the region switcher in the header, it ships you over to the jobs route with a ?region= queryParam.
+    // This maintains that convention and un-sets it if you set your default as the authoritative region.
+    this.router.transitionTo('settings.user-settings', {
+      queryParams: { region },
+    });
+
+    this.notifications.add({
+      title: 'Default Region Updated',
+      message: `Region ${region} is now default`,
+      color: 'success',
+    });
+  }
+
+  // You may be asking: why isn't there a clearDefaultRegion() action like there is for namespaces?
+  // Your localStorage settings get an activeRegion/default region every time you change regions via the header switcher,
+  // but also when you load the application route, so at best you'd have "no default" until you refresh the page.
+  // If we ever decide to get rid of "save your active region for when you load the app in the future" as a convention,
+  // then we can add a clearDefaultRegion() action.
 }

@@ -31,64 +31,117 @@
         </G.ToggleField>
       </Hds::Form::Toggle::Group>
 
-    <Hds::Separator/>
-    <Hds::Form::Label @controlId="control-ID">
-      Default Namespace
-    </Hds::Form::Label>
-    <Hds::Dropdown @height="300px" @listPosition="bottom-left" as |dd|>
-      <dd.ToggleButton
-        @text={{this.namespaceDropdownLabel}}
-        @color="secondary"
-      />
-      <dd.Header @hasDivider={{true}}>
-        <Hds::Form::TextInput::Base
-          @type="search"
-          placeholder="Filter namespaces"
-          @value={{this.namespaceFilter}}
-          {{autofocus}}
-          {{on "input" (action (mut this.namespaceFilter) value="target.value") }}
-          data-test-namespace-filter-searchbox
-        />
-      </dd.Header>
-      {{#each this.namespaceOptions as |option|}}
-        <dd.Checkbox
-          {{on "change" (fn this.setDefaultNamespace option)}}
-          @value={{option.label}}
-          checked={{option.checked}}
-          data-test-dropdown-option={{option.label}}
-        >
-          {{option.label}} {{#if (includes option.id this.namespaceDefaults)}}(default){{/if}}
-        </dd.Checkbox>
-      {{else}}
-        <dd.Generic data-test-dropdown-empty>
-          No namespaces match {{this.namespaceFilter}}
-        </dd.Generic>
-      {{/each}}
-
-      <dd.Footer>
-        {{#if this.namespaceOptions.length}}
-          <Hds::Button
-            @text="Include {{this.namespaceOptions.length}} {{pluralize "namespace" this.namespaceOptions.length}}"
-            @isFullWidth={{true}}
+      <Hds::Separator/>
+      <Hds::Form::Label>
+        Default Namespace
+        <Hds::Dropdown @height="300px" @listPosition="bottom-left" as |dd|>
+          <dd.ToggleButton
+            @text={{this.namespaceDropdownLabel}}
             @color="secondary"
+          />
+          <dd.Header @hasDivider={{true}}>
+            <Hds::Form::TextInput::Base
+              @type="search"
+              placeholder="Filter namespaces"
+              @value={{this.namespaceFilter}}
+              {{autofocus}}
+              {{on "input" (action (mut this.namespaceFilter) value="target.value") }}
+              data-test-namespace-filter-searchbox
+            />
+          </dd.Header>
+          {{#each this.namespaceOptions as |option|}}
+            <dd.Checkbox
+              {{on "change" (fn this.setDefaultNamespace option)}}
+              @value={{option.label}}
+              checked={{option.checked}}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{option.label}} {{#if (includes option.id this.namespaceDefaults)}}(default){{/if}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              {{#if this.namespaceFilter}}
+                No namespaces match "{{this.namespaceFilter}}"
+              {{else}}
+                No namespaces available
+              {{/if}}
+            </dd.Generic>
+          {{/each}}
+
+          {{!-- TODO: is this useful? --}}
+          {{!-- <dd.Footer>
+            {{#if this.namespaceOptions.length}}
+              <Hds::Button
+                @text="Select All"
+                @isFullWidth={{true}}
+                @color="secondary"
+                @size="small"
+                {{on "click" (action this.setAllNamespacesAsDefault)}}
+              />
+            {{/if}}
+          </dd.Footer> --}}
+
+        </Hds::Dropdown>
+      </Hds::Form::Label>
+      <Hds::Form::HelperText>
+        You can set which namespaces are selected by default in the UI.
+        {{#if this.system.agentDefaults.Namespace}}
+          <br />
+          Your agent configuration has set the default namespace to <strong>{{this.system.agentDefaults.Namespace}}</strong>.
+        {{/if}}
+        {{#if this.system.userDefaultNamespace}}
+          <br />
+          Your user settings have set the default namespace to <strong>{{this.system.userDefaultNamespace}}</strong>.
+
+          <Hds::Button
+            @isInline={{true}}
             @size="small"
-            {{on "click" (action this.setAllNamespacesAsDefault)}}
+            @text="Clear user default namespaces"
+            @color="tertiary"
+            @icon="minus-circle"
+            {{on "click" this.clearUserDefaultNamespaces}}
           />
         {{/if}}
-      </dd.Footer>
+      </Hds::Form::HelperText>
 
-    </Hds::Dropdown>
-    <Hds::Form::HelperText>
-      You can set which namespaces are selected by default in the UI.
-      {{#if this.system.agentDefaults.Namespace}}
-        <br />
-        Your agent configuration has set the default namespace to <strong>{{this.system.agentDefaults.Namespace}}</strong>.
+      {{#if this.system.shouldShowRegions}}      
+        <Hds::Separator/>
+        <Hds::Form::Label>
+          Default Region
+          {{!-- <RegionSwitcher @onChange={{this.setDefaultRegion}} /> --}}
+          <Hds::Dropdown @height="300px" @listPosition="bottom-left" as |dd|>
+            <dd.ToggleButton
+              @text={{or this.system.userDefaultRegion "Set a default region"}}
+              @color="secondary"
+            />
+            {{#each this.sortedRegions as |option|}}
+              {{!-- <dd.Checkbox
+                {{on "change" (fn this.setDefaultRegion option)}}
+                @value={{option.label}}
+                checked={{option.checked}}
+                data-test-dropdown-option={{option.label}}
+              >
+                {{option.label}} {{#if (includes option.id this.regionDefaults)}}(default){{/if}}
+              </dd.Checkbox> --}}
+							<dd.Interactive
+                {{on "click" (action this.setDefaultRegion option)}} @text={{option}}
+              />
+            {{/each}}
+          </Hds::Dropdown>
+        </Hds::Form::Label>
+        <Hds::Form::HelperText>
+          You can set which region is selected by default in the UI.
+          {{#if this.system.agentDefaults.Region}}
+            <br />
+            Your agent configuration has set the default region to <strong>{{this.system.agentDefaults.Region}}</strong>.
+          {{/if}}
+          {{#if this.system.userDefaultRegion}}
+            <br />
+            Your user settings have set the default region to <strong>{{this.system.userDefaultRegion}}</strong> (This updates every time you change regions via the UI)
+          {{/if}}
+        </Hds::Form::HelperText>
+
       {{/if}}
-      {{#if this.system.userDefaultNamespace}}
-        <br />
-        Your user settings have set the default namespace to <strong>{{this.system.userDefaultNamespace}}</strong>.
-      {{/if}}
-    </Hds::Form::HelperText>
 
     </A.Generic>
   </Hds::Alert>
