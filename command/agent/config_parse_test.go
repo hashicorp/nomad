@@ -25,7 +25,7 @@ var basicConfig = &Config{
 	PluginDir:          "/tmp/nomad-plugins",
 	LogFile:            "/var/log/nomad.log",
 	LogLevel:           "ERR",
-	LogIncludeLocation: true,
+	LogIncludeLocation: pointer.Of(true),
 	LogJson:            true,
 	BindAddr:           "192.168.0.1",
 	EnableDebug:        true,
