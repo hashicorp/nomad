@@ -5,6 +5,7 @@ package allocrunner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -60,16 +61,24 @@ func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, b
 	}
 
 	var netCfg []byte
+	var err error
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	for _, svc := range tg.Services {
 		if svc.Connect.HasTransparentProxy() {
-			netCfg = buildNomadBridgeNetConfig(*b, true)
+			netCfg, err = buildNomadBridgeNetConfig(*b, true)
+			if err != nil {
+				return nil, err
+			}
+
 			break
 		}
 	}
 	if netCfg == nil {
-		netCfg = buildNomadBridgeNetConfig(*b, false)
+		netCfg, err = buildNomadBridgeNetConfig(*b, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	parser := &cniConfParser{
@@ -156,69 +165,61 @@ func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs
 	return b.cni.Teardown(ctx, alloc, spec)
 }
 
-func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator, withConsulCNI bool) []byte {
-	var consulCNI string
-	if withConsulCNI {
-		consulCNI = consulCNIBlock
+func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator, withConsulCNI bool) ([]byte, error) {
+	// Update website/content/docs/networking/cni.mdx when the bridge configuration
+	// is modified. If CNI plugins are added or versions need to be updated for new
+	// fields, add a new constraint to nomad/job_endpoint_hooks.go
+	var ranges []Range
+	allocRange := Range{Subnet: b.allocSubnet}
+	ranges = append(ranges, allocRange)
+
+	var routes []Route
+	allocRoute := Route{Dst: "0.0.0.0/0"}
+	routes = append(routes, allocRoute)
+
+	loop := Loopback{Type: "loopback"}
+
+	NewFirewall := Firewall{
+		Type:                   "firewall",
+		Backend:                "iptables",
+		IptablesAdminChainName: cniAdminChainName,
+	}
+	NewPortmap := Portmap{
+		Type:         "portmap",
+		Capabilities: CapabilityArgs{Portmappings: true},
+		Snat:         true,
 	}
 
-	return []byte(fmt.Sprintf(nomadCNIConfigTemplate,
-		b.bridgeName,
-		b.hairpinMode,
-		b.allocSubnet,
-		cniAdminChainName,
-		consulCNI,
-	))
-}
+	NewBridge := &Bridge{
+		Type:         "bridge",
+		Bridgename:   b.bridgeName,
+		IpMasq:       true,
+		IsGateway:    true,
+		ForceAddress: true,
+		HairpinMode:  b.hairpinMode,
+		Ipam: IPAM{
+			Type:   "host-local",
+			Routes: routes,
+		},
+	}
+	NewBridge.Ipam.Ranges = append(NewBridge.Ipam.Ranges, ranges)
 
-// Update website/content/docs/networking/cni.mdx when the bridge configuration
-// is modified. If CNI plugins are added or versions need to be updated for new
-// fields, add a new constraint to nomad/job_endpoint_hooks.go
-const nomadCNIConfigTemplate = `{
-	"cniVersion": "0.4.0",
-	"name": "nomad",
-	"plugins": [
-		{
-			"type": "loopback"
-		},
-		{
-			"type": "bridge",
-			"bridge": %q,
-			"ipMasq": true,
-			"isGateway": true,
-			"forceAddress": true,
-			"hairpinMode": %v,
-			"ipam": {
-				"type": "host-local",
-				"ranges": [
-					[
-						{
-							"subnet": %q
-						}
-					]
-				],
-				"routes": [
-					{ "dst": "0.0.0.0/0" }
-				]
-			}
-		},
-		{
-			"type": "firewall",
-			"backend": "iptables",
-			"iptablesAdminChainName": %q
-		},
-		{
-			"type": "portmap",
-			"capabilities": {"portMappings": true},
-			"snat": true
-		}%s
-	]
-}
-`
+	pluginsList := []any{loop, NewBridge, NewFirewall, NewPortmap}
+	CNIconfig := &BridgeCNIPlugin{
+		CniVersion: "0.4.0",
+		Name:       "nomad",
+		Plugins:    pluginsList,
+	}
+	if withConsulCNI {
+		CNIconfig.Plugins = append(CNIconfig.Plugins, ConsulCNIBlock{
+			Type:     "consul-cni",
+			Loglevel: "debug",
+		})
+	}
 
-const consulCNIBlock = `,
-		{
-			"type": "consul-cni",
-			"log_level": "debug"
-		}
-`
+	bridgeNetConfig, err := json.Marshal(CNIconfig)
+	if err != nil {
+		return nil, err
+	}
+	return bridgeNetConfig, nil
+}
