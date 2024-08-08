@@ -133,6 +133,19 @@ func diffSystemAllocsForNode(
 			continue
 		}
 
+		if exist.TerminalStatus() && !reconnect {
+			// Server-terminal allocs, if supportsDisconnectedClient and not reconnect,
+			// are probably stopped replacements and should be ignored
+			if supportsDisconnectedClients && exist.ServerTerminalStatus() {
+				result.ignore = append(result.ignore, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     exist,
+				})
+				continue
+			}
+		}
+
 		node, nodeIsTainted := taintedNodes[exist.NodeID]
 
 		// Filter allocs on a node that is now re-connected to reconnecting.
