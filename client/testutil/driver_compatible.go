@@ -74,7 +74,7 @@ func RequireNotWindows(t *testing.T) {
 // - not running on Windows
 func RequireWindows(t *testing.T) {
 	if runtime.GOOS != "windows" {
-		t.Skip("Test requires non-Windows")
+		t.Skip("Test requires Windows")
 	}
 }
 
