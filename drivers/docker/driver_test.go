@@ -12,7 +12,6 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
-	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -92,7 +91,10 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 		Name:    "redis-demo",
 		AllocID: uuid.Generate(),
 		Env: map[string]string{
-			"test": t.Name(),
+			"test":              t.Name(),
+			"NOMAD_ALLOC_DIR":   "/alloc",
+			"NOMAD_TASK_DIR":    "/local",
+			"NOMAD_SECRETS_DIR": "/secrets",
 		},
 		DeviceEnv: make(map[string]string),
 		Resources: &drivers.Resources{
@@ -117,6 +119,12 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 				PercentTicks:     float64(512) / float64(4096),
 			},
 		},
+	}
+
+	if runtime.GOOS == "windows" {
+		task.Env["NOMAD_ALLOC_DIR"] = "c:/alloc"
+		task.Env["NOMAD_TASK_DIR"] = "c:/local"
+		task.Env["NOMAD_SECRETS_DIR"] = "c:/secrets"
 	}
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(&cfg))
@@ -1285,6 +1293,7 @@ func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
 
 func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
 	ci.Parallel(t)
+	testutil.RequireLinux(t)
 
 	task, cfg, _ := dockerTask(t)
 
@@ -1310,17 +1319,26 @@ func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
 			Target: "/list-tmpfs-target",
 		},
 	}
-
-	expectedSrcPrefix := "/"
-	if runtime.GOOS == "windows" {
-		expectedSrcPrefix = "redis-demo\\"
+	cfg.Volumes = []string{
+		"/etc/ssl/certs:/etc/ssl/certs:ro",
+		"/var/www:/srv/www",
 	}
-	expected := []docker.HostMount{
+
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.config.Volumes.Enabled = true
+	driver.config.Volumes.SelinuxLabel = "z"
+
+	cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	must.NoError(t, err)
+
+	must.Eq(t, []docker.HostMount{
 		// from mount map
 		{
 			Type:        "bind",
 			Target:      "/map-bind-target",
-			Source:      expectedSrcPrefix + "map-source",
+			Source:      "/map-source",
 			BindOptions: &docker.BindOptions{},
 		},
 		{
@@ -1332,7 +1350,7 @@ func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
 		{
 			Type:        "bind",
 			Target:      "/list-bind-target",
-			Source:      expectedSrcPrefix + "list-source",
+			Source:      "/list-source",
 			BindOptions: &docker.BindOptions{},
 		},
 		{
@@ -1340,24 +1358,92 @@ func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
 			Target:        "/list-tmpfs-target",
 			TempfsOptions: &docker.TempfsOptions{},
 		},
+	}, cc.HostConfig.Mounts)
+
+	must.Eq(t, []string{
+		"alloc:/alloc:z",
+		"redis-demo/local:/local:z",
+		"redis-demo/secrets:/secrets:z",
+		"/etc/ssl/certs:/etc/ssl/certs:ro,z",
+		"/var/www:/srv/www:z",
+	}, cc.HostConfig.Binds)
+}
+
+func TestDockerDriver_CreateContainerConfig_Mounts_Windows(t *testing.T) {
+	ci.Parallel(t)
+	testutil.RequireWindows(t)
+
+	task, cfg, _ := dockerTask(t)
+
+	cfg.Mounts = []DockerMount{
+		{
+			Type:   "bind",
+			Target: "/map-bind-target",
+			Source: "/map-source",
+		},
+		{
+			Type:   "tmpfs",
+			Target: "/map-tmpfs-target",
+		},
+	}
+	cfg.MountsList = []DockerMount{
+		{
+			Type:   "bind",
+			Target: "/list-bind-target",
+			Source: "/list-source",
+		},
+		{
+			Type:   "tmpfs",
+			Target: "/list-tmpfs-target",
+		},
+	}
+	cfg.Volumes = []string{
+		"c:/etc/ssl/certs:c:/etc/ssl/certs",
+		"c:/var/www:c:/srv/www",
 	}
 
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
-
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
 	driver.config.Volumes.Enabled = true
 
 	cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	found := cc.HostConfig.Mounts
-	sort.Slice(found, func(i, j int) bool { return strings.Compare(found[i].Target, found[j].Target) < 0 })
-	sort.Slice(expected, func(i, j int) bool {
-		return strings.Compare(expected[i].Target, expected[j].Target) < 0
-	})
+	must.Eq(t, []docker.HostMount{
+		// from mount map
+		{
+			Type:        "bind",
+			Target:      "/map-bind-target",
+			Source:      "redis-demo\\map-source",
+			BindOptions: &docker.BindOptions{},
+		},
+		{
+			Type:          "tmpfs",
+			Target:        "/map-tmpfs-target",
+			TempfsOptions: &docker.TempfsOptions{},
+		},
+		// from mount list
+		{
+			Type:        "bind",
+			Target:      "/list-bind-target",
+			Source:      "redis-demo\\list-source",
+			BindOptions: &docker.BindOptions{},
+		},
+		{
+			Type:          "tmpfs",
+			Target:        "/list-tmpfs-target",
+			TempfsOptions: &docker.TempfsOptions{},
+		},
+	}, cc.HostConfig.Mounts)
 
-	require.Equal(t, expected, found)
+	must.Eq(t, []string{
+		`alloc:c:/alloc`,
+		`redis-demo\local:c:/local`,
+		`redis-demo\secrets:c:/secrets`,
+		`c:\etc\ssl\certs:c:/etc/ssl/certs`,
+		`c:\var\www:c:/srv/www`,
+	}, cc.HostConfig.Binds)
 }
 
 func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
