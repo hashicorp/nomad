@@ -19,7 +19,7 @@ type Route struct {
 }
 type ConsulCNIBlock struct {
 	Type     string `json:"type"`
-	Loglevel string `json:"log-level"`
+	Loglevel string `json:"log_level"`
 }
 
 type Bridge struct {
@@ -38,7 +38,7 @@ type Firewall struct {
 	IptablesAdminChainName string `json:"iptablesAdminChainName"`
 }
 type CapabilityArgs struct {
-	Portmappings bool `json:"portmappings"`
+	Portmappings bool `json:"portMappings"`
 }
 
 type Portmap struct {
