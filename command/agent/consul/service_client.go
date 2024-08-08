@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v2"
@@ -1918,6 +1919,7 @@ func (c *ServiceClient) removeRegistration(allocID, taskName string) {
 func (c *ServiceClient) getServiceToken(serviceID string) string {
 	c.serviceTokensLock.RLock()
 	defer c.serviceTokensLock.RUnlock()
+	spew.Dump(c.serviceTokens)
 	return c.serviceTokens[serviceID]
 }
 
