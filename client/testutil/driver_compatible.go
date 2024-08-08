@@ -63,9 +63,17 @@ func RequireLinux(t *testing.T) {
 }
 
 // RequireNotWindows skips tests whenever:
-// - running on Window
+// - running on Windows
 func RequireNotWindows(t *testing.T) {
 	if runtime.GOOS == "windows" {
+		t.Skip("Test requires non-Windows")
+	}
+}
+
+// RequireWindows skips tests whenever:
+// - not running on Windows
+func RequireWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
 		t.Skip("Test requires non-Windows")
 	}
 }
