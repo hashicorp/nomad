@@ -28,7 +28,16 @@ The `acl token update` command requires an existing token's accessor ID.
 - `-type`: Sets the type of token. Must be one of "client" or "management".
 
 - `-policy`: Specifies a policy to associate with the token. Can be specified
-  multiple times, but only with client type tokens.
+  multiple times, but only with client type tokens. If any policies are
+  specified, they completely replace the policies on the existing token.
+
+- `-role-id`: ID of a role to use for this token. Can be specified multiple
+  times, but only with client type tokens. If any roles are specified, they
+  completely replace the roles on the existing token.
+
+- `-role-name`: Name of a role to use for this token. Can be specified multiple
+  times, but only with client type tokens. If any roles are specified, they
+  completely replace the roles on the existing token.
 
 ## Examples
 
