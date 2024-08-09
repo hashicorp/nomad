@@ -177,7 +177,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 	var mErr *multierror.Error
 	for _, service := range services {
 		// Exit early if service doesn't need a Consul token.
-		if service == nil || !service.IsConsul() || service.Identity == nil {
+		if service == nil || !service.IsConsul() {
 			continue
 		}
 
@@ -185,6 +185,12 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		consulConfig, ok := h.consulConfigs[clusterName]
 		if !ok {
 			return fmt.Errorf("no such consul cluster: %s", clusterName)
+		}
+
+		// are we dealing with a legacy workflow?
+		if service.Identity == nil && consulConfig.Token != "" {
+			token := &consulapi.ACLToken{SecretID: consulConfig.Token}
+			storeConsulToken(tokens, token, clusterName, service.Identity.Name)
 		}
 
 		// Find signed identity workload.
@@ -206,6 +212,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 				"requested_by": fmt.Sprintf("nomad_service_%s", handle.InterpolatedWorkloadIdentifier),
 			},
 		}
+
 		token, err := h.getConsulToken(clusterName, req)
 		if err != nil {
 			mErr = multierror.Append(mErr, fmt.Errorf(
@@ -216,13 +223,17 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		}
 
 		// Store token in results.
-		if _, ok = tokens[clusterName]; !ok {
-			tokens[clusterName] = make(map[string]*consulapi.ACLToken)
-		}
-		tokens[clusterName][service.Identity.Name] = token
+		storeConsulToken(tokens, token, clusterName, service.Identity.Name)
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+func storeConsulToken(tokens map[string]map[string]*consulapi.ACLToken, secretToken *consulapi.ACLToken, clusterName, identityName string) {
+	if _, ok := tokens[clusterName]; !ok {
+		tokens[clusterName] = make(map[string]*consulapi.ACLToken)
+	}
+	tokens[clusterName][identityName] = secretToken
 }
 
 func (h *consulHook) getConsulToken(cluster string, req consul.JWTLoginRequest) (*consulapi.ACLToken, error) {
