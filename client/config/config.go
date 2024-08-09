@@ -291,8 +291,13 @@ type Config struct {
 
 	// BridgeNetworkAllocSubnet is the IP subnet to use for address allocation
 	// for allocations in bridge networking mode. Subnet must be in CIDR
-	// notation
+	// notation and must be an IPv4 address.
 	BridgeNetworkAllocSubnet string
+
+	// BridgeNetworkAllocSubnetIPv6 is the IP subnet to use for address allocation
+	// for allocations in bridge networking mode. Subnet must be in CIDR
+	// notation and must be an IPv6 address.
+	BridgeNetworkAllocSubnetIPv6 string
 
 	// HostVolumes is a map of the configured host volumes by name.
 	HostVolumes map[string]*structs.ClientHostVolumeConfig

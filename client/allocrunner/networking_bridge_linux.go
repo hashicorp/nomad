@@ -26,6 +26,10 @@ const (
 	// allocation when not specified by the client
 	defaultNomadAllocSubnet = "172.26.64.0/20" // end 172.26.79.255
 
+	// defaultNomadAllocSubnetIPv6 is the subnet to use for host local ipv6 address
+	// allocation when not specified by the client
+	defaultNomadAllocSubnetIPv6 = "fd00::/8" // Unique local address
+
 	// cniAdminChainName is the name of the admin iptables chain used to allow
 	// forwarding traffic to allocations
 	cniAdminChainName = "NOMAD-ADMIN"
@@ -35,28 +39,42 @@ const (
 // shared bridge, configures masquerading for egress traffic and port mapping
 // for ingress
 type bridgeNetworkConfigurator struct {
-	cni         *cniNetworkConfigurator
-	allocSubnet string
-	bridgeName  string
-	hairpinMode bool
+	cni             *cniNetworkConfigurator
+	allocSubnetIPv6 string
+	allocSubnetIPv4 string
+	bridgeName      string
+	hairpinMode     bool
 
 	logger hclog.Logger
 }
 
-func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, bridgeName, ipRange string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool, node *structs.Node) (*bridgeNetworkConfigurator, error) {
+func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, bridgeName, ip4Range string, ipv6Range string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool, node *structs.Node) (*bridgeNetworkConfigurator, error) {
 	b := &bridgeNetworkConfigurator{
-		bridgeName:  bridgeName,
-		allocSubnet: ipRange,
-		hairpinMode: hairpinMode,
-		logger:      log,
+		bridgeName:      bridgeName,
+		hairpinMode:     hairpinMode,
+		allocSubnetIPv4: ip4Range,
+		allocSubnetIPv6: ipv6Range,
+		logger:          log,
 	}
-
+	IPv6Available := false
+	for _, nw := range node.NodeResources.NodeNetworks {
+		if nw.Mode == "host" {
+			for _, address := range nw.Addresses {
+				if address.Family == "ipv6" {
+					IPv6Available = true
+				}
+			}
+		}
+	}
 	if b.bridgeName == "" {
 		b.bridgeName = defaultNomadBridgeName
 	}
 
-	if b.allocSubnet == "" {
-		b.allocSubnet = defaultNomadAllocSubnet
+	if b.allocSubnetIPv4 == "" {
+		b.allocSubnetIPv4 = defaultNomadAllocSubnet
+	}
+	if b.allocSubnetIPv6 == "" && IPv6Available {
+		b.allocSubnetIPv6 = defaultNomadAllocSubnetIPv6
 	}
 
 	var netCfg []byte
@@ -88,6 +106,20 @@ func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, b
 // ensureForwardingRules ensures that a forwarding rule is added to iptables
 // to allow traffic inbound to the bridge network
 func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
+	if b.allocSubnetIPv6 != "" {
+		ip6t, err := iptables.New(iptables.IPFamily(iptables.ProtocolIPv6), iptables.Timeout(5))
+		if err != nil {
+			return err
+		}
+		if err = ensureChain(ip6t, "filter", cniAdminChainName); err != nil {
+			return err
+		}
+
+		if err := appendChainRule(ip6t, cniAdminChainName, b.generateAdminChainRule("ipv6")); err != nil {
+			return err
+		}
+	}
+
 	ipt, err := iptables.New()
 	if err != nil {
 		return err
@@ -97,7 +129,7 @@ func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 		return err
 	}
 
-	if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule()); err != nil {
+	if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule("ipv4")); err != nil {
 		return err
 	}
 
@@ -138,8 +170,13 @@ func appendChainRule(ipt *iptables.IPTables, chain string, rule []string) error 
 
 // generateAdminChainRule builds the iptables rule that is inserted into the
 // CNI admin chain to ensure traffic forwarding to the bridge network
-func (b *bridgeNetworkConfigurator) generateAdminChainRule() []string {
-	return []string{"-o", b.bridgeName, "-d", b.allocSubnet, "-j", "ACCEPT"}
+func (b *bridgeNetworkConfigurator) generateAdminChainRule(ipProtocol string) []string {
+	if ipProtocol == "ipv6" {
+		return []string{"-o", b.bridgeName, "-d", b.allocSubnetIPv6, "-j", "ACCEPT"}
+	} else {
+		return []string{"-o", b.bridgeName, "-d", b.allocSubnetIPv4, "-j", "ACCEPT"}
+	}
+
 }
 
 // Setup calls the CNI plugins with the add action
@@ -165,7 +202,9 @@ func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator, withConsulCNI bool) 
 	return []byte(fmt.Sprintf(nomadCNIConfigTemplate,
 		b.bridgeName,
 		b.hairpinMode,
-		b.allocSubnet,
+		b.allocSubnetIPv4,
+		b.allocSubnetIPv6,
+		cniAdminChainName,
 		cniAdminChainName,
 		consulCNI,
 	))
@@ -195,16 +234,27 @@ const nomadCNIConfigTemplate = `{
 						{
 							"subnet": %q
 						}
+					],
+					[
+						{ 
+							"subnet": %q
+						}
 					]
 				],
 				"routes": [
-					{ "dst": "0.0.0.0/0" }
+					{ "dst": "0.0.0.0/0" },
+                    { "dst" : "::/0" }
 				]
 			}
 		},
 		{
 			"type": "firewall",
 			"backend": "iptables",
+			"iptablesAdminChainName": %q
+		},
+		{
+			"type": "firewall",
+			"backend": "ip6tables",
 			"iptablesAdminChainName": %q
 		},
 		{

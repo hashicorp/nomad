@@ -105,6 +105,7 @@ client {
   cni_path              = "/tmp/cni_path"
   bridge_network_name   = "custom_bridge_name"
   bridge_network_subnet = "custom_bridge_subnet"
+  bridge_network_subnet_ipv6 = "custom_bridge_subnet_ipv6"
 }
 
 server {
