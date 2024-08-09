@@ -16,9 +16,9 @@ import (
 )
 
 func detect() Mode {
-	if os.Geteuid() > 0 {
-		return OFF
-	}
+	// if os.Geteuid() > 0 {
+	// 	return OFF
+	// }
 
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {

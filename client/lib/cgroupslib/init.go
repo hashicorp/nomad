@@ -135,7 +135,9 @@ func Init(log hclog.Logger, cores string) error {
 		//
 
 		if err := writeCG(activation, subtreeFile); err != nil {
-			return fmt.Errorf("failed to create nomad cgroup: %w", err)
+			log.Debug("failed to set subtree_control: cgroup management may not work", "error", err)
+			// TODO
+			// return fmt.Errorf("failed to create nomad cgroup: %w", err)
 		}
 
 		//
