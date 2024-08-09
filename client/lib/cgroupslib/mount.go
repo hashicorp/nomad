@@ -16,10 +16,6 @@ import (
 )
 
 func detect() Mode {
-	if os.Geteuid() > 0 {
-		return OFF
-	}
-
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return OFF
@@ -29,14 +25,14 @@ func detect() Mode {
 	}()
 
 	mode := scan(f)
-	if mode == CG2 && !functionalCgroups2() {
+	const controllersFile = "cgroup.controllers"
+	if mode == CG2 && !functionalCgroups2(controllersFile) {
 		return OFF
 	}
 	return mode
 }
 
-func functionalCgroups2() bool {
-	const controllersFile = "cgroup.controllers"
+func functionalCgroups2(controllersFile string) bool {
 	requiredCgroup2Controllers := []string{"cpuset", "cpu", "io", "memory", "pids"}
 
 	controllersRootPath := filepath.Join(root, controllersFile)
