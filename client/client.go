@@ -3354,8 +3354,23 @@ func (c *Client) emitClientMetrics() {
 
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
+	taskRunning, taskPending, taskDead := 0, 0, 0
 	for _, ar := range c.getAllocRunners() {
-		switch ar.AllocState().ClientStatus {
+
+		allocState := ar.AllocState()
+
+		for _, taskState := range allocState.TaskStates {
+			switch taskState.State {
+			case structs.TaskStateDead:
+				taskDead++
+			case structs.TaskStatePending:
+				taskPending++
+			case structs.TaskStateRunning:
+				taskRunning++
+			}
+		}
+
+		switch allocState.ClientStatus {
 		case structs.AllocClientStatusPending:
 			switch {
 			case ar.IsWaiting():
@@ -3377,6 +3392,9 @@ func (c *Client) emitClientMetrics() {
 	metrics.SetGaugeWithLabels([]string{"client", "allocations", "pending"}, float32(pending), labels)
 	metrics.SetGaugeWithLabels([]string{"client", "allocations", "running"}, float32(running), labels)
 	metrics.SetGaugeWithLabels([]string{"client", "allocations", "terminal"}, float32(terminal), labels)
+	metrics.SetGaugeWithLabels([]string{"client", "tasks", "pending"}, float32(taskPending), labels)
+	metrics.SetGaugeWithLabels([]string{"client", "tasks", "running"}, float32(taskRunning), labels)
+	metrics.SetGaugeWithLabels([]string{"client", "tasks", "dead"}, float32(taskDead), labels)
 }
 
 // labels takes the base labels and appends the node state
