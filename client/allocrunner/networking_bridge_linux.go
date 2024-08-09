@@ -169,46 +169,46 @@ func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator, withConsulCNI bool) 
 	// Update website/content/docs/networking/cni.mdx when the bridge configuration
 	// is modified. If CNI plugins are added or versions need to be updated for new
 	// fields, add a new constraint to nomad/job_endpoint_hooks.go
-	var ranges []Range
-	allocRange := Range{Subnet: b.allocSubnet}
-	ranges = append(ranges, allocRange)
 
 	var routes []Route
 	allocRoute := Route{Dst: "0.0.0.0/0"}
 	routes = append(routes, allocRoute)
 
-	loop := Loopback{Type: "loopback"}
+	var ranges [][]Range
+	allocRange := []Range{Range{Subnet: b.allocSubnet}}
+	ranges = append(ranges, allocRange)
 
-	NewFirewall := Firewall{
-		Type:                   "firewall",
-		Backend:                "iptables",
-		IptablesAdminChainName: cniAdminChainName,
-	}
-	NewPortmap := Portmap{
-		Type:         "portmap",
-		Capabilities: CapabilityArgs{Portmappings: true},
-		Snat:         true,
-	}
-
-	NewBridge := &Bridge{
-		Type:         "bridge",
-		Bridgename:   b.bridgeName,
-		IpMasq:       true,
-		IsGateway:    true,
-		ForceAddress: true,
-		HairpinMode:  b.hairpinMode,
-		Ipam: IPAM{
-			Type:   "host-local",
-			Routes: routes,
+	plugins := []any{ // I wonder if we could swing a more specific type?
+		Loopback{Type: "loopback"},
+		Bridge{
+			Type:         "bridge",
+			Bridgename:   b.bridgeName,
+			IpMasq:       true,
+			IsGateway:    true,
+			ForceAddress: true,
+			HairpinMode:  b.hairpinMode,
+			Ipam: IPAM{
+				Type:   "host-local",
+				Routes: routes,
+				Ranges: ranges,
+			},
+		},
+		Firewall{
+			Type:                   "firewall",
+			Backend:                "iptables",
+			IptablesAdminChainName: cniAdminChainName,
+		},
+		Portmap{
+			Type:         "portmap",
+			Capabilities: CapabilityArgs{Portmappings: true},
+			Snat:         true,
 		},
 	}
-	NewBridge.Ipam.Ranges = append(NewBridge.Ipam.Ranges, ranges)
 
-	pluginsList := []any{loop, NewBridge, NewFirewall, NewPortmap}
 	CNIconfig := &BridgeCNIPlugin{
 		CniVersion: "0.4.0",
 		Name:       "nomad",
-		Plugins:    pluginsList,
+		Plugins:    plugins,
 	}
 	if withConsulCNI {
 		CNIconfig.Plugins = append(CNIconfig.Plugins, ConsulCNIBlock{
