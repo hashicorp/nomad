@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/davecgh/go-spew/spew"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
@@ -233,11 +234,15 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 
 	allocTokens := h.hookResources.GetConsulTokens()
 
+	fmt.Println("these are all allocTokens in getWorkloadServices in the service hook")
+	spew.Dump(allocTokens)
+
 	tokens := map[string]string{}
 	for _, service := range h.services {
 		cluster := service.GetConsulClusterName(h.tg)
 		if token, ok := allocTokens[cluster][service.MakeUniqueIdentityName()]; ok {
 			tokens[service.Name] = token.SecretID
+			fmt.Printf("getWorkloadServices() setting token %v for %v", token.SecretID, service.Name)
 		}
 	}
 
