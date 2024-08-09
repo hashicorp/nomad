@@ -596,9 +596,9 @@ export default class JobsIndexController extends Controller {
         set(option, 'checked', false);
       });
     });
-    this.namespaceFacet?.options.forEach((option) => {
-      set(option, 'checked', false);
-    });
+    // this.namespaceFacet?.options.forEach((option) => {
+    //   set(option, 'checked', false);
+    // });
     this.updateFilter();
   }
 

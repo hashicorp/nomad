@@ -6,8 +6,153 @@
 // @ts-check
 import Controller from '@ember/controller';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
+import { alias } from '@ember/object/computed';
+import { tracked } from '@glimmer/tracking';
+import { set, action } from '@ember/object';
+import { inject as service } from '@ember/service';
+import { computed } from '@ember/object';
 
 export default class SettingsUserSettingsController extends Controller {
+  @service notifications;
+  @service system;
+  @service router;
+
   @localStorageProperty('nomadShouldWrapCode', false) wordWrap;
   @localStorageProperty('nomadLiveUpdateJobsIndex', true) liveUpdateJobsIndex;
+  // @localStorageProperty('nomadDefaultNamespace') userDefaultNamespace;
+  // @alias('system.userDefaultNamespace') userDefaultNamespace;
+  // @localStorageProperty('nomadDefaultNodePool') defaultNodePool;
+
+  @alias('model.namespaces') namespaces;
+  @alias('model.nodePools') nodePools;
+
+  @tracked namespaceFilter = '';
+  get filteredNamespaces() {
+    return this.namespaces.filter((ns) =>
+      ns.name.includes(this.namespaceFilter)
+    );
+  }
+
+  /**
+   * @type {import ('../../services/system').RenderedDefaults} RenderedDefaults
+   */
+  get globalDefaults() {
+    return this.model.defaults;
+  }
+
+  /**
+   * @type {Array<string>} defaultNamespace
+   */
+  get namespaceDefaults() {
+    return this.globalDefaults.namespace;
+  }
+
+  @computed(
+    'filteredNamespaces.@each.checked',
+    'namespaceDefaults',
+    'namespaceFilter',
+    'namespaces.[]'
+  )
+  get namespaceOptions() {
+    return this.filteredNamespaces.map((ns) => ({
+      label: ns.name,
+      value: ns.name,
+      checked: this.namespaceDefaults.includes(ns.name),
+    }));
+  }
+
+  get namespaceDropdownLabel() {
+    // userDefaultNamespaces: string set in localStorage, via system service
+    let userDefaultNamespaces = this.system.userDefaultNamespace
+      ? this.system.userDefaultNamespace.split(',')
+      : [];
+
+    // agentDefaultNamespaces: array set in agent config, via system service
+    let agentDefaultNamespaces = this.system.agentDefaults?.Namespace
+      ? this.system.agentDefaults.Namespace.split(',')
+      : [];
+
+    if (userDefaultNamespaces.length) {
+      return `${userDefaultNamespaces.length} default namespace${
+        userDefaultNamespaces.length > 1 ? 's' : ''
+      } (via localStorage)`;
+    } else if (agentDefaultNamespaces.length) {
+      return `${agentDefaultNamespaces.length} default namespace${
+        agentDefaultNamespaces.length > 1 ? 's' : ''
+      } (via agent config)`;
+    } else {
+      return 'No default namespace set';
+    }
+  }
+
+  // @action setAllNamespacesAsDefault() {
+  //   this.namespaceOptions.forEach((ns) => set(ns, 'checked', true));
+  //   let checkedNamespaces = this.namespaceOptions.mapBy('label');
+  //   set(this, 'system.userDefaultNamespace', checkedNamespaces.join(', '));
+  //   set(this, 'model.defaults.namespace', checkedNamespaces); // explicitly modify the model to trigger a refresh
+  //   this.notifications.add({
+  //     title: 'Default Namespace Updated',
+  //     message: 'All namespaces are now default',
+  //     color: 'success',
+  //   });
+  // }
+
+  @action setDefaultNamespace(ns, evt) {
+    ns.checked = evt.target.checked;
+    let checkedNamespaces = this.namespaceOptions
+      .filterBy('checked')
+      .mapBy('label');
+    if (!checkedNamespaces.length) {
+      set(this, 'system.userDefaultNamespace', null);
+      // this.model.defaults.namespace = this.system.agentDefaults.Namespace.split(',');
+    } else {
+      set(this, 'system.userDefaultNamespace', checkedNamespaces.join(', '));
+      set(this, 'model.defaults.namespace', checkedNamespaces); // explicitly modify the model to trigger a refresh
+    }
+    this.notifications.add({
+      title: 'Default Namespace Updated',
+      message: ns.checked
+        ? `Namespace ${ns.label} is now default`
+        : `Namespace ${ns.label} is no longer default`,
+      color: 'success',
+    });
+  }
+
+  @action clearUserDefaultNamespaces() {
+    set(this, 'system.userDefaultNamespace', null);
+    this.notifications.add({
+      title: 'Default Namespaces Cleared',
+      message: this.system.agentDefaults?.Namespace
+        ? `Namespaces ${this.system.agentDefaults.Namespace} are now default via agent`
+        : 'No default namespaces set',
+      color: 'success',
+    });
+  }
+
+  get sortedRegions() {
+    console.log('sortreg', this.system.regions);
+    return this.system.regions.toArray().sort();
+  }
+
+  @action setDefaultRegion(region) {
+    this.system.userDefaultRegion = region;
+
+    // When you set region via the region switcher in the header, it ships you over to the jobs route with a ?region= queryParam.
+    // This maintains that convention and un-sets it if you set your default as the authoritative region.
+    this.router.transitionTo('settings.user-settings', {
+      queryParams: { region },
+    });
+
+    this.notifications.add({
+      title: 'Default Region Updated',
+      message: `Region ${region} is now default`,
+      color: 'success',
+    });
+  }
+
+  // You may be asking: why isn't there a clearDefaultRegion() action like there is for namespaces?
+  // Your localStorage settings get an activeRegion/default region every time you change regions via the header switcher,
+  // but also when you load the application route, so at best you'd have "no default" until you refresh the page.
+  // If we ever decide to get rid of "save your active region for when you load the app in the future" as a convention,
+  // then we can add a clearDefaultRegion() action.
 }
