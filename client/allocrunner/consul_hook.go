@@ -191,6 +191,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		if service.Identity == nil && consulConfig.Token != "" {
 			token := &consulapi.ACLToken{SecretID: consulConfig.Token}
 			storeConsulToken(tokens, token, clusterName, "default")
+			continue
 		}
 
 		// Find signed identity workload.
