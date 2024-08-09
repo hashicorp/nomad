@@ -53,7 +53,9 @@ func Test_buildNomadBridgeNetConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc := tc
 			ci.Parallel(t)
-			bCfg := buildNomadBridgeNetConfig(*tc.b, tc.withConsulCNI)
+			bCfg, err := buildNomadBridgeNetConfig(*tc.b, tc.withConsulCNI)
+			must.NoError(t, err)
+
 			// Validate that the JSON created is rational
 			must.True(t, json.Valid(bCfg))
 			if tc.withConsulCNI {
