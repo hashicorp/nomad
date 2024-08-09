@@ -1051,6 +1051,8 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		}
 
 		// Remove the unwanted service.
+		fmt.Println("query options when deregistering service:")
+		spew.Dump(&api.QueryOptions{Namespace: ns, Token: token})
 		if err := c.agentAPI.ServiceDeregisterOpts(id,
 			&api.QueryOptions{Namespace: ns, Token: token},
 		); err != nil {
