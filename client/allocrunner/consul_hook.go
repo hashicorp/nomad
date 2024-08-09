@@ -190,7 +190,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		// are we dealing with a legacy workflow?
 		if service.Identity == nil && consulConfig.Token != "" {
 			token := &consulapi.ACLToken{SecretID: consulConfig.Token}
-			storeConsulToken(tokens, token, clusterName, service.Identity.Name)
+			storeConsulToken(tokens, token, clusterName, "default")
 		}
 
 		// Find signed identity workload.
