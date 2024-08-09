@@ -56,6 +56,16 @@ func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, b
 		allocSubnetIPv6: ipv6Range,
 		logger:          log,
 	}
+	IPv6Available := false
+	for _, nw := range node.NodeResources.NodeNetworks {
+		if nw.Mode == "host" {
+			for _, address := range nw.Addresses {
+				if address.Family == "ipv6" {
+					IPv6Available = true
+				}
+			}
+		}
+	}
 	if b.bridgeName == "" {
 		b.bridgeName = defaultNomadBridgeName
 	}
@@ -63,7 +73,7 @@ func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, b
 	if b.allocSubnetIPv4 == "" {
 		b.allocSubnetIPv4 = defaultNomadAllocSubnet
 	}
-	if b.allocSubnetIPv6 == "" {
+	if b.allocSubnetIPv6 == "" && IPv6Available {
 		b.allocSubnetIPv6 = defaultNomadAllocSubnetIPv6
 	}
 
@@ -109,19 +119,18 @@ func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 			return err
 		}
 	}
-	if b.allocSubnetIPv4 != "" {
-		ipt, err := iptables.New()
-		if err != nil {
-			return err
-		}
 
-		if err = ensureChain(ipt, "filter", cniAdminChainName); err != nil {
-			return err
-		}
+	ipt, err := iptables.New()
+	if err != nil {
+		return err
+	}
 
-		if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule("ipv4")); err != nil {
-			return err
-		}
+	if err = ensureChain(ipt, "filter", cniAdminChainName); err != nil {
+		return err
+	}
+
+	if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule("ipv4")); err != nil {
+		return err
 	}
 
 	return nil
