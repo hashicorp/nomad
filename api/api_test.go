@@ -11,9 +11,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -594,4 +597,45 @@ func TestClient_autoUnzip(t *testing.T) {
 		Header: http.Header{"Content-Encoding": []string{"gzip"}},
 		Body:   io.NopCloser(&b),
 	}, nil)
+}
+
+func TestUnixSocketConfig(t *testing.T) {
+
+	td := os.TempDir() // testing.TempDir() on macOS makes paths that are too long
+	socketPath := path.Join(td, t.Name()+".sock")
+	os.Remove(socketPath) // git rid of stale ones now.
+
+	t.Cleanup(func() { os.Remove(socketPath) })
+
+	ts := httptest.NewUnstartedServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(`"10.1.1.1"`))
+		}))
+
+	// Create a Unix domain socket and listen for incoming connections.
+	socket, err := net.Listen("unix", socketPath)
+	must.NoError(t, err)
+	t.Cleanup(func() { socket.Close() })
+
+	ts.Listener = socket
+	ts.Start()
+	defer ts.Close()
+
+	cfg := &Config{Address: "unix://" + socketPath}
+
+	client1, err := NewClient(cfg)
+	must.NoError(t, err)
+	t.Cleanup(client1.Close)
+
+	resp, err := client1.Status().Leader()
+	must.NoError(t, err)
+	must.Eq(t, "10.1.1.1", resp)
+
+	client2, err := NewClient(cfg)
+	must.NoError(t, err)
+	t.Cleanup(client2.Close)
+
+	_, err = client2.Status().Leader()
+	must.NoError(t, err)
+	must.Eq(t, "10.1.1.1", resp)
 }
