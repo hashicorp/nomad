@@ -131,13 +131,14 @@ func Init(log hclog.Logger, cores string) error {
 		const subtreeFile = "cgroup.subtree_control"
 
 		//
-		// configuring root cgroup (/sys/fs/cgroup)
+		// configuring root cgroup (/sys/fs/cgroup).
 		//
-
-		if err := writeCG(activation, subtreeFile); err != nil {
-			log.Debug("failed to set subtree_control: cgroup management may not work", "error", err)
-			// TODO
-			// return fmt.Errorf("failed to create nomad cgroup: %w", err)
+		// rootless clients typically won't be able to write to the subtree
+		// file, but that's ok so long as the required controllers are activated
+		if !functionalCgroups2(subtreeFile) {
+			if err := writeCG(activation, subtreeFile); err != nil {
+				return fmt.Errorf("failed to create nomad cgroup: %w", err)
+			}
 		}
 
 		//
