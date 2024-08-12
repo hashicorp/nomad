@@ -5,12 +5,17 @@ package docker
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -81,6 +86,42 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 	}
 }
 
+// TODO: cgroupDriver needs to come from the Docker Info API
+func featureDetectCgroupManagement(cgroupDriver string) error {
+	var cgroup string
+	mode := cgroupslib.GetMode()
+
+	// TODO: we read from a fake Nomad-owned cgroup to ensure we can read from there
+	sourcePath := "????"
+	_, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return fmt.Errorf("could not feature detect cpu maangement for Docker: Nomad must run as root or have permission to write to cgroups: %w")
+	}
+
+	// TODO: we write to a fake container ID in the Docker-owned cgroup to
+	// ensure we can copy from the Nomad-owned cgroup
+	usingCgroupfs := cgroupDriver == "cgroupfs"
+	testID := uuid.Generate()
+
+	switch {
+	case mode == cgroupslib.CG1:
+		cgroup = "/sys/fs/cgroup/cpuset/docker/" + testID
+	case mode == cgroupslib.CG2 && usingCgroupfs:
+		cgroup = "/sys/fs/cgroup/docker/" + testID
+	default:
+		cgroup = "/sys/fs/cgroup/system.slice/docker-" + testID + ".scope"
+	}
+
+	destination := filepath.Join(cgroup, "cpuset.cpus")
+	buf := []byte("????")
+	err = os.WriteFile(destination, buf, 0o644)
+	if err != nil {
+		return fmt.Errorf("could not feature detect cpuset management: Nomad must run as root or have permissions to write to cgroups: %w")
+	}
+
+	return nil
+}
+
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp := &drivers.Fingerprint{
 		Attributes:        make(map[string]*pstructs.Attribute, 8),
@@ -93,6 +134,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		fp.Health = drivers.HealthStateUndetected
 		fp.HealthDescription = drivers.DriverRequiresRootMessage
 		d.setFingerprintFailure()
+
 		return fp
 	}
 
