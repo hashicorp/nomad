@@ -88,11 +88,17 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	// disable if non-root on linux systems
-	if runtime.GOOS == "linux" && !utils.IsUnixRoot() {
-		fp.Health = drivers.HealthStateUndetected
-		fp.HealthDescription = drivers.DriverRequiresRootMessage
-		d.setFingerprintFailure()
+	if d.config.DisableCpusetManagement {
+		fp.Attributes["driver.docker.cpuset_management_disabled"] = pstructs.NewBoolAttribute(true)
+	}
+
+	// warn if non-root on linux systems unless we've intentionally disabled
+	// cpuset management, and add this to the fingerprint so users can avoid
+	// placing workloads here
+	if runtime.GOOS == "linux" && !utils.IsUnixRoot() && !d.config.DisableCpusetManagement {
+		d.config.DisableCpusetManagement = true
+		d.logger.Warn("docker driver requires running as root unless disable_cpuset_management=true: cpuset management will not function correctly on this node, including for non-docker tasks")
+		fp.Attributes["driver.docker.cpuset_management_disabled"] = pstructs.NewBoolAttribute(true)
 		return fp
 	}
 
@@ -131,6 +137,9 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp.Attributes["driver.docker.version"] = pstructs.NewStringAttribute(env.Get("Version"))
 	if d.config.AllowPrivileged {
 		fp.Attributes["driver.docker.privileged.enabled"] = pstructs.NewBoolAttribute(true)
+	}
+	if d.config.DisableCpusetManagement {
+		fp.Attributes["driver.docker.cpuset_management.disabled"] = pstructs.NewBoolAttribute(true)
 	}
 
 	if d.config.PidsLimit > 0 {

@@ -253,18 +253,19 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	}
 
 	h := &taskHandle{
-		dockerClient:          dockerClient,
-		dockerCGroupDriver:    dockerInfo.CgroupDriver,
-		infinityClient:        infinityClient,
-		logger:                d.logger.With("container_id", container.ID),
-		task:                  handle.Config,
-		containerID:           container.ID,
-		containerCgroup:       container.HostConfig.Cgroup,
-		containerImage:        container.Image,
-		doneCh:                make(chan bool),
-		waitCh:                make(chan struct{}),
-		removeContainerOnExit: d.config.GC.Container,
-		net:                   handleState.DriverNetwork,
+		dockerClient:            dockerClient,
+		dockerCGroupDriver:      dockerInfo.CgroupDriver,
+		infinityClient:          infinityClient,
+		logger:                  d.logger.With("container_id", container.ID),
+		task:                    handle.Config,
+		containerID:             container.ID,
+		containerCgroup:         container.HostConfig.Cgroup,
+		containerImage:          container.Image,
+		doneCh:                  make(chan bool),
+		waitCh:                  make(chan struct{}),
+		removeContainerOnExit:   d.config.GC.Container,
+		net:                     handleState.DriverNetwork,
+		disableCpusetManagement: d.config.DisableCpusetManagement,
 	}
 
 	if loggingIsEnabled(d.config, handle.Config) {
@@ -453,19 +454,20 @@ CREATE:
 
 	// Return a driver handle
 	h := &taskHandle{
-		dockerClient:          dockerClient,
-		dockerCGroupDriver:    dockerInfo.CgroupDriver,
-		infinityClient:        infinityClient,
-		dlogger:               dlogger,
-		dloggerPluginClient:   pluginClient,
-		logger:                d.logger.With("container_id", container.ID),
-		task:                  cfg,
-		containerID:           container.ID,
-		containerImage:        container.Image,
-		doneCh:                make(chan bool),
-		waitCh:                make(chan struct{}),
-		removeContainerOnExit: d.config.GC.Container,
-		net:                   net,
+		dockerClient:            dockerClient,
+		dockerCGroupDriver:      dockerInfo.CgroupDriver,
+		infinityClient:          infinityClient,
+		dlogger:                 dlogger,
+		dloggerPluginClient:     pluginClient,
+		logger:                  d.logger.With("container_id", container.ID),
+		task:                    cfg,
+		containerID:             container.ID,
+		containerImage:          container.Image,
+		doneCh:                  make(chan bool),
+		waitCh:                  make(chan struct{}),
+		removeContainerOnExit:   d.config.GC.Container,
+		net:                     net,
+		disableCpusetManagement: d.config.DisableCpusetManagement,
 	}
 
 	if err := handle.SetDriverState(h.buildState()); err != nil {
