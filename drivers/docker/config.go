@@ -673,6 +673,7 @@ type DriverConfig struct {
 	infraImagePullTimeoutDuration      time.Duration `codec:"-"`
 	ContainerExistsAttempts            uint64        `codec:"container_exists_attempts"`
 	DisableLogCollection               bool          `codec:"disable_log_collection"`
+	DisableCpusetManagement            bool          `codec:"disable_cpuset_management"`
 	PullActivityTimeout                string        `codec:"pull_activity_timeout"`
 	PidsLimit                          int64         `codec:"pids_limit"`
 	pullActivityTimeoutDuration        time.Duration `codec:"-"`

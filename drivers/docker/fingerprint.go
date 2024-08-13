@@ -86,17 +86,11 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 	}
 }
 
-// TODO: cgroupDriver needs to come from the Docker Info API
+// featureDetectCgroupManagement detects whether we can write to docker-owned
+// cgroups
 func featureDetectCgroupManagement(cgroupDriver string) error {
 	var cgroup string
 	mode := cgroupslib.GetMode()
-
-	// TODO: we read from a fake Nomad-owned cgroup to ensure we can read from there
-	sourcePath := "????"
-	_, err := os.ReadFile(sourcePath)
-	if err != nil {
-		return fmt.Errorf("could not feature detect cpu maangement for Docker: Nomad must run as root or have permission to write to cgroups: %w")
-	}
 
 	// TODO: we write to a fake container ID in the Docker-owned cgroup to
 	// ensure we can copy from the Nomad-owned cgroup
@@ -113,12 +107,13 @@ func featureDetectCgroupManagement(cgroupDriver string) error {
 	}
 
 	destination := filepath.Join(cgroup, "cpuset.cpus")
-	buf := []byte("????")
-	err = os.WriteFile(destination, buf, 0o644)
+	const activation = "+cpuset +cpu +io +memory +pids"
+	err := os.WriteFile(destination, []byte(activation), 0o644)
 	if err != nil {
 		return fmt.Errorf("could not feature detect cpuset management: Nomad must run as root or have permissions to write to cgroups: %w")
 	}
 
+	os.Remove(destination) // clean up the fake cgroup
 	return nil
 }
 
@@ -129,8 +124,8 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	// disable if non-root on linux systems
-	if runtime.GOOS == "linux" && !utils.IsUnixRoot() {
+	// disable if non-root on linux systems unless we've disabled cpuset management
+	if runtime.GOOS == "linux" && !utils.IsUnixRoot() && !d.config.DisableCpusetManagement {
 		fp.Health = drivers.HealthStateUndetected
 		fp.HealthDescription = drivers.DriverRequiresRootMessage
 		d.setFingerprintFailure()
@@ -173,6 +168,9 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp.Attributes["driver.docker.version"] = pstructs.NewStringAttribute(env.Get("Version"))
 	if d.config.AllowPrivileged {
 		fp.Attributes["driver.docker.privileged.enabled"] = pstructs.NewBoolAttribute(true)
+	}
+	if d.config.DisableCpusetManagement {
+		fp.Attributes["driver.docker.cpuset_management.disabled"] = pstructs.NewBoolAttribute(true)
 	}
 
 	if d.config.PidsLimit > 0 {
