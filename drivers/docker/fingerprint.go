@@ -5,17 +5,12 @@ package docker
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -86,37 +81,6 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 	}
 }
 
-// featureDetectCgroupManagement detects whether we can write to docker-owned
-// cgroups
-func featureDetectCgroupManagement(cgroupDriver string) error {
-	var cgroup string
-	mode := cgroupslib.GetMode()
-
-	// TODO: we write to a fake container ID in the Docker-owned cgroup to
-	// ensure we can copy from the Nomad-owned cgroup
-	usingCgroupfs := cgroupDriver == "cgroupfs"
-	testID := uuid.Generate()
-
-	switch {
-	case mode == cgroupslib.CG1:
-		cgroup = "/sys/fs/cgroup/cpuset/docker/" + testID
-	case mode == cgroupslib.CG2 && usingCgroupfs:
-		cgroup = "/sys/fs/cgroup/docker/" + testID
-	default:
-		cgroup = "/sys/fs/cgroup/system.slice/docker-" + testID + ".scope"
-	}
-
-	destination := filepath.Join(cgroup, "cpuset.cpus")
-	const activation = "+cpuset +cpu +io +memory +pids"
-	err := os.WriteFile(destination, []byte(activation), 0o644)
-	if err != nil {
-		return fmt.Errorf("could not feature detect cpuset management: Nomad must run as root or have permissions to write to cgroups: %w")
-	}
-
-	os.Remove(destination) // clean up the fake cgroup
-	return nil
-}
-
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp := &drivers.Fingerprint{
 		Attributes:        make(map[string]*pstructs.Attribute, 8),
@@ -124,12 +88,17 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	// disable if non-root on linux systems unless we've disabled cpuset management
-	if runtime.GOOS == "linux" && !utils.IsUnixRoot() && !d.config.DisableCpusetManagement {
-		fp.Health = drivers.HealthStateUndetected
-		fp.HealthDescription = drivers.DriverRequiresRootMessage
-		d.setFingerprintFailure()
+	if d.config.DisableCpusetManagement {
+		fp.Attributes["driver.docker.cpuset_management_disabled"] = pstructs.NewBoolAttribute(true)
+	}
 
+	// warn if non-root on linux systems unless we've intentionally disabled
+	// cpuset management, and add this to the fingerprint so users can avoid
+	// placing workloads here
+	if runtime.GOOS == "linux" && !utils.IsUnixRoot() && !d.config.DisableCpusetManagement {
+		d.config.DisableCpusetManagement = true
+		d.logger.Warn("docker driver requires running as root unless disable_cpuset_management=true: cpuset management will not function correctly on this node, including for non-docker tasks")
+		fp.Attributes["driver.docker.cpuset_management_disabled"] = pstructs.NewBoolAttribute(true)
 		return fp
 	}
 
