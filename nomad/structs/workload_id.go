@@ -191,7 +191,7 @@ func (b *IdentityClaimsBuilder) Build(now time.Time) *IdentityClaims {
 	jwtnow := jwt.NewNumericDate(now.UTC())
 	claims := &IdentityClaims{
 		Namespace:    b.alloc.Namespace,
-		JobID:        b.job.ID,
+		JobID:        b.job.GetIDforWorkloadIdentity(),
 		AllocationID: b.alloc.ID,
 		ServiceName:  b.serviceName,
 		Claims: jwt.Claims{
@@ -199,10 +199,6 @@ func (b *IdentityClaimsBuilder) Build(now time.Time) *IdentityClaims {
 			IssuedAt:  jwtnow,
 		},
 		ExtraClaims: b.extras,
-	}
-	// If this is a child job, use the parent's ID
-	if b.job.ParentID != "" {
-		claims.JobID = b.job.ParentID
 	}
 	if b.task != nil && b.wihandle.WorkloadType != WorkloadTypeService {
 		claims.TaskName = b.task.Name
@@ -235,11 +231,12 @@ func (b *IdentityClaimsBuilder) interpolate() {
 	if len(b.extras) == 0 {
 		return
 	}
+
 	r := strings.NewReplacer(
 		// attributes that always exist
 		"${job.region}", b.job.Region,
 		"${job.namespace}", b.job.Namespace,
-		"${job.id}", b.job.ID,
+		"${job.id}", b.job.GetIDforWorkloadIdentity(),
 		"${job.node_pool}", b.job.NodePool,
 		"${group.name}", b.tg.Name,
 
