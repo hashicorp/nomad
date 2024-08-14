@@ -6,6 +6,7 @@
 package cgroupslib
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -62,6 +63,12 @@ func Test_scan(t *testing.T) {
 
 func TestGetMode(t *testing.T) {
 	mode := GetMode()
-	ok := mode == CG1 || mode == CG2
-	must.True(t, ok)
+	if os.Geteuid() == 0 {
+		ok := mode == CG1 || mode == CG2
+		must.True(t, ok)
+	} else {
+		// note: we can't test with a delegated cgroup without overwriting the
+		// package level root
+		must.Eq(t, OFF, mode)
+	}
 }
