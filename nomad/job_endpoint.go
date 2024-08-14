@@ -2031,7 +2031,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		// Fetch all jobs that match the parameterized job ID prefix
 		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID, state.SortDefault)
 		if err != nil {
-			errMsg := "failed to retrieve jobs for idempotency check"
+			const errMsg = "failed to retrieve jobs for idempotency check"
 			j.logger.Error(errMsg, "error", err)
 			return fmt.Errorf(errMsg)
 		}

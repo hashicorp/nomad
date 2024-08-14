@@ -138,7 +138,7 @@ func (s *HTTPServer) ACLTokensRequest(resp http.ResponseWriter, req *http.Reques
 
 func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Ensure this is a PUT or POST
-	if !(req.Method == "PUT" || req.Method == "POST") {
+	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -168,7 +168,7 @@ func (s *HTTPServer) ACLTokenSpecificRequest(resp http.ResponseWriter, req *http
 
 	switch path {
 	case "/v1/acl/token":
-		if !(req.Method == "PUT" || req.Method == "POST") {
+		if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
 			return nil, CodedError(405, ErrInvalidMethod)
 		}
 		return s.aclTokenUpdate(resp, req, "")
@@ -290,7 +290,7 @@ func (s *HTTPServer) aclTokenDelete(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) UpsertOneTimeToken(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Ensure this is a PUT or POST
-	if !(req.Method == "PUT" || req.Method == "POST") {
+	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -308,7 +308,7 @@ func (s *HTTPServer) UpsertOneTimeToken(resp http.ResponseWriter, req *http.Requ
 
 func (s *HTTPServer) ExchangeOneTimeToken(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Ensure this is a PUT or POST
-	if !(req.Method == "PUT" || req.Method == "POST") {
+	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
