@@ -91,11 +91,10 @@ export default class IndexRoute extends Route.extend(
   async getGlobalDefaults() {
     try {
       let config = await this.system.defaults;
-      console.log('-0--config THROUGH', config);
-      return config; // Adjust based on actual response structure
+      return config;
     } catch (error) {
       console.error('Error fetching global defaults:', error);
-      return null; // Handle error and return a sensible default or null
+      return null;
     }
   }
 
@@ -106,16 +105,8 @@ export default class IndexRoute extends Route.extend(
    */
   establishDefaults(filter, globalDefaults = {}) {
     let namespaceDefaults = globalDefaults.namespace || [];
-    console.log('aye ns', namespaceDefaults, filter);
 
-    // if (!filter.includes('Namespace')) {
-    //   filter = filter
-    //     ? `${filter} and (Namespace == "${namespaceDefaults}")`
-    //     : `(Namespace == "${namespaceDefaults}")`;
-    // }
-
-    // Note: let's rewrite this because there might be multiple namespaceDefaults in an array.
-    // We want to separate each one with an ` or ` operator.
+    let nodePoolDefaults = globalDefaults.nodePool || [];
 
     if (namespaceDefaults.length > 0) {
       if (!filter.includes('Namespace')) {
@@ -126,8 +117,18 @@ export default class IndexRoute extends Route.extend(
           ? `${filter} and (${namespaceFilter})`
           : `(${namespaceFilter})`;
       }
+
+      if (nodePoolDefaults.length > 0) {
+        if (!filter.includes('NodePool')) {
+          let nodePoolFilter = nodePoolDefaults
+            .map((np) => `NodePool == "${np}"`)
+            .join(' or ');
+          filter = filter
+            ? `${filter} and (${nodePoolFilter})`
+            : `(${nodePoolFilter})`;
+        }
+      }
     }
-    console.log('=++ ret', filter);
     return filter;
   }
 
@@ -145,6 +146,7 @@ export default class IndexRoute extends Route.extend(
         jobs,
         namespaces: this.store.findAll('namespace'),
         nodePools: this.store.findAll('node-pool'),
+        defaults: await this.getGlobalDefaults(),
       });
     } catch (error) {
       try {

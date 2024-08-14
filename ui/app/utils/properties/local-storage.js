@@ -14,13 +14,6 @@ export default function localStorageProperty(localStorageKey, defaultValue) {
   return computed({
     get() {
       const persistedValue = window.localStorage.getItem(localStorageKey);
-      console.log(
-        'persval',
-        localStorageKey,
-        persistedValue,
-        typeof persistedValue
-      );
-      console.log('and so', JSON.parse(persistedValue));
       return persistedValue ? JSON.parse(persistedValue) : defaultValue;
     },
     set(key, value) {

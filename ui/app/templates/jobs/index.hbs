@@ -49,15 +49,14 @@
                   data-test-namespace-filter-searchbox
                 />
               </dd.Header>
-              {{#each (get this (concat "filtered" (capitalize group.label) "Options")) as |option|}}
+              {{#each (get this (concat "filtered" group.label "Options")) as |option|}}
                 <dd.Checkbox
                   {{on "change" (fn this.toggleOption option)}}
                   @value={{option.key}}
                   checked={{option.checked}}
                   data-test-dropdown-option={{option.key}}
                 >
-                  {{option.key}} {{#if (eq option.key this.defaultNamespace)}}(default){{/if}}
-                  {{!-- TODO: default here no longer works because array --}}
+                  {{option.key}} {{#if (includes option.key (get this.model.defaults group.key))}}(default){{/if}}
                 </dd.Checkbox>
               {{else}}
                 <dd.Generic data-test-dropdown-empty>
@@ -301,7 +300,14 @@
         <A.Body>
           {{this.humanizedFilterError}}
           <br><br>
-          {{#if this.model.error.correction}}
+          {{#if this.defaultsResultInNoMatches}}
+            <Hds::Alert @type="inline" @color="warning" as |A|>
+              {{!-- <A.Title>Default Filters Result in No Matches</A.Title> --}}
+              <A.Description>
+                You have configured default filters that result in no matches. If you see this error often, you can override these on the <LinkTo @route="settings.user-settings">User Settings page</LinkTo>.
+              </A.Description>
+            </Hds::Alert>
+          {{else if this.model.error.correction}}
             Did you mean
             <Hds::Button
               data-test-filter-correction

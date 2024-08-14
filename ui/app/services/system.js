@@ -4,6 +4,7 @@
  */
 
 // @ts-check
+import { set } from '@ember/object';
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -157,14 +158,21 @@ export default class SystemService extends Service {
        * @type {Defaults}
        */
       // eslint-disable-next-line ember/no-side-effects
-      this.agentDefaults = agent.config?.UI?.Defaults;
-      // if (!this.agentDefaults) return {}; // TODO: I dont think this is right; I dont want to return empty when no agentDefaults, I may want to consider localStorageProperties
+      this.agentDefaults = agent.config?.UI?.Defaults || {};
       return {
-        region: this.userDefaultRegion || this.agentDefaults.Region,
-        namespace: (this.userDefaultNamespace || this.agentDefaults.Namespace)
+        region: this.userDefaultRegion || this.agentDefaults.Region || '',
+        namespace: (
+          this.userDefaultNamespace ||
+          this.agentDefaults.Namespace ||
+          ''
+        )
           .split(',')
           .map((ns) => ns.trim()),
-        nodePool: (this.userDefaultNodePool || this.agentDefaults.NodePool)
+        nodePool: (
+          this.userDefaultNodePool ||
+          this.agentDefaults.NodePool ||
+          ''
+        )
           .split(',')
           .map((np) => np.trim()),
       };
@@ -189,14 +197,14 @@ export default class SystemService extends Service {
     console.log('activeregion set', value);
     if (value == null) {
       // window.localStorage.removeItem('nomadActiveRegion');
-      this.userDefaultRegion = null;
+      set(this, 'userDefaultRegion', null);
       return;
     } else {
       // // All localStorage values are strings. Stringify first so
       // // the return value is consistent with what is persisted.
       // const strValue = value + '';
       // window.localStorage.nomadActiveRegion = strValue;
-      this.userDefaultRegion = value;
+      set(this, 'userDefaultRegion', value);
     }
   }
 

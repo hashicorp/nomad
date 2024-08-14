@@ -27,10 +27,19 @@ export default class SettingsUserSettingsController extends Controller {
   @alias('model.nodePools') nodePools;
 
   @tracked namespaceFilter = '';
+  @tracked nodePoolFilter = '';
+
+  @computed('namespaces.[]', 'namespaceFilter')
   get filteredNamespaces() {
     return this.namespaces.filter((ns) =>
       ns.name.includes(this.namespaceFilter)
     );
+  }
+
+  @computed('namespaces', 'nodePoolFilter', 'nodePools.[]')
+  get filteredNodepools() {
+    console.log('--filtNodePools', this.nodePools, this.namespaces);
+    return this.nodePools.filter((np) => np.name.includes(this.nodePoolFilter));
   }
 
   /**
@@ -45,6 +54,13 @@ export default class SettingsUserSettingsController extends Controller {
    */
   get namespaceDefaults() {
     return this.globalDefaults.namespace;
+  }
+
+  /**
+   * @type {Array<string>} defaultNodePool
+   */
+  get nodepoolDefaults() {
+    return this.globalDefaults.nodePool;
   }
 
   @computed(
@@ -62,12 +78,10 @@ export default class SettingsUserSettingsController extends Controller {
   }
 
   get namespaceDropdownLabel() {
-    // userDefaultNamespaces: string set in localStorage, via system service
     let userDefaultNamespaces = this.system.userDefaultNamespace
       ? this.system.userDefaultNamespace.split(',')
       : [];
 
-    // agentDefaultNamespaces: array set in agent config, via system service
     let agentDefaultNamespaces = this.system.agentDefaults?.Namespace
       ? this.system.agentDefaults.Namespace.split(',')
       : [];
@@ -82,6 +96,42 @@ export default class SettingsUserSettingsController extends Controller {
       } (via agent config)`;
     } else {
       return 'No default namespace set';
+    }
+  }
+
+  @computed(
+    'filteredNodepools.@each.checked',
+    'nodepoolDefaults',
+    'nodepoolFilter',
+    'nodepool.[]'
+  )
+  get nodepoolOptions() {
+    return this.filteredNodepools.map((np) => ({
+      label: np.name,
+      value: np.name,
+      checked: this.nodepoolDefaults.includes(np.name),
+    }));
+  }
+
+  get nodepoolDropdownLabel() {
+    let userDefaultNodePools = this.system.userDefaultNodePool
+      ? this.system.userDefaultNodePool.split(',')
+      : [];
+
+    let agentDefaultNodePools = this.system.agentDefaults?.NodePool
+      ? this.system.agentDefaults.NodePool.split(',')
+      : [];
+
+    if (userDefaultNodePools.length) {
+      return `${userDefaultNodePools.length} default node pool${
+        userDefaultNodePools.length > 1 ? 's' : ''
+      } (via localStorage)`;
+    } else if (agentDefaultNodePools.length) {
+      return `${agentDefaultNodePools.length} default node pool${
+        agentDefaultNodePools.length > 1 ? 's' : ''
+      } (via agent config)`;
+    } else {
+      return 'No default node pool set';
     }
   }
 
@@ -125,6 +175,38 @@ export default class SettingsUserSettingsController extends Controller {
       message: this.system.agentDefaults?.Namespace
         ? `Namespaces ${this.system.agentDefaults.Namespace} are now default via agent`
         : 'No default namespaces set',
+      color: 'success',
+    });
+  }
+
+  @action setDefaultNodePool(np, evt) {
+    np.checked = evt.target.checked;
+    let checkedNodePools = this.nodepoolOptions
+      .filterBy('checked')
+      .mapBy('label');
+    if (!checkedNodePools.length) {
+      set(this, 'system.userDefaultNodePool', null);
+      // this.model.defaults.nodePool = this.system.agentDefaults.NodePool.split(',');
+    } else {
+      set(this, 'system.userDefaultNodePool', checkedNodePools.join(', '));
+      set(this, 'model.defaults.nodePool', checkedNodePools); // explicitly modify the model to trigger a refresh
+    }
+    this.notifications.add({
+      title: 'Default Node Pool Updated',
+      message: np.checked
+        ? `Node Pool ${np.label} is now default`
+        : `Node Pool ${np.label} is no longer default`,
+      color: 'success',
+    });
+  }
+
+  @action clearUserDefaultNodePools() {
+    set(this, 'system.userDefaultNodePool', null);
+    this.notifications.add({
+      title: 'Default Node Pools Cleared',
+      message: this.system.agentDefaults?.NodePool
+        ? `Node Pools ${this.system.agentDefaults.NodePool} are now default via agent`
+        : 'No default node pools set',
       color: 'success',
     });
   }

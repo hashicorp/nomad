@@ -438,6 +438,7 @@ export default class JobsIndexController extends Controller {
 
   @tracked nodePoolFacet = {
     label: 'NodePool',
+    key: 'nodePool',
     options: (this.model.nodePools || []).map((nodePool) => ({
       key: nodePool.name,
       string: `NodePool == "${nodePool.name}"`,
@@ -449,6 +450,7 @@ export default class JobsIndexController extends Controller {
 
   @tracked namespaceFacet = {
     label: 'Namespace',
+    key: 'namespace',
     options: [
       ...(this.model.namespaces || []).map((ns) => ({
         key: ns.name,
@@ -610,9 +612,6 @@ export default class JobsIndexController extends Controller {
         set(option, 'checked', false);
       });
     });
-    // this.namespaceFacet?.options.forEach((option) => {
-    //   set(option, 'checked', false);
-    // });
     this.updateFilter();
   }
 
@@ -663,6 +662,26 @@ export default class JobsIndexController extends Controller {
       return `${baseString} ${this.model.error.humanized}`;
     }
     return baseString;
+  }
+
+  // Note: technically this checks for the presence of the defaults in the filter, not the absence of any other filters.
+  // This could be made more accurate by checking for the absence of any other filters, but that would add complexity and probably isn't needed.
+  // The main purpose of this is to be a safety net for "I keep seeing an error and I'm not sure why, I haven't set any filters" for users with agent config defaults.
+  get defaultsResultInNoMatches() {
+    let defaultNamespace = this.model.defaults.namespace;
+    let defaultNodePool = this.model.defaults.nodePool;
+    if (!defaultNamespace.length && !defaultNodePool.length) {
+      return false;
+    }
+    let defaultsPresentInFilter = false;
+    defaultsPresentInFilter =
+      defaultNamespace.every((ns) =>
+        this.filter.includes(`Namespace == "${ns}"`)
+      ) &&
+      defaultNodePool.every((np) =>
+        this.filter.includes(`NodePool == "${np}"`)
+      );
+    return defaultsPresentInFilter;
   }
 
   @action correctFilterKey({ incorrectKey, correctKey }) {
