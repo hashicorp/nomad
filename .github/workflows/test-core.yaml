@@ -117,7 +117,7 @@ jobs:
 
       - name: Install optional dependencies
         if: ${{ matrix.groups == 'drivers' }}
-        run: sudo apt install qemu-system
+        run: sudo apt update && sudo apt install qemu-system
 
       - name: Run Matrix Tests
         env:
