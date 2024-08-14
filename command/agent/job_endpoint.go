@@ -124,7 +124,7 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 }
 
 func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	var args structs.JobEvaluateRequest
@@ -159,7 +159,7 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 
 func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -195,7 +195,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Ensure request method is POST or PUT
-	if !(req.Method == "POST" || req.Method == "PUT") {
+	if !(req.Method == http.MethodPost || req.Method == http.MethodPut) {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -227,7 +227,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 
 func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -646,7 +646,7 @@ func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -717,7 +717,7 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jo
 
 func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -745,7 +745,7 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request, jobI
 
 func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -793,7 +793,7 @@ func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Reque
 }
 
 func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobDispatchRequest{}

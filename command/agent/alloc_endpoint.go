@@ -143,7 +143,7 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 }
 
 func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if !(req.Method == "POST" || req.Method == "PUT") {
+	if !(req.Method == http.MethodPost || req.Method == http.MethodPut) {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -358,7 +358,7 @@ func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http
 }
 
 func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if !(req.Method == "POST" || req.Method == "PUT") {
+	if !(req.Method == http.MethodPost || req.Method == http.MethodPut) {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 

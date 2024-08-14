@@ -357,7 +357,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 
 			*vol = *existingVol
 
-		} else if vol.Topologies == nil || len(vol.Topologies) == 0 {
+		} else if len(vol.Topologies) == 0 {
 			// The topologies for the volume have already been set
 			// when it was created, so for newly register volumes
 			// we accept the user's description of that topology

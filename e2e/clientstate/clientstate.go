@@ -336,7 +336,7 @@ func (tc *ClientStateTC) TestClientState_KillDuringRestart(f *framework.F) {
 				return false, err
 			}
 			resp.Body.Close()
-			return resp.StatusCode == 200, fmt.Errorf("%d != 200", resp.StatusCode)
+			return resp.StatusCode == http.StatusOK, fmt.Errorf("%d != 200", resp.StatusCode)
 		}, func(err error) {
 			f.NoError(err)
 		})
