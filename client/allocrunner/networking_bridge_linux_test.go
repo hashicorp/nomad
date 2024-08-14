@@ -5,6 +5,8 @@ package allocrunner
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -51,16 +53,17 @@ func Test_buildNomadBridgeNetConfig(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc := tc
-			ci.Parallel(t)
-			bCfg := buildNomadBridgeNetConfig(*tc.b, tc.withConsulCNI)
+			bCfg, err := buildNomadBridgeNetConfig(*tc.b, tc.withConsulCNI)
+			must.NoError(t, err)
+
 			// Validate that the JSON created is rational
 			must.True(t, json.Valid(bCfg))
-			if tc.withConsulCNI {
-				must.StrContains(t, string(bCfg), "consul-cni")
-			} else {
-				must.StrNotContains(t, string(bCfg), "consul-cni")
-			}
+
+			// and that it matches golden expectations
+			goldenFile := filepath.Join("test_fixtures", tc.name+".conflist.json")
+			expect, err := os.ReadFile(goldenFile)
+			must.NoError(t, err)
+			must.Eq(t, string(expect), string(bCfg)+"\n")
 		})
 	}
 }
