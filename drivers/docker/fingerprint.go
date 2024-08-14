@@ -88,12 +88,12 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	// disable if non-root on linux systems
+	// warn if non-root on linux systems unless we've intentionally disabled
+	// cpuset management
 	if runtime.GOOS == "linux" && !utils.IsUnixRoot() {
-		fp.Health = drivers.HealthStateUndetected
-		fp.HealthDescription = drivers.DriverRequiresRootMessage
-		d.setFingerprintFailure()
-		return fp
+		d.config.disableCpusetManagement = true
+		d.logger.Warn("docker driver requires running as root: resources.cores and NUMA-aware scheduling will not function correctly on this node, including for non-docker tasks")
+		fp.Attributes["driver.docker.cpuset_management.disabled"] = pstructs.NewBoolAttribute(true)
 	}
 
 	dockerClient, err := d.getDockerClient()
