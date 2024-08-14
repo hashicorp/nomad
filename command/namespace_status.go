@@ -201,12 +201,20 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 func formatNamespaceBasics(ns *api.Namespace) string {
 	enabled_drivers := "*"
 	disabled_drivers := ""
+	enabled_network_modes := "*"
+	disabled_network_modes := ""
 	if ns.Capabilities != nil {
 		if len(ns.Capabilities.EnabledTaskDrivers) != 0 {
 			enabled_drivers = strings.Join(ns.Capabilities.EnabledTaskDrivers, ",")
 		}
 		if len(ns.Capabilities.DisabledTaskDrivers) != 0 {
 			disabled_drivers = strings.Join(ns.Capabilities.DisabledTaskDrivers, ",")
+		}
+		if len(ns.Capabilities.EnabledNetworkModes) != 0 {
+			enabled_network_modes = strings.Join(ns.Capabilities.EnabledNetworkModes, ",")
+		}
+		if len(ns.Capabilities.DisabledNetworkModes) != 0 {
+			disabled_network_modes = strings.Join(ns.Capabilities.DisabledNetworkModes, ",")
 		}
 	}
 	basic := []string{
@@ -215,6 +223,8 @@ func formatNamespaceBasics(ns *api.Namespace) string {
 		fmt.Sprintf("Quota|%s", ns.Quota),
 		fmt.Sprintf("EnabledDrivers|%s", enabled_drivers),
 		fmt.Sprintf("DisabledDrivers|%s", disabled_drivers),
+		fmt.Sprintf("EnabledNetworkModes|%s", enabled_network_modes),
+		fmt.Sprintf("DisabledNetworkModes|%s", disabled_network_modes),
 	}
 
 	return formatKV(basic)

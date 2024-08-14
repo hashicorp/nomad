@@ -66,8 +66,10 @@ name        = "dev"
 description = "Namespace for developers"
 
 capabilities {
-  enabled_task_drivers  = ["docker", "exec"]
-  disabled_task_drivers = ["raw_exec"]
+  enabled_task_drivers   = ["docker", "exec"]
+  disabled_task_drivers  = ["raw_exec"]
+  enabled_network_modes  = ["bridge", "cni/custom"]
+  disabled_network_modes = ["host"]
 }
 
 meta {

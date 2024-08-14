@@ -88,7 +88,7 @@ func TestJobNamespaceConstraintCheckHook_taskValidateDriver(t *testing.T) {
 	}
 }
 
-func TestJobNamespaceConstraintCheckHook_validate(t *testing.T) {
+func TestJobNamespaceConstraintCheckHook_validate_drivers(t *testing.T) {
 	ci.Parallel(t)
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -119,4 +119,113 @@ func TestJobNamespaceConstraintCheckHook_validate(t *testing.T) {
 	job.TaskGroups[0].Tasks[1].Driver = "exec"
 	_, err = hook.Validate(job)
 	require.Equal(t, err.Error(), "used task drivers [\"exec\" \"raw_exec\"] are not allowed in namespace \"default\"")
+}
+
+func TestJobNamespaceConstraintCheckHook_taskValidateNetworkMode(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		description string
+		mode        string
+		ns          *structs.Namespace
+		result      bool
+	}{
+		{
+			"No drivers enabled/disabled, allow all",
+			"bridge",
+			&structs.Namespace{},
+			true,
+		},
+		{
+			"No mode set and only host allowed",
+			"",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					EnabledNetworkModes: []string{"host"}},
+			},
+			true,
+		},
+		{
+			"Only bridge and cni/custom are allowed 1/2",
+			"bridge",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					EnabledNetworkModes: []string{"bridge", "cni/custom"}},
+			},
+			true,
+		},
+		{
+			"Only bridge and cni/custom are allowed 2/2",
+			"host",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					EnabledNetworkModes: []string{"bridge", "cni/custom"}},
+			},
+			false,
+		},
+		{
+			"disable takes precedence over enable",
+			"bridge",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					EnabledNetworkModes:  []string{"bridge"},
+					DisabledNetworkModes: []string{"bridge"}},
+			},
+			false,
+		},
+		{
+			"All modes but host are allowed 1/2",
+			"host",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					DisabledNetworkModes: []string{"host"}},
+			},
+			false,
+		},
+		{
+			"All modes but host are allowed 2/2",
+			"bridge",
+			&structs.Namespace{
+				Capabilities: &structs.NamespaceCapabilities{
+					DisabledNetworkModes: []string{"host"}},
+			},
+			true,
+		},
+	}
+
+	for _, c := range cases {
+		var network = &structs.NetworkResource{Mode: c.mode}
+		require.Equal(t, c.result, taskValidateNetworkMode(network, c.ns), c.description)
+	}
+}
+
+func TestJobNamespaceConstraintCheckHook_validate_network_modes(t *testing.T) {
+	ci.Parallel(t)
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a namespace
+	ns := mock.Namespace()
+	ns.Name = "default" // fix the name
+	ns.Capabilities = &structs.NamespaceCapabilities{
+		EnabledNetworkModes:  []string{"bridge", "cni/allowed"},
+		DisabledNetworkModes: []string{"host", "cni/forbidden"},
+	}
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns})
+
+	hook := jobNamespaceConstraintCheckHook{srv: s1}
+	job := mock.LifecycleJob()
+	job.TaskGroups[0].Networks = append(job.TaskGroups[0].Networks, &structs.NetworkResource{})
+	_, err := hook.Validate(job)
+	require.Equal(t, err.Error(), "used group network mode \"host\" is not allowed in namespace \"default\"")
+
+	job.TaskGroups[0].Networks[0].Mode = "bridge"
+	_, err = hook.Validate(job)
+	require.Nil(t, err)
+
+	job.TaskGroups[0].Networks[0].Mode = "host"
+	job.TaskGroups[0].Networks = append(job.TaskGroups[0].Networks, &structs.NetworkResource{Mode: "cni/forbidden"})
+	_, err = hook.Validate(job)
+	require.Equal(t, err.Error(), "used group network modes [\"host\" \"cni/forbidden\"] are not allowed in namespace \"default\"")
 }
