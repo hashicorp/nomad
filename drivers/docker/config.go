@@ -683,6 +683,10 @@ type DriverConfig struct {
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
+
+	// prevents task handles from writing to cpuset cgroups we don't have
+	// permissions to; not user configurable
+	disableCpusetManagement bool `codec:"-"`
 }
 
 type AuthConfig struct {

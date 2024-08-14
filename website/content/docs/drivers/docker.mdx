@@ -810,6 +810,13 @@ user to the `docker` group so you can run Nomad without root:
 $ sudo usermod -G docker -a nomad
 ```
 
+Nomad clients manage a cpuset cgroup for each task to reserve or share CPU
+[cores][]. In order for Nomad to be compatible with Docker's own cgroups
+management, it must write to cgroups owned by Docker, which requires running as
+root. If Nomad is not running as root, CPU isolation and NUMA-aware scheduling
+will not function correctly for workloads with `resources.cores`, including
+workloads using task drivers other than `docker` on the same host.
+
 For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
 
@@ -1238,3 +1245,4 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [runtime_env]: /nomad/docs/runtime/environment#job-related-variables
 [`--cap-add`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [`--cap-drop`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[cores]: /nomad/docs/job-specification/resources#cores

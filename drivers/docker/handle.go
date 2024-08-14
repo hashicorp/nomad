@@ -38,17 +38,18 @@ type taskHandle struct {
 	// normal dockerClient which includes a default timeout.
 	infinityClient *docker.Client
 
-	logger                hclog.Logger
-	dlogger               docklog.DockerLogger
-	dloggerPluginClient   *plugin.Client
-	task                  *drivers.TaskConfig
-	containerID           string
-	containerCgroup       string
-	containerImage        string
-	doneCh                chan bool
-	waitCh                chan struct{}
-	removeContainerOnExit bool
-	net                   *drivers.DriverNetwork
+	logger                  hclog.Logger
+	dlogger                 docklog.DockerLogger
+	dloggerPluginClient     *plugin.Client
+	task                    *drivers.TaskConfig
+	containerID             string
+	containerCgroup         string
+	containerImage          string
+	doneCh                  chan bool
+	waitCh                  chan struct{}
+	removeContainerOnExit   bool
+	net                     *drivers.DriverNetwork
+	disableCpusetManagement bool
 
 	exitResult     *drivers.ExitResult
 	exitResultLock sync.Mutex
@@ -247,7 +248,7 @@ func (h *taskHandle) shutdownLogger() {
 }
 
 func (h *taskHandle) startCpusetFixer() {
-	if cgroupslib.GetMode() == cgroupslib.OFF {
+	if cgroupslib.GetMode() == cgroupslib.OFF || h.disableCpusetManagement {
 		return
 	}
 
