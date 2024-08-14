@@ -38,7 +38,6 @@ export default class SettingsUserSettingsController extends Controller {
 
   @computed('namespaces', 'nodePoolFilter', 'nodePools.[]')
   get filteredNodepools() {
-    console.log('--filtNodePools', this.nodePools, this.namespaces);
     return this.nodePools.filter((np) => np.name.includes(this.nodePoolFilter));
   }
 
@@ -73,7 +72,7 @@ export default class SettingsUserSettingsController extends Controller {
     return this.filteredNamespaces.map((ns) => ({
       label: ns.name,
       value: ns.name,
-      checked: this.namespaceDefaults.includes(ns.name),
+      checked: this.namespaceDefaults?.includes(ns.name),
     }));
   }
 
@@ -109,7 +108,7 @@ export default class SettingsUserSettingsController extends Controller {
     return this.filteredNodepools.map((np) => ({
       label: np.name,
       value: np.name,
-      checked: this.nodepoolDefaults.includes(np.name),
+      checked: this.nodepoolDefaults?.includes(np.name),
     }));
   }
 
@@ -212,7 +211,6 @@ export default class SettingsUserSettingsController extends Controller {
   }
 
   get sortedRegions() {
-    console.log('sortreg', this.system.regions);
     return this.system.regions.toArray().sort();
   }
 

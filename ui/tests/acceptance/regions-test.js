@@ -119,7 +119,7 @@ module('Acceptance | regions (many)', function (hooks) {
     assert.equal(currentURL(), '/jobs', 'No region query param');
     assert.equal(
       window.localStorage.nomadActiveRegion,
-      'global',
+      '"global"',
       'Region in localStorage'
     );
   });
@@ -137,7 +137,7 @@ module('Acceptance | regions (many)', function (hooks) {
     );
     assert.equal(
       window.localStorage.nomadActiveRegion,
-      newRegion,
+      `"${newRegion}"`,
       'New region in localStorage'
     );
   });
@@ -156,7 +156,7 @@ module('Acceptance | regions (many)', function (hooks) {
     );
     assert.equal(
       window.localStorage.nomadActiveRegion,
-      defaultRegion,
+      `"${defaultRegion}"`,
       'New region in localStorage'
     );
   });
@@ -173,7 +173,7 @@ module('Acceptance | regions (many)', function (hooks) {
     );
     assert.equal(
       window.localStorage.nomadActiveRegion,
-      region,
+      `"${region}"`,
       'Region is also set in localStorage from a detail page'
     );
   });

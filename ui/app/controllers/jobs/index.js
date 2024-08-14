@@ -668,9 +668,10 @@ export default class JobsIndexController extends Controller {
   // This could be made more accurate by checking for the absence of any other filters, but that would add complexity and probably isn't needed.
   // The main purpose of this is to be a safety net for "I keep seeing an error and I'm not sure why, I haven't set any filters" for users with agent config defaults.
   get defaultsResultInNoMatches() {
+    if (this.model.error) return false;
     let defaultNamespace = this.model.defaults.namespace;
     let defaultNodePool = this.model.defaults.nodePool;
-    if (!defaultNamespace.length && !defaultNodePool.length) {
+    if (!defaultNamespace && !defaultNodePool) {
       return false;
     }
     let defaultsPresentInFilter = false;
