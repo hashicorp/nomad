@@ -206,6 +206,12 @@ take advantage of additional Nomad functionalities.
 
 @include 'install/install-consul-cni-plugin.mdx'
 
+### Install dmidecode
+
+When running on a virtualized host such as Amazon EC2, Nomad makes use of the
+`dmidecode` tool to detect CPU performance data. Some Linux distributions
+require installing the dmidecode package manually.
+
 ### Configure bridge network to route traffic through iptables
 
 @include 'install/bridge-iptables.mdx'
@@ -213,6 +219,7 @@ take advantage of additional Nomad functionalities.
 ### Verify cgroup controllers
 
 @include 'install/cgroup-controllers.mdx'
+
 
 ## Verify the Installation
 
