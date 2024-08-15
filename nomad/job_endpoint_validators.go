@@ -51,11 +51,7 @@ func (c jobNamespaceConstraintCheckHook) Validate(job *structs.Job) (warnings []
 	var disallowedNetworkModes []string
 	for _, tg := range job.TaskGroups {
 		for _, network := range tg.Networks {
-			if !taskValidateNetworkMode(network, ns) {
-				network_mode := "host"
-				if len(network.Mode) > 0 {
-					network_mode = network.Mode
-				}
+			if allowed, network_mode := taskValidateNetworkMode(network, ns); !allowed {
 				disallowedNetworkModes = append(disallowedNetworkModes, network_mode)
 			}
 		}
@@ -76,13 +72,13 @@ func (c jobNamespaceConstraintCheckHook) Validate(job *structs.Job) (warnings []
 	return nil, nil
 }
 
-func taskValidateNetworkMode(network *structs.NetworkResource, ns *structs.Namespace) bool {
-	if ns.Capabilities == nil {
-		return true
-	}
+func taskValidateNetworkMode(network *structs.NetworkResource, ns *structs.Namespace) (bool, string) {
 	network_mode := "host"
 	if len(network.Mode) > 0 {
 		network_mode = network.Mode
+	}
+	if ns.Capabilities == nil {
+		return true, network_mode
 	}
 	allow := len(ns.Capabilities.EnabledNetworkModes) == 0
 	for _, m := range ns.Capabilities.EnabledNetworkModes {
@@ -97,7 +93,7 @@ func taskValidateNetworkMode(network *structs.NetworkResource, ns *structs.Names
 			break
 		}
 	}
-	return allow
+	return allow, network_mode
 }
 
 func taskValidateDriver(task *structs.Task, ns *structs.Namespace) bool {

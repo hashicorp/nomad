@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -195,7 +196,8 @@ func TestJobNamespaceConstraintCheckHook_taskValidateNetworkMode(t *testing.T) {
 
 	for _, c := range cases {
 		var network = &structs.NetworkResource{Mode: c.mode}
-		must.Eq(t, c.result, taskValidateNetworkMode(network, c.ns), must.Sprint(c.description))
+		allowed, _ := taskValidateNetworkMode(network, c.ns)
+		must.Eq(t, c.result, allowed, must.Sprint(c.description))
 	}
 }
 
