@@ -164,6 +164,10 @@ func (f *CPUFingerprint) setTotalCompute(response *FingerprintResponse) {
 	totalCompute := f.top.TotalCompute()
 	usableCompute := f.top.UsableCompute()
 
+	if totalCompute == 0 {
+		f.logger.Error("cpu.totalcompute is zero, CPU fingerprinting likely failed", "cpu.totalcompute", totalCompute)
+	}
+
 	response.AddAttribute("cpu.totalcompute", f.frequency(totalCompute))
 	response.AddAttribute("cpu.usablecompute", f.frequency(usableCompute))
 }
