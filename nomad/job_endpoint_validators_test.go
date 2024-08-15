@@ -195,7 +195,7 @@ func TestJobNamespaceConstraintCheckHook_taskValidateNetworkMode(t *testing.T) {
 
 	for _, c := range cases {
 		var network = &structs.NetworkResource{Mode: c.mode}
-		require.Equal(t, c.result, taskValidateNetworkMode(network, c.ns), c.description)
+		must.Eq(t, c.result, taskValidateNetworkMode(network, c.ns), must.Sprint(c.description))
 	}
 }
 
@@ -212,20 +212,20 @@ func TestJobNamespaceConstraintCheckHook_validate_network_modes(t *testing.T) {
 		EnabledNetworkModes:  []string{"bridge", "cni/allowed"},
 		DisabledNetworkModes: []string{"host", "cni/forbidden"},
 	}
-	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns})
+	must.NoError(t, s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns}))
 
 	hook := jobNamespaceConstraintCheckHook{srv: s1}
 	job := mock.LifecycleJob()
 	job.TaskGroups[0].Networks = append(job.TaskGroups[0].Networks, &structs.NetworkResource{})
 	_, err := hook.Validate(job)
-	require.Equal(t, err.Error(), "used group network mode \"host\" is not allowed in namespace \"default\"")
+	must.EqError(t, err, "used group network mode \"host\" is not allowed in namespace \"default\"")
 
 	job.TaskGroups[0].Networks[0].Mode = "bridge"
 	_, err = hook.Validate(job)
-	require.Nil(t, err)
+	must.NoError(t, err)
 
 	job.TaskGroups[0].Networks[0].Mode = "host"
 	job.TaskGroups[0].Networks = append(job.TaskGroups[0].Networks, &structs.NetworkResource{Mode: "cni/forbidden"})
 	_, err = hook.Validate(job)
-	require.Equal(t, err.Error(), "used group network modes [\"host\" \"cni/forbidden\"] are not allowed in namespace \"default\"")
+	must.EqError(t, err, "used group network modes [\"host\" \"cni/forbidden\"] are not allowed in namespace \"default\"")
 }

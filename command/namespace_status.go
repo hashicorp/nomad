@@ -221,10 +221,10 @@ func formatNamespaceBasics(ns *api.Namespace) string {
 		fmt.Sprintf("Name|%s", ns.Name),
 		fmt.Sprintf("Description|%s", ns.Description),
 		fmt.Sprintf("Quota|%s", ns.Quota),
-		fmt.Sprintf("EnabledDrivers|%s", enabled_drivers),
-		fmt.Sprintf("DisabledDrivers|%s", disabled_drivers),
-		fmt.Sprintf("EnabledNetworkModes|%s", enabled_network_modes),
-		fmt.Sprintf("DisabledNetworkModes|%s", disabled_network_modes),
+		fmt.Sprintf("Enabled Drivers|%s", enabled_drivers),
+		fmt.Sprintf("Disabled Drivers|%s", disabled_drivers),
+		fmt.Sprintf("Enabled Network Modes|%s", enabled_network_modes),
+		fmt.Sprintf("Disabled Network Modes|%s", disabled_network_modes),
 	}
 
 	return formatKV(basic)
