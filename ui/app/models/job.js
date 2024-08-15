@@ -90,7 +90,7 @@ export default class Job extends Model {
 
   /**
    * @typedef {Object} CurrentStatus
-   * @property {"Healthy"|"Failed"|"Deploying"|"Degraded"|"Recovering"|"Complete"|"Running"|"Removed"|"Stopped"} label - The current status of the job
+   * @property {"Healthy"|"Failed"|"Deploying"|"Degraded"|"Recovering"|"Complete"|"Running"|"Removed"|"Stopped"|"Scaled Down"} label - The current status of the job
    * @property {"highlight"|"success"|"warning"|"critical"|"neutral"} state -
    */
 
@@ -226,6 +226,7 @@ export default class Job extends Model {
    * - Failed: All allocations are failed, lost, or unplaced
    * - Removed: The job appeared in our initial query, but has since been garbage collected
    * - Stopped: The job has been manually stopped (and not purged or yet garbage collected) by a user
+   * - Scaled Down: The job is intentionally scaled down to 0 desired allocations (all task groups have count=0)
    * @returns {CurrentStatus}
    */
   /**
@@ -246,6 +247,12 @@ export default class Job extends Model {
         label: 'Stopped',
         state: 'neutral',
       };
+    }
+
+    // If the job is scaled down to 0 desired allocations, we shouldn't call it "failed";
+    // we should indicate that it is deliberately set to not have any running parts.
+    if (totalAllocs === 0) {
+      return { label: 'Scaled Down', state: 'neutral' };
     }
 
     // If the job was requested initially, but a subsequent request for it was
