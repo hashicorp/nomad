@@ -20,10 +20,6 @@ func (s *Server) AuthenticateClientOnly(ctx *RPCContext, args structs.RequestWit
 	return s.auth.AuthenticateClientOnly(ctx, args)
 }
 
-func (s *Server) AuthenticateClientOnlyLegacy(ctx *RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
-	return s.auth.AuthenticateClientOnlyLegacy(ctx, args)
-}
-
 func (s *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
 	return s.auth.ResolveACL(args)
 }

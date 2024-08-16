@@ -328,38 +328,6 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 	return acl.ClientACL, nil
 }
 
-// AuthenticateClientOnlyLegacy is a version of AuthenticateClientOnly that's
-// used by a few older RPCs that did not properly enforce node secrets.
-// COMPAT(1.8.0): In Nomad 1.6.0 we starting sending those node secrets, so we
-// can remove this in Nomad 1.8.0.
-func (s *Authenticator) AuthenticateClientOnlyLegacy(ctx RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
-
-	remoteIP, err := ctx.GetRemoteIP() // capture for metrics
-	if err != nil {
-		s.logger.Error("could not determine remote address", "error", err)
-	}
-
-	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
-	defer args.SetIdentity(identity) // always set the identity, even on errors
-
-	if s.verifyTLS && !ctx.IsStatic() {
-		tlsCert := ctx.Certificate()
-		if tlsCert == nil {
-			return nil, errors.New("missing certificate information")
-		}
-
-		// set on the identity whether or not its valid for server RPC, so we
-		// can capture it for metrics
-		identity.TLSName = tlsCert.Subject.CommonName
-		_, err := validateCertificateForNames(tlsCert, s.validClientCertNames)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return acl.ClientACL, nil
-}
-
 // validateCertificateForNames returns true if the certificate is valid for any
 // of the given domain names.
 func validateCertificateForNames(cert *x509.Certificate, expectedNames []string) (bool, error) {
