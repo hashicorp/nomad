@@ -250,7 +250,7 @@ export default Factory.extend({
       groupProps.taskCount = job.groupTaskCount;
     }
 
-    if (job.groupAllocCount) {
+    if (job.groupAllocCount !== undefined) {
       groupProps.count = job.groupAllocCount;
     }
 
