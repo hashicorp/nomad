@@ -5479,8 +5479,10 @@ type Namespace struct {
 // NamespaceCapabilities represents a set of capabilities allowed for this
 // namespace, to be checked at job submission time.
 type NamespaceCapabilities struct {
-	EnabledTaskDrivers  []string
-	DisabledTaskDrivers []string
+	EnabledTaskDrivers   []string
+	DisabledTaskDrivers  []string
+	EnabledNetworkModes  []string
+	DisabledNetworkModes []string
 }
 
 // NamespaceNodePoolConfiguration stores configuration about node pools for a
@@ -5570,6 +5572,12 @@ func (n *Namespace) SetHash() []byte {
 		for _, driver := range n.Capabilities.DisabledTaskDrivers {
 			_, _ = hash.Write([]byte(driver))
 		}
+		for _, mode := range n.Capabilities.EnabledNetworkModes {
+			_, _ = hash.Write([]byte(mode))
+		}
+		for _, mode := range n.Capabilities.DisabledNetworkModes {
+			_, _ = hash.Write([]byte(mode))
+		}
 	}
 	if n.NodePoolConfiguration != nil {
 		_, _ = hash.Write([]byte(n.NodePoolConfiguration.Default))
@@ -5630,6 +5638,8 @@ func (n *Namespace) Copy() *Namespace {
 		*c = *n.Capabilities
 		c.EnabledTaskDrivers = slices.Clone(n.Capabilities.EnabledTaskDrivers)
 		c.DisabledTaskDrivers = slices.Clone(n.Capabilities.DisabledTaskDrivers)
+		c.EnabledNetworkModes = slices.Clone(n.Capabilities.EnabledNetworkModes)
+		c.DisabledNetworkModes = slices.Clone(n.Capabilities.DisabledNetworkModes)
 		nc.Capabilities = c
 	}
 	if n.NodePoolConfiguration != nil {

@@ -37,8 +37,10 @@ meta {
 }
 
 capabilities {
-  enabled_task_drivers  = ["java", "docker"]
-  disabled_task_drivers = ["raw_exec"]
+  enabled_task_drivers   = ["java", "docker"]
+  disabled_task_drivers  = ["raw_exec"]
+  enabled_network_modes  = ["bridge", "cni/custom"]
+  disabled_network_modes = ["host"]
 }
 
 # Node Pool configuration is a Nomad Enterprise feature.
@@ -96,6 +98,12 @@ consul {
   in the namespace. If empty all task drivers are allowed.
 
 - `disabled_task_drivers` `(array<string>: [])` - List of task drivers disabled
+  in the namespace.
+
+- `enabled_network_modes` `(array<string>: [])` - List of network modes allowed
+  in the namespace. If empty all network modes are allowed.
+
+- `disabled_network_modes` `(array<string>: [])` - List of network modes disabled
   in the namespace.
 
 ### `node_pool_config` Parameters <EnterpriseAlert inline />
