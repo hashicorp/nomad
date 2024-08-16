@@ -132,9 +132,15 @@ func TestJobNamespaceConstraintCheckHook_taskValidateNetworkMode(t *testing.T) {
 		result      bool
 	}{
 		{
-			"No drivers enabled/disabled, allow all",
+			"No capabilities set, allow all",
 			"bridge",
 			&structs.Namespace{},
+			true,
+		},
+		{
+			"No drivers enabled/disabled, allow all",
+			"bridge",
+			&structs.Namespace{Capabilities: &structs.NamespaceCapabilities{}},
 			true,
 		},
 		{
