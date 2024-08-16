@@ -201,6 +201,8 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 func formatNamespaceBasics(ns *api.Namespace) string {
 	enabled_drivers := "*"
 	disabled_drivers := ""
+	enabled_network_modes := "*"
+	disabled_network_modes := ""
 	if ns.Capabilities != nil {
 		if len(ns.Capabilities.EnabledTaskDrivers) != 0 {
 			enabled_drivers = strings.Join(ns.Capabilities.EnabledTaskDrivers, ",")
@@ -208,13 +210,21 @@ func formatNamespaceBasics(ns *api.Namespace) string {
 		if len(ns.Capabilities.DisabledTaskDrivers) != 0 {
 			disabled_drivers = strings.Join(ns.Capabilities.DisabledTaskDrivers, ",")
 		}
+		if len(ns.Capabilities.EnabledNetworkModes) != 0 {
+			enabled_network_modes = strings.Join(ns.Capabilities.EnabledNetworkModes, ",")
+		}
+		if len(ns.Capabilities.DisabledNetworkModes) != 0 {
+			disabled_network_modes = strings.Join(ns.Capabilities.DisabledNetworkModes, ",")
+		}
 	}
 	basic := []string{
 		fmt.Sprintf("Name|%s", ns.Name),
 		fmt.Sprintf("Description|%s", ns.Description),
 		fmt.Sprintf("Quota|%s", ns.Quota),
-		fmt.Sprintf("EnabledDrivers|%s", enabled_drivers),
-		fmt.Sprintf("DisabledDrivers|%s", disabled_drivers),
+		fmt.Sprintf("Enabled Drivers|%s", enabled_drivers),
+		fmt.Sprintf("Disabled Drivers|%s", disabled_drivers),
+		fmt.Sprintf("Enabled Network Modes|%s", enabled_network_modes),
+		fmt.Sprintf("Disabled Network Modes|%s", disabled_network_modes),
 	}
 
 	return formatKV(basic)
