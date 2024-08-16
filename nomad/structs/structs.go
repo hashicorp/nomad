@@ -2490,13 +2490,30 @@ func (r *Resources) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
 	}
 
+	// Ensure devices are valid
+	devices := set.New[string](len(r.Devices))
 	for i, d := range r.Devices {
 		if err := d.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("device %d failed validation: %v", i+1, err))
 		}
+		devices.Insert(d.Name)
 	}
 
-	// ensure memory_max is greater than memory, unless it is set to 0 or -1 which
+	// Ensure each numa bound device matches a device requested for task
+	if r.NUMA != nil {
+		for _, numaDevice := range r.NUMA.Devices {
+			if !devices.Contains(numaDevice) {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("numa device %q not requested as task resource", numaDevice))
+			}
+		}
+	}
+
+	// Ensure the numa block is valid
+	if err := r.NUMA.Validate(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	// Ensure memory_max is greater than memory, unless it is set to 0 or -1 which
 	// are both sentinel values
 	if (r.MemoryMaxMB != 0 && r.MemoryMaxMB != memoryNoLimit) && r.MemoryMaxMB < r.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("MemoryMaxMB value (%d) should be larger than MemoryMB value (%d)", r.MemoryMaxMB, r.MemoryMB))
@@ -2623,6 +2640,8 @@ func (r *Resources) Canonicalize() {
 	for _, n := range r.Networks {
 		n.Canonicalize()
 	}
+
+	r.NUMA.Canonicalize()
 }
 
 // MeetsMinResources returns an error if the resources specified are less than
@@ -3064,6 +3083,10 @@ type RequestedDevice struct {
 	// Affinities are a set of affinities to apply when selecting the device
 	// to use.
 	Affinities Affinities
+}
+
+func (r *RequestedDevice) String() string {
+	return r.Name
 }
 
 func (r *RequestedDevice) Equal(o *RequestedDevice) bool {

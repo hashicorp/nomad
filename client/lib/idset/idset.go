@@ -106,9 +106,16 @@ func From[T, U ID](slice []U) *Set[T] {
 	return result
 }
 
+// Difference returns the set of elements in s but not in other.
 func (s *Set[T]) Difference(other *Set[T]) *Set[T] {
 	diff := s.items.Difference(other.items)
 	return &Set[T]{items: diff.(*set.Set[T])}
+}
+
+// Intersect returns the set of elements that are in both s and other.
+func (s *Set[T]) Intersect(other *Set[T]) *Set[T] {
+	intersection := s.items.Intersect(other.items)
+	return &Set[T]{items: intersection.(*set.Set[T])}
 }
 
 // Contains returns whether the Set contains item.

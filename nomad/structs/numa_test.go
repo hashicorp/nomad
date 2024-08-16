@@ -21,9 +21,13 @@ func TestNUMA_Equal(t *testing.T) {
 
 	must.StructEqual(t, &NUMA{
 		Affinity: "none",
+		Devices:  []string{"nvidia/gpu"},
 	}, []must.Tweak[*NUMA]{{
 		Field: "Affinity",
 		Apply: func(n *NUMA) { n.Affinity = "require" },
+	}, {
+		Field: "Devices",
+		Apply: func(n *NUMA) { n.Devices = []string{"a/b", "c/d"} },
 	}})
 }
 
@@ -67,7 +71,8 @@ func TestNUMA_Validate(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			numa := &NUMA{
-				tc.affinity,
+				Affinity: tc.affinity,
+				Devices:  nil,
 			}
 			result := numa.Validate()
 			must.Eq(t, tc.exp, result)

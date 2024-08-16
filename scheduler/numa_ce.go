@@ -16,9 +16,10 @@ import (
 )
 
 type coreSelector struct {
-	topology       *numalib.Topology
-	availableCores *idset.Set[hw.CoreID]
-	shuffle        func([]numalib.Core)
+	topology         *numalib.Topology
+	availableCores   *idset.Set[hw.CoreID]
+	shuffle          func([]numalib.Core)
+	deviceMemoryNode int
 }
 
 // Select returns a set of CoreIDs that satisfy the requested core reservations,
@@ -40,4 +41,11 @@ func randomizeCores(cores []numalib.Core) {
 	rand.Shuffle(len(cores), func(x, y int) {
 		cores[x], cores[y] = cores[y], cores[x]
 	})
+}
+
+// candidateMemoryNodes return -1 on CE, indicating any memory node is acceptable
+//
+// (NUMA aware scheduling is an enterprise feature)
+func (cs *coreSelector) candidateMemoryNodes(ask *structs.Resources) []int {
+	return []int{-1}
 }

@@ -5,10 +5,13 @@ package scheduler
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -146,7 +149,82 @@ func TestResourceDistance(t *testing.T) {
 
 }
 
-func TestPreemption(t *testing.T) {
+func makeNodeResources(devices []*structs.NodeDeviceResource, busAssociativity map[string]hw.NodeID) *structs.NodeResources {
+	makeCore := func(node hw.NodeID, id hw.CoreID) numalib.Core {
+		sockets := map[hw.NodeID]hw.SocketID{
+			0: 0,
+			1: 0,
+			2: 1,
+			3: 1,
+		}
+		return numalib.Core{
+			NodeID:    node,
+			SocketID:  sockets[node],
+			ID:        id,
+			Grade:     numalib.Performance,
+			BaseSpeed: 4000,
+		}
+	}
+
+	// 2 socket, 4 numa node system, 2 cores per node
+	processors := structs.NodeProcessorResources{
+		Topology: &numalib.Topology{
+			Nodes: []uint8{0, 1, 2, 3},
+			Distances: numalib.SLIT{
+				[]numalib.Cost{10, 12, 32, 32},
+				[]numalib.Cost{12, 10, 32, 32},
+				[]numalib.Cost{32, 32, 10, 12},
+				[]numalib.Cost{32, 32, 12, 10},
+			},
+			Cores: []numalib.Core{
+				makeCore(0, 0),
+				makeCore(0, 1),
+				makeCore(1, 2),
+				makeCore(1, 3),
+				makeCore(2, 4),
+				makeCore(2, 5),
+				makeCore(3, 6),
+				makeCore(3, 7),
+			},
+		},
+	}
+
+	defaultNodeResources := &structs.NodeResources{
+		Processors: processors,
+		Memory: structs.NodeMemoryResources{
+			MemoryMB: 8192,
+		},
+		Disk: structs.NodeDiskResources{
+			DiskMB: 100 * 1024,
+		},
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+				CIDR:   "192.168.0.100/32",
+				MBits:  1000,
+			},
+		},
+		Devices: devices,
+	}
+
+	defaultNodeResources.Compatibility()
+
+	defaultNodeResources.Processors.Topology.BusAssociativity = maps.Clone(busAssociativity)
+
+	return defaultNodeResources
+}
+
+func makeDeviceInstance(instanceID, busID string) *structs.NodeDevice {
+	return &structs.NodeDevice{
+		ID:      instanceID,
+		Healthy: true,
+		Locality: &structs.NodeDeviceLocality{
+			PciBusID: busID,
+		},
+	}
+}
+
+func TestPreemption_Normal(t *testing.T) {
 	ci.Parallel(t)
 
 	type testCase struct {
@@ -182,6 +260,7 @@ func TestPreemption(t *testing.T) {
 	defaultNodeResources := &structs.NodeResources{
 		Processors: processorResources,
 		Cpu:        legacyCpuResources,
+
 		Memory: structs.NodeMemoryResources{
 			MemoryMB: 8192,
 		},
@@ -207,22 +286,10 @@ func TestPreemption(t *testing.T) {
 					"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
 				},
 				Instances: []*structs.NodeDevice{
-					{
-						ID:      deviceIDs[0],
-						Healthy: true,
-					},
-					{
-						ID:      deviceIDs[1],
-						Healthy: true,
-					},
-					{
-						ID:      deviceIDs[2],
-						Healthy: true,
-					},
-					{
-						ID:      deviceIDs[3],
-						Healthy: true,
-					},
+					makeDeviceInstance(deviceIDs[0], "0000:00:00.0"),
+					makeDeviceInstance(deviceIDs[1], "0000:00:01.0"),
+					makeDeviceInstance(deviceIDs[2], "0000:00:02.0"),
+					makeDeviceInstance(deviceIDs[3], "0000:00:03.0"),
 				},
 			},
 			{
@@ -236,26 +303,11 @@ func TestPreemption(t *testing.T) {
 					"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
 				},
 				Instances: []*structs.NodeDevice{
-					{
-						ID:      deviceIDs[4],
-						Healthy: true,
-					},
-					{
-						ID:      deviceIDs[5],
-						Healthy: true,
-					},
-					{
-						ID:      deviceIDs[6],
-						Healthy: true,
-					},
-					{
-						ID:      deviceIDs[7],
-						Healthy: true,
-					},
-					{
-						ID:      deviceIDs[8],
-						Healthy: true,
-					},
+					makeDeviceInstance(deviceIDs[4], "0000:00:04.0"),
+					makeDeviceInstance(deviceIDs[5], "0000:00:05.0"),
+					makeDeviceInstance(deviceIDs[6], "0000:00:06.0"),
+					makeDeviceInstance(deviceIDs[7], "0000:00:07.0"),
+					makeDeviceInstance(deviceIDs[8], "0000:00:08.0"),
 				},
 			},
 			{
@@ -266,14 +318,8 @@ func TestPreemption(t *testing.T) {
 					"memory": psstructs.NewIntAttribute(4, psstructs.UnitGiB),
 				},
 				Instances: []*structs.NodeDevice{
-					{
-						ID:      "fpga1",
-						Healthy: true,
-					},
-					{
-						ID:      "fpga2",
-						Healthy: false,
-					},
+					makeDeviceInstance("fpga1", "0000:01:00.0"),
+					makeDeviceInstance("fpga2", "0000:02:01.0"),
 				},
 			},
 		},

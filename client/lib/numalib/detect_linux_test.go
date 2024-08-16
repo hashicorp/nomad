@@ -69,7 +69,7 @@ func goodSysData(path string) ([]byte, error) {
 }
 
 func TestSysfs_discoverOnline(t *testing.T) {
-	st := NewTopology(&idset.Set[hw.NodeID]{}, SLIT{}, []Core{})
+	st := MockTopology(&idset.Set[hw.NodeID]{}, SLIT{}, []Core{})
 	goodIDSet := idset.From[hw.NodeID]([]uint8{0, 1})
 	oneNode := idset.From[hw.NodeID]([]uint8{0})
 
@@ -91,7 +91,7 @@ func TestSysfs_discoverOnline(t *testing.T) {
 }
 
 func TestSysfs_discoverCosts(t *testing.T) {
-	st := NewTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
+	st := MockTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
 	twoNodes := idset.From[hw.NodeID]([]uint8{1, 3})
 
 	tests := []struct {
@@ -121,7 +121,7 @@ func TestSysfs_discoverCosts(t *testing.T) {
 }
 
 func TestSysfs_discoverCores(t *testing.T) {
-	st := NewTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
+	st := MockTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
 	oneNode := idset.From[hw.NodeID]([]uint8{0})
 	twoNodes := idset.From[hw.NodeID]([]uint8{1, 3})
 

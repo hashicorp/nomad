@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1904,10 +1905,13 @@ func TestBinPackIterator_Devices(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			require := require.New(t)
-
 			// Setup the context
 			state, ctx := testContext(t)
+
+			// Canonicalize resources
+			for _, task := range c.TaskGroup.Tasks {
+				task.Resources.Canonicalize()
+			}
 
 			// Add the planned allocs
 			if len(c.PlannedAllocs) != 0 {
@@ -1923,7 +1927,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				for _, alloc := range c.ExistingAllocs {
 					alloc.NodeID = c.Node.ID
 				}
-				require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, c.ExistingAllocs))
+				must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, c.ExistingAllocs))
 			}
 
 			static := NewStaticRankIterator(ctx, []*RankedNode{{Node: c.Node}})
@@ -1939,7 +1943,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 			// Check we got the placements we are expecting
 			for tname, devices := range c.ExpectedPlacements {
 				tr, ok := out.TaskResources[tname]
-				require.True(ok)
+				must.True(t, ok)
 
 				want := len(devices)
 				got := 0
@@ -1947,20 +1951,20 @@ func TestBinPackIterator_Devices(t *testing.T) {
 					got++
 
 					expected, ok := devices[*placed.ID()]
-					require.True(ok)
-					require.Equal(expected.Count, len(placed.DeviceIDs))
+					must.True(t, ok)
+					must.Eq(t, expected.Count, len(placed.DeviceIDs))
 					for _, id := range expected.ExcludeIDs {
-						require.NotContains(placed.DeviceIDs, id)
+						must.SliceNotContains(t, placed.DeviceIDs, id)
 					}
 				}
 
-				require.Equal(want, got)
+				must.Eq(t, want, got)
 			}
 
 			// Check potential affinity scores
 			if c.DeviceScore != 0.0 {
-				require.Len(out.Scores, 2)
-				require.Equal(c.DeviceScore, out.Scores[1])
+				must.Len(t, 2, out.Scores)
+				must.Eq(t, c.DeviceScore, out.Scores[1])
 			}
 		})
 	}
@@ -2054,6 +2058,7 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 							Count: 1,
 						},
 					},
+					NUMA: &structs.NUMA{Affinity: structs.NoneNUMA},
 				},
 			},
 		},
@@ -2067,13 +2072,11 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
 	out := collectRanked(scoreNorm)
-	require := require.New(t)
 
 	// We expect a placement failure because we need 1 GPU device
 	// and the other one is taken
-
-	require.Len(out, 0)
-	require.Equal(1, ctx.metrics.DimensionExhausted["devices: no devices match request"])
+	must.SliceEmpty(t, out)
+	must.Eq(t, 1, ctx.metrics.DimensionExhausted["devices: no devices match request"])
 }
 
 func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {

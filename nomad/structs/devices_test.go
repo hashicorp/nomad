@@ -262,3 +262,86 @@ func TestDeviceAccounter_AddReserved_Collision(t *testing.T) {
 	res.DeviceIDs = []string{nvidiaDev0ID}
 	require.True(d.AddReserved(res))
 }
+
+func TestDeviceAccounterInstance_GetLocality(t *testing.T) {
+	ci.Parallel(t)
+
+	dai := &DeviceAccounterInstance{
+		Device: &NodeDeviceResource{
+			Instances: []*NodeDevice{
+				{
+					ID: "GPU-001",
+					Locality: &NodeDeviceLocality{
+						PciBusID: "0000:01:01.1",
+					},
+				},
+				{
+					ID: "GPU-002",
+					Locality: &NodeDeviceLocality{
+						PciBusID: "0000:01:02.1",
+					},
+				},
+				{
+					ID: "GPU-003",
+					Locality: &NodeDeviceLocality{
+						PciBusID: "0000:01:03.1",
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("exists", func(t *testing.T) {
+		locality := dai.GetLocality("GPU-002")
+		must.Eq(t, "0000:01:02.1", locality.PciBusID)
+	})
+
+	t.Run("missing", func(t *testing.T) {
+		locality := dai.GetLocality("GPU-004")
+		must.Nil(t, locality)
+	})
+}
+
+func TestDeviceAccounterInstance_Copy(t *testing.T) {
+	original := &DeviceAccounterInstance{
+		Device: &NodeDeviceResource{
+			Vendor: "nvidia",
+			Type:   "gpu",
+			Name:   "1080ti",
+			Instances: []*NodeDevice{
+				{
+					ID:                "GPU-001",
+					Healthy:           true,
+					HealthDescription: "healthy",
+					Locality: &NodeDeviceLocality{
+						PciBusID: "0000:01:01.1",
+					},
+				},
+				{
+					ID:                "GPU-002",
+					Healthy:           true,
+					HealthDescription: "healthy",
+					Locality: &NodeDeviceLocality{
+						PciBusID: "0000:01:02.1",
+					},
+				},
+			},
+			Attributes: map[string]*psstructs.Attribute{},
+		},
+		Instances: map[string]int{
+			"GPU-001": 1,
+			"GPU-002": 3,
+		},
+	}
+
+	clone := original.Copy()
+	clone.Device.Name = "name2"
+	clone.Device.Instances[0].ID = "GPU-003"
+	clone.Device.Instances[0].Locality.PciBusID = "0000:01:03.1"
+	clone.Instances["GPU-001"] = 2
+
+	must.Eq(t, "1080ti", original.Device.Name)
+	must.Eq(t, "GPU-001", original.Device.Instances[0].ID)
+	must.Eq(t, "0000:01:01.1", original.Device.Instances[0].Locality.PciBusID)
+	must.Eq(t, 1, original.Instances["GPU-001"])
+}

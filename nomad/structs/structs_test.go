@@ -2274,17 +2274,52 @@ func TestTask_Validate_Resources(t *testing.T) {
 				MemoryMaxMB: -1,
 			},
 		},
+		{
+			name: "numa devices do not match",
+			res: &Resources{
+				CPU:      100,
+				MemoryMB: 200,
+				Devices: []*RequestedDevice{
+					{
+						Name:  "evilcorp/gpu",
+						Count: 2,
+					},
+					{
+						Name:  "fpga",
+						Count: 1,
+					},
+					{
+						Name:  "net/nic/model1",
+						Count: 1,
+					},
+				},
+				NUMA: &NUMA{
+					Affinity: "require",
+					Devices:  []string{"evilcorp/gpu", "bad/bad", "fpga"},
+				},
+			},
+			err: "numa device \"bad/bad\" not requested as task resource",
+		},
+		{
+			name: "numa affinity not valid",
+			res: &Resources{
+				CPU:      100,
+				MemoryMB: 200,
+				NUMA: &NUMA{
+					Affinity: "bad",
+				},
+			},
+			err: "numa affinity must be one of none, prefer, or require",
+		},
 	}
 
-	for i := range cases {
-		tc := cases[i]
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.res.Validate()
 			if tc.err == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.err)
+				must.ErrorContains(t, err, tc.err)
 			}
 		})
 	}

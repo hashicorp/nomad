@@ -6,6 +6,7 @@ package structs
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/hashicorp/nomad/client/lib/numalib"
 )
@@ -25,13 +26,44 @@ type NUMA struct {
 	// Affinity is the numa affinity scheduling behavior.
 	// One of "none", "prefer", "require".
 	Affinity string
+
+	// Devices is the set of devices requsted by the task that must share the
+	// same numa node, along with reserved cpu cores for the task.
+	Devices []string
+}
+
+func (n *NUMA) GetDevices() []string {
+	if n == nil {
+		return []string{}
+	}
+	return n.Devices
+}
+
+func (n *NUMA) Canonicalize() {
+	if n == nil {
+		return
+	}
+	if n.Affinity == "" {
+		n.Affinity = NoneNUMA
+	}
+	if len(n.Devices) == 0 {
+		n.Devices = nil
+	}
 }
 
 func (n *NUMA) Equal(o *NUMA) bool {
 	if n == nil || o == nil {
 		return n == o
 	}
-	return n.Affinity == o.Affinity
+
+	switch {
+	case n.Affinity != o.Affinity:
+		return false
+	case !slices.Equal(n.Devices, o.Devices):
+		return false
+	default:
+		return true
+	}
 }
 
 func (n *NUMA) Copy() *NUMA {
@@ -40,6 +72,7 @@ func (n *NUMA) Copy() *NUMA {
 	}
 	return &NUMA{
 		Affinity: n.Affinity,
+		Devices:  slices.Clone(n.Devices),
 	}
 }
 
