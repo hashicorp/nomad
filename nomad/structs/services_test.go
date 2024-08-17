@@ -5,6 +5,7 @@ package structs
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -1991,6 +1992,26 @@ func TestService_Validate(t *testing.T) {
 				Provider: "nomad",
 			},
 			expErr: false,
+		},
+		{
+			name: "provider consul with notes too long",
+			input: &Service{
+				Name:     "testservice",
+				Provider: "consul",
+				PortLabel: "port",
+				Checks: []*ServiceCheck{
+					{
+						Name:     "servicecheck",
+						Type:     "http",
+						Path:     "/",
+						Interval: 1 * time.Second,
+						Timeout:  3 * time.Second,
+						Notes: strings.Repeat("A", 256),
+					},
+				},
+			},
+			expErr:    true,
+			expErrStr: "notes must not be longer than 255 characters",
 		},
 	}
 

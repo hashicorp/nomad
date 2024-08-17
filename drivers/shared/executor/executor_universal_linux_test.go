@@ -7,6 +7,9 @@ package executor
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -98,4 +101,29 @@ func TestExecutor_InvalidCgroup(t *testing.T) {
 	_, err := executor.Launch(execCmd)
 	must.ErrorContains(t, err, "unable to configure cgroups: no such file or directory")
 
+}
+
+func TestUniversalExecutor_setOomAdj(t *testing.T) {
+	ci.Parallel(t)
+
+	factory := universalFactory
+	testExecCmd := testExecutorCommand(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "sleep"
+	execCmd.Args = []string{"infinity"}
+	execCmd.OOMScoreAdj = 1000
+
+	factory.configureExecCmd(t, execCmd)
+	defer allocDir.Destroy()
+	executor := factory.new(testlog.HCLogger(t), compute)
+	defer executor.Shutdown("", 0)
+
+	p, err := executor.Launch(execCmd)
+	must.NoError(t, err)
+
+	oomScore, err := os.ReadFile(fmt.Sprintf("/proc/%d/oom_score_adj", p.Pid))
+	must.NoError(t, err)
+
+	oomScoreInt, _ := strconv.Atoi(strings.TrimSuffix(string(oomScore), "\n"))
+	must.Eq(t, execCmd.OOMScoreAdj, int32(oomScoreInt))
 }

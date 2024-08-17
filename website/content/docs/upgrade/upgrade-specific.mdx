@@ -13,6 +13,31 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.8.2 (UNRELEASED)
+
+#### New `windows_allow_insecure_container_admin` configuration option for Docker driver
+
+In 1.8.2, Nomad will refuse to run jobs that use the Docker driver on Windows
+with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
+provide a more secure environment for these jobs, and this behavior can be
+overridden by setting the new `windows_allow_insecure_container_admin` Docker
+plugin configuration option to `true` or by setting `privileged=true`.
+
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.8.2 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyperv`, since `hyperv` provides a much more secure execution
+environment.
+
+## Nomad 1.8.1
+
+<EnterpriseAlert inline />
+
+Nomad Enterprise 1.8.1 includes an updated version of the Sentinel library. Users
+that have built custom Sentinel plugins must recompile them using an SDK
+supporting Sentinel Plugin Protocol Version 3. Consult the Sentinel
+[SDK Compatibility Matrix](https://github.com/hashicorp/sentinel-sdk?tab=readme-ov-file#sdk-compatibility-matrix) for appropriate Sentinel SDK versions.
+
 ## Nomad 1.8.0
 
 #### Deprecated Disconnect Fields
@@ -40,6 +65,24 @@ jobs that use `bridge` networking.
 In Nomad 1.7.0 the `raw_exec` plugin option for `no_cgroups` became ineffective.
 Starting in Nomad 1.8.0 attempting to set the `no_cgroups` in `raw_exec` plugin
 configuration will result in an error when starting the agent.
+
+## Nomad 1.7.10 (UNRELEASED)
+
+<EnterpriseAlert inline />
+
+#### New `windows_allow_insecure_container_admin` configuration option for Docker driver
+
+In 1.7.10, Nomad will refuse to run jobs that use the Docker driver on Windows
+with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
+provide a more secure environment for these jobs, and this behavior can be
+overridden by setting the new `windows_allow_insecure_container_admin` Docker
+plugin configuration option to `true` or by setting `privileged=true`.
+
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.7.10 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyperv`, since `hyperv` provides a much more secure execution
+environment.
 
 ## Nomad 1.7.2
 
@@ -187,6 +230,24 @@ setting `no_cgroups` would disable the mechanism where Nomad used the freezer
 cgroup to halt the process group of a Task before issuing a kill signal to each
 process. Starting in Nomad 1.7.0 this behavior is always enabled (and a similar
 mechanism has always been enabled on cgroups v2 systems).
+
+## Nomad 1.6.13 (UNRELEASED)
+
+<EnterpriseAlert inline />
+
+#### New `windows_allow_insecure_container_admin` configuration option for Docker driver
+
+In 1.6.13, Nomad will refuse to run jobs that use the Docker driver on Windows
+with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
+provide a more secure environment for these jobs, and this behavior can be
+overridden by setting the new `windows_allow_insecure_container_admin` Docker
+plugin configuration option to `true` or by setting `privileged=true`.
+
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.6.13 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyperv`, since `hyperv` provides a much more secure execution
+environment.
 
 ## Nomad 1.6.0
 
@@ -2058,3 +2119,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [validate]: /nomad/docs/commands/job/validate
 [vault_grace]: /nomad/docs/job-specification/template
 [Workload Identity]: /nomad/docs/concepts/workload-identity
+[Process Isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container#process-isolation

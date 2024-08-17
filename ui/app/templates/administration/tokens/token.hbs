@@ -5,12 +5,13 @@
 <Breadcrumb @crumb={{hash label=this.activeToken.name args=(array "administration.tokens.token" this.activeToken.id)}} />
 {{page-title "Token"}}
 <section class="section">
-	<h1 class="title with-flex" data-test-title>
-		<div>
-			Edit Token
-		</div>
-		{{#if (can "destroy token")}}
-      <TwoStepButton
+  <Hds::PageHeader as |PH|>
+    <PH.Title data-test-title>
+      Edit Token
+    </PH.Title>
+    {{#if (can "destroy token")}}
+      <PH.Actions>
+        <TwoStepButton
           data-test-delete-token
           @alignRight={{true}}
           @idleText="Delete Token"
@@ -21,8 +22,9 @@
           @disabled={{this.deleteToken.isRunning}}
           @onConfirm={{perform this.deleteToken}}
         />
-		{{/if}}
-	</h1>
+      </PH.Actions>
+    {{/if}}
+  </Hds::PageHeader>
   <TokenEditor
     @token={{this.activeToken}}
     @policies={{this.policies}}

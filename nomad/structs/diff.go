@@ -2628,7 +2628,7 @@ func (r *Resources) Diff(other *Resources, contextual bool) *ObjectDiff {
 func (n *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Network"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
-	filter := []string{"Device", "CIDR", "IP"}
+	filter := []string{"_struct", "Device", "CIDR", "IP", "MBits"}
 
 	if reflect.DeepEqual(n, other) {
 		return nil
@@ -2661,6 +2661,10 @@ func (n *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectD
 
 	if dnsDiff := n.DNS.Diff(other.DNS, contextual); dnsDiff != nil {
 		diff.Objects = append(diff.Objects, dnsDiff)
+	}
+
+	if cniDiff := n.CNI.Diff(other.CNI, contextual); cniDiff != nil {
+		diff.Objects = append(diff.Objects, cniDiff)
 	}
 
 	return diff
@@ -2706,6 +2710,21 @@ func (d *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
 	return diff
 }
 
+// Diff returns a diff of two CNIConfig structs
+func (d *CNIConfig) Diff(other *CNIConfig, contextual bool) *ObjectDiff {
+	if d == nil {
+		d = &CNIConfig{}
+	}
+	if other == nil {
+		other = &CNIConfig{}
+	}
+	if d.Equal(other) {
+		return nil
+	}
+
+	return primitiveObjectDiff(d.Args, other.Args, nil, "CNIConfig", contextual)
+}
+
 func disconectStrategyDiffs(old, new *DisconnectStrategy, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Disconnect"}
 	var oldDisconnectFlat, newDisconnectFlat map[string]string
@@ -2733,6 +2752,10 @@ func disconectStrategyDiffs(old, new *DisconnectStrategy, contextual bool) *Obje
 // networkResourceDiffs diffs a set of NetworkResources. If contextual diff is enabled,
 // non-changed fields will still be returned.
 func networkResourceDiffs(old, new []*NetworkResource, contextual bool) []*ObjectDiff {
+	// This function will not allow Network Resources to have a diffType of DiffTypeEdited
+	// as hash keys for old and new would only be equivalent if new and old are equivalent
+	// (no changes found between them). Despite this behavior, a hash must be used to find possible
+	// differences between new and old since Network Resources are not ordered.
 	makeSet := func(objects []*NetworkResource) map[string]*NetworkResource {
 		objMap := make(map[string]*NetworkResource, len(objects))
 		for _, obj := range objects {

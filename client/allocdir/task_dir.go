@@ -349,6 +349,14 @@ func (t *TaskDir) Unmount() error {
 		}
 	}
 
+	// delete the task's parent alloc mounts dir if it exists
+	if dir := filepath.Dir(t.MountsAllocDir); pathExists(dir) {
+		if err := os.RemoveAll(dir); err != nil {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("failed to remove the task alloc mounts dir %q: %w", dir, err))
+		}
+	}
+
 	if pathExists(t.SecretsDir) {
 		if err := removeSecretDir(t.SecretsDir); err != nil {
 			mErr = multierror.Append(mErr,

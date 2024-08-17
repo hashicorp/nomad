@@ -70,12 +70,10 @@ func (j *Job) Statuses(
 	} else if err != nil {
 		return err
 	}
-	// since the state index we're using doesn't include namespace,
-	// explicitly add the user-provided ns to our filter if needed.
-	// (allowableNamespaces will be nil if the caller sent a mgmt token)
-	if allowableNamespaces == nil &&
-		namespace != "" &&
-		namespace != structs.AllNamespacesSentinel {
+	// since the state index we're using doesn't include namespace, explicitly
+	// set the user-provided ns to our filter if needed.  we've already verified
+	// that the user has access to the specific namespace above
+	if namespace != "" && namespace != structs.AllNamespacesSentinel {
 		allowableNamespaces = map[string]bool{
 			namespace: true,
 		}
@@ -219,6 +217,8 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		GroupCountSum:    0,
 		ChildStatuses:    nil,
 		LatestDeployment: nil,
+		Stop:             job.Stop,
+		Status:           job.Status,
 	}
 
 	// the GroupCountSum will map to how many allocations we expect to run

@@ -28,6 +28,10 @@ job "docs" {
 
   group "example" {
     # ...
+    
+    task "docs" {
+      # ...
+    }
   }
 
   meta {
@@ -45,10 +49,6 @@ job "docs" {
   priority = 100
 
   region = "north-america"
-
-  task "docs" {
-    # ...
-  }
 
   update {
     # ...
@@ -101,7 +101,6 @@ job "docs" {
   applied. Only service jobs with a count greater than 1 support migrate blocks.
 
 - `namespace` `(string: "default")` - The namespace in which to execute the job.
-  Prior to Nomad 1.0 namespaces were Enterprise-only.
 
 - `parameterized` <code>([Parameterized][parameterized]: nil)</code> - Specifies
   the job as a parameterized job such that it can be dispatched against.
@@ -124,8 +123,7 @@ job "docs" {
   node if any of its allocation statuses become "failed".
 
 - `type` `(string: "service")` - Specifies the [Nomad scheduler][scheduler] to
-  use. Nomad provides the `service`, `system`, `batch`, and `sysbatch` (new in
-  Nomad 1.2) schedulers.
+  use. Nomad provides the `service`, `system`, `batch`, and `sysbatch` schedulers.
 
 - `update` <code>([Update][update]: nil)</code> - Specifies the task's update
   strategy. When omitted, a default update strategy is applied.

@@ -205,6 +205,8 @@ export default Factory.extend({
   // When true, the job will simulate a "scheduled" block's paused state
   withPausedTasks: false,
 
+  latestDeployment: null,
+
   afterCreate(job, server) {
     Ember.assert(
       '[Mirage] No node pools! make sure node pools are created before jobs',
@@ -317,6 +319,18 @@ export default Factory.extend({
             activeDeployment: job.activeDeployment,
           });
         });
+    }
+
+    if (job.activeDeployment) {
+      job.latestDeployment = {
+        IsActive: true,
+        Status: 'running',
+        StatusDescription: 'Deployment is running',
+        RequiresPromotion: false,
+        AllAutoPromote: true,
+        JobVersion: 1,
+        ID: faker.random.uuid(),
+      };
     }
 
     if (!job.shallow) {

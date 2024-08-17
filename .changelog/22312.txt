@@ -1,0 +1,3 @@
+```release-note:bug
+connect: fix validation with multiple socket paths
+```

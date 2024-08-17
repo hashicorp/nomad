@@ -1,0 +1,3 @@
+```release-note:bug
+qemu: Fixed a bug that prevented `qemu` tasks from running on Linux
+```

@@ -266,6 +266,7 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 
 	// Check for invalid keys
 	valid := []string{
+		"cores",
 		"cpu",
 		"memory",
 		"memory_max",

@@ -950,7 +950,16 @@ func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet 
 func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *drivers.DriverNetwork) {
 	// Host IP, port, and address
 	portStr := strconv.Itoa(p.Value)
+
+	var ipFamilyPrefix string
+	if strings.Contains(ip, ":") {
+		ipFamilyPrefix = "NOMAD_IPv6_"
+	} else {
+		ipFamilyPrefix = "NOMAD_IPv4_"
+	}
+
 	envMap[IpPrefix+p.Label] = ip
+	envMap[ipFamilyPrefix+p.Label] = ip
 	envMap[HostPortPrefix+p.Label] = portStr
 	envMap[AddrPrefix+p.Label] = net.JoinHostPort(ip, portStr)
 

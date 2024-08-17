@@ -17,7 +17,70 @@ containers and its command line tool is meant to be [a drop-in replacement]
 
 Source is on [GitHub][github]
 
-Download from HashiCorp [releases][releases]
+## Installation
+
+<Tabs>
+<Tab heading="Manual installation" group="manual">
+
+You can download a [precompiled binary](https://releases.hashicorp.com/nomad-driver-podman/) and verify the
+binary using the available SHA-256 sums. After downloading nomad-driver-podman
+driver, unzip the package. Make sure that the `nomad-driver-podman` binary is
+available on your [plugin_dir](/nomad/docs/configuration#plugin_dir) path,
+specified by the client's config file, before continuing with the other guides.
+
+</Tab>
+<Tab heading="Ubuntu/Debian" group="manual">
+
+Install the required packages.
+
+```shell-session
+$ sudo apt-get update && \
+  sudo apt-get install wget gpg coreutils
+```
+
+Add the HashiCorp [GPG key][gpg-key].
+
+```shell-session
+$ wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+```
+
+Add the official HashiCorp Linux test repository.
+
+```shell-session
+$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+```
+
+Update and install.
+
+```shell-session
+$ sudo apt-get update && sudo apt-get install -y nomad-driver-podman
+```
+
+</Tab>
+<Tab heading="CentOS/RHEL" group="linux">
+
+Install `yum-config-manager` to manage your repositories.
+
+```shell-session
+$ sudo yum install -y yum-utils
+```
+
+Use `yum-config-manager` to add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+```
+
+Install.
+
+```shell-session
+$ sudo yum -y install nomad-driver-podman
+```
+
+</Tab>
+</Tabs>
+
+## Usage
 
 The example job created by [`nomad init -short`][nomad-init] is easily adapted
 to use Podman instead:

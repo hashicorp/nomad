@@ -117,7 +117,7 @@ export default function () {
     '/jobs/statuses',
     withBlockingSupport(
       function ({ jobs }, req) {
-        const namespace = req.queryParams.namespace || 'default';
+        const namespace = req.queryParams.namespace || '*';
         let nextToken = req.queryParams.next_token || 0;
         let reverse = req.queryParams.reverse === 'true';
         const json = this.serialize(jobs.all());
@@ -149,7 +149,12 @@ export default function () {
                   field: condition.split(' ')[0],
                   operator: '==',
                   parts: condition.split(' or ').map((part) => {
-                    return part.split(' ')[2];
+                    return (
+                      part
+                        .split(' ')[2]
+                        // mirage only: strip quotes
+                        .replace(/['"]+/g, '')
+                    );
                   }),
                 };
               } else {
@@ -307,7 +312,7 @@ export default function () {
             });
           job.ChildStatuses = children ? children.mapBy('Status') : null;
           job.Datacenters = j.Datacenters;
-          job.DeploymentID = j.DeploymentID;
+          job.LatestDeployment = j.LatestDeployment;
           job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
             (a, b) => a + b,
             0
@@ -730,9 +735,8 @@ export default function () {
   });
 
   this.post('/acl/token', function (schema, request) {
-    const { Name, Policies, Type, ExpirationTTL, ExpirationTime } = JSON.parse(
-      request.requestBody
-    );
+    const { Name, Policies, Type, ExpirationTTL, ExpirationTime, Global } =
+      JSON.parse(request.requestBody);
 
     function parseDuration(duration) {
       const [_, value, unit] = duration.match(/(\d+)(\w)/);
@@ -758,6 +762,7 @@ export default function () {
       type: Type,
       id: faker.random.uuid(),
       expirationTime,
+      global: Global,
       createTime: new Date().toISOString(),
     });
   });

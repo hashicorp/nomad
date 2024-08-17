@@ -268,14 +268,9 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 			}
 
 			// retrieve the key material from the keyring
-			key, rsaKey, err := k.encrypter.GetKey(keyMeta.KeyID)
+			rootKey, err := k.encrypter.GetKey(keyMeta.KeyID)
 			if err != nil {
 				return err
-			}
-			rootKey := &structs.RootKey{
-				Meta:   keyMeta,
-				Key:    key,
-				RSAKey: rsaKey,
 			}
 			reply.Key = rootKey
 

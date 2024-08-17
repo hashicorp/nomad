@@ -1162,6 +1162,17 @@ function getConfigValue(variableName, defaultValue) {
 
 function getScenarioQueryParameter() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('mirage-scenario');
+  const mirageScenario = params.get('mirage-scenario');
+  if (mirageScenario && !(mirageScenario in allScenarios)) {
+    console.error(
+      new Error(
+        `Selected Mirage scenario does not exist.\n\n${mirageScenario} not in list: \n\n\t${Object.keys(
+          allScenarios
+        ).join('\n\t')}`
+      )
+    );
+    return 'smallCluster';
+  }
+  return mirageScenario;
 }
 /* eslint-enable */

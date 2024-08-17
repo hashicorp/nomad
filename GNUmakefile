@@ -44,17 +44,14 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.8.0
+LAST_RELEASE ?= v1.8.2
 
 default: help
 
 ifeq (Linux,$(THIS_OS))
-ALL_TARGETS = linux_386 \
-	linux_amd64 \
-	linux_arm \
+ALL_TARGETS = linux_amd64 \
 	linux_arm64 \
 	linux_s390x \
-	windows_386 \
 	windows_amd64
 endif
 
@@ -95,10 +92,6 @@ endif
 		GOARCH=$(lastword $(subst _, ,$*)) \
 		CC=$(CC) \
 		go build -trimpath -ldflags "$(GO_LDFLAGS)" -tags "$(GO_TAGS)" -o $(GO_OUT)
-
-ifneq (armv7l,$(THIS_ARCH))
-pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc
-endif
 
 ifneq (aarch64,$(THIS_ARCH))
 pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc

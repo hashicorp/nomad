@@ -194,9 +194,8 @@ testing.
   [`drain_on_shutdown`][], the client will drain its workloads before shutting
   down.
 
-- `limits` - Available in Nomad 0.10.3 and later, this is a nested object that
-  configures limits that are enforced by the agent. The following parameters
-  are available:
+- `limits` - This is a nested object that configures limits that are enforced by
+   the agent. The following parameters are available:
 
   - `https_handshake_timeout` `(string: "5s")` - Configures the limit for how
     long the HTTPS server in both client and server agents will wait for a
@@ -246,8 +245,8 @@ testing.
     connection.
 
 - `log_level` `(string: "INFO")` - Specifies the verbosity of logs the Nomad
-  agent will output. Valid log levels include `WARN`, `INFO`, or `DEBUG` in
-  increasing order of verbosity.
+  agent will output. Valid log levels include `WARN`, `INFO`, `DEBUG`, or
+  `TRACE` in increasing order of verbosity.
 
 - `log_include_location` `(bool: false)` - Include file and line information in
   each log line.

@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -275,4 +276,39 @@ func TestPrevAlloc_StreamAllocDir_Error(t *testing.T) {
 	if fi.Size() != fooHdr.Size {
 		t.Fatalf("expected foo.txt to be size 1 but found %d", fi.Size())
 	}
+}
+
+// TestPrevAlloc_StreamAllocDir_FileEscape asserts that an error is returned
+// when the tar archive contains a file that escapes the allocation directory.
+func TestPrevAlloc_StreamAllocDir_FileEscape(t *testing.T) {
+	ci.Parallel(t)
+
+	// This test only unit tests streamAllocDir so we only need a partially
+	// complete remotePrevAlloc
+	prevAlloc := &remotePrevAlloc{
+		logger:      testlog.HCLogger(t),
+		allocID:     "123",
+		prevAllocID: "abc",
+		migrate:     true,
+	}
+
+	// Create a tar archive with a file that escapes the allocation directory
+	tarBuf := bytes.NewBuffer(nil)
+	tw := tar.NewWriter(tarBuf)
+	err := tw.WriteHeader(&tar.Header{
+		Name:     "../escape.txt",
+		Mode:     0666,
+		Size:     1,
+		ModTime:  time.Now(),
+		Typeflag: tar.TypeReg,
+	})
+	must.NoError(t, err)
+	_, err = tw.Write([]byte{'a'})
+	t.Cleanup(func() { tw.Close() })
+	must.NoError(t, err)
+
+	// Attempt to stream the allocation directory
+	dest := t.TempDir()
+	err = prevAlloc.streamAllocDir(context.Background(), io.NopCloser(tarBuf), dest)
+	must.EqError(t, err, "archive contains object that escapes alloc dir")
 }

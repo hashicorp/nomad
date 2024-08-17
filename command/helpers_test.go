@@ -5,6 +5,7 @@ package command
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -730,4 +731,74 @@ func Test_extractJobSpecEnvVars(t *testing.T) {
 			"count": "",
 		}, result)
 	})
+}
+
+// TestHelperGetByPrefix exercises the generic getByPrefix function used by
+// commands to find a single match by prefix or return matching results if there
+// are multiple
+func TestHelperGetByPrefix(t *testing.T) {
+
+	type testStub struct{ ID string }
+
+	testCases := []struct {
+		name        string
+		queryObjs   []*testStub
+		queryErr    error
+		queryPrefix string
+
+		expectMatch    *testStub
+		expectPossible []*testStub
+		expectErr      string
+	}{
+		{
+			name:      "query error",
+			queryErr:  errors.New("foo"),
+			expectErr: "Error querying stubs: foo",
+		},
+		{
+			name: "multiple prefix matches with exact match",
+			queryObjs: []*testStub{
+				{ID: "testing"},
+				{ID: "testing123"},
+			},
+			queryPrefix: "testing",
+			expectMatch: &testStub{ID: "testing"},
+		},
+		{
+			name: "multiple prefix matches no exact match",
+			queryObjs: []*testStub{
+				{ID: "testing"},
+				{ID: "testing123"},
+			},
+			queryPrefix:    "test",
+			expectPossible: []*testStub{{ID: "testing"}, {ID: "testing123"}},
+		},
+		{
+			name:        "no matches",
+			queryObjs:   []*testStub{},
+			queryPrefix: "test",
+			expectErr:   "No stubs with prefix or ID \"test\" found",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			match, possible, err := getByPrefix[testStub]("stubs",
+				func(*api.QueryOptions) ([]*testStub, *api.QueryMeta, error) {
+					return tc.queryObjs, nil, tc.queryErr
+				},
+				func(stub *testStub, prefix string) bool { return stub.ID == prefix },
+				&api.QueryOptions{Prefix: tc.queryPrefix})
+
+			if tc.expectErr != "" {
+				must.EqError(t, err, tc.expectErr)
+			} else {
+				must.NoError(t, err)
+				must.Eq(t, tc.expectMatch, match, must.Sprint("expected exact match"))
+				must.Eq(t, tc.expectPossible, possible, must.Sprint("expected prefix matches"))
+			}
+		})
+	}
+
 }

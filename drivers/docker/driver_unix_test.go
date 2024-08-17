@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
+	ntestutil "github.com/hashicorp/nomad/testutil"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
@@ -667,7 +668,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 
 	// using a small image and an specific point release to avoid accidental conflicts with other tasks
 	cfg := newTaskConfig("", []string{"sleep", "100"})
-	cfg.Image = "busybox:1.29.2"
+	cfg.Image = ntestutil.TestDockerImage("busybox", "1.29.2")
 	cfg.LoadImage = ""
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -711,7 +712,7 @@ func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
-		Image:            "https://gcr.io/google_containers/pause:0.8.0",
+		Image:            "https://gcr.io/google_containers/pause:3.2",
 		ImagePullTimeout: "5m",
 	}
 	task := &drivers.TaskConfig{

@@ -1,0 +1,3 @@
+```release-note:bug
+quota (Enterprise): Fixed a bug where a task's resource core count was not translated to CPU MHz and checked against its quota when performing a job plan
+```

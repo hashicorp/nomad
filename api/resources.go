@@ -143,6 +143,9 @@ type DNSConfig struct {
 	Searches []string `mapstructure:"searches" hcl:"searches,optional"`
 	Options  []string `mapstructure:"options" hcl:"options,optional"`
 }
+type CNIConfig struct {
+	Args map[string]string `hcl:"args,optional"`
+}
 
 // NetworkResource is used to describe required network
 // resources of a given task.
@@ -160,7 +163,8 @@ type NetworkResource struct {
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
 	// 0.13 and is only being kept to allow any references to be removed before
 	// then.
-	MBits *int `hcl:"mbits,optional"`
+	MBits *int       `hcl:"mbits,optional"`
+	CNI   *CNIConfig `hcl:"cni,block"`
 }
 
 // COMPAT(0.13)

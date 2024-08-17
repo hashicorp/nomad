@@ -62,10 +62,22 @@ export default class JobSerializer extends ApplicationSerializer {
       });
     }
 
+    // job.stop is reserved as a method (points to adapter method) so we rename it here
+    if (hash.Stop) {
+      hash.Stopped = hash.Stop;
+      delete hash.Stop;
+    }
+
     return super.normalize(typeHash, hash);
   }
 
-  normalizeQueryResponse(store, primaryModelClass, payload, id, requestType) {
+  normalizeQueryResponse(
+    store,
+    primaryModelClass,
+    payload = [],
+    id,
+    requestType
+  ) {
     // What jobs did we ask for?
     if (payload._requestBody?.jobs) {
       let requestedJobIDs = payload._requestBody.jobs;

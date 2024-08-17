@@ -212,6 +212,7 @@ type ServiceCheck struct {
 	Interval               time.Duration       `hcl:"interval,optional"`
 	Timeout                time.Duration       `hcl:"timeout,optional"`
 	InitialStatus          string              `mapstructure:"initial_status" hcl:"initial_status,optional"`
+	Notes                  string              `hcl:"notes,optional"`
 	TLSServerName          string              `mapstructure:"tls_server_name" hcl:"tls_server_name,optional"`
 	TLSSkipVerify          bool                `mapstructure:"tls_skip_verify" hcl:"tls_skip_verify,optional"`
 	Header                 map[string][]string `hcl:"header,block"`

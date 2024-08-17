@@ -23,8 +23,11 @@ description: >-
 The `spread` block allows operators to increase the failure tolerance of their
 applications by specifying a node attribute that allocations should be spread
 over. This allows operators to spread allocations over attributes such as
-datacenter, availability zone, or even rack in a physical datacenter. By
-default, when using spread the scheduler will attempt to place allocations
+datacenter, availability zone, or even rack in a physical datacenter.
+
+By default, when `spread` is omitted, the scheduler will attempt to place
+allocations from the same job on different nodes (and binpacked between
+jobs). When using `spread` the scheduler will attempt to place allocations
 equally among the available values of the given target.
 
 ```hcl
@@ -49,20 +52,23 @@ job "docs" {
 }
 ```
 
-Nodes are scored according to how closely they match the desired target percentage defined in the
-spread block. Spread scores are combined with other scoring factors such as bin packing.
+Nodes are scored according to how closely they match the desired target
+percentage defined in the spread block. Spread scores are combined with other
+scoring factors such as bin packing.
 
-A job or task group can have more than one spread criteria, with weights to express relative preference.
+A job or task group can have more than one spread criteria, with weights to
+express relative preference.
 
-Spread criteria are treated as a soft preference by the Nomad
-scheduler. If no nodes match a given spread criteria, placement is
-still successful. To avoid scoring every node for every placement,
-allocations may not be perfectly spread. Spread works best on
-attributes with similar number of nodes: identically configured racks
-or similarly configured datacenters.
+Spread criteria are treated as a soft preference by the Nomad scheduler. If no
+nodes match a given spread criteria, placement is still successful. To avoid
+scoring every node for every placement, allocations may not be perfectly
+spread. Spread works best on attributes with similar number of nodes:
+identically configured racks or similarly configured datacenters.
 
-Spread may be expressed on [attributes][interpolation] or [client metadata][client-meta].
-Additionally, spread may be specified at the [job][job] and [group][group] levels for ultimate flexibility. Job level spread criteria are inherited by all task groups in the job.
+Spread may be expressed on [attributes][interpolation] or [client
+metadata][client-meta].  Additionally, spread may be specified at the [job][job]
+and [group][group] levels for ultimate flexibility. Job level spread criteria
+are inherited by all task groups in the job.
 
 ## `spread` Parameters
 
@@ -83,6 +89,36 @@ Additionally, spread may be specified at the [job][job] and [group][group] level
 - `value` `(string:"")` - Specifies a target value of the attribute from a `spread` block.
 
 - `percent` `(integer:0)` - Specifies the percentage associated with the target value.
+
+## Comparison to `spread` Scheduling Algorithm
+
+The `spread` block is not the same concept as setting the [scheduler
+algorithm][] to `"spread"` instead of `"binpack"`. Setting the scheduler
+algorithm impacts all jobs on a cluster (or node pool), and adjusts the tendency
+of the scheduler to place workloads from different jobs on the same set of nodes
+or not. The `spread` block impacts how the scheduler places allocations for a
+given job.
+
+## Scheduling Performance
+
+Using the `spread` block can have significant impact on scheduling
+performance. For each allocation in a `service` and `batch` job, the scheduler
+iterates over nodes until it finds a small number of feasible nodes. Those
+feasible nodes are then scored to find the best placement.
+
+When `spread` is omitted, this limit is 2 for batch jobs and the log<sub>2</sub>
+of the total number of nodes in the datacenter and node pool (with a minimum of
+2) for service jobs. When the `spread` block is present, the scheduler instead
+scores a number of nodes in the datacenter and node pool equal to the task group
+count (with a maximum of 100) per allocation. This can result in
+order-of-magnitude increases in scheduling times.
+
+To monitor scheduling times potentially impacted by `spread` blocks, examine the
+`nomad.nomad.worker.invoke_scheduler.*` found in the [Key Metrics][] table. You
+can reduce scheduling times by avoiding `spread` and instead relying on the
+default distribution of a job across multiple nodes. If this is not possible,
+you may consider reducing the size of the node pool or datacenter to reduce the
+number of nodes available for the scheduler to consider.
 
 ## `spread` Examples
 
@@ -165,3 +201,5 @@ spread {
 [interpolation]: /nomad/docs/runtime/interpolation 'Nomad interpolation'
 [node-variables]: /nomad/docs/runtime/interpolation#node-variables- 'Nomad interpolation-Node variables'
 [constraint]: /nomad/docs/job-specification/constraint 'Nomad Constraint job Specification'
+[Key Metrics]: /nomad/docs/operations/metrics-reference#key-metrics
+[scheduler algorithm]: /nomad/docs/commands/operator/scheduler/set-config#scheduler-algorithm
