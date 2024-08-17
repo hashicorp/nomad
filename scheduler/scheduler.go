@@ -8,7 +8,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
-	memdb "github.com/hashicorp/go-memdb"
+	memdb "github.com/absolutelightning/go-memdb"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"

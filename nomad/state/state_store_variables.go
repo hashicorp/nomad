@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/hashicorp/go-memdb"
+	"github.com/absolutelightning/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

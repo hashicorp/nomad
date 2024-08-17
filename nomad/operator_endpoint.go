@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/absolutelightning/go-memdb"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/raft"

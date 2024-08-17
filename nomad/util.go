@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strconv"
 
-	memdb "github.com/hashicorp/go-memdb"
+	memdb "github.com/absolutelightning/go-memdb"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"

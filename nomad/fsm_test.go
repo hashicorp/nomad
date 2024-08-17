@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/absolutelightning/go-memdb"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"

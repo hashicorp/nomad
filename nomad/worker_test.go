@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/absolutelightning/go-memdb"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/shoenig/test/must"

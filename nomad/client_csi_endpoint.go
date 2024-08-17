@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	memdb "github.com/absolutelightning/go-memdb"
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"

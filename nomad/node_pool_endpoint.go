@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/absolutelightning/go-memdb"
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"

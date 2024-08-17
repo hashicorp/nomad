@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	memdb "github.com/absolutelightning/go-memdb"
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"

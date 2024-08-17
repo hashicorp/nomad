@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	memdb "github.com/hashicorp/go-memdb"
+	memdb "github.com/absolutelightning/go-memdb"
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/ci"

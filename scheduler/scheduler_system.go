@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"runtime/debug"
 
+	"github.com/absolutelightning/go-memdb"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
