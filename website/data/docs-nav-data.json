@@ -130,6 +130,10 @@
         "path": "concepts/architecture"
       },
       {
+        "title": "Jobs",
+        "path": "concepts/jobs"
+      },
+      {
         "title": "CPU",
         "path": "concepts/cpu"
       },

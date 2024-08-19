@@ -1,0 +1,63 @@
+---
+layout: docs
+page_title: Jobs
+description: |-
+  Learn about Nomad's Job feature, which is how you deploy your apps.
+---
+
+# Jobs
+
+A Job is a specification provided by users that declares a workload for
+Nomad. A Job is a form of _desired state_; the user is expressing that the
+job should be running, but not where it should be run. The responsibility of
+Nomad is to make sure the _actual state_ matches your desired state. A
+Job is composed of one or more task groups.
+
+Jobs are submitted by users and represent a desired state. A job is a
+declarative description of tasks to run which are bounded by constraints and
+require resources. Jobs can also have affinities which are used to express
+placement preferences. Nodes are the servers in the clusters that tasks can be
+scheduled on. The mapping of tasks in a job to nodes is done using allocations.
+An allocation is used to declare that a set of tasks in a job should be run on a
+particular node. Scheduling is the process of determining the appropriate
+allocations and is done as part of an evaluation. Deployments are objects to
+track a rolling update of allocations between two versions of a job.
+
+## Types
+
+
+
+
+### Batch
+
+### Service
+
+### System
+
+### System batch
+
+
+
+## Deployment strategies
+
+Nomad supports rolling, blue/green, and canary deployment strategies for your
+jobs. Refer to [Nomad job update
+strategies](nomad/tutorials/job-updates/job-update-strategies)
+for detailed explanations and configuration instructions.
+
+## Statuses
+
+A single status to indicate how a job is doing, based on running/healthy allocations vs desired.
+   * Possible statuses are:
+   * - Deploying: A deployment is actively taking place
+   * - Complete: (Batch/Sysbatch only) All expected allocations are complete
+   * - Running: (Batch/Sysbatch only) All expected allocations are running
+   * - Healthy: All expected allocations are running and healthy
+   * - Recovering: Some allocations are pending
+   * - Degraded: A deployment is not taking place, and some allocations are failed, lost, or unplaced
+   * - Failed: All allocations are failed, lost, or unplaced
+   * - Removed: The job appeared in our initial query, but has since been garbage collected (user's been on the page for awhile)
+   * - Stopped: The job has been manually stopped (and not purged or yet garbage collected) by a user
+
+
+
