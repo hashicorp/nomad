@@ -4516,6 +4516,26 @@ type Job struct {
 
 	// Links and Description fields for the Web UI
 	UI *JobUIConfig
+
+	// Metadata related to a tagged Job Version (which itself is really a Job)
+	TaggedVersion *JobTaggedVersion
+}
+
+type JobTaggedVersion struct {
+	Name        string
+	Description string
+	TaggedTime  int64
+}
+
+func (tv *JobTaggedVersion) Copy() *JobTaggedVersion {
+	if tv == nil {
+		return nil
+	}
+	return &JobTaggedVersion{
+		Name:        tv.Name,
+		Description: tv.Description,
+		TaggedTime:  tv.TaggedTime,
+	}
 }
 
 type JobUIConfig struct {
@@ -4648,6 +4668,11 @@ func (j *Job) Canonicalize() {
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
 	}
+	// TODO: just for testing
+	// if j.TaggedVersion == nil {
+	// 	j.TaggedVersion = &JobTaggedVersion{}
+	// 	j.TaggedVersion.TaggedTime = time.Now().UnixNano()
+	// }
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
@@ -4663,6 +4688,7 @@ func (j *Job) Copy() *Job {
 	nj.Affinities = CopySliceAffinities(j.Affinities)
 	nj.Multiregion = j.Multiregion.Copy()
 	nj.UI = j.UI.Copy()
+	nj.TaggedVersion = j.TaggedVersion.Copy()
 
 	if j.TaskGroups != nil {
 		tgs := make([]*TaskGroup, len(j.TaskGroups))
@@ -4757,6 +4783,12 @@ func (j *Job) Validate() error {
 	if j.UI != nil {
 		if len(j.UI.Description) > MaxDescriptionCharacters {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("UI description must be under 1000 characters, currently %d", len(j.UI.Description)))
+		}
+	}
+
+	if j.TaggedVersion != nil {
+		if len(j.TaggedVersion.Description) > MaxDescriptionCharacters {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Tagged version description must be under 1000 characters, currently %d", len(j.TaggedVersion.Description)))
 		}
 	}
 
