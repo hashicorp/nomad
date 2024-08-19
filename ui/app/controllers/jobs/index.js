@@ -12,6 +12,8 @@ import { tracked } from '@glimmer/tracking';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { restartableTask, timeout } from 'ember-concurrency';
 import Ember from 'ember';
+// eslint-disable-next-line no-unused-vars
+import JobModel from '../../models/job';
 
 const JOB_LIST_THROTTLE = 5000;
 const JOB_DETAILS_THROTTLE = 1000;
@@ -62,8 +64,20 @@ export default class JobsIndexController extends Controller {
   @tracked pendingJobs = null;
   @tracked pendingJobIDs = null;
 
+  /**
+   * Trigger can either be the pointer event itself, or if the keyboard shorcut was used, the html element corresponding to the job.
+   * @param {JobModel} job
+   * @param {PointerEvent|HTMLElement} trigger
+   */
   @action
-  gotoJob(job) {
+  gotoJob(job, trigger) {
+    // Don't navigate if the user clicked on a link; this will happen with modifier keys like cmd/ctrl on the link itself
+    if (
+      trigger instanceof PointerEvent &&
+      /** @type {HTMLElement} */ (trigger.target).tagName === 'A'
+    ) {
+      return;
+    }
     this.router.transitionTo('jobs.job.index', job.idWithNamespace);
   }
 
