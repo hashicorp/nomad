@@ -4668,11 +4668,6 @@ func (j *Job) Canonicalize() {
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
 	}
-	// TODO: just for testing
-	// if j.TaggedVersion == nil {
-	// 	j.TaggedVersion = &JobTaggedVersion{}
-	// 	j.TaggedVersion.TaggedTime = time.Now().UnixNano()
-	// }
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
