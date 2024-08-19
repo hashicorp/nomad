@@ -2377,6 +2377,10 @@
       {
         "title": "Benchmarking Nomad",
         "path": "operations/benchmarking"
+      },
+      {
+        "title": "Nomad OIDC with AWS Identity Provider",
+        "path": "operations/aws-oidc-provider"
       }
     ]
   },
