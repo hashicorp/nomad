@@ -1043,6 +1043,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
 		UI:             ApiJobUIConfigToStructs(job.UI),
+		TaggedVersion:  ApiJobTaggedVersionToStructs(job.TaggedVersion),
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -2142,6 +2143,18 @@ func ApiJobUIConfigToStructs(jobUI *api.JobUIConfig) *structs.JobUIConfig {
 	return &structs.JobUIConfig{
 		Description: jobUI.Description,
 		Links:       links,
+	}
+}
+
+func ApiJobTaggedVersionToStructs(jobTaggedVersion *api.JobTaggedVersion) *structs.JobTaggedVersion {
+	if jobTaggedVersion == nil {
+		return nil
+	}
+
+	return &structs.JobTaggedVersion{
+		Name:        jobTaggedVersion.Name,
+		Description: jobTaggedVersion.Description,
+		TaggedTime:  jobTaggedVersion.TaggedTime,
 	}
 }
 
