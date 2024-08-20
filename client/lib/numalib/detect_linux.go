@@ -7,7 +7,9 @@ package numalib
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -37,6 +39,7 @@ const (
 	cpuBaseFile    = sysRoot + "/cpu/cpu%d/cpufreq/base_frequency"
 	cpuSocketFile  = sysRoot + "/cpu/cpu%d/topology/physical_package_id"
 	cpuSiblingFile = sysRoot + "/cpu/cpu%d/topology/thread_siblings_list"
+	deviceFiles    = "/sys/bus/pci/devices"
 )
 
 // pathReaderFn is a path reader function, injected into all value getters to
@@ -58,10 +61,27 @@ func (s *Sysfs) ScanSystem(top *Topology) {
 
 	// detect core performance data
 	s.discoverCores(top, os.ReadFile)
+
+	// detect pci device bus associativity
+	s.discoverPCI(top, os.ReadFile)
 }
 
 func (*Sysfs) available() bool {
 	return true
+}
+
+func (*Sysfs) discoverPCI(st *Topology, readerFunc pathReaderFn) {
+	st.BusAssociativity = make(map[string]hw.NodeID)
+
+	filepath.WalkDir(deviceFiles, func(path string, de fs.DirEntry, err error) error {
+		device := filepath.Base(path)
+		numaFile := filepath.Join(path, "numa_node")
+		node, err := getNumeric[int](numaFile, 64, readerFunc)
+		if err == nil && node >= 0 {
+			st.BusAssociativity[device] = hw.NodeID(node)
+		}
+		return nil
+	})
 }
 
 func (*Sysfs) discoverOnline(st *Topology, readerFunc pathReaderFn) {
@@ -156,13 +176,13 @@ func getIDSet[T idset.ID](path string, readerFunc pathReaderFn, args ...any) (*i
 	return idset.Parse[T](string(s)), nil
 }
 
-func getNumeric[T int | idset.ID](path string, maxSize int, readerFunc pathReaderFn, args ...any) (T, error) {
+func getNumeric[T int | idset.ID](path string, bitSize int, readerFunc pathReaderFn, args ...any) (T, error) {
 	path = fmt.Sprintf(path, args...)
 	s, err := readerFunc(path)
 	if err != nil {
 		return 0, err
 	}
-	i, err := strconv.ParseUint(strings.TrimSpace(string(s)), 10, maxSize)
+	i, err := strconv.ParseInt(strings.TrimSpace(string(s)), 10, bitSize)
 	if err != nil {
 		return 0, err
 	}

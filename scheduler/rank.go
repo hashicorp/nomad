@@ -6,9 +6,12 @@ package scheduler
 import (
 	"fmt"
 	"math"
+	"slices"
 
+	"github.com/hashicorp/go-set/v2"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/safemath"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -204,7 +207,8 @@ func (iter *BinPackIterator) SetSchedulerConfiguration(schedConfig *structs.Sche
 }
 
 func (iter *BinPackIterator) Next() *RankedNode {
-OUTER:
+
+NEXTNODE:
 	for {
 		// Get the next potential option
 		option := iter.source.Next()
@@ -292,7 +296,7 @@ OUTER:
 					} else {
 						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
 						netIdx.Release()
-						continue OUTER
+						continue NEXTNODE
 					}
 				}
 			}
@@ -303,7 +307,7 @@ OUTER:
 					} else {
 						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
 						netIdx.Release()
-						continue OUTER
+						continue NEXTNODE
 					}
 				}
 			}
@@ -314,7 +318,7 @@ OUTER:
 					iter.ctx.Metrics().ExhaustedNode(option.Node,
 						fmt.Sprintf("network: %s", err))
 					netIdx.Release()
-					continue OUTER
+					continue NEXTNODE
 				}
 
 				// Look for preemptible allocations to satisfy the network resource for this task
@@ -326,7 +330,7 @@ OUTER:
 					iter.ctx.Metrics().ExhaustedNode(option.Node,
 						fmt.Sprintf("network: %s", err))
 					netIdx.Release()
-					continue OUTER
+					continue NEXTNODE
 				}
 				allocsToPreempt = append(allocsToPreempt, netPreemptions...)
 
@@ -345,7 +349,7 @@ OUTER:
 					iter.ctx.Metrics().ExhaustedNode(option.Node,
 						fmt.Sprintf("network: %s", err))
 					netIdx.Release()
-					continue OUTER
+					continue NEXTNODE
 				}
 			}
 
@@ -390,7 +394,7 @@ OUTER:
 						iter.ctx.Metrics().ExhaustedNode(option.Node,
 							fmt.Sprintf("network: %s", err))
 						netIdx.Release()
-						continue OUTER
+						continue NEXTNODE
 					}
 
 					// Look for preemptible allocations to satisfy the network resource for this task
@@ -402,7 +406,7 @@ OUTER:
 						iter.ctx.Metrics().ExhaustedNode(option.Node,
 							fmt.Sprintf("network: %s", err))
 						netIdx.Release()
-						continue OUTER
+						continue NEXTNODE
 					}
 					allocsToPreempt = append(allocsToPreempt, netPreemptions...)
 
@@ -421,7 +425,7 @@ OUTER:
 						iter.ctx.Metrics().ExhaustedNode(option.Node,
 							fmt.Sprintf("network: %s", err))
 						netIdx.Release()
-						continue OUTER
+						continue NEXTNODE
 					}
 				}
 				// Reserve this to prevent another task from colliding
@@ -431,56 +435,240 @@ OUTER:
 				taskResources.Networks = []*structs.NetworkResource{offer}
 			}
 
-			// Check if we need to assign devices
-			for _, req := range task.Resources.Devices {
-				offer, sumAffinities, err := devAllocator.AssignDevice(req)
-				if offer == nil {
-					// If eviction is not enabled, mark this node as exhausted and continue
-					if !iter.evict {
-						iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
-						continue OUTER
-					}
+			// Acquire devices
 
-					// Attempt preemption
-					preemptor.SetCandidates(proposed)
-					devicePreemptions := preemptor.PreemptForDevice(req, devAllocator)
+			// deviceMemoryNode will record which NUMA memory node our devices
+			// connected to, or -1 to indicate we did not care
+			deviceMemoryNode := -1
 
-					if devicePreemptions == nil {
-						iter.ctx.Logger().Named("binpack").Debug("preemption not possible", "requested_device", req)
-						iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
-						netIdx.Release()
-						continue OUTER
-					}
-					allocsToPreempt = append(allocsToPreempt, devicePreemptions...)
+			// if there are no devices, skip over device assignments
+			if len(task.Resources.Devices) == 0 {
+				goto SELECTCORES
+			}
 
-					// First subtract out preempted allocations
-					proposed = structs.RemoveAllocs(proposed, allocsToPreempt)
+			{
+				// Attempt device assignments without pre-emption.
+				//
+				// This block will attempt to assign devices using the available
+				// CPU cores and devices WITHOUT leveraging preemption to make
+				// things fit. If this fails we do this logic again below but
+				// with pre-emption logic.
+				//
+				// We do this so as to give priority to device allocation
+				// options that do not involve killing other tasks, while still
+				// ensuring we get the NUMA associativity the task is asking for.
 
-					// Reset the device allocator with new set of proposed allocs
-					devAllocator := newDeviceAllocator(iter.ctx, option.Node)
-					devAllocator.AddAllocs(proposed)
-
-					// Try offer again
-					offer, sumAffinities, err = devAllocator.AssignDevice(req)
-					if offer == nil {
-						iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create device offer after considering preemption", "error", err)
-						iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
-						continue OUTER
-					}
+				// set of already consumed cores on this node
+				consumedCores := idset.Empty[hw.CoreID]()
+				for _, alloc := range proposed {
+					allocCores := alloc.AllocatedResources.Comparable().Flattened.Cpu.ReservedCores
+					idset.InsertSlice(consumedCores, allocCores...)
 				}
 
-				// Store the resource
-				devAllocator.AddReserved(offer)
-				taskResources.Devices = append(taskResources.Devices, offer)
+				// add cores reserved for other tasks
+				for _, tr := range total.Tasks {
+					taskCores := tr.Cpu.ReservedCores
+					idset.InsertSlice(consumedCores, taskCores...)
+				}
 
-				// Add the scores
-				if len(req.Affinities) != 0 {
-					for _, a := range req.Affinities {
-						totalDeviceAffinityWeight += math.Abs(float64(a.Weight))
+				nodeCores := option.Node.NodeResources.Processors.Topology.UsableCores()
+
+				// usable cores not yet consumed for this node
+				availableCores := nodeCores.Difference(consumedCores)
+
+				// the memory nodes with sufficient cores for the task
+				// resources, calculated by subtracting off all cores currently
+				// in use because we are not allowing preemption
+				candidateMemoryNodes := (&coreSelector{
+					topology:       option.Node.NodeResources.Processors.Topology,
+					availableCores: availableCores,
+				}).candidateMemoryNodes(task.Resources)
+
+				// snapshot the current state of device allocation, which we
+				// will revert to each time we run into a problem while selecting
+				// devices with memory node limitations
+				devAllocatorSnapshot := devAllocator.Copy()
+				taskResourcesSnapshot := slices.Clone(taskResources.Devices)
+				sumMatchingAffinitiesSnapshot := sumMatchingAffinities
+				totalDeviceAffinityWeightSnapshot := totalDeviceAffinityWeight
+
+			SELECT_BY_NUMA_WITHOUT_EVICT:
+				for _, candidateMemoryNode := range candidateMemoryNodes {
+					deviceMemoryNode = candidateMemoryNode
+
+					// attempt to assign devices using the given target memory
+					// node
+					count := 0
+					for _, device := range task.Resources.Devices {
+						memory := &memoryNodeMatcher{
+							memoryNode: candidateMemoryNode,
+							topology:   option.Node.NodeResources.Processors.Topology,
+							devices:    set.From(task.Resources.NUMA.GetDevices()),
+						}
+
+						offer, sumAffinities, err := devAllocator.createOffer(memory, device)
+						if offer == nil || err != nil {
+							devAllocator = devAllocatorSnapshot
+							taskResources.Devices = taskResourcesSnapshot
+							sumMatchingAffinities = sumMatchingAffinitiesSnapshot
+							totalDeviceAffinityWeight = totalDeviceAffinityWeightSnapshot
+							continue SELECT_BY_NUMA_WITHOUT_EVICT
+						}
+
+						// assign the offer for this device to our allocator
+						devAllocator.AddReserved(offer)
+						taskResources.Devices = append(taskResources.Devices, offer)
+
+						// Add the scores
+						if len(device.Affinities) != 0 {
+							for _, a := range device.Affinities {
+								totalDeviceAffinityWeight += math.Abs(float64(a.Weight))
+							}
+							sumMatchingAffinities += sumAffinities
+						}
+						count++
 					}
-					sumMatchingAffinities += sumAffinities
+
+					if count == len(task.Resources.Devices) {
+						// We were able to allocate every device, no need to
+						// try again using preemption. Skip on down to the
+						// allocation of cpu cores.
+						goto SELECTCORES
+					}
+
+					// reset allocation attempt to snapshot before trying with
+					// next memory node option
+					devAllocator = devAllocatorSnapshot
+					taskResources.Devices = taskResourcesSnapshot
+					sumMatchingAffinities = sumMatchingAffinitiesSnapshot
+					totalDeviceAffinityWeight = totalDeviceAffinityWeightSnapshot
 				}
 			}
+
+			{
+				// Attempt device assignments with pre-emption.
+				//
+				// This block will attempt to assign devices using any CPU cores
+				// and devices WITH leveraging preemption. We will have already
+				// made attempts without preemption.
+
+				// If preemption is not enabled, then this node is exhausted.
+				if !iter.evict {
+					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
+					continue NEXTNODE
+				}
+
+				// get a list of available memory nodes, including cores currently
+				// in-use, which we can acquire by evicting tasks
+				candidateMemoryNodes := (&coreSelector{
+					topology:       option.Node.NodeResources.Processors.Topology,
+					availableCores: option.Node.NodeResources.Processors.Topology.UsableCores(),
+				}).candidateMemoryNodes(task.Resources)
+
+				// snapshot the current state of device allocation, which we
+				// will revert to each time we run into a problem while selecting
+				// devices with memory node limitations
+				devAllocatorSnapshot := devAllocator.Copy()
+				taskResourcesSnapshot := slices.Clone(taskResources.Devices)
+				sumMatchingAffinitiesSnapshot := sumMatchingAffinities
+				totalDeviceAffinityWeightSnapshot := totalDeviceAffinityWeight
+				preemptorSnapshot := preemptor.Copy()
+				allocsToPreemptSnapshot := helper.CopySlice(allocsToPreempt)
+				proposedSnapshot := helper.CopySlice(proposed)
+
+				var offerErr error = nil
+
+			SELECT_BY_NUMA_WITH_EVICT:
+				for _, candidateMemoryNode := range candidateMemoryNodes {
+					deviceMemoryNode = candidateMemoryNode
+
+					// attempt to assign devices using the given target memory
+					// node
+					count := 0
+					for _, device := range task.Resources.Devices {
+						memory := &memoryNodeMatcher{
+							memoryNode: candidateMemoryNode,
+							topology:   option.Node.NodeResources.Processors.Topology,
+							devices:    set.From(task.Resources.NUMA.GetDevices()),
+						}
+
+						offer, sumAffinities, err := devAllocator.createOffer(memory, device)
+						if offer == nil {
+							offerErr = err
+
+							// get the potential preemptions
+							preemptor.SetCandidates(proposed) // allocations
+							devicePreemptions := preemptor.PreemptForDevice(device, devAllocator)
+
+							restoreSnapshots := func() {
+								devAllocator = devAllocatorSnapshot
+								taskResources.Devices = taskResourcesSnapshot
+								sumMatchingAffinities = sumMatchingAffinitiesSnapshot
+								totalDeviceAffinityWeight = totalDeviceAffinityWeightSnapshot
+								preemptor = preemptorSnapshot
+								allocsToPreempt = allocsToPreemptSnapshot
+								proposed = proposedSnapshot
+							}
+
+							// not able to assign device even with preemption,
+							// reset to snapshots and try next memory node
+							if devicePreemptions == nil {
+								restoreSnapshots()
+								continue SELECT_BY_NUMA_WITH_EVICT
+							}
+
+							allocsToPreempt = append(allocsToPreempt, devicePreemptions...)
+
+							// subtract out preempted allocations
+							proposed = structs.RemoveAllocs(proposed, allocsToPreempt)
+
+							// use a device allocator with new set of proposed allocs
+							devAllocatorEvict := newDeviceAllocator(iter.ctx, option.Node)
+							devAllocatorEvict.AddAllocs(proposed)
+
+							// attempt the offer again
+							offerEvict, sumAffinitiesEvict, err := devAllocatorEvict.createOffer(memory, device)
+							if offerEvict == nil || err != nil {
+								// we cannot acquire this device even with preemption
+								iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create device offer after considering preemption", "error", err)
+								iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
+								continue NEXTNODE
+							}
+
+							offer = offerEvict
+							sumAffinities = sumAffinitiesEvict
+						}
+
+						// assign the offer for this device to our allocator
+						devAllocator.AddReserved(offer)
+						taskResources.Devices = append(taskResources.Devices, offer)
+
+						// Add the scores
+						if len(device.Affinities) != 0 {
+							for _, a := range device.Affinities {
+								totalDeviceAffinityWeight += math.Abs(float64(a.Weight))
+							}
+							sumMatchingAffinities += sumAffinities
+						}
+						count++
+					}
+
+					if count == len(task.Resources.Devices) {
+						// We were able to allocate every device.
+						goto SELECTCORES
+					}
+				}
+
+				// We were not able to allocate every device, implying
+				// this node could not support the device ask.
+				iter.ctx.Logger().Named("binpack").Debug("preemption not possible")
+				iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", offerErr))
+				netIdx.Release()
+				continue NEXTNODE
+
+			} // preempt attempt
+
+		SELECTCORES:
 
 			// Handle CPU core reservations
 			if wantedCores := task.Resources.Cores; wantedCores > 0 {
@@ -506,21 +694,22 @@ OUTER:
 				// mark the node as exhausted if not enough cores available
 				if availableCores.Size() < wantedCores {
 					iter.ctx.Metrics().ExhaustedNode(option.Node, "cores")
-					continue OUTER
+					continue NEXTNODE
 				}
 
 				// set the task's reserved cores
 				cores, bandwidth := (&coreSelector{
-					topology:       option.Node.NodeResources.Processors.Topology,
-					availableCores: availableCores,
-					shuffle:        randomizeCores,
+					topology:         option.Node.NodeResources.Processors.Topology,
+					availableCores:   availableCores,
+					shuffle:          randomizeCores,
+					deviceMemoryNode: deviceMemoryNode,
 				}).Select(task.Resources)
 
 				// mark the node as exhausted if not enough cores available given
 				// the NUMA preference
 				if cores == nil {
 					iter.ctx.Metrics().ExhaustedNode(option.Node, "numa-cores")
-					continue OUTER
+					continue NEXTNODE
 				}
 
 				// set the cores and bandwidth consumed by the task

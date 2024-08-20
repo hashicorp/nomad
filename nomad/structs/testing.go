@@ -43,6 +43,7 @@ func NodeResourcesToAllocatedResources(n *NodeResources) *AllocatedResources {
 // - 1 socket, 1 NUMA node
 // - 4 cores @ 3500 MHz (14,000 MHz total)
 // - no client config overrides
+// - no devices
 func MockBasicTopology() *numalib.Topology {
 	cores := make([]numalib.Core, 4)
 	for i := 0; i < 4; i++ {
@@ -60,6 +61,7 @@ func MockBasicTopology() *numalib.Topology {
 		Cores:                  cores,
 		OverrideTotalCompute:   0,
 		OverrideWitholdCompute: 0,
+		BusAssociativity:       nil,
 	}
 	t.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	return t
@@ -67,10 +69,17 @@ func MockBasicTopology() *numalib.Topology {
 
 // MockWorkstationTopology returns a numalib.Topology that looks like a typical
 // workstation;
-// - 2 socket, 2 NUMA node (200% penalty)
-// - 16 cores / 32 threads @ 3000 MHz (96,000 MHz total)
-// - node0: odd cores, node1: even cores
-// - no client config overrides
+//   - 2 socket, 2 NUMA node (200% penalty)
+//   - 16 cores / 32 threads @ 3000 MHz (96,000 MHz total)
+//   - node0: odd cores, node1: even cores
+//   - no client config overrides
+//   - node0 devices:
+//     nvidia/gpu/t1000 - 0000:02:00.1
+//     nvidia/gpu/t1000 - 0000:02:01.1
+//     net/type1        - 0000:03:00.2
+//   - node1 devices:
+//     nvidia/gpu/r600  - 0000:08:00.1
+//     fpga/kv0         - 0000:09:01.0
 func MockWorkstationTopology() *numalib.Topology {
 	cores := make([]numalib.Core, 32)
 	for i := 0; i < 32; i++ {
@@ -86,6 +95,13 @@ func MockWorkstationTopology() *numalib.Topology {
 	t := &numalib.Topology{
 		Distances: numalib.SLIT{[]numalib.Cost{10, 20}, {20, 10}},
 		Cores:     cores,
+		BusAssociativity: map[string]hw.NodeID{
+			"0000:02:00.1": 0,
+			"0000:02:01.1": 0,
+			"0000:03:00.2": 0,
+			"0000:08:00.1": 1,
+			"0000:09:01.0": 1,
+		},
 	}
 	t.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0, 1}))
 	return t

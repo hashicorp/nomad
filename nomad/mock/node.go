@@ -130,6 +130,7 @@ func DrainNode() *structs.Node {
 // NvidiaNode returns a node with two instances of an Nvidia GPU
 func NvidiaNode() *structs.Node {
 	n := Node()
+	n.NodeResources.Processors.Topology = structs.MockWorkstationTopology()
 	n.NodeResources.Devices = []*structs.NodeDeviceResource{
 		{
 			Type:   "gpu",
@@ -145,10 +146,16 @@ func NvidiaNode() *structs.Node {
 				{
 					ID:      uuid.Generate(),
 					Healthy: true,
+					Locality: &structs.NodeDeviceLocality{
+						PciBusID: "0000:02:00.1", // node 0
+					},
 				},
 				{
 					ID:      uuid.Generate(),
 					Healthy: true,
+					Locality: &structs.NodeDeviceLocality{
+						PciBusID: "0000:02:01.1", // node 0
+					},
 				},
 			},
 		},

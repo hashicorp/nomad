@@ -4,6 +4,7 @@
 package api
 
 import (
+	"slices"
 	"strconv"
 )
 
@@ -115,6 +116,10 @@ func (r *Resources) Merge(other *Resources) {
 type NUMAResource struct {
 	// Affinity must be one of "none", "prefer", "require".
 	Affinity string `hcl:"affinity,optional"`
+
+	// Devices is the subset of devices requested by the task that must share
+	// the same numa node, along with the tasks reserved cpu cores.
+	Devices []string `hcl:"devices,optional"`
 }
 
 func (n *NUMAResource) Copy() *NUMAResource {
@@ -123,6 +128,7 @@ func (n *NUMAResource) Copy() *NUMAResource {
 	}
 	return &NUMAResource{
 		Affinity: n.Affinity,
+		Devices:  slices.Clone(n.Devices),
 	}
 }
 
@@ -132,6 +138,9 @@ func (n *NUMAResource) Canonicalize() {
 	}
 	if n.Affinity == "" {
 		n.Affinity = "none"
+	}
+	if len(n.Devices) == 0 {
+		n.Devices = nil
 	}
 }
 

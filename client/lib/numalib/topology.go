@@ -63,19 +63,28 @@ type Topology struct {
 	Distances SLIT
 	Cores     []Core
 
+	// BusAssociativity maps the specific bus each PCI device is plugged into
+	// with its hardware associated numa node
+	//
+	// e.g. "0000:03:00.0" -> 1
+	//
+	// Note that the key may not exactly match the Locality.PciBusID from the
+	// fingerprint of the device with regard to the domain value.
+	//
+	//
+	// 0000:03:00.0
+	// ^    ^  ^  ^
+	// |    |  |  |-- function (identifies functionality of device)
+	// |    |  |-- device (identifies the device number on the bus)
+	// |    |
+	// |    |-- bus (identifies which bus segment the device is connected to)
+	// |
+	// |-- domain (basically always 0, may be 0000 or 00000000)
+	BusAssociativity map[string]hw.NodeID
+
 	// explicit overrides from client configuration
 	OverrideTotalCompute   hw.MHz
 	OverrideWitholdCompute hw.MHz
-}
-
-// NewTopology is a constructor for the Topology object, only used in tests for
-// mocking.
-func NewTopology(nodeIDs *idset.Set[hw.NodeID], distances SLIT, cores []Core) *Topology {
-	t := &Topology{
-		nodeIDs:   nodeIDs,
-		Distances: distances, Cores: cores}
-	t.SetNodes(nodeIDs)
-	return t
 }
 
 func (t *Topology) SetNodes(nodes *idset.Set[hw.NodeID]) {
