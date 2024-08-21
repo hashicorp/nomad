@@ -7,57 +7,73 @@ description: |-
 
 # Jobs
 
-A Job is a specification provided by users that declares a workload for
-Nomad. A Job is a form of _desired state_; the user is expressing that the
-job should be running, but not where it should be run. The responsibility of
-Nomad is to make sure the _actual state_ matches your desired state. A
-Job is composed of one or more task groups.
-
-Jobs are submitted by users and represent a desired state. A job is a
-declarative description of tasks to run which are bounded by constraints and
-require resources. Jobs can also have affinities which are used to express
-placement preferences. Nodes are the servers in the clusters that tasks can be
-scheduled on. The mapping of tasks in a job to nodes is done using allocations.
-An allocation is used to declare that a set of tasks in a job should be run on a
-particular node. Scheduling is the process of determining the appropriate
-allocations and is done as part of an evaluation. Deployments are objects to
-track a rolling update of allocations between two versions of a job.
-
-## Types
+This page explains the concept of a job, which is the Nomad construct for
+deploying your app and its configuration.
 
 
+## Background
 
+A job is a declarative specification of tasks that Nomad should run. Each job
+can have one or more task groups, which are collections of one or more tasks.
 
-### Batch
+Declare the the desired state of your job in a job specification that describes
+the type of job, the tasks and resources necessary for the job to run, and job
+information such as which clients it can run on. Refer to the [Job
+Specification](/nomad/docs/job-specification) for complete details and examples.
 
-### Service
+When you submit your job specification, Nomad creates a job along with
+[allocations](/nomad/docs/glossary#allocation) for each group defined in the
+spec. Nomad makes sure the actual state matches your desired state.
 
-### System
+## Job types
 
-### System batch
+Nomad supports the following job types:
 
+- Batch
 
+  Batch jobs are for short lived jobs that run until they exit
+  successfully. Batch jobs are paramaterized or periodic.
+    - Paramaterized: The paramaterized type accepts required or optional inputs. Trigger this job with the `job dispatch` [command](/nomad/docs/commands/job/dispatch).
+    - Periodic: The periodic type is a Nomad cron job that runs at configured times.
 
-## Deployment strategies
+- Service
 
-Nomad supports rolling, blue/green, and canary deployment strategies for your
-jobs. Refer to [Nomad job update
-strategies](nomad/tutorials/job-updates/job-update-strategies)
-for detailed explanations and configuration instructions.
+  Service jobs are for long lived services that run until explicitly
+  stopped. Use a service job type for your app and its resources.
 
-## Statuses
+- Sysbatch
 
-A single status to indicate how a job is doing, based on running/healthy allocations vs desired.
-   * Possible statuses are:
-   * - Deploying: A deployment is actively taking place
-   * - Complete: (Batch/Sysbatch only) All expected allocations are complete
-   * - Running: (Batch/Sysbatch only) All expected allocations are running
-   * - Healthy: All expected allocations are running and healthy
-   * - Recovering: Some allocations are pending
-   * - Degraded: A deployment is not taking place, and some allocations are failed, lost, or unplaced
-   * - Failed: All allocations are failed, lost, or unplaced
-   * - Removed: The job appeared in our initial query, but has since been garbage collected (user's been on the page for awhile)
-   * - Stopped: The job has been manually stopped (and not purged or yet garbage collected) by a user
+  Sysbatch jobs are for run-once commands that should run on every node in the
+  cluster. These jobs run until explicitly stopped by an operator, evicted
+  through preemption, or successful completion.
 
+- System
+
+  System jobs run on all clients that meet the job's constraints. Use a system
+  job for deploying and managing tasks that should be present on every node in
+  the cluster.
+
+Refer to the [Schedulers](/nomad/docs/schedulers) page for details on how Nomad schedules each of these job types.
+
+## Job statuses
+
+After you submit your job, Nomad assigns a status to indicate how a job is
+performing. This status is based on running, healthy [allocations](/nomad/docs/glossary#allocation) versus desired job state.
+
+All jobs may have the following statuses in the Nomad UI:
+
+- Degraded: A deployment is not taking place. Some allocations are failed, lost, or unplaced.
+- Deploying: A [deployment](/nomad/docs/glossary#deployment) is actively taking place.
+- Failed: All allocations are failed, lost, or unplaced.
+- Healthy: All expected allocations are running and healthy.
+- Recovering: Some allocations are pending.
+- Removed: The job appeared in the initial query but has since been garbage
+  collected. This happens when the user remains on the page for a long time.
+- Stopped: A user has has manually stopped the job. It has not yet been purged or garbage collected.
+
+Batch and sysbatch jobs may have these additional statuses:
+
+- Complete: All expected allocations are complete.
+- Running: All expected allocations are running.
 
 
