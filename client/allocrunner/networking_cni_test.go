@@ -273,51 +273,10 @@ func TestSetup(t *testing.T) {
 	}
 }
 
-type mockIPTables struct {
-	listCall  [2]string
-	listRules []string
-	listErr   error
-
-	deleteCall [2]string
-	deleteErr  error
-
-	clearCall [2]string
-	clearErr  error
-}
-
-func (ipt *mockIPTables) List(table, chain string) ([]string, error) {
-	ipt.listCall[0], ipt.listCall[1] = table, chain
-	return ipt.listRules, ipt.listErr
-}
-
-func (ipt *mockIPTables) Delete(table, chain string, rule ...string) error {
-	ipt.deleteCall[0], ipt.deleteCall[1] = table, chain
-	return ipt.deleteErr
-}
-
-func (ipt *mockIPTables) ClearAndDeleteChain(table, chain string) error {
-	ipt.clearCall[0], ipt.clearCall[1] = table, chain
-	return ipt.clearErr
-}
-
-func (ipt *mockIPTables) assert(t *testing.T, jumpChain string) {
-	// List assertions
-	must.Eq(t, "nat", ipt.listCall[0])
-	must.Eq(t, "POSTROUTING", ipt.listCall[1])
-
-	// Delete assertions
-	must.Eq(t, "nat", ipt.deleteCall[0])
-	must.Eq(t, "POSTROUTING", ipt.deleteCall[1])
-
-	// Clear assertions
-	must.Eq(t, "nat", ipt.clearCall[0])
-	must.Eq(t, jumpChain, ipt.clearCall[1])
-}
-
 func TestCNI_forceCleanup(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		c := cniNetworkConfigurator{logger: testlog.HCLogger(t)}
-		ipt := &mockIPTables{
+		ipt := &mockIPTablesCleanup{
 			listRules: []string{
 				`-A POSTROUTING -m comment --comment "CNI portfwd requiring masquerade" -j CNI-HOSTPORT-MASQ`,
 				`-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE`,
@@ -330,12 +289,24 @@ func TestCNI_forceCleanup(t *testing.T) {
 		}
 		err := c.forceCleanup(ipt, "2dd71cac-2b1e-ff08-167c-735f7f9f4964")
 		must.NoError(t, err)
-		ipt.assert(t, "CNI-5d36f286cfbb35c5776509ec")
+
+		// List assertions
+		must.Eq(t, "nat", ipt.listCall[0])
+		must.Eq(t, "POSTROUTING", ipt.listCall[1])
+
+		// Delete assertions
+		must.Eq(t, "nat", ipt.deleteCall[0])
+		must.Eq(t, "POSTROUTING", ipt.deleteCall[1])
+
+		// Clear assertions
+		must.Eq(t, "nat", ipt.clearCall[0])
+		jumpChain := "CNI-5d36f286cfbb35c5776509ec"
+		must.Eq(t, jumpChain, ipt.clearCall[1])
 	})
 
 	t.Run("missing allocation", func(t *testing.T) {
 		c := cniNetworkConfigurator{logger: testlog.HCLogger(t)}
-		ipt := &mockIPTables{
+		ipt := &mockIPTablesCleanup{
 			listRules: []string{
 				`-A POSTROUTING -m comment --comment "CNI portfwd requiring masquerade" -j CNI-HOSTPORT-MASQ`,
 				`-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE`,
@@ -352,14 +323,14 @@ func TestCNI_forceCleanup(t *testing.T) {
 
 	t.Run("list error", func(t *testing.T) {
 		c := cniNetworkConfigurator{logger: testlog.HCLogger(t)}
-		ipt := &mockIPTables{listErr: errors.New("list error")}
+		ipt := &mockIPTablesCleanup{listErr: errors.New("list error")}
 		err := c.forceCleanup(ipt, "2dd71cac-2b1e-ff08-167c-735f7f9f4964")
 		must.EqError(t, err, "failed to list iptables rules: list error")
 	})
 
 	t.Run("delete error", func(t *testing.T) {
 		c := cniNetworkConfigurator{logger: testlog.HCLogger(t)}
-		ipt := &mockIPTables{
+		ipt := &mockIPTablesCleanup{
 			deleteErr: errors.New("delete error"),
 			listRules: []string{
 				`-A POSTROUTING -s 172.26.64.217/32 -m comment --comment "name: \"nomad\" id: \"2dd71cac-2b1e-ff08-167c-735f7f9f4964\"" -j CNI-5d36f286cfbb35c5776509ec`,
@@ -371,7 +342,7 @@ func TestCNI_forceCleanup(t *testing.T) {
 
 	t.Run("clear error", func(t *testing.T) {
 		c := cniNetworkConfigurator{logger: testlog.HCLogger(t)}
-		ipt := &mockIPTables{
+		ipt := &mockIPTablesCleanup{
 			clearErr: errors.New("clear error"),
 			listRules: []string{
 				`-A POSTROUTING -s 172.26.64.217/32 -m comment --comment "name: \"nomad\" id: \"2dd71cac-2b1e-ff08-167c-735f7f9f4964\"" -j CNI-5d36f286cfbb35c5776509ec`,
