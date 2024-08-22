@@ -1695,6 +1695,12 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		}
 		jobIDs[alloc.JobNamespacedID()] = struct{}{}
 
+		// If it's a sysbatch job, skip it. Sysbatch job evals should only
+		// ever be created by structs.EvalTriggerPeriodicJob
+		if alloc.Job.Type == structs.JobTypeSysBatch {
+			continue
+		}
+
 		// Create a new eval
 		eval := &structs.Evaluation{
 			ID:              uuid.Generate(),
