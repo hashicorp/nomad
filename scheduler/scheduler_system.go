@@ -92,6 +92,8 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	s.logger = s.logger.With("eval_id", eval.ID, "job_id", eval.JobID, "namespace", eval.Namespace)
 
 	// Verify the evaluation trigger reason is understood
+	fmt.Printf("\n\n\neval.TriggeredBy: %v\n", eval.TriggeredBy)
+	fmt.Printf("canHandle gets called! result: %v\n\n\n", s.canHandle(eval.TriggeredBy))
 	if !s.canHandle(eval.TriggeredBy) {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason", eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc,
