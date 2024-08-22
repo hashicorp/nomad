@@ -29,7 +29,11 @@
       {{else if (eq (lowercase field.Type) "deleted")}}
         <span class="diff-section-table-cell diff-section-change">"{{field.Old}}"</span>
       {{else if (eq (lowercase field.Type) "edited")}}
-        <span class="diff-section-table-cell diff-section-change">"{{field.Old}}" => "{{field.New}}"</span>
+        {{#if (eq (lowercase field.Name) "embeddedtmpl")}}
+        <JobDiffTemplate @field={{field}} />
+        {{else}}
+          <span class="diff-section-table-cell diff-section-change">"{{field.Old}}" => "{{field.New}}"</span>
+        {{/if}}
       {{else}}
         <span class="diff-section-table-cell">"{{field.New}}"</span>
       {{/if}}
