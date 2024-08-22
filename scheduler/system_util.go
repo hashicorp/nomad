@@ -95,7 +95,7 @@ func diffSystemAllocsForNode(
 			fmt.Printf("node.Status: %v\n", node.Status)
 		}
 		fmt.Printf("nodeIsTainted: %v\n", nodeIsTainted)
-		fmt.Printf("job spew: %v\n\n\n, spew.Sdump(job))
+		fmt.Printf("job spew: %v\n\n\n", spew.Sdump(job))
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
