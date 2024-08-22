@@ -88,7 +88,9 @@ func diffSystemAllocsForNode(
 		fmt.Printf("alloc.ClientStatus: %v\n", exist.ClientStatus)
 		fmt.Printf("alloc.DesiredStatus: %v\n", exist.DesiredStatus)
 		fmt.Printf("reconnect: %v\n", reconnect)
-		fmt.Printf("node.Status: %v\n", node.Status)
+		if node != nil {
+			fmt.Printf("node.Status: %v\n", node.Status)
+		}
 		fmt.Printf("nodeIsTainted: %v\n", nodeIsTainted)
 
 		// Only compute reconnect for unknown and running since they need to go
