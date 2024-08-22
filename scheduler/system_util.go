@@ -82,6 +82,7 @@ func diffSystemAllocsForNode(
 
 		node, nodeIsTainted := taintedNodes[exist.NodeID]
 
+		fmt.Printf("alloc.ID: %v\n", exist.ID)
 		fmt.Printf("supportsDisconnectedClients: %v\n", supportsDisconnectedClients)
 		fmt.Printf("alloc.ServerTerminalStatus(): %v\n", exist.ServerTerminalStatus())
 		fmt.Printf("alloc.TerminalStatus(): %v\n", exist.TerminalStatus())
