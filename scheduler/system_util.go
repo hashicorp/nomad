@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -82,17 +83,18 @@ func diffSystemAllocsForNode(
 
 		node, nodeIsTainted := taintedNodes[exist.NodeID]
 
-		fmt.Printf("alloc.ID: %v\n", exist.ID)
+		fmt.Printf("\n\n\nalloc.ID: %v\n", exist.ID)
 		fmt.Printf("supportsDisconnectedClients: %v\n", supportsDisconnectedClients)
 		fmt.Printf("alloc.ServerTerminalStatus(): %v\n", exist.ServerTerminalStatus())
 		fmt.Printf("alloc.TerminalStatus(): %v\n", exist.TerminalStatus())
 		fmt.Printf("alloc.ClientStatus: %v\n", exist.ClientStatus)
 		fmt.Printf("alloc.DesiredStatus: %v\n", exist.DesiredStatus)
+		fmt.Printf("alloc.DesiredTransition: %v\n", spew.Sdump(exist.DesiredTransition))
 		fmt.Printf("reconnect: %v\n", reconnect)
 		if node != nil {
 			fmt.Printf("node.Status: %v\n", node.Status)
 		}
-		fmt.Printf("nodeIsTainted: %v\n", nodeIsTainted)
+		fmt.Printf("nodeIsTainted: %v\n\n\n", nodeIsTainted)
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
