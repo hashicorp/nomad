@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -79,6 +80,12 @@ func diffSystemAllocsForNode(
 
 		reconnect := false
 		expired := false
+
+		fmt.Printf("supportsDisconnectedClients: %v\n", supportsDisconnectedClients)
+		fmt.Printf("alloc.ServerTerminalStatus(): %v\n", exist.ServerTerminalStatus())
+		fmt.Printf("alloc.TerminalStatus(): %v\n", exist.TerminalStatus())
+		fmt.Printf("reconnect: %v\n", reconnect)
+		fmt.Printf("alloc full spew: %v\n", spew.Sdump(exist))
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
