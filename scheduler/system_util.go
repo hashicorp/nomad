@@ -133,18 +133,16 @@ func diffSystemAllocsForNode(
 			continue
 		}
 
-		if exist.TerminalStatus() && !reconnect {
-			// Server-terminal allocs, if supportsDisconnectedClient and not reconnect,
-			// are probably stopped replacements and should be ignored
-			if supportsDisconnectedClients && exist.ServerTerminalStatus() {
-				fmt.Printf("\n\n\nheeeey there is a terminal status allocation and no reconnect set, this should be ignored I think?\n\n\n")
-				result.ignore = append(result.ignore, allocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     exist,
-				})
-				continue
-			}
+		// Server-terminal allocs, if supportsDisconnectedClient and not reconnect,
+		// are probably stopped replacements and should be ignored
+		if supportsDisconnectedClients && exist.ServerTerminalStatus() {
+			fmt.Printf("\n\n\nheeeey there is a terminal status allocation and no reconnect set, this should be ignored I think?\n\n\n")
+			result.ignore = append(result.ignore, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
+			continue
 		}
 
 		node, nodeIsTainted := taintedNodes[exist.NodeID]
