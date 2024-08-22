@@ -94,7 +94,8 @@ func diffSystemAllocsForNode(
 		if node != nil {
 			fmt.Printf("node.Status: %v\n", node.Status)
 		}
-		fmt.Printf("nodeIsTainted: %v\n\n\n", nodeIsTainted)
+		fmt.Printf("nodeIsTainted: %v\n", nodeIsTainted)
+		fmt.Printf("job spew: %v\n\n\n, spew.Sdump(job))
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
@@ -118,13 +119,15 @@ func diffSystemAllocsForNode(
 		}
 
 		// If we are a sysbatch job and terminal, ignore (or stop?) the alloc
-		if job.Type == structs.JobTypeSysBatch && exist.TerminalStatus() {
-			result.ignore = append(result.ignore, allocTuple{
-				Name:      name,
-				TaskGroup: tg,
-				Alloc:     exist,
-			})
-			continue
+		if job.Type == structs.JobTypeSysBatch {
+			if exist.TerminalStatus() {
+				result.ignore = append(result.ignore, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     exist,
+				})
+				continue
+			}
 		}
 
 		// Expired unknown allocs are lost. Expired checks that status is unknown.
