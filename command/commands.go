@@ -716,6 +716,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator gossip": func() (cli.Command, error) {
+			return &OperatorGossipCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator gossip keyring": func() (cli.Command, error) {
 			return &OperatorGossipKeyringCommand{
 				Meta: meta,
@@ -801,6 +806,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator scheduler set-config": func() (cli.Command, error) {
 			return &OperatorSchedulerSetConfig{
+				Meta: meta,
+			}, nil
+		},
+		"operator root": func() (cli.Command, error) {
+			return &OperatorRootCommand{
 				Meta: meta,
 			}, nil
 		},

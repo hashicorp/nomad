@@ -1,0 +1,30 @@
+package command
+
+import (
+	"strings"
+
+	"github.com/mitchellh/cli"
+)
+
+type OperatorGossipCommand struct {
+	Meta
+}
+
+func (*OperatorGossipCommand) Help() string {
+	helpText := `
+	Usage: nomad operator gossip [options]
+	
+	This command is accessed by using one of the subcommands below.
+	`
+	return strings.TrimSpace(helpText)
+}
+
+func (*OperatorGossipCommand) Synopsis() string {
+	return "Provides access to the Gossip protocol"
+}
+
+func (f *OperatorGossipCommand) Name() string { return "operator gossip" }
+
+func (f *OperatorGossipCommand) Run(args []string) int {
+	return cli.RunResultHelp
+}
