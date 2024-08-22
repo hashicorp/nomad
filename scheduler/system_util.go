@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -81,11 +80,16 @@ func diffSystemAllocsForNode(
 		reconnect := false
 		expired := false
 
+		node, nodeIsTainted := taintedNodes[exist.NodeID]
+
 		fmt.Printf("supportsDisconnectedClients: %v\n", supportsDisconnectedClients)
 		fmt.Printf("alloc.ServerTerminalStatus(): %v\n", exist.ServerTerminalStatus())
 		fmt.Printf("alloc.TerminalStatus(): %v\n", exist.TerminalStatus())
+		fmt.Printf("alloc.ClientStatus: %v\n", exist.ClientStatus)
+		fmt.Printf("alloc.DesiredStatus: %v\n", exist.DesiredStatus)
 		fmt.Printf("reconnect: %v\n", reconnect)
-		fmt.Printf("alloc full spew: %v\n", spew.Sdump(exist))
+		fmt.Printf("node.Status: %v\n", node.Status)
+		fmt.Printf("nodeIsTainted: %v\n", nodeIsTainted)
 
 		// Only compute reconnect for unknown and running since they need to go
 		// through the reconnect process.
@@ -139,20 +143,6 @@ func diffSystemAllocsForNode(
 			})
 			continue
 		}
-
-		// Server-terminal allocs, if supportsDisconnectedClient and not reconnect,
-		// are probably stopped replacements and should be ignored
-		if supportsDisconnectedClients && exist.ServerTerminalStatus() {
-			fmt.Printf("\n\n\nheeeey there is a terminal status allocation and no reconnect set, this should be ignored I think?\n\n\n")
-			result.ignore = append(result.ignore, allocTuple{
-				Name:      name,
-				TaskGroup: tg,
-				Alloc:     exist,
-			})
-			continue
-		}
-
-		node, nodeIsTainted := taintedNodes[exist.NodeID]
 
 		// Filter allocs on a node that is now re-connected to reconnecting.
 		if supportsDisconnectedClients &&
