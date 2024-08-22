@@ -12872,7 +12872,6 @@ func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
 	alloc.Resources = nil
 
 	existing := p.NodeAllocation[alloc.NodeID]
-	fmt.Printf("appending %v to unknown allocations\n\n", alloc.ID)
 	p.NodeAllocation[alloc.NodeID] = append(existing, alloc)
 }
 
