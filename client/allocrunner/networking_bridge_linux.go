@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/coreos/go-iptables/iptables"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/cni"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,10 +25,6 @@ const (
 	// defaultNomadAllocSubnet is the subnet to use for host local ip address
 	// allocation when not specified by the client
 	defaultNomadAllocSubnet = "172.26.64.0/20" // end 172.26.79.255
-
-	// cniAdminChainName is the name of the admin iptables chain used to allow
-	// forwarding traffic to allocations
-	cniAdminChainName = "NOMAD-ADMIN"
 )
 
 // bridgeNetworkConfigurator is a NetworkConfigurator which adds the alloc to a
@@ -41,6 +36,8 @@ type bridgeNetworkConfigurator struct {
 	bridgeName  string
 	hairpinMode bool
 
+	newIPTables func(structs.NodeNetworkAF) (IPTablesChain, error)
+
 	logger hclog.Logger
 }
 
@@ -49,6 +46,7 @@ func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, b
 		bridgeName:  bridgeName,
 		allocSubnet: ipRange,
 		hairpinMode: hairpinMode,
+		newIPTables: newIPTablesChain,
 		logger:      log,
 	}
 
@@ -97,58 +95,16 @@ func newBridgeNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, b
 // ensureForwardingRules ensures that a forwarding rule is added to iptables
 // to allow traffic inbound to the bridge network
 func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
-	ipt, err := iptables.New()
+	ipt, err := b.newIPTables(structs.NodeNetworkAF_IPv4)
 	if err != nil {
 		return err
 	}
 
-	if err = ensureChain(ipt, "filter", cniAdminChainName); err != nil {
-		return err
-	}
-
-	if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule()); err != nil {
+	if err = ensureChainRule(ipt, b.bridgeName, b.allocSubnet); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-// ensureChain ensures that the given chain exists, creating it if missing
-func ensureChain(ipt *iptables.IPTables, table, chain string) error {
-	chains, err := ipt.ListChains(table)
-	if err != nil {
-		return fmt.Errorf("failed to list iptables chains: %v", err)
-	}
-	for _, ch := range chains {
-		if ch == chain {
-			return nil
-		}
-	}
-
-	err = ipt.NewChain(table, chain)
-
-	// if err is for chain already existing return as it is possible another
-	// goroutine created it first
-	if e, ok := err.(*iptables.Error); ok && e.ExitStatus() == 1 {
-		return nil
-	}
-
-	return err
-}
-
-// appendChainRule adds the given rule to the chain
-func appendChainRule(ipt *iptables.IPTables, chain string, rule []string) error {
-	exists, err := ipt.Exists("filter", chain, rule...)
-	if !exists && err == nil {
-		err = ipt.Append("filter", chain, rule...)
-	}
-	return err
-}
-
-// generateAdminChainRule builds the iptables rule that is inserted into the
-// CNI admin chain to ensure traffic forwarding to the bridge network
-func (b *bridgeNetworkConfigurator) generateAdminChainRule() []string {
-	return []string{"-o", b.bridgeName, "-d", b.allocSubnet, "-j", "ACCEPT"}
 }
 
 // Setup calls the CNI plugins with the add action

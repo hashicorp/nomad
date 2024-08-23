@@ -25,7 +25,6 @@ import (
 
 	cni "github.com/containerd/go-cni"
 	cnilibrary "github.com/containernetworking/cni/libcni"
-	"github.com/coreos/go-iptables/iptables"
 	consulIPTables "github.com/hashicorp/consul/sdk/iptables"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v2"
@@ -59,6 +58,7 @@ type cniNetworkConfigurator struct {
 	rand                    *rand.Rand
 	logger                  log.Logger
 	nsOpts                  *nsOpts
+	newIPTables             func(structs.NodeNetworkAF) (IPTablesCleanup, error)
 }
 
 func newCNINetworkConfigurator(logger log.Logger, cniPath, cniInterfacePrefix, cniConfDir, networkName string, ignorePortMappingHostIP bool, node *structs.Node) (*cniNetworkConfigurator, error) {
@@ -79,6 +79,7 @@ func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfaceP
 		nodeAttrs:               node.Attributes,
 		nodeMeta:                node.Meta,
 		nsOpts:                  &nsOpts{},
+		newIPTables:             newIPTablesCleanup,
 	}
 	if cniPath == "" {
 		if cniPath = os.Getenv(envCNIPath); cniPath == "" {
@@ -513,7 +514,7 @@ func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Al
 
 	if err := c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(portMap.ports)); err != nil {
 		// create a real handle to iptables
-		ipt, iptErr := iptables.New()
+		ipt, iptErr := c.newIPTables(structs.NodeNetworkAF_IPv4)
 		if iptErr != nil {
 			return fmt.Errorf("failed to detect iptables: %w", iptErr)
 		}
@@ -522,13 +523,6 @@ func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Al
 	}
 
 	return nil
-}
-
-// IPTables is a subset of iptables.IPTables
-type IPTables interface {
-	List(table, chain string) ([]string, error)
-	Delete(table, chain string, rule ...string) error
-	ClearAndDeleteChain(table, chain string) error
 }
 
 var (
@@ -541,7 +535,7 @@ var (
 // an allocation that was using bridge networking. The cni library refuses to handle a
 // dirty state - e.g. the pause container is removed out of band, and so we must cleanup
 // iptables ourselves to avoid leaking rules.
-func (c *cniNetworkConfigurator) forceCleanup(ipt IPTables, allocID string) error {
+func (c *cniNetworkConfigurator) forceCleanup(ipt IPTablesCleanup, allocID string) error {
 	const (
 		natTable         = "nat"
 		postRoutingChain = "POSTROUTING"
