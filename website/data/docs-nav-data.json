@@ -130,10 +130,6 @@
         "path": "concepts/architecture"
       },
       {
-        "title": "Jobs",
-        "path": "concepts/jobs"
-      },
-      {
         "title": "CPU",
         "path": "concepts/cpu"
       },
@@ -206,6 +202,10 @@
       {
         "title": "Security Model",
         "path": "concepts/security"
+      },
+      {
+        "title": "Job",
+        "path": "concepts/job"
       },
       {
         "title": "Workload Identity",
