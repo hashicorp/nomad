@@ -2391,3 +2391,32 @@ func (j *Job) GetServiceRegistrations(
 		},
 	})
 }
+
+// TagVersion
+func (j *Job) TagVersion(args *structs.JobTagRequest, reply *structs.JobTagResponse) error {
+	// Log things out first
+	j.logger.Debug("TagVersion at server hit", "args", args)
+
+	_, index, err := j.srv.raftApply(structs.JobVersionTagRequestType, args)
+	if err != nil {
+		j.logger.Error("tagging version failed", "error", err)
+		return err
+	}
+
+	reply.Index = index
+	return nil
+}
+
+func (j *Job) UntagVersion(args *structs.JobTagRequest, reply *structs.JobTagResponse) error {
+	// Log things out first
+	j.logger.Debug("UntagVersion at server hit", "args", args)
+
+	_, index, err := j.srv.raftApply(structs.JobVersionTagRequestType, args)
+	if err != nil {
+		j.logger.Error("untagging version failed", "error", err)
+		return err
+	}
+
+	reply.Index = index
+	return nil
+}

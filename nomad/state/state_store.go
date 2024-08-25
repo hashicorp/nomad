@@ -1832,6 +1832,7 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 		return fmt.Errorf("unable to create job summary: %v", err)
 	}
 
+	// V---- TODO: This should be inserting an index entry for the job_versions table
 	if err := s.upsertJobVersion(index, job, txn); err != nil {
 		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
@@ -4900,6 +4901,58 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 
 	copy := job.Copy()
 	copy.Stable = stable
+	return s.upsertJobImpl(index, nil, copy, true, txn)
+}
+
+func (s *StateStore) UpdateJobVersionTag(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobTaggedVersion) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	if err := s.updateJobVersionTagImpl(index, namespace, jobID, jobVersion, tag, txn); err != nil {
+		return err
+	}
+
+	// TODO: I generally want updateJobVersionTagImpl to do the same kind of stuff that updateStabilityImpl does, but when it calls upsertJobImpl, I want to make sure keepversion is TRUE
+
+	return txn.Commit()
+}
+
+func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobTaggedVersion, txn *txn) error {
+	ws := memdb.NewWatchSet()
+
+	// Note: could use JobByIDAndVersion to get the specific version I want here,
+	// but then I'd have to make a second lookup to make sure I'm not applying a duplicate tag name
+
+	versions, err := s.JobVersionsByID(ws, namespace, jobID)
+	if err != nil {
+		return err
+	}
+
+	duplicateVersionName := false
+	var job *structs.Job
+
+	for _, version := range versions {
+		// Allow for a tag to be updated (new description, for example) but otherwise don't allow a same-tagname to a different version.
+		if tag != nil && version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name && version.Version != jobVersion {
+			duplicateVersionName = true
+			break
+		}
+		if version.Version == jobVersion {
+			job = version
+		}
+	}
+
+	if duplicateVersionName {
+		return fmt.Errorf("Tag %q already exists on a different version of job %q", tag.Name, jobID)
+	}
+
+	if job == nil {
+		return fmt.Errorf("Job %q version %d not found", jobID, jobVersion)
+		// TODO: set up a structs.NewErrUnknownVersion struct in errors.go and use that instead
+	}
+
+	copy := job.Copy()
+	copy.TaggedVersion = tag
 	return s.upsertJobImpl(index, nil, copy, true, txn)
 }
 
