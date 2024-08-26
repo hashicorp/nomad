@@ -988,6 +988,24 @@ func (j *JobUILink) Copy() *JobUILink {
 	}
 }
 
+type JobTaggedVersion struct {
+	Name        string
+	Description string
+	TaggedTime  int64
+}
+
+func (j *JobTaggedVersion) Copy() *JobTaggedVersion {
+	if j == nil {
+		return nil
+	}
+
+	return &JobTaggedVersion{
+		Name:        j.Name,
+		Description: j.Description,
+		TaggedTime:  j.TaggedTime,
+	}
+}
+
 func (js *JobSubmission) Canonicalize() {
 	if js == nil {
 		return
@@ -1066,6 +1084,7 @@ type Job struct {
 	CreateIndex              *uint64
 	ModifyIndex              *uint64
 	JobModifyIndex           *uint64
+	TaggedVersion            *JobTaggedVersion
 }
 
 // IsPeriodic returns whether a job is periodic.
