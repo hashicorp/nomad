@@ -7,28 +7,36 @@ description: |
 
 # Command: operator snapshot save
 
-Retrieves an atomic, point-in-time snapshot of the state of the Nomad servers
-which includes jobs, nodes, allocations, periodic jobs, and ACLs for [outage
-recovery].
+The `operator snapshot save` command retrieves an atomic, point-in-time
+snapshot of the state of the Nomad servers, which includes jobs, nodes,
+allocations, periodic jobs, and ACLs for [outage recovery].
 
-If ACLs are enabled, a management token must be supplied in order to perform
+If you enabled ACLs, you must supply a management token in order to perform
 snapshot operations.
 
 <Warning>
 
-This command only saves a Raft snapshot. If you use this snapshot to recover a
-cluster, you will also need to [restore the keyring][] onto at least one server.
+This command only saves a Raft snapshot. This snapshot does not include
+keyrings. You must back up keyrings separately.
+
+If you use this snapshot to recover a cluster, you also need to restore the
+keyring onto at least one server. Refer to the Key Management's [Restoring the
+Keyring from Backup][restore the keyring] section for instructions.
 
 </Warning>
 
-To create a snapshot from the leader server and save it to "backup.snap":
+Run the `nomad operator snapshot save` command to create a snapshot from the
+leader server.
+
+This example saves the backup to `backup.snap`.
 
 ```shell-session
 $ nomad operator snapshot save backup.snap
 ```
 
-To create a potentially stale snapshot from any available server (useful if no
-leader is available):
+This example creates a potentially stale snapshot from any available server
+and saves it to `backup.snap`. The `-stale` option is useful if no
+leader is available.
 
 ```shell-session
 $ nomad operator snapshot save -stale backup.snap
@@ -46,10 +54,10 @@ nomad operator snapshot save [options] <file>
 
 ## Snapshot Save Options
 
-- `-stale`: The stale argument defaults to "false" which means the leader
-  provides the result. If the cluster is in an outage state without a leader, you
-  may need to set `-stale` to "true" to get the configuration from a non-leader
-  server.
+- `-stale`: The stale argument defaults to `false`, which means the leader
+  provides the result. If the cluster is in an outage state without a leader,
+  you may need to set `-stale` to `true` to get the configuration from a
+  non-leader server.
 
 [outage recovery]: /nomad/tutorials/manage-clusters/outage-recovery
 [restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backup

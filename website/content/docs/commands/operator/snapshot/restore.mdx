@@ -7,21 +7,29 @@ description: |
 
 # Command: operator snapshot restore
 
-Restores an atomic, point-in-time snapshot of the state of the Nomad servers
-which includes jobs, nodes, allocations, periodic jobs, and ACLs.
+The `operator snapshot restore` command restores an atomic, point-in-time
+snapshot of the state of the Nomad servers, which includes jobs, nodes,
+allocations, periodic jobs, and ACLs.
 
-Restores involve a potentially dangerous low-level Raft operation that is not
-designed to handle server failures during a restore. This command is primarily
-intended to be used when recovering from a disaster, restoring into a fresh
-cluster of Nomad servers.
+Restoration involves a potentially dangerous low-level Raft operation that is
+not designed to handle server failures during a restore. This command is
+primarily intended for recovering from a disaster, restoring into a
+fresh cluster of Nomad servers.
 
-This command only restores the Raft snapshot. If you are recovering a cluster,
-you will also need to [restore the keyring][] onto at least one server.
+<Warning>
 
-If ACLs are enabled, a management token must be supplied in order to perform
+This command only restores the Raft snapshot, which does not include keyrings.
+
+If you are recovering a cluster, you also need to restore the keyring onto at
+least one server.  Refer to the Key Management's [Restoring the
+Keyring from Backup][restore the keyring] section for instructions.
+
+</Warning>
+
+If you enabled ACLs, you must supply a management token in order to perform
 snapshot operations.
 
-To restore a snapshot from the file "backup.snap":
+This example srestore a snapshot from the file `backup.snap`.
 
 ```shell-session
 $ nomad operator snapshot restore backup.snap
