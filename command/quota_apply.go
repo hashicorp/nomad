@@ -270,7 +270,7 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 		"cpu",
 		"memory",
 		"memory_max",
-		"device",
+		"devices",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")
@@ -282,7 +282,7 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 	}
 
 	// Manually parse
-	delete(m, "device")
+	delete(m, "devices")
 
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
