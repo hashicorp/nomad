@@ -118,16 +118,7 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 		jobID := strings.TrimSuffix(path, "/action")
 		return s.jobRunAction(resp, req, jobID)
 	case strings.HasSuffix(path, "/tag"):
-		// jobID := strings.TrimSuffix(path, "/tag")
-		// TrimSuffix isn't right, the route is actually /job/:job_id/versions/:version/tag
-		// So we need to split the path and get the jobID from the path
-		// Log that this method has been hit
 		jobID := strings.Split(path, "/")[0]
-		s.logger.Debug("=====================================")
-		s.logger.Debug("path to /tag hit, path: ", path)
-		s.logger.Debug("method: ", req.Method)
-		s.logger.Debug("jobID: ", jobID)
-
 		return s.jobTagVersion(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
@@ -412,29 +403,7 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	return s.execStream(conn, &args)
 }
 
-// jobTagVersion
 func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	// Debug log that this method has been hit
-
-	s.logger.Debug("+++++++++++++++++++++++++++++++++++++++++++++++")
-	s.logger.Debug("jobTagVersion method hit")
-	s.logger.Debug("req.Method: ", req.Method)
-	s.logger.Debug("jobID: ", jobID)
-	// s.logger.Debug("args: ", args)
-	s.logger.Debug("+++++++++++++++++++++++++++++++++++++++++++++++")
-
-	// if err := decodeBody(req, &args); err != nil {
-	// 	return nil, CodedError(400, err.Error())
-	// }
-	// if args.JobID == "" {
-	// 	return nil, CodedError(400, "Job must be specified")
-	// }
-	// TODO: check for Version and Name too
-
-	// var args api.JobTagRequest
-	// if err := decodeBody(req, &args); err != nil {
-	// 	return nil, CodedError(400, err.Error())
-	// }
 
 	switch req.Method {
 	case http.MethodPut, http.MethodPost:
@@ -444,42 +413,23 @@ func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, 
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-
 }
 
 func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	var args api.TagVersionRequest
-	// Decode req body
+
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
 
-	s.logger.Debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-	s.logger.Debug("jobVersionApplyTag method hit")
-	s.logger.Debug("jobID: ", jobID)
-	s.logger.Debug("req: ", req)
-	s.logger.Debug("args: ", args)
-	s.logger.Debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-
-	// var args structs.JobTagRequest
-	// var args convertToStructsStruct(api.JobTagRequest) //TODO:
-	// var args api.TagVersionRequest
-	// rpcArgs := ApiJobTaggedVersionToStructs(args)
-	rpcArgs := APIJobTagRequestToStructs(&args)
+	rpcArgs, err := APIJobTagRequestToStructs(&args)
+	if err != nil {
+		return nil, err
+	}
 
 	// parseWriteRequest overrides Namespace, Region and AuthToken
 	// based on values from the original http request
 	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
-
-	s.logger.Debug("OK Ive now parsed write requests, what can we know?", rpcArgs.WriteRequest.Region)
-
-	// if err := decodeBody(req, &args); err != nil {
-	// 	return nil, CodedError(400, err.Error())
-	// }
-
-	// if args.Name == "" {
-	// 	return nil, CodedError(400, "Name must be specified")
-	// }
 
 	var out structs.JobTagResponse
 	if err := s.agent.RPC("Job.TagVersion", &rpcArgs, &out); err != nil {
@@ -490,19 +440,15 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 
 func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	var args api.TagVersionRequest
-	// Decode req body
+
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
 
-	s.logger.Debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-	s.logger.Debug("jobVersionUnsetTag method hit")
-	s.logger.Debug("jobID: ", jobID)
-	s.logger.Debug("req: ", req)
-	// s.logger.Debug("args: ", args)
-	s.logger.Debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-
-	rpcArgs := APIJobTagRequestToStructs(&args)
+	rpcArgs, err := APIJobTagRequestToStructs(&args)
+	if err != nil {
+		return nil, err
+	}
 
 	// parseWriteRequest overrides Namespace, Region and AuthToken
 	// based on values from the original http request
@@ -2266,23 +2212,19 @@ func ApiJobTaggedVersionToStructs(jobTaggedVersion *api.JobTaggedVersion) *struc
 	}
 }
 
-func APIJobTagRequestToStructs(jobTagRequest *api.TagVersionRequest) *structs.JobTagRequest {
+func APIJobTagRequestToStructs(jobTagRequest *api.TagVersionRequest) (*structs.JobTagRequest, error) {
 	if jobTagRequest == nil {
-		return nil
+		return nil, nil
 	}
 	versionNumber, err := strconv.ParseUint(jobTagRequest.Version, 10, 64)
 	if err != nil {
-		// handle the error
+		return nil, err
 	}
 	return &structs.JobTagRequest{
 		JobID:   jobTagRequest.JobID,
 		Version: versionNumber,
 		Tag:     ApiJobTaggedVersionToStructs(jobTagRequest.Tag),
-		// WriteRequest: structs.WriteRequest{
-		// 	Region:    jobTagRequest.Region,
-		// 	Namespace: jobTagRequest.Namespace,
-		// },
-	}
+	}, nil
 }
 
 func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {

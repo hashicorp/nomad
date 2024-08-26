@@ -4585,12 +4585,7 @@ type JobTaggedVersion struct {
 	TaggedTime  int64
 }
 
-// TODO: Probably don't need these json: marshalers.
 type JobTagRequest struct {
-	// JobID       string // TODO: JobID and Version dont really belong here I think. They should be URL params.
-	// Version     string
-	// Name        string
-	// Description string
 	JobID   string
 	Version uint64
 	Tag     *JobTaggedVersion

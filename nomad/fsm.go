@@ -397,7 +397,6 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 
 	case structs.JobVersionTagRequestType:
 		return n.applyJobVersionTag(buf[1:], log.Index)
-		// return n.applyUpsertJob(msgType, buf[1:], log.Index) // TODO: Does this make sense for version tagging, or should I make a new fsm method?
 	}
 
 	// Check enterprise only message types.
@@ -1191,8 +1190,7 @@ func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-// Version Tag shenanigans
-// TODO: consider a "Put job in state, no side-effects" method instead of this
+// applyJobVersionTag is used to tag a job version for diffing and GC-prevention
 func (n *nomadFSM) applyJobVersionTag(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_job_version_tag"}, time.Now())
 	var req structs.JobTagRequest

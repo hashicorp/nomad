@@ -1298,8 +1298,15 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 			// Setup the output
 			reply.Versions = out
 			if len(out) != 0 {
-				reply.Index = out[0].ModifyIndex
-
+				// Note: a previous assumption here was that the 0th job was the latest, and that we don't modify "old" versions.
+				// Adding version tags breaks this assumption (you can tag an old version, which should unblock /versions queries) so we now look for the highest ModifyIndex.
+				var maxModifyIndex uint64
+				for _, job := range out {
+					if job.ModifyIndex > maxModifyIndex {
+						maxModifyIndex = job.ModifyIndex
+					}
+				}
+				reply.Index = maxModifyIndex
 				// Compute the diffs
 				if args.Diffs {
 					for i := 0; i < len(out)-1; i++ {
@@ -2392,10 +2399,9 @@ func (j *Job) GetServiceRegistrations(
 	})
 }
 
-// TagVersion
 func (j *Job) TagVersion(args *structs.JobTagRequest, reply *structs.JobTagResponse) error {
-	// Log things out first
-	j.logger.Debug("TagVersion at server hit", "args", args)
+
+	args.Tag.TaggedTime = time.Now().UnixNano()
 
 	_, index, err := j.srv.raftApply(structs.JobVersionTagRequestType, args)
 	if err != nil {
@@ -2408,9 +2414,6 @@ func (j *Job) TagVersion(args *structs.JobTagRequest, reply *structs.JobTagRespo
 }
 
 func (j *Job) UntagVersion(args *structs.JobTagRequest, reply *structs.JobTagResponse) error {
-	// Log things out first
-	j.logger.Debug("UntagVersion at server hit", "args", args)
-
 	_, index, err := j.srv.raftApply(structs.JobVersionTagRequestType, args)
 	if err != nil {
 		j.logger.Error("untagging version failed", "error", err)
