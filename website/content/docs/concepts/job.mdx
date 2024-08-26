@@ -34,11 +34,9 @@ Nomad uses one of three values to describe a job's status.
 - `dead`
 - `running`
 
-The CLI and API return these
-rigid statuses that are useful for scheduling and garbage collection.
-However, the Nomad UI displays additional human-readable statuses
-to help you manage jobs.
-
+The CLI and API return these rigid statuses, which are useful for scheduling and
+garbage collection. However, the Nomad UI displays additional human-readable
+statuses to help you manage jobs.
 
 The following table maps the CLI and API statuses to the statuses that appear in the Nomad UI.
 
@@ -48,58 +46,62 @@ The following table maps the CLI and API statuses to the statuses that appear in
 | `dead`             | `Failed`, `Scaled Down`, `Stopped` |
 | `running`          | `Degraded`, `Deploying`, `Healthy`, `Recovering`, `Running`, `Scaled Down` |
 
-### Complete
+### UI statuses
+
+These job statuses only appear in the Nomad UI.
+
+#### Complete
 
 The `Complete` status indicated that all expected allocations are complete. This
-status applies to only batch and sysbatch jobs.
+status applies to batch and sysbatch jobs only.
 
-### Degraded
+#### Degraded
 
 The `Degraded` status indicates that a [deployment] is not taking place. Some allocations are failed, lost, or unplaced.
 
-### Deploying
+#### Deploying
 
 The `Deploying` status indicates that a deployment is actively taking place.
 
-### Failed
+#### Failed
 
 The `Failed` status indicates that all allocations are failed, lost, or unplaced.
 
-### Healthy
+#### Healthy
 
 The `Healthy` status indicates that all expected allocations are running and healthy.
 
-### Recovering
+#### Recovering
 
 The `Recovering` status indicates that some allocations are pending.
 
-### Removed
+#### Removed
 
-The `Removed` status indicates that the job appeared in the initial query but
-has since been garbage collected. This happens when the user remains on the page
-for a long time.
+The `Removed` status indicates that the job appeared in the initial query, but
+the garbage collector has since removed the job. This happens when the user
+remains on the page for a long time.
 
-### Running
+#### Running
 
 The `Running` status indicates that all expected allocations are running. This
-status applies to only batch and sysbatch jobs.
+status applies to batch and sysbatch jobs only.
 
-### Scaled Down
+#### Scaled Down
 
 The `Scaled Down` status indicates that a user has scaled all allocations to
-zero. Nomad has not yet purged or garbage collected the job.
+zero. Nomad's garbage collector has not yet removed or purged the job.
 
-### Stopped
+#### Stopped
 
 The `Stopped` status indicates that a user has manually stopped the job.
-Nomad has not yet purged or garbage collected the job.
+Nomad's garbage collector has not yet removed or purged the job.
 
-## Job resources
+## Related resources
 
 Refer to the following Nomad documentation pages for more information about
 jobs:
 
-- The [job specification](/nomad/docs/job-specification) contains detailed
+- The [job specification][job-spec] contains detailed
   configuration and examples.
 - The [Schedulers] page explains the different types of Nomad schedulers and how
   those schedulers run jobs.
@@ -116,6 +118,7 @@ configure them:
 [allocations]: /nomad/docs/glossary#allocation
 [deployment]: /nomad/docs/glossary/#deployment
 [deploy-jobs]: /nomad/tutorials/manage-jobs/
+[job-spec]: /nomad/docs/job-specification
 [job-spec-tutorial]: /nomad/tutorials/job-specifications
 [quickstart]: /nomad/tutorials/get-started/gs-deploy-job
 [Schedulers]: /nomad/docs/schedulers
