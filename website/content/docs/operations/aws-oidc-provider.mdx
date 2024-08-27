@@ -1,19 +1,19 @@
 ---
 layout: docs
-page_title: Authenticate Nomad jobs with AWS IAM Identity Provider
+page_title: Authenticate Nomad jobs with AWS IAM identity as an OIDC provider
 description: |-
   Integrate Nomad as an OpenID Connect (OIDC) provider with AWS IAM Identity.
 ---
 
-# Authenticate Nomad jobs with AWS IAM Identity Provider
+# Authenticate Nomad jobs with AWS IAM identity as an OIDC provider
 
-This page describes how to integrate Nomad with AWS IAM Identity Provider as an OpenID Connect
-(OIDC). You can configure Nomad jobs to present a JWT token that the Nomad server authenticates 
-with AWS IAM before it executes a task.
+This page describes how to integrate Nomad with AWS IAM as an OpenID Connect (OIDC) provider.
+You can configure Nomad jobs to present a JSON Web Token (JWT) that the Nomad server authenticates 
+and passes to AWS IAM so that the job can access AWS services.
 
 ## Prerequisites
 
-To integrate Nomad and the AWS IAM Identity Provider, you need a running Nomad cluster that
+To integrate Nomad and AWS IAM identity, you need a running Nomad cluster that
 meets the following prerequisites:
 
 - Nomad v1.7.x or later
@@ -28,22 +28,22 @@ The instructions on this page also assume the following:
 
 ## Workflow
 
-The process to integrate Nomad with the AWS IAM provider consists of the following steps:
+The process to integrate Nomad with AWS IAM identity consists of the following steps:
 
 1. Create the required AWS resources:
-  - [Route 53 hosted zone](#create-a-hosted-zone)
-  - [AWS Certificate Manager SSL certificates](#generate-ssl-certificates)
-  - [Load balancer and listener](#create-an-application-load-balancer)
-  - [DNS Alias for the load balancer](#create-a-dns-alias)
-  - [OIDC Identity Provider](#create-an-oidc-identity-provider)
-  - [AWS IAM role](#create-an-iam-policy-for-oidc-federated-users)
+    - [Route 53 hosted zone](#create-a-hosted-zone)
+    - [AWS Certificate Manager SSL certificates](#generate-ssl-certificates)
+    - [Load balancer and listener](#create-an-application-load-balancer)
+    - [DNS Alias for the load balancer](#create-a-dns-alias)
+    - [OIDC Identity Provider](#create-an-oidc-identity-provider)
+    - [AWS IAM role](#create-an-iam-policy-for-oidc-federated-users)
 1. Update the Nomad server configuration.
-1. Create a jobspec file that uses AWS OIDC and then run it to verify your configuration.
+1. Create a jobspec file that accesses AWS and then run it to verify your configuration.
 
 ## Create and configure AWS resources
 
 To use Nomad as an identity provider, you need to have a trusted SSL certificate for the
-domain used by the cluster. You will use AWS Certificate Manager (ACM) in this example.
+domain used by the cluster. The following example uses AWS Certificate Manager (ACM).
 
 ### Create a hosted zone
 
@@ -205,8 +205,8 @@ The domain name of the load balancer certificate. This will be
 ### Create an IAM policy for OIDC Federated Users
 
 Use the [`aws_iam_role` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role)
-to create an appropriate IAM role for federated users. This will be specific to your use-case.
-This example is setting S3 bucket access.
+to create an appropriate IAM role for federated users. This will be specific to your use case.
+The following example sets S3 bucket access.
 
 ```hcl
 data "aws_iam_policy_document" "assume_role" {
