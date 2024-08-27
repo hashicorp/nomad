@@ -3524,25 +3524,29 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	state := s1.fsm.State()
 
 	idx, err := state.LatestIndex()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	node := mock.Node()
 	err = state.UpsertNode(structs.MsgTypeTestSetup, idx, node)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	idx++
 
 	// Inject fake evaluations
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state.UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, idx, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, idx, []*structs.Allocation{alloc}))
+	idx++
+
+	sysBatchAlloc := mock.SysBatchAlloc()
+	sysBatchAlloc.NodeID = node.ID
+	state.UpsertJobSummary(1, mock.JobSummary(sysBatchAlloc.JobID))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, idx, []*structs.Allocation{sysBatchAlloc}))
 	idx++
 
 	// Inject a fake system job.
 	job := mock.SystemJob()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, job))
 	idx++
 
 	// Create some evaluations
@@ -3590,21 +3594,24 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 			expJobID = job.ID
 		}
 
+		// we do not expect a sysbatch eval
+		must.NotEq(t, structs.JobTypeSysBatch, eval.Type)
+
 		t.Logf("checking eval: %v", pretty.Sprint(eval))
-		require.Equal(t, index, eval.CreateIndex)
-		require.Equal(t, structs.EvalTriggerNodeUpdate, eval.TriggeredBy)
-		require.Equal(t, alloc.NodeID, eval.NodeID)
-		require.Equal(t, uint64(1), eval.NodeModifyIndex)
+		must.Eq(t, index, eval.CreateIndex)
+		must.Eq(t, structs.EvalTriggerNodeUpdate, eval.TriggeredBy)
+		must.Eq(t, alloc.NodeID, eval.NodeID)
+		must.Eq(t, uint64(1), eval.NodeModifyIndex)
 		switch eval.Status {
 		case structs.EvalStatusPending, structs.EvalStatusComplete:
 			// success
 		default:
 			t.Fatalf("expected pending or complete, found %v", eval.Status)
 		}
-		require.Equal(t, expPriority, eval.Priority)
-		require.Equal(t, expJobID, eval.JobID)
-		require.NotZero(t, eval.CreateTime)
-		require.NotZero(t, eval.ModifyTime)
+		must.Eq(t, expPriority, eval.Priority)
+		must.Eq(t, expJobID, eval.JobID)
+		must.NonZero(t, eval.CreateTime)
+		must.NonZero(t, eval.ModifyTime)
 	}
 }
 
