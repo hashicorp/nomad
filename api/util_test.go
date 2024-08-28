@@ -120,7 +120,7 @@ func testQuotaSpec() *QuotaSpec {
 					CPU:      pointerOf(2000),
 					MemoryMB: pointerOf(2000),
 					Devices: []*RequestedDevice{{
-						Name:  "gpu/nvidia/1080ti",
+						Name:  "nvidia/gpu/1080ti",
 						Count: pointerOf(uint64(2)),
 					}},
 				},
