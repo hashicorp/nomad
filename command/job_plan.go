@@ -140,6 +140,8 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-vault-token":     complete.PredictAnything,
 			"-vault-namespace": complete.PredictAnything,
 			"-var":             complete.PredictAnything,
+			"-tag":             complete.PredictAnything,
+			"-version":         complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
 		})
 }
@@ -155,11 +157,13 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
-	var vaultToken, vaultNamespace string
+	var vaultToken, vaultNamespace, tag, version string
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.BoolVar(&diff, "diff", true, "")
+	flagSet.StringVar(&tag, "tag", "", "")
+	flagSet.StringVar(&version, "version", "", "")
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
@@ -243,6 +247,10 @@ func (c *JobPlanCommand) Run(args []string) int {
 	if job.IsMultiregion() {
 		return c.multiregionPlan(client, job, opts, diff, verbose)
 	}
+
+	opts.DiffTagName = tag
+	opts.DiffVersion = version
+	// TODO: DiffTagName and DiffVersion are incongruous with one another, throw an error if they're both non-nil.
 
 	// Submit the job
 	resp, _, err := client.Jobs().PlanOpts(job, opts, nil)

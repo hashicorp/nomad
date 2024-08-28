@@ -446,6 +446,8 @@ func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta,
 type PlanOptions struct {
 	Diff           bool
 	PolicyOverride bool
+	DiffVersion    string
+	DiffTagName    string
 }
 
 func (j *Jobs) Plan(job *Job, diff bool, q *WriteOptions) (*JobPlanResponse, *WriteMeta, error) {
@@ -468,6 +470,8 @@ func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanR
 	if opts != nil {
 		req.Diff = opts.Diff
 		req.PolicyOverride = opts.PolicyOverride
+		req.DiffVersion = opts.DiffVersion
+		req.DiffTagName = opts.DiffTagName
 	}
 
 	var resp JobPlanResponse
@@ -1477,6 +1481,8 @@ type JobPlanRequest struct {
 	Job            *Job
 	Diff           bool
 	PolicyOverride bool
+	DiffVersion    string
+	DiffTagName    string
 	WriteRequest
 }
 

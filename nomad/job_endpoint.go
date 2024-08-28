@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1298,6 +1299,10 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 			// Setup the output
 			reply.Versions = out
 			if len(out) != 0 {
+
+				compareVersionNumber := 0
+				var compareVersion *structs.Job
+
 				// Note: a previous assumption here was that the 0th job was the latest, and that we don't modify "old" versions.
 				// Adding version tags breaks this assumption (you can tag an old version, which should unblock /versions queries) so we now look for the highest ModifyIndex.
 				var maxModifyIndex uint64
@@ -1305,12 +1310,21 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 					if job.ModifyIndex > maxModifyIndex {
 						maxModifyIndex = job.ModifyIndex
 					}
+					if job.Version == uint64(compareVersionNumber) {
+						compareVersion = job
+					}
 				}
 				reply.Index = maxModifyIndex
+
 				// Compute the diffs
 				if args.Diffs {
 					for i := 0; i < len(out)-1; i++ {
-						old, new := out[i+1], out[i]
+						// log out the version number and i
+						j.logger.Debug("diffing job versions", "version", out[i].Version, "i", i)
+						// old, new := out[i+1], out[i]
+						// old.Diff(new) always runs a diff against its previous version;
+						// let's have it run against version 0 always
+						old, new := compareVersion, out[i]
 						d, err := old.Diff(new, true)
 						if err != nil {
 							return fmt.Errorf("failed to create job diff: %v", err)
@@ -1821,6 +1835,30 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 
+	j.logger.Debug("===== Plan args for specific diffs", "diffVersion", args.DiffVersion, "diffTagName", args.DiffTagName)
+
+	if args.DiffVersion != "" {
+		// Convert from string to uint64
+		diffVersion, _ := strconv.ParseUint(args.DiffVersion, 10, 64)
+		existingJob, err = snap.JobByIDAndVersion(ws, args.RequestNamespace(), args.Job.ID, diffVersion)
+		if err != nil {
+			return err
+		}
+	}
+
+	if args.DiffTagName != "" {
+		versions, err := snap.JobVersionsByID(ws, args.RequestNamespace(), args.Job.ID)
+		if err != nil {
+			return err
+		}
+		for _, version := range versions {
+			if version.TaggedVersion != nil && version.TaggedVersion.Name == args.DiffTagName {
+				existingJob = version
+				break
+			}
+		}
+	}
+
 	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job, existingJob, nomadACLToken, ns)
 	if err != nil {
 		return err
@@ -1906,6 +1944,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 	annotations := planner.Plans[0].Annotations
 	if args.Diff {
+
 		jobDiff, err := existingJob.Diff(args.Job, true)
 		if err != nil {
 			return fmt.Errorf("failed to create job diff: %v", err)

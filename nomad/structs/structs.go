@@ -845,8 +845,10 @@ type JobStubFields struct {
 // JobPlanRequest is used for the Job.Plan endpoint to trigger a dry-run
 // evaluation of the Job.
 type JobPlanRequest struct {
-	Job  *Job
-	Diff bool // Toggles an annotated diff
+	Job         *Job
+	Diff        bool   // Toggles an annotated diff
+	DiffVersion string // shrug emoji
+	DiffTagName string // shrug emoji
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 	WriteRequest
