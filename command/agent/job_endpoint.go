@@ -456,7 +456,7 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 		versionPointer = &numericVersion
 	}
 
-	rpcArgs := &structs.JobTagRequest{
+	rpcArgs := structs.JobTagRequest{
 		JobID:       jobID,
 		Version:     versionPointer,
 		Name:        name,
@@ -499,7 +499,7 @@ func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Requ
 	// 	return nil, err
 	// }
 
-	rpcArgs := &structs.JobUnsetTagRequest{
+	rpcArgs := structs.JobUnsetTagRequest{
 		JobID: jobID,
 		Name:  name,
 	}
@@ -509,7 +509,7 @@ func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Requ
 	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
 
 	s.logger.Debug("CONFIRMING NAMESPACE", rpcArgs.WriteRequest.Namespace)
-	s.logger.Debug("CONFIRMING QUERYOPTIONS NAMESPACE", rpcArgs.QueryOptions.Namespace)
+	// s.logger.Debug("CONFIRMING QUERYOPTIONS NAMESPACE", rpcArgs.QueryOptions.Namespace)
 	// ^--- TODO: So we have Namespace here! Why is it not being passed to the RPC?
 	var out structs.JobTagResponse
 	if err := s.agent.RPC("Job.UntagVersion", &rpcArgs, &out); err != nil {

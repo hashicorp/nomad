@@ -1200,9 +1200,9 @@ func (n *nomadFSM) applyJobVersionTag(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	n.logger.Debug("### applyJobVersionTag", "WriteRequestNamespace", req.WriteRequest.Namespace, "reqQueryOptionsNamespace", req.QueryOptions.Namespace, "reqJobID", req.JobID, "reqName", req.Name)
+	n.logger.Debug("### applyJobVersionTag", "WriteRequestNamespace", req.WriteRequest.Namespace, "reqJobID", req.JobID, "reqName", req.Name)
 
-	if err := n.state.UpdateJobVersionTag(index, req.QueryOptions.Namespace, req.JobID, *req.Version, req.Name, req.Description); err != nil {
+	if err := n.state.UpdateJobVersionTag(index, req.WriteRequest.Namespace, req.JobID, *req.Version, req.Name, req.Description); err != nil {
 		n.logger.Error("UpdateJobVersionTag failed", "error", err)
 		return err
 	}
@@ -1219,10 +1219,10 @@ func (n *nomadFSM) applyJobVersionTagUnset(buf []byte, index uint64) interface{}
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	n.logger.Debug("### applyJobVersionTagUnset", "WriteRequestNamespace", req.WriteRequest.Namespace, "reqQueryOptionsNamespace", req.QueryOptions.Namespace, "reqJobID", req.JobID, "reqName", req.Name)
+	n.logger.Debug("### applyJobVersionTagUnset", "WriteRequestNamespace", req.WriteRequest.Namespace, "reqJobID", req.JobID, "reqName", req.Name)
 
-	// if err := n.state.UnsetJobVersionTag(index, req.WriteRequest.Namespace, req.JobID, req.Name); err != nil {
-	if err := n.state.UnsetJobVersionTag(index, "default", req.JobID, req.Name); err != nil { // TODO: hardcoded "default". This was the crux of my tuesday night woes. Why does my delete request not have a namespace? Does the buf look different for this request type?
+	if err := n.state.UnsetJobVersionTag(index, req.WriteRequest.Namespace, req.JobID, req.Name); err != nil {
+		// if err := n.state.UnsetJobVersionTag(index, "default", req.JobID, req.Name); err != nil { // TODO: hardcoded "default". This was the crux of my tuesday night woes. Why does my delete request not have a namespace? Does the buf look different for this request type?
 		n.logger.Error("UnsetJobVersionTag failed", "error", err)
 		return err
 	}

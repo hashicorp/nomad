@@ -2416,7 +2416,7 @@ func (j *Job) TagVersion(args *structs.JobTagRequest, reply *structs.JobTagRespo
 func (j *Job) UntagVersion(args *structs.JobUnsetTagRequest, reply *structs.JobTagResponse) error {
 	// log
 	j.logger.Debug("++++++UntagVersion", "argsName", args.Name)
-	j.logger.Debug("++++++UntagVersion Namespace", "argsNamespace", args.WriteRequest.Namespace, "argsQONamespace", args.QueryOptions.Namespace)
+	j.logger.Debug("++++++UntagVersion Namespace", "argsNamespace", args.WriteRequest.Namespace)
 	_, index, err := j.srv.raftApply(structs.JobVersionTagUnsetRequestType, args)
 	if err != nil {
 		j.logger.Error("untagging version failed", "error", err)
