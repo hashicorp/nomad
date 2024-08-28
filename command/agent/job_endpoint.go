@@ -118,8 +118,10 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 		jobID := strings.TrimSuffix(path, "/action")
 		return s.jobRunAction(resp, req, jobID)
 	case strings.HasSuffix(path, "/tag"):
-		jobID := strings.Split(path, "/")[0]
-		return s.jobTagVersion(resp, req, jobID)
+		parts := strings.Split(path, "/")
+		jobID := parts[0]
+		name := parts[2] // job/<jobID>/tag/<name>
+		return s.jobTagVersion(resp, req, jobID, name)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -403,33 +405,69 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	return s.execStream(conn, &args)
 }
 
-func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+	s.logger.Debug("xxxxxxxxxjobTagVersion", "jobID", jobID, "name", name)
+	s.logger.Debug("ReqMethod", req.Method)
 
 	switch req.Method {
 	case http.MethodPut, http.MethodPost:
-		return s.jobVersionApplyTag(resp, req, jobID)
+		return s.jobVersionApplyTag(resp, req, jobID, name)
 	case http.MethodDelete:
-		return s.jobVersionUnsetTag(resp, req, jobID)
+		return s.jobVersionUnsetTag(resp, req, jobID, name)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+// TODO: this is a copy of the function in command/job_history.go; any way to import it here?
+// parseVersion parses the version flag and returns the index, whether it
+// was set and potentially an error during parsing.
+func parseVersion(input string) (uint64, bool, error) {
+	if input == "" {
+		return 0, false, nil
+	}
+
+	u, err := strconv.ParseUint(input, 10, 64)
+	return u, true, err
+}
+
+func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
 	var args api.TagVersionRequest
 
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
 
-	rpcArgs, err := APIJobTagRequestToStructs(&args)
+	// rpcArgs, err := APIJobTagRequestToStructs(&args, jobID, name)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// numericVersion := args.Version
+	// ^-- args.Version can be ""! How do we represent nil as a Uint64?
+	numericVersion, versionIncluded, err := parseVersion(args.Version)
 	if err != nil {
 		return nil, err
+	}
+
+	var versionPointer *uint64
+
+	if versionIncluded {
+		versionPointer = &numericVersion
+	}
+
+	rpcArgs := &structs.JobTagRequest{
+		JobID:       jobID,
+		Version:     versionPointer,
+		Name:        name,
+		Description: args.Description,
 	}
 
 	// parseWriteRequest overrides Namespace, Region and AuthToken
 	// based on values from the original http request
 	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
+
+	s.logger.Debug("CONFIRMING NAMESPACE", rpcArgs.WriteRequest.Namespace)
 
 	var out structs.JobTagResponse
 	if err := s.agent.RPC("Job.TagVersion", &rpcArgs, &out); err != nil {
@@ -438,22 +476,41 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
-func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	var args api.TagVersionRequest
+func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
 
-	if err := decodeBody(req, &args); err != nil {
-		return nil, CodedError(400, err.Error())
-	}
+	s.logger.Debug("jobVersionUnsetTag", "jobID", jobID)
+	s.logger.Debug("jobVersionUnsetTag2", "req", req)
+	// s.logger.Debug("jobVersionUnsetTag3", "vers", version)
 
-	rpcArgs, err := APIJobTagRequestToStructs(&args)
-	if err != nil {
-		return nil, err
+	// var args api.TagVersionRequest
+
+	// if err := decodeBody(req, &args); err != nil {
+	// 	return nil, CodedError(400, err.Error())
+	// }
+
+	// rpcArgs, err := APIJobTagRequestToStructs(&args)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// versionNumber, err := strconv.ParseUint(version, 10, 64)
+	// s.logger.Debug("versionNumber", versionNumber)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	rpcArgs := &structs.JobUnsetTagRequest{
+		JobID: jobID,
+		Name:  name,
 	}
 
 	// parseWriteRequest overrides Namespace, Region and AuthToken
 	// based on values from the original http request
 	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
 
+	s.logger.Debug("CONFIRMING NAMESPACE", rpcArgs.WriteRequest.Namespace)
+	s.logger.Debug("CONFIRMING QUERYOPTIONS NAMESPACE", rpcArgs.QueryOptions.Namespace)
+	// ^--- TODO: So we have Namespace here! Why is it not being passed to the RPC?
 	var out structs.JobTagResponse
 	if err := s.agent.RPC("Job.UntagVersion", &rpcArgs, &out); err != nil {
 		return nil, err
@@ -2212,20 +2269,27 @@ func ApiJobTaggedVersionToStructs(jobTaggedVersion *api.JobTaggedVersion) *struc
 	}
 }
 
-func APIJobTagRequestToStructs(jobTagRequest *api.TagVersionRequest) (*structs.JobTagRequest, error) {
-	if jobTagRequest == nil {
-		return nil, nil
-	}
-	versionNumber, err := strconv.ParseUint(jobTagRequest.Version, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	return &structs.JobTagRequest{
-		JobID:   jobTagRequest.JobID,
-		Version: versionNumber,
-		Tag:     ApiJobTaggedVersionToStructs(jobTagRequest.Tag),
-	}, nil
-}
+// func APIJobTagRequestToStructs(jobTagRequest *api.TagVersionRequest, jobID string, name string) (*structs.JobTagRequest, error) {
+// 	if jobTagRequest == nil {
+// 		return nil, nil
+// 	}
+// 	// versionNumber, err := strconv.ParseUint(jobTagRequest.Version, 10, 64)
+// 	// if err != nil {
+// 	// 	return nil, err
+// 	// }
+// 	return &structs.JobTagRequest{
+// 		JobID:   jobTagRequest.JobID,
+// 		// JobID:   jobID,
+// 		// Version: versionNumber,
+// 		Version:     jobTagRequest.Version,
+// 		Description: jobTagRequest.Description,
+// 		// Tag:     ApiJobTaggedVersionToStructs(jobTagRequest.Tag),
+// 		// Tag: &structs.JobTaggedVersion{
+// 		// 	Name:        name,
+// 		// 	Description: jobTagRequest.Description,
+// 		// },
+// 	}, nil
+// }
 
 func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {
 	return &structs.Affinity{

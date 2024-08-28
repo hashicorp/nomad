@@ -1643,21 +1643,34 @@ type JobStatusesRequest struct {
 }
 
 type TagVersionRequest struct {
-	JobID   string
-	Version string
-	Tag     *JobTaggedVersion
+	// JobID       string
+	Version     string
+	Description string
+	// Tag     *JobTaggedVersion
 	WriteRequest
 }
 
 func (j *Jobs) TagVersion(jobID string, version string, name string, description string, q *WriteOptions) (*WriteMeta, error) {
+	// If the version is not provided, get the "active" version of the job
+	if version == "" {
+		job, _, err := j.Info(jobID, nil)
+		if err != nil {
+			return nil, err
+		}
+		version = strconv.FormatUint(*job.Version, 10)
+	}
 	var tagRequest = &TagVersionRequest{
-		JobID:   jobID,
-		Version: version,
-		Tag: &JobTaggedVersion{
-			Name:        name,
-			Description: description,
-		},
+		// JobID:       jobID,
+		Version:     version,
+		Description: description,
+		// Tag: &JobTaggedVersion{
+		// 	Description: description,
+		// },
 	}
 
-	return j.client.put("/v1/job/"+url.PathEscape(jobID)+"/versions/"+version+"/tag", tagRequest, nil, q)
+	return j.client.put("/v1/job/"+url.PathEscape(jobID)+"/versions/"+name+"/tag", tagRequest, nil, q)
+}
+
+func (j *Jobs) UntagVersion(jobID string, name string, q *WriteOptions) (*WriteMeta, error) {
+	return j.client.delete("/v1/job/"+url.PathEscape(jobID)+"/versions/"+name+"/tag", nil, nil, q)
 }

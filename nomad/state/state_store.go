@@ -4903,19 +4903,43 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 	return s.upsertJobImpl(index, nil, copy, true, txn)
 }
 
-func (s *StateStore) UpdateJobVersionTag(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobTaggedVersion) error {
+// func (s *StateStore) UpdateJobVersionTag(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobTaggedVersion) error {
+func (s *StateStore) UpdateJobVersionTag(index uint64, namespace, jobID string, jobVersion uint64, name string, description string) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
-	if err := s.updateJobVersionTagImpl(index, namespace, jobID, jobVersion, tag, txn); err != nil {
+	if err := s.updateJobVersionTagImpl(index, namespace, jobID, jobVersion, name, description, txn); err != nil {
 		return err
 	}
 
 	return txn.Commit()
 }
 
-func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobTaggedVersion, txn *txn) error {
+// TODO: Tuesday Night: I need to stop throwing jobVersion around here, or at least let it be nil-able. name should instead be a top-level property
+// Absence of tag, and presence of name (which I'll have to separate from the tag itself), means we need to delete the tag found on the version with that name.
+// Presence of tag, and presence of version, means we need to update the tag found on the version with that tagname.
+// Presence of tag (and name) and absence of version means we need to do a job lookup to get the latest.
+
+// Name, no version, no tag: delete the tag from the latest version.
+// Name, no version, tag: update the tag on the latest version.
+// NOPE NOT A THING: Name, version, no tag: delete the tag from a specific version.
+// Name, version, tag: update the tag on a specific version.
+
+// So I care about: JobID, Name, Version, ???
+
+// func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobTaggedVersion, txn *txn) error {
+func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, name string, description string, txn *txn) error {
 	ws := memdb.NewWatchSet()
+	s.logger.Debug("===== UPDATEJOBEVERSIONTAGIMPL =====")
+	s.logger.Debug("jobVersion", jobVersion)
+	s.logger.Debug("jobID", jobID)
+	s.logger.Debug("namespace", namespace)
+
+	tag := &structs.JobTaggedVersion{
+		Name:        name,
+		Description: description,
+		TaggedTime:  time.Now().UnixNano(),
+	}
 
 	// Note: could use JobByIDAndVersion to get the specific version we want here,
 	// but then we'd have to make a second lookup to make sure we're not applying a duplicate tag name
@@ -4924,12 +4948,25 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 		return err
 	}
 
+	// versionslength
+	s.logger.Debug("versionslength", len(versions))
+
 	duplicateVersionName := false
 	var job *structs.Job
 
 	for _, version := range versions {
 		// Allow for a tag to be updated (new description, for example) but otherwise don't allow a same-tagname to a different version.
-		if tag != nil && version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name && version.Version != jobVersion {
+		// if &jobVersion != nil {
+		// 	if version.Version == jobVersion {
+		// 		job = version
+		// 	}
+		// } else {
+		// 	if version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name {
+		// 		duplicateVersionName = true
+		// 		break
+		// 	}
+		// }
+		if version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name && version.Version != jobVersion {
 			duplicateVersionName = true
 			break
 		}
@@ -4939,15 +4976,69 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 	}
 
 	if duplicateVersionName {
-		return fmt.Errorf("Tag %q already exists on a different version of job %q", tag.Name, jobID)
+		return fmt.Errorf("tag %q already exists on a different version of job %q", tag.Name, jobID)
 	}
 
 	if job == nil {
-		return fmt.Errorf("Job %q version %d not found", jobID, jobVersion)
+		return fmt.Errorf("job %q version %d not found", jobID, jobVersion)
 	}
 
 	copy := job.Copy()
 	copy.TaggedVersion = tag
+	copy.ModifyIndex = index
+	return s.upsertJobVersion(index, copy, txn)
+}
+
+// unset
+func (s *StateStore) UnsetJobVersionTag(index uint64, namespace, jobID string, name string) error {
+	s.logger.Debug("@@@ Namespace at UnsetJobVersionTag time", namespace)
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	if err := s.unsetJobVersionTagImpl(index, namespace, jobID, name, txn); err != nil {
+		return err
+	}
+
+	return txn.Commit()
+}
+
+func (s *StateStore) unsetJobVersionTagImpl(index uint64, namespace, jobID string, name string, txn *txn) error {
+	ws := memdb.NewWatchSet()
+
+	s.logger.Debug("===== UNSETJOBEVERSIONTAGIMPL =====")
+	s.logger.Debug("name", name)
+	s.logger.Debug("jobID", jobID)
+	s.logger.Debug("namespace", namespace)
+
+	versions, err := s.JobVersionsByID(ws, namespace, jobID)
+	if err != nil {
+		return err
+	}
+
+	// versionslength
+	s.logger.Debug("versionslength", len(versions))
+
+	var job *structs.Job
+
+	for _, version := range versions {
+		// Log the version we're looking at
+		s.logger.Debug("@@@ version", version.Version)
+		if version.TaggedVersion != nil {
+			s.logger.Debug("@@@ versionTagName", version.TaggedVersion.Name)
+		}
+		s.logger.Debug("@@@ name", name)
+		if version.TaggedVersion != nil && version.TaggedVersion.Name == name {
+			job = version
+			break
+		}
+	}
+
+	if job == nil {
+		return fmt.Errorf("tag %q not found on job %q", name, jobID)
+	}
+
+	copy := job.Copy()
+	copy.TaggedVersion = nil
 	copy.ModifyIndex = index
 	return s.upsertJobVersion(index, copy, txn)
 }
