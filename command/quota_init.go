@@ -124,7 +124,7 @@ limit {
     memory     = 1000
     memory_max = 1000
     device {
-      name  = "gpu/nvidia/1080ti",
+      name  = "nvidia/gpu/1080ti",
       count = 1,
     }
   }
@@ -145,7 +145,7 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
 				"MemoryMB": 1000,
 				"MemoryMaxMB": 1000
 				"Device": {
-					"Name": "gpu/nvidia/1080ti",
+					"Name": "nvidia/gpu/1080ti",
 					"Count": 1
 				},
 			},
