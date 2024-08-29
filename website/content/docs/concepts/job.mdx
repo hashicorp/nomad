@@ -1,0 +1,126 @@
+---
+layout: docs
+page_title: Job
+description: |-
+  Learn about Nomad's job feature, which is how you deploy your apps, maintenance scripts, cron jobs, and similar tasks.
+---
+
+# Job
+
+This page explains jobs, which are the main Nomad constructs for workloads that
+run your apps, maintenance scripts, cron jobs, and other tasks.
+
+## Background
+
+In Nomad, a _job_ is a user-specified state for a workload. The user expresses the job that should be running, but not where it should run. Nomad allocates resources and ensures that the actual state matches the user's desired state. A job consists of one or more tasks that you can organize into [task groups][task-groups].
+
+Declare the desired state of your job in a [job specification][job-specification], or _jobspec_, that describes
+the tasks and resources necessary for the job to run. You can also
+include job constraints to control which clients Nomad runs the job on.
+
+When you submit your job specification, Nomad automatically allocates resources
+to run it. Nomad also makes sure that the actual
+job state matches your desired state.
+
+## Job statuses
+
+After you submit your job, Nomad assigns a status to indicate how a job is
+performing. This status indicates how the job's current allocations compare to the desired
+job state.
+
+Nomad uses one of three values to describe a job's status.
+
+- `complete`
+- `dead`
+- `running`
+
+The CLI and API return these rigid statuses, which are useful for scheduling and
+garbage collection. However, the Nomad UI displays additional human-readable
+statuses to help you manage jobs.
+
+The following table maps the CLI and API statuses to the statuses that appear in the Nomad UI.
+
+| CLI and API status | UI status |
+| ---------------    | --------------- |
+| `complete `        | `Complete`    |
+| `dead`             | `Failed`, `Scaled Down`, `Stopped` |
+| `running`          | `Degraded`, `Deploying`, `Healthy`, `Recovering`, `Running`, `Scaled Down` |
+
+### UI statuses
+
+These job statuses only appear in the Nomad UI.
+
+#### Complete
+
+The `Complete` status indicated that all expected allocations are complete. This
+status applies to batch and sysbatch jobs only.
+
+#### Degraded
+
+The `Degraded` status indicates that a [deployment] is not taking place. Some allocations are failed, lost, or unplaced.
+
+#### Deploying
+
+The `Deploying` status indicates that a deployment is actively taking place.
+
+#### Failed
+
+The `Failed` status indicates that all allocations are failed, lost, or unplaced.
+
+#### Healthy
+
+The `Healthy` status indicates that all expected allocations are running and healthy.
+
+#### Recovering
+
+The `Recovering` status indicates that some allocations are pending.
+
+#### Removed
+
+The `Removed` status indicates that the job appeared in the initial query, but
+the garbage collector has since removed the job. This happens when the user
+remains on the page for a long time.
+
+#### Running
+
+The `Running` status indicates that all expected allocations are running. This
+status applies to batch and sysbatch jobs only.
+
+#### Scaled Down
+
+The `Scaled Down` status indicates that a user has scaled all allocations to
+zero. Nomad's garbage collector has not yet removed or purged the job.
+
+#### Stopped
+
+The `Stopped` status indicates that a user has manually stopped the job.
+Nomad's garbage collector has not yet removed or purged the job.
+
+## Related resources
+
+Refer to the following Nomad documentation pages for more information about
+jobs:
+
+- The [job specification][job-spec] contains detailed
+  configuration and examples.
+- The [Schedulers] page explains the different types of Nomad schedulers and how
+  those schedulers run jobs.
+
+These tutorial resources contain examples of different kinds of jobs and how to
+configure them:
+
+- The [Quick Start][quickstart] tutorials cover deploying an application and
+  its resources, which include parameterized and periodic jobs.
+- The [Deploy and Manage Jobs][deploy-jobs] tutorial contains examples of different types of jobs.
+- The [Create Nomad Job Specifications][job-spec-tutorial] collection explains several aspects of job creation, including parameterized jobs and deploying a Java app on Nomad.
+
+
+[allocations]: /nomad/docs/glossary#allocation
+[deployment]: /nomad/docs/glossary/#deployment
+[deploy-jobs]: /nomad/tutorials/manage-jobs/
+[job-spec]: /nomad/docs/job-specification
+[job-spec-tutorial]: /nomad/tutorials/job-specifications
+[quickstart]: /nomad/tutorials/get-started/gs-deploy-job
+[Schedulers]: /nomad/docs/schedulers
+[task-groups]: /nomad/docs/glossary#task-group
+[tasks]: /nomad/docs/glossary#task
