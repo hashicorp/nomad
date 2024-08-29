@@ -204,6 +204,10 @@
         "path": "concepts/security"
       },
       {
+        "title": "Job",
+        "path": "concepts/job"
+      },
+      {
         "title": "Workload Identity",
         "path": "concepts/workload-identity"
       },
