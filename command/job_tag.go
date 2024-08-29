@@ -71,14 +71,14 @@ func (c *JobTagCommand) Name() string { return "job tag apply" }
 
 func (c *JobTagCommand) Run(args []string) int {
 	var name, description, versionStr string
-	var version uint64
+	// var version uint64
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&name, "name", "", "")
 	flags.StringVar(&description, "description", "", "")
-	// flags.StringVar(&versionStr, "version", "", "")
-	flags.Uint64Var(&version, "version", 0, "")
+	flags.StringVar(&versionStr, "version", "", "")
+	// flags.Uint64Var(&version, "version", 0, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
