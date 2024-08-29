@@ -1300,8 +1300,39 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 			reply.Versions = out
 			if len(out) != 0 {
 
-				compareVersionNumber := 0
+				var compareVersionNumber uint64
 				var compareVersion *structs.Job
+				var compareStatic bool
+
+				if args.DiffTagName != "" {
+					compareStatic = true
+					tagFound := false
+					for _, version := range out {
+						j.logger.Debug("=== checking for tag version match: ", args.DiffTagName, args.DiffTagName)
+						if version.TaggedVersion != nil {
+							j.logger.Debug("=== checking for tag version match check: ", version.TaggedVersion.Name)
+						}
+						if version.TaggedVersion != nil && version.TaggedVersion.Name == args.DiffTagName {
+							j.logger.Debug("=== VERSION TAG MATCH FOUND", "version.Version", version.Version, "Version.Tag.Name", version.TaggedVersion.Name)
+							tagFound = true
+							compareVersionNumber = version.Version
+							break
+						} else {
+							j.logger.Debug("=== Version not a match", version.Version)
+						}
+					}
+					if !tagFound {
+						return fmt.Errorf("tag %q not found", args.DiffTagName)
+					}
+				} else if args.DiffVersion != "" {
+					compareStatic = true
+					compareVersionNumber, err = strconv.ParseUint(args.DiffVersion, 10, 64)
+					if err != nil {
+						return fmt.Errorf("failed to parse diff version: %v", err)
+					}
+				}
+
+				j.logger.Debug("===== GetJobVersions and compareVersionNumber is", "compareVersionNumber", compareVersionNumber, "compareStatic", compareStatic, "compareVersionTag", args.DiffTagName)
 
 				// Note: a previous assumption here was that the 0th job was the latest, and that we don't modify "old" versions.
 				// Adding version tags breaks this assumption (you can tag an old version, which should unblock /versions queries) so we now look for the highest ModifyIndex.
@@ -1310,20 +1341,27 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 					if job.ModifyIndex > maxModifyIndex {
 						maxModifyIndex = job.ModifyIndex
 					}
-					if job.Version == uint64(compareVersionNumber) {
+					if compareStatic && job.Version == uint64(compareVersionNumber) {
 						compareVersion = job
 					}
 				}
 				reply.Index = maxModifyIndex
 
+				if compareStatic && compareVersion == nil {
+					if args.DiffTagName != "" {
+						return fmt.Errorf("tag %q not found", args.DiffTagName)
+					}
+					return fmt.Errorf("version %q not found", args.DiffVersion)
+				}
+
 				// Compute the diffs
 				if args.Diffs {
 					for i := 0; i < len(out)-1; i++ {
-						// log out the version number and i
-						j.logger.Debug("diffing job versions", "version", out[i].Version, "i", i)
-						// old, new := out[i+1], out[i]
-						// old.Diff(new) always runs a diff against its previous version;
-						// let's have it run against version 0 always
+						if !compareStatic {
+							compareVersion = out[i+1]
+						}
+						j.logger.Debug("diffing job versions", "version", out[i].Version, "i", i, "compareStatic", compareStatic, "compare-version", compareVersion.Version)
+
 						old, new := compareVersion, out[i]
 						d, err := old.Diff(new, true)
 						if err != nil {
@@ -1839,7 +1877,10 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	if args.DiffVersion != "" {
 		// Convert from string to uint64
-		diffVersion, _ := strconv.ParseUint(args.DiffVersion, 10, 64)
+		diffVersion, err := strconv.ParseUint(args.DiffVersion, 10, 64)
+		if err != nil {
+			return err
+		}
 		existingJob, err = snap.JobByIDAndVersion(ws, args.RequestNamespace(), args.Job.ID, diffVersion)
 		if err != nil {
 			return err

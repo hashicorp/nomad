@@ -750,6 +750,9 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	diffsStr := req.URL.Query().Get("diffs")
+	diffTagName := req.URL.Query().Get("compare_to_tag")
+	diffVersion := req.URL.Query().Get("compare_to_version")
+
 	var diffsBool bool
 	if diffsStr != "" {
 		var err error
@@ -760,8 +763,10 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jo
 	}
 
 	args := structs.JobVersionsRequest{
-		JobID: jobID,
-		Diffs: diffsBool,
+		JobID:       jobID,
+		Diffs:       diffsBool,
+		DiffVersion: diffVersion,
+		DiffTagName: diffTagName,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil

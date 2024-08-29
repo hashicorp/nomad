@@ -136,7 +136,8 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	q := &api.QueryOptions{Namespace: namespace}
 
 	// Prefix lookup matched a single job
-	versions, diffs, _, err := client.Jobs().Versions(jobID, diff, q)
+	// TODO: the empty string params here should probably be new DiffVersion/DiffTagName params.
+	versions, diffs, _, err := client.Jobs().Versions(jobID, diff, "", "", q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1

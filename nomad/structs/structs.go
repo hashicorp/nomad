@@ -846,9 +846,9 @@ type JobStubFields struct {
 // evaluation of the Job.
 type JobPlanRequest struct {
 	Job         *Job
-	Diff        bool   // Toggles an annotated diff
-	DiffVersion string // shrug emoji
-	DiffTagName string // shrug emoji
+	Diff        bool // Toggles an annotated diff
+	DiffVersion string
+	DiffTagName string
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 	WriteRequest
@@ -1653,8 +1653,10 @@ type JobListResponse struct {
 
 // JobVersionsRequest is used to get a jobs versions
 type JobVersionsRequest struct {
-	JobID string
-	Diffs bool
+	JobID       string
+	Diffs       bool
+	DiffVersion string
+	DiffTagName string
 	QueryOptions
 }
 
