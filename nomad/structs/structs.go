@@ -4585,7 +4585,7 @@ type JobTaggedVersion struct {
 	TaggedTime  int64
 }
 
-type JobTagRequest struct {
+type JobApplyTagRequest struct {
 	JobID string
 	Name  string
 	// Version     string

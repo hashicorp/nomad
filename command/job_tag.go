@@ -16,21 +16,19 @@ type JobTagCommand struct {
 
 func (c *JobTagCommand) Help() string {
 	helpText := `
-Usage: nomad job tag [options] <jobname>
+Usage: nomad job tag apply [options] <jobname>
 
   Save a job version to prevent it from being garbage-collected and allow it to
   be diffed and reverted by name.
   
   Example usage:
  
-    nomad job tag -name "My Golden Version" -description "The version of the job we can roll back to in the future if needed" <jobname>
+    nomad job tag apply -name "My Golden Version" -description "The version of the job we can roll back to in the future if needed" <jobname>
 
-    nomad job tag -version 3 -name "My Golden Version" <jobname>
-
-    nomad job tag unset -verion 3 <jobname>
+    nomad job tag apply -version 3 -name "My Golden Version" <jobname>
 
   The first of the above will tag the latest version of the job, while the second
-  will specifically tag version 3 of the job. The last example will unset a tag.
+  will specifically tag version 3 of the job.
 
 Tag Specific Options:
 
@@ -69,16 +67,18 @@ func (c *JobTagCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
-func (c *JobTagCommand) Name() string { return "job tag" }
+func (c *JobTagCommand) Name() string { return "job tag apply" }
 
 func (c *JobTagCommand) Run(args []string) int {
 	var name, description, versionStr string
+	var version uint64
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&name, "name", "", "")
 	flags.StringVar(&description, "description", "", "")
-	flags.StringVar(&versionStr, "version", "", "")
+	// flags.StringVar(&versionStr, "version", "", "")
+	flags.Uint64Var(&version, "version", 0, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

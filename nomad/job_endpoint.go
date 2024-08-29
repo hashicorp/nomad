@@ -2399,10 +2399,7 @@ func (j *Job) GetServiceRegistrations(
 	})
 }
 
-func (j *Job) TagVersion(args *structs.JobTagRequest, reply *structs.JobTagResponse) error {
-	// args.Tag.TaggedTime = time.Now().UnixNano()
-	// TODO: handle in state_store.go
-
+func (j *Job) TagVersion(args *structs.JobApplyTagRequest, reply *structs.JobTagResponse) error {
 	_, index, err := j.srv.raftApply(structs.JobVersionTagRequestType, args)
 	if err != nil {
 		j.logger.Error("tagging version failed", "error", err)
@@ -2414,9 +2411,6 @@ func (j *Job) TagVersion(args *structs.JobTagRequest, reply *structs.JobTagRespo
 }
 
 func (j *Job) UntagVersion(args *structs.JobUnsetTagRequest, reply *structs.JobTagResponse) error {
-	// log
-	j.logger.Debug("++++++UntagVersion", "argsName", args.Name)
-	j.logger.Debug("++++++UntagVersion Namespace", "argsNamespace", args.WriteRequest.Namespace)
 	_, index, err := j.srv.raftApply(structs.JobVersionTagUnsetRequestType, args)
 	if err != nil {
 		j.logger.Error("untagging version failed", "error", err)

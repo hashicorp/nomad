@@ -406,9 +406,6 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 }
 
 func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
-	s.logger.Debug("xxxxxxxxxjobTagVersion", "jobID", jobID, "name", name)
-	s.logger.Debug("ReqMethod", req.Method)
-
 	switch req.Method {
 	case http.MethodPut, http.MethodPost:
 		return s.jobVersionApplyTag(resp, req, jobID, name)
@@ -438,13 +435,6 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(400, err.Error())
 	}
 
-	// rpcArgs, err := APIJobTagRequestToStructs(&args, jobID, name)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// numericVersion := args.Version
-	// ^-- args.Version can be ""! How do we represent nil as a Uint64?
 	numericVersion, versionIncluded, err := parseVersion(args.Version)
 	if err != nil {
 		return nil, err
@@ -456,7 +446,7 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 		versionPointer = &numericVersion
 	}
 
-	rpcArgs := structs.JobTagRequest{
+	rpcArgs := structs.JobApplyTagRequest{
 		JobID:       jobID,
 		Version:     versionPointer,
 		Name:        name,
@@ -467,8 +457,6 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 	// based on values from the original http request
 	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
 
-	s.logger.Debug("CONFIRMING NAMESPACE", rpcArgs.WriteRequest.Namespace)
-
 	var out structs.JobTagResponse
 	if err := s.agent.RPC("Job.TagVersion", &rpcArgs, &out); err != nil {
 		return nil, err
@@ -477,28 +465,6 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 }
 
 func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
-
-	s.logger.Debug("jobVersionUnsetTag", "jobID", jobID)
-	s.logger.Debug("jobVersionUnsetTag2", "req", req)
-	// s.logger.Debug("jobVersionUnsetTag3", "vers", version)
-
-	// var args api.TagVersionRequest
-
-	// if err := decodeBody(req, &args); err != nil {
-	// 	return nil, CodedError(400, err.Error())
-	// }
-
-	// rpcArgs, err := APIJobTagRequestToStructs(&args)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// versionNumber, err := strconv.ParseUint(version, 10, 64)
-	// s.logger.Debug("versionNumber", versionNumber)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	rpcArgs := structs.JobUnsetTagRequest{
 		JobID: jobID,
 		Name:  name,
@@ -508,9 +474,6 @@ func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Requ
 	// based on values from the original http request
 	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
 
-	s.logger.Debug("CONFIRMING NAMESPACE", rpcArgs.WriteRequest.Namespace)
-	// s.logger.Debug("CONFIRMING QUERYOPTIONS NAMESPACE", rpcArgs.QueryOptions.Namespace)
-	// ^--- TODO: So we have Namespace here! Why is it not being passed to the RPC?
 	var out structs.JobTagResponse
 	if err := s.agent.RPC("Job.UntagVersion", &rpcArgs, &out); err != nil {
 		return nil, err
@@ -2268,28 +2231,6 @@ func ApiJobTaggedVersionToStructs(jobTaggedVersion *api.JobTaggedVersion) *struc
 		TaggedTime:  jobTaggedVersion.TaggedTime,
 	}
 }
-
-// func APIJobTagRequestToStructs(jobTagRequest *api.TagVersionRequest, jobID string, name string) (*structs.JobTagRequest, error) {
-// 	if jobTagRequest == nil {
-// 		return nil, nil
-// 	}
-// 	// versionNumber, err := strconv.ParseUint(jobTagRequest.Version, 10, 64)
-// 	// if err != nil {
-// 	// 	return nil, err
-// 	// }
-// 	return &structs.JobTagRequest{
-// 		JobID:   jobTagRequest.JobID,
-// 		// JobID:   jobID,
-// 		// Version: versionNumber,
-// 		Version:     jobTagRequest.Version,
-// 		Description: jobTagRequest.Description,
-// 		// Tag:     ApiJobTaggedVersionToStructs(jobTagRequest.Tag),
-// 		// Tag: &structs.JobTaggedVersion{
-// 		// 	Name:        name,
-// 		// 	Description: jobTagRequest.Description,
-// 		// },
-// 	}, nil
-// }
 
 func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {
 	return &structs.Affinity{
