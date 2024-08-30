@@ -124,7 +124,7 @@ limit {
     memory     = 1000
     memory_max = 1000
     device "nvidia/gpu/1080ti" {
-      count = 1,
+      count = 1
     }
   }
   variables_limit = 1000
