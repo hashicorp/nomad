@@ -188,7 +188,7 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 	sort.Sort(api.QuotaLimitSort(spec.Limits))
 
 	limits := make([]string, len(spec.Limits)+1)
-	limits[0] = "Region|CPU Usage|Core Usage|Memory Usage|Memory Max Usage|Variables Usage"
+	limits[0] = "Region|CPU Usage|Core Usage|Memory Usage|Memory Max Usage|Variables Usage|Devices Usage"
 	i := 0
 	for _, specLimit := range spec.Limits {
 		i++
@@ -212,7 +212,8 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 			memoryMax := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.MemoryMaxMB))
 
 			vars := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.VariablesLimit))
-			limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars)
+			devices := fmt.Sprintf("- / %s", formatQuotaDevices(specLimit.RegionLimit.Devices))
+			limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars, devices)
 			continue
 		}
 
@@ -229,7 +230,8 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 		memoryMax := fmt.Sprintf("%d / %s", orZero(used.RegionLimit.MemoryMaxMB), formatQuotaLimitInt(specLimit.RegionLimit.MemoryMaxMB))
 
 		vars := fmt.Sprintf("%d / %s", orZero(used.VariablesLimit), formatQuotaLimitInt(specLimit.VariablesLimit))
-		limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars)
+		devices := fmt.Sprintf("%s / %s", formatQuotaDevices(used.RegionLimit.Devices), formatQuotaDevices(specLimit.RegionLimit.Devices))
+		limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars, devices)
 	}
 
 	return formatList(limits)
@@ -250,6 +252,21 @@ func formatQuotaLimitInt(value *int) string {
 	}
 
 	return strconv.Itoa(v)
+}
+
+// formatQuotaDevices takes an array of devices and returns an aggregate count of
+// all of them as a string.
+func formatQuotaDevices(devices []*api.RequestedDevice) string {
+	if len(devices) == 0 {
+		return "0"
+	}
+
+	output := 0
+	for _, device := range devices {
+		output += int(*device.Count)
+	}
+
+	return strconv.Itoa(output)
 }
 
 func getQuotaByPrefix(client *api.Quotas, quota string) (match *api.QuotaSpec, possible []*api.QuotaSpec, err error) {
