@@ -182,7 +182,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:       "parentJob",
 			ServiceName: "group-service",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:group-service:consul-service_group-service-http",
+				Subject:  "global:default:parentJob:group:group-service:consul-service_group-service-http",
 				Audience: jwt.Audience{"group-service.consul.io"},
 			},
 			ExtraClaims: map[string]string{},
@@ -194,7 +194,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:     "parentJob",
 			TaskName:  "task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:task:default-identity",
+				Subject:  "global:default:parentJob:group:task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
 			ExtraClaims: map[string]string{},
@@ -204,7 +204,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:     "parentJob",
 			TaskName:  "task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:task:alt-identity",
+				Subject:  "global:default:parentJob:group:task:alt-identity",
 				Audience: jwt.Audience{"alt.example.com"},
 			},
 			ExtraClaims: map[string]string{},
@@ -217,7 +217,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:           "parentJob",
 			TaskName:        "task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:task:consul_default",
+				Subject:  "global:default:parentJob:group:task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
 			ExtraClaims: map[string]string{},
@@ -231,7 +231,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			TaskName:       "task",
 			VaultRole:      "", // not specified in jobspec
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:task:vault_default",
+				Subject:  "global:default:parentJob:group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
 			ExtraClaims: map[string]string{
@@ -243,7 +243,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:       "parentJob",
 			ServiceName: "task-service",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:task-service:consul-service_task-task-service-http",
+				Subject:  "global:default:parentJob:group:task-service:consul-service_task-task-service-http",
 				Audience: jwt.Audience{"task-service.consul.io"},
 			},
 			ExtraClaims: map[string]string{},
@@ -255,7 +255,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:     "parentJob",
 			TaskName:  "consul-vault-task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:consul-vault-task:default-identity",
+				Subject:  "global:default:parentJob:group:consul-vault-task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
 			ExtraClaims: map[string]string{},
@@ -267,7 +267,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:           "parentJob",
 			TaskName:        "consul-vault-task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:consul-vault-task:consul_default",
+				Subject:  "global:default:parentJob:group:consul-vault-task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
 			ExtraClaims: map[string]string{},
@@ -280,7 +280,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			TaskName:       "consul-vault-task",
 			VaultRole:      "role-from-spec-group",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:consul-vault-task:vault_default",
+				Subject:  "global:default:parentJob:group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
 			ExtraClaims: map[string]string{
@@ -294,7 +294,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:           "parentJob",
 			ServiceName:     "consul-vault-task-service",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:group:consul-vault-task-service:consul-service_consul-vault-task-service-http",
+				Subject:  "global:default:parentJob:group:consul-vault-task-service:consul-service_consul-vault-task-service-http",
 				Audience: jwt.Audience{"consul.io"},
 			},
 			ExtraClaims: map[string]string{},
@@ -307,7 +307,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:           "parentJob",
 			ServiceName:     "group-service",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:group-service:consul-service_group-service-http",
+				Subject:  "global:default:parentJob:consul-group:group-service:consul-service_group-service-http",
 				Audience: jwt.Audience{"group-service.consul.io"},
 			},
 			ExtraClaims: map[string]string{},
@@ -319,7 +319,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:     "parentJob",
 			TaskName:  "task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:task:default-identity",
+				Subject:  "global:default:parentJob:consul-group:task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
 			ExtraClaims: map[string]string{},
@@ -329,7 +329,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:     "parentJob",
 			TaskName:  "task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:task:alt-identity",
+				Subject:  "global:default:parentJob:consul-group:task:alt-identity",
 				Audience: jwt.Audience{"alt.example.com"},
 			},
 			ExtraClaims: map[string]string{},
@@ -342,7 +342,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:           "parentJob",
 			TaskName:        "task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:task:consul_default",
+				Subject:  "global:default:parentJob:consul-group:task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
 			ExtraClaims: map[string]string{},
@@ -353,7 +353,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			TaskName:  "task",
 			VaultRole: "", // not specified in jobspec
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:task:vault_default",
+				Subject:  "global:default:parentJob:consul-group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
 			ExtraClaims: map[string]string{
@@ -368,7 +368,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:           "parentJob",
 			ServiceName:     "task-service",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:task-service:consul-service_task-task-service-http",
+				Subject:  "global:default:parentJob:consul-group:task-service:consul-service_task-task-service-http",
 				Audience: jwt.Audience{"task-service.consul.io"},
 			},
 			ExtraClaims: map[string]string{},
@@ -380,7 +380,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:     "parentJob",
 			TaskName:  "consul-vault-task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:consul-vault-task:default-identity",
+				Subject:  "global:default:parentJob:consul-group:consul-vault-task:default-identity",
 				Audience: jwt.Audience{"example.com"},
 			},
 			ExtraClaims: map[string]string{},
@@ -392,7 +392,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:           "parentJob",
 			TaskName:        "consul-vault-task",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:consul-vault-task:consul_default",
+				Subject:  "global:default:parentJob:consul-group:consul-vault-task:consul_default",
 				Audience: jwt.Audience{"consul.io"},
 			},
 			ExtraClaims: map[string]string{},
@@ -404,7 +404,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			TaskName:       "consul-vault-task",
 			VaultRole:      "role-from-spec-consul-group",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:consul-vault-task:vault_default",
+				Subject:  "global:default:parentJob:consul-group:consul-vault-task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
 			},
 			ExtraClaims: map[string]string{
@@ -418,7 +418,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			JobID:           "parentJob",
 			ServiceName:     "consul-task-service",
 			Claims: jwt.Claims{
-				Subject:  "global:default:job:consul-group:consul-task-service:consul-service_consul-vault-task-consul-task-service-http",
+				Subject:  "global:default:parentJob:consul-group:consul-task-service:consul-service_consul-vault-task-consul-task-service-http",
 				Audience: jwt.Audience{"consul.io"},
 			},
 			ExtraClaims: map[string]string{},
