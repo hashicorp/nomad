@@ -239,6 +239,7 @@ func (b *IdentityClaimsBuilder) interpolate() {
 		"${job.id}", b.job.GetIDforWorkloadIdentity(),
 		"${job.node_pool}", b.job.NodePool,
 		"${group.name}", b.tg.Name,
+		"${alloc.id}", b.alloc.ID,
 
 		// attributes that conditionally exist
 		"${node.id}", strAttrGet(b.node, func(n *Node) string { return n.ID }),
