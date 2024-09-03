@@ -261,7 +261,7 @@ func (claims *IdentityClaims) setSubject(job *Job, group, widentifier, id string
 	claims.Subject = strings.Join([]string{
 		job.Region,
 		job.Namespace,
-		job.ID,
+		job.GetIDforWorkloadIdentity(),
 		group,
 		widentifier,
 		id,
