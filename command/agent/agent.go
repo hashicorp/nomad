@@ -889,8 +889,28 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.CNIPath = agentConfig.Client.CNIPath
 	conf.CNIConfigDir = agentConfig.Client.CNIConfigDir
 	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName
-	conf.BridgeNetworkAllocSubnet = agentConfig.Client.BridgeNetworkSubnet
-	conf.BridgeNetworkAllocSubnetIPv6 = agentConfig.Client.BridgeNetworkSubnetIPv6
+	ipv4Subnet := agentConfig.Client.BridgeNetworkSubnet
+	if ipv4Subnet != "" {
+		ip, _, err := net.ParseCIDR(ipv4Subnet)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bridge_network_subnet: %w", err)
+		}
+		if ip.To4() == nil {
+			return nil, fmt.Errorf("invalid bridge_network_subnet: %q is not an IPv4 address", ipv4Subnet)
+		}
+		conf.BridgeNetworkAllocSubnet = ipv4Subnet
+	}
+	ipv6Subnet := agentConfig.Client.BridgeNetworkSubnetIPv6
+	if ipv6Subnet != "" {
+		ip, _, err := net.ParseCIDR(ipv6Subnet)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bridge_network_subnet_ipv6: %w", err)
+		}
+		if ip.To16() == nil {
+			return nil, fmt.Errorf("invalid bridge_network_subnet_ipv6: %q is not an IPv6 address", ipv6Subnet)
+		}
+		conf.BridgeNetworkAllocSubnetIPv6 = ipv6Subnet
+	}
 	conf.BridgeNetworkHairpinMode = agentConfig.Client.BridgeNetworkHairpinMode
 
 	for _, hn := range agentConfig.Client.HostNetworks {
