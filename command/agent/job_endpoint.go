@@ -750,8 +750,11 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	diffsStr := req.URL.Query().Get("diffs")
-	diffTagName := req.URL.Query().Get("compare_to_tag")
-	diffVersion := req.URL.Query().Get("compare_to_version")
+	diffTagName := req.URL.Query().Get("diff_tag")
+	diffVersion := req.URL.Query().Get("diff_version")
+
+	// log out
+	s.logger.Debug("++==jobVersions", "diffs", diffsStr, "diff_tag", diffTagName, "diff_version", diffVersion)
 
 	var diffsBool bool
 	if diffsStr != "" {

@@ -40,7 +40,17 @@ General Options:
 History Options:
 
   -p
-    Display the difference between each job and its predecessor.
+    Display the difference between each version of the job and a reference
+		version. The reference version can be specified using the -diff-tag or
+		-diff-version flags. If neither flag is set, the preceding version is used.
+
+	-diff-tag
+		Specifies the version of the job to compare against, referenced by
+		tag name (defaults to latest). This tag can be set using the
+		"nomad job tag" command.
+
+	-diff-version
+		Specifies the version number of the job to compare against.
 
   -full
     Display the full job definition for each version.
@@ -64,11 +74,13 @@ func (c *JobHistoryCommand) Synopsis() string {
 func (c *JobHistoryCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-p":       complete.PredictNothing,
-			"-full":    complete.PredictNothing,
-			"-version": complete.PredictAnything,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"-p":            complete.PredictNothing,
+			"-full":         complete.PredictNothing,
+			"-version":      complete.PredictAnything,
+			"-json":         complete.PredictNothing,
+			"-t":            complete.PredictAnything,
+			"-diff-tag":     complete.PredictNothing,
+			"-diff-version": complete.PredictNothing,
 		})
 }
 
@@ -91,7 +103,7 @@ func (c *JobHistoryCommand) Name() string { return "job history" }
 
 func (c *JobHistoryCommand) Run(args []string) int {
 	var json, diff, full bool
-	var tmpl, versionStr string
+	var tmpl, versionStr, diffTag, diffVersion string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -100,6 +112,8 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&versionStr, "version", "", "")
 	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVar(&diffTag, "diff-tag", "", "")
+	flags.StringVar(&diffVersion, "diff-version", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -115,6 +129,16 @@ func (c *JobHistoryCommand) Run(args []string) int {
 
 	if (json || len(tmpl) != 0) && (diff || full) {
 		c.Ui.Error("-json and -t are exclusive with -p and -full")
+		return 1
+	}
+
+	if (diffTag != "" && !diff) || (diffVersion != "" && !diff) {
+		c.Ui.Error("-diff-tag and -diff-version can only be used with -p")
+		return 1
+	}
+
+	if diffTag != "" && diffVersion != "" {
+		c.Ui.Error("-diff-tag and -diff-version are mutually exclusive")
 		return 1
 	}
 
@@ -136,8 +160,8 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	q := &api.QueryOptions{Namespace: namespace}
 
 	// Prefix lookup matched a single job
-	// TODO: the empty string params here should probably be new DiffVersion/DiffTagName params.
-	versions, diffs, _, err := client.Jobs().Versions(jobID, diff, "", "", q)
+	versions, diffs, _, err := client.Jobs().Versions(jobID, diff, diffTag, diffVersion, q)
+	// TODO: something about diffs isn't ever giving me something for the 0th version. Maybe in job_endpoint.go instead?
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1

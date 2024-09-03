@@ -265,7 +265,7 @@ func (j *Jobs) ScaleStatus(jobID string, q *QueryOptions) (*JobScaleStatusRespon
 // unique ID.
 func (j *Jobs) Versions(jobID string, diffs bool, diffTag string, diffVersion string, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
 	var resp JobVersionsResponse
-	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?diffs=%t&compare_to_tag=%s&compare_to_version=%d", url.PathEscape(jobID), diffs, diffTag, diffVersion), &resp, q)
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?diffs=%t&diff_tag=%s&diff_version=%s", url.PathEscape(jobID), diffs, diffTag, diffVersion), &resp, q)
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -1268,6 +1268,8 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 // GetJobVersions is used to retrieve all tracked versions of a job.
 func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	reply *structs.JobVersionsResponse) error {
+	// log
+	j.logger.Debug("GetJobVersions", "args.DiffVersion", args.DiffVersion, "args.DiffTagName", args.DiffTagName)
 	authErr := j.srv.Authenticate(j.ctx, args)
 	if done, err := j.srv.forward("Job.GetJobVersions", args, args, reply); done {
 		return err
@@ -1341,7 +1343,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 					if job.ModifyIndex > maxModifyIndex {
 						maxModifyIndex = job.ModifyIndex
 					}
-					if compareStatic && job.Version == uint64(compareVersionNumber) {
+					if compareStatic && job.Version == compareVersionNumber {
 						compareVersion = job
 					}
 				}
@@ -1868,10 +1870,13 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Get the original job
 	ws := memdb.NewWatchSet()
-	existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
-	if err != nil {
-		return err
-	}
+	// existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// var existingJob interface{}
+	var existingJob *structs.Job
 
 	j.logger.Debug("===== Plan args for specific diffs", "diffVersion", args.DiffVersion, "diffTagName", args.DiffTagName)
 
@@ -1885,9 +1890,10 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		if err != nil {
 			return err
 		}
-	}
-
-	if args.DiffTagName != "" {
+		if existingJob == nil {
+			return fmt.Errorf("version %q not found", args.DiffVersion)
+		}
+	} else if args.DiffTagName != "" {
 		versions, err := snap.JobVersionsByID(ws, args.RequestNamespace(), args.Job.ID)
 		if err != nil {
 			return err
@@ -1897,6 +1903,14 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 				existingJob = version
 				break
 			}
+		}
+		if existingJob == nil {
+			return fmt.Errorf("version tag %q not found", args.DiffTagName)
+		}
+	} else {
+		existingJob, err = snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
+		if err != nil {
+			return err
 		}
 	}
 
