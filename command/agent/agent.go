@@ -895,8 +895,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid bridge_network_subnet: %w", err)
 		}
+		// it's a valid IP, so now make sure it is ipv4
 		if ip.To4() == nil {
-			return nil, fmt.Errorf("invalid bridge_network_subnet: %q is not an IPv4 address", ipv4Subnet)
+			return nil, fmt.Errorf("invalid bridge_network_subnet: not an IPv4 address: %s", ipv4Subnet)
 		}
 		conf.BridgeNetworkAllocSubnet = ipv4Subnet
 	}
@@ -906,8 +907,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid bridge_network_subnet_ipv6: %w", err)
 		}
-		if ip.To16() == nil {
-			return nil, fmt.Errorf("invalid bridge_network_subnet_ipv6: %q is not an IPv6 address", ipv6Subnet)
+		// it's valid, so now make sure it's *not* ipv4
+		if ip.To4() != nil {
+			return nil, fmt.Errorf("invalid bridge_network_subnet_ipv6: not an IPv6 address: %s", ipv6Subnet)
 		}
 		conf.BridgeNetworkAllocSubnetIPv6 = ipv6Subnet
 	}

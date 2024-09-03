@@ -708,7 +708,14 @@ func TestConvertClientConfig(t *testing.T) {
 			modConfig: func(c *Config) {
 				c.Client.BridgeNetworkSubnet = "invalid-ip4"
 			},
-			expectErr: "invalid bridge_network_subnet:",
+			expectErr: "invalid bridge_network_subnet: invalid CIDR address: invalid-ip4",
+		},
+		{
+			name: "invalid ipv4 bridge subnet is ipv6",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnet = "fd00:a110:c8::/120"
+			},
+			expectErr: "invalid bridge_network_subnet: not an IPv4 address: fd00:a110:c8::/120",
 		},
 		{
 			name: "ipv6 bridge subnet",
@@ -724,7 +731,14 @@ func TestConvertClientConfig(t *testing.T) {
 			modConfig: func(c *Config) {
 				c.Client.BridgeNetworkSubnetIPv6 = "invalid-ip6"
 			},
-			expectErr: "invalid bridge_network_subnet_ipv6:",
+			expectErr: "invalid bridge_network_subnet_ipv6: invalid CIDR address: invalid-ip6",
+		},
+		{
+			name: "invalid ipv6 bridge subnet is ipv4",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnetIPv6 = "10.0.0.1/24"
+			},
+			expectErr: "invalid bridge_network_subnet_ipv6: not an IPv6 address: 10.0.0.1/24",
 		},
 	}
 	for _, tc := range cases {
