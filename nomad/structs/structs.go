@@ -4581,6 +4581,15 @@ func (j *Job) GetNamespace() string {
 	return j.Namespace
 }
 
+// GetIDforWorkloadIdentity is used when we want the job ID for identity; here we
+// always want the parent ID if there is one and then fallback to the ID
+func (j *Job) GetIDforWorkloadIdentity() string {
+	if j.ParentID != "" {
+		return j.ParentID
+	}
+	return j.ID
+}
+
 // GetCreateIndex implements the CreateIndexGetter interface, required for
 // pagination.
 func (j *Job) GetCreateIndex() uint64 {

@@ -641,10 +641,7 @@ func (s *Authenticator) ResolvePoliciesForClaims(claims *structs.IdentityClaims)
 	}
 
 	// Find any policies attached to the job
-	jobId := alloc.Job.ID
-	if alloc.Job.ParentID != "" {
-		jobId = alloc.Job.ParentID
-	}
+	jobId := alloc.Job.GetIDforWorkloadIdentity()
 	iter, err := snap.ACLPolicyByJob(nil, alloc.Namespace, jobId)
 	if err != nil {
 		return nil, err
