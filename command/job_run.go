@@ -99,6 +99,7 @@ Run Options:
 
   -hcl1
     Parses the job file as HCLv1. Takes precedence over "-hcl2-strict".
+    HCLv1 is deprecated and will be removed in Nomad 1.9.0.
 
   -hcl2-strict
     Whether an error should be produced from the HCL2 parser where a variable
@@ -236,6 +237,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if c.JobGetter.HCL1 {
+		c.Ui.Warn("HCLv1 is deprecated and will be removed in Nomad 1.9.0")
 		c.JobGetter.Strict = false
 	}
 

@@ -72,7 +72,8 @@ capability for the job's namespace.
   field is used as the job.
 
 - `-hcl1`: If set, HCL1 parser is used for parsing the job spec. Takes
-  precedence over `-hcl2-strict`.
+  precedence over `-hcl2-strict`. HCLv1 is deprecated and will be removed in
+  Nomad 1.9.0.
 
 - `-hcl2-strict`: Whether an error should be produced from the HCL2 parser where
   a variable has been supplied which is not defined within the root variables.

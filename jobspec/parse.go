@@ -26,6 +26,8 @@ var errPortLabel = fmt.Errorf("Port label does not conform to naming requirement
 //
 // Due to current internal limitations, the entire contents of the
 // io.Reader will be copied into memory first before parsing.
+//
+// DEPRECATED: will be removed in Nomad 1.9.0
 func Parse(r io.Reader) (*api.Job, error) {
 	// Copy the reader into an in-memory buffer first since HCL requires it.
 	var buf bytes.Buffer
@@ -69,6 +71,8 @@ func Parse(r io.Reader) (*api.Job, error) {
 }
 
 // ParseFile parses the given path as a job spec.
+//
+// DEPRECATED: will be removed in Nomad 1.9.0
 func ParseFile(path string) (*api.Job, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
