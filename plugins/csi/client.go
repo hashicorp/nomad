@@ -815,7 +815,7 @@ func (c *client) NodeStageVolume(ctx context.Context, req *NodeStageVolumeReques
 				"volume %q is already staged to %q but with incompatible capabilities for this request: %v",
 				req.ExternalID, req.StagingTargetPath, err)
 		case codes.FailedPrecondition:
-			err = fmt.Errorf("volume %q is already published on another node and does not have MULTI_NODE volume capability: %v",
+			err = fmt.Errorf("volume %q does not have MULTI_NODE volume capability: %v",
 				req.ExternalID, err)
 		case codes.Internal:
 			err = fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
@@ -881,7 +881,7 @@ func (c *client) NodePublishVolume(ctx context.Context, req *NodePublishVolumeRe
 				"volume %q is already published at target path %q but with capabilities or a read_only setting incompatible with this request: %v",
 				req.ExternalID, req.TargetPath, err)
 		case codes.FailedPrecondition:
-			err = fmt.Errorf("volume %q is already published on another node and does not have MULTI_NODE volume capability: %v",
+			err = fmt.Errorf("volume %q does not have MULTI_NODE volume capability: %v",
 				req.ExternalID, err)
 		case codes.Internal:
 			err = fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
