@@ -178,6 +178,10 @@ client {
 - `bridge_network_subnet` `(string: "172.26.64.0/20")` - Specifies the subnet
   which the client will use to allocate IP addresses from.
 
+- `bridge_network_subnet_ipv6` `(string: "")` - Enables IPv6 on Nomad's bridge
+  network by specifying the subnet which the client will use to allocate IPv6
+  addresses.
+
 - `bridge_network_hairpin_mode` `(bool: false)` - Specifies if hairpin mode
   is enabled on the network bridge created by Nomad for allocations running
   with bridge networking mode on this client. You may use the corresponding

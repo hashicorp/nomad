@@ -513,8 +513,20 @@ func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Al
 	portMap := getPortMapping(alloc, c.ignorePortMappingHostIP)
 
 	if err := c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(portMap.ports)); err != nil {
+		c.logger.Warn("error from cni.Remove; attempting manual iptables cleanup", "err", err)
+
+		// best effort cleanup ipv6
+		ipt, iptErr := c.newIPTables(structs.NodeNetworkAF_IPv6)
+		if iptErr != nil {
+			c.logger.Debug("failed to detect ip6tables: %v", iptErr)
+		} else {
+			if err := c.forceCleanup(ipt, alloc.ID); err != nil {
+				c.logger.Warn("ip6tables: %v", err)
+			}
+		}
+
 		// create a real handle to iptables
-		ipt, iptErr := c.newIPTables(structs.NodeNetworkAF_IPv4)
+		ipt, iptErr = c.newIPTables(structs.NodeNetworkAF_IPv4)
 		if iptErr != nil {
 			return fmt.Errorf("failed to detect iptables: %w", iptErr)
 		}
@@ -560,7 +572,8 @@ func (c *cniNetworkConfigurator) forceCleanup(ipt IPTablesCleanup, allocID strin
 
 	// no rule found for our allocation, just give up
 	if ruleToPurge == "" {
-		return fmt.Errorf("failed to find postrouting rule for alloc %s", allocID)
+		c.logger.Info("iptables cleanup: did not find postrouting rule for alloc", "alloc_id", allocID)
+		return nil
 	}
 
 	// re-create the rule we need to delete, as tokens
