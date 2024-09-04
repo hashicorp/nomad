@@ -161,7 +161,6 @@ func (c *JobHistoryCommand) Run(args []string) int {
 
 	// Prefix lookup matched a single job
 	versions, diffs, _, err := client.Jobs().Versions(jobID, diff, diffTag, diffVersion, q)
-	// TODO: something about diffs isn't ever giving me something for the 0th version. Maybe in job_endpoint.go instead?
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1
@@ -247,15 +246,14 @@ func parseVersion(input string) (uint64, bool, error) {
 func (c *JobHistoryCommand) formatJobVersions(versions []*api.Job, diffs []*api.JobDiff, full bool) error {
 	vLen := len(versions)
 	dLen := len(diffs)
-	if dLen != 0 && vLen != dLen+1 {
-		return fmt.Errorf("Number of job versions %d doesn't match number of diffs %d", vLen, dLen)
-	}
 
 	for i, version := range versions {
 		var diff *api.JobDiff
 		var nextVersion uint64
-		if i+1 <= dLen {
+		if dLen > i && diffs[i] != nil {
 			diff = diffs[i]
+		}
+		if i+1 < vLen { // if the current version is not the last version
 			nextVersion = *versions[i+1].Version
 		}
 

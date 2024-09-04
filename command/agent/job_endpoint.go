@@ -753,9 +753,6 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jo
 	diffTagName := req.URL.Query().Get("diff_tag")
 	diffVersion := req.URL.Query().Get("diff_version")
 
-	// log out
-	s.logger.Debug("++==jobVersions", "diffs", diffsStr, "diff_tag", diffTagName, "diff_version", diffVersion)
-
 	var diffsBool bool
 	if diffsStr != "" {
 		var err error

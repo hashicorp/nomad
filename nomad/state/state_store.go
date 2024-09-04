@@ -2299,7 +2299,7 @@ func (s *StateStore) jobsByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix strin
 	return wrap, nil
 }
 
-// JobVersionsByID returns all the tracked versions of a job.
+// JobVersionsByID returns all the tracked versions of a job, sorted in from highest version to lowest.
 func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
 	txn := s.db.ReadTxn()
 
