@@ -288,54 +288,6 @@ func TestJobGetter_LocalFile(t *testing.T) {
 	}
 }
 
-// TestJobGetter_LocalFile_InvalidHCL2 asserts that a custom message is emited
-// if the file is a valid HCL1 but not HCL2
-func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name              string
-		hcl               string
-		expectHCL1Message bool
-	}{
-		{
-			"invalid HCL",
-			"nothing",
-			false,
-		},
-		{
-			"invalid HCL2",
-			`job "example" {
-  meta { "key.with.dot" = "b" }
-}`,
-			true,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			fh, err := os.CreateTemp("", "nomad")
-			must.NoError(t, err)
-			defer os.Remove(fh.Name())
-			defer fh.Close()
-
-			_, err = fh.WriteString(c.hcl)
-			must.NoError(t, err)
-
-			j := &JobGetter{}
-			_, _, err = j.ApiJob(fh.Name())
-			must.Error(t, err)
-
-			exptMessage := "Failed to parse using HCL 2. Use the HCL 1"
-			if c.expectHCL1Message {
-				must.ErrorContains(t, err, exptMessage)
-			} else {
-				must.StrNotContains(t, err.Error(), exptMessage)
-			}
-		})
-	}
-}
-
 // TestJobGetter_HCL2_Variables asserts variable arguments from CLI
 // and varfiles are both honored
 func TestJobGetter_HCL2_Variables(t *testing.T) {
@@ -471,38 +423,6 @@ func TestJobGetter_Validate(t *testing.T) {
 		jg          JobGetter
 		errContains string
 	}{
-		{
-			"StrictAndHCL1",
-			JobGetter{
-				HCL1:   true,
-				Strict: true,
-			},
-			"HCLv1 and HCLv2 strict",
-		},
-		{
-			"JSONandHCL1",
-			JobGetter{
-				HCL1: true,
-				JSON: true,
-			},
-			"HCL and JSON",
-		},
-		{
-			"VarsAndHCL1",
-			JobGetter{
-				HCL1: true,
-				Vars: []string{"foo"},
-			},
-			"variables with HCLv1",
-		},
-		{
-			"VarFilesAndHCL1",
-			JobGetter{
-				HCL1:     true,
-				VarFiles: []string{"foo.var"},
-			},
-			"variables with HCLv1",
-		},
 		{
 			"VarsAndJSON",
 			JobGetter{

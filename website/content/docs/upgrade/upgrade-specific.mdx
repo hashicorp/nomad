@@ -13,6 +13,14 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.9.0
+
+#### Support for HCLv1 removed
+
+Nomad 1.9.0 no longer supports the HCLv1 format for job specifications. Using
+the `-hcl1` option for the `job run`, `job plan`, and `job validate` commands
+will no longer work.
+
 ## Nomad 1.8.3
 
 #### Nomad keyring rotation

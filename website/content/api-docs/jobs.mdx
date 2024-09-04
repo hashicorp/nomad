@@ -608,7 +608,7 @@ nomad operator api /v1/job/my-job/submission?version=42
 #### Field Reference
 
 - `JobID`: The ID of the job associated with the original job file.
-- `Format`: The file format of the original job file. One of `hcl2`, `hcl1`, or `json`.
+- `Format`: The file format of the original job file. One of `hcl2` or `json`.
 - `Source`: The literal content of the original job file.
 - `VariableFlags`: The key-value pairs of HCL variables as submitted via `-var` command
   line arguments when submitting the job via CLI.

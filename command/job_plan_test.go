@@ -116,25 +116,6 @@ job "job1" {
 	}
 }
 
-func TestPlanCommand_hcl1_hcl2_strict(t *testing.T) {
-	ci.Parallel(t)
-
-	_, _, addr := testServer(t, false, nil)
-
-	t.Run("-hcl1 implies -hcl2-strict is false", func(t *testing.T) {
-		ui := cli.NewMockUi()
-		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
-		got := cmd.Run([]string{
-			"-hcl1", "-hcl2-strict",
-			"-address", addr,
-			"asset/example-short.nomad.hcl",
-		})
-		// Exit code 1 here means that an alloc will be created, which is
-		// expected.
-		must.One(t, got)
-	})
-}
-
 func TestPlanCommand_From_STDIN(t *testing.T) {
 	_, _, addr := testServer(t, false, nil)
 

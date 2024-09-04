@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -848,22 +847,14 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(400, "Job spec is empty")
 	}
 
-	var jobStruct *api.Job
-	if args.HCLv1 {
-		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
-	} else {
-		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
-			Path:       "input.hcl",
-			Body:       []byte(args.JobHCL),
-			AllowFS:    false,
-			VarContent: args.Variables,
-		})
-		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Failed to parse job: %v", err))
-		}
-	}
+	jobStruct, err := jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+		Path:       "input.hcl",
+		Body:       []byte(args.JobHCL),
+		AllowFS:    false,
+		VarContent: args.Variables,
+	})
 	if err != nil {
-		return nil, CodedError(400, err.Error())
+		return nil, CodedError(400, fmt.Sprintf("Failed to parse job: %v", err))
 	}
 
 	if args.Canonicalize {
