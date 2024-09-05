@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -60,7 +59,7 @@ func TestVolumeMounts(t *testing.T) {
 	// modify the job so that we make sure it's placed back on the same host.
 	// we want to be able to verify that the data from the previous alloc is
 	// still there
-	job, err := jobspec.ParseFile("./input/volumes.nomad")
+	job, err := e2eutil.Parse2(t, "./input/volumes.nomad")
 	require.NoError(t, err)
 	job.ID = &jobID
 	job.Constraints = []*api.Constraint{

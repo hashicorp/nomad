@@ -89,13 +89,10 @@ Plan Options:
     from "nomad job inspect" or "nomad run -output", the value of the field is
     used as the job.
 
-  -hcl1
-    Parses the job file as HCLv1. Takes precedence over "-hcl2-strict".
-
   -hcl2-strict
     Whether an error should be produced from the HCL2 parser where a variable
     has been supplied which is not defined within the root variables. Defaults
-    to true, but ignored if "-hcl1" is also defined.
+    to true.
 
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
@@ -139,7 +136,6 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-policy-override": complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
 			"-json":            complete.PredictNothing,
-			"-hcl1":            complete.PredictNothing,
 			"-hcl2-strict":     complete.PredictNothing,
 			"-vault-token":     complete.PredictAnything,
 			"-vault-namespace": complete.PredictAnything,
@@ -167,7 +163,6 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
-	flagSet.BoolVar(&c.JobGetter.HCL1, "hcl1", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
 	flagSet.StringVar(&vaultToken, "vault-token", "", "")
 	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
@@ -184,10 +179,6 @@ func (c *JobPlanCommand) Run(args []string) int {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))
 		return 255
-	}
-
-	if c.JobGetter.HCL1 {
-		c.JobGetter.Strict = false
 	}
 
 	if err := c.JobGetter.Validate(); err != nil {

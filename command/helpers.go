@@ -19,7 +19,6 @@ import (
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
@@ -30,7 +29,6 @@ import (
 
 const (
 	formatJSON = "json"
-	formatHCL1 = "hcl1"
 	formatHCL2 = "hcl2"
 )
 
@@ -410,23 +408,14 @@ type JobGetter struct {
 }
 
 func (j *JobGetter) Validate() error {
-	if j.HCL1 && j.Strict {
-		return fmt.Errorf("cannot parse job file as HCLv1 and HCLv2 strict.")
-	}
-	if j.HCL1 && j.JSON {
-		return fmt.Errorf("cannot parse job file as HCL and JSON.")
+	if j.HCL1 {
+		return fmt.Errorf("HCLv1 is no longer supported")
 	}
 	if len(j.Vars) > 0 && j.JSON {
 		return fmt.Errorf("cannot use variables with JSON files.")
 	}
 	if len(j.VarFiles) > 0 && j.JSON {
 		return fmt.Errorf("cannot use variables with JSON files.")
-	}
-	if len(j.Vars) > 0 && j.HCL1 {
-		return fmt.Errorf("cannot use variables with HCLv1.")
-	}
-	if len(j.VarFiles) > 0 && j.HCL1 {
-		return fmt.Errorf("cannot use variables with HCLv1.")
 	}
 	return nil
 }
@@ -496,14 +485,6 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 	jobfile = io.TeeReader(jobfile, &source)
 	var err error
 	switch {
-	case j.HCL1:
-		jobStruct, err = jobspec.Parse(jobfile)
-
-		// include the hcl1 source as the submission
-		jobSubmission = &api.JobSubmission{
-			Source: source.String(),
-			Format: formatHCL1,
-		}
 	case j.JSON:
 
 		// Support JSON files with both a top-level Job key as well as
@@ -576,11 +557,6 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			Variables:     varFileCat,
 			Source:        source.String(),
 			Format:        formatHCL2,
-		}
-		if err != nil {
-			if _, merr := jobspec.Parse(&source); merr == nil {
-				return nil, nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
-			}
 		}
 	}
 

@@ -4335,6 +4335,7 @@ type JobSubmission struct {
 	Source string
 
 	// Format indicates whether the original job was hcl1, hcl2, or json.
+	// hcl1 format has been removed and can no longer be parsed.
 	Format string
 
 	// VariableFlags contain the CLI "-var" flag arguments as submitted with the

@@ -75,9 +75,6 @@ type JobsParseRequest struct {
 	// JobHCL is an hcl jobspec
 	JobHCL string
 
-	// HCLv1 indicates whether the JobHCL should be parsed with the hcl v1 parser
-	HCLv1 bool `json:"hclv1,omitempty"`
-
 	// Variables are HCL2 variables associated with the job. Only works with hcl2.
 	//
 	// Interpreted as if it were the content of a variables file.
@@ -105,7 +102,7 @@ func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
 }
 
 // ParseHCLOpts is used to request the server convert the HCL representation of a
-// Job to JSON on our behalf. Accepts HCL1 or HCL2 jobs as input.
+// Job to JSON on our behalf. Only accepts HCL2 jobs as input.
 func (j *Jobs) ParseHCLOpts(req *JobsParseRequest) (*Job, error) {
 	var job Job
 	_, err := j.client.put("/v1/jobs/parse", req, &job, nil)
@@ -929,10 +926,11 @@ type ParameterizedJobConfig struct {
 // the job submission.
 type JobSubmission struct {
 	// Source contains the original job definition (may be in the format of
-	// hcl1, hcl2, or json).
+	// hcl1, hcl2, or json). HCL1 jobs can no longer be parsed.
 	Source string
 
-	// Format indicates what the Source content was (hcl1, hcl2, or json).
+	// Format indicates what the Source content was (hcl1, hcl2, or json). HCL1
+	// jobs can no longer be parsed.
 	Format string
 
 	// VariableFlags contains the CLI "-var" flag arguments as submitted with the
