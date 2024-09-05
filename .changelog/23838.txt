@@ -1,0 +1,3 @@
+```release-note:breaking-change
+heartbeats: clients older than 1.6.0 will fail heartbeats to 1.9.0+ servers
+```

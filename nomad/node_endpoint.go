@@ -539,6 +539,8 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 //	                                             │                │
 //	                                             └──── ready ─────┘
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
+	// UpdateStatus receives requests from client and servers that mark failed
+	// heartbeats, so we can't use AuthenticateClientOnly
 	authErr := n.srv.Authenticate(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
@@ -559,6 +561,12 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_status"}, time.Now())
+
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+		return structs.ErrPermissionDenied
+	} else if !(aclObj.AllowClientOp() || aclObj.AllowServerOp()) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Verify the arguments
 	if args.NodeID == "" {
@@ -1296,8 +1304,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 //   - The node status is down or disconnected. Clients must call the
 //     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
-	// COMPAT(1.9.0): move to AuthenticateClientOnly
-	aclObj, err := n.srv.AuthenticateClientOnlyLegacy(n.ctx, args)
+	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
@@ -2239,8 +2246,7 @@ func taskUsesConnect(task *structs.Task) bool {
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
-	// COMPAT(1.9.0): move to AuthenticateClientOnly
-	aclObj, err := n.srv.AuthenticateClientOnlyLegacy(n.ctx, args)
+	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied

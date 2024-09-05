@@ -156,6 +156,7 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
+			AuthToken: node.SecretID,
 		},
 	}
 

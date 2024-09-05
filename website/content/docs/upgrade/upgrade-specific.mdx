@@ -21,6 +21,13 @@ Nomad 1.9.0 no longer supports the HCLv1 format for job specifications. Using
 the `-hcl1` option for the `job run`, `job plan`, and `job validate` commands
 will no longer work.
 
+#### Dropped support for older clients
+
+Nomad 1.9.0 removes support for Nomad client agents older than 1.6.0. Older
+nodes will fail heartbeats. Nomad servers will mark the workloads on those nodes
+as lost and reschedule them normally according to the job's [reschedule][]
+block.
+
 ## Nomad 1.8.3
 
 #### Nomad keyring rotation
@@ -90,7 +97,7 @@ In Nomad 1.7.0 the `raw_exec` plugin option for `no_cgroups` became ineffective.
 Starting in Nomad 1.8.0 attempting to set the `no_cgroups` in `raw_exec` plugin
 configuration will result in an error when starting the agent.
 
-## Nomad 1.7.11 (UNRELEASED)
+## Nomad 1.7.11
 
 <EnterpriseAlert inline />
 
@@ -269,7 +276,7 @@ cgroup to halt the process group of a Task before issuing a kill signal to each
 process. Starting in Nomad 1.7.0 this behavior is always enabled (and a similar
 mechanism has always been enabled on cgroups v2 systems).
 
-## Nomad 1.6.14 (UNRELEASED)
+## Nomad 1.6.14
 
 <EnterpriseAlert inline />
 
@@ -2172,3 +2179,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [vault_grace]: /nomad/docs/job-specification/template
 [Workload Identity]: /nomad/docs/concepts/workload-identity
 [Process Isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container#process-isolation
+[reschedule]: /nomad/docs/jobs-specification/reschedule
