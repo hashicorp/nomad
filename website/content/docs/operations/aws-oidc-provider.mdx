@@ -1,15 +1,17 @@
 ---
 layout: docs
-page_title: Authenticate Nomad jobs with AWS IAM identity as an OIDC provider
+page_title: Federate access to AWS with Nomad Workload Identity
 description: |-
-  Integrate Nomad as an OpenID Connect (OIDC) provider with AWS IAM Identity.
+  Integrate Nomad as an OpenID Connect (OIDC) provider with AWS IAM identity and federate access to AWS resources.
 ---
 
-# Authenticate Nomad jobs with AWS IAM identity as an OIDC provider
+# Federate access to AWS with Nomad Workload Identity
 
-This page describes how to integrate Nomad with AWS IAM as an OpenID Connect (OIDC) provider.
-You can configure Nomad jobs to present a JSON Web Token (JWT) that the Nomad server authenticates 
-and passes to AWS IAM so that the job can access AWS services.
+This page describes how to integrate Nomad with AWS IAM as an OpenID Connect (OIDC) provider and
+use [Workload Identity] to federate access to AWS resources and services. In this workflow, Nomad
+is the [OpenID Connect Provider] (OP or OIDC provider) and generates JSON Web Tokens (JWTs) which
+serve as workload identities. AWS IAM is the Relying Party (RP) and validates these workload
+identity tokens with Nomad before it permits federated access to resources and services.
 
 ## Prerequisites
 
@@ -28,7 +30,7 @@ The instructions on this page also assume the following:
 
 ## Workflow
 
-The process to integrate Nomad with AWS IAM identity consists of the following steps:
+The process to integrate Nomad as an OIDC provider with AWS consists of the following steps:
 
 1. Create the required AWS resources:
     - [Route 53 hosted zone](#create-a-hosted-zone)
@@ -144,7 +146,8 @@ examples from this page.
 The AWS resource name of the load balancer's certificate. This will be
 `aws_acm_certificate_validation.example.certificate_arn` if you are using the examples from this
 page.
-- [`<LB_TARGET_GROUP_ARN>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener#target_group_arn): The AWS resource name of the target group for the load balancer to route traffic to.
+- [`<LB_TARGET_GROUP_ARN>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener#target_group_arn): The AWS resource name of the target group for the load balancer to route traffic to. This group
+includes your Nomad server instances.
 
 ### Create a DNS Alias
 
@@ -310,7 +313,6 @@ job "s3" {
         name = "aws"
         aud = ["aws"] 
         file = true
-        env = true
         ttl = "1h" 
         change_mode = "restart"
       }
@@ -359,3 +361,7 @@ $ nomad job status s3
 ```
 
 Verify that the file was also uploaded to the S3 bucket.
+
+
+[Workload Identity]: /nomad/docs/concepts/workload-identity
+[OpenID Connect Provider]: https://openid.net/developers/how-connect-works/

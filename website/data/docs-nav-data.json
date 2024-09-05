@@ -2379,7 +2379,7 @@
         "path": "operations/benchmarking"
       },
       {
-        "title": "Nomad OIDC with AWS Identity Provider",
+        "title": "Federate AWS Access with Workload Identity",
         "path": "operations/aws-oidc-provider"
       }
     ]
