@@ -1,0 +1,7 @@
+```release-note:deprecation
+api: the JobParseRequest.HCLv1 field will be removed in Nomad 1.9.0
+```
+
+```release-note:deprecation
+jobspec: using the -hcl1 flag for HCLv1 job specifications will now emit a warning at the command line. This feature will be removed in Nomad 1.9.0
+```

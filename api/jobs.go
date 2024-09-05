@@ -75,7 +75,10 @@ type JobsParseRequest struct {
 	// JobHCL is an hcl jobspec
 	JobHCL string
 
-	// HCLv1 indicates whether the JobHCL should be parsed with the hcl v1 parser
+	// HCLv1 indicates whether the JobHCL should be parsed with the hcl v1
+	// parser.
+	//
+	// DEPRECATION: Will be removed in Nomad 1.9.0
 	HCLv1 bool `json:"hclv1,omitempty"`
 
 	// Variables are HCL2 variables associated with the job. Only works with hcl2.
