@@ -5,6 +5,12 @@ package jobspec2
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/hashicorp/go-cty-funcs/cidr"
 	"github.com/hashicorp/go-cty-funcs/crypto"
@@ -13,6 +19,7 @@ import (
 	"github.com/hashicorp/go-cty-funcs/uuid"
 	"github.com/hashicorp/hcl/v2/ext/tryfunc"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
+	"github.com/mitchellh/go-homedir"
 	ctyyaml "github.com/zclconf/go-cty-yaml"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -104,14 +111,15 @@ func Functions(basedir string, allowFS bool) map[string]function.Function {
 		"zipmap":          stdlib.ZipmapFunc,
 
 		// filesystem calls
-		"abspath":    guardFS(allowFS, filesystem.AbsPathFunc),
-		"basename":   guardFS(allowFS, filesystem.BasenameFunc),
-		"dirname":    guardFS(allowFS, filesystem.DirnameFunc),
-		"file":       guardFS(allowFS, filesystem.MakeFileFunc(basedir, false)),
-		"filebase64": guardFS(allowFS, filesystem.MakeFileFunc(basedir, true)),
-		"fileexists": guardFS(allowFS, filesystem.MakeFileExistsFunc(basedir)),
-		"fileset":    guardFS(allowFS, filesystem.MakeFileSetFunc(basedir)),
-		"pathexpand": guardFS(allowFS, filesystem.PathExpandFunc),
+		"abspath":     guardFS(allowFS, filesystem.AbsPathFunc),
+		"basename":    guardFS(allowFS, filesystem.BasenameFunc),
+		"dirname":     guardFS(allowFS, filesystem.DirnameFunc),
+		"file":        guardFS(allowFS, filesystem.MakeFileFunc(basedir, false)),
+		"fileescaped": guardFS(allowFS, fileEscaped(basedir)),
+		"filebase64":  guardFS(allowFS, filesystem.MakeFileFunc(basedir, true)),
+		"fileexists":  guardFS(allowFS, filesystem.MakeFileExistsFunc(basedir)),
+		"fileset":     guardFS(allowFS, filesystem.MakeFileSetFunc(basedir)),
+		"pathexpand":  guardFS(allowFS, filesystem.PathExpandFunc),
 	}
 
 	return funcs
@@ -134,4 +142,79 @@ func guardFS(allowFS bool, fn function.Function) function.Function {
 	}
 
 	return function.New(spec)
+}
+
+var escapeRegex = regexp.MustCompile(`(\%+|\$+){`)
+
+// fileEscaped is a slightly stripped-down alternative implementation of
+// go-cty's filesystem that escapes the file contents so they won't be further
+// interpolated.
+func fileEscaped(baseDir string) function.Function {
+
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "path",
+				Type: cty.String,
+			},
+		},
+		Type: function.StaticReturnType(cty.String),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			path := args[0].AsString()
+			buf, err := readFileBytes(baseDir, path)
+			if err != nil {
+				return cty.UnknownVal(cty.String), err
+			}
+
+			if !utf8.Valid(buf) {
+				return cty.UnknownVal(cty.String), fmt.Errorf("contents of %s are not valid UTF-8; use the filebase64 function to obtain the Base64 encoded contents or the other file functions (e.g. filemd5, filesha256) to obtain file hashing results instead", path)
+			}
+
+			src := string(buf)
+			src = escape(src)
+
+			return cty.StringVal(src), nil
+		},
+	})
+}
+
+func escape(src string) string {
+	src = escapeRegex.ReplaceAllStringFunc(src, func(in string) string {
+		switch {
+		case strings.HasPrefix(in, "%{"):
+			return "%" + in
+		case strings.HasPrefix(in, "${"):
+			return "$" + in
+		default:
+			return in
+		}
+	})
+
+	return src
+}
+
+func readFileBytes(baseDir, path string) ([]byte, error) {
+	path, err := homedir.Expand(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand ~: %s", err)
+	}
+
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(baseDir, path)
+	}
+
+	// Ensure that the path is canonical for the host OS
+	path = filepath.Clean(path)
+
+	src, err := ioutil.ReadFile(path)
+	if err != nil {
+		// ReadFile does not return Terraform-user-friendly error
+		// messages, so we'll provide our own.
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("no file exists at %s", path)
+		}
+		return nil, fmt.Errorf("failed to read %s", path)
+	}
+
+	return src, nil
 }

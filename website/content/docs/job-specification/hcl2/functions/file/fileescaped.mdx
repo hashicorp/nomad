@@ -1,0 +1,90 @@
+---
+layout: docs
+page_title: fileescaped - Functions - Configuration Language
+description: |-
+  The fileescaped function reads the contents of the file at the given path and
+  returns them as a string that's been escaped for use in a heredoc
+---
+
+# `fileescaped` Function
+
+`fileescaped` reads the contents of a file at the given path and returns them as
+a string that's been escaped for use as a heredoc literal. This allows including
+files as [heredocs][] without further interpolation of their contents. This is
+particularly useful for use in [`template.data`]. Relative paths will be
+resolved based on the CLI’s current working directory.
+
+```hcl
+fileescaped(path)
+```
+
+Strings in the Nomad language are sequences of Unicode characters, so this
+function will interpret the file contents as UTF-8 encoded text and return the
+resulting Unicode characters. If the file contains invalid UTF-8 sequences then
+this function will produce an error.
+
+Functions are evaluated by the CLI during configuration parsing rather than job
+run time, so this function can only be used with files that are already present
+on disk on operator host.
+
+## Example
+
+Consider the use of the following shell script. In this example, the script is
+retrieving a configuration value from Consul and then running an application
+using that value.
+
+```shell-session
+$ cat ./run.sh
+CONFIG=$(consul kv get myconfig)
+
+exec myservice --config=${CONFIG}
+```
+
+Using the `file` function, the string `${CONFIG}` would be evaluated as a HCL2
+expression before the job is registered, which would fail. Instead, use the
+`fileescaped` function so that the shell script is escaped to the following:
+
+```sh
+CONFIG=$(consul kv get myconfig)
+
+exec myservice --config=$${CONFIG}
+```
+
+Use this in an example job specification:
+
+```hcl
+# /path/to/example/jobspec.nomad
+job "test" {
+  group "test" {
+    task "test" {
+      driver = "docker"
+      config {
+        image  = "test/image:latest"
+
+        volumes = [
+          "local/run.sh:/path/to/file/on/container/run.sh"
+        ]
+      }
+
+      template {
+        data        = <<EOT
+fileescaped("/path/to/example/run.sh")
+EOT
+
+        destination = "local/run.sh"
+      }
+    }
+  }
+}
+```
+
+## Related Functions
+
+- [`file`](/nomad/docs/job-specification/hcl2/functions/file/file) reads the
+  contents of a file at a given path
+- [`fileexists`](/nomad/docs/job-specification/hcl2/functions/file/fileexists)
+  determines whether a file exists at a given path.
+
+
+[heredocs]: /nomad/docs/job-specification/hcl2/expressions#string-literals
+[`template.data`]: /nomad/docs/job-specification/template#data
