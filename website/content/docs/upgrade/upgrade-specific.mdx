@@ -21,7 +21,7 @@ Nomad 1.9.0 no longer supports the HCLv1 format for job specifications. Using
 the `-hcl1` option for the `job run`, `job plan`, and `job validate` commands
 will no longer work.
 
-#### Default `infra_image` changed
+#### Default Docker `infra_image` changed
 
 Due to the deprecation of the third-party `gcr.io` registry, the default Docker
 [`infra_image`][] is now `registry.k8s.io/pause-<arch>:3.3`. If you do not
