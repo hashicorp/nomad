@@ -20,6 +20,7 @@ func testPartition(t *testing.T) *partition {
 	shareFile := filepath.Join(dir, "share.cpus")
 	reserveFile := filepath.Join(dir, "reserve.cpus")
 	return &partition{
+		usableCores: idset.From[hw.CoreID]([]hw.CoreID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}),
 		sharePath:   shareFile,
 		reservePath: reserveFile,
 		share:       idset.From[hw.CoreID]([]hw.CoreID{10, 11, 12, 13, 14, 15, 16, 17, 18, 19}),
@@ -91,6 +92,12 @@ func TestPartition_Release(t *testing.T) {
 
 	// release 3
 	p.Release(coreset(11, 18))
+	must.FileContains(t, p.sharePath, "10-19")
+	must.FileContains(t, p.reservePath, "")
+
+	// release more cores than the usable ones
+	// test partition only has 20 usable cores.
+	p.Release(coreset(11, 18, 19, 20, 21))
 	must.FileContains(t, p.sharePath, "10-19")
 	must.FileContains(t, p.reservePath, "")
 }
