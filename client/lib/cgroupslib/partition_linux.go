@@ -93,7 +93,7 @@ func (p *partition) Release(cores *idset.Set[hw.CoreID]) error {
 
 	p.reserve.RemoveSet(cores)
 
-	// Use the intersection with the usable cores to avoid adding more cores than available.
+	// Use the intersection with the usable cores to avoid removing more cores than available.
 	p.share.InsertSet(p.usableCores.Intersect(cores))
 	return p.write()
 }
