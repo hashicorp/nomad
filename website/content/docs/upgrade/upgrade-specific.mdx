@@ -21,6 +21,13 @@ Nomad 1.9.0 no longer supports the HCLv1 format for job specifications. Using
 the `-hcl1` option for the `job run`, `job plan`, and `job validate` commands
 will no longer work.
 
+#### Default `infra_image` changed
+
+Due to the deprecation of the third-party `gcr.io` registry, the default Docker
+[`infra_image`][] is now `registry.k8s.io/pause-<arch>:3.3`. If you do not
+override the default, clients using the `docker` driver will make outbound
+requests to the new registry.
+
 #### Dropped support for older clients
 
 Nomad 1.9.0 removes support for Nomad client agents older than 1.6.0. Older
@@ -2180,3 +2187,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [Workload Identity]: /nomad/docs/concepts/workload-identity
 [Process Isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container#process-isolation
 [reschedule]: /nomad/docs/jobs-specification/reschedule
+[`infra_image`]: /nomad/docs/drivers/docker#infra_image
