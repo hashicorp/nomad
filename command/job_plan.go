@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -84,14 +85,14 @@ Plan Options:
     Determines whether the diff between the remote job and planned job is shown.
     Defaults to true.
 
-	-diff-tag
-		Specifies the version of the remote job to compare against, referenced by
-		tag name (defaults to latest). This tag can be set using the
-		"nomad job tag" command.
+  -diff-tag
+    Specifies the version of the remote job to compare against, referenced by
+    tag name (defaults to latest). This tag can be set using the
+    "nomad job tag" command.
 
-	-diff-version
-		Specifies the version number of the remote job to compare against
-		(defaults to latest).
+  -diff-version
+    Specifies the version number of the remote job to compare against
+    (defaults to latest).
 
   -json
     Parses the job file as JSON. If the outer object has a Job field, such as
@@ -166,13 +167,14 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
-	var vaultToken, vaultNamespace, diffTag, diffVersion string
+	var vaultToken, vaultNamespace, diffTag, diffVersionFlag string
+	var diffVersion *uint64
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.BoolVar(&diff, "diff", true, "")
 	flagSet.StringVar(&diffTag, "diff-tag", "", "")
-	flagSet.StringVar(&diffVersion, "diff-version", "", "")
+	flagSet.StringVar(&diffVersionFlag, "diff-version", "", "")
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
@@ -257,12 +259,22 @@ func (c *JobPlanCommand) Run(args []string) int {
 		return c.multiregionPlan(client, job, opts, diff, verbose)
 	}
 
-	opts.DiffTagName = diffTag
-	opts.DiffVersion = diffVersion
-	if diffTag != "" && diffVersion != "" {
+	if diffTag != "" && diffVersionFlag != "" {
 		c.Ui.Error("Cannot specify both -diff-tag and -diff-version")
 		return 255
 	}
+
+	if diffVersionFlag != "" {
+		parsedDiffVersion, err := strconv.ParseUint(diffVersionFlag, 10, 64)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing diff version: %s", err))
+			return 1
+		}
+		diffVersion = &parsedDiffVersion
+	}
+
+	opts.DiffTagName = diffTag
+	opts.DiffVersion = diffVersion
 
 	// Submit the job
 	resp, _, err := client.Jobs().PlanOpts(job, opts, nil)

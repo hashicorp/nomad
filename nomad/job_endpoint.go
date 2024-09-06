@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -1304,24 +1303,23 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 				var compareVersion *structs.Job
 				var compareStatic bool
 
-				if args.DiffTagName != "" {
-					compareStatic = true
-					tagFound := false
-					for _, version := range out {
-						if version.TaggedVersion != nil && version.TaggedVersion.Name == args.DiffTagName {
-							tagFound = true
-							compareVersionNumber = version.Version
-							break
+				if args.Diffs {
+					if args.DiffTagName != "" {
+						compareStatic = true
+						tagFound := false
+						for _, version := range out {
+							if version.TaggedVersion != nil && version.TaggedVersion.Name == args.DiffTagName {
+								tagFound = true
+								compareVersionNumber = version.Version
+								break
+							}
 						}
-					}
-					if !tagFound {
-						return fmt.Errorf("tag %q not found", args.DiffTagName)
-					}
-				} else if args.DiffVersion != "" {
-					compareStatic = true
-					compareVersionNumber, err = strconv.ParseUint(args.DiffVersion, 10, 64)
-					if err != nil {
-						return fmt.Errorf("failed to parse diff version: %v", err)
+						if !tagFound {
+							return fmt.Errorf("tag %q not found", args.DiffTagName)
+						}
+					} else if args.DiffVersion != nil {
+						compareStatic = true
+						compareVersionNumber = *args.DiffVersion
 					}
 				}
 
@@ -1342,7 +1340,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 					if args.DiffTagName != "" {
 						return fmt.Errorf("tag %q not found", args.DiffTagName)
 					}
-					return fmt.Errorf("version %q not found", args.DiffVersion)
+					return fmt.Errorf("version %d not found", *args.DiffVersion)
 				}
 
 				// Compute the diffs
@@ -1810,6 +1808,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	if done, err := j.srv.forward("Job.Plan", args, args, reply); done {
 		return err
 	}
+
 	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
@@ -1864,37 +1863,20 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Get the original job
 	ws := memdb.NewWatchSet()
-	// existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// var existingJob interface{}
 	var existingJob *structs.Job
 
-	if args.DiffVersion != "" {
-		// Convert from string to uint64
-		diffVersion, err := strconv.ParseUint(args.DiffVersion, 10, 64)
-		if err != nil {
-			return err
-		}
-		existingJob, err = snap.JobByIDAndVersion(ws, args.RequestNamespace(), args.Job.ID, diffVersion)
+	if args.DiffVersion != nil {
+		existingJob, err = snap.JobByIDAndVersion(ws, args.RequestNamespace(), args.Job.ID, *args.DiffVersion)
 		if err != nil {
 			return err
 		}
 		if existingJob == nil {
-			return fmt.Errorf("version %q not found", args.DiffVersion)
+			return fmt.Errorf("version %d not found", *args.DiffVersion)
 		}
 	} else if args.DiffTagName != "" {
-		versions, err := snap.JobVersionsByID(ws, args.RequestNamespace(), args.Job.ID)
+		existingJob, err = snap.JobVersionByTagName(ws, args.RequestNamespace(), args.Job.ID, args.DiffTagName)
 		if err != nil {
 			return err
-		}
-		for _, version := range versions {
-			if version.TaggedVersion != nil && version.TaggedVersion.Name == args.DiffTagName {
-				existingJob = version
-				break
-			}
 		}
 		if existingJob == nil {
 			return fmt.Errorf("version tag %q not found", args.DiffTagName)
@@ -1991,7 +1973,6 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 	annotations := planner.Plans[0].Annotations
 	if args.Diff {
-
 		jobDiff, err := existingJob.Diff(args.Job, true)
 		if err != nil {
 			return fmt.Errorf("failed to create job diff: %v", err)

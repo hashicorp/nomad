@@ -305,7 +305,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 
 	// Retrieve the job history so we can properly determine if a group or task
 	// exists in the specific allocation job version.
-	jobVersions, _, _, err := c.client.Jobs().Versions(c.jobID, false, "", "", nil)
+	jobVersions, _, _, err := c.client.Jobs().Versions(c.jobID, false, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving versions of job %q: %s", c.jobID, err))
 		return 1

@@ -227,7 +227,7 @@ func getJob(client *api.Client, namespace, jobID string, version *uint64) (*api.
 		return job, err
 	}
 
-	versions, _, _, err := client.Jobs().Versions(jobID, false, "", "", q)
+	versions, _, _, err := client.Jobs().Versions(jobID, false, q)
 	if err != nil {
 		return nil, err
 	}

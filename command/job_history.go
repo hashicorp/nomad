@@ -41,16 +41,17 @@ History Options:
 
   -p
     Display the difference between each version of the job and a reference
-		version. The reference version can be specified using the -diff-tag or
-		-diff-version flags. If neither flag is set, the preceding version is used.
+    version. The reference version can be specified using the -diff-tag or
+    -diff-version flags. If neither flag is set, the most recent version is used.
 
-	-diff-tag
-		Specifies the version of the job to compare against, referenced by
-		tag name (defaults to latest). This tag can be set using the
-		"nomad job tag" command.
+  -diff-tag
+    Specifies the version of the job to compare against, referenced by
+    tag name (defaults to latest). Mutually exclusive with -diff-version.
+    This tag can be set using the "nomad job tag" command.
 
-	-diff-version
-		Specifies the version number of the job to compare against.
+  -diff-version
+    Specifies the version number of the job to compare against.
+    Mutually exclusive with -diff-tag.
 
   -full
     Display the full job definition for each version.
@@ -103,7 +104,8 @@ func (c *JobHistoryCommand) Name() string { return "job history" }
 
 func (c *JobHistoryCommand) Run(args []string) int {
 	var json, diff, full bool
-	var tmpl, versionStr, diffTag, diffVersion string
+	var tmpl, versionStr, diffTag, diffVersionFlag string
+	var diffVersion *uint64
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -113,7 +115,7 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	flags.StringVar(&versionStr, "version", "", "")
 	flags.StringVar(&tmpl, "t", "", "")
 	flags.StringVar(&diffTag, "diff-tag", "", "")
-	flags.StringVar(&diffVersion, "diff-version", "", "")
+	flags.StringVar(&diffVersionFlag, "diff-version", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -132,14 +134,23 @@ func (c *JobHistoryCommand) Run(args []string) int {
 		return 1
 	}
 
-	if (diffTag != "" && !diff) || (diffVersion != "" && !diff) {
+	if (diffTag != "" && !diff) || (diffVersionFlag != "" && !diff) {
 		c.Ui.Error("-diff-tag and -diff-version can only be used with -p")
 		return 1
 	}
 
-	if diffTag != "" && diffVersion != "" {
+	if diffTag != "" && diffVersionFlag != "" {
 		c.Ui.Error("-diff-tag and -diff-version are mutually exclusive")
 		return 1
+	}
+
+	if diffVersionFlag != "" {
+		parsedDiffVersion, err := strconv.ParseUint(diffVersionFlag, 10, 64)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing diff version: %s", err))
+			return 1
+		}
+		diffVersion = &parsedDiffVersion
 	}
 
 	// Get the HTTP client
@@ -160,7 +171,12 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	q := &api.QueryOptions{Namespace: namespace}
 
 	// Prefix lookup matched a single job
-	versions, diffs, _, err := client.Jobs().Versions(jobID, diff, diffTag, diffVersion, q)
+	versionOptions := &api.VersionsOptions{
+		Diffs:       diff,
+		DiffTag:     diffTag,
+		DiffVersion: diffVersion,
+	}
+	versions, diffs, _, err := client.Jobs().VersionsOpts(jobID, versionOptions, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1
@@ -250,7 +266,7 @@ func (c *JobHistoryCommand) formatJobVersions(versions []*api.Job, diffs []*api.
 	for i, version := range versions {
 		var diff *api.JobDiff
 		var nextVersion uint64
-		if dLen > i && diffs[i] != nil {
+		if dLen > i {
 			diff = diffs[i]
 		}
 		if i+1 < vLen { // if the current version is not the last version

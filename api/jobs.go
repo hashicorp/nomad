@@ -263,9 +263,34 @@ func (j *Jobs) ScaleStatus(jobID string, q *QueryOptions) (*JobScaleStatusRespon
 
 // Versions is used to retrieve all versions of a particular job given its
 // unique ID.
-func (j *Jobs) Versions(jobID string, diffs bool, diffTag string, diffVersion string, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
+func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
+	opts := &VersionsOptions{
+		Diffs: diffs,
+	}
+	return j.VersionsOpts(jobID, opts, q)
+}
+
+type VersionsOptions struct {
+	Diffs       bool
+	DiffTag     string
+	DiffVersion *uint64
+}
+
+func (j *Jobs) VersionsOpts(jobID string, opts *VersionsOptions, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
 	var resp JobVersionsResponse
-	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?diffs=%t&diff_tag=%s&diff_version=%s", url.PathEscape(jobID), diffs, diffTag, diffVersion), &resp, q)
+
+	qp := url.Values{}
+	if opts != nil {
+		qp.Add("diffs", strconv.FormatBool(opts.Diffs))
+		if opts.DiffTag != "" {
+			qp.Add("diff_tag", opts.DiffTag)
+		}
+		if opts.DiffVersion != nil {
+			qp.Add("diff_version", strconv.FormatUint(*opts.DiffVersion, 10))
+		}
+	}
+
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?%s", url.PathEscape(jobID), qp.Encode()), &resp, q)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -446,7 +471,7 @@ func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta,
 type PlanOptions struct {
 	Diff           bool
 	PolicyOverride bool
-	DiffVersion    string
+	DiffVersion    *uint64
 	DiffTagName    string
 }
 
@@ -470,7 +495,10 @@ func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanR
 	if opts != nil {
 		req.Diff = opts.Diff
 		req.PolicyOverride = opts.PolicyOverride
-		req.DiffVersion = opts.DiffVersion
+		if opts.DiffVersion != nil {
+			req.DiffVersion = opts.DiffVersion
+		}
+
 		req.DiffTagName = opts.DiffTagName
 	}
 
@@ -1481,7 +1509,7 @@ type JobPlanRequest struct {
 	Job            *Job
 	Diff           bool
 	PolicyOverride bool
-	DiffVersion    string
+	DiffVersion    *uint64
 	DiffTagName    string
 	WriteRequest
 }
