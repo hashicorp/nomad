@@ -101,7 +101,7 @@ func (p *partition) Release(cores *idset.Set[hw.CoreID]) error {
 func (p *partition) write() error {
 	shareStr := p.share.String()
 	if err := os.WriteFile(p.sharePath, []byte(shareStr), 0644); err != nil {
-		return fmt.Errorf("cgroupslib: unable to update share cpuset with \"%s\": %w", shareStr, err)
+		return fmt.Errorf("cgroupslib: unable to update share cpuset with %q: %w", shareStr, err)
 	}
 
 	reserveStr := p.reserve.String()
