@@ -275,7 +275,7 @@ var (
 		"infra_image": hclspec.NewDefault(
 			hclspec.NewAttr("infra_image", "string", false),
 			hclspec.NewLiteral(fmt.Sprintf(
-				`"gcr.io/google_containers/pause-%s:3.1"`,
+				`"registry.k8s.io/pause-%s:3.3"`,
 				runtime.GOARCH,
 			)),
 		),
