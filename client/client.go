@@ -474,7 +474,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	})
 
 	// Create the cpu core partition manager
-	c.partitions = cgroupslib.GetPartition(
+	c.partitions = cgroupslib.GetPartition(c.logger.Named("partitions"),
 		c.topology.UsableCores(),
 	)
 
@@ -1276,7 +1276,6 @@ func (c *Client) restoreState() error {
 		// wait for servers to be contacted before proceeding with the
 		// restoration process.
 		arConf.ServersContactedCh = c.serversContactedCh
-
 		ar, err := c.allocrunnerFactory(arConf)
 		if err != nil {
 			c.logger.Error("error running alloc", "error", err, "alloc_id", alloc.ID)
