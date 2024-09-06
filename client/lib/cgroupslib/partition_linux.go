@@ -106,7 +106,7 @@ func (p *partition) write() error {
 
 	reserveStr := p.reserve.String()
 	if err := os.WriteFile(p.reservePath, []byte(reserveStr), 0644); err != nil {
-		return fmt.Errorf("cgroupslib: unable to update reserve cpuset with \"%s\": %w", reserveStr, err)
+		return fmt.Errorf("cgroupslib: unable to update reserve cpuset with %q: %w", reserveStr, err)
 	}
 	return nil
 }
