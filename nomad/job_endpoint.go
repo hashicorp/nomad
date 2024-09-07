@@ -1301,11 +1301,11 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 
 				var compareVersionNumber uint64
 				var compareVersion *structs.Job
-				var compareStatic bool
+				var compareSpecificVersion bool
 
 				if args.Diffs {
 					if args.DiffTagName != "" {
-						compareStatic = true
+						compareSpecificVersion = true
 						tagFound := false
 						for _, version := range out {
 							if version.TaggedVersion != nil && version.TaggedVersion.Name == args.DiffTagName {
@@ -1318,7 +1318,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 							return fmt.Errorf("tag %q not found", args.DiffTagName)
 						}
 					} else if args.DiffVersion != nil {
-						compareStatic = true
+						compareSpecificVersion = true
 						compareVersionNumber = *args.DiffVersion
 					}
 				}
@@ -1330,13 +1330,13 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 					if job.ModifyIndex > maxModifyIndex {
 						maxModifyIndex = job.ModifyIndex
 					}
-					if compareStatic && job.Version == compareVersionNumber {
+					if compareSpecificVersion && job.Version == compareVersionNumber {
 						compareVersion = job
 					}
 				}
 				reply.Index = maxModifyIndex
 
-				if compareStatic && compareVersion == nil {
+				if compareSpecificVersion && compareVersion == nil {
 					if args.DiffTagName != "" {
 						return fmt.Errorf("tag %q not found", args.DiffTagName)
 					}
@@ -1344,19 +1344,26 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 				}
 
 				// Compute the diffs
+
+				// TODO:
+				// - tests
+				// - Remove job plan getting diffs and make it into a new command, `nomad job diff`
+
 				if args.Diffs {
 					for i := 0; i < len(out); i++ {
-						// For each of your job's versions, counting from highest version to lowest
-						// it should either be compared to the NEXT version in out[], or to the pre-specified version from compareStatic.
-						if !compareStatic {
-							if i+1 < len(out) && out[i+1] != nil {
-								compareVersion = out[i+1]
-							} else {
+						var old, new *structs.Job
+						new = out[i]
+
+						if compareSpecificVersion {
+							old = compareVersion
+						} else {
+							if i == len(out)-1 {
+								// Skip the last version if not comparing to a specific version
 								break
 							}
+							old = out[i+1]
 						}
 
-						old, new := compareVersion, out[i]
 						d, err := old.Diff(new, true)
 						if err != nil {
 							return fmt.Errorf("failed to create job diff: %v", err)
@@ -1871,7 +1878,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 			return err
 		}
 		if existingJob == nil {
-			return fmt.Errorf("version %d not found", *args.DiffVersion)
+			return fmt.Errorf("version %q not found", *args.DiffVersion)
 		}
 	} else if args.DiffTagName != "" {
 		existingJob, err = snap.JobVersionByTagName(ws, args.RequestNamespace(), args.Job.ID, args.DiffTagName)

@@ -495,9 +495,7 @@ func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanR
 	if opts != nil {
 		req.Diff = opts.Diff
 		req.PolicyOverride = opts.PolicyOverride
-		if opts.DiffVersion != nil {
-			req.DiffVersion = opts.DiffVersion
-		}
+		req.DiffVersion = opts.DiffVersion
 
 		req.DiffTagName = opts.DiffTagName
 	}

@@ -147,7 +147,7 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	if diffVersionFlag != "" {
 		parsedDiffVersion, err := strconv.ParseUint(diffVersionFlag, 10, 64)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error parsing diff version: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error parsing -diff-version: %s", err))
 			return 1
 		}
 		diffVersion = &parsedDiffVersion
@@ -198,7 +198,6 @@ func (c *JobHistoryCommand) Run(args []string) int {
 
 		var job *api.Job
 		var diff *api.JobDiff
-		var nextVersion uint64
 		for i, v := range versions {
 			if *v.Version != version {
 				continue
@@ -207,7 +206,6 @@ func (c *JobHistoryCommand) Run(args []string) int {
 			job = v
 			if i+1 <= len(diffs) {
 				diff = diffs[i]
-				nextVersion = *versions[i+1].Version
 			}
 		}
 
@@ -222,7 +220,7 @@ func (c *JobHistoryCommand) Run(args []string) int {
 			return 0
 		}
 
-		if err := c.formatJobVersion(job, diff, nextVersion, full); err != nil {
+		if err := c.formatJobVersion(job, diff, full); err != nil {
 			c.Ui.Error(err.Error())
 			return 1
 		}
@@ -265,15 +263,11 @@ func (c *JobHistoryCommand) formatJobVersions(versions []*api.Job, diffs []*api.
 
 	for i, version := range versions {
 		var diff *api.JobDiff
-		var nextVersion uint64
-		if dLen > i {
+		if i+1 <= dLen {
 			diff = diffs[i]
 		}
-		if i+1 < vLen { // if the current version is not the last version
-			nextVersion = *versions[i+1].Version
-		}
 
-		if err := c.formatJobVersion(version, diff, nextVersion, full); err != nil {
+		if err := c.formatJobVersion(version, diff, full); err != nil {
 			return err
 		}
 
@@ -286,7 +280,7 @@ func (c *JobHistoryCommand) formatJobVersions(versions []*api.Job, diffs []*api.
 	return nil
 }
 
-func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, nextVersion uint64, full bool) error {
+func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, full bool) error {
 	if job == nil {
 		return fmt.Errorf("Error printing job history for non-existing job or job version")
 	}
@@ -304,8 +298,7 @@ func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, ne
 		}
 	}
 
-	if diff != nil {
-		//diffStr := fmt.Sprintf("Difference between version %d and %d:", *job.Version, nextVersion)
+	if diff != nil && diff.Type != "None" {
 		basic = append(basic, fmt.Sprintf("Diff|\n%s", strings.TrimSpace(formatJobDiff(diff, false))))
 	}
 
