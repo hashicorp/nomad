@@ -607,6 +607,26 @@ configuration file.
   }
   ```
 
+If you need to set authorization to external registry, you can create such definitions:
+#### **`/etc/nomad.d/registry/auth.json`**
+```json
+{
+        "auths": {
+                "yourregistry": {
+                        "auth": "token"
+                }
+        }
+}
+```
+
+#### **`/etc/nomad.d/nomad.env`**
+```env
+# everything you need here
+REGISTRY_AUTH_FILE=/etc/nomad.d/registry/auth.json
+# or here
+```
+
+
 [github]: https://github.com/hashicorp/nomad-driver-podman
 [`count`]: /nomad/docs/job-specification/group#count
 [`disable_log_collection`]: #disable_log_collection
