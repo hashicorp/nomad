@@ -608,7 +608,7 @@ configuration file.
   ```
 
 If you need to set authorization to external registry, you can create such definitions:
-#### **`/etc/nomad.d/registry/auth.json`**
+##### **`/etc/nomad.d/registry/auth.json`**
 ```json
 {
         "auths": {
@@ -619,7 +619,7 @@ If you need to set authorization to external registry, you can create such defin
 }
 ```
 
-#### **`/etc/nomad.d/nomad.env`**
+##### **`/etc/nomad.d/nomad.env`**
 ```env
 # everything you need here
 REGISTRY_AUTH_FILE=/etc/nomad.d/registry/auth.json
