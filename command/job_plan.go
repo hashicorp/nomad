@@ -140,8 +140,6 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-vault-token":     complete.PredictAnything,
 			"-vault-namespace": complete.PredictAnything,
 			"-var":             complete.PredictAnything,
-			"-diff-tag":        complete.PredictAnything,
-			"-diff-version":    complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
 		})
 }

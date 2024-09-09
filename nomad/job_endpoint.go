@@ -1306,17 +1306,14 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 				if args.Diffs {
 					if args.DiffTagName != "" {
 						compareSpecificVersion = true
-						tagFound := false
-						for _, version := range out {
-							if version.TaggedVersion != nil && version.TaggedVersion.Name == args.DiffTagName {
-								tagFound = true
-								compareVersionNumber = version.Version
-								break
-							}
+						compareVersion, err = state.JobVersionByTagName(ws, args.RequestNamespace(), args.JobID, args.DiffTagName)
+						if err != nil {
+							return fmt.Errorf("error looking up job version by tag: %v", err)
 						}
-						if !tagFound {
+						if compareVersion == nil {
 							return fmt.Errorf("tag %q not found", args.DiffTagName)
 						}
+						compareVersionNumber = compareVersion.Version
 					} else if args.DiffVersion != nil {
 						compareSpecificVersion = true
 						compareVersionNumber = *args.DiffVersion
@@ -1344,10 +1341,6 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 				}
 
 				// Compute the diffs
-
-				// TODO:
-				// - tests
-				// - Remove job plan getting diffs and make it into a new command, `nomad job diff`
 
 				if args.Diffs {
 					for i := 0; i < len(out); i++ {
@@ -1815,7 +1808,6 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	if done, err := j.srv.forward("Job.Plan", args, args, reply); done {
 		return err
 	}
-
 	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
@@ -1870,9 +1862,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Get the original job
 	ws := memdb.NewWatchSet()
-	var existingJob *structs.Job
-
-	existingJob, err = snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
+	existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
 	if err != nil {
 		return err
 	}
