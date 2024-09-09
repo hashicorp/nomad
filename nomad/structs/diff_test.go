@@ -4616,6 +4616,12 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeDeleted,
+										Name: "IgnoreCollision",
+										Old:  "false",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
 										Name: "Label",
 										Old:  "foo",
 										New:  "",
@@ -6488,6 +6494,12 @@ func TestTaskDiff(t *testing.T) {
 										Fields: []*FieldDiff{
 											{
 												Type: DiffTypeAdded,
+												Name: "IgnoreCollision",
+												Old:  "",
+												New:  "false",
+											},
+											{
+												Type: DiffTypeAdded,
 												Name: "Label",
 												Old:  "",
 												New:  "foo",
@@ -6534,6 +6546,12 @@ func TestTaskDiff(t *testing.T) {
 										Type: DiffTypeDeleted,
 										Name: "Static Port",
 										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "IgnoreCollision",
+												Old:  "false",
+												New:  "",
+											},
 											{
 												Type: DiffTypeDeleted,
 												Name: "Label",

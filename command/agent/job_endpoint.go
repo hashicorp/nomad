@@ -1576,10 +1576,11 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 
 func ApiPortToStructs(in api.Port) structs.Port {
 	return structs.Port{
-		Label:       in.Label,
-		Value:       in.Value,
-		To:          in.To,
-		HostNetwork: in.HostNetwork,
+		Label:           in.Label,
+		Value:           in.Value,
+		To:              in.To,
+		HostNetwork:     in.HostNetwork,
+		IgnoreCollision: in.IgnoreCollision,
 	}
 }
 
