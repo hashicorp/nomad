@@ -166,3 +166,209 @@ namespace "default" {
 		})
 	}
 }
+
+func TestJobHistoryCommand_Diffs(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+	state := srv.Agent.Server().State()
+
+	// Create a job with multiple versions
+	job := mock.Job()
+
+	job.ID = "test-job-history"
+	job.TaskGroups[0].Count = 1
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
+
+	v2 := job.Copy()
+	v2.TaskGroups[0].Count = 2
+	v2.TaggedVersion = &structs.JobTaggedVersion{
+		Name:        "example-tag",
+		Description: "example-description",
+	}
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, v2))
+
+	v3 := job.Copy()
+	v3.TaskGroups[0].Count = 3
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, v3))
+
+	v4 := job.Copy()
+	v4.TaskGroups[0].Count = 4
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, v4))
+
+	t.Run("Without diffs", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobHistoryCommand{Meta: Meta{Ui: ui}}
+
+		code := cmd.Run([]string{"-address", url, job.ID})
+		must.Zero(t, code)
+
+		out := ui.OutputWriter.String()
+		// There should be four outputs
+		must.Eq(t, 4, strings.Count(out, "Version"))
+		must.Eq(t, 0, strings.Count(out, "Diff"))
+	})
+	t.Run("With diffs", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobHistoryCommand{Meta: Meta{Ui: ui}}
+
+		code := cmd.Run([]string{"-p", "-address", url, job.ID})
+		must.Zero(t, code)
+
+		out := ui.OutputWriter.String()
+		rawBlocks := strings.Split(out, "Version")
+		// trim empty blocks from whitespace in the output
+		var blocks []string
+		for _, block := range rawBlocks {
+			trimmed := strings.TrimSpace(block)
+			if trimmed != "" {
+				blocks = append(blocks, trimmed)
+			}
+		}
+
+		// Check that we have 4 versions
+		must.Eq(t, 4, len(blocks))
+		must.Eq(t, 4, strings.Count(out, "Version"))
+		must.Eq(t, 3, strings.Count(out, "Diff"))
+
+		// Diffs show up for all versions except the first one
+		must.True(t, strings.Contains(blocks[0], "Diff"))
+		must.True(t, strings.Contains(blocks[1], "Diff"))
+		must.True(t, strings.Contains(blocks[2], "Diff"))
+		must.False(t, strings.Contains(blocks[3], "Diff"))
+
+		// Check that the diffs are specifically against their predecessor
+		must.True(t, strings.Contains(blocks[0], "\"3\" => \"4\""))
+		must.True(t, strings.Contains(blocks[1], "\"2\" => \"3\""))
+		must.True(t, strings.Contains(blocks[2], "\"1\" => \"2\""))
+	})
+
+	t.Run("With diffs against a specific version that doesnt exist", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobHistoryCommand{Meta: Meta{Ui: ui}}
+
+		code := cmd.Run([]string{"-p", "-diff-version", "4", "-address", url, job.ID})
+		must.One(t, code)
+		// Error that version 4 doesnt exists
+		must.StrContains(t, ui.ErrorWriter.String(), "version 4 not found")
+
+	})
+	t.Run("With diffs against a specific version", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobHistoryCommand{Meta: Meta{Ui: ui}}
+
+		code := cmd.Run([]string{"-p", "-diff-version", "3", "-address", url, job.ID})
+		must.Zero(t, code)
+
+		out := ui.OutputWriter.String()
+		rawBlocks := strings.Split(out, "Version")
+		// trim empty blocks from whitespace in the output
+		var blocks []string
+		for _, block := range rawBlocks {
+			trimmed := strings.TrimSpace(block)
+			if trimmed != "" {
+				blocks = append(blocks, trimmed)
+			}
+		}
+
+		// Check that we have 4 versions
+		must.Eq(t, 4, len(blocks))
+		must.Eq(t, 4, strings.Count(out, "Version"))
+		must.Eq(t, 3, strings.Count(out, "Diff"))
+
+		// Diffs show up for all versions except the specified one
+		must.False(t, strings.Contains(blocks[0], "Diff"))
+		must.True(t, strings.Contains(blocks[1], "Diff"))
+		must.True(t, strings.Contains(blocks[2], "Diff"))
+		must.True(t, strings.Contains(blocks[3], "Diff"))
+
+		// Check that the diffs are specifically against the tagged version (which has a count of 2)
+		must.True(t, strings.Contains(blocks[1], "\"4\" => \"3\""))
+		must.True(t, strings.Contains(blocks[2], "\"4\" => \"2\""))
+		must.True(t, strings.Contains(blocks[3], "\"4\" => \"1\""))
+
+	})
+
+	t.Run("With diffs against another specific version", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobHistoryCommand{Meta: Meta{Ui: ui}}
+
+		// Diff against version 1 instead
+		code := cmd.Run([]string{"-p", "-diff-version", "2", "-address", url, job.ID})
+		must.Zero(t, code)
+
+		out := ui.OutputWriter.String()
+		rawBlocks := strings.Split(out, "Version")
+		// trim empty blocks from whitespace in the output
+		var blocks []string
+		for _, block := range rawBlocks {
+			trimmed := strings.TrimSpace(block)
+			if trimmed != "" {
+				blocks = append(blocks, trimmed)
+			}
+		}
+
+		// Check that we have 4 versions
+		must.Eq(t, 4, len(blocks))
+		must.Eq(t, 4, strings.Count(out, "Version"))
+		must.Eq(t, 3, strings.Count(out, "Diff"))
+
+		// Diffs show up for all versions except the specified one
+		must.True(t, strings.Contains(blocks[0], "Diff"))
+		must.False(t, strings.Contains(blocks[1], "Diff"))
+		must.True(t, strings.Contains(blocks[2], "Diff"))
+		must.True(t, strings.Contains(blocks[3], "Diff"))
+
+		// Check that the diffs are specifically against the tagged version (which has a count of 2)
+		must.True(t, strings.Contains(blocks[0], "\"3\" => \"4\""))
+		must.True(t, strings.Contains(blocks[2], "\"3\" => \"2\""))
+		must.True(t, strings.Contains(blocks[3], "\"3\" => \"1\""))
+	})
+
+	t.Run("With diffs against a specific tag that doesnt exist", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobHistoryCommand{Meta: Meta{Ui: ui}}
+
+		code := cmd.Run([]string{"-p", "-diff-tag", "nonexistent-tag", "-address", url, job.ID})
+		must.One(t, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "tag \"nonexistent-tag\" not found")
+	})
+
+	t.Run("With diffs against a specific tag", func(t *testing.T) {
+		ui := cli.NewMockUi()
+
+		// Run history command with diff against the tag
+		cmd := &JobHistoryCommand{Meta: Meta{Ui: ui}}
+		code := cmd.Run([]string{"-p", "-diff-tag", "example-tag", "-address", url, job.ID})
+		must.Zero(t, code)
+
+		out := ui.OutputWriter.String()
+		rawBlocks := strings.Split(out, "Version")
+		// trim empty blocks from whitespace in the output
+		var blocks []string
+		for _, block := range rawBlocks {
+			trimmed := strings.TrimSpace(block)
+			if trimmed != "" {
+				blocks = append(blocks, trimmed)
+			}
+		}
+
+		// Check that we have 4 versions
+		must.Eq(t, 4, len(blocks))
+		must.Eq(t, 4, strings.Count(out, "Version"))
+		must.Eq(t, 3, strings.Count(out, "Diff"))
+
+		// Check that the diff is present for versions other than the tagged version
+		must.True(t, strings.Contains(blocks[0], "Diff"))
+		must.True(t, strings.Contains(blocks[1], "Diff"))
+		must.False(t, strings.Contains(blocks[2], "Diff"))
+		must.True(t, strings.Contains(blocks[3], "Diff"))
+
+		// Check that the diffs are specifically against the tagged version (which has a count of 2)
+		must.True(t, strings.Contains(blocks[0], "\"2\" => \"4\""))
+		must.True(t, strings.Contains(blocks[1], "\"2\" => \"3\""))
+		must.True(t, strings.Contains(blocks[3], "\"2\" => \"1\""))
+	})
+}
