@@ -3821,6 +3821,12 @@ func TestResource_Add(t *testing.T) {
 				ReservedPorts: []Port{{"web", 80, 0, ""}},
 			},
 		},
+		Devices: []*RequestedDevice{
+			{
+				Name:  "nvidia/gpu/Tesla M60",
+				Count: 1,
+			},
+		},
 	}
 
 	r1.Add(r2)
@@ -3836,6 +3842,12 @@ func TestResource_Add(t *testing.T) {
 				CIDR:          "10.0.0.0/8",
 				MBits:         150,
 				ReservedPorts: []Port{{"ssh", 22, 0, ""}, {"web", 80, 0, ""}},
+			},
+		},
+		Devices: []*RequestedDevice{
+			{
+				Name:  "nvidia/gpu/Tesla M60",
+				Count: 1,
 			},
 		},
 	}

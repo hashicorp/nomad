@@ -300,7 +300,15 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 }
 
 func parseDeviceResource(result *[]*api.RequestedDevice, list *ast.ObjectList) error {
-	for _, o := range list.Elem().Items {
+	for idx, o := range list.Items {
+		if l := len(o.Keys); l == 0 {
+			return multierror.Prefix(fmt.Errorf("missing device name"), fmt.Sprintf("resources, device[%d]->", idx))
+		} else if l > 1 {
+			return multierror.Prefix(fmt.Errorf("only one name may be specified"), fmt.Sprintf("resources, device[%d]->", idx))
+		}
+
+		name := o.Keys[0].Token.Value().(string)
+
 		// Check for invalid keys
 		valid := []string{
 			"name",
@@ -310,12 +318,15 @@ func parseDeviceResource(result *[]*api.RequestedDevice, list *ast.ObjectList) e
 			return err
 		}
 
+		// Set the name
+		var device api.RequestedDevice
+		device.Name = name
+
 		var m map[string]interface{}
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
 		}
 
-		var device api.RequestedDevice
 		if err := mapstructure.WeakDecode(m, &device); err != nil {
 			return err
 		}

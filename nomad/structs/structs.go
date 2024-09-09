@@ -2713,6 +2713,21 @@ func (r *Resources) Add(delta *Resources) {
 			r.Networks[idx].Add(n)
 		}
 	}
+
+	if r.Devices == nil && delta.Devices != nil {
+		r.Devices = make(ResourceDevices, 0)
+	}
+	for _, dd := range delta.Devices {
+		idx := slices.IndexFunc(r.Devices, func(d *RequestedDevice) bool { return d.Name == dd.Name })
+
+		// means it's not found
+		if idx < 0 {
+			r.Devices = append(r.Devices, dd)
+			continue
+		}
+
+		r.Devices[idx].Count += dd.Count
+	}
 }
 
 // GoString returns the string representation of the Resources struct.
