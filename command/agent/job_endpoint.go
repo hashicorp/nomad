@@ -185,12 +185,9 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	}
 
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
-
 	planReq := structs.JobPlanRequest{
 		Job:            sJob,
 		Diff:           args.Diff,
-		DiffVersion:    args.DiffVersion,
-		DiffTagName:    args.DiffTagName,
 		PolicyOverride: args.PolicyOverride,
 		WriteRequest:   *writeReq,
 	}

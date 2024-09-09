@@ -1872,27 +1872,9 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	ws := memdb.NewWatchSet()
 	var existingJob *structs.Job
 
-	if args.DiffVersion != nil {
-		existingJob, err = snap.JobByIDAndVersion(ws, args.RequestNamespace(), args.Job.ID, *args.DiffVersion)
-		if err != nil {
-			return err
-		}
-		if existingJob == nil {
-			return fmt.Errorf("version %q not found", *args.DiffVersion)
-		}
-	} else if args.DiffTagName != "" {
-		existingJob, err = snap.JobVersionByTagName(ws, args.RequestNamespace(), args.Job.ID, args.DiffTagName)
-		if err != nil {
-			return err
-		}
-		if existingJob == nil {
-			return fmt.Errorf("version tag %q not found", args.DiffTagName)
-		}
-	} else {
-		existingJob, err = snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
-		if err != nil {
-			return err
-		}
+	existingJob, err = snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
+	if err != nil {
+		return err
 	}
 
 	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job, existingJob, nomadACLToken, ns)
