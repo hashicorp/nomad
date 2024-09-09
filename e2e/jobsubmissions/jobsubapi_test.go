@@ -43,7 +43,6 @@ func testParseAPI(t *testing.T) {
 
 	job, err := nomad.Jobs().ParseHCLOpts(&api.JobsParseRequest{
 		JobHCL:       string(spec),
-		HCLv1:        false,
 		Variables:    "X=\"baz\" \n Y=50 \n Z=true \n",
 		Canonicalize: true,
 	})
