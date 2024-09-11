@@ -55,8 +55,7 @@ var msgTypeNames = map[structs.MessageType]string{
 	structs.ServiceRegistrationDeleteByIDRequestType:     "ServiceRegistrationDeleteByIDRequestType",
 	structs.ServiceRegistrationDeleteByNodeIDRequestType: "ServiceRegistrationDeleteByNodeIDRequestType",
 	structs.VarApplyStateRequestType:                     "VarApplyStateRequestType",
-	structs.RootKeyMetaUpsertRequestType:                 "RootKeyMetaUpsertRequestType",
-	structs.RootKeyMetaDeleteRequestType:                 "RootKeyMetaDeleteRequestType",
+	structs.WrappedRootKeysDeleteRequestType:             "WrappedRootKeysDeleteRequestType",
 	structs.ACLRolesUpsertRequestType:                    "ACLRolesUpsertRequestType",
 	structs.ACLRolesDeleteByIDRequestType:                "ACLRolesDeleteByIDRequestType",
 	structs.ACLAuthMethodsUpsertRequestType:              "ACLAuthMethodsUpsertRequestType",
@@ -65,6 +64,8 @@ var msgTypeNames = map[structs.MessageType]string{
 	structs.ACLBindingRulesDeleteRequestType:             "ACLBindingRulesDeleteRequestType",
 	structs.NodePoolUpsertRequestType:                    "NodePoolUpsertRequestType",
 	structs.NodePoolDeleteRequestType:                    "NodePoolDeleteRequestType",
+	structs.JobVersionTagRequestType:                     "JobVersionTagRequestType",
+	structs.WrappedRootKeysUpsertRequestType:             "WrappedRootKeysUpsertRequestType",
 	structs.NamespaceUpsertRequestType:                   "NamespaceUpsertRequestType",
 	structs.NamespaceDeleteRequestType:                   "NamespaceDeleteRequestType",
 }

@@ -10,29 +10,29 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// UpsertRootKeyMeta saves root key meta or updates it in-place.
-func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKeyMeta, rekey bool) error {
+// UpsertWrappedRootKeys saves a wrapped root keys or updates them in place.
+func (s *StateStore) UpsertWrappedRootKeys(index uint64, wrappedRootKeys *structs.WrappedRootKeys, rekey bool) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
 	// get any existing key for updating
-	raw, err := txn.First(TableRootKeyMeta, indexID, rootKeyMeta.KeyID)
+	raw, err := txn.First(TableWrappedRootKeys, indexID, wrappedRootKeys.KeyID)
 	if err != nil {
-		return fmt.Errorf("root key metadata lookup failed: %v", err)
+		return fmt.Errorf("root key lookup failed: %v", err)
 	}
 
 	isRotation := false
 
 	if raw != nil {
-		existing := raw.(*structs.RootKeyMeta)
-		rootKeyMeta.CreateIndex = existing.CreateIndex
-		rootKeyMeta.CreateTime = existing.CreateTime
-		isRotation = !existing.IsActive() && rootKeyMeta.IsActive()
+		existing := raw.(*structs.WrappedRootKeys)
+		wrappedRootKeys.CreateIndex = existing.CreateIndex
+		wrappedRootKeys.CreateTime = existing.CreateTime
+		isRotation = !existing.IsActive() && wrappedRootKeys.IsActive()
 	} else {
-		rootKeyMeta.CreateIndex = index
-		isRotation = rootKeyMeta.IsActive()
+		wrappedRootKeys.CreateIndex = index
+		isRotation = wrappedRootKeys.IsActive()
 	}
-	rootKeyMeta.ModifyIndex = index
+	wrappedRootKeys.ModifyIndex = index
 
 	if rekey && !isRotation {
 		return fmt.Errorf("cannot rekey without setting the new key active")
@@ -41,7 +41,7 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 	// if the upsert is for a newly-active key, we need to set all the
 	// other keys as inactive in the same transaction.
 	if isRotation {
-		iter, err := txn.Get(TableRootKeyMeta, indexID)
+		iter, err := txn.Get(TableWrappedRootKeys, indexID)
 		if err != nil {
 			return err
 		}
@@ -50,7 +50,7 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 			if raw == nil {
 				break
 			}
-			key := raw.(*structs.RootKeyMeta)
+			key := raw.(*structs.WrappedRootKeys)
 			modified := false
 
 			switch key.State {
@@ -72,56 +72,54 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 
 			if modified {
 				key.ModifyIndex = index
-				if err := txn.Insert(TableRootKeyMeta, key); err != nil {
+				if err := txn.Insert(TableWrappedRootKeys, key); err != nil {
 					return err
 				}
-			}
 
+			}
 		}
 	}
 
-	if err := txn.Insert(TableRootKeyMeta, rootKeyMeta); err != nil {
+	if err := txn.Insert(TableWrappedRootKeys, wrappedRootKeys); err != nil {
 		return err
 	}
-
-	// update the indexes table
-	if err := txn.Insert("index", &IndexEntry{TableRootKeyMeta, index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableWrappedRootKeys, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
+
 	return txn.Commit()
 }
 
-// DeleteRootKeyMeta deletes a single root key, or returns an error if
-// it doesn't exist.
-func (s *StateStore) DeleteRootKeyMeta(index uint64, keyID string) error {
+// DeleteWrappedRootKeys deletes a single wrapped root key set, or returns an
+// error if it doesn't exist.
+func (s *StateStore) DeleteWrappedRootKeys(index uint64, keyID string) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
 	// find the old key
-	existing, err := txn.First(TableRootKeyMeta, indexID, keyID)
+	existing, err := txn.First(TableWrappedRootKeys, indexID, keyID)
 	if err != nil {
-		return fmt.Errorf("root key metadata lookup failed: %v", err)
+		return fmt.Errorf("root key lookup failed: %v", err)
 	}
 	if existing == nil {
-		return fmt.Errorf("root key metadata not found")
+		return nil // this case should be validated in RPC
 	}
-	if err := txn.Delete(TableRootKeyMeta, existing); err != nil {
-		return fmt.Errorf("root key metadata delete failed: %v", err)
+	if err := txn.Delete(TableWrappedRootKeys, existing); err != nil {
+		return fmt.Errorf("root key delete failed: %v", err)
 	}
 
-	// update the indexes table
-	if err := txn.Insert("index", &IndexEntry{TableRootKeyMeta, index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableWrappedRootKeys, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return txn.Commit()
 }
 
-// RootKeyMetas returns an iterator over all root key metadata
-func (s *StateStore) RootKeyMetas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+// WrappedRootKeys returns an iterator over all wrapped root keys
+func (s *StateStore) WrappedRootKeys(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableRootKeyMeta, indexID)
+	iter, err := txn.Get(TableWrappedRootKeys, indexID)
 	if err != nil {
 		return nil, err
 	}
@@ -130,42 +128,42 @@ func (s *StateStore) RootKeyMetas(ws memdb.WatchSet) (memdb.ResultIterator, erro
 	return iter, nil
 }
 
-// RootKeyMetaByID returns a specific root key meta
-func (s *StateStore) RootKeyMetaByID(ws memdb.WatchSet, id string) (*structs.RootKeyMeta, error) {
+// WrappedRootKeysByID returns a specific wrapped root key set
+func (s *StateStore) WrappedRootKeysByID(ws memdb.WatchSet, id string) (*structs.WrappedRootKeys, error) {
 	txn := s.db.ReadTxn()
 
-	watchCh, raw, err := txn.FirstWatch(TableRootKeyMeta, indexID, id)
+	watchCh, raw, err := txn.FirstWatch(TableWrappedRootKeys, indexID, id)
 	if err != nil {
-		return nil, fmt.Errorf("root key metadata lookup failed: %v", err)
+		return nil, fmt.Errorf("root key lookup failed: %v", err)
 	}
 	ws.Add(watchCh)
 
 	if raw != nil {
-		return raw.(*structs.RootKeyMeta), nil
+		return raw.(*structs.WrappedRootKeys), nil
 	}
 	return nil, nil
 }
 
-// GetActiveRootKeyMeta returns the metadata for the currently active root key
-func (s *StateStore) GetActiveRootKeyMeta(ws memdb.WatchSet) (*structs.RootKeyMeta, error) {
+// GetActiveRootKey returns the currently active root key
+func (s *StateStore) GetActiveRootKey(ws memdb.WatchSet) (*structs.WrappedRootKeys, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableRootKeyMeta, indexID)
+	iter, err := txn.Get(TableWrappedRootKeys, indexID)
 	if err != nil {
 		return nil, err
 	}
 	ws.Add(iter.WatchCh())
-
 	for {
 		raw := iter.Next()
 		if raw == nil {
 			break
 		}
-		key := raw.(*structs.RootKeyMeta)
-		if key.IsActive() {
-			return key, nil
+		wrappedKeys := raw.(*structs.WrappedRootKeys)
+		if wrappedKeys.IsActive() {
+			return wrappedKeys, nil
 		}
 	}
+
 	return nil, nil
 }
 

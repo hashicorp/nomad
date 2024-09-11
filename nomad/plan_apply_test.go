@@ -75,7 +75,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()

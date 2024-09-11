@@ -106,7 +106,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.EqualError(t, err, "active root key cannot be deleted - call rotate first")
 
 	// set inactive
-	updateReq.RootKey.Meta = updateReq.RootKey.Meta.MakeInactive()
+	updateReq.RootKey = updateReq.RootKey.MakeInactive()
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	require.NoError(t, err)
 
@@ -229,7 +229,7 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	codec := rpcClient(t, srv)
 
 	store := srv.fsm.State()
-	key0, err := store.GetActiveRootKeyMeta(nil)
+	key0, err := store.GetActiveRootKey(nil)
 	must.NoError(t, err)
 
 	// Setup an existing key

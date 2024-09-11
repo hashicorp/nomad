@@ -899,6 +899,19 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool)
 // rootKeyRotateOrGC is used to rotate or garbage collect root keys
 func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 
+	// migration sends updates to the leader so our view of state is no longer
+	// valid. we ack this core job and will pick up against at the next
+	// interval.
+	//
+	// COMPAT(1.12.0): remove this block in 1.12.0 LTS
+	wasMigrated, err := c.rootKeyMigrate(eval)
+	if err != nil {
+		return err
+	}
+	if wasMigrated {
+		return nil
+	}
+
 	// a rotation will be sent to the leader so our view of state
 	// is no longer valid. we ack this core job and will pick up
 	// the GC work on the next interval
@@ -915,7 +928,7 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error {
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.RootKeyMetas(ws)
+	iter, err := c.snap.WrappedRootKeys(ws)
 	if err != nil {
 		return err
 	}
@@ -931,7 +944,7 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 		if raw == nil {
 			break
 		}
-		keyMeta := raw.(*structs.RootKeyMeta)
+		keyMeta := raw.(*structs.WrappedRootKeys)
 		if !keyMeta.IsInactive() {
 			continue // never GC keys we're still using
 		}
@@ -970,24 +983,67 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 	return nil
 }
 
+// rootKeyMigrate checks if the cluster is fully upgraded and migrates all the
+// legacy root meta keys to the new wrapped key format
+//
+// COMPAT(1.12.0): remove this function in 1.12.0 LTS
+func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
+	if !ServersMeetMinimumVersion(
+		c.srv.serf.Members(), c.srv.Region(), minVersionKeyringInRaft, true) {
+		return false, nil
+	}
+
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.WrappedRootKeys(ws)
+	if err != nil {
+		return false, err
+	}
+	wasMigrated := false
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		wrappedKeys := raw.(*structs.WrappedRootKeys)
+		if len(wrappedKeys.WrappedKeys) > 0 {
+			continue // already migrated
+		}
+		rootKey, err := c.srv.encrypter.GetKey(wrappedKeys.KeyID)
+		if err != nil {
+			return wasMigrated, err
+		}
+		req := &structs.KeyringUpdateRootKeyRequest{
+			RootKey: rootKey,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL,
+			},
+		}
+
+		if err := c.srv.RPC("Keyring.Update",
+			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
+			c.logger.Error("migrating legacy key material failed",
+				"error", err, "key_id", wrappedKeys.KeyID)
+			return false, err
+		}
+		wasMigrated = true
+	}
+
+	return wasMigrated, nil
+}
+
 // rootKeyRotate checks if the active key is old enough that we need to kick off
 // a rotation. It prepublishes a key first and only promotes that prepublished
 // key to active once the rotation threshold has expired
 func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (bool, error) {
+	var (
+		activeKey       *structs.WrappedRootKeys
+		prepublishedKey *structs.WrappedRootKeys
+	)
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.RootKeyMetas(ws)
+	iter, err := c.snap.WrappedRootKeys(ws)
 	if err != nil {
 		return false, err
 	}
-
-	var (
-		activeKey       *structs.RootKeyMeta
-		prepublishedKey *structs.RootKeyMeta
-	)
-
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		key := raw.(*structs.RootKeyMeta)
+		key := raw.(*structs.WrappedRootKeys)
 		switch key.State {
 		case structs.RootKeyStateActive:
 			activeKey = key
@@ -1083,7 +1139,7 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (
 func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.RootKeyMetas(ws)
+	iter, err := c.snap.WrappedRootKeys(ws)
 	if err != nil {
 		return err
 	}
@@ -1093,11 +1149,11 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 		if raw == nil {
 			break
 		}
-		keyMeta := raw.(*structs.RootKeyMeta)
-		if !keyMeta.IsRekeying() {
+		wrappedKeys := raw.(*structs.WrappedRootKeys)
+		if !wrappedKeys.IsRekeying() {
 			continue
 		}
-		varIter, err := c.snap.GetVariablesByKeyID(ws, keyMeta.KeyID)
+		varIter, err := c.snap.GetVariablesByKeyID(ws, wrappedKeys.KeyID)
 		if err != nil {
 			return err
 		}
@@ -1106,7 +1162,7 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 			return err
 		}
 
-		rootKey, err := c.srv.encrypter.GetKey(keyMeta.KeyID)
+		rootKey, err := c.srv.encrypter.GetKey(wrappedKeys.KeyID)
 		if err != nil {
 			return fmt.Errorf("rotated key does not exist in keyring: %w", err)
 		}
