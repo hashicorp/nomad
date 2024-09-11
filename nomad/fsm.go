@@ -397,8 +397,6 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 
 	case structs.JobVersionTagRequestType:
 		return n.applyJobVersionTag(buf[1:], log.Index)
-	case structs.JobVersionTagUnsetRequestType:
-		return n.applyJobVersionTagUnset(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1200,25 +1198,8 @@ func (n *nomadFSM) applyJobVersionTag(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateJobVersionTag(index, req.WriteRequest.Namespace, req.JobID, *req.Version, req.Name, req.Description); err != nil {
+	if err := n.state.UpdateJobVersionTag(index, req.RequestNamespace(), &req); err != nil {
 		n.logger.Error("UpdateJobVersionTag failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-// applyJobVersionTagUnset is used to remove a job version tag
-func (n *nomadFSM) applyJobVersionTagUnset(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_job_version_tag_unset"}, time.Now())
-	var req structs.JobUnsetTagRequest
-
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UnsetJobVersionTag(index, req.WriteRequest.Namespace, req.JobID, req.Name); err != nil {
-		n.logger.Error("UnsetJobVersionTag failed", "error", err)
 		return err
 	}
 

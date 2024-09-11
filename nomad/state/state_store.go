@@ -2306,6 +2306,21 @@ func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, namespace, id string) ([
 	return s.jobVersionByID(txn, ws, namespace, id)
 }
 
+// JobVersionByTagName returns a Job if it has a Tag with the passed name
+func (s *StateStore) JobVersionByTagName(ws memdb.WatchSet, namespace, id string, tagName string) (*structs.Job, error) {
+	// First get all versions of the job
+	versions, err := s.JobVersionsByID(ws, namespace, id)
+	if err != nil {
+		return nil, err
+	}
+	for _, j := range versions {
+		if j.TaggedVersion != nil && j.TaggedVersion.Name == tagName {
+			return j, nil
+		}
+	}
+	return nil, nil
+}
+
 // jobVersionByID is the underlying implementation for retrieving all tracked
 // versions of a job and is called under an existing transaction. A watch set
 // can optionally be passed in to add the job histories to the watch set.
@@ -4903,25 +4918,31 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 	return s.upsertJobImpl(index, nil, copy, true, txn)
 }
 
-func (s *StateStore) UpdateJobVersionTag(index uint64, namespace, jobID string, jobVersion uint64, name string, description string) error {
+func (s *StateStore) UpdateJobVersionTag(index uint64, namespace string, req *structs.JobApplyTagRequest) error {
+	jobID := req.JobID
+	jobVersion := req.Version
+	tag := req.Tag
+	name := req.Name
+
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
-	if err := s.updateJobVersionTagImpl(index, namespace, jobID, jobVersion, name, description, txn); err != nil {
-		return err
+	// if no tag is present, this is a tag removal operation.
+	if tag == nil {
+		if err := s.unsetJobVersionTagImpl(index, namespace, jobID, name, txn); err != nil {
+			return err
+		}
+	} else {
+		if err := s.updateJobVersionTagImpl(index, namespace, jobID, jobVersion, tag, txn); err != nil {
+			return err
+		}
 	}
 
 	return txn.Commit()
 }
 
-func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, name string, description string, txn *txn) error {
+func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion *uint64, tag *structs.JobTaggedVersion, txn *txn) error {
 	ws := memdb.NewWatchSet()
-
-	tag := &structs.JobTaggedVersion{
-		Name:        name,
-		Description: description,
-		TaggedTime:  time.Now().UnixNano(),
-	}
 
 	// Note: could use JobByIDAndVersion to get the specific version we want here,
 	// but then we'd have to make a second lookup to make sure we're not applying a duplicate tag name
@@ -4935,11 +4956,11 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 
 	for _, version := range versions {
 		// Allow for a tag to be updated (new description, for example) but otherwise don't allow a same-tagname to a different version.
-		if version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name && version.Version != jobVersion {
+		if version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name && version.Version != *jobVersion {
 			duplicateVersionName = true
 			break
 		}
-		if version.Version == jobVersion {
+		if version.Version == *jobVersion {
 			job = version
 		}
 	}
@@ -4949,7 +4970,7 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 	}
 
 	if job == nil {
-		return fmt.Errorf("job %q version %d not found", jobID, jobVersion)
+		return fmt.Errorf("job %q version %d not found", jobID, *jobVersion)
 	}
 
 	copy := job.Copy()

@@ -407,6 +407,12 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 
 func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
 	switch req.Method {
+
+	// TODO: Request for reviewers: I am splitting by method here, but you'll notice both
+	// methods now call the same RPC method, which later splits them based on presence of args.Tag.
+	// So far the benefit of a method-based split here is that I can more easily create a slimmed-down
+	// TagVersionRequest for the RPC method, but I'm not sure if that's enough to justify the split.
+	// ...is this the best and most obvious place to set the .Tag or not?
 	case http.MethodPut, http.MethodPost:
 		return s.jobVersionApplyTag(resp, req, jobID, name)
 	case http.MethodDelete:
@@ -447,10 +453,13 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 	}
 
 	rpcArgs := structs.JobApplyTagRequest{
-		JobID:       jobID,
-		Version:     versionPointer,
-		Name:        name,
-		Description: args.Description,
+		JobID:   jobID,
+		Version: versionPointer,
+		Name:    name,
+		Tag: &structs.JobTaggedVersion{
+			Name:        name,
+			Description: args.Description,
+		},
 	}
 
 	// parseWriteRequest overrides Namespace, Region and AuthToken
@@ -465,7 +474,7 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 }
 
 func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
-	rpcArgs := structs.JobUnsetTagRequest{
+	rpcArgs := structs.JobApplyTagRequest{
 		JobID: jobID,
 		Name:  name,
 	}
@@ -475,7 +484,7 @@ func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Requ
 	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
 
 	var out structs.JobTagResponse
-	if err := s.agent.RPC("Job.UntagVersion", &rpcArgs, &out); err != nil {
+	if err := s.agent.RPC("Job.TagVersion", &rpcArgs, &out); err != nil {
 		return nil, err
 	}
 	return out, nil

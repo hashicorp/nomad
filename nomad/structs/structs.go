@@ -4586,21 +4586,11 @@ type JobTaggedVersion struct {
 }
 
 type JobApplyTagRequest struct {
-	JobID string
-	Name  string
-	// Version     string
-	Description string
-	Version     *uint64
-	// Tag     *JobTaggedVersion
-	// QueryOptions
+	JobID   string
+	Name    string
+	Tag     *JobTaggedVersion
+	Version *uint64
 	WriteRequest
-}
-
-type JobUnsetTagRequest struct {
-	JobID string
-	Name  string
-	// QueryOptions
-	WriteRequest // TODO: do deletes get a WriteRequest?
 }
 
 type JobTagResponse struct {

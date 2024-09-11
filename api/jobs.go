@@ -1643,15 +1643,15 @@ type JobStatusesRequest struct {
 }
 
 type TagVersionRequest struct {
-	// JobID       string
 	Version     string
 	Description string
-	// Tag     *JobTaggedVersion
 	WriteRequest
 }
 
 func (j *Jobs) TagVersion(jobID string, version string, name string, description string, q *WriteOptions) (*WriteMeta, error) {
 	// If the version is not provided, get the "active" version of the job
+	// TODO: Request for reviewers: is this the right place to do this? I'd given some thought to doing it at state store level instead.
+	// And if this is the right place: does this invalidate my need for JobApplyTagRequest.Version to be a pointer / it could just be a uint64?
 	if version == "" {
 		job, _, err := j.Info(jobID, nil)
 		if err != nil {
@@ -1660,12 +1660,8 @@ func (j *Jobs) TagVersion(jobID string, version string, name string, description
 		version = strconv.FormatUint(*job.Version, 10)
 	}
 	var tagRequest = &TagVersionRequest{
-		// JobID:       jobID,
 		Version:     version,
 		Description: description,
-		// Tag: &JobTaggedVersion{
-		// 	Description: description,
-		// },
 	}
 
 	return j.client.put("/v1/job/"+url.PathEscape(jobID)+"/versions/"+name+"/tag", tagRequest, nil, q)

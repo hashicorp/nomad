@@ -2400,20 +2400,14 @@ func (j *Job) GetServiceRegistrations(
 }
 
 func (j *Job) TagVersion(args *structs.JobApplyTagRequest, reply *structs.JobTagResponse) error {
+	// Apply time to the tag if it isn't null
+	if args.Tag != nil {
+		args.Tag.TaggedTime = time.Now().UnixNano()
+	}
+
 	_, index, err := j.srv.raftApply(structs.JobVersionTagRequestType, args)
 	if err != nil {
 		j.logger.Error("tagging version failed", "error", err)
-		return err
-	}
-
-	reply.Index = index
-	return nil
-}
-
-func (j *Job) UntagVersion(args *structs.JobUnsetTagRequest, reply *structs.JobTagResponse) error {
-	_, index, err := j.srv.raftApply(structs.JobVersionTagUnsetRequestType, args)
-	if err != nil {
-		j.logger.Error("untagging version failed", "error", err)
 		return err
 	}
 
