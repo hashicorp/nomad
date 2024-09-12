@@ -1146,6 +1146,7 @@ func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
 	key2 := "bar"
 	content1_1 := "cat"
 	content1_2 := "dog"
+	content1_3 := "goldfish"
 	t1 := &structs.Template{
 		EmbeddedTmpl: `
 FOO={{key "bam"}}
@@ -1217,6 +1218,29 @@ OUTER:
 			t.Fatal(t, "signal not expected")
 		case <-timeout:
 			t.Fatal(t, "should have received an event")
+		}
+	}
+
+	// remove the reference to the task handle and update the template contents
+	// again
+	harness.manager.SetDriverHandle(nil)
+	harness.consul.SetKV(t, key1, []byte(content1_3))
+	timeout = time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second)
+
+OUTER2:
+	for {
+		select {
+		case <-harness.mockHooks.RestartCh:
+			t.Fatal(t, "restart not expected")
+		case ev := <-harness.mockHooks.EmitEventCh:
+			if strings.Contains(
+				ev.DisplayMessage, "task driver handle is not available") {
+				break OUTER2
+			}
+		case <-harness.mockHooks.SignalCh:
+			t.Fatal(t, "signal not expected")
+		case <-timeout:
+			t.Fatal(t, "should have received an event that task driver handle is unavailable")
 		}
 	}
 }
