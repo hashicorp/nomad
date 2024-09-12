@@ -572,9 +572,8 @@ func TestStateStore_UpsertPlanResults_AllocationResources(t *testing.T) {
 
 	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res))
 
-	ws := memdb.NewWatchSet()
-	out, err := state.AllocByID(ws, alloc.ID)
-	must.Nil(t, err)
+	out, err := state.AllocByID(nil, alloc.ID)
+	must.NoError(t, err)
 	must.Eq(t, alloc, out)
 
 	must.Eq(t, alloc.Resources.Devices[0], dev)
