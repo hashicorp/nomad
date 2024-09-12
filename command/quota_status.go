@@ -276,8 +276,8 @@ func formatQuotaDevices(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) 
 
 		for _, d := range specLimit.RegionLimit.Devices {
 			idx := slices.IndexFunc(used.RegionLimit.Devices, func(dd *api.RequestedDevice) bool { return dd.Name == d.Name })
-			if idx > 0 {
-				usage = fmt.Sprintf("%d", used.RegionLimit.Devices[idx].Count)
+			if idx >= 0 {
+				usage = fmt.Sprintf("%d", int(*used.RegionLimit.Devices[idx].Count))
 			}
 
 			devices = append(devices, fmt.Sprintf("%s|%s|%s / %d", specLimit.Region, d.Name, usage, *d.Count))
