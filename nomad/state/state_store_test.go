@@ -535,6 +535,50 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertPlanResults_AllocationResources(t *testing.T) {
+	ci.Parallel(t)
+
+	dev := &structs.RequestedDevice{Name: "nvidia/gpu/Tesla 60", Count: 1}
+	structuredDev := &structs.AllocatedDeviceResource{
+		Vendor:    "nvidia",
+		Type:      "gpu",
+		Name:      "Tesla 60",
+		DeviceIDs: []string{"GPU-0668fc92-f8d5-07f6-e3cc-c07d76f466a1"},
+	}
+
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	job := alloc.Job
+	alloc.Job = nil
+	alloc.Resources = nil
+	alloc.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{structuredDev}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
+
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	// Create an eval
+	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval}))
+
+	// Create a plan result
+	res := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{alloc},
+			Job:   job,
+		},
+		EvalID: eval.ID,
+	}
+
+	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res))
+
+	out, err := state.AllocByID(nil, alloc.ID)
+	must.NoError(t, err)
+	must.Eq(t, alloc, out)
+
+	must.Eq(t, alloc.Resources.Devices[0], dev)
+}
+
 func TestStateStore_UpsertDeployment(t *testing.T) {
 	ci.Parallel(t)
 

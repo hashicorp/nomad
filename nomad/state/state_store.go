@@ -490,6 +490,24 @@ func addComputedAllocAttrs(allocs []*structs.Allocation, job *structs.Job) {
 			alloc.Resources.Add(task)
 		}
 
+		// While we still rely on alloc.Resources field for quotas, we have to add
+		// device info from AllocatedResources to alloc.Resources
+		for _, resources := range alloc.AllocatedResources.Tasks {
+			for _, d := range resources.Devices {
+				name := d.ID().String()
+				count := len(d.DeviceIDs)
+
+				if count > 0 {
+					if alloc.Resources.Devices == nil {
+						alloc.Resources.Devices = make(structs.ResourceDevices, 0)
+					}
+					alloc.Resources.Devices = append(
+						alloc.Resources.Devices, &structs.RequestedDevice{Name: name, Count: uint64(count)},
+					)
+				}
+			}
+		}
+
 		// Add the shared resources
 		alloc.Resources.Add(alloc.SharedResources)
 	}
