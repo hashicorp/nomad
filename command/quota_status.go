@@ -6,6 +6,7 @@ package command
 import (
 	"encoding/base64"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -123,6 +124,12 @@ func (c *QuotaStatusCommand) Run(args []string) int {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Quota Limits[reset]"))
 	c.Ui.Output(formatQuotaLimits(spec, usages))
 
+	// If quota has limits on devices, format them separately
+	if slices.ContainsFunc(spec.Limits, func(l *api.QuotaLimit) bool { return l.RegionLimit.Devices != nil }) {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Quota Device Limits[reset]"))
+		c.Ui.Output(formatQuotaDevices(spec, usages))
+	}
+
 	// Display any failures
 	if len(failures) != 0 {
 		c.Ui.Error(c.Colorize().Color("\n[bold][red]Lookup Failures[reset]"))
@@ -176,6 +183,17 @@ func formatQuotaSpecBasics(spec *api.QuotaSpec) string {
 	return formatKV(basic)
 }
 
+// lookupUsage returns the regions quota usage for the limit
+func lookupUsage(usages map[string]*api.QuotaUsage, specLimit *api.QuotaLimit) (*api.QuotaLimit, bool) {
+	usage, ok := usages[specLimit.Region]
+	if !ok {
+		return nil, false
+	}
+
+	used, ok := usage.Used[base64.StdEncoding.EncodeToString(specLimit.Hash)]
+	return used, ok
+}
+
 // formatQuotaLimits formats the limits to display the quota usage versus the
 // limit per quota limit. It takes as input the specification as well as quota
 // usage by region. The formatter handles missing usages.
@@ -188,32 +206,19 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 	sort.Sort(api.QuotaLimitSort(spec.Limits))
 
 	limits := make([]string, len(spec.Limits)+1)
-	limits[0] = "Region|CPU Usage|Core Usage|Memory Usage|Memory Max Usage|Variables Usage|Devices Usage"
+	limits[0] = "Region|CPU Usage|Core Usage|Memory Usage|Memory Max Usage|Variables Usage"
 	i := 0
 	for _, specLimit := range spec.Limits {
 		i++
 
-		// lookupUsage returns the regions quota usage for the limit
-		lookupUsage := func() (*api.QuotaLimit, bool) {
-			usage, ok := usages[specLimit.Region]
-			if !ok {
-				return nil, false
-			}
-
-			used, ok := usage.Used[base64.StdEncoding.EncodeToString(specLimit.Hash)]
-			return used, ok
-		}
-
-		used, ok := lookupUsage()
+		used, ok := lookupUsage(usages, specLimit)
 		if !ok {
 			cores := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.Cores))
 			cpu := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.CPU))
 			memory := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.MemoryMB))
 			memoryMax := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.RegionLimit.MemoryMaxMB))
-
 			vars := fmt.Sprintf("- / %s", formatQuotaLimitInt(specLimit.VariablesLimit))
-			devices := fmt.Sprintf("- / %s", formatQuotaDevices(specLimit.RegionLimit.Devices))
-			limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars, devices)
+			limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars)
 			continue
 		}
 
@@ -230,8 +235,7 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 		memoryMax := fmt.Sprintf("%d / %s", orZero(used.RegionLimit.MemoryMaxMB), formatQuotaLimitInt(specLimit.RegionLimit.MemoryMaxMB))
 
 		vars := fmt.Sprintf("%d / %s", orZero(used.VariablesLimit), formatQuotaLimitInt(specLimit.VariablesLimit))
-		devices := fmt.Sprintf("%s / %s", formatQuotaDevices(used.RegionLimit.Devices), formatQuotaDevices(specLimit.RegionLimit.Devices))
-		limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars, devices)
+		limits[i] = fmt.Sprintf("%s|%s|%s|%s|%s|%s", specLimit.Region, cpu, cores, memory, memoryMax, vars)
 	}
 
 	return formatList(limits)
@@ -254,19 +258,32 @@ func formatQuotaLimitInt(value *int) string {
 	return strconv.Itoa(v)
 }
 
-// formatQuotaDevices takes an array of devices and returns an aggregate count of
-// all of them as a string.
-func formatQuotaDevices(devices []*api.RequestedDevice) string {
-	if len(devices) == 0 {
-		return "0"
-	}
+func formatQuotaDevices(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) string {
+	devices := []string{"Region|Device Name|Device Usage"}
+	i := 0
 
-	output := 0
-	for _, device := range devices {
-		output += int(*device.Count)
-	}
+	for _, specLimit := range spec.Limits {
+		i++
 
-	return strconv.Itoa(output)
+		usage := "-"
+		used, ok := lookupUsage(usages, specLimit)
+		if !ok {
+			for _, d := range specLimit.RegionLimit.Devices {
+				devices = append(devices, fmt.Sprintf("%s|%s|%s / %d", specLimit.Region, d.Name, usage, *d.Count))
+			}
+			continue
+		}
+
+		for _, d := range specLimit.RegionLimit.Devices {
+			idx := slices.IndexFunc(used.RegionLimit.Devices, func(dd *api.RequestedDevice) bool { return dd.Name == d.Name })
+			if idx > 0 {
+				usage = fmt.Sprintf("%d", used.RegionLimit.Devices[idx].Count)
+			}
+
+			devices = append(devices, fmt.Sprintf("%s|%s|%s / %d", specLimit.Region, d.Name, usage, *d.Count))
+		}
+	}
+	return formatList(devices)
 }
 
 func getQuotaByPrefix(client *api.Quotas, quota string) (match *api.QuotaSpec, possible []*api.QuotaSpec, err error) {
