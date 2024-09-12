@@ -583,6 +583,8 @@ func (tm *TaskTemplateManager) handleScriptError(script *structs.ChangeScript, m
 func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	tm.handleLock.Lock()
+	defer tm.handleLock.Unlock()
 	if tm.handle == nil {
 		failureMsg := fmt.Sprintf(
 			"Template failed to run script %v with arguments %v because task driver handle is not available",
