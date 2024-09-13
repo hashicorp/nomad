@@ -182,6 +182,9 @@
   },
   "resolutions": {
     "ember-auto-import": "^2.4.0",
-    "prop-types": "^15.8.1"
+    "prop-types": "^15.8.1",
+    "**/express/**/path-to-regexp": "0.1.10",
+    "**/nise/**/path-to-regexp": "1.9.0",
+    "body-parser": "^1.20.3"
   }
 }
