@@ -906,10 +906,6 @@ func (a *ACL) AllowServiceRegistrationReadList(ns string, isWorkload bool) bool 
 	switch {
 	case a == nil:
 		return false
-	case a.client == PolicyRead,
-		a.client == PolicyWrite:
-		// COMPAT: older clients won't send WI tokens for these requests
-		return true
 	case a.aclsDisabled, a.management:
 		return true
 	}

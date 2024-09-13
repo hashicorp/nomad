@@ -12,59 +12,9 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
-
-func TestEquivalentToHCL1(t *testing.T) {
-	ci.Parallel(t)
-
-	hclSpecDir := "../jobspec/test-fixtures/"
-	fis, err := os.ReadDir(hclSpecDir)
-	require.NoError(t, err)
-
-	for _, fi := range fis {
-		name := fi.Name()
-
-		t.Run(name, func(t *testing.T) {
-			f, err := os.Open(hclSpecDir + name)
-			require.NoError(t, err)
-			defer f.Close()
-
-			job1, err := jobspec.Parse(f)
-			if err != nil {
-				t.Skip("file is not parsable in v1")
-			}
-
-			f.Seek(0, 0)
-
-			job2, err := Parse(name, f)
-			require.NoError(t, err)
-
-			require.Equal(t, job1, job2)
-		})
-	}
-}
-
-func TestEquivalentToHCL1_ComplexConfig(t *testing.T) {
-	ci.Parallel(t)
-
-	name := "./test-fixtures/config-compatibility.hcl"
-	f, err := os.Open(name)
-	require.NoError(t, err)
-	defer f.Close()
-
-	job1, err := jobspec.Parse(f)
-	require.NoError(t, err)
-
-	f.Seek(0, 0)
-
-	job2, err := Parse(name, f)
-	require.NoError(t, err)
-
-	require.Equal(t, job1, job2)
-}
 
 func TestParse_ConnectJob(t *testing.T) {
 	ci.Parallel(t)

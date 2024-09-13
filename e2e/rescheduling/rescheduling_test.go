@@ -12,7 +12,6 @@ import (
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -112,7 +111,7 @@ func TestRescheduling_MaxAttempts(t *testing.T) {
 		must.Sprint("should have exactly 3 failed allocs"),
 	)
 
-	job, err := jobspec.ParseFile("./input/rescheduling_fail.nomad")
+	job, err := e2eutil.Parse2(t, "./input/rescheduling_fail.nomad")
 	must.NoError(t, err)
 	job.ID = &jobID
 	job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "sleep 15000"}
@@ -178,7 +177,7 @@ func TestRescheduling_WithUpdate(t *testing.T) {
 	)
 
 	// reschedule to make fail
-	job, err := jobspec.ParseFile("./input/rescheduling_update.nomad")
+	job, err := e2eutil.Parse2(t, "./input/rescheduling_update.nomad")
 	must.NoError(t, err)
 	job.ID = &jobID
 	job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
@@ -216,7 +215,7 @@ func TestRescheduling_WithCanary(t *testing.T) {
 		must.Sprint("deployment should be successful"))
 
 	// reschedule to make fail
-	job, err := jobspec.ParseFile("./input/rescheduling_canary.nomad")
+	job, err := e2eutil.Parse2(t, "./input/rescheduling_canary.nomad")
 	must.NoError(t, err)
 	job.ID = &jobID
 	job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
@@ -258,7 +257,7 @@ func TestRescheduling_WithCanaryAutoRevert(t *testing.T) {
 		must.Sprint("deployment should be successful"))
 
 	// reschedule to make fail
-	job, err := jobspec.ParseFile("./input/rescheduling_canary_autorevert.nomad")
+	job, err := e2eutil.Parse2(t, "./input/rescheduling_canary_autorevert.nomad")
 	must.NoError(t, err)
 	job.ID = &jobID
 	job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
@@ -306,7 +305,7 @@ func TestRescheduling_MaxParallel(t *testing.T) {
 		must.Sprint("deployment should be successful"))
 
 	// reschedule to make fail
-	job, err := jobspec.ParseFile("./input/rescheduling_maxp.nomad")
+	job, err := e2eutil.Parse2(t, "./input/rescheduling_maxp.nomad")
 	must.NoError(t, err)
 	job.ID = &jobID
 	job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
@@ -353,7 +352,7 @@ func TestRescheduling_MaxParallelAutoRevert(t *testing.T) {
 		must.Sprint("deployment should be successful"))
 
 	// reschedule to make fail
-	job, err := jobspec.ParseFile("./input/rescheduling_maxp_autorevert.nomad")
+	job, err := e2eutil.Parse2(t, "./input/rescheduling_maxp_autorevert.nomad")
 	must.NoError(t, err)
 	job.ID = &jobID
 	job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}

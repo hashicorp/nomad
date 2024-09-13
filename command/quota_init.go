@@ -123,6 +123,9 @@ limit {
     cpu        = 2500
     memory     = 1000
     memory_max = 1000
+    device "nvidia/gpu/1080ti" {
+      count = 1
+    }
   }
   variables_limit = 1000
 }
@@ -130,19 +133,25 @@ limit {
 
 var defaultJsonQuotaSpec = strings.TrimSpace(`
 {
-	"Name": "default-quota",
-	"Description": "Limit the shared default namespace",
-	"Limits": [
-		{
-			"Region": "global",
-			"RegionLimit": {
-				"Cores": 0,
-				"CPU": 2500,
-				"MemoryMB": 1000,
-				"MemoryMaxMB": 1000
-			},
-			"VariablesLimit": 1000
-		}
-	]
+  "Name": "default-quota",
+  "Description": "Limit the shared default namespace",
+  "Limits": [
+    {
+      "Region": "global",
+      "RegionLimit": {
+        "Cores": 0,
+        "CPU": 2500,
+        "MemoryMB": 1000,
+        "MemoryMaxMB": 1000,
+        "Devices": [
+          {
+            "Name": "nvidia/gpu/1080ti",
+            "Count": 1
+          }
+        ]
+      },
+      "VariablesLimit": 1000
+    }
+  ]
 }
 `)

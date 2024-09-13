@@ -90,7 +90,7 @@ The significant keys in the YAML frontmatter are:
 
 ### Validating Content
 
-Content changes are automatically validated against a set of rules as part of the pull request process. If you want to run these checks locally to validate your content before comitting your changes, you can run the following command:
+Content changes are automatically validated against a set of rules as part of the pull request process. If you want to run these checks locally to validate your content before comitting your changes, install [@hashicorp/platform-content-conformance](https://www.npmjs.com/package/@hashicorp/platform-content-conformance) and then run the following command:
 
 ```
 npm run content-check

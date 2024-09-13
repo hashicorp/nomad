@@ -443,7 +443,6 @@ copywriteheaders:
 	cd api && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd drivers/shared && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd plugins && $(CURDIR)/scripts/copywrite-exceptions.sh
-	cd jobspec && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd jobspec2 && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd demo && $(CURDIR)/scripts/copywrite-exceptions.sh
 

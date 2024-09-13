@@ -535,6 +535,50 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertPlanResults_AllocationResources(t *testing.T) {
+	ci.Parallel(t)
+
+	dev := &structs.RequestedDevice{Name: "nvidia/gpu/Tesla 60", Count: 1}
+	structuredDev := &structs.AllocatedDeviceResource{
+		Vendor:    "nvidia",
+		Type:      "gpu",
+		Name:      "Tesla 60",
+		DeviceIDs: []string{"GPU-0668fc92-f8d5-07f6-e3cc-c07d76f466a1"},
+	}
+
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	job := alloc.Job
+	alloc.Job = nil
+	alloc.Resources = nil
+	alloc.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{structuredDev}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
+
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	// Create an eval
+	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval}))
+
+	// Create a plan result
+	res := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{alloc},
+			Job:   job,
+		},
+		EvalID: eval.ID,
+	}
+
+	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res))
+
+	out, err := state.AllocByID(nil, alloc.ID)
+	must.NoError(t, err)
+	must.Eq(t, alloc, out)
+
+	must.Eq(t, alloc.Resources.Devices[0], dev)
+}
+
 func TestStateStore_UpsertDeployment(t *testing.T) {
 	ci.Parallel(t)
 
@@ -10765,74 +10809,6 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 		actualEvents = append(actualEvents, event.Meta["i"].(int))
 	}
 	require.Equal(expectedEvents, actualEvents)
-}
-
-func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
-	ci.Parallel(t)
-	store := testStateStore(t)
-	index, err := store.LatestIndex()
-	require.NoError(t, err)
-
-	// create 3 default keys, one of which is active
-	keyIDs := []string{}
-	for i := 0; i < 3; i++ {
-		key := structs.NewRootKeyMeta()
-		keyIDs = append(keyIDs, key.KeyID)
-		if i == 0 {
-			key = key.MakeActive()
-		}
-		index++
-		require.NoError(t, store.UpsertRootKeyMeta(index, key, false))
-	}
-
-	// retrieve the active key
-	activeKey, err := store.GetActiveRootKeyMeta(nil)
-	require.NoError(t, err)
-	require.NotNil(t, activeKey)
-
-	// update an inactive key to active and verify the rotation
-	inactiveKey, err := store.RootKeyMetaByID(nil, keyIDs[1])
-	require.NoError(t, err)
-	require.NotNil(t, inactiveKey)
-	oldCreateIndex := inactiveKey.CreateIndex
-	newlyActiveKey := inactiveKey.MakeActive()
-	index++
-	require.NoError(t, store.UpsertRootKeyMeta(index, newlyActiveKey, false))
-
-	iter, err := store.RootKeyMetas(nil)
-	require.NoError(t, err)
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		key := raw.(*structs.RootKeyMeta)
-		if key.KeyID == newlyActiveKey.KeyID {
-			require.True(t, key.IsActive(), "expected updated key to be active")
-			require.Equal(t, oldCreateIndex, key.CreateIndex)
-		} else {
-			require.False(t, key.IsActive(), "expected other keys to be inactive")
-		}
-	}
-
-	// delete the active key and verify it's been deleted
-	index++
-	require.NoError(t, store.DeleteRootKeyMeta(index, keyIDs[1]))
-
-	iter, err = store.RootKeyMetas(nil)
-	require.NoError(t, err)
-	var found int
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		key := raw.(*structs.RootKeyMeta)
-		require.NotEqual(t, keyIDs[1], key.KeyID)
-		require.False(t, key.IsActive(), "expected remaining keys to be inactive")
-		found++
-	}
-	require.Equal(t, 2, found, "expected only 2 keys remaining")
 }
 
 func TestStateStore_Abandon(t *testing.T) {

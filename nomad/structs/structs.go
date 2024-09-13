@@ -2713,6 +2713,21 @@ func (r *Resources) Add(delta *Resources) {
 			r.Networks[idx].Add(n)
 		}
 	}
+
+	if r.Devices == nil && delta.Devices != nil {
+		r.Devices = make(ResourceDevices, 0)
+	}
+	for _, dd := range delta.Devices {
+		idx := slices.IndexFunc(r.Devices, func(d *RequestedDevice) bool { return d.Name == dd.Name })
+
+		// means it's not found
+		if idx < 0 {
+			r.Devices = append(r.Devices, dd)
+			continue
+		}
+
+		r.Devices[idx].Count += dd.Count
+	}
 }
 
 // GoString returns the string representation of the Resources struct.
@@ -4335,6 +4350,7 @@ type JobSubmission struct {
 	Source string
 
 	// Format indicates whether the original job was hcl1, hcl2, or json.
+	// hcl1 format has been removed and can no longer be parsed.
 	Format string
 
 	// VariableFlags contain the CLI "-var" flag arguments as submitted with the
@@ -4602,6 +4618,15 @@ func (j *Job) GetNamespace() string {
 		return ""
 	}
 	return j.Namespace
+}
+
+// GetIDforWorkloadIdentity is used when we want the job ID for identity; here we
+// always want the parent ID if there is one and then fallback to the ID
+func (j *Job) GetIDforWorkloadIdentity() string {
+	if j.ParentID != "" {
+		return j.ParentID
+	}
+	return j.ID
 }
 
 // GetCreateIndex implements the CreateIndexGetter interface, required for

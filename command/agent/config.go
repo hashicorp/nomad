@@ -357,10 +357,15 @@ type ClientConfig struct {
 	// bridge network mode
 	BridgeNetworkName string `hcl:"bridge_network_name"`
 
-	// BridgeNetworkSubnet is the subnet to allocate IP addresses from when
+	// BridgeNetworkSubnet is the subnet to allocate IPv4 addresses from when
 	// creating allocations with bridge networking mode. This range is local to
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
+
+	// BridgeNetworkSubnetIPv6 is the subnet to allocate IPv6 addresses when
+	// creating allocations with bridge networking mode. This range is local to
+	// the host
+	BridgeNetworkSubnetIPv6 string `hcl:"bridge_network_subnet_ipv6"`
 
 	// BridgeNetworkHairpinMode is whether or not to enable hairpin mode on the
 	// internal bridge network
@@ -2435,7 +2440,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.BridgeNetworkSubnet != "" {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
 	}
-
+	if b.BridgeNetworkSubnetIPv6 != "" {
+		result.BridgeNetworkSubnetIPv6 = b.BridgeNetworkSubnetIPv6
+	}
 	if b.BridgeNetworkHairpinMode {
 		result.BridgeNetworkHairpinMode = true
 	}

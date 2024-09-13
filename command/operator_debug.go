@@ -157,7 +157,7 @@ Debug Options:
 
   -duration=<duration>
     Set the duration of the debug capture. Logs will be captured from specified servers and
-    nodes at "log-level". Defaults to 2m.
+    nodes at "log-level". Defaults to 5m.
 
   -event-index=<index>
     Specifies the index to start streaming events from. If the requested index is
@@ -177,7 +177,7 @@ Debug Options:
     duration to capture a single snapshot. Defaults to 30s.
 
   -log-level=<level>
-    The log level to monitor. Defaults to DEBUG.
+    The log level to monitor. Defaults to TRACE.
 
   -log-include-location
     Include file and line information in each log line monitored. The default
@@ -359,11 +359,11 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	var nodeIDs, serverIDs string
 	var allowStale bool
 
-	flags.StringVar(&duration, "duration", "2m", "")
+	flags.StringVar(&duration, "duration", "5m", "")
 	flags.Int64Var(&eventIndex, "event-index", 0, "")
 	flags.StringVar(&eventTopic, "event-topic", "none", "")
 	flags.StringVar(&interval, "interval", "30s", "")
-	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
+	flags.StringVar(&c.logLevel, "log-level", "TRACE", "")
 	flags.BoolVar(&c.logIncludeLocation, "log-include-location", true, "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")

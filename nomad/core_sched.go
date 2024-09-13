@@ -945,7 +945,7 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 
 		// don't GC keys used to encrypt Variables or sign legacy non-expiring
 		// Workload Identities
-		inUse, err := c.snap.IsRootKeyMetaInUse(keyMeta.KeyID)
+		inUse, err := c.snap.IsRootKeyInUse(keyMeta.KeyID)
 		if err != nil {
 			return err
 		}
