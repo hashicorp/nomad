@@ -12101,6 +12101,7 @@ func (s *NodeScoreMeta) Data() interface{} {
 type AllocNetworkStatus struct {
 	InterfaceName string
 	Address       string
+	AddressIPv6   string
 	DNS           *DNSConfig
 }
 
@@ -12111,6 +12112,7 @@ func (a *AllocNetworkStatus) Copy() *AllocNetworkStatus {
 	return &AllocNetworkStatus{
 		InterfaceName: a.InterfaceName,
 		Address:       a.Address,
+		AddressIPv6:   a.AddressIPv6,
 		DNS:           a.DNS.Copy(),
 	}
 }
@@ -12130,6 +12132,8 @@ func (a *AllocNetworkStatus) Equal(o *AllocNetworkStatus) bool {
 	case a.InterfaceName != o.InterfaceName:
 		return false
 	case a.Address != o.Address:
+		return false
+	case a.AddressIPv6 != o.AddressIPv6:
 		return false
 	case !a.DNS.Equal(o.DNS):
 		return false
