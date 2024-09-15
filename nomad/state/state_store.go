@@ -4951,22 +4951,16 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 		return err
 	}
 
-	duplicateVersionName := false
 	var job *structs.Job
 
 	for _, version := range versions {
 		// Allow for a tag to be updated (new description, for example) but otherwise don't allow a same-tagname to a different version.
 		if version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name && version.Version != *jobVersion {
-			duplicateVersionName = true
-			break
+			return fmt.Errorf("tag %q already exists on a different version of job %q", tag.Name, jobID)
 		}
 		if version.Version == *jobVersion {
 			job = version
 		}
-	}
-
-	if duplicateVersionName {
-		return fmt.Errorf("tag %q already exists on a different version of job %q", tag.Name, jobID)
 	}
 
 	if job == nil {
@@ -4993,20 +4987,10 @@ func (s *StateStore) UnsetJobVersionTag(index uint64, namespace, jobID string, n
 func (s *StateStore) unsetJobVersionTagImpl(index uint64, namespace, jobID string, name string, txn *txn) error {
 	ws := memdb.NewWatchSet()
 
-	versions, err := s.JobVersionsByID(ws, namespace, jobID)
+	job, err := s.JobVersionByTagName(ws, namespace, jobID, name)
 	if err != nil {
 		return err
 	}
-
-	var job *structs.Job
-
-	for _, version := range versions {
-		if version.TaggedVersion != nil && version.TaggedVersion.Name == name {
-			job = version
-			break
-		}
-	}
-
 	if job == nil {
 		return fmt.Errorf("tag %q not found on job %q", name, jobID)
 	}

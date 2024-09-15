@@ -23,7 +23,8 @@ Usage: nomad job tag apply [options] <jobname>
   
   Example usage:
  
-    nomad job tag apply -name "My Golden Version" -description "The version of the job we can roll back to in the future if needed" <jobname>
+    nomad job tag apply -name "My Golden Version" \
+		-description "The version we can roll back to if needed" <jobname>
 
     nomad job tag apply -version 3 -name "My Golden Version" <jobname>
 

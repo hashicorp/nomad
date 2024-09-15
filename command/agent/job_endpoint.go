@@ -119,6 +119,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 		return s.jobRunAction(resp, req, jobID)
 	case strings.HasSuffix(path, "/tag"):
 		parts := strings.Split(path, "/")
+		if len(parts) != 4 {
+			return nil, CodedError(404, "invalid job tag endpoint")
+		}
 		jobID := parts[0]
 		name := parts[2] // job/<jobID>/tag/<name>
 		return s.jobTagVersion(resp, req, jobID, name)
@@ -407,12 +410,6 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 
 func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
 	switch req.Method {
-
-	// TODO: Request for reviewers: I am splitting by method here, but you'll notice both
-	// methods now call the same RPC method, which later splits them based on presence of args.Tag.
-	// So far the benefit of a method-based split here is that I can more easily create a slimmed-down
-	// TagVersionRequest for the RPC method, but I'm not sure if that's enough to justify the split.
-	// ...is this the best and most obvious place to set the .Tag or not?
 	case http.MethodPut, http.MethodPost:
 		return s.jobVersionApplyTag(resp, req, jobID, name)
 	case http.MethodDelete:
@@ -422,7 +419,6 @@ func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, 
 	}
 }
 
-// TODO: this is a copy of the function in command/job_history.go; any way to import it here?
 // parseVersion parses the version flag and returns the index, whether it
 // was set and potentially an error during parsing.
 func parseVersion(input string) (uint64, bool, error) {

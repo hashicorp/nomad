@@ -2400,7 +2400,6 @@ func (j *Job) GetServiceRegistrations(
 }
 
 func (j *Job) TagVersion(args *structs.JobApplyTagRequest, reply *structs.JobTagResponse) error {
-	// Apply time to the tag if it isn't null
 	if args.Tag != nil {
 		args.Tag.TaggedTime = time.Now().UnixNano()
 	}
