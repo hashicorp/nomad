@@ -2866,6 +2866,40 @@ func TestTaskRunner_BaseLabels(t *testing.T) {
 	require.Equal(alloc.Namespace, labels["namespace"])
 }
 
+// TestTaskRunner_BaseLabels_IncludesAllocMetadata tests that the base labels include
+// the allocation metadata fields using the provided allowed list of keys
+func TestTaskRunner_BaseLabels_IncludesAllocMetadata(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	alloc.Namespace = "not-default"
+	job := alloc.Job
+	job.Meta = map[string]string{"owner": "HashiCorp", "my-key": "my-value", "some_dynamic_value": "now()"}
+	task := job.TaskGroups[0].Tasks[0]
+	task.Driver = "raw_exec"
+	task.Config = map[string]interface{}{
+		"command": "whoami",
+	}
+
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
+	defer cleanup()
+
+	trConfig.ClientConfig.IncludeAllocMetadataInMetrics = true
+	trConfig.ClientConfig.AllowedMetadataKeysInMetrics = []string{"owner", "my-key"}
+
+	tr, err := NewTaskRunner(trConfig)
+	must.NoError(t, err)
+
+	labels := map[string]string{}
+	for _, e := range tr.baseLabels {
+		labels[e.Name] = e.Value
+	}
+
+	must.Eq(t, "HashiCorp", labels["owner"])
+	must.Eq(t, "my-value", labels["my_key"])
+	must.MapNotContainsKey(t, labels, "some_dynamic_value")
+}
+
 // TestTaskRunner_IdentityHook_Enabled asserts that the identity hook exposes a
 // workload identity to a task.
 func TestTaskRunner_IdentityHook_Enabled(t *testing.T) {

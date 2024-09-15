@@ -861,6 +861,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.PublishNodeMetrics = agentConfig.Telemetry.PublishNodeMetrics
 	conf.PublishAllocationMetrics = agentConfig.Telemetry.PublishAllocationMetrics
+	conf.IncludeAllocMetadataInMetrics = agentConfig.Telemetry.IncludeAllocMetadataInMetrics
+	conf.AllowedMetadataKeysInMetrics = agentConfig.Telemetry.AllowedMetadataKeysInMetrics
 
 	// Set the TLS related configs
 	conf.TLSConfig = agentConfig.TLSConfig
