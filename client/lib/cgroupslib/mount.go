@@ -13,7 +13,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 )
 
 // detect tries to detect which cgroups version we have by looking at the mount

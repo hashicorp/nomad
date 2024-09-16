@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
@@ -588,11 +588,11 @@ func formatInvalidVarKeyChars(invalid []string) string {
 
 	// Sort the characters for output
 	charList := make([]string, 0, chars.Size())
-	chars.ForEach(func(k string) bool {
+
+	for k := range chars.Items() {
 		// Use %s instead of %q to avoid escaping characters.
 		charList = append(charList, fmt.Sprintf(`"%s"`, k))
-		return true
-	})
+	}
 
 	slices.Sort(charList)
 

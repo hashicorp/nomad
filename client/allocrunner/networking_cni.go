@@ -27,7 +27,7 @@ import (
 	cnilibrary "github.com/containernetworking/cni/libcni"
 	consulIPTables "github.com/hashicorp/consul/sdk/iptables"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"

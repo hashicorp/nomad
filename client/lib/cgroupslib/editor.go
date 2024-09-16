@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"golang.org/x/sys/unix"
 )
 
@@ -176,10 +176,9 @@ func (l *lifeCG1) Kill() error {
 	}
 
 	signal := unix.SignalNum("SIGKILL")
-	pids.ForEach(func(pid int) bool {
+	for pid := range pids.Items() {
 		_ = unix.Kill(pid, signal)
-		return true
-	})
+	}
 
 	return l.thaw()
 }
