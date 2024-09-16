@@ -17,7 +17,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -72,8 +72,7 @@ func newConsulGRPCSocketHook(
 	}
 	proxies := map[string]*grpcSocketProxy{}
 
-	clusterNames.ForEach(func(clusterName string) bool {
-
+	for clusterName := range clusterNames.Items() {
 		// Attempt to find the gRPC port via the node attributes, otherwise use
 		// the default fallback.
 		attrName := "consul.grpc"
@@ -91,8 +90,7 @@ func newConsulGRPCSocketHook(
 			configs[clusterName],
 			consulGRPCPort,
 		)
-		return true
-	})
+	}
 
 	return &consulGRPCSocketHook{
 		alloc:   alloc,

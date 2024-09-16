@@ -9,7 +9,7 @@ import (
 	"os/exec"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"

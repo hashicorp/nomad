@@ -12,7 +12,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 )
 
 // containerReconciler detects and kills unexpectedly running containers.
@@ -114,7 +114,7 @@ func (r *containerReconciler) removeDanglingContainersIteration() error {
 		return err
 	}
 
-	for _, id := range untracked.Slice() {
+	for id := range untracked.Items() {
 		ctx, cancel := r.dockerAPIQueryContext()
 		err := dockerClient.RemoveContainer(docker.RemoveContainerOptions{
 			Context: ctx,

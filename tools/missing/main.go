@@ -4,6 +4,7 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +15,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 )
 
 func main() {
@@ -177,7 +178,7 @@ func skip(p string) bool {
 }
 
 func inCode(root string) ([]string, error) {
-	pkgs := set.NewTreeSet[string](set.Compare[string])
+	pkgs := set.NewTreeSet(cmp.Compare[string])
 
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {

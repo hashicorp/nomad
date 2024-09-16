@@ -32,12 +32,11 @@ func TestConsulCompat(t *testing.T) {
 		}
 
 		versions := scanConsulVersions(t, getMinimumVersion(t))
-		versions.ForEach(func(b build) bool {
+		for b := range versions.Items() {
 			downloadConsulBuild(t, b, baseDir)
 
 			testConsulBuildLegacy(t, b, baseDir)
 			testConsulBuild(t, b, baseDir)
-			return true
-		})
+		}
 	})
 }

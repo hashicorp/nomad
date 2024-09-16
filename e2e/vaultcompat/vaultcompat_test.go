@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/go-version"
 	goversion "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/api"
@@ -54,11 +54,10 @@ func TestVaultCompat(t *testing.T) {
 
 func testVaultVersions(t *testing.T) {
 	versions := scanVaultVersions(t, getMinimumVersion(t))
-	versions.ForEach(func(b build) bool {
+	for b := range versions.Items() {
 		downloadVaultBuild(t, b)
 		testVaultBuild(t, b)
-		return true
-	})
+	}
 }
 
 func testVaultBuild(t *testing.T, b build) {

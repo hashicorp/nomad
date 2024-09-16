@@ -18,7 +18,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
@@ -674,7 +674,7 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 		// Skip allocations that don't have any of the requested tasks.
 		if c.tasks.Size() > 0 {
 			hasTask := false
-			for _, taskName := range c.tasks.Slice() {
+			for taskName := range c.tasks.Items() {
 				if stub.HasTask(taskName) {
 					hasTask = true
 					break
@@ -910,7 +910,7 @@ func (c *JobRestartCommand) restartAlloc(alloc AllocationListStubWithJob) error 
 
 	// Run restarts concurrently when specific tasks were requested.
 	var restarts multierror.Group
-	for _, task := range c.tasks.Slice() {
+	for task := range c.tasks.Items() {
 		if !alloc.HasTask(task) {
 			continue
 		}

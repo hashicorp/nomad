@@ -6,7 +6,7 @@ package structs
 import (
 	"testing"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )

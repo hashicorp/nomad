@@ -15,7 +15,7 @@ import (
 
 	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
