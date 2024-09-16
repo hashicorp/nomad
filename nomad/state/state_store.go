@@ -4941,7 +4941,7 @@ func (s *StateStore) UpdateJobVersionTag(index uint64, namespace string, req *st
 	return txn.Commit()
 }
 
-func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion *uint64, tag *structs.JobTaggedVersion, txn *txn) error {
+func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobTaggedVersion, txn *txn) error {
 	ws := memdb.NewWatchSet()
 
 	// Note: could use JobByIDAndVersion to get the specific version we want here,
@@ -4955,22 +4955,22 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 
 	for _, version := range versions {
 		// Allow for a tag to be updated (new description, for example) but otherwise don't allow a same-tagname to a different version.
-		if version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name && version.Version != *jobVersion {
+		if version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name && version.Version != jobVersion {
 			return fmt.Errorf("tag %q already exists on a different version of job %q", tag.Name, jobID)
 		}
-		if version.Version == *jobVersion {
+		if version.Version == jobVersion {
 			job = version
 		}
 	}
 
 	if job == nil {
-		return fmt.Errorf("job %q version %d not found", jobID, *jobVersion)
+		return fmt.Errorf("job %q version %d not found", jobID, jobVersion)
 	}
 
-	copy := job.Copy()
-	copy.TaggedVersion = tag
-	copy.ModifyIndex = index
-	return s.upsertJobVersion(index, copy, txn)
+	versionCopy := job.Copy()
+	versionCopy.TaggedVersion = tag
+	versionCopy.ModifyIndex = index
+	return s.upsertJobVersion(index, versionCopy, txn)
 }
 
 func (s *StateStore) UnsetJobVersionTag(index uint64, namespace, jobID string, name string) error {
@@ -4995,10 +4995,10 @@ func (s *StateStore) unsetJobVersionTagImpl(index uint64, namespace, jobID strin
 		return fmt.Errorf("tag %q not found on job %q", name, jobID)
 	}
 
-	copy := job.Copy()
-	copy.TaggedVersion = nil
-	copy.ModifyIndex = index
-	return s.upsertJobVersion(index, copy, txn)
+	versionCopy := job.Copy()
+	versionCopy.TaggedVersion = nil
+	versionCopy.ModifyIndex = index
+	return s.upsertJobVersion(index, versionCopy, txn)
 }
 
 // UpdateDeploymentPromotion is used to promote canaries in a deployment and

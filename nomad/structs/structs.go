@@ -4589,7 +4589,7 @@ type JobApplyTagRequest struct {
 	JobID   string
 	Name    string
 	Tag     *JobTaggedVersion
-	Version *uint64
+	Version uint64
 	WriteRequest
 }
 

@@ -437,20 +437,9 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(400, err.Error())
 	}
 
-	numericVersion, versionIncluded, err := parseVersion(args.Version)
-	if err != nil {
-		return nil, err
-	}
-
-	var versionPointer *uint64
-
-	if versionIncluded {
-		versionPointer = &numericVersion
-	}
-
 	rpcArgs := structs.JobApplyTagRequest{
 		JobID:   jobID,
-		Version: versionPointer,
+		Version: args.Version,
 		Name:    name,
 		Tag: &structs.JobTaggedVersion{
 			Name:        name,
