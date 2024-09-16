@@ -426,6 +426,39 @@ func TestCNI_cniToAllocNet_Invalid(t *testing.T) {
 	require.Nil(t, allocNet)
 }
 
+func TestCNI_cniToAllocNet_Dualstack(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.Result{
+		Interfaces: map[string]*cni.Config{
+			"eth0": {
+				Sandbox: "at-the-park",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.IPv4zero}, // 0.0.0.0
+					{IP: net.IPv6zero}, // ::
+				},
+			},
+			// "a" puts this lexicographically first when sorted
+			"a-skippable-interface": {
+				// no Sandbox, so should be skipped
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.IPv4(127, 3, 2, 1)},
+				},
+			},
+		},
+	}
+
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	must.NoError(t, err)
+	must.NotNil(t, allocNet)
+	test.Eq(t, "0.0.0.0", allocNet.Address)
+	test.Eq(t, "::", allocNet.AddressIPv6)
+	test.Eq(t, "eth0", allocNet.InterfaceName)
+}
+
 func TestCNI_addCustomCNIArgs(t *testing.T) {
 	ci.Parallel(t)
 	cniArgs := map[string]string{

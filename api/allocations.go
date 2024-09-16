@@ -435,6 +435,7 @@ type AllocDeploymentStatus struct {
 type AllocNetworkStatus struct {
 	InterfaceName string
 	Address       string
+	AddressIPv6   string
 	DNS           *DNSConfig
 }
 
