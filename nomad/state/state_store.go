@@ -2094,7 +2094,7 @@ func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
 	}
 
 	// now delete the submissions we found associated with the job
-	for _, sub := range remove.Slice() {
+	for sub := range remove.Items() {
 		err := txn.Delete("job_submission", sub)
 		if err != nil {
 			return err
@@ -3941,7 +3941,7 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	}
 
 	// Update the index of when nodes last updated their allocs.
-	for _, nodeID := range nodeIDs.Slice() {
+	for nodeID := range nodeIDs.Items() {
 		if err := s.updateClientAllocUpdateIndex(txn, index, nodeID); err != nil {
 			return fmt.Errorf("node update failed: %v", err)
 		}

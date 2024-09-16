@@ -54,11 +54,10 @@ func TestVaultCompat(t *testing.T) {
 
 func testVaultVersions(t *testing.T) {
 	versions := scanVaultVersions(t, getMinimumVersion(t))
-	versions.ForEach(func(b build) bool {
+	for b := range versions.Items() {
 		downloadVaultBuild(t, b)
 		testVaultBuild(t, b)
-		return true
-	})
+	}
 }
 
 func testVaultBuild(t *testing.T, b build) {

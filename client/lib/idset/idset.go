@@ -184,7 +184,7 @@ func (s *Set[T]) String() string {
 // ForEach iterates the elements in the set and applies f. Iteration stops
 // if the result of f is a non-nil error.
 func (s *Set[T]) ForEach(f func(id T) error) error {
-	for _, id := range s.items.Slice() {
+	for id := range s.items.Items() {
 		if err := f(id); err != nil {
 			return err
 		}

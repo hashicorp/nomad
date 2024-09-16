@@ -114,7 +114,7 @@ func (r *containerReconciler) removeDanglingContainersIteration() error {
 		return err
 	}
 
-	for _, id := range untracked.Slice() {
+	for id := range untracked.Items() {
 		ctx, cancel := r.dockerAPIQueryContext()
 		err := dockerClient.RemoveContainer(docker.RemoveContainerOptions{
 			Context: ctx,
