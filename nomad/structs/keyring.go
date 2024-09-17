@@ -196,17 +196,6 @@ func NewRootKeyMeta() *RootKeyMeta {
 	}
 }
 
-// RootKeyMetaStub is for serializing root key metadata to the
-// keystore, not for the List API. It excludes frequently-changing
-// fields such as ModifyIndex so we don't have to sync them to the
-// on-disk keystore when the fields are already in raft.
-type RootKeyMetaStub struct {
-	KeyID      string
-	Algorithm  EncryptionAlgorithm
-	CreateTime int64
-	State      RootKeyState
-}
-
 // IsActive indicates this key is the one currently being used for crypto
 // operations (at most one key can be Active)
 func (rkm *RootKeyMeta) IsActive() bool {
@@ -270,18 +259,6 @@ func (rkm *RootKeyMeta) IsInactive() bool {
 	return rkm.State == RootKeyStateInactive || rkm.State == RootKeyStateDeprecated
 }
 
-func (rkm *RootKeyMeta) Stub() *RootKeyMetaStub {
-	if rkm == nil {
-		return nil
-	}
-	return &RootKeyMetaStub{
-		KeyID:      rkm.KeyID,
-		Algorithm:  rkm.Algorithm,
-		CreateTime: rkm.CreateTime,
-		State:      rkm.State,
-	}
-
-}
 func (rkm *RootKeyMeta) Copy() *RootKeyMeta {
 	if rkm == nil {
 		return nil
