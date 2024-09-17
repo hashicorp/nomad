@@ -263,6 +263,8 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("handle cannot be nil")
 	}
 
+	d.logger.Trace("attempting to recover task", "task_id", handle.Config.ID)
+
 	// If already attached to handle there's nothing to recover.
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		d.logger.Trace("nothing to recover; task already exists",
@@ -278,6 +280,8 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		d.logger.Error("failed to decode task state from handle", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to decode task state from handle: %v", err)
 	}
+
+	d.logger.Trace("recovered task state", "task_id", handle.Config.ID, "pid", taskState.Pid)
 
 	plugRC, err := pstructs.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
@@ -309,6 +313,8 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
+
+	d.logger.Trace("successfully recovered task", "task_id", handle.Config.ID, "pid", taskState.Pid)
 
 	go h.run()
 	return nil
@@ -346,6 +352,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	logger := d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID)
 	exec, pluginClient, err := executor.CreateExecutor(logger, d.nomadConfig, executorConfig)
 	if err != nil {
+		d.logger.Error("failed to create executor", "error", err, "task_id", cfg.ID)
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
@@ -374,6 +381,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	ps, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
+		d.logger.Error("failed to launch command with executor", "error", err, "task_id", cfg.ID)
 		return nil, nil, fmt.Errorf("failed to launch command with executor: %v", err)
 	}
 
@@ -401,6 +409,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		pluginClient.Kill()
 		return nil, nil, fmt.Errorf("failed to set driver state: %v", err)
 	}
+
+	d.logger.Trace("task started successfully", "task_id", cfg.ID, "pid", ps.Pid)
 
 	d.tasks.Set(cfg.ID, h)
 	go h.run()
@@ -447,18 +457,24 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
+		d.logger.Error("task not found", "task_id", taskID)
 		return drivers.ErrTaskNotFound
 	}
+
+	d.logger.Trace("stopping task", "task_id", taskID, "pid", handle.pid, "signal", signal)
 
 	if err := handle.exec.Shutdown(signal, timeout); err != nil {
 		if handle.pluginClient.Exited() {
 			return nil
 		}
+		d.logger.Error("executor Shutdown failed", "error", err, "task_id", taskID, "pid", handle.pid)
 		return fmt.Errorf("executor Shutdown failed: %v", err)
 	}
 
 	// Wait for handle to finish
 	<-handle.doneCh
+
+	d.logger.Trace("task stopped", "task_id", taskID, "pid", handle.pid)
 
 	// Kill executor
 	handle.pluginClient.Kill()
@@ -469,20 +485,27 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 func (d *Driver) DestroyTask(taskID string, force bool) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
+		d.logger.Error("task not found", "task_id", taskID)
 		return drivers.ErrTaskNotFound
 	}
 
+	d.logger.Trace("destroying task", "task_id", taskID, "pid", handle.pid, "force", force)
+
 	if handle.IsRunning() && !force {
+		d.logger.Warn("cannot destroy running task", "task_id", taskID, "pid", handle.pid)
 		return fmt.Errorf("cannot destroy running task")
 	}
 
 	if !handle.pluginClient.Exited() {
+		d.logger.Trace("shutting down executor", "task_id", taskID, "pid", handle.pid)
 		if err := handle.exec.Shutdown("", 0); err != nil {
 			handle.logger.Error("destroying executor failed", "error", err)
 		}
 
 		handle.pluginClient.Kill()
 	}
+
+	d.logger.Trace("task destroyed", "task_id", taskID, "pid", handle.pid)
 
 	d.tasks.Delete(taskID)
 	return nil
@@ -513,12 +536,16 @@ func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, err
 func (d *Driver) SignalTask(taskID string, signal string) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
+		d.logger.Error("task not found", "task_id", taskID)
 		return drivers.ErrTaskNotFound
 	}
+
+	d.logger.Trace("signaling task", "task_id", taskID, "pid", handle.pid, "signal", signal)
 
 	sig := os.Interrupt
 	if s, ok := signals.SignalLookup[signal]; ok {
 		sig = s
+		d.logger.Trace("signal found", "signal", signal, "task_id", taskID, "pid", handle.pid)
 	} else {
 		d.logger.Warn("unknown signal to send to task, using SIGINT instead", "signal", signal, "task_id", handle.taskConfig.ID)
 	}
@@ -528,17 +555,24 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 
 func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	if len(cmd) == 0 {
+		d.logger.Error("exec command is empty", "task_id", taskID)
 		return nil, fmt.Errorf("error cmd must have at least one value")
 	}
+
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
+		d.logger.Error("task not found for exec", "task_id", taskID)
 		return nil, drivers.ErrTaskNotFound
 	}
+
+	d.logger.Trace("executing command on task", "task_id", taskID, "pid", handle.pid, "command", cmd, "timeout", timeout)
 
 	out, exitCode, err := handle.exec.Exec(time.Now().Add(timeout), cmd[0], cmd[1:])
 	if err != nil {
 		return nil, err
 	}
+
+	d.logger.Trace("command executed successfully", "task_id", taskID, "pid", handle.pid, "command", cmd, "exit_code", exitCode)
 
 	return &drivers.ExecTaskResult{
 		Stdout: out,
