@@ -521,8 +521,13 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"job tag apply": func() (cli.Command, error) {
+		"job tag": func() (cli.Command, error) {
 			return &JobTagCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job tag apply": func() (cli.Command, error) {
+			return &JobTagApplyCommand{
 				Meta: meta,
 			}, nil
 		},

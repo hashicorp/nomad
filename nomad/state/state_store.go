@@ -4942,11 +4942,9 @@ func (s *StateStore) UpdateJobVersionTag(index uint64, namespace string, req *st
 }
 
 func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobTaggedVersion, txn *txn) error {
-	ws := memdb.NewWatchSet()
-
 	// Note: could use JobByIDAndVersion to get the specific version we want here,
 	// but then we'd have to make a second lookup to make sure we're not applying a duplicate tag name
-	versions, err := s.JobVersionsByID(ws, namespace, jobID)
+	versions, err := s.JobVersionsByID(nil, namespace, jobID)
 	if err != nil {
 		return err
 	}
@@ -4985,9 +4983,7 @@ func (s *StateStore) UnsetJobVersionTag(index uint64, namespace, jobID string, n
 }
 
 func (s *StateStore) unsetJobVersionTagImpl(index uint64, namespace, jobID string, name string, txn *txn) error {
-	ws := memdb.NewWatchSet()
-
-	job, err := s.JobVersionByTagName(ws, namespace, jobID, name)
+	job, err := s.JobVersionByTagName(nil, namespace, jobID, name)
 	if err != nil {
 		return err
 	}
