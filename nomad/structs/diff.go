@@ -2812,7 +2812,7 @@ func portDiffs(old, new []Port, dynamic bool, contextual bool) []*ObjectDiff {
 	filter := []string{"_struct"}
 	name := "Static Port"
 	if dynamic {
-		filter = []string{"_struct", "Value"}
+		filter = []string{"_struct", "Value", "IgnoreCollision"}
 		name = "Dynamic Port"
 	}
 

@@ -584,6 +584,82 @@ func TestNetworkIndex_AssignPorts_TwoIp(t *testing.T) {
 
 }
 
+// TestNetworkIndex_IgnorePortCollision tests Port.IgnoreCollision.
+func TestNetworkIndex_IgnorePortCollision(t *testing.T) {
+	ci.Parallel(t)
+
+	// set up some fake resources
+
+	ip := "127.3.2.1"
+	net := "test-ignore-port-collision"
+	n := &Node{
+		NodeResources: &NodeResources{
+			NodeNetworks: []*NodeNetworkResource{{
+				Addresses: []NodeNetworkAddress{{
+					Alias:   net,
+					Address: ip,
+				}},
+			}},
+		},
+	}
+
+	getPortMappings := func(collideOK bool) []AllocatedPortMapping {
+		return []AllocatedPortMapping{{
+			HostIP:          ip,
+			Label:           "test-port",
+			Value:           10,
+			To:              10,
+			IgnoreCollision: collideOK,
+		}}
+	}
+	getPorts := func(collideOK bool) []Port {
+		return []Port{{
+			HostNetwork:     net,
+			Label:           "test-port",
+			Value:           10,
+			To:              10,
+			IgnoreCollision: collideOK,
+		}}
+	}
+	collidingPortMappings := getPortMappings(false)
+	nonCollidingPortMappings := getPortMappings(true)
+	collidingPorts := getPorts(false)
+	nonCollidingPorts := getPorts(true)
+
+	// now we can get started
+
+	idx := NewNetworkIndex()
+	idx.SetNode(n)
+
+	// initial reservation - pretend some other job has already used the port
+	// note the behavior below is the same whether this one is a collider or not
+	collide, reasons := idx.AddReservedPorts(collidingPortMappings)
+	must.False(t, collide, must.Sprint("expect no collision in first reservation"))
+	must.Len(t, 0, reasons, must.Sprint("expect no reasons in first reservation"))
+
+	t.Run("AddReservedPorts", func(t *testing.T) {
+		collide, reasons = idx.AddReservedPorts(collidingPortMappings)
+		must.True(t, collide, must.Sprint("expect collision"))
+		must.Eq(t, []string{"port 10 already in use"}, reasons, must.Sprint("expect collision reasons"))
+
+		collide, reasons = idx.AddReservedPorts(nonCollidingPortMappings)
+		must.False(t, collide, must.Sprint("expect no collision"))
+		must.Len(t, 0, reasons, must.Sprint("expect no collision reasons"))
+	})
+
+	t.Run("AssignPorts", func(t *testing.T) {
+		ask := &NetworkResource{ReservedPorts: collidingPorts}
+		allocated, err := idx.AssignPorts(ask)
+		must.ErrorContains(t, err, "reserved port collision test-port=10")
+		must.Nil(t, allocated, must.Sprint("expect no ports on AssignPorts error"))
+
+		ask = &NetworkResource{ReservedPorts: nonCollidingPorts}
+		allocated, err = idx.AssignPorts(ask)
+		must.NoError(t, err)
+		must.Eq(t, nonCollidingPortMappings, allocated)
+	})
+}
+
 func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 	ci.Parallel(t)
 	idx := NewNetworkIndex()

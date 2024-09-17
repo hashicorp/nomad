@@ -2065,6 +2065,31 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 			},
 			ErrContains: "invalid ';' character in CNI arg value \"first_value;",
 		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-port-ignore-collision-ok",
+				Networks: []*NetworkResource{{
+					Mode: "host",
+					ReservedPorts: []Port{
+						{Label: "one", Value: 10, IgnoreCollision: true},
+						{Label: "two", Value: 10, IgnoreCollision: true},
+					},
+				}},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-port-ignore-collision-non-host-network-mode",
+				Networks: []*NetworkResource{{
+					Mode: "not-host",
+					ReservedPorts: []Port{
+						{Label: "one", Value: 10, IgnoreCollision: true},
+						{Label: "two", Value: 10, IgnoreCollision: true},
+					},
+				}},
+			},
+			ErrContains: "collision may not be ignored on non-host network mode",
+		},
 	}
 
 	for i := range cases {

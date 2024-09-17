@@ -145,10 +145,11 @@ func (n *NUMAResource) Canonicalize() {
 }
 
 type Port struct {
-	Label       string `hcl:",label"`
-	Value       int    `hcl:"static,optional"`
-	To          int    `hcl:"to,optional"`
-	HostNetwork string `hcl:"host_network,optional"`
+	Label           string `hcl:",label"`
+	Value           int    `hcl:"static,optional"`
+	To              int    `hcl:"to,optional"`
+	HostNetwork     string `hcl:"host_network,optional"`
+	IgnoreCollision bool   `hcl:"ignore_collision,optional"`
 }
 
 type DNSConfig struct {

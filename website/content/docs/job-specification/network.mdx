@@ -105,6 +105,12 @@ All other operating systems use the `host` networking mode.
 - `host_network` `(string:nil)` - Designates the host network name to use when allocating
   the port. When port mapping the host port will only forward traffic to the matched host
   network address.
+- `ignore_collision` `(bool: false)` - Allows the group to be placed on a node
+  where the port may already be reserved. Intended for programs that support
+  `SO_REUSEPORT` unix socket option, so more than one instance of the program
+  may bind to the same port. Only compatible with [`host`](#host) network mode
+  and `static` ports. Some task drivers (e.g. docker) may also require setting
+  `network_mode = "host"` (or similar) to avoid runtime errors after placement.
 
 The label assigned to the port is used to identify the port in service
 discovery, and used in the name of the environment variable that indicates
@@ -169,10 +175,10 @@ network {
 
 ### Static Ports
 
-This example specifies a static port allocation for the port labeled "lb". Static
-ports bind your job to a specific port on the host they' are placed on. Since
-multiple services cannot share a port, the port must be open in order to place
-your task.
+Static ports place your job on a host where the port is not already reserved
+by another job with the same port.
+
+This example specifies a static port allocation for the port labeled "lb".
 
 ```hcl
 network {
@@ -181,6 +187,9 @@ network {
   }
 }
 ```
+
+For programs that support the `SO_REUSEPORT` unix socket option,
+you may set `ignore_collision = true` to place multiple copies on a single node.
 
 ### Mapped Ports
 

@@ -25,7 +25,7 @@ func TestCompose(t *testing.T) {
 				{
 					CIDR:          "0.0.0.0/0",
 					MBits:         pointerOf(100),
-					ReservedPorts: []Port{{"", 80, 0, ""}, {"", 443, 0, ""}},
+					ReservedPorts: []Port{{Label: "", Value: 80}, {Label: "", Value: 443}},
 				},
 			},
 		})
@@ -116,8 +116,8 @@ func TestCompose(t *testing.T) {
 									CIDR:  "0.0.0.0/0",
 									MBits: pointerOf(100),
 									ReservedPorts: []Port{
-										{"", 80, 0, ""},
-										{"", 443, 0, ""},
+										{Label: "", Value: 80},
+										{Label: "", Value: 443},
 									},
 								},
 							},

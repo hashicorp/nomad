@@ -2805,18 +2805,20 @@ type AllocatedPortMapping struct {
 	// msgpack omit empty fields during serialization
 	_struct bool `codec:",omitempty"` // nolint: structcheck
 
-	Label  string
-	Value  int
-	To     int
-	HostIP string
+	Label           string
+	Value           int
+	To              int
+	HostIP          string
+	IgnoreCollision bool
 }
 
 func (m *AllocatedPortMapping) Copy() *AllocatedPortMapping {
 	return &AllocatedPortMapping{
-		Label:  m.Label,
-		Value:  m.Value,
-		To:     m.To,
-		HostIP: m.HostIP,
+		Label:           m.Label,
+		Value:           m.Value,
+		To:              m.To,
+		HostIP:          m.HostIP,
+		IgnoreCollision: m.IgnoreCollision,
 	}
 }
 
@@ -2832,6 +2834,8 @@ func (m *AllocatedPortMapping) Equal(o *AllocatedPortMapping) bool {
 	case m.To != o.To:
 		return false
 	case m.HostIP != o.HostIP:
+		return false
+	case m.IgnoreCollision != o.IgnoreCollision:
 		return false
 	}
 	return true
@@ -2875,6 +2879,11 @@ type Port struct {
 	// to. Jobs with a HostNetwork set can only be placed on nodes with
 	// that host network available.
 	HostNetwork string
+
+	// IgnoreCollision ignores port collisions, so the port can be used more
+	// than one time on a single network, for tasks that support SO_REUSEPORT
+	// Should be used only with static ports.
+	IgnoreCollision bool
 }
 
 type DNSConfig struct {
@@ -3044,10 +3053,11 @@ func (ns Networks) Port(label string) AllocatedPortMapping {
 		for _, p := range n.ReservedPorts {
 			if p.Label == label {
 				return AllocatedPortMapping{
-					Label:  label,
-					Value:  p.Value,
-					To:     p.To,
-					HostIP: n.IP,
+					Label:           label,
+					Value:           p.Value,
+					To:              p.To,
+					HostIP:          n.IP,
+					IgnoreCollision: p.IgnoreCollision,
 				}
 			}
 		}
@@ -7267,8 +7277,10 @@ func (tg *TaskGroup) validateNetworks() error {
 				}
 				// static port
 				if other, ok := staticPorts[port.Value]; ok {
-					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
-					mErr.Errors = append(mErr.Errors, err)
+					if !port.IgnoreCollision {
+						err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
+						mErr.Errors = append(mErr.Errors, err)
+					}
 				} else if port.Value > math.MaxUint16 {
 					err := fmt.Errorf("Port %s (%d) cannot be greater than %d", port.Label, port.Value, math.MaxUint16)
 					mErr.Errors = append(mErr.Errors, err)
@@ -7283,6 +7295,11 @@ func (tg *TaskGroup) validateNetworks() error {
 				mErr.Errors = append(mErr.Errors, err)
 			} else if port.To > math.MaxUint16 {
 				err := fmt.Errorf("Port %q cannot be mapped to a port (%d) greater than %d", port.Label, port.To, math.MaxUint16)
+				mErr.Errors = append(mErr.Errors, err)
+			}
+
+			if port.IgnoreCollision && !(net.Mode == "" || net.Mode == "host") {
+				err := fmt.Errorf("Port %q collision may not be ignored on non-host network mode %q", port.Label, net.Mode)
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}

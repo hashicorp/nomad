@@ -430,14 +430,16 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool, reasons 
 
 func (idx *NetworkIndex) AddReservedPorts(ports AllocatedPorts) (collide bool, reasons []string) {
 	for _, port := range ports {
-		used := idx.getUsedPortsFor(port.HostIP)
 		if port.Value < 0 || port.Value >= MaxValidPort {
 			return true, []string{fmt.Sprintf("invalid port %d", port.Value)}
 		}
+		used := idx.getUsedPortsFor(port.HostIP)
 		if used.Check(uint(port.Value)) {
-			collide = true
-			reason := fmt.Sprintf("port %d already in use", port.Value)
-			reasons = append(reasons, reason)
+			if !port.IgnoreCollision {
+				collide = true
+				reason := fmt.Sprintf("port %d already in use", port.Value)
+				reasons = append(reasons, reason)
+			}
 		} else {
 			used.Set(uint(port.Value))
 		}
@@ -518,23 +520,26 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 		var allocPort *AllocatedPortMapping
 		var addrErr error
 		for _, addr := range idx.HostNetworks[port.HostNetwork] {
-			used := idx.getUsedPortsFor(addr.Address)
 			// Guard against invalid port
 			if port.Value < 0 || port.Value >= MaxValidPort {
 				return nil, fmt.Errorf("invalid port %d (out of range)", port.Value)
 			}
 
 			// Check if in use
-			if used != nil && used.Check(uint(port.Value)) {
-				addrErr = fmt.Errorf("reserved port collision %s=%d", port.Label, port.Value)
-				continue
+			if !port.IgnoreCollision {
+				used := idx.getUsedPortsFor(addr.Address)
+				if used != nil && used.Check(uint(port.Value)) {
+					addrErr = fmt.Errorf("reserved port collision %s=%d", port.Label, port.Value)
+					continue
+				}
 			}
 
 			allocPort = &AllocatedPortMapping{
-				Label:  port.Label,
-				Value:  port.Value,
-				To:     port.To,
-				HostIP: addr.Address,
+				Label:           port.Label,
+				Value:           port.Value,
+				To:              port.To,
+				HostIP:          addr.Address,
+				IgnoreCollision: port.IgnoreCollision,
 			}
 			break
 		}
