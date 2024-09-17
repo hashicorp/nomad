@@ -5,6 +5,7 @@ package fingerprint
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -29,13 +30,12 @@ func TestLandlockFingerprint(t *testing.T) {
 	must.NoError(t, err)
 
 	result := response.Attributes[landlockKey]
-	exp := map[int]string{
-		0: "", // unavailable
-		1: "v1",
-		2: "v2",
-		3: "v3",
+	switch version {
+	case 0:
+		must.Eq(t, "", result)
+	default:
+		must.Eq(t, fmt.Sprintf("v%d", version), result)
 	}
-	must.Eq(t, exp[version], result)
 }
 
 func TestLandlockFingerprint_absent(t *testing.T) {
