@@ -34,6 +34,7 @@ import (
 	"github.com/hashicorp/nomad/helper/joseutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/raft"
 	"golang.org/x/time/rate"
 )
 
@@ -78,7 +79,7 @@ func NewEncrypter(srv *Server, keystorePath string) (*Encrypter, error) {
 
 	encrypter := &Encrypter{
 		srv:             srv,
-		log:             srv.logger.With("keyring"),
+		log:             srv.logger.Named("keyring"),
 		keystorePath:    keystorePath,
 		keyring:         make(map[string]*keyset),
 		issuer:          srv.GetConfig().OIDCIssuer,
@@ -218,16 +219,16 @@ func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
 
-	keyset, err := e.keysetByIDLocked(keyID)
+	ks, err := e.keysetByIDLocked(keyID)
 	if err != nil {
 		return nil, err
 	}
 
-	nonceSize := keyset.cipher.NonceSize()
+	nonceSize := ks.cipher.NonceSize()
 	nonce := ciphertext[:nonceSize] // nonce was stored alongside ciphertext
 	additional := []byte(keyID)     // keyID was included in the signature inputs
 
-	return keyset.cipher.Open(nil, nonce, ciphertext[nonceSize:], additional)
+	return ks.cipher.Open(nil, nonce, ciphertext[nonceSize:], additional)
 }
 
 // keyIDHeader is the JWT header for the Nomad Key ID used to sign the
@@ -249,7 +250,7 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 	// If a key is rotated immediately following a leader election, plans that
 	// are in-flight may get signed before the new leader has the key. Allow for
 	// a short timeout-and-retry to avoid rejecting plans
-	keyset, err := e.activeKeySet()
+	ks, err := e.activeKeySet()
 	if err != nil {
 		ctx, cancel := context.WithTimeout(e.srv.shutdownCtx, 5*time.Second)
 		defer cancel()
@@ -259,8 +260,8 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 				return "", "", err
 			default:
 				time.Sleep(50 * time.Millisecond)
-				keyset, err = e.activeKeySet()
-				if keyset != nil {
+				ks, err = e.activeKeySet()
+				if ks != nil {
 					break
 				}
 			}
@@ -272,18 +273,18 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		claims.Issuer = e.issuer
 	}
 
-	opts := (&jose.SignerOptions{}).WithHeader("kid", keyset.rootKey.Meta.KeyID).WithType("JWT")
+	opts := (&jose.SignerOptions{}).WithHeader("kid", ks.rootKey.Meta.KeyID).WithType("JWT")
 
 	var sig jose.Signer
-	if keyset.rsaPrivateKey != nil {
+	if ks.rsaPrivateKey != nil {
 		// If an RSA key has been created prefer it as it is more widely compatible
-		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: keyset.rsaPrivateKey}, opts)
+		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: ks.rsaPrivateKey}, opts)
 		if err != nil {
 			return "", "", err
 		}
 	} else {
 		// No RSA key has been created, fallback to ed25519 which always exists
-		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: keyset.eddsaPrivateKey}, opts)
+		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: ks.eddsaPrivateKey}, opts)
 		if err != nil {
 			return "", "", err
 		}
@@ -294,7 +295,7 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		return "", "", err
 	}
 
-	return raw, keyset.rootKey.Meta.KeyID, nil
+	return raw, ks.rootKey.Meta.KeyID, nil
 }
 
 // VerifyClaim accepts a previously-signed encoded claim and validates
@@ -312,7 +313,7 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 		return nil, err
 	}
 
-	// Find the Key
+	// Find the key material
 	pubKey, err := e.GetPublicKey(keyID)
 	if err != nil {
 		return nil, err
@@ -594,8 +595,8 @@ var ErrDecryptFailed = errors.New("unable to decrypt wrapped key")
 // GetPublicKey returns the public signing key for the requested key id or an
 // error if the key could not be found.
 func (e *Encrypter) GetPublicKey(keyID string) (*structs.KeyringPublicKey, error) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
 	ks, err := e.keysetByIDLocked(keyID)
 	if err != nil {
@@ -746,6 +747,7 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, keyMeta *structs
 	keyID := keyMeta.KeyID
 	krr.logger.Debug("replicating new key", "id", keyID)
 
+	var err error
 	getReq := &structs.KeyringGetRootKeyRequest{
 		KeyID: keyID,
 		QueryOptions: structs.QueryOptions{
@@ -754,7 +756,12 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, keyMeta *structs
 		},
 	}
 	getResp := &structs.KeyringGetRootKeyResponse{}
-	err := krr.srv.RPC("Keyring.Get", getReq, getResp)
+
+	// Servers should avoid querying themselves
+	_, leaderID := krr.srv.raft.LeaderWithID()
+	if leaderID != raft.ServerID(krr.srv.GetConfig().NodeID) {
+		err = krr.srv.RPC("Keyring.Get", getReq, getResp)
+	}
 
 	if err != nil || getResp.Key == nil {
 		// Key replication needs to tolerate leadership flapping. If a key is
@@ -764,17 +771,28 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, keyMeta *structs
 		krr.logger.Warn("failed to fetch key from current leader, trying peers",
 			"key", keyID, "error", err)
 		getReq.AllowStale = true
+
+		cfg := krr.srv.GetConfig()
+		self := fmt.Sprintf("%s.%s", cfg.NodeName, cfg.Region)
+
 		for _, peer := range krr.getAllPeers() {
+			if peer.Name == self {
+				continue
+			}
+
+			krr.logger.Trace("attempting to replicate key from peer",
+				"id", keyID, "peer", peer.Name)
 			err = krr.srv.forwardServer(peer, "Keyring.Get", getReq, getResp)
 			if err == nil && getResp.Key != nil {
 				break
 			}
 		}
-		if getResp.Key == nil {
-			krr.logger.Error("failed to fetch key from any peer",
-				"key", keyID, "error", err)
-			return fmt.Errorf("failed to fetch key from any peer: %v", err)
-		}
+	}
+
+	if getResp.Key == nil {
+		krr.logger.Error("failed to fetch key from any peer",
+			"key", keyID, "error", err)
+		return fmt.Errorf("failed to fetch key from any peer: %v", err)
 	}
 
 	err = krr.encrypter.AddKey(getResp.Key)
@@ -786,7 +804,6 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, keyMeta *structs
 	return nil
 }
 
-// TODO: move this method into Server?
 func (krr *KeyringReplicator) getAllPeers() []*serverParts {
 	krr.srv.peerLock.RLock()
 	defer krr.srv.peerLock.RUnlock()
