@@ -1648,24 +1648,9 @@ type TagVersionRequest struct {
 	WriteRequest
 }
 
-func (j *Jobs) TagVersion(jobID string, version string, name string, description string, q *WriteOptions) (*WriteMeta, error) {
-	// If the version is not provided, get the "active" version of the job
-	var versionInt uint64
-	if version == "" {
-		job, _, err := j.Info(jobID, nil)
-		if err != nil {
-			return nil, err
-		}
-		versionInt = *job.Version
-	} else {
-		var parseErr error
-		versionInt, parseErr = strconv.ParseUint(version, 10, 64)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid version format: %q. Version must be a positive integer", version)
-		}
-	}
+func (j *Jobs) TagVersion(jobID string, version uint64, name string, description string, q *WriteOptions) (*WriteMeta, error) {
 	var tagRequest = &TagVersionRequest{
-		Version:     versionInt,
+		Version:     version,
 		Description: description,
 	}
 

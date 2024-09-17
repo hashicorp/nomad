@@ -5,8 +5,10 @@ package command
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
 
@@ -112,13 +114,34 @@ func (c *JobTagApplyCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(job)
-	jobID, _, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
 
-	_, err = client.Jobs().TagVersion(jobID, versionStr, name, description, nil)
+	// If the version is not provided, get the "active" version of the job
+	var versionInt uint64
+	if versionStr == "" {
+		q := &api.QueryOptions{
+			Namespace: namespace,
+		}
+		latestVersion, _, err := client.Jobs().Info(job, q)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
+			return 1
+		}
+		versionInt = *latestVersion.Version
+	} else {
+		var parseErr error
+		versionInt, parseErr = strconv.ParseUint(versionStr, 10, 64)
+		if parseErr != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing version: %s", parseErr))
+			return 1
+		}
+	}
+
+	_, err = client.Jobs().TagVersion(jobID, versionInt, name, description, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error tagging job version: %s", err))
 		return 1
