@@ -2768,6 +2768,9 @@ type NodeNetworkAddress struct {
 }
 
 type AllocatedPortMapping struct {
+	// msgpack omit empty fields during serialization
+	_struct bool `codec:",omitempty"` // nolint: structcheck
+
 	Label  string
 	Value  int
 	To     int
@@ -2819,6 +2822,9 @@ func (p AllocatedPorts) Get(label string) (AllocatedPortMapping, bool) {
 }
 
 type Port struct {
+	// msgpack omit empty fields during serialization
+	_struct bool `codec:",omitempty"` // nolint: structcheck
+
 	// Label is the key for HCL port blocks: port "foo" {}
 	Label string
 
