@@ -1,0 +1,67 @@
+name: Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - release/**
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+  pull_request:
+    branches:
+      - main
+      - release/**
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+
+# cancel existing runs of the same workflow on the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-22.04' }}
+    # The first check ensures this doesn't run on community-contributed PRs, who
+    # won't have the permissions to run this job.
+    if: ${{ (github.repository != 'hashicorp/nomad' || (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name))
+      && (github.actor != 'dependabot[bot]') && (github.actor != 'hc-github-team-nomad-core') }}
+
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: hashicorp/setup-golang@36878950ae8f21c1bc25accaf67a4df88c29b01d # v3
+
+      - name: Clone Security Scanner repo
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          repository: hashicorp/security-scanner
+          token: ${{ secrets.PRODSEC_SCANNER_READ_ONLY }}
+          path: security-scanner
+          ref: main
+
+      - name: Scan
+        id: scan
+        uses: ./security-scanner
+        with:
+          repository: "$PWD"
+        env:
+          SECURITY_SCANNER_CONFIG_FILE: .github/scan.hcl
+          # See scan.hcl at repository .github location for config.
+
+      - name: SARIF Output
+        shell: bash
+        run: |
+          jq . < results.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@8fd294e26a0e458834582b0fe4988d79966c7c0a # codeql-bundle-v2.18.4
+        with:
+          sarif_file: results.sarif
