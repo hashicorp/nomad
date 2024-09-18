@@ -2,20 +2,25 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 container {
+  local_daemon = true
+
   secrets {
-    all = false
+    all               = true
+    skip_path_strings = ["/website/content/"]
   }
 
-  dependencies    = false
-  alpine_security = false
+  dependencies    = true
+  alpine_security = true
 }
 
 binary {
   go_modules = true
-  osv        = false
+  osv        = true
+  go_stdlib  = true
   nvd        = false
 
   secrets {
-    all = true
+    all               = true
+    skip_path_strings = ["/website/content/"]
   }
 }
