@@ -2776,7 +2776,6 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 		return
 	}
 	if isClusterUpgraded {
-		logger.Warn("cluster is upgraded to 1.9.0: initializing keyring")
 		if _, _, err = s.raftApply(structs.WrappedRootKeysUpsertRequestType,
 			structs.KeyringUpsertWrappedRootKeyRequest{
 				WrappedRootKeys: wrappedKeys,
@@ -2785,7 +2784,8 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 			return
 		}
 	} else {
-		logger.Warn("cluster is not upgraded to 1.9.0: initializing legacy keyring")
+		logger.Warn(fmt.Sprintf("not all servers are >=%q; initializing legacy keyring",
+			minVersionKeyringInRaft))
 		if _, _, err = s.raftApply(structs.RootKeyMetaUpsertRequestType,
 			structs.KeyringUpdateRootKeyMetaRequest{
 				RootKeyMeta: rootKey.Meta,
