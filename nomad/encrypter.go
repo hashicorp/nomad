@@ -29,13 +29,13 @@ import (
 	"github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2"
 	"github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2"
 	"github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/joseutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
-	"golang.org/x/exp/maps"
 	"golang.org/x/time/rate"
 )
 
@@ -195,8 +195,12 @@ func (e *Encrypter) IsReady(ctx context.Context) error {
 		e.lock.RLock()
 		defer e.lock.RUnlock()
 		if len(e.decryptTasks) != 0 {
+			keyIDs := []string{}
+			for keyID := range e.decryptTasks {
+				keyIDs = append(keyIDs, keyID)
+			}
 			return fmt.Errorf("keyring is not ready - waiting for keys %s",
-				maps.Keys(e.decryptTasks))
+				strings.Join(keyIDs, ", "))
 		}
 		return nil
 	})
@@ -391,6 +395,8 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Wrap
 
 	completeCtx, cancel := context.WithCancel(ctx)
 
+	var mErr *multierror.Error
+
 	for _, wrappedKey := range wrappedKeys.WrappedKeys {
 		providerID := wrappedKey.ProviderID
 		if providerID == "" {
@@ -399,26 +405,29 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Wrap
 
 		provider, ok := e.providerConfigs[providerID]
 		if !ok {
-			logger.Error("no such KMS provider configured - root key cannot be decrypted",
-				"provider_id", providerID)
-			cancel()
-			return fmt.Errorf("no such provider %q configured", providerID)
+			err := fmt.Errorf("no such KMS provider %q configured", providerID)
+			mErr = multierror.Append(mErr, err)
+			continue
 		}
 
 		wrapper, err := e.newKMSWrapper(provider, wrappedKeys.KeyID, wrappedKey.KeyEncryptionKey)
 		if err != nil {
 			// the errors that bubble up from this library can be a bit opaque, so
 			// make sure we wrap them with as much context as possible
-			logger.Error("unable to create KMS wrapper - root key cannot be decrypted",
-				"provider_id", providerID, "error", err)
-
-			cancel()
-			return fmt.Errorf("unable to create key wrapper for provider %q: %w", providerID, err)
+			err := fmt.Errorf("unable to create KMS wrapper for provider %q: %w", providerID, err)
+			mErr = multierror.Append(mErr, err)
+			continue
 		}
 
 		// fan-out decryption tasks for HA in Nomad Enterprise. we can use the
 		// key whenever any one provider returns a successful decryption
 		go e.decryptWrappedKeyTask(completeCtx, cancel, wrapper, provider, wrappedKeys.Meta(), wrappedKey)
+	}
+
+	err = mErr.ErrorOrNil()
+	if err != nil {
+		logger.Error("root key cannot be decrypted", "error", err)
+		return err
 	}
 
 	e.lock.Lock()
@@ -429,11 +438,14 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Wrap
 	return nil
 }
 
-func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.CancelFunc, wrapper kms.Wrapper, provider *structs.KEKProviderConfig, meta *structs.RootKeyMeta, wrappedKey *structs.WrappedRootKey) {
+// decryptWrappedKeyTask attempts to decrypt a wrapped key. It blocks until
+// succesful or until the context is canceled (another task completes or the
+// server shuts down). The error returned is only for testing and diagnostics.
+func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.CancelFunc, wrapper kms.Wrapper, provider *structs.KEKProviderConfig, meta *structs.RootKeyMeta, wrappedKey *structs.WrappedRootKey) error {
 
+	var err error
 	var key []byte
 	var rsaKey []byte
-	var err error
 
 	minBackoff := time.Second
 	maxBackoff := time.Second * 5
@@ -448,6 +460,9 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	helper.WithBackoffFunc(ctx, minBackoff, maxBackoff, func() error {
 		// Decrypt RSAKey for Workload Identity JWT signing if one exists. Prior to
@@ -462,6 +477,9 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	rootKey := &structs.RootKey{
 		Meta:   meta,
@@ -478,11 +496,15 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	cancel()
 	delete(e.decryptTasks, meta.KeyID)
+	return nil
 }
 
 // addCipher stores the key in the keyring and creates a new cipher for it.

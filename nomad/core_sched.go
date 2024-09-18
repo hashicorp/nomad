@@ -984,7 +984,9 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 }
 
 // rootKeyMigrate checks if the cluster is fully upgraded and migrates all the
-// legacy root meta keys to the new wrapped key format
+// legacy root key material to the new wrapped key format. It returns true if
+// any of the keys were migrated, because the caller should now treat the
+// snapshot as invalid.
 //
 // COMPAT(1.12.0): remove this function in 1.12.0 LTS
 func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
