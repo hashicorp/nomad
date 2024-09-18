@@ -39,9 +39,9 @@ const (
 	JWKSPath = "/.well-known/jwks.json"
 )
 
-// RootKey is used to encrypt and decrypt variables. This is the "unwrapped" key
-// and it is never stored in raft.
-type RootKey struct {
+// UnwrappedRootKey is used to encrypt and decrypt variables. This is the
+// unencrypted key material and it is never stored in raft.
+type UnwrappedRootKey struct {
 	Meta *RootKeyMeta
 	Key  []byte // serialized to keystore as base64 blob
 
@@ -51,12 +51,12 @@ type RootKey struct {
 	RSAKey []byte
 }
 
-// NewRootKey returns a new root key and its metadata.
-func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
+// NewUnwrappedRootKey returns a new root key and its metadata.
+func NewUnwrappedRootKey(algorithm EncryptionAlgorithm) (*UnwrappedRootKey, error) {
 	meta := NewRootKeyMeta()
 	meta.Algorithm = algorithm
 
-	rootKey := &RootKey{
+	rootKey := &UnwrappedRootKey{
 		Meta: meta,
 	}
 
@@ -80,8 +80,8 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 	return rootKey, nil
 }
 
-func (k *RootKey) Copy() *RootKey {
-	return &RootKey{
+func (k *UnwrappedRootKey) Copy() *UnwrappedRootKey {
+	return &UnwrappedRootKey{
 		Meta:   k.Meta.Copy(),
 		Key:    slices.Clone(k.Key),
 		RSAKey: slices.Clone(k.RSAKey),
@@ -89,10 +89,10 @@ func (k *RootKey) Copy() *RootKey {
 }
 
 // MakeInactive returns a copy of the RootKey with the meta state set to active
-func (k *RootKey) MakeActive() *RootKey {
+func (k *UnwrappedRootKey) MakeActive() *UnwrappedRootKey {
 	meta := k.Meta.Copy()
 	meta.State = RootKeyStateActive
-	return &RootKey{
+	return &UnwrappedRootKey{
 		Meta:   meta,
 		Key:    slices.Clone(k.Key),
 		RSAKey: slices.Clone(k.RSAKey),
@@ -101,19 +101,19 @@ func (k *RootKey) MakeActive() *RootKey {
 
 // MakeInactive returns a copy of the RootKey with the meta state set to
 // inactive
-func (k *RootKey) MakeInactive() *RootKey {
+func (k *UnwrappedRootKey) MakeInactive() *UnwrappedRootKey {
 	meta := k.Meta.Copy()
 	meta.State = RootKeyStateInactive
-	return &RootKey{
+	return &UnwrappedRootKey{
 		Meta:   meta,
 		Key:    slices.Clone(k.Key),
 		RSAKey: slices.Clone(k.RSAKey),
 	}
 }
 
-// WrappedRootKeys represents a RootKey encrypted by a set of KMS wrapping
-// plugings. It is stored in Raft.
-type WrappedRootKeys struct {
+// RootKey represents the key material encrypted by a set of KMS wrapping
+// plugins, plus metadata. It is stored in Raft.
+type RootKey struct {
 	KeyID       string // UUID
 	Algorithm   EncryptionAlgorithm
 	CreateTime  int64
@@ -122,11 +122,11 @@ type WrappedRootKeys struct {
 	State       RootKeyState
 	PublishTime int64
 
-	WrappedKeys []*WrappedRootKey
+	WrappedKeys []*WrappedKey
 }
 
-func NewWrappedRootKeys(meta *RootKeyMeta) *WrappedRootKeys {
-	return &WrappedRootKeys{
+func NewRootKey(meta *RootKeyMeta) *RootKey {
+	return &RootKey{
 		KeyID:       meta.KeyID,
 		Algorithm:   meta.Algorithm,
 		CreateTime:  meta.CreateTime,
@@ -134,40 +134,40 @@ func NewWrappedRootKeys(meta *RootKeyMeta) *WrappedRootKeys {
 		ModifyIndex: meta.ModifyIndex,
 		State:       meta.State,
 		PublishTime: meta.PublishTime,
-		WrappedKeys: []*WrappedRootKey{},
+		WrappedKeys: []*WrappedKey{},
 	}
 }
 
-func (wrk *WrappedRootKeys) Meta() *RootKeyMeta {
+func (k *RootKey) Meta() *RootKeyMeta {
 	return &RootKeyMeta{
-		KeyID:       wrk.KeyID,
-		Algorithm:   wrk.Algorithm,
-		CreateTime:  wrk.CreateTime,
-		CreateIndex: wrk.CreateIndex,
-		ModifyIndex: wrk.ModifyIndex,
-		State:       wrk.State,
-		PublishTime: wrk.PublishTime,
+		KeyID:       k.KeyID,
+		Algorithm:   k.Algorithm,
+		CreateTime:  k.CreateTime,
+		CreateIndex: k.CreateIndex,
+		ModifyIndex: k.ModifyIndex,
+		State:       k.State,
+		PublishTime: k.PublishTime,
 	}
 }
 
-func (wrk *WrappedRootKeys) Copy() *WrappedRootKeys {
-	if wrk == nil {
+func (k *RootKey) Copy() *RootKey {
+	if k == nil {
 		return nil
 	}
-	out := *wrk
-	out.WrappedKeys = helper.CopySlice(wrk.WrappedKeys)
+	out := *k
+	out.WrappedKeys = helper.CopySlice(k.WrappedKeys)
 	return &out
 }
 
 // IsActive indicates this key is the one currently being used for crypto
 // operations (at most one key can be Active)
-func (wrk *WrappedRootKeys) IsActive() bool {
-	return wrk.State == RootKeyStateActive
+func (k *RootKey) IsActive() bool {
+	return k.State == RootKeyStateActive
 }
 
-// MakeActive returns a copy of the WrappedRootKeys with the state set to active
-func (wrk *WrappedRootKeys) MakeActive() *WrappedRootKeys {
-	out := wrk.Copy()
+// MakeActive returns a copy of the RootKey with the state set to active
+func (k *RootKey) MakeActive() *RootKey {
+	out := k.Copy()
 	if out != nil {
 		out.State = RootKeyStateActive
 		out.PublishTime = 0
@@ -177,24 +177,23 @@ func (wrk *WrappedRootKeys) MakeActive() *WrappedRootKeys {
 
 // IsRekeying indicates that variables encrypted with this key should be
 // rekeyed
-func (wrk *WrappedRootKeys) IsRekeying() bool {
-	return wrk.State == RootKeyStateRekeying
+func (k *RootKey) IsRekeying() bool {
+	return k.State == RootKeyStateRekeying
 }
 
-// MakeRekeying returns a copy of the WrappedRootKeys with the state set to
-// rekeying
-func (wrk *WrappedRootKeys) MakeRekeying() *WrappedRootKeys {
-	out := wrk.Copy()
+// MakeRekeying returns a copy of the RootKey with the state set to rekeying
+func (k *RootKey) MakeRekeying() *RootKey {
+	out := k.Copy()
 	if out != nil {
 		out.State = RootKeyStateRekeying
 	}
 	return out
 }
 
-// MakePrepublished returns a copy of the WrappedRootKeys with the state set to
+// MakePrepublished returns a copy of the RootKey with the state set to
 // prepublished at the time t
-func (wrk *WrappedRootKeys) MakePrepublished(t int64) *WrappedRootKeys {
-	out := wrk.Copy()
+func (k *RootKey) MakePrepublished(t int64) *RootKey {
+	out := k.Copy()
 	if out != nil {
 		out.PublishTime = t
 		out.State = RootKeyStatePrepublished
@@ -204,13 +203,13 @@ func (wrk *WrappedRootKeys) MakePrepublished(t int64) *WrappedRootKeys {
 
 // IsPrepublished indicates that this key has been published and is pending
 // being promoted to active
-func (wrk *WrappedRootKeys) IsPrepublished() bool {
-	return wrk.State == RootKeyStatePrepublished
+func (k *RootKey) IsPrepublished() bool {
+	return k.State == RootKeyStatePrepublished
 }
 
-// MakeInactive returns a copy of the WrappedRootKeys with the state set to inactive
-func (wrk *WrappedRootKeys) MakeInactive() *WrappedRootKeys {
-	out := wrk.Copy()
+// MakeInactive returns a copy of the RootKey with the state set to inactive
+func (k *RootKey) MakeInactive() *RootKey {
+	out := k.Copy()
 	if out != nil {
 		out.State = RootKeyStateInactive
 	}
@@ -219,13 +218,13 @@ func (wrk *WrappedRootKeys) MakeInactive() *WrappedRootKeys {
 
 // IsInactive indicates that this key is no longer being used to encrypt new
 // variables or workload identities.
-func (wrk *WrappedRootKeys) IsInactive() bool {
-	return wrk.State == RootKeyStateInactive || wrk.State == RootKeyStateDeprecated
+func (k *RootKey) IsInactive() bool {
+	return k.State == RootKeyStateInactive || k.State == RootKeyStateDeprecated
 }
 
-// WrappedRootKey represents a RootKey encrypted by a specific KMS wrapping
-// plugin. A slice of these are stored in WrappedRootKeys in Raft.
-type WrappedRootKey struct {
+// WrappedKey represents key material encrypted by a specific KMS wrapping
+// plugin. A slice of these are stored in RootKeys in Raft.
+type WrappedKey struct {
 	// Provider is the KMS wrapping plugin
 	Provider string
 
@@ -249,7 +248,7 @@ type WrappedRootKey struct {
 	KeyEncryptionKey []byte
 }
 
-func (w *WrappedRootKey) Copy() *WrappedRootKey {
+func (w *WrappedKey) Copy() *WrappedKey {
 	if w == nil {
 		return nil
 	}
@@ -260,8 +259,8 @@ func (w *WrappedRootKey) Copy() *WrappedRootKey {
 	return &out
 }
 
-// RootKeyMeta is the metadata used to refer to a RootKey. It is
-// stored in raft.
+// RootKeyMeta is the metadata used to refer to a RootKey. It's a "stub" of the
+// RootKey and gets used in RPC responses
 type RootKeyMeta struct {
 	KeyID       string // UUID
 	Algorithm   EncryptionAlgorithm
@@ -456,7 +455,7 @@ type KeyringListRootKeyMetaResponse struct {
 // for applying to the FSM with the KeyringUpdateRootKeyMetaRequest
 // (see below)
 type KeyringUpdateRootKeyRequest struct {
-	RootKey *RootKey
+	RootKey *UnwrappedRootKey
 	Rekey   bool
 	WriteRequest
 }
@@ -469,7 +468,7 @@ type KeyringUpdateRootKeyResponse struct {
 // initialization and when keys are rotated, to write a new wrapped root key to
 // Raft.
 type KeyringUpsertWrappedRootKeyRequest struct {
-	WrappedRootKeys *WrappedRootKeys
+	WrappedRootKeys *RootKey
 	Rekey           bool
 	WriteRequest
 }
@@ -482,7 +481,7 @@ type KeyringGetRootKeyRequest struct {
 }
 
 type KeyringGetRootKeyResponse struct {
-	Key *RootKey
+	Key *UnwrappedRootKey
 	QueryMeta
 }
 

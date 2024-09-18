@@ -928,7 +928,7 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error {
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.WrappedRootKeys(ws)
+	iter, err := c.snap.RootKeys(ws)
 	if err != nil {
 		return err
 	}
@@ -944,7 +944,7 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 		if raw == nil {
 			break
 		}
-		keyMeta := raw.(*structs.WrappedRootKeys)
+		keyMeta := raw.(*structs.RootKey)
 		if !keyMeta.IsInactive() {
 			continue // never GC keys we're still using
 		}
@@ -996,13 +996,13 @@ func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.WrappedRootKeys(ws)
+	iter, err := c.snap.RootKeys(ws)
 	if err != nil {
 		return false, err
 	}
 	wasMigrated := false
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		wrappedKeys := raw.(*structs.WrappedRootKeys)
+		wrappedKeys := raw.(*structs.RootKey)
 		if len(wrappedKeys.WrappedKeys) > 0 {
 			continue // already migrated
 		}
@@ -1035,17 +1035,17 @@ func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
 // key to active once the rotation threshold has expired
 func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (bool, error) {
 	var (
-		activeKey       *structs.WrappedRootKeys
-		prepublishedKey *structs.WrappedRootKeys
+		activeKey       *structs.RootKey
+		prepublishedKey *structs.RootKey
 	)
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.WrappedRootKeys(ws)
+	iter, err := c.snap.RootKeys(ws)
 	if err != nil {
 		return false, err
 	}
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		key := raw.(*structs.WrappedRootKeys)
+		key := raw.(*structs.RootKey)
 		switch key.State {
 		case structs.RootKeyStateActive:
 			activeKey = key
@@ -1141,7 +1141,7 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (
 func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.WrappedRootKeys(ws)
+	iter, err := c.snap.RootKeys(ws)
 	if err != nil {
 		return err
 	}
@@ -1151,7 +1151,7 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 		if raw == nil {
 			break
 		}
-		wrappedKeys := raw.(*structs.WrappedRootKeys)
+		wrappedKeys := raw.(*structs.RootKey)
 		if !wrappedKeys.IsRekeying() {
 			continue
 		}

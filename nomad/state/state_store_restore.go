@@ -243,14 +243,14 @@ func (r *StateRestore) VariablesQuotaRestore(quota *structs.VariablesQuota) erro
 // RootKeyMetaRestore is used to restore a legacy root key meta entry into the
 // wrapped_root_keys table.
 func (r *StateRestore) RootKeyMetaRestore(meta *structs.RootKeyMeta) error {
-	wrappedRootKeys := structs.NewWrappedRootKeys(meta)
-	return r.WrappedRootKeysRestore(wrappedRootKeys)
+	wrappedRootKeys := structs.NewRootKey(meta)
+	return r.RootKeyRestore(wrappedRootKeys)
 }
 
-// WrappedRootKeysRestore is used to restore a single wrapped root key into the
+// RootKeyRestore is used to restore a single wrapped root key into the
 // wrapped_root_keys table.
-func (r *StateRestore) WrappedRootKeysRestore(wrappedKeys *structs.WrappedRootKeys) error {
-	if err := r.txn.Insert(TableWrappedRootKeys, wrappedKeys); err != nil {
+func (r *StateRestore) RootKeyRestore(wrappedKeys *structs.RootKey) error {
+	if err := r.txn.Insert(TableRootKeys, wrappedKeys); err != nil {
 		return fmt.Errorf("wrapped root keys insert failed: %v", err)
 	}
 	return nil

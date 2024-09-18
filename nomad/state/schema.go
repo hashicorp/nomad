@@ -20,7 +20,7 @@ const (
 	TableServiceRegistrations = "service_registrations"
 	TableVariables            = "variables"
 	TableVariablesQuotas      = "variables_quota"
-	TableWrappedRootKeys      = "wrapped_root_keys"
+	TableRootKeys             = "root_keys"
 	TableACLRoles             = "acl_roles"
 	TableACLAuthMethods       = "acl_auth_methods"
 	TableACLBindingRules      = "acl_binding_rules"
@@ -1560,7 +1560,7 @@ func variablesQuotasTableSchema() *memdb.TableSchema {
 // wrappedRootKeySchema returns the MemDB schema for wrapped Nomad root keys
 func wrappedRootKeySchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: TableWrappedRootKeys,
+		Name: TableRootKeys,
 		Indexes: map[string]*memdb.IndexSchema{
 			indexID: {
 				Name:         indexID,

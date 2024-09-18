@@ -27,8 +27,8 @@ func TestStateStore_WrappedRootKey_CRUD(t *testing.T) {
 			key.State = structs.RootKeyStateActive
 		}
 		index++
-		wrappedKeys := structs.NewWrappedRootKeys(key)
-		must.NoError(t, store.UpsertWrappedRootKeys(index, wrappedKeys, false))
+		wrappedKeys := structs.NewRootKey(key)
+		must.NoError(t, store.UpsertRootKey(index, wrappedKeys, false))
 	}
 
 	// retrieve the active key
@@ -37,23 +37,23 @@ func TestStateStore_WrappedRootKey_CRUD(t *testing.T) {
 	must.NotNil(t, activeKey)
 
 	// update an inactive key to active and verify the rotation
-	inactiveKey, err := store.WrappedRootKeysByID(nil, keyIDs[1])
+	inactiveKey, err := store.RootKeyByID(nil, keyIDs[1])
 	must.NoError(t, err)
 	must.NotNil(t, inactiveKey)
 	oldCreateIndex := inactiveKey.CreateIndex
 	newlyActiveKey := inactiveKey.Copy()
 	newlyActiveKey = inactiveKey.MakeActive()
 	index++
-	must.NoError(t, store.UpsertWrappedRootKeys(index, newlyActiveKey, false))
+	must.NoError(t, store.UpsertRootKey(index, newlyActiveKey, false))
 
-	iter, err := store.WrappedRootKeys(nil)
+	iter, err := store.RootKeys(nil)
 	must.NoError(t, err)
 	for {
 		raw := iter.Next()
 		if raw == nil {
 			break
 		}
-		key := raw.(*structs.WrappedRootKeys)
+		key := raw.(*structs.RootKey)
 		if key.KeyID == newlyActiveKey.KeyID {
 			must.True(t, key.IsActive(), must.Sprint("expected updated key to be active"))
 			must.Eq(t, oldCreateIndex, key.CreateIndex)
@@ -64,9 +64,9 @@ func TestStateStore_WrappedRootKey_CRUD(t *testing.T) {
 
 	// delete the active key and verify it's been deleted
 	index++
-	must.NoError(t, store.DeleteWrappedRootKeys(index, keyIDs[1]))
+	must.NoError(t, store.DeleteRootKey(index, keyIDs[1]))
 
-	iter, err = store.WrappedRootKeys(nil)
+	iter, err = store.RootKeys(nil)
 	must.NoError(t, err)
 	var found int
 	for {
@@ -74,7 +74,7 @@ func TestStateStore_WrappedRootKey_CRUD(t *testing.T) {
 		if raw == nil {
 			break
 		}
-		key := raw.(*structs.WrappedRootKeys)
+		key := raw.(*structs.RootKey)
 		must.NotEq(t, keyIDs[1], key.KeyID)
 		must.False(t, key.IsActive(), must.Sprint("expected remaining keys to be inactive"))
 		found++
@@ -82,5 +82,5 @@ func TestStateStore_WrappedRootKey_CRUD(t *testing.T) {
 	must.Eq(t, 2, found, must.Sprint("expected only 2 keys remaining"))
 
 	// deleting non-existent keys is safe
-	must.NoError(t, store.DeleteWrappedRootKeys(index, uuid.Generate()))
+	must.NoError(t, store.DeleteRootKey(index, uuid.Generate()))
 }

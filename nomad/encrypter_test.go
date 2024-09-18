@@ -70,7 +70,7 @@ func TestEncrypter_LoadSave(t *testing.T) {
 
 	for _, algo := range algos {
 		t.Run(string(algo), func(t *testing.T) {
-			key, err := structs.NewRootKey(algo)
+			key, err := structs.NewUnwrappedRootKey(algo)
 			must.Greater(t, 0, len(key.RSAKey))
 			must.NoError(t, err)
 
@@ -86,14 +86,14 @@ func TestEncrypter_LoadSave(t *testing.T) {
 			_, err = encrypter.wrapRootKey(key, false)
 			must.NoError(t, err)
 
-			active, err := encrypter.keysetByIDLocked(key.Meta.KeyID)
+			active, err := encrypter.cipherSetByIDLocked(key.Meta.KeyID)
 			must.NoError(t, err)
 			must.Greater(t, 0, len(active.rootKey.RSAKey))
 		})
 	}
 
 	t.Run("legacy aead wrapper", func(t *testing.T) {
-		key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+		key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 		must.NoError(t, err)
 
 		// create a wrapper file identical to those before we had external KMS
@@ -543,7 +543,7 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 
 	e := srv.encrypter
 
-	keyset, err := e.activeKeySet()
+	keyset, err := e.activeCipherSet()
 	must.NoError(t, err)
 	keyID := keyset.rootKey.Meta.KeyID
 
@@ -611,7 +611,7 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 	must.NoError(t, err)
 
 	// Fake life as a 1.6 server by writing only ed25519 keys
-	oldRootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+	oldRootKey, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	must.NoError(t, err)
 
 	oldRootKey = oldRootKey.MakeActive()

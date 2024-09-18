@@ -10,13 +10,13 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// UpsertWrappedRootKeys saves a wrapped root keys or updates them in place.
-func (s *StateStore) UpsertWrappedRootKeys(index uint64, wrappedRootKeys *structs.WrappedRootKeys, rekey bool) error {
+// UpsertRootKey saves a root key or updates it in place.
+func (s *StateStore) UpsertRootKey(index uint64, rootKey *structs.RootKey, rekey bool) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
 	// get any existing key for updating
-	raw, err := txn.First(TableWrappedRootKeys, indexID, wrappedRootKeys.KeyID)
+	raw, err := txn.First(TableRootKeys, indexID, rootKey.KeyID)
 	if err != nil {
 		return fmt.Errorf("root key lookup failed: %v", err)
 	}
@@ -24,15 +24,15 @@ func (s *StateStore) UpsertWrappedRootKeys(index uint64, wrappedRootKeys *struct
 	isRotation := false
 
 	if raw != nil {
-		existing := raw.(*structs.WrappedRootKeys)
-		wrappedRootKeys.CreateIndex = existing.CreateIndex
-		wrappedRootKeys.CreateTime = existing.CreateTime
-		isRotation = !existing.IsActive() && wrappedRootKeys.IsActive()
+		existing := raw.(*structs.RootKey)
+		rootKey.CreateIndex = existing.CreateIndex
+		rootKey.CreateTime = existing.CreateTime
+		isRotation = !existing.IsActive() && rootKey.IsActive()
 	} else {
-		wrappedRootKeys.CreateIndex = index
-		isRotation = wrappedRootKeys.IsActive()
+		rootKey.CreateIndex = index
+		isRotation = rootKey.IsActive()
 	}
-	wrappedRootKeys.ModifyIndex = index
+	rootKey.ModifyIndex = index
 
 	if rekey && !isRotation {
 		return fmt.Errorf("cannot rekey without setting the new key active")
@@ -41,7 +41,7 @@ func (s *StateStore) UpsertWrappedRootKeys(index uint64, wrappedRootKeys *struct
 	// if the upsert is for a newly-active key, we need to set all the
 	// other keys as inactive in the same transaction.
 	if isRotation {
-		iter, err := txn.Get(TableWrappedRootKeys, indexID)
+		iter, err := txn.Get(TableRootKeys, indexID)
 		if err != nil {
 			return err
 		}
@@ -50,7 +50,7 @@ func (s *StateStore) UpsertWrappedRootKeys(index uint64, wrappedRootKeys *struct
 			if raw == nil {
 				break
 			}
-			key := raw.(*structs.WrappedRootKeys)
+			key := raw.(*structs.RootKey)
 			modified := false
 
 			switch key.State {
@@ -72,7 +72,7 @@ func (s *StateStore) UpsertWrappedRootKeys(index uint64, wrappedRootKeys *struct
 
 			if modified {
 				key.ModifyIndex = index
-				if err := txn.Insert(TableWrappedRootKeys, key); err != nil {
+				if err := txn.Insert(TableRootKeys, key); err != nil {
 					return err
 				}
 
@@ -80,46 +80,46 @@ func (s *StateStore) UpsertWrappedRootKeys(index uint64, wrappedRootKeys *struct
 		}
 	}
 
-	if err := txn.Insert(TableWrappedRootKeys, wrappedRootKeys); err != nil {
+	if err := txn.Insert(TableRootKeys, rootKey); err != nil {
 		return err
 	}
-	if err := txn.Insert("index", &IndexEntry{TableWrappedRootKeys, index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableRootKeys, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return txn.Commit()
 }
 
-// DeleteWrappedRootKeys deletes a single wrapped root key set, or returns an
+// DeleteRootKey deletes a single wrapped root key set, or returns an
 // error if it doesn't exist.
-func (s *StateStore) DeleteWrappedRootKeys(index uint64, keyID string) error {
+func (s *StateStore) DeleteRootKey(index uint64, keyID string) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
 	// find the old key
-	existing, err := txn.First(TableWrappedRootKeys, indexID, keyID)
+	existing, err := txn.First(TableRootKeys, indexID, keyID)
 	if err != nil {
 		return fmt.Errorf("root key lookup failed: %v", err)
 	}
 	if existing == nil {
 		return nil // this case should be validated in RPC
 	}
-	if err := txn.Delete(TableWrappedRootKeys, existing); err != nil {
+	if err := txn.Delete(TableRootKeys, existing); err != nil {
 		return fmt.Errorf("root key delete failed: %v", err)
 	}
 
-	if err := txn.Insert("index", &IndexEntry{TableWrappedRootKeys, index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableRootKeys, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return txn.Commit()
 }
 
-// WrappedRootKeys returns an iterator over all wrapped root keys
-func (s *StateStore) WrappedRootKeys(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+// RootKeys returns an iterator over all root keys
+func (s *StateStore) RootKeys(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableWrappedRootKeys, indexID)
+	iter, err := txn.Get(TableRootKeys, indexID)
 	if err != nil {
 		return nil, err
 	}
@@ -128,27 +128,27 @@ func (s *StateStore) WrappedRootKeys(ws memdb.WatchSet) (memdb.ResultIterator, e
 	return iter, nil
 }
 
-// WrappedRootKeysByID returns a specific wrapped root key set
-func (s *StateStore) WrappedRootKeysByID(ws memdb.WatchSet, id string) (*structs.WrappedRootKeys, error) {
+// RootKeyByID returns a specific root key
+func (s *StateStore) RootKeyByID(ws memdb.WatchSet, id string) (*structs.RootKey, error) {
 	txn := s.db.ReadTxn()
 
-	watchCh, raw, err := txn.FirstWatch(TableWrappedRootKeys, indexID, id)
+	watchCh, raw, err := txn.FirstWatch(TableRootKeys, indexID, id)
 	if err != nil {
 		return nil, fmt.Errorf("root key lookup failed: %v", err)
 	}
 	ws.Add(watchCh)
 
 	if raw != nil {
-		return raw.(*structs.WrappedRootKeys), nil
+		return raw.(*structs.RootKey), nil
 	}
 	return nil, nil
 }
 
 // GetActiveRootKey returns the currently active root key
-func (s *StateStore) GetActiveRootKey(ws memdb.WatchSet) (*structs.WrappedRootKeys, error) {
+func (s *StateStore) GetActiveRootKey(ws memdb.WatchSet) (*structs.RootKey, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableWrappedRootKeys, indexID)
+	iter, err := txn.Get(TableRootKeys, indexID)
 	if err != nil {
 		return nil, err
 	}
@@ -158,9 +158,9 @@ func (s *StateStore) GetActiveRootKey(ws memdb.WatchSet) (*structs.WrappedRootKe
 		if raw == nil {
 			break
 		}
-		wrappedKeys := raw.(*structs.WrappedRootKeys)
-		if wrappedKeys.IsActive() {
-			return wrappedKeys, nil
+		key := raw.(*structs.RootKey)
+		if key.IsActive() {
+			return key, nil
 		}
 	}
 

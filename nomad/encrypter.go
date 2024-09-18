@@ -58,32 +58,32 @@ type Encrypter struct {
 	// issuer is the OIDC Issuer to use for workload identities if configured
 	issuer string
 
-	keyring      map[string]*keyset
+	keyring      map[string]*cipherSet
 	decryptTasks map[string]context.CancelFunc
 	lock         sync.RWMutex
 }
 
-// keyset contains the key material for variable encryption and workload
-// identity signing. As keysets are rotated they are identified by the RootKey
-// KeyID although the public key IDs are published with a type prefix to
+// cipherSet contains the key material for variable encryption and workload
+// identity signing. As cipherSets are rotated they are identified by the
+// RootKey KeyID although the public key IDs are published with a type prefix to
 // disambiguate which signing algorithm to use.
-type keyset struct {
-	rootKey           *structs.RootKey
+type cipherSet struct {
+	rootKey           *structs.UnwrappedRootKey
 	cipher            cipher.AEAD
 	eddsaPrivateKey   ed25519.PrivateKey
 	rsaPrivateKey     *rsa.PrivateKey
 	rsaPKCS1PublicKey []byte // PKCS #1 DER encoded public key for JWKS
 }
 
-// NewEncrypter loads or creates a new local keystore and returns an
-// encryption keyring with the keys it finds.
+// NewEncrypter loads or creates a new local keystore and returns an encryption
+// keyring with the keys it finds.
 func NewEncrypter(srv *Server, keystorePath string) (*Encrypter, error) {
 
 	encrypter := &Encrypter{
 		srv:             srv,
 		log:             srv.logger.Named("keyring"),
 		keystorePath:    keystorePath,
-		keyring:         make(map[string]*keyset),
+		keyring:         make(map[string]*cipherSet),
 		issuer:          srv.GetConfig().OIDCIssuer,
 		providerConfigs: map[string]*structs.KEKProviderConfig{},
 		decryptTasks:    map[string]context.CancelFunc{},
@@ -210,29 +210,29 @@ func (e *Encrypter) IsReady(ctx context.Context) error {
 	return nil
 }
 
-// Encrypt encrypts the clear data with the cipher for the current
-// root key, and returns the cipher text (including the nonce), and
-// the key ID used to encrypt it
+// Encrypt encrypts the clear data with the cipher for the active root key, and
+// returns the cipher text (including the nonce), and the key ID used to encrypt
+// it
 func (e *Encrypter) Encrypt(cleartext []byte) ([]byte, string, error) {
 
-	keyset, err := e.activeKeySet()
+	cs, err := e.activeCipherSet()
 	if err != nil {
 		return nil, "", err
 	}
 
-	nonce, err := crypto.Bytes(keyset.cipher.NonceSize())
+	nonce, err := crypto.Bytes(cs.cipher.NonceSize())
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate key wrapper nonce: %v", err)
 	}
 
-	keyID := keyset.rootKey.Meta.KeyID
+	keyID := cs.rootKey.Meta.KeyID
 	additional := []byte(keyID) // include the keyID in the signature inputs
 
-	// we use the nonce as the dst buffer so that the ciphertext is
-	// appended to that buffer and we always keep the nonce and
-	// ciphertext together, and so that we're not tempted to reuse
-	// the cleartext buffer which the caller still owns
-	ciphertext := keyset.cipher.Seal(nonce, nonce, cleartext, additional)
+	// we use the nonce as the dst buffer so that the ciphertext is appended to
+	// that buffer and we always keep the nonce and ciphertext together, and so
+	// that we're not tempted to reuse the cleartext buffer which the caller
+	// still owns
+	ciphertext := cs.cipher.Seal(nonce, nonce, cleartext, additional)
 	return ciphertext, keyID, nil
 }
 
@@ -270,7 +270,7 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		return "", "", errors.New("cannot sign empty claims")
 	}
 
-	ks, err := e.activeKeySet()
+	cs, err := e.activeCipherSet()
 	if err != nil {
 		return "", "", err
 	}
@@ -280,18 +280,18 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		claims.Issuer = e.issuer
 	}
 
-	opts := (&jose.SignerOptions{}).WithHeader("kid", ks.rootKey.Meta.KeyID).WithType("JWT")
+	opts := (&jose.SignerOptions{}).WithHeader("kid", cs.rootKey.Meta.KeyID).WithType("JWT")
 
 	var sig jose.Signer
-	if ks.rsaPrivateKey != nil {
+	if cs.rsaPrivateKey != nil {
 		// If an RSA key has been created prefer it as it is more widely compatible
-		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: ks.rsaPrivateKey}, opts)
+		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: cs.rsaPrivateKey}, opts)
 		if err != nil {
 			return "", "", err
 		}
 	} else {
 		// No RSA key has been created, fallback to ed25519 which always exists
-		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: ks.eddsaPrivateKey}, opts)
+		sig, err = jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: cs.eddsaPrivateKey}, opts)
 		if err != nil {
 			return "", "", err
 		}
@@ -302,7 +302,7 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		return "", "", err
 	}
 
-	return raw, ks.rootKey.Meta.KeyID, nil
+	return raw, cs.rootKey.Meta.KeyID, nil
 }
 
 // VerifyClaim accepts a previously-signed encoded claim and validates
@@ -351,7 +351,7 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 // AddUnwrappedKey stores the key in the keystore and creates a new cipher for
 // it. This is called in the RPC handlers on the leader and from the legacy
 // KeyringReplicator.
-func (e *Encrypter) AddUnwrappedKey(rootKey *structs.RootKey, isUpgraded bool) (*structs.WrappedRootKeys, error) {
+func (e *Encrypter) AddUnwrappedKey(rootKey *structs.UnwrappedRootKey, isUpgraded bool) (*structs.RootKey, error) {
 
 	// note: we don't lock the keyring here but inside addCipher
 	// instead, so that we're not holding the lock while performing
@@ -365,13 +365,13 @@ func (e *Encrypter) AddUnwrappedKey(rootKey *structs.RootKey, isUpgraded bool) (
 // AddWrappedKey creates decryption tasks for keys we've previously stored in
 // Raft. It's only called as a goroutine by the FSM Apply for WrappedRootKeys,
 // but it returns an error for ease of testing.
-func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.WrappedRootKeys) error {
+func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.RootKey) error {
 
 	logger := e.log.With("key_id", wrappedKeys.KeyID)
 
 	e.lock.Lock()
 
-	_, err := e.keysetByIDLocked(wrappedKeys.KeyID)
+	_, err := e.cipherSetByIDLocked(wrappedKeys.KeyID)
 	if err == nil {
 
 		// key material for each key ID is immutable so nothing to do, but we
@@ -447,7 +447,7 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Wrap
 // decryptWrappedKeyTask attempts to decrypt a wrapped key. It blocks until
 // successful or until the context is canceled (another task completes or the
 // server shuts down). The error returned is only for testing and diagnostics.
-func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.CancelFunc, wrapper kms.Wrapper, provider *structs.KEKProviderConfig, meta *structs.RootKeyMeta, wrappedKey *structs.WrappedRootKey) error {
+func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.CancelFunc, wrapper kms.Wrapper, provider *structs.KEKProviderConfig, meta *structs.RootKeyMeta, wrappedKey *structs.WrappedKey) error {
 
 	var err error
 	var key []byte
@@ -487,7 +487,7 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 		return err
 	}
 
-	rootKey := &structs.RootKey{
+	rootKey := &structs.UnwrappedRootKey{
 		Meta:   meta,
 		Key:    key,
 		RSAKey: rsaKey,
@@ -513,8 +513,8 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 	return nil
 }
 
-// addCipher stores the key in the keyring and creates a new cipher for it.
-func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
+// addCipher creates a new cipherSet for the key and stores them in the keyring
+func (e *Encrypter) addCipher(rootKey *structs.UnwrappedRootKey) error {
 
 	if rootKey == nil || rootKey.Meta == nil {
 		return fmt.Errorf("missing metadata")
@@ -537,7 +537,7 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 
 	ed25519Key := ed25519.NewKeyFromSeed(rootKey.Key)
 
-	ks := keyset{
+	cs := cipherSet{
 		rootKey:         rootKey,
 		cipher:          aead,
 		eddsaPrivateKey: ed25519Key,
@@ -551,27 +551,27 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 			return fmt.Errorf("error parsing rsa key: %w", err)
 		}
 
-		ks.rsaPrivateKey = rsaKey
-		ks.rsaPKCS1PublicKey = x509.MarshalPKCS1PublicKey(&rsaKey.PublicKey)
+		cs.rsaPrivateKey = rsaKey
+		cs.rsaPKCS1PublicKey = x509.MarshalPKCS1PublicKey(&rsaKey.PublicKey)
 	}
 
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	e.keyring[rootKey.Meta.KeyID] = &ks
+	e.keyring[rootKey.Meta.KeyID] = &cs
 	return nil
 }
 
 // waitForKey retrieves the key material by ID from the keyring, retrying with
 // geometric backoff until the context expires.
-func (e *Encrypter) waitForKey(ctx context.Context, keyID string) (*keyset, error) {
-	var ks *keyset
+func (e *Encrypter) waitForKey(ctx context.Context, keyID string) (*cipherSet, error) {
+	var ks *cipherSet
 
 	err := helper.WithBackoffFunc(ctx, 50*time.Millisecond, 100*time.Millisecond,
 		func() error {
 			e.lock.RLock()
 			defer e.lock.RUnlock()
 			var err error
-			ks, err = e.keysetByIDLocked(keyID)
+			ks, err = e.cipherSetByIDLocked(keyID)
 			if err != nil {
 				return err
 			}
@@ -587,11 +587,11 @@ func (e *Encrypter) waitForKey(ctx context.Context, keyID string) (*keyset, erro
 }
 
 // GetKey retrieves the key material by ID from the keyring.
-func (e *Encrypter) GetKey(keyID string) (*structs.RootKey, error) {
+func (e *Encrypter) GetKey(keyID string) (*structs.UnwrappedRootKey, error) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	ks, err := e.keysetByIDLocked(keyID)
+	ks, err := e.cipherSetByIDLocked(keyID)
 	if err != nil {
 		return nil, err
 	}
@@ -602,13 +602,13 @@ func (e *Encrypter) GetKey(keyID string) (*structs.RootKey, error) {
 	return ks.rootKey, nil
 }
 
-// activeKeySetLocked returns the keyset that belongs to the key marked as
+// activeCipherSetLocked returns the cipherSet that belongs to the key marked as
 // active in the state store (so that it's consistent with raft).
 //
 // If a key is rotated immediately following a leader election, plans that are
 // in-flight may get signed before the new leader has decrypted the key. Allow
 // for a short timeout-and-retry to avoid rejecting plans
-func (e *Encrypter) activeKeySet() (*keyset, error) {
+func (e *Encrypter) activeCipherSet() (*cipherSet, error) {
 	store := e.srv.fsm.State()
 	key, err := store.GetActiveRootKey(nil)
 	if err != nil {
@@ -623,14 +623,14 @@ func (e *Encrypter) activeKeySet() (*keyset, error) {
 	return e.waitForKey(ctx, key.KeyID)
 }
 
-// keysetByIDLocked returns the keyset for the specified keyID. The
+// cipherSetByIDLocked returns the cipherSet for the specified keyID. The
 // caller must read-lock the keyring
-func (e *Encrypter) keysetByIDLocked(keyID string) (*keyset, error) {
-	keyset, ok := e.keyring[keyID]
+func (e *Encrypter) cipherSetByIDLocked(keyID string) (*cipherSet, error) {
+	cipherSet, ok := e.keyring[keyID]
 	if !ok {
 		return nil, fmt.Errorf("no such key %q in keyring", keyID)
 	}
-	return keyset, nil
+	return cipherSet, nil
 }
 
 // RemoveKey removes a key by ID from the keyring
@@ -641,7 +641,7 @@ func (e *Encrypter) RemoveKey(keyID string) error {
 	return nil
 }
 
-func (e *Encrypter) encryptDEK(rootKey *structs.RootKey, provider *structs.KEKProviderConfig) (*structs.WrappedRootKey, error) {
+func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *structs.KEKProviderConfig) (*structs.WrappedKey, error) {
 	if provider == nil {
 		panic("can't encrypt DEK without a provider")
 	}
@@ -663,7 +663,7 @@ func (e *Encrypter) encryptDEK(rootKey *structs.RootKey, provider *structs.KEKPr
 		return nil, fmt.Errorf("failed to encrypt root key: %w", err)
 	}
 
-	kekWrapper := &structs.WrappedRootKey{
+	kekWrapper := &structs.WrappedKey{
 		Provider:                 provider.Provider,
 		ProviderID:               provider.ID(),
 		WrappedDataEncryptionKey: rootBlob,
@@ -671,7 +671,7 @@ func (e *Encrypter) encryptDEK(rootKey *structs.RootKey, provider *structs.KEKPr
 		KeyEncryptionKey:         kek,
 	}
 
-	// Only keysets created after 1.7.0 will contain an RSA key.
+	// Only cipherSets created after 1.7.0 will contain an RSA key.
 	if len(rootKey.RSAKey) > 0 {
 		rsaBlob, err := wrapper.Encrypt(e.srv.shutdownCtx, rootKey.RSAKey)
 		if err != nil {
@@ -686,9 +686,9 @@ func (e *Encrypter) encryptDEK(rootKey *structs.RootKey, provider *structs.KEKPr
 // wrapRootKey encrypts the key for every KEK provider and returns the wrapped
 // key. On legacy clusters, this also serializes the wrapped key to the on-disk
 // keystore.
-func (e *Encrypter) wrapRootKey(rootKey *structs.RootKey, isUpgraded bool) (*structs.WrappedRootKeys, error) {
+func (e *Encrypter) wrapRootKey(rootKey *structs.UnwrappedRootKey, isUpgraded bool) (*structs.RootKey, error) {
 
-	wrappedKeys := structs.NewWrappedRootKeys(rootKey.Meta)
+	wrappedKeys := structs.NewRootKey(rootKey.Meta)
 
 	for _, provider := range e.providerConfigs {
 		if !provider.Active {
@@ -724,7 +724,7 @@ func (e *Encrypter) wrapRootKey(rootKey *structs.RootKey, isUpgraded bool) (*str
 
 func (e *Encrypter) writeKeyToDisk(
 	meta *structs.RootKeyMeta, provider *structs.KEKProviderConfig,
-	wrappedKey *structs.WrappedRootKey, kek []byte) error {
+	wrappedKey *structs.WrappedKey, kek []byte) error {
 
 	// the on-disk keystore flattens the keys wrapped for the individual
 	// KMS providers out to their own files
@@ -753,7 +753,7 @@ func (e *Encrypter) writeKeyToDisk(
 }
 
 // loadKeyFromStore deserializes a root key from disk.
-func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
+func (e *Encrypter) loadKeyFromStore(path string) (*structs.UnwrappedRootKey, error) {
 
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -814,7 +814,7 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 		}
 	}
 
-	return &structs.RootKey{
+	return &structs.UnwrappedRootKey{
 		Meta:   meta,
 		Key:    key,
 		RSAKey: rsaKey,
@@ -859,7 +859,7 @@ func (e *Encrypter) GetPublicKey(keyID string) (*structs.KeyringPublicKey, error
 	e.lock.RLock()
 	defer e.lock.RUnlock()
 
-	ks, err := e.keysetByIDLocked(keyID)
+	ks, err := e.cipherSetByIDLocked(keyID)
 	if err != nil {
 		return nil, err
 	}
@@ -973,7 +973,7 @@ func (krr *KeyringReplicator) run(ctx context.Context) {
 			}
 
 			store := krr.srv.fsm.State()
-			iter, err := store.WrappedRootKeys(nil)
+			iter, err := store.RootKeys(nil)
 			if err != nil {
 				krr.logger.Error("failed to fetch keyring", "error", err)
 				continue
@@ -984,7 +984,7 @@ func (krr *KeyringReplicator) run(ctx context.Context) {
 					break
 				}
 
-				wrappedKeys := raw.(*structs.WrappedRootKeys)
+				wrappedKeys := raw.(*structs.RootKey)
 				if key, err := krr.encrypter.GetKey(wrappedKeys.KeyID); err == nil && len(key.Key) > 0 {
 					// the key material is immutable so if we've already got it
 					// we can move on to the next key
@@ -1009,7 +1009,7 @@ func (krr *KeyringReplicator) run(ctx context.Context) {
 // replicateKey replicates a single key from peer servers that was present in
 // the state store but missing from the keyring. Returns an error only if no
 // peers have this key.
-func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *structs.WrappedRootKeys) error {
+func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *structs.RootKey) error {
 	keyID := wrappedKeys.KeyID
 	krr.logger.Debug("replicating new key", "id", keyID)
 

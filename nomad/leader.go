@@ -2760,7 +2760,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 
 	logger.Trace("initializing keyring")
 
-	rootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+	rootKey, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	rootKey = rootKey.MakeActive()
 	if err != nil {
 		logger.Error("could not initialize keyring: %v", err)
