@@ -1,3 +1,17 @@
+## 1.7.12 Enterprise (September 17, 2024)
+
+BREAKING CHANGES:
+
+* docker: The default infra_image for pause containers is now registry.k8s.io/pause [[GH-23927](https://github.com/hashicorp/nomad/issues/23927)]
+
+IMPROVEMENTS:
+
+* build: update to go1.22.6 [[GH-23805](https://github.com/hashicorp/nomad/issues/23805)]
+
+BUG FIXES:
+
+* node: Fixed bug where sysbatch allocations were started prematurely [[GH-23858](https://github.com/hashicorp/nomad/issues/23858)]
+
 ## 1.7.11 Enterprise (August 13, 2024)
 
 SECURITY:
