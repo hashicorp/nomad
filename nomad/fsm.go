@@ -1837,9 +1837,12 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
-			if err := restore.RootKeyMetaRestore(keyMeta); err != nil {
+			wrappedKeys := structs.NewWrappedRootKeys(keyMeta)
+			if err := restore.WrappedRootKeysRestore(wrappedKeys); err != nil {
 				return err
 			}
+
+			go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
 
 		case WrappedRootKeysSnapshot:
 			wrappedKeys := new(structs.WrappedRootKeys)
@@ -1850,6 +1853,8 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := restore.WrappedRootKeysRestore(wrappedKeys); err != nil {
 				return err
 			}
+
+			go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
 
 		case ACLRoleSnapshot:
 
