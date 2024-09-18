@@ -106,5 +106,7 @@ func (c *JobTagUnsetCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Ui.Output(fmt.Sprintf("Tag \"%s\" removed from job \"%s\"", name, job))
+
 	return 0
 }

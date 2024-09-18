@@ -4968,6 +4968,17 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 	versionCopy := job.Copy()
 	versionCopy.TaggedVersion = tag
 	versionCopy.ModifyIndex = index
+
+	latestJob, err := s.JobByID(nil, namespace, jobID)
+	if err != nil {
+		return err
+	}
+	if versionCopy.Version == latestJob.Version {
+		if err := txn.Insert("jobs", versionCopy); err != nil {
+			return err
+		}
+	}
+
 	return s.upsertJobVersion(index, versionCopy, txn)
 }
 

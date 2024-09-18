@@ -147,5 +147,7 @@ func (c *JobTagApplyCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Ui.Output(fmt.Sprintf("Job version %d tagged with name \"%s\"", versionInt, name))
+
 	return 0
 }
