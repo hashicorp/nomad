@@ -397,6 +397,7 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Wrap
 
 	var mErr *multierror.Error
 
+	decryptTasks := 0
 	for _, wrappedKey := range wrappedKeys.WrappedKeys {
 		providerID := wrappedKey.ProviderID
 		if providerID == "" {
@@ -422,12 +423,7 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Wrap
 		// fan-out decryption tasks for HA in Nomad Enterprise. we can use the
 		// key whenever any one provider returns a successful decryption
 		go e.decryptWrappedKeyTask(completeCtx, cancel, wrapper, provider, wrappedKeys.Meta(), wrappedKey)
-	}
-
-	err = mErr.ErrorOrNil()
-	if err != nil {
-		logger.Error("root key cannot be decrypted", "error", err)
-		return err
+		decryptTasks++
 	}
 
 	e.lock.Lock()
@@ -435,11 +431,21 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Wrap
 
 	e.decryptTasks[wrappedKeys.KeyID] = cancel
 
+	err = mErr.ErrorOrNil()
+	if err != nil {
+		if decryptTasks == 0 {
+			cancel()
+		}
+
+		logger.Error("root key cannot be decrypted", "error", err)
+		return err
+	}
+
 	return nil
 }
 
 // decryptWrappedKeyTask attempts to decrypt a wrapped key. It blocks until
-// succesful or until the context is canceled (another task completes or the
+// successful or until the context is canceled (another task completes or the
 // server shuts down). The error returned is only for testing and diagnostics.
 func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.CancelFunc, wrapper kms.Wrapper, provider *structs.KEKProviderConfig, meta *structs.RootKeyMeta, wrappedKey *structs.WrappedRootKey) error {
 
@@ -559,9 +565,8 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 // geometric backoff until the context expires.
 func (e *Encrypter) waitForKey(ctx context.Context, keyID string) (*keyset, error) {
 	var ks *keyset
-	var err error
 
-	helper.WithBackoffFunc(ctx, 50*time.Millisecond, 100*time.Millisecond,
+	err := helper.WithBackoffFunc(ctx, 50*time.Millisecond, 100*time.Millisecond,
 		func() error {
 			e.lock.RLock()
 			defer e.lock.RUnlock()
