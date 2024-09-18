@@ -1169,6 +1169,9 @@ func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
 func TestVaultClient_CreateToken_Denylist_Role(t *testing.T) {
 	ci.Parallel(t)
 
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
 	// Need to skip if test is 0.6.4
 	version, err := testutil.VaultVersion()
 	if err != nil {
@@ -1178,9 +1181,6 @@ func TestVaultClient_CreateToken_Denylist_Role(t *testing.T) {
 	if strings.Contains(version, "v0.6.4") {
 		t.Skipf("Vault has a regression in v0.6.4 that this test hits")
 	}
-
-	v := testutil.NewTestVault(t)
-	defer v.Stop()
 
 	// Set the configs token in a new test role
 	v.Config.Token = defaultTestVaultDenylistRoleAndToken(v, t, 5)
