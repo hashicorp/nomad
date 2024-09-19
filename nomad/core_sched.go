@@ -904,22 +904,22 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 	// interval.
 	//
 	// COMPAT(1.12.0): remove this block in 1.12.0 LTS
-	wasMigrated, err := c.rootKeyMigrate(eval)
+	stateChanged, err := c.rootKeyMigrate(eval)
 	if err != nil {
 		return err
 	}
-	if wasMigrated {
+	if stateChanged {
 		return nil
 	}
 
 	// a rotation will be sent to the leader so our view of state
 	// is no longer valid. we ack this core job and will pick up
 	// the GC work on the next interval
-	wasRotated, err := c.rootKeyRotate(eval, time.Now())
+	stateChanged, err = c.rootKeyRotate(eval, time.Now())
 	if err != nil {
 		return err
 	}
-	if wasRotated {
+	if stateChanged {
 		return nil
 	}
 	return c.rootKeyGC(eval, time.Now())
@@ -1000,7 +1000,7 @@ func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	wasMigrated := false
+	stateChanged := false
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		wrappedKeys := raw.(*structs.RootKey)
 		if len(wrappedKeys.WrappedKeys) > 0 {
@@ -1008,7 +1008,7 @@ func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
 		}
 		rootKey, err := c.srv.encrypter.GetKey(wrappedKeys.KeyID)
 		if err != nil {
-			return wasMigrated, err
+			return stateChanged, err
 		}
 		req := &structs.KeyringUpdateRootKeyRequest{
 			RootKey: rootKey,
@@ -1024,10 +1024,10 @@ func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
 				"error", err, "key_id", wrappedKeys.KeyID)
 			return false, err
 		}
-		wasMigrated = true
+		stateChanged = true
 	}
 
-	return wasMigrated, nil
+	return stateChanged, nil
 }
 
 // rootKeyRotate checks if the active key is old enough that we need to kick off
