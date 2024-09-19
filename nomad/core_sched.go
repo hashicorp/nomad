@@ -944,21 +944,21 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 		if raw == nil {
 			break
 		}
-		keyMeta := raw.(*structs.RootKey)
-		if !keyMeta.IsInactive() {
+		rootKey := raw.(*structs.RootKey)
+		if !rootKey.IsInactive() {
 			continue // never GC keys we're still using
 		}
 
 		c.logger.Trace("checking inactive key eligibility for gc",
-			"create_time", keyMeta.CreateTime, "threshold", rotationThreshold.UnixNano())
+			"create_time", rootKey.CreateTime, "threshold", rotationThreshold.UnixNano())
 
-		if keyMeta.CreateTime > rotationThreshold.UnixNano() {
+		if rootKey.CreateTime > rotationThreshold.UnixNano() {
 			continue // don't GC keys with potentially live Workload Identities
 		}
 
 		// don't GC keys used to encrypt Variables or sign legacy non-expiring
 		// Workload Identities
-		inUse, err := c.snap.IsRootKeyInUse(keyMeta.KeyID)
+		inUse, err := c.snap.IsRootKeyInUse(rootKey.KeyID)
 		if err != nil {
 			return err
 		}
@@ -967,7 +967,7 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 		}
 
 		req := &structs.KeyringDeleteRootKeyRequest{
-			KeyID: keyMeta.KeyID,
+			KeyID: rootKey.KeyID,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.srv.config.Region,
 				AuthToken: eval.LeaderACL,

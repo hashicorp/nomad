@@ -251,7 +251,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		c.Build = "1.4.0"
 	})
 	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -479,7 +479,7 @@ func TestPlanApply_KeyringNotReady(t *testing.T) {
 		}}
 	})
 	defer cleanup()
-	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForLeader(t, srv.RPC) // don't WaitForKeyring
 
 	node := mock.Node()
 	alloc := mock.Alloc()
