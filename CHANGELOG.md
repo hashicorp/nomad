@@ -1,3 +1,30 @@
+## 1.8.4 (September 17, 2024)
+
+BREAKING CHANGES:
+
+* docker: The default infra_image for pause containers is now registry.k8s.io/pause [[GH-23927](https://github.com/hashicorp/nomad/issues/23927)]
+
+IMPROVEMENTS:
+
+* build: update to go1.22.6 [[GH-23805](https://github.com/hashicorp/nomad/issues/23805)]
+* cgroups: Allow clients with delegated cgroups check that required cgroup v2 controllers exist [[GH-23803](https://github.com/hashicorp/nomad/issues/23803)]
+* docker: Disable cpuset management for non-root clients [[GH-23804](https://github.com/hashicorp/nomad/issues/23804)]
+* identity: Added support for server-configured additional claims on the Vault default_identity block [[GH-23675](https://github.com/hashicorp/nomad/issues/23675)]
+* namespaces: Allow enabling/disabling allowed network modes per namespace [[GH-23813](https://github.com/hashicorp/nomad/issues/23813)]
+* ui: Badge added for Scaled Down jobs [[GH-23829](https://github.com/hashicorp/nomad/issues/23829)]
+
+DEPRECATIONS:
+
+* api: the JobParseRequest.HCLv1 field will be removed in Nomad 1.9.0 [[GH-23913](https://github.com/hashicorp/nomad/issues/23913)]
+* jobspec: using the -hcl1 flag for HCLv1 job specifications will now emit a warning at the command line. This feature will be removed in Nomad 1.9.0 [[GH-23913](https://github.com/hashicorp/nomad/issues/23913)]
+
+BUG FIXES:
+
+* identity: Fixed a bug where dispatch and periodic jobs would have their job ID and not parent job ID used when creating the subject claim [[GH-23902](https://github.com/hashicorp/nomad/issues/23902)]
+* identity: Fixed a bug where dispatch and periodic jobs would have their job ID and not parent job ID used when interpolating vault.default_identity.extra_claims [[GH-23817](https://github.com/hashicorp/nomad/issues/23817)]
+* node: Fixed bug where sysbatch allocations were started prematurely [[GH-23858](https://github.com/hashicorp/nomad/issues/23858)]
+* ui: Fix an issue where cmd+click or ctrl+click would double-open a job [[GH-23832](https://github.com/hashicorp/nomad/issues/23832)]
+
 ## 1.8.3 (August 13, 2024)
 
 SECURITY:
@@ -172,6 +199,20 @@ BUG FIXES:
 * ui: Fixed an issue where keynav would not trigger evaluation sidebar expand [[GH-20047](https://github.com/hashicorp/nomad/issues/20047)]
 * ui: Show the namespace in the web UI exec command hint [[GH-20218](https://github.com/hashicorp/nomad/issues/20218)]
 * windows: Fixed a regression where scanning task processes was inefficient [[GH-20619](https://github.com/hashicorp/nomad/issues/20619)]
+
+## 1.7.12 Enterprise (September 17, 2024)
+
+BREAKING CHANGES:
+
+* docker: The default infra_image for pause containers is now registry.k8s.io/pause [[GH-23927](https://github.com/hashicorp/nomad/issues/23927)]
+
+IMPROVEMENTS:
+
+* build: update to go1.22.6 [[GH-23805](https://github.com/hashicorp/nomad/issues/23805)]
+
+BUG FIXES:
+
+* node: Fixed bug where sysbatch allocations were started prematurely [[GH-23858](https://github.com/hashicorp/nomad/issues/23858)]
 
 ## 1.7.11 Enterprise (August 13, 2024)
 
@@ -519,6 +560,21 @@ BUG FIXES:
 * variables: Fixed a bug where poststop tasks were not allowed access to Variables [[GH-18754](https://github.com/hashicorp/nomad/issues/18754)]
 * vault: Fixed a bug where poststop tasks would not get a Vault token [[GH-19268](https://github.com/hashicorp/nomad/issues/19268)]
 * vault: Fixed an issue that could cause Nomad to attempt to renew a Vault token that is already expired [[GH-18985](https://github.com/hashicorp/nomad/issues/18985)]
+
+## 1.6.15 Enterprise (September 17, 2024)
+
+BREAKING CHANGES:
+
+* docker: The default infra_image for pause containers is now registry.k8s.io/pause [[GH-23927](https://github.com/hashicorp/nomad/issues/23927)]
+
+IMPROVEMENTS:
+
+* build: update to go1.22.6 [[GH-23805](https://github.com/hashicorp/nomad/issues/23805)]
+* cli: Increase default log level and duration when capturing logs with `operator debug` [[GH-23850](https://github.com/hashicorp/nomad/issues/23850)]
+
+BUG FIXES:
+
+* node: Fixed bug where sysbatch allocations were started prematurely [[GH-23858](https://github.com/hashicorp/nomad/issues/23858)]
 
 ## 1.6.14 Enterprise (August 13, 2024)
 
