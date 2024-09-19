@@ -938,6 +938,10 @@
                 "path": "commands/operator/snapshot/inspect"
               },
               {
+                "title": "redact",
+                "path": "commands/operator/snapshot/redact"
+              },
+              {
                 "title": "restore",
                 "path": "commands/operator/snapshot/restore"
               },

@@ -17,8 +17,10 @@ import (
 
 	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -344,6 +346,75 @@ func TestSnapshot_BadRestore(t *testing.T) {
 	if len(fsm.logs) != len(expected) {
 		t.Fatalf("bad: %d vs. %d", len(fsm.logs), len(expected))
 	}
+	for i := range fsm.logs {
+		if !bytes.Equal(fsm.logs[i], expected[i].Bytes()) {
+			t.Fatalf("bad: log %d doesn't match", i)
+		}
+	}
+}
+
+func TestSnapshot_FromFSM(t *testing.T) {
+	dir := testutil.TempDir(t, "snapshot")
+	defer os.RemoveAll(dir)
+
+	// Make a Raft and populate it with some data. We tee everything we
+	// apply off to a buffer for checking post-snapshot.
+	var expected []bytes.Buffer
+	entries := 64 * 1024
+	before, fsm := makeRaft(t, filepath.Join(dir, "before"))
+	defer before.Shutdown()
+	for i := 0; i < entries; i++ {
+		var log bytes.Buffer
+		var copy bytes.Buffer
+		both := io.MultiWriter(&log, &copy)
+		_, err := io.CopyN(both, rand.Reader, 256)
+		must.NoError(t, err)
+		future := before.Apply(log.Bytes(), time.Second)
+		must.NoError(t, future.Error())
+		expected = append(expected, copy)
+	}
+
+	// Take a snapshot.
+	logger := testutil.Logger(t)
+	snap, err := NewFromFSM(logger, fsm, &raft.SnapshotMeta{
+		Version:       1,
+		ID:            uuid.Generate(),
+		Index:         uint64(entries) + 2,
+		Term:          2,
+		Peers:         []byte{},
+		Configuration: raft.Configuration{},
+	})
+	must.NoError(t, err)
+	defer snap.Close()
+
+	// Verify the snapshot. We have to rewind it after for the restore.
+	metadata, err := Verify(snap)
+	must.NoError(t, err)
+	_, err = snap.file.Seek(0, 0)
+	must.NoError(t, err)
+	must.Eq(t, entries+2, int(metadata.Index))
+
+	// Make a new, independent Raft.
+	after, fsm := makeRaft(t, filepath.Join(dir, "after"))
+	defer after.Shutdown()
+
+	// Put some initial data in there that the snapshot should overwrite.
+	for i := 0; i < 16; i++ {
+		var log bytes.Buffer
+		_, err := io.CopyN(&log, rand.Reader, 256)
+		must.NoError(t, err)
+		future := after.Apply(log.Bytes(), time.Second)
+		must.NoError(t, future.Error())
+	}
+
+	// Restore the snapshot.
+	must.NoError(t, Restore(logger, snap, after))
+
+	// Compare the contents.
+	fsm.Lock()
+	defer fsm.Unlock()
+	must.Len(t, len(expected), fsm.logs)
+
 	for i := range fsm.logs {
 		if !bytes.Equal(fsm.logs[i], expected[i].Bytes()) {
 			t.Fatalf("bad: log %d doesn't match", i)

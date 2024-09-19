@@ -16,12 +16,14 @@ snapshot operations.
 
 <Warning>
 
-This command only saves a Raft snapshot. This snapshot does not include
-keyrings. You must back up keyrings separately.
+This command includes Nomad's keyring in the snapshot. If you are not using a
+[KMS provider][] to secure the keyring, you should use the `-redact` flag to
+remove key material before transmitting the snapshot to HashiCorp Support.
 
-If you use this snapshot to recover a cluster, you also need to restore the
-keyring onto at least one server. Refer to the Key Management's [Restoring the
-Keyring from Backup][restore the keyring] section for instructions.
+Snapshots made before Nomad 1.9.0 will not include the keyrings. If you use
+older snapshots to recover a cluster, you also need to restore the keyring onto
+at least one server. Refer to the Key Management's [Restoring the Keyring from
+Backup][restore the keyring] section for instructions.
 
 </Warning>
 
@@ -54,10 +56,16 @@ nomad operator snapshot save [options] <file>
 
 ## Snapshot Save Options
 
-- `-stale`: The stale argument defaults to `false`, which means the leader
+- `-redact`: The redact option will locally edit the snapshot to remove any
+  cleartext key material from the root keyring. Only the AEAD keyring provider
+  has cleartext key material in Raft. Note that this operation requires loading
+  the snapshot into memory locally.
+
+- `-stale`: The stale option defaults to `false`, which means the leader
   provides the result. If the cluster is in an outage state without a leader,
   you may need to set `-stale` to `true` to get the configuration from a
   non-leader server.
 
 [outage recovery]: /nomad/tutorials/manage-clusters/outage-recovery
 [restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backup
+[KMS provider]: /nomad/docs/configuration/keyring
