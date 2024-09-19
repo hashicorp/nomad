@@ -16,6 +16,7 @@ const changeTypes = ['Added', 'Deleted', 'Edited'];
 export default class JobVersion extends Component {
   @alias('args.version') version;
   @tracked isOpen = false;
+  @tracked isEditing = false;
 
   // Passes through to the job-diff component
   verbose = true;
@@ -78,6 +79,26 @@ export default class JobVersion extends Component {
     }
   })
   revertTo;
+
+  @action
+  toggleEditTag() {
+    this.isEditing = !this.isEditing;
+  }
+
+  @action
+  saveTag() {
+    this.isEditing = false;
+    this.editableTag.save();
+  }
+
+  @action
+  cancelEditTag() {
+    this.isEditing = false;
+  }
+
+  get editableTag() {
+    return this.version.taggedVersion || {};
+  }
 }
 
 const flatten = (accumulator, array) => accumulator.concat(array);

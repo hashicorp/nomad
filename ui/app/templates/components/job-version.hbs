@@ -4,17 +4,28 @@
 ~}}
 
 <section class="job-version">
-  {{#if this.version.taggedVersion}}
     <div class="timeline-tag">
-      <span class="tag-name">
-        {{!-- {{x-icon "tag" class="tag-icon"}} --}}
-        {{this.version.taggedVersion.name}}
-      </span>
-      <span class="tag-description" title={{this.version.taggedVersion.description}}>
-          {{this.version.taggedVersion.description}}
-      </span>
+      {{#if this.isEditing}}
+        <Hds::Form::TextInput::Field
+          @label="Tag Name"
+          @value={{this.editableTag.name}}
+          autofocus
+        />
+        <Hds::Form::TextInput::Field
+          @label="Tag Description"
+          @value={{this.editableTag.description}}
+        />
+      {{else}}
+        {{#if this.version.taggedVersion}}
+          <span class="tag-name">
+            {{this.version.taggedVersion.name}}
+          </span>
+          <span class="tag-description" title={{this.version.taggedVersion.description}}>
+              {{this.version.taggedVersion.description}}
+          </span>
+        {{/if}}
+      {{/if}}
     </div>
-  {{/if}}
 
   <div class="boxed-section {{if this.version.taggedVersion "tagged"}}">
     <header class="boxed-section-head is-light inline-definitions">
@@ -50,10 +61,15 @@
     {{/if}}
     <footer class="boxed-section-foot">
       <div class="tag-options">
-        {{#if this.version.taggedVersion}}
-          <Hds::Button @text="Edit Tag" @color="secondary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} />
+        {{#if this.isEditing}}
+          <Hds::Button @text="Save" @color="primary" @size="small" @isInline={{true}} {{on "click" (action "saveTag")}} />
+          <Hds::Button @text="Cancel" @color="critical" @size="small" @isInline={{true}} {{on "click" (action "cancelEditTag")}} />
         {{else}}
-          <Hds::Button @text="Tag this version" @color="secondary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} />
+          {{#if this.version.taggedVersion}}
+            <Hds::Button @text="Edit Tag" @color="secondary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
+          {{else}}
+            <Hds::Button @text="Tag this version" @color="secondary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
+          {{/if}}
         {{/if}}
       </div>
       <div class="version-options">
