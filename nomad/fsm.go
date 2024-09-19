@@ -1842,7 +1842,11 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
-			go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+			if n.encrypter != nil {
+				// only decrypt the key if we're running in a real server and
+				// not the 'operator snapshot' command context
+				go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+			}
 
 		case RootKeySnapshot:
 			wrappedKeys := new(structs.RootKey)
@@ -1854,7 +1858,11 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
-			go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+			if n.encrypter != nil {
+				// only decrypt the key if we're running in a real server and
+				// not the 'operator snapshot' command context
+				go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+			}
 
 		case ACLRoleSnapshot:
 
