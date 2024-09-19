@@ -21,7 +21,7 @@ on:
 jobs:
   checks:
     # largest available self-hosted disk for extra iops because linting is io-intensive
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "disk_gb=255", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-22.04' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "disk_gb=255", "type=m7a.2xlarge;m6a.2xlarge"]') || 'custom-linux-xl-nomad-22.04' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -34,7 +34,11 @@ jobs:
       - name: Git config token
         if: endsWith(github.repository, '-enterprise')
         run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
-      - uses: hashicorp/setup-golang@v3
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          cache: true
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
       - name: Run make check
         run: |
           make missing

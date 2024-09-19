@@ -37,7 +37,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-      - uses: hashicorp/setup-golang@36878950ae8f21c1bc25accaf67a4df88c29b01d # v3
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          cache: ${{ contains(runner.name, 'Github Actions') }}
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
 
       - name: Clone Security Scanner repo
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
