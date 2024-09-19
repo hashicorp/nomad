@@ -3,21 +3,19 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Component from '@ember/component';
+import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
-import { classNames } from '@ember-decorators/component';
+import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
+import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
-import classic from 'ember-classic-decorator';
 
 const changeTypes = ['Added', 'Deleted', 'Edited'];
 
-@classic
-@classNames('job-version', 'boxed-section')
 export default class JobVersion extends Component {
-  version = null;
-  isOpen = false;
+  @alias('args.version') version;
+  @tracked isOpen = false;
 
   // Passes through to the job-diff component
   verbose = true;
@@ -26,7 +24,7 @@ export default class JobVersion extends Component {
 
   @computed('version.diff')
   get changeCount() {
-    const diff = this.get('version.diff');
+    const diff = this.version.diff;
     const taskGroups = diff.TaskGroups || [];
 
     if (!diff) {
@@ -44,36 +42,35 @@ export default class JobVersion extends Component {
 
   @computed('version.{number,job.version}')
   get isCurrent() {
-    return this.get('version.number') === this.get('version.job.version');
+    return this.version.number === this.version.get('job.version');
   }
 
   @action
   toggleDiff() {
-    this.toggleProperty('isOpen');
+    this.isOpen = !this.isOpen;
   }
 
   @task(function* () {
     try {
-      const versionBeforeReversion = this.get('version.job.version');
-
+      const versionBeforeReversion = this.version.get('job.version');
       yield this.version.revertTo();
-      yield this.version.job.reload();
+      yield this.version.get('job').reload();
 
-      const versionAfterReversion = this.get('version.job.version');
-
+      const versionAfterReversion = this.version.get('job.version');
       if (versionBeforeReversion === versionAfterReversion) {
-        this.handleError({
+        this.args.handleError({
           level: 'warn',
           title: 'Reversion Had No Effect',
           description:
             'Reverting to an identical older version doesn’t produce a new version',
         });
       } else {
-        const job = this.get('version.job');
+        const job = this.version.get('job');
         this.router.transitionTo('jobs.job.index', job.get('idWithNamespace'));
       }
     } catch (e) {
-      this.handleError({
+      console.log('catchy', e);
+      this.args.handleError({
         level: 'danger',
         title: 'Could Not Revert',
         description: messageForError(e, 'revert'),
