@@ -2721,6 +2721,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 }
 
 var minVersionKeyring = version.Must(version.NewVersion("1.4.0"))
+var minVersionKeyringInRaft = version.Must(version.NewVersion("1.9.0-dev"))
 
 // initializeKeyring creates the first root key if the leader doesn't
 // already have one. The metadata will be replicated via raft and then
@@ -2731,12 +2732,12 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 	logger := s.logger.Named("keyring")
 
 	store := s.fsm.State()
-	keyMeta, err := store.GetActiveRootKeyMeta(nil)
+	key, err := store.GetActiveRootKey(nil)
 	if err != nil {
 		logger.Error("failed to get active key: %v", err)
 		return
 	}
-	if keyMeta != nil {
+	if key != nil {
 		return
 	}
 
@@ -2759,25 +2760,39 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 
 	logger.Trace("initializing keyring")
 
-	rootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+	rootKey, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	rootKey = rootKey.MakeActive()
 	if err != nil {
 		logger.Error("could not initialize keyring: %v", err)
 		return
 	}
 
-	err = s.encrypter.AddKey(rootKey)
+	isClusterUpgraded := ServersMeetMinimumVersion(
+		s.serf.Members(), s.Region(), minVersionKeyringInRaft, true)
+
+	wrappedKeys, err := s.encrypter.AddUnwrappedKey(rootKey, isClusterUpgraded)
 	if err != nil {
 		logger.Error("could not add initial key to keyring", "error", err)
 		return
 	}
-
-	if _, _, err = s.raftApply(structs.RootKeyMetaUpsertRequestType,
-		structs.KeyringUpdateRootKeyMetaRequest{
-			RootKeyMeta: rootKey.Meta,
-		}); err != nil {
-		logger.Error("could not initialize keyring", "error", err)
-		return
+	if isClusterUpgraded {
+		if _, _, err = s.raftApply(structs.WrappedRootKeysUpsertRequestType,
+			structs.KeyringUpsertWrappedRootKeyRequest{
+				WrappedRootKeys: wrappedKeys,
+			}); err != nil {
+			logger.Error("could not initialize keyring", "error", err)
+			return
+		}
+	} else {
+		logger.Warn(fmt.Sprintf("not all servers are >=%q; initializing legacy keyring",
+			minVersionKeyringInRaft))
+		if _, _, err = s.raftApply(structs.RootKeyMetaUpsertRequestType,
+			structs.KeyringUpdateRootKeyMetaRequest{
+				RootKeyMeta: rootKey.Meta,
+			}); err != nil {
+			logger.Error("could not initialize keyring", "error", err)
+			return
+		}
 	}
 
 	logger.Info("initialized keyring", "id", rootKey.Meta.KeyID)

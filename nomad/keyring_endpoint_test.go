@@ -29,7 +29,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 
 	// Upsert a new key
 
-	key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	require.NoError(t, err)
 	id := key.Meta.KeyID
 	key = key.MakeActive()
@@ -106,7 +106,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	require.EqualError(t, err, "active root key cannot be deleted - call rotate first")
 
 	// set inactive
-	updateReq.RootKey.Meta = updateReq.RootKey.Meta.MakeInactive()
+	updateReq.RootKey = updateReq.RootKey.MakeInactive()
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	require.NoError(t, err)
 
@@ -139,7 +139,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 	codec := rpcClient(t, srv)
 
 	// Setup an existing key
-	key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	require.NoError(t, err)
 	id := key.Meta.KeyID
 	key = key.MakeActive()
@@ -156,30 +156,30 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 	require.NoError(t, err)
 
 	testCases := []struct {
-		key            *structs.RootKey
+		key            *structs.UnwrappedRootKey
 		expectedErrMsg string
 	}{
 		{
-			key:            &structs.RootKey{},
+			key:            &structs.UnwrappedRootKey{},
 			expectedErrMsg: "root key metadata is required",
 		},
 		{
-			key:            &structs.RootKey{Meta: &structs.RootKeyMeta{}},
+			key:            &structs.UnwrappedRootKey{Meta: &structs.RootKeyMeta{}},
 			expectedErrMsg: "root key UUID is required",
 		},
 		{
-			key:            &structs.RootKey{Meta: &structs.RootKeyMeta{KeyID: "invalid"}},
+			key:            &structs.UnwrappedRootKey{Meta: &structs.RootKeyMeta{KeyID: "invalid"}},
 			expectedErrMsg: "root key UUID is required",
 		},
 		{
-			key: &structs.RootKey{Meta: &structs.RootKeyMeta{
+			key: &structs.UnwrappedRootKey{Meta: &structs.RootKeyMeta{
 				KeyID:     id,
 				Algorithm: structs.EncryptionAlgorithmAES256GCM,
 			}},
 			expectedErrMsg: "root key state \"\" is invalid",
 		},
 		{
-			key: &structs.RootKey{Meta: &structs.RootKeyMeta{
+			key: &structs.UnwrappedRootKey{Meta: &structs.RootKeyMeta{
 				KeyID:     id,
 				Algorithm: structs.EncryptionAlgorithmAES256GCM,
 				State:     structs.RootKeyStateActive,
@@ -188,7 +188,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 		},
 
 		{
-			key: &structs.RootKey{
+			key: &structs.UnwrappedRootKey{
 				Key: []byte{0x01},
 				Meta: &structs.RootKeyMeta{
 					KeyID:     id,
@@ -229,11 +229,11 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	codec := rpcClient(t, srv)
 
 	store := srv.fsm.State()
-	key0, err := store.GetActiveRootKeyMeta(nil)
+	key0, err := store.GetActiveRootKey(nil)
 	must.NoError(t, err)
 
 	// Setup an existing key
-	key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	must.NoError(t, err)
 	key1 := key.Meta
 

@@ -63,8 +63,8 @@ func TestAuthenticate_mTLS(t *testing.T) {
 	testutil.WaitForLeader(t, leader.RPC)
 
 	testutil.Wait(t, func() (bool, error) {
-		keyset, err := follower.encrypter.activeKeySet()
-		return keyset != nil, err
+		cs, err := follower.encrypter.activeCipherSet()
+		return cs != nil, err
 	})
 
 	rootToken := uuid.Generate()

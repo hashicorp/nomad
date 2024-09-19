@@ -10,29 +10,29 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// UpsertRootKeyMeta saves root key meta or updates it in-place.
-func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKeyMeta, rekey bool) error {
+// UpsertRootKey saves a root key or updates it in place.
+func (s *StateStore) UpsertRootKey(index uint64, rootKey *structs.RootKey, rekey bool) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
 	// get any existing key for updating
-	raw, err := txn.First(TableRootKeyMeta, indexID, rootKeyMeta.KeyID)
+	raw, err := txn.First(TableRootKeys, indexID, rootKey.KeyID)
 	if err != nil {
-		return fmt.Errorf("root key metadata lookup failed: %v", err)
+		return fmt.Errorf("root key lookup failed: %v", err)
 	}
 
 	isRotation := false
 
 	if raw != nil {
-		existing := raw.(*structs.RootKeyMeta)
-		rootKeyMeta.CreateIndex = existing.CreateIndex
-		rootKeyMeta.CreateTime = existing.CreateTime
-		isRotation = !existing.IsActive() && rootKeyMeta.IsActive()
+		existing := raw.(*structs.RootKey)
+		rootKey.CreateIndex = existing.CreateIndex
+		rootKey.CreateTime = existing.CreateTime
+		isRotation = !existing.IsActive() && rootKey.IsActive()
 	} else {
-		rootKeyMeta.CreateIndex = index
-		isRotation = rootKeyMeta.IsActive()
+		rootKey.CreateIndex = index
+		isRotation = rootKey.IsActive()
 	}
-	rootKeyMeta.ModifyIndex = index
+	rootKey.ModifyIndex = index
 
 	if rekey && !isRotation {
 		return fmt.Errorf("cannot rekey without setting the new key active")
@@ -41,7 +41,7 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 	// if the upsert is for a newly-active key, we need to set all the
 	// other keys as inactive in the same transaction.
 	if isRotation {
-		iter, err := txn.Get(TableRootKeyMeta, indexID)
+		iter, err := txn.Get(TableRootKeys, indexID)
 		if err != nil {
 			return err
 		}
@@ -50,7 +50,7 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 			if raw == nil {
 				break
 			}
-			key := raw.(*structs.RootKeyMeta)
+			key := raw.(*structs.RootKey)
 			modified := false
 
 			switch key.State {
@@ -72,56 +72,54 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 
 			if modified {
 				key.ModifyIndex = index
-				if err := txn.Insert(TableRootKeyMeta, key); err != nil {
+				if err := txn.Insert(TableRootKeys, key); err != nil {
 					return err
 				}
-			}
 
+			}
 		}
 	}
 
-	if err := txn.Insert(TableRootKeyMeta, rootKeyMeta); err != nil {
+	if err := txn.Insert(TableRootKeys, rootKey); err != nil {
 		return err
 	}
-
-	// update the indexes table
-	if err := txn.Insert("index", &IndexEntry{TableRootKeyMeta, index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableRootKeys, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
+
 	return txn.Commit()
 }
 
-// DeleteRootKeyMeta deletes a single root key, or returns an error if
-// it doesn't exist.
-func (s *StateStore) DeleteRootKeyMeta(index uint64, keyID string) error {
+// DeleteRootKey deletes a single wrapped root key set, or returns an
+// error if it doesn't exist.
+func (s *StateStore) DeleteRootKey(index uint64, keyID string) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
 	// find the old key
-	existing, err := txn.First(TableRootKeyMeta, indexID, keyID)
+	existing, err := txn.First(TableRootKeys, indexID, keyID)
 	if err != nil {
-		return fmt.Errorf("root key metadata lookup failed: %v", err)
+		return fmt.Errorf("root key lookup failed: %v", err)
 	}
 	if existing == nil {
-		return fmt.Errorf("root key metadata not found")
+		return nil // this case should be validated in RPC
 	}
-	if err := txn.Delete(TableRootKeyMeta, existing); err != nil {
-		return fmt.Errorf("root key metadata delete failed: %v", err)
+	if err := txn.Delete(TableRootKeys, existing); err != nil {
+		return fmt.Errorf("root key delete failed: %v", err)
 	}
 
-	// update the indexes table
-	if err := txn.Insert("index", &IndexEntry{TableRootKeyMeta, index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableRootKeys, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return txn.Commit()
 }
 
-// RootKeyMetas returns an iterator over all root key metadata
-func (s *StateStore) RootKeyMetas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+// RootKeys returns an iterator over all root keys
+func (s *StateStore) RootKeys(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableRootKeyMeta, indexID)
+	iter, err := txn.Get(TableRootKeys, indexID)
 	if err != nil {
 		return nil, err
 	}
@@ -130,42 +128,42 @@ func (s *StateStore) RootKeyMetas(ws memdb.WatchSet) (memdb.ResultIterator, erro
 	return iter, nil
 }
 
-// RootKeyMetaByID returns a specific root key meta
-func (s *StateStore) RootKeyMetaByID(ws memdb.WatchSet, id string) (*structs.RootKeyMeta, error) {
+// RootKeyByID returns a specific root key
+func (s *StateStore) RootKeyByID(ws memdb.WatchSet, id string) (*structs.RootKey, error) {
 	txn := s.db.ReadTxn()
 
-	watchCh, raw, err := txn.FirstWatch(TableRootKeyMeta, indexID, id)
+	watchCh, raw, err := txn.FirstWatch(TableRootKeys, indexID, id)
 	if err != nil {
-		return nil, fmt.Errorf("root key metadata lookup failed: %v", err)
+		return nil, fmt.Errorf("root key lookup failed: %v", err)
 	}
 	ws.Add(watchCh)
 
 	if raw != nil {
-		return raw.(*structs.RootKeyMeta), nil
+		return raw.(*structs.RootKey), nil
 	}
 	return nil, nil
 }
 
-// GetActiveRootKeyMeta returns the metadata for the currently active root key
-func (s *StateStore) GetActiveRootKeyMeta(ws memdb.WatchSet) (*structs.RootKeyMeta, error) {
+// GetActiveRootKey returns the currently active root key
+func (s *StateStore) GetActiveRootKey(ws memdb.WatchSet) (*structs.RootKey, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableRootKeyMeta, indexID)
+	iter, err := txn.Get(TableRootKeys, indexID)
 	if err != nil {
 		return nil, err
 	}
 	ws.Add(iter.WatchCh())
-
 	for {
 		raw := iter.Next()
 		if raw == nil {
 			break
 		}
-		key := raw.(*structs.RootKeyMeta)
+		key := raw.(*structs.RootKey)
 		if key.IsActive() {
 			return key, nil
 		}
 	}
+
 	return nil, nil
 }
 

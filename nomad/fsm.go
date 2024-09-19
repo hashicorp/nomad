@@ -66,6 +66,7 @@ const (
 	ACLBindingRuleSnapshot               SnapshotType = 27
 	NodePoolSnapshot                     SnapshotType = 28
 	JobSubmissionSnapshot                SnapshotType = 29
+	RootKeySnapshot                      SnapshotType = 30
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -102,6 +103,7 @@ var snapshotTypeStrings = map[SnapshotType]string{
 	ACLBindingRuleSnapshot:               "ACLBindingRule",
 	NodePoolSnapshot:                     "NodePool",
 	JobSubmissionSnapshot:                "JobSubmission",
+	RootKeySnapshot:                      "WrappedRootKeys",
 	NamespaceSnapshot:                    "Namespace",
 }
 
@@ -126,6 +128,7 @@ type nomadFSM struct {
 	evalBroker         *EvalBroker
 	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
+	encrypter          *Encrypter
 	logger             hclog.Logger
 	state              *state.StateStore
 	timetable          *TimeTable
@@ -171,6 +174,9 @@ type FSMConfig struct {
 	// be added to.
 	Blocked *BlockedEvals
 
+	// Encrypter is the encrypter where new WrappedRootKeys should be added
+	Encrypter *Encrypter
+
 	// Logger is the logger used by the FSM
 	Logger hclog.Logger
 
@@ -207,6 +213,7 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 		evalBroker:          config.EvalBroker,
 		periodicDispatcher:  config.Periodic,
 		blockedEvals:        config.Blocked,
+		encrypter:           config.Encrypter,
 		logger:              config.Logger.Named("fsm"),
 		config:              config,
 		state:               state,
@@ -371,8 +378,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyVariableOperation(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaUpsertRequestType:
 		return n.applyRootKeyMetaUpsert(msgType, buf[1:], log.Index)
-	case structs.RootKeyMetaDeleteRequestType:
-		return n.applyRootKeyMetaDelete(msgType, buf[1:], log.Index)
+	case structs.WrappedRootKeysDeleteRequestType:
+		return n.applyWrappedRootKeysDelete(msgType, buf[1:], log.Index)
 	case structs.ACLRolesUpsertRequestType:
 		return n.applyACLRolesUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLRolesDeleteByIDRequestType:
@@ -385,6 +392,9 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLBindingRulesUpsert(buf[1:], log.Index)
 	case structs.ACLBindingRulesDeleteRequestType:
 		return n.applyACLBindingRulesDelete(buf[1:], log.Index)
+	case structs.WrappedRootKeysUpsertRequestType:
+		return n.applyWrappedRootKeysUpsert(msgType, buf[1:], log.Index)
+
 	}
 
 	// Check enterprise only message types.
@@ -1827,9 +1837,33 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
-			if err := restore.RootKeyMetaRestore(keyMeta); err != nil {
+			wrappedKeys := structs.NewRootKey(keyMeta)
+			if err := restore.RootKeyRestore(wrappedKeys); err != nil {
 				return err
 			}
+
+			if n.encrypter != nil {
+				// only decrypt the key if we're running in a real server and
+				// not the 'operator snapshot' command context
+				go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+			}
+
+		case RootKeySnapshot:
+			wrappedKeys := new(structs.RootKey)
+			if err := dec.Decode(wrappedKeys); err != nil {
+				return err
+			}
+
+			if err := restore.RootKeyRestore(wrappedKeys); err != nil {
+				return err
+			}
+
+			if n.encrypter != nil {
+				// only decrypt the key if we're running in a real server and
+				// not the 'operator snapshot' command context
+				go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+			}
+
 		case ACLRoleSnapshot:
 
 			// Create a new ACLRole object, so we can decode the message into
@@ -2303,27 +2337,52 @@ func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byt
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertRootKeyMeta(index, req.RootKeyMeta, req.Rekey); err != nil {
-		n.logger.Error("UpsertRootKeyMeta failed", "error", err)
+	wrappedRootKeys := structs.NewRootKey(req.RootKeyMeta)
+
+	if err := n.state.UpsertRootKey(index, wrappedRootKeys, req.Rekey); err != nil {
+		n.logger.Error("UpsertWrappedRootKeys failed", "error", err)
 		return err
 	}
+
+	// start a task to decrypt the key material
+	go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedRootKeys)
 
 	return nil
 }
 
-func (n *nomadFSM) applyRootKeyMetaDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_root_key_meta_delete"}, time.Now())
+func (n *nomadFSM) applyWrappedRootKeysUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_wrapped_root_key_upsert"}, time.Now())
+
+	var req structs.KeyringUpsertWrappedRootKeyRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertRootKey(index, req.WrappedRootKeys, req.Rekey); err != nil {
+		n.logger.Error("UpsertWrappedRootKeys failed", "error", err)
+		return err
+	}
+
+	// start a task to decrypt the key material
+	go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, req.WrappedRootKeys)
+
+	return nil
+}
+
+func (n *nomadFSM) applyWrappedRootKeysDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_wrapped_root_key_delete"}, time.Now())
 
 	var req structs.KeyringDeleteRootKeyRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteRootKeyMeta(index, req.KeyID); err != nil {
-		n.logger.Error("DeleteRootKeyMeta failed", "error", err)
+	if err := n.state.DeleteRootKey(index, req.KeyID); err != nil {
+		n.logger.Error("DeleteWrappedRootKeys failed", "error", err)
 		return err
 	}
 
+	n.encrypter.RemoveKey(req.KeyID)
 	return nil
 }
 
@@ -2447,7 +2506,7 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
-	if err := s.persistRootKeyMeta(sink, encoder); err != nil {
+	if err := s.persistWrappedRootKeys(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -3092,11 +3151,11 @@ func (s *nomadSnapshot) persistVariablesQuotas(sink raft.SnapshotSink,
 	return nil
 }
 
-func (s *nomadSnapshot) persistRootKeyMeta(sink raft.SnapshotSink,
+func (s *nomadSnapshot) persistWrappedRootKeys(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
 	ws := memdb.NewWatchSet()
-	keys, err := s.snap.RootKeyMetas(ws)
+	keys, err := s.snap.RootKeys(ws)
 	if err != nil {
 		return err
 	}
@@ -3106,8 +3165,8 @@ func (s *nomadSnapshot) persistRootKeyMeta(sink raft.SnapshotSink,
 		if raw == nil {
 			break
 		}
-		key := raw.(*structs.RootKeyMeta)
-		sink.Write([]byte{byte(RootKeyMetaSnapshot)})
+		key := raw.(*structs.RootKey)
+		sink.Write([]byte{byte(RootKeySnapshot)})
 		if err := encoder.Encode(key); err != nil {
 			return err
 		}

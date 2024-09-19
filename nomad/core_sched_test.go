@@ -2623,7 +2623,7 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 
 	// active key, will never be GC'd
 	store := srv.fsm.State()
-	key0, err := store.GetActiveRootKeyMeta(nil)
+	key0, err := store.GetActiveRootKey(nil)
 	must.NotNil(t, key0, must.Sprint("expected keyring to be bootstapped"))
 	must.NoError(t, err)
 
@@ -2648,11 +2648,11 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 	must.NoError(t, err)
 	must.True(t, rotated, must.Sprint("key should rotate"))
 
-	var key1 *structs.RootKeyMeta
-	iter, err := store.RootKeyMetas(nil)
+	var key1 *structs.RootKey
+	iter, err := store.RootKeys(nil)
 	must.NoError(t, err)
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		k := raw.(*structs.RootKeyMeta)
+		k := raw.(*structs.RootKey)
 		if k.KeyID == key0.KeyID {
 			must.True(t, k.IsActive(), must.Sprint("expected original key to be active"))
 		} else {
@@ -2675,10 +2675,10 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 	c.snap, _ = store.Snapshot()
 	rotated, err = c.rootKeyRotate(eval, now)
 
-	iter, err = store.RootKeyMetas(nil)
+	iter, err = store.RootKeys(nil)
 	must.NoError(t, err)
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		k := raw.(*structs.RootKeyMeta)
+		k := raw.(*structs.RootKey)
 		switch k.KeyID {
 		case key0.KeyID:
 			must.True(t, k.IsActive(), must.Sprint("original key should still be active"))
@@ -2694,10 +2694,10 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 	now = time.Unix(0, key1.PublishTime+(time.Minute*10).Nanoseconds())
 	rotated, err = c.rootKeyRotate(eval, now)
 
-	iter, err = store.RootKeyMetas(nil)
+	iter, err = store.RootKeys(nil)
 	must.NoError(t, err)
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		k := raw.(*structs.RootKeyMeta)
+		k := raw.(*structs.RootKey)
 		switch k.KeyID {
 		case key0.KeyID:
 			must.True(t, k.IsInactive(), must.Sprint("original key should be inactive"))
@@ -2725,7 +2725,7 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 
 	// active key, will never be GC'd
 	store := srv.fsm.State()
-	key0, err := store.GetActiveRootKeyMeta(nil)
+	key0, err := store.GetActiveRootKey(nil)
 	must.NotNil(t, key0, must.Sprint("expected keyring to be bootstapped"))
 	must.NoError(t, err)
 
@@ -2733,14 +2733,14 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	yesterday := now - (24 * time.Hour).Nanoseconds()
 
 	// insert an "old" inactive key
-	key1 := structs.NewRootKeyMeta().MakeInactive()
+	key1 := structs.NewRootKey(structs.NewRootKeyMeta()).MakeInactive()
 	key1.CreateTime = yesterday
-	must.NoError(t, store.UpsertRootKeyMeta(600, key1, false))
+	must.NoError(t, store.UpsertRootKey(600, key1, false))
 
 	// insert an "old" and inactive key with a variable that's using it
-	key2 := structs.NewRootKeyMeta().MakeInactive()
+	key2 := structs.NewRootKey(structs.NewRootKeyMeta()).MakeInactive()
 	key2.CreateTime = yesterday
-	must.NoError(t, store.UpsertRootKeyMeta(700, key2, false))
+	must.NoError(t, store.UpsertRootKey(700, key2, false))
 
 	variable := mock.VariableEncrypted()
 	variable.KeyID = key2.KeyID
@@ -2752,9 +2752,9 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	must.NoError(t, setResp.Error)
 
 	// insert an "old" key that's inactive but being used by an alloc
-	key3 := structs.NewRootKeyMeta().MakeInactive()
+	key3 := structs.NewRootKey(structs.NewRootKeyMeta()).MakeInactive()
 	key3.CreateTime = yesterday
-	must.NoError(t, store.UpsertRootKeyMeta(800, key3, false))
+	must.NoError(t, store.UpsertRootKey(800, key3, false))
 
 	// insert the allocation using key3
 	alloc := mock.Alloc()
@@ -2764,9 +2764,9 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 		structs.MsgTypeTestSetup, 850, []*structs.Allocation{alloc}))
 
 	// insert an "old" key that's inactive but being used by an alloc
-	key4 := structs.NewRootKeyMeta().MakeInactive()
+	key4 := structs.NewRootKey(structs.NewRootKeyMeta()).MakeInactive()
 	key4.CreateTime = yesterday
-	must.NoError(t, store.UpsertRootKeyMeta(900, key4, false))
+	must.NoError(t, store.UpsertRootKey(900, key4, false))
 
 	// insert the dead allocation using key4
 	alloc2 := mock.Alloc()
@@ -2777,14 +2777,14 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 		structs.MsgTypeTestSetup, 950, []*structs.Allocation{alloc2}))
 
 	// insert an inactive key older than RootKeyGCThreshold but not RootKeyRotationThreshold
-	key5 := structs.NewRootKeyMeta().MakeInactive()
+	key5 := structs.NewRootKey(structs.NewRootKeyMeta()).MakeInactive()
 	key5.CreateTime = now - (15 * time.Minute).Nanoseconds()
-	must.NoError(t, store.UpsertRootKeyMeta(1500, key5, false))
+	must.NoError(t, store.UpsertRootKey(1500, key5, false))
 
 	// prepublishing key should never be GC'd no matter how old
-	key6 := structs.NewRootKeyMeta().MakePrepublished(yesterday)
+	key6 := structs.NewRootKey(structs.NewRootKeyMeta()).MakePrepublished(yesterday)
 	key6.CreateTime = yesterday
-	must.NoError(t, store.UpsertRootKeyMeta(1600, key6, false))
+	must.NoError(t, store.UpsertRootKey(1600, key6, false))
 
 	// run the core job
 	snap, err := store.Snapshot()
@@ -2795,31 +2795,31 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	must.NoError(t, c.rootKeyGC(eval, time.Now()))
 
 	ws := memdb.NewWatchSet()
-	key, err := store.RootKeyMetaByID(ws, key0.KeyID)
+	key, err := store.RootKeyByID(ws, key0.KeyID)
 	must.NoError(t, err)
 	must.NotNil(t, key, must.Sprint("active key should not have been GCd"))
 
-	key, err = store.RootKeyMetaByID(ws, key1.KeyID)
+	key, err = store.RootKeyByID(ws, key1.KeyID)
 	must.NoError(t, err)
 	must.Nil(t, key, must.Sprint("old and unused inactive key should have been GCd"))
 
-	key, err = store.RootKeyMetaByID(ws, key2.KeyID)
+	key, err = store.RootKeyByID(ws, key2.KeyID)
 	must.NoError(t, err)
 	must.NotNil(t, key, must.Sprint("old key should not have been GCd if still in use"))
 
-	key, err = store.RootKeyMetaByID(ws, key3.KeyID)
+	key, err = store.RootKeyByID(ws, key3.KeyID)
 	must.NoError(t, err)
 	must.NotNil(t, key, must.Sprint("old key used to sign a live alloc should not have been GCd"))
 
-	key, err = store.RootKeyMetaByID(ws, key4.KeyID)
+	key, err = store.RootKeyByID(ws, key4.KeyID)
 	must.NoError(t, err)
 	must.Nil(t, key, must.Sprint("old key used to sign a terminal alloc should have been GCd"))
 
-	key, err = store.RootKeyMetaByID(ws, key5.KeyID)
+	key, err = store.RootKeyByID(ws, key5.KeyID)
 	must.NoError(t, err)
 	must.NotNil(t, key, must.Sprint("key newer than GC+rotation threshold should not have been GCd"))
 
-	key, err = store.RootKeyMetaByID(ws, key6.KeyID)
+	key, err = store.RootKeyByID(ws, key6.KeyID)
 	must.NoError(t, err)
 	must.NotNil(t, key, must.Sprint("prepublishing key should not have been GCd"))
 }
@@ -2835,7 +2835,7 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 	testutil.WaitForKeyring(t, srv.RPC, "global")
 
 	store := srv.fsm.State()
-	key0, err := store.GetActiveRootKeyMeta(nil)
+	key0, err := store.GetActiveRootKey(nil)
 	must.NotNil(t, key0, must.Sprint("expected keyring to be bootstapped"))
 	must.NoError(t, err)
 
@@ -2883,7 +2883,7 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 				}
 			}
 
-			originalKey, _ := store.RootKeyMetaByID(nil, key0.KeyID)
+			originalKey, _ := store.RootKeyByID(nil, key0.KeyID)
 			return originalKey.IsInactive()
 		}),
 	), must.Sprint("variable rekey should be complete"))

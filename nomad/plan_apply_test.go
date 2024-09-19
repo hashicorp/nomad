@@ -75,7 +75,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -251,7 +251,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		c.Build = "1.4.0"
 	})
 	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -465,6 +465,54 @@ func TestPlanApply_signAllocIdentities(t *testing.T) {
 
 		})
 	}
+}
+
+// TestPlanApply_KeyringNotReady asserts we safely fail to apply a plan if the
+// leader's keyring is not ready
+func TestPlanApply_KeyringNotReady(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.KEKProviderConfigs = []*structs.KEKProviderConfig{{
+			Provider: "no-such-provider",
+			Active:   true,
+		}}
+	})
+	defer cleanup()
+	testutil.WaitForLeader(t, srv.RPC) // don't WaitForKeyring
+
+	node := mock.Node()
+	alloc := mock.Alloc()
+	deploy := mock.Deployment()
+	dupdates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      uuid.Generate(),
+			Status:            "foo",
+			StatusDescription: "bar",
+		},
+	}
+	plan := &structs.Plan{
+		Job: alloc.Job,
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc},
+		},
+		Deployment:        deploy,
+		DeploymentUpdates: dupdates,
+	}
+
+	planRes := &structs.PlanResult{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc},
+		},
+		NodeUpdate:        map[string][]*structs.Allocation{},
+		NodePreemptions:   map[string][]*structs.Allocation{},
+		Deployment:        deploy,
+		DeploymentUpdates: dupdates,
+	}
+	snap, _ := srv.State().Snapshot()
+
+	_, err := srv.applyPlan(plan, planRes, snap)
+	must.EqError(t, err, "keyring has not been initialized yet")
 }
 
 func TestPlanApply_EvalPlan_Simple(t *testing.T) {
