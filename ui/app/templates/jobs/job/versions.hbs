@@ -20,32 +20,5 @@
     </div>
   {{/if}}
 
-      <Hds::SegmentedGroup style="position: relative; z-index: 9999; float: right;" as |S|>
-        <S.Dropdown data-test-state-facet as |dd|>
-          <dd.ToggleButton
-            @text="Filter Versions"
-            @color="secondary"
-          />
-            <dd.Checkbox
-              @value="Tagged"
-              @count={{1}}
-              checked={{true}}
-            >
-              Tagged Versions
-            </dd.Checkbox>
-            <dd.Checkbox
-              @value="Untagged"
-              @count={{2}}
-              checked={{true}}
-            >
-              Untagged Versions
-            </dd.Checkbox>
-        </S.Dropdown>
-        </Hds::SegmentedGroup>
-
-        <Hds::Separator />
-
-
-
   <JobVersionsStream @versions={{this.model.versions}} @verbose={{true}} @handleError={{action this.handleError}} />
 </section>

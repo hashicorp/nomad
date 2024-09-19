@@ -4,17 +4,7 @@
 ~}}
 
 <div class="boxed-section-head is-light inline-definitions">
-  {{#if this.version.taggedVersion}}
-    <div>
-    <Hds::Badge @text={{this.version.taggedVersion.Name}} @color="highlight" />
-     (Version #{{this.version.number}})
-     {{#if this.version.taggedVersion.Description}}
-      <p class="is-faded">{{this.version.taggedVersion.Description}}</p>
-     {{/if}}
-    </div>
-  {{else}}
-    Version #{{this.version.number}}
-  {{/if}}
+  Version #{{this.version.number}}
   <span class="bumper-left pair is-faded">
     <span class="term">Stable</span>
     <span class="badge is-light is-faded" data-test-version-stability><code>{{this.version.stable}}</code></span>
@@ -52,11 +42,6 @@
         </button>
       {{/if}}
     {{/unless}}
-    {{#if this.version.taggedVersion}}
-      <Hds::Button @text="Unset Tag {{this.version.taggedVersion.Name}}" @color="critical" @size="medium" @isInline={{true}} />
-    {{else}}
-      <Hds::Button @text="Tag this version" @color="primary" @size="medium" @isInline={{true}} />
-    {{/if}}
 
     {{#if this.version.diff}}
       <button class="button is-light is-small is-fixed-width" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
