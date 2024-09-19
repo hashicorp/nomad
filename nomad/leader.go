@@ -2721,7 +2721,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 }
 
 var minVersionKeyring = version.Must(version.NewVersion("1.4.0"))
-var minVersionKeyringInRaft = version.Must(version.NewVersion("1.8.4-dev"))
+var minVersionKeyringInRaft = version.Must(version.NewVersion("1.9.0-dev"))
 
 // initializeKeyring creates the first root key if the leader doesn't
 // already have one. The metadata will be replicated via raft and then
