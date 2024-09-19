@@ -190,6 +190,7 @@ func (e *Encrypter) loadKeystore() error {
 	})
 }
 
+// IsReady blocks until all decrypt tasks are complete, or the context expires.
 func (e *Encrypter) IsReady(ctx context.Context) error {
 	err := helper.WithBackoffFunc(ctx, time.Millisecond*100, time.Second, func() error {
 		e.lock.RLock()
@@ -449,15 +450,15 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Root
 // server shuts down). The error returned is only for testing and diagnostics.
 func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.CancelFunc, wrapper kms.Wrapper, provider *structs.KEKProviderConfig, meta *structs.RootKeyMeta, wrappedKey *structs.WrappedKey) error {
 
-	var err error
 	var key []byte
 	var rsaKey []byte
 
 	minBackoff := time.Second
 	maxBackoff := time.Second * 5
 
-	helper.WithBackoffFunc(ctx, minBackoff, maxBackoff, func() error {
+	err := helper.WithBackoffFunc(ctx, minBackoff, maxBackoff, func() error {
 		wrappedDEK := wrappedKey.WrappedDataEncryptionKey
+		var err error
 		key, err = wrapper.Decrypt(e.srv.shutdownCtx, wrappedDEK)
 		if err != nil {
 			err := fmt.Errorf("%w (root key): %w", ErrDecryptFailed, err)
@@ -470,7 +471,9 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 		return err
 	}
 
-	helper.WithBackoffFunc(ctx, minBackoff, maxBackoff, func() error {
+	err = helper.WithBackoffFunc(ctx, minBackoff, maxBackoff, func() error {
+		var err error
+
 		// Decrypt RSAKey for Workload Identity JWT signing if one exists. Prior to
 		// 1.7 an ed25519 key derived from the root key was used instead of an RSA
 		// key.
@@ -493,8 +496,8 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 		RSAKey: rsaKey,
 	}
 
-	helper.WithBackoffFunc(ctx, minBackoff, maxBackoff, func() error {
-		err = e.addCipher(rootKey)
+	err = helper.WithBackoffFunc(ctx, minBackoff, maxBackoff, func() error {
+		err := e.addCipher(rootKey)
 		if err != nil {
 			err := fmt.Errorf("could not add cipher: %w", err)
 			e.log.Error(err.Error(), "key_id", meta.KeyID)
@@ -641,6 +644,48 @@ func (e *Encrypter) RemoveKey(keyID string) error {
 	return nil
 }
 
+// wrapRootKey encrypts the key for every KEK provider and returns a RootKey
+// with wrapped keys. On legacy clusters, this also serializes the wrapped key
+// to the on-disk keystore.
+func (e *Encrypter) wrapRootKey(rootKey *structs.UnwrappedRootKey, isUpgraded bool) (*structs.RootKey, error) {
+
+	wrappedKeys := structs.NewRootKey(rootKey.Meta)
+
+	for _, provider := range e.providerConfigs {
+		if !provider.Active {
+			continue
+		}
+		wrappedKey, err := e.encryptDEK(rootKey, provider)
+		if err != nil {
+			return nil, err
+		}
+
+		switch {
+		case isUpgraded && provider.Provider == string(structs.KEKProviderAEAD):
+			// nothing to do but don't want to hit next case
+
+		case isUpgraded:
+			wrappedKey.KeyEncryptionKey = nil
+
+		case provider.Provider == string(structs.KEKProviderAEAD): // !isUpgraded
+			kek := wrappedKey.KeyEncryptionKey
+			wrappedKey.KeyEncryptionKey = nil
+			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, kek)
+
+		default: // !isUpgraded
+			wrappedKey.KeyEncryptionKey = nil
+			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, nil)
+		}
+
+		wrappedKeys.WrappedKeys = append(wrappedKeys.WrappedKeys, wrappedKey)
+
+	}
+	return wrappedKeys, nil
+}
+
+// encryptDEK encrypts the DEKs (one for encryption and one for signing) with
+// the KMS provider and returns a WrappedKey built from the provider's
+// kms.BlobInfo. This includes the cleartext KEK for the AEAD provider.
 func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *structs.KEKProviderConfig) (*structs.WrappedKey, error) {
 	if provider == nil {
 		panic("can't encrypt DEK without a provider")
@@ -681,45 +726,6 @@ func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *stru
 	}
 
 	return kekWrapper, nil
-}
-
-// wrapRootKey encrypts the key for every KEK provider and returns the wrapped
-// key. On legacy clusters, this also serializes the wrapped key to the on-disk
-// keystore.
-func (e *Encrypter) wrapRootKey(rootKey *structs.UnwrappedRootKey, isUpgraded bool) (*structs.RootKey, error) {
-
-	wrappedKeys := structs.NewRootKey(rootKey.Meta)
-
-	for _, provider := range e.providerConfigs {
-		if !provider.Active {
-			continue
-		}
-		wrappedKey, err := e.encryptDEK(rootKey, provider)
-		if err != nil {
-			return nil, err
-		}
-
-		switch {
-		case isUpgraded && provider.Provider == string(structs.KEKProviderAEAD):
-			// nothing to do but don't want to hit next case
-
-		case isUpgraded:
-			wrappedKey.KeyEncryptionKey = nil
-
-		case provider.Provider == string(structs.KEKProviderAEAD): // !isUpgraded
-			kek := wrappedKey.KeyEncryptionKey
-			wrappedKey.KeyEncryptionKey = nil
-			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, kek)
-
-		default: // !isUpgraded
-			wrappedKey.KeyEncryptionKey = nil
-			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, nil)
-		}
-
-		wrappedKeys.WrappedKeys = append(wrappedKeys.WrappedKeys, wrappedKey)
-
-	}
-	return wrappedKeys, nil
 }
 
 func (e *Encrypter) writeKeyToDisk(
