@@ -3,7 +3,19 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div class="boxed-section-head is-light inline-definitions">
+{{#if this.version.taggedVersion}}
+  <div class="timeline-tag">
+    {{!-- <Hds::Badge @text={{this.version.taggedVersion.name}} @color="highlight" /> --}}
+    <span class="tag-name">
+      {{this.version.taggedVersion.name}}
+    </span>
+    <span class="tag-description" title={{this.version.taggedVersion.description}}>
+        {{this.version.taggedVersion.description}}
+    </span>
+  </div>
+{{/if}}
+
+<div class="boxed-section-head {{if this.version.taggedVersion "tagged"}} is-light inline-definitions">
   Version #{{this.version.number}}
   <span class="bumper-left pair is-faded">
     <span class="term">Stable</span>
@@ -27,24 +39,34 @@
           @confirmText="Yes, Revert Version"
           @confirmationMessage="Are you sure you want to revert to this version?"
           @inlineText={{true}}
+          @size="small"
           @fadingBackground={{true}}
           @awaitingConfirmation={{this.revertTo.isRunning}}
           @onConfirm={{perform this.revertTo}} />
       {{else}}
-        <button
+        <Hds::Button
           data-test-revert-to
-          type="button"
-          class="button is-warning is-outlined is-small tooltip"
+          class="is-fixed-width"
           disabled
-          aria-label="You don’t have permission to revert"
-        >
-          Revert
-        </button>
+          @size="small"
+          @color="secondary"
+          @isInline={{true}}
+          @text="Revert"
+          title="You don’t have permission to revert"
+        />
       {{/if}}
     {{/unless}}
 
     {{#if this.version.diff}}
-      <button class="button is-light is-small is-fixed-width" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
+      {{!-- <button class="button is-light is-small is-fixed-width" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button> --}}
+      {{!-- ^--- convert to <Hds::Button></Hds::Button> --}}
+      <Hds::Button
+        class="is-light is-small is-fixed-width"
+        @size="small"
+        @text="{{this.changeCount}} {{pluralize "Change" this.changeCount}}"
+        @color="secondary"
+        {{on "click" (action "toggleDiff")}}
+      />
     {{else}}
       <div class="is-fixed-width is-size-7 has-text-centered">No Changes</div>
     {{/if}}

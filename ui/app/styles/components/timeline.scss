@@ -60,6 +60,47 @@
 
     > .boxed-section {
       margin-bottom: 0;
+
+      .boxed-section-head {
+        box-shadow: var(--token-surface-mid-box-shadow);
+        border: none;
+        &.tagged {
+          border-top: 1px solid var(--token-color-border-highlight);
+        }
+      }
+    }
+
+    .timeline-tag {
+      display: grid;
+      grid-template-areas: 'title description options';
+      grid-template-columns: auto 1fr auto;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 0 0.5rem;
+      font-size: 0.875rem;
+
+      .tag-name {
+        grid-area: title;
+        background: var(--token-color-surface-highlight);
+        border: 1px solid var(--token-color-border-highlight);
+        border-bottom: none;
+        border-top-left-radius: 0.25rem;
+        border-top-right-radius: 0.25rem;
+        padding: 0.25rem 0.5rem;
+      }
+
+      .options {
+        grid-area: options;
+      }
+
+      .tag-description {
+        grid-area: description;
+        white-space: no-wrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-wrap: nowrap;
+        font-style: italic;
+      }
     }
   }
 }
