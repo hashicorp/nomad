@@ -15,6 +15,13 @@ The key encryption key (KEK) used to encrypt the DEK is controlled by the
 provider, the KEK is securely stored outside of Nomad. For the default AEAD
 provider, the KEK is stored in cleartext in Raft.
 
+<Note>
+
+Default AED provider users should be aware that storing the Key Encryption Key
+(KEK) in cleartext in Raft may expose data in case of a breach.
+
+</Note>
+
 Under normal operations the keyring is entirely managed by Nomad, but this
 section provides administrators additional context around key replication and
 recovery.
@@ -38,8 +45,8 @@ with the new key, the old key will marked as "deprecated".
 
 When a leader is elected, the leader creates the keyring if it does not already
 exist. When a key is added, the new wrapped key material is replicated via
-Raft. As each server replicates the new key, the server starts a task to decrypt the
-key material. Until this task completes, the server will not be able to serve
+Raft. As each server replicates the new key, the server starts a task to decrypt
+the key material. Until this task completes, the server is not able to serve
 requests that require this key.
 
 ## Key Redaction in Raft Snapshots
