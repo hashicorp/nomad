@@ -52,8 +52,8 @@ domain used by the cluster. The following example uses AWS Certificate Manager (
 Use the [`aws_route53_zone` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone).
 
 ```hcl
-variable domain_name {
-    type = "string"
+variable "domain_name" {
+    type = string
     default = "<DOMAIN_NAME>"
 }
 
@@ -74,6 +74,11 @@ and [`aws_acm_certificate_validation`](https://registry.terraform.io/providers/h
 certficiate.
 
 ```hcl
+variable "zone_id" {
+  type    = string
+  default = "<HOSTED_ZONE_ID>"
+}
+
 resource "aws_acm_certificate" "example" {
   domain_name       = var.domain_name
   validation_method = "DNS"
@@ -83,11 +88,25 @@ resource "aws_acm_certificate" "example" {
   }
 }
 
+resource "aws_route53_record" "cert_dns" {
+  allow_overwrite = true
+  name            = tolist(aws_acm_certificate.example.domain_validation_options)[0].resource_record_name
+  records         = [tolist(aws_acm_certificate.example.domain_validation_options)[0].resource_record_value]
+  type            = tolist(aws_acm_certificate.example.domain_validation_options)[0].resource_record_type
+  zone_id         = var.zone_id
+  ttl             = 60
+}
+
 resource "aws_acm_certificate_validation" "example" {
   certificate_arn         = aws_acm_certificate.example.arn
-  validation_record_fqdns = [var.domain_name]
+  validation_record_fqdns = [aws_route53_record.cert_dns.fqdn]
 }
 ```
+
+This configuration requires the following information:
+- [`<HOSTED_ZONE_ID>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record#zone_id):
+The ID of the hosted zone. This will be `aws_route53_zone.example.zone_id` if you are using the
+examples from this page.
 
 ### Create an Application Load Balancer
 
@@ -155,7 +174,7 @@ Use the [`aws_route53_record` resource](https://registry.terraform.io/providers/
 
 ```hcl
 resource "aws_route53_record" "www" {
-  zone_id = <ROUTE53_ZONE_ID>
+  zone_id = <HOSTED_ZONE_ID>
   name    = var.domain_name
   type    = "A"
 
@@ -168,7 +187,7 @@ resource "aws_route53_record" "www" {
 ```
 
 This configuration requires the following information:
-- [`<ROUTE53_ZONE_ID>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record#zone_id):
+- [`<HOSTED_ZONE_ID>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record#zone_id):
 The ID of the hosted zone. This will be `aws_route53_zone.example.zone_id` if you are using the
 examples from this page.
 - [`<LB_ALIAS_DNS_NAME>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record#name):
@@ -196,7 +215,7 @@ resource "aws_iam_openid_connect_provider" "nomad" {
     "aws",
   ]
 
-  thumbprint_list = [data.tls_certificate.example.certificates.[0].sha1_fingerprint]
+  thumbprint_list = [data.tls_certificate.example.certificates.0.sha1_fingerprint]
 }
 ```
 
@@ -212,55 +231,70 @@ to create an appropriate IAM role for federated users. This will be specific to 
 The following example sets S3 bucket access.
 
 ```hcl
+# Variables for OIDC provider and AWS account
+variable "oidc_provider" {
+  description = "The OIDC provider URL"
+  type        = string
+  default     = "<DOMAIN_NAME>"
+}
+
+variable "aws_account_id" {
+  description = "AWS account ID"
+  type        = string
+  default     = "<AWS_ACCOUNT_ID>"
+}
+
 data "aws_iam_policy_document" "assume_role" {
   statement {
     effect = "Allow"
 
     principals {
       type        = "Federated"
-      identifiers = ["arn:aws:iam::<AWS_ACCOUNT_ID>:oidc-provider/$OIDC_PROVIDER"]
+      identifiers = ["arn:aws:iam::${var.aws_account_id}:oidc-provider/${var.oidc_provider}"]
     }
 
     actions = ["sts:AssumeRoleWithWebIdentity"]
 
     condition {
-        test = "StringEquals"
-        variable = "$OIDC_PROVIDER:aud"
-        values = "aws"
+      test     = "StringEquals"
+      variable = "${var.oidc_provider}:aud"
+      values   = ["aws"]
     }
   }
 }
 
+# Create an IAM role with the assume role policy generated above
 resource "aws_iam_role" "s3_all_access_role" {
-  name = "s3_all_access_role"
-
-  # Terraform's "jsonencode" function converts a
-  # Terraform expression result to valid JSON syntax.
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-            "s3:*",
-            "s3-object-lambda:*"
-        ]
-        Resource = "*"
-      },
-    ]
-  })
+  name               = "s3_all_access_role"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
 
   tags = {
     tag-key = "tag-value"
   }
 }
 
+# Inline policy that defines what the role can do (full S3 access)
+data "aws_iam_policy_document" "s3_access_policy" {
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "s3:*",
+      "s3-object-lambda:*"
+    ]
+
+    resources = ["*"] # You can scope this down to specific S3 buckets if necessary
+  }
+}
+
+# Create a policy resource from the inline policy document above
 resource "aws_iam_policy" "policy" {
   name        = "nomad-oidc-policy"
   description = "A policy for federated Nomad OIDC"
-  policy      = data.aws_iam_policy_document.assume_role.json
+  policy      = data.aws_iam_policy_document.s3_access_policy.json
 }
 
+# Attach the S3 access policy to the IAM role
 resource "aws_iam_role_policy_attachment" "test-attach" {
   role       = aws_iam_role.s3_all_access_role.name
   policy_arn = aws_iam_policy.policy.arn
@@ -268,6 +302,8 @@ resource "aws_iam_role_policy_attachment" "test-attach" {
 ```
 
 This configuration requires the following information:
+- [`<DOMAIN_NAME>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone#name):
+The domain name of your Nomad cluster without the protocol or port.
 - `<AWS_ACCOUNT_ID>`: The ID of the AWS account where the IAM role from the previous step was
 created.
 
