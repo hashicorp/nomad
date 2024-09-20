@@ -25,7 +25,7 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	})
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Create the register request
 	eval1 := mock.Eval()
@@ -67,7 +67,7 @@ func TestPlanEndpoint_Submit_Bad(t *testing.T) {
 	})
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Mock a valid eval being dequeued by a worker
 	eval := mock.Eval()
@@ -141,7 +141,7 @@ func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
 		c.NumSchedulers = 0
 	})
 	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	plans := []*structs.Plan{}
 
