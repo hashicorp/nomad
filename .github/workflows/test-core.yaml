@@ -45,6 +45,7 @@ env:
   VAULT_VERSION: 1.12.2
   NOMAD_SLOW_TEST: 0
   NOMAD_TEST_LOG_LEVEL: OFF
+  GODEBUG: http2debug=1
 
 jobs:
   checks:
