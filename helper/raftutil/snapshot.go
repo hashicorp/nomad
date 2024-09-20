@@ -103,5 +103,6 @@ func RedactSnapshot(srcFile *os.File) error {
 	if err != nil {
 		return fmt.Errorf("Failed to copy snapshot to temporary file: %v", err)
 	}
-	return nil
+
+	return srcFile.Sync()
 }
