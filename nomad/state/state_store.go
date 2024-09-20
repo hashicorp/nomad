@@ -4982,17 +4982,6 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 	return s.upsertJobVersion(index, versionCopy, txn)
 }
 
-func (s *StateStore) UnsetJobVersionTag(index uint64, namespace, jobID string, name string) error {
-	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
-
-	if err := s.unsetJobVersionTagImpl(index, namespace, jobID, name, txn); err != nil {
-		return err
-	}
-
-	return txn.Commit()
-}
-
 func (s *StateStore) unsetJobVersionTagImpl(index uint64, namespace, jobID string, name string, txn *txn) error {
 	job, err := s.JobVersionByTagName(nil, namespace, jobID, name)
 	if err != nil {
@@ -5005,6 +4994,16 @@ func (s *StateStore) unsetJobVersionTagImpl(index uint64, namespace, jobID strin
 	versionCopy := job.Copy()
 	versionCopy.TaggedVersion = nil
 	versionCopy.ModifyIndex = index
+	latestJob, err := s.JobByID(nil, namespace, jobID)
+	if err != nil {
+		return err
+	}
+	if versionCopy.Version == latestJob.Version {
+		if err := txn.Insert("jobs", versionCopy); err != nil {
+			return err
+		}
+	}
+
 	return s.upsertJobVersion(index, versionCopy, txn)
 }
 
