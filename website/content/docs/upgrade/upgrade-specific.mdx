@@ -18,7 +18,7 @@ used to document those details separately from the standard upgrade flow.
 #### Dropped support for older clients
 
 Nomad 1.9.0 removes support for Nomad client agents older than 1.6.0. Older
-nodes will fail heartbeats. Nomad servers will mark the workloads on those nodes
+nodes fail heartbeats. Nomad servers mark the workloads on those nodes
 as lost and reschedule them normally according to the job's [reschedule][]
 block.
 
@@ -32,7 +32,7 @@ and no cleartext key material exists on disk. When using the default AEAD
 provider, the key encryption key (KEK) is stored in Raft alongside the encrypted
 data encryption keys (DEK).
 
-Nomad will automatically migrate the key storage for all key material on the
+Nomad automatically migrates the key storage for all key material on the
 first [`root_key_gc_interval`][] after all servers are upgraded to 1.9.0. The
 existing on-disk keystore is required to restore servers from older snapshots,
 so you should continue to back up the on-disk keystore until you no longer need
