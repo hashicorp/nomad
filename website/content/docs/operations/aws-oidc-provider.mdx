@@ -227,8 +227,8 @@ The domain name of the load balancer certificate. This will be
 ### Create an IAM policy for OIDC Federated Users
 
 Use the [`aws_iam_role` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role)
-to create an appropriate IAM role for federated users. This will be specific to your use case.
-The following example sets S3 bucket access.
+to create an appropriate IAM role for workloads acting as federated users. This will be 
+specific to your use case. The following example allows workloads access to S3 buckets.
 
 ```hcl
 # Variables for OIDC provider and AWS account
