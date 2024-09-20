@@ -96,6 +96,13 @@ export default class JobVersion extends Component {
     this.isEditing = false;
   }
 
+  @action
+  deleteTag() {
+    this.isEditing = false;
+    this.editableTag.destroy();
+    this.version.taggedVersion = null;
+  }
+
   get editableTag() {
     return this.version.taggedVersion || {};
   }
