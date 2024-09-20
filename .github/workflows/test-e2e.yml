@@ -46,7 +46,11 @@ jobs:
       - name: Git config token
         if: endsWith(github.repository, '-enterprise')
         run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
-      - uses: hashicorp/setup-golang@v3
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          cache: ${{ contains(runner.name, 'Github Actions') }}
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
       - run: make deps
       - name: Vault Compatability
         run: make integration-test
@@ -59,7 +63,11 @@ jobs:
       - name: Git config token
         if: endsWith(github.repository, '-enterprise')
         run: git config --global url.'https://${{ secrets.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
-      - uses: hashicorp/setup-golang@v3
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          cache: ${{ contains(runner.name, 'Github Actions') }}
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
       - name: Consul Compatability
         run: |
           make deps
