@@ -97,7 +97,7 @@ module('Integration | Component | job-editor', function (hooks) {
       handleSaveAsTemplate: sinon.spy(),
       context: 'new',
     });
-    await component.render(commonTemplate);
+    await render(commonTemplate);
   };
 
   const planJob = async (spec) => {
