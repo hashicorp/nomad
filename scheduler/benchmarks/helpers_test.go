@@ -73,7 +73,7 @@ func NewHarnessFromSnapshot(t testing.TB, snapshotPath string) (*scheduler.Harne
 	}
 	defer f.Close()
 
-	state, _, err := raftutil.RestoreFromArchive(f, nil)
+	_, state, _, err := raftutil.RestoreFromArchive(f, nil)
 	if err != nil {
 		return nil, err
 	}

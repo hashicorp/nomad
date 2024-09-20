@@ -43,6 +43,49 @@ func New(logger hclog.Logger, r *raft.Raft) (*Snapshot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open snapshot: %v:", err)
 	}
+
+	return writeSnapshot(logger, metadata, snap)
+}
+
+// NewFromFSM takes a state snapshot of the given FSM (for when we don't have a
+// Raft instance setup) into a temporary file and returns an object that gives
+// access to the file as an io.Reader. You must arrange to call Close() on the
+// returned object or else you will leak a temporary file.
+func NewFromFSM(logger hclog.Logger, fsm raft.FSM, meta *raft.SnapshotMeta) (*Snapshot, error) {
+	_, trans := raft.NewInmemTransport("")
+	snapshotStore := raft.NewInmemSnapshotStore()
+
+	fsmSnap, err := fsm.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	sink, err := snapshotStore.Create(meta.Version, meta.Index, meta.Term,
+		meta.Configuration, meta.ConfigurationIndex, trans)
+	if err != nil {
+		return nil, err
+	}
+	err = fsmSnap.Persist(sink)
+	if err != nil {
+		return nil, err
+	}
+
+	err = sink.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	snapshotID := sink.ID()
+	metadata, snap, err := snapshotStore.Open(snapshotID)
+	if err != nil {
+		return nil, err
+	}
+
+	return writeSnapshot(logger, metadata, snap)
+}
+
+func writeSnapshot(logger hclog.Logger, metadata *raft.SnapshotMeta, snap io.ReadCloser) (*Snapshot, error) {
+
 	defer func() {
 		if err := snap.Close(); err != nil {
 			logger.Error("Failed to close Raft snapshot", "error", err)

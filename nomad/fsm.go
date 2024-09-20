@@ -1836,16 +1836,17 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(keyMeta); err != nil {
 				return err
 			}
+			if filter.Include(keyMeta) {
+				wrappedKeys := structs.NewRootKey(keyMeta)
+				if err := restore.RootKeyRestore(wrappedKeys); err != nil {
+					return err
+				}
 
-			wrappedKeys := structs.NewRootKey(keyMeta)
-			if err := restore.RootKeyRestore(wrappedKeys); err != nil {
-				return err
-			}
-
-			if n.encrypter != nil {
-				// only decrypt the key if we're running in a real server and
-				// not the 'operator snapshot' command context
-				go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+				if n.encrypter != nil {
+					// only decrypt the key if we're running in a real server and
+					// not the 'operator snapshot' command context
+					go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+				}
 			}
 
 		case RootKeySnapshot:
@@ -1853,15 +1854,16 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(wrappedKeys); err != nil {
 				return err
 			}
+			if filter.Include(wrappedKeys) {
+				if err := restore.RootKeyRestore(wrappedKeys); err != nil {
+					return err
+				}
 
-			if err := restore.RootKeyRestore(wrappedKeys); err != nil {
-				return err
-			}
-
-			if n.encrypter != nil {
-				// only decrypt the key if we're running in a real server and
-				// not the 'operator snapshot' command context
-				go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+				if n.encrypter != nil {
+					// only decrypt the key if we're running in a real server and
+					// not the 'operator snapshot' command context
+					go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+				}
 			}
 
 		case ACLRoleSnapshot:
@@ -2344,8 +2346,11 @@ func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byt
 		return err
 	}
 
-	// start a task to decrypt the key material
-	go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedRootKeys)
+	if n.encrypter != nil {
+		// start a task to decrypt the key material if we're running in a real
+		// server and not the 'operator snapshot' command context
+		go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedRootKeys)
+	}
 
 	return nil
 }
@@ -2363,8 +2368,11 @@ func (n *nomadFSM) applyWrappedRootKeysUpsert(msgType structs.MessageType, buf [
 		return err
 	}
 
-	// start a task to decrypt the key material
-	go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, req.WrappedRootKeys)
+	if n.encrypter != nil {
+		// start a task to decrypt the key material if we're running in a real
+		// server and not the 'operator snapshot' command context
+		go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, req.WrappedRootKeys)
+	}
 
 	return nil
 }
@@ -2382,7 +2390,9 @@ func (n *nomadFSM) applyWrappedRootKeysDelete(msgType structs.MessageType, buf [
 		return err
 	}
 
-	n.encrypter.RemoveKey(req.KeyID)
+	if n.encrypter != nil {
+		n.encrypter.RemoveKey(req.KeyID)
+	}
 	return nil
 }
 
