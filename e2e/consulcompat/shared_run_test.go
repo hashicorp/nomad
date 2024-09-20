@@ -13,6 +13,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/api"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -23,25 +24,37 @@ import (
 // verifyConsulVersion ensures that we've successfully spun up a Consul cluster
 // on the expected version (this ensures we don't have stray running Consul from
 // previous runs or from the development environment)
-func verifyConsulVersion(t *testing.T, consulAPI *consulapi.Client, version string) {
+func verifyConsulVersion(t *testing.T, consulAPI *consulapi.Client, expectVersion string) {
 	self, err := consulAPI.Agent().Self()
 	must.NoError(t, err)
 	vers := self["Config"]["Version"].(string)
-	must.Eq(t, version, vers)
+
+	check, err := version.NewSemver(vers)
+	must.NoError(t, err)
+
+	expect, _ := version.NewSemver(expectVersion)
+	must.Eq(t, expect.Core(), check.Core())
 }
 
 // verifyConsulFingerprint ensures that we've successfully fingerprinted Consul
-func verifyConsulFingerprint(t *testing.T, nc *nomadapi.Client, version, clusterName string) {
+func verifyConsulFingerprint(t *testing.T, nc *nomadapi.Client, expectVersion, clusterName string) {
 	stubs, _, err := nc.Nodes().List(nil)
 	must.NoError(t, err)
 	must.Len(t, 1, stubs)
 	node, _, err := nc.Nodes().Info(stubs[0].ID, nil)
 
+	var vers string
 	if clusterName == "default" {
-		must.Eq(t, version, node.Attributes["consul.version"])
+		vers = node.Attributes["consul.version"]
 	} else {
-		must.Eq(t, version, node.Attributes["consul."+clusterName+".version"])
+		vers = node.Attributes["consul."+clusterName+".version"]
 	}
+
+	check, err := version.NewSemver(vers)
+	must.NoError(t, err)
+
+	expect, _ := version.NewSemver(expectVersion)
+	must.Eq(t, expect.Core(), check.Core())
 }
 
 // setupConsulACLsForServices installs a base set of ACL policies and returns a
