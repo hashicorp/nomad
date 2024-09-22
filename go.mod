@@ -39,7 +39,7 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.6.0
 	github.com/gorilla/handlers v1.5.2
-	github.com/gorilla/websocket v1.5.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/cap v0.6.0
