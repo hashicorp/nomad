@@ -8340,7 +8340,14 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		// TODO: Investigate validation of the PluginMountDir. Not much we can do apart from check IsAbs until after we understand its execution environment though :(
 	}
 
-	// Validate Identity/Identities
+	// Validate default Identity
+	if t.Identity != nil {
+		if err := t.Identity.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Identity %q is invalid: %w", t.Identity.Name, err))
+		}
+	}
+
+	// Validate Identities
 	for _, wid := range t.Identities {
 		// Task.Canonicalize should move the default identity out of the Identities
 		// slice, so if one is found that means it is a duplicate.

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	trtesting "github.com/hashicorp/nomad/client/allocrunner/taskrunner/testing"
 	cstate "github.com/hashicorp/nomad/client/state"
@@ -68,9 +69,19 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 			ChangeMode:   "signal",
 			ChangeSignal: "SIGHUP",
 		},
+		{
+			Name:     "foo",
+			Audience: []string{"foo"},
+			File:     true,
+			Filepath: "foo.jwt",
+			TTL:      ttl,
+		},
 	}
 
-	secretsDir := t.TempDir()
+	mockTaskDir := &allocdir.TaskDir{
+		SecretsDir: t.TempDir(),
+		Dir:        t.TempDir(),
+	}
 
 	mockTR := &MockTokenSetter{}
 
@@ -90,7 +101,7 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
-		tokenDir:   secretsDir,
+		taskDir:    mockTaskDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
 		lifecycle:  mockLifecycle,
@@ -109,13 +120,18 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 
 	// Assert initial tokens were set in Prestart
 	must.Eq(t, alloc.SignedIdentities["web"], mockTR.defaultToken)
-	must.FileNotExists(t, filepath.Join(secretsDir, wiTokenFile))
-	must.FileNotExists(t, filepath.Join(secretsDir, "nomad_consul.jwt"))
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, wiTokenFile))
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, "nomad_consul.jwt"))
 	must.MapContainsKey(t, env, "NOMAD_TOKEN_consul")
-	must.FileExists(t, filepath.Join(secretsDir, "nomad_vault.jwt"))
+	must.FileExists(t, filepath.Join(mockTaskDir.SecretsDir, "nomad_vault.jwt"))
+	// Assert foo token was written to correct directory
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, "foo.jwt"))
+	must.FileExists(t, filepath.Join(mockTaskDir.Dir, "foo.jwt"))
 
 	origConsul := env["NOMAD_TOKEN_consul"]
-	origVault := testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt")
+	origVault := testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt")
+
+	origFoo := testutil.MustReadFile(t, mockTaskDir.Dir, "foo.jwt")
 
 	// Tokens should be rotated by their expiration
 	wait := time.Until(start.Add(ttl))
@@ -144,14 +160,18 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	must.StrContains(t, newConsul, ".") // ensure new token is JWTish
 	must.NotEq(t, newConsul, origConsul)
 
-	newVault := testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt")
+	newVault := testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt")
 	must.StrContains(t, string(newVault), ".") // ensure new token is JWTish
 	must.NotEq(t, newVault, origVault)
+
+	newFoo := testutil.MustReadFile(t, mockTaskDir.Dir, "foo.jwt")
+	must.StrContains(t, string(newFoo), ".")
+	must.NotEq(t, newFoo, origFoo)
 
 	// Assert Stop work. Tokens should not have changed.
 	time.Sleep(wait)
 	must.Eq(t, newConsul, h.envBuilder.Build().EnvMap["NOMAD_TOKEN_consul"])
-	must.Eq(t, newVault, testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt"))
+	must.Eq(t, newVault, testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt"))
 }
 
 // TestIdentityHook_RenewOne asserts token renewal only renews tokens with a TTL.
@@ -179,7 +199,9 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 		},
 	}
 
-	secretsDir := t.TempDir()
+	mockTaskDir := &allocdir.TaskDir{
+		SecretsDir: t.TempDir(),
+	}
 
 	mockTR := &MockTokenSetter{}
 
@@ -197,7 +219,7 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
-		tokenDir:   secretsDir,
+		taskDir:    mockTaskDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
 		widmgr:     mockWIDMgr,
@@ -216,13 +238,13 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 
 	// Assert initial tokens were set in Prestart
 	must.Eq(t, alloc.SignedIdentities["web"], mockTR.defaultToken)
-	must.FileNotExists(t, filepath.Join(secretsDir, wiTokenFile))
-	must.FileNotExists(t, filepath.Join(secretsDir, "nomad_consul.jwt"))
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, wiTokenFile))
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, "nomad_consul.jwt"))
 	must.MapContainsKey(t, env, "NOMAD_TOKEN_consul")
-	must.FileExists(t, filepath.Join(secretsDir, "nomad_vault.jwt"))
+	must.FileExists(t, filepath.Join(mockTaskDir.SecretsDir, "nomad_vault.jwt"))
 
 	origConsul := env["NOMAD_TOKEN_consul"]
-	origVault := testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt")
+	origVault := testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt")
 
 	// One token should be rotated by their expiration
 	wait := time.Until(start.Add(ttl))
@@ -237,14 +259,14 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 	must.StrContains(t, newConsul, ".") // ensure new token is JWTish
 	must.Eq(t, newConsul, origConsul)
 
-	newVault := testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt")
+	newVault := testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt")
 	must.StrContains(t, string(newVault), ".") // ensure new token is JWTish
 	must.NotEq(t, newVault, origVault)
 
 	// Assert Stop work. Tokens should not have changed.
 	time.Sleep(wait)
 	must.Eq(t, newConsul, h.envBuilder.Build().EnvMap["NOMAD_TOKEN_consul"])
-	must.Eq(t, newVault, testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt"))
+	must.Eq(t, newVault, testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt"))
 }
 
 // TestIdentityHook_ErrorWriting assert Prestart returns an error if the
@@ -260,10 +282,14 @@ func TestIdentityHook_ErrorWriting(t *testing.T) {
 	stopCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 
+	mockTaskDir := &allocdir.TaskDir{
+		SecretsDir: "/this-should-not-exist",
+	}
+
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
-		tokenDir:   "/this-should-not-exist",
+		taskDir:    mockTaskDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         &MockTokenSetter{},
 		logger:     testlog.HCLogger(t),
