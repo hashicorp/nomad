@@ -304,8 +304,12 @@ type WorkloadIdentity struct {
 	Env bool
 
 	// File writes the Workload Identity into the Task's secrets directory
-	// if set.
+	// or path specified by Filepath if set.
 	File bool
+
+	// Filepath is used to specify a custom path for the Task's Workload
+	// Identity JWT.
+	Filepath string
 
 	// ServiceName is used to bind the identity to a correct Consul service.
 	ServiceName string
@@ -356,6 +360,7 @@ func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
 		ChangeSignal: wi.ChangeSignal,
 		Env:          wi.Env,
 		File:         wi.File,
+		Filepath:     wi.Filepath,
 		ServiceName:  wi.ServiceName,
 		TTL:          wi.TTL,
 	}
@@ -387,6 +392,10 @@ func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
 	}
 
 	if wi.File != other.File {
+		return false
+	}
+
+	if wi.Filepath != other.Filepath {
 		return false
 	}
 
@@ -460,6 +469,10 @@ func (wi *WorkloadIdentity) Validate() error {
 
 	if wi.TTL < 0 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("ttl must be >= 0"))
+	}
+
+	if wi.Filepath != "" && !wi.File {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("file parameter must be true in order to specify filepath"))
 	}
 
 	return mErr.ErrorOrNil()
