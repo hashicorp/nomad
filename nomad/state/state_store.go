@@ -2171,7 +2171,7 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 		return nil
 	}
 
-	// We have to delete historic jobs to make room.
+	// We have to delete a historic job to make room.
 	// Find index of the highest versioned stable job
 	stableIdx := -1
 	for i, j := range all {
