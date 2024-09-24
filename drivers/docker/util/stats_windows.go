@@ -6,7 +6,7 @@
 package util
 
 import (
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
@@ -17,7 +17,7 @@ var (
 	DockerMeasuredMemStats = []string{"RSS", "Usage", "Max Usage"}
 )
 
-func DockerStatsToTaskResourceUsage(s *docker.Stats, compute cpustats.Compute) *cstructs.TaskResourceUsage {
+func DockerStatsToTaskResourceUsage(s *containerapi.Stats, compute cpustats.Compute) *cstructs.TaskResourceUsage {
 	var (
 		totalCompute = compute.TotalCompute
 		totalCores   = compute.NumCores

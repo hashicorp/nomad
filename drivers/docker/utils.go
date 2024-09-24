@@ -13,16 +13,25 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/distribution/reference"
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/cli/cli/config/types"
-	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/registry"
-	docker "github.com/fsouza/go-dockerclient"
 )
 
 func parseDockerImage(image string) (repo, tag string) {
-	repo, tag = docker.ParseRepositoryTag(image)
+	// deode the image tag
+	splitted := strings.SplitN(image, "@", 2)
+	repoTag := splitted[0]
+	idx := strings.LastIndex(repoTag, ":")
+	if idx < 0 {
+		repo = repoTag
+	} else if t := repoTag[idx+1:]; !strings.Contains(t, "/") {
+		repo = repoTag[:idx]
+		tag = t
+	}
+
 	if tag != "" {
 		return repo, tag
 	}
@@ -76,7 +85,7 @@ func parseRepositoryInfo(repo string) (*registry.RepositoryInfo, error) {
 }
 
 // firstValidAuth tries a list of auth backends, returning first error or AuthConfiguration
-func firstValidAuth(repo string, backends []authBackend) (*docker.AuthConfiguration, error) {
+func firstValidAuth(repo string, backends []authBackend) (*registrytypes.AuthConfig, error) {
 	for _, backend := range backends {
 		auth, err := backend(repo)
 		if auth != nil || err != nil {
@@ -88,12 +97,12 @@ func firstValidAuth(repo string, backends []authBackend) (*docker.AuthConfigurat
 
 // authFromTaskConfig generates an authBackend for any auth given in the task-configuration
 func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
-	return func(string) (*docker.AuthConfiguration, error) {
+	return func(string) (*registrytypes.AuthConfig, error) {
 		// If all auth fields are empty, return
 		if len(driverConfig.Auth.Username) == 0 && len(driverConfig.Auth.Password) == 0 && len(driverConfig.Auth.Email) == 0 && len(driverConfig.Auth.ServerAddr) == 0 {
 			return nil, nil
 		}
-		return &docker.AuthConfiguration{
+		return &registrytypes.AuthConfig{
 			Username:      driverConfig.Auth.Username,
 			Password:      driverConfig.Auth.Password,
 			Email:         driverConfig.Auth.Email,
@@ -106,7 +115,7 @@ func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
 // The authBackend can either be from explicit auth definitions or via credential
 // helpers
 func authFromDockerConfig(file string) authBackend {
-	return func(repo string) (*docker.AuthConfiguration, error) {
+	return func(repo string) (*registrytypes.AuthConfig, error) {
 		if file == "" {
 			return nil, nil
 		}
@@ -121,9 +130,9 @@ func authFromDockerConfig(file string) authBackend {
 		}
 
 		return firstValidAuth(repo, []authBackend{
-			func(string) (*docker.AuthConfiguration, error) {
+			func(string) (*registrytypes.AuthConfig, error) {
 				dockerAuthConfig := registryResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
-				auth := &docker.AuthConfiguration{
+				auth := &registrytypes.AuthConfig{
 					Username:      dockerAuthConfig.Username,
 					Password:      dockerAuthConfig.Password,
 					Email:         dockerAuthConfig.Email,
@@ -146,7 +155,7 @@ func authFromDockerConfig(file string) authBackend {
 // A script taking the requested domain on input, outputting JSON with
 // "Username" and "Secret"
 func authFromHelper(helperName string) authBackend {
-	return func(repo string) (*docker.AuthConfiguration, error) {
+	return func(repo string) (*registrytypes.AuthConfig, error) {
 		if helperName == "" {
 			return nil, nil
 		}
@@ -174,7 +183,7 @@ func authFromHelper(helperName string) authBackend {
 			return nil, err
 		}
 
-		auth := &docker.AuthConfiguration{
+		auth := &registrytypes.AuthConfig{
 			Username: response["Username"],
 			Password: response["Secret"],
 		}
@@ -187,7 +196,7 @@ func authFromHelper(helperName string) authBackend {
 }
 
 // authIsEmpty returns if auth is nil or an empty structure
-func authIsEmpty(auth *docker.AuthConfiguration) bool {
+func authIsEmpty(auth *registrytypes.AuthConfig) bool {
 	if auth == nil {
 		return false
 	}

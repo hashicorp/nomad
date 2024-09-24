@@ -5,12 +5,13 @@ package docker
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"sync"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
@@ -120,19 +121,13 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 		// make a channel for docker stats structs and start a collector to
 		// receive stats from docker and emit nomad stats
 		// statsCh will always be closed by docker client.
-		statsCh := make(chan *docker.Stats)
+		statsCh := make(chan *containerapi.Stats)
 		go dockerStatsCollector(destCh, statsCh, interval, compute)
 
-		statsOpts := docker.StatsOptions{
-			ID:      h.containerID,
-			Context: ctx,
-			Done:    h.doneCh,
-			Stats:   statsCh,
-			Stream:  true,
-		}
-
-		// Stats blocks until an error has occurred, or doneCh has been closed
-		if err := h.dockerClient.Stats(statsOpts); err != nil && err != io.ErrClosedPipe {
+		// ContainerStats returns a StatsResponseReader. Body of that reader
+		// contains the stats and implements io.Reader
+		statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, true)
+		if err != nil && err != io.EOF {
 			// An error occurred during stats collection, retry with backoff
 			h.logger.Debug("error collecting stats from container", "error", err)
 
@@ -141,13 +136,20 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 			retry++
 			continue
 		}
+		defer statsReader.Body.Close()
+
+		var stats containerapi.Stats
+		binary.Read(statsReader.Body, binary.LittleEndian, &stats)
+
+		statsCh <- &stats
+
 		// Stats finished either because context was canceled, doneCh was closed
 		// or the container stopped. Stop stats collections.
 		return
 	}
 }
 
-func dockerStatsCollector(destCh *usageSender, statsCh <-chan *docker.Stats, interval time.Duration, compute cpustats.Compute) {
+func dockerStatsCollector(destCh *usageSender, statsCh <-chan *containerapi.Stats, interval time.Duration, compute cpustats.Compute) {
 	var resourceUsage *cstructs.TaskResourceUsage
 
 	// hasSentInitialStats is used so as to emit the first stats received from
