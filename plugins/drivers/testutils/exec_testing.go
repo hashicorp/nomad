@@ -17,6 +17,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
@@ -154,7 +155,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 		caps, err := driver.Capabilities()
 		must.NoError(t, err)
 
-		isolated := (caps.FSIsolation != drivers.FSIsolationNone)
+		isolated := (caps.FSIsolation != fsisolation.None)
 
 		text := "hello from the other side"
 
