@@ -611,7 +611,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 }
 
 // A job that has any of its versions tagged should not be GC-able.
-func TestCoreScheduler_EvalGC_JobVersionTags(t *testing.T) {
+func TestCoreScheduler_EvalGC_JobTaggedVersion(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -622,15 +622,18 @@ func TestCoreScheduler_EvalGC_JobVersionTags(t *testing.T) {
 	job := mock.MinJob()
 	job.Stop = true // to be GC-able
 
+	// to be GC-able, the job needs an associated eval with a terminal Status,
+	// so that the job gets considered "dead" and not "pending"
+	// NOTE: this needs to come before UpsertJob for some Mystery Reason
+	//       (otherwise job Status ends up as "pending" later)
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	eval.Status = structs.EvalStatusComplete
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 999, []*structs.Evaluation{eval}))
 	// upsert a couple versions of the job, so the "jobs" table has one
 	// and the "job_version" table has two.
 	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job.Copy()))
 	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job.Copy()))
-	// to be GC-able, also need an associated eval with a terminal Status
-	eval := mock.Eval()
-	eval.JobID = job.ID
-	eval.Status = structs.EvalStatusComplete
-	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval}))
 
 	jobExists := func(t *testing.T) bool {
 		t.Helper()
@@ -652,22 +655,45 @@ func TestCoreScheduler_EvalGC_JobVersionTags(t *testing.T) {
 		must.NoError(t, core.Process(gc))
 	}
 
+	applyTag := func(t *testing.T, idx, version uint64, name, desc string) {
+		t.Helper()
+		must.NoError(t, store.UpdateJobVersionTag(idx, job.Namespace,
+			&structs.JobApplyTagRequest{
+				JobID: job.ID,
+				Name:  name,
+				Tag: &structs.JobTaggedVersion{
+					Name:        name,
+					Description: desc,
+				},
+				Version: version,
+			}))
+	}
+	unsetTag := func(t *testing.T, idx uint64, name string) {
+		t.Helper()
+		must.NoError(t, store.UpdateJobVersionTag(idx, job.Namespace,
+			&structs.JobApplyTagRequest{
+				JobID: job.ID,
+				Name:  name,
+				Tag:   nil, // this triggers the deletion
+			}))
+	}
+
 	// tagging the latest version (latest of the 2 jobs, 0 and 1, is 1)
 	// will tag the job in the "jobs" table, which should protect from GC
-	must.NoError(t, store.UpdateJobVersionTag(2000, job.Namespace, job.ID, 1, "v1", "version 1"))
+	applyTag(t, 2000, 1, "v1", "version 1")
 	forceGC(t)
 	must.True(t, jobExists(t), must.Sprint("latest job version being tagged should protect from GC"))
 
-	// untagging latest and tagging the oldest, which is only in "job_version"
-	// table should also protect from GC
-	must.NoError(t, store.UnsetJobVersionTag(3000, job.Namespace, job.ID, "v1"))
-	must.NoError(t, store.UpdateJobVersionTag(3001, job.Namespace, job.ID, 0, "v0", "version 0"))
+	// untagging latest and tagging the oldest (only one in "job_version" table)
+	// should also protect from GC
+	unsetTag(t, 3000, "v1")
+	applyTag(t, 3001, 0, "v0", "version 0")
 	forceGC(t)
 	must.True(t, jobExists(t), must.Sprint("old job version being tagged should protect from GC"))
 
-	// untagging v0 should leave no tags left, so GC should delete the job
-	// and all its versions
-	must.NoError(t, store.UnsetJobVersionTag(4000, job.Namespace, job.ID, "v0"))
+	//untagging v0 should leave no tags left, so GC should delete the job
+	//and all its versions
+	unsetTag(t, 4000, "v0")
 	forceGC(t)
 	must.False(t, jobExists(t), must.Sprint("all tags being removed should enable GC"))
 }
