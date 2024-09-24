@@ -42,8 +42,6 @@ func TestJobTagApplyCommand_Run(t *testing.T) {
 	v0 := mock.Job()
 
 	state := srv.Agent.Server().State()
-	// err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, v0)
-	// must.NoError(t, err)
 
 	v0.ID = "test-job-applyer"
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, v0))

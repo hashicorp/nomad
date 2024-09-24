@@ -39,9 +39,7 @@ func (c *JobTagUnsetCommand) Synopsis() string {
 
 func (c *JobTagUnsetCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{
-			// "-version": complete.PredictNothing,
-		})
+		complete.Flags{})
 }
 
 func (c *JobTagUnsetCommand) AutocompleteArgs() complete.Predictor {

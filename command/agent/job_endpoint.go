@@ -419,17 +419,6 @@ func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, 
 	}
 }
 
-// parseVersion parses the version flag and returns the index, whether it
-// was set and potentially an error during parsing.
-func parseVersion(input string) (uint64, bool, error) {
-	if input == "" {
-		return 0, false, nil
-	}
-
-	u, err := strconv.ParseUint(input, 10, 64)
-	return u, true, err
-}
-
 func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
 	var args api.TagVersionRequest
 
