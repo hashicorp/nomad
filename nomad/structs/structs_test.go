@@ -752,6 +752,7 @@ func testJob() *Job {
 							},
 						},
 						Identity: &WorkloadIdentity{
+							Name: "foo",
 							Env:  true,
 							File: true,
 						},
