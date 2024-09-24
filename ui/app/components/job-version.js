@@ -14,14 +14,35 @@ import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 const changeTypes = ['Added', 'Deleted', 'Edited'];
 
 export default class JobVersion extends Component {
+  @service store;
+  @service notifications;
+  @service router;
+
   @alias('args.version') version;
   @tracked isOpen = false;
   @tracked isEditing = false;
+  @tracked editableTag;
 
   // Passes through to the job-diff component
   verbose = true;
 
-  @service router;
+  constructor() {
+    super(...arguments);
+    this.initializeEditableTag();
+  }
+
+  initializeEditableTag() {
+    if (this.version.taggedVersion) {
+      this.editableTag = this.store.createRecord('versionTag', {
+        name: this.version.taggedVersion.name,
+        description: this.version.taggedVersion.description,
+      });
+    } else {
+      this.editableTag = this.store.createRecord('versionTag');
+    }
+    this.editableTag.versionNumber = this.version.number;
+    this.editableTag.jobName = this.version.get('job.plainId');
+  }
 
   @computed('version.diff')
   get changeCount() {
@@ -70,7 +91,6 @@ export default class JobVersion extends Component {
         this.router.transitionTo('jobs.job.index', job.get('idWithNamespace'));
       }
     } catch (e) {
-      console.log('catchy', e);
       this.args.handleError({
         level: 'danger',
         title: 'Could Not Revert',
@@ -81,30 +101,70 @@ export default class JobVersion extends Component {
   revertTo;
 
   @action
+  handleKeydown(event) {
+    if (event.key === 'Escape') {
+      this.cancelEditTag();
+    }
+  }
+
+  @action
   toggleEditTag() {
     this.isEditing = !this.isEditing;
   }
 
   @action
-  saveTag() {
-    this.isEditing = false;
-    this.editableTag.save();
+  async saveTag(event) {
+    event.preventDefault();
+    try {
+      const savedTag = await this.editableTag.save();
+      this.version.taggedVersion = savedTag;
+      this.version.taggedVersion.setProperties({
+        ...savedTag.toJSON(),
+      });
+      this.initializeEditableTag();
+      this.isEditing = false;
+
+      this.notifications.add({
+        title: 'Job Version Tagged',
+        color: 'success',
+      });
+    } catch (error) {
+      console.log('error tagging job version', error);
+      this.notifications.add({
+        title: 'Error Tagging Job Version',
+        message: messageForError(error),
+        color: 'critical',
+      });
+    }
   }
 
   @action
   cancelEditTag() {
     this.isEditing = false;
+    this.initializeEditableTag();
   }
 
   @action
-  deleteTag() {
-    this.isEditing = false;
-    this.editableTag.destroy();
-    this.version.taggedVersion = null;
-  }
-
-  get editableTag() {
-    return this.version.taggedVersion || {};
+  async deleteTag() {
+    try {
+      await this.store
+        .adapterFor('version-tag')
+        .deleteTag(this.editableTag.jobName, this.editableTag.name);
+      this.notifications.add({
+        title: 'Job Version Un-Tagged',
+        color: 'success',
+      });
+      // this.version.set('taggedVersion', null);
+      this.version.taggedVersion = null;
+      this.initializeEditableTag();
+      this.isEditing = false;
+    } catch (error) {
+      this.notifications.add({
+        title: 'Error Un-Tagging Job Version',
+        message: messageForError(error),
+        color: 'critical',
+      });
+    }
   }
 }
 

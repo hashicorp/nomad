@@ -2429,5 +2429,11 @@ func (j *Job) TagVersion(args *structs.JobApplyTagRequest, reply *structs.JobTag
 	}
 
 	reply.Index = index
+	if args.Tag != nil {
+		reply.Name = args.Tag.Name
+		reply.Description = args.Tag.Description
+		reply.TaggedTime = args.Tag.TaggedTime
+	}
+
 	return nil
 }

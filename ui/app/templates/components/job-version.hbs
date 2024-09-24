@@ -38,23 +38,31 @@
     {{/if}}
     <footer class="boxed-section-foot {{if this.isEditing "editing"}}">
       {{#if this.isEditing}}
-        <div class="tag-options">
+        <form class="tag-options" autocomplete="off" {{on "submit" (action "saveTag")}}>
+          {{! template-lint-disable no-down-event-binding }}
           <Hds::Form::TextInput::Field
             @label="Tag Name"
+            placeholder="Tag Name"
             @value={{this.editableTag.name}}
             @size="small"
+            {{on "input" (action (mut this.editableTag.name) value="target.value") }}
+            {{on "keydown" (action this.handleKeydown)}}
             autofocus
           />
           <Hds::Form::TextInput::Field
             @label="Tag Description"
+            placeholder="Tag Description"
             @value={{this.editableTag.description}}
+            {{on "input" (action (mut this.editableTag.description) value="target.value") }}
+            {{on "keydown" (action this.handleKeydown)}}
           />
-          <Hds::Button @text="Save" @color="primary" @size="small" @isInline={{true}} {{on "click" (action "saveTag")}} />
+          {{! template-lint-enable no-down-event-binding }}
+          <Hds::Button type="submit" @text="Save" @color="primary" @size="small" @isInline={{true}} {{on "click" this.saveTag}} />
           <Hds::Button @text="Cancel" @color="secondary" @size="small" @isInline={{true}} {{on "click" (action "cancelEditTag")}} />
           {{#if this.version.taggedVersion}}
             <Hds::Button @text="Delete" @color="critical" @size="small" @isInline={{true}} {{on "click" (action "deleteTag")}} />
           {{/if}}
-        </div>
+        </form>
 
       {{else}}
         <div class="tag-options">
