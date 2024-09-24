@@ -127,8 +127,8 @@ OUTER:
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		job := i.(*structs.Job)
 
-		// Ignore new jobs and jobs with TaggedVersion
-		if job.CreateIndex > oldThreshold || job.TaggedVersion != nil {
+		// Ignore new jobs.
+		if job.CreateIndex > oldThreshold {
 			continue
 		}
 
@@ -156,21 +156,18 @@ OUTER:
 
 		// Job is eligible for garbage collection
 		if allEvalsGC {
-			safeToDelete := true
+			// if any version of the job is tagged, it should be kept
 			versions, err := c.snap.JobVersionsByID(ws, job.Namespace, job.ID)
 			if err != nil {
 				c.logger.Error("job GC failed to get versions for job", "job", job.ID, "error", err)
 				continue
 			}
-			for _, version := range versions {
-				if version.TaggedVersion != nil {
-					safeToDelete = false
-					break
+			for _, v := range versions {
+				if v.TaggedVersion != nil {
+					continue OUTER
 				}
 			}
-			if safeToDelete {
-				gcJob = append(gcJob, job)
-			}
+			gcJob = append(gcJob, job)
 			gcAlloc = append(gcAlloc, jobAlloc...)
 			gcEval = append(gcEval, jobEval...)
 		}
@@ -196,16 +193,8 @@ OUTER:
 
 // jobReap contacts the leader and issues a reap on the passed jobs
 func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
-	// Filter out jobs with TaggedVersion
-	jobsToReap := make([]*structs.Job, 0, len(jobs))
-	for _, job := range jobs {
-		if job.TaggedVersion == nil {
-			jobsToReap = append(jobsToReap, job)
-		}
-	}
-
 	// Call to the leader to issue the reap
-	for _, req := range c.partitionJobReap(jobsToReap, leaderACL, structs.MaxUUIDsPerWriteRequest) {
+	for _, req := range c.partitionJobReap(jobs, leaderACL, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.JobBatchDeregisterResponse
 		if err := c.srv.RPC(structs.JobBatchDeregisterRPCMethod, req, &resp); err != nil {
 			c.logger.Error("batch job reap failed", "error", err)
@@ -236,7 +225,6 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string, 
 
 		if remaining := len(jobs) - submittedJobs; remaining > 0 {
 			if remaining <= available {
-				// TODO: do I need to check for TaggedVersion here as well?
 				for _, job := range jobs[submittedJobs:] {
 					jns := structs.NamespacedID{ID: job.ID, Namespace: job.Namespace}
 					req.Jobs[jns] = option
