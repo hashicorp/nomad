@@ -943,7 +943,10 @@ type JobRevertRequest struct {
 	JobID string
 
 	// JobVersion the version to revert to.
-	JobVersion uint64
+	JobVersion *uint64
+
+	// JobVersionTag is the version tag to revert to.
+	JobVersionTag *string
 
 	// EnforcePriorVersion if set will enforce that the job is at the given
 	// version before reverting.
