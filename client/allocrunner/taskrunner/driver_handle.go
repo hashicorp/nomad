@@ -66,6 +66,9 @@ func (h *DriverHandle) Signal(s string) error {
 
 // Exec is the handled used by client endpoint handler to invoke the appropriate task driver exec.
 func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
+	if h == nil {
+		return nil, 0, ErrTaskNotRunning
+	}
 	command := append([]string{cmd}, args...)
 	res, err := h.driver.ExecTask(h.taskID, command, timeout)
 	if err != nil {
@@ -80,6 +83,9 @@ func (h *DriverHandle) ExecStreaming(ctx context.Context,
 	command []string,
 	tty bool,
 	stream drivers.ExecTaskStream) error {
+	if h == nil {
+		return ErrTaskNotRunning
+	}
 
 	if impl, ok := h.driver.(drivers.ExecTaskStreamingRawDriver); ok {
 		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, stream)
