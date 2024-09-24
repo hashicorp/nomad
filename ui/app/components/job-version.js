@@ -116,6 +116,14 @@ export default class JobVersion extends Component {
   async saveTag(event) {
     event.preventDefault();
     try {
+      if (!this.editableTag.name) {
+        this.notifications.add({
+          title: 'Error Tagging Job Version',
+          message: 'Tag name is required',
+          color: 'critical',
+        });
+        return;
+      }
       const savedTag = await this.editableTag.save();
       this.version.taggedVersion = savedTag;
       this.version.taggedVersion.setProperties({
@@ -154,7 +162,6 @@ export default class JobVersion extends Component {
         title: 'Job Version Un-Tagged',
         color: 'success',
       });
-      // this.version.set('taggedVersion', null);
       this.version.taggedVersion = null;
       this.initializeEditableTag();
       this.isEditing = false;

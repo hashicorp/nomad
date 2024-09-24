@@ -12,11 +12,7 @@ export default class VersionTagSerializer extends ApplicationSerializer {
 
   serialize(snapshot, options) {
     const hash = super.serialize(snapshot, options);
-    hash.Version = hash.VersionNumber; // TODO: delete versionNumber and jobName?
+    hash.Version = hash.VersionNumber;
     return hash;
   }
-
-  // normalize(typeHash, hash) {
-  //   return super.normalize(typeHash, hash);
-  // }
 }

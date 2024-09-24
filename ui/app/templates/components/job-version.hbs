@@ -4,7 +4,7 @@
 ~}}
 
 <section class="job-version">
-  <div class="boxed-section {{if this.version.taggedVersion "tagged"}}">
+  <div class="boxed-section {{if this.version.taggedVersion "tagged"}}" data-test-tagged-version={{if this.version.taggedVersion "true" "false"}}>
     <header class="boxed-section-head is-light inline-definitions">
       Version #{{this.version.number}}
       <span class="bumper-left pair is-faded">
@@ -41,6 +41,7 @@
         <form class="tag-options" autocomplete="off" {{on "submit" (action "saveTag")}}>
           {{! template-lint-disable no-down-event-binding }}
           <Hds::Form::TextInput::Field
+            data-test-tag-name-input
             @label="Tag Name"
             placeholder="Tag Name"
             @value={{this.editableTag.name}}
@@ -50,6 +51,7 @@
             autofocus
           />
           <Hds::Form::TextInput::Field
+            data-test-tag-description-input
             @label="Tag Description"
             placeholder="Tag Description"
             @value={{this.editableTag.description}}
@@ -57,10 +59,10 @@
             {{on "keydown" (action this.handleKeydown)}}
           />
           {{! template-lint-enable no-down-event-binding }}
-          <Hds::Button type="submit" @text="Save" @color="primary" @size="small" @isInline={{true}} {{on "click" this.saveTag}} />
+          <Hds::Button data-test-tag-save-button type="submit" @text="Save" @color="primary" @size="small" @isInline={{true}} {{on "click" this.saveTag}} />
           <Hds::Button @text="Cancel" @color="secondary" @size="small" @isInline={{true}} {{on "click" (action "cancelEditTag")}} />
           {{#if this.version.taggedVersion}}
-            <Hds::Button @text="Delete" @color="critical" @size="small" @isInline={{true}} {{on "click" (action "deleteTag")}} />
+            <Hds::Button data-test-tag-delete-button @text="Delete" @color="critical" @size="small" @isInline={{true}} {{on "click" (action "deleteTag")}} />
           {{/if}}
         </form>
 

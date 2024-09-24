@@ -31,6 +31,9 @@ export default Factory.extend({
   // Directive to restrict any related deployments from having a status other than 'running'
   activeDeployment: false,
 
+  // version tags
+  taggedVersion: null,
+
   afterCreate(version, server) {
     const args = [
       'deployment',
