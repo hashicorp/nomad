@@ -149,10 +149,12 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 		s, err := statsStringReader.ReadString('\n')
 		if err != nil {
 			h.logger.Error("error reading stats stream", "error", err)
+			continue
 		}
 
 		if err := json.Unmarshal([]byte(s), &stats); err != nil {
 			h.logger.Error("error unmarshalling stats data for container", "error", err)
+			continue
 		}
 
 		statsCh <- &stats
