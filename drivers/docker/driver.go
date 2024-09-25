@@ -387,32 +387,23 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	startAttempts := 0
 CREATE:
-	createdContainer, err := d.createContainer(dockerClient, containerCfg, driverConfig.Image)
+	container, err := d.createContainer(dockerClient, containerCfg, driverConfig.Image)
 	if err != nil {
 		d.logger.Error("failed to create container", "error", err)
-		if createdContainer != nil {
-			err := dockerClient.ContainerRemove(d.ctx, createdContainer.ID, containerapi.RemoveOptions{Force: true})
+		if container != nil {
+			err := dockerClient.ContainerRemove(d.ctx, container.ID, containerapi.RemoveOptions{Force: true})
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to remove container %s: %v", createdContainer.ID, err)
+				return nil, nil, fmt.Errorf("failed to remove container %s: %v", container.ID, err)
 			}
 		}
 		return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to create container: %v", err), err)
 	}
 
-	d.logger.Info("created container", "container_id", createdContainer.ID)
-
-	// We don't need to start the container if the container is already running
-	// since we don't create containers which are already present on the host
-	// and are running
-	container, err := dockerClient.ContainerInspect(d.ctx, createdContainer.ID)
-	if err != nil {
-		d.logger.Error("failed to inspect created container", "error", err)
-		return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to create container: %v", err), err)
-	}
+	d.logger.Info("created container", "container_id", container.ID)
 
 	if !container.State.Running {
 		// Start the container
-		if err := d.startContainer(container); err != nil {
+		if err := d.startContainer(*container); err != nil {
 			d.logger.Error("failed to start container", "container_id", container.ID, "error", err)
 			dockerClient.ContainerRemove(d.ctx, container.ID, containerapi.RemoveOptions{Force: true})
 			// Some sort of docker race bug, recreating the container usually works
@@ -434,7 +425,7 @@ CREATE:
 			dockerClient.ContainerRemove(d.ctx, container.ID, containerapi.RemoveOptions{Force: true})
 			return nil, nil, nstructs.NewRecoverableError(fmt.Errorf("%s %s: %s", msg, container.ID, err), true)
 		}
-		container = runningContainer
+		container = &runningContainer
 		d.logger.Info("started container", "container_id", container.ID)
 	} else {
 		d.logger.Debug("re-attaching to container", "container_id",
@@ -447,7 +438,7 @@ CREATE:
 	var pluginClient *plugin.Client
 
 	if collectingLogs {
-		dlogger, pluginClient, err = d.setupNewDockerLogger(container, cfg, time.Unix(0, 0))
+		dlogger, pluginClient, err = d.setupNewDockerLogger(*container, cfg, time.Unix(0, 0))
 		if err != nil {
 			d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
 			dockerClient.ContainerRemove(d.ctx, container.ID, containerapi.RemoveOptions{Force: true})
@@ -456,7 +447,7 @@ CREATE:
 	}
 
 	// Detect container address
-	ip, autoUse := d.detectIP(container, &driverConfig)
+	ip, autoUse := d.detectIP(*container, &driverConfig)
 
 	net := &drivers.DriverNetwork{
 		PortMap:       driverConfig.PortMap,
