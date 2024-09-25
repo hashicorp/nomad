@@ -29,6 +29,9 @@ export default class JobVersion extends Component {
   constructor() {
     super(...arguments);
     this.initializeEditableTag();
+    if (this.args.diffsExpanded && this.version.diff) {
+      this.isOpen = true;
+    }
   }
 
   initializeEditableTag() {
@@ -162,6 +165,7 @@ export default class JobVersion extends Component {
         title: 'Job Version Un-Tagged',
         color: 'success',
       });
+      // this.version.set('taggedVersion', null);
       this.version.taggedVersion = null;
       this.initializeEditableTag();
       this.isEditing = false;

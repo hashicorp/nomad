@@ -431,7 +431,7 @@ export default class Job extends Model {
 
   @attr('number') version;
 
-  @hasMany('job-versions') versions;
+  @hasMany('job-versions', { async: true }) versions;
   @hasMany('allocations') allocations;
   @hasMany('deployments') deployments;
   @hasMany('evaluations') evaluations;
@@ -573,6 +573,9 @@ export default class Job extends Model {
     return this.store.adapterFor('job').update(this);
   }
 
+  getVersions(diffVersion) {
+    return this.store.adapterFor('job').getVersions(this, diffVersion);
+  }
   parse() {
     const definition = this._newDefinition;
     const variables = this._newDefinitionVariables;
