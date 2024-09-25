@@ -126,7 +126,6 @@ func (tr *TaskRunner) initHooks() {
 			consulNamespace:     consulNamespace,
 			nomadNamespace:      tr.alloc.Job.Namespace,
 			renderOnTaskRestart: task.RestartPolicy.RenderTemplates,
-			driverHandle:        tr.handle,
 		}))
 	}
 
