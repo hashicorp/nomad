@@ -15,11 +15,36 @@ used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.9.0
 
+#### Dropped support for older clients
+
+Nomad 1.9.0 removes support for Nomad client agents older than 1.6.0. Older
+nodes fail heartbeats. Nomad servers mark the workloads on those nodes
+as lost and reschedule them normally according to the job's [reschedule][]
+block.
+
+#### Keyring In Raft
+
+Nomad 1.9.0 stores keys used for signing Workload Identity and encrypting
+Variables in Raft, instead of storing key material in the external
+keystore. When using external KMS or Vault transit encryption for the
+[`keyring`][] provider, the key encryption key (KEK) is stored outside of Nomad
+and no cleartext key material exists on disk. When using the default AEAD
+provider, the key encryption key (KEK) is stored in Raft alongside the encrypted
+data encryption keys (DEK).
+
+Nomad automatically migrates the key storage for all key material on the
+first [`root_key_gc_interval`][] after all servers are upgraded to 1.9.0. The
+existing on-disk keystore is required to restore servers from older snapshots,
+so you should continue to back up the on-disk keystore until you no longer need
+those older snapshots.
+
 #### Support for HCLv1 removed
 
 Nomad 1.9.0 no longer supports the HCLv1 format for job specifications. Using
 the `-hcl1` option for the `job run`, `job plan`, and `job validate` commands
 will no longer work.
+
+## Nomad 1.8.4
 
 #### Default Docker `infra_image` changed
 
@@ -27,13 +52,6 @@ Due to the deprecation of the third-party `gcr.io` registry, the default Docker
 [`infra_image`][] is now `registry.k8s.io/pause-<arch>:3.3`. If you do not
 override the default, clients using the `docker` driver will make outbound
 requests to the new registry.
-
-#### Dropped support for older clients
-
-Nomad 1.9.0 removes support for Nomad client agents older than 1.6.0. Older
-nodes will fail heartbeats. Nomad servers will mark the workloads on those nodes
-as lost and reschedule them normally according to the job's [reschedule][]
-block.
 
 ## Nomad 1.8.3
 
@@ -2174,6 +2192,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /nomad/docs/concepts/scheduling/preemption
 [proxy_concurrency]: /nomad/docs/job-specification/sidecar_task#proxy_concurrency
 [reserved]: /nomad/docs/configuration/client#reserved-parameters
+[`root_key_gc_interval`]: /nomad/docs/configuration/server#root_key_gc_interval
 [task-config]: /nomad/docs/job-specification/task#config
 [template_gid]: /nomad/docs/job-specification/template#gid
 [template_uid]: /nomad/docs/job-specification/template#uid
