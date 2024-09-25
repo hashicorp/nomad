@@ -146,6 +146,10 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 		// sometimes it won't. The reader won't close until the container stops, so it's
 		// up to us to digest this stream carefully.
 		s, err := statsStringReader.ReadString('\n')
+		if err != nil {
+			h.logger.Error("error reading stats stream", "error", err)
+		}
+
 		if err := json.Unmarshal([]byte(s), &stats); err != nil {
 			h.logger.Error("error unmarshalling stats data for container", "error", err)
 		}
