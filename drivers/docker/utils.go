@@ -21,7 +21,7 @@ import (
 )
 
 func parseDockerImage(image string) (repo, tag string) {
-	// deode the image tag
+	// decode the image tag
 	splitted := strings.SplitN(image, "@", 2)
 	repoTag := splitted[0]
 	idx := strings.LastIndex(repoTag, ":")
