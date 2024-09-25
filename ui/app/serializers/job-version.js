@@ -13,6 +13,13 @@ export default class JobVersionSerializer extends ApplicationSerializer {
     number: 'Version',
   };
 
+  normalize(typeHash, hash) {
+    if (hash.TaggedVersion) {
+      hash.TaggedVersion.VersionNumber = hash.Version;
+    }
+    return super.normalize(typeHash, hash);
+  }
+
   normalizeFindHasManyResponse(store, modelClass, hash, id, requestType) {
     const zippedVersions = hash.Versions.map((version, index) =>
       assign({}, version, {

@@ -1651,8 +1651,10 @@ type JobListResponse struct {
 
 // JobVersionsRequest is used to get a jobs versions
 type JobVersionsRequest struct {
-	JobID string
-	Diffs bool
+	JobID       string
+	Diffs       bool
+	DiffVersion *uint64
+	DiffTagName string
 	QueryOptions
 }
 
@@ -4583,6 +4585,21 @@ type JobTaggedVersion struct {
 	Name        string
 	Description string
 	TaggedTime  int64
+}
+
+type JobApplyTagRequest struct {
+	JobID   string
+	Name    string
+	Tag     *JobTaggedVersion
+	Version uint64
+	WriteRequest
+}
+
+type JobTagResponse struct {
+	Name        string
+	Description string
+	TaggedTime  int64
+	QueryMeta
 }
 
 func (tv *JobTaggedVersion) Copy() *JobTaggedVersion {

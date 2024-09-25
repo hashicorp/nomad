@@ -395,6 +395,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.WrappedRootKeysUpsertRequestType:
 		return n.applyWrappedRootKeysUpsert(msgType, buf[1:], log.Index)
 
+	case structs.JobVersionTagRequestType:
+		return n.applyJobVersionTag(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1182,6 +1184,22 @@ func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) interface{} {
 
 	if err := n.state.DeleteDeployment(index, req.Deployments); err != nil {
 		n.logger.Error("DeleteDeployment failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+// applyJobVersionTag is used to tag a job version for diffing and GC-prevention
+func (n *nomadFSM) applyJobVersionTag(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_job_version_tag"}, time.Now())
+	var req structs.JobApplyTagRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateJobVersionTag(index, req.RequestNamespace(), &req); err != nil {
+		n.logger.Error("UpdateJobVersionTag failed", "error", err)
 		return err
 	}
 
