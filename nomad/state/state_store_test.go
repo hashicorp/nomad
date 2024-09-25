@@ -2901,6 +2901,152 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 	require.Equal(t, deletionIndex, index)
 }
 
+// TestStatestore_JobTaggedVersion tests that job versions which are tagged
+// do not count against the configured server.job_tracked_versions count,
+// do not get deleted when new versions are created,
+// and *do* get deleted immediately when its tag is removed.
+func TestStatestore_JobTaggedVersion(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	// tagged versions should be excluded from this limit
+	state.config.JobTrackedVersions = 5
+
+	job := mock.MinJob()
+	job.Stable = true
+
+	// helpers for readability
+	upsertJob := func(t *testing.T) {
+		t.Helper()
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(state), nil, job.Copy()))
+	}
+
+	applyTag := func(t *testing.T, version uint64) {
+		t.Helper()
+		name := fmt.Sprintf("v%d", version)
+		desc := fmt.Sprintf("version %d", version)
+		req := &structs.JobApplyTagRequest{
+			JobID: job.ID,
+			Name:  name,
+			Tag: &structs.JobTaggedVersion{
+				Name:        name,
+				Description: desc,
+			},
+			Version: version,
+		}
+		must.NoError(t, state.UpdateJobVersionTag(nextIndex(state), job.Namespace, req))
+
+		// confirm
+		got, err := state.JobVersionByTagName(nil, job.Namespace, job.ID, name)
+		must.NoError(t, err)
+		must.Eq(t, version, got.Version)
+		must.Eq(t, name, got.TaggedVersion.Name)
+		must.Eq(t, desc, got.TaggedVersion.Description)
+	}
+	unsetTag := func(t *testing.T, name string) {
+		t.Helper()
+		req := &structs.JobApplyTagRequest{
+			JobID: job.ID,
+			Name:  name,
+			Tag:   nil, // this triggers unset
+		}
+		must.NoError(t, state.UpdateJobVersionTag(nextIndex(state), job.Namespace, req))
+	}
+
+	assertVersions := func(t *testing.T, expect []uint64) {
+		t.Helper()
+		jobs, err := state.JobVersionsByID(nil, job.Namespace, job.ID)
+		must.NoError(t, err)
+		vs := make([]uint64, len(jobs))
+		for i, j := range jobs {
+			vs[i] = j.Version
+		}
+		must.Eq(t, expect, vs)
+	}
+
+	// we want to end up with JobTrackedVersions (5) versions,
+	// 0-2 tagged and 3-4 untagged, but also interleave the tagging
+	// to be somewhat true to normal behavior in reality.
+	{
+		// upsert 3 jobs
+		for range 3 {
+			upsertJob(t)
+		}
+		assertVersions(t, []uint64{2, 1, 0})
+
+		// tag 2 of them
+		applyTag(t, 0)
+		applyTag(t, 1)
+		// nothing should change
+		assertVersions(t, []uint64{2, 1, 0})
+
+		// add 2 more, up to JobTrackedVersions (5)
+		upsertJob(t)
+		upsertJob(t)
+		assertVersions(t, []uint64{4, 3, 2, 1, 0})
+
+		// tag one more
+		applyTag(t, 2)
+		// again nothing should change
+		assertVersions(t, []uint64{4, 3, 2, 1, 0})
+	}
+
+	// removing a tag at this point should leave the version in place
+	{
+		unsetTag(t, "v2")
+		assertVersions(t, []uint64{4, 3, 2, 1, 0})
+	}
+
+	// adding more versions should replace 2-4,
+	// and leave 0-1 in place because they are tagged
+	{
+		for range 10 {
+			upsertJob(t)
+		}
+		assertVersions(t, []uint64{14, 13, 12, 11, 10, 1, 0})
+	}
+
+	// untagging version 1 now should delete it immediately,
+	// since we now have more than JobTrackedVersions
+	{
+		unsetTag(t, "v1")
+		assertVersions(t, []uint64{14, 13, 12, 11, 10, 0})
+	}
+
+	// test some error conditions
+	{
+		// job does not exist
+		err := state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
+			JobID:   "non-existent-job",
+			Tag:     &structs.JobTaggedVersion{Name: "tag name"},
+			Version: 0,
+		})
+		must.ErrorContains(t, err, `job "non-existent-job" version 0 not found`)
+
+		// version does not exist
+		err = state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
+			JobID:   job.ID,
+			Tag:     &structs.JobTaggedVersion{Name: "tag name"},
+			Version: 999,
+		})
+		must.ErrorContains(t, err, fmt.Sprintf("job %q version 999 not found", job.ID))
+
+		// tag name already exists
+		err = state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
+			JobID:   job.ID,
+			Tag:     &structs.JobTaggedVersion{Name: "v0"},
+			Version: 10,
+		})
+		must.ErrorContains(t, err, fmt.Sprintf(`"v0" already exists on a different version of job %q`, job.ID))
+	}
+
+	// deleting all versions should also delete tagged versions
+	txn := state.db.WriteTxn(nextIndex(state))
+	must.NoError(t, state.deleteJobVersions(nextIndex(state), job, txn))
+	must.NoError(t, txn.Commit())
+	assertVersions(t, []uint64{})
+}
+
 func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
 	ci.Parallel(t)
 

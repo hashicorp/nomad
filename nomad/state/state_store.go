@@ -2188,10 +2188,21 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 		all[max-1], all[max] = all[max], all[max-1]
 	}
 
-	// Delete the job outside of the set that are being kept.
-	d := all[max]
-	if err := txn.Delete("job_version", d); err != nil {
-		return fmt.Errorf("failed to delete job %v (%d) from job_version", d.ID, d.Version)
+	// Find the oldest non-tagged version to delete
+	deleteIdx := -1
+	for i := len(all) - 1; i >= max; i-- {
+		if all[i].TaggedVersion == nil {
+			deleteIdx = i
+			break
+		}
+	}
+
+	// If we found a non-tagged version to delete, delete it
+	if deleteIdx != -1 {
+		d := all[deleteIdx]
+		if err := txn.Delete("job_version", d); err != nil {
+			return fmt.Errorf("failed to delete job %v (%d) from job_version", d.ID, d.Version)
+		}
 	}
 
 	return nil
