@@ -1432,7 +1432,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if driverConfig.MacAddress != "" {
 		config.MacAddress = driverConfig.MacAddress
 
-		// newer docker versions obsoleve the config.MacAddress field
+		// newer docker versions obsolete the config.MacAddress field
 		isNewEnough := semver.Compare(fmt.Sprintf("v%s", ver.APIVersion), "v1.44")
 		if isNewEnough >= 0 {
 			if networkingConfig == nil {
