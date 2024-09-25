@@ -139,30 +139,21 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 		}
 
 		var stats containerapi.Stats
-		statsStringScanner := bufio.NewScanner(statsReader.Body)
+		statsStringReader := bufio.NewReader(statsReader.Body)
 
 		// StatsResponseReader that the SDK returns is somewhat unpredictable. Sometimes
 		// during 1 interval window, it will respond with multiple Stats objects,
 		// sometimes it won't. The reader won't close until the container stops, so it's
 		// up to us to digest this stream carefully.
-		// The scanner below gets just one line and sends it to the channel.
-		for statsStringScanner.Scan() {
-			if err := json.Unmarshal(statsStringScanner.Bytes(), &stats); err != nil {
-				h.logger.Error("error unmarshalling stats data for container", "error", err)
-				break
-			}
-			statsCh <- &stats
-			break
-		}
-
-		if err := statsStringScanner.Err(); err != nil {
-			h.logger.Error("error scanning stats data for container", "error", err)
-			return
+		s, err := statsStringReader.ReadString('\n')
+		if err := json.Unmarshal([]byte(s), &stats); err != nil {
+			h.logger.Error("error unmarshalling stats data for container", "error", err)
 		}
 
 		// Stats finished either because context was canceled, doneCh was closed
 		// or the container stopped. Stop stats collections.
 		statsReader.Body.Close()
+		close(statsCh)
 		return
 	}
 }
