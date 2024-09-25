@@ -391,9 +391,9 @@ CREATE:
 	if err != nil {
 		d.logger.Error("failed to create container", "error", err)
 		if container != nil {
-			err := dockerClient.ContainerRemove(d.ctx, container.ID, containerapi.RemoveOptions{Force: true})
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to remove container %s: %v", container.ID, err)
+			removeErr := dockerClient.ContainerRemove(d.ctx, container.ID, containerapi.RemoveOptions{Force: true})
+			if removeErr != nil {
+				return nil, nil, fmt.Errorf("failed to remove container %s: %v", container.ID, removeErr)
 			}
 		}
 		return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to create container: %v", err), err)
@@ -1424,8 +1424,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		config.MacAddress = driverConfig.MacAddress
 
 		// newer docker versions obsolete the config.MacAddress field
-		isNewEnough := semver.Compare(fmt.Sprintf("v%s", ver.APIVersion), "v1.44")
-		if isNewEnough >= 0 {
+		isTooNew := semver.Compare(fmt.Sprintf("v%s", ver.APIVersion), "v1.44")
+		if isTooNew >= 0 {
 			if networkingConfig == nil {
 				networkingConfig = &networkapi.NetworkingConfig{
 					EndpointsConfig: map[string]*networkapi.EndpointSettings{

@@ -5,6 +5,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -197,9 +198,9 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 	pullOptions := image.PullOptions{RegistryAuth: auth.Auth}
 	reader, err := d.client.ImagePull(d.ctx, dockerImageRef(repo, tag), pullOptions)
 
-	if ctxErr := ctx.Err(); ctxErr == context.DeadlineExceeded {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		d.logger.Error("timeout pulling container", "image_ref", dockerImageRef(repo, tag))
-		future.set("", "", recoverablePullError(ctxErr, imageID))
+		future.set("", "", recoverablePullError(ctx.Err(), imageID))
 		return
 	}
 
@@ -213,7 +214,7 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 	if reader != nil {
 		defer reader.Close()
 		_, err = io.Copy(pm, reader)
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			d.logger.Error("error reading image pull progress", "error", err)
 			return
 		}

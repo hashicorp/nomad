@@ -63,7 +63,8 @@ func TestDockerLogger_Success(t *testing.T) {
 	}, nil, nil, nil, "")
 	must.NoError(t, err)
 
-	defer client.ContainerRemove(ctx, container.ID, containerapi.RemoveOptions{Force: true})
+	cleanup := func() { client.ContainerRemove(ctx, container.ID, containerapi.RemoveOptions{Force: true}) }
+	t.Cleanup(cleanup)
 
 	err = client.ContainerStart(ctx, container.ID, containerapi.StartOptions{})
 	must.NoError(t, err)
