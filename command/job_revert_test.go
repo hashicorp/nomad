@@ -264,4 +264,35 @@ func TestJobRevertCommand_VersionTag(t *testing.T) {
 		must.One(t, code2)
 		must.StrContains(t, ui.ErrorWriter.String(), "This command takes two arguments")
 	})
+
+	t.Run("Revert to tagged version doesn't duplicate tag", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobRevertCommand{Meta: Meta{Ui: ui}}
+
+		// First, revert to the tagged version
+		code := cmd.Run([]string{"-address", url, "-detach", "test-job-revert", "v1-tag"})
+		must.Zero(t, code)
+
+		// Now, fetch the job versions
+		historyCmd := &JobHistoryCommand{Meta: Meta{Ui: ui}}
+		historyCode := historyCmd.Run([]string{"-address", url, "-version=4", v0.ID})
+		must.Zero(t, historyCode)
+
+		// Check the output for the expected version and no tag
+		output := ui.OutputWriter.String()
+		must.StrContains(t, output, "Version     = 4")
+		must.StrNotContains(t, output, "Tag Name")
+		must.StrNotContains(t, output, "Tag Description")
+
+		ui.OutputWriter.Reset()
+
+		// Make sure the old version of the tag is still tagged
+		historyCmd = &JobHistoryCommand{Meta: Meta{Ui: ui}}
+		historyCode = historyCmd.Run([]string{"-address", url, "-version=1", v0.ID})
+		must.Zero(t, historyCode)
+		output = ui.OutputWriter.String()
+		must.StrContains(t, output, "Version         = 1")
+		must.StrContains(t, output, "Tag Name        = v1-tag")
+		must.StrContains(t, output, "Tag Description = Version 1 tag")
+	})
 }
