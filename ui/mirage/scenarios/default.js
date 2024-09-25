@@ -341,6 +341,42 @@ function smallCluster(server) {
 
   //#endregion Active Deployment
 
+  // #region Version Tags
+  const versionTaggedJob = server.create('job', {
+    name: 'version-tag-job',
+    id: 'version-tag-job',
+    namespaceId: 'default',
+    noDeployments: true,
+  });
+
+  server.create('job-version', {
+    job: versionTaggedJob,
+    namespace: 'default',
+    version: 0,
+  });
+
+  server.create('job-version', {
+    job: versionTaggedJob,
+    namespace: 'default',
+    version: 1,
+    versionTag: {
+      Name: 'burrito',
+      Description: 'A delicious version',
+    },
+  });
+
+  server.create('job-version', {
+    job: versionTaggedJob,
+    namespace: 'default',
+    version: 2,
+    versionTag: {
+      Name: 'enchilada',
+      Description: 'A version with just a hint of spice',
+    },
+  });
+
+  // #endregion Version Tags
+
   server.create('job', {
     name: 'hcl-definition-job',
     id: 'display-hcl',

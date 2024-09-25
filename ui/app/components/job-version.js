@@ -3,30 +3,53 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Component from '@ember/component';
+import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
-import { classNames } from '@ember-decorators/component';
+import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
+import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
-import classic from 'ember-classic-decorator';
 
 const changeTypes = ['Added', 'Deleted', 'Edited'];
 
-@classic
-@classNames('job-version', 'boxed-section')
 export default class JobVersion extends Component {
-  version = null;
-  isOpen = false;
+  @service store;
+  @service notifications;
+  @service router;
+
+  @alias('args.version') version;
+  @tracked isOpen = false;
+  @tracked isEditing = false;
+  @tracked editableTag;
 
   // Passes through to the job-diff component
   verbose = true;
 
-  @service router;
+  constructor() {
+    super(...arguments);
+    this.initializeEditableTag();
+    if (this.args.diffsExpanded && this.version.diff) {
+      this.isOpen = true;
+    }
+  }
+
+  initializeEditableTag() {
+    if (this.version.versionTag) {
+      this.editableTag = this.store.createRecord('versionTag', {
+        name: this.version.versionTag.name,
+        description: this.version.versionTag.description,
+      });
+    } else {
+      this.editableTag = this.store.createRecord('versionTag');
+    }
+    this.editableTag.versionNumber = this.version.number;
+    this.editableTag.jobName = this.version.get('job.plainId');
+  }
 
   @computed('version.diff')
   get changeCount() {
-    const diff = this.get('version.diff');
+    const diff = this.version.diff;
     const taskGroups = diff.TaskGroups || [];
 
     if (!diff) {
@@ -44,36 +67,34 @@ export default class JobVersion extends Component {
 
   @computed('version.{number,job.version}')
   get isCurrent() {
-    return this.get('version.number') === this.get('version.job.version');
+    return this.version.number === this.version.get('job.version');
   }
 
   @action
   toggleDiff() {
-    this.toggleProperty('isOpen');
+    this.isOpen = !this.isOpen;
   }
 
   @task(function* () {
     try {
-      const versionBeforeReversion = this.get('version.job.version');
-
+      const versionBeforeReversion = this.version.get('job.version');
       yield this.version.revertTo();
-      yield this.version.job.reload();
+      yield this.version.get('job').reload();
 
-      const versionAfterReversion = this.get('version.job.version');
-
+      const versionAfterReversion = this.version.get('job.version');
       if (versionBeforeReversion === versionAfterReversion) {
-        this.handleError({
+        this.args.handleError({
           level: 'warn',
           title: 'Reversion Had No Effect',
           description:
             'Reverting to an identical older version doesn’t produce a new version',
         });
       } else {
-        const job = this.get('version.job');
+        const job = this.version.get('job');
         this.router.transitionTo('jobs.job.index', job.get('idWithNamespace'));
       }
     } catch (e) {
-      this.handleError({
+      this.args.handleError({
         level: 'danger',
         title: 'Could Not Revert',
         description: messageForError(e, 'revert'),
@@ -81,6 +102,80 @@ export default class JobVersion extends Component {
     }
   })
   revertTo;
+
+  @action
+  handleKeydown(event) {
+    if (event.key === 'Escape') {
+      this.cancelEditTag();
+    }
+  }
+
+  @action
+  toggleEditTag() {
+    this.isEditing = !this.isEditing;
+  }
+
+  @action
+  async saveTag(event) {
+    event.preventDefault();
+    try {
+      if (!this.editableTag.name) {
+        this.notifications.add({
+          title: 'Error Tagging Job Version',
+          message: 'Tag name is required',
+          color: 'critical',
+        });
+        return;
+      }
+      const savedTag = await this.editableTag.save();
+      this.version.versionTag = savedTag;
+      this.version.versionTag.setProperties({
+        ...savedTag.toJSON(),
+      });
+      this.initializeEditableTag();
+      this.isEditing = false;
+
+      this.notifications.add({
+        title: 'Job Version Tagged',
+        color: 'success',
+      });
+    } catch (error) {
+      console.log('error tagging job version', error);
+      this.notifications.add({
+        title: 'Error Tagging Job Version',
+        message: messageForError(error),
+        color: 'critical',
+      });
+    }
+  }
+
+  @action
+  cancelEditTag() {
+    this.isEditing = false;
+    this.initializeEditableTag();
+  }
+
+  @action
+  async deleteTag() {
+    try {
+      await this.store
+        .adapterFor('version-tag')
+        .deleteTag(this.editableTag.jobName, this.editableTag.name);
+      this.notifications.add({
+        title: 'Job Version Un-Tagged',
+        color: 'success',
+      });
+      this.version.versionTag = null;
+      this.initializeEditableTag();
+      this.isEditing = false;
+    } catch (error) {
+      this.notifications.add({
+        title: 'Error Un-Tagging Job Version',
+        message: messageForError(error),
+        color: 'critical',
+      });
+    }
+  }
 }
 
 const flatten = (accumulator, array) => accumulator.concat(array);

@@ -156,6 +156,17 @@ OUTER:
 
 		// Job is eligible for garbage collection
 		if allEvalsGC {
+			// if any version of the job is tagged, it should be kept
+			versions, err := c.snap.JobVersionsByID(ws, job.Namespace, job.ID)
+			if err != nil {
+				c.logger.Error("job GC failed to get versions for job", "job", job.ID, "error", err)
+				continue
+			}
+			for _, v := range versions {
+				if v.VersionTag != nil {
+					continue OUTER
+				}
+			}
 			gcJob = append(gcJob, job)
 			gcAlloc = append(gcAlloc, jobAlloc...)
 			gcEval = append(gcEval, jobEval...)

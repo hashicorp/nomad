@@ -36,6 +36,9 @@ run the command with a job prefix instead of the exact job ID.
 - `-version`: Display only the history for the given version.
 - `-json` : Output the job versions in its JSON format.
 - `-t` : Format and display the job versions using a Go template.
+- `-diff-version`: Compare the job with a specific version.
+- `-diff-tag`: Compare the job with a specific tag.
+
 
 ## Examples
 
@@ -80,4 +83,61 @@ v{{.Version}}: {{with index .TaskGroups 0}}{{with index .Tasks 0}}{{.Resources.M
 v2: 512
 v1: 256
 v0: 256
+```
+
+Compare the current job with a specific older version:
+
+```shell-session
+$ nomad job history -version=3 -diff-version=1 example
+Version     = 3
+Stable      = false
+Submit Date = 07/25/17 20:35:43 UTC
+Diff        =
++/- Job: "example"
++/- Task Group: "cache"
+  +/- Task: "redis"
+    +/- Resources {
+          CPU:      "500"
+          DiskMB:   "0"
+      +/- MemoryMB: "256" => "512"
+        }
+```
+
+Compare all job versions with a specific version by tag name:
+
+```shell-session
+$ nomad job history -diff-tag=low-energy-version example
+
+Version     = 3
+Stable      = false
+Submit Date = 2024-09-09T16:41:53-04:00
+Diff        =
++/- Job: "example"
++/- Task Group: "group"
+  +/- Count: "3" => "4"
+      Task: "task"
+
+Version         = 2
+Stable          = false
+Submit Date     = 2024-09-09T16:41:53-04:00
+Tag Name        = low-energy-version
+Tag Description = test description
+
+Version     = 1
+Stable      = false
+Submit Date = 2024-09-09T16:41:53-04:00
+Diff        =
++/- Job: "example"
++/- Task Group: "group"
+  +/- Count: "3" => "2"
+      Task: "task"
+
+Version     = 0
+Stable      = false
+Submit Date = 2024-09-09T16:41:53-04:00
+Diff        =
++/- Job: "example"
++/- Task Group: "group"
+  +/- Count: "3" => "1"
+      Task: "task"
 ```

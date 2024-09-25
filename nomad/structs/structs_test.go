@@ -397,6 +397,18 @@ func TestJob_Validate(t *testing.T) {
 				"Task Group web should have an ephemeral disk object",
 			},
 		},
+		{
+			name: "VersionTag Description length",
+			job: &Job{
+				Type: JobTypeService,
+				VersionTag: &JobVersionTag{
+					Description: strings.Repeat("a", 1001),
+				},
+			},
+			expErr: []string{
+				"Tagged version description must be under 1000 characters",
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

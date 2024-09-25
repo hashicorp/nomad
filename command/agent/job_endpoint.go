@@ -117,6 +117,14 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/action"):
 		jobID := strings.TrimSuffix(path, "/action")
 		return s.jobRunAction(resp, req, jobID)
+	case strings.HasSuffix(path, "/tag"):
+		parts := strings.Split(path, "/")
+		if len(parts) != 4 {
+			return nil, CodedError(404, "invalid job tag endpoint")
+		}
+		jobID := parts[0]
+		name := parts[2] // job/<jobID>/tag/<name>
+		return s.jobTagVersion(resp, req, jobID, name)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -398,6 +406,62 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	}
 
 	return s.execStream(conn, &args)
+}
+
+func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+	switch req.Method {
+	case http.MethodPut, http.MethodPost:
+		return s.jobVersionApplyTag(resp, req, jobID, name)
+	case http.MethodDelete:
+		return s.jobVersionUnsetTag(resp, req, jobID, name)
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+	var args api.TagVersionRequest
+
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	rpcArgs := structs.JobApplyTagRequest{
+		JobID:   jobID,
+		Version: args.Version,
+		Name:    name,
+		Tag: &structs.JobVersionTag{
+			Name:        name,
+			Description: args.Description,
+		},
+	}
+
+	// parseWriteRequest overrides Namespace, Region and AuthToken
+	// based on values from the original http request
+	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
+
+	var out structs.JobTagResponse
+	if err := s.agent.RPC("Job.TagVersion", &rpcArgs, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+	rpcArgs := structs.JobApplyTagRequest{
+		JobID: jobID,
+		Name:  name,
+	}
+
+	// parseWriteRequest overrides Namespace, Region and AuthToken
+	// based on values from the original http request
+	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
+
+	var out structs.JobTagResponse
+	if err := s.agent.RPC("Job.TagVersion", &rpcArgs, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
@@ -684,6 +748,9 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	diffsStr := req.URL.Query().Get("diffs")
+	diffTagName := req.URL.Query().Get("diff_tag")
+	diffVersion := req.URL.Query().Get("diff_version")
+
 	var diffsBool bool
 	if diffsStr != "" {
 		var err error
@@ -693,9 +760,21 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jo
 		}
 	}
 
+	var diffVersionInt *uint64
+
+	if diffVersion != "" {
+		parsedDiffVersion, err := strconv.ParseUint(diffVersion, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a uint64: %v", "diff_version", diffVersion, err)
+		}
+		diffVersionInt = &parsedDiffVersion
+	}
+
 	args := structs.JobVersionsRequest{
-		JobID: jobID,
-		Diffs: diffsBool,
+		JobID:       jobID,
+		Diffs:       diffsBool,
+		DiffVersion: diffVersionInt,
+		DiffTagName: diffTagName,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -1034,6 +1113,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
 		UI:             ApiJobUIConfigToStructs(job.UI),
+		VersionTag:     ApiJobVersionTagToStructs(job.VersionTag),
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -2135,6 +2215,18 @@ func ApiJobUIConfigToStructs(jobUI *api.JobUIConfig) *structs.JobUIConfig {
 	return &structs.JobUIConfig{
 		Description: jobUI.Description,
 		Links:       links,
+	}
+}
+
+func ApiJobVersionTagToStructs(jobVersionTag *api.JobVersionTag) *structs.JobVersionTag {
+	if jobVersionTag == nil {
+		return nil
+	}
+
+	return &structs.JobVersionTag{
+		Name:        jobVersionTag.Name,
+		Description: jobVersionTag.Description,
+		TaggedTime:  jobVersionTag.TaggedTime,
 	}
 }
 

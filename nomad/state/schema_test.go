@@ -242,6 +242,14 @@ func Test_jobIsGCable(t *testing.T) {
 			expectedOutput:      true,
 			expectedOutputError: nil,
 		},
+		{
+			name: "tagged",
+			inputObj: &structs.Job{
+				VersionTag: &structs.JobVersionTag{Name: "any"},
+			},
+			expectedOutput:      false,
+			expectedOutputError: nil,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -372,6 +372,11 @@ func jobIsGCable(obj interface{}) (bool, error) {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
 	}
 
+	// job versions that are tagged should be kept
+	if j.VersionTag != nil {
+		return false, nil
+	}
+
 	// If the job is periodic or parameterized it is only garbage collectable if
 	// it is stopped.
 	periodic := j.Periodic != nil && j.Periodic.Enabled

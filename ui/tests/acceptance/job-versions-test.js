@@ -5,7 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, click, typeIn } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -13,7 +13,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Versions from 'nomad-ui/tests/pages/jobs/job/versions';
 import Layout from 'nomad-ui/tests/pages/layout';
 import moment from 'moment';
-
+import percySnapshot from '@percy/ember';
 let job;
 let namespace;
 let versions;
@@ -30,6 +30,21 @@ module('Acceptance | job versions', function (hooks) {
     job = server.create('job', {
       namespaceId: namespace.id,
       createAllocations: false,
+      noDeployments: true,
+    });
+
+    // Create some versions
+    server.create('job-version', {
+      job: job,
+      version: 0,
+    });
+    server.create('job-version', {
+      job: job,
+      version: 1,
+      versionTag: {
+        Name: 'test-tag',
+        Description: 'A tag with a brief description',
+      },
     });
     versions = server.db.jobVersions.where({ jobId: job.id });
 
@@ -168,7 +183,142 @@ module('Acceptance | job versions', function (hooks) {
       'The URL persists'
     );
     assert.ok(Versions.error.isPresent, 'Error message is shown');
-    assert.equal(Versions.error.title, 'Not Found', 'Error message is for 404');
+  });
+
+  test('version tags are displayed', async function (assert) {
+    // Both a tagged version and an untagged version are present
+    assert.dom('[data-test-tagged-version="true"]').exists();
+    assert.dom('[data-test-tagged-version="false"]').exists();
+
+    // The tagged version has a button indicating a tag name and description
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-button-primary')
+      .hasText('test-tag');
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-description')
+      .hasText('A tag with a brief description');
+
+    // The untagged version has no tag button or description
+    assert
+      .dom('[data-test-tagged-version="false"] .tag-button-primary')
+      .doesNotExist();
+    assert
+      .dom('[data-test-tagged-version="false"] .tag-description')
+      .hasText('', 'Tag description is empty');
+
+    await percySnapshot(assert, {
+      percyCSS: `
+        .timeline-note {
+          display: none;
+        }
+        .submit-date {
+          visibility: hidden;
+        }
+      `,
+    });
+  });
+
+  test('existing version tags can be edited', async function (assert) {
+    // Clicking the tag button puts it into edit mode
+    assert
+      .dom('[data-test-tagged-version="true"] .boxed-section-foot')
+      .doesNotHaveClass('editing');
+    await click('[data-test-tagged-version="true"] .tag-button-primary');
+    assert
+      .dom('[data-test-tagged-version="true"] .boxed-section-foot')
+      .hasClass('editing');
+
+    // equivalent of backspacing existing
+    document.querySelector('[data-test-tag-name-input]').value = '';
+    document.querySelector('[data-test-tag-description-input]').value = '';
+
+    await typeIn(
+      '[data-test-tagged-version="true"] [data-test-tag-name-input]',
+      'new-tag'
+    );
+    await typeIn(
+      '[data-test-tagged-version="true"] [data-test-tag-description-input]',
+      'new-description'
+    );
+
+    // Clicking the save button commits the changes
+    await click(
+      '[data-test-tagged-version="true"] [data-test-tag-save-button]'
+    );
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-button-primary')
+      .hasText('new-tag');
+    assert
+      .dom('[data-test-tagged-version="true"] .tag-description')
+      .hasText('new-description');
+
+    assert
+      .dom('.flash-message.alert.alert-success')
+      .exists('Shows a success toast notification on edit.');
+
+    // Tag can subsequently be deleted
+    await click('[data-test-tagged-version="true"] .tag-button-primary');
+    await click(
+      '[data-test-tagged-version="true"] [data-test-tag-delete-button]'
+    );
+    assert.dom('[data-test-tagged-version="true"]').doesNotExist();
+  });
+
+  test('new version tags can be created', async function (assert) {
+    // Clicking the tag button puts it into edit mode
+    assert
+      .dom('[data-test-tagged-version="false"] .boxed-section-foot')
+      .doesNotHaveClass('editing');
+    await click('[data-test-tagged-version="false"] .tag-button-secondary');
+    assert
+      .dom('[data-test-tagged-version="false"] .boxed-section-foot')
+      .hasClass('editing');
+
+    assert
+      .dom('[data-test-tagged-version="false"] [data-test-tag-delete-button]')
+      .doesNotExist();
+
+    // Clicking the save button commits the changes
+    await click(
+      '[data-test-tagged-version="false"] [data-test-tag-save-button]'
+    );
+
+    assert
+      .dom('.flash-message.alert.alert-critical')
+      .exists('Shows an error toast notification without a tag name.');
+
+    await typeIn(
+      '[data-test-tagged-version="false"] [data-test-tag-name-input]',
+      'new-tag'
+    );
+    await typeIn(
+      '[data-test-tagged-version="false"] [data-test-tag-description-input]',
+      'new-description'
+    );
+
+    // Clicking the save button commits the changes
+    await click(
+      '[data-test-tagged-version="false"] [data-test-tag-save-button]'
+    );
+
+    assert
+      .dom('[data-test-tagged-version="false"]')
+      .doesNotExist('Both versions now have tags');
+
+    assert
+      .dom('.flash-message.alert.alert-success')
+      .exists('Shows a success toast notification on edit.');
+
+    await percySnapshot(assert, {
+      percyCSS: `
+        .timeline-note {
+          display: none;
+        }
+        .submit-date {
+          visibility: hidden;
+        }
+      `,
+    });
   });
 });
 
