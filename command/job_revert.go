@@ -143,11 +143,6 @@ func (c *JobRevertCommand) Run(args []string) int {
 	if ok && err == nil {
 		revertVersion = parsedVersion
 	} else {
-		client, err := c.Meta.Client()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-			return 1
-		}
 		foundTaggedVersion, _, err := client.Jobs().VersionByTag(args[0], args[1], nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
