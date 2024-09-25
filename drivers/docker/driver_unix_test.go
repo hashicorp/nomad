@@ -193,7 +193,7 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	container, err := client.ContainerInspect(context.Background(), handle.containerID)
-	must.Nil(t, err, must.Sprintf("unexpected error: %v", err))
+	must.NoError(t, err)
 
 	want := "16384"
 	got := container.HostConfig.Sysctls["net.core.somaxconn"]
