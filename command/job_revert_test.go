@@ -200,3 +200,68 @@ namespace "default" {
 		})
 	}
 }
+func TestJobRevertCommand_VersionTag(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+	state := srv.Agent.Server().State()
+
+	// Create a job with multiple versions
+	v0 := mock.Job()
+	v0.ID = "test-job-revert"
+	v0.TaskGroups[0].Count = 1
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, v0))
+
+	v1 := v0.Copy()
+	v1.TaskGroups[0].Count = 2
+	v1.TaggedVersion = &structs.JobTaggedVersion{
+		Name:        "v1-tag",
+		Description: "Version 1 tag",
+	}
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, v1))
+
+	v2 := v0.Copy()
+	v2.TaskGroups[0].Count = 3
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, v2))
+
+	t.Run("Revert to version tag", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobRevertCommand{Meta: Meta{Ui: ui}}
+
+		code := cmd.Run([]string{"-address", url, "-detach", "test-job-revert", "v1-tag"})
+		must.Zero(t, code)
+	})
+
+	t.Run("Revert to non-existent version tag", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobRevertCommand{Meta: Meta{Ui: ui}}
+
+		code := cmd.Run([]string{"-address", url, "-detach", "test-job-revert", "non-existent-tag"})
+		must.One(t, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "Error retrieving job versions")
+		must.StrContains(t, ui.ErrorWriter.String(), "tag \"non-existent-tag\" not found")
+	})
+
+	t.Run("Revert to version number", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobRevertCommand{Meta: Meta{Ui: ui}}
+
+		code := cmd.Run([]string{"-address", url, "-detach", "test-job-revert", "0"})
+		must.Zero(t, code)
+	})
+
+	t.Run("Throws errors with incorrect number of args", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobRevertCommand{Meta: Meta{Ui: ui}}
+
+		code := cmd.Run([]string{"-address", url, "test-job-revert", "v1-tag", "0"})
+		must.One(t, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "This command takes two arguments")
+
+		code2 := cmd.Run([]string{"-address", url, "test-job-revert"})
+		must.One(t, code2)
+		must.StrContains(t, ui.ErrorWriter.String(), "This command takes two arguments")
+	})
+}
