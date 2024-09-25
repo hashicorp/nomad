@@ -457,6 +457,31 @@ export default function () {
     return this.serialize(jobVersions.where({ jobId: params.id }));
   });
 
+  this.post(
+    '/job/:id/versions/:version/tag',
+    function ({ jobVersions }, { params }) {
+      // Create a new version tag
+      const tag = server.create('version-tag', {
+        jobVersion: jobVersions.findBy({
+          jobId: params.id,
+          version: params.version,
+        }),
+        name: params.name,
+        description: params.description,
+      });
+      return this.serialize(tag);
+    }
+  );
+
+  this.delete(
+    '/job/:id/versions/:version/tag',
+    function ({ jobVersions }, { params }) {
+      return this.serialize(
+        jobVersions.findBy({ jobId: params.id, version: params.version })
+      );
+    }
+  );
+
   this.get('/job/:id/deployments', function ({ deployments }, { params }) {
     return this.serialize(deployments.where({ jobId: params.id }));
   });
