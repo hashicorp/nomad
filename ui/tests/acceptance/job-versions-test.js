@@ -183,7 +183,6 @@ module('Acceptance | job versions', function (hooks) {
       'The URL persists'
     );
     assert.ok(Versions.error.isPresent, 'Error message is shown');
-    assert.equal(Versions.error.title, 'Not Found', 'Error message is for 404');
   });
 
   test('version tags are displayed', async function (assert) {

@@ -198,8 +198,6 @@ export default class JobSerializer extends ApplicationSerializer {
       delete hash._aggregate;
     }
 
-    console.log('extra extra', hash, this.get('snapshot'));
-
     return assign(super.extractRelationships(...arguments), {
       allocations: {
         data: hash.Allocs?.map((alloc) => ({
@@ -212,11 +210,7 @@ export default class JobSerializer extends ApplicationSerializer {
       },
       versions: {
         links: {
-          related: buildURL(`${jobURL}/versions`, {
-            namespace,
-            diffs: true,
-            diffVersion: 3,
-          }),
+          related: buildURL(`${jobURL}/versions`, { namespace, diffs: true }),
         },
       },
       deployments: {

@@ -12,10 +12,7 @@ import { action, computed } from '@ember/object';
 import classic from 'ember-classic-decorator';
 import { tracked } from '@glimmer/tracking';
 
-import {
-  serialize,
-  deserializedQueryParam as selection,
-} from 'nomad-ui/utils/qp-serialize';
+import { serialize } from 'nomad-ui/utils/qp-serialize';
 
 const alertClassFallback = 'is-info';
 
@@ -56,9 +53,13 @@ export default class VersionsController extends Controller.extend(
     return this.job.versions.map((version) => {
       return {
         label: version.taggedVersion?.name || `version ${version.number}`,
-        value: version.number,
+        value: String(version.number),
       };
     });
+  }
+
+  get diffsExpanded() {
+    return this.diffVersion !== '';
   }
 
   @action setDiffVersion(label) {

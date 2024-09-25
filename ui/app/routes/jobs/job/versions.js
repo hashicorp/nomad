@@ -21,48 +21,17 @@ export default class VersionsRoute extends Route.extend(WithWatchers) {
     },
   };
 
-  // model() {
-  //   console.log('model refire');
-  //   const job = this.modelFor('jobs.job');
-  //   const versions = job.get('versions');
-  //   return job && job.get('versions').then(() => job);
-  // }
-
   async model(params) {
-    console.log('model refire', params);
     const job = this.modelFor('jobs.job');
+    const versions = await job.getVersions(params.diffVersion);
 
-    // Force reload of the versions relationship
-    await job.hasMany('versions').reload({
-      adapterOptions: {
-        diffVersion: params.diffVersion,
-      },
+    job.versions = job.versions.map((v, i) => {
+      const diff = versions.Diffs[i];
+      v.set('diff', diff);
+      return v;
     });
-
-    console.log('versions on the job', job.versions);
-
     return job;
   }
-
-  // async model(params) {
-  //   console.log('model refire', params);
-  //   const job = this.modelFor('jobs.job');
-
-  //   // Fetch versions based on diffVersion
-  //   const versions = await this.store.query('job-version', {
-  //     job: job.id,
-  //     diffs: true,
-  //     diffVersion: params.diffVersion
-  //   });
-
-  //   console.log('versions as fetched', versions);
-  //   console.log('versions on the job', job.versions);
-
-  //   // // Set the versions on the job model
-  //   // job.set('versions', versions);
-
-  //   return job;
-  // }
 
   startWatchers(controller, model) {
     if (model) {
