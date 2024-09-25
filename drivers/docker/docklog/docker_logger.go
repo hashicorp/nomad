@@ -121,14 +121,10 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 
 			// attempt to check if the container uses a TTY. if it does, there is no
 			// multiplexing or headers in the log stream
-			container, _ := client.ContainerInspect(ctx, opts.ContainerID)
-
-			if container.Config != nil {
-				if container.Config.Tty {
-					_, err = io.Copy(stdout, logs)
-				} else {
-					_, err = stdcopy.StdCopy(stdout, stderr, logs)
-				}
+			if opts.TTY {
+				_, err = io.Copy(stdout, logs)
+			} else {
+				_, err = stdcopy.StdCopy(stdout, stderr, logs)
 			}
 			if err != nil && err != io.EOF {
 				d.logger.Error("log streaming ended with error", "error", err)
@@ -137,7 +133,7 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 
 			sinceTime = time.Now()
 
-			container, err = client.ContainerInspect(ctx, opts.ContainerID)
+			container, err := client.ContainerInspect(ctx, opts.ContainerID)
 			if err != nil {
 				if !strings.Contains(err.Error(), "No such container") {
 					return
