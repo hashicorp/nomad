@@ -2028,7 +2028,7 @@ func TestHTTP_JobRevert(t *testing.T) {
 
 		args := structs.JobRevertRequest{
 			JobID:      job.ID,
-			JobVersion: 0,
+			JobVersion: pointer.Of(uint64(0)),
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				Namespace: structs.DefaultNamespace,
