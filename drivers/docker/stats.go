@@ -139,7 +139,9 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 		defer statsReader.Body.Close()
 
 		var stats containerapi.Stats
-		binary.Read(statsReader.Body, binary.LittleEndian, &stats)
+		if err := binary.Read(statsReader.Body, binary.LittleEndian, &stats); err != nil {
+			h.logger.Error("error decoding stats data for container", "error", err)
+		}
 
 		statsCh <- &stats
 
