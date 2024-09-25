@@ -31,6 +31,7 @@ const (
 	attrVal   = "amd64"
 	nodeName  = "test node"
 	nodeClass = "test class"
+	nodePool  = "test pool"
 
 	// Environment variable values that tests can rely on
 	envOneKey = "NOMAD_IP"
@@ -56,6 +57,7 @@ func testEnvBuilder() *Builder {
 	}
 	n.Name = nodeName
 	n.NodeClass = nodeClass
+	n.NodePool = nodePool
 
 	task := mock.Job().TaskGroups[0].Tasks[0]
 	task.Env = map[string]string{
@@ -108,8 +110,8 @@ func TestEnvironment_ParseAndReplace_Attr(t *testing.T) {
 func TestEnvironment_ParseAndReplace_Node(t *testing.T) {
 	ci.Parallel(t)
 
-	input := []string{fmt.Sprintf("${%v}", nodeNameKey), fmt.Sprintf("${%v}", nodeClassKey)}
-	exp := []string{nodeName, nodeClass}
+	input := []string{fmt.Sprintf("${%v}", nodeNameKey), fmt.Sprintf("${%v}", nodeClassKey), fmt.Sprintf("${%v}", nodePoolKey)}
+	exp := []string{nodeName, nodeClass, nodePool}
 	env := testEnvBuilder()
 	act := env.Build().ParseAndReplace(input)
 

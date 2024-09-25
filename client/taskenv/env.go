@@ -142,6 +142,7 @@ const (
 	nodeRegionKey = "node.region"
 	nodeNameKey   = "node.unique.name"
 	nodeClassKey  = "node.class"
+	nodePoolKey   = "node.pool"
 
 	// Prefixes used for lookups.
 	nodeAttributePrefix = "attr."
@@ -855,6 +856,7 @@ func (b *Builder) setNode(n *structs.Node) *Builder {
 	b.nodeAttrs[nodeNameKey] = n.Name
 	b.nodeAttrs[nodeClassKey] = n.NodeClass
 	b.nodeAttrs[nodeDcKey] = n.Datacenter
+	b.nodeAttrs[nodePoolKey] = n.NodePool
 	b.datacenter = n.Datacenter
 	b.cgroupParent = n.CgroupParent
 
