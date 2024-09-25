@@ -34,10 +34,7 @@ func DockerStatsToTaskResourceUsage(s *containerapi.Stats, compute cpustats.Comp
 	}
 
 	ms := &cstructs.MemoryStats{
-		RSS:        s.MemoryStats.Stats["Rss"],
-		Cache:      s.MemoryStats.Stats["Cache"],
-		Swap:       s.MemoryStats.Stats["Swap"],
-		MappedFile: s.MemoryStats.Stats["MappedFile"],
+		MappedFile: s.MemoryStats.Stats["file_mapped"],
 		Usage:      s.MemoryStats.Usage,
 		MaxUsage:   s.MemoryStats.MaxUsage,
 		Measured:   measuredMems,

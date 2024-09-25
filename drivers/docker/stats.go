@@ -4,8 +4,9 @@
 package docker
 
 import (
+	"bufio"
 	"context"
-	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"sync"
@@ -136,17 +137,32 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 			retry++
 			continue
 		}
-		defer statsReader.Body.Close()
 
 		var stats containerapi.Stats
-		if err := binary.Read(statsReader.Body, binary.LittleEndian, &stats); err != nil {
-			h.logger.Error("error decoding stats data for container", "error", err)
+		statsStringScanner := bufio.NewScanner(statsReader.Body)
+
+		// StatsResponseReader that the SDK returns is somewhat unpredictable. Sometimes
+		// during 1 interval window, it will respond with multiple Stats objects,
+		// sometimes it won't. The reader won't close until the container stops, so it's
+		// up to us to digest this stream carefully.
+		// The scanner below gets just one line and sends it to the channel.
+		for statsStringScanner.Scan() {
+			if err := json.Unmarshal(statsStringScanner.Bytes(), &stats); err != nil {
+				h.logger.Error("error unmarshalling stats data for container", "error", err)
+				break
+			}
+			statsCh <- &stats
+			break
 		}
 
-		statsCh <- &stats
+		if err := statsStringScanner.Err(); err != nil {
+			h.logger.Error("error scanning stats data for container", "error", err)
+			return
+		}
 
 		// Stats finished either because context was canceled, doneCh was closed
 		// or the container stopped. Stop stats collections.
+		statsReader.Body.Close()
 		return
 	}
 }
@@ -154,7 +170,7 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 func dockerStatsCollector(destCh *usageSender, statsCh <-chan *containerapi.Stats, interval time.Duration, compute cpustats.Compute) {
 	var resourceUsage *cstructs.TaskResourceUsage
 
-	// hasSentInitialStats is used so as to emit the first stats received from
+	// hasSentInitialStats is used to emit the first stats received from
 	// the docker daemon
 	var hasSentInitialStats bool
 
