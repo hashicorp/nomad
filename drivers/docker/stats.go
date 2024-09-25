@@ -121,8 +121,9 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 
 		// make a channel for docker stats structs and start a collector to
 		// receive stats from docker and emit nomad stats
-		// statsCh will always be closed by docker client.
 		statsCh := make(chan *containerapi.Stats)
+		defer close(statsCh)
+
 		go dockerStatsCollector(destCh, statsCh, interval, compute)
 
 		// ContainerStats returns a StatsResponseReader. Body of that reader
@@ -154,10 +155,11 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 			h.logger.Error("error unmarshalling stats data for container", "error", err)
 		}
 
+		statsCh <- &stats
+
 		// Stats finished either because context was canceled, doneCh was closed
 		// or the container stopped. Stop stats collections.
 		statsReader.Body.Close()
-		close(statsCh)
 		return
 	}
 }

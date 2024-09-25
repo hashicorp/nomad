@@ -2201,45 +2201,45 @@ func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
 	must.False(t, ok)
 }
 
-// func TestDockerDriver_Stats(t *testing.T) {
-// 	ci.Parallel(t)
-// 	testutil.DockerCompatible(t)
+func TestDockerDriver_Stats(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
 
-// 	task, cfg, _ := dockerTask(t)
+	task, cfg, _ := dockerTask(t)
 
-// 	cfg.Command = "sleep"
-// 	cfg.Args = []string{"1000"}
-// 	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	cfg.Command = "sleep"
+	cfg.Args = []string{"1000"}
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-// 	_, d, handle, cleanup := dockerSetup(t, task, nil)
-// 	defer cleanup()
-// 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+	_, d, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-// 	go func() {
-// 		defer d.DestroyTask(task.ID, true)
-// 		ctx, cancel := context.WithCancel(context.Background())
-// 		defer cancel()
-// 		ch, err := handle.Stats(ctx, 1*time.Second, top.Compute())
-// 		must.NoError(t, err)
-// 		select {
-// 		case ru := <-ch:
-// 			must.NotNil(t, ru.ResourceUsage)
-// 		case <-time.After(3 * time.Second):
-// 			require.Fail(t, "stats timeout")
-// 		}
-// 	}()
+	go func() {
+		defer d.DestroyTask(task.ID, true)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		ch, err := handle.Stats(ctx, 1*time.Second, top.Compute())
+		must.NoError(t, err)
+		select {
+		case ru := <-ch:
+			must.NotNil(t, ru.ResourceUsage)
+		case <-time.After(3 * time.Second):
+			t.Fatal("stats timeout")
+		}
+	}()
 
-// 	waitCh, err := d.WaitTask(context.Background(), task.ID)
-// 	must.NoError(t, err)
-// 	select {
-// 	case res := <-waitCh:
-// 		if res.Successful() {
-// 			t.Fatalf("should err: %v", res)
-// 		}
-// 	case <-time.After(time.Duration(tu.TestMultiplier()*10) * time.Second):
-// 		t.Fatalf("timeout")
-// 	}
-// }
+	waitCh, err := d.WaitTask(context.Background(), task.ID)
+	must.NoError(t, err)
+	select {
+	case res := <-waitCh:
+		if res.Successful() {
+			t.Fatalf("should err: %v", res)
+		}
+	case <-time.After(time.Duration(tu.TestMultiplier()*10) * time.Second):
+		t.Fatal("timeout")
+	}
+}
 
 func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath string) (*drivers.TaskConfig, *dtestutil.DriverHarness, *TaskConfig, string, func()) {
 	testutil.DockerCompatible(t)
