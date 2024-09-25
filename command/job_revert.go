@@ -160,7 +160,13 @@ func (c *JobRevertCommand) Run(args []string) int {
 	// Prefix lookup matched a single job
 	q := &api.WriteOptions{Namespace: namespace}
 
-	resp, _, err := client.Jobs().Revert(jobID, revertVersion, revertVersionTag, nil, q, consulToken, vaultToken)
+	opts := &api.RevertOptions{
+		Version:     revertVersion,
+		VersionTag:  revertVersionTag,
+		ConsulToken: consulToken,
+		VaultToken:  vaultToken,
+	}
+	resp, _, err := client.Jobs().RevertOpts(jobID, opts, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1

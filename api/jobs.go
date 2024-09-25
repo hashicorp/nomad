@@ -531,17 +531,35 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 // Revert is used to revert the given job to the passed version. If
 // enforceVersion is set, the job is only reverted if the current version is at
 // the passed version.
-func (j *Jobs) Revert(jobID string, version *uint64, versionTag *string, enforcePriorVersion *uint64,
+func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
 	q *WriteOptions, consulToken, vaultToken string) (*JobRegisterResponse, *WriteMeta, error) {
 
+	opts := &RevertOptions{
+		Version:             &version,
+		ConsulToken:         consulToken,
+		VaultToken:          vaultToken,
+		EnforcePriorVersion: enforcePriorVersion,
+	}
+	return j.RevertOpts(jobID, opts, q)
+}
+
+type RevertOptions struct {
+	Version             *uint64
+	VersionTag          *string
+	EnforcePriorVersion *uint64
+	ConsulToken         string
+	VaultToken          string
+}
+
+func (j *Jobs) RevertOpts(jobID string, opts *RevertOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	var resp JobRegisterResponse
 	req := &JobRevertRequest{
 		JobID:               jobID,
-		JobVersion:          version,
-		EnforcePriorVersion: enforcePriorVersion,
-		ConsulToken:         consulToken,
-		VaultToken:          vaultToken,
-		JobVersionTag:       versionTag,
+		JobVersion:          opts.Version,
+		EnforcePriorVersion: opts.EnforcePriorVersion,
+		ConsulToken:         opts.ConsulToken,
+		VaultToken:          opts.VaultToken,
+		JobVersionTag:       opts.VersionTag,
 	}
 	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
 	if err != nil {
