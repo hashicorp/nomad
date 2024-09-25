@@ -261,8 +261,7 @@ func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
 		copyImage(t, task.TaskDir(), "busybox.tar")
 
 		_, _, err := d.StartTask(task)
-		must.NotNil(t, err, must.Sprint("Expected non nil error"))
-		must.StrContains(t, err.Error(), tc.err.Error())
+		must.ErrorContains(t, err, tc.err.Error())
 	}
 }
 
