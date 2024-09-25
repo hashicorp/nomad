@@ -2215,23 +2215,29 @@ func TestDockerDriver_Stats(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	go func() {
-		defer d.DestroyTask(task.ID, true)
+	statsErr := make(chan struct{})
+	go func(errChan chan struct{}) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
 		ch, err := handle.Stats(ctx, 1*time.Second, top.Compute())
 		must.NoError(t, err)
+
 		select {
 		case ru := <-ch:
 			must.NotNil(t, ru.ResourceUsage)
 		case <-time.After(3 * time.Second):
-			t.Fatal("stats timeout")
+			errChan <- struct{}{}
 		}
-	}()
+
+		must.NoError(t, d.DestroyTask(task.ID, true))
+	}(statsErr)
 
 	waitCh, err := d.WaitTask(context.Background(), task.ID)
 	must.NoError(t, err)
 	select {
+	case <-statsErr:
+		t.Fatal("stats collection timeout")
 	case res := <-waitCh:
 		if res.Successful() {
 			t.Fatalf("should err: %v", res)
