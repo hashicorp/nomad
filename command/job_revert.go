@@ -143,28 +143,17 @@ func (c *JobRevertCommand) Run(args []string) int {
 	if ok && err == nil {
 		revertVersion = parsedVersion
 	} else {
-		// If parsing as a version number fails, treat it as a version tag
-		// tag := args[1]
-		// revertVersionTag = &tag
-		// TODO: instead of making revertVersionTag, let's get the number of the version with that tag here.
 		client, err := c.Meta.Client()
-		foundTaggedVersion := false
-		taggedVersion, _, _, err := client.Jobs().Versions(args[0], false, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+			return 1
+		}
+		foundTaggedVersion, _, err := client.Jobs().VersionByTag(args[0], args[1], nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 			return 1
 		}
-		for _, version := range taggedVersion {
-			if version.TaggedVersion != nil && version.TaggedVersion.Name == args[1] {
-				revertVersion = *version.Version
-				foundTaggedVersion = true
-				break
-			}
-		}
-		if !foundTaggedVersion {
-			c.Ui.Error(fmt.Sprintf("Version tag %s not found for job %s", args[1], args[0]))
-			return 1
-		}
+		revertVersion = *foundTaggedVersion.Version
 	}
 
 	// Check if the job exists
@@ -177,7 +166,6 @@ func (c *JobRevertCommand) Run(args []string) int {
 
 	// Prefix lookup matched a single job
 	q := &api.WriteOptions{Namespace: namespace}
-
 	resp, _, err := client.Jobs().Revert(jobID, revertVersion, nil, q, consulToken, vaultToken)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))

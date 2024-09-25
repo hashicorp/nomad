@@ -241,7 +241,7 @@ func TestJobRevertCommand_VersionTag(t *testing.T) {
 		code := cmd.Run([]string{"-address", url, "-detach", "test-job-revert", "non-existent-tag"})
 		must.One(t, code)
 		must.StrContains(t, ui.ErrorWriter.String(), "Error retrieving job versions")
-		must.StrContains(t, ui.ErrorWriter.String(), "tag \"non-existent-tag\" not found")
+		must.StrContains(t, ui.ErrorWriter.String(), "tag non-existent-tag not found")
 	})
 
 	t.Run("Revert to version number", func(t *testing.T) {

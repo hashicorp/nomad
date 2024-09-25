@@ -639,7 +639,6 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	if cur == nil {
 		return fmt.Errorf("job %q not found", args.JobID)
 	}
-
 	if args.JobVersion == cur.Version {
 		return fmt.Errorf("can't revert to current version")
 	}

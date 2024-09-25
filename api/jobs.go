@@ -270,6 +270,23 @@ func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*J
 	return j.VersionsOpts(jobID, opts, q)
 }
 
+// VersionByTag is used to retrieve a job version by its TaggedVersion name.
+func (j *Jobs) VersionByTag(jobID, tag string, q *QueryOptions) (*Job, *QueryMeta, error) {
+	versions, _, qm, err := j.Versions(jobID, false, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Find the version with the matching tag
+	for _, version := range versions {
+		if version.TaggedVersion != nil && version.TaggedVersion.Name == tag {
+			return version, qm, nil
+		}
+	}
+
+	return nil, nil, fmt.Errorf("version tag %s not found for job %s", tag, jobID)
+}
+
 type VersionsOptions struct {
 	Diffs       bool
 	DiffTag     string
