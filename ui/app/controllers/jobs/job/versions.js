@@ -3,11 +3,19 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
+
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import { alias } from '@ember/object/computed';
 import { action, computed } from '@ember/object';
 import classic from 'ember-classic-decorator';
+import { tracked } from '@glimmer/tracking';
+
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 
 const alertClassFallback = 'is-info';
 
@@ -24,6 +32,8 @@ export default class VersionsController extends Controller.extend(
 
   @alias('model') job;
 
+  queryParams = ['diffVersion'];
+
   @computed('error.level')
   get errorLevelClass() {
     return (
@@ -38,5 +48,24 @@ export default class VersionsController extends Controller.extend(
   @action
   handleError(errorObject) {
     this.set('error', errorObject);
+  }
+
+  @tracked diffVersion = '';
+
+  get optionsDiff() {
+    return this.job.versions.map((version) => {
+      return {
+        label: version.taggedVersion?.name || `version ${version.number}`,
+        value: version.number,
+      };
+    });
+  }
+
+  @action setDiffVersion(label) {
+    if (!label) {
+      this.diffVersion = '';
+    } else {
+      this.diffVersion = serialize(label);
+    }
   }
 }

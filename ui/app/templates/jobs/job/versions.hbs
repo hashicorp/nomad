@@ -6,6 +6,39 @@
 {{page-title "Job " this.job.name " versions"}}
 <JobSubnav @job={{this.job}} />
 <section class="section">
+
+  <Hds::SegmentedGroup as |S|>
+    <S.Dropdown data-test-diff-facet as |dd|>
+      <dd.ToggleButton
+        @text="Diff against previous version"
+        @color="secondary"
+      />
+        <dd.Radio
+          name="diff"
+          @value="NIL"
+          {{on "change" (action this.setDiffVersion "")}}
+        />
+      {{#each this.optionsDiff key="label" as |option|}}
+        <dd.Radio
+          name="diff"
+          {{on "change" (action this.setDiffVersion
+            option.value
+          )}}
+          @value={{option.label}}
+          checked={{includes option.label this.selectionDiff}}
+          data-test-dropdown-option={{option.label}}
+      >
+          {{option.label}}
+        </dd.Radio>
+      {{else}}
+        <dd.Generic data-test-dropdown-empty>
+          No Volume filters
+        </dd.Generic>
+      {{/each}}
+    </S.Dropdown>
+  </Hds::SegmentedGroup>
+
+
   {{#if this.error}}
     <div data-test-inline-error class="notification {{this.errorLevelClass}}">
       <div class="columns">
