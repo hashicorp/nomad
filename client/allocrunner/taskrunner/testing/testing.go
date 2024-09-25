@@ -6,6 +6,7 @@ package testing
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -48,6 +49,9 @@ type MockTaskHooks struct {
 
 	EmitEventCh chan *structs.TaskEvent
 	events      []*structs.TaskEvent
+
+	execCode int
+	execErr  error
 
 	// HasHandle can be set to simulate restoring a task after client restart
 	HasHandle bool
@@ -103,6 +107,21 @@ func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) erro
 	default:
 	}
 	return nil
+}
+
+func (m *MockTaskHooks) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	return []byte{}, m.execCode, m.execErr
+}
+
+func (m *MockTaskHooks) SetupExecTest(code int, err error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.execCode = code
+	m.execErr = err
 }
 
 func (m *MockTaskHooks) IsRunning() bool {

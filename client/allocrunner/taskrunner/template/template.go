@@ -60,10 +60,6 @@ type TaskTemplateManager struct {
 	// runner is the consul-template runner
 	runner *manager.Runner
 
-	// handle is used to execute scripts
-	handle     interfaces.ScriptExecutor
-	handleLock sync.Mutex
-
 	// signals is a lookup map from the string representation of a signal to its
 	// actual signal
 	signals map[string]os.Signal
@@ -218,14 +214,6 @@ func (tm *TaskTemplateManager) Stop() {
 	if tm.runner != nil {
 		tm.runner.Stop()
 	}
-}
-
-// SetDriverHandle sets the executor
-func (tm *TaskTemplateManager) SetDriverHandle(executor interfaces.ScriptExecutor) {
-	tm.handleLock.Lock()
-	defer tm.handleLock.Unlock()
-	tm.handle = executor
-
 }
 
 // run is the long lived loop that handles errors and templates being rendered
@@ -583,21 +571,10 @@ func (tm *TaskTemplateManager) handleScriptError(script *structs.ChangeScript, m
 func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	tm.handleLock.Lock()
-	defer tm.handleLock.Unlock()
-	if tm.handle == nil {
-		failureMsg := fmt.Sprintf(
-			"Template failed to run script %v with arguments %v because task driver handle is not available",
-			script.Command,
-			script.Args,
-		)
-		tm.handleScriptError(script, failureMsg)
-		return
-	}
-	_, exitCode, err := tm.handle.Exec(script.Timeout, script.Command, script.Args)
+	_, exitCode, err := tm.config.Lifecycle.Exec(script.Timeout, script.Command, script.Args)
 	if err != nil {
 		failureMsg := fmt.Sprintf(
-			"Template failed to run script %v with arguments %v on change: %v Exit code: %v",
+			"Template failed to run script %v with arguments %v on change: %v. Exit code: %v",
 			script.Command,
 			script.Args,
 			err,
@@ -608,7 +585,7 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 	}
 	if exitCode != 0 {
 		failureMsg := fmt.Sprintf(
-			"Template ran script %v with arguments %v on change but it exited with code code: %v",
+			"Template ran script %v with arguments %v on change but it exited with code: %v",
 			script.Command,
 			script.Args,
 			exitCode,
@@ -619,10 +596,9 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 	tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
 		SetDisplayMessage(
 			fmt.Sprintf(
-				"Template successfully ran script %v with arguments: %v. Exit code: %v",
+				"Template successfully ran script %v with arguments: %v. Exit code: 0",
 				script.Command,
 				script.Args,
-				exitCode,
 			)))
 }
 

@@ -55,11 +55,6 @@ type templateHookConfig struct {
 
 	// hookResources are used to fetch Consul tokens
 	hookResources *cstructs.AllocHookResources
-
-	// driverHandle is the task driver executor used to run scripts when the
-	// template change mode is set to script. Typically this will be nil in this
-	// config struct, unless we're restoring a task after a client restart.
-	driverHandle ti.ScriptExecutor
 }
 
 type templateHook struct {
@@ -71,15 +66,6 @@ type templateHook struct {
 	// templateManager is used to manage any consul-templates this task may have
 	templateManager *template.TaskTemplateManager
 	managerLock     sync.Mutex
-
-	// driverHandle is the task driver executor used by the template manager to
-	// run scripts when the template change mode is set to script. This value is
-	// set in the Poststart hook after the task has run, or passed in as
-	// configuration if this is a task that's being restored after a client
-	// restart.
-	//
-	// Must obtain a managerLock before changing. It may be nil.
-	driverHandle ti.ScriptExecutor
 
 	// consulNamespace is the current Consul namespace
 	consulNamespace string
@@ -113,7 +99,6 @@ func newTemplateHook(config *templateHookConfig) *templateHook {
 		config:          config,
 		consulNamespace: config.consulNamespace,
 		logger:          config.logger.Named(templateHookName),
-		driverHandle:    config.driverHandle,
 	}
 }
 
@@ -201,27 +186,6 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	return nil
 }
 
-func (h *templateHook) Poststart(_ context.Context, req *interfaces.TaskPoststartRequest, resp *interfaces.TaskPoststartResponse) error {
-	h.managerLock.Lock()
-	defer h.managerLock.Unlock()
-
-	if h.templateManager == nil {
-		return nil
-	}
-
-	if req.DriverExec != nil {
-		h.driverHandle = req.DriverExec
-		h.templateManager.SetDriverHandle(h.driverHandle)
-	} else {
-		for _, tmpl := range h.config.templates {
-			if tmpl.ChangeMode == structs.TemplateChangeModeScript {
-				return fmt.Errorf("template has change mode set to 'script' but task driver handle is not available")
-			}
-		}
-	}
-	return nil
-}
-
 func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	unblock = make(chan struct{})
 
@@ -263,9 +227,6 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	}
 
 	h.templateManager = m
-	if h.driverHandle != nil {
-		h.templateManager.SetDriverHandle(h.driverHandle)
-	}
 	return unblock, nil
 }
 

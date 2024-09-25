@@ -59,16 +59,6 @@ const (
 	TestTaskName = "test-task"
 )
 
-// mockExecutor implements script executor interface
-type mockExecutor struct {
-	DesiredExit int
-	DesiredErr  error
-}
-
-func (m *mockExecutor) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
-	return []byte{}, m.DesiredExit, m.DesiredErr
-}
-
 // testHarness is used to test the TaskTemplateManager by spinning up
 // Consul/Vault as needed
 type testHarness struct {
@@ -1146,7 +1136,7 @@ func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
 	key2 := "bar"
 	content1_1 := "cat"
 	content1_2 := "dog"
-	content1_3 := "goldfish"
+
 	t1 := &structs.Template{
 		EmbeddedTmpl: `
 FOO={{key "bam"}}
@@ -1176,10 +1166,9 @@ BAR={{key "bar"}}
 		Envvars: true,
 	}
 
-	me := mockExecutor{DesiredExit: 0, DesiredErr: nil}
 	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
+	harness.mockHooks.SetupExecTest(0, nil)
 	harness.start(t)
-	harness.manager.SetDriverHandle(&me)
 	defer harness.stop()
 
 	// Ensure no unblock
@@ -1218,29 +1207,6 @@ OUTER:
 			t.Fatal(t, "signal not expected")
 		case <-timeout:
 			t.Fatal(t, "should have received an event")
-		}
-	}
-
-	// remove the reference to the task handle and update the template contents
-	// again
-	harness.manager.SetDriverHandle(nil)
-	harness.consul.SetKV(t, key1, []byte(content1_3))
-	timeout = time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second)
-
-OUTER2:
-	for {
-		select {
-		case <-harness.mockHooks.RestartCh:
-			t.Fatal(t, "restart not expected")
-		case ev := <-harness.mockHooks.EmitEventCh:
-			if strings.Contains(
-				ev.DisplayMessage, "task driver handle is not available") {
-				break OUTER2
-			}
-		case <-harness.mockHooks.SignalCh:
-			t.Fatal(t, "signal not expected")
-		case <-timeout:
-			t.Fatal(t, "should have received an event that task driver handle is unavailable")
 		}
 	}
 }
@@ -1285,10 +1251,9 @@ BAR={{key "bar"}}
 		Envvars: true,
 	}
 
-	me := mockExecutor{DesiredExit: 1, DesiredErr: fmt.Errorf("Script failed")}
 	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
+	harness.mockHooks.SetupExecTest(1, fmt.Errorf("Script failed"))
 	harness.start(t)
-	harness.manager.SetDriverHandle(&me)
 	defer harness.stop()
 
 	// Ensure no unblock
@@ -1365,10 +1330,9 @@ COMMON={{key "common"}}
 		templateScript,
 	}
 
-	me := mockExecutor{DesiredExit: 0, DesiredErr: nil}
 	harness := newTestHarness(t, templates, true, false)
+	harness.mockHooks.SetupExecTest(0, nil)
 	harness.start(t)
-	harness.manager.SetDriverHandle(&me)
 	defer harness.stop()
 
 	// Ensure no unblock
