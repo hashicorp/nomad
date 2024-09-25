@@ -818,7 +818,7 @@ func (d *Driver) findPauseContainer(allocID string) (string, error) {
 		return "", err
 	}
 
-	containers, listErr := dockerClient.ContainerList(d.ctx, containerapi.ListOptions{
+	containers, listErr := dockerClient.ContainerList(context.Background(), containerapi.ListOptions{
 		All:     false, // running only
 		Filters: filters.NewArgs(filters.KeyValuePair{Key: "label", Value: dockerLabelAllocID}),
 	})
@@ -852,7 +852,7 @@ func (d *Driver) recoverPauseContainers(ctx context.Context) {
 		return
 	}
 
-	containers, listErr := dockerClient.ContainerList(d.ctx, containerapi.ListOptions{
+	containers, listErr := dockerClient.ContainerList(ctx, containerapi.ListOptions{
 		All:     false, // running only
 		Filters: filters.NewArgs(filters.KeyValuePair{Key: "label", Value: dockerLabelAllocID}),
 	})
