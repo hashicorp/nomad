@@ -173,7 +173,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 					return 1
 				}
 
-				out, err := Format(true, c.tmpl, jsonJobs)
+				out, err := Format(c.json, c.tmpl, jsonJobs)
 				if err != nil {
 					c.Ui.Error(err.Error())
 					return 1
@@ -220,7 +220,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 			return 1
 		}
 
-		out, err := Format(true, c.tmpl, jsonJobs)
+		out, err := Format(c.json, c.tmpl, jsonJobs)
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
