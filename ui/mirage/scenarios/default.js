@@ -359,7 +359,7 @@ function smallCluster(server) {
     job: versionTaggedJob,
     namespace: 'default',
     version: 1,
-    taggedVersion: {
+    versionTag: {
       Name: 'burrito',
       Description: 'A delicious version',
     },
@@ -369,7 +369,7 @@ function smallCluster(server) {
     job: versionTaggedJob,
     namespace: 'default',
     version: 2,
-    taggedVersion: {
+    versionTag: {
       Name: 'enchilada',
       Description: 'A version with just a hint of spice',
     },

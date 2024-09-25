@@ -52,7 +52,7 @@ export default class VersionsController extends Controller.extend(
   get optionsDiff() {
     return this.job.versions.map((version) => {
       return {
-        label: version.taggedVersion?.name || `version ${version.number}`,
+        label: version.versionTag?.name || `version ${version.number}`,
         value: String(version.number),
       };
     });

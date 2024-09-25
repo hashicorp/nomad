@@ -430,7 +430,7 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 		JobID:   jobID,
 		Version: args.Version,
 		Name:    name,
-		Tag: &structs.JobTaggedVersion{
+		Tag: &structs.JobVersionTag{
 			Name:        name,
 			Description: args.Description,
 		},
@@ -1113,7 +1113,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
 		UI:             ApiJobUIConfigToStructs(job.UI),
-		TaggedVersion:  ApiJobTaggedVersionToStructs(job.TaggedVersion),
+		VersionTag:     ApiJobVersionTagToStructs(job.VersionTag),
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -2218,15 +2218,15 @@ func ApiJobUIConfigToStructs(jobUI *api.JobUIConfig) *structs.JobUIConfig {
 	}
 }
 
-func ApiJobTaggedVersionToStructs(jobTaggedVersion *api.JobTaggedVersion) *structs.JobTaggedVersion {
-	if jobTaggedVersion == nil {
+func ApiJobVersionTagToStructs(jobVersionTag *api.JobVersionTag) *structs.JobVersionTag {
+	if jobVersionTag == nil {
 		return nil
 	}
 
-	return &structs.JobTaggedVersion{
-		Name:        jobTaggedVersion.Name,
-		Description: jobTaggedVersion.Description,
-		TaggedTime:  jobTaggedVersion.TaggedTime,
+	return &structs.JobVersionTag{
+		Name:        jobVersionTag.Name,
+		Description: jobVersionTag.Description,
+		TaggedTime:  jobVersionTag.TaggedTime,
 	}
 }
 

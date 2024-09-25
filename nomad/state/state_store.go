@@ -2191,7 +2191,7 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 	// Find the oldest non-tagged version to delete
 	deleteIdx := -1
 	for i := len(all) - 1; i >= max; i-- {
-		if all[i].TaggedVersion == nil {
+		if all[i].VersionTag == nil {
 			deleteIdx = i
 			break
 		}
@@ -2325,7 +2325,7 @@ func (s *StateStore) JobVersionByTagName(ws memdb.WatchSet, namespace, id string
 		return nil, err
 	}
 	for _, j := range versions {
-		if j.TaggedVersion != nil && j.TaggedVersion.Name == tagName {
+		if j.VersionTag != nil && j.VersionTag.Name == tagName {
 			return j, nil
 		}
 	}
@@ -4952,7 +4952,7 @@ func (s *StateStore) UpdateJobVersionTag(index uint64, namespace string, req *st
 	return txn.Commit()
 }
 
-func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobTaggedVersion, txn *txn) error {
+func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobVersionTag, txn *txn) error {
 	// Note: could use JobByIDAndVersion to get the specific version we want here,
 	// but then we'd have to make a second lookup to make sure we're not applying a duplicate tag name
 	versions, err := s.JobVersionsByID(nil, namespace, jobID)
@@ -4964,7 +4964,7 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 
 	for _, version := range versions {
 		// Allow for a tag to be updated (new description, for example) but otherwise don't allow a same-tagname to a different version.
-		if version.TaggedVersion != nil && version.TaggedVersion.Name == tag.Name && version.Version != jobVersion {
+		if version.VersionTag != nil && version.VersionTag.Name == tag.Name && version.Version != jobVersion {
 			return fmt.Errorf("tag %q already exists on a different version of job %q", tag.Name, jobID)
 		}
 		if version.Version == jobVersion {
@@ -4977,7 +4977,7 @@ func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID stri
 	}
 
 	versionCopy := job.Copy()
-	versionCopy.TaggedVersion = tag
+	versionCopy.VersionTag = tag
 	versionCopy.ModifyIndex = index
 
 	latestJob, err := s.JobByID(nil, namespace, jobID)
@@ -5003,7 +5003,7 @@ func (s *StateStore) unsetJobVersionTagImpl(index uint64, namespace, jobID strin
 	}
 
 	versionCopy := job.Copy()
-	versionCopy.TaggedVersion = nil
+	versionCopy.VersionTag = nil
 	versionCopy.ModifyIndex = index
 	latestJob, err := s.JobByID(nil, namespace, jobID)
 	if err != nil {

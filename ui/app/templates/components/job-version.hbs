@@ -4,7 +4,7 @@
 ~}}
 
 <section class="job-version">
-  <div class="boxed-section {{if this.version.taggedVersion "tagged"}}" data-test-tagged-version={{if this.version.taggedVersion "true" "false"}}>
+  <div class="boxed-section {{if this.version.versionTag "tagged"}}" data-test-tagged-version={{if this.version.versionTag "true" "false"}}>
     <header class="boxed-section-head is-light inline-definitions">
       Version #{{this.version.number}}
       <span class="bumper-left pair is-faded">
@@ -61,20 +61,20 @@
           {{! template-lint-enable no-down-event-binding }}
           <Hds::Button data-test-tag-save-button type="submit" @text="Save" @color="primary" @size="small" @isInline={{true}} {{on "click" this.saveTag}} />
           <Hds::Button @text="Cancel" @color="secondary" @size="small" @isInline={{true}} {{on "click" (action "cancelEditTag")}} />
-          {{#if this.version.taggedVersion}}
+          {{#if this.version.versionTag}}
             <Hds::Button data-test-tag-delete-button @text="Delete" @color="critical" @size="small" @isInline={{true}} {{on "click" (action "deleteTag")}} />
           {{/if}}
         </form>
 
       {{else}}
         <div class="tag-options">
-          {{#if this.version.taggedVersion}}
-            <Hds::Button class="tag-button-primary" @text={{this.version.taggedVersion.name}} @color="primary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
+          {{#if this.version.versionTag}}
+            <Hds::Button class="tag-button-primary" @text={{this.version.versionTag.name}} @color="primary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
           {{else}}
             <Hds::Button class="tag-button-secondary" @text="Tag this version" @color="secondary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
           {{/if}}
-          <span class="tag-description" title={{this.version.taggedVersion.description}}>
-              {{this.version.taggedVersion.description}}
+          <span class="tag-description" title={{this.version.versionTag.description}}>
+              {{this.version.versionTag.description}}
           </span>
         </div>
         <div class="version-options">

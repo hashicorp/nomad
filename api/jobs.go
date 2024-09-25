@@ -270,7 +270,7 @@ func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*J
 	return j.VersionsOpts(jobID, opts, q)
 }
 
-// VersionByTag is used to retrieve a job version by its TaggedVersion name.
+// VersionByTag is used to retrieve a job version by its VersionTag name.
 func (j *Jobs) VersionByTag(jobID, tag string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	versions, _, qm, err := j.Versions(jobID, false, q)
 	if err != nil {
@@ -279,7 +279,7 @@ func (j *Jobs) VersionByTag(jobID, tag string, q *QueryOptions) (*Job, *QueryMet
 
 	// Find the version with the matching tag
 	for _, version := range versions {
-		if version.TaggedVersion != nil && version.TaggedVersion.Name == tag {
+		if version.VersionTag != nil && version.VersionTag.Name == tag {
 			return version, qm, nil
 		}
 	}
@@ -1030,18 +1030,18 @@ func (j *JobUILink) Copy() *JobUILink {
 	}
 }
 
-type JobTaggedVersion struct {
+type JobVersionTag struct {
 	Name        string
 	Description string
 	TaggedTime  int64
 }
 
-func (j *JobTaggedVersion) Copy() *JobTaggedVersion {
+func (j *JobVersionTag) Copy() *JobVersionTag {
 	if j == nil {
 		return nil
 	}
 
-	return &JobTaggedVersion{
+	return &JobVersionTag{
 		Name:        j.Name,
 		Description: j.Description,
 		TaggedTime:  j.TaggedTime,
@@ -1126,7 +1126,7 @@ type Job struct {
 	CreateIndex              *uint64
 	ModifyIndex              *uint64
 	JobModifyIndex           *uint64
-	TaggedVersion            *JobTaggedVersion
+	VersionTag               *JobVersionTag
 }
 
 // IsPeriodic returns whether a job is periodic.

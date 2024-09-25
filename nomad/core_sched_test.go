@@ -611,7 +611,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 }
 
 // A job that has any of its versions tagged should not be GC-able.
-func TestCoreScheduler_EvalGC_JobTaggedVersion(t *testing.T) {
+func TestCoreScheduler_EvalGC_JobVersionTag(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -661,7 +661,7 @@ func TestCoreScheduler_EvalGC_JobTaggedVersion(t *testing.T) {
 			&structs.JobApplyTagRequest{
 				JobID: job.ID,
 				Name:  name,
-				Tag: &structs.JobTaggedVersion{
+				Tag: &structs.JobVersionTag{
 					Name:        name,
 					Description: desc,
 				},

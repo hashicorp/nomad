@@ -291,10 +291,10 @@ func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, fu
 		fmt.Sprintf("Submit Date|%v", formatTime(time.Unix(0, *job.SubmitTime))),
 	}
 	// if tagged version is not nil
-	if job.TaggedVersion != nil {
-		basic = append(basic, fmt.Sprintf("Tag Name|%v", *&job.TaggedVersion.Name))
-		if job.TaggedVersion.Description != "" {
-			basic = append(basic, fmt.Sprintf("Tag Description|%v", *&job.TaggedVersion.Description))
+	if job.VersionTag != nil {
+		basic = append(basic, fmt.Sprintf("Tag Name|%v", *&job.VersionTag.Name))
+		if job.VersionTag.Description != "" {
+			basic = append(basic, fmt.Sprintf("Tag Description|%v", *&job.VersionTag.Description))
 		}
 	}
 

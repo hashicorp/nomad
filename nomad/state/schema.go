@@ -373,7 +373,7 @@ func jobIsGCable(obj interface{}) (bool, error) {
 	}
 
 	// job versions that are tagged should be kept
-	if j.TaggedVersion != nil {
+	if j.VersionTag != nil {
 		return false, nil
 	}
 

@@ -13,7 +13,7 @@ export default class JobVersion extends Model {
   @attr('date') submitTime;
   @attr('number') number;
   @attr() diff;
-  @fragment('version-tag') taggedVersion;
+  @fragment('version-tag') versionTag;
 
   revertTo() {
     return this.store.adapterFor('job-version').revertTo(this);

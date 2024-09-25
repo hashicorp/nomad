@@ -2901,11 +2901,11 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 	require.Equal(t, deletionIndex, index)
 }
 
-// TestStatestore_JobTaggedVersion tests that job versions which are tagged
+// TestStatestore_JobVersionTag tests that job versions which are tagged
 // do not count against the configured server.job_tracked_versions count,
 // do not get deleted when new versions are created,
 // and *do* get deleted immediately when its tag is removed.
-func TestStatestore_JobTaggedVersion(t *testing.T) {
+func TestStatestore_JobVersionTag(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
@@ -2928,7 +2928,7 @@ func TestStatestore_JobTaggedVersion(t *testing.T) {
 		req := &structs.JobApplyTagRequest{
 			JobID: job.ID,
 			Name:  name,
-			Tag: &structs.JobTaggedVersion{
+			Tag: &structs.JobVersionTag{
 				Name:        name,
 				Description: desc,
 			},
@@ -2940,8 +2940,8 @@ func TestStatestore_JobTaggedVersion(t *testing.T) {
 		got, err := state.JobVersionByTagName(nil, job.Namespace, job.ID, name)
 		must.NoError(t, err)
 		must.Eq(t, version, got.Version)
-		must.Eq(t, name, got.TaggedVersion.Name)
-		must.Eq(t, desc, got.TaggedVersion.Description)
+		must.Eq(t, name, got.VersionTag.Name)
+		must.Eq(t, desc, got.VersionTag.Description)
 	}
 	unsetTag := func(t *testing.T, name string) {
 		t.Helper()
@@ -3018,7 +3018,7 @@ func TestStatestore_JobTaggedVersion(t *testing.T) {
 		// job does not exist
 		err := state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
 			JobID:   "non-existent-job",
-			Tag:     &structs.JobTaggedVersion{Name: "tag name"},
+			Tag:     &structs.JobVersionTag{Name: "tag name"},
 			Version: 0,
 		})
 		must.ErrorContains(t, err, `job "non-existent-job" version 0 not found`)
@@ -3026,7 +3026,7 @@ func TestStatestore_JobTaggedVersion(t *testing.T) {
 		// version does not exist
 		err = state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
 			JobID:   job.ID,
-			Tag:     &structs.JobTaggedVersion{Name: "tag name"},
+			Tag:     &structs.JobVersionTag{Name: "tag name"},
 			Version: 999,
 		})
 		must.ErrorContains(t, err, fmt.Sprintf("job %q version 999 not found", job.ID))
@@ -3034,7 +3034,7 @@ func TestStatestore_JobTaggedVersion(t *testing.T) {
 		// tag name already exists
 		err = state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
 			JobID:   job.ID,
-			Tag:     &structs.JobTaggedVersion{Name: "v0"},
+			Tag:     &structs.JobVersionTag{Name: "v0"},
 			Version: 10,
 		})
 		must.ErrorContains(t, err, fmt.Sprintf(`"v0" already exists on a different version of job %q`, job.ID))

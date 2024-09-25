@@ -245,7 +245,7 @@ func Test_jobIsGCable(t *testing.T) {
 		{
 			name: "tagged",
 			inputObj: &structs.Job{
-				TaggedVersion: &structs.JobTaggedVersion{Name: "any"},
+				VersionTag: &structs.JobVersionTag{Name: "any"},
 			},
 			expectedOutput:      false,
 			expectedOutputError: nil,

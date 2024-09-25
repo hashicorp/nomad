@@ -656,8 +656,8 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	revJob.VaultToken = args.VaultToken   // use vault token from revert to perform (re)registration
 	revJob.ConsulToken = args.ConsulToken // use consul token from revert to perform (re)registration
 
-	// Clear out the TaggedVersion to prevent tag duplication
-	revJob.TaggedVersion = nil
+	// Clear out the VersionTag to prevent tag duplication
+	revJob.VersionTag = nil
 
 	reg := &structs.JobRegisterRequest{
 		Job:          revJob,
