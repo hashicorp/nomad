@@ -534,32 +534,13 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
 	q *WriteOptions, consulToken, vaultToken string) (*JobRegisterResponse, *WriteMeta, error) {
 
-	opts := &RevertOptions{
-		Version:             &version,
-		ConsulToken:         consulToken,
-		VaultToken:          vaultToken,
-		EnforcePriorVersion: enforcePriorVersion,
-	}
-	return j.RevertOpts(jobID, opts, q)
-}
-
-type RevertOptions struct {
-	Version             *uint64
-	VersionTag          *string
-	EnforcePriorVersion *uint64
-	ConsulToken         string
-	VaultToken          string
-}
-
-func (j *Jobs) RevertOpts(jobID string, opts *RevertOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	var resp JobRegisterResponse
 	req := &JobRevertRequest{
 		JobID:               jobID,
-		JobVersion:          opts.Version,
-		EnforcePriorVersion: opts.EnforcePriorVersion,
-		ConsulToken:         opts.ConsulToken,
-		VaultToken:          opts.VaultToken,
-		JobVersionTag:       opts.VersionTag,
+		JobVersion:          version,
+		EnforcePriorVersion: enforcePriorVersion,
+		ConsulToken:         consulToken,
+		VaultToken:          vaultToken,
 	}
 	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
 	if err != nil {
@@ -1451,10 +1432,7 @@ type JobRevertRequest struct {
 	JobID string
 
 	// JobVersion the version to revert to.
-	JobVersion *uint64
-
-	// JobVersionTag is the version tag to revert to.
-	JobVersionTag *string
+	JobVersion uint64
 
 	// EnforcePriorVersion if set will enforce that the job is at the given
 	// version before reverting.

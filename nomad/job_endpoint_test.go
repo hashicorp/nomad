@@ -2631,7 +2631,7 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	// Create revert request and enforcing it be at an incorrect version
 	revertReq := &structs.JobRevertRequest{
 		JobID:               job.ID,
-		JobVersion:          pointer.Of(uint64(0)),
+		JobVersion:          0,
 		EnforcePriorVersion: pointer.Of(uint64(10)),
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
@@ -2648,7 +2648,7 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	// Create revert request and enforcing it be at the current version
 	revertReq = &structs.JobRevertRequest{
 		JobID:      job.ID,
-		JobVersion: pointer.Of(uint64(1)),
+		JobVersion: 1,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
@@ -2664,7 +2664,7 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	// Create revert request and enforcing it be at version 1
 	revertReq = &structs.JobRevertRequest{
 		JobID:               job.ID,
-		JobVersion:          pointer.Of(uint64(0)),
+		JobVersion:          0,
 		EnforcePriorVersion: pointer.Of(uint64(1)),
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
@@ -2690,7 +2690,7 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	// the same as version 0
 	revertReq = &structs.JobRevertRequest{
 		JobID:      job.ID,
-		JobVersion: pointer.Of(uint64(0)),
+		JobVersion: 0,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
@@ -2816,7 +2816,7 @@ func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 
 	revertReq := &structs.JobRevertRequest{
 		JobID:      job.ID,
-		JobVersion: pointer.Of(uint64(1)),
+		JobVersion: 1,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
@@ -2832,7 +2832,7 @@ func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 	// Create revert request and enforcing it be at version 1
 	revertReq = &structs.JobRevertRequest{
 		JobID:               job.ID,
-		JobVersion:          pointer.Of(uint64(0)),
+		JobVersion:          0,
 		EnforcePriorVersion: pointer.Of(uint64(1)),
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
@@ -2933,7 +2933,7 @@ func TestJobEndpoint_Revert_Vault_Policies(t *testing.T) {
 	// Create the revert request with the bad Vault token
 	revertReq := &structs.JobRevertRequest{
 		JobID:      job.ID,
-		JobVersion: pointer.Of(uint64(0)),
+		JobVersion: 0,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
@@ -2988,7 +2988,7 @@ func TestJobEndpoint_Revert_ACL(t *testing.T) {
 	// Create revert request and enforcing it be at the current version
 	revertReq := &structs.JobRevertRequest{
 		JobID:      job.ID,
-		JobVersion: pointer.Of(uint64(0)),
+		JobVersion: 0,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,

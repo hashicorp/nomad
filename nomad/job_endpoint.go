@@ -640,30 +640,11 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 		return fmt.Errorf("job %q not found", args.JobID)
 	}
 
-	var revertToVersion uint64
-
-	if args.JobVersionTag != nil {
-		// Look up the version number for the given tag
-		jobV, err := snap.JobVersionByTagName(ws, args.RequestNamespace(), args.JobID, *args.JobVersionTag)
-		if err != nil {
-			return err
-		}
-		if jobV == nil {
-			return fmt.Errorf("job %q in namespace %q with tag %q not found", args.JobID, args.RequestNamespace(), *args.JobVersionTag)
-		}
-		revertToVersion = jobV.Version
-	} else if args.JobVersion != nil {
-		revertToVersion = *args.JobVersion
-
-	} else {
-		return fmt.Errorf("either JobVersion or JobVersionTag must be specified")
-	}
-
-	if revertToVersion == cur.Version {
+	if args.JobVersion == cur.Version {
 		return fmt.Errorf("can't revert to current version")
 	}
 
-	jobV, err := snap.JobByIDAndVersion(ws, args.RequestNamespace(), args.JobID, revertToVersion)
+	jobV, err := snap.JobByIDAndVersion(ws, args.RequestNamespace(), args.JobID, args.JobVersion)
 	if err != nil {
 		return err
 	}
