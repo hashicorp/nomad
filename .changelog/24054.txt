@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug in job status command where -t would act as though -json was also set
+```
