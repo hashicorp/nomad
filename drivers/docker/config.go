@@ -31,7 +31,7 @@ const (
 
 	// ContainerNotRunningError is returned by the docker daemon if the container
 	// is not running, yet we requested it to stop
-	ContainerNotRunningError = "is not running" // exect string is "Container %s is not running"
+	ContainerNotRunningError = "is not running" // exact string is "Container %s is not running"
 
 	// pluginName is the name of the plugin
 	pluginName = "docker"
