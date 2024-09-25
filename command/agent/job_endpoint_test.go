@@ -4449,34 +4449,34 @@ func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
 	})
 }
 
-func TestConversion_ApiJobTaggedVersionToStructs(t *testing.T) {
+func TestConversion_ApiJobVersionTagToStructs(t *testing.T) {
 	t.Run("nil tagged version", func(t *testing.T) {
-		must.Nil(t, ApiJobTaggedVersionToStructs(nil))
+		must.Nil(t, ApiJobVersionTagToStructs(nil))
 	})
 
 	t.Run("empty tagged version", func(t *testing.T) {
-		taggedVersion := &api.JobTaggedVersion{}
-		expected := &structs.JobTaggedVersion{
+		versionTag := &api.JobVersionTag{}
+		expected := &structs.JobVersionTag{
 			Name:        "",
 			Description: "",
 			TaggedTime:  0,
 		}
-		result := ApiJobTaggedVersionToStructs(taggedVersion)
+		result := ApiJobVersionTagToStructs(versionTag)
 		must.Eq(t, expected, result)
 	})
 
 	t.Run("tagged version with tag and version", func(t *testing.T) {
-		taggedVersion := &api.JobTaggedVersion{
+		versionTag := &api.JobVersionTag{
 			Name:        "low-latency",
 			Description: "Low latency version",
 			TaggedTime:  1234567890,
 		}
-		expected := &structs.JobTaggedVersion{
+		expected := &structs.JobVersionTag{
 			Name:        "low-latency",
 			Description: "Low latency version",
 			TaggedTime:  1234567890,
 		}
-		result := ApiJobTaggedVersionToStructs(taggedVersion)
+		result := ApiJobVersionTagToStructs(versionTag)
 		must.Eq(t, expected, result)
 	})
 }

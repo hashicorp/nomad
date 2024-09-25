@@ -163,7 +163,7 @@ OUTER:
 				continue
 			}
 			for _, v := range versions {
-				if v.TaggedVersion != nil {
+				if v.VersionTag != nil {
 					continue OUTER
 				}
 			}

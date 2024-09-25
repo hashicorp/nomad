@@ -32,7 +32,7 @@ export default Factory.extend({
   activeDeployment: false,
 
   // version tags
-  taggedVersion: null,
+  versionTag: null,
 
   afterCreate(version, server) {
     const args = [

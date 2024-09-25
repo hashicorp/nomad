@@ -4578,10 +4578,10 @@ type Job struct {
 	UI *JobUIConfig
 
 	// Metadata related to a tagged Job Version (which itself is really a Job)
-	TaggedVersion *JobTaggedVersion
+	VersionTag *JobVersionTag
 }
 
-type JobTaggedVersion struct {
+type JobVersionTag struct {
 	Name        string
 	Description string
 	TaggedTime  int64
@@ -4590,7 +4590,7 @@ type JobTaggedVersion struct {
 type JobApplyTagRequest struct {
 	JobID   string
 	Name    string
-	Tag     *JobTaggedVersion
+	Tag     *JobVersionTag
 	Version uint64
 	WriteRequest
 }
@@ -4602,11 +4602,11 @@ type JobTagResponse struct {
 	QueryMeta
 }
 
-func (tv *JobTaggedVersion) Copy() *JobTaggedVersion {
+func (tv *JobVersionTag) Copy() *JobVersionTag {
 	if tv == nil {
 		return nil
 	}
-	return &JobTaggedVersion{
+	return &JobVersionTag{
 		Name:        tv.Name,
 		Description: tv.Description,
 		TaggedTime:  tv.TaggedTime,
@@ -4767,7 +4767,7 @@ func (j *Job) Copy() *Job {
 	nj.Affinities = CopySliceAffinities(j.Affinities)
 	nj.Multiregion = j.Multiregion.Copy()
 	nj.UI = j.UI.Copy()
-	nj.TaggedVersion = j.TaggedVersion.Copy()
+	nj.VersionTag = j.VersionTag.Copy()
 
 	if j.TaskGroups != nil {
 		tgs := make([]*TaskGroup, len(j.TaskGroups))
@@ -4865,9 +4865,9 @@ func (j *Job) Validate() error {
 		}
 	}
 
-	if j.TaggedVersion != nil {
-		if len(j.TaggedVersion.Description) > MaxDescriptionCharacters {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Tagged version description must be under 1000 characters, currently %d", len(j.TaggedVersion.Description)))
+	if j.VersionTag != nil {
+		if len(j.VersionTag.Description) > MaxDescriptionCharacters {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Tagged version description must be under 1000 characters, currently %d", len(j.VersionTag.Description)))
 		}
 	}
 

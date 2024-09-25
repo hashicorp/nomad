@@ -216,7 +216,7 @@ func TestJobRevertCommand_VersionTag(t *testing.T) {
 
 	v1 := v0.Copy()
 	v1.TaskGroups[0].Count = 2
-	v1.TaggedVersion = &structs.JobTaggedVersion{
+	v1.VersionTag = &structs.JobVersionTag{
 		Name:        "v1-tag",
 		Description: "Version 1 tag",
 	}

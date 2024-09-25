@@ -41,7 +41,7 @@ module('Acceptance | job versions', function (hooks) {
     server.create('job-version', {
       job: job,
       version: 1,
-      taggedVersion: {
+      versionTag: {
         Name: 'test-tag',
         Description: 'A tag with a brief description',
       },

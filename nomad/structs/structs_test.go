@@ -398,10 +398,10 @@ func TestJob_Validate(t *testing.T) {
 			},
 		},
 		{
-			name: "TaggedVersion Description length",
+			name: "VersionTag Description length",
 			job: &Job{
 				Type: JobTypeService,
-				TaggedVersion: &JobTaggedVersion{
+				VersionTag: &JobVersionTag{
 					Description: strings.Repeat("a", 1001),
 				},
 			},

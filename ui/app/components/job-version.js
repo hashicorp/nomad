@@ -35,10 +35,10 @@ export default class JobVersion extends Component {
   }
 
   initializeEditableTag() {
-    if (this.version.taggedVersion) {
+    if (this.version.versionTag) {
       this.editableTag = this.store.createRecord('versionTag', {
-        name: this.version.taggedVersion.name,
-        description: this.version.taggedVersion.description,
+        name: this.version.versionTag.name,
+        description: this.version.versionTag.description,
       });
     } else {
       this.editableTag = this.store.createRecord('versionTag');
@@ -128,8 +128,8 @@ export default class JobVersion extends Component {
         return;
       }
       const savedTag = await this.editableTag.save();
-      this.version.taggedVersion = savedTag;
-      this.version.taggedVersion.setProperties({
+      this.version.versionTag = savedTag;
+      this.version.versionTag.setProperties({
         ...savedTag.toJSON(),
       });
       this.initializeEditableTag();
@@ -165,8 +165,7 @@ export default class JobVersion extends Component {
         title: 'Job Version Un-Tagged',
         color: 'success',
       });
-      // this.version.set('taggedVersion', null);
-      this.version.taggedVersion = null;
+      this.version.versionTag = null;
       this.initializeEditableTag();
       this.isEditing = false;
     } catch (error) {
