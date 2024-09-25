@@ -207,7 +207,16 @@ module('Acceptance | job versions', function (hooks) {
       .dom('[data-test-tagged-version="false"] .tag-description')
       .hasText('', 'Tag description is empty');
 
-    await percySnapshot(assert);
+    await percySnapshot(assert, {
+      percyCSS: `
+        .timeline-note {
+          display: none;
+        }
+        .submit-date {
+          visibility: hidden;
+        }
+      `,
+    });
   });
 
   test('existing version tags can be edited', async function (assert) {
@@ -301,7 +310,16 @@ module('Acceptance | job versions', function (hooks) {
       .dom('.flash-message.alert.alert-success')
       .exists('Shows a success toast notification on edit.');
 
-    await percySnapshot(assert);
+    await percySnapshot(assert, {
+      percyCSS: `
+        .timeline-note {
+          display: none;
+        }
+        .submit-date {
+          visibility: hidden;
+        }
+      `,
+    });
   });
 });
 
