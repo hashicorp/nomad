@@ -264,8 +264,33 @@ func (j *Jobs) ScaleStatus(jobID string, q *QueryOptions) (*JobScaleStatusRespon
 // Versions is used to retrieve all versions of a particular job given its
 // unique ID.
 func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
+	opts := &VersionsOptions{
+		Diffs: diffs,
+	}
+	return j.VersionsOpts(jobID, opts, q)
+}
+
+type VersionsOptions struct {
+	Diffs       bool
+	DiffTag     string
+	DiffVersion *uint64
+}
+
+func (j *Jobs) VersionsOpts(jobID string, opts *VersionsOptions, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
 	var resp JobVersionsResponse
-	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?diffs=%v", url.PathEscape(jobID), diffs), &resp, q)
+
+	qp := url.Values{}
+	if opts != nil {
+		qp.Add("diffs", strconv.FormatBool(opts.Diffs))
+		if opts.DiffTag != "" {
+			qp.Add("diff_tag", opts.DiffTag)
+		}
+		if opts.DiffVersion != nil {
+			qp.Add("diff_version", strconv.FormatUint(*opts.DiffVersion, 10))
+		}
+	}
+
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?%s", url.PathEscape(jobID), qp.Encode()), &resp, q)
 	if err != nil {
 		return nil, nil, nil, err
 	}

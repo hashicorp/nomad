@@ -1298,6 +1298,28 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 			// Setup the output
 			reply.Versions = out
 			if len(out) != 0 {
+
+				var compareVersionNumber uint64
+				var compareVersion *structs.Job
+				var compareSpecificVersion bool
+
+				if args.Diffs {
+					if args.DiffTagName != "" {
+						compareSpecificVersion = true
+						compareVersion, err = state.JobVersionByTagName(ws, args.RequestNamespace(), args.JobID, args.DiffTagName)
+						if err != nil {
+							return fmt.Errorf("error looking up job version by tag: %v", err)
+						}
+						if compareVersion == nil {
+							return fmt.Errorf("tag %q not found", args.DiffTagName)
+						}
+						compareVersionNumber = compareVersion.Version
+					} else if args.DiffVersion != nil {
+						compareSpecificVersion = true
+						compareVersionNumber = *args.DiffVersion
+					}
+				}
+
 				// Note: a previous assumption here was that the 0th job was the latest, and that we don't modify "old" versions.
 				// Adding version tags breaks this assumption (you can tag an old version, which should unblock /versions queries) so we now look for the highest ModifyIndex.
 				var maxModifyIndex uint64
@@ -1305,12 +1327,36 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 					if job.ModifyIndex > maxModifyIndex {
 						maxModifyIndex = job.ModifyIndex
 					}
+					if compareSpecificVersion && job.Version == compareVersionNumber {
+						compareVersion = job
+					}
 				}
 				reply.Index = maxModifyIndex
+
+				if compareSpecificVersion && compareVersion == nil {
+					if args.DiffTagName != "" {
+						return fmt.Errorf("tag %q not found", args.DiffTagName)
+					}
+					return fmt.Errorf("version %d not found", *args.DiffVersion)
+				}
+
 				// Compute the diffs
+
 				if args.Diffs {
-					for i := 0; i < len(out)-1; i++ {
-						old, new := out[i+1], out[i]
+					for i := 0; i < len(out); i++ {
+						var old, new *structs.Job
+						new = out[i]
+
+						if compareSpecificVersion {
+							old = compareVersion
+						} else {
+							if i == len(out)-1 {
+								// Skip the last version if not comparing to a specific version
+								break
+							}
+							old = out[i+1]
+						}
+
 						d, err := old.Diff(new, true)
 						if err != nil {
 							return fmt.Errorf("failed to create job diff: %v", err)

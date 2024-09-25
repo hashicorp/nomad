@@ -748,6 +748,9 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	diffsStr := req.URL.Query().Get("diffs")
+	diffTagName := req.URL.Query().Get("diff_tag")
+	diffVersion := req.URL.Query().Get("diff_version")
+
 	var diffsBool bool
 	if diffsStr != "" {
 		var err error
@@ -757,9 +760,21 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jo
 		}
 	}
 
+	var diffVersionInt *uint64
+
+	if diffVersion != "" {
+		parsedDiffVersion, err := strconv.ParseUint(diffVersion, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a uint64: %v", "diff_version", diffVersion, err)
+		}
+		diffVersionInt = &parsedDiffVersion
+	}
+
 	args := structs.JobVersionsRequest{
-		JobID: jobID,
-		Diffs: diffsBool,
+		JobID:       jobID,
+		Diffs:       diffsBool,
+		DiffVersion: diffVersionInt,
+		DiffTagName: diffTagName,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil

@@ -1651,8 +1651,10 @@ type JobListResponse struct {
 
 // JobVersionsRequest is used to get a jobs versions
 type JobVersionsRequest struct {
-	JobID string
-	Diffs bool
+	JobID       string
+	Diffs       bool
+	DiffVersion *uint64
+	DiffTagName string
 	QueryOptions
 }
 
