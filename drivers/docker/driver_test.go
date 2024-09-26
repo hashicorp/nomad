@@ -2218,13 +2218,20 @@ func TestDockerDriver_Stats(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	ch, err := handle.Stats(ctx, 3*time.Second, top.Compute())
+	ch, err := handle.Stats(ctx, 1*time.Second, top.Compute())
 	must.NoError(t, err)
 
 	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
 		ru := <-ch
-		must.NotNil(t, ru)
-		must.NotNil(t, ru.ResourceUsage)
+		if _, ok := <-ch; !ok {
+			return fmt.Errorf("task resource usage channel is closed")
+		}
+		if ru == nil {
+			return fmt.Errorf("task resource usage is nil")
+		}
+		if ru.ResourceUsage == nil {
+			return fmt.Errorf("resourceUsage is nil")
+		}
 		return nil
 	}),
 		wait.Timeout(3*time.Second),
