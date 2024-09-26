@@ -65,6 +65,11 @@ the [`cores`][cores] parameter.
   number of available cores in a compatible configuration, task placement will
   fail due to exhausted resources.
 
+- `devices` `(list<string>: nil)` - Specifies which devices must be colocated on
+  the name NUMA node, along with allocated CPU cores. Must be a subset of the
+  devices listed in the [resources] block. May only be used with `affinity` set
+  to `require`.
+
 <Note>
 
   The `require` affinity option causes fragmentation of available CPU cores
@@ -74,5 +79,29 @@ the [`cores`][cores] parameter.
   efficient use of available resources.
 </Note>
 
+## `numa` Examples
+
+This example will allocate a `1080ti` GPU and ensure it is on the same NUMA node
+as the 4 CPU cores reserved for the task.
+
+```hcl
+resources {
+  cores  = 4
+  memory = 2048
+
+  device "nvidia/gpu/1080ti" {
+    count = 1
+  }
+
+  numa {
+    affinity = "require"
+    devices = [
+      "nvidia/gpu/1080ti"
+    ]
+  }
+}
+```
+
 [numa_wiki]: https://en.wikipedia.org/wiki/Non-uniform_memory_access
 [cores]: /nomad/docs/job-specification/resources#cores
+[resources]: /nomad/docs/job-specification/resources
