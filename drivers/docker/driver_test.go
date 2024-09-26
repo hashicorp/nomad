@@ -45,6 +45,7 @@ import (
 	tu "github.com/hashicorp/nomad/testutil"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 var (
@@ -2205,6 +2206,8 @@ func TestDockerDriver_Stats(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
+	ctx := context.Background()
+
 	task, cfg, _ := dockerTask(t)
 
 	cfg.Command = "sleep"
@@ -2215,30 +2218,24 @@ func TestDockerDriver_Stats(t *testing.T) {
 	defer cleanup()
 	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	statsErr := make(chan struct{})
-	go func(errChan chan struct{}) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+	ch, err := handle.Stats(ctx, 3*time.Second, top.Compute())
+	must.NoError(t, err)
 
-		ch, err := handle.Stats(ctx, 1*time.Second, top.Compute())
-		must.NoError(t, err)
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
+		ru := <-ch
+		must.NotNil(t, ru)
+		must.NotNil(t, ru.ResourceUsage)
+		return nil
+	}),
+		wait.Timeout(3*time.Second),
+		wait.Gap(50*time.Millisecond),
+	))
 
-		select {
-		case ru := <-ch:
-			must.NotNil(t, ru)
-			must.NotNil(t, ru.ResourceUsage)
-		case <-time.After(3 * time.Second):
-			errChan <- struct{}{}
-		}
-
-		must.NoError(t, d.DestroyTask(task.ID, true))
-	}(statsErr)
+	must.NoError(t, d.DestroyTask(task.ID, true))
 
 	waitCh, err := d.WaitTask(context.Background(), task.ID)
 	must.NoError(t, err)
 	select {
-	case <-statsErr:
-		t.Fatal("stats collection timeout")
 	case res := <-waitCh:
 		if res.Successful() {
 			t.Fatalf("should err: %v", res)
