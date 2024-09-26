@@ -1869,7 +1869,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 	const execTerminatingTimeout = 3 * time.Second
 	start := time.Now()
 	var res containerapi.ExecInspect
-	for res.Running && time.Since(start) <= execTerminatingTimeout {
+	for (res.ExecID == "" || res.Running) && time.Since(start) <= execTerminatingTimeout {
 		res, err = dockerClient.ContainerExecInspect(d.ctx, exec.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to inspect exec result: %v", err)
