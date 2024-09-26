@@ -1812,10 +1812,26 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 		return nil, fmt.Errorf("failed to create exec object: %v", err)
 	}
 
-	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, containerapi.ExecAttachOptions{
-		Tty:         opts.Tty,
-		ConsoleSize: &[2]uint{80, 120},
-	})
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case s, ok := <-opts.ResizeCh:
+				if !ok {
+					return
+				}
+				dockerClient.ContainerExecResize(d.ctx, exec.ID, containerapi.ResizeOptions{
+					Height: uint(s.Height),
+					Width:  uint(s.Width),
+				})
+			}
+		}
+	}()
+
+	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, containerapi.ExecAttachOptions{Tty: opts.Tty})
 	if err != nil {
 		return nil, fmt.Errorf("failed to attach to exec: %v", err)
 	}
@@ -1841,97 +1857,14 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 		}
 
 		running := inspect.Running
-		fmt.Println("running is", running)
 		if running {
-			time.Sleep(1 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 
 		exitCode = inspect.ExitCode
-		fmt.Println("inspect not running, code is", exitCode)
 		break
 	}
-
-	// if err := dockerClient.ContainerExecStart(ctx, exec.ID, containerapi.ExecStartOptions{
-	// 	Detach:      false,
-	// 	Tty:         opts.Tty,
-	// 	ConsoleSize: &[2]uint{80, 120},
-	// }); err != nil {
-	// 	return nil, fmt.Errorf("failed to exec: %v", err)
-	// }
-
-	// var consoleSize *[2]uint
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-ctx.Done():
-	// 			return
-	// 		case <-done:
-	// 			return
-	// 		case s, ok := <-opts.ResizeCh:
-	// 			if !ok {
-	// 				return
-	// 			}
-	// 			dockerClient.ContainerExecResize(d.ctx, exec.ID, containerapi.ResizeOptions{
-	// 				Height: uint(s.Height),
-	// 				Width:  uint(s.Width),
-	// 			})
-	// 			consoleSize = &[2]uint{uint(s.Height), uint(s.Width)}
-	// 		}
-	// 	}
-	// }()
-
-	// // hijack exec output streams
-	// hijacked, err := dockerClient.ContainerExecAttach(d.ctx, exec.ID, containerapi.ExecStartOptions{
-	// 	Detach:      true,
-	// 	Tty:         opts.Tty,
-	// 	ConsoleSize: consoleSize,
-	// })
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer hijacked.Close()
-
-	// // if we're using tty, there is no stderr, and if we're not, we have to
-	// // de-multiplex the stream
-	// if opts.Tty {
-	// 	_, err = io.Copy(opts.Stdout, hijacked.Reader)
-	// } else {
-	// 	_, err = stdcopy.StdCopy(opts.Stdout, opts.Stderr, hijacked.Reader)
-	// }
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// startOpts := containerapi.ExecStartOptions{
-	// 	Detach: false,
-	// 	Tty:    opts.Tty,
-	// }
-	// if err := dockerClient.ContainerExecStart(d.ctx, exec.ID, startOpts); err != nil {
-	// 	return nil, fmt.Errorf("failed to start exec: %v", err)
-	// }
-
-	// StartExec returns after process completes, but InspectExec seems to have a delay
-	// get in getting status code
-
-	// const execTerminatingTimeout = 3 * time.Second
-	// start := time.Now()
-	// var res containerapi.ExecInspect
-	// for (res.ExecID == "" || res.Running) && time.Since(start) <= execTerminatingTimeout {
-	// 	res, err = dockerClient.ContainerExecInspect(d.ctx, exec.ID)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to inspect exec result: %v", err)
-	// 	}
-	// 	time.Sleep(50 * time.Millisecond)
-	// }
-
-	// if res.Running {
-	// 	return nil, fmt.Errorf("failed to retrieve exec result")
-	// }
-
-	// return &drivers.ExitResult{
-	// 	ExitCode: res.ExitCode,
-	// }, nil
 
 	return &drivers.ExitResult{
 		ExitCode: exitCode,
