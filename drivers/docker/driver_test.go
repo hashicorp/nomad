@@ -2225,6 +2225,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 
 		select {
 		case ru := <-ch:
+			must.NotNil(t, ru)
 			must.NotNil(t, ru.ResourceUsage)
 		case <-time.After(3 * time.Second):
 			errChan <- struct{}{}

@@ -11,12 +11,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pointer"
-	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestDockerDriver_authFromHelper(t *testing.T) {
@@ -88,16 +89,17 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	// Check that data was written to the directory.
 	outputFile := filepath.Join(task.TaskDir().LogDir, "redis-demo.stderr.0")
 	exp := "can't fork"
-	tu.WaitForResult(func() (bool, error) {
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
 		act, err := os.ReadFile(outputFile)
 		if err != nil {
-			return false, err
+			return err
 		}
 		if !strings.Contains(string(act), exp) {
-			return false, fmt.Errorf("Expected %q in output %q", exp, string(act))
+			return fmt.Errorf("Expected %q in output %q", exp, string(act))
 		}
-		return true, nil
-	}, func(err error) {
-		must.NoError(t, err)
-	})
+		return nil
+	}),
+		wait.Timeout(5*time.Second),
+		wait.Gap(50*time.Millisecond),
+	))
 }
