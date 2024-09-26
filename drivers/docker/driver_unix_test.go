@@ -6,6 +6,7 @@
 package docker
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -17,7 +18,9 @@ import (
 	"testing"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/testutil"
@@ -27,8 +30,6 @@ import (
 	ntestutil "github.com/hashicorp/nomad/testutil"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDockerDriver_User(t *testing.T) {
@@ -40,7 +41,7 @@ func TestDockerDriver_User(t *testing.T) {
 	task.User = "alice"
 	cfg.Command = "/bin/sleep"
 	cfg.Args = []string{"10000"}
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
@@ -62,17 +63,19 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	require := require.New(t)
+	ctx := context.Background()
 
 	// Because go-dockerclient doesn't provide api for query network aliases, just check that
 	// a container can be created with a 'network_aliases' property
 
 	// Create network, network-scoped alias is supported only for containers in user defined networks
 	client := newTestDockerClient(t)
-	networkOpts := docker.CreateNetworkOptions{Name: "foobar", Driver: "bridge"}
-	network, err := client.CreateNetwork(networkOpts)
-	require.NoError(err)
-	defer client.RemoveNetwork(network.ID)
+	networkResponse, err := client.NetworkCreate(ctx, "foobar", network.CreateOptions{Driver: "bridge"})
+	must.NoError(t, err)
+	defer client.NetworkRemove(ctx, networkResponse.ID)
+
+	network, err := client.NetworkInspect(ctx, networkResponse.ID, network.InspectOptions{})
+	must.NoError(t, err)
 
 	expected := []string{"foobar"}
 	taskCfg := newTaskConfig("", busyboxLongRunningCmd)
@@ -83,7 +86,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 		Name:      "busybox",
 		Resources: basicResources,
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&taskCfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
@@ -91,19 +94,19 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	copyImage(t, task.TaskDir(), "busybox.tar")
 
 	_, _, err = d.StartTask(task)
-	require.NoError(err)
-	require.NoError(d.WaitUntilStarted(task.ID, 5*time.Second))
+	must.NoError(t, err)
+	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	defer d.DestroyTask(task.ID, true)
 
 	dockerDriver, ok := d.Impl().(*Driver)
-	require.True(ok)
+	must.True(t, ok)
 
 	handle, ok := dockerDriver.tasks.Get(task.ID)
-	require.True(ok)
+	must.True(t, ok)
 
-	_, err = client.InspectContainer(handle.containerID)
-	require.NoError(err)
+	_, err = client.ContainerInspect(ctx, handle.containerID)
+	must.NoError(t, err)
 }
 
 func TestDockerDriver_NetworkMode_Host(t *testing.T) {
@@ -119,7 +122,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 		Name:      "busybox-demo",
 		Resources: basicResources,
 	}
-	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
@@ -141,10 +144,10 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 
 	client := newTestDockerClient(t)
 
-	container, err := client.InspectContainer(handle.containerID)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID)
 	must.NoError(t, err)
 
-	actual := container.HostConfig.NetworkMode
+	actual := string(container.HostConfig.NetworkMode)
 	must.Eq(t, expected, actual)
 }
 
@@ -156,17 +159,17 @@ func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
 
 	cfg.CPUHardLimit = true
 	cfg.CPUCFSPeriod = 1000000
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, _, handle, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
 
 	waitForExist(t, client, handle.containerID)
 
-	container, err := client.InspectContainer(handle.containerID)
-	require.NoError(t, err)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	must.NoError(t, err)
 
-	require.Equal(t, cfg.CPUCFSPeriod, container.HostConfig.CPUPeriod)
+	must.Eq(t, cfg.CPUCFSPeriod, container.HostConfig.CPUPeriod)
 }
 
 func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
@@ -183,22 +186,24 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 		"net.core.somaxconn": "16384",
 	}
 	cfg.Ulimit = expectedUlimits
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, d, handle, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
-	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.containerID)
-	assert.Nil(t, err, "unexpected error: %v", err)
+	container, err := client.ContainerInspect(context.Background(), handle.containerID)
+	must.NoError(t, err)
 
 	want := "16384"
 	got := container.HostConfig.Sysctls["net.core.somaxconn"]
-	assert.Equal(t, want, got, "Wrong net.core.somaxconn config for docker job. Expect: %s, got: %s", want, got)
+	must.Eq(t, want, got, must.Sprintf(
+		"Wrong net.core.somaxconn config for docker job. Expect: %s, got: %s", want, got))
 
 	expectedUlimitLen := 2
 	actualUlimitLen := len(container.HostConfig.Ulimits)
-	assert.Equal(t, want, got, "Wrong number of ulimit configs for docker job. Expect: %d, got: %d", expectedUlimitLen, actualUlimitLen)
+	must.Eq(t, want, got, must.Sprintf(
+		"Wrong number of ulimit configs for docker job. Expect: %d, got: %d", expectedUlimitLen, actualUlimitLen))
 
 	for _, got := range container.HostConfig.Ulimits {
 		if expectedStr, ok := expectedUlimits[got.Name]; !ok {
@@ -211,8 +216,10 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 			splitted := strings.SplitN(expectedStr, ":", 2)
 			soft, _ := strconv.Atoi(splitted[0])
 			hard, _ := strconv.Atoi(splitted[1])
-			assert.Equal(t, int64(soft), got.Soft, "Wrong soft %s ulimit for docker job. Expect: %d, got: %d", got.Name, soft, got.Soft)
-			assert.Equal(t, int64(hard), got.Hard, "Wrong hard %s ulimit for docker job. Expect: %d, got: %d", got.Name, hard, got.Hard)
+			must.Eq(t, int64(soft), got.Soft, must.Sprintf(
+				"Wrong soft %s ulimit for docker job. Expect: %d, got: %d", got.Name, soft, got.Soft))
+			must.Eq(t, int64(hard), got.Hard, must.Sprintf(
+				"Wrong hard %s ulimit for docker job. Expect: %d, got: %d", got.Name, hard, got.Hard))
 
 		}
 	}
@@ -246,7 +253,7 @@ func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
 	for _, tc := range testCases {
 		task, cfg, _ := dockerTask(t)
 		cfg.Ulimit = tc.ulimitConfig
-		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+		must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 		d := dockerDriverHarness(t, nil)
 		cleanup := d.MkAllocDir(task, true)
@@ -254,8 +261,7 @@ func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
 		copyImage(t, task.TaskDir(), "busybox.tar")
 
 		_, _, err := d.StartTask(task)
-		require.NotNil(t, err, "Expected non nil error")
-		require.Contains(t, err.Error(), tc.err.Error())
+		must.ErrorContains(t, err, tc.err.Error())
 	}
 }
 
@@ -349,13 +355,13 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 				task.AllocDir = allocDir
 				task.Name = "demo"
 
-				require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+				must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 				cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
-				require.NoError(t, err)
+				must.NoError(t, err)
 
 				for _, v := range c.expectedVolumes {
-					require.Contains(t, cc.HostConfig.Binds, v)
+					must.SliceContains(t, cc.Host.Binds, v)
 				}
 			})
 		}
@@ -375,16 +381,16 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 				task.AllocDir = allocDir
 				task.Name = "demo"
 
-				require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+				must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 				cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 				if c.requiresVolumes {
-					require.Error(t, err, "volumes are not enabled")
+					must.Error(t, err, must.Sprint("volumes are not enabled"))
 				} else {
-					require.NoError(t, err)
+					must.NoError(t, err)
 
 					for _, v := range c.expectedVolumes {
-						require.Contains(t, cc.HostConfig.Binds, v)
+						must.SliceContains(t, cc.Host.Binds, v)
 					}
 				}
 			})
@@ -405,7 +411,7 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 		name            string
 		requiresVolumes bool
 		passedMounts    []DockerMount
-		expectedMounts  []docker.HostMount
+		expectedMounts  []mount.Mount
 	}{
 		{
 			name:            "basic volume",
@@ -417,13 +423,13 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 					Source:   "test",
 				},
 			},
-			expectedMounts: []docker.HostMount{
+			expectedMounts: []mount.Mount{
 				{
 					Type:          "volume",
 					Target:        "/nomad",
 					Source:        "test",
 					ReadOnly:      true,
-					VolumeOptions: &docker.VolumeOptions{},
+					VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{}},
 				},
 			},
 		},
@@ -436,12 +442,12 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 					Source: "test",
 				},
 			},
-			expectedMounts: []docker.HostMount{
+			expectedMounts: []mount.Mount{
 				{
 					Type:        "bind",
 					Target:      "/nomad",
 					Source:      "/tmp/nomad/alloc-dir/demo/test",
-					BindOptions: &docker.BindOptions{},
+					BindOptions: &mount.BindOptions{},
 				},
 			},
 		},
@@ -455,12 +461,12 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 					Source: "/tmp/test",
 				},
 			},
-			expectedMounts: []docker.HostMount{
+			expectedMounts: []mount.Mount{
 				{
 					Type:        "bind",
 					Target:      "/nomad",
 					Source:      "/tmp/test",
-					BindOptions: &docker.BindOptions{},
+					BindOptions: &mount.BindOptions{},
 				},
 			},
 		},
@@ -474,12 +480,12 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 					Source: "../../test",
 				},
 			},
-			expectedMounts: []docker.HostMount{
+			expectedMounts: []mount.Mount{
 				{
 					Type:        "bind",
 					Target:      "/nomad",
 					Source:      "/tmp/nomad/test",
-					BindOptions: &docker.BindOptions{},
+					BindOptions: &mount.BindOptions{},
 				},
 			},
 		},
@@ -496,11 +502,11 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 					},
 				},
 			},
-			expectedMounts: []docker.HostMount{
+			expectedMounts: []mount.Mount{
 				{
 					Type:   "tmpfs",
 					Target: "/nomad",
-					TempfsOptions: &docker.TempfsOptions{
+					TmpfsOptions: &mount.TmpfsOptions{
 						SizeBytes: 321,
 						Mode:      0666,
 					},
@@ -522,11 +528,11 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 				task.AllocDir = allocDir
 				task.Name = "demo"
 
-				require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+				must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 				cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
-				require.NoError(t, err)
-				require.EqualValues(t, c.expectedMounts, cc.HostConfig.Mounts)
+				must.NoError(t, err)
+				must.Eq(t, c.expectedMounts, cc.Host.Mounts)
 			})
 		}
 	})
@@ -545,14 +551,14 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 				task.AllocDir = allocDir
 				task.Name = "demo"
 
-				require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+				must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 				cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 				if c.requiresVolumes {
-					require.Error(t, err, "volumes are not enabled")
+					must.Error(t, err, must.Sprint("volumes are not enabled"))
 				} else {
-					require.NoError(t, err)
-					require.EqualValues(t, c.expectedMounts, cc.HostConfig.Mounts)
+					must.NoError(t, err)
+					must.Eq(t, c.expectedMounts, cc.Host.Mounts)
 				}
 			})
 		}
@@ -600,21 +606,21 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
 	driver.config.Volumes.Enabled = true
 
 	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
-	require.NoError(t, err)
-	expectedMounts := []docker.HostMount{
+	must.NoError(t, err)
+	expectedMounts := []mount.Mount{
 		{
 			Type:     "bind",
 			Source:   "/tmp/cfg-mount",
 			Target:   "/container/tmp/cfg-mount",
 			ReadOnly: false,
-			BindOptions: &docker.BindOptions{
+			BindOptions: &mount.BindOptions{
 				Propagation: "",
 			},
 		},
@@ -623,24 +629,24 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 			Source:   "/tmp/task-mount",
 			Target:   "/container/tmp/task-mount",
 			ReadOnly: true,
-			BindOptions: &docker.BindOptions{
+			BindOptions: &mount.BindOptions{
 				Propagation: "rprivate",
 			},
 		},
 	}
 
 	if runtime.GOOS != "linux" {
-		expectedMounts[0].BindOptions = &docker.BindOptions{}
-		expectedMounts[1].BindOptions = &docker.BindOptions{}
+		expectedMounts[0].BindOptions = &mount.BindOptions{}
+		expectedMounts[1].BindOptions = &mount.BindOptions{}
 	}
 
-	foundMounts := c.HostConfig.Mounts
+	foundMounts := c.Host.Mounts
 	sort.Slice(foundMounts, func(i, j int) bool {
 		return foundMounts[i].Target < foundMounts[j].Target
 	})
-	require.EqualValues(t, expectedMounts, foundMounts)
+	must.Eq(t, expectedMounts, foundMounts)
 
-	expectedDevices := []docker.Device{
+	expectedDevices := []container.DeviceMapping{
 		{
 			PathOnHost:        "/dev/stdout",
 			PathInContainer:   "/container/dev/cfg-stdout",
@@ -653,11 +659,11 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 		},
 	}
 
-	foundDevices := c.HostConfig.Devices
+	foundDevices := c.Host.Devices
 	sort.Slice(foundDevices, func(i, j int) bool {
 		return foundDevices[i].PathInContainer < foundDevices[j].PathInContainer
 	})
-	require.EqualValues(t, expectedDevices, foundDevices)
+	must.Eq(t, expectedDevices, foundDevices)
 }
 
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
@@ -676,7 +682,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 		Resources: basicResources,
 	}
 
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, driver, handle, cleanup := dockerSetup(t, task, map[string]interface{}{
 		"gc": map[string]interface{}{
@@ -686,24 +692,24 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 	})
 	defer cleanup()
 
-	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
+	must.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 	// Cleanup
-	require.NoError(t, driver.DestroyTask(task.ID, true))
+	must.NoError(t, driver.DestroyTask(task.ID, true))
 
 	// Ensure image was removed
 	tu.WaitForResult(func() (bool, error) {
-		if _, err := client.InspectImage(cfg.Image); err == nil {
+		if _, _, err := client.ImageInspectWithRaw(context.Background(), cfg.Image); err == nil {
 			return false, fmt.Errorf("image exists but should have been removed. Does another %v container exist?", cfg.Image)
 		}
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	// The image doesn't exist which shouldn't be an error when calling
 	// Cleanup, so call it again to make sure.
-	require.NoError(t, driver.Impl().(*Driver).cleanupImage(handle))
+	must.NoError(t, driver.Impl().(*Driver).cleanupImage(handle))
 }
 
 // Tests that images prefixed with "https://" are supported
@@ -721,17 +727,17 @@ func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
 		AllocID:   uuid.Generate(),
 		Resources: basicResources,
 	}
-	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 
 	harness := dockerDriverHarness(t, nil)
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
 	_, _, err := harness.StartTask(task)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = harness.WaitUntilStarted(task.ID, 1*time.Minute)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	harness.DestroyTask(task.ID, true)
 }
@@ -770,7 +776,7 @@ func copyFile(src, dst string, t *testing.T) {
 	}
 	defer in.Close()
 	out, err := os.Create(dst)
-	require.NoError(t, err, "copying %v -> %v failed: %v", src, dst, err)
+	must.NoError(t, err, must.Sprintf("copying %v -> %v failed: %v", src, dst, err))
 
 	defer func() {
 		if err := out.Close(); err != nil {
@@ -796,7 +802,7 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 		AllocID:   uuid.Generate(),
 		Resources: basicResources,
 	}
-	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 
 	harness := dockerDriverHarness(t, nil)
 	cleanup := harness.MkAllocDir(task, true)
@@ -804,10 +810,10 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 	copyImage(t, task.TaskDir(), "busybox.tar")
 
 	_, _, err := harness.StartTask(task)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = harness.WaitUntilStarted(task.ID, 1*time.Minute)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	defer harness.DestroyTask(task.ID, true)
 
@@ -855,20 +861,20 @@ func Test_dnsConfig(t *testing.T) {
 				Resources: basicResources,
 				DNS:       c.cfg,
 			}
-			require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+			must.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 
 			cleanup := harness.MkAllocDir(task, false)
 
 			_, _, err := harness.StartTask(task)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			err = harness.WaitUntilStarted(task.ID, 1*time.Minute)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
 
 			// cleanup immediately before the next test case
-			require.NoError(t, harness.DestroyTask(task.ID, true))
+			must.NoError(t, harness.DestroyTask(task.ID, true))
 			cleanup()
 			harness.Kill()
 		})

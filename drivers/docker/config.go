@@ -6,12 +6,14 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -29,7 +31,7 @@ const (
 
 	// ContainerNotRunningError is returned by the docker daemon if the container
 	// is not running, yet we requested it to stop
-	ContainerNotRunningError = "Container not running"
+	ContainerNotRunningError = "is not running" // exact string is "Container %s is not running"
 
 	// pluginName is the name of the plugin
 	pluginName = "docker"
@@ -522,8 +524,8 @@ type DockerDevice struct {
 	CgroupPermissions string `codec:"cgroup_permissions"`
 }
 
-func (d DockerDevice) toDockerDevice() (docker.Device, error) {
-	dd := docker.Device{
+func (d DockerDevice) toDockerDevice() (containerapi.DeviceMapping, error) {
+	dd := containerapi.DeviceMapping{
 		PathOnHost:        d.HostPath,
 		PathInContainer:   d.ContainerPath,
 		CgroupPermissions: d.CgroupPermissions,
@@ -573,41 +575,41 @@ type DockerMount struct {
 	TmpfsOptions  DockerTmpfsOptions  `codec:"tmpfs_options"`
 }
 
-func (m DockerMount) toDockerHostMount() (docker.HostMount, error) {
+func (m DockerMount) toDockerHostMount() (mount.Mount, error) {
 	if m.Type == "" {
 		// for backward compatibility, as type is optional
 		m.Type = "volume"
 	}
 
-	hm := docker.HostMount{
+	hm := mount.Mount{
 		Target:   m.Target,
 		Source:   m.Source,
-		Type:     m.Type,
+		Type:     mount.Type(m.Type),
 		ReadOnly: m.ReadOnly,
 	}
 
 	switch m.Type {
 	case "volume":
 		vo := m.VolumeOptions
-		hm.VolumeOptions = &docker.VolumeOptions{
+		hm.VolumeOptions = &mount.VolumeOptions{
 			NoCopy: vo.NoCopy,
 			Labels: vo.Labels,
-			DriverConfig: docker.VolumeDriverConfig{
+			DriverConfig: &mount.Driver{
 				Name:    vo.DriverConfig.Name,
 				Options: vo.DriverConfig.Options,
 			},
 		}
 	case "bind":
-		hm.BindOptions = &docker.BindOptions{
-			Propagation: m.BindOptions.Propagation,
+		hm.BindOptions = &mount.BindOptions{
+			Propagation: mount.Propagation(m.BindOptions.Propagation),
 		}
 	case "tmpfs":
 		if m.Source != "" {
 			return hm, fmt.Errorf(`invalid source, must be "" for tmpfs`)
 		}
-		hm.TempfsOptions = &docker.TempfsOptions{
+		hm.TmpfsOptions = &mount.TmpfsOptions{
 			SizeBytes: m.TmpfsOptions.SizeBytes,
-			Mode:      m.TmpfsOptions.Mode,
+			Mode:      fs.FileMode(m.TmpfsOptions.Mode),
 		}
 	default:
 		return hm, fmt.Errorf(`invalid mount type, must be "bind", "volume", "tmpfs": %q`, m.Type)

@@ -8,7 +8,7 @@ package capabilities
 import (
 	"strings"
 
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/docker/docker/api/types"
 )
 
 // DockerDefaults is a list of Windows capabilities enabled by Docker by default
@@ -17,15 +17,11 @@ import (
 //
 // Doing this on windows is somewhat tricky, because capabilities differ by
 // runtime, so we have to perform some extra checks.
-func DockerDefaults(ver *docker.Env) *Set {
+func DockerDefaults(ver types.Version) *Set {
 	defaults := NomadDefaults()
 
 	// Docker CE doesn't include NET_RAW on Windows, Mirantis (aka Docker EE) does
-	var platform string
-	if ver != nil {
-		platform = ver.Get("Platform")
-	}
-	if strings.Contains(platform, "Mirantis") {
+	if strings.Contains(ver.Platform.Name, "Mirantis") {
 		defaults.Add("NET_RAW")
 	}
 

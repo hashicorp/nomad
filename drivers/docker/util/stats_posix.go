@@ -6,7 +6,7 @@
 package util
 
 import (
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
@@ -19,7 +19,7 @@ var (
 	DockerCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
 )
 
-func DockerStatsToTaskResourceUsage(s *docker.Stats, compute cpustats.Compute) *cstructs.TaskResourceUsage {
+func DockerStatsToTaskResourceUsage(s *containerapi.Stats, compute cpustats.Compute) *cstructs.TaskResourceUsage {
 	var (
 		totalCompute = compute.TotalCompute
 		totalCores   = compute.NumCores
@@ -29,15 +29,12 @@ func DockerStatsToTaskResourceUsage(s *docker.Stats, compute cpustats.Compute) *
 
 	// use a simple heuristic to check if cgroup-v2 is used.
 	// go-dockerclient doesn't distinguish between 0 and not-present value
-	if s.MemoryStats.Stats.Rss == 0 && s.MemoryStats.MaxUsage == 0 && s.MemoryStats.Usage != 0 {
+	if s.MemoryStats.MaxUsage == 0 && s.MemoryStats.Usage != 0 {
 		measuredMems = DockerCgroupV2MeasuredMemStats
 	}
 
 	ms := &cstructs.MemoryStats{
-		RSS:        s.MemoryStats.Stats.Rss,
-		Cache:      s.MemoryStats.Stats.Cache,
-		Swap:       s.MemoryStats.Stats.Swap,
-		MappedFile: s.MemoryStats.Stats.MappedFile,
+		MappedFile: s.MemoryStats.Stats["file_mapped"],
 		Usage:      s.MemoryStats.Usage,
 		MaxUsage:   s.MemoryStats.MaxUsage,
 		Measured:   measuredMems,
@@ -52,7 +49,7 @@ func DockerStatsToTaskResourceUsage(s *docker.Stats, compute cpustats.Compute) *
 	// Calculate percentage
 	cs.Percent = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage,
-		s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, totalCores)
+		s.CPUStats.SystemUsage, s.PreCPUStats.SystemUsage, totalCores)
 	cs.SystemMode = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.UsageInKernelmode, s.PreCPUStats.CPUUsage.UsageInKernelmode,
 		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, totalCores)

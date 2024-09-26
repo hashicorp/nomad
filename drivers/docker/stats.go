@@ -5,12 +5,13 @@ package docker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"sync"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
@@ -40,9 +41,7 @@ type usageSender struct {
 // sending and closing, and the receiver end of the chan.
 func newStatsChanPipe() (*usageSender, <-chan *cstructs.TaskResourceUsage) {
 	destCh := make(chan *cstructs.TaskResourceUsage, 1)
-	return &usageSender{
-		destCh: destCh,
-	}, destCh
+	return &usageSender{destCh: destCh}, destCh
 
 }
 
@@ -95,96 +94,37 @@ func (h *taskHandle) Stats(ctx context.Context, interval time.Duration, compute 
 func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, interval time.Duration, compute cpustats.Compute) {
 	defer destCh.close()
 
-	// backoff and retry used if the docker stats API returns an error
-	var backoff time.Duration
-	var retry uint64
+	timer, cancel := helper.NewSafeTimer(interval)
+	defer cancel()
 
-	// create an interval timer
-	timer, stop := helper.NewSafeTimer(backoff)
-	defer stop()
-
-	// loops until doneCh is closed
-	for {
-		timer.Reset(backoff)
-
-		if backoff > 0 {
-			select {
-			case <-timer.C:
-			case <-ctx.Done():
-				return
-			case <-h.doneCh:
-				return
-			}
-		}
-
-		// make a channel for docker stats structs and start a collector to
-		// receive stats from docker and emit nomad stats
-		// statsCh will always be closed by docker client.
-		statsCh := make(chan *docker.Stats)
-		go dockerStatsCollector(destCh, statsCh, interval, compute)
-
-		statsOpts := docker.StatsOptions{
-			ID:      h.containerID,
-			Context: ctx,
-			Done:    h.doneCh,
-			Stats:   statsCh,
-			Stream:  true,
-		}
-
-		// Stats blocks until an error has occurred, or doneCh has been closed
-		if err := h.dockerClient.Stats(statsOpts); err != nil && err != io.ErrClosedPipe {
-			// An error occurred during stats collection, retry with backoff
-			h.logger.Debug("error collecting stats from container", "error", err)
-
-			// Calculate the new backoff
-			backoff = helper.Backoff(statsCollectorBackoffBaseline, statsCollectorBackoffLimit, retry)
-			retry++
-			continue
-		}
-		// Stats finished either because context was canceled, doneCh was closed
-		// or the container stopped. Stop stats collections.
-		return
-	}
-}
-
-func dockerStatsCollector(destCh *usageSender, statsCh <-chan *docker.Stats, interval time.Duration, compute cpustats.Compute) {
-	var resourceUsage *cstructs.TaskResourceUsage
-
-	// hasSentInitialStats is used so as to emit the first stats received from
-	// the docker daemon
-	var hasSentInitialStats bool
-
-	// timer is used to send nomad status at the specified interval
-	timer := time.NewTimer(interval)
 	for {
 		select {
+		case <-ctx.Done():
+			return
+		case <-h.doneCh:
+			return
 		case <-timer.C:
-			// it is possible for the timer to go off before the first stats
-			// has been emitted from docker
-			if resourceUsage == nil {
+			// ContainerStats returns a StatsResponseReader. Body of that reader
+			// contains the stats and implements io.Reader
+			statsReader, err := h.dockerClient.ContainerStatsOneShot(ctx, h.containerID)
+			if err != nil && err != io.EOF {
+				// An error occurred during stats collection, retry with backoff
+				h.logger.Debug("error collecting stats from container", "error", err)
 				continue
 			}
 
-			// sending to destCh could block, drop this interval if it does
+			var stats containerapi.Stats
+
+			if err := json.NewDecoder(statsReader.Body).Decode(&stats); err != nil {
+				h.logger.Error("error unmarshalling stats data for container", "error", err)
+				_ = statsReader.Body.Close()
+				continue
+			}
+
+			resourceUsage := util.DockerStatsToTaskResourceUsage(&stats, compute)
 			destCh.send(resourceUsage)
 
-			timer.Reset(interval)
-
-		case s, ok := <-statsCh:
-			// if statsCh is closed stop collection
-			if !ok {
-				return
-			}
-			// s should always be set, but check and skip just in case
-			if s != nil {
-				resourceUsage = util.DockerStatsToTaskResourceUsage(s, compute)
-				// send stats next interation if this is the first time received
-				// from docker
-				if !hasSentInitialStats {
-					timer.Reset(0)
-					hasSentInitialStats = true
-				}
-			}
+			_ = statsReader.Body.Close()
 		}
 	}
 }
