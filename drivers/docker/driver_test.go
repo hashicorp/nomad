@@ -2222,8 +2222,8 @@ func TestDockerDriver_Stats(t *testing.T) {
 	must.NoError(t, err)
 
 	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
-		ru := <-ch
-		if _, ok := <-ch; !ok {
+		ru, ok := <-ch
+		if !ok {
 			return fmt.Errorf("task resource usage channel is closed")
 		}
 		if ru == nil {
