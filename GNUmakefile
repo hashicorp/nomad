@@ -42,9 +42,11 @@ endif
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
-# LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
-# published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.8.3
+# LAST_RELEASE is used for generating the changelog. It is the last released GA
+# or backport version, without the leading "v". main should have the latest
+# published release here, and release branches should point to the latest
+# published release in their X.Y release line.
+LAST_RELEASE ?= 1.8.4
 
 default: help
 
