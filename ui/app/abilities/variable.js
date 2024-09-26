@@ -116,22 +116,29 @@ export default class Variable extends AbstractAbility {
 
   @computed('allPaths', 'namespace', 'path', 'token.selfTokenPolicies')
   get policiesSupportVariableWriting() {
-    if (this.namespace === WILDCARD_GLOB && this.path === WILDCARD_GLOB) {
-      // If you're checking if you can write from root, and you don't specify a namespace,
-      // Then if you can write in ANY path in ANY namespace, you can get to /new.
+    if (this.path === WILDCARD_GLOB) {
+      // If checking for write permission on the root path
       return this.policyNamespacesIncludeVariablesCapabilities(
         this.token.selfTokenPolicies,
         ['write'],
-        this._nearestMatchingPath(this.path)
+        WILDCARD_GLOB
       );
     } else {
-      // Checking a specific path in a specific namespace.
-      // TODO: This doesn't cover the case when you're checking for the * namespace at a specific path.
-      // Right now we require you to specify yournamespace to enable the button.
+      // Checking a specific path
       const matchingPath = this._nearestMatchingPath(this.path);
-      return this.allPaths
-        .find((path) => path.name === matchingPath)
-        ?.capabilities?.includes('write');
+      if (this.namespace === WILDCARD_GLOB) {
+        // Checking for the * namespace at a specific path
+        return this.policyNamespacesIncludeVariablesCapabilities(
+          this.token.selfTokenPolicies,
+          ['write'],
+          matchingPath
+        );
+      } else {
+        // Checking a specific path in a specific namespace
+        return this.allPaths
+          .find((path) => path.name === matchingPath)
+          ?.capabilities?.includes('write');
+      }
     }
   }
 
