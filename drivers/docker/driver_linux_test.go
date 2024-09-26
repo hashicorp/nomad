@@ -6,6 +6,7 @@
 package docker
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -83,8 +84,18 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	cfg.Args = []string{"-c", "sleep 5 & sleep 5 & sleep 5"}
 	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	_, _, _, cleanup := dockerSetup(t, task, nil)
-	defer cleanup()
+	_, _, handle, cleanup := dockerSetup(t, task, nil)
+	t.Cleanup(cleanup)
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
+
+	select {
+	case <-handle.waitCh:
+		must.Eq(t, 2, handle.exitResult.ExitCode)
+	case <-ctx.Done():
+		t.Fatalf("task should have immediately completed")
+	}
 
 	// Check that data was written to the directory.
 	outputFile := filepath.Join(task.TaskDir().LogDir, "redis-demo.stderr.0")
