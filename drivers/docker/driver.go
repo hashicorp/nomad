@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -856,7 +857,7 @@ func (d *Driver) recoverPauseContainers(ctx context.Context) {
 		All:     false, // running only
 		Filters: filters.NewArgs(filters.KeyValuePair{Key: "label", Value: dockerLabelAllocID}),
 	})
-	if listErr != nil && listErr != ctx.Err() {
+	if listErr != nil && !errors.Is(listErr, ctx.Err()) {
 		d.logger.Error("failed to list pause containers for recovery", "error", listErr)
 		return
 	}
