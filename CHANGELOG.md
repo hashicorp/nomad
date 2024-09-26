@@ -14,6 +14,7 @@ IMPROVEMENTS:
 * deps: Upgraded yamux to v0.1.2 to fix a bug where RPC connections could deadlock [[GH-24058](https://github.com/hashicorp/nomad/issues/24058)]
 * docker: Use official docker SDK instead of a 3rd party client [[GH-23966](https://github.com/hashicorp/nomad/issues/23966)]
 * identity: Added filepath parameter to identity block for persisting workload identities [[GH-24038](https://github.com/hashicorp/nomad/issues/24038)]
+* jobs: Added Version Tags to job versions, to prevent them from being garbage collected and allow for diffs ([GH-24055](https://github.com/hashicorp/nomad/issues/24055))
 * keyring: Stored wrapped data encryption keys in Raft [[GH-23977](https://github.com/hashicorp/nomad/issues/23977)]
 * networking: Added an option to ignore static port collisions when scheduling, for programs that use the SO_REUSEPORT unix socket option [[GH-23956](https://github.com/hashicorp/nomad/issues/23956)]
 * networking: IPv6 can now be enabled on the Nomad bridge network mode [[GH-23882](https://github.com/hashicorp/nomad/issues/23882)]
