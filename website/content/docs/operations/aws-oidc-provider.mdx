@@ -25,7 +25,8 @@ The instructions on this page also assume the following:
 
 - Your AWS account has the necessary permissions to create IAM roles, policies, hosted zones,
   and certificates.
-- You are using Terraform to manage your AWS infrastructure.
+- You are using Terraform to manage your AWS infrastructure and you have
+  [configured it to communicate with AWS](https://registry.terraform.io/providers/hashicorp/aws/latest/docs#authentication-and-configuration).
 
 ## Workflow
 
@@ -226,7 +227,7 @@ The domain name of the load balancer certificate. This will be
 ### Create an IAM policy for OIDC Federated Users
 
 Use the [`aws_iam_role` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role)
-to create an appropriate IAM role for workloads acting as federated users. This will be 
+to create an appropriate IAM role for workloads acting as federated users. This will be
 specific to your use case. The following example allows workloads access to S3 buckets.
 
 ```hcl
@@ -346,10 +347,13 @@ job "s3" {
 
       identity {
         name = "aws"
-        aud = ["aws"] 
+        aud = ["aws"]
         file = true
-        ttl = "1h" 
-        change_mode = "restart"
+        ttl = "1h"
+
+        # AWS SDKs gracefully handle OIDC/WebIdentity reauthentication when the
+        # session or token expire, therefore a restart isn't needed
+        change_mode = "noop"
       }
 
       template {
