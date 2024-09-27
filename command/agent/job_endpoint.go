@@ -1267,7 +1267,8 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	}
 
 	if taskGroup.Scaling != nil {
-		tg.Scaling = ApiScalingPolicyToStructs(tg.Count, taskGroup.Scaling).TargetTaskGroup(job, tg)
+		tg.Scaling = ApiScalingPolicyToStructs(
+			job, tg, nil, tg.Count, taskGroup.Scaling)
 	}
 
 	tg.EphemeralDisk = &structs.EphemeralDisk{
@@ -1404,7 +1405,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		for _, policy := range apiTask.ScalingPolicies {
 			structsTask.ScalingPolicies = append(
 				structsTask.ScalingPolicies,
-				ApiScalingPolicyToStructs(0, policy).TargetTask(job, group, structsTask))
+				ApiScalingPolicyToStructs(job, group, structsTask, 0, policy))
 		}
 	}
 

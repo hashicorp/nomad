@@ -163,15 +163,15 @@ func TestScalingEndpoint_ListPolicies(t *testing.T) {
 	j1 := mock.Job()
 	j1polV := mock.ScalingPolicy()
 	j1polV.Type = "vertical-cpu"
-	j1polV.TargetTask(j1, j1.TaskGroups[0], j1.TaskGroups[0].Tasks[0])
+	j1polV.Canonicalize(j1, j1.TaskGroups[0], j1.TaskGroups[0].Tasks[0])
 	j1polH := mock.ScalingPolicy()
 	j1polH.Type = "horizontal"
-	j1polH.TargetTaskGroup(j1, j1.TaskGroups[0])
+	j1polH.Canonicalize(j1, j1.TaskGroups[0], nil)
 
 	j2 := mock.Job()
 	j2polH := mock.ScalingPolicy()
 	j2polH.Type = "horizontal"
-	j2polH.TargetTaskGroup(j2, j2.TaskGroups[0])
+	j2polH.Canonicalize(j2, j2.TaskGroups[0], nil)
 
 	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j1)
 	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j2)
