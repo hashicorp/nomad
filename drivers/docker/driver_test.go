@@ -27,6 +27,7 @@ import (
 	networkapi "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
@@ -376,7 +377,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	must.NoError(t, err)
 
 	if _, err := client.ContainerCreate(context.Background(), opts, nil, nil, nil, containerName); err != nil {
-		if !strings.Contains(err.Error(), "Conflict") {
+		if !errdefs.IsConflict(err) {
 			t.Fatalf("error creating initial container: %v", err)
 		}
 	}
@@ -2890,7 +2891,7 @@ func waitForExist(t *testing.T, client *client.Client, containerID string) {
 	tu.WaitForResult(func() (bool, error) {
 		container, err := client.ContainerInspect(context.Background(), containerID)
 		if err != nil {
-			if !strings.Contains(err.Error(), NoSuchContainerError) {
+			if !errdefs.IsNotFound(err) {
 				return false, err
 			}
 		}

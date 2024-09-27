@@ -27,6 +27,7 @@ import (
 	networkapi "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
@@ -408,7 +409,7 @@ CREATE:
 			d.logger.Error("failed to start container", "container_id", container.ID, "error", err)
 			dockerClient.ContainerRemove(d.ctx, container.ID, containerapi.RemoveOptions{Force: true})
 			// Some sort of docker race bug, recreating the container usually works
-			if strings.Contains(err.Error(), "OCI runtime create failed: container with id exists:") && startAttempts < 5 {
+			if errdefs.IsConflict(err) && startAttempts < 5 {
 				startAttempts++
 				d.logger.Debug("reattempting container create/start sequence", "attempt", startAttempts, "container_id", id)
 				goto CREATE
@@ -529,7 +530,7 @@ CREATE:
 
 	// If the container already exists determine whether it's already
 	// running or if it's dead and needs to be recreated.
-	if strings.Contains(strings.ToLower(createErr.Error()), "conflict. the container name") {
+	if errdefs.IsConflict(createErr) {
 
 		container, err := d.containerByName(config.Name)
 		if err != nil {
@@ -561,7 +562,7 @@ CREATE:
 			goto CREATE
 		}
 
-	} else if strings.Contains(strings.ToLower(createErr.Error()), "no such image") {
+	} else if errdefs.IsNotFound(createErr) {
 		// There is still a very small chance this is possible even with the
 		// coordinator so retry.
 		return nil, nstructs.NewRecoverableError(createErr, true)
@@ -588,7 +589,7 @@ func (d *Driver) startContainer(c types.ContainerJSON) error {
 
 START:
 	startErr := dockerClient.ContainerStart(d.ctx, c.ID, containerapi.StartOptions{})
-	if startErr == nil || strings.Contains(startErr.Error(), "Container already running") {
+	if startErr == nil || errdefs.IsConflict(err) {
 		return nil
 	}
 
@@ -1641,7 +1642,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 
 	c, err := dockerClient.ContainerInspect(d.ctx, h.containerID)
 	if err != nil {
-		if strings.Contains(err.Error(), NoSuchContainerError) {
+		if _, ok := err.(errdefs.ErrNotFound); ok {
 			h.logger.Info("container was removed out of band, will proceed with DestroyTask",
 				"error", err)
 		} else {

@@ -14,6 +14,7 @@ import (
 
 	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -135,7 +136,7 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 
 			container, err := client.ContainerInspect(ctx, opts.ContainerID)
 			if err != nil {
-				if !strings.Contains(err.Error(), "No such container") {
+				if !errdefs.IsNotFound(err) {
 					return
 				}
 			} else if !container.State.Running {

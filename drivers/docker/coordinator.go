@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/errdefs"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -344,11 +344,11 @@ func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 			break
 		}
 
-		if strings.Contains(err.Error(), "No such image") {
+		if errdefs.IsNotFound(err) {
 			d.logger.Debug("unable to cleanup image, does not exist", "image_id", id)
 			return
 		}
-		if derr, ok := err.(*types.ErrorResponse); ok && strings.Contains(derr.Error(), "Conflict") {
+		if errdefs.IsConflict(err) {
 			d.logger.Debug("unable to cleanup image, still in use", "image_id", id)
 			return
 		}
