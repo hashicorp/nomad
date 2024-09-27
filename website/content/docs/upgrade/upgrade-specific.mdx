@@ -44,6 +44,31 @@ Nomad 1.9.0 no longer supports the HCLv1 format for job specifications. Using
 the `-hcl1` option for the `job run`, `job plan`, and `job validate` commands
 will no longer work.
 
+One common use of `-hcl1` was when specifying [Docker
+labels](/nomad/docs/drivers/docker#labels) with dots in their keys such as for
+DataDog autodiscovery:
+
+```hcl
+labels {
+  "com.datadoghq.ad.check_names"  = "[\"openmetrics\"]"
+  "com.datadoghq.ad.init_configs" = "[{}]"
+  # ...
+}
+```
+
+Quoted keys are invalid in HCLv2 blocks and must be specified with a
+list-of-maps syntax:
+
+```hcl
+labels = [
+  {
+    "com.datadoghq.ad.check_names"  = "[\"openmetrics\"]"
+    "com.datadoghq.ad.init_configs" = "[{}]"
+    # ...
+  }
+]
+```
+
 ## Nomad 1.8.4
 
 #### Default Docker `infra_image` changed
