@@ -8,13 +8,13 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/armon/circbuf"
 	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
@@ -192,12 +192,12 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal string) error {
 
 		if err := h.Signal(ctx, signal); err != nil {
 			// Container has already been removed.
-			if strings.Contains(err.Error(), NoSuchContainerError) {
+			if errdefs.IsNotFound(err) {
 				h.logger.Debug("attempted to signal nonexistent container")
 				return nil
 			}
 			// Container has already been stopped.
-			if strings.Contains(err.Error(), ContainerNotRunningError) {
+			if errdefs.IsNotModified(err) {
 				h.logger.Debug("attempted to signal a not-running container")
 				return nil
 			}
@@ -218,12 +218,12 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal string) error {
 
 	if err != nil {
 		// Container has already been removed.
-		if strings.Contains(err.Error(), NoSuchContainerError) {
+		if errdefs.IsNotFound(err) {
 			h.logger.Debug("attempted to stop nonexistent container")
 			return nil
 		}
 		// Container has already been stopped.
-		if strings.Contains(err.Error(), ContainerNotRunningError) {
+		if errdefs.IsNotModified(err) {
 			h.logger.Debug("attempted to stop an not-running container")
 			return nil
 		}
@@ -335,9 +335,7 @@ func (h *taskHandle) run() {
 	if err := h.dockerClient.ContainerStop(ctx, h.containerID, containerapi.StopOptions{
 		Timeout: pointer.Of(0),
 	}); err != nil {
-		noSuchContainer := strings.Contains(err.Error(), NoSuchContainerError)
-		containerNotRunning := strings.Contains(err.Error(), ContainerNotRunningError)
-		if !containerNotRunning && !noSuchContainer {
+		if !errdefs.IsNotModified(err) && !errdefs.IsNotFound(err) {
 			h.logger.Error("error stopping container", "error", err)
 		}
 	}
