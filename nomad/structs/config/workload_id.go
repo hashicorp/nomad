@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper/pointer"
 )
 
@@ -31,8 +31,12 @@ type WorkloadIdentityConfig struct {
 	Env *bool `mapstructure:"env"`
 
 	// File writes the Workload Identity into the Task's secrets directory
-	// if set.
+	// or specified filepath if set.
 	File *bool `mapstructure:"file"`
+
+	// Filepath write the Workload Identity to a specified directory in the
+	// Task's filesystem
+	Filepath string `mapstructure:"filepath"`
 
 	// TTL is used to determine the expiration of the credentials created for
 	// this identity (eg the JWT "exp" claim).
@@ -83,6 +87,9 @@ func (wi *WorkloadIdentityConfig) Equal(other *WorkloadIdentityConfig) bool {
 	if !pointer.Eq(wi.File, other.File) {
 		return false
 	}
+	if wi.Filepath != other.Filepath {
+		return false
+	}
 	if !pointer.Eq(wi.TTL, other.TTL) {
 		return false
 	}
@@ -119,6 +126,9 @@ func (wi *WorkloadIdentityConfig) Merge(other *WorkloadIdentityConfig) *Workload
 	result.Env = pointer.Merge(result.Env, other.Env)
 	result.File = pointer.Merge(result.File, other.File)
 	result.TTL = pointer.Merge(result.TTL, other.TTL)
+	if other.Filepath != "" {
+		result.Filepath = other.Filepath
+	}
 	if other.TTLHCL != "" {
 		result.TTLHCL = other.TTLHCL
 	}

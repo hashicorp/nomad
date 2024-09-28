@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/lib/lang"
@@ -2094,7 +2094,7 @@ func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
 	}
 
 	// now delete the submissions we found associated with the job
-	for _, sub := range remove.Slice() {
+	for sub := range remove.Items() {
 		err := txn.Delete("job_submission", sub)
 		if err != nil {
 			return err
@@ -2188,10 +2188,21 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 		all[max-1], all[max] = all[max], all[max-1]
 	}
 
-	// Delete the job outside of the set that are being kept.
-	d := all[max]
-	if err := txn.Delete("job_version", d); err != nil {
-		return fmt.Errorf("failed to delete job %v (%d) from job_version", d.ID, d.Version)
+	// Find the oldest non-tagged version to delete
+	deleteIdx := -1
+	for i := len(all) - 1; i >= max; i-- {
+		if all[i].VersionTag == nil {
+			deleteIdx = i
+			break
+		}
+	}
+
+	// If we found a non-tagged version to delete, delete it
+	if deleteIdx != -1 {
+		d := all[deleteIdx]
+		if err := txn.Delete("job_version", d); err != nil {
+			return fmt.Errorf("failed to delete job %v (%d) from job_version", d.ID, d.Version)
+		}
 	}
 
 	return nil
@@ -2299,11 +2310,26 @@ func (s *StateStore) jobsByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix strin
 	return wrap, nil
 }
 
-// JobVersionsByID returns all the tracked versions of a job.
+// JobVersionsByID returns all the tracked versions of a job, sorted in from highest version to lowest.
 func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
 	txn := s.db.ReadTxn()
 
 	return s.jobVersionByID(txn, ws, namespace, id)
+}
+
+// JobVersionByTagName returns a Job if it has a Tag with the passed name
+func (s *StateStore) JobVersionByTagName(ws memdb.WatchSet, namespace, id string, tagName string) (*structs.Job, error) {
+	// First get all versions of the job
+	versions, err := s.JobVersionsByID(ws, namespace, id)
+	if err != nil {
+		return nil, err
+	}
+	for _, j := range versions {
+		if j.VersionTag != nil && j.VersionTag.Name == tagName {
+			return j, nil
+		}
+	}
+	return nil, nil
 }
 
 // jobVersionByID is the underlying implementation for retrieving all tracked
@@ -3941,7 +3967,7 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	}
 
 	// Update the index of when nodes last updated their allocs.
-	for _, nodeID := range nodeIDs.Slice() {
+	for nodeID := range nodeIDs.Items() {
 		if err := s.updateClientAllocUpdateIndex(txn, index, nodeID); err != nil {
 			return fmt.Errorf("node update failed: %v", err)
 		}
@@ -4901,6 +4927,95 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 	copy := job.Copy()
 	copy.Stable = stable
 	return s.upsertJobImpl(index, nil, copy, true, txn)
+}
+
+func (s *StateStore) UpdateJobVersionTag(index uint64, namespace string, req *structs.JobApplyTagRequest) error {
+	jobID := req.JobID
+	jobVersion := req.Version
+	tag := req.Tag
+	name := req.Name
+
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	// if no tag is present, this is a tag removal operation.
+	if tag == nil {
+		if err := s.unsetJobVersionTagImpl(index, namespace, jobID, name, txn); err != nil {
+			return err
+		}
+	} else {
+		if err := s.updateJobVersionTagImpl(index, namespace, jobID, jobVersion, tag, txn); err != nil {
+			return err
+		}
+	}
+
+	return txn.Commit()
+}
+
+func (s *StateStore) updateJobVersionTagImpl(index uint64, namespace, jobID string, jobVersion uint64, tag *structs.JobVersionTag, txn *txn) error {
+	// Note: could use JobByIDAndVersion to get the specific version we want here,
+	// but then we'd have to make a second lookup to make sure we're not applying a duplicate tag name
+	versions, err := s.JobVersionsByID(nil, namespace, jobID)
+	if err != nil {
+		return err
+	}
+
+	var job *structs.Job
+
+	for _, version := range versions {
+		// Allow for a tag to be updated (new description, for example) but otherwise don't allow a same-tagname to a different version.
+		if version.VersionTag != nil && version.VersionTag.Name == tag.Name && version.Version != jobVersion {
+			return fmt.Errorf("tag %q already exists on a different version of job %q", tag.Name, jobID)
+		}
+		if version.Version == jobVersion {
+			job = version
+		}
+	}
+
+	if job == nil {
+		return fmt.Errorf("job %q version %d not found", jobID, jobVersion)
+	}
+
+	versionCopy := job.Copy()
+	versionCopy.VersionTag = tag
+	versionCopy.ModifyIndex = index
+
+	latestJob, err := s.JobByID(nil, namespace, jobID)
+	if err != nil {
+		return err
+	}
+	if versionCopy.Version == latestJob.Version {
+		if err := txn.Insert("jobs", versionCopy); err != nil {
+			return err
+		}
+	}
+
+	return s.upsertJobVersion(index, versionCopy, txn)
+}
+
+func (s *StateStore) unsetJobVersionTagImpl(index uint64, namespace, jobID string, name string, txn *txn) error {
+	job, err := s.JobVersionByTagName(nil, namespace, jobID, name)
+	if err != nil {
+		return err
+	}
+	if job == nil {
+		return fmt.Errorf("tag %q not found on job %q", name, jobID)
+	}
+
+	versionCopy := job.Copy()
+	versionCopy.VersionTag = nil
+	versionCopy.ModifyIndex = index
+	latestJob, err := s.JobByID(nil, namespace, jobID)
+	if err != nil {
+		return err
+	}
+	if versionCopy.Version == latestJob.Version {
+		if err := txn.Insert("jobs", versionCopy); err != nil {
+			return err
+		}
+	}
+
+	return s.upsertJobVersion(index, versionCopy, txn)
 }
 
 // UpdateDeploymentPromotion is used to promote canaries in a deployment and

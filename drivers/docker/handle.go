@@ -8,18 +8,20 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/armon/circbuf"
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -27,7 +29,7 @@ import (
 type taskHandle struct {
 	// dockerClient is useful for normal docker API calls. It should be used
 	// for all calls that aren't Wait() or Stop() (and their variations).
-	dockerClient *docker.Client
+	dockerClient *client.Client
 
 	dockerCGroupDriver string
 
@@ -36,7 +38,7 @@ type taskHandle struct {
 	// - the Stop docker API call(s) (context with task kill_timeout required)
 	// Do not use this client for any other docker API calls, instead use the
 	// normal dockerClient which includes a default timeout.
-	infinityClient *docker.Client
+	infinityClient *client.Client
 
 	logger                  hclog.Logger
 	dlogger                 docklog.DockerLogger
@@ -84,16 +86,14 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	fullCmd := make([]string, len(args)+1)
 	fullCmd[0] = cmd
 	copy(fullCmd[1:], args)
-	createExecOpts := docker.CreateExecOptions{
+	createExecOpts := containerapi.ExecOptions{
 		AttachStdin:  false,
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          false,
 		Cmd:          fullCmd,
-		Container:    h.containerID,
-		Context:      ctx,
 	}
-	exec, err := h.dockerClient.CreateExec(createExecOpts)
+	exec, err := h.dockerClient.ContainerExecCreate(ctx, h.containerID, createExecOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -101,19 +101,32 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	execResult := &drivers.ExecTaskResult{ExitResult: &drivers.ExitResult{}}
 	stdout, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
 	stderr, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
-	startOpts := docker.StartExecOptions{
-		Detach:       false,
-		Tty:          false,
-		OutputStream: stdout,
-		ErrorStream:  stderr,
-		Context:      ctx,
+	startOpts := containerapi.ExecStartOptions{
+		Detach: false,
+		Tty:    false,
 	}
-	if err := h.dockerClient.StartExec(exec.ID, startOpts); err != nil {
+	if err := h.dockerClient.ContainerExecStart(ctx, exec.ID, startOpts); err != nil {
 		return nil, err
 	}
+
+	// hijack exec output streams
+	hijacked, err := h.dockerClient.ContainerExecAttach(ctx, h.containerID, containerapi.ExecStartOptions{
+		Detach: false,
+		Tty:    false,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = stdcopy.StdCopy(stdout, stderr, hijacked.Reader)
+	if err != nil {
+		return nil, err
+	}
+	defer hijacked.Close()
+
 	execResult.Stdout = stdout.Bytes()
 	execResult.Stderr = stderr.Bytes()
-	res, err := h.dockerClient.InspectExec(exec.ID)
+	res, err := h.dockerClient.ContainerExecInspect(ctx, exec.ID)
 	if err != nil {
 		return execResult, err
 	}
@@ -122,25 +135,13 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	return execResult, nil
 }
 
-func (h *taskHandle) Signal(ctx context.Context, s os.Signal) error {
-	// Convert types
-	sysSig, ok := s.(syscall.Signal)
-	if !ok {
-		return fmt.Errorf("Failed to determine signal number")
+func (h *taskHandle) Signal(ctx context.Context, s string) error {
+	_, err := signals.Parse(s)
+	if err != nil {
+		return fmt.Errorf("failed to parse signal: %v", err)
 	}
 
-	// TODO When we expose signals we will need a mapping layer that converts
-	// MacOS signals to the correct signal number for docker. Or we change the
-	// interface to take a signal string and leave it up to driver to map?
-
-	opts := docker.KillContainerOptions{
-		ID:      h.containerID,
-		Signal:  docker.Signal(sysSig),
-		Context: ctx,
-	}
-
-	// remember Kill just means send a signal; this is not the complex StopContainer case
-	return h.dockerClient.KillContainer(opts)
+	return h.dockerClient.ContainerKill(ctx, h.containerID, s)
 }
 
 // parseSignal interprets the signal name into an os.Signal. If no name is
@@ -178,25 +179,25 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal string) error {
 		graciousTimeout := killTimeout + dockerTimeout
 		ctx, cancel := context.WithTimeout(context.Background(), graciousTimeout)
 		defer cancel()
-		apiTimeout := uint(killTimeout.Seconds())
-		err = h.infinityClient.StopContainerWithContext(h.containerID, apiTimeout, ctx)
+		apiTimeout := int(killTimeout.Seconds())
+		err = h.infinityClient.ContainerStop(ctx, h.containerID, containerapi.StopOptions{Timeout: pointer.Of(apiTimeout)})
 	} else {
-		ctx, cancel := context.WithTimeout(context.Background(), killTimeout)
-		defer cancel()
-
-		sig, parseErr := parseSignal(runtime.GOOS, signal)
+		_, parseErr := parseSignal(runtime.GOOS, signal)
 		if parseErr != nil {
 			return fmt.Errorf("failed to parse signal: %v", parseErr)
 		}
 
-		if err := h.Signal(ctx, sig); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), killTimeout)
+		defer cancel()
+
+		if err := h.Signal(ctx, signal); err != nil {
 			// Container has already been removed.
-			if strings.Contains(err.Error(), NoSuchContainerError) {
+			if errdefs.IsNotFound(err) {
 				h.logger.Debug("attempted to signal nonexistent container")
 				return nil
 			}
 			// Container has already been stopped.
-			if strings.Contains(err.Error(), ContainerNotRunningError) {
+			if errdefs.IsNotModified(err) {
 				h.logger.Debug("attempted to signal a not-running container")
 				return nil
 			}
@@ -212,17 +213,17 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal string) error {
 		}
 
 		// Stop the container forcefully.
-		err = h.dockerClient.StopContainer(h.containerID, 0)
+		err = h.dockerClient.ContainerStop(context.Background(), h.containerID, containerapi.StopOptions{Timeout: pointer.Of(0)})
 	}
 
 	if err != nil {
 		// Container has already been removed.
-		if strings.Contains(err.Error(), NoSuchContainerError) {
+		if errdefs.IsNotFound(err) {
 			h.logger.Debug("attempted to stop nonexistent container")
 			return nil
 		}
 		// Container has already been stopped.
-		if strings.Contains(err.Error(), ContainerNotRunningError) {
+		if errdefs.IsNotModified(err) {
 			h.logger.Debug("attempted to stop an not-running container")
 			return nil
 		}
@@ -291,18 +292,23 @@ func (h *taskHandle) run() {
 
 	h.startCpusetFixer()
 
-	exitCode, werr := h.infinityClient.WaitContainer(h.containerID)
-	if werr != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)
+	defer cancel()
+
+	var werr error
+	var exitCode containerapi.WaitResponse
+	exitCodeC, errC := h.infinityClient.ContainerWait(ctx, h.containerID, containerapi.WaitConditionNotRunning)
+
+	select {
+	case exitCode = <-exitCodeC:
+		if exitCode.StatusCode != 0 {
+			werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode.StatusCode)
+		}
+	case werr = <-errC:
 		h.logger.Error("failed to wait for container; already terminated")
 	}
 
-	if exitCode != 0 {
-		werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
-	}
-
-	container, ierr := h.dockerClient.InspectContainerWithOptions(docker.InspectContainerOptions{
-		ID: h.containerID,
-	})
+	container, ierr := h.dockerClient.ContainerInspect(ctx, h.containerID)
 	oom := false
 	if ierr != nil {
 		h.logger.Error("failed to inspect container", "error", ierr)
@@ -326,10 +332,10 @@ func (h *taskHandle) run() {
 
 	// Stop the container just incase the docker daemon's wait returned
 	// incorrectly.
-	if err := h.dockerClient.StopContainer(h.containerID, 0); err != nil {
-		_, noSuchContainer := err.(*docker.NoSuchContainer)
-		_, containerNotRunning := err.(*docker.ContainerNotRunning)
-		if !containerNotRunning && !noSuchContainer {
+	if err := h.dockerClient.ContainerStop(ctx, h.containerID, containerapi.StopOptions{
+		Timeout: pointer.Of(0),
+	}); err != nil {
+		if !errdefs.IsNotModified(err) && !errdefs.IsNotFound(err) {
 			h.logger.Error("error stopping container", "error", err)
 		}
 	}
@@ -337,7 +343,7 @@ func (h *taskHandle) run() {
 	// Set the result
 	h.exitResultLock.Lock()
 	h.exitResult = &drivers.ExitResult{
-		ExitCode:  exitCode,
+		ExitCode:  int(exitCode.StatusCode),
 		Signal:    0,
 		OOMKilled: oom,
 		Err:       werr,

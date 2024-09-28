@@ -575,6 +575,12 @@ func TestWorkloadIdentity_Equal(t *testing.T) {
 	newWI.File = false
 	must.Equal(t, orig, newWI)
 
+	newWI.Filepath = "foo"
+	must.NotEqual(t, orig, newWI)
+
+	newWI.Filepath = ""
+	must.Equal(t, orig, newWI)
+
 	newWI.Name = "foo"
 	must.NotEqual(t, orig, newWI)
 
@@ -768,6 +774,14 @@ func TestWorkloadIdentity_Validate(t *testing.T) {
 				Audience: []string{"foo"},
 			},
 			Warn: "identities without an expiration are insecure",
+		},
+		{
+			Desc: "Filepath set without file",
+			In: WorkloadIdentity{
+				Name:     "foo",
+				Filepath: "foo",
+			},
+			Err: "file parameter must be true in order to specify filepath",
 		},
 	}
 

@@ -27,7 +27,7 @@ import (
 	cnilibrary "github.com/containernetworking/cni/libcni"
 	consulIPTables "github.com/hashicorp/consul/sdk/iptables"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -393,36 +393,51 @@ func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.Result) (*structs.AllocN
 	}
 	sort.Strings(names)
 
-	// Use the first sandbox interface with an IP address
-	for _, name := range names {
-		iface := res.Interfaces[name]
-		if iface == nil {
+	// setStatus sets netStatus.Address and netStatus.InterfaceName
+	// if it finds a suitable interface that has IP address(es)
+	// (at least IPv4, possibly also IPv6)
+	setStatus := func(requireSandbox bool) {
+		for _, name := range names {
+			iface := res.Interfaces[name]
 			// this should never happen but this value is coming from external
 			// plugins so we should guard against it
-			delete(res.Interfaces, name)
-			continue
-		}
+			if iface == nil {
+				continue
+			}
 
-		if iface.Sandbox != "" && len(iface.IPConfigs) > 0 {
-			netStatus.Address = iface.IPConfigs[0].IP.String()
-			netStatus.InterfaceName = name
-			break
+			if requireSandbox && iface.Sandbox == "" {
+				continue
+			}
+
+			for _, ipConfig := range iface.IPConfigs {
+				isIP4 := ipConfig.IP.To4() != nil
+				if netStatus.Address == "" && isIP4 {
+					netStatus.Address = ipConfig.IP.String()
+				}
+				if netStatus.AddressIPv6 == "" && !isIP4 {
+					netStatus.AddressIPv6 = ipConfig.IP.String()
+				}
+			}
+
+			// found a good interface, so we're done
+			if netStatus.Address != "" {
+				netStatus.InterfaceName = name
+				return
+			}
 		}
 	}
+
+	// Use the first sandbox interface with an IP address
+	setStatus(true)
 
 	// If no IP address was found, use the first interface with an address
 	// found as a fallback
 	if netStatus.Address == "" {
-		for _, name := range names {
-			iface := res.Interfaces[name]
-			if len(iface.IPConfigs) > 0 {
-				ip := iface.IPConfigs[0].IP.String()
-				c.logger.Debug("no sandbox interface with an address found CNI result, using first available", "interface", name, "ip", ip)
-				netStatus.Address = ip
-				netStatus.InterfaceName = name
-				break
-			}
-		}
+		setStatus(false)
+		c.logger.Debug("no sandbox interface with an address found CNI result, using first available",
+			"interface", netStatus.InterfaceName,
+			"ip", netStatus.Address,
+		)
 	}
 
 	// If no IP address could be found, return an error

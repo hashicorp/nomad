@@ -938,6 +938,10 @@
                 "path": "commands/operator/snapshot/inspect"
               },
               {
+                "title": "redact",
+                "path": "commands/operator/snapshot/redact"
+              },
+              {
                 "title": "restore",
                 "path": "commands/operator/snapshot/restore"
               },
@@ -2381,6 +2385,10 @@
       {
         "title": "Benchmarking Nomad",
         "path": "operations/benchmarking"
+      },
+      {
+        "title": "Federate AWS Access with Workload Identity",
+        "path": "operations/aws-oidc-provider"
       }
     ]
   },

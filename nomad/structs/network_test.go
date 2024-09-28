@@ -70,7 +70,7 @@ func TestNetworkIndex_Copy(t *testing.T) {
 								Device:        "eth0",
 								IP:            "192.168.0.100",
 								MBits:         20,
-								ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
+								ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
 							},
 						},
 					},
@@ -86,7 +86,7 @@ func TestNetworkIndex_Copy(t *testing.T) {
 								Device:        "eth0",
 								IP:            "192.168.0.100",
 								MBits:         50,
-								ReservedPorts: []Port{{"one", 10000, 0, ""}},
+								ReservedPorts: []Port{{Label: "one", Value: 10000}},
 							},
 						},
 					},
@@ -115,7 +115,7 @@ func TestNetworkIndex_Copy(t *testing.T) {
 							Device:        "eth1",
 							IP:            "192.168.0.104",
 							MBits:         50,
-							ReservedPorts: []Port{{"one", 4567, 0, ""}},
+							ReservedPorts: []Port{{Label: "one", Value: 4567}},
 						},
 					},
 				},
@@ -139,7 +139,7 @@ func TestNetworkIndex_Overcommitted(t *testing.T) {
 		Device:        "eth0",
 		IP:            "192.168.0.100",
 		MBits:         505,
-		ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
+		ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
 	}
 	collide, reasons := idx.AddReserved(reserved)
 	if collide || len(reasons) != 0 {
@@ -216,7 +216,7 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 								Device:        "eth0",
 								IP:            "192.168.0.100",
 								MBits:         20,
-								ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
+								ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
 							},
 						},
 					},
@@ -234,7 +234,7 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 								Device:        "eth0",
 								IP:            "192.168.0.100",
 								MBits:         50,
-								ReservedPorts: []Port{{"one", 10000, 0, ""}},
+								ReservedPorts: []Port{{Label: "one", Value: 10000}},
 							},
 						},
 					},
@@ -254,7 +254,7 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 								Device:        "eth0",
 								IP:            "192.168.0.100",
 								MBits:         50,
-								ReservedPorts: []Port{{"one", 10001, 0, ""}},
+								ReservedPorts: []Port{{Label: "one", Value: 10001}},
 							},
 						},
 					},
@@ -275,7 +275,7 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 								Device:        "eth0",
 								IP:            "192.168.0.100",
 								MBits:         50,
-								ReservedPorts: []Port{{"one", 10001, 0, ""}},
+								ReservedPorts: []Port{{Label: "one", Value: 10001}},
 							},
 						},
 					},
@@ -302,7 +302,7 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 		Device:        "eth0",
 		IP:            "192.168.0.100",
 		MBits:         20,
-		ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
+		ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
 	}
 	collide, reasons := idx.AddReserved(reserved)
 	if collide || len(reasons) > 0 {
@@ -400,8 +400,8 @@ func TestNetworkIndex_AssignPorts(t *testing.T) {
 
 	// Ask for 2 dynamic ports
 	ask := &NetworkResource{
-		ReservedPorts: []Port{{"static", 443, 443, "default"}},
-		DynamicPorts:  []Port{{"http", 0, 80, "default"}, {"admin", 0, 8080, "default"}},
+		ReservedPorts: []Port{{Label: "static", Value: 443, To: 443, HostNetwork: "default"}},
+		DynamicPorts:  []Port{{Label: "http", To: 80, HostNetwork: "default"}, {Label: "admin", To: 8080, HostNetwork: "default"}},
 	}
 	offer, err := idx.AssignPorts(ask)
 	must.NoError(t, err)
@@ -459,21 +459,21 @@ func TestNetworkIndex_AssignPortss_SmallRange(t *testing.T) {
 			name:      "1 dynamic port avail and 1 port requested",
 			min:       20000,
 			max:       20000,
-			ask:       []Port{{"http", 0, 80, "default"}},
+			ask:       []Port{{Label: "http", To: 80, HostNetwork: "default"}},
 			expectErr: "",
 		},
 		{
 			name:      "1 dynamic port avail and 2 ports requested",
 			min:       20000,
 			max:       20000,
-			ask:       []Port{{"http", 0, 80, "default"}, {"admin", 0, 80, "default"}},
+			ask:       []Port{{Label: "http", To: 80, HostNetwork: "default"}, {Label: "admin", To: 80, HostNetwork: "default"}},
 			expectErr: "dynamic port selection failed",
 		},
 		{
 			name:      "2 dynamic ports avail and 2 ports requested",
 			min:       20000,
 			max:       20001,
-			ask:       []Port{{"http", 0, 80, "default"}, {"admin", 0, 80, "default"}},
+			ask:       []Port{{Label: "http", To: 80, HostNetwork: "default"}, {Label: "admin", To: 80, HostNetwork: "default"}},
 			expectErr: "",
 		},
 	}
@@ -546,17 +546,17 @@ func TestNetworkIndex_AssignPorts_TwoIp(t *testing.T) {
 	}{
 		{
 			name:      "1 reserved port asked, 2 ip, 1 already used",
-			allocated: []AllocatedPortMapping{{"static", 7000, 7000, "192.168.0.100"}},
-			ask:       []Port{{"static", 7000, 7000, "two_ip_test"}},
+			allocated: []AllocatedPortMapping{{Label: "static", Value: 7000, To: 7000, HostIP: "192.168.0.100"}},
+			ask:       []Port{{Label: "static", Value: 7000, To: 7000, HostNetwork: "two_ip_test"}},
 			expectErr: "",
 		},
 		{
 			name: "1 reserved port asked, 2 ip, 2 already used",
 			allocated: []AllocatedPortMapping{
-				{"static", 7000, 7000, "192.168.0.100"},
-				{"static", 7000, 7000, "192.168.0.101"},
+				{Label: "static", Value: 7000, To: 7000, HostIP: "192.168.0.100"},
+				{Label: "static", Value: 7000, To: 7000, HostIP: "192.168.0.101"},
 			},
-			ask:       []Port{{"static", 7000, 7000, "two_ip_test"}},
+			ask:       []Port{{Label: "static", Value: 7000, To: 7000, HostNetwork: "two_ip_test"}},
 			expectErr: "reserved port collision static=7000",
 		},
 	}
@@ -584,6 +584,82 @@ func TestNetworkIndex_AssignPorts_TwoIp(t *testing.T) {
 
 }
 
+// TestNetworkIndex_IgnorePortCollision tests Port.IgnoreCollision.
+func TestNetworkIndex_IgnorePortCollision(t *testing.T) {
+	ci.Parallel(t)
+
+	// set up some fake resources
+
+	ip := "127.3.2.1"
+	net := "test-ignore-port-collision"
+	n := &Node{
+		NodeResources: &NodeResources{
+			NodeNetworks: []*NodeNetworkResource{{
+				Addresses: []NodeNetworkAddress{{
+					Alias:   net,
+					Address: ip,
+				}},
+			}},
+		},
+	}
+
+	getPortMappings := func(collideOK bool) []AllocatedPortMapping {
+		return []AllocatedPortMapping{{
+			HostIP:          ip,
+			Label:           "test-port",
+			Value:           10,
+			To:              10,
+			IgnoreCollision: collideOK,
+		}}
+	}
+	getPorts := func(collideOK bool) []Port {
+		return []Port{{
+			HostNetwork:     net,
+			Label:           "test-port",
+			Value:           10,
+			To:              10,
+			IgnoreCollision: collideOK,
+		}}
+	}
+	collidingPortMappings := getPortMappings(false)
+	nonCollidingPortMappings := getPortMappings(true)
+	collidingPorts := getPorts(false)
+	nonCollidingPorts := getPorts(true)
+
+	// now we can get started
+
+	idx := NewNetworkIndex()
+	idx.SetNode(n)
+
+	// initial reservation - pretend some other job has already used the port
+	// note the behavior below is the same whether this one is a collider or not
+	collide, reasons := idx.AddReservedPorts(collidingPortMappings)
+	must.False(t, collide, must.Sprint("expect no collision in first reservation"))
+	must.Len(t, 0, reasons, must.Sprint("expect no reasons in first reservation"))
+
+	t.Run("AddReservedPorts", func(t *testing.T) {
+		collide, reasons = idx.AddReservedPorts(collidingPortMappings)
+		must.True(t, collide, must.Sprint("expect collision"))
+		must.Eq(t, []string{"port 10 already in use"}, reasons, must.Sprint("expect collision reasons"))
+
+		collide, reasons = idx.AddReservedPorts(nonCollidingPortMappings)
+		must.False(t, collide, must.Sprint("expect no collision"))
+		must.Len(t, 0, reasons, must.Sprint("expect no collision reasons"))
+	})
+
+	t.Run("AssignPorts", func(t *testing.T) {
+		ask := &NetworkResource{ReservedPorts: collidingPorts}
+		allocated, err := idx.AssignPorts(ask)
+		must.ErrorContains(t, err, "reserved port collision test-port=10")
+		must.Nil(t, allocated, must.Sprint("expect no ports on AssignPorts error"))
+
+		ask = &NetworkResource{ReservedPorts: nonCollidingPorts}
+		allocated, err = idx.AssignPorts(ask)
+		must.NoError(t, err)
+		must.Eq(t, nonCollidingPortMappings, allocated)
+	})
+}
+
 func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 	ci.Parallel(t)
 	idx := NewNetworkIndex()
@@ -609,7 +685,7 @@ func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         20,
-							ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
+							ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
 						},
 					},
 				},
@@ -623,7 +699,7 @@ func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         50,
-							ReservedPorts: []Port{{"main", 10000, 0, ""}},
+							ReservedPorts: []Port{{Label: "main", Value: 10000}},
 						},
 					},
 				},
@@ -634,19 +710,19 @@ func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 
 	// Ask for a reserved port
 	ask := &NetworkResource{
-		ReservedPorts: []Port{{"main", 8000, 0, ""}},
+		ReservedPorts: []Port{{Label: "main", Value: 8000}},
 	}
 	offer, err := idx.AssignTaskNetwork(ask)
 	require.NoError(t, err)
 	require.NotNil(t, offer)
 	require.Equal(t, "192.168.0.101", offer.IP)
-	rp := Port{"main", 8000, 0, ""}
+	rp := Port{Label: "main", Value: 8000}
 	require.Len(t, offer.ReservedPorts, 1)
 	require.Exactly(t, rp, offer.ReservedPorts[0])
 
 	// Ask for dynamic ports
 	ask = &NetworkResource{
-		DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, -1, ""}},
+		DynamicPorts: []Port{{Label: "http", To: 80}, {Label: "https", To: 443}, {Label: "admin", To: -1}},
 	}
 	offer, err = idx.AssignTaskNetwork(ask)
 	require.NoError(t, err)
@@ -664,15 +740,15 @@ func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 
 	// Ask for reserved + dynamic ports
 	ask = &NetworkResource{
-		ReservedPorts: []Port{{"main", 2345, 0, ""}},
-		DynamicPorts:  []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
+		ReservedPorts: []Port{{Label: "main", Value: 2345}},
+		DynamicPorts:  []Port{{Label: "http", To: 80}, {Label: "https", To: 443}, {Label: "admin", To: 8080}},
 	}
 	offer, err = idx.AssignTaskNetwork(ask)
 	require.NoError(t, err)
 	require.NotNil(t, offer)
 	require.Equal(t, "192.168.0.100", offer.IP)
 
-	rp = Port{"main", 2345, 0, ""}
+	rp = Port{Label: "main", Value: 2345}
 	require.Len(t, offer.ReservedPorts, 1)
 	require.Exactly(t, rp, offer.ReservedPorts[0])
 
@@ -716,7 +792,7 @@ func TestNetworkIndex_AssignTaskNetwork_Dynamic_Contention(t *testing.T) {
 
 	// Ask for 2 dynamic ports
 	ask := &NetworkResource{
-		DynamicPorts: []Port{{"http", 0, 80, ""}, {"admin", 0, 443, ""}},
+		DynamicPorts: []Port{{Label: "http", To: 80}, {Label: "admin", To: 443}},
 	}
 	offer, err := idx.AssignTaskNetwork(ask)
 	must.NoError(t, err)
@@ -750,7 +826,7 @@ func TestNetworkIndex_SetNode_Old(t *testing.T) {
 				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
+					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
 					MBits:         1,
 				},
 			},
@@ -777,7 +853,7 @@ func TestNetworkIndex_AddAllocs_Old(t *testing.T) {
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         20,
-							ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
+							ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
 						},
 					},
 				},
@@ -791,7 +867,7 @@ func TestNetworkIndex_AddAllocs_Old(t *testing.T) {
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         50,
-							ReservedPorts: []Port{{"one", 10000, 0, ""}},
+							ReservedPorts: []Port{{Label: "one", Value: 10000}},
 						},
 					},
 				},
@@ -837,7 +913,7 @@ func TestNetworkIndex_yieldIP_Old(t *testing.T) {
 				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
+					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
 					MBits:         1,
 				},
 			},
@@ -878,7 +954,7 @@ func TestNetworkIndex_AssignTaskNetwork_Old(t *testing.T) {
 				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
+					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
 					MBits:         1,
 				},
 			},
@@ -895,7 +971,7 @@ func TestNetworkIndex_AssignTaskNetwork_Old(t *testing.T) {
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         20,
-							ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
+							ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
 						},
 					},
 				},
@@ -909,7 +985,7 @@ func TestNetworkIndex_AssignTaskNetwork_Old(t *testing.T) {
 							Device:        "eth0",
 							IP:            "192.168.0.100",
 							MBits:         50,
-							ReservedPorts: []Port{{"main", 10000, 0, ""}},
+							ReservedPorts: []Port{{Label: "main", Value: 10000}},
 						},
 					},
 				},
@@ -920,7 +996,7 @@ func TestNetworkIndex_AssignTaskNetwork_Old(t *testing.T) {
 
 	// Ask for a reserved port
 	ask := &NetworkResource{
-		ReservedPorts: []Port{{"main", 8000, 0, ""}},
+		ReservedPorts: []Port{{Label: "main", Value: 8000}},
 	}
 	offer, err := idx.AssignTaskNetwork(ask)
 	if err != nil {
@@ -932,14 +1008,14 @@ func TestNetworkIndex_AssignTaskNetwork_Old(t *testing.T) {
 	if offer.IP != "192.168.0.101" {
 		t.Fatalf("bad: %#v", offer)
 	}
-	rp := Port{"main", 8000, 0, ""}
+	rp := Port{Label: "main", Value: 8000}
 	if len(offer.ReservedPorts) != 1 || offer.ReservedPorts[0] != rp {
 		t.Fatalf("bad: %#v", offer)
 	}
 
 	// Ask for dynamic ports
 	ask = &NetworkResource{
-		DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
+		DynamicPorts: []Port{{Label: "http", To: 80}, {Label: "https", To: 443}, {Label: "admin", To: 8080}},
 	}
 	offer, err = idx.AssignTaskNetwork(ask)
 	if err != nil {
@@ -962,8 +1038,8 @@ func TestNetworkIndex_AssignTaskNetwork_Old(t *testing.T) {
 
 	// Ask for reserved + dynamic ports
 	ask = &NetworkResource{
-		ReservedPorts: []Port{{"main", 2345, 0, ""}},
-		DynamicPorts:  []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
+		ReservedPorts: []Port{{Label: "main", Value: 2345}},
+		DynamicPorts:  []Port{{Label: "http", To: 80}, {Label: "https", To: 443}, {Label: "admin", To: 8080}},
 	}
 	offer, err = idx.AssignTaskNetwork(ask)
 	if err != nil {
@@ -976,7 +1052,7 @@ func TestNetworkIndex_AssignTaskNetwork_Old(t *testing.T) {
 		t.Fatalf("bad: %#v", offer)
 	}
 
-	rp = Port{"main", 2345, 0, ""}
+	rp = Port{Label: "main", Value: 2345}
 	if len(offer.ReservedPorts) != 1 || offer.ReservedPorts[0] != rp {
 		t.Fatalf("bad: %#v", offer)
 	}
@@ -1030,7 +1106,7 @@ func TestNetworkIndex_AssignTaskNetwork_Dynamic_Contention_Old(t *testing.T) {
 
 	// Ask for dynamic ports
 	ask := &NetworkResource{
-		DynamicPorts: []Port{{"http", 0, 80, ""}},
+		DynamicPorts: []Port{{Label: "http", To: 80}},
 	}
 	offer, err := idx.AssignTaskNetwork(ask)
 	if err != nil {

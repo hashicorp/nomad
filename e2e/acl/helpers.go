@@ -6,7 +6,7 @@ package acl
 import (
 	"testing"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
@@ -48,22 +48,22 @@ func NewCleanup() *Cleanup {
 // Any failure will ultimately fail the test, but will not stop the attempts to
 // delete all the resources.
 func (c *Cleanup) Run(t *testing.T, nomadClient *api.Client) {
-	for _, namespace := range c.namespaces.Slice() {
+	for namespace := range c.namespaces.Items() {
 		_, err := nomadClient.Namespaces().Delete(namespace, nil)
 		test.NoError(t, err)
 	}
 
-	for _, policy := range c.aclPolicies.Slice() {
+	for policy := range c.aclPolicies.Items() {
 		_, err := nomadClient.ACLPolicies().Delete(policy, nil)
 		test.NoError(t, err)
 	}
 
-	for _, role := range c.aclRoles.Slice() {
+	for role := range c.aclRoles.Items() {
 		_, err := nomadClient.ACLRoles().Delete(role, nil)
 		test.NoError(t, err)
 	}
 
-	for _, token := range c.aclTokens.Slice() {
+	for token := range c.aclTokens.Items() {
 		_, err := nomadClient.ACLTokens().Delete(token, nil)
 		test.NoError(t, err)
 	}

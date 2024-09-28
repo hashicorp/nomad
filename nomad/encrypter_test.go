@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/rpc"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,11 +18,6 @@ import (
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
-	"github.com/shoenig/test"
-	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -30,6 +26,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -70,10 +70,12 @@ func TestEncrypter_LoadSave(t *testing.T) {
 
 	for _, algo := range algos {
 		t.Run(string(algo), func(t *testing.T) {
-			key, err := structs.NewRootKey(algo)
+			key, err := structs.NewUnwrappedRootKey(algo)
 			must.Greater(t, 0, len(key.RSAKey))
 			must.NoError(t, err)
-			must.NoError(t, encrypter.saveKeyToStore(key))
+
+			_, err = encrypter.wrapRootKey(key, false)
+			must.NoError(t, err)
 
 			// startup code path
 			gotKey, err := encrypter.loadKeyFromStore(
@@ -81,28 +83,29 @@ func TestEncrypter_LoadSave(t *testing.T) {
 			must.NoError(t, err)
 			must.NoError(t, encrypter.addCipher(gotKey))
 			must.Greater(t, 0, len(gotKey.RSAKey))
-			must.NoError(t, encrypter.saveKeyToStore(key))
+			_, err = encrypter.wrapRootKey(key, false)
+			must.NoError(t, err)
 
-			active, err := encrypter.keysetByIDLocked(key.Meta.KeyID)
+			active, err := encrypter.cipherSetByIDLocked(key.Meta.KeyID)
 			must.NoError(t, err)
 			must.Greater(t, 0, len(active.rootKey.RSAKey))
 		})
 	}
 
 	t.Run("legacy aead wrapper", func(t *testing.T) {
-		key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+		key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 		must.NoError(t, err)
 
 		// create a wrapper file identical to those before we had external KMS
-		kekWrapper, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
-		kekWrapper.Provider = ""
-		kekWrapper.ProviderID = ""
-		kekWrapper.EncryptedDataEncryptionKey = kekWrapper.WrappedDataEncryptionKey.Ciphertext
-		kekWrapper.EncryptedRSAKey = kekWrapper.WrappedRSAKey.Ciphertext
-		kekWrapper.WrappedDataEncryptionKey = nil
-		kekWrapper.WrappedRSAKey = nil
+		wrappedKey, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
+		diskWrapper := &structs.KeyEncryptionKeyWrapper{
+			Meta:                       key.Meta,
+			KeyEncryptionKey:           wrappedKey.KeyEncryptionKey,
+			EncryptedDataEncryptionKey: wrappedKey.WrappedDataEncryptionKey.Ciphertext,
+			EncryptedRSAKey:            wrappedKey.WrappedRSAKey.Ciphertext,
+		}
 
-		buf, err := json.Marshal(kekWrapper)
+		buf, err := json.Marshal(diskWrapper)
 		must.NoError(t, err)
 
 		path := filepath.Join(tmpDir, key.Meta.KeyID+".nks.json")
@@ -223,8 +226,9 @@ func TestEncrypter_Restore(t *testing.T) {
 	}
 }
 
-// TestEncrypter_KeyringReplication exercises key replication between servers
-func TestEncrypter_KeyringReplication(t *testing.T) {
+// TestEncrypter_KeyringBootstrapping exercises key decryption tasks as new
+// servers come online and leaders are elected.
+func TestEncrypter_KeyringBootstrapping(t *testing.T) {
 
 	ci.Parallel(t)
 
@@ -283,20 +287,35 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 
 	keyID1 := listResp.Keys[0].KeyID
 
-	keyPath := filepath.Join(leader.GetConfig().DataDir, "keystore",
-		keyID1+".aead.nks.json")
-	_, err := os.Stat(keyPath)
-	must.NoError(t, err, must.Sprint("expected key to be found in leader keystore"))
+	// Helper function for checking that a specific key is in the keyring for a
+	// specific server
+	checkPublicKeyFn := func(codec rpc.ClientCodec, keyID string) bool {
+		listPublicReq := &structs.GenericRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:     "global",
+				AllowStale: true,
+			},
+		}
+		var listPublicResp structs.KeyringListPublicResponse
+		msgpackrpc.CallWithCodec(codec, "Keyring.ListPublic", listPublicReq, &listPublicResp)
+		for _, key := range listPublicResp.PublicKeys {
+			if key.KeyID == keyID && len(key.PublicKey) > 0 {
+				return true
+			}
+		}
+		return false
+	}
+
+	// leader's key should already be available by the time its elected the
+	// leader
+	must.True(t, checkPublicKeyFn(codec, keyID1))
 
 	// Helper function for checking that a specific key has been
-	// replicated to followers
-
+	// replicated to all followers
 	checkReplicationFn := func(keyID string) func() bool {
 		return func() bool {
 			for _, srv := range servers {
-				keyPath := filepath.Join(srv.GetConfig().DataDir, "keystore",
-					keyID+".aead.nks.json")
-				if _, err := os.Stat(keyPath); err != nil {
+				if !checkPublicKeyFn(rpcClient(t, srv), keyID) {
 					return false
 				}
 			}
@@ -317,7 +336,7 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 		},
 	}
 	var rotateResp structs.KeyringRotateRootKeyResponse
-	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
+	err := msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
 	must.NoError(t, err)
 	keyID2 := rotateResp.Key.KeyID
 
@@ -332,10 +351,8 @@ func TestEncrypter_KeyringReplication(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, getResp.Key, must.Sprint("expected key to be found on leader"))
 
-	keyPath = filepath.Join(leader.GetConfig().DataDir, "keystore",
-		keyID2+".aead.nks.json")
-	_, err = os.Stat(keyPath)
-	must.NoError(t, err, must.Sprint("expected key to be found in leader keystore"))
+	must.True(t, checkPublicKeyFn(codec, keyID1),
+		must.Sprint("expected key to be found in leader keystore"))
 
 	must.Wait(t, wait.InitialSuccess(
 		wait.BoolFunc(checkReplicationFn(keyID2)),
@@ -526,7 +543,7 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 
 	e := srv.encrypter
 
-	keyset, err := e.activeKeySet()
+	keyset, err := e.activeCipherSet()
 	must.NoError(t, err)
 	keyID := keyset.rootKey.Meta.KeyID
 
@@ -576,8 +593,25 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
+	initKey, err := srv.State().GetActiveRootKey(nil)
+	must.NoError(t, err)
+
+	wr := structs.WriteRequest{
+		Namespace: "default",
+		Region:    "global",
+	}
+
+	// Delete the initialization key because it's a newer WrappedRootKey from
+	// 1.9, which isn't under test here.
+	_, _, err = srv.raftApply(
+		structs.WrappedRootKeysDeleteRequestType, structs.KeyringDeleteRootKeyRequest{
+			KeyID:        initKey.KeyID,
+			WriteRequest: wr,
+		})
+	must.NoError(t, err)
+
 	// Fake life as a 1.6 server by writing only ed25519 keys
-	oldRootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
+	oldRootKey, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	must.NoError(t, err)
 
 	oldRootKey = oldRootKey.MakeActive()
@@ -586,13 +620,10 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 	oldRootKey.RSAKey = nil
 
 	// Add to keyring
-	must.NoError(t, srv.encrypter.AddKey(oldRootKey))
+	_, err = srv.encrypter.AddUnwrappedKey(oldRootKey, false)
+	must.NoError(t, err)
 
-	// Write metadata to Raft
-	wr := structs.WriteRequest{
-		Namespace: "default",
-		Region:    "global",
-	}
+	// Write a legacy key metadata to Raft
 	req := structs.KeyringUpdateRootKeyMetaRequest{
 		RootKeyMeta:  oldRootKey.Meta,
 		WriteRequest: wr,

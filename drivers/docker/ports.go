@@ -6,7 +6,7 @@ package docker
 import (
 	"strconv"
 
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/docker/go-connections/nat"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 )
@@ -16,15 +16,15 @@ import (
 // used in the docker container and host configs
 type publishedPorts struct {
 	logger         hclog.Logger
-	publishedPorts map[docker.Port][]docker.PortBinding
-	exposedPorts   map[docker.Port]struct{}
+	publishedPorts map[nat.Port][]nat.PortBinding
+	exposedPorts   map[nat.Port]struct{}
 }
 
 func newPublishedPorts(logger hclog.Logger) *publishedPorts {
 	return &publishedPorts{
 		logger:         logger,
-		publishedPorts: map[docker.Port][]docker.PortBinding{},
-		exposedPorts:   map[docker.Port]struct{}{},
+		publishedPorts: map[nat.Port][]nat.PortBinding{},
+		exposedPorts:   map[nat.Port]struct{}{},
 	}
 }
 
@@ -49,14 +49,14 @@ func (p *publishedPorts) add(label, ip string, port, to int) {
 	}
 
 	// two docker port bindings are created for each port for tcp and udp
-	cPortTCP := docker.Port(strconv.Itoa(to) + "/tcp")
-	cPortUDP := docker.Port(strconv.Itoa(to) + "/udp")
+	cPortTCP := nat.Port(strconv.Itoa(to) + "/tcp")
+	cPortUDP := nat.Port(strconv.Itoa(to) + "/udp")
 	binding := getPortBinding(ip, strconv.Itoa(port))
 
 	if _, ok := p.publishedPorts[cPortTCP]; !ok {
 		// initialize both tcp and udp binding slices since they are always created together
-		p.publishedPorts[cPortTCP] = []docker.PortBinding{}
-		p.publishedPorts[cPortUDP] = []docker.PortBinding{}
+		p.publishedPorts[cPortTCP] = []nat.PortBinding{}
+		p.publishedPorts[cPortUDP] = []nat.PortBinding{}
 	}
 
 	p.publishedPorts[cPortTCP] = append(p.publishedPorts[cPortTCP], binding)

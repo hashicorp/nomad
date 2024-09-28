@@ -5,12 +5,17 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"sync"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/errdefs"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -62,9 +67,9 @@ func (p *pullFuture) set(imageID, imageUser string, err error) {
 // DockerImageClient provides the methods required to do CRUD operations on the
 // Docker images
 type DockerImageClient interface {
-	PullImage(opts docker.PullImageOptions, auth docker.AuthConfiguration) error
-	InspectImage(id string) (*docker.Image, error)
-	RemoveImageExtended(id string, opts docker.RemoveImageOptions) error
+	ImagePull(ctx context.Context, refStr string, opts image.PullOptions) (io.ReadCloser, error)
+	ImageInspectWithRaw(ctx context.Context, id string) (types.ImageInspect, []byte, error)
+	ImageRemove(ctx context.Context, id string, opts image.RemoveOptions) ([]image.DeleteResponse, error)
 }
 
 // LogEventFn is a callback which allows Drivers to emit task events.
@@ -136,7 +141,7 @@ func newDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
 // error that occurred during the pull
-func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string,
+func (d *dockerCoordinator) PullImage(image string, authOptions *registry.AuthConfig, callerID string,
 	emitFn LogEventFn, pullTimeout, pullActivityTimeout time.Duration) (imageID, imageUser string, err error) {
 	// Get the future
 	d.imageLock.Lock()
@@ -171,53 +176,55 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 
 // pullImageImpl is the implementation of pulling an image. The results are
 // returned via the passed future
-func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.AuthConfiguration,
+func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.AuthConfig,
 	pullTimeout, pullActivityTimeout time.Duration, future *pullFuture) {
 
-	defer d.clearPullLogger(image)
+	defer d.clearPullLogger(imageID)
 	// Parse the repo and tag
-	repo, tag := parseDockerImage(image)
+	repo, tag := parseDockerImage(imageID)
 	ctx, cancel := context.WithTimeout(context.Background(), pullTimeout)
 	defer cancel()
 
-	pm := newImageProgressManager(image, cancel, pullActivityTimeout, d.handlePullInactivity,
+	pm := newImageProgressManager(imageID, cancel, pullActivityTimeout, d.handlePullInactivity,
 		d.handlePullProgressReport, d.handleSlowPullProgressReport)
 	defer pm.stop()
 
-	pullOptions := docker.PullImageOptions{
-		Repository:    repo,
-		Tag:           tag,
-		OutputStream:  pm,
-		RawJSONStream: true,
-		Context:       ctx,
-	}
-
 	// Attempt to pull the image
-	var auth docker.AuthConfiguration
+	var auth registry.AuthConfig
 	if authOptions != nil {
 		auth = *authOptions
 	}
 
-	err := d.client.PullImage(pullOptions, auth)
+	pullOptions := image.PullOptions{RegistryAuth: auth.Auth}
+	reader, err := d.client.ImagePull(d.ctx, dockerImageRef(repo, tag), pullOptions)
 
-	if ctxErr := ctx.Err(); ctxErr == context.DeadlineExceeded {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		d.logger.Error("timeout pulling container", "image_ref", dockerImageRef(repo, tag))
-		future.set("", "", recoverablePullError(ctxErr, image))
+		future.set("", "", recoverablePullError(ctx.Err(), imageID))
 		return
 	}
 
 	if err != nil {
 		d.logger.Error("failed pulling container", "image_ref", dockerImageRef(repo, tag),
 			"error", err)
-		future.set("", "", recoverablePullError(err, image))
+		future.set("", "", recoverablePullError(err, imageID))
 		return
+	}
+
+	if reader != nil {
+		defer reader.Close()
+		_, err = io.Copy(pm, reader)
+		if err != nil && !errors.Is(err, io.EOF) {
+			d.logger.Error("error reading image pull progress", "error", err)
+			return
+		}
 	}
 
 	d.logger.Debug("docker pull succeeded", "image_ref", dockerImageRef(repo, tag))
 
-	dockerImage, err := d.client.InspectImage(image)
+	dockerImage, _, err := d.client.ImageInspectWithRaw(d.ctx, imageID)
 	if err != nil {
-		d.logger.Error("failed getting image id", "image_name", image, "error", err)
+		d.logger.Error("failed getting image id", "image_name", imageID, "error", err)
 		future.set("", "", recoverableErrTimeouts(err))
 		return
 	}
@@ -330,18 +337,18 @@ func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 	d.imageLock.Unlock()
 
 	for i := 0; i < 3; i++ {
-		err := d.client.RemoveImageExtended(id, docker.RemoveImageOptions{
+		_, err := d.client.ImageRemove(d.ctx, id, image.RemoveOptions{
 			Force: true, // necessary to GC images referenced by multiple tags
 		})
 		if err == nil {
 			break
 		}
 
-		if err == docker.ErrNoSuchImage {
+		if errdefs.IsNotFound(err) {
 			d.logger.Debug("unable to cleanup image, does not exist", "image_id", id)
 			return
 		}
-		if derr, ok := err.(*docker.Error); ok && derr.Status == 409 {
+		if errdefs.IsConflict(err) {
 			d.logger.Debug("unable to cleanup image, still in use", "image_id", id)
 			return
 		}

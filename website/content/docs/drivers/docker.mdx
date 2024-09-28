@@ -205,6 +205,21 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
+  A more verbose syntax must be used to specify labels with keys that require
+  quoting. For example DataDog's autodiscovery mechanism looks for labels with
+  dots in the key which must be quoted:
+
+  ```hcl
+  config {
+    labels = [
+      {
+        "com.datadoghq.ad.check_names"  =  "[\"openmetrics\"]"
+        "com.datadoghq.ad.init_configs" = "[{}]"
+      }
+    ]
+  }
+  ```
+
 - `load` - (Optional) Load an image from a `tar` archive file instead of from a
   remote repository. Equivalent to the `docker load -i <filename>` command. If
   you're using an `artifact` block to fetch the archive file, you'll need to

@@ -553,6 +553,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// exist before it can start.
 	s.keyringReplicator = NewKeyringReplicator(s, encrypter)
 
+	// Block until keys are decrypted
+	s.encrypter.IsReady(s.shutdownCtx)
+
 	// Done
 	return s, nil
 }
@@ -1378,6 +1381,7 @@ func (s *Server) setupRaft() error {
 		EvalBroker:         s.evalBroker,
 		Periodic:           s.periodicDispatcher,
 		Blocked:            s.blockedEvals,
+		Encrypter:          s.encrypter,
 		Logger:             s.logger,
 		Region:             s.Region(),
 		EnableEventBroker:  s.config.EnableEventBroker,

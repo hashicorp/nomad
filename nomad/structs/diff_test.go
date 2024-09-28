@@ -4616,6 +4616,12 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeDeleted,
+										Name: "IgnoreCollision",
+										Old:  "false",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
 										Name: "Label",
 										Old:  "foo",
 										New:  "",
@@ -6488,6 +6494,12 @@ func TestTaskDiff(t *testing.T) {
 										Fields: []*FieldDiff{
 											{
 												Type: DiffTypeAdded,
+												Name: "IgnoreCollision",
+												Old:  "",
+												New:  "false",
+											},
+											{
+												Type: DiffTypeAdded,
 												Name: "Label",
 												Old:  "",
 												New:  "foo",
@@ -6534,6 +6546,12 @@ func TestTaskDiff(t *testing.T) {
 										Type: DiffTypeDeleted,
 										Name: "Static Port",
 										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "IgnoreCollision",
+												Old:  "false",
+												New:  "",
+											},
 											{
 												Type: DiffTypeDeleted,
 												Name: "Label",
@@ -6843,9 +6861,7 @@ func TestTaskDiff(t *testing.T) {
 						"a": 1,
 						"b": 2,
 					},
-					"boom": &Port{
-						Label: "boom_port",
-					},
+					"boom": []string{"boom_port"},
 				},
 			},
 			New: &Task{
@@ -6857,9 +6873,7 @@ func TestTaskDiff(t *testing.T) {
 						"a": 1,
 						"b": 2,
 					},
-					"boom": &Port{
-						Label: "boom_port",
-					},
+					"boom": []string{"boom_port"},
 				},
 			},
 			Expected: &TaskDiff{
@@ -6877,9 +6891,7 @@ func TestTaskDiff(t *testing.T) {
 						"a": 1,
 						"b": 2,
 					},
-					"boom": &Port{
-						Label: "boom_port",
-					},
+					"boom": []string{"boom_port"},
 				},
 			},
 			New: &Task{
@@ -6891,9 +6903,7 @@ func TestTaskDiff(t *testing.T) {
 						"b": 3,
 						"c": 4,
 					},
-					"boom": &Port{
-						Label: "boom_port2",
-					},
+					"boom": []string{"boom_port2"},
 				},
 			},
 			Expected: &TaskDiff{
@@ -6935,7 +6945,7 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeEdited,
-								Name: "boom.Label",
+								Name: "boom[0]",
 								Old:  "boom_port",
 								New:  "boom_port2",
 							},
@@ -6962,9 +6972,7 @@ func TestTaskDiff(t *testing.T) {
 						"a": 1,
 						"b": 2,
 					},
-					"boom": &Port{
-						Label: "boom_port",
-					},
+					"boom": []string{"boom_port"},
 				},
 			},
 			New: &Task{
@@ -6976,9 +6984,7 @@ func TestTaskDiff(t *testing.T) {
 						"a": 1,
 						"b": 2,
 					},
-					"boom": &Port{
-						Label: "boom_port",
-					},
+					"boom": []string{"boom_port"},
 				},
 			},
 			Expected: &TaskDiff{
@@ -7026,27 +7032,9 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
-								Name: "boom.HostNetwork",
-								Old:  "",
-								New:  "",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "boom.Label",
+								Name: "boom[0]",
 								Old:  "boom_port",
 								New:  "boom_port",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "boom.To",
-								Old:  "0",
-								New:  "0",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "boom.Value",
-								Old:  "0",
-								New:  "0",
 							},
 							{
 								Type: DiffTypeEdited,

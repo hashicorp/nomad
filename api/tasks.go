@@ -1246,6 +1246,7 @@ type WorkloadIdentity struct {
 	ChangeSignal string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
 	Env          bool          `hcl:"env,optional"`
 	File         bool          `hcl:"file,optional"`
+	Filepath     string        `hcl:"filepath,optional"`
 	ServiceName  string        `hcl:"service_name,optional"`
 	TTL          time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
 }

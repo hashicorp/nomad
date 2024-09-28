@@ -34,6 +34,7 @@ job "docs" {
       identity {
         env         = true
         file        = true
+        filepath    = "local/example.jwt"
 
         # Restart on token renewal to get the new env var
         change_mode = "restart"
@@ -81,6 +82,9 @@ job "docs" {
   [`task.user`][taskuser] parameter is set, the token file will only be
   readable by that user. Otherwise the file is readable by everyone but is
   protected by parent directory permissions.
+- `filepath` `(string: "")` - If not empty and file is `true`, the workload
+  identity will be available at the specified location relative to the 
+  [task working directory][] instead of the `NOMAD_SECRETS_DIR`.
 - `ttl` `(string: "")` - The lifetime of the identity before it expires. The
   client will renew the identity at roughly half the TTL. This is specified
   using a label suffix like "30s" or "1h". You may not set a TTL on the default
@@ -355,3 +359,4 @@ EOF
 [taskapi]: /nomad/api-docs/task-api
 [taskuser]: /nomad/docs/job-specification/task#user "Nomad task Block"
 [windows]: https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
+[task working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'

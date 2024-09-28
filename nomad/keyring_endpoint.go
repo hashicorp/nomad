@@ -54,36 +54,49 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 		return fmt.Errorf("keyring cannot be prepublished and full rotated at the same time")
 	}
 
-	rootKey, err := structs.NewRootKey(args.Algorithm)
+	unwrappedKey, err := structs.NewUnwrappedRootKey(args.Algorithm)
 	if err != nil {
 		return err
 	}
 
 	if args.PublishTime != 0 {
-		rootKey.Meta = rootKey.Meta.MakePrepublished(args.PublishTime)
+		unwrappedKey.Meta.State = structs.RootKeyStatePrepublished
+		unwrappedKey.Meta.PublishTime = args.PublishTime
 	} else {
-		rootKey.Meta = rootKey.Meta.MakeActive()
+		unwrappedKey.Meta.State = structs.RootKeyStateActive
 	}
 
-	// make sure it's been added to the local keystore before we write
-	// it to raft, so that followers don't try to Get a key that
-	// hasn't yet been written to disk
-	err = k.encrypter.AddKey(rootKey)
+	isClusterUpgraded := ServersMeetMinimumVersion(
+		k.srv.serf.Members(), k.srv.Region(), minVersionKeyringInRaft, true)
+
+	// wrap/encrypt the key before we write it to Raft
+	wrappedKey, err := k.encrypter.AddUnwrappedKey(unwrappedKey, isClusterUpgraded)
 	if err != nil {
 		return err
 	}
 
-	// Update metadata via Raft so followers can retrieve this key
-	req := structs.KeyringUpdateRootKeyMetaRequest{
-		RootKeyMeta:  rootKey.Meta,
-		Rekey:        args.Full,
-		WriteRequest: args.WriteRequest,
+	var index uint64
+	if isClusterUpgraded {
+		_, index, err = k.srv.raftApply(structs.WrappedRootKeysUpsertRequestType,
+			structs.KeyringUpsertWrappedRootKeyRequest{
+				WrappedRootKeys: wrappedKey,
+				Rekey:           args.Full,
+				WriteRequest:    args.WriteRequest,
+			})
+	} else {
+		// COMPAT(1.12.0): remove the version check and this code path
+		_, index, err = k.srv.raftApply(structs.RootKeyMetaUpsertRequestType,
+			structs.KeyringUpdateRootKeyMetaRequest{
+				RootKeyMeta:  wrappedKey.Meta(),
+				Rekey:        args.Full,
+				WriteRequest: args.WriteRequest,
+			})
 	}
-	_, index, err := k.srv.raftApply(structs.RootKeyMetaUpsertRequestType, req)
 	if err != nil {
 		return err
 	}
-	reply.Key = rootKey.Meta
+
+	reply.Key = unwrappedKey.Meta
 	reply.Index = index
 
 	if args.Full {
@@ -129,29 +142,23 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, s *state.StateStore) error {
-
-			// retrieve all the key metadata
-			snap, err := k.srv.fsm.State().Snapshot()
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			iter, err := store.RootKeys(ws)
 			if err != nil {
 				return err
 			}
-			iter, err := snap.RootKeyMetas(ws)
-			if err != nil {
-				return err
-			}
-
 			keys := []*structs.RootKeyMeta{}
 			for {
 				raw := iter.Next()
 				if raw == nil {
 					break
 				}
-				keyMeta := raw.(*structs.RootKeyMeta)
-				keys = append(keys, keyMeta)
+				rootKey := raw.(*structs.RootKey)
+				keys = append(keys, rootKey.Meta())
 			}
+
 			reply.Keys = keys
-			return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
+			return k.srv.replySetIndex(state.TableRootKeys, &reply.QueryMeta)
 		},
 	}
 	return k.srv.blockingRPC(&opts)
@@ -183,22 +190,35 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 		return err
 	}
 
+	isClusterUpgraded := ServersMeetMinimumVersion(
+		k.srv.serf.Members(), k.srv.Region(), minVersionKeyringInRaft, true)
+
 	// make sure it's been added to the local keystore before we write
 	// it to raft, so that followers don't try to Get a key that
 	// hasn't yet been written to disk
-	err = k.encrypter.AddKey(args.RootKey)
+	wrappedKey, err := k.encrypter.AddUnwrappedKey(args.RootKey, isClusterUpgraded)
 	if err != nil {
 		return err
 	}
 
-	// unwrap the request to turn it into a meta update only
-	metaReq := &structs.KeyringUpdateRootKeyMetaRequest{
-		RootKeyMeta:  args.RootKey.Meta,
-		WriteRequest: args.WriteRequest,
-	}
+	var index uint64
+	if isClusterUpgraded {
+		_, index, err = k.srv.raftApply(structs.WrappedRootKeysUpsertRequestType,
+			structs.KeyringUpsertWrappedRootKeyRequest{
+				WrappedRootKeys: wrappedKey,
+				WriteRequest:    args.WriteRequest,
+			})
+	} else {
+		// COMPAT(1.12.0): remove the version check and this code path
+		// unwrap the request to turn it into a meta update only
+		metaReq := &structs.KeyringUpdateRootKeyMetaRequest{
+			RootKeyMeta:  args.RootKey.Meta,
+			WriteRequest: args.WriteRequest,
+		}
 
-	// update the metadata via Raft
-	_, index, err := k.srv.raftApply(structs.RootKeyMetaUpsertRequestType, metaReq)
+		// update the metadata via Raft
+		_, index, err = k.srv.raftApply(structs.RootKeyMetaUpsertRequestType, metaReq)
+	}
 	if err != nil {
 		return err
 	}
@@ -225,11 +245,11 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	keyMeta, err := snap.RootKeyMetaByID(ws, args.RootKey.Meta.KeyID)
+	rootKey, err := snap.RootKeyByID(ws, args.RootKey.Meta.KeyID)
 	if err != nil {
 		return err
 	}
-	if keyMeta != nil && keyMeta.Algorithm != args.RootKey.Meta.Algorithm {
+	if rootKey != nil && rootKey.Algorithm != args.RootKey.Meta.Algorithm {
 		return fmt.Errorf("root key algorithm cannot be changed after a key is created")
 	}
 
@@ -261,39 +281,29 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
 
-			// retrieve the key metadata
 			snap, err := k.srv.fsm.State().Snapshot()
 			if err != nil {
 				return err
 			}
-			keyMeta, err := snap.RootKeyMetaByID(ws, args.KeyID)
+			wrappedKey, err := snap.RootKeyByID(ws, args.KeyID)
 			if err != nil {
 				return err
 			}
-			if keyMeta == nil {
-				return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
+			if wrappedKey == nil {
+				return k.srv.replySetIndex(state.TableRootKeys, &reply.QueryMeta)
 			}
 
 			// retrieve the key material from the keyring
-			rootKey, err := k.encrypter.GetKey(keyMeta.KeyID)
+			unwrappedKey, err := k.encrypter.GetKey(wrappedKey.KeyID)
 			if err != nil {
 				return err
 			}
-			reply.Key = rootKey
-
-			// Use the last index that affected the policy table
-			index, err := s.Index(state.TableRootKeyMeta)
+			reply.Key = unwrappedKey
+			err = k.srv.replySetIndex(state.TableRootKeys, &reply.QueryMeta)
 			if err != nil {
 				return err
 			}
 
-			// Ensure we never set the index to zero, otherwise a blocking query
-			// cannot be used.  We floor the index at one, since realistically
-			// the first write must have a higher index.
-			if index == 0 {
-				index = 1
-			}
-			reply.Index = index
 			return nil
 		},
 	}
@@ -324,24 +334,21 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	}
 
 	// lookup any existing key and validate the delete
+	var index uint64
 	snap, err := k.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	keyMeta, err := snap.RootKeyMetaByID(ws, args.KeyID)
+	rootKey, err := snap.RootKeyByID(ws, args.KeyID)
 	if err != nil {
 		return err
 	}
-	if keyMeta == nil {
-		return nil // safe to bail out early
-	}
-	if keyMeta.IsActive() {
+	if rootKey != nil && rootKey.IsActive() {
 		return fmt.Errorf("active root key cannot be deleted - call rotate first")
 	}
 
-	// update via Raft
-	_, index, err := k.srv.raftApply(structs.RootKeyMetaDeleteRequestType, args)
+	_, index, err = k.srv.raftApply(structs.WrappedRootKeysDeleteRequestType, args)
 	if err != nil {
 		return err
 	}
@@ -377,40 +384,33 @@ func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.Keyrin
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, s *state.StateStore) error {
-
-			// retrieve all the key metadata
-			snap, err := k.srv.fsm.State().Snapshot()
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			iter, err := store.RootKeys(ws)
 			if err != nil {
 				return err
 			}
-			iter, err := snap.RootKeyMetas(ws)
-			if err != nil {
-				return err
-			}
-
 			pubKeys := []*structs.KeyringPublicKey{}
 			for {
 				raw := iter.Next()
 				if raw == nil {
 					break
 				}
-
-				keyMeta := raw.(*structs.RootKeyMeta)
-				if keyMeta.State == structs.RootKeyStateDeprecated {
+				wrappedKeys := raw.(*structs.RootKey)
+				if wrappedKeys.State == structs.RootKeyStateDeprecated {
 					// Only include valid keys
 					continue
 				}
 
-				pubKey, err := k.encrypter.GetPublicKey(keyMeta.KeyID)
+				pubKey, err := k.encrypter.GetPublicKey(wrappedKeys.KeyID)
 				if err != nil {
 					return err
 				}
 
 				pubKeys = append(pubKeys, pubKey)
+
 			}
 			reply.PublicKeys = pubKeys
-			return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
+			return k.srv.replySetIndex(state.TableRootKeys, &reply.QueryMeta)
 		},
 	}
 	return k.srv.blockingRPC(&opts)

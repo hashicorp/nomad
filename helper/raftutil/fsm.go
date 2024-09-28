@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 )
@@ -209,6 +210,7 @@ func StateAsMap(store *state.StateStore) map[string][]interface{} {
 		"Jobs":             toArray(store.Jobs(nil, state.SortDefault)),
 		"Nodes":            toArray(store.Nodes(nil)),
 		"PeriodicLaunches": toArray(store.PeriodicLaunches(nil)),
+		"RootKeys":         rootKeyMeta(store),
 		"SITokenAccessors": toArray(store.SITokenAccessors(nil)),
 		"ScalingEvents":    toArray(store.ScalingEvents(nil)),
 		"ScalingPolicies":  toArray(store.ScalingPolicies(nil)),
@@ -264,4 +266,28 @@ func toArray(iter memdb.ResultIterator, err error) []interface{} {
 	}
 
 	return r
+}
+
+// rootKeyMeta allows displaying keys without their key material
+func rootKeyMeta(store *state.StateStore) []any {
+
+	iter, err := store.RootKeys(nil)
+	if err != nil {
+		return []any{err}
+	}
+
+	keyMeta := []any{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		k := raw.(*structs.RootKey)
+		if k == nil {
+			break
+		}
+		keyMeta = append(keyMeta, k.Meta())
+	}
+
+	return keyMeta
 }

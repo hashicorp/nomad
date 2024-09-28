@@ -6,10 +6,10 @@ package docker
 import (
 	"testing"
 
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestDriver_createSandboxContainerConfig(t *testing.T) {
@@ -17,7 +17,7 @@ func TestDriver_createSandboxContainerConfig(t *testing.T) {
 	testCases := []struct {
 		inputAllocID              string
 		inputNetworkCreateRequest *drivers.NetworkCreateRequest
-		expectedOutputOpts        *docker.CreateContainerOptions
+		expectedOutputOpts        *createContainerOptions
 		name                      string
 	}{
 		{
@@ -25,17 +25,17 @@ func TestDriver_createSandboxContainerConfig(t *testing.T) {
 			inputNetworkCreateRequest: &drivers.NetworkCreateRequest{
 				Hostname: "",
 			},
-			expectedOutputOpts: &docker.CreateContainerOptions{
+			expectedOutputOpts: &createContainerOptions{
 				Name: "nomad_init_768b5e8c-a52e-825c-d564-51100230eb62",
-				Config: &docker.Config{
+				Config: &containerapi.Config{
 					Image: "registry.k8s.io/pause-amd64:3.3",
 					Labels: map[string]string{
 						dockerLabelAllocID: "768b5e8c-a52e-825c-d564-51100230eb62",
 					},
 				},
-				HostConfig: &docker.HostConfig{
+				Host: &containerapi.HostConfig{
 					NetworkMode:   "none",
-					RestartPolicy: docker.RestartUnlessStopped(),
+					RestartPolicy: containerapi.RestartPolicy{Name: containerapi.RestartPolicyUnlessStopped},
 				},
 			},
 			name: "no input hostname",
@@ -45,18 +45,18 @@ func TestDriver_createSandboxContainerConfig(t *testing.T) {
 			inputNetworkCreateRequest: &drivers.NetworkCreateRequest{
 				Hostname: "linux",
 			},
-			expectedOutputOpts: &docker.CreateContainerOptions{
+			expectedOutputOpts: &createContainerOptions{
 				Name: "nomad_init_768b5e8c-a52e-825c-d564-51100230eb62",
-				Config: &docker.Config{
+				Config: &containerapi.Config{
 					Image:    "registry.k8s.io/pause-amd64:3.3",
 					Hostname: "linux",
 					Labels: map[string]string{
 						dockerLabelAllocID: "768b5e8c-a52e-825c-d564-51100230eb62",
 					},
 				},
-				HostConfig: &docker.HostConfig{
+				Host: &containerapi.HostConfig{
 					NetworkMode:   "none",
-					RestartPolicy: docker.RestartUnlessStopped(),
+					RestartPolicy: containerapi.RestartPolicy{Name: containerapi.RestartPolicyUnlessStopped},
 				},
 			},
 			name: "supplied input hostname",
@@ -72,8 +72,8 @@ func TestDriver_createSandboxContainerConfig(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput, err := d.createSandboxContainerConfig(tc.inputAllocID, tc.inputNetworkCreateRequest)
-			assert.Nil(t, err, tc.name)
-			assert.Equal(t, tc.expectedOutputOpts, actualOutput, tc.name)
+			must.Nil(t, err, must.Sprint(tc.name))
+			must.Eq(t, tc.expectedOutputOpts, actualOutput, must.Sprint(tc.name))
 		})
 	}
 }

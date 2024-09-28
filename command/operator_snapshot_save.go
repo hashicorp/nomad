@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/raftutil"
 	"github.com/posener/complete"
 )
 
@@ -48,8 +49,14 @@ General Options:
 
 Snapshot Save Options:
 
-  -stale=[true|false]
-    The -stale argument defaults to "false" which means the leader provides the
+  -redact
+    The -redact option will locally edit the snapshot to remove any cleartext key
+    material from the root keyring. Only the AEAD keyring provider has cleartext
+    key material in Raft. Note that this operation requires loading the snapshot
+    into memory locally.
+
+  -stale
+    The -stale option defaults to "false" which means the leader provides the
     result. If the cluster is in an outage state without a leader, you may need
     to set -stale to "true" to get the configuration from a non-leader server.
 `
@@ -74,12 +81,14 @@ func (c *OperatorSnapshotSaveCommand) Synopsis() string {
 func (c *OperatorSnapshotSaveCommand) Name() string { return "operator snapshot save" }
 
 func (c *OperatorSnapshotSaveCommand) Run(args []string) int {
-	var stale bool
+	var stale, redact bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	flags.BoolVar(&stale, "stale", false, "")
+	flags.BoolVar(&redact, "redact", false, "")
+
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
 		return 1
@@ -139,6 +148,15 @@ func (c *OperatorSnapshotSaveCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to download snapshot file: %v", err))
 		return 1
+	}
+
+	if redact {
+		c.Ui.Info("Redacting key material from snapshot")
+		err := raftutil.RedactSnapshot(tmpFile)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Could not redact snapshot: %v", err))
+			return 1
+		}
 	}
 
 	err = os.Rename(tmpFile.Name(), filename)

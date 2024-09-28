@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -38,7 +39,7 @@ type tokenSetter interface {
 type identityHook struct {
 	alloc      *structs.Allocation
 	task       *structs.Task
-	tokenDir   string
+	taskDir    *allocdir.TaskDir
 	envBuilder *taskenv.Builder
 	lifecycle  ti.TaskLifecycle
 	ts         tokenSetter
@@ -54,7 +55,7 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 	h := &identityHook{
 		alloc:      tr.Alloc(),
 		task:       tr.Task(),
-		tokenDir:   tr.taskDir.SecretsDir,
+		taskDir:    tr.taskDir,
 		envBuilder: tr.envBuilder,
 		lifecycle:  tr,
 		ts:         tr,
@@ -216,7 +217,10 @@ func (h *identityHook) setDefaultToken() error {
 	// Handle file writing
 	if id := h.task.Identity; id != nil && id.File {
 		// Write token as owner readable only
-		tokenPath := filepath.Join(h.tokenDir, wiTokenFile)
+		tokenPath := filepath.Join(h.taskDir.SecretsDir, wiTokenFile)
+		if id.Filepath != "" {
+			tokenPath = filepath.Join(h.taskDir.Dir, id.Filepath)
+		}
 		if err := users.WriteFileFor(tokenPath, []byte(token), h.task.User); err != nil {
 			return fmt.Errorf("failed to write nomad token: %w", err)
 		}
@@ -233,7 +237,10 @@ func (h *identityHook) setAltToken(widspec *structs.WorkloadIdentity, rawJWT str
 	}
 
 	if widspec.File {
-		tokenPath := filepath.Join(h.tokenDir, fmt.Sprintf("nomad_%s.jwt", widspec.Name))
+		tokenPath := filepath.Join(h.taskDir.SecretsDir, fmt.Sprintf("nomad_%s.jwt", widspec.Name))
+		if widspec.Filepath != "" {
+			tokenPath = filepath.Join(h.taskDir.Dir, widspec.Filepath)
+		}
 		if err := users.WriteFileFor(tokenPath, []byte(rawJWT), h.task.User); err != nil {
 			return fmt.Errorf("failed to write token for identity %q: %w", widspec.Name, err)
 		}

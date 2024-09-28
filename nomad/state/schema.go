@@ -20,7 +20,7 @@ const (
 	TableServiceRegistrations = "service_registrations"
 	TableVariables            = "variables"
 	TableVariablesQuotas      = "variables_quota"
-	TableRootKeyMeta          = "root_key_meta"
+	TableRootKeys             = "root_keys"
 	TableACLRoles             = "acl_roles"
 	TableACLAuthMethods       = "acl_auth_methods"
 	TableACLBindingRules      = "acl_binding_rules"
@@ -93,7 +93,7 @@ func init() {
 		serviceRegistrationsTableSchema,
 		variablesTableSchema,
 		variablesQuotasTableSchema,
-		variablesRootKeyMetaSchema,
+		wrappedRootKeySchema,
 		aclRolesTableSchema,
 		aclAuthMethodsTableSchema,
 		bindingRulesTableSchema,
@@ -370,6 +370,11 @@ func jobIsGCable(obj interface{}) (bool, error) {
 	j, ok := obj.(*structs.Job)
 	if !ok {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
+	}
+
+	// job versions that are tagged should be kept
+	if j.VersionTag != nil {
+		return false, nil
 	}
 
 	// If the job is periodic or parameterized it is only garbage collectable if
@@ -1557,10 +1562,10 @@ func variablesQuotasTableSchema() *memdb.TableSchema {
 	}
 }
 
-// variablesRootKeyMetaSchema returns the MemDB schema for Nomad root keys
-func variablesRootKeyMetaSchema() *memdb.TableSchema {
+// wrappedRootKeySchema returns the MemDB schema for wrapped Nomad root keys
+func wrappedRootKeySchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: TableRootKeyMeta,
+		Name: TableRootKeys,
 		Indexes: map[string]*memdb.IndexSchema{
 			indexID: {
 				Name:         indexID,

@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -124,6 +125,18 @@ func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent,
 	case <-ctx.Done():
 	}
 	return nil
+}
+
+func (tr *TaskRunner) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
+	tr.logger.Trace("Exec requested")
+
+	handle := tr.getDriverHandle()
+	if handle == nil {
+		return nil, 0, ErrTaskNotRunning
+	}
+
+	out, code, err := handle.Exec(timeout, cmd, args)
+	return out, code, err
 }
 
 func (tr *TaskRunner) Signal(event *structs.TaskEvent, s string) error {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/v3/util3"
 	"github.com/hashicorp/nomad/helper"
@@ -40,7 +40,7 @@ func (g *Names) cleanup() {
 	namespaceAPI := g.nomadClient.Namespaces()
 
 	// remove any namespaces we created (or updated)
-	for _, namespace := range g.apply.Slice() {
+	for namespace := range g.apply.Items() {
 		name := namespace.Name
 		g.logf("cleanup namespace %q", name)
 		_, err := namespaceAPI.Delete(name, nil)
@@ -75,7 +75,7 @@ func configure(t *testing.T, opts ...Option) Cleanup {
 	g := &Names{
 		t:       t,
 		timeout: 10 * time.Second,
-		apply:   set.NewHashSet[*Namespace, string](3),
+		apply:   set.NewHashSet[*Namespace](3),
 		remove:  set.New[string](3),
 	}
 
@@ -93,14 +93,14 @@ func (g *Names) run() {
 	namespacesAPI := g.nomadClient.Namespaces()
 
 	// do deletions
-	for _, namespace := range g.remove.Slice() {
+	for namespace := range g.remove.Items() {
 		g.logf("delete namespace %q", namespace)
 		_, err := namespacesAPI.Delete(namespace, nil)
 		must.NoError(g.t, err)
 	}
 
 	// do applies
-	for _, namespace := range g.apply.Slice() {
+	for namespace := range g.apply.Items() {
 		g.logf("apply namespace %q", namespace)
 		_, err := namespacesAPI.Register(&nomadapi.Namespace{
 			Name:        namespace.Name,

@@ -8,12 +8,12 @@ package docker
 import (
 	"errors"
 
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/docker/go-connections/nat"
 )
 
 // Currently Windows containers don't support host ip in port binding.
-func getPortBinding(ip string, port string) docker.PortBinding {
-	return docker.PortBinding{HostIP: "", HostPort: port}
+func getPortBinding(ip string, port string) nat.PortBinding {
+	return nat.PortBinding{HostIP: "", HostPort: port}
 }
 
 var containerAdminErrMsg = "running container as ContainerAdmin is unsafe; change the container user, set task configuration to privileged or enable windows_allow_insecure_container_admin to disable this check"

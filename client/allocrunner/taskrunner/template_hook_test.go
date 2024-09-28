@@ -121,10 +121,9 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 				hookResources: tt.hr,
 			}
 			h := &templateHook{
-				config:       conf,
-				logger:       logger,
-				managerLock:  sync.Mutex{},
-				driverHandle: nil,
+				config:      conf,
+				logger:      logger,
+				managerLock: sync.Mutex{},
 			}
 			req := &interfaces.TaskPrestartRequest{
 				Alloc:   a,
@@ -289,14 +288,10 @@ func TestTemplateHook_RestoreChangeModeScript(t *testing.T) {
 	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
 
 	lifecycle := trtesting.NewMockTaskHooks()
+	lifecycle.SetupExecTest(117, fmt.Errorf("oh no"))
 	lifecycle.HasHandle = true
 
 	events := &trtesting.MockEmitter{}
-
-	executor := &simpleExec{
-		code: 117,
-		err:  fmt.Errorf("oh no"),
-	}
 
 	hook := newTemplateHook(&templateHookConfig{
 		alloc:     alloc,
@@ -315,7 +310,6 @@ func TestTemplateHook_RestoreChangeModeScript(t *testing.T) {
 		clientConfig:  clientConfig,
 		envBuilder:    envBuilder,
 		hookResources: &cstructs.AllocHookResources{},
-		driverHandle:  executor,
 	})
 	req := &interfaces.TaskPrestartRequest{
 		Alloc:   alloc,
@@ -334,7 +328,7 @@ func TestTemplateHook_RestoreChangeModeScript(t *testing.T) {
 	gotEvents := events.Events()
 	must.Len(t, 1, gotEvents)
 	must.Eq(t, structs.TaskHookFailed, gotEvents[0].Type)
-	must.Eq(t, "Template failed to run script echo with arguments [foo] on change: oh no Exit code: 117",
+	must.Eq(t, "Template failed to run script echo with arguments [foo] on change: oh no. Exit code: 117",
 		gotEvents[0].DisplayMessage)
 
 }

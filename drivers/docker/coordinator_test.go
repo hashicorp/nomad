@@ -6,11 +6,13 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"testing"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -35,27 +37,27 @@ func newMockImageClient(idToName map[string]string, pullDelay time.Duration) *mo
 	}
 }
 
-func (m *mockImageClient) PullImage(opts docker.PullImageOptions, auth docker.AuthConfiguration) error {
+func (m *mockImageClient) ImagePull(ctx context.Context, refStr string, opts image.PullOptions) (io.ReadCloser, error) {
 	time.Sleep(m.pullDelay)
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	m.pulled[opts.Repository]++
-	return nil
+	m.pulled[refStr]++
+	return nil, nil
 }
 
-func (m *mockImageClient) InspectImage(id string) (*docker.Image, error) {
+func (m *mockImageClient) ImageInspectWithRaw(ctx context.Context, id string) (types.ImageInspect, []byte, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	return &docker.Image{
+	return types.ImageInspect{
 		ID: m.idToName[id],
-	}, nil
+	}, []byte{}, nil
 }
 
-func (m *mockImageClient) RemoveImageExtended(id string, options docker.RemoveImageOptions) error {
+func (m *mockImageClient) ImageRemove(ctx context.Context, id string, opts image.RemoveOptions) ([]image.DeleteResponse, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.removed[id]++
-	return nil
+	return []image.DeleteResponse{}, nil
 }
 
 func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {

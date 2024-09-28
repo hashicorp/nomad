@@ -71,6 +71,11 @@ func testIdentity(t *testing.T) {
 			file: true,
 		},
 		{
+			task: "filepath",
+			env:  false,
+			file: true,
+		},
+		{
 			task: "falsey",
 			env:  false,
 			file: false,
@@ -94,6 +99,10 @@ func testIdentity(t *testing.T) {
 		must.StrHasSuffix(t, "done\n", logs, ps)
 
 		lines := strings.Split(logs, "\n")
+
+		// Whether filepath is set or not, the log length assertion should
+		// be the same, assuming the token was read from the correct location.
+		// So we don't need special switch cases for filepath.
 		switch {
 		case tc.env && tc.file:
 			must.Len(t, 4, lines, ps)

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func TestSet_NomadDefaults(t *testing.T) {
 func TestSet_DockerDefaults(t *testing.T) {
 	ci.Parallel(t)
 
-	result := DockerDefaults(nil)
+	result := DockerDefaults(types.Version{})
 	require.Len(t, result.Slice(false), 14)
 	require.Contains(t, result.String(), "net_raw")
 }
@@ -280,7 +281,7 @@ func TestCaps_Delta(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			add, drop, err := Delta(DockerDefaults(nil), tc.allowCaps, tc.capAdd, tc.capDrop)
+			add, drop, err := Delta(DockerDefaults(types.Version{}), tc.allowCaps, tc.capAdd, tc.capDrop)
 			if !tc.skip {
 				require.Equal(t, tc.err, err)
 				require.Equal(t, tc.expAdd, add)

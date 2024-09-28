@@ -49,7 +49,7 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 	t.Helper()
 
 	if _, err := exec.LookPath(binary); err != nil {
-		t.Skipf("Skipping test %s, Vault binary %q not found in path.", t.Name(), binary)
+		t.Skipf("Skipping test, Vault binary %q not found in path.", binary)
 	}
 
 	// Define which log level to use. Default to the same as Nomad but allow a
@@ -140,10 +140,13 @@ func NewTestVault(t testing.T) *TestVault {
 	return NewTestVaultFromPath(t, "vault")
 }
 
-// NewTestVaultDelayed returns a test Vault server that has not been started.
-// Start must be called and it is the callers responsibility to deal with any
-// port conflicts that may occur and retry accordingly.
-func NewTestVaultDelayed(t testing.T) *TestVault {
+func NewTestVaultDelayedFromPath(t testing.T, binary string) *TestVault {
+	t.Helper()
+
+	if _, err := exec.LookPath(binary); err != nil {
+		t.Skipf("Skipping test, Vault binary not %q found in path.", binary)
+	}
+
 	port := ci.PortAllocator.Grab(1)[0]
 	token := uuid.Generate()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
@@ -182,6 +185,15 @@ func NewTestVaultDelayed(t testing.T) *TestVault {
 	}
 
 	return tv
+}
+
+// NewTestVaultDelayed returns a test Vault server that has not been started.
+// Start must be called and it is the callers responsibility to deal with any
+// port conflicts that may occur and retry accordingly.
+func NewTestVaultDelayed(t testing.T) *TestVault {
+	t.Helper()
+
+	return NewTestVaultDelayedFromPath(t, "vault")
 }
 
 // Start starts the test Vault server and waits for it to respond to its HTTP

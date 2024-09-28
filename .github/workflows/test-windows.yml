@@ -52,7 +52,7 @@ jobs:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup go
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version-file: ".go-version"
       - name: Show installed Go version
@@ -91,7 +91,7 @@ jobs:
             github.com/hashicorp/nomad/client/logmon \
             github.com/hashicorp/nomad/client/allocrunner/taskrunner/template \
             github.com/hashicorp/nomad/plugins/base
-      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: results.xml
           path: results.xml

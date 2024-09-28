@@ -15,7 +15,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -59,14 +59,13 @@ func newConsulHTTPSocketHook(
 	}
 	proxies := map[string]*httpSocketProxy{}
 
-	clusterNames.ForEach(func(clusterName string) bool {
+	for clusterName := range clusterNames.Items() {
 		proxies[clusterName] = newHTTPSocketProxy(
 			logger,
 			allocDir,
 			configs[clusterName],
 		)
-		return true
-	})
+	}
 
 	return &consulHTTPSockHook{
 		alloc:   alloc,

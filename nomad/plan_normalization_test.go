@@ -76,5 +76,5 @@ func TestPlanNormalize(t *testing.T) {
 
 	optimizedLogSize := buf.Len()
 	ratio := float64(optimizedLogSize) / float64(unoptimizedLogSize)
-	must.Less(t, 0.66, ratio)
+	must.Less(t, 0.6, ratio)
 }

@@ -129,6 +129,7 @@ type TaskPoststartRequest struct {
 	// Stats collector
 	DriverStats DriverStats
 }
+
 type TaskPoststartResponse struct{}
 
 type TaskPoststartHook interface {
