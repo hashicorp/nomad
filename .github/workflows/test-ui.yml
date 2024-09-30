@@ -21,7 +21,7 @@ jobs:
     outputs:
       nonce: ${{ steps.nonce.outputs.nonce }}
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
       - uses: ./.github/actions/setup-js
       - name: lint:js
         run: yarn run lint:js
@@ -45,7 +45,7 @@ jobs:
         partition: [1, 2, 3, 4]
         split: [4]
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
       - uses: ./.github/actions/setup-js
       - uses: browser-actions/setup-chrome@facf10a55b9caf92e0cc749b4f82bf8220989148 # v1.7.2
       - uses: ./.github/actions/vault-secrets
@@ -68,7 +68,7 @@ jobs:
       run:
         working-directory: ui
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
       - uses: ./.github/actions/setup-js
       - uses: ./.github/actions/vault-secrets
         with:
