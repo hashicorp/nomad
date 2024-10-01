@@ -105,17 +105,11 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 		Detach: false,
 		Tty:    false,
 	}
-	if err := h.dockerClient.ContainerExecStart(ctx, exec.ID, startOpts); err != nil {
-		return nil, err
-	}
 
 	// hijack exec output streams
-	hijacked, err := h.dockerClient.ContainerExecAttach(ctx, exec.ID, containerapi.ExecStartOptions{
-		Detach: false,
-		Tty:    false,
-	})
+	hijacked, err := h.dockerClient.ContainerExecAttach(ctx, exec.ID, startOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to attach to exec: %v", err)
+		return nil, fmt.Errorf("failed to attach to exec object: %w", err)
 	}
 
 	_, err = stdcopy.StdCopy(stdout, stderr, hijacked.Reader)
@@ -128,7 +122,7 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	execResult.Stderr = stderr.Bytes()
 	res, err := h.dockerClient.ContainerExecInspect(ctx, exec.ID)
 	if err != nil {
-		return execResult, err
+		return execResult, fmt.Errorf("failed to inspect exit code of exec object: %w", err)
 	}
 
 	execResult.ExitResult.ExitCode = res.ExitCode
