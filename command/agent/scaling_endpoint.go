@@ -81,7 +81,7 @@ func (s *HTTPServer) scalingPolicyQuery(resp http.ResponseWriter, req *http.Requ
 	return out.Policy, nil
 }
 
-func ApiScalingPolicyToStructs(count int, ap *api.ScalingPolicy) *structs.ScalingPolicy {
+func ApiScalingPolicyToStructs(job *structs.Job, tg *structs.TaskGroup, task *structs.Task, count int, ap *api.ScalingPolicy) *structs.ScalingPolicy {
 	p := structs.ScalingPolicy{
 		Type:   ap.Type,
 		Policy: ap.Policy,
@@ -103,5 +103,9 @@ func ApiScalingPolicyToStructs(count int, ap *api.ScalingPolicy) *structs.Scalin
 	} else {
 		p.Min = int64(count)
 	}
+
+	// COMPAT(1.12.0) - canonicalization is done in Job.Register as of 1.9,
+	// remove this canonicalization in 1.12.0 LTS
+	p.Canonicalize(job, tg, task)
 	return &p
 }

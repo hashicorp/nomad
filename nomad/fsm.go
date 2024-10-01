@@ -1748,7 +1748,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if filter.Include(scalingPolicy) {
 				// Handle upgrade path:
 				//   - Set policy type if empty
-				scalingPolicy.Canonicalize()
+				scalingPolicy.Canonicalize(nil, nil, nil)
 				if err := restore.ScalingPolicyRestore(scalingPolicy); err != nil {
 					return err
 				}

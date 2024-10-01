@@ -6426,10 +6426,17 @@ func TestDispatchPayloadConfig_Validate(t *testing.T) {
 func TestScalingPolicy_Canonicalize(t *testing.T) {
 	ci.Parallel(t)
 
+	job := &Job{Namespace: "prod", ID: "example"}
+	tg := &TaskGroup{Name: "web"}
+	task := &Task{Name: "httpd"}
+
 	cases := []struct {
 		name     string
 		input    *ScalingPolicy
 		expected *ScalingPolicy
+		job      *Job
+		tg       *TaskGroup
+		task     *Task
 	}{
 		{
 			name:     "empty policy",
@@ -6441,14 +6448,42 @@ func TestScalingPolicy_Canonicalize(t *testing.T) {
 			input:    &ScalingPolicy{Type: "other-type"},
 			expected: &ScalingPolicy{Type: "other-type"},
 		},
+		{
+			name:  "policy with type and task group",
+			input: &ScalingPolicy{Type: "other-type"},
+			expected: &ScalingPolicy{
+				Type: "other-type",
+				Target: map[string]string{
+					ScalingTargetNamespace: "prod",
+					ScalingTargetJob:       "example",
+					ScalingTargetGroup:     "web",
+				},
+			},
+			job: job,
+			tg:  tg,
+		},
+		{
+			name:  "policy with type and task",
+			input: &ScalingPolicy{Type: "other-type"},
+			expected: &ScalingPolicy{
+				Type: "other-type",
+				Target: map[string]string{
+					ScalingTargetNamespace: "prod",
+					ScalingTargetJob:       "example",
+					ScalingTargetGroup:     "web",
+					ScalingTargetTask:      "httpd",
+				},
+			},
+			job:  job,
+			tg:   tg,
+			task: task,
+		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			require := require.New(t)
-
-			c.input.Canonicalize()
-			require.Equal(c.expected, c.input)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.input.Canonicalize(tc.job, tc.tg, tc.task)
+			must.Eq(t, tc.expected, tc.input)
 		})
 	}
 }
