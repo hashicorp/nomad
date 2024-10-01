@@ -15,6 +15,27 @@
         "path": "drivers/podman"
       },
       {
+        "title": "Virt",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "drivers/virt"
+          },
+          {
+            "title": "Installation",
+            "path": "drivers/virt/installation"
+          },
+          {
+            "title": "Client",
+            "path": "drivers/virt/client"
+          },
+          {
+            "title": "Task Config",
+            "path": "drivers/virt/task-config"
+          }
+        ]
+      },
+      {
         "title": "Community",
         "routes": [
           {

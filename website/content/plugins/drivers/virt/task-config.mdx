@@ -1,0 +1,155 @@
+---
+layout: docs
+page_title: Task Config
+description: The virt task driver job specification parameters.
+---
+
+# Task Configuration
+
+Task configuration for an virt task includes setting an `image` to provide the base VM image as
+well as other parameters required for bootstrapping a VM instance.
+
+- `image` - (string: required) - Path to an `.img` cloud image to base the VM disk on that should
+  be located in an allowed path. The cloud image need to include cloud-init, otherwise certain
+  features will not be available for the task. This can be downloaded via the [artifact block][].
+
+- `use_thin_copy` - (bool: `false`) - Make a thin copy of the image using QEMU, and use it as the
+  backing cloud image for the VM.
+
+- `hostname` - (string: `"nomad-<task-name>"`) - The hostname to assign to the VM. As this value is
+  used as a network host name, it must be a valid DNS label according to RFC 1123. The default
+  value is generated using the Nomad task name.
+
+- `cmds` - (list(string): optional) - List of commands to execute on the VM once it is running.
+  They can provide the operator with a quick and easy way to start a process on the newly created
+  VM, used in conjunction with the template, it can be a simple yet powerful start up tool.
+
+- `default_user_password` - (string: `""`) - Initial password to be configured for the default user
+  on the newly created VM. When set, it has to be updated on first connect.
+
+- `default_user_authorized_ssh_key` - (string: `""`) - SSH public key that will be added to the SSH
+  configuration for the default user of the cloud image distribution.
+
+- `user_data ` - (string: `""`) - Path to a cloud-init compliant user data file to be used as the
+  user-data for the cloud-init configuration.
+
+- `primary_disk_size` - (int: required) - Disk space to assign to the VM which will need to be
+  able to fit the VM's OS.
+
+Example:
+```hcl
+config {
+  image                           = "local/focal-server-cloudimg-amd64.img"
+  use_thing_copy                  = false
+  hostname                        = ""
+  cmds                            = ["python -m http.server 8000"]
+  default_user_password           = "password"
+  default_user_authorized_ssh_key = ""
+  user_data                       = ""
+  primary_disk_size               = 10000
+}
+```
+
+##### os
+
+The VM architecture and machine can be different from the client host. When this is the case, the
+`os` block must be set. By default, this information matches the client host where the driver
+plugin is running.
+
+- `arch` - (string: `""`) - The architecture that the VM will be.
+
+- `machine` - (string: `""`) - The machine type that the VM will be.
+
+Example:
+```hcl
+config {
+  os {
+    arch    = "x86_64"
+    machine = "pc-i440fx-2.9"
+  }
+}
+```
+
+##### network_interface
+
+Tasks needs to be attached to a libvirt network in order to access the internet and be routed to
+from the local network. The `network_interface` block enables this as a list of network interfaces
+that should be attached to the VM. This currently only supports a single entry.
+
+- `bridge` - (block) - Attach the VM to a network of bridged type. `virbr0`, the default libvirt
+  network is a bridged network.
+
+  - `name` - The name of the bridge interface to use. This relates to the output seen from commands
+  such as `virsh net-info`.
+
+  - `ports` - A list of port labels which will be exposed on the host via mapping to the network
+  interface. These labels must exist within the job specification [network block][].
+
+Example:
+```hcl
+config {
+  network_interface {
+    bridge {
+      name  = "virbr0"
+      ports = ["ssh", "http"]
+    }
+  }
+}
+```
+
+### Full Example
+
+The following job specification displays use of all the configuration options, as well as other
+blocks that are useful when deploy tasks via the virt driver. Parameters, such as the
+`default_user_authorized_ssh_key` will need to be modified before use depending on your
+requirements and Nomad setup.
+
+```hcl
+job "virt-example" {
+
+  group "virt-group" {
+
+    network {
+      mode     = "host"
+      provider = "nomad"
+      port "ssh" {
+        to = 22
+      }
+    }
+
+    task "virt-task" {
+
+      driver = "nomad-driver-virt"
+
+      artifact {
+        source      = "http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+        destination = "local/focal-server-cloudimg-amd64.img"
+        mode        = "file"
+      }
+
+      config {
+        image                           = "local/focal-server-cloudimg-amd64.img"
+        primary_disk_size               = 26000
+        default_user_password           = "L5w&KVf6nTvp]~Z?>8}tj("
+        default_user_authorized_ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI..."
+
+        network_interface {
+          bridge {
+            name  = "virbr0"
+            ports = ["ssh"]
+          }
+        }
+      }
+
+      resources {
+        cores  = 2
+        memory = 4096
+      }
+    }
+  }
+}
+
+```
+
+[artifact block]: https://developer.hashicorp.com/nomad/docs/job-specification/artifact
+[network block]: https://developer.hashicorp.com/nomad/docs/job-specification/network

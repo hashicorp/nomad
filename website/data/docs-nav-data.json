@@ -1974,6 +1974,27 @@
         "path": "drivers/raw_exec"
       },
       {
+        "title": "Virt",
+        "routes": [
+          {
+            "title": "Overview",
+            "href": "/plugins/drivers/virt"
+          },
+          {
+            "title": "Installation",
+            "href": "/plugins/drivers/virt/installation"
+          },
+          {
+            "title": "Client",
+            "href": "/plugins/drivers/virt/client"
+          },
+          {
+            "title": "Task Config",
+            "href": "/plugins/drivers/virt/task-config"
+          }
+        ]
+      },
+      {
         "title": "Community",
         "routes": [
           {
