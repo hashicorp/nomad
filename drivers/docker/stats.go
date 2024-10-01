@@ -97,6 +97,25 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 	timer, cancel := helper.NewSafeTimer(interval)
 	defer cancel()
 
+	collectOnce := func() {
+		defer timer.Reset(interval)
+		statsReader, err := h.dockerClient.ContainerStatsOneShot(ctx, h.containerID)
+		if err != nil && err != io.EOF {
+			h.logger.Debug("error collecting stats from container", "error", err)
+			return
+		}
+		defer statsReader.Body.Close()
+
+		var stats containerapi.Stats
+		if err := json.NewDecoder(statsReader.Body).Decode(&stats); err != nil {
+			h.logger.Error("error decoding stats data for container", "error", err)
+			return
+		}
+
+		resourceUsage := util.DockerStatsToTaskResourceUsage(&stats, compute)
+		destCh.send(resourceUsage)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -104,27 +123,7 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 		case <-h.doneCh:
 			return
 		case <-timer.C:
-			// ContainerStats returns a StatsResponseReader. Body of that reader
-			// contains the stats and implements io.Reader
-			statsReader, err := h.dockerClient.ContainerStatsOneShot(ctx, h.containerID)
-			if err != nil && err != io.EOF {
-				// An error occurred during stats collection, retry with backoff
-				h.logger.Debug("error collecting stats from container", "error", err)
-				continue
-			}
-
-			var stats containerapi.Stats
-
-			if err := json.NewDecoder(statsReader.Body).Decode(&stats); err != nil {
-				h.logger.Error("error unmarshalling stats data for container", "error", err)
-				_ = statsReader.Body.Close()
-				continue
-			}
-
-			resourceUsage := util.DockerStatsToTaskResourceUsage(&stats, compute)
-			destCh.send(resourceUsage)
-
-			_ = statsReader.Body.Close()
+			collectOnce()
 		}
 	}
 }
