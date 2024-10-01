@@ -95,7 +95,7 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	}
 	exec, err := h.dockerClient.ContainerExecCreate(ctx, h.containerID, createExecOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create exec object: %v", err)
 	}
 
 	execResult := &drivers.ExecTaskResult{ExitResult: &drivers.ExitResult{}}
@@ -110,12 +110,12 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	}
 
 	// hijack exec output streams
-	hijacked, err := h.dockerClient.ContainerExecAttach(ctx, h.containerID, containerapi.ExecStartOptions{
+	hijacked, err := h.dockerClient.ContainerExecAttach(ctx, exec.ID, containerapi.ExecStartOptions{
 		Detach: false,
 		Tty:    false,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to attach to exec: %v", err)
 	}
 
 	_, err = stdcopy.StdCopy(stdout, stderr, hijacked.Reader)
