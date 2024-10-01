@@ -85,7 +85,7 @@ export default class Variable extends AbstractAbility {
     capabilities = [],
     path
   ) {
-    const namespacesWithVariableCapabilities = policies
+    const variableCapabilitiesAmongNamespaces = policies
       .toArray()
       .filter((policy) => get(policy, 'rulesJSON.Namespaces'))
       .map((policy) => get(policy, 'rulesJSON.Namespaces'))
@@ -109,36 +109,27 @@ export default class Variable extends AbstractAbility {
       .compact();
 
     // Check for requested permissions
-    return namespacesWithVariableCapabilities.some((abilityList) => {
-      return capabilities.includes(abilityList);
+    return variableCapabilitiesAmongNamespaces.some((abilityList) => {
+      return capabilities.includes(abilityList); // at least one of the capabilities is included in the list
     });
   }
 
   @computed('allPaths', 'namespace', 'path', 'token.selfTokenPolicies')
   get policiesSupportVariableWriting() {
-    if (this.path === WILDCARD_GLOB) {
-      // If checking for write permission on the root path
+    const matchingPath = this._nearestMatchingPath(this.path);
+
+    if (this.namespace === WILDCARD_GLOB) {
+      // Checking for write permission in any namespace at the given path
       return this.policyNamespacesIncludeVariablesCapabilities(
         this.token.selfTokenPolicies,
         ['write'],
-        WILDCARD_GLOB
+        matchingPath
       );
     } else {
-      // Checking a specific path
-      const matchingPath = this._nearestMatchingPath(this.path);
-      if (this.namespace === WILDCARD_GLOB) {
-        // Checking for the * namespace at a specific path
-        return this.policyNamespacesIncludeVariablesCapabilities(
-          this.token.selfTokenPolicies,
-          ['write'],
-          matchingPath
-        );
-      } else {
-        // Checking a specific path in a specific namespace
-        return this.allPaths
-          .find((path) => path.name === matchingPath)
-          ?.capabilities?.includes('write');
-      }
+      // Checking a specific path in a specific namespace
+      return this.allPaths
+        .find((path) => path.name === matchingPath)
+        ?.capabilities?.includes('write');
     }
   }
 
