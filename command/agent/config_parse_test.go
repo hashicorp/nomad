@@ -1146,3 +1146,44 @@ func TestConfig_Telemetry(t *testing.T) {
 	must.Eq(t, mergedTelemetry2.inMemoryCollectionInterval, 1*time.Second)
 	must.Eq(t, mergedTelemetry2.inMemoryRetentionPeriod, 10*time.Second)
 }
+
+func TestConfig_Template(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, suffix := range []string{"hcl", "json"} {
+		t.Run(suffix, func(t *testing.T) {
+			cfg := DefaultConfig()
+			fc, err := LoadConfig("testdata/template." + suffix)
+			must.NoError(t, err)
+			cfg = cfg.Merge(fc)
+
+			must.Eq(t, []string{"plugin"}, cfg.Client.TemplateConfig.FunctionDenylist)
+			must.True(t, cfg.Client.TemplateConfig.DisableSandbox)
+			must.Eq(t, pointer.Of(7600*time.Hour), cfg.Client.TemplateConfig.MaxStale)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.BlockQueryWaitTime)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.Wait)
+			must.Eq(t, pointer.Of(10*time.Second), cfg.Client.TemplateConfig.Wait.Min)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.Wait.Max)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.WaitBounds)
+			must.Eq(t, pointer.Of(1*time.Second), cfg.Client.TemplateConfig.WaitBounds.Min)
+			must.Eq(t, pointer.Of(10*time.Hour), cfg.Client.TemplateConfig.WaitBounds.Max)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.ConsulRetry)
+			must.Eq(t, 6, *cfg.Client.TemplateConfig.ConsulRetry.Attempts)
+			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.ConsulRetry.Backoff)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.ConsulRetry.MaxBackoff)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.VaultRetry)
+			must.Eq(t, 6, *cfg.Client.TemplateConfig.VaultRetry.Attempts)
+			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.VaultRetry.Backoff)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.VaultRetry.MaxBackoff)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.NomadRetry)
+			must.Eq(t, 6, *cfg.Client.TemplateConfig.NomadRetry.Attempts)
+			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.NomadRetry.Backoff)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.NomadRetry.MaxBackoff)
+		})
+	}
+}
