@@ -60,12 +60,64 @@ export default class Variable extends AbstractAbility {
     );
   }
 
-  @computed('path', 'allPaths')
+  /**
+   * Check if the user has read access to a specific path in a specific namespace.
+   * @returns {boolean}
+   */
+  @computed(
+    'allVariablePathRules',
+    'namespace',
+    'path',
+    'token.selfTokenPolicies'
+  )
   get policiesSupportVariableRead() {
     const matchingPath = this._nearestMatchingPath(this.path);
-    return this.allPaths
-      .find((path) => path.name === matchingPath)
-      ?.capabilities?.includes('read');
+    if (this.namespace === WILDCARD_GLOB) {
+      return this.policyNamespacesIncludeVariablesCapabilities(
+        this.token.selfTokenPolicies,
+        ['read'],
+        matchingPath
+      );
+    } else {
+      return this.allVariablePathRules.some((rule) => {
+        const ruleMatchingPath = this._nearestMatchingPath(rule.name);
+        return (
+          rule.namespace === this.namespace &&
+          ruleMatchingPath === matchingPath &&
+          rule.capabilities.includes('read')
+        );
+      });
+    }
+  }
+
+  /**
+   * Check if the user has delete access to a specific path in a specific namespace.
+   * @returns {boolean}
+   */
+  @computed(
+    'allVariablePathRules',
+    'namespace',
+    'path',
+    'token.selfTokenPolicies'
+  )
+  get policiesSupportVariableDestroy() {
+    const matchingPath = this._nearestMatchingPath(this.path);
+    if (this.namespace === WILDCARD_GLOB) {
+      return this.policyNamespacesIncludeVariablesCapabilities(
+        this.token.selfTokenPolicies,
+        ['delete'],
+        matchingPath
+      );
+    } else {
+      return this.allVariablePathRules.some((rule) => {
+        const ruleMatchingPath = this._nearestMatchingPath(rule.name);
+        return (
+          rule.namespace === this.namespace &&
+          ruleMatchingPath === matchingPath &&
+          rule.capabilities.includes('delete')
+        );
+      });
+    }
   }
 
   /**
@@ -110,63 +162,72 @@ export default class Variable extends AbstractAbility {
 
     // Check for requested permissions
     return variableCapabilitiesAmongNamespaces.some((abilityList) => {
+      ['write', 'read', 'destroy'];
       return capabilities.includes(abilityList); // at least one of the capabilities is included in the list
     });
   }
 
-  @computed('allPaths', 'namespace', 'path', 'token.selfTokenPolicies')
+  /**
+   * Check if the user has write access to a specific path in a specific namespace.
+   * @returns {boolean}
+   */
+  @computed(
+    'allVariablePathRules',
+    'namespace',
+    'path',
+    'token.selfTokenPolicies'
+  )
   get policiesSupportVariableWriting() {
     const matchingPath = this._nearestMatchingPath(this.path);
-
     if (this.namespace === WILDCARD_GLOB) {
-      // Checking for write permission in any namespace at the given path
+      // Check policyNamespacesIncludeVariablesCapabilities, which is namespace-agnostic.
       return this.policyNamespacesIncludeVariablesCapabilities(
         this.token.selfTokenPolicies,
         ['write'],
         matchingPath
       );
     } else {
-      // Checking a specific path in a specific namespace
-      return this.allPaths
-        .find((path) => path.name === matchingPath)
-        ?.capabilities?.includes('write');
+      // If the namespace is not wildcarded, then we dig into rules by namespace.
+      return this.allVariablePathRules.some((rule) => {
+        const ruleMatchingPath = this._nearestMatchingPath(rule.name);
+        return (
+          rule.namespace === this.namespace &&
+          ruleMatchingPath === matchingPath &&
+          rule.capabilities.includes('write')
+        );
+      });
     }
   }
 
-  @computed('path', 'allPaths')
-  get policiesSupportVariableDestroy() {
-    const matchingPath = this._nearestMatchingPath(this.path);
-    return this.allPaths
-      .find((path) => path.name === matchingPath)
-      ?.capabilities?.includes('destroy');
-  }
-
+  /**
+   * Generate a list of all the path rules for all the policies
+   * that the user has access to.
+   * {
+   *   namespace: string,
+   *   name: string,
+   *   capabilities: string[],
+   * }
+   * @returns {Array}
+   */
   @computed('token.selfTokenPolicies.[]', 'namespace')
-  get allPaths() {
+  get allVariablePathRules() {
     return (get(this, 'token.selfTokenPolicies') || [])
       .toArray()
-      .reduce((paths, policy) => {
-        const namespaces = get(policy, 'rulesJSON.Namespaces');
-        const matchingNamespace = this._nearestMatchingNamespace(
-          namespaces,
-          this.namespace
-        );
+      .flatMap((policy) => {
+        const namespaces = get(policy, 'rulesJSON.Namespaces') || [];
 
-        const variables = (namespaces || []).find(
-          (namespace) => namespace.Name === matchingNamespace
-        )?.Variables;
+        return namespaces.flatMap((namespace) => {
+          const variables = namespace.Variables;
+          const pathNames =
+            variables?.Paths?.map((path) => ({
+              namespace: namespace.Name,
+              name: path.PathSpec,
+              capabilities: path.Capabilities,
+            })) || [];
 
-        const pathNames = variables?.Paths?.map((path) => ({
-          name: path.PathSpec,
-          capabilities: path.Capabilities,
-        }));
-
-        if (pathNames) {
-          paths = [...paths, ...pathNames];
-        }
-
-        return paths;
-      }, []);
+          return pathNames;
+        });
+      });
   }
 
   _nearestMatchingNamespace(policyNamespaces, namespace) {
@@ -199,7 +260,7 @@ export default class Variable extends AbstractAbility {
   }
 
   _nearestMatchingPath(path) {
-    const pathNames = this.allPaths.map((path) => path.name);
+    const pathNames = this.allVariablePathRules.map((path) => path.name);
     if (pathNames.includes(path)) {
       return path;
     }
