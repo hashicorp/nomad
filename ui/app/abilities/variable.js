@@ -82,8 +82,10 @@ export default class Variable extends AbstractAbility {
       return this.allVariablePathRules.some((rule) => {
         const ruleMatchingPath = this._nearestMatchingPath(rule.name);
         return (
-          rule.namespace === this.namespace &&
-          ruleMatchingPath === matchingPath &&
+          (rule.namespace === WILDCARD_GLOB ||
+            rule.namespace === this.namespace) &&
+          (ruleMatchingPath === WILDCARD_GLOB ||
+            ruleMatchingPath === matchingPath) &&
           rule.capabilities.includes('read')
         );
       });
@@ -91,7 +93,7 @@ export default class Variable extends AbstractAbility {
   }
 
   /**
-   * Check if the user has delete access to a specific path in a specific namespace.
+   * Check if the user has destroy access to a specific path in a specific namespace.
    * @returns {boolean}
    */
   @computed(
@@ -105,16 +107,18 @@ export default class Variable extends AbstractAbility {
     if (this.namespace === WILDCARD_GLOB) {
       return this.policyNamespacesIncludeVariablesCapabilities(
         this.token.selfTokenPolicies,
-        ['delete'],
+        ['destroy'],
         matchingPath
       );
     } else {
       return this.allVariablePathRules.some((rule) => {
         const ruleMatchingPath = this._nearestMatchingPath(rule.name);
         return (
-          rule.namespace === this.namespace &&
-          ruleMatchingPath === matchingPath &&
-          rule.capabilities.includes('delete')
+          (rule.namespace === WILDCARD_GLOB ||
+            rule.namespace === this.namespace) &&
+          (ruleMatchingPath === WILDCARD_GLOB ||
+            ruleMatchingPath === matchingPath) &&
+          rule.capabilities.includes('destroy')
         );
       });
     }
@@ -191,8 +195,10 @@ export default class Variable extends AbstractAbility {
       return this.allVariablePathRules.some((rule) => {
         const ruleMatchingPath = this._nearestMatchingPath(rule.name);
         return (
-          rule.namespace === this.namespace &&
-          ruleMatchingPath === matchingPath &&
+          (rule.namespace === WILDCARD_GLOB ||
+            rule.namespace === this.namespace) &&
+          (ruleMatchingPath === WILDCARD_GLOB ||
+            ruleMatchingPath === matchingPath) &&
           rule.capabilities.includes('write')
         );
       });
