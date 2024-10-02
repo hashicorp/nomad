@@ -198,7 +198,7 @@ type FSMConfig struct {
 	// LongestThreshold is the longest GC threshold that has been set in the server
 	// config. We use it to adjust timeTableDefaultLimit, which defaults to 72h, if
 	// necessary (users can have longer GC thresholds).
-	LongestThreshold *time.Duration
+	LongestThreshold time.Duration
 }
 
 // NewFSM is used to construct a new FSM with a blank state.
@@ -219,8 +219,8 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// adjust the timeTableLimit if there's any configured GC threshold longer than
 	// the default 72h
 	timeTableLimit := timeTableDefaultLimit
-	if config.LongestThreshold != nil && *config.LongestThreshold > timeTableDefaultLimit {
-		timeTableLimit = *config.LongestThreshold * 2
+	if config.LongestThreshold > timeTableDefaultLimit {
+		timeTableLimit = config.LongestThreshold * 2
 	}
 
 	fsm := &nomadFSM{
