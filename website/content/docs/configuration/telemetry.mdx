@@ -58,6 +58,14 @@ The following options are available on all telemetry configurations.
 - `publish_allocation_metrics` `(bool: false)` - Specifies if Nomad should
   publish runtime metrics of allocations.
 
+- `include_alloc_metadata_in_metrics` `(bool: false)` - This controls whether
+  allocation metadata is included in metric labels. Enabling this option may result in
+  high cardinality labels. You should also configure [allowed_metadata_keys_in_metrics](#allowed_metadata_keys_in_metrics).
+
+- `allowed_metadata_keys_in_metrics` `(list: [])` - This filters the metadata
+  keys to be included in the metric publishing. By default it does not filter
+  out any keys and thus include all metadata.
+
 - `publish_node_metrics` `(bool: false)` - Specifies if Nomad should publish
   runtime metrics of nodes.
 

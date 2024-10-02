@@ -203,6 +203,14 @@ type Config struct {
 	// allocation metrics to remote Telemetry sinks
 	PublishAllocationMetrics bool
 
+	// IncludeAllocMetadataInMetrics determines whether nomad should include the
+	// allocation metadata as labels in the metrics to remote Telemetry sinks
+	IncludeAllocMetadataInMetrics bool
+
+	// AllowedMetadataKeysInMetrics when provided nomad will only include the
+	// configured metadata keys as part of the metrics to remote Telemetry sinks
+	AllowedMetadataKeysInMetrics []string
+
 	// TLSConfig holds various TLS related configurations
 	TLSConfig *structsc.TLSConfig
 
