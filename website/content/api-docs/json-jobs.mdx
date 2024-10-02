@@ -596,7 +596,7 @@ The `Task` object supports the following keys:
       in a port map. A numeric port may be specified since port maps aren't
       required by all network plugins. Useful for advertising SDN and
       overlay network addresses. Task will fail if driver network cannot be
-      determined. Only implemented for Docker and rkt.
+      determined. Only implemented for Docker.
 
     - `host` - Use the host IP and port.
 
@@ -625,7 +625,7 @@ The `Task` object supports the following keys:
       supplied, this value takes precedence over the `Service.PortLabel`
       value. This is useful for services which operate on multiple ports.
       `http` and `tcp` checks require a port while `script` checks do not.
-      Checks will use the host IP and ports by default. Numeric ports may be 
+      Checks will use the host IP and ports by default. Numeric ports may be
       used if `AddressMode: "driver"` is set on the check.
 
     - `Header`: Headers for HTTP checks. Should be an object where the values
@@ -657,7 +657,7 @@ The `Task` object supports the following keys:
       checks.
 
     - `TLSSkipVerify`: If true, Consul will not attempt to verify the
-      certificate when performing HTTPS checks. 
+      certificate when performing HTTPS checks.
 
     - `CheckRestart`: `CheckRestart` is an object which enables
       restarting of tasks based upon Consul health checks.
@@ -1095,7 +1095,7 @@ creates a convenient way to ship configuration files that are populated from
 environment variables, Consul data, Vault secrets, or just general
 configurations within a Nomad task.
 
-Nomad utilizes a tool called [Consul Template][ct]. The template can reference 
+Nomad utilizes a tool called [Consul Template][ct]. The template can reference
 [Nomad's runtime environment variables][env]. For a full list of the API template
 functions, please refer to the [Consul Template README][ct].
 

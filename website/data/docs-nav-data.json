@@ -2009,15 +2009,6 @@
             "href": "/plugins/drivers/community/pot"
           },
           {
-            "title": "Rkt",
-            "badge": {
-              "text": "Deprecated",
-              "type": "outlined",
-              "color": "neutral"
-            },
-            "href": "/plugins/drivers/community/rkt"
-          },
-          {
             "title": "Rookout",
             "href": "/plugins/drivers/community/rookout"
           },
