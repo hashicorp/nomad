@@ -328,12 +328,13 @@ There are two main components to consider to for external threats in a Nomad clu
 
 ### Network Ports
 
-| **Port / Protocol**  | Agents  | Description                                                                                                                                                                         |
-| -------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Port / Protocol**  | Agents  | Description                                                                                                                                                           |
+|----------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](/nomad/tutorials/web-ui/web-ui-access) and [API](/nomad/api-docs) access to agents. |
-| **4647** / TCP       | All     | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents.                                                                                                 |
-| **4648** / TCP + UDP | Servers | [gossip](/nomad/docs/concepts/gossip) protocol to manage server membership using [Serf](https://www.serf.io/).                                                                           |
+| **4647** / TCP       | All     | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents.                                                                                   |
+| **4648** / TCP + UDP | Servers | [gossip](/nomad/docs/concepts/gossip) protocol to manage server membership using [Serf][serf].                                                                        |
 
 
 [Variables]: /nomad/docs/concepts/variables
 [verify_https_client]: /nomad/docs/configuration/tls#verify_https_client
+[serf]: https://github.com/hashicorp/serf
