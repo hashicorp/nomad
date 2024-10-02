@@ -1392,7 +1392,7 @@ func (s *Server) setupRaft() error {
 	// Check for any GC thresholds that have been set
 	longestThreshold := s.findLongestThreshold()
 	if longestThreshold != 0 {
-		fsmConfig.LongestThreshold = &longestThreshold
+		fsmConfig.LongestThreshold = longestThreshold
 	}
 
 	var err error
