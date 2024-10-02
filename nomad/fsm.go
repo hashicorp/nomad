@@ -26,9 +26,11 @@ import (
 const (
 	// timeTableGranularity is the granularity of index to time tracking
 	timeTableGranularity = 5 * time.Minute
+)
 
-	// timeTableLimit is the maximum limit of our tracking
-	timeTableLimit = 72 * time.Hour
+var (
+	// timeTableDefaultLimit is the default maximum limit of our tracking
+	timeTableDefaultLimit = 72 * time.Hour
 )
 
 // SnapshotType is prefixed to a record in the FSM snapshot
@@ -192,6 +194,11 @@ type FSMConfig struct {
 
 	// JobTrackedVersions is the number of historic job versions that are kept.
 	JobTrackedVersions int
+
+	// LongestThreshold is the longest GC threshold that has been set in the server
+	// config. We use it to adjust timeTableDefaultLimit, which defaults to 72h, if
+	// necessary (users can have longer GC thresholds).
+	LongestThreshold *time.Duration
 }
 
 // NewFSM is used to construct a new FSM with a blank state.
@@ -207,6 +214,13 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	state, err := state.NewStateStore(sconfig)
 	if err != nil {
 		return nil, err
+	}
+
+	// adjust the timeTableLimit if there's any configured GC threshold longer than
+	// the default 72h
+	timeTableLimit := timeTableDefaultLimit
+	if config.LongestThreshold != nil && *config.LongestThreshold > timeTableDefaultLimit {
+		timeTableLimit = *config.LongestThreshold * 2
 	}
 
 	fsm := &nomadFSM{
