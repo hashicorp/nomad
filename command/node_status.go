@@ -794,7 +794,7 @@ func formatEventDetails(details map[string]string) string {
 
 func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
 	// Print the attributes
-	keys := make([]string, len(node.Attributes))
+	keys := make([]string, 0, len(node.Attributes))
 	for k := range node.Attributes {
 		keys = append(keys, k)
 	}
