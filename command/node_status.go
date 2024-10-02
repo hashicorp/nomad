@@ -793,18 +793,16 @@ func formatEventDetails(details map[string]string) string {
 }
 
 func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
-	// Print the attributes
-	keys := make([]string, len(node.Attributes))
+	keys := make([]string, 0, len(node.Attributes))
 	for k := range node.Attributes {
 		keys = append(keys, k)
 	}
+
 	sort.Strings(keys)
 
 	var attributes []string
 	for _, k := range keys {
-		if k != "" {
-			attributes = append(attributes, fmt.Sprintf("%s|%s", k, node.Attributes[k]))
-		}
+		attributes = append(attributes, fmt.Sprintf("%s|%s", k, node.Attributes[k]))
 	}
 	c.Ui.Output(c.Colorize().Color("\n[bold]Attributes[reset]"))
 	c.Ui.Output(formatKV(attributes))
