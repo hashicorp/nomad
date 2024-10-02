@@ -170,8 +170,10 @@ type Capabilities struct {
 
 	// RemoteTasks indicates this driver runs tasks on remote systems
 	// instead of locally. The Nomad client can use this information to
-	// adjust behavior such as propogating task handles between allocations
+	// adjust behavior such as propagating task handles between allocations
 	// to avoid downtime when a client is lost.
+	//
+	// Deprecated: remote tasks drivers are no longer developed or supported.
 	RemoteTasks bool
 
 	// DisableLogCollection indicates this driver has disabled log collection
