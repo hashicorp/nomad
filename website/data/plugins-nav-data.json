@@ -42,15 +42,6 @@
             "path": "drivers/community/lightrun"
           },
           {
-            "title": "LXC",
-            "path": "drivers/community/lxc",
-            "badge": {
-              "text": "Deprecated",
-              "type": "outlined",
-              "color": "neutral"
-            }
-          },
-          {
             "title": "Pot",
             "path": "drivers/community/pot"
           },
@@ -73,24 +64,6 @@
           {
             "title": "Windows IIS",
             "path": "drivers/community/nomad-iis"
-          }
-        ]
-      },
-      {
-        "title": "Remote",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "drivers/remote"
-          },
-          {
-            "title": "ECS",
-            "path": "drivers/remote/ecs",
-            "badge": {
-              "text": "Deprecated",
-              "type": "outlined",
-              "color": "neutral"
-            }
           }
         ]
       }

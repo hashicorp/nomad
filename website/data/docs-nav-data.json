@@ -2005,10 +2005,6 @@
             "href": "/plugins/drivers/community/lightrun"
           },
           {
-            "title": "LXC",
-            "href": "/plugins/drivers/community/lxc"
-          },
-          {
             "title": "Pot",
             "href": "/plugins/drivers/community/pot"
           },
@@ -2040,19 +2036,6 @@
           {
             "title": "Windows IIS",
             "href": "/plugins/drivers/community/nomad-iis"
-          }
-        ]
-      },
-      {
-        "title": "Remote",
-        "routes": [
-          {
-            "title": "Overview",
-            "href": "/plugins/drivers/remote"
-          },
-          {
-            "title": "ECS",
-            "href": "/plugins/drivers/remote/ecs"
           }
         ]
       }
