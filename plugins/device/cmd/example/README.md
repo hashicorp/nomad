@@ -50,7 +50,7 @@ touch device01 && chmod 0777 device01
 touch device02
 ```
 
-It should be fingerprinted by the client agent after the ~`list_period`,
+It should be fingerprinted by the client agent after the `list_period`,
 which you can check with:
 
 ```shell
