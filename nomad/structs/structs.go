@@ -2251,7 +2251,7 @@ func (n *Node) Canonicalize() {
 		n.SchedulingEligibility = NodeSchedulingEligible
 	}
 
-	// COMPAT remove in 1.9+
+	// COMPAT remove in 1.10+
 	// In v1.7 we introduce Topology into the NodeResources struct which the client
 	// will fingerprint. Since the upgrade path must cover servers that get upgraded
 	// before clients which will send the old struct, we synthesize a pseudo topology
@@ -3262,9 +3262,9 @@ func (n *NodeResources) Copy() *NodeResources {
 		}
 	}
 
-	// COMPAT remove in 1.9+
+	// COMPAT remove in 1.10+
 	// apply compatibility fixups covering node topology
-	n.Compatibility()
+	newN.Compatibility()
 
 	return newN
 }
@@ -3326,7 +3326,7 @@ func (n *NodeResources) Merge(o *NodeResources) {
 		}
 	}
 
-	// COMPAT remove in 1.9+
+	// COMPAT remove in 1.10+
 	// apply compatibility fixups covering node topology
 	n.Compatibility()
 }
