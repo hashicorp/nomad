@@ -12,12 +12,22 @@ import {
   isVisible,
   visitable,
 } from 'ember-cli-page-object';
+import waitForToken from 'nomad-ui/tests/helpers/wait-for-token';
 
 export default create({
   visit: visitable('/settings/tokens'),
 
   secret: fillable('[data-test-token-secret]'),
-  submit: clickable('[data-test-token-submit]'),
+  _submit: clickable('[data-test-token-submit]'),
+  async submit(owner) {
+    await this._submit();
+    if (owner) {
+      await waitForToken(owner);
+    } else {
+      console.debug('No owner provided to wait for token');
+    }
+  },
+
   clear: clickable('[data-test-token-clear]'),
 
   errorMessage: isVisible('[data-test-token-error]'),

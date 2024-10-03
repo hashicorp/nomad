@@ -6,8 +6,13 @@
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import AdapterError from '@ember-data/adapter/error';
-import { run } from '@ember/runloop';
-import { currentURL, click, triggerEvent, waitFor } from '@ember/test-helpers';
+import {
+  currentURL,
+  click,
+  triggerEvent,
+  waitFor,
+  waitUntil,
+} from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -17,7 +22,6 @@ import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
 import formatHost from 'nomad-ui/utils/format-host';
 import faker from 'nomad-ui/mirage/faker';
-
 let job;
 let node;
 let allocation;
@@ -377,6 +381,12 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.restart.idle();
     await Allocation.restart.confirm();
 
+    await waitUntil(() => {
+      return server.pretender.handledRequests.find((request) => {
+        return request.method === 'PUT' && request.url.includes(allocation.id);
+      });
+    });
+
     assert.equal(
       server.pretender.handledRequests.findBy('method', 'PUT').url,
       `/v1/client/allocation/${allocation.id}/restart`,
@@ -397,25 +407,61 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('while an allocation is being restarted, the stop button is disabled', async function (assert) {
-    server.pretender.post('/v1/allocation/:id/stop', () => [204, {}, ''], true);
+    let resolveRestart;
+    const restartRequestPromise = new Promise((resolve) => {
+      resolveRestart = resolve;
+    });
+    server.pretender.put('/v1/client/allocation/:id/restart', () => {
+      return restartRequestPromise.then(() => {
+        return [204, {}, ''];
+      });
+    });
 
-    await Allocation.stop.idle();
+    await Allocation.restart.idle();
+    await Allocation.restart.confirm();
 
-    run.later(() => {
-      assert.ok(Allocation.stop.isDisabled, 'Stop is disabled');
-      assert.ok(Allocation.restart.isDisabled, 'Restart is disabled');
-      assert.ok(Allocation.restartAll.isDisabled, 'Restart All is disabled');
-      server.pretender.resolve(server.pretender.requestReferences[0].request);
-    }, 500);
+    assert.ok(Allocation.stop.isDisabled, 'Stop is disabled');
+    assert.ok(Allocation.restart.isDisabled, 'Restart is disabled');
+    assert.ok(Allocation.restartAll.isDisabled, 'Restart All is disabled');
 
-    await Allocation.stop.confirm();
+    resolveRestart();
+    await waitUntil(() => !Allocation.stop.isDisabled);
+
+    assert.notOk(
+      Allocation.stop.isDisabled,
+      'Stop is enabled after request completes'
+    );
+    assert.notOk(
+      Allocation.restart.isDisabled,
+      'Restart is enabled after request completes'
+    );
+    assert.notOk(
+      Allocation.restartAll.isDisabled,
+      'Restart All is enabled after request completes'
+    );
   });
 
   test('if stopping or restarting fails, an error message is shown', async function (assert) {
-    server.pretender.post('/v1/allocation/:id/stop', () => [403, {}, '']);
+    let resolveStop;
+    const stopRequestPromise = new Promise((resolve) => {
+      resolveStop = resolve;
+    });
+    server.pretender.post('/v1/allocation/:id/stop', () => {
+      return stopRequestPromise.then(() => {
+        return [403, {}, ''];
+      });
+    });
 
     await Allocation.stop.idle();
     await Allocation.stop.confirm();
+
+    assert.notOk(
+      Allocation.inlineError.isShown,
+      'No error is shown while request is pending'
+    );
+
+    resolveStop();
+    await waitUntil(() => Allocation.inlineError.isShown);
 
     assert.ok(Allocation.inlineError.isShown, 'Inline error is shown');
     assert.ok(
