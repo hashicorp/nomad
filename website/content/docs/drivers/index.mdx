@@ -10,12 +10,14 @@ Task drivers are used by Nomad clients to execute a task and provide resource
 isolation. By having extensible task drivers, Nomad has the flexibility to
 support a broad set of workloads across all major operating systems.
 
-Task drivers are pluggable. This gives users the flexibility to introduce their
-own drivers without having to recompile Nomad. You can view the [plugin block][plugin]
-documentation for examples on how to use the `plugin` block in Nomad's client configuration.
-See [docker][docker_plugin] for a more detailed and specific example.
-Keep in mind that even though all built-in drivers are plugins, Nomad
-remains a single binary and maintains backwards compatibility except with the `lxc` driver.
+Task drivers are pluggable. This gives you the flexibility to introduce your
+own drivers without having to recompile Nomad. You can view the
+[plugin block][plugin] documentation for examples on how to use the plugin
+block in Nomad's client configuration. See the Docker driver's
+[Client Requirements][docker_plugin] for a more detailed and specific example.
+
+The Nomad binary includes the default task drivers, so you do not have to
+download them separately.
 
 The list of supported task drivers is provided on the left of this page. Each
 task driver documents the configuration available in a [job
