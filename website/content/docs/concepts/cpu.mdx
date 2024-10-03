@@ -4,7 +4,7 @@ page_title: CPU
 description: Learn about how Nomad manages CPU resources.
 ---
 
-# Modern Processors
+# Modern processors
 
 Every Nomad node has a Central Processing Unit (CPU) providing the computational
 power needed for running operating system processes. Nomad uses the CPU to
@@ -24,7 +24,7 @@ topologies into account.
 
 [![PE Cores](/img/nomad-pe-cores.png)](/img/nomad-pe-cores.png)
 
-## Calculating CPU Resources
+## Calculating CPU resources
 
 The total CPU bandwidth of a Nomad node is the sum of the product between the
 frequency of each core type and the total number of cores of that type in the
@@ -67,7 +67,7 @@ cpu.totalcompute                = 56000
 cpu.usablecompute               = 56000
 ```
 
-## Reserving CPU Resources
+## Reserving CPU resources
 
 In the fingerprinted node attributes, `cpu.totalcompute` indicates the total
 amount of CPU bandwidth the processor is capable of delivering. In some cases it
@@ -137,7 +137,7 @@ task {
 Nomad Enterprise supports NUMA aware scheduling, which enables operators to
 more finely control which CPU cores may be reserved for tasks.
 
-### CPU Hard Limits
+### CPU hard limits
 
 Some task drivers support the configuration option `cpu_hard_limit`. If enabled
 this option restricts tasks from bursting above their CPU limit even when there
@@ -146,7 +146,7 @@ A task with too few CPU resources may operate fine until another task is placed
 on the node causing a reduction in available CPU bandwidth, which could cause
 disruption for the underprovisioned task.
 
-### CPU Environment Variables
+### CPU environment variables
 
 To help tasks understand the resources available to them, Nomad sets the
 following environment variables in their runtime environment.
@@ -162,18 +162,18 @@ NOMAD_CPU_CORES=3-5
 NOMAD_CPU_LIMIT=9000
 ```
 
-# NUMA
+## NUMA
 
 Nomad clients are commonly provisioned on real hardware in an on-premise
-environment or in the cloud on large `.metal` instance types. In either case it
-is likely the underlying server is designed around a [NUMA topology][numa_wiki].
+environment or in the cloud on large `.metal` instance types. In either case, it
+is likely the underlying server is designed around a [non-uniform memory access (NUMA) topology][numa_wiki].
 Servers that contain multiple CPU sockets or multiple RAM banks per CPU socket
 are characterized by the non-uniform access times involved in accessing system
 memory.
 
 [![NUMA](/img/nomad-numa.png)](/img/nomad-numa.png)
 
-The simplified example machine above has the following topology
+The simplified example machine above has the following topology:
 - 2 physical CPU sockets
 - 4 system memory banks, 2 per socket
 - 8 physical cpu cores (4 per socket)
@@ -229,7 +229,7 @@ node   0   1   2   3
   3:  32  32  12  10
 ```
 
-These SLIT table "node distance" values are presented as approximate relative
+These SLIT table node distance values are presented as approximate relative
 ratios. The value of 10 represents an optimal situation where a memory access
 is occurring from a CPU that is part of the same NUMA node. A value of 20 would
 indicate a 200% performance degradation, 30 for 300%, etc.
@@ -252,28 +252,42 @@ numa.node3.cores      = 72-95,168-191
 ## NUMA aware scheduling <EnterpriseAlert inline />
 
 Nomad Enterprise is capable of scheduling tasks in a way that is optimized for
-the NUMA topology of a client node. A task may specify a `numa` block indicating
-its NUMA optimization preference.
+the NUMA topology of a client node. Nomad is able to correlate CPU cores with
+memory nodes and assign tasks to run on specific CPU cores so as to minimize any
+cross-memory node access patterns. Additionally, Nomad is able to correlate
+devices to memory nodes and enable NUMA-aware scheduling to take device
+associativity into account when making scheduling decisions.
+
+A task may specify a `numa` block indicating its NUMA optimization preference. This example allocates a `1080ti` GPU and ensures it is on the same NUMA node as the 4 CPU cores reserved for the task.
 
 ```hcl
 task {
   resources {
-    cores = 6
+    cores = 4
+    memory = 2048
+
+    device "nvidia/gpu/1080ti" {
+      count = 1
+    }
+
     numa {
       affinity = "require"
-	}
+      devices = [
+        "nvidia/gpu/1080ti"
+      ]
+	  }
   }
 }
 ```
 
-### `affinity` Options
+### `affinity` options
 
-There are three supported affinity options: `none`, `prefer`, and `require`,
-each with their own advantages and tradeoffs.
+This is a required field. There are three supported affinity options:
+`none`, `prefer`, and `require`, each with their own advantages and tradeoffs.
 
 #### option `none`
 
-In the `none` mode the Nomad scheduler leverages the apathy of jobs without
+In the `none` mode, the Nomad scheduler leverages the apathy of jobs without
 preference of NUMA affinity to help reduce core fragmentation within NUMA nodes.
 It does so by bin-packing the core request of these jobs onto the NUMA nodes
 with the fewest unused cores available.
@@ -291,7 +305,7 @@ resources {
 
 #### option `prefer`
 
-In the `prefer` mode the Nomad scheduler uses the hardware topology of a node
+In the `prefer` mode, the Nomad scheduler uses the hardware topology of a node
 to calculate an optimized selection of available cores, but does not limit
 those cores to come from a single NUMA node.
 
@@ -306,7 +320,7 @@ resources {
 
 #### option `require`
 
-In the `require` mode the Nomad scheduler uses the topology of each potential
+In the `require` mode, the Nomad scheduler uses the topology of each potential
 client to find a set of available CPU cores that belong to the same NUMA node.
 If no such set of cores can be found, that node is marked exhausted for the
 resource of `numa-cores`.
@@ -320,7 +334,45 @@ resources {
 }
 ```
 
-## Virtual CPU Fingerprinting
+### `devices` options
+
+`devices` is an optional list of devices that must be colocated on the NUMA node
+along with allocated CPU cores.
+
+The following diagram shows how a set of devices can be correlated to CPU and memory.
+
+[![How a set of devices can be correlated to CPU and memory](/img/nomad-devices-correlate-cpu-memory.png)](/img/nomad-devices-correlate-cpu-memory.png)
+
+This example declares three devices and configures two in the `numa` block.
+
+```hcl
+task {
+  resources {
+    cores = 8
+    memory = 16384
+
+    device "nvidia/gpu/H100" {
+      count = 2
+    }
+    device "intel/net/XXVDA2" {
+      count = 1
+    }
+    device "xilinx/fpga/X7" {
+      count = 1
+    }
+
+    numa {
+	    affinity = "require"
+	    devices = [
+  	    "nvidia/gpu/H100",
+  	    "intel/net/XXVDA2"
+	    ]
+    }
+  }
+}
+```
+
+## Virtual CPU fingerprinting
 
 When running on a virtualized host such as Amazon EC2 Nomad makes use of the
 `dmidecode` tool to detect CPU performance data. Some Linux distributions will
