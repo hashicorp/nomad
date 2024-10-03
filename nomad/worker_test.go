@@ -449,7 +449,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
 	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
