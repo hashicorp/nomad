@@ -471,11 +471,11 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 	// Check if it is trying to read into a secret directory
 	d.mu.RLock()
 	for _, dir := range d.TaskDirs {
-		if filepath.HasPrefix(p, dir.SecretsDir) {
+		if caseInsensitiveHasPrefix(p, dir.SecretsDir) {
 			d.mu.RUnlock()
 			return nil, fmt.Errorf("Reading secret file prohibited: %s", path)
 		}
-		if filepath.HasPrefix(p, dir.PrivateDir) {
+		if caseInsensitiveHasPrefix(p, dir.PrivateDir) {
 			d.mu.RUnlock()
 			return nil, fmt.Errorf("Reading private file prohibited: %s", path)
 		}
@@ -490,6 +490,11 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("can't seek to offset %q: %w", offset, err)
 	}
 	return f, nil
+}
+
+// CaseInsensitiveHasPrefix checks if the prefix is a case-insensitive prefix.
+func caseInsensitiveHasPrefix(s, prefix string) bool {
+	return strings.HasPrefix(strings.ToLower(s), strings.ToLower(prefix))
 }
 
 // BlockUntilExists blocks until the passed file relative the allocation
