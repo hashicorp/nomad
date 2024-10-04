@@ -11,13 +11,45 @@ import classic from 'ember-classic-decorator';
 @classic
 @tagName('')
 export default class LifecycleChartRow extends Component {
-  @computed('taskState.state')
-  get activeClass() {
-    if (this.taskState && this.taskState.state === 'running') {
-      return 'is-active';
+  get taskColor() {
+    let color;
+    if (this.taskState?.state === 'running') {
+      color = 'success';
+    }
+    if (this.taskState?.state === 'pending') {
+      color = 'neutral';
+    }
+    if (this.taskState?.state === 'dead') {
+      if (this.taskState?.failed) {
+        color = 'critical';
+      } else {
+        color = 'neutral';
+      }
+    }
+    return color;
+  }
+
+  get taskIcon() {
+    let icon;
+    if (this.taskState?.state === 'running') {
+      icon = 'running';
+    }
+    if (this.taskState?.state === 'pending') {
+      icon = 'test';
+    }
+    if (this.taskState?.state === 'dead') {
+      if (this.taskState?.failed) {
+        icon = 'alert-circle';
+      } else {
+        if (this.taskState?.startedAt) {
+          icon = 'check-circle';
+        } else {
+          icon = 'minus-circle';
+        }
+      }
     }
 
-    return undefined;
+    return icon;
   }
 
   @computed('taskState.state')
