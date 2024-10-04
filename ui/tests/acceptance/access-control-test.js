@@ -51,7 +51,8 @@ module('Acceptance | access control', function (hooks) {
       (t) => t.type === 'management'
     );
     const { secretId } = managementToken;
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
+    console.log('continuing on with test');
 
     assert.dom('[data-test-gutter-link="administration"]').exists();
 
@@ -79,7 +80,7 @@ module('Acceptance | access control', function (hooks) {
       (t) => t.type === 'management'
     );
     const { secretId } = managementToken;
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
     await Administration.visit();
     assert.dom('[data-test-sentinel-policies-card]').doesNotExist();
   });
@@ -92,7 +93,7 @@ module('Acceptance | access control', function (hooks) {
       (t) => t.type === 'management'
     );
     const { secretId } = managementToken;
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
     await Administration.visit();
 
     assert.dom('[data-test-sentinel-policies-card]').exists();
@@ -107,7 +108,7 @@ module('Acceptance | access control', function (hooks) {
       (t) => t.type === 'management'
     );
     const { secretId } = managementToken;
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
 
     await Administration.visit();
     assert.dom('[data-test-tokens-card]').exists();
@@ -140,7 +141,7 @@ module('Acceptance | access control', function (hooks) {
       (t) => t.type === 'management'
     );
     const { secretId } = managementToken;
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
 
     await Administration.visit();
 
