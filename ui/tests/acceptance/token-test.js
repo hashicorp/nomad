@@ -85,7 +85,7 @@ module('Acceptance | tokens', function (hooks) {
     );
     assert.ok(document.title.includes('Sign In'));
 
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
     assert.equal(
       window.localStorage.nomadTokenSecret,
       secretId,
@@ -112,7 +112,7 @@ module('Acceptance | tokens', function (hooks) {
     const requestPosition = server.pretender.handledRequests.length;
 
     await Tokens.visit();
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
 
     await JobDetail.visit({ id: job.id });
     await ClientDetail.visit({ id: node.id });
@@ -140,7 +140,7 @@ module('Acceptance | tokens', function (hooks) {
     );
 
     await Tokens.visit();
-    await Tokens.secret(bogusSecret).submit(this.owner);
+    await Tokens.secret(bogusSecret).submit();
 
     assert.equal(
       window.localStorage.nomadTokenSecret,
@@ -156,7 +156,7 @@ module('Acceptance | tokens', function (hooks) {
     const { secretId } = managementToken;
 
     await Tokens.visit();
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
 
     await percySnapshot(assert);
 
@@ -172,7 +172,7 @@ module('Acceptance | tokens', function (hooks) {
     policy.update('description', 'Make sure there is a description');
 
     await Tokens.visit();
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
 
     assert.ok(Tokens.successMessage, 'Token success message is shown');
     assert.notOk(Tokens.errorMessage, 'Token error message is not shown');
@@ -204,7 +204,7 @@ module('Acceptance | tokens', function (hooks) {
     assert.ok(find('.job-row'), 'Jobs found');
 
     await Tokens.visit();
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
 
     server.pretender.get('/v1/jobs/statuses', function () {
       return [200, {}, '[]'];
@@ -225,7 +225,7 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
 
     // Token with no TTL
-    await Tokens.secret(clientToken.secretId).submit(this.owner);
+    await Tokens.secret(clientToken.secretId).submit();
     assert
       .dom('[data-test-token-expiry]')
       .doesNotExist('No expiry shown for regular token');
@@ -236,7 +236,7 @@ module('Acceptance | tokens', function (hooks) {
     setTimeout(() => run.cancelTimers(), 500);
 
     // Token with TTL
-    await Tokens.secret(expiringToken.secretId).submit(this.owner);
+    await Tokens.secret(expiringToken.secretId).submit();
     assert
       .dom('[data-test-token-expiry]')
       .exists('Expiry shown for TTL-having token');
@@ -359,7 +359,7 @@ module('Acceptance | tokens', function (hooks) {
         run.cancelTimers();
       }, 5000);
     }, 500);
-    await Tokens.secret(nearlyExpiringToken.secretId).submit(this.owner);
+    await Tokens.secret(nearlyExpiringToken.secretId).submit();
   });
 
   test('when the ott query parameter is present upon application load it’s exchanged for a token', async function (assert) {
@@ -478,7 +478,7 @@ module('Acceptance | tokens', function (hooks) {
     // Expect to be signed in as a manager
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.management'
-    ).submit(this.owner);
+    ).submit();
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Manager');
     await Tokens.clear();
@@ -486,7 +486,7 @@ module('Acceptance | tokens', function (hooks) {
     // Expect to be signed in as a client
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.whateverlol'
-    ).submit(this.owner);
+    ).submit();
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText(
       `Token: ${
@@ -500,7 +500,7 @@ module('Acceptance | tokens', function (hooks) {
     // Expect to an error on bad JWT
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bad'
-    ).submit(this.owner);
+    ).submit();
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-error]').exists();
   });
@@ -798,7 +798,7 @@ module('Acceptance | tokens', function (hooks) {
       token = server.db.tokens.findBy(
         (t) => t.name === 'High Level Role Token'
       );
-      await Tokens.secret(token.secretId).submit(this.owner);
+      await Tokens.secret(token.secretId).submit();
 
       assert.dom('[data-test-token-role]').exists({ count: 1 });
       assert.dom('[data-test-role-name]').hasText('high-level');
@@ -814,7 +814,7 @@ module('Acceptance | tokens', function (hooks) {
       token = server.db.tokens.findBy(
         (t) => t.name === 'Policy And Role Token'
       );
-      await Tokens.secret(token.secretId).submit(this.owner);
+      await Tokens.secret(token.secretId).submit();
 
       assert.dom('[data-test-token-role]').exists({ count: 1 });
       assert.dom('[data-test-role-name]').hasText('reader');
@@ -837,7 +837,7 @@ module('Acceptance | tokens', function (hooks) {
       token = server.db.tokens.findBy(
         (t) => t.name === 'Multi Role And Policy Token'
       );
-      await Tokens.secret(token.secretId).submit(this.owner);
+      await Tokens.secret(token.secretId).submit();
 
       assert.equal(token.roleIds.length, 2);
       assert.equal(token.policyIds.length, 1);
@@ -858,7 +858,7 @@ module('Acceptance | tokens', function (hooks) {
       let token = server.db.tokens.findBy(
         (t) => t.name === 'Clientless Role Token'
       );
-      await Tokens.secret(token.secretId).submit(this.owner);
+      await Tokens.secret(token.secretId).submit();
 
       await visit('/clients');
       // Expect no rows, and a denied message
@@ -875,7 +875,7 @@ module('Acceptance | tokens', function (hooks) {
       token = server.db.tokens.findBy(
         (t) => t.name === 'High Level Role Token'
       );
-      await Tokens.secret(token.secretId).submit(this.owner);
+      await Tokens.secret(token.secretId).submit();
 
       await visit('/jobs');
       // Expect the Run button/link to work now
@@ -896,7 +896,7 @@ module('Acceptance | tokens', function (hooks) {
         (t) => t.type === 'management'
       );
       const { secretId } = managementToken;
-      await Tokens.secret(secretId).submit(this.owner);
+      await Tokens.secret(secretId).submit();
       await Administration.visitTokens();
     });
 

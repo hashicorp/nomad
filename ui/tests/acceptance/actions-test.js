@@ -105,7 +105,7 @@ module('Acceptance | actions', function (hooks) {
     assert.notOk(Actions.hasTitleActions, 'No actions dropdown by default');
     await Tokens.visit();
     const { secretId } = managementToken;
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
     await Actions.visitIndex({ id: 'actionable-job' });
     assert.ok(
       Actions.hasTitleActions,
@@ -118,7 +118,7 @@ module('Acceptance | actions', function (hooks) {
     // Sign out and sign back in as a token without alloc exec
     await Tokens.visit();
     await Tokens.clear();
-    await Tokens.secret(clientReaderToken.secretId).submit(this.owner);
+    await Tokens.secret(clientReaderToken.secretId).submit();
     await Actions.visitIndex({ id: 'actionable-job' });
     assert.notOk(
       Actions.hasTitleActions,
@@ -132,7 +132,7 @@ module('Acceptance | actions', function (hooks) {
     // Sign out and sign back in as a token with alloc exec
     await Tokens.visit();
     await Tokens.clear();
-    await Tokens.secret(allocExecToken.secretId).submit(this.owner);
+    await Tokens.secret(allocExecToken.secretId).submit();
     await Actions.visitIndex({ id: 'actionable-job' });
     assert.ok(
       Actions.hasTitleActions,
@@ -154,7 +154,7 @@ module('Acceptance | actions', function (hooks) {
 
     await Tokens.visit();
     const { secretId } = managementToken;
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
     await Actions.visitIndex({ id: 'actionable-job' });
     assert.ok(
       Actions.hasTitleActions,
@@ -286,7 +286,7 @@ module('Acceptance | actions', function (hooks) {
 
     await Tokens.visit();
     const { secretId } = managementToken;
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
     await Actions.visitAllocs({ id: 'actionable-job' });
 
     // Get the number of rows; each of them should have an actions dropdown
@@ -331,7 +331,7 @@ module('Acceptance | actions', function (hooks) {
     });
     await Tokens.visit();
     const { secretId } = managementToken;
-    await Tokens.secret(secretId).submit(this.owner);
+    await Tokens.secret(secretId).submit();
     await Actions.visitIndex({ id: 'actionable-job' });
     // Run an action to open the flyout; observe the dropdown there
     await Actions.titleActions.click();
