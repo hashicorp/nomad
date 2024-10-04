@@ -510,6 +510,20 @@ func (tr *TaskRunner) initLabels() {
 		},
 	}
 
+	if tr.clientConfig.IncludeAllocMetadataInMetrics {
+		combined := alloc.Job.CombinedTaskMeta(alloc.TaskGroup, tr.taskName)
+		for meta, metaValue := range combined {
+			if len(tr.clientConfig.AllowedMetadataKeysInMetrics) > 0 && !slices.Contains(tr.clientConfig.AllowedMetadataKeysInMetrics, meta) {
+				continue
+			}
+
+			tr.baseLabels = append(tr.baseLabels, metrics.Label{
+				Name:  strings.ReplaceAll(meta, "-", "_"),
+				Value: metaValue,
+			})
+		}
+	}
+
 	if tr.alloc.Job.ParentID != "" {
 		tr.baseLabels = append(tr.baseLabels, metrics.Label{
 			Name:  "parent_id",

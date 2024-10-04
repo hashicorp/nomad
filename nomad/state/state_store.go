@@ -2160,8 +2160,9 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	// Get all the historic jobs for this ID
-	all, err := s.jobVersionByID(txn, nil, job.Namespace, job.ID)
+	// Get all the historic jobs for this ID, except those with a VersionTag,
+	// as they should always be kept. They are in Version order, high to low.
+	all, err := s.jobVersionByID(txn, nil, job.Namespace, job.ID, false)
 	if err != nil {
 		return fmt.Errorf("failed to look up job versions for %q: %v", job.ID, err)
 	}
@@ -2188,21 +2189,10 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 		all[max-1], all[max] = all[max], all[max-1]
 	}
 
-	// Find the oldest non-tagged version to delete
-	deleteIdx := -1
-	for i := len(all) - 1; i >= max; i-- {
-		if all[i].VersionTag == nil {
-			deleteIdx = i
-			break
-		}
-	}
-
-	// If we found a non-tagged version to delete, delete it
-	if deleteIdx != -1 {
-		d := all[deleteIdx]
-		if err := txn.Delete("job_version", d); err != nil {
-			return fmt.Errorf("failed to delete job %v (%d) from job_version", d.ID, d.Version)
-		}
+	// Delete the oldest one
+	d := all[max]
+	if err := txn.Delete("job_version", d); err != nil {
+		return fmt.Errorf("failed to delete job %v (%d) from job_version", d.ID, d.Version)
 	}
 
 	return nil
@@ -2314,7 +2304,7 @@ func (s *StateStore) jobsByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix strin
 func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
 	txn := s.db.ReadTxn()
 
-	return s.jobVersionByID(txn, ws, namespace, id)
+	return s.jobVersionByID(txn, ws, namespace, id, true)
 }
 
 // JobVersionByTagName returns a Job if it has a Tag with the passed name
@@ -2335,7 +2325,7 @@ func (s *StateStore) JobVersionByTagName(ws memdb.WatchSet, namespace, id string
 // jobVersionByID is the underlying implementation for retrieving all tracked
 // versions of a job and is called under an existing transaction. A watch set
 // can optionally be passed in to add the job histories to the watch set.
-func (s *StateStore) jobVersionByID(txn *txn, ws memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
+func (s *StateStore) jobVersionByID(txn *txn, ws memdb.WatchSet, namespace, id string, includeTagged bool) ([]*structs.Job, error) {
 	// Get all the historic jobs for this ID
 	iter, err := txn.Get("job_version", "id_prefix", namespace, id)
 	if err != nil {
@@ -2354,6 +2344,10 @@ func (s *StateStore) jobVersionByID(txn *txn, ws memdb.WatchSet, namespace, id s
 		// Ensure the ID is an exact match
 		j := raw.(*structs.Job)
 		if j.ID != id {
+			continue
+		}
+
+		if !includeTagged && j.VersionTag != nil {
 			continue
 		}
 

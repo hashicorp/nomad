@@ -2251,7 +2251,7 @@ func (n *Node) Canonicalize() {
 		n.SchedulingEligibility = NodeSchedulingEligible
 	}
 
-	// COMPAT remove in 1.9+
+	// COMPAT remove in 1.10+
 	// In v1.7 we introduce Topology into the NodeResources struct which the client
 	// will fingerprint. Since the upgrade path must cover servers that get upgraded
 	// before clients which will send the old struct, we synthesize a pseudo topology
@@ -3262,9 +3262,9 @@ func (n *NodeResources) Copy() *NodeResources {
 		}
 	}
 
-	// COMPAT remove in 1.9+
+	// COMPAT remove in 1.10+
 	// apply compatibility fixups covering node topology
-	n.Compatibility()
+	newN.Compatibility()
 
 	return newN
 }
@@ -3326,7 +3326,7 @@ func (n *NodeResources) Merge(o *NodeResources) {
 		}
 	}
 
-	// COMPAT remove in 1.9+
+	// COMPAT remove in 1.10+
 	// apply compatibility fixups covering node topology
 	n.Compatibility()
 }
@@ -6347,9 +6347,24 @@ const (
 	ScalingPolicyTypeHorizontal = "horizontal"
 )
 
-func (p *ScalingPolicy) Canonicalize() {
+func (p *ScalingPolicy) Canonicalize(job *Job, tg *TaskGroup, task *Task) {
 	if p.Type == "" {
 		p.Type = ScalingPolicyTypeHorizontal
+	}
+
+	// during restore we canonicalize to update, but these values will already
+	// have been populated during submit and we don't have references to the
+	// job, group, and task
+	if job != nil && tg != nil {
+		p.Target = map[string]string{
+			ScalingTargetNamespace: job.Namespace,
+			ScalingTargetJob:       job.ID,
+			ScalingTargetGroup:     tg.Name,
+		}
+
+		if task != nil {
+			p.Target[ScalingTargetTask] = task.Name
+		}
 	}
 }
 
@@ -6437,23 +6452,6 @@ func (p *ScalingPolicy) Diff(p2 *ScalingPolicy) bool {
 	copy.CreateIndex = p.CreateIndex
 	copy.ModifyIndex = p.ModifyIndex
 	return !reflect.DeepEqual(*p, copy)
-}
-
-// TargetTaskGroup updates a ScalingPolicy target to specify a given task group
-func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy {
-	p.Target = map[string]string{
-		ScalingTargetNamespace: job.Namespace,
-		ScalingTargetJob:       job.ID,
-		ScalingTargetGroup:     tg.Name,
-	}
-	return p
-}
-
-// TargetTask updates a ScalingPolicy target to specify a given task
-func (p *ScalingPolicy) TargetTask(job *Job, tg *TaskGroup, task *Task) *ScalingPolicy {
-	p.TargetTaskGroup(job, tg)
-	p.Target[ScalingTargetTask] = task.Name
-	return p
 }
 
 func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
@@ -7050,7 +7048,7 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	}
 
 	if tg.Scaling != nil {
-		tg.Scaling.Canonicalize()
+		tg.Scaling.Canonicalize(job, tg, nil)
 	}
 
 	for _, service := range tg.Services {
@@ -8153,6 +8151,10 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	// Set the default timeout if it is not specified.
 	if t.KillTimeout == 0 {
 		t.KillTimeout = DefaultKillTimeout
+	}
+
+	for _, policy := range t.ScalingPolicies {
+		policy.Canonicalize(job, tg, t)
 	}
 
 	if t.Vault != nil {

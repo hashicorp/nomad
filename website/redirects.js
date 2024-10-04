@@ -89,4 +89,16 @@ module.exports = [
     destination: '/nomad/tools/autoscaling/agent/policy',
     permanent: true,
   },
+  // permanently remove /plugins/drivers/remote
+  {
+    source: '/nomad/plugins/drivers/remote/:slug*',
+    destination: 'nomad/plugins/drivers/',
+    permanent: true,
+  },
+  // permanently remove /plugins/drivers/remote
+  {
+    source: '/nomad/plugins/drivers/community/lxc',
+    destination: '/nomad/plugins/drivers/community/',
+    permanent: true,
+  },
 ]

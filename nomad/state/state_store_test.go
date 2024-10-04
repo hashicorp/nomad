@@ -2975,42 +2975,44 @@ func TestStatestore_JobVersionTag(t *testing.T) {
 		assertVersions(t, []uint64{2, 1, 0})
 
 		// tag 2 of them
-		applyTag(t, 0)
 		applyTag(t, 1)
+		applyTag(t, 2)
 		// nothing should change
 		assertVersions(t, []uint64{2, 1, 0})
 
-		// add 2 more, up to JobTrackedVersions (5)
-		upsertJob(t)
-		upsertJob(t)
-		assertVersions(t, []uint64{4, 3, 2, 1, 0})
+		// add 3 more, up to JobTrackedVersions (5) + 1 (6)
+		for range 3 {
+			upsertJob(t)
+		}
+		assertVersions(t, []uint64{5, 4, 3, 2, 1, 0})
 
 		// tag one more
-		applyTag(t, 2)
+		applyTag(t, 3)
 		// again nothing should change
-		assertVersions(t, []uint64{4, 3, 2, 1, 0})
+		assertVersions(t, []uint64{5, 4, 3, 2, 1, 0})
 	}
 
-	// removing a tag at this point should leave the version in place
+	// removing a tag at this point should leave the version in place,
+	// because we still have room within JobTrackedVersions
 	{
-		unsetTag(t, "v2")
-		assertVersions(t, []uint64{4, 3, 2, 1, 0})
+		unsetTag(t, "v3")
+		assertVersions(t, []uint64{5, 4, 3, 2, 1, 0})
 	}
 
-	// adding more versions should replace 2-4,
-	// and leave 0-1 in place because they are tagged
+	// adding more versions should replace 0,3-5
+	// and leave 1-2 in place because they are tagged
 	{
 		for range 10 {
 			upsertJob(t)
 		}
-		assertVersions(t, []uint64{14, 13, 12, 11, 10, 1, 0})
+		assertVersions(t, []uint64{15, 14, 13, 12, 11, 2, 1})
 	}
 
 	// untagging version 1 now should delete it immediately,
 	// since we now have more than JobTrackedVersions
 	{
 		unsetTag(t, "v1")
-		assertVersions(t, []uint64{14, 13, 12, 11, 10, 0})
+		assertVersions(t, []uint64{15, 14, 13, 12, 11, 2})
 	}
 
 	// test some error conditions
@@ -3034,10 +3036,10 @@ func TestStatestore_JobVersionTag(t *testing.T) {
 		// tag name already exists
 		err = state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
 			JobID:   job.ID,
-			Tag:     &structs.JobVersionTag{Name: "v0"},
+			Tag:     &structs.JobVersionTag{Name: "v2"},
 			Version: 10,
 		})
-		must.ErrorContains(t, err, fmt.Sprintf(`"v0" already exists on a different version of job %q`, job.ID))
+		must.ErrorContains(t, err, fmt.Sprintf(`"v2" already exists on a different version of job %q`, job.ID))
 	}
 
 	// deleting all versions should also delete tagged versions

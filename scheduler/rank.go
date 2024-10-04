@@ -506,7 +506,9 @@ NEXTNODE:
 							devices:    set.From(task.Resources.NUMA.GetDevices()),
 						}
 
-						offer, sumAffinities, err := devAllocator.createOffer(memory, device)
+						var offer *structs.AllocatedDeviceResource
+						var sumAffinities float64
+						offer, sumAffinities, err = devAllocator.createOffer(memory, device)
 						if offer == nil || err != nil {
 							devAllocator = devAllocatorSnapshot
 							taskResources.Devices = taskResourcesSnapshot
@@ -554,6 +556,7 @@ NEXTNODE:
 
 				// If preemption is not enabled, then this node is exhausted.
 				if !iter.evict {
+					// surface err from createOffer()
 					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
 					continue NEXTNODE
 				}

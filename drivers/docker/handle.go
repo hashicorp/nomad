@@ -95,7 +95,7 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	}
 	exec, err := h.dockerClient.ContainerExecCreate(ctx, h.containerID, createExecOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create exec object: %v", err)
 	}
 
 	execResult := &drivers.ExecTaskResult{ExitResult: &drivers.ExitResult{}}
@@ -105,17 +105,11 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 		Detach: false,
 		Tty:    false,
 	}
-	if err := h.dockerClient.ContainerExecStart(ctx, exec.ID, startOpts); err != nil {
-		return nil, err
-	}
 
 	// hijack exec output streams
-	hijacked, err := h.dockerClient.ContainerExecAttach(ctx, h.containerID, containerapi.ExecStartOptions{
-		Detach: false,
-		Tty:    false,
-	})
+	hijacked, err := h.dockerClient.ContainerExecAttach(ctx, exec.ID, startOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to attach to exec object: %w", err)
 	}
 
 	_, err = stdcopy.StdCopy(stdout, stderr, hijacked.Reader)
@@ -128,7 +122,7 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	execResult.Stderr = stderr.Bytes()
 	res, err := h.dockerClient.ContainerExecInspect(ctx, exec.ID)
 	if err != nil {
-		return execResult, err
+		return execResult, fmt.Errorf("failed to inspect exit code of exec object: %w", err)
 	}
 
 	execResult.ExitResult.ExitCode = res.ExitCode
@@ -292,12 +286,12 @@ func (h *taskHandle) run() {
 
 	h.startCpusetFixer()
 
-	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)
-	defer cancel()
-
 	var werr error
 	var exitCode containerapi.WaitResponse
-	exitCodeC, errC := h.infinityClient.ContainerWait(ctx, h.containerID, containerapi.WaitConditionNotRunning)
+	// this needs to use the background context because the container can
+	// outlive Nomad itself
+	exitCodeC, errC := h.infinityClient.ContainerWait(
+		context.Background(), h.containerID, containerapi.WaitConditionNotRunning)
 
 	select {
 	case exitCode = <-exitCodeC:
@@ -307,6 +301,9 @@ func (h *taskHandle) run() {
 	case werr = <-errC:
 		h.logger.Error("failed to wait for container; already terminated")
 	}
+
+	ctx, inspectCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer inspectCancel()
 
 	container, ierr := h.dockerClient.ContainerInspect(ctx, h.containerID)
 	oom := false
@@ -331,7 +328,10 @@ func (h *taskHandle) run() {
 	close(h.doneCh)
 
 	// Stop the container just incase the docker daemon's wait returned
-	// incorrectly.
+	// incorrectly. Container should have exited by now so kill_timeout can be
+	// ignored.
+	ctx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer stopCancel()
 	if err := h.dockerClient.ContainerStop(ctx, h.containerID, containerapi.StopOptions{
 		Timeout: pointer.Of(0),
 	}); err != nil {

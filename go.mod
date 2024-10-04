@@ -61,19 +61,19 @@ require (
 	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.9
 	github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.11
 	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.12
-	github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.11
+	github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.12
 	github.com/hashicorp/go-memdb v1.3.4
 	github.com/hashicorp/go-msgpack/v2 v2.1.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-netaddrs v0.1.0
 	github.com/hashicorp/go-plugin v1.6.1
-	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.4
+	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.9
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
 	github.com/hashicorp/go-set/v3 v3.0.0-alpha.1
 	github.com/hashicorp/go-sockaddr v1.0.6
 	github.com/hashicorp/go-syslog v1.0.0
 	github.com/hashicorp/go-uuid v1.0.3
-	github.com/hashicorp/go-version v1.6.0
+	github.com/hashicorp/go-version v1.7.0
 	github.com/hashicorp/golang-lru/v2 v2.0.1
 	github.com/hashicorp/hcl v1.0.1-vault-3
 	github.com/hashicorp/hcl/v2 v2.20.2-0.20240517235513-55d9c02d147d
@@ -129,7 +129,7 @@ require (
 	go.etcd.io/bbolt v1.3.9
 	go.uber.org/goleak v1.2.1
 	golang.org/x/crypto v0.27.0
-	golang.org/x/mod v0.18.0
+	golang.org/x/mod v0.21.0
 	golang.org/x/sync v0.8.0
 	golang.org/x/sys v0.25.0
 	golang.org/x/time v0.3.0
@@ -228,9 +228,9 @@ require (
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
 	github.com/hashicorp/go-secure-stdlib/awsutil v0.1.6 // indirect
-	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.7 // indirect
+	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.8 // indirect
 	github.com/hashicorp/go-secure-stdlib/reloadutil v0.1.1 // indirect
-	github.com/hashicorp/go-secure-stdlib/tlsutil v0.1.2 // indirect
+	github.com/hashicorp/go-secure-stdlib/tlsutil v0.1.3 // indirect
 	github.com/hashicorp/go-set/v2 v2.1.0 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/hashicorp/mdns v1.0.4 // indirect

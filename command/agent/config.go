@@ -969,17 +969,19 @@ type Telemetry struct {
 	InMemoryRetentionPeriod string        `hcl:"in_memory_retention_period"`
 	inMemoryRetentionPeriod time.Duration `hcl:"-"`
 
-	StatsiteAddr             string        `hcl:"statsite_address"`
-	StatsdAddr               string        `hcl:"statsd_address"`
-	DataDogAddr              string        `hcl:"datadog_address"`
-	DataDogTags              []string      `hcl:"datadog_tags"`
-	PrometheusMetrics        bool          `hcl:"prometheus_metrics"`
-	DisableHostname          bool          `hcl:"disable_hostname"`
-	UseNodeName              bool          `hcl:"use_node_name"`
-	CollectionInterval       string        `hcl:"collection_interval"`
-	collectionInterval       time.Duration `hcl:"-"`
-	PublishAllocationMetrics bool          `hcl:"publish_allocation_metrics"`
-	PublishNodeMetrics       bool          `hcl:"publish_node_metrics"`
+	StatsiteAddr                  string        `hcl:"statsite_address"`
+	StatsdAddr                    string        `hcl:"statsd_address"`
+	DataDogAddr                   string        `hcl:"datadog_address"`
+	DataDogTags                   []string      `hcl:"datadog_tags"`
+	PrometheusMetrics             bool          `hcl:"prometheus_metrics"`
+	DisableHostname               bool          `hcl:"disable_hostname"`
+	UseNodeName                   bool          `hcl:"use_node_name"`
+	CollectionInterval            string        `hcl:"collection_interval"`
+	collectionInterval            time.Duration `hcl:"-"`
+	PublishAllocationMetrics      bool          `hcl:"publish_allocation_metrics"`
+	PublishNodeMetrics            bool          `hcl:"publish_node_metrics"`
+	IncludeAllocMetadataInMetrics bool          `hcl:"include_alloc_metadata_in_metrics"`
+	AllowedMetadataKeysInMetrics  []string      `hcl:"allowed_metadata_keys_in_metrics"`
 
 	// PrefixFilter allows for filtering out metrics from being collected
 	PrefixFilter []string `hcl:"prefix_filter"`
@@ -1343,6 +1345,8 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
+	conf.Telemetry.IncludeAllocMetadataInMetrics = true
+	conf.Telemetry.AllowedMetadataKeysInMetrics = []string{}
 
 	if mode.consulMode {
 		conf.Consuls[0].ServiceIdentity = &config.WorkloadIdentityConfig{
@@ -2524,6 +2528,10 @@ func (t *Telemetry) Merge(b *Telemetry) *Telemetry {
 	if b.PublishAllocationMetrics {
 		result.PublishAllocationMetrics = true
 	}
+	if b.IncludeAllocMetadataInMetrics {
+		result.IncludeAllocMetadataInMetrics = true
+	}
+	result.AllowedMetadataKeysInMetrics = append(result.AllowedMetadataKeysInMetrics, b.AllowedMetadataKeysInMetrics...)
 	if b.CirconusAPIToken != "" {
 		result.CirconusAPIToken = b.CirconusAPIToken
 	}

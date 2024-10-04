@@ -48,7 +48,6 @@ job "test" {
         on_update = "ignore_warnings"
 
         args = [
-          "-c",
           "/local/ready.sh"
         ]
 
@@ -95,4 +94,3 @@ EOT
     }
   }
 }
-

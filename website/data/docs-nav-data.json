@@ -2005,21 +2005,8 @@
             "href": "/plugins/drivers/community/lightrun"
           },
           {
-            "title": "LXC",
-            "href": "/plugins/drivers/community/lxc"
-          },
-          {
             "title": "Pot",
             "href": "/plugins/drivers/community/pot"
-          },
-          {
-            "title": "Rkt",
-            "badge": {
-              "text": "Deprecated",
-              "type": "outlined",
-              "color": "neutral"
-            },
-            "href": "/plugins/drivers/community/rkt"
           },
           {
             "title": "Rookout",
@@ -2040,19 +2027,6 @@
           {
             "title": "Windows IIS",
             "href": "/plugins/drivers/community/nomad-iis"
-          }
-        ]
-      },
-      {
-        "title": "Remote",
-        "routes": [
-          {
-            "title": "Overview",
-            "href": "/plugins/drivers/remote"
-          },
-          {
-            "title": "ECS",
-            "href": "/plugins/drivers/remote/ecs"
           }
         ]
       }

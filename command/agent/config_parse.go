@@ -295,7 +295,7 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "plugin")
 	}
 
-	for _, k := range []string{"options", "meta", "chroot_env", "servers", "server_join"} {
+	for _, k := range []string{"options", "meta", "chroot_env", "servers", "server_join", "template"} {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, k)
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "client")
 	}
@@ -313,6 +313,12 @@ func extraKeys(c *Config) error {
 	for _, hn := range c.Client.HostNetworks {
 		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, hn.Name)
 		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "host_network")
+	}
+
+	// Remove Template extra keys
+	for _, t := range []string{"function_denylist", "disable_file_sandbox", "max_stale", "wait", "wait_bounds", "block_query_wait", "consul_retry", "vault_retry", "nomad_retry"} {
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, t)
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "template")
 	}
 
 	// Remove AuditConfig extra keys

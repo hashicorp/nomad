@@ -189,7 +189,7 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 		Policy:  map[string]interface{}{},
 		Enabled: true,
 	}
-	policy.TargetTaskGroup(job, job.TaskGroups[0])
+	policy.Canonicalize(job, job.TaskGroups[0], nil)
 	job.TaskGroups[0].Scaling = policy
 	return job, policy
 }

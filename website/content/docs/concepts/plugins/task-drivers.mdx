@@ -7,8 +7,7 @@ description: Learn how to author a Nomad task driver plugin.
 # Task Drivers
 
 Task drivers in Nomad are the runtime components that execute workloads. For
-a real world example of a Nomad task driver plugin implementation, see the [LXC
-driver source][lxcdriver].
+a real world example of a Nomad task driver plugin implementation, see the [exec2 driver][].
 
 ## Authoring Task Driver Plugins
 
@@ -103,30 +102,6 @@ The network isolation modes are:
   just the task.
 - `NetIsolationModeNone`: There is no network to isolate. This is used for
   task that the client manages remotely.
-
-#### Remote Task Drivers
-
-[Remote Task Drivers][rtd] should set `RemoteTasks` to `true`. Remote Task
-Drivers are task driver plugins that execute tasks on a different system than
-the Nomad client. This means the tasks lifecycle is distinct from the Nomad
-client's.
-
-For task driver plugin authors there are 2 important new behaviors when
-`RemoteTasks` is `true`:
-
-1. The `TaskHandle` returned by `StartTask` will be propagated to replacement
-   allocations if the Nomad client is drained or down. Nomad will call
-   `RecoverTask` instead of `StartTask` for remote tasks in replacement
-   allocations when a `TaskHandle` has been propagated from the previous
-   allocation.
-2. If the Nomad client managing a remote task is drained or if the allocation
-   was `lost`, the remote task is sent a special `DETACH` kill signal. This
-   indicates the plugin should stop managing the remote task, but _not_ stop
-   it.
-
-These behaviors are meant to keep remote tasks running even when the Nomad
-client managing them is shutdown. Remote tasks are stopped when the job is
-explicitly stopped like traditional tasks.
 
 ### `Fingerprint(context.Context) (<-chan *Fingerprint, error)`
 
@@ -265,15 +240,13 @@ The `ExecTask` function is used by the Nomad client to execute commands inside
 the task execution context. For example, the Docker driver executes commands
 inside the running container. `ExecTask` is called for Consul script checks.
 
-[lxcdriver]: https://github.com/hashicorp/nomad-driver-lxc
+[exec2 driver]: https://github.com/hashicorp/nomad-driver-exec2
 [driverplugin]: https://github.com/hashicorp/nomad/blob/v0.9.0/plugins/drivers/driver.go#L39-L57
 [skeletonproject]: https://github.com/hashicorp/nomad-skeleton-driver-plugin
 [baseplugin]: /nomad/docs/concepts/plugins/base
 [taskconfig]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskConfig
 [taskhandle]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskHandle
 [fifopackage]: https://godoc.org/github.com/hashicorp/nomad/client/lib/fifo
-[rtd]: /nomad/plugins/drivers/remote
 [landlock]: https://docs.kernel.org/userspace-api/landlock.html
 [unveil]: https://man.openbsd.org/unveil
 [users]: /nomad/docs/configuration/client#users-block
-

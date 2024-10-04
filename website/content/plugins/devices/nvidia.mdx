@@ -8,80 +8,34 @@ description: The Nvidia Device Plugin detects and makes Nvidia devices available
 
 Name: `nomad-device-nvidia`
 
-The Nvidia device plugin is used to expose Nvidia GPUs to Nomad.
+Use the NVIDIA device plugin to expose NVIDIA GPUs to Nomad. The driver
+automatically supports [Multi-Instance GPU (MIG)][mig].
+
+The NVIDIA device plugin uses [NVML] bindings to get data regarding available
+NVIDIA devices and then exposes them via [Fingerprint RPC]. The plugin detects
+whether the GPU has Multi-Instance GPU enabled, and when enabled, the plugin
+fingerprints all instances as individual GPUs. You may exclude GPUs from
+fingerprinting by setting the [`ignored_gpu_ids` field](#plugin-configuration).
 
 ## Fingerprinted Attributes
 
-<table>
-  <thead>
-    <tr>
-      <th>Attribute</th>
-      <th>Unit</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <tt>memory</tt>
-      </td>
-      <td>MiB</td>
-    </tr>
-    <tr>
-      <td>
-        <tt>power</tt>
-      </td>
-      <td>W (Watt)</td>
-    </tr>
-    <tr>
-      <td>
-        <tt>bar1</tt>
-      </td>
-      <td>MiB</td>
-    </tr>
-    <tr>
-      <td>
-        <tt>driver_version</tt>
-      </td>
-      <td>string</td>
-    </tr>
-    <tr>
-      <td>
-        <tt>cores_clock</tt>
-      </td>
-      <td>MHz</td>
-    </tr>
-    <tr>
-      <td>
-        <tt>memory_clock</tt>
-      </td>
-      <td>MHz</td>
-    </tr>
-    <tr>
-      <td>
-        <tt>pci_bandwidth</tt>
-      </td>
-      <td>MB/s</td>
-    </tr>
-    <tr>
-      <td>
-        <tt>display_state</tt>
-      </td>
-      <td>string</td>
-    </tr>
-    <tr>
-      <td>
-        <tt>persistence_mode</tt>
-      </td>
-      <td>string</td>
-    </tr>
-  </tbody>
-</table>
+| Attribute        | Unit     |
+|------------------|----------|
+| memory           | MiB      |
+| power            | W (Watt) |
+| bar1             | MiB      |
+| driver_version   | string   |
+| cores_clock      | MHz      |
+| memory_clock     | MHz      |
+| pci_bandwidth    | MB/s     |
+| display_state    | string   |
+| persistence_mode | string   |
 
 ## Runtime Environment
 
 The `nvidia-gpu` device plugin exposes the following environment variables:
 
-- `NVIDIA_VISIBLE_DEVICES` - List of Nvidia GPU IDs available to the task.
+- `NVIDIA_VISIBLE_DEVICES` - List of NVIDIA GPU IDs available to the task.
 
 ### Additional Task Configurations
 
@@ -101,7 +55,7 @@ In order to use the `nomad-device-nvidia` device driver the following prerequisi
 ### Container Toolkit Installation
 
 Follow the [NVIDIA Container Toolkit installation instructions][nvidia_container_toolkit]
-from Nvidia to prepare a machine to use docker containers with Nvidia GPUs. You should
+from NVIDIA to prepare a machine to use docker containers with NVIDIA GPUs. You should
 be able to run this simple command to test your environment and produce meaningful
 output.
 
@@ -135,13 +89,11 @@ config:
 
 ## Limitations
 
-The Nvidia integration only works with drivers who natively integrate with
-Nvidia's [container runtime
+The NVIDIA integration only works with drivers who natively integrate with
+NVIDIA's [container runtime
 library](https://github.com/NVIDIA/libnvidia-container).
 
-Nomad has tested support with the [`docker` driver][docker-driver]. Support for
-[`lxc`][lxc-driver] should be possible by installing the [Nvidia hook][nvidia_hook]
-but is not tested or documented by Nomad.
+Nomad has tested support with the [`docker` driver][docker-driver].
 
 ## Source Code & Compiled Binaries
 
@@ -275,14 +227,15 @@ Wed Jan 23 18:25:32 2019
 +-----------------------------------------------------------------------------+
 ```
 
-
+[NVML]: https://github.com/NVIDIA/go-nvml
+[Fingerprint RPC]:
+    /nomad/docs/concepts/plugins/devices#fingerprint-context-context-chan-fingerprintresponse-error
+[mig]: https://www.nvidia.com/en-us/technologies/multi-instance-gpu/
 [docker-driver]: /nomad/docs/drivers/docker 'Nomad docker Driver'
 [exec-driver]: /nomad/docs/drivers/exec 'Nomad exec Driver'
 [java-driver]: /nomad/docs/drivers/java 'Nomad java Driver'
-[lxc-driver]: /nomad/plugins/drivers/community/lxc 'Nomad lxc Driver'
 [`plugin`]: /nomad/docs/configuration/plugin
 [`plugin_dir`]: /nomad/docs/configuration#plugin_dir
-[nvidia_hook]: https://github.com/lxc/lxc/blob/master/hooks/nvidia
 [nvidia_plugin_download]: https://releases.hashicorp.com/nomad-device-nvidia/
 [nvidia_container_toolkit]: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
 [source]: https://github.com/hashicorp/nomad-device-nvidia
