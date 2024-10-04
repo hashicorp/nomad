@@ -8,6 +8,7 @@ import { computed } from '@ember/object';
 import { alias, reads } from '@ember/object/computed';
 import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
+import { waitFor } from '@ember/test-waiters';
 import { task, timeout } from 'ember-concurrency';
 import queryString from 'query-string';
 import classic from 'ember-classic-decorator';
@@ -39,11 +40,15 @@ export default class TokenService extends Service {
     }
   }
 
-  @task(function* () {
+  @task
+  @waitFor
+  *fetchSelfToken() {
+    console.log('starting token fetch');
     const TokenAdapter = getOwner(this).lookup('adapter:token');
     try {
       var token = yield TokenAdapter.findSelf();
       this.secret = token.secret;
+      console.log('finished token fetch');
       return token;
     } catch (e) {
       const errors = e.errors ? e.errors.mapBy('detail') : [];
@@ -55,8 +60,7 @@ export default class TokenService extends Service {
       }
       return null;
     }
-  })
-  fetchSelfToken;
+  }
 
   @reads('fetchSelfToken.lastSuccessful.value') selfToken;
 

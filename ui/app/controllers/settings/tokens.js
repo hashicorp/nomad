@@ -9,6 +9,7 @@ import Controller from '@ember/controller';
 import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
 import { action } from '@ember/object';
+import { buildWaiter } from '@ember/test-waiters';
 import classic from 'ember-classic-decorator';
 import { tracked } from '@glimmer/tracking';
 import Ember from 'ember';
@@ -17,6 +18,8 @@ import Ember from 'ember';
  * @type {RegExp}
  */
 const JWT_MATCH_EXPRESSION = /^[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+$/;
+
+const waiter = buildWaiter('controllers/settings/token:verify-token');
 
 @classic
 export default class Tokens extends Controller {
@@ -106,7 +109,9 @@ export default class Tokens extends Controller {
 
   @action
   async verifyToken() {
+    const wait = waiter.beginAsync();
     const { secret } = this;
+    console.log('Verifying token');
     /**
      * @type {import('../../adapters/token').default}
      */
@@ -116,6 +121,7 @@ export default class Tokens extends Controller {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
 
     const isJWT = secret.length > 36 && secret.match(JWT_MATCH_EXPRESSION);
+    console.log('Is JWT?', isJWT);
 
     if (isJWT) {
       const methodName = this.jwtAuthMethod;
@@ -155,9 +161,11 @@ export default class Tokens extends Controller {
       this.clearTokenProperties();
       this.token.set('secret', secret);
       this.set('secret', null);
+      console.log('Finding self');
 
       TokenAdapter.findSelf().then(
         () => {
+          console.log('Found self');
           // Clear out all data to ensure only data the new token is privileged to see is shown
           this.resetStore();
 
@@ -166,10 +174,12 @@ export default class Tokens extends Controller {
 
           this.signInStatus = 'success';
           this.token.set('tokenNotFound', false);
+          waiter.endAsync(wait);
         },
         () => {
           this.token.set('secret', undefined);
           this.signInStatus = 'failure';
+          waiter.endAsync(wait);
         }
       );
     }
