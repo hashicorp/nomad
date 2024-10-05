@@ -12,9 +12,9 @@ type OperatorRootCommand struct {
 
 func (*OperatorRootCommand) Help() string {
 	helpText := `
-	Usage: nomad operator root [options]
+Usage: nomad operator root <subcommand> [options] [args]
 
-	This command is accessed by using one of the subcommands below.
+  This command is accessed by using one of the subcommands below.
 	`
 
 	return strings.TrimSpace(helpText)
@@ -26,6 +26,6 @@ func (*OperatorRootCommand) Synopsis() string {
 
 func (f *OperatorRootCommand) Name() string { return "operator gossip" }
 
-func (f *OperatorRootCommand) Run(args []string) int {
+func (f *OperatorRootCommand) Run(_ []string) int {
 	return cli.RunResultHelp
 }

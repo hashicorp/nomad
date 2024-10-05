@@ -12,9 +12,9 @@ type OperatorGossipCommand struct {
 
 func (*OperatorGossipCommand) Help() string {
 	helpText := `
-	Usage: nomad operator gossip [options]
+Usage: nomad operator gossip <subcommand> [options] [args]
 	
-	This command is accessed by using one of the subcommands below.
+  This command is accessed by using one of the subcommands below.
 	`
 	return strings.TrimSpace(helpText)
 }
@@ -25,6 +25,6 @@ func (*OperatorGossipCommand) Synopsis() string {
 
 func (f *OperatorGossipCommand) Name() string { return "operator gossip" }
 
-func (f *OperatorGossipCommand) Run(args []string) int {
+func (f *OperatorGossipCommand) Run(_ []string) int {
 	return cli.RunResultHelp
 }
