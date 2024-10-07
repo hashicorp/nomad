@@ -33,8 +33,8 @@ job versions. You can [diff] and [revert] saved versions.
 
 ### Apply usage
 
-```shell
-nomad job tag apply [options] <job_name>
+```shell-session
+nomad job tag apply [options] <job_id>
 ```
 
 ### Apply options
@@ -45,20 +45,20 @@ nomad job tag apply [options] <job_name>
 
 ### Apply examples
 
-This example tags the latest version of the job named "job_store_site".
+This example tags the latest version of the job "ecommerce-site".
 
-```shell
-nomad job tag apply -name "My Golden Version" \
-		-description "The version we can roll back to if needed" \
-    job_store_site
+```shell-session
+nomad job tag apply -name "golden-version" \
+		-description "The version we can roll back to." \
+    ecommerce-site
 ```
 
-This example tags version 3 of the job named "job_store_site".
+This example tags version 3 of the job "ecommerce-site".
 
-```shell
+```shell-session
 nomad job tag apply -version 3 \
-      -name "My Golden Version" \
-      job_store_site
+      -name "golden-version" \
+      ecommerce-site
 ```
 
 ## Unset
@@ -67,8 +67,8 @@ Use `nomad job tag unset` to remove a tag from a job version. This command requi
 
 ### Unset usage
 
-```shell
-nomad job tag unset [options] <job_name> -name <tag>
+```shell-session
+nomad job tag unset [options] <job_id> -name <tag>
 ```
 
 ### Unset options
@@ -77,10 +77,10 @@ nomad job tag unset [options] <job_name> -name <tag>
 
 ### Examples
 
-This example removes the "My Golden Versions" tag from the "my_store_site" job.
+This example removes the "golden-version" tag from the "ecommerce-site" job.
 
-```shell
-nomad job tag unset my_store_site -name "My Golden Version"
+```shell-session
+nomad job tag unset ecommerce-site -name "golden-version"
 ```
 
 [diff]: /nomad/docs/commands/job/history/

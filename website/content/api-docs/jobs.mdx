@@ -2682,3 +2682,93 @@ WebSocket Request: /v1/job/actions-demo/action?action=weather&allocID=8614ed07-4
 # Toronto: ⛅️  -1°C
 {"stdout":{"data":"VG9yb250bzog4puF77iPICAtMcKwQw0K"}}
 ```
+
+## Create Job Version Tag
+
+This endpoint creates a tag for a job version.
+
+| Method | Path              | Produces           |
+| ------ | ----------------- | ------------------ |
+| `POST`  | `/v1/job/:job_id/versions/:tag_name/tag` | `application/json` |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - The ID of the job. Specify `job_id` as part
+  of the path.
+- `:tag_name` `(string: <required>)` - The new tag name for the
+  version specified in the payload. Specify `tag_name` as part of the path.
+- `Version`: `(int: <optional>)` - The job version number. If not
+  specified, Nomad tags the latest version. Specify `Version` in the payload.
+- `Description`: `(string: <optional>)` - The tag description. Specify `Description` in the payload.
+
+### Sample Payload
+
+```json
+{
+  "Version": 2,
+  "Description": "The version we can roll back to."
+}
+```
+
+### Sample Request
+
+This example creates a tag named "golden-version" for version two of the
+"ecommerce-site" job.
+
+```shell-session
+curl -X POST \
+ localhost:4646/v1/job/ecommerce-site/versions/golden-version/tag \
+ -H "Content-Type: application/json" -d \
+ '{"Version": 2, "Description": "The version we can roll back to."}'
+```
+
+### Sample Response
+
+```json
+{
+  "Name":"golden-version",
+  "Description":"The version we can roll back to.",
+  "TaggedTime":1728325495829793000,
+  "Index":361,
+  "LastContact":0,
+  "KnownLeader":false,
+  "NextToken":""}
+```
+
+## Delete Job Version Tag
+
+This endpoint deletes a job version tag.
+
+| Method | Path              | Produces           |
+| ------ | ----------------- | ------------------ |
+| `DELETE`  | `/v1/job/:job_id/versions/:tag_name/tag` | `application/json` |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - The ID of the job. Specify `job_id` as part of the path.
+- `:tag_name` `(string: <required>)` - The tag name. Specify `tag_name` as part of the path.
+
+### Sample Request
+
+This example deletes the tag named "golden-version" from the job "ecommerce-site".
+
+```shell-session
+curl -X DELETE localhost:4646/v1/job/ecommerce-site/versions/golden-version/tag -H "Content-Type: application/json"
+```
+
+### Sample Response
+
+```json
+{
+  "EvalID":"",
+  "EvalCreateIndex":0,
+  "JobModifyIndex":0,
+  "VolumeEvalID":"",
+  "VolumeEvalIndex":0,
+  "Index":0,
+  "LastContact":0,
+  "KnownLeader":false,
+  "NextToken":""
+}
+```
+
