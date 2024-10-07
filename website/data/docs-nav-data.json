@@ -664,6 +664,10 @@
             "path": "commands/job/stop"
           },
           {
+            "title": "tag",
+            "path": "commands/job/tag"
+          },
+          {
             "title": "validate",
             "path": "commands/job/validate"
           }
